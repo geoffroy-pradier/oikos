@@ -59,6 +59,28 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  'game.ticks': {
+    world_id: string;
+    /** `bigint` : lu en texte, écrit en nombre (un indice de tick tient dans un entier sûr). */
+    index: ColumnType<string, number, never>;
+    scheduled_at: Date;
+    seed: string;
+    config_version_id: string;
+    daily_close: boolean;
+    season_switch: boolean;
+    summary: ColumnType<unknown, string, never>;
+    finished_at: Generated<Date>;
+  };
+  'telemetry.tick_runs': {
+    id: Generated<string>;
+    world_id: string;
+    tick_index: ColumnType<string, number, never>;
+    status: 'done' | 'skipped' | 'failed';
+    duration_ms: number;
+    error: string | null;
+    created_at: Generated<Date>;
+  };
+
   'config.versions': {
     id: Generated<string>;
     number: GeneratedAlways<number>;
