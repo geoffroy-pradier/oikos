@@ -3,13 +3,18 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { createRateLimiter, unlimited } from './rate-limit';
 
 // Tests d'intégration de la route de commandes contre Supabase local, avec la commande d'exemple `house.rename`.
 // Les garanties du registre lui-même (verrou, isolation, annulation) sont testées dans registry.integration.test.ts.
 const db = createDb(
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
 );
-const app = createApp({ db, verifyToken: async (token) => (token.length === 36 ? token : null) });
+const app = createApp({
+  db,
+  verifyToken: async (token) => (token.length === 36 ? token : null),
+  rateLimiter: unlimited,
+});
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
 const users: string[] = [];
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
@@ -243,5 +248,42 @@ describe('cadre de commandes : house.rename de bout en bout', () => {
       { error: { code: 'VALIDATION_FAILED' } },
     ]);
     expect(await logOf(house.userId)).toEqual([]);
+  });
+
+  it('limite le débit par compte et par commande, sans rien exécuter ni journaliser au-delà', async () => {
+    const rateLimiter = createRateLimiter({ limit: 2, windowMs: 60_000 });
+    const limited = createApp({ db, verifyToken: async (token) => token, rateLimiter });
+    const [house, other] = [await newHouse(), await newHouse()];
+    const send = (userId: string, command = 'house.rename') =>
+      limited.request(`/api/commands/${command}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${userId}`,
+          'Idempotency-Key': randomUUID(),
+        },
+        body: JSON.stringify({ name: `Rapide ${letters()}` }),
+      });
+    // Une commande inconnue ne consomme aucun quota et ne crée aucun compteur.
+    for (let attempt = 0; attempt < 5; attempt++)
+      expect((await send(house.userId, `house.unknown${attempt}`)).status).toBe(404);
+    expect(rateLimiter.size()).toBe(0);
+
+    const responses = [
+      await send(house.userId),
+      await send(house.userId),
+      await send(house.userId),
+    ];
+    expect(responses.map((res) => res.status)).toEqual([200, 200, 429]);
+    expect(await responses[2]?.json()).toMatchObject({
+      ok: false,
+      error: { code: 'RATE_LIMITED' },
+    });
+    expect(Number(responses[2]?.headers.get('Retry-After'))).toBeGreaterThan(0);
+    expect(await logOf(house.userId)).toHaveLength(2);
+    // Ni une autre commande du même compte, ni un autre compte ne sont pénalisés.
+    expect((await send(house.userId, 'house.create')).status).not.toBe(429);
+    expect((await send(other.userId)).status).toBe(200);
+    expect(rateLimiter.size()).toBe(3);
   });
 });

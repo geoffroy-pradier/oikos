@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { createDb } from '@oikos/db';
 import { createApp } from './app';
 import { tokenVerifierFromEnv } from './auth';
+import { createRateLimiter, rateLimitFromEnv } from './rate-limit';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -12,6 +13,7 @@ function requireEnv(name: string): string {
 const app = createApp({
   db: createDb(requireEnv('DATABASE_URL')),
   verifyToken: tokenVerifierFromEnv(process.env),
+  rateLimiter: createRateLimiter(rateLimitFromEnv(process.env)),
 });
 const port = Number(process.env['API_PORT'] ?? 8787);
 serve({ fetch: app.fetch, port }, () => console.log(`OIKOS API listening on :${port}`));
