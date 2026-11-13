@@ -68,6 +68,9 @@
     "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
     "HOUSE_NOT_FOUND": "Vous n'avez pas encore fondé de maison.",
     "SITE_NOT_FOUND": "Ce site est introuvable.",
+    "GOOD_NOT_FOUND": "Ce bien n'existe pas.",
+    "INSUFFICIENT_STOCK": "Stock libre insuffisant pour cette vente.",
+    "INSUFFICIENT_FUNDS": "Trésorerie insuffisante pour cet achat.",
     "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé."
   },
   "shell": {

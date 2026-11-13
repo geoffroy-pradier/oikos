@@ -3,4 +3,5 @@ export * from './command';
 export * from './errors';
 export * from './events';
 export * from './house';
+export * from './market';
 export * from './site';
