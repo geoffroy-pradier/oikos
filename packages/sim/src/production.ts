@@ -34,10 +34,15 @@ export function accrueProduction({
     if (!Number.isSafeInteger(value) || value <= 0)
       throw new RangeError(`${name} must be a positive integer`);
   }
+  if (Number.isNaN(since.getTime()) || Number.isNaN(now.getTime()))
+    throw new RangeError('Invalid date');
+  if (!Number.isSafeInteger(maxCycles * outputPerCycle))
+    throw new RangeError('Site capacity is too large');
   const cycleMs = cycleMinutes * MINUTE_MS;
   const elapsed = Math.floor((now.getTime() - since.getTime()) / cycleMs);
   if (elapsed <= 0) return { cycles: 0, quantity: 0, since };
-  if (elapsed > maxCycles) {
+  // Dès que le site est plein, le temps entamé au-delà n'est pas conservé : un site plein ne produit plus.
+  if (elapsed >= maxCycles) {
     // Site plein : la production s'est arrêtée. Un nouveau cycle commence à la collecte.
     return { cycles: maxCycles, quantity: maxCycles * outputPerCycle, since: now };
   }
