@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import type { AdminRole } from '@oikos/contracts';
 import { createDb } from '@oikos/db';
 import { nextDailyClose } from '@oikos/sim';
@@ -34,6 +35,9 @@ async function newUser(role?: AdminRole, grantedBy: string | null = null): Promi
 let root: string;
 let designer: string;
 beforeAll(async () => {
+  // Comme au démarrage de l'API : la configuration initiale existe et est active avant toute publication.
+  // Sans cela, sur une base neuve, une version publiée ici ferait croire aux autres suites qu'elle l'est déjà.
+  await ensureInitialConfig(db, INITIAL_CONFIG);
   root = await newUser('super_admin');
   designer = await newUser('game_designer', root);
 });
