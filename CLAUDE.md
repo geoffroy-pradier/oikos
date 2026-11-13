@@ -43,8 +43,9 @@ Tu travailles sans attendre de validation humaine, dans cet ordre :
 4. Écris les tests en même temps que le code. Les critères d'acceptation du ticket doivent être couverts.
 5. Lance en local `pnpm lint`, `pnpm typecheck`, `pnpm test` jusqu'au vert.
 6. Ouvre une demande de fusion de moins de 400 lignes modifiées (hors fichiers générés), qui référence le ticket (`Closes #N`). Découpe si c'est plus gros.
-7. Active la fusion automatique en squash : `gh pr merge --auto --squash`, ou l'outil de fusion automatique de la session si cette commande est refusée (sessions cloud).
-8. Si l'intégration continue échoue, corrige sur la même branche. Trois échecs de suite sur la même cause : pose le label `blocked`, explique dans le ticket, passe au suivant.
+7. Attends la fin du contrôle `ci` sur la demande de fusion. Le dépôt n'a pas de protection de branche : c'est toi qui garantis qu'aucune fusion ne part avec un contrôle rouge, en cours ou absent.
+8. Si `ci` est vert et que la relecture (section Revue) n'a laissé aucun point ouvert, fusionne toi-même en squash (outil de fusion de la session, ou `gh api -X PUT repos/{owner}/{repo}/pulls/{n}/merge -f merge_method=squash`), puis supprime la branche. Ne pousse jamais directement sur `main`.
+   Si `ci` échoue, corrige sur la même branche. Trois échecs de suite sur la même cause : pose le label `blocked`, explique dans le ticket, passe au suivant.
 9. Une fois fusionné, passe au ticket suivant.
 
 Quand tous les tickets d'une phase sont fermés, lis `docs/specs/17-feuille-de-route.md`, vérifie le
