@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(36);
 
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-0000000000c1', '{}');
 insert into game.ticks (world_id, index, scheduled_at, seed, config_version_id, daily_close, season_switch) values
@@ -31,8 +31,33 @@ select throws_ok($$insert into game.ticks (world_id, index, scheduled_at, seed, 
   values ('01900000-0000-7000-8000-000000000001', 104, now(), 'graine-de-test-0007', '00000000-0000-7000-8000-0000000000c1', false, false, '[]')$$,
   '23514', null, 'le résumé est un objet');
 
+-- Chaque colonne obligatoire l'est réellement : graine, version de configuration et instant sont toujours enregistrés.
+select throws_ok(
+  format($$insert into game.ticks (world_id, index, scheduled_at, seed, config_version_id, daily_close, season_switch, summary)
+    select %s from (select '01900000-0000-7000-8000-000000000001'::uuid as world_id, 200 as index, now() as scheduled_at, 'graine-de-test-0100' as seed,
+      '00000000-0000-7000-8000-0000000000c1'::uuid as config_version_id, false as daily_close, false as season_switch, '{}'::jsonb as summary) t$$,
+    (select string_agg(case when c = col then 'null' else c end, ', ' order by ord)
+     from unnest(array['world_id', 'index', 'scheduled_at', 'seed', 'config_version_id', 'daily_close', 'season_switch', 'summary']) with ordinality as cols(c, ord))),
+  '23502', null, format('game.ticks.%s est obligatoire', col))
+from unnest(array['world_id', 'index', 'scheduled_at', 'seed', 'config_version_id', 'daily_close', 'season_switch', 'summary']) as col;
+select throws_ok($$insert into game.ticks (world_id, index, scheduled_at, seed, config_version_id, daily_close, season_switch)
+  values (game.uuid_v7(), 201, now(), 'graine-de-test-0101', '00000000-0000-7000-8000-0000000000c1', false, false)$$, '23503', null, 'monde inconnu refusé');
+select throws_ok($$insert into game.ticks (world_id, index, scheduled_at, seed, config_version_id, daily_close, season_switch)
+  values ('01900000-0000-7000-8000-000000000001', 202, now(), '123456789012345', '00000000-0000-7000-8000-0000000000c1', false, false)$$, '23514', null, 'graine de 15 caractères refusée');
+select throws_ok(
+  format($$insert into telemetry.tick_runs (world_id, tick_index, status, duration_ms)
+    select %s from (select '01900000-0000-7000-8000-000000000001'::uuid as world_id, 1 as tick_index, 'done' as status, 1 as duration_ms) t$$,
+    (select string_agg(case when c = col then 'null' else c end, ', ' order by ord)
+     from unnest(array['world_id', 'tick_index', 'status', 'duration_ms']) with ordinality as cols(c, ord))),
+  '23502', null, format('telemetry.tick_runs.%s est obligatoire', col))
+from unnest(array['world_id', 'tick_index', 'status', 'duration_ms']) as col;
+
 -- Un tick joué ne se réécrit pas : c'est la base du rejeu et de l'audit.
 select throws_ok($$update game.ticks set seed = 'graine-modifiee-0001'$$, '23001', 'game.ticks is append-only', 'tick non modifiable');
+select throws_ok(format('update game.ticks set %s', change), '23001', null, format('tick non modifiable : %s', change))
+from unnest(array[
+  'config_version_id = config_version_id', $$summary = '{"x": 1}'$$, 'scheduled_at = now()', 'daily_close = not daily_close', 'index = index + 1'
+]) as change;
 select throws_ok('delete from game.ticks', '23001', null, 'tick non supprimable');
 select throws_ok('truncate game.ticks', '23001', null, 'ticks non vidables');
 

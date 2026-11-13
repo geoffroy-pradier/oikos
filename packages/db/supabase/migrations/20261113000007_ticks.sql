@@ -16,7 +16,8 @@ create table if not exists game.ticks (
   season_switch boolean not null,
   -- Résumé déterministe des effets du tick, comparé lors d'un rejeu.
   summary jsonb not null default '{}' check (jsonb_typeof(summary) = 'object'),
-  finished_at timestamptz not null default now(),
+  -- Horloge réelle à l'écriture de la ligne (et non début de la transaction).
+  finished_at timestamptz not null default clock_timestamp(),
   primary key (world_id, index),
   -- Une bascule de saison a toujours lieu à une clôture quotidienne.
   constraint ticks_season_switch_at_close check (daily_close or not season_switch)
@@ -32,6 +33,7 @@ create trigger ticks_no_truncate before truncate on game.ticks
 -- Télémétrie : une ligne par tentative d'exécution, réussie ou non, avec sa durée.
 create table if not exists telemetry.tick_runs (
   id uuid primary key default game.uuid_v7(),
+  -- Sans clé étrangère : la télémétrie s'écrit hors transaction et doit survivre à tout, y compris à un monde inconnu.
   world_id uuid not null,
   tick_index bigint not null,
   -- `done` : tick appliqué. `skipped` : déjà joué, rien n'a été refait. `failed` : erreur, rien n'a été écrit.
