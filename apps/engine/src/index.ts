@@ -7,3 +7,4 @@ export {
   type TickRequest,
   type TickStep,
 } from './tick';
+export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './scheduler';

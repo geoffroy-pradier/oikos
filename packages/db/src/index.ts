@@ -104,8 +104,12 @@ export interface GameDatabase {
 export type Db = Kysely<GameDatabase>;
 
 export function createDb(connectionString: string, pool: { max?: number } = {}): Db {
+  const connections = new pg.Pool({ connectionString, ...pool });
+  // Une connexion inactive fermée par Postgres (redémarrage, bascule) émet `error` sur le pool : sans
+  // écouteur, le processus s'arrêterait. Le pool rouvre une connexion à la requête suivante.
+  connections.on('error', (error) => console.error('Database pool error', error));
   return new Kysely<GameDatabase>({
-    dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString, ...pool }) }),
+    dialect: new PostgresDialect({ pool: connections }),
   });
 }
 
