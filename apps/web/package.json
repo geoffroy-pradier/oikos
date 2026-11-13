@@ -23,6 +23,8 @@
   "devDependencies": {
     "@oikos/config": "workspace:*",
     "@oikos/db": "workspace:*",
+    "@oikos/engine": "workspace:*",
+    "@oikos/sim": "workspace:*",
     "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

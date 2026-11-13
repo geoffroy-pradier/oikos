@@ -4,6 +4,8 @@ import {
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
+  type MarketPlaceOrderInput,
+  type MarketPlaceOrderOutput,
   type SiteCollectOutput,
 } from '@oikos/contracts';
 
@@ -49,3 +51,10 @@ export const createHouse = (input: HouseCreateInput, accessToken: string) =>
 
 export const collectSite = (siteId: string, accessToken: string) =>
   sendCommand<SiteCollectOutput>('site.collect', { siteId }, accessToken);
+
+/** `idempotencyKey` : la même clé tant que la même intention n'a pas reçu de réponse (voir `Agora.tsx`). */
+export const placeOrder = (
+  input: MarketPlaceOrderInput,
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<MarketPlaceOrderOutput>('market.placeOrder', input, accessToken, idempotencyKey);

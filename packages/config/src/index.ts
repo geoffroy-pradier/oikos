@@ -1,5 +1,5 @@
 /** Schémas et valeurs d'équilibrage. Aucune constante d'équilibrage ne vit ailleurs que dans ce paquet. */
-import initial from './values/initial.json';
+import initial from './values/initial.json' with { type: 'json' };
 
 export * from './schema';
 export * from './store';
