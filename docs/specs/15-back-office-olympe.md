@@ -39,6 +39,8 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 | Support | Tickets, fiche joueur, compensation sous plafond |
 | Observateur | Lecture seule des tableaux de bord |
 
+Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux fonctions reçoit le rôle le plus large des deux ; le cumul sera rouvert si les modérateurs bénévoles le demandent.
+
 ## 15.4 Exigences de sécurité
 
 - Double authentification obligatoire, session courte, accès restreint par VPN ou liste d'adresses.

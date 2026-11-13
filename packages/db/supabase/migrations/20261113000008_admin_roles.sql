@@ -1,5 +1,5 @@
 -- Rôles du back-office Olympe (docs/specs/15-back-office-olympe.md, 15.3 ; ticket 10).
--- Un compte sans ligne ici n'a aucun accès au back-office. Les rôles ne se modifient que par des
+-- Un compte sans ligne ici n'a aucun accès au back-office. Un seul rôle par compte en v0 (pas de cumul). Les rôles ne se modifient que par des
 -- commandes d'administration, journalisées comme les commandes de jeu.
 
 create table if not exists admin.roles (
@@ -10,9 +10,11 @@ create table if not exists admin.roles (
   -- Compte qui a accordé le rôle ; absent pour le tout premier super-administrateur, créé par un humain en base.
   granted_by uuid references auth.users (id),
   granted_at timestamptz not null default now(),
-  constraint roles_not_self_granted check (granted_by is distinct from user_id)
+  constraint roles_not_self_granted check (granted_by is distinct from user_id),
+  -- Seul un super-administrateur peut exister sans avoir été nommé par quelqu'un.
+  constraint roles_granted_unless_root check (granted_by is not null or role = 'super_admin')
 );
 
--- Non exposé aux clients : règles par ligne actives, aucune règle, aucun droit. L'API de jeu lit cette table
--- avec son rôle de service ; un joueur ne peut ni la lire ni s'y inscrire.
+-- Non exposé aux clients : règles par ligne actives, aucune règle, aucun droit pour `anon`, `authenticated`
+-- ni `service_role`. Seule l'API de jeu, par sa connexion directe à la base, lit et écrit cette table.
 alter table admin.roles enable row level security;
