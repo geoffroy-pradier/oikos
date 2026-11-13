@@ -33,7 +33,7 @@ Chaque voie a son arbre de compétences du chef de maison (30 nœuds par arbre, 
 
 ## Progression
 
-1. **Métèque (jours 1 à 3).** Tutoriel guidé par un mentor : une parcelle, un atelier, une première vente à l'agora.
+1. **Métèque (jours 1 à 3).** Tutoriel guidé par un mentor : une parcelle, un atelier, une première vente à l'agora. À la fondation, la maison reçoit une dotation en monnaie et un premier site de production primaire, exploitable sans rien acheter (paramètres du back-office : 3 000 oboles et un champ de blé au départ) ; l'atelier vient ensuite.
 2. **Citoyen (semaine 1).** Citoyenneté, droit de vote, choix du dieu protecteur, premier intendant.
 3. **Notable (mois 1).** Plusieurs sites, un navire, accès au crédit, première magistrature mineure.
 4. **Grande maison (mois 2 à 4).** Filière intégrée ou banque, présence dans plusieurs cités, liturgies.

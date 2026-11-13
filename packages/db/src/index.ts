@@ -59,6 +59,42 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  /** Comptes de monnaie : le solde ne change que par `game.ledger_lines` (déclencheur). */
+  'game.accounts': {
+    id: Generated<string>;
+    world_id: string;
+    kind: 'house' | 'system';
+    house_id: string | null;
+    system_key: string | null;
+    allow_negative: Generated<boolean>;
+    /** `bigint` : lu en texte. */
+    balance: ColumnType<string, never, never>;
+    created_at: Generated<Date>;
+  };
+  'game.ledger_entries': {
+    id: Generated<string>;
+    world_id: string;
+    kind: string;
+    meta: ColumnType<unknown, string | undefined, never>;
+    created_at: Generated<Date>;
+  };
+  /** Montant en oboles : positif pour un crédit, négatif pour un débit. */
+  'game.ledger_lines': {
+    id: Generated<string>;
+    entry_id: string;
+    account_id: string;
+    amount: ColumnType<string, number, never>;
+  };
+  'game.sites': {
+    id: Generated<string>;
+    world_id: string;
+    house_id: string;
+    city_id: string;
+    recipe_id: string;
+    cycle_started_at: Generated<Date>;
+    created_at: Generated<Date>;
+  };
+
   'game.ticks': {
     world_id: string;
     /** `bigint` : lu en texte, écrit en nombre (un indice de tick tient dans un entier sûr). */
