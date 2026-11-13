@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Les ports de Supabase local (54320 à 54329) sont dans la plage éphémère de Linux : une connexion
+      # sortante du runner (téléchargement, tirage d'image) peut en occuper un et faire échouer le démarrage.
+      # On les réserve avant toute autre étape : le noyau ne les attribue plus aux connexions sortantes.
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+
       - uses: actions/checkout@v4
 
       # Tant que le monorepo n'est pas initialisé (ticket 1), il n'y a rien à vérifier.
@@ -50,9 +56,9 @@ jobs:
       # pgTAP sur Supabase local : migrations rejouées depuis zéro, puis tests de schéma et de règles par ligne.
       - name: Start Supabase
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
-        # Les ports de Supabase local (54321 et suivants) sont dans la plage éphémère de Linux : une connexion
-        # sortante du runner peut en occuper un par hasard. On réessaie une fois après un arrêt propre.
-        run: pnpm db:start || (pnpm db:stop && sleep 5 && pnpm db:start)
+        # Filet de sécurité : une connexion de courte durée ouverte avant la réservation peut encore tenir un
+        # port. En cas d'échec, on journalise l'occupant avant de réessayer une fois.
+        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
 
       - name: Test database
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
