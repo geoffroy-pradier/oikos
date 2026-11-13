@@ -29,7 +29,8 @@ export interface AdvanceRequest {
 }
 
 /**
- * Fait avancer un monde jusqu'au tick en cours, un tick après l'autre et dans l'ordre. Deux moteurs
+ * Fait avancer un monde jusqu'au tick en cours, un tick après l'autre et dans l'ordre, et rend les
+ * indices des ticks que cet appel a lui-même joués. Deux moteurs
  * peuvent s'exécuter en même temps : chaque tick n'est appliqué qu'une fois (`runTick`), et aucun
  * ne passe au tick suivant avant que le précédent soit joué.
  */
@@ -44,6 +45,10 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
     .limit(1)
     .executeTakeFirst();
   const current = tickIndexAt(now, tickMinutes);
+  if (last && current < Number(last.index)) {
+    // Horloge qui recule, ou durée de tick modifiée : rien à jouer, mais cela ne doit pas passer inaperçu.
+    console.warn(`World ${worldId}: current tick ${current} is behind last played ${last.index}`);
+  }
   if (!last) {
     // Monde neuf : si la configuration n'était pas encore en vigueur au début du tick en cours
     // (premier démarrage), le monde commence au tick suivant.
@@ -59,7 +64,7 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
   const played: number[] = [];
   for (const index of dueTicks(last ? Number(last.index) : null, current)) {
     // Un échec arrête le rattrapage : le tick fautif sera repris au prochain passage, jamais sauté.
-    await runTick(db, {
+    const outcome = await runTick(db, {
       worldId,
       index,
       scheduledAt: tickStart(index, tickMinutes),
@@ -67,7 +72,8 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
       steps,
       now: () => now,
     });
-    played.push(index);
+    // Un tick déjà joué par un autre moteur n'est pas compté ici.
+    if (outcome.status === 'done') played.push(index);
   }
   return played;
 }

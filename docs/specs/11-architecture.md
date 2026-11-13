@@ -24,7 +24,7 @@ Les lectures et le temps réel passent par Supabase, toute action de jeu par l'A
 | Magasins d'applications | Capacitor, en phase 4 | Emballe la même application web |
 | Site vitrine | Astro, statique | Référencement, coût nul |
 | API de jeu | Node.js 22, Hono, Zod, Kysely | Commandes typées, transactions SQL explicites |
-| Moteur | Node.js 22, pg-boss pour les tâches, pg\_cron pour l'horloge | Pas de Redis à exploiter au départ |
+| Moteur | Node.js 22, pg-boss pour les tâches et pour l'horloge (une tâche planifiée chaque minute joue les ticks échus) | Pas de Redis à exploiter au départ |
 | Cœur de simulation | Paquet TypeScript pur, sans entrée-sortie | Testé, rejouable, partagé avec le simulateur d'équilibrage |
 | Données | PostgreSQL de Supabase, extensions pgvector, pg\_cron, pg\_partman | Une seule base, sauvegarde simple |
 | Authentification | Supabase Auth : e-mail, lien magique, Google, Apple, Discord | Standard, double authentification pour le back-office |

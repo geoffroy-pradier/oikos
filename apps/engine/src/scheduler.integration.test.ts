@@ -9,7 +9,7 @@ import { createDb } from '@oikos/db';
 import { tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { advanceWorld } from './scheduler';
+import { advanceAllWorlds, advanceWorld } from './scheduler';
 import type { TickStep } from './tick';
 
 const db = createDb(
@@ -60,6 +60,16 @@ describe('avance d’un monde', () => {
     expect(await advance(at(first + 3))).toEqual([first + 1, first + 2, first + 3]);
     expect(order).toEqual([first, first + 1, first + 2, first + 3]);
     expect(await playedOf(worldId)).toEqual(order);
+    // Le passage suivant repart du dernier tick joué, pas du premier.
+    expect(await advance(at(first + 4))).toEqual([first + 4]);
+    // Un moteur seul ne retente jamais un tick déjà joué.
+    const skipped = await db
+      .selectFrom('telemetry.tick_runs')
+      .select('tick_index')
+      .where('world_id', '=', worldId)
+      .where('status', '=', 'skipped')
+      .execute();
+    expect(skipped).toEqual([]);
   });
 
   it('monde neuf sans configuration en vigueur au début du tick en cours : commence au tick suivant', async () => {
@@ -115,16 +125,44 @@ describe('avance d’un monde', () => {
         },
       },
     ];
-    const advance = () => advanceWorld(db, { worldId, now: at(first + 4), config: loader, steps });
-    await advance().then(() => undefined);
-    await sql`select 1`.execute(db);
-    const again = await Promise.all([advance(), advance()]);
-    expect(again).toEqual([[], []]);
+    const advance = (index: number) =>
+      advanceWorld(db, { worldId, now: at(index), config: loader, steps });
+    // Monde en retard de quatre ticks, puis trois moteurs réellement simultanés.
+    await advance(first);
+    const engines = await Promise.all([advance(first + 4), advance(first + 4), advance(first + 4)]);
+    const due = [first + 1, first + 2, first + 3, first + 4];
+    // Chaque tick est joué par un moteur et un seul.
+    expect(engines.flat().sort((a, b) => a - b)).toEqual(due);
     const effects = await sql<{
       index: number;
     }>`select (payload->>'index')::int as index from game.domain_events where type = 'TickProbe' and payload->>'worldId' = ${worldId} order by seq`.execute(
       db,
     );
-    expect(effects.rows.map((row) => row.index)).toEqual([first + 4]);
+    expect(effects.rows.map((row) => row.index)).toEqual([first, ...due]);
+    const runs = await db
+      .selectFrom('telemetry.tick_runs')
+      .select('status')
+      .where('world_id', '=', worldId)
+      .where('status', '=', 'done')
+      .execute();
+    expect(runs).toHaveLength(5);
+  });
+
+  it('tous les mondes avancent ; l’échec de l’un n’arrête pas les autres et il est rapporté', async () => {
+    const [good, bad] = [await newWorld(), await newWorld()];
+    const steps: TickStep[] = [
+      {
+        name: 'selective',
+        async run({ worldId }) {
+          if (worldId === bad) throw new Error('monde en panne');
+          return {};
+        },
+      },
+    ];
+    const results = await advanceAllWorlds(db, { now: at(first), config: loader, steps });
+    const byWorld = new Map(results.map((result) => [result.worldId, result]));
+    expect(byWorld.get(good)).toEqual({ worldId: good, played: [first] });
+    expect(byWorld.get(bad)).toEqual({ worldId: bad, played: [], error: 'monde en panne' });
+    expect([await playedOf(good), await playedOf(bad)]).toEqual([[first], []]);
   });
 });
