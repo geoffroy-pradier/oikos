@@ -8,6 +8,7 @@ describe('jeu de valeurs initial', () => {
 
   it('contient 15 biens, des recettes et les quatre classes de PNJ d’une cité', () => {
     expect(config.goods).toHaveLength(15);
+    expect(config.recipes).toHaveLength(15);
     expect(config.npcClasses.map((npcClass) => npcClass.id)).toEqual([
       'thetes',
       'zeugitai',
@@ -28,6 +29,17 @@ describe('jeu de valeurs initial', () => {
       ...config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
     ]);
     expect(config.goods.filter((good) => !used.has(good.id))).toEqual([]);
+  });
+
+  it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
+    const city = config.cities[0];
+    const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {
+      const entry = npcClass.basket.find((candidate) => candidate.goodId === 'wheat');
+      const population = city?.population[npcClass.id] ?? 0;
+      return total + ((entry?.quantityPerThousand ?? 0) * population) / 1000;
+    }, 0);
+    expect(wheatPerTick).toBeGreaterThan(0);
+    expect(config.recipes.filter((recipe) => recipe.id === 'grow_wheat')).toHaveLength(1);
   });
 
   it('chaque bien fini est demandé par au moins une classe de PNJ', () => {

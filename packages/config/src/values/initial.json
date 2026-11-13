@@ -153,7 +153,8 @@
       "id": "thetes",
       "qualitySensitivity": 0.1,
       "basket": [
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 30 },
+        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 24 },
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 20 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 6 },
         { "goodId": "salt", "need": "vital", "quantityPerThousand": 2 },
         { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 1.5 },
@@ -164,7 +165,8 @@
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
       "basket": [
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 28 },
+        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 12 },
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 23 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 8 },
         { "goodId": "salt", "need": "vital", "quantityPerThousand": 2.5 },
         { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 3 },
