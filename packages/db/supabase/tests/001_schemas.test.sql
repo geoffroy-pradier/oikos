@@ -1,15 +1,16 @@
 begin;
-select plan(29);
+select plan(28);
 
 select has_schema('game');
 select has_schema('config');
 select has_schema('telemetry');
 select has_schema('admin');
 
--- Les rôles clients n'ont aucun accès aux schémas internes.
-select ok(not has_schema_privilege(r, s, 'usage'), format('%s : pas d''usage sur %s', r, s))
-from unnest(array['anon', 'authenticated']) as r,
-     unnest(array['game', 'config', 'telemetry', 'admin']) as s;
+-- `anon` n'a accès à aucun schéma interne ; `authenticated` ne lit que `game`, à travers les vues de `public`.
+select ok(not has_schema_privilege('anon', s, 'usage'), format('anon : pas d''usage sur %s', s))
+from unnest(array['game', 'config', 'telemetry', 'admin']) as s;
+select ok(not has_schema_privilege('authenticated', s, 'usage'), format('authenticated : pas d''usage sur %s', s))
+from unnest(array['config', 'telemetry', 'admin']) as s;
 
 -- `public` est réservé aux vues : aucune table, et les clients ne peuvent rien y créer.
 select is(

@@ -5,7 +5,7 @@ project_id = "oikos"
 [api]
 enabled = true
 port = 54321
-# `public` ne contient que des vues de lecture ; `game`, `config`, `telemetry`, `admin` ne sont jamais exposés.
+# Seul `public` (vues de lecture) est exposé par l'API ; `game`, `config`, `telemetry`, `admin` ne le sont jamais.
 schemas = ["public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
@@ -28,7 +28,7 @@ site_url = "http://127.0.0.1:5173"
 enable_signup = true
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = false
 
 # Boîte de réception locale pour les liens magiques.
