@@ -1,7 +1,10 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LANGUAGES } from './i18n';
+import { Button, Card } from '@oikos/ui';
+import { RouterProvider } from '@tanstack/react-router';
+import { HouseProvider } from './house';
+import { router } from './router';
 import { CreateHouse, type City } from './screens/CreateHouse';
 import { SignIn } from './screens/SignIn';
 import { supabase } from './supabase';
@@ -51,52 +54,41 @@ export function App() {
     else setHouse(undefined);
   }, [userId, load]);
 
+  // Maison fondée : la coquille de navigation et ses cinq onglets.
+  if (session && house && !loadFailed) {
+    const cityName = cities.find((candidate) => candidate.id === house.city_id)?.name ?? '';
+    return (
+      <HouseProvider
+        value={{ name: house.name, cityName, citizenshipStatus: house.citizenship_status }}
+      >
+        <RouterProvider router={router} />
+      </HouseProvider>
+    );
+  }
+
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn />;
   else if (session && loadFailed) {
     screen = (
-      <section>
+      <>
         <p role="alert">{t('app.loadFailed')}</p>
-        <button type="button" onClick={() => void load()}>
-          {t('app.retry')}
-        </button>
-      </section>
+        <Button onClick={() => void load()}>{t('app.retry')}</Button>
+      </>
     );
   } else if (session && house === null) {
     screen = <CreateHouse cities={cities} accessToken={session.access_token} onCreated={load} />;
-  } else if (session && house) {
-    const city = cities.find((candidate) => candidate.id === house.city_id)?.name ?? '';
-    screen = (
-      <section>
-        <h1>{t('home.title', { name: house.name })}</h1>
-        <p>{t(`home.status.${house.citizenship_status}`, { city })}</p>
-      </section>
-    );
   }
 
+  // Avant la maison : un seul écran centré, sans navigation.
   return (
-    <>
-      <header>
-        <strong>{t('app.title')}</strong>
-        <label htmlFor="language">{t('app.language')}</label>
-        <select
-          id="language"
-          value={i18n.language}
-          onChange={(event) => void i18n.changeLanguage(event.target.value)}
-        >
-          {LANGUAGES.map((language) => (
-            <option key={language} value={language}>
-              {language.toUpperCase()}
-            </option>
-          ))}
-        </select>
-        {session && (
-          <button type="button" onClick={() => void supabase.auth.signOut()}>
-            {t('app.signOut')}
-          </button>
-        )}
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="p-4 text-center font-display text-3xl font-semibold text-primary">
+        {t('app.title')}
       </header>
-      <main>{screen}</main>
-    </>
+      <div className="meander" aria-hidden="true" />
+      <main className="mx-auto max-w-md p-4">
+        <Card className="flex flex-col gap-3">{screen}</Card>
+      </main>
+    </div>
   );
 }
