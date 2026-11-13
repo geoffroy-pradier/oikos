@@ -31,6 +31,7 @@ pnpm db:start   # Supabase local (Docker requis)
 pnpm db:reset   # rejoue les migrations
 pnpm test:db    # pgTAP
 pnpm test:integration   # API contre Supabase local
+pnpm test:e2e   # Playwright : parcours web complet
 ```
 
 ## Pile technique

@@ -3,7 +3,9 @@
     "title": "OIKOS",
     "language": "Language",
     "signOut": "Sign out",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "loadFailed": "Your data could not be loaded right now.",
+    "retry": "Try again"
   },
   "signIn": {
     "title": "Enter the Archipelago",
