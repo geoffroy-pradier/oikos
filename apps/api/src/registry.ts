@@ -56,6 +56,23 @@ export function canonicalJson(value: unknown): string {
 
 const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
+/** Entrée journalisée à la place d'une entrée que Postgres ne peut pas stocker. */
+const UNSTORABLE_INPUT = '{"unstorable":true}';
+
+/**
+ * Texte JSON de l'entrée, ou `null` si elle ne peut pas être stockée en `jsonb` : caractère nul,
+ * demi-paire de substitution isolée, imbrication trop profonde. Le journal doit pouvoir s'écrire
+ * quelle que soit l'entrée reçue.
+ */
+export function storableJson(input: unknown): string | null {
+  try {
+    const text = JSON.stringify(input ?? null);
+    return /\\u(0000|d[89a-f][0-9a-f]{2})/i.test(text) ? null : text;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Exécute une commande : une transaction, une clé d'idempotence, une ligne de journal, des événements.
  * - Réussite : effets, événements et ligne `ok` sont validés ensemble.
@@ -69,10 +86,12 @@ export async function executeCommand(
 ): Promise<CommandOutcome> {
   const startedAt = performance.now();
   const duration = () => Math.round(performance.now() - startedAt);
-  const loggedInput = JSON.stringify(input ?? null);
-  const trx = await db.startTransaction().execute();
+  const storable = storableJson(input);
+  const loggedInput = storable ?? UNSTORABLE_INPUT;
+  const trx = await db.startTransaction().setIsolationLevel('read committed').execute();
   try {
     // Deux requêtes portant la même clé s'exécutent l'une après l'autre : la seconde rejoue la première.
+    // (Suppose le niveau READ COMMITTED, fixé ci-dessus : la seconde doit voir la ligne validée par la première.)
     await sql`select pg_advisory_xact_lock(hashtextextended(${`${userId}:${idempotencyKey}`}, 0))`.execute(
       trx,
     );
@@ -84,7 +103,7 @@ export async function executeCommand(
       .executeTakeFirst();
     if (previous) {
       await trx.rollback().execute();
-      if (previous.command !== command.name || !sameJson(previous.input, input ?? null)) {
+      if (previous.command !== command.name || !sameJson(previous.input, JSON.parse(loggedInput))) {
         const message = 'This idempotency key was already used for another command or input.';
         return { response: failure('IDEMPOTENCY_KEY_REUSED', message), replayed: false };
       }
@@ -94,7 +113,9 @@ export async function executeCommand(
     const events: DomainEvent[] = [];
     let response: CommandResult<unknown>;
     const parsed = command.input.safeParse(input);
-    if (!parsed.success) {
+    if (storable === null) {
+      response = failure('VALIDATION_FAILED', 'Input cannot be stored.');
+    } else if (!parsed.success) {
       const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join('.')))];
       response = failure('VALIDATION_FAILED', 'Invalid input.', fields);
     } else {
