@@ -1,0 +1,52 @@
+# Supabase local (développement et tests). Référence : https://supabase.com/docs/guides/local-development/cli/config
+# Seuls les services utiles au jeu sont démarrés (docs/specs/14-infrastructure.md, 14.2).
+project_id = "oikos"
+
+[api]
+enabled = true
+port = 54321
+# `public` ne contient que des vues de lecture ; `game`, `config`, `telemetry`, `admin` ne sont jamais exposés.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# Boîte de réception locale pour les liens magiques.
+[local_smtp]
+enabled = true
+port = 54324
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false
+
+[studio]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

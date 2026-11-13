@@ -1,0 +1,60 @@
+# Surcouche OIKOS au docker compose officiel de Supabase auto-hébergé (version épinglée, voir README).
+# Usage : docker compose -f supabase/docker/docker-compose.yml -f oikos/infra/docker-compose.oikos.yml up -d
+# Tous les secrets viennent du fichier .env du serveur, jamais du dépôt.
+services:
+  # --- Services Supabase inutiles au jeu : désactivés (docs/specs/14-infrastructure.md, 14.2) ---
+  imgproxy:
+    profiles: [disabled]
+  functions:
+    profiles: [disabled]
+  # Le stockage ne doit plus attendre la transformation d'images.
+  storage:
+    depends_on: !override
+      db: { condition: service_healthy }
+      rest: { condition: service_started }
+  # La passerelle n'est joignable que par Caddy, sur le réseau interne.
+  api-gw:
+    ports: !reset []
+  # Postgres (par le pooler) n'écoute que sur la boucle locale : accès par VPN ou tunnel SSH.
+  supavisor:
+    ports: !override
+      - 127.0.0.1:${POSTGRES_PORT}:5432
+      - 127.0.0.1:${POOLER_PROXY_PORT_TRANSACTION}:6543
+
+  # --- Services OIKOS ---
+  api:
+    image: ghcr.io/geoffroy-pradier/oikos-api:${OIKOS_VERSION:?}
+    restart: unless-stopped
+    deploy: { replicas: 2 }
+    environment:
+      NODE_ENV: production
+      API_PORT: 8787
+      DATABASE_URL: ${OIKOS_DATABASE_URL:?}
+      SUPABASE_JWT_SECRET: ${JWT_SECRET:?}
+    depends_on:
+      db: { condition: service_healthy }
+
+  engine:
+    image: ghcr.io/geoffroy-pradier/oikos-engine:${OIKOS_VERSION:?}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${OIKOS_DATABASE_URL:?}
+    depends_on:
+      db: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      OIKOS_DOMAIN: ${OIKOS_DOMAIN:?}
+      OIKOS_ACME_EMAIL: ${OIKOS_ACME_EMAIL:?}
+    volumes:
+      - ../../oikos/infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../static:/srv:ro
+      - caddy_data:/data
+    depends_on: [api-gw, api]
+
+volumes:
+  caddy_data:

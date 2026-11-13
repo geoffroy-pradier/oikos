@@ -27,6 +27,9 @@ pnpm install
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm db:start   # Supabase local (Docker requis)
+pnpm db:reset   # rejoue les migrations
+pnpm test:db    # pgTAP
 ```
 
 ## Pile technique
