@@ -16,7 +16,18 @@ et faveur des dieux.
 
 ## État
 
-Phase 0 (fondations) : à démarrer. Voir `docs/tickets/phase-0.md`.
+Phase 0 (fondations) : en cours. Voir `docs/tickets/phase-0.md`.
+
+## Démarrer
+
+Node 22 (`.nvmrc`) et pnpm (version épinglée dans `packageManager`, activable par `corepack enable`).
+
+```
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
+```
 
 ## Pile technique
 
