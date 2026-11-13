@@ -1,14 +1,18 @@
 import { expect, it } from 'vitest';
-import { uniqueViolation } from './index';
+import { violatedConstraint } from './index';
 
-it('reconnaît une violation d’unicité et rend le nom de la contrainte', () => {
-  expect(uniqueViolation({ code: '23505', constraint: 'houses_name_unique' })).toBe(
+it('rend le nom de la contrainte pour une violation d’unicité ou de vérification', () => {
+  expect(violatedConstraint({ code: '23505', constraint: 'houses_name_unique' })).toBe(
     'houses_name_unique',
+  );
+  expect(violatedConstraint({ code: '23514', constraint: 'houses_name_check' })).toBe(
+    'houses_name_check',
   );
 });
 
 it('ignore les autres erreurs', () => {
-  expect(uniqueViolation({ code: '23514', constraint: 'houses_name_check' })).toBeNull();
-  expect(uniqueViolation(new Error('boom'))).toBeNull();
-  expect(uniqueViolation(null)).toBeNull();
+  expect(violatedConstraint({ code: '23503', constraint: 'houses_user_id_fkey' })).toBeNull();
+  expect(violatedConstraint({ code: '23505' })).toBeNull();
+  expect(violatedConstraint(new Error('boom'))).toBeNull();
+  expect(violatedConstraint(null)).toBeNull();
 });

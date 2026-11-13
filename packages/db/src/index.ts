@@ -47,9 +47,10 @@ export function createDb(connectionString: string): Db {
   });
 }
 
-/** Erreur Postgres de violation de contrainte d'unicité, avec le nom de la contrainte. */
-export function uniqueViolation(error: unknown): string | null {
+/** Nom de la contrainte violée (unicité 23505 ou vérification 23514), ou `null` pour toute autre erreur. */
+export function violatedConstraint(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) return null;
   const { code, constraint } = error as { code?: unknown; constraint?: unknown };
-  return code === '23505' && typeof constraint === 'string' ? constraint : null;
+  const isViolation = code === '23505' || code === '23514';
+  return isViolation && typeof constraint === 'string' ? constraint : null;
 }
