@@ -5,7 +5,6 @@ type Listener = (event: string, session: unknown) => void;
 /** Faux Supabase Auth, piloté par les tests : session, niveau d'assurance par jeton, facteurs. */
 export const auth = {
   session: null as unknown,
-  levels: {} as Record<string, string>,
   listener: null as Listener | null,
   factors: [] as { id: string; status: 'verified' | 'unverified' }[],
   enrolled: 0,
@@ -13,6 +12,11 @@ export const auth = {
   codes: [] as string[],
   acceptCode: true,
 };
+
+/** Jeton au format de Supabase Auth : le niveau d'assurance est une revendication du jeton. */
+export function jwt(name: string, aal: 'aal1' | 'aal2') {
+  return `${name}.${btoa(JSON.stringify({ aal }))}.signature`;
+}
 
 export function sessionOf(userId: string, token: string) {
   return { access_token: token, user: { id: userId } };
@@ -36,10 +40,6 @@ export const supabase = {
       return Promise.resolve({ error: null });
     },
     mfa: {
-      getAuthenticatorAssuranceLevel: () => {
-        const token = (auth.session as { access_token: string } | null)?.access_token ?? '';
-        return Promise.resolve({ data: { currentLevel: auth.levels[token] ?? 'aal1' } });
-      },
       listFactors: () =>
         Promise.resolve({
           error: null,
@@ -67,7 +67,14 @@ export const supabase = {
       },
       challengeAndVerify: ({ code }: { factorId: string; code: string }) => {
         auth.codes.push(code);
-        return Promise.resolve({ error: auth.acceptCode ? null : { message: 'invalid' } });
+        if (!auth.acceptCode) return Promise.resolve({ error: { message: 'invalid' } });
+        // Comme Supabase Auth : après l'aller-retour réseau, une nouvelle session `aal2` est
+        // enregistrée et annoncée avant que l'appel ne rende la main.
+        return new Promise((resolve) => setTimeout(resolve, 5)).then(() => {
+          const user = (auth.session as { user: { id: string } } | null)?.user.id;
+          if (user) setSession(sessionOf(user, jwt(`${user}-verified`, 'aal2')));
+          return { error: null };
+        });
       },
     },
   },
@@ -76,7 +83,6 @@ export const supabase = {
 export function resetAuth() {
   Object.assign(auth, {
     session: null,
-    levels: {},
     listener: null,
     factors: [],
     enrolled: 0,

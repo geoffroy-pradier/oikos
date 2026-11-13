@@ -1,8 +1,9 @@
 import type { AdminRole } from '@oikos/contracts';
 import { Button, Card } from '@oikos/ui';
 import type { Session } from '@supabase/supabase-js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { assuranceLevel } from './aal';
 import { adminGet } from './api';
 import { LANGUAGES } from './i18n';
 import { Audit } from './screens/Audit';
@@ -26,12 +27,6 @@ export function modulesFor(role: AdminRole): Module[] {
 export function App() {
   const { t, i18n } = useTranslation();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  /** Niveau d'assurance constaté pour un jeton donné : le back-office exige `aal2`. */
-  const [assurance, setAssurance] = useState<{
-    userId: string;
-    token: string;
-    level: string;
-  } | null>(null);
   /** Réponse de l'API pour un compte : son rôle (`null` : accès refusé) ou une panne. */
   const [access, setAccess] = useState<{
     userId: string;
@@ -49,34 +44,24 @@ export function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
       if (!next) {
-        setAssurance(null);
         setAccess(null);
       }
     });
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Relit la session enregistrée (après le second facteur, Supabase Auth en a émis une nouvelle).
+  const refresh = useCallback(() => {
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+  }, []);
+
   const userId = session?.user.id;
   const sessionToken = session?.access_token;
-  // Jeton courant : une réponse arrivée pour un jeton qui n'est plus celui-là est ignorée.
-  const currentToken = useRef(sessionToken);
-  currentToken.current = sessionToken;
-
-  const check = useCallback(async () => {
-    if (!sessionToken || !userId) return;
-    const reply = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (currentToken.current !== sessionToken) return;
-    setAssurance({ userId, token: sessionToken, level: reply.data?.currentLevel ?? 'aal1' });
-  }, [sessionToken, userId]);
-  useEffect(() => {
-    void check();
-  }, [check]);
-
-  // Niveau et rôle ne valent que pour le compte qui les a obtenus : au changement de compte ou à la
-  // déconnexion, plus rien n'en reste. Un renouvellement de jeton du même compte garde l'écran en
-  // cours, servi par le dernier jeton dont le second facteur a été constaté.
-  const level = userId && assurance?.userId === userId ? assurance.level : null;
-  const token = level === 'aal2' ? assurance?.token : undefined;
+  // Le niveau est lu dans le jeton de la session : il ne vaut que pour ce jeton, et l'API n'est
+  // interrogée qu'avec un jeton à second facteur. Le rôle ne vaut que pour le compte qui l'a obtenu :
+  // au changement de compte ou à la déconnexion, plus rien n'en reste.
+  const level = sessionToken ? assuranceLevel(sessionToken) : null;
+  const token = level === 'aal2' ? sessionToken : undefined;
   const mine = userId && access?.userId === userId ? access : null;
 
   // Session à second facteur : l'API dit si le compte a un rôle, et lequel.
@@ -106,8 +91,7 @@ export function App() {
 
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn />;
-  else if (session && level && level !== 'aal2')
-    screen = <SecondFactor onVerified={() => void check()} />;
+  else if (session && level && level !== 'aal2') screen = <SecondFactor onVerified={refresh} />;
   else if (answered?.failed) screen = <p role="alert">{t('app.loadFailed')}</p>;
   else if (granted === null) screen = <p role="alert">{t('app.forbidden')}</p>;
   else if (granted && token) {

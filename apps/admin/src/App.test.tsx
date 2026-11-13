@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { AdminReply } from './api';
 import { App } from './App';
 import { initI18n } from './i18n';
-import { auth, held, resetAuth, sessionOf, setSession, VIGIE } from './test/fakes';
+import { auth, held, jwt, resetAuth, sessionOf, setSession, VIGIE } from './test/fakes';
 
 const adminGet = vi.hoisted(() => vi.fn());
 vi.mock('./api', () => ({ adminGet }));
@@ -18,9 +18,12 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
     return Promise.resolve({ ok: true, data: { entries: [] } });
   });
 }
-function signedIn(userId = 'alice', token = 'token-a', level = 'aal2') {
-  auth.levels[token] = level;
-  auth.session = sessionOf(userId, token);
+const A1 = jwt('a', 'aal1');
+const A2 = jwt('a', 'aal2');
+const B1 = jwt('b', 'aal1');
+const B2 = jwt('b', 'aal2');
+function signedIn(token = A2) {
+  auth.session = sessionOf('alice', token);
 }
 const nav = () => screen.queryByRole('navigation', { name: 'Modules' });
 const tabs = () =>
@@ -41,7 +44,7 @@ describe('accès au back-office', () => {
     api(me.promise);
     signedIn();
     render(<App />);
-    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('me', 'token-a'));
+    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('me', A2));
     expect(nav()).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Vigie' })).toBeNull();
     expect(adminGet).toHaveBeenCalledTimes(1);
@@ -73,7 +76,7 @@ describe('accès au back-office', () => {
 
   it("n'interroge pas l'API avant le second facteur", async () => {
     api({ ok: true, data: { role: 'super_admin' } });
-    signedIn('alice', 'token-a', 'aal1');
+    signedIn(A1);
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Double authentification' })).toBeTruthy();
     await screen.findByRole('img');
@@ -138,8 +141,7 @@ describe('changement de session', () => {
     await screen.findByRole('heading', { name: 'Vigie', level: 1 });
     adminGet.mockClear();
 
-    auth.levels['token-b'] = 'aal1';
-    setSession(sessionOf('bob', 'token-b'));
+    setSession(sessionOf('bob', B1));
     expect(await screen.findByRole('heading', { name: 'Double authentification' })).toBeTruthy();
     expect(screen.queryByText(/Rôle :/)).toBeNull();
     expect(nav()).toBeNull();
@@ -154,34 +156,66 @@ describe('changement de session', () => {
     await screen.findByRole('alert');
     const me = held<{ role: string }>();
     api(me.promise);
-    auth.levels['token-b'] = 'aal2';
-    setSession(sessionOf('bob', 'token-b'));
-    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('me', 'token-b'));
+    setSession(sessionOf('bob', B2));
+    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('me', B2));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText('Chargement…')).toBeTruthy();
   });
 
   it("un renouvellement de jeton pendant l'enrôlement garde la clé affichée", async () => {
     api({ ok: true, data: { role: 'super_admin' } });
-    signedIn('alice', 'token-a', 'aal1');
+    signedIn(A1);
     render(<App />);
     expect(await screen.findByText('SECRET1')).toBeTruthy();
-    auth.levels['token-a2'] = 'aal1';
-    setSession(sessionOf('alice', 'token-a2'));
+    setSession(sessionOf('alice', jwt('a-renewed', 'aal1')));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.getByText('SECRET1')).toBeTruthy();
     expect(auth.enrolled).toBe(1);
   });
 
-  it("le code validé ouvre le back-office avec le rôle lu par l'API", async () => {
+  it("le code validé ouvre le back-office ; l'API n'est lue qu'avec le nouveau jeton", async () => {
     api({ ok: true, data: { role: 'game_designer' } });
-    signedIn('alice', 'token-a', 'aal1');
+    signedIn(A1);
     render(<App />);
     await screen.findByText('SECRET1');
     fireEvent.change(screen.getByLabelText('Code à six chiffres'), { target: { value: '123456' } });
-    auth.levels['token-a'] = 'aal2';
     fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
     expect(await screen.findByText('Rôle : Concepteur de jeu')).toBeTruthy();
+    await screen.findByText('Maisons fondées');
+    const tokens = new Set(adminGet.mock.calls.map((call) => call[1] as string));
+    expect([...tokens]).toEqual([jwt('alice-verified', 'aal2')]);
+  });
+
+  it('un jeton renouvelé pendant l’usage sert les lectures suivantes, le rôle reste affiché', async () => {
+    api({ ok: true, data: { role: 'observer' } });
+    signedIn();
+    render(<App />);
+    await screen.findByText('Maisons fondées');
+    adminGet.mockClear();
+    // La relecture du rôle tombe en panne : le rôle déjà lu n'est pas retiré.
+    api({ ok: false, code: 'INTERNAL' });
+    const renewed = jwt('a-renewed', 'aal2');
+    setSession(sessionOf('alice', renewed));
+    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('me', renewed));
+    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('vigie', renewed));
+    expect(adminGet.mock.calls.every((call) => call[1] === renewed)).toBe(true);
+    expect(screen.getByText('Rôle : Observateur')).toBeTruthy();
+    expect(tabs()).toEqual(['Vigie', "Journal d'audit"]);
+    expect(screen.queryByText('Lecture impossible pour le moment.')).toBeNull();
+  });
+
+  it('le même compte revenu sans second facteur ne garde ni rôle ni navigation', async () => {
+    api({ ok: true, data: { role: 'super_admin' } });
+    signedIn();
+    render(<App />);
+    await screen.findByText('Maisons fondées');
+    adminGet.mockClear();
+    setSession(sessionOf('alice', A1));
+    expect(await screen.findByRole('heading', { name: 'Double authentification' })).toBeTruthy();
+    expect(screen.queryByText(/Rôle :/)).toBeNull();
+    expect(nav()).toBeNull();
+    expect(screen.queryByText('Maisons fondées')).toBeNull();
+    expect(adminGet).not.toHaveBeenCalled();
   });
 });
 
