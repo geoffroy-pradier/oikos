@@ -44,7 +44,7 @@ it(
     await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`s-${worldId.slice(0, 12)}`}, 'Simulation')`.execute(
       db,
     );
-    await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Kallistè')`.execute(
+    await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Simulation')`.execute(
       db,
     );
     await db
