@@ -62,7 +62,7 @@ export function Shell() {
           passent à la ligne plutôt que de se chevaucher ou d'être coupés. */}
       <nav
         aria-label={t('shell.navigation')}
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface lg:static lg:border-t-0 lg:border-r"
+        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface lg:sticky lg:inset-x-auto lg:top-0 lg:h-dvh lg:border-t-0 lg:border-r"
       >
         <p className="hidden p-4 font-display text-2xl font-semibold text-primary lg:block">
           {t('app.title')}
