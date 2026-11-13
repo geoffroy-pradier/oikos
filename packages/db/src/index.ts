@@ -37,6 +37,23 @@ export interface GameDatabase {
     status: Generated<'metic' | 'citizen'>;
     since: Generated<Date>;
   };
+
+  'config.versions': {
+    id: Generated<string>;
+    number: GeneratedAlways<number>;
+    /** `jsonb` : lu désérialisé, écrit sous forme de texte JSON. */
+    payload: ColumnType<unknown, string, never>;
+    note: Generated<string>;
+    created_by: string | null;
+    created_at: Generated<Date>;
+  };
+  'config.activations': {
+    id: Generated<string>;
+    version_id: string;
+    activate_at: Date;
+    created_by: string | null;
+    created_at: Generated<Date>;
+  };
 }
 
 export type Db = Kysely<GameDatabase>;
