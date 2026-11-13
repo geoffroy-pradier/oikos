@@ -1,2 +1,3 @@
-/** Schémas et valeurs d'équilibrage. */
-export const WORKSPACE_NAME = '@oikos/config';
+/** Schémas et valeurs d'équilibrage. Aucune constante d'équilibrage ne vit ailleurs que dans ce paquet. */
+export * from './schema';
+export * from './validate';
