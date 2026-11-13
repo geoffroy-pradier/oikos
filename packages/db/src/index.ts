@@ -103,9 +103,9 @@ export interface GameDatabase {
 
 export type Db = Kysely<GameDatabase>;
 
-export function createDb(connectionString: string): Db {
+export function createDb(connectionString: string, pool: { max?: number } = {}): Db {
   return new Kysely<GameDatabase>({
-    dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString }) }),
+    dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString, ...pool }) }),
   });
 }
 

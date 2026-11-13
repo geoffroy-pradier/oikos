@@ -227,6 +227,15 @@ describe('une configuration invalide est refusée avec un message précis', () =
     const missing: Partial<GameConfig> = clone();
     delete missing.starting;
     expect(errorsOf(missing)).toEqual([expect.stringMatching(/^starting: /)]);
+    for (const field of ['grantOboles', 'siteRecipeId'] as const) {
+      const partial = clone() as unknown as { starting: Record<string, unknown> };
+      partial.starting = Object.fromEntries(
+        Object.entries(partial.starting).filter(([key]) => key !== field),
+      );
+      expect(errorsOf(partial)).toEqual([
+        expect.stringMatching(new RegExp(`^starting\\.${field}: `)),
+      ]);
+    }
   });
 
   it('champ inconnu ou section manquante', () => {

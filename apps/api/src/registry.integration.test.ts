@@ -8,9 +8,9 @@ import { defineCommand, executeCommand, type CommandContext, type CommandResult 
 import { TEST_CONFIG, testConfig } from './test-config';
 
 // Tests d'intégration du registre contre Supabase local, avec des commandes d'essai qui renomment une maison.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+const db = createDb(DATABASE_URL);
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
 const users: string[] = [];
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
@@ -274,9 +274,64 @@ describe('executeCommand', () => {
     await run(command, house.userId, { name: `Contexte ${letters()}` });
     expect(seen?.config).toBe(TEST_CONFIG.config);
     expect(seen?.config.starting.grantOboles).toBeGreaterThan(0);
-    // Horloge de la base : proche de celle du test, sans lui être identique.
     expect(Math.abs((seen?.now.getTime() ?? 0) - before)).toBeLessThan(60_000);
   });
+
+  it('`now` est l’heure de la base au début de la transaction, pas l’horloge du processus', async () => {
+    const house = await newHouse();
+    const command = defineCommand({
+      name: 'probe.clock',
+      input: z.strictObject({}),
+      output: z.strictObject({ contextNow: z.string(), databaseNow: z.string() }),
+      errors: [],
+      async handler({ trx, now }) {
+        const clock = await sql<{ now: Date }>`select now() as now`.execute(trx);
+        const databaseNow = clock.rows[0]?.now.toISOString() ?? '';
+        return { ok: true, data: { contextNow: now.toISOString(), databaseNow } };
+      },
+    });
+    const request = { userId: house.userId, idempotencyKey: randomUUID(), input: {} };
+    const { response } = await executeCommand(db, command, request, testConfig);
+    if (!response.ok) throw new Error(response.error.message);
+    const data = response.data as { contextNow: string; databaseNow: string };
+    expect(data.contextNow).toBe(data.databaseNow);
+  });
+
+  it('plus de commandes simultanées que de connexions : le chargement de la configuration ne bloque pas le pool', async () => {
+    const small = createDb(DATABASE_URL, { max: 2 });
+    // Comme le chargeur réel, cette source emprunte une connexion du même pool.
+    const pooledConfig = async () => {
+      await sql`select 1`.execute(small);
+      return TEST_CONFIG;
+    };
+    try {
+      const houses = await Promise.all(Array.from({ length: 8 }, () => newHouse()));
+      const command = probe('probe.pool');
+      const all = Promise.all(
+        houses.map((house) =>
+          executeCommand(
+            small,
+            command,
+            {
+              userId: house.userId,
+              idempotencyKey: randomUUID(),
+              input: { name: `Pool ${letters()}` },
+            },
+            pooledConfig,
+          ),
+        ),
+      );
+      const timeout = new Promise<'blocked'>((resolve) =>
+        setTimeout(() => resolve('blocked'), 8000),
+      );
+      const outcome = await Promise.race([all, timeout]);
+      if (outcome === 'blocked') throw new Error('pool exhausted: commands never returned');
+      expect(outcome.map((result) => result.response.ok)).toEqual(houses.map(() => true));
+    } finally {
+      // Sans attendre : en cas de blocage, les connexions ne se libèrent jamais.
+      void small.destroy();
+    }
+  }, 15_000);
 
   it('configuration indisponible : rien n’est exécuté, trace sans clé, la clé reste utilisable', async () => {
     const house = await newHouse();

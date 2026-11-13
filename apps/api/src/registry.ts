@@ -107,7 +107,8 @@ export async function executeCommand(
     const clock = await sql<{ now: Date }>`
       select now() as now, pg_advisory_xact_lock(hashtextextended(${`${userId}:${idempotencyKey}`}, 0))
     `.execute(trx);
-    const now = clock.rows[0]?.now ?? new Date();
+    const now = clock.rows[0]?.now;
+    if (!now) throw new Error('The database returned no clock');
     const previous = await trx
       .selectFrom('game.command_log')
       .select(['command', 'input', 'response'])
