@@ -97,9 +97,19 @@ function duplicates(ids: string[]): string[] {
   return [...new Set(ids.filter((value, index) => ids.indexOf(value) !== index))];
 }
 
+/** Paramètres de marché (docs/specs/05-economie.md, 5.2). */
+export const marketSchema = z.strictObject({
+  /**
+   * Prix de réserve des PNJ : au-delà de ce multiple du prix de référence d'un bien, ils n'achètent pas.
+   * Sans lui, un vendeur seul capterait tout le budget d'un bien avec une unité vendue à prix démesuré.
+   */
+  npcMaxPriceFactor: z.number().min(1).max(100),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
+    market: marketSchema,
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),

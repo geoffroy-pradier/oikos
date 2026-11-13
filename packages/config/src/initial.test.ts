@@ -44,9 +44,10 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('chaque recette a une capacité d’accumulation d’au moins un jour', () => {
+  it('chaque recette a une capacité d’accumulation d’un à sept jours', () => {
     for (const recipe of config.recipes) {
       expect(recipe.maxAccruedCycles * recipe.durationMinutes).toBeGreaterThanOrEqual(24 * 60);
+      expect(recipe.maxAccruedCycles * recipe.durationMinutes).toBeLessThanOrEqual(7 * 24 * 60);
     }
   });
 
