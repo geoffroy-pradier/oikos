@@ -92,6 +92,22 @@ describe('domainEventSchema', () => {
     expect(domainEventSchema.parse(event)).toEqual(event);
   });
 
+  it('accepte HouseFounded complet et refuse un champ manquant ou en trop', () => {
+    const founded = {
+      type: 'HouseFounded',
+      payload: { houseId: id, worldId: id, cityId: id, name: 'Abc' },
+    };
+    expect(domainEventSchema.parse(founded)).toEqual(founded);
+    const withoutWorld: Record<string, string> = { ...founded.payload };
+    delete withoutWorld['worldId'];
+    expect(domainEventSchema.safeParse({ ...founded, payload: withoutWorld }).success).toBe(false);
+    expect(
+      domainEventSchema.safeParse({ ...founded, payload: { ...founded.payload, extra: 1 } })
+        .success,
+    ).toBe(false);
+    expect(domainEventSchema.safeParse({ ...founded, extra: 1 }).success).toBe(false);
+  });
+
   it('refuse un type inconnu ou un contenu d’un autre événement', () => {
     expect(domainEventSchema.safeParse({ type: 'HouseBurned', payload: {} }).success).toBe(false);
     const mixed = { type: 'HouseFounded', payload: { houseId: id, previousName: 'a', name: 'b' } };

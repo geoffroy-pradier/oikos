@@ -18,13 +18,16 @@ create table if not exists game.command_log (
   created_at timestamptz not null default now(),
   constraint command_log_idempotency unique (user_id, idempotency_key),
   constraint command_log_error_code check ((status = 'ok') = (error_code is null)),
-  constraint command_log_key_unless_failed check (status = 'failed' or idempotency_key is not null)
+  -- Seule une erreur inattendue est sans clé, et elle l'est toujours : elle ne consomme jamais la clé.
+  constraint command_log_key_unless_failed check ((status = 'failed') = (idempotency_key is null))
 );
 create index if not exists command_log_user_created_idx on game.command_log (user_id, created_at desc);
 
 -- Événements de domaine produits par les commandes réussies (temps réel, télémétrie, chronique).
 create table if not exists game.domain_events (
   id uuid primary key default game.uuid_v7(),
+  -- Ordre d'émission, y compris entre événements d'une même commande.
+  seq bigint generated always as identity unique,
   command_id uuid references game.command_log (id),
   type text not null check (type ~ '^[A-Z][A-Za-z]+$'),
   payload jsonb not null check (jsonb_typeof(payload) = 'object'),

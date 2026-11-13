@@ -52,6 +52,7 @@ export interface GameDatabase {
   };
   'game.domain_events': {
     id: Generated<string>;
+    seq: GeneratedAlways<string>;
     command_id: string | null;
     type: string;
     payload: ColumnType<unknown, string, never>;
