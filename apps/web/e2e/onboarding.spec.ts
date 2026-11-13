@@ -48,9 +48,18 @@ test('une lecture en échec n’est pas prise pour « pas de maison » et se ré
   await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('heading', { name: 'Fonder votre maison' })).toHaveCount(0);
 
+  // Même sans maison ni lecture possible, le joueur peut changer de langue et fermer sa session.
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByRole('alert')).toContainText('could not be loaded');
+  await page.getByLabel('Language').selectOption('fr');
+  await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
+
   await page.unroute('**/rest/v1/houses*');
   await page.getByRole('button', { name: 'Réessayer' }).click();
   await expect(page.getByRole('heading', { name: 'Fonder votre maison' })).toBeVisible();
+  await page.getByRole('button', { name: 'Se déconnecter' }).click();
+  await expect(page.getByRole('heading', { name: "Entrer dans l'Archipel" })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Se déconnecter' })).toHaveCount(0);
 });
 
 test('inscription, création de maison, puis coquille de navigation', async ({ page }) => {
@@ -124,6 +133,7 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.goto('/adresse-inconnue');
   await expect(page.getByRole('heading', { name: "Cette page n'existe pas." })).toBeVisible();
   await page.getByRole('link', { name: 'Revenir à la maison' }).click();
+  await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
 
   // Thème sombre : appliqué et mémorisé.

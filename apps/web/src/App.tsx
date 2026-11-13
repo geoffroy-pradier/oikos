@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, Card } from '@oikos/ui';
 import { RouterProvider } from '@tanstack/react-router';
 import { HouseProvider } from './house';
+import { LanguageSelect } from './LanguageSelect';
 import { router } from './router';
 import { CreateHouse, type City } from './screens/CreateHouse';
 import { SignIn } from './screens/SignIn';
@@ -82,8 +83,16 @@ export function App() {
   // Avant la maison : un seul écran centré, sans navigation.
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="p-4 text-center font-display text-3xl font-semibold text-primary">
-        {t('app.title')}
+      <header className="flex flex-wrap items-center justify-between gap-2 p-4">
+        <p className="font-display text-3xl font-semibold text-primary">{t('app.title')}</p>
+        <div className="flex items-center gap-2">
+          <LanguageSelect />
+          {session && (
+            <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+              {t('app.signOut')}
+            </Button>
+          )}
+        </div>
       </header>
       <div className="meander" aria-hidden="true" />
       <main className="mx-auto max-w-md p-4">
