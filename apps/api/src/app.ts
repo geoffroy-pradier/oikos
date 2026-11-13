@@ -6,6 +6,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { TokenVerifier } from './auth';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
+import { siteCollect } from './commands/site-collect';
 import type { RateLimiter } from './rate-limit';
 import { executeCommand, type CommandDefinition, type ConfigSource } from './registry';
 
@@ -19,7 +20,7 @@ export interface AppDeps {
 }
 
 /** Registre des commandes servies par l'API. */
-export const COMMANDS = [houseCreate, houseRename] as readonly CommandDefinition[];
+export const COMMANDS = [houseCreate, houseRename, siteCollect] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
   UNAUTHENTICATED: 401,

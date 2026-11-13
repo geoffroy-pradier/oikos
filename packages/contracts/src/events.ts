@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { siteCollectedSchema } from './site';
 
 /** Événements de domaine produits par les commandes (temps réel, télémétrie, chronique). */
 export const houseFoundedSchema = z.strictObject({
@@ -19,6 +20,7 @@ export const houseRenamedSchema = z.strictObject({
 export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
+  siteCollectedSchema,
 ]);
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 export type DomainEventType = DomainEvent['type'];

@@ -66,7 +66,9 @@
     "IDEMPOTENCY_KEY_REQUIRED": "The request is incomplete. Reload the page and try again.",
     "IDEMPOTENCY_KEY_REUSED": "This request was already sent with other values. Try again.",
     "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
-    "HOUSE_NOT_FOUND": "You have not founded a house yet."
+    "HOUSE_NOT_FOUND": "You have not founded a house yet.",
+    "SITE_NOT_FOUND": "This site cannot be found.",
+    "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished."
   },
   "shell": {
     "skipToContent": "Skip to content",

@@ -85,13 +85,37 @@ export interface GameDatabase {
     account_id: string;
     amount: ColumnType<string, number, never>;
   };
+  /** Stocks : la quantité ne change que par `game.stock_ledger`, la réservation que par les ordres. */
+  'game.inventories': {
+    id: Generated<string>;
+    world_id: string;
+    house_id: string;
+    city_id: string;
+    good_id: string;
+    quantity: ColumnType<string, never, never>;
+    reserved: ColumnType<string, never, never>;
+    created_at: Generated<Date>;
+  };
+  'game.stock_ledger': {
+    id: Generated<string>;
+    world_id: string;
+    good_id: string;
+    quantity: ColumnType<string, number, never>;
+    from_inventory_id?: string | null;
+    from_system?: string | null;
+    to_inventory_id?: string | null;
+    to_system?: string | null;
+    kind: string;
+    ledger_entry_id?: string | null;
+    created_at: Generated<Date>;
+  };
   'game.sites': {
     id: Generated<string>;
     world_id: string;
     house_id: string;
     city_id: string;
     recipe_id: string;
-    cycle_started_at: Generated<Date>;
+    cycle_started_at: ColumnType<Date, Date | undefined, Date>;
     created_at: Generated<Date>;
   };
 

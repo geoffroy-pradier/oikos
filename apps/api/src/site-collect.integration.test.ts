@@ -1,0 +1,163 @@
+import { randomUUID } from 'node:crypto';
+import { createDb } from '@oikos/db';
+import { sql } from 'kysely';
+import { afterAll, describe, expect, it } from 'vitest';
+import { createApp } from './app';
+import { unlimited } from './rate-limit';
+import { TEST_CONFIG, testConfig } from './test-config';
+
+// Tests d'intégration de `site.collect` contre Supabase local. Le champ de départ vient de `house.create`.
+const db = createDb(
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+);
+const app = createApp({
+  db,
+  verifyToken: async (token) => (token.length === 36 ? token : null),
+  rateLimiter: unlimited,
+  loadConfig: testConfig,
+});
+afterAll(() => db.destroy());
+
+const recipe = TEST_CONFIG.config.recipes.find(
+  (candidate) => candidate.id === TEST_CONFIG.config.starting.siteRecipeId,
+);
+if (!recipe?.outputs[0]) throw new Error('starting recipe missing from the test configuration');
+const CYCLE_MS = recipe.durationMinutes * 60_000;
+const PER_CYCLE = recipe.outputs[0].quantity;
+const GOOD = recipe.outputs[0].goodId;
+const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
+
+const send = (user: string, command: string, body: unknown, key: string = randomUUID()) =>
+  app.request(`/api/commands/${command}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${user}`,
+      'Idempotency-Key': key,
+    },
+    body: JSON.stringify(body),
+  });
+
+/** Fonde une maison par la commande réelle et rend son compte, sa maison et son champ. */
+async function newPlayer() {
+  const user = randomUUID();
+  await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
+    db,
+  );
+  const founded = await send(user, 'house.create', {
+    cityId: '01900000-0000-7000-8000-000000000101',
+    name: `Champ ${letters()}`,
+    blazon: { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' },
+  });
+  const { data } = (await founded.json()) as { data: { houseId: string } };
+  const site = await db
+    .selectFrom('game.sites')
+    .select('id')
+    .where('house_id', '=', data.houseId)
+    .executeTakeFirstOrThrow();
+  return { user, houseId: data.houseId, siteId: site.id };
+}
+
+/** Fait vieillir le cycle en cours : la garde de la base interdit l'antidatage, levée ici le temps du test. */
+async function age(siteId: string, cycles: number) {
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set created_at = created_at - ${`${cycles * CYCLE_MS} milliseconds`}::interval,
+      cycle_started_at = cycle_started_at - ${`${cycles * CYCLE_MS} milliseconds`}::interval where id = ${siteId}`.execute(
+      trx,
+    );
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+}
+
+const stockOf = async (houseId: string) =>
+  (
+    await db
+      .selectFrom('game.inventories')
+      .select(['good_id', 'quantity'])
+      .where('house_id', '=', houseId)
+      .execute()
+  ).map((row) => [row.good_id, Number(row.quantity)]);
+const collect = async (user: string, siteId: string, key?: string) => {
+  const res = await send(user, 'site.collect', { siteId }, key);
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+};
+
+describe('site.collect', () => {
+  it('rien à récolter avant la fin du premier cycle, et rien n’est écrit', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, 0.99);
+    expect(await collect(player.user, player.siteId)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'NOTHING_TO_COLLECT' } },
+    });
+    expect(await stockOf(player.houseId)).toEqual([]);
+  });
+
+  it('récolte les cycles entiers écoulés, par le journal des stocks, et garde le temps entamé', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, 2.5);
+    const first = await collect(player.user, player.siteId);
+    expect(first).toMatchObject({
+      status: 200,
+      body: { data: { cycles: 2, outputs: [{ goodId: GOOD, quantity: 2 * PER_CYCLE }] } },
+    });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 2 * PER_CYCLE]]);
+    const movements = await db
+      .selectFrom('game.stock_ledger as m')
+      .innerJoin('game.inventories as i', 'i.id', 'm.to_inventory_id')
+      .select(['m.kind', 'm.from_system', 'm.quantity'])
+      .where('i.house_id', '=', player.houseId)
+      .execute();
+    expect(movements).toEqual([
+      { kind: 'site.collect', from_system: 'production', quantity: String(2 * PER_CYCLE) },
+    ]);
+    // Le demi-cycle entamé n'est pas perdu : un demi-cycle de plus suffit pour le suivant.
+    expect((await collect(player.user, player.siteId)).status).toBe(409);
+    await age(player.siteId, 0.5);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({ data: { cycles: 1 } });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 3 * PER_CYCLE]]);
+    const events = await db
+      .selectFrom('game.domain_events')
+      .select('type')
+      .where(sql<boolean>`payload->>'siteId' = ${player.siteId}`)
+      .execute();
+    expect(events).toEqual([{ type: 'SiteCollected' }, { type: 'SiteCollected' }]);
+  });
+
+  it('plafonne à la capacité du site', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, recipe.maxAccruedCycles + 40);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({
+      data: { cycles: recipe.maxAccruedCycles },
+    });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, recipe.maxAccruedCycles * PER_CYCLE]]);
+    expect((await collect(player.user, player.siteId)).status).toBe(409);
+  });
+
+  it('collectes simultanées et rejeu : la production n’est comptée qu’une fois', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, 3);
+    const key = randomUUID();
+    const results = await Promise.all([
+      collect(player.user, player.siteId, key),
+      collect(player.user, player.siteId, key),
+      ...Array.from({ length: 6 }, () => collect(player.user, player.siteId)),
+    ]);
+    expect(results.filter((result) => result.status === 200).length).toBeGreaterThanOrEqual(1);
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 3 * PER_CYCLE]]);
+  });
+
+  it('le site d’un autre joueur ou un site inconnu est introuvable, et rien ne bouge', async () => {
+    const [owner, thief] = [await newPlayer(), await newPlayer()];
+    await age(owner.siteId, 2);
+    for (const siteId of [owner.siteId, randomUUID()]) {
+      expect(await collect(thief.user, siteId)).toMatchObject({
+        status: 404,
+        body: { error: { code: 'SITE_NOT_FOUND' } },
+      });
+    }
+    expect([await stockOf(owner.houseId), await stockOf(thief.houseId)]).toEqual([[], []]);
+    expect((await collect(owner.user, owner.siteId)).body).toMatchObject({ data: { cycles: 2 } });
+  });
+});
