@@ -106,10 +106,19 @@ export const marketSchema = z.strictObject({
   npcMaxPriceFactor: z.number().min(1).max(100),
 });
 
+/** Dotation d'une maison à sa fondation (docs/specs/03-boucles-progression.md). */
+export const startingSchema = z.strictObject({
+  /** Monnaie versée par le robinet `faucet_starting_grant`, en oboles. */
+  grantOboles: positiveInt,
+  /** Recette du premier site reçu : une production primaire, exploitable sans rien acheter. */
+  siteRecipeId: id,
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
     market: marketSchema,
+    starting: startingSchema,
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
@@ -147,6 +156,14 @@ export const gameConfigSchema = z
         });
       }
     });
+    const startingRecipe = config.recipes.find(
+      (recipe) => recipe.id === config.starting.siteRecipeId,
+    );
+    if (!startingRecipe) {
+      issue(['starting', 'siteRecipeId'], `unknown recipe "${config.starting.siteRecipeId}"`);
+    } else if (startingRecipe.inputs.length > 0) {
+      issue(['starting', 'siteRecipeId'], 'the starting site must run a recipe without inputs');
+    }
     config.npcClasses.forEach((npcClass, index) => {
       for (const duplicate of duplicates(npcClass.basket.map((entry) => entry.goodId))) {
         issue(['npcClasses', index, 'basket'], `duplicate good "${duplicate}"`);

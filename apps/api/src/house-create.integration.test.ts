@@ -3,6 +3,7 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { testConfig } from './test-config';
 import { unlimited } from './rate-limit';
 
 // Tests d'intégration contre Supabase local (`pnpm db:start`).
@@ -16,6 +17,7 @@ const app = createApp({
   db,
   verifyToken: async (token) => (token.length === 36 ? token : null),
   rateLimiter: unlimited,
+  loadConfig: testConfig,
 });
 const users: string[] = [];
 const suffix = [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 6).join('');

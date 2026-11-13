@@ -1,6 +1,7 @@
 {
   "clock": { "tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7 },
   "market": { "npcMaxPriceFactor": 3 },
+  "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },

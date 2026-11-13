@@ -5,6 +5,7 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineCommand, executeCommand, type CommandContext, type CommandResult } from './registry';
+import { TEST_CONFIG, testConfig } from './test-config';
 
 // Tests d'intégration du registre contre Supabase local, avec des commandes d'essai qui renomment une maison.
 const db = createDb(
@@ -70,7 +71,7 @@ const run = (
   userId: string,
   input: unknown,
   idempotencyKey = randomUUID(),
-) => executeCommand(db, command, { userId, idempotencyKey, input });
+) => executeCommand(db, command, { userId, idempotencyKey, input }, testConfig);
 const nameOf = async (houseId: string) =>
   (
     await db
@@ -108,11 +109,12 @@ describe('executeCommand', () => {
     await run(command, house.userId, { name: `Ensuite ${letters()}` });
 
     // Rejeu tardif, clés de l'entrée dans un autre ordre : même réponse, l'ancien nom n'est pas réappliqué.
-    const replay = await executeCommand(db, command, {
-      userId: house.userId,
-      idempotencyKey: key,
-      input: JSON.parse(`{"name":"${next}"}`),
-    });
+    const replay = await executeCommand(
+      db,
+      command,
+      { userId: house.userId, idempotencyKey: key, input: JSON.parse(`{"name":"${next}"}`) },
+      testConfig,
+    );
     expect(replay).toEqual({ ...first, replayed: true });
     expect([command.runs(), await eventsOf(house.houseId)]).toEqual([2, 2]);
     expect(await nameOf(house.houseId)).not.toBe(next);
@@ -259,5 +261,40 @@ describe('executeCommand', () => {
       response: { ok: true },
     });
     expect(await nameOf(house.houseId)).toBe(next);
+  });
+
+  it('la commande reçoit la configuration active et l’heure de la base', async () => {
+    const house = await newHouse();
+    let seen: Pick<CommandContext, 'config' | 'now'> | undefined;
+    const command = probe('probe.context', ({ config, now }) => {
+      seen = { config, now };
+      return undefined;
+    });
+    const before = Date.now();
+    await run(command, house.userId, { name: `Contexte ${letters()}` });
+    expect(seen?.config).toBe(TEST_CONFIG.config);
+    expect(seen?.config.starting.grantOboles).toBeGreaterThan(0);
+    // Horloge de la base : proche de celle du test, sans lui être identique.
+    expect(Math.abs((seen?.now.getTime() ?? 0) - before)).toBeLessThan(60_000);
+  });
+
+  it('configuration indisponible : rien n’est exécuté, trace sans clé, la clé reste utilisable', async () => {
+    const house = await newHouse();
+    const command = probe('probe.noConfig');
+    const key = randomUUID();
+    const request = {
+      userId: house.userId,
+      idempotencyKey: key,
+      input: { name: `Sans ${letters()}` },
+    };
+    const outcome = await executeCommand(db, command, request, async () => {
+      throw new Error('aucune configuration active');
+    });
+    expect(outcome.response).toMatchObject({ ok: false, error: { code: 'INTERNAL' } });
+    expect([command.runs(), await nameOf(house.houseId)]).toEqual([0, house.name]);
+    expect(await logOf(house.userId)).toMatchObject([{ status: 'failed', idempotency_key: null }]);
+    expect((await executeCommand(db, command, request, testConfig)).response).toMatchObject({
+      ok: true,
+    });
   });
 });
