@@ -12,17 +12,28 @@ create table if not exists game.sites (
   -- Début du cycle de production en cours : la production est calculée à la collecte (évaluation paresseuse).
   cycle_started_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
+  constraint sites_cycle_not_before_creation check (cycle_started_at >= created_at),
   constraint sites_house_same_world foreign key (house_id, world_id) references game.houses (id, world_id),
   constraint sites_city_same_world foreign key (city_id, world_id) references game.cities (id, world_id)
 );
 create index if not exists sites_house_id_idx on game.sites (house_id);
 
--- L'identité d'un site ne change pas ; seul l'horodatage du cycle avance.
+-- Un site naît à l'instant de sa création ; son identité ne change pas ; seul l'horodatage du cycle
+-- change, et il ne fait qu'avancer, sans dépasser l'instant présent. La quantité collectée dépend de lui.
 create or replace function game.guard_site() returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
+  if tg_op = 'INSERT' then
+    if new.created_at <> now() or new.cycle_started_at <> now() then
+      raise exception 'a site starts now' using errcode = 'restrict_violation';
+    end if;
+    return new;
+  end if;
+  if new.cycle_started_at < old.cycle_started_at or new.cycle_started_at > now() then
+    raise exception 'a site cycle only moves forward, up to now' using errcode = 'restrict_violation';
+  end if;
   if (new.id, new.world_id, new.house_id, new.city_id, new.recipe_id, new.created_at)
      is distinct from (old.id, old.world_id, old.house_id, old.city_id, old.recipe_id, old.created_at) then
     raise exception 'site identity is immutable' using errcode = 'restrict_violation';
@@ -32,7 +43,7 @@ end;
 $$;
 
 drop trigger if exists sites_guard on game.sites;
-create trigger sites_guard before update on game.sites
+create trigger sites_guard before insert or update on game.sites
   for each row execute function game.guard_site();
 
 alter table game.sites enable row level security;

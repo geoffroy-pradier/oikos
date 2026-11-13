@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(36);
 
 -- Jeu d'essai : Alice et Bob ont chacun une maison, un compte crédité, un stock et un champ.
 insert into auth.users (id, email) values
@@ -26,22 +26,30 @@ insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
 -- Intégrité des sites.
 select throws_ok($$update game.sites set house_id = '00000000-0000-7000-8000-0000000000b1' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de maison');
 select throws_ok($$update game.sites set recipe_id = 'grow_olives' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de recette');
-select lives_ok($$update game.sites set cycle_started_at = now() where id = '00000000-0000-7000-8000-0000000002a1'$$, 'l''horodatage du cycle avance');
+select throws_ok($$update game.sites set city_id = gen_random_uuid() where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de cité');
+select throws_ok($$update game.sites set id = gen_random_uuid() where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas d''identifiant');
+select throws_ok($$update game.sites set world_id = '01900000-0000-7000-8000-000000000002' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de monde');
+select throws_ok($$update game.sites set created_at = created_at - interval '1 day' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'la date de création ne change pas');
+select lives_ok($$update game.sites set cycle_started_at = now() where id = '00000000-0000-7000-8000-0000000002a1'$$, 'l''horodatage du cycle peut rester ou avancer jusqu''à maintenant');
+select throws_ok($$update game.sites set cycle_started_at = now() - interval '1 second' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'l''horodatage du cycle ne recule pas');
+select throws_ok($$update game.sites set cycle_started_at = now() + interval '1 second' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'ni ne part dans le futur');
+select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id, cycle_started_at) values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat', '2000-01-01')$$, '23001', null, 'un site ne naît pas antidaté');
+select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id, created_at, cycle_started_at) values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat', '2000-01-01', '2000-01-01')$$, '23001', null, 'même avec une date de création antidatée');
 select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id) values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'Bad Recipe')$$, '23514', null, 'recette mal formée refusée');
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-000000000002', 'autre', 'Autre');
-select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id) values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat')$$, '23503', null, 'site d''un autre monde que sa maison refusé');
+insert into game.cities (id, world_id, slug, name) values ('01900000-0000-7000-8000-000000000201', '01900000-0000-7000-8000-000000000002', 'ailleurs', 'Ailleurs');
+insert into auth.users (id, email) values ('00000000-0000-4000-8000-00000000000d', 'dion@example.test');
+insert into game.houses (id, world_id, user_id, name, blazon) values ('00000000-0000-7000-8000-0000000000d1', '01900000-0000-7000-8000-000000000002', '00000000-0000-4000-8000-00000000000d', 'Étéoboutades', '{}');
+select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id) values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000201', 'grow_wheat')$$, '23503', 'insert or update on table "sites" violates foreign key constraint "sites_house_same_world"', 'site d''un autre monde que sa maison refusé');
+select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id) values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-0000000000d1', '01900000-0000-7000-8000-000000000101', 'grow_wheat')$$, '23503', 'insert or update on table "sites" violates foreign key constraint "sites_city_same_world"', 'site d''un autre monde que sa cité refusé');
 
 -- Contrôle d'accès, lu dans le catalogue.
 select ok((select relrowsecurity from pg_class where oid = 'game.sites'::regclass), 'règles par ligne actives sur game.sites');
+-- (La liste figée des colonnes lisibles de tout le schéma `game` est dans 002_world_houses.test.sql.)
 select is(
-  (select string_agg(format('%s(%s)', t, cols), ' ' order by t collate "C")
-   from (select table_name::text as t, string_agg(column_name::text, ',' order by column_name::text collate "C") as cols
-         from information_schema.column_privileges
-         where grantee = 'authenticated' and table_schema = 'game' and privilege_type = 'SELECT'
-           and table_name in ('accounts', 'inventories', 'sites')
-         group by table_name) granted),
-  'accounts(balance,house_id,kind) inventories(city_id,good_id,house_id,id,quantity) sites(city_id,cycle_started_at,house_id,id,recipe_id)',
-  'colonnes lisibles par authenticated : liste figée');
+  (select count(*) from information_schema.role_table_grants
+   where table_schema = 'public' and (grantee = 'anon' or (grantee = 'authenticated' and privilege_type <> 'SELECT'))),
+  0::bigint, 'vues publiques : rien pour anon, lecture seule pour authenticated');
 select is(
   (select count(*) from pg_class c, unnest(array['anon', 'authenticated']) r, unnest(array['insert', 'update', 'delete', 'truncate']) p
    where c.relnamespace = 'game'::regnamespace and c.relkind in ('r', 'p') and has_table_privilege(r, c.oid, p)),
