@@ -1,1 +1,24 @@
-# oikos
+# OIKOS
+
+Jeu de gestion multijoueur persistant, jouable sur web et mobile, dans une Grèce mythologique.
+Chaque joueur dirige une maison (un *oikos*) : domaines, ateliers, flotte, finance, politique de sa cité
+et faveur des dieux.
+
+## Où lire quoi
+
+| Fichier | Contenu |
+| --- | --- |
+| `CLAUDE.md` | Règles de travail des agents, boucle autonome, définition de terminé |
+| `docs/specs/` | Cahier des charges, une spécification par système |
+| `docs/glossary.md` | Lexique du jeu |
+| `docs/adr/` | Décisions d'architecture |
+| `docs/tickets/` | Tickets par phase |
+
+## État
+
+Phase 0 (fondations) : à démarrer. Voir `docs/tickets/phase-0.md`.
+
+## Pile technique
+
+TypeScript partout. React + Vite (PWA) côté client, Node.js + Hono pour l'API de jeu, moteur de simulation
+séparé, Supabase auto-hébergé (PostgreSQL, Auth, Realtime, Storage). Détail dans `docs/specs/11-architecture.md`.
