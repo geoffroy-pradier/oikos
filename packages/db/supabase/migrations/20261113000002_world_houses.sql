@@ -49,8 +49,8 @@ create table if not exists game.houses (
   blazon jsonb not null check (jsonb_typeof(blazon) = 'object'),
   created_at timestamptz not null default now(),
   -- Une seule maison par joueur et par monde.
-  unique (world_id, user_id),
-  unique (world_id, name_key)
+  constraint houses_one_per_user unique (world_id, user_id),
+  constraint houses_name_unique unique (world_id, name_key)
 );
 
 create table if not exists game.citizenships (
@@ -81,8 +81,21 @@ drop policy if exists citizenships_read on game.citizenships;
 create policy citizenships_read on game.citizenships for select to authenticated using (true);
 
 -- Les vues s'exécutent avec les droits de l'appelant : il lui faut la lecture, et rien d'autre, sur `game`.
+-- Sur `houses`, les colonnes sont accordées une à une : ni `user_id` ni `name_key` ne sont lisibles par un client.
 grant usage on schema game to authenticated;
-grant select on game.worlds, game.cities, game.houses, game.citizenships to authenticated;
+grant select on game.worlds, game.cities, game.citizenships to authenticated;
+grant select (id, world_id, name, blazon, created_at) on game.houses to authenticated;
+
+-- Maisons du compte connecté. Seule fonction à lire `user_id` pour le client : elle ne rend que des
+-- identifiants de maison, déjà publics, et ne prend aucun paramètre.
+create or replace function game.current_house_ids() returns setof uuid
+language sql stable security definer
+set search_path = ''
+as $$
+  select id from game.houses where user_id = (select auth.uid());
+$$;
+revoke all on function game.current_house_ids() from public, anon;
+grant execute on function game.current_house_ids() to authenticated;
 
 create or replace view public.worlds with (security_invoker = true) as
   select id, slug, name from game.worlds;
@@ -94,7 +107,7 @@ create or replace view public.cities with (security_invoker = true) as
 create or replace view public.houses with (security_invoker = true) as
   select h.id, h.world_id, h.name, h.blazon, h.created_at,
          c.city_id, c.status as citizenship_status,
-         h.user_id = (select auth.uid()) as is_mine
+         h.id in (select game.current_house_ids()) as is_mine
   from game.houses h
   left join game.citizenships c on c.house_id = h.id;
 

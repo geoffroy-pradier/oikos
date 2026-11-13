@@ -29,7 +29,7 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    cat oikos/infra/.env.example >> supabase/docker/.env
    ```
    La version de Supabase est épinglée (une étiquette dont le compose nomme la passerelle `api-gw` ; les plus anciennes utilisent `kong` et ne conviennent pas à la surcouche) : on ne suit jamais `master` en production, et toute montée de version passe d'abord par la préproduction.
-6. 👤 **Remplir `supabase/docker/.env`** : générer tous les secrets Supabase en suivant la documentation officielle d'auto-hébergement (mot de passe Postgres, secret JWT, clés d'API, identifiants du tableau de bord), renseigner les adresses publiques (`SITE_URL`, `API_EXTERNAL_URL`, `SUPABASE_PUBLIC_URL`), le SMTP du service d'e-mails transactionnels, puis les variables `OIKOS_*` et `PGBACKREST_*`.
+6. 👤 **Remplir `supabase/docker/.env`** : générer tous les secrets Supabase en suivant la documentation officielle d'auto-hébergement (mot de passe Postgres, secret JWT, clés d'API, identifiants du tableau de bord), renseigner les adresses publiques (`SITE_URL`, `API_EXTERNAL_URL`, `SUPABASE_PUBLIC_URL`), le SMTP du service d'e-mails transactionnels, puis les variables `OIKOS_*` et `PGBACKREST_*`. Fixer `PGRST_DB_SCHEMAS=public` : aucun autre schéma ne doit être exposé par PostgREST (`game` n'est lisible qu'à travers les vues de `public`).
 7. **Démarrer** :
    ```bash
    cd /opt/oikos/supabase/docker

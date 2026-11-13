@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(32);
 
 -- Jeu d'essai : deux comptes, deux maisons dans la cité de test.
 insert into auth.users (id, email) values
@@ -29,6 +29,23 @@ select is(
   0::bigint,
   'aucun droit d''écriture client sur les tables de game'
 );
+
+-- Liste exacte de ce qu'un joueur connecté peut lire dans `game` : toute extension doit modifier ce test.
+select is(
+  (select string_agg(format('%s(%s)', t, cols), ' ' order by t collate "C")
+   from (select table_name::text as t, string_agg(column_name::text, ',' order by column_name::text collate "C") as cols
+         from information_schema.column_privileges
+         where grantee = 'authenticated' and table_schema = 'game' and privilege_type = 'SELECT'
+         group by table_name) granted),
+  'cities(created_at,id,name,slug,world_id) citizenships(city_id,house_id,id,since,status) '
+    || 'houses(blazon,created_at,id,name,world_id) worlds(created_at,id,name,slug)',
+  'colonnes de game lisibles par authenticated : liste figée');
+select is(
+  (select count(*) from information_schema.column_privileges
+   where grantee in ('anon', 'authenticated') and table_schema = 'game' and privilege_type <> 'SELECT'),
+  0::bigint, 'aucun droit par colonne autre que la lecture');
+select ok(not has_function_privilege('anon', 'game.current_house_ids()', 'execute'),
+  'anon n''appelle pas current_house_ids');
 
 -- Contraintes d'intégrité.
 select throws_ok(
@@ -78,6 +95,9 @@ select throws_ok(
 select throws_ok(
   $$update public.worlds set name = 'Volé'$$,
   '42501', null, 'pas de modification par une vue');
+select throws_ok('select user_id from game.houses', '42501', null, 'user_id illisible, même en direct');
+select throws_ok('select name_key from game.houses', '42501', null, 'name_key illisible');
+select throws_ok('select * from game.houses', '42501', null, 'pas de lecture de toutes les colonnes');
 select throws_ok(
   $$update game.houses set name = 'Volée'$$,
   '42501', null, 'pas de modification directe de game.houses');
