@@ -3,6 +3,7 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { unlimited } from './rate-limit';
 
 // Tests d'intégration contre Supabase local (`pnpm db:start`).
 const DATABASE_URL =
@@ -11,7 +12,11 @@ const CITY_ID = '01900000-0000-7000-8000-000000000101';
 
 const db = createDb(DATABASE_URL);
 // Le jeton est le compte lui-même : la vérification du JWT est testée à part (auth.test.ts).
-const app = createApp({ db, verifyToken: async (token) => (token.length === 36 ? token : null) });
+const app = createApp({
+  db,
+  verifyToken: async (token) => (token.length === 36 ? token : null),
+  rateLimiter: unlimited,
+});
 const users: string[] = [];
 const suffix = [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 6).join('');
 

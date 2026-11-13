@@ -6,11 +6,14 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { TokenVerifier } from './auth';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
+import type { RateLimiter } from './rate-limit';
 import { executeCommand, type CommandDefinition } from './registry';
 
 export interface AppDeps {
   db: Db;
   verifyToken: TokenVerifier;
+  /** Limitation de débit par compte et par commande. Obligatoire : l'oublier ne doit pas la désactiver. */
+  rateLimiter: RateLimiter;
 }
 
 /** Registre des commandes servies par l'API. */
@@ -31,7 +34,7 @@ const statusOf = (code: string): ContentfulStatusCode =>
 /** Taille maximale du corps d'une commande (limite technique, pas un paramètre d'équilibrage). */
 const MAX_BODY_BYTES = 16 * 1024;
 
-export function createApp({ db, verifyToken }: AppDeps) {
+export function createApp({ db, verifyToken, rateLimiter }: AppDeps) {
   const app = new Hono<{ Variables: { userId: string } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
@@ -66,6 +69,16 @@ export function createApp({ db, verifyToken }: AppDeps) {
   app.post('/api/commands/:name', async (c) => {
     const command = registry.get(c.req.param('name'));
     if (!command) return fail({ code: 'COMMAND_NOT_FOUND', message: 'Unknown command.' });
+    // Compté après l'authentification et pour une commande connue seulement : le nombre de compteurs
+    // est borné par comptes × commandes du registre.
+    const quota = rateLimiter.hit(`${c.get('userId')}:${command.name}`);
+    if (!quota.allowed) {
+      c.header('Retry-After', String(quota.retryAfterSeconds));
+      return c.json(
+        { ok: false, error: { code: 'RATE_LIMITED', message: 'Too many commands.' } },
+        429,
+      );
+    }
     const key = idempotencyKeySchema.safeParse(c.req.header(IDEMPOTENCY_HEADER));
     if (!key.success) {
       return fail({
