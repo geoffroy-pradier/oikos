@@ -46,6 +46,8 @@ export const recipeSchema = z.strictObject({
   outputs: z.array(stack).min(1),
   durationMinutes: positiveInt,
   workers: z.number().int().nonnegative(),
+  /** Capacité de stockage du site : nombre de cycles accumulés au plus en l'absence du joueur. */
+  maxAccruedCycles: positiveInt,
 });
 
 /** Une classe de revenu des PNJ et son panier de besoins (5.2). */
@@ -53,6 +55,11 @@ export const npcClassSchema = z.strictObject({
   id,
   /** Sensibilité β à la qualité. */
   qualitySensitivity: z.number().min(0).max(1),
+  /**
+   * Revenu de la classe, en oboles par tick pour 1 000 habitants : plafond de sa dépense (5.2).
+   * Réparti entre les biens du panier au prorata de leur dépense de référence (Q0 × prix de référence).
+   */
+  incomePerThousand: positiveInt,
   basket: z
     .array(
       z.strictObject({
@@ -90,9 +97,19 @@ function duplicates(ids: string[]): string[] {
   return [...new Set(ids.filter((value, index) => ids.indexOf(value) !== index))];
 }
 
+/** Paramètres de marché (docs/specs/05-economie.md, 5.2). */
+export const marketSchema = z.strictObject({
+  /**
+   * Prix de réserve des PNJ : au-delà de ce multiple du prix de référence d'un bien, ils n'achètent pas.
+   * Sans lui, un vendeur seul capterait tout le budget d'un bien avec une unité vendue à prix démesuré.
+   */
+  npcMaxPriceFactor: z.number().min(1).max(100),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
+    market: marketSchema,
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),

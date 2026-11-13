@@ -1,5 +1,6 @@
 {
   "clock": { "tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7 },
+  "market": { "npcMaxPriceFactor": 3 },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },
@@ -23,6 +24,7 @@
       "siteType": "field",
       "durationMinutes": 240,
       "workers": 4,
+      "maxAccruedCycles": 18,
       "inputs": [],
       "outputs": [{ "goodId": "wheat", "quantity": 40 }]
     },
@@ -31,6 +33,7 @@
       "siteType": "orchard",
       "durationMinutes": 360,
       "workers": 4,
+      "maxAccruedCycles": 12,
       "inputs": [],
       "outputs": [{ "goodId": "olives", "quantity": 24 }]
     },
@@ -39,6 +42,7 @@
       "siteType": "orchard",
       "durationMinutes": 360,
       "workers": 4,
+      "maxAccruedCycles": 12,
       "inputs": [],
       "outputs": [{ "goodId": "grapes", "quantity": 24 }]
     },
@@ -47,6 +51,7 @@
       "siteType": "forest",
       "durationMinutes": 240,
       "workers": 3,
+      "maxAccruedCycles": 18,
       "inputs": [],
       "outputs": [{ "goodId": "wood", "quantity": 20 }]
     },
@@ -55,6 +60,7 @@
       "siteType": "quarry",
       "durationMinutes": 180,
       "workers": 3,
+      "maxAccruedCycles": 24,
       "inputs": [],
       "outputs": [{ "goodId": "clay", "quantity": 30 }]
     },
@@ -63,6 +69,7 @@
       "siteType": "pasture",
       "durationMinutes": 360,
       "workers": 2,
+      "maxAccruedCycles": 12,
       "inputs": [],
       "outputs": [{ "goodId": "wool", "quantity": 12 }]
     },
@@ -71,6 +78,7 @@
       "siteType": "fishery",
       "durationMinutes": 240,
       "workers": 3,
+      "maxAccruedCycles": 18,
       "inputs": [],
       "outputs": [{ "goodId": "fish", "quantity": 18 }]
     },
@@ -79,6 +87,7 @@
       "siteType": "fishery",
       "durationMinutes": 300,
       "workers": 2,
+      "maxAccruedCycles": 14,
       "inputs": [],
       "outputs": [{ "goodId": "salt", "quantity": 24 }]
     },
@@ -87,6 +96,7 @@
       "siteType": "workshop",
       "durationMinutes": 60,
       "workers": 2,
+      "maxAccruedCycles": 72,
       "inputs": [{ "goodId": "wheat", "quantity": 10 }],
       "outputs": [{ "goodId": "flour", "quantity": 8 }]
     },
@@ -95,6 +105,7 @@
       "siteType": "workshop",
       "durationMinutes": 120,
       "workers": 2,
+      "maxAccruedCycles": 36,
       "inputs": [{ "goodId": "olives", "quantity": 12 }],
       "outputs": [{ "goodId": "olive_oil", "quantity": 4 }]
     },
@@ -103,6 +114,7 @@
       "siteType": "workshop",
       "durationMinutes": 90,
       "workers": 2,
+      "maxAccruedCycles": 48,
       "inputs": [{ "goodId": "wood", "quantity": 6 }],
       "outputs": [{ "goodId": "charcoal", "quantity": 4 }]
     },
@@ -111,6 +123,7 @@
       "siteType": "workshop",
       "durationMinutes": 180,
       "workers": 3,
+      "maxAccruedCycles": 24,
       "inputs": [{ "goodId": "wool", "quantity": 6 }],
       "outputs": [{ "goodId": "cloth", "quantity": 3 }]
     },
@@ -119,6 +132,7 @@
       "siteType": "workshop",
       "durationMinutes": 60,
       "workers": 2,
+      "maxAccruedCycles": 72,
       "inputs": [
         { "goodId": "flour", "quantity": 6 },
         { "goodId": "charcoal", "quantity": 1 }
@@ -130,6 +144,7 @@
       "siteType": "workshop",
       "durationMinutes": 120,
       "workers": 2,
+      "maxAccruedCycles": 36,
       "inputs": [
         { "goodId": "clay", "quantity": 8 },
         { "goodId": "charcoal", "quantity": 2 }
@@ -141,6 +156,7 @@
       "siteType": "workshop",
       "durationMinutes": 480,
       "workers": 2,
+      "maxAccruedCycles": 9,
       "inputs": [
         { "goodId": "grapes", "quantity": 12 },
         { "goodId": "amphorae", "quantity": 1 }
@@ -152,6 +168,7 @@
     {
       "id": "thetes",
       "qualitySensitivity": 0.1,
+      "incomePerThousand": 764,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 24 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 20 },
@@ -164,6 +181,7 @@
     {
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
+      "incomePerThousand": 942,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 12 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 23 },
@@ -177,6 +195,7 @@
     {
       "id": "hippeis",
       "qualitySensitivity": 0.6,
+      "incomePerThousand": 1224,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 26 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 10 },
@@ -190,6 +209,7 @@
     {
       "id": "pentakosiomedimnoi",
       "qualitySensitivity": 0.9,
+      "incomePerThousand": 1796,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 24 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 12 },

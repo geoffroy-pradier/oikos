@@ -16,6 +16,7 @@ const errorsOf = (candidate: unknown) => {
 /** Jeu d'essai minimal et valide : trois biens, deux recettes, deux classes, une cité. */
 const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
+  market: { npcMaxPriceFactor: 3 },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -29,6 +30,7 @@ const FIXTURE: GameConfig = {
       outputs: [{ goodId: 'wheat', quantity: 40 }],
       durationMinutes: 240,
       workers: 4,
+      maxAccruedCycles: 18,
     },
     {
       id: 'mill_flour',
@@ -37,17 +39,20 @@ const FIXTURE: GameConfig = {
       outputs: [{ goodId: 'flour', quantity: 8 }],
       durationMinutes: 60,
       workers: 2,
+      maxAccruedCycles: 72,
     },
   ],
   npcClasses: [
     {
       id: 'thetes',
       qualitySensitivity: 0.1,
+      incomePerThousand: 600,
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 30 }],
     },
     {
       id: 'hippeis',
       qualitySensitivity: 0.6,
+      incomePerThousand: 600,
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 26 }],
     },
   ],
@@ -172,6 +177,36 @@ describe('une configuration invalide est refusée avec un message précis', () =
       'goods[1].referencePriceOboles',
       'recipes[0].outputs[0].quantity',
     ]);
+  });
+
+  it('revenu de classe, capacité de site et prix de réserve : obligatoires, entiers positifs ou bornés', () => {
+    const missing = clone() as unknown as {
+      npcClasses: Record<string, unknown>[];
+      recipes: Record<string, unknown>[];
+      market: Record<string, unknown>;
+    };
+    delete at(missing.npcClasses, 0)['incomePerThousand'];
+    delete at(missing.recipes, 0)['maxAccruedCycles'];
+    delete missing.market['npcMaxPriceFactor'];
+    expect(errorsOf(missing).map((error) => error.split(':')[0])).toEqual([
+      'market.npcMaxPriceFactor',
+      'recipes[0].maxAccruedCycles',
+      'npcClasses[0].incomePerThousand',
+    ]);
+    for (const bad of [0, -5, 764.5, Number.NaN]) {
+      const config = clone();
+      at(config.npcClasses, 0).incomePerThousand = bad;
+      at(config.recipes, 0).maxAccruedCycles = bad;
+      expect(errorsOf(config).map((error) => error.split(':')[0])).toEqual([
+        'recipes[0].maxAccruedCycles',
+        'npcClasses[0].incomePerThousand',
+      ]);
+    }
+    for (const bad of [0.5, 0, 101, Number.NaN]) {
+      const config = clone();
+      config.market.npcMaxPriceFactor = bad;
+      expect(errorsOf(config)).toEqual([expect.stringMatching(/^market\.npcMaxPriceFactor: /)]);
+    }
   });
 
   it('champ inconnu ou section manquante', () => {

@@ -31,6 +31,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
 - **Budget.** La formule seule ne borne pas la dépense : pour un bien vital (ε inférieur à 1), la recette des vendeurs croît sans limite avec le prix. Chaque classe a donc un revenu par tick, paramètre du back-office, et la dépense des PNJ d'une cité pour un bien ne dépasse jamais le budget que ce revenu lui alloue. C'est le levier « revenu des classes PNJ » de la section 5.5.
 - **Unités entières.** La demande est un nombre réel et les biens se comptent en unités : la fraction non servie d'un tick est reportée au tick suivant. La demande non servie faute d'offre, elle, n'est pas reportée.
 
+**Prix de réserve des PNJ.** Les PNJ n'achètent pas un bien au-delà d'un multiple de son prix de référence (paramètre du back-office, 3 au départ). Le budget borne la dépense totale ; le prix de réserve empêche qu'un vendeur seul capte ce budget avec une poignée d'unités à prix démesuré. Le revenu initial de chaque classe vaut 125 % de la dépense de référence de son panier ; un site accumule au plus trois jours de production.
+
 ## 5.3 Les marchés
 
 - **Agora** : un carnet d'ordres par cité et par bien (ordres à cours limité, exécution immédiate, historique des prix en chandeliers). Taxe de marché fixée par la cité.
