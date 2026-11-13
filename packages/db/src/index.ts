@@ -109,6 +109,31 @@ export interface GameDatabase {
     ledger_entry_id?: string | null;
     created_at: Generated<Date>;
   };
+  /** Ordres de l'agora : le reste ne change que par un échange, l'état que par une annulation. */
+  'game.orders': {
+    id: Generated<string>;
+    seq: GeneratedAlways<string>;
+    world_id: string;
+    city_id: string;
+    house_id: string;
+    good_id: string;
+    side: 'buy' | 'sell';
+    price: ColumnType<string, number, never>;
+    quantity: ColumnType<string, number, never>;
+    remaining: ColumnType<string, number, never>;
+    status: ColumnType<'open' | 'filled' | 'cancelled', undefined, 'cancelled'>;
+    created_at: Generated<Date>;
+  };
+  'game.trades': {
+    id: Generated<string>;
+    world_id: string;
+    sell_order_id: string;
+    buy_order_id: string | null;
+    price: ColumnType<string, number, never>;
+    quantity: ColumnType<string, number, never>;
+    ledger_entry_id: string;
+    created_at: Generated<Date>;
+  };
   'game.sites': {
     id: Generated<string>;
     world_id: string;

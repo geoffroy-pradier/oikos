@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { orderPlacedSchema, tradeExecutedSchema } from './market';
 import { siteCollectedSchema } from './site';
 
 /** Événements de domaine produits par les commandes (temps réel, télémétrie, chronique). */
@@ -21,6 +22,8 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
   siteCollectedSchema,
+  orderPlacedSchema,
+  tradeExecutedSchema,
 ]);
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 export type DomainEventType = DomainEvent['type'];

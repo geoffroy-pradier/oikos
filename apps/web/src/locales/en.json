@@ -68,6 +68,9 @@
     "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
     "HOUSE_NOT_FOUND": "You have not founded a house yet.",
     "SITE_NOT_FOUND": "This site cannot be found.",
+    "GOOD_NOT_FOUND": "This good does not exist.",
+    "INSUFFICIENT_STOCK": "Not enough free stock for this sale.",
+    "INSUFFICIENT_FUNDS": "Not enough money for this purchase.",
     "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished."
   },
   "shell": {
