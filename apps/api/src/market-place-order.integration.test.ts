@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createDb } from '@oikos/db';
+import { npcDemand } from '@oikos/engine';
+import { createRng } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
@@ -35,6 +37,16 @@ beforeAll(async () => {
       allow_negative: true,
     })
     .execute();
+  await db
+    .insertInto('game.accounts')
+    .values({
+      world_id: WORLD,
+      kind: 'system',
+      system_key: 'faucet_npc_purchases',
+      house_id: null,
+      allow_negative: true,
+    })
+    .execute();
 });
 const GRANT = TEST_CONFIG.config.starting.grantOboles;
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
@@ -52,9 +64,9 @@ const send = async (user: string, command: string, body: unknown, key: string = 
   return { status: res.status, body: (await res.json()) as { data?: never; error?: never } };
 };
 
-async function newCity(): Promise<string> {
+async function newCity(slug = `c-${letters()}`): Promise<string> {
   const id = randomUUID();
-  await sql`insert into game.cities (id, world_id, slug, name) values (${id}, ${WORLD}, ${`c-${letters()}`}, 'Agora de test')`.execute(
+  await sql`insert into game.cities (id, world_id, slug, name) values (${id}, ${WORLD}, ${slug}, 'Agora de test')`.execute(
     db,
   );
   return id;
@@ -311,6 +323,50 @@ describe('market.placeOrder', () => {
       [GRANT, '200/0'],
     ]);
     expect(await ledgersAreConsistent([a, b])).toBe(0);
+  });
+
+  it('tick de demande des PNJ et ordres de joueurs en même temps : aucun interblocage', async () => {
+    // La cité porte l'identifiant de la configuration : les PNJ y achètent du blé à chaque tick.
+    const cityId = await newCity('kalliste');
+    // Chaque maison vend et achète : son compte est crédité par le tick pendant qu'elle achète.
+    const traders = await Promise.all(Array.from({ length: 4 }, () => newPlayer(cityId, 400)));
+    const npcTick = () =>
+      db.transaction().execute((trx) =>
+        npcDemand.run({
+          trx,
+          worldId: WORLD,
+          index: 0,
+          scheduledAt: new Date(),
+          config: TEST_CONFIG.config,
+          rng: createRng('test'),
+          dailyClose: false,
+          seasonSwitch: false,
+        }),
+      );
+    let npcUnits = 0;
+    for (let round = 0; round < 6; round++) {
+      await Promise.all(traders.map((trader) => order(trader, 'sell', 6, 40)));
+      const [ticks, orders] = await Promise.all([
+        Promise.all([npcTick(), npcTick()]),
+        Promise.all(
+          traders.flatMap((trader) => [
+            order(trader, 'buy', 6, 5),
+            order(trader, 'sell', 6, 10),
+            order(trader, 'buy', 7, 5),
+          ]),
+        ),
+      ]);
+      expect(orders.map((result) => result.status)).toEqual(orders.map(() => 200));
+      npcUnits += ticks.reduce((sum, tick) => sum + Number(tick['units']), 0);
+    }
+    expect(npcUnits).toBeGreaterThan(0);
+    expect(await ledgersAreConsistent(traders)).toBe(0);
+    // Entre maisons, la monnaie et le blé ne font que circuler : seuls les PNJ en créent et en consomment.
+    const states = await Promise.all(traders.map(stateOf));
+    const money = states.reduce((sum, [balance]) => sum + Number(balance) - GRANT, 0);
+    const wheat = states.reduce((sum, [, stock]) => sum + Number(String(stock).split('/')[0]), 0);
+    expect(4 * 400 - wheat).toBe(npcUnits);
+    expect(money).toBe(npcUnits * 6);
   });
 
   it('une maison n’achète pas ses propres ventes', async () => {
