@@ -40,6 +40,15 @@ else
   echo "   pas d'image du moteur pour cette version : seule l'API est déployée"
 fi
 
+# Clients statiques : image de transport, publiée seulement si l'environnement a ses variables de construction.
+static_image="ghcr.io/geoffroy-pradier/oikos-static:$version"
+if docker pull --quiet "$static_image" < /dev/null > /dev/null 2>&1; then
+  has_static=true
+else
+  has_static=false
+  echo "   pas d'image des clients statiques pour cette version : ils ne sont pas mis à jour"
+fi
+
 echo "== Code et migrations"
 git -C "$root/oikos" fetch --quiet origin
 git -C "$root/oikos" checkout --quiet --detach "$version"
@@ -65,6 +74,12 @@ done
 if [ "$healthy" != true ]; then
   echo "!! L'API ne répond pas sur /api/health" >&2
   false
+fi
+
+# Les clients ne sont remplacés qu'une fois l'API de la même version en bonne santé.
+if [ "$has_static" = true ]; then
+  echo "== Clients statiques"
+  bash "$root/oikos/infra/install-static.sh" "$static_image" "$root/static" < /dev/null
 fi
 
 # Succès : la version devient celle de référence.

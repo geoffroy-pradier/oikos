@@ -81,3 +81,12 @@ jobs:
             node infra/docker/bundle.mjs "$app" "build/$app/main.mjs"
             docker build -q -f infra/docker/Dockerfile -t "oikos-$app:ci" "build/$app"
           done
+
+      # Clients statiques : construits, mis en image, puis installés comme sur le serveur et servis par
+      # Caddy avec le Caddyfile du dépôt.
+      - name: Build and install static clients
+        if: steps.ws.outputs.present == 'true' && hashFiles('infra/docker/static.sh') != ''
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+        run: bash infra/test-static.sh

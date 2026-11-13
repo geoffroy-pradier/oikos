@@ -50,8 +50,52 @@ jobs:
           docker build -f infra/docker/Dockerfile -t "$image:${{ github.sha }}" -t "$image:main" "build/${{ matrix.app }}"
           docker push --all-tags "$image"
 
+  static:
+    # Clients statiques (client joueur, back-office). L'adresse de Supabase et sa clé publique sont figées
+    # à la construction : sans les variables de dépôt de l'environnement, rien n'est publié.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Check build variables
+        id: vars
+        run: |
+          if [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Variables VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY absentes : clients statiques non publiés (voir infra/README.md)"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.vars.outputs.present == 'true'
+      - uses: pnpm/action-setup@v4
+        if: steps.vars.outputs.present == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.vars.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build and push image
+        if: steps.vars.outputs.present == 'true'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          pnpm install --frozen-lockfile
+          bash infra/docker/static.sh build/static
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/oikos-static"
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker build -t "$image:${{ github.sha }}" -t "$image:main" build/static
+          docker push --all-tags "$image"
+
   deploy:
-    needs: images
+    needs: [images, static]
     # Activé par un humain une fois le serveur prêt (ticket « Serveur de préproduction ») :
     # variable de dépôt DEPLOY_ENABLED=true et secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
     if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
