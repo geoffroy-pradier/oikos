@@ -61,3 +61,7 @@ jobs:
       - name: Integration tests
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm test:integration
+
+      - name: End-to-end tests
+        if: steps.ws.outputs.present == 'true' && hashFiles('apps/web/playwright.config.ts') != ''
+        run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
