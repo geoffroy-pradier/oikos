@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig } from './test-config';
 
-// Tests d'intégration de `market.placeOrder` contre Supabase local. Chaque test a sa propre cité :
-// les carnets ne se mélangent pas d'un test à l'autre.
+// Tests d'intégration de `market.placeOrder` contre Supabase local. Le fichier a son propre monde (cités et
+// ordres ne se suppriment pas : rien ne doit apparaître dans le monde de test des autres suites), et chaque
+// test sa propre cité : les carnets ne se mélangent pas d'un test à l'autre.
 const db = createDb(
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
 );
@@ -19,7 +20,22 @@ const app = createApp({
 });
 afterAll(() => db.destroy());
 
-const WORLD = '01900000-0000-7000-8000-000000000001';
+const WORLD = randomUUID();
+beforeAll(async () => {
+  await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`m-${WORLD.slice(0, 12)}`}, 'Marché de test')`.execute(
+    db,
+  );
+  await db
+    .insertInto('game.accounts')
+    .values({
+      world_id: WORLD,
+      kind: 'system',
+      system_key: 'faucet_starting_grant',
+      house_id: null,
+      allow_negative: true,
+    })
+    .execute();
+});
 const GRANT = TEST_CONFIG.config.starting.grantOboles;
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
 
@@ -56,27 +72,33 @@ async function newPlayer(cityId: string, wheat = 0) {
     blazon: { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' },
   });
   const houseId = (founded.body.data as unknown as { houseId: string }).houseId;
-  if (wheat > 0) {
-    const inventory = await db
-      .insertInto('game.inventories')
-      .values({ world_id: WORLD, house_id: houseId, city_id: cityId, good_id: 'wheat' })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-    await db
-      .insertInto('game.stock_ledger')
-      .values({
-        world_id: WORLD,
-        good_id: 'wheat',
-        quantity: wheat,
-        from_system: 'production',
-        to_inventory_id: inventory.id,
-        kind: 'test.seed',
-      })
-      .execute();
-  }
-  return { user, houseId, cityId };
+  const player = { user, houseId, cityId };
+  if (wheat > 0) await give(player, 'wheat', wheat);
+  return player;
 }
-type Player = Awaited<ReturnType<typeof newPlayer>>;
+interface Player {
+  user: string;
+  houseId: string;
+  cityId: string;
+}
+async function give(player: Player, goodId: string, quantity: number) {
+  const inventory = await db
+    .insertInto('game.inventories')
+    .values({ world_id: WORLD, house_id: player.houseId, city_id: player.cityId, good_id: goodId })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto('game.stock_ledger')
+    .values({
+      world_id: WORLD,
+      good_id: goodId,
+      quantity,
+      from_system: 'production',
+      to_inventory_id: inventory.id,
+      kind: 'test.seed',
+    })
+    .execute();
+}
 
 const order = (
   player: Player,
@@ -84,13 +106,24 @@ const order = (
   price: number,
   quantity: number,
   key?: string,
+  goodId = 'wheat',
 ) =>
   send(
     player.user,
     'market.placeOrder',
-    { cityId: player.cityId, goodId: 'wheat', side, price, quantity },
+    { cityId: player.cityId, goodId, side, price, quantity },
     key,
   );
+const eventsOf = async (cityId: string, type: string) =>
+  (
+    await db
+      .selectFrom('game.domain_events')
+      .select('payload')
+      .where(sql<boolean>`payload->>'cityId' = ${cityId}`)
+      .where('type', '=', type)
+      .orderBy('seq')
+      .execute()
+  ).map((event) => event.payload as Record<string, unknown>);
 /** Trésorerie, puis blé « quantité/réservé ». */
 const stateOf = async (player: Player) => {
   const account = await db
@@ -135,6 +168,18 @@ describe('market.placeOrder', () => {
       error: { code: 'INSUFFICIENT_STOCK' },
     });
     expect(await stateOf(seller)).toEqual([GRANT, '100/60']);
+    // Un événement par ordre accepté, aucun pour les ordres refusés.
+    expect(await eventsOf(seller.cityId, 'OrderPlaced')).toEqual([
+      {
+        orderId: (first.body.data as unknown as { orderId: string }).orderId,
+        houseId: seller.houseId,
+        cityId: seller.cityId,
+        goodId: 'wheat',
+        side: 'sell',
+        price: 6,
+        quantity: 60,
+      },
+    ]);
   });
 
   it('un achat sert les ventes de la moins chère à la plus chère, au prix de chacune, et annule son reste', async () => {
@@ -169,13 +214,28 @@ describe('market.placeOrder', () => {
     const book = await sql<{ price: string; quantity: string }>`
       select price, quantity from game.order_book() where city_id = ${cityId}`.execute(db);
     expect(book.rows).toEqual([{ price: '20', quantity: '10' }]);
-    const events = await db
-      .selectFrom('game.domain_events')
-      .select('type')
-      .where(sql<boolean>`payload->>'cityId' = ${cityId}`)
-      .where('type', '=', 'TradeExecuted')
-      .execute();
-    expect(events).toHaveLength(2);
+    const buyOrderId = (bought.body.data as unknown as { orderId: string }).orderId;
+    expect(await eventsOf(cityId, 'TradeExecuted')).toMatchObject([
+      { buyOrderId, price: 6, quantity: 20 },
+      { buyOrderId, price: 9, quantity: 30 },
+    ]);
+    expect(await eventsOf(cityId, 'OrderPlaced')).toMatchObject([
+      { side: 'sell', price: 9 },
+      { side: 'sell', price: 6 },
+      { side: 'sell', price: 20 },
+      { orderId: buyOrderId, houseId: buyer.houseId, side: 'buy', price: 10, quantity: 60 },
+    ]);
+    // Chaque échange est payé par une écriture `market.trade`, et livré par un mouvement qui la porte.
+    const settled = await sql<{ quantity: string; moved: string; kind: string }>`
+      select t.quantity, e.kind,
+             (select string_agg(s.quantity::text, ',') from game.stock_ledger s
+               where s.ledger_entry_id = t.ledger_entry_id) as moved
+      from game.trades t join game.ledger_entries e on e.id = t.ledger_entry_id
+      where t.buy_order_id = ${buyOrderId} order by t.price`.execute(db);
+    expect(settled.rows).toEqual([
+      { quantity: '20', moved: '20', kind: 'market.trade' },
+      { quantity: '30', moved: '30', kind: 'market.trade' },
+    ]);
   });
 
   it('achat sans contrepartie ou au-dessus de ses moyens : rien ne bouge', async () => {
@@ -195,6 +255,64 @@ describe('market.placeOrder', () => {
     ]);
   });
 
+  it('un achat peut coûter toute la trésorerie, pas une obole de plus', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 10), await newPlayer(cityId)];
+    await order(seller, 'sell', GRANT + 1, 1);
+    expect((await order(buyer, 'buy', GRANT + 1, 1)).body).toMatchObject({
+      error: { code: 'INSUFFICIENT_FUNDS' },
+    });
+    await order(seller, 'sell', GRANT, 1);
+    expect(await order(buyer, 'buy', GRANT, 1)).toMatchObject({
+      status: 200,
+      body: { data: { status: 'filled', trades: [{ price: GRANT, quantity: 1 }] } },
+    });
+    expect(await stateOf(buyer)).toEqual([0, '1/0']);
+    expect(await eventsOf(cityId, 'OrderPlaced')).toHaveLength(3);
+  });
+
+  it('deux biens dans la même cité ont deux carnets distincts', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 10), await newPlayer(cityId)];
+    await give(seller, 'olives', 10);
+    await order(seller, 'sell', 5, 10, undefined, 'olives');
+    await order(seller, 'sell', 6, 10);
+    expect((await order(buyer, 'buy', 6, 4)).body).toMatchObject({
+      data: { status: 'filled', trades: [{ price: 6, quantity: 4 }] },
+    });
+    expect(await stateOf(buyer)).toEqual([GRANT - 24, '4/0']);
+  });
+
+  it('achats croisés simultanés : aucun interblocage', async () => {
+    const cityId = await newCity();
+    const [a, b] = [await newPlayer(cityId, 200), await newPlayer(cityId, 200)];
+    await Promise.all([give(a, 'olives', 200), give(b, 'olives', 200)]);
+    // Chaque tour : A et B vendent chacun un bien que l'autre achète, tout en même temps.
+    for (let round = 0; round < 5; round++) {
+      await Promise.all([
+        order(a, 'sell', 6, 20),
+        order(a, 'sell', 6, 20, undefined, 'olives'),
+        order(b, 'sell', 6, 20),
+        order(b, 'sell', 6, 20, undefined, 'olives'),
+      ]);
+      const results = await Promise.all(
+        Array.from({ length: 4 }, () => [
+          order(a, 'buy', 6, 5),
+          order(b, 'buy', 6, 5),
+          order(a, 'buy', 6, 5, undefined, 'olives'),
+          order(b, 'buy', 6, 5, undefined, 'olives'),
+        ]).flat(),
+      );
+      expect(results.map((result) => result.status)).toEqual(results.map(() => 200));
+    }
+    // Chacun a vendu autant qu'il a acheté, au même prix.
+    expect([await stateOf(a), await stateOf(b)]).toEqual([
+      [GRANT, '200/0'],
+      [GRANT, '200/0'],
+    ]);
+    expect(await ledgersAreConsistent([a, b])).toBe(0);
+  });
+
   it('une maison n’achète pas ses propres ventes', async () => {
     const seller = await newPlayer(await newCity(), 10);
     await order(seller, 'sell', 6, 10);
@@ -206,20 +324,23 @@ describe('market.placeOrder', () => {
 
   it('acheteurs simultanés et rejeu : chaque unité n’est vendue qu’une fois', async () => {
     const cityId = await newCity();
-    const seller = await newPlayer(cityId, 30);
+    const seller = await newPlayer(cityId, 40);
     await order(seller, 'sell', 6, 30);
     const buyers = await Promise.all(Array.from({ length: 5 }, () => newPlayer(cityId)));
-    const key = randomUUID();
-    const results = await Promise.all([
-      ...buyers.map((buyer) => order(buyer, 'buy', 6, 10)),
-      order(buyers[0] as Player, 'buy', 6, 10, key),
-      order(buyers[0] as Player, 'buy', 6, 10, key),
-    ]);
+    const results = await Promise.all(buyers.map((buyer) => order(buyer, 'buy', 6, 10)));
     expect(results.every((result) => result.status === 200)).toBe(true);
+    // Rejeu : la même clé envoyée trois fois en même temps ne dépose qu'un ordre, alors que l'offre en servirait trois.
+    const [replayer, key] = [await newPlayer(cityId), randomUUID()];
+    await order(seller, 'sell', 6, 10);
+    const replays = await Promise.all([1, 2, 3].map(() => order(replayer, 'buy', 6, 3, key)));
+    expect(
+      new Set(replays.map((r) => (r.body.data as unknown as { orderId: string }).orderId)).size,
+    ).toBe(1);
+    expect(await stateOf(replayer)).toEqual([GRANT - 18, '3/0']);
     const states = await Promise.all(buyers.map(stateOf));
     const boughtUnits = states.reduce((sum, [balance]) => sum + (GRANT - Number(balance)) / 6, 0);
     expect(boughtUnits).toBe(30);
-    expect(await stateOf(seller)).toEqual([GRANT + 180, '0/0']);
+    expect(await stateOf(seller)).toEqual([GRANT + 198, '7/7']);
     expect(await ledgersAreConsistent([seller, ...buyers])).toBe(0);
   });
 
