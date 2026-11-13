@@ -61,7 +61,12 @@
     "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
     "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
     "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
-    "INTERNAL": "Une erreur est survenue. Réessayez dans un instant."
+    "INTERNAL": "Une erreur est survenue. Réessayez dans un instant.",
+    "COMMAND_NOT_FOUND": "Cette action n'est pas disponible.",
+    "IDEMPOTENCY_KEY_REQUIRED": "La demande est incomplète. Rechargez la page et réessayez.",
+    "IDEMPOTENCY_KEY_REUSED": "Cette demande a déjà été envoyée avec d'autres valeurs. Réessayez.",
+    "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
+    "HOUSE_NOT_FOUND": "Vous n'avez pas encore fondé de maison."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

@@ -61,7 +61,12 @@
     "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
     "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
     "HOUSE_NAME_TAKEN": "Another house already bears this name.",
-    "INTERNAL": "Something went wrong. Try again in a moment."
+    "INTERNAL": "Something went wrong. Try again in a moment.",
+    "COMMAND_NOT_FOUND": "This action is not available.",
+    "IDEMPOTENCY_KEY_REQUIRED": "The request is incomplete. Reload the page and try again.",
+    "IDEMPOTENCY_KEY_REUSED": "This request was already sent with other values. Try again.",
+    "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
+    "HOUSE_NOT_FOUND": "You have not founded a house yet."
   },
   "shell": {
     "skipToContent": "Skip to content",
