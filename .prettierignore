@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+dist/
+build/
+coverage/
+.turbo/
+# Documents rédigés à la main : leur mise en page fait foi.
+docs/
+*.md
