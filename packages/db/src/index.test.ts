@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest';
-import { WORKSPACE_NAME } from './index';
+import { uniqueViolation } from './index';
 
-it('expose le nom de l’espace de travail', () => {
-  expect(WORKSPACE_NAME).toBe('@oikos/db');
+it('reconnaît une violation d’unicité et rend le nom de la contrainte', () => {
+  expect(uniqueViolation({ code: '23505', constraint: 'houses_world_id_name_key_key' })).toBe(
+    'houses_world_id_name_key_key',
+  );
+});
+
+it('ignore les autres erreurs', () => {
+  expect(uniqueViolation({ code: '23514', constraint: 'houses_name_check' })).toBeNull();
+  expect(uniqueViolation(new Error('boom'))).toBeNull();
+  expect(uniqueViolation(null)).toBeNull();
 });
