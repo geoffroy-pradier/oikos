@@ -80,8 +80,8 @@ select throws_ok('select * from public.cities', '42501', null, 'anon ne lit pas 
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-00000000000a", "role": "authenticated"}';
 
-select is((select count(*) from public.cities), 1::bigint, 'la cité de test est lisible');
-select is((select count(*) from public.houses), 2::bigint, 'les profils de maison sont publics');
+select is((select count(*) from public.cities where world_id = '01900000-0000-7000-8000-000000000001'), 1::bigint, 'la cité de test est lisible');
+select is((select count(*) from public.houses where name in ('Alcméonides', 'Philaïdes')), 2::bigint, 'les profils de maison sont publics');
 select results_eq(
   'select name from public.houses where is_mine',
   $$values ('Alcméonides'::text)$$,

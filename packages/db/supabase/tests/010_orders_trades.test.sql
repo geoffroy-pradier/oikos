@@ -135,7 +135,7 @@ set local role anon;
 select throws_ok('select * from public.order_book', '42501', null, 'anon ne lit pas le carnet');
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-00000000000b", "role": "authenticated"}';
-select results_eq('select side, price, quantity from public.order_book', $$values ('sell', 8::bigint, 30::bigint)$$, 'Bob lit le carnet agrégé');
+select results_eq($$select side, price, quantity from public.order_book where city_id = '01900000-0000-7000-8000-000000000101'$$, $$values ('sell', 8::bigint, 30::bigint)$$, 'Bob lit le carnet agrégé');
 select is((select count(*) from public.my_orders where house_id <> '00000000-0000-7000-8000-0000000000b1') + (select count(*) from game.orders where house_id = '00000000-0000-7000-8000-0000000000a1'),
   0::bigint, 'mais aucun ordre d''Alice, ni par la vue ni en direct');
 

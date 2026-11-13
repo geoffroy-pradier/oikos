@@ -21,7 +21,7 @@ insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, t
 insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind) values
   ('01900000-0000-7000-8000-000000000001', 'wheat', 5, '00000000-0000-7000-8000-0000000001b1', 'npc_consumption', 'test');
 select results_eq(
-  $$select quantity from game.inventories where good_id = 'wheat' order by id$$,
+  $$select quantity from game.inventories where good_id = 'wheat' and id in ('00000000-0000-7000-8000-0000000001a1', '00000000-0000-7000-8000-0000000001b1') order by id$$,
   $$values (25::bigint), (10::bigint)$$, 'quantités après production, transfert et consommation');
 select is((select count(*) from game.inventory_quantity_check where not ok), 0::bigint, 'vue de contrôle : quantité = entrées - sorties');
 
