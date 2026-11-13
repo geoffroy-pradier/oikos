@@ -16,4 +16,6 @@ export const FRAMEWORK_ERROR_CODES = [
   /** La clé a déjà servi pour une autre commande ou une autre entrée. */
   'IDEMPOTENCY_KEY_REUSED',
   'RATE_LIMITED',
+  /** Commande d'administration appelée sans le rôle requis ou sans double authentification. */
+  'FORBIDDEN',
 ] as const;

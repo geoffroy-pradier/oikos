@@ -3,7 +3,7 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import { testConfig } from './test-config';
+import { testConfig, testVerifier } from './test-config';
 import { createRateLimiter, unlimited } from './rate-limit';
 
 // Tests d'intégration de la route de commandes contre Supabase local, avec la commande d'exemple `house.rename`.
@@ -13,7 +13,7 @@ const db = createDb(
 );
 const app = createApp({
   db,
-  verifyToken: async (token) => (token.length === 36 ? token : null),
+  verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
@@ -256,7 +256,7 @@ describe('cadre de commandes : house.rename de bout en bout', () => {
     const rateLimiter = createRateLimiter({ limit: 2, windowMs: 60_000 });
     const limited = createApp({
       db,
-      verifyToken: async (token) => token,
+      verifyToken: async (token) => ({ userId: token, aal: 'aal1' }),
       rateLimiter,
       loadConfig: testConfig,
     });

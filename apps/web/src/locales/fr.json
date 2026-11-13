@@ -118,7 +118,8 @@
     "GOOD_NOT_FOUND": "Ce bien n'existe pas.",
     "INSUFFICIENT_STOCK": "Stock libre insuffisant pour cette vente.",
     "INSUFFICIENT_FUNDS": "Trésorerie insuffisante pour cet achat.",
-    "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé."
+    "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé.",
+    "FORBIDDEN": "Cette action est réservée à l'administration."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

@@ -48,6 +48,8 @@ Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux 
 - Aucun accès direct aux tables : le back-office appelle des commandes d'administration, soumises aux mêmes règles de journalisation que les commandes de jeu.
 - Les modérateurs peuvent être des joueurs bénévoles : leur rôle ne donne accès à aucune donnée économique privée.
 
+Dans la première version, une commande d'administration (`admin.*`) n'est exécutée que si la session porte le second facteur (niveau `aal2` du jeton) et si le compte a, dans `admin.roles`, l'un des rôles que la commande autorise ; le rôle est relu à chaque commande. Tout refus (`FORBIDDEN`) est journalisé comme une commande rejetée. Deux commandes existent : `admin.publishConfig` enregistre une version de configuration sans l'activer, `admin.scheduleConfig` programme son activation à la prochaine clôture quotidienne (un retour arrière est la programmation d'une version antérieure ; si plusieurs versions sont programmées pour la même clôture, la dernière programmée l'emporte ; une version dont le contenu ne respecte plus le schéma est refusée). Le journal ne garde d'une commande d'administration refusée que la taille et l'empreinte de son entrée. Elles sont ouvertes au super-administrateur et au concepteur de jeu. La revue par une seconde personne (15.2, étape 3) n'est pas encore imposée. Le premier super-administrateur est inscrit en base par un humain.
+
 ## 15.5 Indicateurs d'alerte par défaut
 
 | Indicateur | Seuil d'alerte |

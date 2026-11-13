@@ -1,7 +1,14 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 
-/** Rend l'identifiant du compte Supabase porté par le jeton, ou `null` si le jeton est invalide. */
-export type TokenVerifier = (token: string) => Promise<string | null>;
+/** Compte authentifié : son identifiant Supabase et le niveau d'assurance de sa session. */
+export interface Identity {
+  userId: string;
+  /** `aal2` : session ouverte avec un second facteur (exigé pour l'administration). */
+  aal: 'aal1' | 'aal2';
+}
+
+/** Rend le compte porté par le jeton, ou `null` si le jeton est invalide. */
+export type TokenVerifier = (token: string) => Promise<Identity | null>;
 
 /**
  * Vérifie les jetons d'accès émis par Supabase Auth (audience `authenticated`).
@@ -19,7 +26,9 @@ export function supabaseTokenVerifier(key: Uint8Array | JWTVerifyGetKey): TokenV
         key instanceof Uint8Array
           ? await jwtVerify(token, key, options)
           : await jwtVerify(token, key, options);
-      return typeof payload.sub === 'string' && payload.sub !== '' ? payload.sub : null;
+      if (typeof payload.sub !== 'string' || payload.sub === '') return null;
+      // Sans revendication explicite, la session est tenue pour simple : jamais de second facteur par défaut.
+      return { userId: payload.sub, aal: payload['aal'] === 'aal2' ? 'aal2' : 'aal1' };
     } catch {
       return null;
     }

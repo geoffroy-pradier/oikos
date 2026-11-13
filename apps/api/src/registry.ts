@@ -1,5 +1,11 @@
+import { createHash } from 'node:crypto';
 import type { GameConfig, LoadedConfig } from '@oikos/config';
-import { domainEventSchema, type CommandError, type DomainEvent } from '@oikos/contracts';
+import {
+  domainEventSchema,
+  type AdminRole,
+  type CommandError,
+  type DomainEvent,
+} from '@oikos/contracts';
 import { violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
 import { sql, type ControlledTransaction } from 'kysely';
 import type { z } from 'zod';
@@ -17,6 +23,8 @@ export interface CommandContext {
   config: GameConfig;
   /** Instant de la commande, lu sur l'horloge de la base (début de la transaction). */
   now: Date;
+  /** Rôle d'administration du compte, pour une commande d'administration ; `null` sinon. */
+  adminRole: AdminRole | null;
 }
 
 /** Charge la configuration active à un instant (`createConfigLoader(db).at`). */
@@ -28,6 +36,11 @@ export interface CommandDefinition<I = unknown, O = unknown> {
   output: z.ZodType<O>;
   /** Codes d'erreur métier que la commande peut rendre (documentation du contrat). */
   errors: readonly string[];
+  /**
+   * Commande d'administration : rôles autorisés. Le compte doit porter l'un d'eux dans `admin.roles` et
+   * sa session avoir passé la double authentification, sinon `FORBIDDEN` (refus journalisé).
+   */
+  admin?: readonly AdminRole[];
   /** Erreurs métier déduites d'une contrainte de la base, qui fait foi sous concurrence. */
   errorByConstraint?: Record<string, CommandError>;
   handler(context: CommandContext, input: I): Promise<CommandResult<O>>;
@@ -37,6 +50,8 @@ export const defineCommand = <I, O>(definition: CommandDefinition<I, O>) => defi
 
 export interface CommandRequest {
   userId: string;
+  /** Niveau d'assurance de la session ; absent : session simple. */
+  aal?: 'aal1' | 'aal2';
   idempotencyKey: string;
   input: unknown;
 }
@@ -90,13 +105,22 @@ export function storableJson(input: unknown): string | null {
 export async function executeCommand(
   db: Db,
   command: CommandDefinition,
-  { userId, idempotencyKey, input }: CommandRequest,
+  { userId, aal, idempotencyKey, input }: CommandRequest,
   loadConfig: ConfigSource,
 ): Promise<CommandOutcome> {
   const startedAt = performance.now();
   const duration = () => Math.round(performance.now() - startedAt);
   const storable = storableJson(input);
   const loggedInput = storable ?? UNSTORABLE_INPUT;
+  // Entrée d'une commande d'administration refusée ou en panne avant le contrôle du rôle : le journal n'en
+  // garde que la taille et l'empreinte. Sans cela, un compte sans rôle remplirait le journal (en ajout
+  // seul) avec des corps de la taille d'une configuration.
+  const redactedInput = JSON.stringify({
+    redacted: true,
+    bytes: Buffer.byteLength(loggedInput),
+    sha256: createHash('sha256').update(loggedInput).digest('hex'),
+  });
+  let authorized = !command.admin;
   let trx: ControlledTransaction<GameDatabase> | undefined;
   try {
     // Chargée avant la transaction : le chargeur lit par le pool, jamais pendant qu'on tient une connexion.
@@ -117,7 +141,10 @@ export async function executeCommand(
       .executeTakeFirst();
     if (previous) {
       await trx.rollback().execute();
-      if (previous.command !== command.name || !sameJson(previous.input, JSON.parse(loggedInput))) {
+      const sameInput = [loggedInput, redactedInput].some((text) =>
+        sameJson(previous.input, JSON.parse(text)),
+      );
+      if (previous.command !== command.name || !sameInput) {
         const message = 'This idempotency key was already used for another command or input.';
         return { response: failure('IDEMPOTENCY_KEY_REUSED', message), replayed: false };
       }
@@ -127,7 +154,19 @@ export async function executeCommand(
     const events: DomainEvent[] = [];
     let response: CommandResult<unknown>;
     const parsed = command.input.safeParse(input);
-    if (storable === null) {
+    // Le rôle est relu en base à chaque commande : un rôle retiré cesse d'agir immédiatement.
+    const adminRole = command.admin
+      ? ((
+          await trx
+            .selectFrom('admin.roles')
+            .select('role')
+            .where('user_id', '=', userId)
+            .executeTakeFirst()
+        )?.role ?? null)
+      : null;
+    if (command.admin && (aal !== 'aal2' || !adminRole || !command.admin.includes(adminRole))) {
+      response = failure('FORBIDDEN', 'Administrator role and two-factor session required.');
+    } else if (((authorized = true), storable === null)) {
       response = failure('VALIDATION_FAILED', 'Input cannot be stored.');
     } else if (!parsed.success) {
       const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join('.')))];
@@ -142,6 +181,7 @@ export async function executeCommand(
             emit: (event) => events.push(domainEventSchema.parse(event)),
             config,
             now,
+            adminRole,
           },
           parsed.data,
         );
@@ -161,7 +201,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: idempotencyKey,
-        input: loggedInput,
+        input: authorized ? loggedInput : redactedInput,
         status: response.ok ? 'ok' : 'rejected',
         error_code: response.ok ? null : response.error.code,
         response: JSON.stringify(response),
@@ -194,7 +234,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: null,
-        input: loggedInput,
+        input: authorized ? loggedInput : redactedInput,
         status: 'failed',
         error_code: 'INTERNAL',
         response: JSON.stringify(response),

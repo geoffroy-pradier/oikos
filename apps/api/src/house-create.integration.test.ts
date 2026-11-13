@@ -3,7 +3,7 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import { TEST_CONFIG, testConfig } from './test-config';
+import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 import { unlimited } from './rate-limit';
 
 // Tests d'intégration contre Supabase local (`pnpm db:start`).
@@ -15,7 +15,7 @@ const db = createDb(DATABASE_URL);
 // Le jeton est le compte lui-même : la vérification du JWT est testée à part (auth.test.ts).
 const app = createApp({
   db,
-  verifyToken: async (token) => (token.length === 36 ? token : null),
+  verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
@@ -232,7 +232,7 @@ describe('house.create', () => {
     const starting = { grantOboles: GRANT + 1234, siteRecipeId: other.id };
     const tuned = createApp({
       db,
-      verifyToken: async (token) => (token.length === 36 ? token : null),
+      verifyToken: testVerifier,
       rateLimiter: unlimited,
       loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, starting } }),
     });

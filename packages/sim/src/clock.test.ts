@@ -4,6 +4,7 @@ import {
   isDailyClose,
   isSeasonSwitch,
   localTime,
+  nextDailyClose,
   seasonIndexAt,
   tickIndexAt,
   tickStart,
@@ -143,5 +144,45 @@ describe('bascule de saison', () => {
     const year = switches('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z');
     expect(year).toHaveLength(52);
     expect(new Set(year.map((iso) => iso.slice(0, 10))).size).toBe(year.length);
+  });
+});
+
+describe('prochaine clôture quotidienne', () => {
+  it('est la clôture du jour avant 04 h 00 locales, celle du lendemain ensuite', () => {
+    // Hiver : 04 h 00 à Paris = 03 h 00 UTC.
+    expect(nextDailyClose(new Date('2026-01-15T02:59:59Z'), PARIS).toISOString()).toBe(
+      '2026-01-15T03:00:00.000Z',
+    );
+    expect(nextDailyClose(new Date('2026-01-15T12:00:00Z'), PARIS).toISOString()).toBe(
+      '2026-01-16T03:00:00.000Z',
+    );
+  });
+
+  it('est strictement après l’instant donné, même à la seconde de la clôture', () => {
+    expect(nextDailyClose(new Date('2026-01-15T03:00:00Z'), PARIS).toISOString()).toBe(
+      '2026-01-16T03:00:00.000Z',
+    );
+    expect(nextDailyClose(new Date('2026-01-15T03:04:00Z'), PARIS).toISOString()).toBe(
+      '2026-01-16T03:00:00.000Z',
+    );
+  });
+
+  it('suit le passage à l’heure d’été : 02 h 00 UTC le lendemain du changement', () => {
+    expect(nextDailyClose(new Date('2026-03-28T12:00:00Z'), PARIS).toISOString()).toBe(
+      '2026-03-29T02:00:00.000Z',
+    );
+  });
+
+  it('propriété : toujours un tick de clôture, dans le futur, à moins de 25 heures', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 4_000_000_000_000 }), (ms) => {
+        const close = nextDailyClose(new Date(ms), PARIS);
+        expect(close.getTime()).toBeGreaterThan(ms);
+        expect(close.getTime() - ms).toBeLessThanOrEqual(
+          25 * 3_600_000 + PARIS.tickMinutes * 60_000,
+        );
+        expect(isDailyClose(tickIndexAt(close, PARIS.tickMinutes), PARIS)).toBe(true);
+      }),
+    );
   });
 });

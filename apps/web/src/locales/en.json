@@ -118,7 +118,8 @@
     "GOOD_NOT_FOUND": "This good does not exist.",
     "INSUFFICIENT_STOCK": "Not enough free stock for this sale.",
     "INSUFFICIENT_FUNDS": "Not enough money for this purchase.",
-    "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished."
+    "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished.",
+    "FORBIDDEN": "This action is restricted to administrators."
   },
   "shell": {
     "skipToContent": "Skip to content",

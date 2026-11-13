@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { configActivationScheduledSchema, configVersionPublishedSchema } from './admin';
 import { orderPlacedSchema, tradeExecutedSchema } from './market';
 import { siteCollectedSchema } from './site';
 
@@ -24,6 +25,8 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteCollectedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
+  configVersionPublishedSchema,
+  configActivationScheduledSchema,
 ]);
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 export type DomainEventType = DomainEvent['type'];
