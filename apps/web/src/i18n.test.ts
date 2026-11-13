@@ -1,0 +1,39 @@
+import { COMMON_ERROR_CODES, HOUSE_CREATE_ERROR_CODES } from '@oikos/contracts';
+import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
+import { describe, expect, it } from 'vitest';
+import { detectLanguage } from './i18n';
+import en from './locales/en.json';
+import fr from './locales/fr.json';
+
+function keys(node: unknown, prefix = ''): string[] {
+  if (typeof node !== 'object' || node === null) return [prefix];
+  return Object.entries(node).flatMap(([key, value]) =>
+    keys(value, prefix ? `${prefix}.${key}` : key),
+  );
+}
+
+describe('traductions', () => {
+  it('fr et en ont exactement les mêmes clés', () => {
+    expect(keys(en).sort()).toEqual(keys(fr).sort());
+  });
+
+  it('chaque erreur métier et chaque élément de blason du contrat est traduit', () => {
+    const expected = [
+      ...[...COMMON_ERROR_CODES, ...HOUSE_CREATE_ERROR_CODES].map((code) => `errors.${code}`),
+      ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),
+      ...BLAZON_TINCTURES.map((value) => `blazon.tincture.${value}`),
+      ...BLAZON_EMBLEMS.map((value) => `blazon.emblem.${value}`),
+    ];
+    expect(keys(fr)).toEqual(expect.arrayContaining(expected));
+  });
+});
+
+describe('detectLanguage', () => {
+  it('suit la préférence du navigateur, français par défaut', () => {
+    expect(detectLanguage(['en-GB', 'fr'])).toBe('en');
+    expect(detectLanguage(['fr-CA'])).toBe('fr');
+    expect(detectLanguage(['de-DE', 'en'])).toBe('en');
+    expect(detectLanguage(['el'])).toBe('fr');
+    expect(detectLanguage([])).toBe('fr');
+  });
+});

@@ -1,0 +1,52 @@
+{
+  "app": { "title": "OIKOS", "language": "Language", "signOut": "Sign out", "loading": "Loading…" },
+  "signIn": {
+    "title": "Enter the Archipelago",
+    "intro": "Enter your email address and we will send you a sign-in link. No password needed.",
+    "email": "Email address",
+    "submit": "Send me the link",
+    "sent": "Link sent to {{email}}. Open it on this device to continue.",
+    "failed": "The email could not be sent. Try again in a moment."
+  },
+  "createHouse": {
+    "title": "Found your house",
+    "intro": "You land as a metic in the city that welcomes you. Give your oikos a name and a blazon.",
+    "name": "House name",
+    "nameHint": "3 to 24 characters: letters, spaces, apostrophes and hyphens.",
+    "city": "Home city",
+    "blazon": "Blazon",
+    "shape": "Shield",
+    "tincture": "Colour",
+    "emblem": "Emblem",
+    "submit": "Found the house"
+  },
+  "home": {
+    "title": "House {{name}}",
+    "status": { "metic": "Metic of {{city}}", "citizen": "Citizen of {{city}}" }
+  },
+  "blazon": {
+    "shape": { "hoplon": "Round hoplon", "pelte": "Crescent pelte", "thyreos": "Oval thyreos" },
+    "tincture": {
+      "terracotta": "Terracotta",
+      "black": "Black",
+      "ochre": "Ochre",
+      "aegean": "Aegean blue"
+    },
+    "emblem": {
+      "owl": "Owl",
+      "trident": "Trident",
+      "olive": "Olive tree",
+      "amphora": "Amphora",
+      "sun": "Sun",
+      "ship": "Ship"
+    }
+  },
+  "errors": {
+    "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
+    "VALIDATION_FAILED": "This name is not valid. Check its characters and length.",
+    "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
+    "HOUSE_ALREADY_EXISTS": "You have already founded a house in this world.",
+    "HOUSE_NAME_TAKEN": "Another house already bears this name.",
+    "INTERNAL": "Something went wrong. Try again in a moment."
+  }
+}
