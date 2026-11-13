@@ -82,6 +82,11 @@ describe('aléa déterministe', () => {
     const rng = createRng('x');
     expect(() => rng.int(5, 4)).toThrow(RangeError);
     expect(() => rng.int(0.5, 2)).toThrow(RangeError);
+    // Au-delà de 2^32 valeurs, le tirage serait faux en silence (jamais d'impair, par exemple) : refusé.
+    expect(() => rng.int(0, 2 ** 32)).toThrow(RangeError);
+    expect(() => rng.int(0, 2 ** 40)).toThrow(RangeError);
+    expect(() => rng.int(-(2 ** 31), 2 ** 31 - 1)).not.toThrow();
+    expect(rng.int(7, 7)).toBe(7);
     expect(() => rng.pick([])).toThrow(RangeError);
   });
 });

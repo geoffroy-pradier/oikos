@@ -12,7 +12,10 @@ export interface Rng {
   pick<T>(items: readonly T[]): T;
 }
 
-/** Hachage cyrb128 d'une chaîne en quatre mots de 32 bits : étale la graine sur tout l'état. */
+/**
+ * Hachage d'une chaîne en quatre mots de 32 bits, d'après cyrb128 (mélange final : variante rendant
+ * `[h1^h2^h3^h4, h2^h1, h3^h1, h4^h1]`). Figé par les valeurs de référence des tests : ne pas le modifier.
+ */
 function hashSeed(seed: string): [number, number, number, number] {
   let h1 = 1779033703;
   let h2 = 3144134277;
@@ -31,6 +34,9 @@ function hashSeed(seed: string): [number, number, number, number] {
   h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
   return [(h1 ^ h2 ^ h3 ^ h4) >>> 0, (h2 ^ h1) >>> 0, (h3 ^ h1) >>> 0, (h4 ^ h1) >>> 0];
 }
+
+/** Étendue maximale de `int` : le nombre de valeurs distinctes d'un tirage de 32 bits. */
+const MAX_SPAN = 2 ** 32;
 
 /** Générateur sfc32 : rapide, 128 bits d'état, identique sur toutes les plateformes (entiers 32 bits). */
 export function createRng(seed: string): Rng {
@@ -52,7 +58,13 @@ export function createRng(seed: string): Rng {
   for (let i = 0; i < 12; i++) next();
 
   const int = (min: number, max: number) => {
-    if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || max < min) {
+    // `next()` ne porte que 32 bits : au-delà de 2^32 valeurs, certaines ne sortiraient jamais.
+    if (
+      !Number.isSafeInteger(min) ||
+      !Number.isSafeInteger(max) ||
+      max < min ||
+      max - min >= MAX_SPAN
+    ) {
       throw new RangeError(`Invalid integer range [${min}, ${max}]`);
     }
     return min + Math.floor(next() * (max - min + 1));

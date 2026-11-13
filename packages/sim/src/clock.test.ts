@@ -26,6 +26,13 @@ const closesBetween = (fromIso: string, toIso: string, clock = PARIS) => {
   return found;
 };
 
+/** Nombre de clôtures entre deux ticks (borne basse comprise, borne haute exclue). */
+const closesBetweenIndexes = (from: number, to: number) => {
+  let count = 0;
+  for (let index = from; index < to; index++) if (isDailyClose(index, PARIS)) count += 1;
+  return count;
+};
+
 describe('ticks', () => {
   it('un instant appartient au tick qui commence à ou avant lui, et les ticks se suivent sans trou', () => {
     fc.assert(
@@ -109,6 +116,27 @@ describe('bascule de saison', () => {
     expect(seasonIndexAt(at('2026-11-08T23:30:00Z'), PARIS)).toBe(before);
     expect(seasonIndexAt(at('2026-11-09T03:00:00Z'), PARIS)).toBe(before + 1);
     expect(seasonIndexAt(at('2026-11-15T22:00:00Z'), PARIS)).toBe(before + 1);
+  });
+
+  it('suit la durée de saison de la configuration : avec 28 jours, une bascule toutes les 28 clôtures', () => {
+    const clock = { ...PARIS, seasonDays: 28 };
+    const found: number[] = [];
+    for (let index = at('2026-01-01T00:00:00Z'); index < at('2027-01-01T00:00:00Z'); index++) {
+      if (isSeasonSwitch(index, clock)) found.push(index);
+    }
+    expect(found).toHaveLength(13);
+    const gaps = found
+      .slice(1)
+      .map((index, position) => closesBetweenIndexes(found[position] ?? 0, index));
+    expect(new Set(gaps)).toEqual(new Set([28]));
+  });
+
+  it('avec une saison d’un jour, chaque clôture est une bascule', () => {
+    const clock = { ...PARIS, seasonDays: 1 };
+    const from = at('2026-11-01T00:00:00Z');
+    for (let index = from; index < from + 144 * 3; index++) {
+      expect(isSeasonSwitch(index, clock)).toBe(isDailyClose(index, clock));
+    }
   });
 
   it('52 ou 53 bascules par an, jamais deux le même jour', () => {

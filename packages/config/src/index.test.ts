@@ -122,7 +122,17 @@ describe('une configuration invalide est refusée avec un message précis', () =
     }
     const config = clone();
     config.clock.tickMinutes = 7;
-    expect(errorsOf(config)).toEqual(['clock.tickMinutes: must divide the 1440 minutes of a day']);
+    expect(errorsOf(config)).toEqual([
+      'clock.tickMinutes: must divide the 1440 minutes of a day',
+      'clock.tickMinutes: must divide the 60 minutes of an hour',
+    ]);
+    // 90 et 120 minutes divisent la journée mais pas l'heure : la clôture ne tomberait qu'une saison sur deux.
+    for (const minutes of [90, 120, 720]) {
+      config.clock.tickMinutes = minutes;
+      expect(errorsOf(config)).toEqual([
+        'clock.tickMinutes: must divide the 60 minutes of an hour',
+      ]);
+    }
   });
 
   it('recette qui consomme ce qu’elle produit, ou cite deux fois un bien', () => {

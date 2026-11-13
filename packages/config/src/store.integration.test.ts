@@ -50,7 +50,10 @@ describe('stockage versionné de la configuration', () => {
       const result = await publishVersion(trx, variant(7));
       expect(result).toEqual({
         ok: false,
-        errors: ['clock.tickMinutes: must divide the 1440 minutes of a day'],
+        errors: [
+          'clock.tickMinutes: must divide the 1440 minutes of a day',
+          'clock.tickMinutes: must divide the 60 minutes of an hour',
+        ],
       });
       expect(await trx.selectFrom('config.versions').select('id').execute()).toEqual(before);
     }));
