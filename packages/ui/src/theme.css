@@ -1,0 +1,97 @@
+/*
+ * Thème OIKOS (docs/specs/10-ux-ui.md) : céramique grecque à figures noires et rouges.
+ * Aplats terre cuite, noir, ocre et bleu égéen. Thèmes clair et sombre.
+ * Les couples texte/fond déclarés dans `src/contrast.ts` sont vérifiés AA par les tests.
+ */
+@import 'tailwindcss';
+@source '.';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  color-scheme: light;
+  --background: #faf6ef;
+  --foreground: #1c1917;
+  --surface: #ffffff;
+  --muted: #efe8dc;
+  --muted-foreground: #57534e;
+  --border: #8a7f72;
+  --primary: #9a3412;
+  --primary-foreground: #ffffff;
+  --accent: #92400e;
+  --aegean: #1e4e8c;
+  --danger: #991b1b;
+  --focus: #1d4ed8;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #171412;
+  --foreground: #f5efe6;
+  --surface: #231f1c;
+  --muted: #2e2925;
+  --muted-foreground: #b8aea2;
+  --border: #8a7f72;
+  --primary: #ea8a5c;
+  --primary-foreground: #1c1917;
+  --accent: #e0b15a;
+  --aegean: #7fb2e5;
+  --danger: #f08a8a;
+  --focus: #93c5fd;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-aegean: var(--aegean);
+  --color-danger: var(--danger);
+  --color-focus: var(--focus);
+  --font-sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, ui-serif, serif;
+}
+
+@layer base {
+  html {
+    /* La taille de police suit le réglage du navigateur : tout est exprimé en rem. */
+    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--foreground);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
+
+/* Frise à méandre : motif décoratif, jamais porteur d'information. */
+@utility meander {
+  height: 0.5rem;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--primary) 0 0.5rem,
+    transparent 0.5rem 0.75rem,
+    var(--foreground) 0.75rem 1rem,
+    transparent 1rem 1.25rem
+  );
+}
