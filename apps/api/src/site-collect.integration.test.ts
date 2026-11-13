@@ -135,17 +135,40 @@ describe('site.collect', () => {
     expect((await collect(player.user, player.siteId)).status).toBe(409);
   });
 
-  it('collectes simultanées et rejeu : la production n’est comptée qu’une fois', async () => {
+  it('collectes simultanées : le verrou du site les met en file, la production n’est comptée qu’une fois', async () => {
     const player = await newPlayer();
     await age(player.siteId, 3);
-    const key = randomUUID();
-    const results = await Promise.all([
-      collect(player.user, player.siteId, key),
-      collect(player.user, player.siteId, key),
-      ...Array.from({ length: 6 }, () => collect(player.user, player.siteId)),
-    ]);
-    expect(results.filter((result) => result.status === 200).length).toBeGreaterThanOrEqual(1);
+    // Une transaction tierce tient le site : les deux collectes sont forcées d'attendre ensemble.
+    const holder = await db.startTransaction().execute();
+    await sql`select 1 from game.sites where id = ${player.siteId} for update`.execute(holder);
+    const pending = [collect(player.user, player.siteId), collect(player.user, player.siteId)];
+    const waiting = async () =>
+      Number(
+        (
+          await sql<{ n: string }>`select count(*) as n from pg_stat_activity
+            where wait_event_type = 'Lock' and query like '%game%sites%' and query not like '%pg_stat_activity%'`.execute(
+            db,
+          )
+        ).rows[0]?.n,
+      );
+    for (let tries = 0; (await waiting()) < 2; tries += 1) {
+      if (tries > 200) throw new Error('the two collects never queued behind the site lock');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    await holder.commit().execute();
+    const statuses = (await Promise.all(pending)).map((result) => result.status).sort();
+    expect(statuses).toEqual([200, 409]);
     expect(await stockOf(player.houseId)).toEqual([[GOOD, 3 * PER_CYCLE]]);
+  });
+
+  it('rejeu de la même clé : même réponse, aucune seconde récolte', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, 2);
+    const key = randomUUID();
+    const first = await collect(player.user, player.siteId, key);
+    await age(player.siteId, 2);
+    expect(await collect(player.user, player.siteId, key)).toEqual(first);
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 2 * PER_CYCLE]]);
   });
 
   it('le site d’un autre joueur ou un site inconnu est introuvable, et rien ne bouge', async () => {

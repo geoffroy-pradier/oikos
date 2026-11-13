@@ -31,6 +31,8 @@ export const siteCollect = defineCommand({
 
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!recipe) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
+    // Les ateliers (recettes à intrants) ne sont pas encore jouables : rien ne doit sortir sans rien consommer.
+    if (recipe.inputs.length > 0) throw new Error(`Recipe ${recipe.id} needs inputs`);
     const { cycles, since } = accrueProduction({
       since: site.cycle_started_at,
       now,
@@ -43,10 +45,10 @@ export const siteCollect = defineCommand({
       return { ok: false, error: { code: 'NOTHING_TO_COLLECT', message } };
     }
 
-    const outputs = recipe.outputs.map((stack) => ({
-      goodId: stack.goodId,
-      quantity: cycles * stack.quantity,
-    }));
+    // Extrants triés : deux collectes vers les mêmes stocks les verrouillent dans le même ordre.
+    const outputs = recipe.outputs
+      .map((stack) => ({ goodId: stack.goodId, quantity: cycles * stack.quantity }))
+      .sort((a, b) => (a.goodId < b.goodId ? -1 : 1));
     for (const { goodId, quantity } of outputs) {
       const place = { house_id: site.house_id, city_id: site.city_id, good_id: goodId };
       await trx
