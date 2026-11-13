@@ -1,8 +1,14 @@
-import { IDEMPOTENCY_HEADER, idempotencyKeySchema, type CommandError } from '@oikos/contracts';
+import {
+  IDEMPOTENCY_HEADER,
+  idempotencyKeySchema,
+  type AdminRole,
+  type CommandError,
+} from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { registerAdminReads } from './admin-read';
 import type { Identity, TokenVerifier } from './auth';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
 import { houseCreate } from './commands/house-create';
@@ -53,11 +59,12 @@ const MAX_BODY_BYTES = 16 * 1024;
 const MAX_ADMIN_BODY_BYTES = 128 * 1024;
 
 export function createApp({ db, verifyToken, rateLimiter, loadConfig }: AppDeps) {
-  const app = new Hono<{ Variables: { identity: Identity } }>();
+  const app = new Hono<{ Variables: { identity: Identity; adminRole: AdminRole } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
 
   app.get('/api/health', (c) => c.json({ ok: true }));
+  registerAdminReads(app, { db, verifyToken, rateLimiter }, fail);
 
   // Une commande est un petit objet JSON : au-delà, la requête est refusée avant lecture.
   const limit = (maxSize: number) =>
