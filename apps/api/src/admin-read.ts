@@ -13,6 +13,7 @@ const AUDIT_ROLES: readonly AdminRole[] = ['super_admin', 'observer'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Tailles de page (limites techniques). */
 const RECENT_TICKS = 20;
+const DEFAULT_AUDIT_PAGE = 50;
 const MAX_AUDIT_PAGE = 100;
 
 /**
@@ -36,8 +37,9 @@ export function registerAdminReads(
     if (!identity) return fail({ code: 'UNAUTHENTICATED', message: 'Missing or invalid token.' });
     const quota = rateLimiter.hit(`${identity.userId}:admin.read`);
     if (!quota.allowed) {
-      c.header('Retry-After', String(quota.retryAfterSeconds));
-      return fail({ code: 'RATE_LIMITED', message: 'Too many requests.' });
+      const refused = fail({ code: 'RATE_LIMITED', message: 'Too many requests.' });
+      refused.headers.set('Retry-After', String(quota.retryAfterSeconds));
+      return refused;
     }
     if (identity.aal !== 'aal2') return forbidden();
     const row = await db
@@ -50,13 +52,31 @@ export function registerAdminReads(
     c.set('adminRole', row.role);
     return next();
   });
-  const only = (roles: readonly AdminRole[], role: AdminRole) => roles.includes(role);
+  // Chaque route déclare ses rôles : une route ajoutée sans eux n'est ouverte à personne d'autre.
+  for (const [path, roles] of [
+    ['/api/admin/vigie', DASHBOARD_ROLES],
+    ['/api/admin/config/*', DASHBOARD_ROLES],
+    ['/api/admin/audit', AUDIT_ROLES],
+  ] as const) {
+    app.use(path, async (c, next) => {
+      if (!roles.includes(c.get('adminRole'))) return forbidden();
+      return next();
+    });
+  }
+  // Tout autre chemin que ceux déclarés ici et `/me` est refusé, quel que soit le rôle.
+  const OPEN_PATHS = ['/api/admin/me', '/api/admin/vigie', '/api/admin/audit'];
+  app.use('/api/admin/*', async (c, next) => {
+    const known = OPEN_PATHS.includes(c.req.path) || c.req.path.startsWith('/api/admin/config/');
+    if (!known) return forbidden();
+    return next();
+  });
+  const invalid = (field: string) =>
+    fail({ code: 'VALIDATION_FAILED', message: 'Invalid query parameter.', fields: [field] });
 
   app.get('/api/admin/me', (c) => c.json({ ok: true, data: { role: c.get('adminRole') } }));
 
   // Vigie : joueurs, commandes et ticks des dernières 24 heures.
   app.get('/api/admin/vigie', async (c) => {
-    if (!only(DASHBOARD_ROLES, c.get('adminRole'))) return forbidden();
     const totals = await sql<{
       houses: string;
       active_accounts: string;
@@ -84,15 +104,19 @@ export function registerAdminReads(
       .limit(RECENT_TICKS)
       .execute();
     // File de tâches du moteur (pg-boss) : absente tant que le moteur n'a jamais démarré sur cette base.
-    const queue = await sql<{ pending: string | null }>`
-      select case when to_regclass('pgboss.job') is null then null
-        else (select count(*) from pgboss.job where state in ('created', 'retry', 'active'))::text
-      end as pending`
-      .execute(db)
-      .then(
-        (result) => result.rows[0]?.pending ?? null,
-        () => null,
-      );
+    const installed = await sql<{ present: boolean }>`
+      select to_regclass('pgboss.job') is not null as present`.execute(db);
+    // Une table d'une autre forme (autre version de pg-boss) ne doit pas faire tomber la Vigie.
+    const queue = installed.rows[0]?.present
+      ? await sql<{ pending: string }>`
+          select count(*)::text as pending from pgboss.job
+          where state::text in ('created', 'retry', 'active')`
+          .execute(db)
+          .then(
+            (result) => result.rows[0]?.pending ?? null,
+            () => null,
+          )
+      : null;
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -123,7 +147,6 @@ export function registerAdminReads(
 
   // Paramètres : versions de configuration, activations programmées, version en vigueur.
   app.get('/api/admin/config/versions', async (c) => {
-    if (!only(DASHBOARD_ROLES, c.get('adminRole'))) return forbidden();
     const versions = await db
       .selectFrom('config.versions')
       .select(['id', 'number', 'note', 'created_by', 'created_at'])
@@ -159,7 +182,6 @@ export function registerAdminReads(
   });
 
   app.get('/api/admin/config/versions/:id', async (c) => {
-    if (!only(DASHBOARD_ROLES, c.get('adminRole'))) return forbidden();
     const id = c.req.param('id');
     const version = UUID.test(id)
       ? await db
@@ -176,18 +198,22 @@ export function registerAdminReads(
   });
 
   // Journal d'audit : toutes les commandes d'administration, réussies ou refusées, les plus récentes d'abord.
+  // `before` : identifiant de la dernière entrée déjà lue.
   app.get('/api/admin/audit', async (c) => {
-    if (!only(AUDIT_ROLES, c.get('adminRole'))) return forbidden();
-    const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), MAX_AUDIT_PAGE);
-    const before = new Date(c.req.query('before') ?? '');
+    // Paramètres validés avant toute requête : entier positif, identifiant d'entrée.
+    const [rawLimit, before] = [c.req.query('limit'), c.req.query('before')];
+    if (rawLimit !== undefined && !/^[1-9]\d{0,8}$/.test(rawLimit)) return invalid('limit');
+    if (before !== undefined && !UUID.test(before)) return invalid('before');
+    const limit = Math.min(Number(rawLimit ?? DEFAULT_AUDIT_PAGE), MAX_AUDIT_PAGE);
+    // Tri et curseur sur l'identifiant (UUID v7, croissant dans le temps) : unique, donc aucune entrée
+    // sautée ni répétée d'une page à l'autre, même écrites dans la même milliseconde.
     let query = db
       .selectFrom('game.command_log')
       .select(['id', 'user_id', 'command', 'status', 'error_code', 'response', 'created_at'])
       .where('command', 'like', 'admin.%')
-      .orderBy('created_at', 'desc')
       .orderBy('id', 'desc')
       .limit(limit);
-    if (!Number.isNaN(before.getTime())) query = query.where('created_at', '<', before);
+    if (before) query = query.where('id', '<', before);
     const entries = await query.execute();
     return c.json({
       ok: true,

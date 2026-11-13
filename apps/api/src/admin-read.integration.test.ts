@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
-import type { AdminRole } from '@oikos/contracts';
+import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
 import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import { unlimited } from './rate-limit';
+import { createRateLimiter, unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Tests d'intégration des lectures du back-office, contre Supabase local (base partagée avec les autres
@@ -93,6 +93,21 @@ describe('accès aux lectures du back-office', () => {
     expect(await allowed(users.designer)).toEqual([200, 200, 200, 403]);
     expect(await allowed(users.observer)).toEqual([200, 200, 200, 200]);
     expect(await allowed(users.moderator)).toEqual([200, 403, 403, 403]);
+    // Chaque rôle du contrat, un compte chacun : seuls trois lisent les tableaux de bord, deux le journal.
+    const matrix: Record<string, number[]> = {};
+    for (const role of ADMIN_ROLES) {
+      matrix[role] = await allowed(await newUser(role, role === 'super_admin' ? null : users.root));
+    }
+    expect(matrix).toEqual({
+      super_admin: [200, 200, 200, 200],
+      game_designer: [200, 200, 200, 403],
+      community_manager: [200, 403, 403, 403],
+      moderator: [200, 403, 403, 403],
+      support: [200, 403, 403, 403],
+      observer: [200, 200, 200, 200],
+    });
+    // Un chemin que personne n'a déclaré n'est ouvert à aucun rôle.
+    expect((await get(users.root, 'inconnu')).status).toBe(403);
     expect((await get(users.moderator, 'me')).body.data).toEqual({ role: 'moderator' });
     expect((await get(users.moderator, `config/versions/${TEST_CONFIG.id}`)).status).toBe(403);
   });
@@ -102,6 +117,26 @@ describe('accès aux lectures du back-office', () => {
     expect((await get(former, 'vigie')).status).toBe(200);
     await db.deleteFrom('admin.roles').where('user_id', '=', former).execute();
     expect((await get(former, 'vigie')).status).toBe(403);
+  });
+});
+
+describe('limitation de débit des lectures', () => {
+  it('au-delà de la limite, la requête est refusée avec le délai d’attente', async () => {
+    const limited = createApp({
+      db,
+      verifyToken: testVerifier,
+      rateLimiter: createRateLimiter({ limit: 2, windowMs: 60_000 }),
+      loadConfig: testConfig,
+    });
+    const call = () =>
+      limited.request('/api/admin/me', {
+        headers: { authorization: `Bearer aal2:${users.observer}` },
+      });
+    expect([(await call()).status, (await call()).status]).toEqual([200, 200]);
+    const refused = await call();
+    expect(refused.status).toBe(429);
+    expect(Number(refused.headers.get('Retry-After'))).toBeGreaterThan(0);
+    expect(await refused.json()).toMatchObject({ ok: false, error: { code: 'RATE_LIMITED' } });
   });
 });
 
@@ -209,17 +244,61 @@ describe('paramètres et journal d’audit', () => {
     });
     const dates = entries.map((entry) => entry.createdAt);
     expect(dates).toEqual([...dates].sort().reverse());
-    // La configuration soumise (jusqu'à 512 Ko) n'est pas recopiée dans le journal rendu.
+    // La configuration soumise n'est pas recopiée dans le journal rendu.
     expect(JSON.stringify(audit.body)).not.toContain('referencePriceOboles');
+  });
 
-    // Pagination : une entrée, puis la suivante avec `before`.
+  it('le journal ne contient que des commandes d’administration, par pages sans trou ni doublon', async () => {
+    // Une commande de jeu du même compte, et 120 commandes d'administration écrites dans le même instant.
+    const author = randomUUID();
+    await sql`
+      insert into game.command_log (user_id, command, idempotency_key, input, status, response, duration_ms)
+      select ${author}, case when n = 0 then 'house.rename' else 'admin.publishConfig' end,
+             'audit-' || ${author} || '-' || n, '{}', 'ok', '{"ok":true,"data":{"n":1}}', 1
+      from generate_series(0, 120) as n`.execute(db);
+    const written = await sql<{ n: string }>`
+      select count(*) as n from game.command_log where command like 'admin.%'`.execute(db);
+
+    const seen: { id: string; command: string; userId: string }[] = [];
+    let before = '';
+    for (let page = 0; page < 1000; page++) {
+      const reply = await get(users.root, `audit?limit=100000${before && `&before=${before}`}`);
+      const entries = reply.body.data.entries as typeof seen;
+      // La page est bornée à 100, quelle que soit la limite demandée.
+      expect(entries.length).toBeLessThanOrEqual(100);
+      if (entries.length === 0) break;
+      seen.push(...entries);
+      before = entries.at(-1)?.id ?? '';
+    }
+    expect(seen.length).toBeGreaterThanOrEqual(Number(written.rows[0]?.n));
+    expect(new Set(seen.map((entry) => entry.id)).size).toBe(seen.length);
+    expect(seen.filter((entry) => entry.userId === author)).toHaveLength(120);
+    expect(seen.every((entry) => entry.command.startsWith('admin.'))).toBe(true);
+    // Du plus récent au plus ancien, d'un bout à l'autre.
+    const ids = seen.map((entry) => entry.id);
+    expect(ids).toEqual([...ids].sort().reverse());
+    // Sans paramètre : 50 entrées ; une par une : la deuxième page commence juste après la première.
+    expect((await get(users.root, 'audit')).body.data.entries).toHaveLength(50);
     const first = (await get(users.root, 'audit?limit=1')).body.data.entries;
-    expect(first).toHaveLength(1);
-    const next = (await get(users.root, `audit?limit=1&before=${first[0].createdAt}`)).body.data
-      .entries;
-    expect(next[0].createdAt < first[0].createdAt).toBe(true);
-    expect(
-      (await get(users.root, 'audit?limit=100000')).body.data.entries.length,
-    ).toBeLessThanOrEqual(100);
+    const second = (await get(users.root, `audit?limit=1&before=${first[0].id}`)).body.data.entries;
+    expect([first[0].id, second[0].id]).toEqual(ids.slice(0, 2));
+  });
+
+  it('refuse des paramètres de pagination mal formés, sans erreur interne', async () => {
+    for (const query of [
+      'limit=1.5',
+      'limit=0',
+      'limit=-3',
+      'limit=abc',
+      'limit=1e3',
+      'before=-271821-04-20T00:00:00.000Z',
+      'before=2026-01-01T00:00:00Z',
+      `before=${'9'.repeat(5000)}`,
+    ]) {
+      expect(await get(users.root, `audit?${query}`)).toMatchObject({
+        status: 400,
+        body: { ok: false, error: { code: 'VALIDATION_FAILED' } },
+      });
+    }
   });
 });
