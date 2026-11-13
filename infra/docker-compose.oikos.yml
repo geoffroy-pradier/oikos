@@ -25,6 +25,8 @@ services:
   api:
     image: ghcr.io/geoffroy-pradier/oikos-api:${OIKOS_VERSION:?}
     restart: unless-stopped
+    # Processus d'initialisation : SIGTERM arrête le conteneur tout de suite, sans attendre dix secondes.
+    init: true
     deploy: { replicas: 2 }
     environment:
       NODE_ENV: production
@@ -37,6 +39,7 @@ services:
   engine:
     image: ghcr.io/geoffroy-pradier/oikos-engine:${OIKOS_VERSION:?}
     restart: unless-stopped
+    init: true
     environment:
       NODE_ENV: production
       DATABASE_URL: ${OIKOS_DATABASE_URL:?}

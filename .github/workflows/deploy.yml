@@ -1,0 +1,94 @@
+name: deploy
+
+# À chaque fusion sur main : images publiées sur le registre GitHub, puis déploiement en préproduction.
+# La production se déploie sur étiquette de version, après validation humaine (hors de ce flux).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    # Seule la branche main publie des images, y compris en lancement manuel.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        app: [api, engine]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bundle
+        id: bundle
+        run: |
+          if [ ! -f "apps/${{ matrix.app }}/src/main.ts" ]; then echo "present=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          node infra/docker/bundle.mjs "${{ matrix.app }}" "build/${{ matrix.app }}/main.mjs"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+
+      # Le jeton fourni par GitHub Actions suffit pour publier sur ghcr.io : aucun secret à créer.
+      - name: Build and push image
+        if: steps.bundle.outputs.present == 'true'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/oikos-${{ matrix.app }}"
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker build -f infra/docker/Dockerfile -t "$image:${{ github.sha }}" -t "$image:main" "build/${{ matrix.app }}"
+          docker push --all-tags "$image"
+
+  deploy:
+    needs: images
+    # Activé par un humain une fois le serveur prêt (ticket « Serveur de préproduction ») :
+    # variable de dépôt DEPLOY_ENABLED=true et secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: preproduction
+    # Un seul déploiement à la fois ; un déploiement en attente n'est jamais annulé à mi-course.
+    concurrency:
+      group: deploy-preproduction
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then echo "::error::Secret $name manquant : voir infra/README.md"; exit 1; fi
+          done
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Le script est copié puis exécuté depuis un fichier : lu sur l'entrée standard, il serait tronqué
+      # par la première commande qui la consomme. Il applique les migrations avant de basculer les
+      # conteneurs, contrôle la santé, et revient à la version précédente en cas d'échec.
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          VERSION: ${{ github.sha }}
+        run: |
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh_opts=(-i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes)
+          scp "${ssh_opts[@]}" infra/deploy.sh "$remote:/tmp/oikos-deploy-$VERSION.sh"
+          ssh "${ssh_opts[@]}" "$remote" "bash /tmp/oikos-deploy-$VERSION.sh $VERSION; code=\$?; rm -f /tmp/oikos-deploy-$VERSION.sh; exit \$code"
