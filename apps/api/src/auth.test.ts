@@ -13,7 +13,21 @@ describe('supabaseTokenVerifier', () => {
   const verify = supabaseTokenVerifier(new TextEncoder().encode(SECRET));
 
   it('rend le compte d’un jeton valide', async () => {
-    expect(await verify(await sign({ sub: 'user-1', aud: 'authenticated' }))).toBe('user-1');
+    expect(await verify(await sign({ sub: 'user-1', aud: 'authenticated' }))).toEqual({
+      userId: 'user-1',
+      aal: 'aal1',
+    });
+  });
+
+  it('ne reconnaît le second facteur que si le jeton le porte explicitement', async () => {
+    const claims = { sub: 'user-1', aud: 'authenticated' };
+    expect(await verify(await sign({ ...claims, aal: 'aal2' }))).toEqual({
+      userId: 'user-1',
+      aal: 'aal2',
+    });
+    for (const aal of ['aal1', 'aal3', 'AAL2', true, null]) {
+      expect((await verify(await sign({ ...claims, aal })))?.aal).toBe('aal1');
+    }
   });
 
   it('refuse une signature étrangère', async () => {
@@ -45,7 +59,10 @@ describe('jetons à clé asymétrique (Supabase Auth récent)', () => {
         .setProtectedHeader({ alg: 'ES256' })
         .setExpirationTime('5m')
         .sign(key);
-    expect(await verify(await token(trusted.privateKey))).toBe('user-2');
+    expect(await verify(await token(trusted.privateKey))).toEqual({
+      userId: 'user-2',
+      aal: 'aal1',
+    });
     expect(await verify(await token(other.privateKey))).toBeNull();
     expect(await verify(await sign({ sub: 'user-2', aud: 'authenticated' }))).toBeNull();
   });
@@ -54,7 +71,10 @@ describe('jetons à clé asymétrique (Supabase Auth récent)', () => {
 describe('tokenVerifierFromEnv', () => {
   it('utilise le secret partagé quand il est fourni', async () => {
     const verify = tokenVerifierFromEnv({ SUPABASE_JWT_SECRET: SECRET });
-    expect(await verify(await sign({ sub: 'user-3', aud: 'authenticated' }))).toBe('user-3');
+    expect(await verify(await sign({ sub: 'user-3', aud: 'authenticated' }))).toEqual({
+      userId: 'user-3',
+      aal: 'aal1',
+    });
   });
 
   it('refuse un secret trop court au démarrage', () => {

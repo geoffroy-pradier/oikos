@@ -174,6 +174,14 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  /** Rôles du back-office : un compte sans ligne n'a aucun accès. */
+  'admin.roles': {
+    user_id: string;
+    role:
+      'super_admin' | 'game_designer' | 'community_manager' | 'moderator' | 'support' | 'observer';
+    granted_by: string | null;
+    granted_at: Generated<Date>;
+  };
   'config.versions': {
     id: Generated<string>;
     number: GeneratedAlways<number>;

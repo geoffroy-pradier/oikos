@@ -80,3 +80,17 @@ export function isSeasonSwitch(index: number, clock: ClockSettings): boolean {
     isDailyClose(index, clock) && seasonIndexAt(index, clock) !== seasonIndexAt(index - 1, clock)
   );
 }
+
+/**
+ * Début du premier tick de clôture quotidienne strictement après l'instant donné. C'est l'échéance d'un
+ * changement programmé « à la prochaine clôture ».
+ */
+export function nextDailyClose(after: Date, clock: ClockSettings): Date {
+  const first = tickIndexAt(after, clock.tickMinutes) + 1;
+  // Trois jours de ticks : couvre une heure de clôture sautée par un passage à l'heure d'été.
+  const horizon = first + Math.ceil((3 * DAY_MS) / (clock.tickMinutes * MINUTE_MS));
+  for (let index = first; index <= horizon; index++) {
+    if (isDailyClose(index, clock)) return tickStart(index, clock.tickMinutes);
+  }
+  throw new Error('No daily close within three days');
+}

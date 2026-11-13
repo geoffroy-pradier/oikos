@@ -4,7 +4,7 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
-import { TEST_CONFIG, testConfig } from './test-config';
+import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Tests d'intégration de `site.collect` contre Supabase local. Le champ de départ vient de `house.create`.
 const db = createDb(
@@ -12,7 +12,7 @@ const db = createDb(
 );
 const app = createApp({
   db,
-  verifyToken: async (token) => (token.length === 36 ? token : null),
+  verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
