@@ -31,6 +31,25 @@ describe('jeu de valeurs initial', () => {
     expect(config.goods.filter((good) => !used.has(good.id))).toEqual([]);
   });
 
+  it('le revenu de chaque classe couvre son panier au prix de référence, sans le dépasser de beaucoup', () => {
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    for (const npcClass of config.npcClasses) {
+      const reference = npcClass.basket.reduce(
+        (sum, entry) => sum + entry.quantityPerThousand * (price.get(entry.goodId) ?? 0),
+        0,
+      );
+      // Assez pour acheter tout le panier au prix de référence ; pas assez pour financer une flambée des prix.
+      expect(npcClass.incomePerThousand).toBeGreaterThanOrEqual(reference);
+      expect(npcClass.incomePerThousand).toBeLessThanOrEqual(reference * 1.5);
+    }
+  });
+
+  it('chaque recette a une capacité d’accumulation d’au moins un jour', () => {
+    for (const recipe of config.recipes) {
+      expect(recipe.maxAccruedCycles * recipe.durationMinutes).toBeGreaterThanOrEqual(24 * 60);
+    }
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {

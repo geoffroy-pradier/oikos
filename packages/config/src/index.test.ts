@@ -29,6 +29,7 @@ const FIXTURE: GameConfig = {
       outputs: [{ goodId: 'wheat', quantity: 40 }],
       durationMinutes: 240,
       workers: 4,
+      maxAccruedCycles: 18,
     },
     {
       id: 'mill_flour',
@@ -37,17 +38,20 @@ const FIXTURE: GameConfig = {
       outputs: [{ goodId: 'flour', quantity: 8 }],
       durationMinutes: 60,
       workers: 2,
+      maxAccruedCycles: 72,
     },
   ],
   npcClasses: [
     {
       id: 'thetes',
       qualitySensitivity: 0.1,
+      incomePerThousand: 600,
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 30 }],
     },
     {
       id: 'hippeis',
       qualitySensitivity: 0.6,
+      incomePerThousand: 600,
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 26 }],
     },
   ],
