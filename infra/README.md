@@ -28,21 +28,21 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    cp supabase/docker/.env.example supabase/docker/.env
    cat oikos/infra/.env.example >> supabase/docker/.env
    ```
-   La version de Supabase est épinglée : on ne suit jamais `master` en production, et toute montée de version passe d'abord par la préproduction.
+   La version de Supabase est épinglée (une étiquette dont le compose nomme la passerelle `api-gw` ; les plus anciennes utilisent `kong` et ne conviennent pas à la surcouche) : on ne suit jamais `master` en production, et toute montée de version passe d'abord par la préproduction.
 6. 👤 **Remplir `supabase/docker/.env`** : générer tous les secrets Supabase en suivant la documentation officielle d'auto-hébergement (mot de passe Postgres, secret JWT, clés d'API, identifiants du tableau de bord), renseigner les adresses publiques (`SITE_URL`, `API_EXTERNAL_URL`, `SUPABASE_PUBLIC_URL`), le SMTP du service d'e-mails transactionnels, puis les variables `OIKOS_*` et `PGBACKREST_*`.
 7. **Démarrer** :
    ```bash
    cd /opt/oikos/supabase/docker
    docker compose -f docker-compose.yml -f ../../oikos/infra/docker-compose.oikos.yml up -d
    ```
-   Caddy obtient les certificats au premier démarrage. La passerelle Supabase n'est pas publiée sur l'hôte et Postgres n'écoute que sur `127.0.0.1`.
+   Caddy obtient les certificats au premier démarrage. La passerelle Supabase n'est pas publiée sur l'hôte : Caddy ne relaie que `/auth/v1`, `/rest/v1`, `/realtime/v1` et `/storage/v1`, et répond 404 au reste (Studio, pg-meta, MCP). Postgres n'écoute que sur `127.0.0.1`.
 8. **Appliquer les migrations** depuis un poste autorisé, par tunnel SSH vers le port Postgres :
    ```bash
    pnpm exec supabase db push --workdir packages/db --db-url "$DATABASE_URL"
    ```
    Les migrations sont appliquées avant le basculement des conteneurs et restent compatibles avec la version précédente du code.
 9. **Sauvegardes** : installer pgBackRest à côté de Postgres avec `backup/pgbackrest.conf`, activer l'archivage (`archive_mode=on`, `archive_command='pgbackrest --stanza=oikos archive-push %p'`), créer la stanza (`pgbackrest --stanza=oikos stanza-create`), puis planifier `backup/backup.sh full` le dimanche et `backup/backup.sh diff` les autres jours. Tester une restauration chaque mois sur la préproduction.
-10. **Accès d'administration** : Studio et les outils de supervision ne sont joignables que par VPN (WireGuard ou Tailscale) ; ils ne sont pas déclarés dans le `Caddyfile`.
+10. **Accès d'administration** : Studio et les outils de supervision ne sont joignables que par VPN (WireGuard ou Tailscale) ; aucun n'est relayé par le `Caddyfile`.
 11. 👤 **Cloudflare** en façade (cache, pare-feu applicatif), une fois le domaine vérifié.
 
 ## État et limites
@@ -50,4 +50,5 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
 - La surcouche est validée par `docker compose config` contre le compose officiel de Supabase, mais n'a pas encore tourné sur un serveur réel : la première installation en préproduction fait foi et corrigera ce document.
 - Les images `oikos-api` et `oikos-engine` seront publiées par le déploiement automatique (critère de sortie de la phase 0).
 - L'intégration fine de pgBackRest dans le conteneur Postgres de Supabase reste à faire lors de l'installation.
+- Olympe est servi comme simple site statique ; la restriction d'accès par VPN ou liste d'adresses (spécification 15.4) est à poser avant d'y brancher la moindre donnée (ticket 10).
 - Supervision (Prometheus, Grafana, Loki, Uptime Kuma, GlitchTip) : ticket ultérieur.

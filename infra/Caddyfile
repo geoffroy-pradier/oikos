@@ -16,9 +16,16 @@
 	}
 }
 
-# Supabase (Auth, PostgREST, Realtime, Storage) derrière la passerelle.
+# Supabase : seules les API utiles au client sont publiées. Le reste de la passerelle
+# (Studio, pg-meta, MCP) n'est jamais relayé : accès par VPN uniquement (14.3).
 supabase.{$OIKOS_DOMAIN} {
-	reverse_proxy api-gw:8000
+	@api path /auth/v1/* /rest/v1/* /realtime/v1/* /storage/v1/*
+	handle @api {
+		reverse_proxy api-gw:8000
+	}
+	handle {
+		respond 404
+	}
 }
 
 # Back-office Olympe : sous-domaine distinct (docs/specs/15-back-office-olympe.md).

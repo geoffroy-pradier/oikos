@@ -17,6 +17,9 @@ revoke create on schema public from public, anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 alter default privileges in schema public revoke all on functions from anon, authenticated;
 alter default privileges in schema public revoke all on sequences from anon, authenticated;
+-- Postgres accorde par défaut EXECUTE à PUBLIC sur toute nouvelle fonction : on le retire partout,
+-- sinon une fonction ajoutée dans `public` serait appelable par /rest/v1/rpc/.
+alter default privileges for role postgres revoke execute on functions from public;
 
 comment on schema game is 'Tables de vérité du jeu. Écriture par l''API de jeu et le moteur uniquement.';
 comment on schema config is 'Paramètres d''équilibrage versionnés.';

@@ -54,7 +54,9 @@ services:
       - ../../oikos/infra/Caddyfile:/etc/caddy/Caddyfile:ro
       - ../../static:/srv:ro
       - caddy_data:/data
+      - caddy_config:/config
     depends_on: [api-gw, api]
 
 volumes:
   caddy_data:
+  caddy_config:
