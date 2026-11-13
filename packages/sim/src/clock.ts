@@ -1,0 +1,82 @@
+/**
+ * Horloges du monde (docs/specs/03-boucles-progression.md) : ticks, clôture quotidienne, bascule de saison.
+ * Fonctions pures : tout se déduit de l'indice du tick et des paramètres d'horloge de la configuration.
+ */
+export interface ClockSettings {
+  tickMinutes: number;
+  dailyCloseHour: number;
+  /** Fuseau IANA de la clôture, par exemple `Europe/Paris`. */
+  timezone: string;
+  seasonDays: number;
+}
+
+const MINUTE_MS = 60_000;
+const DAY_MS = 86_400_000;
+/** Rang (en jours depuis 1970-01-01) d'un lundi de référence : le 5 janvier 1970. */
+const REFERENCE_MONDAY = 4;
+
+/** Indice du tick contenant l'instant donné. Les ticks sont alignés sur l'époque Unix. */
+export function tickIndexAt(instant: Date, tickMinutes: number): number {
+  return Math.floor(instant.getTime() / (tickMinutes * MINUTE_MS));
+}
+
+/** Instant de début du tick d'indice donné. */
+export function tickStart(index: number, tickMinutes: number): Date {
+  return new Date(index * tickMinutes * MINUTE_MS);
+}
+
+/** Un formateur par fuseau : sa construction est coûteuse et le moteur l'appelle à chaque tick. */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function formatterFor(timezone: string): Intl.DateTimeFormat {
+  let formatter = formatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+    formatters.set(timezone, formatter);
+  }
+  return formatter;
+}
+
+/** Date et heure locales d'un instant dans un fuseau, heure d'été comprise. */
+export function localTime(instant: Date, timezone: string) {
+  const parts = formatterFor(timezone).formatToParts(instant);
+  const part = (type: string) => Number(parts.find((candidate) => candidate.type === type)?.value);
+  const [year, month, day] = [part('year'), part('month'), part('day')];
+  return {
+    year,
+    month,
+    day,
+    hour: part('hour'),
+    minute: part('minute'),
+    /** Rang du jour civil local, en jours depuis 1970-01-01. */
+    dayNumber: Math.floor(Date.UTC(year, month - 1, day) / DAY_MS),
+  };
+}
+
+/** Vrai pour le tick qui ouvre l'heure de clôture locale : c'est lui qui porte la clôture quotidienne. */
+export function isDailyClose(index: number, clock: ClockSettings): boolean {
+  const { hour, minute } = localTime(tickStart(index, clock.tickMinutes), clock.timezone);
+  return hour === clock.dailyCloseHour && minute < clock.tickMinutes;
+}
+
+/** Indice de la saison du jour local du tick. Une saison commence un lundi (pour `seasonDays` = 7). */
+export function seasonIndexAt(index: number, clock: ClockSettings): number {
+  const { dayNumber, hour } = localTime(tickStart(index, clock.tickMinutes), clock.timezone);
+  // La journée de jeu commence à la clôture : avant elle, on est encore dans la journée précédente.
+  const gameDay = hour < clock.dailyCloseHour ? dayNumber - 1 : dayNumber;
+  return Math.floor((gameDay - REFERENCE_MONDAY) / clock.seasonDays);
+}
+
+/** Vrai pour la clôture quotidienne qui ouvre une nouvelle saison. */
+export function isSeasonSwitch(index: number, clock: ClockSettings): boolean {
+  return (
+    isDailyClose(index, clock) && seasonIndexAt(index, clock) !== seasonIndexAt(index - 1, clock)
+  );
+}
