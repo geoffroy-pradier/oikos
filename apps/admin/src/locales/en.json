@@ -1,0 +1,92 @@
+{
+  "app": {
+    "title": "Olympus",
+    "subtitle": "OIKOS back office",
+    "language": "Language",
+    "signOut": "Sign out",
+    "loading": "Loading…",
+    "loadFailed": "Data could not be loaded right now.",
+    "refresh": "Refresh",
+    "role": "Role: {{role}}",
+    "navigation": "Modules",
+    "forbidden": "This account has no access to the back office.",
+    "forbiddenModule": "Your role does not give access to this module."
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "roles": {
+    "super_admin": "Super administrator",
+    "game_designer": "Game designer",
+    "community_manager": "Community manager",
+    "moderator": "Moderator",
+    "support": "Support",
+    "observer": "Observer"
+  },
+  "signIn": {
+    "title": "Sign in to Olympus",
+    "intro": "Enter your e-mail address: you will receive a sign-in link. A two-factor code will then be requested.",
+    "email": "E-mail address",
+    "submit": "Send the link",
+    "sent": "Link sent to {{email}}.",
+    "failed": "Sending failed. Try again in a moment."
+  },
+  "mfa": {
+    "title": "Two-factor authentication",
+    "enrollIntro": "Scan this code with your authenticator app, or type the key by hand, then enter the six-digit code it shows.",
+    "qrAlt": "Enrolment QR code",
+    "secret": "Key to type by hand",
+    "verifyIntro": "Enter the six-digit code from your authenticator app.",
+    "code": "Six-digit code",
+    "submit": "Confirm",
+    "invalid": "Code rejected. Check your device clock and try again.",
+    "failed": "Two-factor authentication is unavailable right now."
+  },
+  "tabs": {
+    "vigie": "Watch",
+    "audit": "Audit log"
+  },
+  "vigie": {
+    "title": "Watch",
+    "houses": "Houses founded",
+    "activeAccounts": "Active accounts (24 h)",
+    "commandsOk": "Successful commands (24 h)",
+    "commandsRejected": "Rejected commands (24 h)",
+    "commandsFailed": "Failed commands (24 h)",
+    "ticksFailed": "Failed ticks (24 h)",
+    "tickMax": "Longest tick (24 h)",
+    "duration": "{{ms}} ms",
+    "none": "—",
+    "queue": "Pending jobs",
+    "queueUnknown": "Engine never started",
+    "recentTicks": "Latest tick runs",
+    "world": "World",
+    "tick": "Tick",
+    "status": "Status",
+    "time": "Time",
+    "error": "Error",
+    "noTicks": "No tick played.",
+    "tickStatus": {
+      "done": "Played",
+      "skipped": "Already played",
+      "failed": "Failed"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "caption": "Administration commands, most recent first",
+    "time": "Time",
+    "account": "Account",
+    "command": "Command",
+    "outcome": "Outcome",
+    "result": "Result",
+    "empty": "No administration command.",
+    "older": "Older entries",
+    "status": {
+      "ok": "Succeeded",
+      "rejected": "Rejected ({{code}})",
+      "failed": "Failed"
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "app": {
+    "title": "Olympe",
+    "subtitle": "Back-office d'OIKOS",
+    "language": "Langue",
+    "signOut": "Se déconnecter",
+    "loading": "Chargement…",
+    "loadFailed": "Lecture impossible pour le moment.",
+    "refresh": "Actualiser",
+    "role": "Rôle : {{role}}",
+    "navigation": "Modules",
+    "forbidden": "Ce compte n'a pas accès au back-office.",
+    "forbiddenModule": "Votre rôle ne donne pas accès à ce module."
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "roles": {
+    "super_admin": "Super-administrateur",
+    "game_designer": "Concepteur de jeu",
+    "community_manager": "Responsable communauté",
+    "moderator": "Modérateur",
+    "support": "Support",
+    "observer": "Observateur"
+  },
+  "signIn": {
+    "title": "Connexion à Olympe",
+    "intro": "Saisissez votre adresse e-mail : vous recevrez un lien de connexion. Un code de double authentification vous sera ensuite demandé.",
+    "email": "Adresse e-mail",
+    "submit": "Recevoir le lien",
+    "sent": "Lien envoyé à {{email}}.",
+    "failed": "L'envoi a échoué. Réessayez dans un instant."
+  },
+  "mfa": {
+    "title": "Double authentification",
+    "enrollIntro": "Scannez ce code avec votre application d'authentification, ou saisissez la clé à la main, puis entrez le code à six chiffres qu'elle affiche.",
+    "qrAlt": "Code QR d'enrôlement",
+    "secret": "Clé à saisir à la main",
+    "verifyIntro": "Entrez le code à six chiffres de votre application d'authentification.",
+    "code": "Code à six chiffres",
+    "submit": "Valider",
+    "invalid": "Code refusé. Vérifiez l'heure de votre appareil et réessayez.",
+    "failed": "La double authentification est indisponible pour le moment."
+  },
+  "tabs": {
+    "vigie": "Vigie",
+    "audit": "Journal d'audit"
+  },
+  "vigie": {
+    "title": "Vigie",
+    "houses": "Maisons fondées",
+    "activeAccounts": "Comptes actifs (24 h)",
+    "commandsOk": "Commandes réussies (24 h)",
+    "commandsRejected": "Commandes refusées (24 h)",
+    "commandsFailed": "Commandes en panne (24 h)",
+    "ticksFailed": "Ticks en échec (24 h)",
+    "tickMax": "Tick le plus long (24 h)",
+    "duration": "{{ms}} ms",
+    "none": "—",
+    "queue": "Tâches en attente",
+    "queueUnknown": "Moteur jamais démarré",
+    "recentTicks": "Dernières exécutions de tick",
+    "world": "Monde",
+    "tick": "Tick",
+    "status": "État",
+    "time": "Heure",
+    "error": "Erreur",
+    "noTicks": "Aucun tick joué.",
+    "tickStatus": {
+      "done": "Joué",
+      "skipped": "Déjà joué",
+      "failed": "Échec"
+    }
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "caption": "Commandes d'administration, de la plus récente à la plus ancienne",
+    "time": "Heure",
+    "account": "Compte",
+    "command": "Commande",
+    "outcome": "Issue",
+    "result": "Résultat",
+    "empty": "Aucune commande d'administration.",
+    "older": "Entrées plus anciennes",
+    "status": {
+      "ok": "Réussie",
+      "rejected": "Refusée ({{code}})",
+      "failed": "En panne"
+    }
+  }
+}
