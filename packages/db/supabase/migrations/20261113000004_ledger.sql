@@ -2,10 +2,16 @@
 -- Les soldes ne sont que des cumuls vérifiables des journaux, qui sont en ajout seul.
 
 -- Clés composées : un compte ou un stock ne peut référencer qu'une maison ou une cité de son propre monde.
-alter table game.houses drop constraint if exists houses_id_world_unique;
-alter table game.houses add constraint houses_id_world_unique unique (id, world_id);
-alter table game.cities drop constraint if exists cities_id_world_unique;
-alter table game.cities add constraint cities_id_world_unique unique (id, world_id);
+do $$
+begin
+  -- Ajout conditionnel : une fois référencées par des clés étrangères, ces contraintes ne se recréent pas.
+  if not exists (select 1 from pg_constraint where conname = 'houses_id_world_unique') then
+    alter table game.houses add constraint houses_id_world_unique unique (id, world_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'cities_id_world_unique') then
+    alter table game.cities add constraint cities_id_world_unique unique (id, world_id);
+  end if;
+end $$;
 
 create or replace function game.forbid_change() returns trigger
 language plpgsql
