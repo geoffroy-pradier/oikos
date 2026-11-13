@@ -110,6 +110,9 @@ describe('house.create', () => {
 
   it('est atomique : si l’inscription dans la cité échoue, la maison n’est pas créée', async () => {
     const user = await newUser();
+    await sql`alter table game.citizenships drop constraint if exists test_always_fails`.execute(
+      db,
+    );
     await sql`alter table game.citizenships add constraint test_always_fails check (false) not valid`.execute(
       db,
     );
@@ -126,11 +129,14 @@ describe('house.create', () => {
   it('est atomique jusqu’au bout : si le premier site échoue, ni maison, ni compte, ni monnaie créée', async () => {
     const user = await newUser();
     const before = await granted();
+    await sql`alter table game.sites drop constraint if exists test_always_fails`.execute(db);
     await sql`alter table game.sites add constraint test_always_fails check (false) not valid`.execute(
       db,
     );
     try {
-      expect((await post(user, input(`Sans champ ${suffix}`))).status).toBe(500);
+      const res = await post(user, input(`Sans champ ${suffix}`));
+      expect(res.status).toBe(500);
+      expect(await res.json()).toMatchObject({ error: { code: 'INTERNAL' } });
     } finally {
       await sql`alter table game.sites drop constraint test_always_fails`.execute(db);
     }
@@ -215,6 +221,38 @@ describe('house.create', () => {
     expect((await post(user, input(`Encore ${suffix}`))).status).toBe(409);
     expect(await granted()).toBe(before + GRANT);
     expect((await endowmentOf(body.data.houseId)).sites).toHaveLength(1);
+  });
+
+  it('le montant de la dotation et la recette du premier site viennent de la configuration active', async () => {
+    const other = TEST_CONFIG.config.recipes.find(
+      (recipe) =>
+        recipe.inputs.length === 0 && recipe.id !== TEST_CONFIG.config.starting.siteRecipeId,
+    );
+    if (!other) throw new Error('the test configuration needs a second primary recipe');
+    const starting = { grantOboles: GRANT + 1234, siteRecipeId: other.id };
+    const tuned = createApp({
+      db,
+      verifyToken: async (token) => (token.length === 36 ? token : null),
+      rateLimiter: unlimited,
+      loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, starting } }),
+    });
+    const user = await newUser();
+    const before = await granted();
+    const res = await tuned.request('/api/commands/house.create', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${user}`,
+        'Idempotency-Key': randomUUID(),
+      },
+      body: JSON.stringify(input(`Réglée ${suffix}`)),
+    });
+    const body = (await res.json()) as { data: { houseId: string } };
+    expect(await endowmentOf(body.data.houseId)).toEqual({
+      balance: [starting.grantOboles],
+      sites: [other.id],
+    });
+    expect(await granted()).toBe(before + starting.grantOboles);
   });
 
   it('refuse une seconde maison pour le même compte', async () => {
