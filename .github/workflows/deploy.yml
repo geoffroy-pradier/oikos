@@ -7,16 +7,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: deploy-preproduction
-  cancel-in-progress: false
-
 permissions:
   contents: read
-  packages: write
 
 jobs:
   images:
+    # Seule la branche main publie des images, y compris en lancement manuel.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -41,9 +41,12 @@ jobs:
       # Le jeton fourni par GitHub Actions suffit pour publier sur ghcr.io : aucun secret à créer.
       - name: Build and push image
         if: steps.bundle.outputs.present == 'true'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/oikos-${{ matrix.app }}"
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
           docker build -f infra/docker/Dockerfile -t "$image:${{ github.sha }}" -t "$image:main" "build/${{ matrix.app }}"
           docker push --all-tags "$image"
 
@@ -51,10 +54,14 @@ jobs:
     needs: images
     # Activé par un humain une fois le serveur prêt (ticket « Serveur de préproduction ») :
     # variable de dépôt DEPLOY_ENABLED=true et secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
-    if: vars.DEPLOY_ENABLED == 'true'
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: preproduction
+    # Un seul déploiement à la fois ; un déploiement en attente n'est jamais annulé à mi-course.
+    concurrency:
+      group: deploy-preproduction
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -72,11 +79,16 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Le script distant applique les migrations avant de basculer les conteneurs, puis contrôle la santé.
+      # Le script est copié puis exécuté depuis un fichier : lu sur l'entrée standard, il serait tronqué
+      # par la première commande qui la consomme. Il applique les migrations avant de basculer les
+      # conteneurs, contrôle la santé, et revient à la version précédente en cas d'échec.
       - name: Deploy
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          VERSION: ${{ github.sha }}
         run: |
-          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
-            "bash -s -- '${{ github.sha }}'" < infra/deploy.sh
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh_opts=(-i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes)
+          scp "${ssh_opts[@]}" infra/deploy.sh "$remote:/tmp/oikos-deploy-$VERSION.sh"
+          ssh "${ssh_opts[@]}" "$remote" "bash /tmp/oikos-deploy-$VERSION.sh $VERSION; code=\$?; rm -f /tmp/oikos-deploy-$VERSION.sh; exit \$code"
