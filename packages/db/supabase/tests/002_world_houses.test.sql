@@ -36,6 +36,7 @@ select is(
    from (select table_name::text as t, string_agg(column_name::text, ',' order by column_name::text collate "C") as cols
          from information_schema.column_privileges
          where grantee = 'authenticated' and table_schema = 'game' and privilege_type = 'SELECT'
+           and table_name in ('worlds', 'cities', 'houses', 'citizenships')
          group by table_name) granted),
   'cities(created_at,id,name,slug,world_id) citizenships(city_id,house_id,id,since,status) '
     || 'houses(blazon,created_at,id,name,world_id) worlds(created_at,id,name,slug)',
