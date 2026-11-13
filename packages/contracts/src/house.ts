@@ -48,3 +48,13 @@ export const HOUSE_CREATE_ERROR_CODES = [
   'HOUSE_NAME_TAKEN',
 ] as const;
 export type HouseCreateErrorCode = (typeof HOUSE_CREATE_ERROR_CODES)[number];
+
+/** Commande `house.rename` : change le nom de la maison du joueur. */
+export const houseRenameInputSchema = z.strictObject({ name: houseNameSchema });
+export type HouseRenameInput = z.infer<typeof houseRenameInputSchema>;
+
+export const houseRenameOutputSchema = z.object({ houseId: z.uuid(), name: z.string() });
+export type HouseRenameOutput = z.infer<typeof houseRenameOutputSchema>;
+
+export const HOUSE_RENAME_ERROR_CODES = ['HOUSE_NOT_FOUND', 'HOUSE_NAME_TAKEN'] as const;
+export type HouseRenameErrorCode = (typeof HOUSE_RENAME_ERROR_CODES)[number];

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { houseCreateInputSchema, houseNameSchema, normalizeHouseName } from './index';
+import {
+  domainEventSchema,
+  houseCreateInputSchema,
+  houseNameSchema,
+  houseRenameInputSchema,
+  idempotencyKeySchema,
+  normalizeHouseName,
+} from './index';
 
 describe('houseNameSchema', () => {
   it.each(['Alcméonides', "Fils d'Atrée", 'Les Trois-Îles', 'Abc', 'a'.repeat(24)])(
@@ -50,5 +57,44 @@ describe('normalizeHouseName', () => {
     const name = normalizeHouseName(raw);
     expect(name).toBe("Fils d'Atrée");
     expect(houseNameSchema.safeParse(name).success).toBe(true);
+  });
+});
+
+describe('idempotencyKeySchema', () => {
+  it('accepte un UUID et refuse une clé trop courte, trop longue ou à caractères interdits', () => {
+    expect(idempotencyKeySchema.safeParse('0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b').success).toBe(
+      true,
+    );
+    for (const bad of ['court', 'a'.repeat(129), 'clé avec espace', 'drop;table--x']) {
+      expect(idempotencyKeySchema.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe('houseRenameInputSchema', () => {
+  it('applique la règle de nom et refuse tout champ en plus', () => {
+    expect(houseRenameInputSchema.safeParse({ name: 'Philaïdes' }).success).toBe(true);
+    expect(houseRenameInputSchema.safeParse({ name: 'X1' }).success).toBe(false);
+    expect(houseRenameInputSchema.safeParse({ name: 'Philaïdes', houseId: 'x' }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('domainEventSchema', () => {
+  const id = '01900000-0000-7000-8000-000000000101';
+
+  it('reconnaît un événement par son type et valide son contenu', () => {
+    const event = {
+      type: 'HouseRenamed',
+      payload: { houseId: id, previousName: 'Avant', name: 'Après' },
+    };
+    expect(domainEventSchema.parse(event)).toEqual(event);
+  });
+
+  it('refuse un type inconnu ou un contenu d’un autre événement', () => {
+    expect(domainEventSchema.safeParse({ type: 'HouseBurned', payload: {} }).success).toBe(false);
+    const mixed = { type: 'HouseFounded', payload: { houseId: id, previousName: 'a', name: 'b' } };
+    expect(domainEventSchema.safeParse(mixed).success).toBe(false);
   });
 });

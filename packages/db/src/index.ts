@@ -38,6 +38,26 @@ export interface GameDatabase {
     since: Generated<Date>;
   };
 
+  'game.command_log': {
+    id: Generated<string>;
+    user_id: string;
+    command: string;
+    idempotency_key: string | null;
+    input: ColumnType<unknown, string, never>;
+    status: 'ok' | 'rejected' | 'failed';
+    error_code: string | null;
+    response: ColumnType<unknown, string, never>;
+    duration_ms: number;
+    created_at: Generated<Date>;
+  };
+  'game.domain_events': {
+    id: Generated<string>;
+    command_id: string | null;
+    type: string;
+    payload: ColumnType<unknown, string, never>;
+    created_at: Generated<Date>;
+  };
+
   'config.versions': {
     id: Generated<string>;
     number: GeneratedAlways<number>;
