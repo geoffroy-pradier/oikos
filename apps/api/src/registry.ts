@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { GameConfig, LoadedConfig } from '@oikos/config';
 import {
   domainEventSchema,
@@ -111,6 +112,15 @@ export async function executeCommand(
   const duration = () => Math.round(performance.now() - startedAt);
   const storable = storableJson(input);
   const loggedInput = storable ?? UNSTORABLE_INPUT;
+  // Entrée d'une commande d'administration refusée ou en panne avant le contrôle du rôle : le journal n'en
+  // garde que la taille et l'empreinte. Sans cela, un compte sans rôle remplirait le journal (en ajout
+  // seul) avec des corps de la taille d'une configuration.
+  const redactedInput = JSON.stringify({
+    redacted: true,
+    bytes: Buffer.byteLength(loggedInput),
+    sha256: createHash('sha256').update(loggedInput).digest('hex'),
+  });
+  let authorized = !command.admin;
   let trx: ControlledTransaction<GameDatabase> | undefined;
   try {
     // Chargée avant la transaction : le chargeur lit par le pool, jamais pendant qu'on tient une connexion.
@@ -131,7 +141,10 @@ export async function executeCommand(
       .executeTakeFirst();
     if (previous) {
       await trx.rollback().execute();
-      if (previous.command !== command.name || !sameJson(previous.input, JSON.parse(loggedInput))) {
+      const sameInput = [loggedInput, redactedInput].some((text) =>
+        sameJson(previous.input, JSON.parse(text)),
+      );
+      if (previous.command !== command.name || !sameInput) {
         const message = 'This idempotency key was already used for another command or input.';
         return { response: failure('IDEMPOTENCY_KEY_REUSED', message), replayed: false };
       }
@@ -153,7 +166,7 @@ export async function executeCommand(
       : null;
     if (command.admin && (aal !== 'aal2' || !adminRole || !command.admin.includes(adminRole))) {
       response = failure('FORBIDDEN', 'Administrator role and two-factor session required.');
-    } else if (storable === null) {
+    } else if (((authorized = true), storable === null)) {
       response = failure('VALIDATION_FAILED', 'Input cannot be stored.');
     } else if (!parsed.success) {
       const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join('.')))];
@@ -188,7 +201,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: idempotencyKey,
-        input: loggedInput,
+        input: authorized ? loggedInput : redactedInput,
         status: response.ok ? 'ok' : 'rejected',
         error_code: response.ok ? null : response.error.code,
         response: JSON.stringify(response),
@@ -221,7 +234,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: null,
-        input: loggedInput,
+        input: authorized ? loggedInput : redactedInput,
         status: 'failed',
         error_code: 'INTERNAL',
         response: JSON.stringify(response),

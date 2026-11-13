@@ -46,8 +46,11 @@ const statusOf = (code: string): ContentfulStatusCode =>
 
 /** Taille maximale du corps d'une commande (limite technique, pas un paramètre d'équilibrage). */
 const MAX_BODY_BYTES = 16 * 1024;
-/** Une commande d'administration peut porter une configuration complète. */
-const MAX_ADMIN_BODY_BYTES = 512 * 1024;
+/**
+ * Une commande d'administration porte une configuration complète : 6 Ko pour les 15 biens du départ,
+ * mais le catalogue visé en compte 60, avec leurs recettes. Marge prise pour ne pas y revenir.
+ */
+const MAX_ADMIN_BODY_BYTES = 128 * 1024;
 
 export function createApp({ db, verifyToken, rateLimiter, loadConfig }: AppDeps) {
   const app = new Hono<{ Variables: { identity: Identity } }>();

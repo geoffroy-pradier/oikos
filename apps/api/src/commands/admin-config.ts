@@ -1,4 +1,4 @@
-import { publishVersion, scheduleActivation } from '@oikos/config';
+import { publishVersion, scheduleActivation, validateConfig } from '@oikos/config';
 import {
   ADMIN_PUBLISH_CONFIG_ERROR_CODES,
   ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
@@ -55,13 +55,26 @@ export const adminScheduleConfig = defineCommand({
   async handler({ trx, userId, emit, config, now }, input) {
     const version = await trx
       .selectFrom('config.versions')
-      .select('id')
+      .select(['id', 'payload'])
       .where('id', '=', input.versionId)
       .executeTakeFirst();
     if (!version) {
       return {
         ok: false,
         error: { code: 'CONFIG_VERSION_NOT_FOUND', message: 'Unknown configuration version.' },
+      };
+    }
+    // Une version écrite hors de `admin.publishConfig`, ou devenue invalide après un changement de schéma,
+    // ne doit jamais entrer en vigueur : le chargeur la refuserait, et plus aucune commande ne passerait.
+    const stored = validateConfig(version.payload);
+    if (!stored.ok) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_INVALID',
+          message: 'The stored configuration no longer matches the schema.',
+          fields: stored.errors,
+        },
       };
     }
     const activateAt = nextDailyClose(now, config.clock);

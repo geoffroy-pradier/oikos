@@ -40,7 +40,11 @@ export const adminScheduleConfigOutputSchema = z.object({
   activateAt: z.iso.datetime(),
 });
 export type AdminScheduleConfigOutput = z.infer<typeof adminScheduleConfigOutputSchema>;
-export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = ['FORBIDDEN', 'CONFIG_VERSION_NOT_FOUND'] as const;
+export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
+  'FORBIDDEN',
+  'CONFIG_VERSION_NOT_FOUND',
+  'CONFIG_INVALID',
+] as const;
 
 export const configVersionPublishedSchema = z.strictObject({
   type: z.literal('ConfigVersionPublished'),

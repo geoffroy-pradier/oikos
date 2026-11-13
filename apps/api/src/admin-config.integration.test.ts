@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
-import type { AdminRole } from '@oikos/contracts';
+import { ADMIN_ROLES, CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
 import { createDb } from '@oikos/db';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from './app';
+import { COMMANDS, createApp } from './app';
+import { adminPublishConfig } from './commands/admin-config';
+import { executeCommand } from './registry';
 import { unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
@@ -90,11 +92,18 @@ const activeAt = async (instant: Date) =>
 
 describe('accès aux commandes d’administration', () => {
   it('refuse un compte sans rôle, un rôle insuffisant et une session sans second facteur ; le refus est journalisé', async () => {
-    const [player, observer] = [await newUser(), await newUser('observer', root)];
+    const player = await newUser();
+    // Tous les rôles qui ne sont pas éditeurs de configuration, un compte chacun.
+    const editors: readonly AdminRole[] = CONFIG_EDITOR_ROLES;
+    const others = await Promise.all(
+      ADMIN_ROLES.filter((role) => !editors.includes(role)).map((role) => newUser(role, root)),
+    );
+    expect(others).toHaveLength(4);
+    const observer = others[0] ?? '';
     const input = { config: candidate(3100), note: 'tentative' };
     for (const [user, options] of [
       [player, {}],
-      [observer, {}],
+      ...others.map((user) => [user, {}] as const),
       [designer, { aal2: false }],
       [root, { aal2: false }],
     ] as const) {
@@ -114,6 +123,60 @@ describe('accès aux commandes d’administration', () => {
       { command: 'admin.publishConfig', status: 'rejected', error_code: 'FORBIDDEN' },
       { command: 'admin.scheduleConfig', status: 'rejected', error_code: 'FORBIDDEN' },
     ]);
+  });
+
+  it('le refus précède toute validation : même réponse quelle que soit l’entrée', async () => {
+    const player = await newUser();
+    for (const body of [{ config: 'texte' }, { inconnu: true }, null, { versionId: 'x' }]) {
+      expect((await send(player, 'admin.publishConfig', body)).status).toBe(403);
+      expect((await send(player, 'admin.scheduleConfig', body)).status).toBe(403);
+    }
+  });
+
+  it('sans niveau d’assurance connu, la session est tenue pour simple', async () => {
+    const outcome = await executeCommand(
+      db,
+      adminPublishConfig as never,
+      { userId: root, idempotencyKey: randomUUID(), input: { config: candidate(3100) } },
+      testConfig,
+    );
+    expect(outcome.response).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('toute commande du préfixe `admin.` déclare ses rôles, et aucune autre n’en déclare', () => {
+    for (const command of COMMANDS) {
+      expect([command.name, (command.admin?.length ?? 0) > 0]).toEqual([
+        command.name,
+        command.name.startsWith('admin.'),
+      ]);
+    }
+    expect(COMMANDS.filter((command) => command.admin).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('un refus ne journalise que la taille et l’empreinte de l’entrée, et se rejoue avec la même clé', async () => {
+    const player = await newUser();
+    const key = randomUUID();
+    const input = { config: { ...candidate(3100), padding: 'x'.repeat(50_000) } };
+    const first = await send(player, 'admin.publishConfig', input, { key });
+    expect(first.status).toBe(403);
+    const logged = await db
+      .selectFrom('game.command_log')
+      .select(['input', sql<number>`pg_column_size(input)`.as('size')])
+      .where('user_id', '=', player)
+      .execute();
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.input).toEqual({
+      redacted: true,
+      bytes: Buffer.byteLength(JSON.stringify(input)),
+      sha256: expect.stringMatching(/^[0-9a-f]{64}$/) as string,
+    });
+    expect(logged[0]?.size).toBeLessThan(300);
+    // Même clé, même entrée : la réponse enregistrée ; même clé, autre entrée : clé déjà utilisée.
+    expect(await send(player, 'admin.publishConfig', input, { key })).toEqual(first);
+    expect(
+      (await send(player, 'admin.publishConfig', { config: candidate(1) }, { key })).body.error
+        ?.code,
+    ).toBe('IDEMPOTENCY_KEY_REUSED');
   });
 
   it('un rôle retiré cesse d’agir à la commande suivante', async () => {
@@ -179,9 +242,11 @@ describe('admin.publishConfig', () => {
     const refused = await send(author, 'admin.publishConfig', { config: broken });
     expect(refused).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_INVALID' } } });
     expect(refused.body.error?.fields?.join('\n')).toContain('market.npcMaxPriceFactor');
-    // Une configuration complète dépasse la taille d'une commande de jeu : elle est lue quand même.
+    // Une commande d'administration peut dépasser la taille d'une commande de jeu (16 Ko), dans sa propre limite.
     const large = { ...candidate(3000), padding: 'x'.repeat(100_000) };
     expect((await send(author, 'admin.publishConfig', { config: large })).status).toBe(409);
+    const tooLarge = { ...candidate(3000), padding: 'x'.repeat(200_000) };
+    expect((await send(author, 'admin.publishConfig', { config: tooLarge })).status).toBe(413);
     expect((await send(author, 'admin.publishConfig', { config: 'texte' })).status).toBe(400);
     expect(await versionsBy(author)).toEqual([]);
   });
@@ -224,6 +289,24 @@ describe('admin.scheduleConfig', () => {
     await send(author, 'admin.scheduleConfig', { versionId: newer });
     const back = await send(author, 'admin.scheduleConfig', { versionId: older });
     expect(await activeAt(new Date(back.body.data?.activateAt ?? 0))).toBe(older);
+  });
+
+  it('refuse de programmer une version dont le contenu ne respecte plus le schéma', async () => {
+    // Version écrite directement en base, comme le ferait un schéma devenu plus strict après coup.
+    const stale = await db
+      .insertInto('config.versions')
+      .values({ payload: JSON.stringify({ clock: {} }), note: 'périmée', created_by: root })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const refused = await send(designer, 'admin.scheduleConfig', { versionId: stale.id });
+    expect(refused).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_INVALID' } } });
+    expect(refused.body.error?.fields?.length).toBeGreaterThan(0);
+    const activations = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', stale.id)
+      .execute();
+    expect(activations).toEqual([]);
   });
 
   it('refuse une version inconnue', async () => {
