@@ -25,11 +25,20 @@ sql_paths = ["./seed.sql"]
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:5173"
+# Le back-office (apps/admin) tourne sur son propre port : son lien magique doit pouvoir y revenir.
+additional_redirect_urls = ["http://127.0.0.1:5174"]
 enable_signup = true
+
+# Second facteur (TOTP), obligatoire pour le back-office (docs/specs/15-back-office-olympe.md, 15.4).
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
 
 [auth.email]
 enabled = true
 enable_confirmations = false
+# En local, deux liens de connexion peuvent être demandés coup sur coup (tests de reconnexion).
+max_frequency = "1s"
 
 # Boîte de réception locale pour les liens magiques.
 [local_smtp]

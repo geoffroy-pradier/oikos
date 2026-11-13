@@ -14,3 +14,5 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |
 | Âge | Un monde de jeu (un serveur) |
+| Olympe (Olympus) | Le back-office : l'outil des administrateurs, distinct du client joueur |
+| Vigie (Watch) | Module d'Olympe qui surveille joueurs, commandes, ticks et file de tâches |
