@@ -62,5 +62,37 @@
     "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
     "HOUSE_NAME_TAKEN": "Another house already bears this name.",
     "INTERNAL": "Something went wrong. Try again in a moment."
+  },
+  "shell": {
+    "skipToContent": "Skip to content",
+    "navigation": "Main navigation",
+    "darkTheme": "Dark theme",
+    "comingSoon": "This area will open with the next stages of the game."
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "tabs": {
+    "house": {
+      "label": "House",
+      "summary": "Dashboard, sites, staff, accounts, family."
+    },
+    "map": {
+      "label": "Map",
+      "summary": "Archipelago, city, parcels, routes and ships at sea."
+    },
+    "agora": {
+      "label": "Agora",
+      "summary": "Order books, contracts, auctions, freight, labour."
+    },
+    "city": {
+      "label": "City",
+      "summary": "Assembly, magistrates, treasury, temples, chronicle."
+    },
+    "messages": {
+      "label": "Messages",
+      "summary": "Channels, direct messages, notifications, mentor."
+    }
   }
 }

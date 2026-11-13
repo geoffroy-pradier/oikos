@@ -62,5 +62,37 @@
     "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
     "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
     "INTERNAL": "Une erreur est survenue. Réessayez dans un instant."
+  },
+  "shell": {
+    "skipToContent": "Aller au contenu",
+    "navigation": "Navigation principale",
+    "darkTheme": "Thème sombre",
+    "comingSoon": "Cet espace ouvrira avec les prochaines étapes du jeu."
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "tabs": {
+    "house": {
+      "label": "Maison",
+      "summary": "Tableau de bord, sites, personnel, comptes, famille."
+    },
+    "map": {
+      "label": "Carte",
+      "summary": "Archipel, cité, parcelles, routes et navires en mer."
+    },
+    "agora": {
+      "label": "Agora",
+      "summary": "Carnets d'ordres, contrats, enchères, fret, travail."
+    },
+    "city": {
+      "label": "Cité",
+      "summary": "Assemblée, magistrats, trésor, temples, chronique."
+    },
+    "messages": {
+      "label": "Messages",
+      "summary": "Canaux, messagerie, notifications, mentor."
+    }
   }
 }
