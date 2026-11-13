@@ -59,9 +59,12 @@ describe('une configuration valide', () => {
     const result = validateConfig(clone());
     if (!result.ok) throw new Error(result.errors.join('\n'));
     expect(result.config).toEqual(FIXTURE);
-    expect(() => {
-      (at(result.config.goods as GameConfig['goods'], 0) as { elasticity: number }).elasticity = 9;
-    }).toThrow(TypeError);
+    const { goods, recipes, cities, clock } = result.config as GameConfig;
+    expect(() => void (at(goods, 0).elasticity = 9)).toThrow(TypeError);
+    expect(() => void (at(at(recipes, 0).outputs, 0).quantity = 9)).toThrow(TypeError);
+    expect(() => void (at(cities, 0).population['thetes'] = 0)).toThrow(TypeError);
+    expect(() => void (clock.tickMinutes = 1)).toThrow(TypeError);
+    expect(() => goods.push(at(goods, 0))).toThrow(TypeError);
   });
 });
 
@@ -108,6 +111,56 @@ describe('une configuration invalide est refusée avec un message précis', () =
     expect(errorsOf(config)).toEqual([
       'cities[0].population.helots: unknown NPC class "helots"',
       'cities[0].population: missing NPC class "hippeis"',
+    ]);
+  });
+
+  it('horloge : fuseau inexistant, tick qui ne divise pas la journée', () => {
+    for (const timezone of ['Mars/Olympus', ' ', 'Europe/Paris ']) {
+      const config = clone();
+      config.clock.timezone = timezone;
+      expect(errorsOf(config)).toEqual(['clock.timezone: unknown IANA time zone']);
+    }
+    const config = clone();
+    config.clock.tickMinutes = 7;
+    expect(errorsOf(config)).toEqual(['clock.tickMinutes: must divide the 1440 minutes of a day']);
+  });
+
+  it('recette qui consomme ce qu’elle produit, ou cite deux fois un bien', () => {
+    const config = clone();
+    const mill = at(config.recipes, 1);
+    mill.outputs.push({ goodId: 'wheat', quantity: 100 });
+    mill.inputs.push({ goodId: 'wheat', quantity: 1 });
+    expect(errorsOf(config)).toEqual([
+      'recipes[1].outputs[1].goodId: good "wheat" is both consumed and produced',
+      'recipes[1].inputs: duplicate good "wheat"',
+    ]);
+  });
+
+  it('panier qui compte deux fois le même bien', () => {
+    const config = clone();
+    const basket = at(config.npcClasses, 0).basket;
+    basket.push({ ...at(basket, 0) });
+    expect(errorsOf(config)).toEqual(['npcClasses[0].basket: duplicate good "bread"']);
+  });
+
+  it('classe manquante, même quand son identifiant est une propriété héritée des objets', () => {
+    const config = clone();
+    at(config.npcClasses, 0).id = 'constructor';
+    expect(errorsOf(config)).toEqual([
+      'cities[0].population.thetes: unknown NPC class "thetes"',
+      'cities[0].population: missing NPC class "constructor"',
+    ]);
+  });
+
+  it('valeurs non finies, montant hors des entiers sûrs, quantité nulle', () => {
+    const config = clone();
+    at(config.goods, 0).elasticity = Number.NaN;
+    at(config.goods, 1).referencePriceOboles = Number.MAX_SAFE_INTEGER + 2;
+    at(at(config.recipes, 0).outputs, 0).quantity = 0;
+    expect(errorsOf(config).map((error) => error.split(':')[0])).toEqual([
+      'goods[0].elasticity',
+      'goods[1].referencePriceOboles',
+      'recipes[0].outputs[0].quantity',
     ]);
   });
 

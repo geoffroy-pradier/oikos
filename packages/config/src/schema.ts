@@ -3,6 +3,16 @@ import { z } from 'zod';
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
 const id = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
 const positiveInt = z.number().int().positive();
+const MINUTES_PER_DAY = 1440;
+
+function isTimezone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value });
+    return value === 'UTC' || (value.trim() === value && value.includes('/'));
+  } catch {
+    return false;
+  }
+}
 
 export const GOOD_TIERS = ['raw', 'intermediate', 'finished', 'service'] as const;
 export const SITE_TYPES = [
@@ -28,7 +38,7 @@ export const goodSchema = z.strictObject({
 
 const stack = z.strictObject({ goodId: id, quantity: positiveInt });
 
-/** Une recette : intrants, durée, personnel, extrants (4.3). Une production primaire n'a pas d'intrant. */
+/** Une recette : intrants, durée, personnel, extrants (4.3). Une recette sans intrant est une production primaire. */
 export const recipeSchema = z.strictObject({
   id,
   siteType: z.enum(SITE_TYPES),
@@ -48,7 +58,7 @@ export const npcClassSchema = z.strictObject({
       z.strictObject({
         goodId: id,
         need: z.enum(NEED_LEVELS),
-        /** Q0 : quantité demandée par tick pour 1 000 habitants, au prix de référence. */
+        /** Q0 : quantité demandée par tick (de `clock.tickMinutes`) pour 1 000 habitants, au prix de référence. */
         quantityPerThousand: z.number().positive(),
       }),
     )
@@ -63,9 +73,13 @@ export const cityConfigSchema = z.strictObject({
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
 export const clockSchema = z.strictObject({
-  tickMinutes: positiveInt.max(1440),
+  /** Durée du tick : un diviseur de la journée, pour que la clôture tombe toujours sur un tick. */
+  tickMinutes: positiveInt.refine((minutes) => MINUTES_PER_DAY % minutes === 0, {
+    message: 'must divide the 1440 minutes of a day',
+  }),
   dailyCloseHour: z.number().int().min(0).max(23),
-  timezone: z.string().min(1),
+  /** Identifiant IANA, par exemple `Europe/Paris`. */
+  timezone: z.string().refine(isTimezone, { message: 'unknown IANA time zone' }),
   seasonDays: positiveInt,
 });
 
@@ -93,7 +107,19 @@ export const gameConfigSchema = z
       }
     }
     config.recipes.forEach((recipe, index) => {
+      const consumed = new Set(recipe.inputs.map((entry) => entry.goodId));
+      recipe.outputs.forEach((entry, position) => {
+        if (consumed.has(entry.goodId)) {
+          issue(
+            ['recipes', index, 'outputs', position, 'goodId'],
+            `good "${entry.goodId}" is both consumed and produced`,
+          );
+        }
+      });
       for (const side of ['inputs', 'outputs'] as const) {
+        for (const duplicate of duplicates(recipe[side].map((entry) => entry.goodId))) {
+          issue(['recipes', index, side], `duplicate good "${duplicate}"`);
+        }
         recipe[side].forEach((entry, position) => {
           if (!goods.has(entry.goodId)) {
             issue(['recipes', index, side, position, 'goodId'], `unknown good "${entry.goodId}"`);
@@ -102,6 +128,9 @@ export const gameConfigSchema = z
       }
     });
     config.npcClasses.forEach((npcClass, index) => {
+      for (const duplicate of duplicates(npcClass.basket.map((entry) => entry.goodId))) {
+        issue(['npcClasses', index, 'basket'], `duplicate good "${duplicate}"`);
+      }
       npcClass.basket.forEach((entry, position) => {
         if (!goods.has(entry.goodId)) {
           issue(
@@ -118,7 +147,7 @@ export const gameConfigSchema = z
         }
       }
       for (const classId of classes) {
-        if (!(classId in city.population)) {
+        if (!Object.hasOwn(city.population, classId)) {
           issue(['cities', index, 'population'], `missing NPC class "${classId}"`);
         }
       }
