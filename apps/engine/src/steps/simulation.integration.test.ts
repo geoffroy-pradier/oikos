@@ -7,7 +7,7 @@ import {
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb } from '@oikos/db';
-import { createRng, npcGoodBudget, tickIndexAt, tickStart } from '@oikos/sim';
+import { createRng, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { runTick } from '../tick';
@@ -81,16 +81,15 @@ it(
       houses.push({ houseId: house.id, inventoryId: inventory.id });
     }
 
-    // Budget des PNJ pour le blé, par tick : borne de la création de monnaie.
-    const population = config.cities[0]?.population ?? {};
-    const classes = config.npcClasses.map((c) => ({ ...c, population: population[c.id] ?? 0 }));
-    const price = (goodId: string) =>
-      config.goods.find((good) => good.id === goodId)?.referencePriceOboles ?? 0;
-    const budget = npcGoodBudget(classes, 'wheat', price);
-    expect(budget).toBeGreaterThan(0);
+    // Bornes de la création de monnaie pour le blé de Kallistè, calculées à la main à partir de la
+    // configuration initiale et non par le code testé. Budget par tick : thètes 6 × 764 × 144/611
+    // = 1 080,4 ; zeugites 2,5 × 942 × 72/753,7 = 224,97 ; soit 1 305 oboles. Prix de réserve : 3 × 6.
+    const [budget, reserve] = [1305, 18];
 
     const rng = createRng('simulation-30-jours');
-    const first = tickIndexAt(new Date(), config.clock.tickMinutes) + 1;
+    // Indices pris dans l'espace des ticks de la configuration active (et non d'une heure) : le monde
+    // laissé en base reste cohérent pour un moteur de développement, qui n'aura rien à rattraper.
+    const first = tickIndexAt(new Date(), active.config.clock.tickMinutes) + 1;
     let [produced, spent, units, busiest] = [0, 0, 0, 0];
     for (let tick = 0; tick < DAYS * TICKS_PER_DAY; tick++) {
       // Chaque matin, chaque maison récolte et met tout en vente, à un prix tiré autour du prix de
@@ -142,8 +141,9 @@ it(
       busiest = Math.max(busiest, summary.spent);
     }
     // La simulation a réellement fait tourner l'économie, jusqu'à buter sur le budget.
-    expect(units).toBeGreaterThan(DAYS * 100);
-    expect(busiest).toBeGreaterThan(budget * 0.9);
+    expect(units).toBeGreaterThan(DAYS * 500);
+    // Le budget est atteint exactement au moins une fois : la borne est réellement mise à l'épreuve.
+    expect(busiest).toBe(budget);
 
     const accounts = await db
       .selectFrom('game.accounts')
@@ -196,5 +196,35 @@ it(
     expect(check?.reserved).toBe(check?.open);
     expect(check?.carry).toBeGreaterThanOrEqual(0);
     expect(check?.carry).toBeLessThan(1);
+
+    // Prix de réserve : rien ne s'est vendu au-dessus, et ces ordres-là sont restés entiers.
+    const orders = await db
+      .selectFrom('game.orders')
+      .select(['house_id', 'price', 'quantity', 'remaining'])
+      .where('world_id', '=', worldId)
+      .execute();
+    const dear = orders.filter((order) => Number(order.price) > reserve);
+    expect(dear.length).toBeGreaterThan(0);
+    expect(dear.every((order) => order.remaining === order.quantity)).toBe(true);
+    const dearest = await sql<{ max: string }>`
+      select max(price) from game.trades where world_id = ${worldId}`.execute(db);
+    expect(Number(dearest.rows[0]?.max)).toBeLessThanOrEqual(reserve);
+    // Chaque maison a reçu exactement le prix de ce que ses propres ordres ont vendu.
+    const balances = await db
+      .selectFrom('game.accounts')
+      .select(['house_id', 'balance'])
+      .where('world_id', '=', worldId)
+      .where('kind', '=', 'house')
+      .execute();
+    for (const { house_id: houseId, balance } of balances) {
+      const earned = orders
+        .filter((order) => order.house_id === houseId)
+        .reduce(
+          (sum, order) =>
+            sum + (Number(order.quantity) - Number(order.remaining)) * Number(order.price),
+          0,
+        );
+      expect(Number(balance)).toBe(earned);
+    }
   },
 );
