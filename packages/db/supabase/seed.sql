@@ -9,8 +9,9 @@ values ('01900000-0000-7000-8000-000000000101', '01900000-0000-7000-8000-0000000
 on conflict do nothing;
 
 -- Comptes système du monde de test : un par robinet et par puits (docs/specs/05-economie.md, 5.5).
+-- Un robinet crée de la monnaie en devenant débiteur ; un puits ne fait que recevoir.
 insert into game.accounts (world_id, kind, system_key, allow_negative)
-select '01900000-0000-7000-8000-000000000001', 'system', key, true
+select '01900000-0000-7000-8000-000000000001', 'system', key, key like 'faucet\_%'
 from unnest(array[
   'faucet_npc_purchases', 'faucet_temple_loans', 'faucet_rewards', 'faucet_starting_grant',
   'sink_npc_wages', 'sink_upkeep', 'sink_market_tax', 'sink_offerings', 'sink_temple_interest', 'sink_public_works'
