@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { houseCreateInputSchema, houseNameSchema } from './index';
+import { houseCreateInputSchema, houseNameSchema, normalizeHouseName } from './index';
 
 describe('houseNameSchema', () => {
   it.each(['Alcméonides', "Fils d'Atrée", 'Les Trois-Îles', 'Abc', 'a'.repeat(24)])(
@@ -40,5 +40,15 @@ describe('houseCreateInputSchema', () => {
       houseCreateInputSchema.safeParse({ ...valid, blazon: { ...valid.blazon, emblem: 'skull' } })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('normalizeHouseName', () => {
+  it('rend acceptable une saisie de clavier mobile', () => {
+    const raw = '  Fils d\u2019Atre\u0301e ';
+    expect(houseNameSchema.safeParse(raw).success).toBe(false);
+    const name = normalizeHouseName(raw);
+    expect(name).toBe("Fils d'Atrée");
+    expect(houseNameSchema.safeParse(name).success).toBe(true);
   });
 });

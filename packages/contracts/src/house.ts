@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 /** Nom de maison : 3 à 24 caractères, lettres, espaces, apostrophes, tirets ; commence et finit par une lettre. */
 export const HOUSE_NAME_PATTERN = /^\p{L}[\p{L} '-]{1,22}\p{L}$/u;
+
+/** Normalise une saisie avant validation : forme NFC, apostrophe typographique des claviers mobiles, espaces de bord. */
+export function normalizeHouseName(raw: string): string {
+  return raw
+    .normalize('NFC')
+    .replace(/[\u2018\u2019]/g, "'")
+    .trim();
+}
+
 export const houseNameSchema = z.string().regex(HOUSE_NAME_PATTERN);
 
 export const BLAZON_SHAPES = ['hoplon', 'pelte', 'thyreos'] as const;

@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@oikos/contracts": "workspace:*",
     "kysely": "^0.29.9",
     "pg": "^8.23.1"
   },

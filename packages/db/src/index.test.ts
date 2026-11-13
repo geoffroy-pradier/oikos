@@ -2,8 +2,8 @@ import { expect, it } from 'vitest';
 import { uniqueViolation } from './index';
 
 it('reconnaît une violation d’unicité et rend le nom de la contrainte', () => {
-  expect(uniqueViolation({ code: '23505', constraint: 'houses_world_id_name_key_key' })).toBe(
-    'houses_world_id_name_key_key',
+  expect(uniqueViolation({ code: '23505', constraint: 'houses_name_unique' })).toBe(
+    'houses_name_unique',
   );
 });
 

@@ -1,5 +1,12 @@
 /** Accès typé à la base pour l'API de jeu et le moteur (Kysely). */
-import { Kysely, PostgresDialect, type Generated } from 'kysely';
+import type { Blazon } from '@oikos/contracts';
+import {
+  Kysely,
+  PostgresDialect,
+  type ColumnType,
+  type Generated,
+  type GeneratedAlways,
+} from 'kysely';
 import pg from 'pg';
 
 /** Tables du schéma `game`. À remplacer par les types générés quand le schéma grossira. */
@@ -17,7 +24,10 @@ export interface GameDatabase {
     world_id: string;
     user_id: string;
     name: string;
-    blazon: string;
+    /** Colonne générée : `lower(name)`. */
+    name_key: GeneratedAlways<string>;
+    /** `jsonb` : lu désérialisé, écrit sous forme de texte JSON. */
+    blazon: ColumnType<Blazon, string, string>;
     created_at: Generated<Date>;
   };
   'game.citizenships': {
