@@ -71,7 +71,8 @@
       "done": "Played",
       "skipped": "Already played",
       "failed": "Failed"
-    }
+    },
+    "tickDuration": "Duration"
   },
   "audit": {
     "title": "Audit log",
@@ -87,6 +88,7 @@
       "ok": "Succeeded",
       "rejected": "Rejected ({{code}})",
       "failed": "Failed"
-    }
+    },
+    "rejectedNoCode": "Rejected"
   }
 }

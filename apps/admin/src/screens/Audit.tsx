@@ -2,6 +2,7 @@ import { Button } from '@oikos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
+import { TABLE } from '../table';
 
 interface Entry {
   id: string;
@@ -48,39 +49,47 @@ export function Audit({ accessToken }: { accessToken: string }) {
       {!entries && !error && <p>{t('app.loading')}</p>}
       {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
       {entries && entries.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <caption className="text-left text-muted-foreground">{t('audit.caption')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('audit.time')}</th>
-                <th scope="col">{t('audit.account')}</th>
-                <th scope="col">{t('audit.command')}</th>
-                <th scope="col">{t('audit.outcome')}</th>
-                <th scope="col">{t('audit.result')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{time.format(new Date(entry.createdAt))}</td>
-                  <td>
-                    <code>{entry.userId.slice(0, 8)}</code>
-                  </td>
-                  <td>
-                    <code>{entry.command}</code>
-                  </td>
-                  <td>{t(`audit.status.${entry.status}`, { code: entry.errorCode ?? '' })}</td>
-                  <td>
-                    <code className="break-all">
-                      {entry.result === null ? '' : JSON.stringify(entry.result)}
-                    </code>
-                  </td>
+        <>
+          <p id="audit-caption" className="text-sm text-muted-foreground">
+            {t('audit.caption')}
+          </p>
+          <div className="overflow-x-auto">
+            <table aria-labelledby="audit-caption" className={TABLE}>
+              <thead>
+                <tr>
+                  <th scope="col">{t('audit.time')}</th>
+                  <th scope="col">{t('audit.account')}</th>
+                  <th scope="col">{t('audit.command')}</th>
+                  <th scope="col">{t('audit.outcome')}</th>
+                  <th scope="col">{t('audit.result')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{time.format(new Date(entry.createdAt))}</td>
+                    <td>
+                      <code className="whitespace-nowrap">{entry.userId.slice(0, 8)}</code>
+                    </td>
+                    <td>
+                      <code>{entry.command}</code>
+                    </td>
+                    <td>
+                      {entry.status === 'rejected' && !entry.errorCode
+                        ? t('audit.rejectedNoCode')
+                        : t(`audit.status.${entry.status}`, { code: entry.errorCode ?? '' })}
+                    </td>
+                    <td>
+                      <code className="break-all">
+                        {entry.result === null ? '' : JSON.stringify(entry.result)}
+                      </code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {more && (
         <Button variant="secondary" onClick={() => void load(entries?.at(-1)?.id)}>

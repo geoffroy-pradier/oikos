@@ -1,7 +1,7 @@
 import type { AdminRole } from '@oikos/contracts';
 import { Button, Card } from '@oikos/ui';
 import type { Session } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from './api';
 import { LANGUAGES } from './i18n';
@@ -19,14 +19,25 @@ const MODULES = {
 type Module = keyof typeof MODULES;
 const MODULE_IDS = Object.keys(MODULES) as Module[];
 
+export function modulesFor(role: AdminRole): Module[] {
+  return MODULE_IDS.filter((id) => MODULES[id].some((allowed) => allowed === role));
+}
+
 export function App() {
   const { t, i18n } = useTranslation();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  /** Niveau d'assurance de la session : le back-office exige `aal2`. */
-  const [level, setLevel] = useState<string | null>(null);
-  /** Rôle du compte ; `null` : accès refusé par l'API. */
-  const [role, setRole] = useState<AdminRole | null | undefined>(undefined);
-  const [failed, setFailed] = useState(false);
+  /** Niveau d'assurance constaté pour un jeton donné : le back-office exige `aal2`. */
+  const [assurance, setAssurance] = useState<{
+    userId: string;
+    token: string;
+    level: string;
+  } | null>(null);
+  /** Réponse de l'API pour un compte : son rôle (`null` : accès refusé) ou une panne. */
+  const [access, setAccess] = useState<{
+    userId: string;
+    role: AdminRole | null;
+    failed: boolean;
+  } | null>(null);
   const [module, setModule] = useState<Module>('vigie');
 
   useEffect(() => {
@@ -35,43 +46,71 @@ export function App() {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next);
+      if (!next) {
+        setAssurance(null);
+        setAccess(null);
+      }
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
-  const token = session?.access_token;
+  const userId = session?.user.id;
+  const sessionToken = session?.access_token;
+  // Jeton courant : une réponse arrivée pour un jeton qui n'est plus celui-là est ignorée.
+  const currentToken = useRef(sessionToken);
+  currentToken.current = sessionToken;
+
   const check = useCallback(async () => {
-    if (!token) return;
-    const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    setLevel(assurance.data?.currentLevel ?? 'aal1');
-  }, [token]);
+    if (!sessionToken || !userId) return;
+    const reply = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (currentToken.current !== sessionToken) return;
+    setAssurance({ userId, token: sessionToken, level: reply.data?.currentLevel ?? 'aal1' });
+  }, [sessionToken, userId]);
   useEffect(() => {
-    setLevel(null);
-    setRole(undefined);
     void check();
   }, [check]);
 
+  // Niveau et rôle ne valent que pour le compte qui les a obtenus : au changement de compte ou à la
+  // déconnexion, plus rien n'en reste. Un renouvellement de jeton du même compte garde l'écran en
+  // cours, servi par le dernier jeton dont le second facteur a été constaté.
+  const level = userId && assurance?.userId === userId ? assurance.level : null;
+  const token = level === 'aal2' ? assurance?.token : undefined;
+  const mine = userId && access?.userId === userId ? access : null;
+
   // Session à second facteur : l'API dit si le compte a un rôle, et lequel.
   useEffect(() => {
-    if (!token || level !== 'aal2') return;
+    if (!token || !userId) return;
+    let cancelled = false;
     void adminGet<{ role: AdminRole }>('me', token).then((reply) => {
-      setFailed(!reply.ok && reply.code !== 'FORBIDDEN');
-      setRole(reply.ok ? reply.data.role : reply.code === 'FORBIDDEN' ? null : undefined);
+      if (cancelled) return;
+      const failed = !reply.ok && reply.code !== 'FORBIDDEN';
+      // Une panne pendant l'usage (renouvellement de jeton) ne retire pas un rôle déjà lu.
+      setAccess((known) =>
+        failed && known?.userId === userId && known.role
+          ? known
+          : { userId, role: reply.ok ? reply.data.role : null, failed },
+      );
     });
-  }, [token, level]);
+    return () => {
+      cancelled = true;
+    };
+  }, [token, userId]);
 
-  const modules = role
-    ? MODULE_IDS.filter((id) => MODULES[id].some((allowed) => allowed === role))
-    : [];
+  // Rien de ce qui dépend du rôle n'est rendu sans session à second facteur.
+  const answered = token && mine ? mine : null;
+  const granted = answered && !answered.failed ? answered.role : undefined;
+  const modules = granted ? modulesFor(granted) : [];
   const current = modules.includes(module) ? module : modules[0];
 
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn />;
   else if (session && level && level !== 'aal2')
     screen = <SecondFactor onVerified={() => void check()} />;
-  else if (failed) screen = <p role="alert">{t('app.loadFailed')}</p>;
-  else if (role === null) screen = <p role="alert">{t('app.forbidden')}</p>;
-  else if (role && token) {
+  else if (answered?.failed) screen = <p role="alert">{t('app.loadFailed')}</p>;
+  else if (granted === null) screen = <p role="alert">{t('app.forbidden')}</p>;
+  else if (granted && token) {
     screen =
       current === 'vigie' ? (
         <Vigie accessToken={token} />
@@ -88,7 +127,7 @@ export function App() {
         <div>
           <p className="font-display text-3xl font-semibold text-primary">{t('app.title')}</p>
           <p className="text-sm text-muted-foreground">
-            {role ? t('app.role', { role: t(`roles.${role}`) }) : t('app.subtitle')}
+            {granted ? t('app.role', { role: t(`roles.${granted}`) }) : t('app.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -129,7 +168,7 @@ export function App() {
           ))}
         </nav>
       )}
-      <main className={`mx-auto p-4 ${role ? 'max-w-5xl' : 'max-w-md'}`}>
+      <main className={`mx-auto p-4 ${granted ? 'max-w-5xl' : 'max-w-md'}`}>
         <Card className="flex flex-col gap-3">{screen}</Card>
       </main>
     </div>

@@ -1,5 +1,6 @@
 import { Button } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
+import { TABLE } from '../table';
 import { useAdmin } from '../useAdmin';
 
 interface VigieData {
@@ -55,29 +56,33 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         <p role="alert">{t(error === 'FORBIDDEN' ? 'app.forbiddenModule' : 'app.loadFailed')}</p>
       )}
       {!data && !error && <p>{t('app.loading')}</p>}
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {figures.map(([label, value]) => (
-          <div key={label} className="rounded-md border border-border p-3">
-            <dt className="text-sm text-muted-foreground">{label}</dt>
-            <dd className="text-2xl font-semibold">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      {data && (
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {figures.map(([label, value]) => (
+            <div key={label} className="rounded-md border border-border p-3">
+              <dt className="text-sm text-muted-foreground">{label}</dt>
+              <dd className="text-2xl font-semibold">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {data && (
         <>
-          <h2 className="text-xl">{t('vigie.recentTicks')}</h2>
+          <h2 id="recent-ticks" className="text-xl">
+            {t('vigie.recentTicks')}
+          </h2>
           {data.recentTicks.length === 0 ? (
             <p className="text-muted-foreground">{t('vigie.noTicks')}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table aria-labelledby="recent-ticks" className={TABLE}>
                 <thead>
                   <tr>
                     <th scope="col">{t('vigie.time')}</th>
                     <th scope="col">{t('vigie.world')}</th>
                     <th scope="col">{t('vigie.tick')}</th>
                     <th scope="col">{t('vigie.status')}</th>
-                    <th scope="col">{t('vigie.tickMax')}</th>
+                    <th scope="col">{t('vigie.tickDuration')}</th>
                     <th scope="col">{t('vigie.error')}</th>
                   </tr>
                 </thead>
@@ -86,7 +91,7 @@ export function Vigie({ accessToken }: { accessToken: string }) {
                     <tr key={`${tick.worldId}:${tick.tickIndex}:${tick.createdAt}`}>
                       <td>{time.format(new Date(tick.createdAt))}</td>
                       <td>
-                        <code>{tick.worldId.slice(0, 8)}</code>
+                        <code className="whitespace-nowrap">{tick.worldId.slice(0, 8)}</code>
                       </td>
                       <td>{tick.tickIndex}</td>
                       <td>{t(`vigie.tickStatus.${tick.status}`)}</td>

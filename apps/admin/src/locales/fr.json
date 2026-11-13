@@ -71,7 +71,8 @@
       "done": "Joué",
       "skipped": "Déjà joué",
       "failed": "Échec"
-    }
+    },
+    "tickDuration": "Durée"
   },
   "audit": {
     "title": "Journal d'audit",
@@ -87,6 +88,7 @@
       "ok": "Réussie",
       "rejected": "Refusée ({{code}})",
       "failed": "En panne"
-    }
+    },
+    "rejectedNoCode": "Refusée"
   }
 }
