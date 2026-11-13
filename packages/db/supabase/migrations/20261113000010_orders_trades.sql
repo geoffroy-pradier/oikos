@@ -13,6 +13,10 @@ begin
 end $$;
 
 -- Garde des stocks (migration 5), étendue : la réservation ne change que par les ordres.
+-- Limite connue de `pg_trigger_depth()` : la garde distingue une écriture directe d'une écriture faite par
+-- un déclencheur, pas l'auteur du déclencheur. Un rôle capable de créer son propre déclencheur (table
+-- temporaire) la franchirait délibérément. Aucun client n'a ce chemin ; le rôle de service non
+-- propriétaire prévu en phase 1 devra perdre le droit TEMPORARY ou ces gardes vérifier le propriétaire.
 create or replace function game.guard_inventory() returns trigger
 language plpgsql
 set search_path = ''
