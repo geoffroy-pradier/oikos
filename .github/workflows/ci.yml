@@ -50,7 +50,9 @@ jobs:
       # pgTAP sur Supabase local : migrations rejouées depuis zéro, puis tests de schéma et de règles par ligne.
       - name: Start Supabase
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
-        run: pnpm db:start
+        # Les ports de Supabase local (54321 et suivants) sont dans la plage éphémère de Linux : une connexion
+        # sortante du runner peut en occuper un par hasard. On réessaie une fois après un arrêt propre.
+        run: pnpm db:start || (pnpm db:stop && sleep 5 && pnpm db:start)
 
       - name: Test database
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
