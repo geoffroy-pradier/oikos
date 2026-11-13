@@ -69,7 +69,20 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
-  apps/engine: {}
+  apps/engine:
+    dependencies:
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@oikos/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@oikos/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      kysely:
+        specifier: ^0.29.9
+        version: 0.29.9
 
   apps/site: {}
 

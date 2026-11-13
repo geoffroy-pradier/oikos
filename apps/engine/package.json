@@ -8,6 +8,13 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "VITEST_INTEGRATION=1 vitest run"
+  },
+  "dependencies": {
+    "@oikos/config": "workspace:*",
+    "@oikos/db": "workspace:*",
+    "@oikos/sim": "workspace:*",
+    "kysely": "^0.29.9"
   }
 }

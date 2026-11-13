@@ -63,6 +63,8 @@ export async function scheduleActivation(
  * cache sans expiration ; seul l'identifiant de la version active est relu à chaque appel.
  * Un tick appelle `at(instant du tick)` une seule fois et travaille sur l'objet figé rendu.
  */
+export type ConfigLoader = ReturnType<typeof createConfigLoader>;
+
 export function createConfigLoader(db: Db) {
   const cache = new Map<string, LoadedConfig>();
 
@@ -73,6 +75,11 @@ export function createConfigLoader(db: Db) {
     const id = active.rows[0]?.id;
     if (!id) throw new ConfigError(`No active configuration at ${instant.toISOString()}`);
 
+    return byId(id);
+  }
+
+  /** Charge une version précise, active ou non : sert à rejouer un tick avec la version qu'il a enregistrée. */
+  async function byId(id: string): Promise<LoadedConfig> {
     const cached = cache.get(id);
     if (cached) return cached;
 
@@ -80,7 +87,8 @@ export function createConfigLoader(db: Db) {
       .selectFrom('config.versions')
       .select(['id', 'number', 'payload'])
       .where('id', '=', id)
-      .executeTakeFirstOrThrow();
+      .executeTakeFirst();
+    if (!row) throw new ConfigError(`Unknown configuration version ${id}`);
     // Une version écrite hors de `publishVersion` ne doit jamais atteindre la simulation.
     const validation = validateConfig(row.payload);
     if (!validation.ok) {
@@ -93,7 +101,7 @@ export function createConfigLoader(db: Db) {
     return loaded;
   }
 
-  return { at, cachedVersions: () => cache.size };
+  return { at, byId, cachedVersions: () => cache.size };
 }
 
 /** Au premier démarrage, publie et active la configuration fournie. Sans effet si une version existe déjà. */
