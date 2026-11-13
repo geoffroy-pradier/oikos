@@ -8,13 +8,19 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:integration": "VITEST_INTEGRATION=1 vitest run"
+    "test": "vitest run",
+    "test:integration": "VITEST_INTEGRATION=1 vitest run",
+    "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
     "@oikos/config": "workspace:*",
     "@oikos/db": "workspace:*",
     "@oikos/sim": "workspace:*",
-    "kysely": "^0.29.9"
+    "kysely": "^0.29.9",
+    "pg-boss": "^12.38.2"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "tsx": "^4.23.15"
   }
 }
