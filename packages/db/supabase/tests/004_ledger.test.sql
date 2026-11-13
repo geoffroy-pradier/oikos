@@ -1,5 +1,5 @@
 begin;
-select plan(32);
+select plan(41);
 
 -- Jeu d'essai : deux maisons avec un compte chacune, un robinet et un puits.
 insert into auth.users (id, email) values
@@ -97,6 +97,22 @@ select is(
   (select count(*) from pg_class where relnamespace = 'game'::regnamespace and relrowsecurity
      and relname in ('accounts', 'ledger_entries', 'ledger_lines')),
   3::bigint, 'règles par ligne actives sur les trois tables');
+
+-- Suite de la relecture des stocks : contrôles de la monnaie restés sans test.
+select throws_ok($$insert into game.accounts (world_id, kind, house_id) values ('01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000a1')$$, '23505', null, 'un seul compte par maison');
+select throws_ok($$insert into game.accounts (world_id, kind, system_key, allow_negative) values ('01900000-0000-7000-8000-000000000001', 'system', 'faucet_npc_purchases', true)$$, '23505', null, 'clé système unique par monde');
+select throws_ok($$insert into game.accounts (world_id, kind, system_key) values ('01900000-0000-7000-8000-000000000001', 'bank', 'x_y')$$, '23514', null, 'nature de compte inconnue refusée');
+select throws_ok($$insert into game.accounts (world_id, kind, system_key) values ('01900000-0000-7000-8000-000000000001', 'system', 'Bad Key')$$, '23514', null, 'clé système mal formée refusée');
+select throws_ok($$insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', 'Bad Kind')$$, '23514', null, 'nature d''écriture mal formée refusée');
+select throws_ok($$insert into game.ledger_entries (world_id, kind, meta) values ('01900000-0000-7000-8000-000000000001', 'test', '[]')$$, '23514', null, 'les métadonnées sont un objet');
+select throws_ok($$update game.ledger_entries set kind = 'autre'$$, '23001', null, 'écriture non modifiable');
+select throws_ok($$update game.accounts set id = game.uuid_v7() where id = '00000000-0000-7000-8000-0000000000bb'$$, '23001', null, 'identifiant de compte immuable');
+alter table game.accounts disable trigger accounts_guard;
+update game.accounts set balance = balance + 9 where id = '00000000-0000-7000-8000-0000000000bb';
+alter table game.accounts enable trigger accounts_guard;
+select results_eq(
+  $$select account_id, balance - lines_total from game.account_balance_check where not ok$$,
+  $$values ('00000000-0000-7000-8000-0000000000bb'::uuid, 9::bigint)$$, 'la vue de contrôle désigne le compte en écart et son montant');
 
 -- Aucun rôle client ne lit ni n'écrit le grand livre.
 select is(

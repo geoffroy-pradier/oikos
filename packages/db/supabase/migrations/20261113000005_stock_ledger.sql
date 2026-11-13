@@ -1,6 +1,14 @@
 -- Journal des stocks (docs/specs/05-economie.md, 12-modele-donnees.md ; ticket 5).
 -- Les quantités ne sont que des cumuls vérifiables du journal, qui est en ajout seul.
 
+do $$
+begin
+  -- Une écriture de monnaie liée à un mouvement de stock doit être du même monde.
+  if not exists (select 1 from pg_constraint where conname = 'ledger_entries_id_world_unique') then
+    alter table game.ledger_entries add constraint ledger_entries_id_world_unique unique (id, world_id);
+  end if;
+end $$;
+
 create table if not exists game.inventories (
   id uuid primary key default game.uuid_v7(),
   world_id uuid not null references game.worlds (id),
@@ -29,10 +37,11 @@ create table if not exists game.stock_ledger (
   to_system text check (to_system ~ '^[a-z][a-z0-9_]{1,47}$'),
   kind text not null check (kind ~ '^[a-z][a-z0-9_.]{1,47}$'),
   -- Écriture de monnaie liée (vente, achat), le cas échéant.
-  ledger_entry_id uuid references game.ledger_entries (id),
+  ledger_entry_id uuid,
   created_at timestamptz not null default now(),
   constraint stock_ledger_from_same_world foreign key (from_inventory_id, world_id) references game.inventories (id, world_id),
   constraint stock_ledger_to_same_world foreign key (to_inventory_id, world_id) references game.inventories (id, world_id),
+  constraint stock_ledger_entry_same_world foreign key (ledger_entry_id, world_id) references game.ledger_entries (id, world_id),
   constraint stock_ledger_one_origin check (num_nonnulls(from_inventory_id, from_system) = 1),
   constraint stock_ledger_one_destination check (num_nonnulls(to_inventory_id, to_system) = 1),
   constraint stock_ledger_distinct_ends check (from_inventory_id is distinct from to_inventory_id or from_inventory_id is null),

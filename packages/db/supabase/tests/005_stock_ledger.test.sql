@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(38);
 
 -- Jeu d'essai : deux maisons de la cité de test, un stock de blé chacune, un stock de pain.
 insert into auth.users (id, email) values
@@ -58,6 +58,48 @@ select throws_ok($$insert into game.inventories (world_id, house_id, city_id, go
   values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'salt')$$, '23503', null, 'stock d''un autre monde que sa maison refusé');
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
   values ('01900000-0000-7000-8000-000000000002', 'wheat', 1, 'production', '00000000-0000-7000-8000-0000000001a1', 'test')$$, '23503', null, 'mouvement d''un autre monde que le stock refusé');
+-- Suite de la relecture : chaque contrôle restant a son test.
+select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_inventory_id, kind)
+  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001a1', 'test')$$, '23514', null, 'le bien doit aussi être celui du stock d''origine');
+select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind)
+  values ('01900000-0000-7000-8000-000000000002', 'wheat', 1, '00000000-0000-7000-8000-0000000001a1', 'npc_consumption', 'test')$$, '23503', null, 'sortie dans un autre monde que le stock refusée');
+insert into game.cities (id, world_id, slug, name) values ('01900000-0000-7000-8000-000000000201', '01900000-0000-7000-8000-000000000002', 'ailleurs', 'Ailleurs');
+select throws_ok($$insert into game.inventories (world_id, house_id, city_id, good_id)
+  values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000201', 'salt')$$, '23503', null, 'stock dans une cité d''un autre monde refusé');
+select throws_ok($$insert into game.inventories (world_id, house_id, city_id, good_id)
+  values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000201', 'salt')$$, '23503', null, 'stock d''une maison d''un autre monde refusé, cité cohérente');
+select throws_ok($$insert into game.inventories (world_id, house_id, city_id, good_id)
+  values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'wheat')$$, '23505', null, 'un seul stock par maison, cité et bien');
+select throws_ok($$update game.stock_ledger set quantity = quantity + 1$$, '23001', null, 'mouvement non modifiable');
+select throws_ok($$update game.inventories set city_id = '01900000-0000-7000-8000-000000000201' where id = '00000000-0000-7000-8000-0000000001a1'$$, '23001', null, 'un stock ne change pas de cité');
+select throws_ok($$update game.inventories set world_id = '01900000-0000-7000-8000-000000000002' where id = '00000000-0000-7000-8000-0000000001a1'$$, '23001', null, 'un stock ne change pas de monde');
+select throws_ok($$update game.inventories set id = game.uuid_v7(), created_at = now() where id = '00000000-0000-7000-8000-0000000001a1'$$, '23001', null, 'identifiant et date d''un stock immuables');
+-- Écriture de monnaie liée : inconnue, ou d'un autre monde.
+select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind, ledger_entry_id)
+  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, 'production', '00000000-0000-7000-8000-0000000001a1', 'test', game.uuid_v7())$$, '23503', null, 'écriture liée inconnue refusée');
+select throws_ok($$do $do$
+  declare entry uuid;
+  begin
+    insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000002', 'test') returning id into entry;
+    insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind, ledger_entry_id)
+      values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, 'production', '00000000-0000-7000-8000-0000000001a1', 'test', entry);
+  end $do$;$$, '23503', null, 'écriture liée d''un autre monde refusée');
+-- Formats.
+select throws_ok(format($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind) values ('01900000-0000-7000-8000-000000000001', %L, 1, %L, '00000000-0000-7000-8000-0000000001a1', %L)$$, g, f, k),
+  '23514', null, format('format refusé : bien %s, source %s, nature %s', g, f, k))
+from (values ('Wheat!', 'production', 'test'), ('wheat', 'Bad Source', 'test'), ('wheat', 'production', 'Bad Kind')) as bad(g, f, k);
+select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind) values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001a1', 'Bad Sink', 'test')$$,
+  '23514', null, 'format refusé : puits');
+select throws_ok($$insert into game.inventories (world_id, house_id, city_id, good_id)
+  values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'Pas Un Bien')$$, '23514', null, 'format refusé : bien d''un stock');
+-- La vue de contrôle signale un écart : on en force un en neutralisant la garde le temps d'une mise à jour.
+alter table game.inventories disable trigger inventories_guard;
+update game.inventories set quantity = quantity + 7 where id = '00000000-0000-7000-8000-0000000001a1';
+alter table game.inventories enable trigger inventories_guard;
+select results_eq(
+  $$select inventory_id, quantity - movements_total from game.inventory_quantity_check where not ok$$,
+  $$values ('00000000-0000-7000-8000-0000000001a1'::uuid, 7::bigint)$$, 'la vue de contrôle désigne le stock en écart et son montant');
+
 select throws_ok('truncate game.stock_ledger', '23001', null, 'journal des stocks non vidable');
 select is(
   (select count(*) from pg_class where relnamespace = 'game'::regnamespace and relrowsecurity and relname in ('inventories', 'stock_ledger')),
