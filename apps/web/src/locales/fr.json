@@ -66,7 +66,9 @@
     "IDEMPOTENCY_KEY_REQUIRED": "La demande est incomplète. Rechargez la page et réessayez.",
     "IDEMPOTENCY_KEY_REUSED": "Cette demande a déjà été envoyée avec d'autres valeurs. Réessayez.",
     "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
-    "HOUSE_NOT_FOUND": "Vous n'avez pas encore fondé de maison."
+    "HOUSE_NOT_FOUND": "Vous n'avez pas encore fondé de maison.",
+    "SITE_NOT_FOUND": "Ce site est introuvable.",
+    "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

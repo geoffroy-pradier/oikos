@@ -58,6 +58,9 @@ importers:
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@oikos/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
       hono:
         specifier: ^4.13.18
         version: 4.13.18
