@@ -14,6 +14,8 @@ const need = (key: string) => {
   return value;
 };
 process.env['MAILPIT_URL'] = need('MAILPIT_URL');
+// Les tests de bout en bout font avancer le temps de jeu directement en base.
+process.env['DATABASE_URL'] = need('DB_URL');
 
 export default defineConfig({
   testDir: './e2e',

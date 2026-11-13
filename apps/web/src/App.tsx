@@ -11,6 +11,7 @@ import { SignIn } from './screens/SignIn';
 import { supabase } from './supabase';
 
 interface House {
+  id: string;
   name: string;
   city_id: string;
   citizenship_status: 'metic' | 'citizen';
@@ -39,7 +40,7 @@ export function App() {
     const [mine, allCities] = await Promise.all([
       supabase
         .from('houses')
-        .select('name, city_id, citizenship_status')
+        .select('id, name, city_id, citizenship_status')
         .eq('is_mine', true)
         .maybeSingle(),
       supabase.from('cities').select('id, name').order('name'),
@@ -60,7 +61,14 @@ export function App() {
     const cityName = cities.find((candidate) => candidate.id === house.city_id)?.name ?? '';
     return (
       <HouseProvider
-        value={{ name: house.name, cityName, citizenshipStatus: house.citizenship_status }}
+        value={{
+          id: house.id,
+          name: house.name,
+          cityId: house.city_id,
+          cityName,
+          citizenshipStatus: house.citizenship_status,
+          accessToken: session.access_token,
+        }}
       >
         <RouterProvider router={router} />
       </HouseProvider>
