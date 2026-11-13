@@ -34,20 +34,28 @@ export function classDemand(input: DemandInput): number {
     qualitySensitivity,
     quality,
   } = input;
-  if (price <= 0 || referencePrice <= 0) throw new RangeError('Prices must be positive');
+  if (!(price > 0) || !(referencePrice > 0) || !Number.isFinite(price))
+    throw new RangeError('Prices must be positive');
+  if (!(quality >= 0 && quality <= 100)) throw new RangeError('Quality must be between 0 and 100');
   const base = (quantityPerThousand * population) / 1000;
   const priceFactor = (price / referencePrice) ** -elasticity;
   const qualityFactor = 1 + (qualitySensitivity * (quality - NEUTRAL_QUALITY)) / NEUTRAL_QUALITY;
   return Math.max(0, base * priceFactor * qualityFactor);
 }
 
+/** Tolérance d'arrondi flottant : 2,9999999999 unités demandées en valent 3. */
+const EPSILON = 1e-9;
+
 /**
  * Convertit une demande réelle en unités entières, en reportant la fraction au tick suivant :
  * une demande de 1,86 par tick achète 1, puis 2, puis 2… sans jamais créer ni perdre de demande.
  */
 export function wholeUnits(demand: number, carry: number): { units: number; carry: number } {
+  if (!Number.isFinite(demand) || demand < 0)
+    throw new RangeError('Demand must be a finite, non-negative number');
+  if (!(carry >= 0 && carry < 1)) throw new RangeError('Carry must be in [0, 1)');
   const total = demand + carry;
-  const units = Math.floor(total + 1e-9);
+  const units = Math.floor(total + EPSILON);
   return { units, carry: Math.max(0, total - units) };
 }
 
@@ -64,23 +72,59 @@ export interface Fill {
   quantity: number;
 }
 
+export interface NpcPurchaseInput {
+  /** Offres de vente du carnet, de la plus ancienne à la plus récente. */
+  asks: readonly Ask[];
+  /** Demande réelle du tick à un prix donné (somme des classes) ; décroît avec le prix. */
+  demandAt: (price: number) => number;
+  /** Budget du tick, en oboles : les PNJ ne dépensent jamais plus que leur revenu. */
+  budget: number;
+  /** Fraction de demande reportée du tick précédent, dans [0, 1). */
+  carry: number;
+}
+
+export interface NpcPurchase {
+  fills: Fill[];
+  /** Dépense totale, en oboles : c'est la monnaie créée par le robinet des achats de PNJ. */
+  spent: number;
+  /** Fraction de demande à reporter au tick suivant. */
+  carry: number;
+}
+
 /**
- * Achats des PNJ dans un carnet de ventes. Les offres sont servies de la moins chère à la plus chère ;
- * à chaque niveau de prix, les PNJ ne détiennent jamais plus que ce qu'ils demanderaient à ce prix
- * (`demandAt` décroît avec le prix). Chaque achat se fait au prix demandé par le vendeur.
+ * Achats des PNJ dans un carnet de ventes, pour un tick. Les offres sont servies de la moins chère à la
+ * plus chère (la plus ancienne d'abord à prix égal), chacune au prix demandé par le vendeur. Deux bornes :
+ * - à chaque niveau de prix, la quantité cumulée ne dépasse pas la demande à ce prix (courbe décroissante) ;
+ * - la dépense totale ne dépasse pas le budget, quel que soit le prix demandé.
  */
-export function matchNpcDemand(asks: readonly Ask[], demandAt: (price: number) => number): Fill[] {
+export function matchNpcDemand({ asks, demandAt, budget, carry }: NpcPurchaseInput): NpcPurchase {
+  if (!Number.isSafeInteger(budget) || budget < 0)
+    throw new RangeError('Budget must be a non-negative integer');
   const fills: Fill[] = [];
-  let bought = 0;
-  // À prix égal, l'ordre fourni (le plus ancien d'abord) est conservé : le tri de JavaScript est stable.
+  let [bought, spent, nextCarry] = [0, 0, carry];
+  // À prix égal, l'ordre fourni est conservé : le tri de JavaScript est stable.
   for (const ask of [...asks].sort((a, b) => a.price - b.price)) {
-    const wanted = Math.floor(demandAt(ask.price)) - bought;
+    if (
+      !Number.isSafeInteger(ask.price) ||
+      ask.price <= 0 ||
+      !Number.isSafeInteger(ask.quantity) ||
+      ask.quantity < 0
+    ) {
+      throw new RangeError(`Invalid ask ${ask.orderId}`);
+    }
+    const demand = wholeUnits(demandAt(ask.price), carry);
+    nextCarry = demand.carry;
+    const wanted = demand.units - bought;
     if (wanted <= 0) break;
-    const quantity = Math.min(wanted, ask.quantity);
+    const affordable = Math.floor((budget - spent) / ask.price);
+    const quantity = Math.min(wanted, ask.quantity, affordable);
     if (quantity > 0) {
       fills.push({ orderId: ask.orderId, price: ask.price, quantity });
       bought += quantity;
+      spent += quantity * ask.price;
     }
+    // Budget épuisé à ce prix : les offres suivantes sont au moins aussi chères.
+    if (affordable <= Math.min(wanted, ask.quantity)) break;
   }
-  return fills;
+  return { fills, spent, carry: nextCarry };
 }
