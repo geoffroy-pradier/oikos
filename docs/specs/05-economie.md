@@ -36,6 +36,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
 ## 5.3 Les marchés
 
 - **Agora** : un carnet d'ordres par cité et par bien (ordres à cours limité, exécution immédiate, historique des prix en chandeliers). Taxe de marché fixée par la cité.
+  Dans la première version : un ordre de vente attend dans le carnet et réserve le stock qu'il propose (ce stock ne peut plus sortir par un autre chemin tant que l'ordre est ouvert) ; un ordre d'achat s'exécute à l'arrivée contre les ventes en attente, au prix de chacune, et son reste est annulé (pas d'achat en attente, donc pas de monnaie sous séquestre). Une maison n'échange pas avec elle-même. Les autres joueurs ne voient du carnet que la quantité offerte par niveau de prix, jamais l'identité des vendeurs.
 - **Contrats** : livraison à terme entre joueurs, avec quantité, qualité minimale, prix, échéance et pénalité. Le défaut coûte de la Timè.
 - **Enchères** : concessions minières, parcelles, biens saisis, charges publiques affermées.
 - **Appels d'offres** : la cité achète pour ses grands travaux et ses fêtes.
