@@ -27,6 +27,7 @@ const post = (token: string | null, body: unknown) =>
     method: 'POST',
     headers: {
       'content-type': 'application/json',
+      'Idempotency-Key': randomUUID(),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
@@ -63,7 +64,7 @@ describe('house.create', () => {
 
   it('refuse un jeton rejeté par le vérificateur ou un en-tête sans « Bearer », sans rien écrire', async () => {
     const user = await newUser();
-    const headers = { 'content-type': 'application/json' };
+    const headers = { 'content-type': 'application/json', 'Idempotency-Key': randomUUID() };
     const body = JSON.stringify(input(`Refusée ${suffix}`));
     for (const authorization of ['Bearer invalide', user]) {
       const res = await app.request('/api/commands/house.create', {
@@ -96,6 +97,34 @@ describe('house.create', () => {
       await sql`alter table game.citizenships drop constraint test_always_fails`.execute(db);
     }
     expect(await housesOf(user)).toEqual([]);
+  });
+
+  it('émet HouseFounded et rejoue sans second effet quand la réponse a été perdue', async () => {
+    const user = await newUser();
+    const request = () =>
+      app.request('/api/commands/house.create', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${user}`,
+          'Idempotency-Key': `lost-${user}`,
+        },
+        body: JSON.stringify(input(`Perdue ${suffix}`)),
+      });
+    const [first, replay] = [await request(), await request()];
+    expect([first.status, replay.status, replay.headers.get('Idempotent-Replay')]).toEqual([
+      200,
+      200,
+      'true',
+    ]);
+    expect(await replay.json()).toEqual(await first.json());
+    const [house] = await housesOf(user);
+    const events = await db
+      .selectFrom('game.domain_events')
+      .select('type')
+      .where(sql<boolean>`payload->>'houseId' = ${house?.id ?? ''}`)
+      .execute();
+    expect(events).toEqual([{ type: 'HouseFounded' }]);
   });
 
   it('fonde la maison et l’inscrit comme métèque dans la cité', async () => {

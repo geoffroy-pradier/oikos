@@ -1,4 +1,9 @@
-import { COMMON_ERROR_CODES, HOUSE_CREATE_ERROR_CODES } from '@oikos/contracts';
+import {
+  COMMON_ERROR_CODES,
+  FRAMEWORK_ERROR_CODES,
+  HOUSE_CREATE_ERROR_CODES,
+  HOUSE_RENAME_ERROR_CODES,
+} from '@oikos/contracts';
 import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
@@ -19,7 +24,12 @@ describe('traductions', () => {
 
   it('chaque erreur métier et chaque élément de blason du contrat est traduit', () => {
     const expected = [
-      ...[...COMMON_ERROR_CODES, ...HOUSE_CREATE_ERROR_CODES].map((code) => `errors.${code}`),
+      ...[
+        ...COMMON_ERROR_CODES,
+        ...FRAMEWORK_ERROR_CODES,
+        ...HOUSE_CREATE_ERROR_CODES,
+        ...HOUSE_RENAME_ERROR_CODES,
+      ].map((code) => `errors.${code}`),
       ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),
       ...BLAZON_TINCTURES.map((value) => `blazon.tincture.${value}`),
       ...BLAZON_EMBLEMS.map((value) => `blazon.emblem.${value}`),

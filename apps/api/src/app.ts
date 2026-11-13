@@ -1,9 +1,4 @@
-import {
-  houseCreateInputSchema,
-  IDEMPOTENCY_HEADER,
-  idempotencyKeySchema,
-  type CommandError,
-} from '@oikos/contracts';
+import { IDEMPOTENCY_HEADER, idempotencyKeySchema, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -19,7 +14,7 @@ export interface AppDeps {
 }
 
 /** Registre des commandes servies par l'API. */
-export const COMMANDS: readonly CommandDefinition[] = [houseRename as CommandDefinition];
+export const COMMANDS = [houseCreate, houseRename] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
   UNAUTHENTICATED: 401,
@@ -66,21 +61,7 @@ export function createApp({ db, verifyToken }: AppDeps) {
     return next();
   });
 
-  app.post('/api/commands/house.create', async (c) => {
-    const body: unknown = await c.req.json().catch(() => null);
-    const parsed = houseCreateInputSchema.safeParse(body);
-    if (!parsed.success) {
-      return fail({
-        code: 'VALIDATION_FAILED',
-        message: 'Invalid input.',
-        fields: [...new Set(parsed.error.issues.map((issue) => issue.path.join('.')))],
-      });
-    }
-    const result = await houseCreate(db, c.get('userId'), parsed.data);
-    return result.ok ? c.json(result) : fail(result.error);
-  });
-
-  // Toute autre commande passe par le registre : clé d'idempotence, transaction, journal, événements.
+  // Toute commande passe par le registre : clé d'idempotence, transaction, journal, événements.
   const registry = new Map(COMMANDS.map((command) => [command.name, command]));
   app.post('/api/commands/:name', async (c) => {
     const command = registry.get(c.req.param('name'));

@@ -1,5 +1,6 @@
 import {
   commandErrorSchema,
+  IDEMPOTENCY_HEADER,
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
@@ -7,17 +8,25 @@ import {
 
 export type CommandResponse<T> = { ok: true; data: T } | { ok: false; error: CommandError };
 
-/** Envoie une commande à l'API de jeu. Ne lève jamais : toute panne devient une erreur `INTERNAL`. */
+/**
+ * Envoie une commande à l'API de jeu. Ne lève jamais : toute panne devient une erreur `INTERNAL`.
+ * `idempotencyKey` identifie une intention du joueur : la renvoyer telle quelle rejoue sans second effet.
+ */
 export async function sendCommand<T>(
   name: string,
   input: unknown,
   accessToken: string,
+  idempotencyKey: string = crypto.randomUUID(),
   fetchImpl: typeof fetch = fetch,
 ): Promise<CommandResponse<T>> {
   try {
     const response = await fetchImpl(`/api/commands/${name}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${accessToken}`,
+        [IDEMPOTENCY_HEADER]: idempotencyKey,
+      },
       body: JSON.stringify(input),
     });
     const body = (await response.json()) as {
