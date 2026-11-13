@@ -73,10 +73,13 @@ export const cityConfigSchema = z.strictObject({
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
 export const clockSchema = z.strictObject({
-  /** Durée du tick : un diviseur de la journée, pour que la clôture tombe toujours sur un tick. */
-  tickMinutes: positiveInt.refine((minutes) => MINUTES_PER_DAY % minutes === 0, {
-    message: 'must divide the 1440 minutes of a day',
-  }),
+  /** Durée du tick : un diviseur de l'heure (donc de la journée), pour que la clôture tombe toujours sur un tick. */
+  tickMinutes: positiveInt
+    .refine((minutes) => MINUTES_PER_DAY % minutes === 0, {
+      message: 'must divide the 1440 minutes of a day',
+    })
+    // Les fuseaux à décalage d'une demi-heure existent : un tick doit toujours commencer une heure locale.
+    .refine((minutes) => 60 % minutes === 0, { message: 'must divide the 60 minutes of an hour' }),
   dailyCloseHour: z.number().int().min(0).max(23),
   /** Identifiant IANA, par exemple `Europe/Paris`. */
   timezone: z.string().refine(isTimezone, { message: 'unknown IANA time zone' }),
