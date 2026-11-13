@@ -32,6 +32,9 @@ const post = (token: string | null, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+const housesOf = (userId: string) =>
+  db.selectFrom('game.houses').select('id').where('user_id', '=', userId).execute();
+
 const input = (name: string) => ({
   cityId: CITY_ID,
   name,
@@ -56,6 +59,43 @@ describe('house.create', () => {
     const res = await post(null, input(`Sans jeton ${suffix}`));
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ ok: false, error: { code: 'UNAUTHENTICATED' } });
+  });
+
+  it('refuse un jeton rejeté par le vérificateur ou un en-tête sans « Bearer », sans rien écrire', async () => {
+    const user = await newUser();
+    const headers = { 'content-type': 'application/json' };
+    const body = JSON.stringify(input(`Refusée ${suffix}`));
+    for (const authorization of ['Bearer invalide', user]) {
+      const res = await app.request('/api/commands/house.create', {
+        method: 'POST',
+        headers: { ...headers, authorization },
+        body,
+      });
+      expect(res.status).toBe(401);
+    }
+    expect(await housesOf(user)).toEqual([]);
+  });
+
+  it('prend le compte dans le jeton, jamais dans le corps', async () => {
+    const [caller, victim] = [await newUser(), await newUser()];
+    const res = await post(caller, { ...input(`Usurpée ${suffix}`), userId: victim });
+    expect(res.status).toBe(400);
+    expect([await housesOf(caller), await housesOf(victim)]).toEqual([[], []]);
+  });
+
+  it('est atomique : si l’inscription dans la cité échoue, la maison n’est pas créée', async () => {
+    const user = await newUser();
+    await sql`alter table game.citizenships add constraint test_always_fails check (false) not valid`.execute(
+      db,
+    );
+    try {
+      const res = await post(user, input(`Orpheline ${suffix}`));
+      expect(res.status).toBe(500);
+      expect(await res.json()).toMatchObject({ error: { code: 'INTERNAL' } });
+    } finally {
+      await sql`alter table game.citizenships drop constraint test_always_fails`.execute(db);
+    }
+    expect(await housesOf(user)).toEqual([]);
   });
 
   it('fonde la maison et l’inscrit comme métèque dans la cité', async () => {

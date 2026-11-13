@@ -1,6 +1,7 @@
 import { houseCreateInputSchema, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { TokenVerifier } from './auth';
 import { houseCreate } from './commands/house-create';
@@ -19,12 +20,18 @@ const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
   INTERNAL: 500,
 };
 
+/** Taille maximale du corps d'une commande (limite technique, pas un paramètre d'équilibrage). */
+const MAX_BODY_BYTES = 16 * 1024;
+
 export function createApp({ db, verifyToken }: AppDeps) {
   const app = new Hono<{ Variables: { userId: string } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: STATUS_BY_CODE[error.code] ?? 400 });
 
   app.get('/api/health', (c) => c.json({ ok: true }));
+
+  // Une commande est un petit objet JSON : au-delà, la requête est refusée avant lecture.
+  app.use('/api/commands/*', bodyLimit({ maxSize: MAX_BODY_BYTES }));
 
   // Toute commande exige un jeton Supabase valide.
   app.use('/api/commands/*', async (c, next) => {
