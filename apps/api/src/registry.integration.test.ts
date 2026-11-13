@@ -5,11 +5,12 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineCommand, executeCommand, type CommandContext, type CommandResult } from './registry';
+import { TEST_CONFIG, testConfig } from './test-config';
 
 // Tests d'intégration du registre contre Supabase local, avec des commandes d'essai qui renomment une maison.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+const db = createDb(DATABASE_URL);
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
 const users: string[] = [];
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
@@ -70,7 +71,7 @@ const run = (
   userId: string,
   input: unknown,
   idempotencyKey = randomUUID(),
-) => executeCommand(db, command, { userId, idempotencyKey, input });
+) => executeCommand(db, command, { userId, idempotencyKey, input }, testConfig);
 const nameOf = async (houseId: string) =>
   (
     await db
@@ -108,11 +109,12 @@ describe('executeCommand', () => {
     await run(command, house.userId, { name: `Ensuite ${letters()}` });
 
     // Rejeu tardif, clés de l'entrée dans un autre ordre : même réponse, l'ancien nom n'est pas réappliqué.
-    const replay = await executeCommand(db, command, {
-      userId: house.userId,
-      idempotencyKey: key,
-      input: JSON.parse(`{"name":"${next}"}`),
-    });
+    const replay = await executeCommand(
+      db,
+      command,
+      { userId: house.userId, idempotencyKey: key, input: JSON.parse(`{"name":"${next}"}`) },
+      testConfig,
+    );
     expect(replay).toEqual({ ...first, replayed: true });
     expect([command.runs(), await eventsOf(house.houseId)]).toEqual([2, 2]);
     expect(await nameOf(house.houseId)).not.toBe(next);
@@ -259,5 +261,95 @@ describe('executeCommand', () => {
       response: { ok: true },
     });
     expect(await nameOf(house.houseId)).toBe(next);
+  });
+
+  it('la commande reçoit la configuration active et l’heure de la base', async () => {
+    const house = await newHouse();
+    let seen: Pick<CommandContext, 'config' | 'now'> | undefined;
+    const command = probe('probe.context', ({ config, now }) => {
+      seen = { config, now };
+      return undefined;
+    });
+    const before = Date.now();
+    await run(command, house.userId, { name: `Contexte ${letters()}` });
+    expect(seen?.config).toBe(TEST_CONFIG.config);
+    expect(seen?.config.starting.grantOboles).toBeGreaterThan(0);
+    expect(Math.abs((seen?.now.getTime() ?? 0) - before)).toBeLessThan(60_000);
+  });
+
+  it('`now` est l’heure de la base au début de la transaction, pas l’horloge du processus', async () => {
+    const house = await newHouse();
+    const command = defineCommand({
+      name: 'probe.clock',
+      input: z.strictObject({}),
+      output: z.strictObject({ contextNow: z.string(), databaseNow: z.string() }),
+      errors: [],
+      async handler({ trx, now }) {
+        const clock = await sql<{ now: Date }>`select now() as now`.execute(trx);
+        const databaseNow = clock.rows[0]?.now.toISOString() ?? '';
+        return { ok: true, data: { contextNow: now.toISOString(), databaseNow } };
+      },
+    });
+    const request = { userId: house.userId, idempotencyKey: randomUUID(), input: {} };
+    const { response } = await executeCommand(db, command, request, testConfig);
+    if (!response.ok) throw new Error(response.error.message);
+    const data = response.data as { contextNow: string; databaseNow: string };
+    expect(data.contextNow).toBe(data.databaseNow);
+  });
+
+  it('plus de commandes simultanées que de connexions : le chargement de la configuration ne bloque pas le pool', async () => {
+    const small = createDb(DATABASE_URL, { max: 2 });
+    // Comme le chargeur réel, cette source emprunte une connexion du même pool.
+    const pooledConfig = async () => {
+      await sql`select 1`.execute(small);
+      return TEST_CONFIG;
+    };
+    try {
+      const houses = await Promise.all(Array.from({ length: 8 }, () => newHouse()));
+      const command = probe('probe.pool');
+      const all = Promise.all(
+        houses.map((house) =>
+          executeCommand(
+            small,
+            command,
+            {
+              userId: house.userId,
+              idempotencyKey: randomUUID(),
+              input: { name: `Pool ${letters()}` },
+            },
+            pooledConfig,
+          ),
+        ),
+      );
+      const timeout = new Promise<'blocked'>((resolve) =>
+        setTimeout(() => resolve('blocked'), 8000),
+      );
+      const outcome = await Promise.race([all, timeout]);
+      if (outcome === 'blocked') throw new Error('pool exhausted: commands never returned');
+      expect(outcome.map((result) => result.response.ok)).toEqual(houses.map(() => true));
+    } finally {
+      // Sans attendre : en cas de blocage, les connexions ne se libèrent jamais.
+      void small.destroy();
+    }
+  }, 15_000);
+
+  it('configuration indisponible : rien n’est exécuté, trace sans clé, la clé reste utilisable', async () => {
+    const house = await newHouse();
+    const command = probe('probe.noConfig');
+    const key = randomUUID();
+    const request = {
+      userId: house.userId,
+      idempotencyKey: key,
+      input: { name: `Sans ${letters()}` },
+    };
+    const outcome = await executeCommand(db, command, request, async () => {
+      throw new Error('aucune configuration active');
+    });
+    expect(outcome.response).toMatchObject({ ok: false, error: { code: 'INTERNAL' } });
+    expect([command.runs(), await nameOf(house.houseId)]).toEqual([0, house.name]);
+    expect(await logOf(house.userId)).toMatchObject([{ status: 'failed', idempotency_key: null }]);
+    expect((await executeCommand(db, command, request, testConfig)).response).toMatchObject({
+      ok: true,
+    });
   });
 });

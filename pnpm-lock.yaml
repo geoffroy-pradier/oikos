@@ -49,6 +49,9 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.8
         version: 2.1.8(hono@4.13.18)
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@oikos/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

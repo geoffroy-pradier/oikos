@@ -1,6 +1,7 @@
+import type { GameConfig, LoadedConfig } from '@oikos/config';
 import { domainEventSchema, type CommandError, type DomainEvent } from '@oikos/contracts';
-import { violatedConstraint, type Db } from '@oikos/db';
-import { sql } from 'kysely';
+import { violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
+import { sql, type ControlledTransaction } from 'kysely';
 import type { z } from 'zod';
 
 export type CommandResult<T> = { ok: true; data: T } | { ok: false; error: CommandError };
@@ -12,7 +13,14 @@ export interface CommandContext {
   userId: string;
   /** Déclare un événement de domaine, enregistré si la commande réussit. */
   emit(event: DomainEvent): void;
+  /** Configuration active à l'arrivée de la commande : seule source des valeurs d'équilibrage. */
+  config: GameConfig;
+  /** Instant de la commande, lu sur l'horloge de la base (début de la transaction). */
+  now: Date;
 }
+
+/** Charge la configuration active à un instant (`createConfigLoader(db).at`). */
+export type ConfigSource = (at: Date) => Promise<LoadedConfig>;
 
 export interface CommandDefinition<I = unknown, O = unknown> {
   name: string;
@@ -83,18 +91,24 @@ export async function executeCommand(
   db: Db,
   command: CommandDefinition,
   { userId, idempotencyKey, input }: CommandRequest,
+  loadConfig: ConfigSource,
 ): Promise<CommandOutcome> {
   const startedAt = performance.now();
   const duration = () => Math.round(performance.now() - startedAt);
   const storable = storableJson(input);
   const loggedInput = storable ?? UNSTORABLE_INPUT;
-  const trx = await db.startTransaction().setIsolationLevel('read committed').execute();
+  let trx: ControlledTransaction<GameDatabase> | undefined;
   try {
+    // Chargée avant la transaction : le chargeur lit par le pool, jamais pendant qu'on tient une connexion.
+    const { config } = await loadConfig(new Date());
+    trx = await db.startTransaction().setIsolationLevel('read committed').execute();
     // Deux requêtes portant la même clé s'exécutent l'une après l'autre : la seconde rejoue la première.
     // (Suppose le niveau READ COMMITTED, fixé ci-dessus : la seconde doit voir la ligne validée par la première.)
-    await sql`select pg_advisory_xact_lock(hashtextextended(${`${userId}:${idempotencyKey}`}, 0))`.execute(
-      trx,
-    );
+    const clock = await sql<{ now: Date }>`
+      select now() as now, pg_advisory_xact_lock(hashtextextended(${`${userId}:${idempotencyKey}`}, 0))
+    `.execute(trx);
+    const now = clock.rows[0]?.now;
+    if (!now) throw new Error('The database returned no clock');
     const previous = await trx
       .selectFrom('game.command_log')
       .select(['command', 'input', 'response'])
@@ -122,7 +136,13 @@ export async function executeCommand(
       const effects = await trx.savepoint('command').execute();
       try {
         response = await command.handler(
-          { trx: effects, userId, emit: (event) => events.push(domainEventSchema.parse(event)) },
+          {
+            trx: effects,
+            userId,
+            emit: (event) => events.push(domainEventSchema.parse(event)),
+            config,
+            now,
+          },
           parsed.data,
         );
         if (response.ok) response = { ok: true, data: command.output.parse(response.data) };
@@ -164,7 +184,7 @@ export async function executeCommand(
     await trx.commit().execute();
     return { response, replayed: false };
   } catch (error) {
-    if (!trx.isCommitted && !trx.isRolledBack) await trx.rollback().execute();
+    if (trx && !trx.isCommitted && !trx.isRolledBack) await trx.rollback().execute();
     console.error(`Command ${command.name} failed`, error);
     const response = failure('INTERNAL', 'Unexpected error.');
     // Trace d'audit hors transaction, sans clé : la commande pourra être retentée avec la même clé.

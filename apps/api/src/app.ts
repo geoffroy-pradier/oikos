@@ -7,13 +7,15 @@ import type { TokenVerifier } from './auth';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import type { RateLimiter } from './rate-limit';
-import { executeCommand, type CommandDefinition } from './registry';
+import { executeCommand, type CommandDefinition, type ConfigSource } from './registry';
 
 export interface AppDeps {
   db: Db;
   verifyToken: TokenVerifier;
   /** Limitation de débit par compte et par commande. Obligatoire : l'oublier ne doit pas la désactiver. */
   rateLimiter: RateLimiter;
+  /** Configuration de jeu active, fournie à chaque commande. */
+  loadConfig: ConfigSource;
 }
 
 /** Registre des commandes servies par l'API. */
@@ -34,7 +36,7 @@ const statusOf = (code: string): ContentfulStatusCode =>
 /** Taille maximale du corps d'une commande (limite technique, pas un paramètre d'équilibrage). */
 const MAX_BODY_BYTES = 16 * 1024;
 
-export function createApp({ db, verifyToken, rateLimiter }: AppDeps) {
+export function createApp({ db, verifyToken, rateLimiter, loadConfig }: AppDeps) {
   const app = new Hono<{ Variables: { userId: string } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
@@ -87,11 +89,8 @@ export function createApp({ db, verifyToken, rateLimiter }: AppDeps) {
       });
     }
     const input: unknown = await c.req.json().catch(() => null);
-    const { response, replayed } = await executeCommand(db, command, {
-      userId: c.get('userId'),
-      idempotencyKey: key.data,
-      input,
-    });
+    const request = { userId: c.get('userId'), idempotencyKey: key.data, input };
+    const { response, replayed } = await executeCommand(db, command, request, loadConfig);
     c.header('Idempotent-Replay', String(replayed));
     return c.json(response, response.ok ? 200 : statusOf(response.error.code));
   });

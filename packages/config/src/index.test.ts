@@ -17,6 +17,7 @@ const errorsOf = (candidate: unknown) => {
 const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
+  starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -206,6 +207,34 @@ describe('une configuration invalide est refusée avec un message précis', () =
       const config = clone();
       config.market.npcMaxPriceFactor = bad;
       expect(errorsOf(config)).toEqual([expect.stringMatching(/^market\.npcMaxPriceFactor: /)]);
+    }
+  });
+
+  it('dotation de départ : montant entier positif, recette connue et sans intrant', () => {
+    for (const bad of [0, -1, 2.5]) {
+      const config = clone();
+      config.starting.grantOboles = bad;
+      expect(errorsOf(config)).toEqual([expect.stringMatching(/^starting\.grantOboles: /)]);
+    }
+    const unknown = clone();
+    unknown.starting.siteRecipeId = 'grow_gold';
+    expect(errorsOf(unknown)).toEqual(['starting.siteRecipeId: unknown recipe "grow_gold"']);
+    const workshop = clone();
+    workshop.starting.siteRecipeId = 'mill_flour';
+    expect(errorsOf(workshop)).toEqual([
+      'starting.siteRecipeId: the starting site must run a recipe without inputs',
+    ]);
+    const missing: Partial<GameConfig> = clone();
+    delete missing.starting;
+    expect(errorsOf(missing)).toEqual([expect.stringMatching(/^starting: /)]);
+    for (const field of ['grantOboles', 'siteRecipeId'] as const) {
+      const partial = clone() as unknown as { starting: Record<string, unknown> };
+      partial.starting = Object.fromEntries(
+        Object.entries(partial.starting).filter(([key]) => key !== field),
+      );
+      expect(errorsOf(partial)).toEqual([
+        expect.stringMatching(new RegExp(`^starting\\.${field}: `)),
+      ]);
     }
   });
 
