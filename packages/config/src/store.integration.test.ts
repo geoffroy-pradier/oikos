@@ -107,6 +107,9 @@ describe('stockage versionné de la configuration', () => {
       `.execute(trx);
       await scheduleActivation(trx, bad.rows[0]?.id ?? '', day(5));
       await expect(loader.at(day(5))).rejects.toThrow(/is invalid: /);
+      await expect(loader.byId('00000000-0000-7000-8000-00000000dead')).rejects.toThrow(
+        /Unknown configuration version/,
+      );
     }));
 
   it('active immédiatement sans échéance, et refuse une échéance passée', () =>

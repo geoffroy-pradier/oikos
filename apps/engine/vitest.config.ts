@@ -7,5 +7,7 @@ export default defineConfig({
     // Les tests d'intégration exigent Supabase local : ils ont leur propre commande (`pnpm test:integration`).
     include: integration ? ['src/**/*.integration.test.ts'] : ['src/**/*.test.ts'],
     exclude: integration ? [] : ['src/**/*.integration.test.ts'],
+    // Certains tests posent une contrainte temporaire pour simuler une panne : un fichier à la fois.
+    fileParallelism: !integration,
   },
 });
