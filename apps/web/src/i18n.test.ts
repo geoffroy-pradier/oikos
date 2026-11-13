@@ -7,6 +7,7 @@ import {
   SITE_COLLECT_ERROR_CODES,
 } from '@oikos/contracts';
 import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
+import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
 import en from './locales/en.json';
@@ -37,6 +38,15 @@ describe('traductions', () => {
       ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),
       ...BLAZON_TINCTURES.map((value) => `blazon.tincture.${value}`),
       ...BLAZON_EMBLEMS.map((value) => `blazon.emblem.${value}`),
+    ];
+    expect(keys(fr)).toEqual(expect.arrayContaining(expected));
+  });
+
+  it('chaque bien et chaque recette de la configuration initiale a un nom', () => {
+    const config = INITIAL_CONFIG as GameConfig;
+    const expected = [
+      ...config.goods.map((good) => `goods.${good.id}`),
+      ...config.recipes.map((recipe) => `recipes.${recipe.id}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
   });

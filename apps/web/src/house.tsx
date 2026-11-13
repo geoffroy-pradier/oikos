@@ -1,7 +1,11 @@
 import { createContext, useContext } from 'react';
 
 export interface HouseSummary {
+  id: string;
   name: string;
+  cityId: string;
+  /** Jeton de session, pour envoyer des commandes à l'API de jeu. */
+  accessToken: string;
   cityName: string;
   citizenshipStatus: 'metic' | 'citizen';
 }

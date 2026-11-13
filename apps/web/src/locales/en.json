@@ -32,7 +32,54 @@
     "status": {
       "metic": "Metic in {{city}}",
       "citizen": "Citizen in {{city}}"
-    }
+    },
+    "treasury": "Treasury",
+    "balance": "{{amount}} obols",
+    "stock": "Storehouse",
+    "stockEmpty": "Nothing in stock yet.",
+    "stockLine": "{{good}}: {{quantity}}",
+    "stockReserved": "of which {{reserved}} for sale",
+    "sites": "Sites",
+    "sitesEmpty": "No site.",
+    "siteSince": "Current cycle started on {{date}}",
+    "collect": "Collect",
+    "collectSite": "Collect: {{site}}",
+    "collected": "Harvest stored: {{list}}.",
+    "stack": "{{quantity}} × {{good}}"
+  },
+  "goods": {
+    "wheat": "Wheat",
+    "olives": "Olives",
+    "grapes": "Grapes",
+    "wood": "Wood",
+    "clay": "Clay",
+    "wool": "Wool",
+    "fish": "Fish",
+    "salt": "Salt",
+    "flour": "Flour",
+    "olive_oil": "Olive oil",
+    "charcoal": "Charcoal",
+    "cloth": "Cloth",
+    "bread": "Bread",
+    "wine": "Wine",
+    "amphorae": "Amphorae"
+  },
+  "recipes": {
+    "grow_wheat": "Wheat field",
+    "grow_olives": "Olive grove",
+    "grow_grapes": "Vineyard",
+    "fell_wood": "Logging camp",
+    "dig_clay": "Clay pit",
+    "shear_wool": "Sheep pasture",
+    "catch_fish": "Fishery",
+    "rake_salt": "Salt works",
+    "mill_flour": "Mill",
+    "press_oil": "Oil press",
+    "burn_charcoal": "Charcoal kiln",
+    "weave_cloth": "Weaving workshop",
+    "bake_bread": "Bakery",
+    "throw_amphorae": "Pottery workshop",
+    "ferment_wine": "Wine cellar"
   },
   "blazon": {
     "shape": {

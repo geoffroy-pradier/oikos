@@ -4,6 +4,7 @@ import {
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
+  type SiteCollectOutput,
 } from '@oikos/contracts';
 
 export type CommandResponse<T> = { ok: true; data: T } | { ok: false; error: CommandError };
@@ -45,3 +46,6 @@ export async function sendCommand<T>(
 
 export const createHouse = (input: HouseCreateInput, accessToken: string) =>
   sendCommand<HouseCreateOutput>('house.create', input, accessToken);
+
+export const collectSite = (siteId: string, accessToken: string) =>
+  sendCommand<SiteCollectOutput>('site.collect', { siteId }, accessToken);

@@ -32,7 +32,54 @@
     "status": {
       "metic": "Métèque à {{city}}",
       "citizen": "Citoyen à {{city}}"
-    }
+    },
+    "treasury": "Trésorerie",
+    "balance": "{{amount}} oboles",
+    "stock": "Entrepôt",
+    "stockEmpty": "Aucun bien en stock pour l'instant.",
+    "stockLine": "{{good}} : {{quantity}}",
+    "stockReserved": "dont {{reserved}} en vente",
+    "sites": "Sites",
+    "sitesEmpty": "Aucun site.",
+    "siteSince": "Cycle en cours depuis le {{date}}",
+    "collect": "Récolter",
+    "collectSite": "Récolter : {{site}}",
+    "collected": "Récolte engrangée : {{list}}.",
+    "stack": "{{quantity}} × {{good}}"
+  },
+  "goods": {
+    "wheat": "Blé",
+    "olives": "Olives",
+    "grapes": "Raisin",
+    "wood": "Bois",
+    "clay": "Argile",
+    "wool": "Laine",
+    "fish": "Poisson",
+    "salt": "Sel",
+    "flour": "Farine",
+    "olive_oil": "Huile d'olive",
+    "charcoal": "Charbon de bois",
+    "cloth": "Tissu",
+    "bread": "Pain",
+    "wine": "Vin",
+    "amphorae": "Amphores"
+  },
+  "recipes": {
+    "grow_wheat": "Champ de blé",
+    "grow_olives": "Oliveraie",
+    "grow_grapes": "Vigne",
+    "fell_wood": "Coupe de bois",
+    "dig_clay": "Carrière d'argile",
+    "shear_wool": "Pâturage à moutons",
+    "catch_fish": "Pêcherie",
+    "rake_salt": "Saline",
+    "mill_flour": "Moulin",
+    "press_oil": "Pressoir à huile",
+    "burn_charcoal": "Charbonnière",
+    "weave_cloth": "Atelier de tissage",
+    "bake_bread": "Boulangerie",
+    "throw_amphorae": "Atelier de potier",
+    "ferment_wine": "Cellier"
   },
   "blazon": {
     "shape": {
