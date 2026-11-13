@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { classDemand, matchNpcDemand, wholeUnits, type Ask } from './demand';
+import { classDemand, matchNpcDemand, npcGoodBudget, wholeUnits, type Ask } from './demand';
 
 describe('demande des PNJ (formule 5.2)', () => {
   const bread = {
@@ -242,5 +242,67 @@ describe('achats des PNJ dans le carnet', () => {
         carry: 0,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('budget des PNJ par bien (5.2)', () => {
+  const prices: Record<string, number> = { wheat: 6, bread: 15, wine: 36 };
+  const price = (goodId: string) => prices[goodId] ?? 0;
+  const poor = {
+    population: 6000,
+    incomePerThousand: 500,
+    basket: [
+      { goodId: 'wheat', quantityPerThousand: 25 }, // 150 oboles de référence
+      { goodId: 'bread', quantityPerThousand: 10 }, // 150
+    ],
+  };
+  const rich = {
+    population: 500,
+    incomePerThousand: 2000,
+    basket: [
+      { goodId: 'bread', quantityPerThousand: 20 }, // 300
+      { goodId: 'wine', quantityPerThousand: 25 }, // 900
+    ],
+  };
+
+  it('répartit le revenu de chaque classe au prorata de la dépense de référence', () => {
+    expect(npcGoodBudget([poor], 'wheat', price)).toBe(1500);
+    expect(npcGoodBudget([poor, rich], 'bread', price)).toBe(1500 + 250);
+    expect(npcGoodBudget([poor, rich], 'wine', price)).toBe(750);
+  });
+
+  it('vaut zéro pour un bien hors de tout panier ou une cité vide', () => {
+    expect(npcGoodBudget([poor, rich], 'fish', price)).toBe(0);
+    expect(npcGoodBudget([{ ...poor, population: 0 }], 'wheat', price)).toBe(0);
+  });
+
+  it('arrondit vers le bas : jamais plus que le revenu', () => {
+    expect(npcGoodBudget([{ ...poor, population: 1001 }], 'wheat', price)).toBe(250);
+  });
+
+  it('refuse un bien du panier sans prix de référence', () => {
+    expect(() => npcGoodBudget([poor], 'wheat', () => 0)).toThrow(RangeError);
+  });
+
+  it('propriété : la somme des budgets des biens ne dépasse jamais le revenu de la cité', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 100_000 }),
+        fc.integer({ min: 0, max: 100_000 }),
+        fc.integer({ min: 1, max: 5000 }),
+        (poorCount, richCount, income) => {
+          const classes = [
+            { ...poor, population: poorCount, incomePerThousand: income },
+            { ...rich, population: richCount },
+          ];
+          const total = ['wheat', 'bread', 'wine']
+            .map((goodId) => npcGoodBudget(classes, goodId, price))
+            .reduce((sum, value) => sum + value, 0);
+          const revenue = (poorCount * income + richCount * rich.incomePerThousand) / 1000;
+          expect(total).toBeLessThanOrEqual(revenue + 1e-6);
+          expect(total).toBeGreaterThan(revenue - 3);
+        },
+      ),
+    );
   });
 });

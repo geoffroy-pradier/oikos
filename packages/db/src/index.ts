@@ -144,6 +144,14 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  /** Fraction de demande des PNJ reportée d'un tick au suivant, par cité et par bien. */
+  'game.npc_demand_carry': {
+    world_id: string;
+    city_id: string;
+    good_id: string;
+    carry: number;
+    updated_at: Generated<Date>;
+  };
   'game.ticks': {
     world_id: string;
     /** `bigint` : lu en texte, écrit en nombre (un indice de tick tient dans un entier sûr). */

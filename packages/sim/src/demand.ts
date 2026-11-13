@@ -43,6 +43,42 @@ export function classDemand(input: DemandInput): number {
   return Math.max(0, base * priceFactor * qualityFactor);
 }
 
+export interface BudgetClass {
+  /** N : population de la classe dans la cité. */
+  population: number;
+  /** Revenu de la classe, en oboles par tick pour 1 000 habitants. */
+  incomePerThousand: number;
+  basket: readonly { goodId: string; quantityPerThousand: number }[];
+}
+
+/**
+ * Budget des PNJ d'une cité pour un bien et un tick, en oboles entières (5.2). Le revenu de chaque classe
+ * est réparti entre les biens de son panier au prorata de leur dépense de référence (Q0 × prix de
+ * référence). L'arrondi est fait vers le bas : les PNJ ne dépensent jamais plus que leur revenu.
+ */
+export function npcGoodBudget(
+  classes: readonly BudgetClass[],
+  goodId: string,
+  referencePrice: (goodId: string) => number,
+): number {
+  let budget = 0;
+  for (const { population, incomePerThousand, basket } of classes) {
+    if (!(population >= 0) || !(incomePerThousand >= 0))
+      throw new RangeError('Population and income must be non-negative');
+    const spending = (entry: { goodId: string; quantityPerThousand: number }) => {
+      const value = entry.quantityPerThousand * referencePrice(entry.goodId);
+      if (!(value > 0) || !Number.isFinite(value))
+        throw new RangeError(`Invalid reference spending for ${entry.goodId}`);
+      return value;
+    };
+    const total = basket.reduce((sum, entry) => sum + spending(entry), 0);
+    const wanted = basket.find((entry) => entry.goodId === goodId);
+    if (!wanted) continue;
+    budget += ((incomePerThousand * population) / 1000) * (spending(wanted) / total);
+  }
+  return Math.floor(budget + EPSILON);
+}
+
 /** Tolérance d'arrondi flottant : 2,9999999999 unités demandées en valent 3. */
 const EPSILON = 1e-9;
 
