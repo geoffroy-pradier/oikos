@@ -5,6 +5,7 @@
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "typecheck": { "dependsOn": ["^typecheck"] },
     "test": { "dependsOn": ["^typecheck"] },
+    "test:integration": { "cache": false },
     "dev": { "cache": false, "persistent": true }
   }
 }

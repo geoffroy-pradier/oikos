@@ -30,6 +30,7 @@ pnpm test
 pnpm db:start   # Supabase local (Docker requis)
 pnpm db:reset   # rejoue les migrations
 pnpm test:db    # pgTAP
+pnpm test:integration   # API contre Supabase local
 ```
 
 ## Pile technique

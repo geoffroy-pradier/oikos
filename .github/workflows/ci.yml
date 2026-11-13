@@ -57,3 +57,7 @@ jobs:
       - name: Test database
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm db:reset && pnpm test:db
+
+      - name: Integration tests
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        run: pnpm test:integration

@@ -28,6 +28,10 @@ describe('supabaseTokenVerifier', () => {
     expect(await verify(await sign({ sub: 'user-1', aud: 'anon' }))).toBeNull();
     expect(await verify(await sign({ aud: 'authenticated' }))).toBeNull();
     expect(await verify('not-a-jwt')).toBeNull();
+    const noExpiry = await new SignJWT({ sub: 'user-1', aud: 'authenticated' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .sign(new TextEncoder().encode(SECRET));
+    expect(await verify(noExpiry)).toBeNull();
   });
 });
 
@@ -51,6 +55,10 @@ describe('tokenVerifierFromEnv', () => {
   it('utilise le secret partagé quand il est fourni', async () => {
     const verify = tokenVerifierFromEnv({ SUPABASE_JWT_SECRET: SECRET });
     expect(await verify(await sign({ sub: 'user-3', aud: 'authenticated' }))).toBe('user-3');
+  });
+
+  it('refuse un secret trop court au démarrage', () => {
+    expect(() => tokenVerifierFromEnv({ SUPABASE_JWT_SECRET: 'court' })).toThrow(/at least 32/);
   });
 
   it('exige une adresse Supabase ou un secret', () => {
