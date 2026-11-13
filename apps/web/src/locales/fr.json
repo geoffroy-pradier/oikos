@@ -1,0 +1,64 @@
+{
+  "app": {
+    "title": "OIKOS",
+    "language": "Langue",
+    "signOut": "Se déconnecter",
+    "loading": "Chargement…"
+  },
+  "signIn": {
+    "title": "Entrer dans l'Archipel",
+    "intro": "Saisissez votre adresse e-mail : nous vous envoyons un lien de connexion, sans mot de passe.",
+    "email": "Adresse e-mail",
+    "submit": "Recevoir le lien",
+    "sent": "Lien envoyé à {{email}}. Ouvrez-le sur cet appareil pour continuer.",
+    "failed": "L'envoi a échoué. Réessayez dans un instant."
+  },
+  "createHouse": {
+    "title": "Fonder votre maison",
+    "intro": "Vous débarquez comme métèque dans la cité qui vous accueille. Donnez un nom et un blason à votre oikos.",
+    "name": "Nom de la maison",
+    "nameHint": "3 à 24 caractères : lettres, espaces, apostrophes et tirets.",
+    "city": "Cité d'accueil",
+    "blazon": "Blason",
+    "shape": "Bouclier",
+    "tincture": "Couleur",
+    "emblem": "Emblème",
+    "submit": "Fonder la maison"
+  },
+  "home": {
+    "title": "Maison {{name}}",
+    "status": {
+      "metic": "Métèque à {{city}}",
+      "citizen": "Citoyen à {{city}}"
+    }
+  },
+  "blazon": {
+    "shape": {
+      "hoplon": "Hoplon rond",
+      "pelte": "Pelte en croissant",
+      "thyreos": "Thyréos ovale"
+    },
+    "tincture": {
+      "terracotta": "Terre cuite",
+      "black": "Noir",
+      "ochre": "Ocre",
+      "aegean": "Bleu égéen"
+    },
+    "emblem": {
+      "owl": "Chouette",
+      "trident": "Trident",
+      "olive": "Olivier",
+      "amphora": "Amphore",
+      "sun": "Soleil",
+      "ship": "Navire"
+    }
+  },
+  "errors": {
+    "UNAUTHENTICATED": "Votre session a expiré. Reconnectez-vous.",
+    "VALIDATION_FAILED": "Certaines valeurs ne sont pas valides. Vérifiez votre saisie.",
+    "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
+    "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
+    "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
+    "INTERNAL": "Une erreur est survenue. Réessayez dans un instant."
+  }
+}
