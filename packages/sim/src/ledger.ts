@@ -90,6 +90,7 @@ export function applyEntry(
     next.set(line.accountId, balance);
   }
   // Le découvert se juge sur le solde final : plusieurs lignes peuvent toucher le même compte.
+  // La base, elle, l'évalue à chaque ligne insérée : la couche d'accès insère donc les crédits d'abord.
   for (const [accountId, balance] of next) {
     if (balance < 0 && balance !== balances.get(accountId) && !mayOverdraw(accountId)) {
       return fail('INSUFFICIENT_FUNDS', accountId);

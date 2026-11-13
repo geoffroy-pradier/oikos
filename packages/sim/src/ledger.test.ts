@@ -94,8 +94,20 @@ describe('applyEntry : propriétés sur des suites aléatoires d’écritures', 
           const result = applyEntry(balances, entry.value, isSystem);
           // Tout ou rien : l'état fourni n'est jamais modifié, accepté ou non.
           expect(balances).toEqual(before);
-          if (result.ok) balances = result.value;
-          else expect(result.error).toBe('INSUFFICIENT_FUNDS');
+          // Oracle indépendant : soldes attendus ligne à ligne ; l'écriture est acceptée si et seulement
+          // si aucune maison ne finit débitrice, et les soldes rendus sont exactement ceux attendus.
+          const expected = new Map(before);
+          for (const line of lines)
+            expected.set(line.accountId, (expected.get(line.accountId) ?? 0) + line.amount);
+          const overdrawn = HOUSES.filter((house) => (expected.get(house) ?? 0) < 0);
+          expect(result.ok).toBe(overdrawn.length === 0);
+          if (result.ok) {
+            expect(result.value).toEqual(expected);
+            balances = result.value;
+          } else {
+            expect(result.error).toBe('INSUFFICIENT_FUNDS');
+            expect(overdrawn).toContain(result.accountId);
+          }
 
           // Conservation : la somme de tous les soldes reste nulle.
           expect(sum(balances.values())).toBe(0);
@@ -137,6 +149,52 @@ describe('applyEntry : propriétés sur des suites aléatoires d’écritures', 
         expect(moneySupply(burned.value, isSystem)).toBe(granted - moved);
       }),
     );
+  });
+
+  it('revalide l’écriture : une écriture forgée ne crée pas de monnaie', () => {
+    const balances: Balances = new Map([['house-a', 100]]);
+    const forged = [
+      {
+        kind: 'forged',
+        lines: [
+          { accountId: 'house-a', amount: 5 },
+          { accountId: 'house-b', amount: 5 },
+        ],
+      },
+      {
+        kind: 'forged',
+        lines: [
+          { accountId: 'house-a', amount: -1.5 },
+          { accountId: 'house-b', amount: 1.5 },
+        ],
+      },
+      { kind: 'forged', lines: [{ accountId: 'house-a', amount: 5 }] },
+    ];
+    expect(forged.map((entry) => applyEntry(balances, entry, isSystem))).toMatchObject([
+      { ok: false, error: 'UNBALANCED' },
+      { ok: false, error: 'INVALID_AMOUNT' },
+      { ok: false, error: 'TOO_FEW_LINES' },
+    ]);
+    expect(balances).toEqual(new Map([['house-a', 100]]));
+  });
+
+  it('refuse un solde qui sortirait des entiers sûrs, sans perte de précision silencieuse', () => {
+    const balances: Balances = new Map([['house-a', Number.MAX_SAFE_INTEGER]]);
+    const grant = transfer('grant', 'faucet_npc_purchases', 'house-a', 1);
+    if (!grant.ok) throw new Error(grant.error);
+    expect(applyEntry(balances, grant.value, isSystem)).toEqual({
+      ok: false,
+      error: 'OVERFLOW',
+      accountId: 'house-a',
+    });
+    expect(
+      applyStockMovement(new Map([['inv-a', Number.MAX_SAFE_INTEGER]]), {
+        goodId: 'wheat',
+        quantity: 1,
+        from: { system: 'production' },
+        to: { inventoryId: 'inv-a' },
+      }),
+    ).toEqual({ ok: false, error: 'OVERFLOW' });
   });
 
   it('refuse un virement de montant nul, négatif ou non entier', () => {
