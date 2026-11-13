@@ -1,0 +1,208 @@
+{
+  "clock": { "tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7 },
+  "goods": [
+    { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
+    { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },
+    { "id": "grapes", "tier": "raw", "referencePriceOboles": 10, "elasticity": 0.7 },
+    { "id": "wood", "tier": "raw", "referencePriceOboles": 8, "elasticity": 0.5 },
+    { "id": "clay", "tier": "raw", "referencePriceOboles": 5, "elasticity": 0.6 },
+    { "id": "wool", "tier": "raw", "referencePriceOboles": 14, "elasticity": 0.7 },
+    { "id": "fish", "tier": "raw", "referencePriceOboles": 12, "elasticity": 0.5 },
+    { "id": "salt", "tier": "raw", "referencePriceOboles": 7, "elasticity": 0.3 },
+    { "id": "flour", "tier": "intermediate", "referencePriceOboles": 10, "elasticity": 0.4 },
+    { "id": "olive_oil", "tier": "intermediate", "referencePriceOboles": 30, "elasticity": 0.6 },
+    { "id": "charcoal", "tier": "intermediate", "referencePriceOboles": 16, "elasticity": 0.5 },
+    { "id": "cloth", "tier": "intermediate", "referencePriceOboles": 42, "elasticity": 0.9 },
+    { "id": "bread", "tier": "finished", "referencePriceOboles": 15, "elasticity": 0.3 },
+    { "id": "wine", "tier": "finished", "referencePriceOboles": 36, "elasticity": 1.1 },
+    { "id": "amphorae", "tier": "finished", "referencePriceOboles": 24, "elasticity": 0.9 }
+  ],
+  "recipes": [
+    {
+      "id": "grow_wheat",
+      "siteType": "field",
+      "durationMinutes": 240,
+      "workers": 4,
+      "inputs": [],
+      "outputs": [{ "goodId": "wheat", "quantity": 40 }]
+    },
+    {
+      "id": "grow_olives",
+      "siteType": "orchard",
+      "durationMinutes": 360,
+      "workers": 4,
+      "inputs": [],
+      "outputs": [{ "goodId": "olives", "quantity": 24 }]
+    },
+    {
+      "id": "grow_grapes",
+      "siteType": "orchard",
+      "durationMinutes": 360,
+      "workers": 4,
+      "inputs": [],
+      "outputs": [{ "goodId": "grapes", "quantity": 24 }]
+    },
+    {
+      "id": "fell_wood",
+      "siteType": "forest",
+      "durationMinutes": 240,
+      "workers": 3,
+      "inputs": [],
+      "outputs": [{ "goodId": "wood", "quantity": 20 }]
+    },
+    {
+      "id": "dig_clay",
+      "siteType": "quarry",
+      "durationMinutes": 180,
+      "workers": 3,
+      "inputs": [],
+      "outputs": [{ "goodId": "clay", "quantity": 30 }]
+    },
+    {
+      "id": "shear_wool",
+      "siteType": "pasture",
+      "durationMinutes": 360,
+      "workers": 2,
+      "inputs": [],
+      "outputs": [{ "goodId": "wool", "quantity": 12 }]
+    },
+    {
+      "id": "catch_fish",
+      "siteType": "fishery",
+      "durationMinutes": 240,
+      "workers": 3,
+      "inputs": [],
+      "outputs": [{ "goodId": "fish", "quantity": 18 }]
+    },
+    {
+      "id": "rake_salt",
+      "siteType": "fishery",
+      "durationMinutes": 300,
+      "workers": 2,
+      "inputs": [],
+      "outputs": [{ "goodId": "salt", "quantity": 24 }]
+    },
+    {
+      "id": "mill_flour",
+      "siteType": "workshop",
+      "durationMinutes": 60,
+      "workers": 2,
+      "inputs": [{ "goodId": "wheat", "quantity": 10 }],
+      "outputs": [{ "goodId": "flour", "quantity": 8 }]
+    },
+    {
+      "id": "press_oil",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "inputs": [{ "goodId": "olives", "quantity": 12 }],
+      "outputs": [{ "goodId": "olive_oil", "quantity": 4 }]
+    },
+    {
+      "id": "burn_charcoal",
+      "siteType": "workshop",
+      "durationMinutes": 90,
+      "workers": 2,
+      "inputs": [{ "goodId": "wood", "quantity": 6 }],
+      "outputs": [{ "goodId": "charcoal", "quantity": 4 }]
+    },
+    {
+      "id": "weave_cloth",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 3,
+      "inputs": [{ "goodId": "wool", "quantity": 6 }],
+      "outputs": [{ "goodId": "cloth", "quantity": 3 }]
+    },
+    {
+      "id": "bake_bread",
+      "siteType": "workshop",
+      "durationMinutes": 60,
+      "workers": 2,
+      "inputs": [
+        { "goodId": "flour", "quantity": 6 },
+        { "goodId": "charcoal", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "bread", "quantity": 8 }]
+    },
+    {
+      "id": "throw_amphorae",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "inputs": [
+        { "goodId": "clay", "quantity": 8 },
+        { "goodId": "charcoal", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "amphorae", "quantity": 4 }]
+    },
+    {
+      "id": "ferment_wine",
+      "siteType": "workshop",
+      "durationMinutes": 480,
+      "workers": 2,
+      "inputs": [
+        { "goodId": "grapes", "quantity": 12 },
+        { "goodId": "amphorae", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "wine", "quantity": 5 }]
+    }
+  ],
+  "npcClasses": [
+    {
+      "id": "thetes",
+      "qualitySensitivity": 0.1,
+      "basket": [
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 30 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 6 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 2 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 1.5 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 1 }
+      ]
+    },
+    {
+      "id": "zeugitai",
+      "qualitySensitivity": 0.3,
+      "basket": [
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 28 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 8 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 2.5 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 3 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 3 },
+        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.6 }
+      ]
+    },
+    {
+      "id": "hippeis",
+      "qualitySensitivity": 0.6,
+      "basket": [
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 26 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 10 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 3 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 5 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 6 },
+        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 1.5 },
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.8 }
+      ]
+    },
+    {
+      "id": "pentakosiomedimnoi",
+      "qualitySensitivity": 0.9,
+      "basket": [
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 24 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 12 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 3 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 8 },
+        { "goodId": "wine", "need": "luxury", "quantityPerThousand": 12 },
+        { "goodId": "cloth", "need": "luxury", "quantityPerThousand": 4 },
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 3 }
+      ]
+    }
+  ],
+  "cities": [
+    {
+      "id": "kalliste",
+      "population": { "thetes": 6000, "zeugitai": 2500, "hippeis": 1200, "pentakosiomedimnoi": 300 }
+    }
+  ]
+}
