@@ -1,0 +1,1 @@
+-- Données de développement local. Aucune donnée réelle, aucun secret.

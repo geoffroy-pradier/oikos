@@ -46,3 +46,12 @@ jobs:
       - name: Test
         if: steps.ws.outputs.present == 'true'
         run: pnpm test
+
+      # pgTAP sur Supabase local : migrations rejouées depuis zéro, puis tests de schéma et de règles par ligne.
+      - name: Start Supabase
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        run: pnpm db:start
+
+      - name: Test database
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        run: pnpm db:reset && pnpm test:db
