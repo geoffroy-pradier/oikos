@@ -18,7 +18,8 @@ export interface City {
 interface Props {
   cities: City[];
   accessToken: string;
-  onCreated: () => void;
+  /** Relit la maison du joueur : appelé après une création, ou si l'API dit qu'elle existe déjà. */
+  onCreated: () => Promise<void>;
 }
 
 export function CreateHouse({ cities, accessToken, onCreated }: Props) {
@@ -40,9 +41,9 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     setErrorCode(null);
     setBusy(true);
     const result = await createHouse({ cityId, name: trimmed, blazon }, accessToken);
+    if (result.ok || result.error.code === 'HOUSE_ALREADY_EXISTS') await onCreated();
+    if (!result.ok) setErrorCode(result.error.code);
     setBusy(false);
-    if (result.ok) onCreated();
-    else setErrorCode(result.error.code);
   }
 
   const select = <K extends keyof Blazon>(part: K, options: readonly Blazon[K][]) => (
@@ -71,8 +72,8 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
         id="name"
         required
         maxLength={24}
-        aria-describedby="name-hint"
-        aria-invalid={errorCode !== null}
+        aria-describedby="name-hint form-error"
+        aria-invalid={errorCode === 'VALIDATION_FAILED' || errorCode === 'HOUSE_NAME_TAKEN'}
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
@@ -91,7 +92,9 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
         {select('tincture', BLAZON_TINCTURES)}
         {select('emblem', BLAZON_EMBLEMS)}
       </fieldset>
-      {errorCode && <p role="alert">{t([`errors.${errorCode}`, 'errors.INTERNAL'])}</p>}
+      <p id="form-error" role="alert">
+        {errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL'])}
+      </p>
       <button type="submit" disabled={busy || !cityId}>
         {t('createHouse.submit')}
       </button>

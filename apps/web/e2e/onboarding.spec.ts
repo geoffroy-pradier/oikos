@@ -29,9 +29,31 @@ async function expectNoHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
-test('inscription par lien magique puis création de maison, au clavier, à 360 px', async ({
+/** Connexion par lien magique d'un nouveau compte : saisie et envoi au clavier. */
+async function signIn(page: Page, email: string) {
+  await page.goto('/');
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText(email);
+  await page.goto(await magicLink(email));
+}
+
+test('une lecture en échec n’est pas prise pour « pas de maison » et se réessaie', async ({
   page,
 }) => {
+  await page.route('**/rest/v1/houses*', (route) =>
+    route.fulfill({ status: 500, json: { message: 'boom' } }),
+  );
+  await signIn(page, `e2e-${randomUUID()}@example.test`);
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByRole('heading', { name: 'Fonder votre maison' })).toHaveCount(0);
+
+  await page.unroute('**/rest/v1/houses*');
+  await page.getByRole('button', { name: 'Réessayer' }).click();
+  await expect(page.getByRole('heading', { name: 'Fonder votre maison' })).toBeVisible();
+});
+
+test('inscription par lien magique puis création de maison, à 360 px', async ({ page }) => {
   const id = randomUUID();
   const email = `e2e-${id}@example.test`;
   const houseName = `Maison ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
@@ -40,12 +62,7 @@ test('inscription par lien magique puis création de maison, au clavier, à 360 
   await expect(page.getByRole('heading', { name: "Entrer dans l'Archipel" })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
-  // Connexion : saisie et envoi au clavier.
-  await page.getByLabel('Adresse e-mail').fill(email);
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText(email);
-
-  await page.goto(await magicLink(email));
+  await signIn(page, email);
   await expect(page.getByRole('heading', { name: 'Fonder votre maison' })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
@@ -53,6 +70,7 @@ test('inscription par lien magique puis création de maison, au clavier, à 360 
   await page.getByLabel('Nom de la maison').fill('X1');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('alert')).toContainText('ne sont pas valides');
+  await expect(page.getByLabel('Nom de la maison')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByLabel('Nom de la maison').fill(houseName);
   await page.getByLabel('Emblème').selectOption('trident');

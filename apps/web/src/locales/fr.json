@@ -3,7 +3,9 @@
     "title": "OIKOS",
     "language": "Langue",
     "signOut": "Se déconnecter",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "loadFailed": "Impossible de lire vos données pour le moment.",
+    "retry": "Réessayer"
   },
   "signIn": {
     "title": "Entrer dans l'Archipel",

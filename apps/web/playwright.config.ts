@@ -43,7 +43,10 @@ export default defineConfig({
       command: 'pnpm exec vite --host 127.0.0.1',
       url: 'http://127.0.0.1:5173',
       reuseExistingServer: !process.env['CI'],
-      env: { VITE_SUPABASE_URL: need('API_URL'), VITE_SUPABASE_PUBLISHABLE_KEY: need('ANON_KEY') },
+      env: {
+        VITE_SUPABASE_URL: need('API_URL'),
+        VITE_SUPABASE_PUBLISHABLE_KEY: need('PUBLISHABLE_KEY'),
+      },
     },
   ],
 });

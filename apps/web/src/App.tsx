@@ -17,6 +17,7 @@ export function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [house, setHouse] = useState<House | null | undefined>(undefined);
   const [cities, setCities] = useState<City[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -30,6 +31,7 @@ export function App() {
 
   const userId = session?.user.id;
   const load = useCallback(async () => {
+    // Un échec de lecture (erreur de l'API ou réseau coupé) n'est jamais pris pour « pas de maison ».
     const [mine, allCities] = await Promise.all([
       supabase
         .from('houses')
@@ -37,7 +39,10 @@ export function App() {
         .eq('is_mine', true)
         .maybeSingle(),
       supabase.from('cities').select('id, name').order('name'),
-    ]);
+    ]).catch(() => [null, null] as const);
+    const failed = !mine || !allCities || Boolean(mine.error ?? allCities.error);
+    setLoadFailed(failed);
+    if (failed) return;
     setCities((allCities.data as City[] | null) ?? []);
     setHouse((mine.data as House | null) ?? null);
   }, []);
@@ -48,7 +53,16 @@ export function App() {
 
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn />;
-  else if (session && house === null) {
+  else if (session && loadFailed) {
+    screen = (
+      <section>
+        <p role="alert">{t('app.loadFailed')}</p>
+        <button type="button" onClick={() => void load()}>
+          {t('app.retry')}
+        </button>
+      </section>
+    );
+  } else if (session && house === null) {
     screen = <CreateHouse cities={cities} accessToken={session.access_token} onCreated={load} />;
   } else if (session && house) {
     const city = cities.find((candidate) => candidate.id === house.city_id)?.name ?? '';
