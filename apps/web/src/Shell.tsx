@@ -2,9 +2,9 @@ import { Button } from '@oikos/ui';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LANGUAGES, type Language } from './i18n';
-import { applyTheme, initialTheme, storeLanguage, type Theme } from './preferences';
-import { TABS, type TabId } from './router';
+import { LanguageSelect } from './LanguageSelect';
+import { applyTheme, initialTheme, type Theme } from './preferences';
+import { router, TABS, type TabId } from './router';
 import { supabase } from './supabase';
 
 /** Icônes au trait (direction artistique). Décoratives : le libellé de l'onglet porte l'information. */
@@ -32,20 +32,21 @@ function TabIcon({ tab }: { tab: TabId }) {
 }
 
 export function Shell() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [theme, setTheme] = useState<Theme>(() =>
     initialTheme(window.matchMedia('(prefers-color-scheme: dark)').matches),
   );
+
+  // À la déconnexion, on revient à l'accueil : le compte suivant ne doit pas hériter de l'adresse en cours.
+  function signOut() {
+    void router.navigate({ to: '/' });
+    void supabase.auth.signOut();
+  }
 
   function toggleTheme() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     setTheme(next);
-  }
-
-  function changeLanguage(language: Language) {
-    storeLanguage(language);
-    void i18n.changeLanguage(language);
   }
 
   return (
@@ -85,25 +86,11 @@ export function Shell() {
 
       <div className="min-w-0 pb-16 lg:pb-0">
         <header className="flex flex-wrap items-center justify-end gap-2 p-2">
-          <label htmlFor="language" className="sr-only">
-            {t('app.language')}
-          </label>
-          <select
-            id="language"
-            className="min-h-11 rounded-md border border-border bg-surface px-2"
-            value={i18n.language}
-            onChange={(event) => changeLanguage(event.target.value as Language)}
-          >
-            {LANGUAGES.map((language) => (
-              <option key={language} value={language} lang={language}>
-                {t(`languages.${language}`)}
-              </option>
-            ))}
-          </select>
+          <LanguageSelect />
           <Button variant="secondary" aria-pressed={theme === 'dark'} onClick={toggleTheme}>
             {t('shell.darkTheme')}
           </Button>
-          <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+          <Button variant="ghost" onClick={signOut}>
             {t('app.signOut')}
           </Button>
         </header>

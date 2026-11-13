@@ -21,11 +21,15 @@ export default defineConfig({
   retries: process.env['CI'] ? 1 : 0,
   reporter: 'list',
   use: { baseURL: 'http://127.0.0.1:5173', trace: 'off', locale: 'fr-FR' },
+  // Définition de terminé : utilisable à 360 px (téléphone) comme à 1 440 px (ordinateur).
   projects: [
-    // Le parcours doit rester utilisable à 360 px de large (définition de terminé).
     {
       name: 'mobile-360',
       use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 740 } },
+    },
+    {
+      name: 'desktop-1440',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
   ],
   webServer: [

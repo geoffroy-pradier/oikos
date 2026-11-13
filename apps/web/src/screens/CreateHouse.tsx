@@ -6,9 +6,12 @@ import {
   normalizeHouseName,
   type Blazon,
 } from '@oikos/contracts';
+import { Button } from '@oikos/ui';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createHouse } from '../api';
+
+const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 
 export interface City {
   id: string;
@@ -50,6 +53,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     <>
       <label htmlFor={part}>{t(`createHouse.${part}` as string)}</label>
       <select
+        className={CONTROL}
         id={part}
         value={blazon[part]}
         onChange={(event) => setBlazon({ ...blazon, [part]: event.target.value })}
@@ -64,11 +68,12 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
   );
 
   return (
-    <form onSubmit={submit} noValidate>
-      <h1>{t('createHouse.title')}</h1>
+    <form onSubmit={submit} noValidate className="flex flex-col gap-2">
+      <h1 className="text-2xl">{t('createHouse.title')}</h1>
       <p>{t('createHouse.intro')}</p>
       <label htmlFor="name">{t('createHouse.name')}</label>
       <input
+        className={CONTROL}
         id="name"
         required
         maxLength={24}
@@ -77,27 +82,34 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
-      <p id="name-hint">{t('createHouse.nameHint')}</p>
+      <p id="name-hint" className="text-sm text-muted-foreground">
+        {t('createHouse.nameHint')}
+      </p>
       <label htmlFor="city">{t('createHouse.city')}</label>
-      <select id="city" value={cityId} onChange={(event) => setCityId(event.target.value)}>
+      <select
+        className={CONTROL}
+        id="city"
+        value={cityId}
+        onChange={(event) => setCityId(event.target.value)}
+      >
         {cities.map((city) => (
           <option key={city.id} value={city.id}>
             {city.name}
           </option>
         ))}
       </select>
-      <fieldset>
+      <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
         <legend>{t('createHouse.blazon')}</legend>
         {select('shape', BLAZON_SHAPES)}
         {select('tincture', BLAZON_TINCTURES)}
         {select('emblem', BLAZON_EMBLEMS)}
       </fieldset>
-      <p id="form-error" role="alert">
+      <p id="form-error" role="alert" className="font-semibold text-danger">
         {errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL'])}
       </p>
-      <button type="submit" disabled={busy || !cityId}>
+      <Button type="submit" disabled={busy || !cityId}>
         {t('createHouse.submit')}
-      </button>
+      </Button>
     </form>
   );
 }
