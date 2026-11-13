@@ -6,7 +6,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | --- | --- | --- |
 | `game` | Tables de vérité du jeu | Écriture : API de jeu et moteur uniquement. Lecture cliente : seulement à travers les vues de `public`, sur des colonnes accordées une à une et sous règles par ligne ; le schéma n'est jamais exposé par l'API de Supabase |
 | `public` | Vues de lecture pour le client | Joueurs, filtré par règles par ligne |
-| `config` | Paramètres d'équilibrage versionnés | Lecture pour tous, écriture par le back-office |
+| `config` | Paramètres d'équilibrage versionnés | Lecture par l'API de jeu et le moteur, écriture par le back-office. Les valeurs utiles aux joueurs seront exposées par des vues de `public` quand un écran en aura besoin |
 | `telemetry` | Événements et agrégats, partitionnés par jour | Moteur en écriture, back-office en lecture |
 | `admin` | Sanctions, audit, tickets, rôles | Back-office uniquement |
 

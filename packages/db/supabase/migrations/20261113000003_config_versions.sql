@@ -15,14 +15,20 @@ create table if not exists config.versions (
 
 create table if not exists config.activations (
   id uuid primary key default game.uuid_v7(),
+  -- Ordre d'enregistrement : départage déterministe de deux décisions pour la même échéance.
+  seq bigint generated always as identity unique,
   version_id uuid not null references config.versions (id),
-  activate_at timestamptz not null,
+  -- Par défaut : activation immédiate, à l'horloge de la base.
+  activate_at timestamptz not null default now(),
   created_by uuid,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Une activation ne s'antidate pas : la version vue par un tick déjà joué ne change jamais.
+  constraint activations_not_backdated check (activate_at >= created_at)
 );
-create index if not exists activations_activate_at_idx on config.activations (activate_at desc, created_at desc);
+create index if not exists activations_activate_at_idx on config.activations (activate_at desc, seq desc);
 
--- Intégrité : ni modification ni suppression, quel que soit le rôle.
+-- Intégrité : ni modification ni suppression. (Le propriétaire des tables peut désactiver un déclencheur :
+-- le rôle de service de production ne doit pas l'être.)
 create or replace function config.forbid_change() returns trigger
 language plpgsql
 set search_path = ''
@@ -46,7 +52,7 @@ create trigger activations_no_truncate before truncate on config.activations
   for each statement execute function config.forbid_change();
 
 -- Version active à l'instant donné, ou null si aucune activation n'est encore échue.
--- À égalité d'échéance, la décision la plus récente l'emporte.
+-- À égalité d'échéance, la décision enregistrée en dernier l'emporte.
 create or replace function config.active_version_at(at timestamptz) returns uuid
 language sql stable
 set search_path = ''
@@ -54,7 +60,7 @@ as $$
   select version_id
   from config.activations
   where activate_at <= at
-  order by activate_at desc, created_at desc, id desc
+  order by activate_at desc, seq desc
   limit 1;
 $$;
 

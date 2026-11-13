@@ -37,16 +37,24 @@ export async function publishVersion(
   return { ok: true, version };
 }
 
-/** Programme l'activation d'une version. Un retour arrière est l'activation d'une version antérieure. */
+/**
+ * Programme l'activation d'une version à une échéance future, ou l'active immédiatement (à l'horloge de
+ * la base) si `activateAt` est omis. Une échéance passée est refusée par la base : la configuration vue
+ * par un tick déjà joué ne change jamais. Un retour arrière est l'activation d'une version antérieure.
+ */
 export async function scheduleActivation(
   db: Db,
   versionId: string,
-  activateAt: Date,
+  activateAt?: Date,
   createdBy: string | null = null,
 ): Promise<void> {
   await db
     .insertInto('config.activations')
-    .values({ version_id: versionId, activate_at: activateAt, created_by: createdBy })
+    .values({
+      version_id: versionId,
+      created_by: createdBy,
+      ...(activateAt ? { activate_at: activateAt } : {}),
+    })
     .execute();
 }
 
@@ -92,7 +100,6 @@ export function createConfigLoader(db: Db) {
 export async function ensureInitialConfig(
   db: Db,
   initial: unknown,
-  now: Date,
 ): Promise<ConfigVersionRef | null> {
   const run = async (trx: Db) => {
     // Sérialise les démarrages concurrents de l'API et du moteur.
@@ -106,7 +113,7 @@ export async function ensureInitialConfig(
     const published = await publishVersion(trx, initial, { note: 'initial' });
     if (!published.ok)
       throw new ConfigError(`Initial configuration is invalid: ${published.errors.join('; ')}`);
-    await scheduleActivation(trx, published.version.id, now);
+    await scheduleActivation(trx, published.version.id);
     return published.version;
   };
   return db.isTransaction ? run(db) : db.transaction().execute(run);

@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(19);
 
 insert into config.versions (id, payload, note) values
   ('00000000-0000-7000-8000-0000000000c1', '{"v": 1}', 'un'),
@@ -41,6 +41,13 @@ select is(config.active_version_at('2030-01-03 12:00+00'), '00000000-0000-7000-8
   'retour arrière par une nouvelle activation');
 select is(config.active_version_at('2030-01-04 12:00+00'), '00000000-0000-7000-8000-0000000000c1'::uuid,
   'à échéance égale, la décision la plus récente l''emporte');
+
+-- Une activation ne s'antidate pas ; sans échéance, elle est immédiate.
+select throws_ok(
+  $$insert into config.activations (version_id, activate_at) values ('00000000-0000-7000-8000-0000000000c2', now() - interval '1 second')$$,
+  '23514', null, 'échéance passée refusée');
+insert into config.activations (version_id) values ('00000000-0000-7000-8000-0000000000c2');
+select is(config.active_version_at(now()), '00000000-0000-7000-8000-0000000000c2'::uuid, 'activation immédiate à l''horloge de la base');
 
 -- Les clients ne lisent ni n'écrivent la configuration.
 select is(

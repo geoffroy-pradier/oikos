@@ -106,13 +106,24 @@ describe('stockage versionné de la configuration', () => {
       await expect(loader.at(day(5))).rejects.toThrow(/is invalid: /);
     }));
 
+  it('active immédiatement sans échéance, et refuse une échéance passée', () =>
+    inRolledBackTransaction(async (trx) => {
+      const v1 = await publish(trx, 30);
+      await scheduleActivation(trx, v1.id);
+      const active = await createConfigLoader(trx).at(new Date(Date.now() + 60_000));
+      expect(active.id).toBe(v1.id);
+      await expect(scheduleActivation(trx, v1.id, new Date(Date.UTC(2020, 0, 1)))).rejects.toThrow(
+        /activations_not_backdated/,
+      );
+    }));
+
   it('ensureInitialConfig publie et active une seule fois', () =>
     inRolledBackTransaction(async (trx) => {
       // Dans une base déjà amorcée, l'appel est sans effet ; sinon il crée la version 1.
       const existing = await trx.selectFrom('config.versions').select('id').execute();
-      const created = await ensureInitialConfig(trx, INITIAL_CONFIG, day(1));
+      const created = await ensureInitialConfig(trx, INITIAL_CONFIG);
       expect(created === null).toBe(existing.length > 0);
-      expect(await ensureInitialConfig(trx, INITIAL_CONFIG, day(1))).toBeNull();
+      expect(await ensureInitialConfig(trx, INITIAL_CONFIG)).toBeNull();
       const after = await trx.selectFrom('config.versions').select('id').execute();
       expect(after.length).toBe(Math.max(existing.length, 1));
     }));

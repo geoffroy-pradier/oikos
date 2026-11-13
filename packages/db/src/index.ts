@@ -49,8 +49,10 @@ export interface GameDatabase {
   };
   'config.activations': {
     id: Generated<string>;
+    seq: GeneratedAlways<string>;
     version_id: string;
-    activate_at: Date;
+    /** Par défaut : immédiatement, à l'horloge de la base. */
+    activate_at: Generated<Date>;
     created_by: string | null;
     created_at: Generated<Date>;
   };
