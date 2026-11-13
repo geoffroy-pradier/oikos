@@ -1,4 +1,9 @@
-import type { CommandError, HouseCreateInput, HouseCreateOutput } from '@oikos/contracts';
+import {
+  commandErrorSchema,
+  type CommandError,
+  type HouseCreateInput,
+  type HouseCreateOutput,
+} from '@oikos/contracts';
 
 export type CommandResponse<T> = { ok: true; data: T } | { ok: false; error: CommandError };
 
@@ -15,8 +20,14 @@ export async function sendCommand<T>(
       headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(input),
     });
-    const body = (await response.json()) as CommandResponse<T>;
-    if (typeof body === 'object' && body !== null && 'ok' in body) return body;
+    const body = (await response.json()) as {
+      ok?: unknown;
+      data?: unknown;
+      error?: unknown;
+    } | null;
+    if (body?.ok === true && body.data !== undefined) return { ok: true, data: body.data as T };
+    const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
+    if (error?.success) return { ok: false, error: error.data };
   } catch {
     // Réseau coupé ou réponse illisible : même traitement.
   }

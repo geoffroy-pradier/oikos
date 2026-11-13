@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  // Un seul fichier `.env`, à la racine du dépôt (voir `.env.example`).
+  envDir: '../..',
   server: {
     port: 5173,
     strictPort: true,

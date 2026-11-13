@@ -1,5 +1,10 @@
 {
-  "app": { "title": "OIKOS", "language": "Language", "signOut": "Sign out", "loading": "Loading…" },
+  "app": {
+    "title": "OIKOS",
+    "language": "Language",
+    "signOut": "Sign out",
+    "loading": "Loading…"
+  },
   "signIn": {
     "title": "Enter the Archipelago",
     "intro": "Enter your email address and we will send you a sign-in link. No password needed.",
@@ -22,10 +27,17 @@
   },
   "home": {
     "title": "House {{name}}",
-    "status": { "metic": "Metic of {{city}}", "citizen": "Citizen of {{city}}" }
+    "status": {
+      "metic": "Metic in {{city}}",
+      "citizen": "Citizen in {{city}}"
+    }
   },
   "blazon": {
-    "shape": { "hoplon": "Round hoplon", "pelte": "Crescent pelte", "thyreos": "Oval thyreos" },
+    "shape": {
+      "hoplon": "Round hoplon",
+      "pelte": "Crescent pelte",
+      "thyreos": "Oval thyreos"
+    },
     "tincture": {
       "terracotta": "Terracotta",
       "black": "Black",
@@ -43,9 +55,9 @@
   },
   "errors": {
     "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
-    "VALIDATION_FAILED": "This name is not valid. Check its characters and length.",
+    "VALIDATION_FAILED": "Some values are not valid. Check your input.",
     "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
-    "HOUSE_ALREADY_EXISTS": "You have already founded a house in this world.",
+    "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
     "HOUSE_NAME_TAKEN": "Another house already bears this name.",
     "INTERNAL": "Something went wrong. Try again in a moment."
   }

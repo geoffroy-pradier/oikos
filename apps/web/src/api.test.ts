@@ -28,3 +28,18 @@ it('ramène une panne réseau ou une réponse illisible à INTERNAL', async () =
   const html = vi.fn<typeof fetch>(async () => new Response('<html>502</html>', { status: 502 }));
   expect(await sendCommand('x', {}, 't', html)).toMatchObject({ error: { code: 'INTERNAL' } });
 });
+
+it('ramène une enveloppe mal formée à INTERNAL', async () => {
+  for (const body of [
+    { ok: false },
+    { ok: 'yes', data: {} },
+    { ok: true },
+    { ok: false, error: 'x' },
+    null,
+  ]) {
+    expect(await sendCommand('x', {}, 't', respond(body))).toMatchObject({
+      ok: false,
+      error: { code: 'INTERNAL' },
+    });
+  }
+});

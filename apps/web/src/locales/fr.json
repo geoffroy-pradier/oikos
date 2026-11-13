@@ -27,10 +27,17 @@
   },
   "home": {
     "title": "Maison {{name}}",
-    "status": { "metic": "Métèque de {{city}}", "citizen": "Citoyen de {{city}}" }
+    "status": {
+      "metic": "Métèque à {{city}}",
+      "citizen": "Citoyen à {{city}}"
+    }
   },
   "blazon": {
-    "shape": { "hoplon": "Hoplon rond", "pelte": "Pelte en croissant", "thyreos": "Thyréos ovale" },
+    "shape": {
+      "hoplon": "Hoplon rond",
+      "pelte": "Pelte en croissant",
+      "thyreos": "Thyréos ovale"
+    },
     "tincture": {
       "terracotta": "Terre cuite",
       "black": "Noir",
@@ -48,9 +55,9 @@
   },
   "errors": {
     "UNAUTHENTICATED": "Votre session a expiré. Reconnectez-vous.",
-    "VALIDATION_FAILED": "Ce nom n'est pas valide. Vérifiez les caractères et la longueur.",
+    "VALIDATION_FAILED": "Certaines valeurs ne sont pas valides. Vérifiez votre saisie.",
     "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
-    "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans ce monde.",
+    "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
     "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
     "INTERNAL": "Une erreur est survenue. Réessayez dans un instant."
   }
