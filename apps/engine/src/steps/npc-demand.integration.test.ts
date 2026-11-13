@@ -103,17 +103,28 @@ async function newSeller({ worldId, cityId }: World, wheat: number, orders: [num
     .insertInto('game.accounts')
     .values({ world_id: worldId, kind: 'house', house_id: house.id, system_key: null })
     .execute();
+  const orderIds = await offer({ worldId, cityId, houseId: house.id }, 'wheat', wheat, orders);
+  return { houseId: house.id, orderIds };
+}
+
+/** Donne à une maison un stock d'un bien dans une cité, et y dépose ses ordres de vente `[quantité, prix]`. */
+async function offer(
+  { worldId, cityId, houseId }: { worldId: string; cityId: string; houseId: string },
+  goodId: string,
+  stock: number,
+  orders: [number, number][],
+) {
   const inventory = await db
     .insertInto('game.inventories')
-    .values({ world_id: worldId, house_id: house.id, city_id: cityId, good_id: 'wheat' })
+    .values({ world_id: worldId, house_id: houseId, city_id: cityId, good_id: goodId })
     .returning('id')
     .executeTakeFirstOrThrow();
   await db
     .insertInto('game.stock_ledger')
     .values({
       world_id: worldId,
-      good_id: 'wheat',
-      quantity: wheat,
+      good_id: goodId,
+      quantity: stock,
       from_system: 'production',
       to_inventory_id: inventory.id,
       kind: 'test.seed',
@@ -125,9 +136,9 @@ async function newSeller({ worldId, cityId }: World, wheat: number, orders: [num
       .insertInto('game.orders')
       .values({
         world_id: worldId,
-        house_id: house.id,
+        house_id: houseId,
         city_id: cityId,
-        good_id: 'wheat',
+        good_id: goodId,
         side: 'sell',
         price,
         quantity,
@@ -137,7 +148,7 @@ async function newSeller({ worldId, cityId }: World, wheat: number, orders: [num
       .executeTakeFirstOrThrow();
     orderIds.push(order.id);
   }
-  return { houseId: house.id, orderIds };
+  return orderIds;
 }
 
 const balanceOf = async (houseId: string) =>
@@ -166,6 +177,7 @@ const stockOf = async (houseId: string) => {
     .selectFrom('game.inventories')
     .select(['quantity', 'reserved'])
     .where('house_id', '=', houseId)
+    .where('good_id', '=', 'wheat')
     .executeTakeFirstOrThrow();
   return { quantity: Number(row.quantity), reserved: Number(row.reserved) };
 };
@@ -289,6 +301,100 @@ describe('demande des PNJ au tick', () => {
     expect(second.summary).toMatchObject({ npcDemand: { units: 3 } });
     expect(await carryOf(world.cityId)).toBeCloseTo(0, 9);
     expect(await balanceOf(seller.houseId)).toBe(30);
+  });
+
+  it('deux cités, deux biens : chaque marché est servi à part, dans l’ordre d’ancienneté à prix égal', async () => {
+    // Blé : 15 unités pour 1 000 habitants, prix de réserve 15 (6 × 2,6). Poisson : 5 unités, réserve 31.
+    const config: GameConfig = {
+      ...economy(15),
+      market: { npcMaxPriceFactor: 2.6 },
+      npcClasses: [
+        {
+          id: 'thetes',
+          qualitySensitivity: 0.1,
+          incomePerThousand: 300,
+          basket: [
+            { goodId: 'wheat', need: 'vital', quantityPerThousand: 15 },
+            { goodId: 'fish', need: 'vital', quantityPerThousand: 5 },
+          ],
+        },
+      ],
+      cities: [
+        { id: 'kalliste', population: { thetes: 1000 } },
+        { id: 'delos', population: { thetes: 2000 } },
+      ],
+    };
+    const kalliste = await newWorld();
+    const delos = { worldId: kalliste.worldId, cityId: randomUUID() };
+    await sql`insert into game.cities (id, world_id, slug, name) values (${delos.cityId}, ${delos.worldId}, 'delos', 'Agora')`.execute(
+      db,
+    );
+    // Kallistè, blé : une vente annulée à 1 obole, deux ventes à 6 (la plus ancienne d'abord), une à 16.
+    const first = await newSeller(kalliste, 60, [
+      [5, 1],
+      [10, 6],
+      [10, 16],
+    ]);
+    await db
+      .updateTable('game.orders')
+      .set({ status: 'cancelled' })
+      .where('id', '=', first.orderIds[0] ?? '')
+      .execute();
+    const second = await newSeller(kalliste, 10, [[10, 6]]);
+    // Kallistè : du poisson au prix de référence, et des olives bradées que personne ne demande.
+    const [fish] = await offer({ ...kalliste, houseId: first.houseId }, 'fish', 10, [[10, 12]]);
+    await offer({ ...kalliste, houseId: second.houseId }, 'olives', 50, [[50, 1]]);
+    // Délos : du blé pour le même vendeur, et du poisson juste au-dessus du prix de réserve (32 > 31,2).
+    const [wheatInDelos] = await offer({ ...delos, houseId: second.houseId }, 'wheat', 100, [
+      [100, 6],
+    ]);
+    await offer({ ...delos, houseId: first.houseId }, 'fish', 10, [[10, 32]]);
+
+    const outcome = await runTick(db, request(kalliste.worldId, config));
+    expect(outcome.summary).toEqual({
+      npcDemand: {
+        units: 50,
+        spent: 330,
+        markets: [
+          { city: 'delos', goodId: 'wheat', units: 30, spent: 180 },
+          { city: 'kalliste', goodId: 'fish', units: 5, spent: 60 },
+          { city: 'kalliste', goodId: 'wheat', units: 15, spent: 90 },
+        ],
+      },
+    });
+    // Chaque échange sert le bon ordre, et sort du stock de son vendeur, dans sa cité et pour son bien.
+    const settled = await sql<{ order: string; quantity: string; kind: string; origin: boolean }>`
+      select t.sell_order_id as order, t.quantity, e.kind,
+             (select i.house_id = o.house_id and i.city_id = o.city_id and i.good_id = o.good_id
+                     and s.quantity = t.quantity and s.to_system = 'npc_consumption'
+                from game.stock_ledger s join game.inventories i on i.id = s.from_inventory_id
+               where s.ledger_entry_id = t.ledger_entry_id) as origin
+      from game.trades t
+      join game.orders o on o.id = t.sell_order_id
+      join game.ledger_entries e on e.id = t.ledger_entry_id
+      where t.world_id = ${kalliste.worldId} order by o.seq`.execute(db);
+    expect(settled.rows).toEqual([
+      { order: first.orderIds[1], quantity: '10', kind: 'npc.purchase', origin: true },
+      { order: second.orderIds[0], quantity: '5', kind: 'npc.purchase', origin: true },
+      { order: fish, quantity: '5', kind: 'npc.purchase', origin: true },
+      { order: wheatInDelos, quantity: '30', kind: 'npc.purchase', origin: true },
+    ]);
+    expect(await balanceOf(first.houseId)).toBe(60 + 60);
+    expect(await balanceOf(second.houseId)).toBe(30 + 180);
+    expect(await faucetOf(kalliste.worldId)).toBe(-330);
+  });
+
+  it('une demande inférieure à une unité s’accumule jusqu’à l’unité', async () => {
+    const world = await newWorld();
+    await newSeller(world, 10, [[10, 6]]);
+    const bought: number[] = [];
+    for (let tick = 0; tick < 5; tick++) {
+      const outcome = await runTick(db, request(world.worldId, economy(0.4), index + tick));
+      bought.push((outcome.summary['npcDemand'] as { units: number }).units);
+    }
+    // 0,4 unité par tick : rien, rien, une unité (1,2), rien, une unité (2,0).
+    expect(bought).toEqual([0, 0, 1, 0, 1]);
+    expect(await carryOf(world.cityId)).toBeCloseTo(0, 9);
   });
 
   it('un tick rejoué n’achète pas deux fois ; un essai à blanc ne laisse rien', async () => {

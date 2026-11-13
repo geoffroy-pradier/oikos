@@ -1,9 +1,15 @@
-import { classDemand, matchNpcDemand, NEUTRAL_QUALITY, npcGoodBudget } from '@oikos/sim';
+import {
+  classDemand,
+  matchNpcDemand,
+  NEUTRAL_QUALITY,
+  npcGoodBudget,
+  type SystemAccountKey,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import type { TickStep } from '../tick';
 
 /** Compte système qui crée la monnaie des achats de PNJ (docs/specs/05-economie.md, 5.5). */
-const FAUCET = 'faucet_npc_purchases';
+const FAUCET: SystemAccountKey = 'faucet_npc_purchases';
 /** Puits de stock : ce que les PNJ achètent est consommé. */
 const CONSUMPTION = 'npc_consumption';
 
