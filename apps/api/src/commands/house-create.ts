@@ -5,7 +5,10 @@ import {
 } from '@oikos/contracts';
 import { defineCommand } from '../registry';
 
-/** Fonde la maison du joueur et l'inscrit comme métèque dans sa cité d'accueil. */
+/**
+ * Fonde la maison du joueur, l'inscrit comme métèque dans sa cité d'accueil, ouvre son compte, lui verse
+ * la dotation de départ (robinet `faucet_starting_grant`) et lui confie son premier site.
+ */
 export const houseCreate = defineCommand({
   name: 'house.create',
   input: houseCreateInputSchema,
@@ -25,7 +28,7 @@ export const houseCreate = defineCommand({
       fields: ['name'],
     },
   },
-  async handler({ trx, userId, emit }, input) {
+  async handler({ trx, userId, emit, config }, input) {
     const city = await trx
       .selectFrom('game.cities')
       .select(['id', 'world_id'])
@@ -48,6 +51,45 @@ export const houseCreate = defineCommand({
       .values({ house_id: house.id, city_id: city.id })
       .returning('status')
       .executeTakeFirstOrThrow();
+
+    // Dotation de départ : une écriture équilibrée, du robinet vers le compte de la maison.
+    const account = await trx
+      .insertInto('game.accounts')
+      .values({ world_id: city.world_id, kind: 'house', house_id: house.id })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const faucet = await trx
+      .selectFrom('game.accounts')
+      .select('id')
+      .where('world_id', '=', city.world_id)
+      .where('system_key', '=', 'faucet_starting_grant')
+      .executeTakeFirstOrThrow();
+    const entry = await trx
+      .insertInto('game.ledger_entries')
+      .values({
+        world_id: city.world_id,
+        kind: 'house.starting_grant',
+        meta: JSON.stringify({ houseId: house.id }),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const { grantOboles, siteRecipeId } = config.starting;
+    await trx
+      .insertInto('game.ledger_lines')
+      .values([
+        { entry_id: entry.id, account_id: faucet.id, amount: -grantOboles },
+        { entry_id: entry.id, account_id: account.id, amount: grantOboles },
+      ])
+      .execute();
+    await trx
+      .insertInto('game.sites')
+      .values({
+        world_id: city.world_id,
+        house_id: house.id,
+        city_id: city.id,
+        recipe_id: siteRecipeId,
+      })
+      .execute();
 
     emit({
       type: 'HouseFounded',

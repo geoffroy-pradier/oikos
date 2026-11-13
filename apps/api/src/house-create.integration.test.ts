@@ -3,7 +3,7 @@ import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import { testConfig } from './test-config';
+import { TEST_CONFIG, testConfig } from './test-config';
 import { unlimited } from './rate-limit';
 
 // Tests d'intégration contre Supabase local (`pnpm db:start`).
@@ -53,13 +53,30 @@ beforeAll(async () => {
   await sql`select 1`.execute(db);
 });
 
-afterAll(async () => {
-  await sql`delete from game.citizenships where house_id in (select id from game.houses where user_id = any(${users}::uuid[]))`.execute(
-    db,
+// Pas de nettoyage : une maison fondée a une écriture au grand livre, qui est en ajout seul.
+// Les comptes et les noms sont aléatoires ; la base locale se recrée par `pnpm db:reset`.
+afterAll(() => db.destroy());
+
+const GRANT = TEST_CONFIG.config.starting.grantOboles;
+/** Monnaie créée par le robinet de dotation dans le monde de test, en oboles (solde négatif du robinet). */
+const granted = async () =>
+  -Number(
+    (
+      await db
+        .selectFrom('game.accounts')
+        .select('balance')
+        .where('system_key', '=', 'faucet_starting_grant')
+        .where('world_id', '=', '01900000-0000-7000-8000-000000000001')
+        .executeTakeFirstOrThrow()
+    ).balance,
   );
-  await sql`delete from game.houses where user_id = any(${users}::uuid[])`.execute(db);
-  await sql`delete from auth.users where id = any(${users}::uuid[])`.execute(db);
-  await db.destroy();
+const endowmentOf = async (houseId: string) => ({
+  balance: (
+    await db.selectFrom('game.accounts').select('balance').where('house_id', '=', houseId).execute()
+  ).map((row) => Number(row.balance)),
+  sites: (
+    await db.selectFrom('game.sites').select('recipe_id').where('house_id', '=', houseId).execute()
+  ).map((row) => row.recipe_id),
 });
 
 describe('house.create', () => {
@@ -106,6 +123,20 @@ describe('house.create', () => {
     expect(await housesOf(user)).toEqual([]);
   });
 
+  it('est atomique jusqu’au bout : si le premier site échoue, ni maison, ni compte, ni monnaie créée', async () => {
+    const user = await newUser();
+    const before = await granted();
+    await sql`alter table game.sites add constraint test_always_fails check (false) not valid`.execute(
+      db,
+    );
+    try {
+      expect((await post(user, input(`Sans champ ${suffix}`))).status).toBe(500);
+    } finally {
+      await sql`alter table game.sites drop constraint test_always_fails`.execute(db);
+    }
+    expect([await housesOf(user), await granted()]).toEqual([[], before]);
+  });
+
   it('émet HouseFounded et rejoue sans second effet quand la réponse a été perdue', async () => {
     const user = await newUser();
     const request = () =>
@@ -118,7 +149,9 @@ describe('house.create', () => {
         },
         body: JSON.stringify(input(`Perdue ${suffix}`)),
       });
+    const before = await granted();
     const [first, replay] = [await request(), await request()];
+    expect(await granted()).toBe(before + GRANT);
     expect([first.status, replay.status, replay.headers.get('Idempotent-Replay')]).toEqual([
       200,
       200,
@@ -152,6 +185,36 @@ describe('house.create', () => {
     expect(rows).toEqual([
       { user_id: user, blazon: input('x').blazon, city_id: CITY_ID, status: 'metic' },
     ]);
+  });
+
+  it('ouvre le compte, verse la dotation par le robinet prévu et confie le premier site', async () => {
+    const user = await newUser();
+    const before = await granted();
+    const body = (await (await post(user, input(`Dotée ${suffix}`))).json()) as {
+      data: { houseId: string };
+    };
+    expect(await endowmentOf(body.data.houseId)).toEqual({
+      balance: [GRANT],
+      sites: [TEST_CONFIG.config.starting.siteRecipeId],
+    });
+    expect(await granted()).toBe(before + GRANT);
+    // Une seule écriture, équilibrée, entre le robinet et la maison.
+    const lines = await db
+      .selectFrom('game.ledger_lines as l')
+      .innerJoin('game.ledger_entries as e', 'e.id', 'l.entry_id')
+      .innerJoin('game.accounts as a', 'a.id', 'l.account_id')
+      .select(['e.kind', 'a.system_key', 'l.amount'])
+      .where(sql<boolean>`e.meta->>'houseId' = ${body.data.houseId}`)
+      .orderBy('l.amount')
+      .execute();
+    expect(lines).toEqual([
+      { kind: 'house.starting_grant', system_key: 'faucet_starting_grant', amount: String(-GRANT) },
+      { kind: 'house.starting_grant', system_key: null, amount: String(GRANT) },
+    ]);
+    // Une seconde tentative du même compte ne crée ni monnaie ni site.
+    expect((await post(user, input(`Encore ${suffix}`))).status).toBe(409);
+    expect(await granted()).toBe(before + GRANT);
+    expect((await endowmentOf(body.data.houseId)).sites).toHaveLength(1);
   });
 
   it('refuse une seconde maison pour le même compte', async () => {
@@ -209,5 +272,7 @@ describe('house.create', () => {
       post(user, input(`Course b ${suffix}`)),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const [house] = await housesOf(user);
+    expect(await endowmentOf(house?.id ?? '')).toMatchObject({ balance: [GRANT] });
   });
 });
