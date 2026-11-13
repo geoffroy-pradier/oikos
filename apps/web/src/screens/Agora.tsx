@@ -1,6 +1,6 @@
 import { marketPlaceOrderInputSchema } from '@oikos/contracts';
 import { Button, Card } from '@oikos/ui';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { placeOrder } from '../api';
 import { useRows } from '../data';
@@ -41,36 +41,46 @@ export function AgoraScreen() {
   const [quantity, setQuantity] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  // Intention en attente de réponse : la même saisie renvoyée après une panne réutilise sa clé, pour que
+  // l'API rejoue l'ordre déjà déposé au lieu d'en déposer un second.
+  const pending = useRef<{ intent: string; key: string } | null>(null);
 
   const number = new Intl.NumberFormat(i18n.language);
   const good = t(`goods.${GOOD_ID}`);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    // Entiers écrits en chiffres seulement : `Number` accepterait aussi « 1e3 » ou « 0x10 ».
+    const digits = /^\d+$/;
     const input = marketPlaceOrderInputSchema.safeParse({
       cityId: house.cityId,
       goodId: GOOD_ID,
       side,
-      price: Number(price),
-      quantity: Number(quantity),
+      price: Number(price.trim()),
+      quantity: Number(quantity.trim()),
     });
-    if (!input.success || price === '' || quantity === '')
+    if (!input.success || !digits.test(price.trim()) || !digits.test(quantity.trim()))
       return setNotice({ kind: 'alert', text: t('errors.VALIDATION_FAILED') });
     setBusy(true);
     setNotice(null);
-    const result = await placeOrder(input.data, house.accessToken);
+    const intent = JSON.stringify(input.data);
+    if (pending.current?.intent !== intent) pending.current = { intent, key: crypto.randomUUID() };
+    const result = await placeOrder(input.data, house.accessToken, pending.current.key);
+    // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
+    if (result.ok || result.error.code !== 'INTERNAL') pending.current = null;
+    let next: Notice;
     if (!result.ok) {
-      setNotice({ kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) });
+      next = { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
     } else if (side === 'sell') {
       const values = { quantity: number.format(input.data.quantity), good };
-      setNotice({
+      next = {
         kind: 'status',
         text: t('agora.placedSell', { ...values, price: number.format(input.data.price) }),
-      });
+      };
     } else {
       const bought = result.data.trades.reduce((sum, trade) => sum + trade.quantity, 0);
       const cost = result.data.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
-      setNotice({
+      next = {
         kind: 'status',
         text:
           bought > 0
@@ -80,9 +90,11 @@ export function AgoraScreen() {
                 cost: number.format(cost),
               })
             : t('agora.nothingBought'),
-      });
+      };
     }
+    // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
     await Promise.all([book.reload(), mine.reload()]);
+    setNotice(next);
     setBusy(false);
   }
 
