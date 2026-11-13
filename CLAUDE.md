@@ -43,7 +43,7 @@ Tu travailles sans attendre de validation humaine, dans cet ordre :
 4. Écris les tests en même temps que le code. Les critères d'acceptation du ticket doivent être couverts.
 5. Lance en local `pnpm lint`, `pnpm typecheck`, `pnpm test` jusqu'au vert.
 6. Ouvre une demande de fusion de moins de 400 lignes modifiées (hors fichiers générés), qui référence le ticket (`Closes #N`). Découpe si c'est plus gros.
-7. Active la fusion automatique : `gh pr merge --auto --squash`.
+7. Active la fusion automatique en squash : `gh pr merge --auto --squash`, ou l'outil de fusion automatique de la session si cette commande est refusée (sessions cloud).
 8. Si l'intégration continue échoue, corrige sur la même branche. Trois échecs de suite sur la même cause : pose le label `blocked`, explique dans le ticket, passe au suivant.
 9. Une fois fusionné, passe au ticket suivant.
 
