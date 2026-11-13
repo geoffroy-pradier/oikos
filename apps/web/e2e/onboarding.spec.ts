@@ -82,6 +82,8 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await expect(page.getByLabel('Nom de la maison')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByLabel('Nom de la maison').fill(houseName);
+  // La base de test peut contenir d'autres cités (tests d'intégration) : on choisit la sienne.
+  await page.getByLabel('Cité').selectOption({ label: 'Kallistè' });
   await page.getByLabel('Emblème').selectOption('trident');
   await page.getByLabel('Nom de la maison').press('Enter');
 
