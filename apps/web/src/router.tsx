@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { HomeScreen } from './screens/Home';
+import { NotFound } from './screens/NotFound';
 import { Placeholder } from './screens/Placeholder';
 import { Shell } from './Shell';
 
@@ -25,7 +26,8 @@ const routeTree = rootRoute.addChildren([
   route('/messages', () => <Placeholder tab="messages" />),
 ]);
 
-export const router = createRouter({ routeTree });
+// Adresse inconnue : écran traduit, jamais le texte par défaut du routeur.
+export const router = createRouter({ routeTree, defaultNotFoundComponent: NotFound });
 
 declare module '@tanstack/react-router' {
   interface Register {

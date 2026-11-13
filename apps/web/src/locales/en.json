@@ -67,7 +67,9 @@
     "skipToContent": "Skip to content",
     "navigation": "Main navigation",
     "darkTheme": "Dark theme",
-    "comingSoon": "This area will open with the next stages of the game."
+    "comingSoon": "This area will open with the next stages of the game.",
+    "notFound": "This page does not exist.",
+    "backHome": "Back to the house"
   },
   "languages": {
     "fr": "Français",

@@ -57,7 +57,8 @@ export function Shell() {
         {t('shell.skipToContent')}
       </a>
 
-      {/* Barre d'onglets en bas sur téléphone, barre latérale sur ordinateur. */}
+      {/* Barre d'onglets en bas sur téléphone, barre latérale sur ordinateur. Police agrandie : les libellés
+          passent à la ligne plutôt que de se chevaucher ou d'être coupés. */}
       <nav
         aria-label={t('shell.navigation')}
         className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface lg:static lg:border-t-0 lg:border-r"
@@ -67,12 +68,12 @@ export function Shell() {
         </p>
         <ul className="grid grid-cols-5 lg:flex lg:flex-col lg:gap-1 lg:p-2">
           {TABS.map((tab) => (
-            <li key={tab.id}>
+            <li key={tab.id} className="min-w-0">
               <Link
                 to={tab.to}
-                className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md text-xs lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-base"
+                className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-center text-xs leading-tight wrap-anywhere lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-left lg:text-base"
                 activeProps={{ className: 'font-bold text-primary underline underline-offset-4' }}
-                activeOptions={{ exact: true }}
+                activeOptions={{ exact: tab.to === '/', includeSearch: false }}
               >
                 <TabIcon tab={tab.id} />
                 <span>{t(`tabs.${tab.id}.label`)}</span>

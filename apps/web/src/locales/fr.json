@@ -67,7 +67,9 @@
     "skipToContent": "Aller au contenu",
     "navigation": "Navigation principale",
     "darkTheme": "Thème sombre",
-    "comingSoon": "Cet espace ouvrira avec les prochaines étapes du jeu."
+    "comingSoon": "Cet espace ouvrira avec les prochaines étapes du jeu.",
+    "notFound": "Cette page n'existe pas.",
+    "backHome": "Revenir à la maison"
   },
   "languages": {
     "fr": "Français",
