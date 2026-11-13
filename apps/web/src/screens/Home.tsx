@@ -51,10 +51,11 @@ export function HomeScreen() {
         )
         .join(', ');
       setNotice({ kind: 'status', text: t('home.collected', { list }) });
-      await Promise.all([stock.reload(), sites.reload()]);
     } else {
       setNotice({ kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) });
     }
+    // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne.
+    await Promise.all([stock.reload(), sites.reload()]);
     setBusy(null);
   }
 

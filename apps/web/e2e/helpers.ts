@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 
+/** Cité du monde de test (`seed.sql`). D'autres suites créent des cités : on la choisit par son identifiant. */
+export const KALLISTE_ID = '01900000-0000-7000-8000-000000000101';
+
 const MAILPIT = process.env['MAILPIT_URL'] ?? 'http://127.0.0.1:54324';
 
 /** Récupère le lien magique envoyé à `email` dans la boîte de réception locale. */

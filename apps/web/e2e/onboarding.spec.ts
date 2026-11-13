@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, signIn } from './helpers';
+import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 test('une lecture en échec n’est pas prise pour « pas de maison » et se réessaie', async ({
   page,
@@ -47,7 +47,7 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
 
   await page.getByLabel('Nom de la maison').fill(houseName);
   // La base de test peut contenir d'autres cités (tests d'intégration) : on choisit la sienne.
-  await page.getByLabel('Cité').selectOption({ label: 'Kallistè' });
+  await page.getByLabel('Cité').selectOption(KALLISTE_ID);
   await page.getByLabel('Emblème').selectOption('trident');
   await page.getByLabel('Nom de la maison').press('Enter');
 

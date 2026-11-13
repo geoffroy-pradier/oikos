@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createDb } from '@oikos/db';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
-import { expectNoHorizontalScroll, signIn } from './helpers';
+import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 // Première tranche verticale (ticket 9) : du champ à la trésorerie, par l'interface seule.
 const db = createDb(process.env['DATABASE_URL'] ?? '');
@@ -24,7 +24,7 @@ async function foundHouse(page: Page) {
   const houseName = `Champs ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
   await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.getByLabel('Cité').selectOption({ label: 'Kallistè' });
+  await page.getByLabel('Cité').selectOption(KALLISTE_ID);
   await page.getByLabel('Nom de la maison').press('Enter');
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   return houseName;
@@ -62,4 +62,29 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText('Wheat: 80')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Wheat field' })).toBeVisible();
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
+});
+
+test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
+  const houseName = await foundHouse(page);
+  await elapse(houseName, 240);
+
+  // La récolte aboutit côté serveur, mais sa réponse n'arrive jamais : l'erreur est annoncée,
+  // et le stock relu montre quand même le blé engrangé.
+  await page.route('**/api/commands/site.collect', async (route) => {
+    await route.fetch();
+    await route.abort();
+  });
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(page.getByText('Blé : 40')).toBeVisible();
+  await page.unroute('**/api/commands/site.collect');
+
+  // Une lecture en échec est annoncée ; elle n'est jamais prise pour un entrepôt vide.
+  await page.route('**/rest/v1/my_inventories*', (route) =>
+    route.fulfill({ status: 500, json: { message: 'boom' } }),
+  );
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByText('Aucun bien en stock')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
 });
