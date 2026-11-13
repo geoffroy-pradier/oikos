@@ -45,6 +45,7 @@
   },
   "tabs": {
     "vigie": "Watch",
+    "config": "Parameters",
     "audit": "Audit log"
   },
   "vigie": {
@@ -90,5 +91,37 @@
       "failed": "Failed"
     },
     "rejectedNoCode": "Rejected"
+  },
+  "config": {
+    "title": "Parameters",
+    "versions": "Configuration versions",
+    "version": "Version {{number}}",
+    "active": "In force",
+    "scheduled": "Scheduled for {{date}}",
+    "noNote": "No note",
+    "by": "by {{account}}, on {{date}}",
+    "open": "Open version {{number}}",
+    "schedule": "Schedule version {{number}} for the next daily close",
+    "rollback": "Roll back to version {{number}} at the next daily close",
+    "editing": "Content of version {{number}}",
+    "content": "Configuration (JSON)",
+    "note": "Version note",
+    "diff": "Differences from the version in force",
+    "noDiff": "No difference from the version in force.",
+    "added": "added",
+    "removed": "removed",
+    "publish": "Save as a new version",
+    "published": "Version {{number}} saved. It is not scheduled yet.",
+    "scheduledDone": "Version {{number}} scheduled for {{date}}.",
+    "invalidJson": "This text is not a valid JSON object.",
+    "invalidConfig": "Configuration rejected by the schema:",
+    "readOnly": "Your role can view parameters but not change them.",
+    "errors": {
+      "FORBIDDEN": "Your role does not allow this action.",
+      "CONFIG_VERSION_NOT_FOUND": "This version no longer exists.",
+      "INTERNAL": "The action did not complete. Try again: it will not run twice.",
+      "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
+      "VALIDATION_FAILED": "Request rejected: content too large or malformed."
+    }
   }
 }

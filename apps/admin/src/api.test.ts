@@ -59,3 +59,16 @@ it('envoie une commande avec jeton, clé d’idempotence et entrée, et rend les
     code: 'INTERNAL',
   });
 });
+
+it('une commande sans réponse reconnue devient INTERNAL', async () => {
+  for (const body of [
+    { ok: true },
+    { ok: false, error: { nope: 1 } },
+    { ok: 'yes', data: 1 },
+    null,
+  ])
+    expect(await adminCommand('admin.publishConfig', {}, 'jeton', 'cle', respond(body))).toEqual({
+      ok: false,
+      code: 'INTERNAL',
+    });
+});

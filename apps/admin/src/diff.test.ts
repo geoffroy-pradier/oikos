@@ -63,4 +63,48 @@ describe('comparaison de deux configurations', () => {
       ]),
     ).toEqual([{ path: '[1].v', before: 2, after: 3 }]);
   });
+
+  it('un changement de type est une différence, même à valeur « égale »', () => {
+    expect(diffConfigs({ a: '1' }, { a: 1 })).toEqual([{ path: 'a', before: '1', after: 1 }]);
+    expect(diffConfigs({ a: 0 }, { a: '' })).toEqual([{ path: 'a', before: 0, after: '' }]);
+    expect(diffConfigs({ a: [1] }, { a: { 0: 1 } })).toEqual([
+      { path: 'a', before: [1], after: { 0: 1 } },
+    ]);
+  });
+
+  it('une valeur nulle inchangée n’est pas une différence', () => {
+    expect(diffConfigs({ a: null, b: [null] }, { a: null, b: [null] })).toEqual([]);
+  });
+
+  it('une liste identifiée d’un seul côté est comparée par rang', () => {
+    expect(diffConfigs([], ['a'])).toEqual([{ path: '[0]', before: undefined, after: 'a' }]);
+    expect(
+      diffConfigs(
+        [{ id: 'x', v: 1 }],
+        [
+          { id: 'x', v: 1 },
+          { id: 'x', v: 2 },
+        ],
+      ),
+    ).toEqual([{ path: '[1]', before: undefined, after: { id: 'x', v: 2 } }]);
+    // Un identifiant qui n'est pas un texte n'identifie rien.
+    expect(
+      diffConfigs(
+        [
+          { id: 1, v: 1 },
+          { id: 2, v: 2 },
+        ],
+        [
+          { id: 2, v: 2 },
+          { id: 1, v: 1 },
+        ],
+      ).map((change) => change.path),
+    ).toEqual(['[0].id', '[0].v', '[1].id', '[1].v']);
+  });
+
+  it('les chemins sont rendus triés, quel que soit l’ordre des clés', () => {
+    expect(
+      diffConfigs({ b: 1, a: 1, c: 1 }, { c: 2, b: 2, a: 2 }).map((change) => change.path),
+    ).toEqual(['a', 'b', 'c']);
+  });
 });
