@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Bouclier rond à figures noires : terre cuite, noir, ocre. Zone utile centrée pour les icônes masquables. -->
+  <rect width="512" height="512" fill="#9a3412" />
+  <circle cx="256" cy="256" r="168" fill="#faf6ef" />
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#1c1917" stroke-width="14" stroke-dasharray="22 12" />
+  <circle cx="256" cy="256" r="84" fill="none" stroke="#9a3412" stroke-width="34" />
+  <circle cx="256" cy="256" r="22" fill="#b45309" />
+</svg>

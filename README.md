@@ -31,8 +31,10 @@ pnpm db:start   # Supabase local (Docker requis)
 pnpm db:reset   # rejoue les migrations
 pnpm test:db    # pgTAP
 pnpm test:integration   # API contre Supabase local
-pnpm test:e2e   # Playwright : parcours web complet
+pnpm test:e2e   # Playwright : parcours web complet, sur la construction de production
 ```
+
+Catalogue des composants du système de design : `pnpm --filter @oikos/web dev`, puis `http://localhost:5173/catalogue.html`.
 
 ## Pile technique
 

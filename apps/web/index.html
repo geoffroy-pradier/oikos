@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#9a3412" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <title>OIKOS</title>
+    <script>
+      // Thème posé avant le premier affichage, pour éviter un éclair clair. Même règle que `preferences.ts`.
+      try {
+        var stored = localStorage.getItem('oikos.theme');
+        var dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (error) {
+        // Stockage indisponible : thème clair par défaut.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
