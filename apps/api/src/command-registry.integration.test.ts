@@ -180,6 +180,61 @@ describe('cadre de commandes : house.rename de bout en bout', () => {
     expect(await nameOf(house.houseId)).toBe(next);
   });
 
+  it('exige un jeton valide : sans jeton ou avec un jeton refusé, 401, aucun effet, aucun journal', async () => {
+    const house = await newHouse();
+    const headers = { 'content-type': 'application/json', 'Idempotency-Key': randomUUID() };
+    const body = JSON.stringify({ name: `Volée ${letters()}` });
+    for (const authorization of [undefined, 'Bearer refusé', house.userId]) {
+      const res = await app.request('/api/commands/house.rename', {
+        method: 'POST',
+        headers: authorization ? { ...headers, authorization } : headers,
+        body,
+      });
+      expect([res.status, await res.json()]).toMatchObject([
+        401,
+        { error: { code: 'UNAUTHENTICATED' } },
+      ]);
+    }
+    expect([await nameOf(house.houseId), await logOf(house.userId)]).toEqual([house.name, []]);
+  });
+
+  it('traduit un nom refusé par la base seule en erreur de validation', async () => {
+    const house = await newHouse();
+    // U+1C89 : lettre connue de Node 22 mais pas de la base.
+    const res = await rename(house.userId, 'Ab\u{1C89}cd');
+    expect([res.status, await res.json()]).toMatchObject([
+      400,
+      { error: { code: 'VALIDATION_FAILED', fields: ['name'] } },
+    ]);
+  });
+
+  it('deux renommages simultanés du même compte s’enchaînent : l’ancien nom du second est le nom du premier', async () => {
+    const house = await newHouse();
+    const names = [`Premier ${letters()}`, `Second ${letters()}`];
+    const responses = await Promise.all(names.map((name) => rename(house.userId, name)));
+    expect(responses.map((res) => res.status)).toEqual([200, 200]);
+    const events = (await eventsOf(house.houseId)).map(
+      (event) => event.payload as { previousName: string; name: string },
+    );
+    expect(events).toHaveLength(2);
+    // Chaîne de noms sans trou : départ → l'un → l'autre.
+    const first = events.find((event) => event.previousName === house.name);
+    const second = events.find((event) => event.previousName === first?.name);
+    expect([first, second].every(Boolean)).toBe(true);
+    expect(await nameOf(house.houseId)).toBe(second?.name);
+  });
+
+  it('renommer vers le nom actuel réussit sans événement ; une commande inconnue rend 404 même sans clé', async () => {
+    const house = await newHouse();
+    expect((await rename(house.userId, house.name)).status).toBe(200);
+    expect(await eventsOf(house.houseId)).toEqual([]);
+    const unknown = await rename(house.userId, 'Abc', null, 'house.burn');
+    expect([unknown.status, await unknown.json()]).toMatchObject([
+      404,
+      { error: { code: 'COMMAND_NOT_FOUND' } },
+    ]);
+  });
+
   it('corps trop gros : 413, sans lecture ni journal', async () => {
     const house = await newHouse();
     const res = await rename(house.userId, 'x'.repeat(20_000));
