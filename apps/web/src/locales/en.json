@@ -47,6 +47,27 @@
     "collected": "Harvest stored: {{list}}.",
     "stack": "{{quantity}} × {{good}}"
   },
+  "agora": {
+    "title": "Agora of {{city}}",
+    "book": "Order book: {{good}}",
+    "bookCaption": "Resting sell orders, cheapest first",
+    "price": "Price (obols)",
+    "offered": "Quantity offered",
+    "bookEmpty": "No resting sell order.",
+    "place": "Place an order",
+    "side": "Side",
+    "sell": "Sell",
+    "buy": "Buy",
+    "limitPrice": "Limit price per unit (obols)",
+    "quantity": "Quantity",
+    "submit": "Place order",
+    "myOrders": "My resting sell orders",
+    "myOrdersEmpty": "No resting sell order.",
+    "myOrder": "{{remaining}} of {{quantity}} at {{price}} obols",
+    "placedSell": "Sell order placed: {{quantity}} × {{good}} at {{price}} obols.",
+    "bought": "Bought: {{quantity}} × {{good}} for {{cost}} obols.",
+    "nothingBought": "No sell order at this price: nothing was bought."
+  },
   "goods": {
     "wheat": "Wheat",
     "olives": "Olives",

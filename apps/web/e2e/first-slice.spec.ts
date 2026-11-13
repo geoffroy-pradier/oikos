@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
+import { npcDemand } from '@oikos/engine';
+import { createRng } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
@@ -87,4 +90,62 @@ test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock
   await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByText('Aucun bien en stock')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
+});
+
+/** Le moteur joue l'étape de demande des PNJ sur le monde de test, comme à un tick. */
+async function npcsBuy() {
+  const { config } = await createConfigLoader(db).at(new Date());
+  await db.transaction().execute((trx) =>
+    npcDemand.run({
+      trx,
+      worldId: '01900000-0000-7000-8000-000000000001',
+      index: 0,
+      scheduledAt: new Date(),
+      config,
+      rng: createRng('e2e'),
+      dailyClose: false,
+      seasonSwitch: false,
+    }),
+  );
+}
+
+test('du champ à l’agora : produire, vendre, voir son solde augmenter', async ({ page }) => {
+  const houseName = await foundHouse(page);
+  await elapse(houseName, 480);
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByText('Blé : 80')).toBeVisible();
+
+  // Dépôt d'une vente à l'agora, au clavier : une saisie invalide est refusée sans rien envoyer.
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await expect(page.getByRole('heading', { name: 'Agora de Kallistè' })).toBeVisible();
+  await page.getByLabel('Prix limite par unité (oboles)').fill('2');
+  await page.getByLabel('Quantité', { exact: true }).fill('beaucoup');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('ne sont pas valides');
+  await page.getByLabel('Quantité', { exact: true }).fill('81');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('Stock libre insuffisant');
+  await page.getByLabel('Quantité', { exact: true }).fill('80');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Vente déposée : 80 × Blé à 2 oboles.');
+  await expect(page.getByText('80 sur 80 à 2 oboles')).toBeVisible();
+  // Le carnet public montre ce niveau de prix (d'autres maisons peuvent y vendre aussi).
+  await expect(page.getByRole('row').filter({ hasText: /^2\d/ }).first()).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Le blé en vente est réservé ; la trésorerie n'a pas encore bougé.
+  await nav.getByRole('link', { name: 'Maison' }).click();
+  await expect(page.getByText('Blé : 80 (dont 80 en vente)')).toBeVisible();
+  await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
+
+  // Les PNJ achètent au tick, des ventes les moins chères aux plus chères : la vente finit servie.
+  await expect(async () => {
+    await npcsBuy();
+    await page.reload();
+    await expect(page.getByText(/^3\s160 oboles$/)).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.getByText('Blé : 0')).toBeVisible();
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await expect(page.getByText('Aucune vente en attente.').last()).toBeVisible();
 });

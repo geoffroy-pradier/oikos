@@ -47,6 +47,27 @@
     "collected": "Récolte engrangée : {{list}}.",
     "stack": "{{quantity}} × {{good}}"
   },
+  "agora": {
+    "title": "Agora de {{city}}",
+    "book": "Carnet d'ordres : {{good}}",
+    "bookCaption": "Ventes en attente, de la moins chère à la plus chère",
+    "price": "Prix (oboles)",
+    "offered": "Quantité offerte",
+    "bookEmpty": "Aucune vente en attente.",
+    "place": "Déposer un ordre",
+    "side": "Sens",
+    "sell": "Vendre",
+    "buy": "Acheter",
+    "limitPrice": "Prix limite par unité (oboles)",
+    "quantity": "Quantité",
+    "submit": "Déposer l'ordre",
+    "myOrders": "Mes ventes en attente",
+    "myOrdersEmpty": "Aucune vente en attente.",
+    "myOrder": "{{remaining}} sur {{quantity}} à {{price}} oboles",
+    "placedSell": "Vente déposée : {{quantity}} × {{good}} à {{price}} oboles.",
+    "bought": "Achat conclu : {{quantity}} × {{good}} pour {{cost}} oboles.",
+    "nothingBought": "Aucune vente à ce prix : rien n'a été acheté."
+  },
   "goods": {
     "wheat": "Blé",
     "olives": "Olives",

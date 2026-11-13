@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TabId } from '../router';
 
 /** Écran d'attente d'un onglet dont les écrans de jeu ne sont pas encore construits. */
-export function Placeholder({ tab }: { tab: Exclude<TabId, 'house'> }) {
+export function Placeholder({ tab }: { tab: Exclude<TabId, 'house' | 'agora'> }) {
   const { t } = useTranslation();
   return (
     <Card>
