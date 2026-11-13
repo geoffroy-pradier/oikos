@@ -65,3 +65,13 @@ jobs:
       - name: End-to-end tests
         if: steps.ws.outputs.present == 'true' && hashFiles('apps/web/playwright.config.ts') != ''
         run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
+
+      # Les images de l'API et du moteur doivent toujours pouvoir être construites.
+      - name: Build server images
+        if: steps.ws.outputs.present == 'true' && hashFiles('infra/docker/Dockerfile') != ''
+        run: |
+          for app in api engine; do
+            [ -f "apps/$app/src/main.ts" ] || continue
+            node infra/docker/bundle.mjs "$app" "build/$app/main.mjs"
+            docker build -q -f infra/docker/Dockerfile -t "oikos-$app:ci" "build/$app"
+          done
