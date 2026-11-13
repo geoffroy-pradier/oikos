@@ -8,3 +8,4 @@ export {
   type TickStep,
 } from './tick';
 export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './scheduler';
+export { npcDemand } from './steps/npc-demand';

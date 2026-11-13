@@ -2,11 +2,12 @@ import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
 import { advanceAllWorlds } from './scheduler';
+import { npcDemand } from './steps/npc-demand';
 import type { TickStep } from './tick';
 
 const QUEUE = 'world-clock';
-/** Étapes du tick, dans l'ordre. Les règles économiques arrivent avec la première tranche verticale. */
-const STEPS: readonly TickStep[] = [];
+/** Étapes du tick, dans l'ordre. */
+const STEPS: readonly TickStep[] = [npcDemand];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
