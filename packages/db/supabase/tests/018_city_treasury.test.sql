@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(22);
 
 -- La cité de test (seed) a son trésor sans qu'aucun script ne l'ouvre : à zéro, jamais débiteur.
 select results_eq(
@@ -67,6 +67,9 @@ begin
 end $$;
 grant execute on function pg_temp.pay(bigint, bigint) to oikos_service;
 delete from game.accounts where id = '00000000-0000-7000-8000-0000000000cc';
+select throws_ok($$select pg_temp.as_service($s$insert into game.accounts (world_id, kind, house_id, city_id) select world_id, k, house_id,
+  '00000000-0000-7000-8000-00000000c001' from game.accounts, unnest(array['house', 'escrow']) k where id = '00000000-0000-7000-8000-0000000000aa'$s$)$$,
+  '23514', 'new row for relation "accounts" violates check constraint "accounts_owner"', 'ni ne rattache une trésorerie ou un séquestre à une cité');
 select throws_ok($$select pg_temp.as_service($s$insert into game.accounts (world_id, kind, city_id)
   values ('00000000-0000-7000-8000-00000000e001', 'treasury', '00000000-0000-7000-8000-00000000c001')$s$)$$, '42501', null,
   'le service n''ouvre pas de trésor');
@@ -86,9 +89,10 @@ select results_eq(
   $$select kind, balance from game.accounts where world_id = '00000000-0000-7000-8000-00000000e001' and balance <> 0 order by kind$$,
   $$values ('house', 97::bigint), ('system', -100::bigint), ('treasury', 3::bigint)$$,
   'brut au débit du robinet, net à la maison, taxe au trésor : somme nulle');
-select throws_ok($$select pg_temp.as_service('select pg_temp.pay(-10, -4)')$$, '23514', null, 'le trésor ne devient pas débiteur');
-select throws_ok($$select pg_temp.as_service($s$update game.accounts set balance = 500 where kind = 'treasury'$s$)$$, '23001', null,
-  'le service ne modifie pas le solde d''un trésor à la main');
+select throws_ok($$select pg_temp.as_service('select pg_temp.pay(-10, -4)')$$, '23514',
+  'new row for relation "accounts" violates check constraint "accounts_no_overdraft"', 'le trésor ne devient pas débiteur');
+select throws_ok($$select pg_temp.as_service($s$update game.accounts set balance = 500 where kind = 'treasury'$s$)$$, '23001',
+  'account balance changes only through ledger lines', 'le service ne modifie pas le solde d''un trésor à la main');
 select is((select bool_and(ok) from game.account_balance_check where world_id = '00000000-0000-7000-8000-00000000e001'), true,
   'solde = cumul des lignes pour tous les comptes du monde');
 

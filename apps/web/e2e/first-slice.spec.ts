@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { npcDemand } from '@oikos/engine';
-import { createRng } from '@oikos/sim';
+import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
@@ -287,7 +287,11 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     ).toBeVisible();
     await expect(other.getByText('Blé : 37')).toBeVisible();
     await context.close();
-    paid = 30 * price + 4 * bid + 3 * dear;
+    // Trois échanges, taxés un par un : le vendeur touche le net de chacun.
+    const { config } = await createConfigLoader(db).at(new Date());
+    paid = [30 * price, 4 * bid, 3 * dear]
+      .map((gross) => marketTax(gross, config.marketTax).net)
+      .reduce((sum, net) => sum + net, 0);
     // Le vendeur retire ce qui reste : rien ne traîne dans le carnet pour les autres tests.
     await page.reload();
     await page.getByRole('button', { name: /^Annuler la vente de 3 × Blé/ }).click();

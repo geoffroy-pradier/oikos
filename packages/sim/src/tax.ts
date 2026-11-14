@@ -31,7 +31,8 @@ function shareRoundedUp(amount: number, bps: number): number {
 export function marketTax(gross: number, rule: MarketTaxRule): MarketTax {
   if (!Number.isSafeInteger(gross) || gross <= 0)
     throw new RangeError('gross must be a positive integer');
-  for (const [name, bps] of Object.entries(rule)) {
+  for (const name of ['rateBps', 'burnShareBps'] as const) {
+    const bps = rule[name];
     if (!Number.isInteger(bps) || bps < 0 || bps > BPS)
       throw new RangeError(`${name} must be an integer between 0 and ${BPS}`);
   }

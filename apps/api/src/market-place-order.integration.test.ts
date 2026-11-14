@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { createTelemetry } from './telemetry';
 import { unlimited } from './rate-limit';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import { TEST_CONFIG, testVerifier } from './test-config';
 
 // Tests d'intégration de `market.placeOrder` contre Supabase local. Le fichier a son propre monde (cités et
 // ordres ne se suppriment pas : rien ne doit apparaître dans le monde de test des autres suites), et chaque
@@ -18,12 +18,14 @@ const DATABASE_URL =
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
+// Les tests d'appariement se lisent en montants bruts : taxe nulle, sauf dans le bloc « taxe de marché ».
+let marketTax = { rateBps: 0, burnShareBps: 0 };
 const app = createApp({
   db,
   telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
-  loadConfig: testConfig,
+  loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, marketTax } }),
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
@@ -948,5 +950,91 @@ describe('market.cancelOrder', () => {
     expect((await cancel(seller, next)).status).toBe(200);
     await npcTick();
     expect(await stateOf(seller)).toEqual([GRANT + sold * PRICE, `${100 - sold}/0`]);
+  });
+});
+
+describe('taxe de marché', () => {
+  afterAll(() => {
+    marketTax = { rateBps: 0, burnShareBps: 0 };
+  });
+  const balanceOf = async (where: { city_id: string } | { system_key: string }) => {
+    const [column, value] = Object.entries(where)[0] as ['city_id' | 'system_key', string];
+    const account = await db
+      .selectFrom('game.accounts')
+      .select('balance')
+      .where('world_id', '=', WORLD)
+      .where(column, '=', value)
+      .executeTakeFirstOrThrow();
+    return Number(account.balance);
+  };
+  const sinkOf = () => balanceOf({ system_key: 'sink_market_tax' });
+  /** Lignes « type de compte:montant » de l'écriture de chaque échange de la cité, dans l'ordre des échanges. */
+  const entriesOf = async (cityId: string) =>
+    (
+      await sql<{ lines: string }>`
+        select (select string_agg(a.kind || ':' || l.amount, ' ' order by l.amount)
+                  from game.ledger_lines l join game.accounts a on a.id = l.account_id
+                 where l.entry_id = t.ledger_entry_id) as lines
+        from game.trades t join game.orders o on o.id = t.sell_order_id
+        where o.city_id = ${cityId} order by t.id`.execute(db)
+    ).rows.map((row) => row.lines);
+
+  it('vente servie ou qui sert : l’acheteur paie le brut, le vendeur reçoit le net, le reste va au puits et au trésor, dans l’écriture du paiement', async () => {
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 100)];
+    const sink = await sinkOf();
+    marketTax = { rateBps: 500, burnShareBps: 5000 };
+    // L'achat arrive sur une vente en attente : 20 × 6 = 120, taxe 6, dont 3 détruites.
+    await order(seller, 'sell', 6, 20);
+    expect((await order(buyer, 'buy', 6, 20)).body).toMatchObject({ data: { status: 'filled' } });
+    expect(await stateOf(seller)).toEqual([GRANT + 114, '80/0']);
+    expect(await stateOf(buyer)).toEqual([GRANT - 120, '20/0']);
+    // La vente arrive sur un achat en attente, payé par son séquestre : 7 × 3 = 21, taxe ⌈1,05⌉ = 2.
+    await order(buyer, 'buy', 3, 7);
+    expect((await order(seller, 'sell', 2, 7)).body).toMatchObject({ data: { status: 'filled' } });
+    expect(await stateOf(seller)).toEqual([GRANT + 114 + 19, '73/0']);
+    expect(await stateOf(buyer)).toEqual([GRANT - 141, '27/0']);
+    expect(await entriesOf(cityId)).toEqual([
+      'house:-120 system:3 treasury:3 house:114',
+      'escrow:-21 system:1 treasury:1 house:19',
+    ]);
+    // Rien ne se crée : ce que les maisons ont perdu est au trésor ou détruit, à l'obole près.
+    const [treasury, burned] = [await balanceOf({ city_id: cityId }), (await sinkOf()) - sink];
+    expect([treasury, burned]).toEqual([4, 4]);
+    const held = await sql<{ total: string }>`
+      select sum(balance) as total from game.accounts
+      where house_id = any(${[buyer.houseId, seller.houseId]}::uuid[])`.execute(db);
+    expect(Number(held.rows[0]?.total) + treasury + burned).toBe(2 * GRANT);
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('arrondi par échange, à l’obole supérieure ; une part nulle ne fait pas de ligne ; taux nul : rien n’est prélevé', async () => {
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 100)];
+    const sink = await sinkOf();
+    // Trois achats d'une unité à 6 : trois échanges, une obole de taxe chacun (5 % de 6 = 0,3), toute détruite.
+    marketTax = { rateBps: 500, burnShareBps: 5000 };
+    for (let n = 0; n < 3; n += 1) await order(buyer, 'buy', 6, 1);
+    await order(seller, 'sell', 6, 3);
+    expect(await stateOf(seller)).toEqual([GRANT + 15, '97/0']);
+    // Tout au trésor, puis une vente d'une obole : la taxe la prend entière, le vendeur ne reçoit rien.
+    marketTax = { rateBps: 500, burnShareBps: 0 };
+    await order(seller, 'sell', 6, 1);
+    await order(buyer, 'buy', 6, 1);
+    await order(seller, 'sell', 1, 1);
+    await order(buyer, 'buy', 1, 1);
+    expect(await stateOf(seller)).toEqual([GRANT + 15 + 5, '95/0']);
+    marketTax = { rateBps: 0, burnShareBps: 10_000 };
+    await order(seller, 'sell', 6, 5);
+    await order(buyer, 'buy', 6, 5);
+    expect(await stateOf(seller)).toEqual([GRANT + 20 + 30, '90/0']);
+    expect(await entriesOf(cityId)).toEqual([
+      ...Array.from({ length: 3 }, () => 'escrow:-6 system:1 house:5'),
+      'house:-6 treasury:1 house:5',
+      'house:-1 treasury:1',
+      'house:-30 house:30',
+    ]);
+    expect([await balanceOf({ city_id: cityId }), (await sinkOf()) - sink]).toEqual([2, 3]);
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
   });
 });

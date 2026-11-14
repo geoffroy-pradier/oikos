@@ -91,6 +91,8 @@ describe('taxe de marché', () => {
     const valid = { rateBps: 500, burnShareBps: 5_000 };
     for (const bad of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])
       expect(() => marketTax(bad, valid)).toThrow(RangeError);
+    expect(() => marketTax(100, {} as never)).toThrow(/rateBps/);
+    expect(() => marketTax(100, { rateBps: 500 } as never)).toThrow(/burnShareBps/);
     for (const bad of [-1, 10_001, 0.5, Number.NaN]) {
       expect(() => marketTax(100, { ...valid, rateBps: bad })).toThrow(/rateBps/);
       expect(() => marketTax(100, { ...valid, burnShareBps: bad })).toThrow(/burnShareBps/);
