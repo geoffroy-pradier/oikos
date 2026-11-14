@@ -182,6 +182,15 @@ describe('site.collect', () => {
     expect(await stockOf(player.houseId)).toEqual([[GOOD, 3 * PER_CYCLE]]);
   });
 
+  it('arrêt postérieur à l’heure de la commande : la récolte compte jusqu’à maintenant, pas jusqu’à l’arrêt', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, 2.5);
+    // Arrêt daté d'un cycle dans le futur, comme le verrait une commande commencée avant la clôture.
+    await halt(player.siteId, -1);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({ data: { cycles: 2 } });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 2 * PER_CYCLE]]);
+  });
+
   it('site plein puis arrêté : la récolte livre le plafond et le cycle repart de l’instant de l’arrêt, pas après', async () => {
     const player = await newPlayer();
     await age(player.siteId, recipe.maxAccruedCycles + 5);

@@ -44,6 +44,12 @@ export const siteCollect = defineCommand({
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!recipe) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
 
+    // Un site à l'arrêt ne consomme aucun intrant (4.3) : un atelier à l'arrêt ne se récolte pas. Ses
+    // cycles écoulés avant l'arrêt restent dus et tourneront après la relance.
+    if (site.halted_at && recipe.inputs.length > 0) {
+      const message = 'This workshop is halted until its upkeep is paid.';
+      return { ok: false, error: { code: 'SITE_HALTED', message } };
+    }
     // Un site à l'arrêt ne produit pas (5.5) : pour lui, le temps s'est arrêté à l'instant de l'arrêt.
     // Ce qu'il avait accumulé avant reste récoltable ; le cycle entamé est gelé jusqu'à la reprise.
     const until = site.halted_at && site.halted_at < now ? site.halted_at : now;
