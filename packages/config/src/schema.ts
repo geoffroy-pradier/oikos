@@ -80,7 +80,8 @@ export const npcClassSchema = z.strictObject({
 export const cityConfigSchema = z.strictObject({
   id,
   /** Population de PNJ par classe. */
-  population: z.record(id, z.number().int().nonnegative()),
+  // Au plus 100 millions par classe : la limite de calcul exact de `nextPopulation` (packages/sim).
+  population: z.record(id, z.number().int().nonnegative().max(100_000_000)),
 });
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
@@ -205,6 +206,34 @@ export const marketTaxSchema = z.strictObject({
 });
 
 /**
+ * Valeurs lues pour les versions publiées avant la dynamique de population : la population des PNJ ne
+ * bouge pas (aucune croissance, aucune émigration, bornes égales à la population initiale). FIGÉES, pour
+ * la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_POPULATION_DYNAMICS = deepFreeze({
+  vitalCoverageThresholdBps: 10_000,
+  growthBps: 0,
+  emigrationBps: 0,
+  minShareBps: 10_000,
+  maxShareBps: 10_000,
+});
+
+/**
+ * Dynamique de la population des PNJ (5.2), appliquée à chaque clôture quotidienne par classe et par
+ * cité, d'après la couverture du jour de ses besoins vitaux (quantités servies sur quantités demandées).
+ * Points de base : au-dessus du seuil la classe croît, jusqu'à `growthBps` par jour à 100 % ; en
+ * dessous elle émigre, jusqu'à `emigrationBps` par jour à 0 %. Bornes en points de base de la
+ * population initiale de la cité. Calcul : `nextPopulation` (packages/sim).
+ */
+export const populationDynamicsSchema = z.strictObject({
+  vitalCoverageThresholdBps: z.number().int().min(1).max(10_000),
+  growthBps: z.number().int().min(0).max(1_000),
+  emigrationBps: z.number().int().min(0).max(1_000),
+  minShareBps: z.number().int().min(0).max(10_000),
+  maxShareBps: z.number().int().min(10_000).max(100_000),
+});
+
+/**
  * Valeurs lues pour les versions publiées avant l'historique des prix. FIGÉES, pour la même raison que
  * `DEFAULT_SITES`.
  */
@@ -246,6 +275,8 @@ export const gameConfigSchema = z
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
     priceHistory: priceHistorySchema.default(DEFAULT_PRICE_HISTORY),
+    /** Absent des versions publiées avant la dynamique de population : population constante. */
+    populationDynamics: populationDynamicsSchema.default(DEFAULT_POPULATION_DYNAMICS),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
