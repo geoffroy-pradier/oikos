@@ -40,6 +40,20 @@ else
   echo "   pas d'image du moteur pour cette version : seule l'API est déployée"
 fi
 
+# Clients statiques : image de transport, publiée seulement si l'environnement a ses variables de construction.
+static_image="ghcr.io/geoffroy-pradier/oikos-static:$version"
+# « Image absente » et « registre injoignable » ne se confondent pas : seule la première est tolérée.
+if manifest="$(docker manifest inspect "$static_image" 2>&1 < /dev/null)"; then
+  has_static=true
+  docker pull --quiet "$static_image" < /dev/null > /dev/null
+elif grep -qiE 'manifest unknown|no such manifest|not found' <<< "$manifest"; then
+  has_static=false
+  echo "   pas d'image des clients statiques pour cette version : ils ne sont pas mis à jour"
+else
+  echo "!! Image des clients statiques illisible : $manifest" >&2
+  false
+fi
+
 echo "== Code et migrations"
 git -C "$root/oikos" fetch --quiet origin
 git -C "$root/oikos" checkout --quiet --detach "$version"
@@ -65,6 +79,18 @@ done
 if [ "$healthy" != true ]; then
   echo "!! L'API ne répond pas sur /api/health" >&2
   false
+fi
+
+# Les clients ne sont remplacés qu'une fois l'API de la même version en bonne santé.
+if [ "$has_static" = true ]; then
+  echo "== Clients statiques"
+  bash "$root/oikos/infra/install-static.sh" "$static_image" "$root/static" < /dev/null
+fi
+
+# Le Caddyfile est monté comme fichier : Caddy ne voit ses changements qu'une fois recréé.
+if [ -z "$previous" ] || ! git -C "$root/oikos" diff --quiet "$previous" "$version" -- infra/Caddyfile 2> /dev/null; then
+  echo "== Caddy (configuration modifiée)"
+  "${compose[@]}" up -d --force-recreate caddy < /dev/null
 fi
 
 # Succès : la version devient celle de référence.

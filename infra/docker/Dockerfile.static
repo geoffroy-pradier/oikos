@@ -1,0 +1,8 @@
+# Fichiers statiques du client joueur (/web) et du back-office (/admin), construits par
+# `infra/docker/static.sh`. L'image ne s'exécute pas : elle transporte les fichiers jusqu'au serveur,
+# où `infra/install-static.sh` les copie dans le dossier servi par Caddy.
+FROM scratch
+COPY web /web
+COPY admin /admin
+# `docker create` exige une commande ; elle n'est jamais lancée.
+CMD ["/none"]

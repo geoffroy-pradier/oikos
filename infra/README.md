@@ -7,6 +7,9 @@ toutes les valeurs sensibles vivent dans le fichier `.env` du serveur, créé et
 | --- | --- |
 | `docker-compose.oikos.yml` | Surcouche au compose officiel de Supabase : désactive les services inutiles, ajoute API, moteur et Caddy |
 | `Caddyfile` | HTTPS, fichiers statiques du client et du back-office, proxy vers l'API et Supabase |
+| `docker/static.sh`, `docker/Dockerfile.static` | Construction du client joueur et du back-office, image de transport `oikos-static` |
+| `install-static.sh` | Sur le serveur : copie les fichiers de l'image dans `static/releases/`, bascule par lien symbolique |
+| `test-static.sh` | Contrôle lancé par `ci` : construction, installation, service par Caddy |
 | `backup/pgbackrest.conf`, `backup/backup.sh` | Archivage continu et sauvegardes vers un stockage objet |
 | `.env.example` | Variables OIKOS à ajouter au `.env` de Supabase |
 
@@ -50,22 +53,27 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
 Le flux `.github/workflows/deploy.yml` s'exécute à chaque fusion sur `main`.
 
 1. **Images** : l'API et le moteur sont empaquetés en un fichier chacun (`infra/docker/bundle.mjs`), mis dans une image `node:22-alpine` sans dépendance ni outil de construction (`infra/docker/Dockerfile`, utilisateur non root), puis publiés sur `ghcr.io/<propriétaire>/oikos-api` et `oikos-engine` avec l'empreinte du commit et l'étiquette `main`. Le jeton fourni par GitHub Actions suffit.
-2. **Déploiement** (tâche `deploy`, inactive par défaut) : `infra/deploy.sh` est copié sur le serveur puis exécuté. Il tire les images de la version, applique les migrations (une transaction par fichier), démarre l'API — et le moteur si son image existe — sur la nouvelle version, puis interroge `/api/health`. Le fichier `.env` n'est modifié qu'en cas de succès : au moindre échec, les conteneurs sont relancés sur la version qu'il contient et la tâche est rouge. Les migrations, compatibles avec la version précédente du code, ne sont pas annulées.
+2. **Clients statiques** (tâche `static`) : le client joueur et le back-office sont construits (`infra/docker/static.sh`) et publiés dans l'image de transport `ghcr.io/<propriétaire>/oikos-static`. L'adresse publique de Supabase et sa clé publique sont figées dans les fichiers à la construction : la tâche ne publie rien tant que les variables de dépôt `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` n'existent pas.
+3. **Déploiement** (tâche `deploy`, inactive par défaut) : `infra/deploy.sh` est copié sur le serveur puis exécuté. Il tire les images de la version, applique les migrations (une transaction par fichier), démarre l'API — et le moteur si son image existe — sur la nouvelle version, puis interroge `/api/health`. Une fois l'API en bonne santé, `infra/install-static.sh` remplace `static/web` et `static/admin` par les fichiers de la même version (chaque version est copiée dans `static/releases/`, `web` et `admin` sont des liens symboliques remplacés par un renommage atomique ; la version précédente est conservée ; sans image `oikos-static` pour cette version, les clients restent tels quels, mais un registre injoignable fait échouer le déploiement). Caddy est recréé quand le `Caddyfile` a changé. Le fichier `.env` n'est modifié qu'en cas de succès : au moindre échec, les conteneurs sont relancés sur la version qu'il contient et la tâche est rouge. Les migrations, compatibles avec la version précédente du code, ne sont pas annulées.
 
 Pour l'activer, un humain doit, une fois le serveur prêt :
 
 - créer les secrets de dépôt `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` ;
+- créer les variables de dépôt `VITE_SUPABASE_URL` (`https://supabase.<domaine>`) et `VITE_SUPABASE_PUBLISHABLE_KEY` (clé publique « anon » de l'instance : publique par nature, ce n'est pas un secret) ;
+- dans le `.env` de Supabase : ajouter `https://olympe.<domaine>` à `ADDITIONAL_REDIRECT_URLS` (sinon le lien de connexion du back-office ramène sur le client joueur) et activer le second facteur TOTP de Supabase Auth, exigé par le back-office (variables `GOTRUE_MFA_TOTP_ENROLL_ENABLED` et `GOTRUE_MFA_TOTP_VERIFY_ENABLED` du service `auth` ; à confirmer sur la version épinglée lors de l'installation) ;
 - créer la variable de dépôt `DEPLOY_ENABLED` avec la valeur `true`, et protéger l'environnement GitHub `preproduction` s'il doit exiger une approbation ;
 - sur le serveur : l'utilisateur de déploiement doit pouvoir lancer `docker compose`, écrire dans `/opt/oikos/oikos` (clone Git) et dans `/opt/oikos/supabase/docker/.env`, et lire les images du registre (`docker login ghcr.io` avec un jeton en lecture seule si le dépôt est privé). Attention : l'accès à Docker équivaut à un accès root, et ce `.env` contient tous les secrets du serveur ; ce compte doit être réservé au déploiement ;
 - Caddy et la base doivent déjà tourner (`docker compose up -d` une première fois, étape 7) : le contrôle de santé passe par Caddy.
 
+Cache : Caddy sert les fichiers nommés par leur empreinte (`/assets/*`) avec un cache définitif, et fait toujours revalider la coquille (`index.html`) et le service worker ; un fichier d'une version disparue répond 404, sans mise en cache.
+
 Retour arrière manuel : relancer, depuis l'interface de GitHub, l'exécution du flux `deploy` d'un commit antérieur ; ou, sur le serveur, `bash /opt/oikos/oikos/infra/deploy.sh <empreinte du commit précédent>`.
 
-Limites : le script n'a encore tourné sur aucun serveur réel ; le contrôle de santé ne porte que sur l'API (une réplique suffit à le valider, le moteur n'est pas contrôlé) ; le client web et le back-office statiques ne sont pas encore copiés dans `static/` par le flux ; la production (étiquette de version, validation humaine) aura son propre flux.
+Limites : le script n'a encore tourné sur aucun serveur réel ; le contrôle de santé ne porte que sur l'API (une réplique suffit à le valider, le moteur n'est pas contrôlé) ; un retour arrière automatique ne concerne que les conteneurs (les clients statiques, remplacés en dernier, ne le sont qu'après un contrôle de santé réussi) ; la production (étiquette de version, validation humaine) aura son propre flux.
 
 ## État et limites
 
 - La surcouche est validée par `docker compose config` contre le compose officiel de Supabase, mais n'a pas encore tourné sur un serveur réel : la première installation en préproduction fait foi et corrigera ce document.
 - L'intégration fine de pgBackRest dans le conteneur Postgres de Supabase reste à faire lors de l'installation.
-- Olympe est servi comme simple site statique ; la restriction d'accès par VPN ou liste d'adresses (spécification 15.4) est à poser avant d'y brancher la moindre donnée (ticket 10).
+- Olympe est servi comme site statique, son API relayée sous son domaine ; la restriction d'accès par VPN ou liste d'adresses (spécification 15.4) est à poser avant d'y brancher la moindre donnée (ticket 10).
 - Supervision (Prometheus, Grafana, Loki, Uptime Kuma, GlitchTip) : ticket ultérieur.
