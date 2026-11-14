@@ -72,7 +72,14 @@ const command = async (user: string, name: string, body: unknown) => {
   });
   return ((await res.json()) as { data?: { versionId: string; activateAt: string } }).data;
 };
-const ROUTES = ['me', 'vigie', 'config/versions', `config/versions/${TEST_CONFIG.id}`, 'audit'];
+const ROUTES = [
+  'me',
+  'vigie',
+  'config/versions',
+  `config/versions/${TEST_CONFIG.id}`,
+  'audit',
+  'roles',
+];
 
 describe('accès aux lectures du back-office', () => {
   it('exige un jeton, le second facteur et un rôle', async () => {
@@ -91,27 +98,28 @@ describe('accès aux lectures du back-office', () => {
       (
         await Promise.all(
           ROUTES.slice(0, 3)
-            .concat('audit')
+            .concat('audit', 'roles')
             .map((route) => get(user, route)),
         )
       ).map((reply) => reply.status);
-    // Ordre : me, vigie, config/versions, audit.
-    expect(await allowed(users.root)).toEqual([200, 200, 200, 200]);
-    expect(await allowed(users.designer)).toEqual([200, 200, 200, 403]);
-    expect(await allowed(users.observer)).toEqual([200, 200, 200, 200]);
-    expect(await allowed(users.moderator)).toEqual([200, 403, 403, 403]);
-    // Chaque rôle du contrat, un compte chacun : seuls trois lisent les tableaux de bord, deux le journal.
+    // Ordre : me, vigie, config/versions, audit, roles.
+    expect(await allowed(users.root)).toEqual([200, 200, 200, 200, 200]);
+    expect(await allowed(users.designer)).toEqual([200, 200, 200, 403, 403]);
+    expect(await allowed(users.observer)).toEqual([200, 200, 200, 200, 403]);
+    expect(await allowed(users.moderator)).toEqual([200, 403, 403, 403, 403]);
+    // Chaque rôle du contrat, un compte chacun : trois lisent les tableaux de bord, deux le journal, un
+    // seul la liste des rôles.
     const matrix: Record<string, number[]> = {};
     for (const role of ADMIN_ROLES) {
       matrix[role] = await allowed(await newUser(role, role === 'super_admin' ? null : users.root));
     }
     expect(matrix).toEqual({
-      super_admin: [200, 200, 200, 200],
-      game_designer: [200, 200, 200, 403],
-      community_manager: [200, 403, 403, 403],
-      moderator: [200, 403, 403, 403],
-      support: [200, 403, 403, 403],
-      observer: [200, 200, 200, 200],
+      super_admin: [200, 200, 200, 200, 200],
+      game_designer: [200, 200, 200, 403, 403],
+      community_manager: [200, 403, 403, 403, 403],
+      moderator: [200, 403, 403, 403, 403],
+      support: [200, 403, 403, 403, 403],
+      observer: [200, 200, 200, 200, 403],
     });
     // Un chemin que personne n'a déclaré n'est ouvert à aucun rôle.
     expect((await get(users.root, 'inconnu')).status).toBe(403);
@@ -145,6 +153,52 @@ describe('limitation de débit des lectures', () => {
     expect(refused.status).toBe(429);
     expect(Number(refused.headers.get('Retry-After'))).toBeGreaterThan(0);
     expect(await refused.json()).toMatchObject({ ok: false, error: { code: 'RATE_LIMITED' } });
+  });
+});
+
+describe('accès', () => {
+  it('liste les comptes qui portent un rôle, du plus ancien au plus récent, et suit les commandes de rôle', async () => {
+    const [guest, later] = [await newUser(), await newUser()];
+    const known = [users.root, users.designer, guest, later, users.player];
+    type Row = { userId: string; role: string; grantedBy: string | null; grantedAt: string };
+    // Base partagée avec les autres suites : seuls les comptes de ce test sont comparés.
+    const list = async () => {
+      const all = (await get(users.root, 'roles')).body.data.roles as Row[];
+      expect(all.map((row) => row.grantedAt)).toEqual(all.map((row) => row.grantedAt).sort());
+      return all.filter((row) => known.includes(row.userId));
+    };
+    await command(users.root, 'admin.grantRole', { userId: guest, role: 'support' });
+    await command(users.root, 'admin.grantRole', { userId: later, role: 'moderator' });
+    const granted = await owner
+      .selectFrom('admin.roles')
+      .select('granted_at')
+      .where('user_id', '=', guest)
+      .executeTakeFirstOrThrow();
+    // Ni adresse ni autre champ du compte : exactement ces quatre champs. Un compte sans rôle est absent.
+    expect(await list()).toEqual([
+      { userId: users.root, role: 'super_admin', grantedBy: null, grantedAt: expect.any(String) },
+      {
+        userId: users.designer,
+        role: 'game_designer',
+        grantedBy: users.root,
+        grantedAt: expect.any(String),
+      },
+      {
+        userId: guest,
+        role: 'support',
+        grantedBy: users.root,
+        grantedAt: granted.granted_at.toISOString(),
+      },
+      { userId: later, role: 'moderator', grantedBy: users.root, grantedAt: expect.any(String) },
+    ]);
+    // Rôle remplacé, rôle retiré : la lecture suivante le montre.
+    await command(users.root, 'admin.grantRole', { userId: guest, role: 'observer' });
+    await command(users.root, 'admin.revokeRole', { userId: later });
+    expect((await list()).map((row) => [row.userId, row.role])).toEqual([
+      [users.root, 'super_admin'],
+      [users.designer, 'game_designer'],
+      [guest, 'observer'],
+    ]);
   });
 });
 

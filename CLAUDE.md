@@ -61,6 +61,19 @@ absence de secret, cohérence avec la spécification. Elle commente la demande d
 Pour toute fusion qui touche à la monnaie, aux stocks, à l'authentification ou aux règles par ligne :
 ajoute le label `sensible` et un paragraphe « Risques » dans la description, avec les cas limites testés.
 
+## Répartition entre modèles
+
+La session principale écrit elle-même le code des tickets ordinaires. Deux sous-agents, définis dans
+`.claude/agents/` et réglés sur le modèle le plus fort, sont réservés au travail sensible :
+
+- `dev-sensible` écrit le code et les tests de tout ticket (ou partie de ticket) portant le label `sensible` ;
+- `relecteur-sensible` relit toute demande de fusion `sensible` avant sa fusion. Tu ne fusionnes que
+  s'il ne signale rien de bloquant ; sinon tu fais corriger par `dev-sensible` et tu fais relire à nouveau.
+
+Ne délègue jamais à ces deux agents un ticket qui n'est pas `sensible`. Si l'un d'eux n'est pas
+disponible dans la session, écris-le dans la demande de fusion et pose le label `needs-human` au lieu de
+fusionner une fusion `sensible` sans cette relecture.
+
 ## Ce que tu ne fais jamais sans un humain
 
 Pose le label `needs-human`, explique ce qu'il faut, et continue sur un autre ticket :

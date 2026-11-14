@@ -16,6 +16,7 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
     if (path === 'me') return Promise.resolve(me);
     if (path === 'vigie') return Promise.resolve({ ok: true, data: VIGIE });
     if (path.startsWith('config')) return Promise.resolve({ ok: false, code: 'INTERNAL' });
+    if (path === 'roles') return Promise.resolve({ ok: true, data: { roles: [] } });
     return Promise.resolve({ ok: true, data: { entries: [] } });
   });
 }
@@ -89,7 +90,7 @@ describe('accès au back-office', () => {
   });
 
   it.each([
-    ['super_admin', ['Vigie', 'Paramètres', "Journal d'audit"]],
+    ['super_admin', ['Vigie', 'Paramètres', "Journal d'audit", 'Accès']],
     ['observer', ['Vigie', 'Paramètres', "Journal d'audit"]],
     ['game_designer', ['Vigie', 'Paramètres']],
   ])('le rôle %s voit les onglets prévus', async (role, expected) => {
@@ -120,6 +121,18 @@ describe('accès au back-office', () => {
       screen.getByRole('button', { name: "Journal d'audit" }).getAttribute('aria-current'),
     ).toBe('page');
     expect(screen.getByRole('button', { name: 'Vigie' }).getAttribute('aria-current')).toBeNull();
+    // Module réservé au super-administrateur : l'observateur n'en a pas l'onglet.
+    expect(screen.queryByRole('button', { name: 'Accès' })).toBeNull();
+  });
+
+  it('le super-administrateur ouvre le module Accès, lu avec son jeton', async () => {
+    api({ ok: true, data: { role: 'super_admin' } });
+    signedIn();
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Accès' }));
+    expect(await screen.findByText('Aucun compte ne porte de rôle.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Accès', level: 1 })).toBeTruthy();
+    expect(adminGet).toHaveBeenLastCalledWith('roles', A2);
   });
 });
 

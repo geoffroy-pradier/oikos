@@ -70,6 +70,7 @@ const ADMIN_ROUTES = [
   '/api/admin/me',
   '/api/admin/vigie',
   '/api/admin/audit',
+  '/api/admin/roles',
   '/api/admin/config/versions',
   '/api/admin/config/versions/:id',
 ];
