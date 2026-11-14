@@ -255,7 +255,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
       other.getByText(`${french.format(3000 - 30 * price - 30 * bid)} oboles`, { exact: true }),
     ).toBeVisible();
     await expect(
-      other.getByText(`dont ${french.format(26 * bid)} oboles retenues en plus`),
+      other.getByText(`plus ${french.format(26 * bid)} oboles retenues pour vos achats en attente`),
     ).toBeVisible();
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await other.getByRole('button', { name: /^Annuler l'achat de 26 × Blé/ }).click();

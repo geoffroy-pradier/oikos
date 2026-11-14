@@ -68,7 +68,7 @@
     "harvestNone": "Rien à récolter pour l'instant.",
     "harvestWaiting_one": "{{count}} cycle attend des intrants.",
     "harvestWaiting_other": "{{count}} cycles attendent des intrants.",
-    "held": "dont {{amount}} oboles retenues en plus pour vos achats en attente à l'agora"
+    "held": "plus {{amount}} oboles retenues pour vos achats en attente à l'agora"
   },
   "agora": {
     "title": "Agora de {{city}}",

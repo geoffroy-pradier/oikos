@@ -361,6 +361,17 @@ describe('market.placeOrder', () => {
       [0, `${40 + affordable}/0`],
     ]);
     expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+    // Le journal dit que le reste a été annulé, pas mis en attente.
+    expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([
+      {
+        orderId: idOf(bought),
+        houseId: buyer.houseId,
+        cityId,
+        goodId: 'wheat',
+        side: 'buy',
+        released: 80 - 40 - affordable,
+      },
+    ]);
     // Un achat entièrement payable, lui, ne signale rien.
     const other = await newPlayer(cityId);
     expect((await order(other, 'buy', 100, 5)).body).toMatchObject({
@@ -810,6 +821,26 @@ describe('market.cancelOrder', () => {
       status: 409,
       body: { error: { code: 'ORDER_NOT_OPEN' } },
     });
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('même maison : achats mis en attente et annulations d’autres achats simultanés, sans interblocage', async () => {
+    // L'annulation verrouille la trésorerie avant le séquestre, comme la mise en attente.
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 400)];
+    for (let round = 0; round < 10; round++) {
+      const ids: string[] = [];
+      for (let i = 0; i < 4; i++) ids.push(idOf(await order(buyer, 'buy', 6, 10)));
+      const results = await Promise.all([
+        ...ids.map((id) => cancel(buyer, id)),
+        ...ids.map(() => order(buyer, 'buy', 5, 3)),
+        order(seller, 'sell', 6, 4),
+        order(seller, 'sell', 5, 2),
+      ]);
+      expect(results.map((result) => result.status)).toEqual(results.map(() => 200));
+      await cancelOpenOrders([buyer, seller]);
+    }
+    expect(await escrowOf(buyer)).toBe(0);
     expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
   });
 

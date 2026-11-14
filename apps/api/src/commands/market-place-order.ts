@@ -234,6 +234,18 @@ export const marketPlaceOrder = defineCommand({
         .set({ status: 'cancelled' })
         .where('id', '=', order.id)
         .execute();
+      // Sans cet événement, rien ne distinguerait dans le journal ce reste annulé d'un reste qui attend.
+      emit({
+        type: 'OrderCancelled',
+        payload: {
+          orderId: order.id,
+          houseId: house.id,
+          cityId: city.id,
+          goodId: market.good_id,
+          side: input.side,
+          released: remaining,
+        },
+      });
     }
     const status = remaining === 0 ? 'filled' : plan.rests ? 'open' : 'cancelled';
     return {
