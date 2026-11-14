@@ -21,6 +21,10 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   const number = /Version (\d+)/.exec(await inForce.getByRole('heading').innerText())?.[1] ?? '';
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
   const editor = page.getByLabel('Configuration (JSON)');
+  // Le foyer suit l'ouverture, jusqu'au titre du contenu ouvert.
+  await expect(
+    page.getByRole('heading', { name: `Contenu de la version ${number}` }),
+  ).toBeFocused();
   await expect(
     page.getByText(`Aucune différence avec la version ${number}, en vigueur.`),
   ).toBeVisible();
@@ -30,17 +34,28 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   };
   const grant = config.starting.grantOboles;
 
-  // Un texte qui n'est pas du JSON est signalé, et rien n'est envoyé.
+  // Un texte qui n'est pas du JSON est signalé à la sortie du champ, pas pendant la frappe.
   await editor.fill('{ "starting": ');
-  await expect(page.getByRole('alert')).toContainText("n'est pas un objet JSON valide");
+  const invalid = page.getByRole('alert').filter({ hasText: "n'est pas un objet JSON valide" });
+  await expect(invalid).toHaveCount(0);
+  await editor.blur();
+  await expect(invalid).toHaveCount(1);
+
+  // Texte modifié : ouvrir une version demande confirmation ; y renoncer au clavier garde la saisie.
+  const open = inForce.getByRole('button', { name: `Ouvrir la version ${number}` });
+  await open.click();
+  await expect(page.getByRole('button', { name: 'Garder le texte modifié' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(open).toBeFocused();
+  await expect(editor).toHaveValue('{ "starting": ');
 
   // Une valeur hors bornes est refusée par le schéma de l'API, champ nommé.
   const broken = { ...config, market: { npcMaxPriceFactor: 0 } };
   await editor.fill(JSON.stringify(broken, null, 2));
   await expect(page.getByText('market.npcMaxPriceFactor : 3 → 0')).toBeVisible();
   await page.getByRole('button', { name: 'Enregistrer comme nouvelle version' }).click();
-  const alert = page.getByRole('alert');
-  await expect(alert).toContainText('Configuration refusée par le schéma');
+  // La zone du champ est aussi une alerte, vide ici : celle des résultats se désigne par son texte.
+  const alert = page.getByRole('alert').filter({ hasText: 'Configuration refusée par le schéma' });
   await expect(alert).toContainText('market.npcMaxPriceFactor');
 
   // Une modification valide : la différence est affichée, puis enregistrée comme nouvelle version.

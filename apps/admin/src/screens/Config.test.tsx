@@ -52,6 +52,17 @@ const item = (number: number) =>
   screen.getByRole('heading', { name: new RegExp(`^Version ${number}`) }).closest('li') ??
   document.body;
 const keyOf = (call: number) => api.adminCommand.mock.calls[call]?.[3] as string;
+const button = (name: string) => screen.getByRole('button', { name });
+const type = (editor: HTMLElement, value = '{"saisie":1}') =>
+  fireEvent.change(editor, { target: { value } });
+const INVALID = "Ce texte n'est pas un objet JSON valide.";
+/** Texte de chaque zone d'annonce d'erreur présente à l'écran. */
+const alerts = () => screen.getAllByRole('alert').map((zone) => zone.textContent);
+/** Entrée comme un navigateur la traite : elle active l'élément qui a le foyer, sauf défaut annulé. */
+const enter = (repeat = false) => {
+  const target = document.activeElement as HTMLElement;
+  if (fireEvent.keyDown(target, { key: 'Enter', repeat })) fireEvent.click(target);
+};
 
 beforeAll(async () => {
   await initI18n('fr');
@@ -104,16 +115,137 @@ it('un rôle de lecture consulte et compare, sans bouton ni saisie', async () =>
   expect(screen.queryByLabelText('Note de version')).toBeNull();
 });
 
-it("un texte qui n'est pas un objet JSON n'est jamais envoyé", async () => {
+it("un texte qui n'est pas un objet JSON n'est jamais envoyé : une seule annonce, le champ reprend le foyer", async () => {
   const editor = await openVersion(2);
   for (const text of ['{ "a": ', '[1, 2]', '"texte"']) {
-    fireEvent.change(editor, { target: { value: text } });
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer comme nouvelle version' }));
-    expect(screen.getAllByRole('alert').at(-1)?.textContent).toContain(
-      "n'est pas un objet JSON valide",
-    );
+    type(editor, text);
+    fireEvent.click(button('Enregistrer comme nouvelle version'));
+    // La zone du champ porte seule le message : la zone des résultats ne le redit pas.
+    expect(screen.getAllByText(INVALID)).toHaveLength(1);
+    expect(alerts()).toEqual([INVALID]);
+    expect(document.activeElement).toBe(editor);
   }
   expect(api.adminCommand).not.toHaveBeenCalled();
+});
+
+it('texte invalide : rien n’est annoncé à la frappe ; contrôle à la sortie du champ, sans répétition', async () => {
+  const editor = await openVersion(2);
+  // Chaque état intermédiaire d'une frappe est invalide : aucun n'est annoncé ni marqué.
+  for (const value of ['{', '{ "a"', '{ "a": ']) {
+    type(editor, value);
+    expect(alerts()).toEqual(['']);
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+  }
+  fireEvent.blur(editor);
+  expect(alerts()).toEqual([INVALID]);
+  expect(editor.getAttribute('aria-invalid')).toBe('true');
+  const zone = screen.getByText(INVALID);
+  expect(zone.id).toBe(editor.getAttribute('aria-describedby'));
+  // Encore invalide : la zone ne change pas, un lecteur d'écran n'a rien de nouveau à annoncer.
+  const changes = new MutationObserver(() => undefined);
+  changes.observe(zone, { childList: true, characterData: true, subtree: true });
+  type(editor, '{ "a": 1');
+  expect(changes.takeRecords()).toEqual([]);
+  changes.disconnect();
+  expect(alerts()).toEqual([INVALID]);
+  // Corrigé : le message s'efface aussitôt. Une nouvelle faute ne le ramène qu'au contrôle suivant.
+  type(editor, '{ "a": 1 }');
+  expect(alerts()).toEqual(['']);
+  expect(editor.hasAttribute('aria-describedby')).toBe(false);
+  type(editor, '{ "a": 1 ');
+  expect(alerts()).toEqual(['']);
+  fireEvent.blur(editor);
+  expect(alerts()).toEqual([INVALID]);
+  type(editor, '{ "a": 1 }');
+  fireEvent.blur(editor);
+  expect(alerts()).toEqual(['']);
+});
+
+it('texte modifié : ouvrir une autre version demande confirmation, foyer sur le geste sans effet', async () => {
+  const editor = await openVersion(2);
+  // Ouverture sans texte à perdre : directe, et le foyer va au titre de la version ouverte.
+  const opened = screen.getByRole('heading', { name: 'Contenu de la version 2' });
+  await waitFor(() => expect(document.activeElement).toBe(opened));
+  type(editor);
+  const reads = api.adminGet.mock.calls.length;
+  fireEvent.click(button('Ouvrir la version 3'));
+  const keep = button('Garder le texte modifié');
+  expect(document.activeElement).toBe(keep);
+  expect(item(3).contains(keep)).toBe(true);
+  // Le bouton d'ouverture reste à sa place : un double clic n'atteint ni « Programmer » ni la confirmation.
+  fireEvent.click(button('Ouvrir la version 3'));
+  expect(item(3).querySelector('button')).toBe(button('Ouvrir la version 3'));
+  expect(screen.getAllByRole('button', { name: 'Remplacer le texte' })).toHaveLength(1);
+  for (const choice of ['Remplacer le texte', 'Garder le texte modifié'])
+    expect(
+      document.getElementById(button(choice).getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe(
+      "Le texte modifié de la version 2 n'est pas enregistré : ouvrir la version 3 le remplacera.",
+    );
+  // Y renoncer : rien n'est lu, le texte reste, le foyer revient au bouton d'ouverture.
+  fireEvent.click(keep);
+  expect(document.activeElement).toBe(button('Ouvrir la version 3'));
+  expect(editor.value).toBe('{"saisie":1}');
+  expect(api.adminGet.mock.calls.length).toBe(reads);
+  // Confirmer : la version demandée remplace le texte, son titre reçoit le foyer.
+  fireEvent.click(button('Ouvrir la version 3'));
+  fireEvent.click(button('Remplacer le texte'));
+  const title = await screen.findByRole('heading', { name: 'Contenu de la version 3' });
+  await waitFor(() => expect(document.activeElement).toBe(title));
+  expect(editor.value).toBe(JSON.stringify(CONFIGS['v3'], null, 2));
+  expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
+});
+
+it('Entrée tenue sur « Ouvrir » ne remplace rien ; rouvrir la version ouverte demande aussi confirmation', async () => {
+  const editor = await openVersion(2);
+  type(editor);
+  const open = () => button('Ouvrir la version 2');
+  open().focus();
+  // Seule Entrée tenue est ignorée : Tab tenue continue de parcourir les boutons.
+  expect(fireEvent.keyDown(open(), { key: 'Tab', repeat: true })).toBe(true);
+  // Touche tenue : le premier appui ouvre la confirmation, la répétition du clavier n'active rien.
+  enter();
+  for (let held = 0; held < 3; held += 1) enter(true);
+  expect(document.activeElement).toBe(button('Garder le texte modifié'));
+  // Second appui distinct : il renonce ; tenu, il ne rouvre pas la confirmation.
+  enter();
+  enter(true);
+  expect(document.activeElement).toBe(open());
+  expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
+  expect(editor.value).toBe('{"saisie":1}');
+});
+
+it('remplacement confirmé, lecture en panne : le texte reste et le foyer est au bouton d’ouverture', async () => {
+  const editor = await openVersion(2);
+  type(editor);
+  fireEvent.click(button('Ouvrir la version 3'));
+  api.adminGet.mockResolvedValue({ ok: false, code: 'INTERNAL' });
+  fireEvent.click(button('Remplacer le texte'));
+  expect((await screen.findByText('Lecture impossible pour le moment.')).getAttribute('role')).toBe(
+    'alert',
+  );
+  expect(document.activeElement).toBe(button('Ouvrir la version 3'));
+  expect(editor.value).toBe('{"saisie":1}');
+  expect(screen.getByRole('heading', { name: 'Contenu de la version 2' })).toBeTruthy();
+});
+
+it('texte enregistré comme nouvelle version : plus rien à perdre ; issue inconnue : confirmation', async () => {
+  api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'INTERNAL' });
+  api.adminCommand.mockResolvedValue({ ok: true, data: { number: 4 } });
+  const editor = await openVersion(2);
+  type(editor);
+  const publish = button('Enregistrer comme nouvelle version');
+  fireEvent.click(publish);
+  await screen.findByText(/ne sera pas exécutée deux fois/);
+  fireEvent.click(button('Ouvrir la version 3'));
+  fireEvent.click(button('Garder le texte modifié'));
+  await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(publish);
+  await screen.findByText(/Version 4 enregistrée/);
+  fireEvent.click(button('Ouvrir la version 3'));
+  expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
+  await screen.findByRole('heading', { name: 'Contenu de la version 3' });
+  expect(editor.value).toBe(JSON.stringify(CONFIGS['v3'], null, 2));
 });
 
 it('enregistre le contenu saisi et la note, puis relit la liste', async () => {
@@ -170,8 +302,9 @@ it('un refus du schéma nomme les champs ; un refus de rôle a son message', asy
   await openVersion(2);
   const publish = screen.getByRole('button', { name: 'Enregistrer comme nouvelle version' });
   fireEvent.click(publish);
-  const alert = await screen.findByRole('alert');
-  expect(alert.textContent).toContain('Configuration refusée par le schéma');
+  // La zone du champ, vide, est aussi une alerte : celle des résultats se cherche par son texte.
+  const alert = await screen.findByText(/^Configuration refusée par le schéma/);
+  expect(alert.getAttribute('role')).toBe('alert');
   expect(alert.textContent).toContain('market.npcMaxPriceFactor');
   api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'FORBIDDEN' });
   await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
@@ -193,6 +326,22 @@ it("la réponse tardive d'une ouverture plus ancienne ne remplace ni la version 
   slow.release({ ok: true, data: { id: 'v3', number: 3, config: CONFIGS['v3'] } });
   await new Promise((resolve) => setTimeout(resolve, 20));
   expect(screen.getByRole('heading', { name: 'Contenu de la version 1' })).toBeTruthy();
+  expect(editor.value).toBe('{"saisie":1}');
+});
+
+it('une saisie faite pendant qu’une version se charge l’emporte : la réponse ne remplace pas le texte', async () => {
+  const slow = held<unknown>();
+  const editor = await openVersion(2);
+  const base = api.adminGet.getMockImplementation() as (path: string) => Promise<unknown>;
+  api.adminGet.mockImplementation((path: string) =>
+    path === 'config/versions/v3' ? slow.promise : base(path),
+  );
+  // Texte intact au moment du clic : l'ouverture part sans confirmation, puis la saisie commence.
+  fireEvent.click(button('Ouvrir la version 3'));
+  type(editor);
+  slow.release({ ok: true, data: { id: 'v3', number: 3, config: CONFIGS['v3'] } });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(screen.getByRole('heading', { name: 'Contenu de la version 2' })).toBeTruthy();
   expect(editor.value).toBe('{"saisie":1}');
 });
 
@@ -331,7 +480,6 @@ it('deux clôtures à venir : le foyer rendu à une programmation ne vole pas la
   render(<Config accessToken="token" role="super_admin" />);
   const cancelA = 'Annuler la programmation de la version 3';
   const cancelB = 'Annuler la programmation de la version 1';
-  const button = (name: string) => screen.getByRole('button', { name });
   const keep = () => screen.getByRole('button', { name: 'Garder la programmation' });
   // Renoncer pour A, rouvrir A, puis ouvrir B : la confirmation de B garde le foyer.
   fireEvent.click(await screen.findByRole('button', { name: cancelA }));
