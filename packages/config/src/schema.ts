@@ -78,7 +78,8 @@ export const npcClassSchema = z.strictObject({
 export const cityConfigSchema = z.strictObject({
   id,
   /** Population de PNJ par classe. */
-  population: z.record(id, z.number().int().nonnegative()),
+  // Au plus 100 millions par classe : la limite de calcul exact de `nextPopulation` (packages/sim).
+  population: z.record(id, z.number().int().nonnegative().max(100_000_000)),
 });
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */

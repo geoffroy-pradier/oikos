@@ -5,6 +5,11 @@
  */
 
 const FULL = 10_000;
+/**
+ * Plus grande population de classe que le calcul accepte : en deçà, `population × taux × couverture`
+ * reste un entier sûr (≤ 10⁸ × 10³ × 10⁴ < 2⁵³). Limite technique, que le schéma de configuration reprend.
+ */
+export const MAX_CLASS_POPULATION = 100_000_000;
 
 export interface PopulationDynamics {
   /** Couverture des besoins vitaux (points de base) à partir de laquelle la classe croît. */
@@ -19,8 +24,8 @@ export interface PopulationDynamics {
 }
 
 const assertCount = (value: number, name: string) => {
-  if (!Number.isSafeInteger(value) || value < 0)
-    throw new RangeError(`${name} must be a non-negative integer`);
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_CLASS_POPULATION)
+    throw new RangeError(`${name} must be an integer between 0 and ${MAX_CLASS_POPULATION}`);
 };
 
 /**

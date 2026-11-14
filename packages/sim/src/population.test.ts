@@ -1,6 +1,11 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { nextPopulation, vitalCoverageBps, type PopulationDynamics } from './population';
+import {
+  MAX_CLASS_POPULATION,
+  nextPopulation,
+  vitalCoverageBps,
+  type PopulationDynamics,
+} from './population';
 
 const dynamics: PopulationDynamics = {
   vitalCoverageThresholdBps: 9_000,
@@ -16,7 +21,10 @@ const anyDynamics = fc.record({
   minShareBps: fc.integer({ min: 0, max: 10_000 }),
   maxShareBps: fc.integer({ min: 10_000, max: 100_000 }),
 });
-const people = fc.integer({ min: 0, max: 10_000_000 });
+const people = fc.oneof(
+  fc.integer({ min: 0, max: 10_000_000 }),
+  fc.integer({ min: 0, max: MAX_CLASS_POPULATION }),
+);
 const coverage = fc.integer({ min: 0, max: 10_000 });
 
 describe('couverture des besoins vitaux', () => {
@@ -109,5 +117,6 @@ describe('population d’une classe après un jour', () => {
     expect(() => nextPopulation(-1, 10, 0, dynamics)).toThrow(RangeError);
     expect(() => nextPopulation(10, 10, 10_001, dynamics)).toThrow(RangeError);
     expect(() => nextPopulation(10.5, 10, 0, dynamics)).toThrow(RangeError);
+    expect(() => nextPopulation(MAX_CLASS_POPULATION + 1, 10, 0, dynamics)).toThrow(RangeError);
   });
 });
