@@ -408,6 +408,19 @@ describe('historique des prix', () => {
         valid ? [] : ['priceHistory.referenceWindowHours'],
       );
     }
+    // La fenêtre dure au moins un chandelier : une journée de 1440 minutes demande 24 heures, pas 23.
+    for (const [candleMinutes, hours, valid] of [
+      [1440, 24, true],
+      [1440, 23, false],
+      [60, 1, true],
+      [61, 1, false],
+    ] as const) {
+      const config = clone();
+      config.priceHistory = { candleMinutes, referenceWindowHours: hours };
+      expect(errorsOf(config).map((error) => error.split(':')[0])).toEqual(
+        valid ? [] : ['priceHistory.referenceWindowHours'],
+      );
+    }
     // Une version publiée entre les chandeliers et le prix observé : fenêtre de 24 heures.
     const between = validateConfig({ ...clone(), priceHistory: { candleMinutes: 15 } });
     expect(between.ok && between.config.priceHistory).toEqual({

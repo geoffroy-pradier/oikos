@@ -226,6 +226,15 @@ export const gameConfigSchema = z
     const goods = new Set(config.goods.map((good) => good.id));
     const classes = new Set(config.npcClasses.map((npcClass) => npcClass.id));
 
+    // Une fenêtre plus courte qu'un chandelier n'en retiendrait aucun une partie du temps, sans erreur.
+    // Une fenêtre déjà hors bornes a son propre message : pas de second reproche.
+    const { candleMinutes, referenceWindowHours } = config.priceHistory;
+    if (referenceWindowHours >= 1 && referenceWindowHours * 60 < candleMinutes) {
+      issue(
+        ['priceHistory', 'referenceWindowHours'],
+        `the window must last at least one candle (${candleMinutes} minutes)`,
+      );
+    }
     for (const key of ['goods', 'recipes', 'npcClasses', 'cities'] as const) {
       for (const duplicate of duplicates(config[key].map((row) => row.id))) {
         issue([key], `duplicate id "${duplicate}"`);
