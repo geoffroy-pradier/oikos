@@ -37,10 +37,12 @@ export function AccountsScreen() {
   const stocks = stockRows.rows ? parseValuedStocks(stockRows.rows) : undefined;
   const failed = sheetRows.failed || stockRows.failed || sheet === null || stocks === null;
 
-  // Le foyer va au titre à l'arrivée sur l'écran, et y revient quand « Réessayer » disparaît.
+  // Le foyer va au titre à l'arrivée sur l'écran (le lien suivi a disparu avec l'écran quitté), et y
+  // revient quand « Réessayer » disparaît. Seulement s'il est perdu : un foyer que le joueur a posé
+  // ailleurs pendant la lecture n'est pas repris.
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (!failed) title.current?.focus();
+    if (!failed && document.activeElement === document.body) title.current?.focus();
   }, [failed]);
 
   const money = (amount: number) => formatMoney(amount, t, i18n.language);

@@ -67,6 +67,26 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
 });
 
+test('tout récolter : une action au clavier, une commande par site, le résultat dit ce qui est engrangé', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  // Rien à récolter : pas de bouton « Tout récolter ».
+  await expect(page.getByRole('button', { name: /^Tout récolter/ })).toHaveCount(0);
+
+  await elapse(houseName, 480);
+  await page.reload();
+  const all = page.getByRole('button', { name: 'Tout récolter : 1 site à récolter' });
+  await all.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée sur 1 site : 80 × Blé.');
+  await expect(page.getByText('Blé : 80')).toBeVisible();
+  // Tout est récolté : le bouton disparaît, le foyer passe au message qui annonce l'issue.
+  await expect(all).toHaveCount(0);
+  await expect(page.getByRole('status')).toBeFocused();
+  await expectNoHorizontalScroll(page);
+});
+
 test('site à l’arrêt : annoncé avec son entretien, « à récolter » borné à l’arrêt, relancé au clavier', async ({
   page,
 }) => {
@@ -85,6 +105,12 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await page.reload();
   await expect(
     page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\. Ce site ne produit plus\.$/),
+  ).toBeVisible();
+  // Le tableau de bord le signale aussi parmi les sites à surveiller.
+  await expect(
+    page
+      .getByRole('region', { name: 'À surveiller' })
+      .getByText('Champ de blé — arrêté, entretien non payé'),
   ).toBeVisible();
   // Six heures avant l'arrêt : un cycle entier, 40 unités de blé — pas les 120 de trois cycles.
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
@@ -403,6 +429,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
     await otherNav.getByRole('link', { name: 'Maison' }).click();
     await expect(other.getByText('Blé : 34')).toBeVisible();
+    await expect(other.getByText(/Ordres ouverts à l'agora : 1 achat, /)).toBeVisible();
     await expect(
       other.getByText(`${oboles(3000 - 30 * price - 30 * bid)}`, { exact: true }),
     ).toBeVisible();
@@ -778,63 +805,108 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
   // « Réessayer » a disparu avec l'échec : le foyer est revenu au titre, pas perdu sur la page.
   await expect(title).toBeFocused();
 
+  // Réponse sans aucune ligne : annoncée comme un échec à réessayer, jamais affichée comme un bilan nul.
+  const balanceSheet = '**/rest/v1/my_balance_sheet*';
+  await page.route(balanceSheet, (route) => route.fulfill({ status: 200, json: [] }));
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
+  await page.unroute(balanceSheet);
+  // Nouvelle lecture, lente : le foyer que le joueur pose ailleurs en l'attendant ne lui est pas repris.
+  await page.route(balanceSheet, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Réessayer' }).click();
+  await page.getByLabel('Langue').focus();
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toBeVisible();
+  await expect(page.getByLabel('Langue')).toBeFocused();
+  await page.unroute(balanceSheet);
+
   const line = (label: string) =>
     page
       .locator('dl > div')
       .filter({ has: page.getByText(label, { exact: true }) })
       .locator('dd');
   await alone(async () => {
-    // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran : les tests de
-    // l'agora le recalculent sous ce même verrou avant de s'en servir.
+    // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran, puis remis comme
+    // il était (la ligne d'avant, ou aucune) : sans échange, le tick garderait ces 7 oboles. Rien d'autre
+    // n'écrit ce prix hors de ce verrou, et les tests de l'agora le recalculent avant de s'en servir.
+    const wheat = sql`city_id = ${KALLISTE_ID} and good_id = 'wheat'`;
+    const before = await sql<{
+      price: string;
+      volume: string;
+      window_seconds: number;
+      observed_at: string;
+    }>`select price, volume, window_seconds, observed_at::text as observed_at
+      from game.observed_prices where ${wheat}`.execute(db);
     await sql`insert into game.observed_prices
         (world_id, city_id, good_id, price, volume, window_seconds, observed_at)
       select world_id, id, 'wheat', 7, 1, 86400, now() from game.cities where id = ${KALLISTE_ID}
       on conflict (city_id, good_id) do update
         set price = excluded.price, observed_at = excluded.observed_at`.execute(db);
-    await page.reload();
-    // 3 000 oboles de dotation ; 40 blés à 7 oboles, soit 280 oboles ; 3 280 en tout.
-    await expect(line('Trésorerie')).toHaveText('500 drachmes');
-    await expect(line('Séquestre (retenu pour vos achats en attente)')).toHaveText('0 obole');
-    await expect(line('Stocks, au prix moyen observé')).toHaveText('46 drachmes 4 oboles');
-    await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
-    await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
-    // Stocks valorisés : une fiche à 360 px, une ligne de tableau sur ordinateur, mêmes valeurs.
-    const wide = (page.viewportSize()?.width ?? 0) >= 1024;
-    const stock = (good: string) =>
-      wide
-        ? page.getByRole('row', { name: new RegExp(`^${good}`) })
-        : page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: good }) });
-    await expect(stock('Blé')).toContainText(
-      /40.*1 drachme 1 obole \(calculé le .+\).*46 drachmes 4 oboles/,
-    );
-    await expectNoHorizontalScroll(page);
+    try {
+      await page.reload();
+      // 3 000 oboles de dotation ; 40 blés à 7 oboles, soit 280 oboles ; 3 280 en tout.
+      await expect(line('Trésorerie')).toHaveText('500 drachmes');
+      await expect(line('Séquestre (retenu pour vos achats en attente)')).toHaveText('0 obole');
+      await expect(line('Stocks, au prix moyen observé')).toHaveText('46 drachmes 4 oboles');
+      await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
+      await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
+      // Stocks valorisés : une fiche à 360 px, une ligne de tableau sur ordinateur, mêmes valeurs.
+      const wide = (page.viewportSize()?.width ?? 0) >= 1024;
+      const stock = (good: string) =>
+        wide
+          ? page.getByRole('row', { name: new RegExp(`^${good}`) })
+          : page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: good }) });
+      await expect(stock('Blé')).toContainText(
+        /40.*1 drachme 1 obole \(calculé le .+\).*46 drachmes 4 oboles/,
+      );
+      await expectNoHorizontalScroll(page);
 
-    // Un stock sans prix observé, ajouté en tête de la réponse lue (dans ce monde partagé, aucun bien
-    // n'est sûr de rester sans prix) : dit tel, et rangé après les stocks valorisés.
-    await page.route('**/rest/v1/my_valued_stocks*', async (route) => {
-      const response = await route.fetch();
-      const rows = (await response.json()) as Record<string, unknown>[];
-      const clay = { ...rows[0], good_id: 'clay', unit_price: null, value: null, priced_at: null };
-      await route.fulfill({ response, json: [clay, ...rows] });
-    });
-    await page.reload();
-    const goods = wide ? page.getByRole('rowheader') : page.getByRole('heading', { level: 3 });
-    await expect(goods).toHaveText(['Blé', 'Argile']);
-    await expect(stock('Argile')).toContainText(/Aucun prix observé.*Non valorisé/);
-    if (wide) {
-      // Tri au clavier par un en-tête : la colonne triée l'annonce, les lignes suivent.
-      const header = (name: string) => page.getByRole('columnheader', { name });
-      await expect(header('Valeur')).toHaveAttribute('aria-sort', 'descending');
-      await header('Bien').getByRole('button').focus();
-      await page.keyboard.press('Enter');
-      await expect(header('Bien')).toHaveAttribute('aria-sort', 'ascending');
-      await expect(header('Valeur')).not.toHaveAttribute('aria-sort', /./);
-      await expect(goods).toHaveText(['Argile', 'Blé']);
+      // Un stock sans prix observé, ajouté en tête de la réponse lue (dans ce monde partagé, aucun bien
+      // n'est sûr de rester sans prix) : dit tel, et rangé après les stocks valorisés.
+      await page.route('**/rest/v1/my_valued_stocks*', async (route) => {
+        const response = await route.fetch();
+        const rows = (await response.json()) as Record<string, unknown>[];
+        const clay = {
+          ...rows[0],
+          good_id: 'clay',
+          unit_price: null,
+          value: null,
+          priced_at: null,
+        };
+        await route.fulfill({ response, json: [clay, ...rows] });
+      });
+      await page.reload();
+      const goods = wide ? page.getByRole('rowheader') : page.getByRole('heading', { level: 3 });
+      await expect(goods).toHaveText(['Blé', 'Argile']);
+      await expect(stock('Argile')).toContainText(/Aucun prix observé.*Non valorisé/);
+      if (wide) {
+        // Tri au clavier par un en-tête : la colonne triée l'annonce, les lignes suivent.
+        const header = (name: string) => page.getByRole('columnheader', { name });
+        await expect(header('Valeur')).toHaveAttribute('aria-sort', 'descending');
+        await header('Bien').getByRole('button').focus();
+        await page.keyboard.press('Enter');
+        await expect(header('Bien')).toHaveAttribute('aria-sort', 'ascending');
+        await expect(header('Valeur')).not.toHaveAttribute('aria-sort', /./);
+        await expect(goods).toHaveText(['Argile', 'Blé']);
+      }
+      await expectNoHorizontalScroll(page);
+      await page.getByLabel('Langue').selectOption('en');
+      await expect(stock('Wheat')).toContainText('46 drachmas 4 obols');
+      await expect(line('Treasury')).toHaveText('500 drachmas');
+      await expect(line('Total')).toHaveText('546 drachmas 4 obols');
+    } finally {
+      const previous = before.rows[0];
+      await (
+        previous
+          ? sql`update game.observed_prices set price = ${previous.price}, volume = ${previous.volume},
+              window_seconds = ${previous.window_seconds},
+              observed_at = ${previous.observed_at}::timestamptz where ${wheat}`
+          : sql`delete from game.observed_prices where ${wheat}`
+      ).execute(db);
     }
-    await expectNoHorizontalScroll(page);
-    await page.getByLabel('Langue').selectOption('en');
-    await expect(stock('Wheat')).toContainText('46 drachmas 4 obols');
-    await expect(line('Treasury')).toHaveText('500 drachmas');
-    await expect(line('Total')).toHaveText('546 drachmas 4 obols');
   });
 });

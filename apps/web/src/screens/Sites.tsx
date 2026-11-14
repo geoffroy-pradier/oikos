@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
-import { freeStockIn, previewHarvest, type StockLine } from '../site-rules';
+import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
+import { collectAll } from '../collect-all';
 
 interface Site {
   id: string;
@@ -17,6 +18,7 @@ interface Site {
 /** Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire. */
 type Notice = { target: string; kind: 'status' | 'alert'; text: string } | null;
 const ACQUIRE = 'acquire';
+const ALL = 'all';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 // Pendant une commande, les boutons restent atteignables (le focus ne retombe pas sur la page).
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
@@ -85,6 +87,19 @@ export function SitesCard({
       ? name
       : t('home.siteNumbered', { site: name, number: number.format(alike.indexOf(site) + 1) });
   };
+  /** Ce qu'une récolte donnerait maintenant (`harvest`, `null` sans règles ni stock) et les alertes du site. */
+  const stateOf = (site: Site) => {
+    const recipe = rules?.recipe(site.recipe_id);
+    const halted = site.halted_at ? new Date(site.halted_at) : null;
+    // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
+    if (!recipe || !stock)
+      return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
+    const harvest = previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock, halted);
+    return { halted, harvest, alerts: siteAlerts(recipe, harvest, halted !== null) };
+  };
+  const watched = rows
+    .map((site) => ({ site, alerts: stateOf(site).alerts }))
+    .filter(({ alerts }) => alerts.length > 0);
   const offers = rules?.offers ?? [];
   const offer = offers.find((candidate) => candidate.recipe.id === wanted) ?? offers[0];
   const full = rules !== null && sites.rows !== null && sites.rows.length >= rules.limit;
@@ -173,6 +188,47 @@ export function SitesCard({
     if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(recipeId);
   }
 
+  /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */
+  const harvestable = rows.filter((site) => (stateOf(site).harvest?.cycles ?? 0) > 0);
+
+  /** « Tout récolter » : une commande par site récoltable ; le résultat dit ce qui a échoué, et où. */
+  async function collectEverything() {
+    if (running.current || harvestable.length === 0) return;
+    running.current = true;
+    setBusy(true);
+    setNotice(null);
+    const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
+    const outcome = await collectAll(
+      harvestable.map((site) => site.id),
+      (siteId) => collectSite(siteId, house.accessToken),
+    );
+    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    setNow(new Date());
+    const parts: string[] = [];
+    if (outcome.succeeded.length > 0)
+      parts.push(
+        t('home.collectedAll', {
+          count: outcome.succeeded.length,
+          number: number.format(outcome.succeeded.length),
+          list: outcome.collected.map(stackText).join(', '),
+        }),
+      );
+    for (const failure of outcome.failed)
+      parts.push(
+        t('home.collectAllFailed', {
+          site: names.get(failure.siteId) ?? failure.siteId,
+          reason: t([`errors.${failure.code}`, 'errors.INTERNAL']),
+        }),
+      );
+    setNotice({
+      target: ALL,
+      kind: outcome.succeeded.length === 0 ? 'alert' : 'status',
+      text: parts.join(' '),
+    });
+    setBusy(false);
+    running.current = false;
+  }
+
   const announce = (target: string) =>
     notice?.target === target && (
       <p
@@ -198,8 +254,39 @@ export function SitesCard({
           </p>
         )}
       </div>
+      {harvestable.length > 0 && (
+        <Button
+          className={`self-start ${WAITING}`}
+          aria-disabled={busy}
+          aria-label={t('home.collectAllLabel', {
+            count: harvestable.length,
+            number: number.format(harvestable.length),
+          })}
+          onClick={() => void collectEverything()}
+        >
+          {t('home.collectAll')}
+        </Button>
+      )}
+      {announce(ALL)}
       {(sites.failed || rulesFailed) && <p role="alert">{t('app.loadFailed')}</p>}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
+      {watched.length > 0 && (
+        <section aria-labelledby="sites-watch" className="flex flex-col gap-1">
+          <h3 id="sites-watch" className="font-semibold">
+            {t('home.watch')}
+          </h3>
+          <ul className="list-disc pl-5">
+            {watched.map(({ site, alerts }) => (
+              <li key={site.id}>
+                {t('home.watchLine', {
+                  site: siteName(site),
+                  alerts: alerts.map((alert) => t(`home.alert.${alert}`)).join(', '),
+                })}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <ul className="flex flex-col gap-3">
         {rows.map((site) => {
           const name = siteName(site);
@@ -207,14 +294,9 @@ export function SitesCard({
           const alternatives = rules?.alternatives(site.recipe_id) ?? [];
           const choice = chosen[site.id] ?? site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
-          const halted = site.halted_at ? new Date(site.halted_at) : null;
+          const { halted, harvest, alerts } = stateOf(site);
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
           const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
-          // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
-          const harvest =
-            recipe && stock
-              ? previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock, halted)
-              : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -284,6 +366,10 @@ export function SitesCard({
                     : t('home.harvestNone')}
                   {harvest.waiting > 0 && (
                     <> {t('home.harvestWaiting', { count: harvest.waiting })}</>
+                  )}
+                  {alerts.includes('full') && (
+                    // Sans aucun cycle récoltable, récolter n'y changerait rien : il faut des intrants.
+                    <> {t(harvest.cycles > 0 ? 'home.harvestFull' : 'home.harvestFullShort')}</>
                   )}
                 </p>
               )}
