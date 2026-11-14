@@ -308,6 +308,18 @@
     "stockValue": "Stocks, au prix moyen observé",
     "total": "Total",
     "unpriced_one": "{{count}} stock sans prix observé n'est pas compté.",
-    "unpriced_other": "{{count}} stocks sans prix observé ne sont pas comptés."
+    "unpriced_other": "{{count}} stocks sans prix observé ne sont pas comptés.",
+    "stocks": "Stocks valorisés",
+    "stocksIntro": "Chaque stock, part en vente comprise, est valorisé au dernier prix moyen observé à l'agora de sa cité.",
+    "stocksEmpty": "Aucun bien en stock.",
+    "good": "Bien",
+    "quantity": "Quantité",
+    "unitPrice": "Prix moyen observé",
+    "priceAt": "{{price}} (calculé le {{date}})",
+    "noPrice": "Aucun prix observé",
+    "value": "Valeur",
+    "notValued": "Non valorisé",
+    "sortedAscending": "Trié par {{column}}, ordre croissant",
+    "sortedDescending": "Trié par {{column}}, ordre décroissant"
   }
 }

@@ -308,6 +308,18 @@
     "stockValue": "Stocks, at the observed average price",
     "total": "Total",
     "unpriced_one": "{{count}} stock with no observed price is not counted.",
-    "unpriced_other": "{{count}} stocks with no observed price are not counted."
+    "unpriced_other": "{{count}} stocks with no observed price are not counted.",
+    "stocks": "Valued stocks",
+    "stocksIntro": "Each stock, including the part on sale, is valued at the last average price observed at the agora of its city.",
+    "stocksEmpty": "No goods in stock.",
+    "good": "Good",
+    "quantity": "Quantity",
+    "unitPrice": "Observed average price",
+    "priceAt": "{{price}} (computed on {{date}})",
+    "noPrice": "No observed price",
+    "value": "Value",
+    "notValued": "Not valued",
+    "sortedAscending": "Sorted by {{column}}, ascending order",
+    "sortedDescending": "Sorted by {{column}}, descending order"
   }
 }
