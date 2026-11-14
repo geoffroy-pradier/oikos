@@ -125,6 +125,7 @@
     "errors": {
       "FORBIDDEN": "Votre rôle ne permet pas cette action.",
       "CONFIG_VERSION_NOT_FOUND": "Cette version n'existe plus.",
+      "CONFIG_REVIEW_REQUIRED": "L'auteur d'une version ne la programme pas lui-même : un autre compte doit la relire et la programmer.",
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."

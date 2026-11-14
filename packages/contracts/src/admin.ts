@@ -31,6 +31,8 @@ export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = ['FORBIDDEN', 'CONFIG_INVALID'] 
 /**
  * Commande `admin.scheduleConfig` : programme l'activation d'une version à la prochaine clôture
  * quotidienne. Un retour arrière est la programmation d'une version antérieure.
+ * Revue par une seconde personne (15.2, étape 3) : l'auteur d'une version ne la programme pas lui-même,
+ * sauf si un autre compte l'a déjà programmée une fois (retour arrière vers une version déjà revue).
  */
 export const adminScheduleConfigInputSchema = z.strictObject({ versionId: z.uuid() });
 export type AdminScheduleConfigInput = z.infer<typeof adminScheduleConfigInputSchema>;
@@ -43,6 +45,8 @@ export type AdminScheduleConfigOutput = z.infer<typeof adminScheduleConfigOutput
 export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'FORBIDDEN',
   'CONFIG_VERSION_NOT_FOUND',
+  /** La version attend sa revue : un autre compte que son auteur doit la programmer. */
+  'CONFIG_REVIEW_REQUIRED',
   'CONFIG_INVALID',
 ] as const;
 

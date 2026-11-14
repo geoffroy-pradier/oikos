@@ -25,7 +25,16 @@ export interface CommandContext {
   now: Date;
   /** Rôle d'administration du compte, pour une commande d'administration ; `null` sinon. */
   adminRole: AdminRole | null;
+  /** Réglages de l'API, tirés de son environnement au démarrage. */
+  settings: ApiSettings;
 }
+
+export interface ApiSettings {
+  /** Monde de test : l'auteur d'une version de configuration peut la programmer lui-même (15.2). */
+  allowSelfReview: boolean;
+}
+/** Réglages par défaut : ceux de la production. */
+export const DEFAULT_SETTINGS: ApiSettings = { allowSelfReview: false };
 
 /** Charge la configuration active à un instant (`createConfigLoader(db).at`). */
 export type ConfigSource = (at: Date) => Promise<LoadedConfig>;
@@ -107,6 +116,7 @@ export async function executeCommand(
   command: CommandDefinition,
   { userId, aal, idempotencyKey, input }: CommandRequest,
   loadConfig: ConfigSource,
+  settings: ApiSettings = DEFAULT_SETTINGS,
 ): Promise<CommandOutcome> {
   const startedAt = performance.now();
   const duration = () => Math.round(performance.now() - startedAt);
@@ -190,6 +200,7 @@ export async function executeCommand(
             config,
             now,
             adminRole,
+            settings,
           },
           parsed.data,
         );

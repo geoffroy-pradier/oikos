@@ -273,3 +273,19 @@ it('un changement de type reste visible dans la comparaison', async () => {
     '600 → "600"',
   );
 });
+
+it('double validation : le refus de programmer sa propre version est expliqué', async () => {
+  api.adminCommand.mockResolvedValue({ ok: false, code: 'CONFIG_REVIEW_REQUIRED' });
+  render(<Config accessToken="token" role="game_designer" />);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Programmer la version 3 à la prochaine clôture' }),
+  );
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe(
+    "L'auteur d'une version ne la programme pas lui-même : un autre compte doit la relire et la programmer.",
+  );
+  expect(api.adminCommand.mock.calls[0]?.slice(0, 2)).toEqual([
+    'admin.scheduleConfig',
+    { versionId: 'v3' },
+  ]);
+});
