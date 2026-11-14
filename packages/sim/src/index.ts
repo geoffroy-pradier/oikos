@@ -5,3 +5,4 @@ export * from './ledger';
 export * from './orderbook';
 export * from './production';
 export * from './rng';
+export * from './tax';

@@ -1,6 +1,7 @@
 {
   "clock": { "tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7 },
   "market": { "npcMaxPriceFactor": 3 },
+  "marketTax": { "rateBps": 500, "burnShareBps": 5000 },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
   "sites": {
     "limitByHeadquartersLevel": [4],
