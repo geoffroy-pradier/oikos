@@ -95,6 +95,7 @@ const balanceOf = async (houseId: string) =>
         .selectFrom('game.accounts')
         .select('balance')
         .where('house_id', '=', houseId)
+        .where('kind', '=', 'house')
         .executeTakeFirstOrThrow()
     ).balance,
   );
@@ -246,7 +247,7 @@ describe('site.acquire', () => {
 
   it('acquisition et achats à l’agora simultanés : aucun interblocage', async () => {
     // Un achat verrouille le compte puis touche la maison (clé étrangère de l'ordre) ; l'acquisition
-    // verrouille la maison puis le compte. Carnet vide : l'achat ne trouve rien et ne coûte rien.
+    // verrouille la maison puis le compte. Carnet sans vente : chaque achat attend, une obole retenue.
     const players = await Promise.all(Array.from({ length: 20 }, () => newPlayer()));
     const buy = (user: string) =>
       send(user, 'market.placeOrder', {
@@ -269,7 +270,7 @@ describe('site.acquire', () => {
     );
     for (const player of players) {
       expect(await sitesOf(player.houseId)).toHaveLength(3);
-      expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.field);
+      expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.field - 2);
     }
   });
 

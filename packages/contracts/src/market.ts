@@ -23,11 +23,11 @@ const fill = z.strictObject({
 export const marketPlaceOrderOutputSchema = z.object({
   orderId: z.uuid(),
   status: z.enum(['open', 'filled', 'cancelled']),
-  /** Quantité non exécutée : en attente pour une vente, annulée pour un achat. */
+  /** Quantité non exécutée : en attente si l'ordre est `open`, annulée s'il est `cancelled`. */
   remaining: z.number().int().nonnegative(),
-  /** Échanges conclus à l'arrivée, chacun au prix de l'ordre de vente servi. */
+  /** Échanges conclus à l'arrivée, chacun au prix de l'ordre servi (celui qui attendait). */
   trades: z.array(fill),
-  /** Achat : vrai si une vente au prix limite restait à servir et que la trésorerie n'y suffisait pas. */
+  /** Achat : vrai si la trésorerie n'a suffi ni à payer une vente au prix limite, ni à retenir le prix du reste. */
   shortOfFunds: z.boolean().optional(),
 });
 export type MarketPlaceOrderOutput = z.infer<typeof marketPlaceOrderOutputSchema>;
@@ -74,7 +74,7 @@ export type MarketCancelOrderInput = z.infer<typeof marketCancelOrderInputSchema
 export const marketCancelOrderOutputSchema = z.object({
   orderId: z.uuid(),
   status: z.literal('cancelled'),
-  /** Quantité qui restait à servir : pour une vente, le stock que l'annulation libère. */
+  /** Quantité qui restait à servir : le stock libéré pour une vente ; pour un achat, prix × ce reste est rendu. */
   released: z.number().int().positive(),
 });
 export type MarketCancelOrderOutput = z.infer<typeof marketCancelOrderOutputSchema>;

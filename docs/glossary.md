@@ -7,6 +7,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Oikos | La maison du joueur : famille, domaine, affaires, trésor |
 | Polis | Une cité, communauté de 100 à 400 joueurs actifs |
 | Agora | Le marché de la cité, et par extension l'espace public (forum) |
+| Séquestre | Monnaie qu'un achat en attente à l'agora retient hors de la trésorerie (prix limite × reste), rendue à l'annulation (`escrow`) |
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
 | Charis | Faveur divine, gagnée par les offrandes et les actes |
 | Timè | Honneur, réputation publique de la maison |

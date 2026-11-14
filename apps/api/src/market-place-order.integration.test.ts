@@ -147,6 +147,7 @@ const stateOf = async (player: Player) => {
     .selectFrom('game.accounts')
     .select('balance')
     .where('house_id', '=', player.houseId)
+    .where('kind', '=', 'house')
     .executeTakeFirstOrThrow();
   const stock = await db
     .selectFrom('game.inventories')
@@ -156,6 +157,38 @@ const stateOf = async (player: Player) => {
     .executeTakeFirst();
   return [Number(account.balance), stock ? `${stock.quantity}/${stock.reserved}` : 'aucun'];
 };
+/** Monnaie retenue pour les achats en attente de la maison. */
+const escrowOf = async (player: Player) =>
+  Number(
+    (
+      await db
+        .selectFrom('game.accounts')
+        .select('balance')
+        .where('house_id', '=', player.houseId)
+        .where('kind', '=', 'escrow')
+        .executeTakeFirst()
+    )?.balance ?? 0,
+  );
+/** Ordres encore ouverts de ces maisons, du plus ancien au plus récent. */
+const openOrdersOf = (players: Player[]) =>
+  db
+    .selectFrom('game.orders')
+    .select(['id', 'house_id', 'side', 'price', 'remaining'])
+    .where(
+      'house_id',
+      'in',
+      players.map((player) => player.houseId),
+    )
+    .where('status', '=', 'open')
+    .orderBy('seq')
+    .execute();
+/** Retire du carnet tout ce que ces maisons y ont laissé (les cités partagées restent propres). */
+const cancelOpenOrders = async (players: Player[]) => {
+  for (const open of await openOrdersOf(players)) {
+    const player = players.find((candidate) => candidate.houseId === open.house_id);
+    if (player) await send(player.user, 'market.cancelOrder', { orderId: open.id });
+  }
+};
 /** Contrôles de la base : chaque solde et chaque stock égale la somme de son journal. */
 const ledgersAreConsistent = async (players: Player[]) => {
   const houses = players.map((player) => player.houseId);
@@ -163,9 +196,19 @@ const ledgersAreConsistent = async (players: Player[]) => {
     select (select count(*) from game.account_balance_check c join game.accounts a on a.id = c.account_id
             where a.house_id = any(${houses}::uuid[]) and not c.ok)
          + (select count(*) from game.inventory_quantity_check c join game.inventories i on i.id = c.inventory_id
-            where i.house_id = any(${houses}::uuid[]) and not c.ok) as n`.execute(db);
+            where i.house_id = any(${houses}::uuid[]) and not c.ok)
+         -- Séquestre de chaque maison = somme des restes à payer de ses achats ouverts.
+         + (select count(*) from unnest(${houses}::uuid[]) h
+            where (select coalesce(sum(a.balance), 0) from game.accounts a where a.house_id = h and a.kind = 'escrow')
+               <> (select coalesce(sum(o.price * o.remaining), 0) from game.orders o
+                    where o.house_id = h and o.side = 'buy' and o.status = 'open')) as n`.execute(
+    db,
+  );
   return Number(broken.rows[0]?.n);
 };
+
+const idOf = (result: { body: { data?: never } }) =>
+  (result.body.data as unknown as { orderId: string }).orderId;
 
 describe('market.placeOrder', () => {
   it('une vente attend dans le carnet et réserve son stock ; pas de vente à découvert', async () => {
@@ -199,7 +242,7 @@ describe('market.placeOrder', () => {
     ]);
   });
 
-  it('un achat sert les ventes de la moins chère à la plus chère, au prix de chacune, et annule son reste', async () => {
+  it('un achat sert les ventes de la moins chère à la plus chère, au prix de chacune ; son reste attend, payé d’avance', async () => {
     const cityId = await newCity();
     const [cheap, dear, buyer] = [
       await newPlayer(cityId, 50),
@@ -214,8 +257,9 @@ describe('market.placeOrder', () => {
       status: 200,
       body: {
         data: {
-          status: 'cancelled',
+          status: 'open',
           remaining: 10,
+          shortOfFunds: false,
           trades: [
             { price: 6, quantity: 20 },
             { price: 9, quantity: 30 },
@@ -224,13 +268,20 @@ describe('market.placeOrder', () => {
       },
     });
     const paid = 6 * 20 + 9 * 30;
-    expect(await stateOf(buyer)).toEqual([GRANT - paid, '50/0']);
+    // Le reste attend à 10 oboles : 100 oboles quittent la trésorerie pour le séquestre.
+    expect(await stateOf(buyer)).toEqual([GRANT - paid - 100, '50/0']);
+    expect(await escrowOf(buyer)).toBe(100);
     expect(await stateOf(cheap)).toEqual([GRANT + 120, '30/0']);
     expect(await stateOf(dear)).toEqual([GRANT + 270, '20/10']);
     expect(await ledgersAreConsistent([cheap, dear, buyer])).toBe(0);
-    const book = await sql<{ price: string; quantity: string }>`
-      select price, quantity from game.order_book() where city_id = ${cityId}`.execute(owner);
-    expect(book.rows).toEqual([{ price: '20', quantity: '10' }]);
+    const book = await sql<{ side: string; price: string; quantity: string }>`
+      select side, price, quantity from game.order_book() where city_id = ${cityId} order by side`.execute(
+      owner,
+    );
+    expect(book.rows).toEqual([
+      { side: 'buy', price: '10', quantity: '10' },
+      { side: 'sell', price: '20', quantity: '10' },
+    ]);
     const buyOrderId = (bought.body.data as unknown as { orderId: string }).orderId;
     expect(await eventsOf(cityId, 'TradeExecuted')).toMatchObject([
       { buyOrderId, price: 6, quantity: 20 },
@@ -255,11 +306,17 @@ describe('market.placeOrder', () => {
     ]);
   });
 
-  it('achat sans contrepartie ou au-dessus de ses moyens : rien ne bouge', async () => {
+  it('achat sans contrepartie : il attend, payé d’avance ; au-dessus de ses moyens : refusé, rien ne bouge', async () => {
     const cityId = await newCity();
     const [seller, buyer] = [await newPlayer(cityId, 10), await newPlayer(cityId)];
     expect((await order(buyer, 'buy', 5, 3)).body).toMatchObject({
-      data: { status: 'cancelled', remaining: 3, trades: [] },
+      data: { status: 'open', remaining: 3, trades: [], shortOfFunds: false },
+    });
+    expect([await stateOf(buyer), await escrowOf(buyer)]).toEqual([[GRANT - 15, 'aucun'], 15]);
+    // Carnet vide à ce prix, et pas de quoi retenir la somme : l'achat est refusé, rien n'est retenu.
+    expect(await order(buyer, 'buy', GRANT, 1)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'INSUFFICIENT_FUNDS' } },
     });
     // Une vente attend au prix limite, mais pas même une unité n'est payable : l'achat est refusé.
     await order(seller, 'sell', GRANT + 1, 2);
@@ -269,8 +326,10 @@ describe('market.placeOrder', () => {
     });
     expect([await stateOf(seller), await stateOf(buyer)]).toEqual([
       [GRANT, '10/2'],
-      [GRANT, 'aucun'],
+      [GRANT - 15, 'aucun'],
     ]);
+    expect(await escrowOf(buyer)).toBe(15);
+    expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
   });
 
   it('achat au-delà de ses moyens : exécuté pour la part payable, du moins cher au plus cher, et signalé', async () => {
@@ -302,6 +361,17 @@ describe('market.placeOrder', () => {
       [0, `${40 + affordable}/0`],
     ]);
     expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+    // Le journal dit que le reste a été annulé, pas mis en attente.
+    expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([
+      {
+        orderId: idOf(bought),
+        houseId: buyer.houseId,
+        cityId,
+        goodId: 'wheat',
+        side: 'buy',
+        released: 80 - 40 - affordable,
+      },
+    ]);
     // Un achat entièrement payable, lui, ne signale rien.
     const other = await newPlayer(cityId);
     expect((await order(other, 'buy', 100, 5)).body).toMatchObject({
@@ -391,28 +461,130 @@ describe('market.placeOrder', () => {
     expect(await ledgersAreConsistent(traders)).toBe(0);
     // Entre maisons, la monnaie et le blé ne font que circuler : seuls les PNJ en créent et en consomment.
     const states = await Promise.all(traders.map(stateOf));
-    const money = states.reduce((sum, [balance]) => sum + Number(balance) - GRANT, 0);
+    const held = (await Promise.all(traders.map(escrowOf))).reduce(
+      (sum, escrow) => sum + escrow,
+      0,
+    );
+    const money = states.reduce((sum, [balance]) => sum + Number(balance) - GRANT, held);
     const wheat = states.reduce((sum, [, stock]) => sum + Number(String(stock).split('/')[0]), 0);
     expect(4 * 400 - wheat).toBe(npcUnits);
     expect(money).toBe(npcUnits * 6);
+    // La cité sert à d'autres tests : rien de ces maisons ne reste au carnet, et tout séquestre est rendu.
+    await cancelOpenOrders(traders);
+    expect(await openOrdersOf(traders)).toEqual([]);
+    expect(await Promise.all(traders.map(escrowOf))).toEqual([0, 0, 0, 0]);
+    expect(await ledgersAreConsistent(traders)).toBe(0);
   });
 
-  it('une maison n’achète pas ses propres ventes', async () => {
-    const seller = await newPlayer(await newCity(), 10);
-    await order(seller, 'sell', 6, 10);
-    expect((await order(seller, 'buy', 6, 10)).body).toMatchObject({
-      data: { status: 'cancelled', trades: [] },
+  it('une maison n’échange pas avec elle-même : ni son achat contre sa vente, ni sa vente contre son achat', async () => {
+    const cityId = await newCity();
+    const [house, other] = [await newPlayer(cityId, 20), await newPlayer(cityId, 20)];
+    await order(house, 'sell', 6, 10);
+    // Son achat croise sa propre vente : il ne l'exécute pas, il attend à côté d'elle.
+    expect((await order(house, 'buy', 8, 10)).body).toMatchObject({
+      data: { status: 'open', remaining: 10, trades: [] },
     });
-    expect(await stateOf(seller)).toEqual([GRANT, '10/10']);
+    expect([await stateOf(house), await escrowOf(house)]).toEqual([[GRANT - 80, '20/10'], 80]);
+    // Sa vente croise son propre achat en attente : elle ne l'exécute pas non plus.
+    expect((await order(house, 'sell', 7, 5)).body).toMatchObject({
+      data: { status: 'open', remaining: 5, trades: [] },
+    });
+    expect([await stateOf(house), await escrowOf(house)]).toEqual([[GRANT - 80, '20/15'], 80]);
+    // Une autre maison, elle, est servie par cet achat, au prix de l'achat.
+    expect((await order(other, 'sell', 7, 4)).body).toMatchObject({
+      data: { status: 'filled', trades: [{ price: 8, quantity: 4 }] },
+    });
+    expect([await stateOf(house), await escrowOf(house)]).toEqual([[GRANT - 80, '24/15'], 48]);
+    const own = await sql<{ n: string }>`
+      select count(*) as n from game.trades t
+      join game.orders s on s.id = t.sell_order_id join game.orders b on b.id = t.buy_order_id
+      where s.house_id = b.house_id and s.city_id = ${cityId}`.execute(db);
+    expect(Number(own.rows[0]?.n)).toBe(0);
+    expect(await ledgersAreConsistent([house, other])).toBe(0);
+  });
+
+  it('une vente sert les achats en attente du plus cher au moins cher, puis par ancienneté, au prix de chacun, payée par leur séquestre', async () => {
+    const cityId = await newCity();
+    const [low, first, second, seller] = [
+      await newPlayer(cityId),
+      await newPlayer(cityId),
+      await newPlayer(cityId),
+      await newPlayer(cityId, 100),
+    ];
+    const lowId = idOf(await order(low, 'buy', 7, 10));
+    const firstId = idOf(await order(first, 'buy', 9, 10));
+    const secondId = idOf(await order(second, 'buy', 9, 10));
+    await order(low, 'buy', 5, 10);
+    expect(await Promise.all([low, first, second].map(escrowOf))).toEqual([120, 90, 90]);
+
+    // 26 unités à 6 oboles au moins : les deux achats à 9 (le plus ancien d'abord), puis 6 unités à 7.
+    const sold = await order(seller, 'sell', 6, 26);
+    expect(sold).toMatchObject({
+      status: 200,
+      body: {
+        data: {
+          status: 'filled',
+          remaining: 0,
+          trades: [
+            { price: 9, quantity: 10 },
+            { price: 9, quantity: 10 },
+            { price: 7, quantity: 6 },
+          ],
+        },
+      },
+    });
+    expect(sold.body.data).not.toHaveProperty('shortOfFunds');
+    const sellOrderId = idOf(sold);
+    expect(await eventsOf(cityId, 'TradeExecuted')).toMatchObject([
+      { sellOrderId, buyOrderId: firstId, price: 9, quantity: 10 },
+      { sellOrderId, buyOrderId: secondId, price: 9, quantity: 10 },
+      { sellOrderId, buyOrderId: lowId, price: 7, quantity: 6 },
+    ]);
+    // Le vendeur touche le prix de chaque achat ; les acheteurs reçoivent le blé sans repayer.
+    expect(await stateOf(seller)).toEqual([GRANT + 180 + 42, '74/0']);
+    expect(await stateOf(first)).toEqual([GRANT - 90, '10/0']);
+    expect(await stateOf(second)).toEqual([GRANT - 90, '10/0']);
+    expect(await stateOf(low)).toEqual([GRANT - 120, '6/0']);
+    // Il reste au séquestre de quoi payer ce qui attend encore : 4 unités à 7 et 10 à 5.
+    expect(await Promise.all([low, first, second].map(escrowOf))).toEqual([78, 0, 0]);
+    expect(await ledgersAreConsistent([low, first, second, seller])).toBe(0);
+
+    // Une vente plus grosse que la demande : servie pour ce qui croise, le reste attend et réserve son stock.
+    expect((await order(seller, 'sell', 7, 30)).body).toMatchObject({
+      data: { status: 'open', remaining: 26, trades: [{ price: 7, quantity: 4 }] },
+    });
+    expect(await stateOf(seller)).toEqual([GRANT + 222 + 28, '70/26']);
+    expect(await escrowOf(low)).toBe(50);
+    // Chaque échange est réglé par le séquestre de l'acheteur, et livré par un mouvement qui porte l'écriture.
+    const settled = await sql<{ payer: string; moved: string }>`
+      select a.kind as payer,
+             (select string_agg(s.quantity::text, ',') from game.stock_ledger s
+               where s.ledger_entry_id = t.ledger_entry_id) as moved
+      from game.trades t
+      join game.ledger_lines l on l.entry_id = t.ledger_entry_id and l.amount < 0
+      join game.accounts a on a.id = l.account_id
+      where t.sell_order_id = ${sellOrderId} order by t.id`.execute(db);
+    expect(settled.rows).toEqual([
+      { payer: 'escrow', moved: '10' },
+      { payer: 'escrow', moved: '10' },
+      { payer: 'escrow', moved: '6' },
+    ]);
+    expect(await ledgersAreConsistent([low, first, second, seller])).toBe(0);
   });
 
   it('acheteurs simultanés et rejeu : chaque unité n’est vendue qu’une fois', async () => {
     const cityId = await newCity();
-    const seller = await newPlayer(cityId, 40);
+    const seller = await newPlayer(cityId, 60);
     await order(seller, 'sell', 6, 30);
     const buyers = await Promise.all(Array.from({ length: 5 }, () => newPlayer(cityId)));
     const results = await Promise.all(buyers.map((buyer) => order(buyer, 'buy', 6, 10)));
     expect(results.every((result) => result.status === 200)).toBe(true);
+    // Trois acheteurs sont servis, deux attendent ; la vente suivante sert ceux qui attendent.
+    const statuses = results.map((r) => (r.body.data as unknown as { status: string }).status);
+    expect(statuses.sort()).toEqual(['filled', 'filled', 'filled', 'open', 'open']);
+    expect((await order(seller, 'sell', 6, 20)).body).toMatchObject({
+      data: { status: 'filled', trades: [{ quantity: 10 }, { quantity: 10 }] },
+    });
     // Rejeu : la même clé envoyée trois fois en même temps ne dépose qu'un ordre, alors que l'offre en servirait trois.
     const [replayer, key] = [await newPlayer(cityId), randomUUID()];
     await order(seller, 'sell', 6, 10);
@@ -423,8 +595,9 @@ describe('market.placeOrder', () => {
     expect(await stateOf(replayer)).toEqual([GRANT - 18, '3/0']);
     const states = await Promise.all(buyers.map(stateOf));
     const boughtUnits = states.reduce((sum, [balance]) => sum + (GRANT - Number(balance)) / 6, 0);
-    expect(boughtUnits).toBe(30);
-    expect(await stateOf(seller)).toEqual([GRANT + 198, '7/7']);
+    expect(boughtUnits).toBe(50);
+    expect(states.map(([, stock]) => stock)).toEqual(buyers.map(() => '10/0'));
+    expect(await stateOf(seller)).toEqual([GRANT + 318, '7/7']);
     expect(await ledgersAreConsistent([seller, ...buyers])).toBe(0);
   });
 
@@ -472,8 +645,6 @@ describe('market.placeOrder', () => {
 });
 
 describe('market.cancelOrder', () => {
-  const idOf = (result: { body: { data?: never } }) =>
-    (result.body.data as unknown as { orderId: string }).orderId;
   const cancel = (player: Player, orderId: string, key?: string) =>
     send(player.user, 'market.cancelOrder', { orderId }, key);
   const statusOf = async (orderId: string) =>
@@ -570,11 +741,12 @@ describe('market.cancelOrder', () => {
     expect((await cancel(seller, filled)).body).toMatchObject({
       error: { code: 'ORDER_NOT_OPEN' },
     });
-    // L'achat, exécuté à l'arrivée, est déjà clos : son auteur ne peut pas l'annuler non plus.
+    // Un achat exécuté en entier à l'arrivée est déjà clos : son auteur ne peut pas l'annuler non plus.
+    await order(seller, 'sell', 6, 5);
     const bought = idOf(await order(buyer, 'buy', 6, 5));
     expect((await cancel(buyer, bought)).body).toMatchObject({ error: { code: 'ORDER_NOT_OPEN' } });
     expect(await eventsOf(cityId, 'OrderCancelled')).toHaveLength(1);
-    expect(await stateOf(seller)).toEqual([GRANT + 60, '90/0']);
+    expect(await stateOf(seller)).toEqual([GRANT + 90, '85/0']);
   });
 
   it('annulation et achat simultanés : quantité servie + quantité libérée = quantité de l’ordre', async () => {
@@ -598,6 +770,8 @@ describe('market.cancelOrder', () => {
         [0, 10],
       ]).toContainEqual([traded, released]);
       expect(await statusOf(orderId)).toBe('cancelled');
+      // Arrivé après l'annulation, l'achat attend : il est retiré avant le tour suivant.
+      if (traded === 0) expect((await cancel(buyer, idOf(bought))).status).toBe(200);
       sold += traded;
       releasedTotal += released;
       if (traded === 0) cancelledFirst += 1;
@@ -607,7 +781,105 @@ describe('market.cancelOrder', () => {
     expect(cancelledFirst + boughtFirst).toBe(20);
     expect(await stateOf(seller)).toEqual([GRANT + sold * 6, `${400 - sold}/0`]);
     expect(await stateOf(buyer)).toEqual([GRANT - sold * 6, sold > 0 ? `${sold}/0` : 'aucun']);
+    expect(await escrowOf(buyer)).toBe(0);
     expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+  });
+
+  it('annule un achat en attente : le séquestre rend prix × reste, ce qui est acheté reste acquis', async () => {
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 50)];
+    const orderId = idOf(await order(buyer, 'buy', 8, 30));
+    expect([await stateOf(buyer), await escrowOf(buyer)]).toEqual([[GRANT - 240, 'aucun'], 240]);
+    await order(seller, 'sell', 8, 12);
+    expect([await stateOf(buyer), await escrowOf(buyer)]).toEqual([[GRANT - 240, '12/0'], 144]);
+
+    expect(await cancel(buyer, orderId)).toEqual({
+      status: 200,
+      body: { ok: true, data: { orderId, status: 'cancelled', released: 18 } },
+    });
+    expect([await stateOf(buyer), await escrowOf(buyer)]).toEqual([[GRANT - 96, '12/0'], 0]);
+    expect(await stateOf(seller)).toEqual([GRANT + 96, '38/0']);
+    expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([
+      { orderId, houseId: buyer.houseId, cityId, goodId: 'wheat', side: 'buy', released: 18 },
+    ]);
+    // Mise en attente puis restitution : deux écritures équilibrées entre les deux comptes de la maison.
+    const moves = await sql<{ kind: string; amounts: string }>`
+      select e.kind, string_agg(a.kind || ':' || l.amount, ' ' order by a.kind) as amounts
+      from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
+      join game.accounts a on a.id = l.account_id
+      where a.house_id = ${buyer.houseId} and e.kind like 'market.escrow%'
+      group by e.id, e.kind order by e.id`.execute(db);
+    expect(moves.rows).toEqual([
+      { kind: 'market.escrow_hold', amounts: 'escrow:240 house:-240' },
+      { kind: 'market.escrow_release', amounts: 'escrow:-144 house:144' },
+    ]);
+    // Plus rien n'attend : une vente au même prix ne trouve personne et reste au carnet.
+    expect((await order(seller, 'sell', 8, 5)).body).toMatchObject({
+      data: { status: 'open', trades: [] },
+    });
+    expect(await cancel(buyer, orderId)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'ORDER_NOT_OPEN' } },
+    });
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('même maison : achats mis en attente et annulations d’autres achats simultanés, sans interblocage', async () => {
+    // L'annulation verrouille la trésorerie avant le séquestre, comme la mise en attente.
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 400)];
+    for (let round = 0; round < 10; round++) {
+      const ids: string[] = [];
+      for (let i = 0; i < 4; i++) ids.push(idOf(await order(buyer, 'buy', 6, 10)));
+      const results = await Promise.all([
+        ...ids.map((id) => cancel(buyer, id)),
+        ...ids.map(() => order(buyer, 'buy', 5, 3)),
+        order(seller, 'sell', 6, 4),
+        order(seller, 'sell', 5, 2),
+      ]);
+      expect(results.map((result) => result.status)).toEqual(results.map(() => 200));
+      await cancelOpenOrders([buyer, seller]);
+    }
+    expect(await escrowOf(buyer)).toBe(0);
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('annulation d’un achat et vente simultanées : payé + rendu = retenu, sans interblocage', async () => {
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 400)];
+    let [bought, soldFirst, cancelledFirst] = [0, 0, 0];
+    for (let round = 0; round < 20; round++) {
+      const orderId = idOf(await order(buyer, 'buy', 6, 10));
+      const [selling, cancelling] = await Promise.all([
+        order(seller, 'sell', 6, 4),
+        cancel(buyer, orderId),
+      ]);
+      expect([selling.status, cancelling.status]).toEqual([200, 200]);
+      const sale = selling.body.data as unknown as {
+        status: string;
+        trades: { quantity: number }[];
+      };
+      const traded = sale.trades.reduce((sum, trade) => sum + trade.quantity, 0);
+      const released = (cancelling.body.data as unknown as { released: number }).released;
+      // La vente passe en entier avant l'annulation, ou pas du tout après.
+      expect([
+        [4, 6],
+        [0, 10],
+      ]).toContainEqual([traded, released]);
+      // Arrivée après l'annulation, la vente attend : elle est retirée avant le tour suivant.
+      if (traded === 0) expect((await cancel(seller, idOf(selling))).status).toBe(200);
+      bought += traded;
+      if (traded === 0) cancelledFirst += 1;
+      else soldFirst += 1;
+    }
+    expect(cancelledFirst + soldFirst).toBe(20);
+    expect(await stateOf(buyer)).toEqual([
+      GRANT - bought * 6,
+      bought > 0 ? `${bought}/0` : 'aucun',
+    ]);
+    expect(await escrowOf(buyer)).toBe(0);
+    expect(await stateOf(seller)).toEqual([GRANT + bought * 6, `${400 - bought}/0`]);
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
   });
 
   it('annulation pendant un tick de demande des PNJ : elle attend la fin du tick et ne libère que le reste', async () => {
