@@ -313,13 +313,17 @@ describe('site.restart', () => {
       const player = await newPlayer(10, 7, world.cityId);
       const closing = await db.startTransaction().execute();
       let settled = false;
-      // La clôture a prélevé et relancé le site, mais n'a pas encore validé : elle tient le puits.
-      const pending = world
-        .upkeep(closing)
-        .then(() => restart(player.user, player.siteId).finally(() => (settled = true)));
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      expect(settled).toBe(false);
-      await closing.commit().execute();
+      let pending: ReturnType<typeof restart> | undefined;
+      try {
+        // La clôture a prélevé et relancé le site, mais n'a pas encore validé : elle tient le puits.
+        await world.upkeep(closing);
+        // La relance n'est demandée qu'une fois l'étape terminée : elle ne peut qu'attendre la validation.
+        pending = restart(player.user, player.siteId).finally(() => (settled = true));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        expect(settled).toBe(false);
+      } finally {
+        await closing.commit().execute();
+      }
       expect(await pending).toMatchObject({
         status: 409,
         body: { error: { code: 'SITE_NOT_HALTED' } },

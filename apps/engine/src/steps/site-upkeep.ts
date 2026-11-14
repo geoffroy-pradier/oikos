@@ -73,10 +73,13 @@ export const siteUpkeep: CloseStep = {
           oboles: type ? dailyUpkeep(dailyOboles[type], coefficientBps) : 0,
         };
       });
-      const { paid, unpaid, total } = settleUpkeep(Number(account.balance), dues);
+      const { paid: settled, unpaid, total } = settleUpkeep(Number(account.balance), dues);
+      // Un site au dû nul (recette retirée) est réglé sans rien payer : il ne figure ni dans l'écriture,
+      // ni dans l'événement, ni dans le compte des sites payés.
+      const paid = settled.filter((due) => due.oboles > 0);
       const haltedBefore = new Set(sites.filter((site) => site.halted_at).map((site) => site.id));
       const halted = unpaid.map((due) => due.siteId).filter((id) => !haltedBefore.has(id));
-      const resumed = paid.map((due) => due.siteId).filter((id) => haltedBefore.has(id));
+      const resumed = settled.map((due) => due.siteId).filter((id) => haltedBefore.has(id));
       // Rien de dû (configuration sans entretien) et rien à relancer : la maison n'est pas concernée.
       if (total === 0 && unpaid.length === 0 && resumed.length === 0) continue;
 
@@ -86,7 +89,7 @@ export const siteUpkeep: CloseStep = {
           .values({
             world_id: worldId,
             kind: 'upkeep.daily',
-            meta: JSON.stringify({ houseId, gameDay, sites: paid.filter((due) => due.oboles > 0) }),
+            meta: JSON.stringify({ houseId, gameDay, sites: paid }),
           })
           .returning('id')
           .executeTakeFirstOrThrow();
@@ -127,8 +130,7 @@ export const siteUpkeep: CloseStep = {
         .execute();
       totals.houses += 1;
       totals.paidOboles += total;
-      // Un site au dû nul (recette retirée) est réglé sans rien payer : il n'est pas compté comme payé.
-      totals.sitesPaid += paid.filter((due) => due.oboles > 0).length;
+      totals.sitesPaid += paid.length;
       totals.sitesUnpaid += unpaid.length;
       totals.halted += halted.length;
       totals.resumed += resumed.length;

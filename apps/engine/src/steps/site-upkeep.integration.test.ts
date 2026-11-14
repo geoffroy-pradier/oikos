@@ -224,6 +224,16 @@ describe('entretien des sites à la clôture quotidienne', () => {
     expect((await entriesOf(house)).map((entry) => entry.meta)).toEqual([
       { houseId: house.houseId, gameDay: TODAY, sites: [{ siteId: first, oboles: FIELD }] },
     ]);
+    // L'événement dit la même chose que l'écriture : le site sans tarif n'y figure pas comme payé.
+    expect(await upkeepEvents(house)).toMatchObject([
+      {
+        paidOboles: FIELD,
+        paid: [{ siteId: first, oboles: FIELD }],
+        unpaid: [],
+        halted: [],
+        resumed: [],
+      },
+    ]);
   });
 
   it('rien à payer : maison sans monnaie arrêtée sans écriture, site sans tarif relancé sans payer, configuration sans entretien', async () => {
