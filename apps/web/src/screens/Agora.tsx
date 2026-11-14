@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
-import { netProceeds, parseMarketTax } from '../market-rules';
+import { parseMarketTax, previewSale } from '../market-rules';
 import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 
@@ -54,7 +54,8 @@ export function AgoraScreen() {
       status: 'open',
     },
   );
-  // Taxe de marché en vigueur : `null` tant qu'elle n'est pas lue, ou si elle est illisible.
+  // Taxe de marché en vigueur, relue après chaque commande : `null` tant qu'elle n'est pas lue, ou si
+  // elle est illisible.
   const rules = useRows<{ market_tax: unknown }>('market_rules', 'market_tax', 'market_tax');
   const tax = rules.rows ? parseMarketTax(rules.rows[0] ?? null) : null;
   const [side, setSide] = useState<'sell' | 'buy'>('sell');
@@ -76,16 +77,7 @@ export function AgoraScreen() {
 
   const number = new Intl.NumberFormat(i18n.language);
   const good = t(`goods.${goodId}`);
-  // Net attendu d'une vente, annoncé avant de la déposer : brut saisi moins la taxe d'un échange unique.
-  const typed = /^\d+$/.test(price.trim()) && /^\d+$/.test(quantity.trim());
-  const gross = typed ? Number(price.trim()) * Number(quantity.trim()) : 0;
-  const preview =
-    side === 'sell' && tax && tax.rateBps > 0 && Number.isSafeInteger(gross) && gross > 0
-      ? {
-          gross,
-          tax: gross - netProceeds(tax, [{ price: Number(price), quantity: Number(quantity) }]),
-        }
-      : null;
+  const preview = previewSale(tax, side, price, quantity);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -124,7 +116,7 @@ export function AgoraScreen() {
       };
     }
     // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
-    await Promise.all([book.reload(), mine.reload()]);
+    await Promise.all([book.reload(), mine.reload(), rules.reload()]);
     setNotice(next);
     setBusy(false);
   }
@@ -146,7 +138,7 @@ export function AgoraScreen() {
           }),
         }
       : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
-    await Promise.all([book.reload(), mine.reload()]);
+    await Promise.all([book.reload(), mine.reload(), rules.reload()]);
     setNotice(next);
     setBusy(false);
   }
@@ -238,6 +230,7 @@ export function AgoraScreen() {
             id="price"
             inputMode="numeric"
             value={price}
+            aria-describedby="expected-net"
             onChange={(event) => setPrice(event.target.value)}
           />
           <label htmlFor="quantity">{t('agora.quantity')}</label>
@@ -249,16 +242,16 @@ export function AgoraScreen() {
             aria-describedby="expected-net"
             onChange={(event) => setQuantity(event.target.value)}
           />
-          {/* Toujours présent : le champ garde sa description, annoncée quand elle change. */}
-          <p id="expected-net" aria-live="polite" className="text-sm text-muted-foreground">
+          {/* Description des deux champs et du bouton : lue en y arrivant, pas annoncée à chaque frappe. */}
+          <p id="expected-net" className="text-sm text-muted-foreground">
             {preview &&
               t('agora.expectedNet', {
-                net: number.format(preview.gross - preview.tax),
+                net: number.format(preview.net),
                 gross: number.format(preview.gross),
                 tax: number.format(preview.tax),
               })}
           </p>
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} aria-describedby="expected-net">
             {t('agora.submit')}
           </Button>
         </form>

@@ -39,11 +39,12 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   Paramètres (versions de configuration : consulter, comparer, enregistrer, programmer à la prochaine
   clôture), journal d'audit. Le premier super-administrateur s'inscrit à la main en base.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : historique des prix (#71), entretien des sites à la clôture quotidienne (#72), comptes de la maison (#73), tableau de bord de
-la maison (#74), population des PNJ (#75), tableau de bord économique et rôles d'Olympe (#76, #77),
-équilibrage (#78). La taxe de marché détruit une part de chaque échange, mais sans entretien, salaires ni
-dépense du trésor, les puits restent faibles face aux achats des PNJ : l'économie actuelle reste
-inflationniste, et son réglage attend l'équilibrage (#78).
+Ce qui manque encore pour le critère de sortie de la phase 1 : historique des prix (#71), entretien des
+sites à la clôture quotidienne (#72), comptes de la maison (#73), tableau de bord de la maison (#74),
+population des PNJ (#75), tableau de bord économique et rôles d'Olympe (#76, #77), équilibrage (#78). La
+taxe de marché détruit une part de chaque échange, mais sans entretien, salaires ni dépense du trésor,
+les puits restent faibles face aux achats des PNJ : l'économie actuelle reste inflationniste, et son
+réglage attend l'équilibrage (#78).
 
 ## Décisions prises en cours de route
 

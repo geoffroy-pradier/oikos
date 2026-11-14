@@ -27,3 +27,23 @@ export function parseMarketTax(raw: unknown): MarketTaxRule | null {
 export function netProceeds(rule: MarketTaxRule, trades: { price: number; quantity: number }[]) {
   return trades.reduce((sum, trade) => sum + marketTax(trade.price * trade.quantity, rule).net, 0);
 }
+
+/**
+ * Ce qu'annonce le formulaire avant le dépôt d'une vente : brut saisi, taxe et net d'un échange unique.
+ * `null` s'il n'y a rien à annoncer : achat, taxe inconnue ou nulle, saisie qui n'est pas un prix et une
+ * quantité en chiffres, montant hors des entiers sûrs.
+ */
+export function previewSale(
+  rule: MarketTaxRule | null,
+  side: 'buy' | 'sell',
+  price: string,
+  quantity: string,
+): { gross: number; tax: number; net: number } | null {
+  const digits = /^\d+$/;
+  if (side !== 'sell' || !rule || rule.rateBps === 0) return null;
+  if (!digits.test(price.trim()) || !digits.test(quantity.trim())) return null;
+  const gross = Number(price.trim()) * Number(quantity.trim());
+  if (!Number.isSafeInteger(gross) || gross <= 0) return null;
+  const net = marketTax(gross, rule).net;
+  return { gross, tax: gross - net, net };
+}

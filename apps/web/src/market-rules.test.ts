@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { netProceeds, parseMarketTax } from './market-rules';
+import { netProceeds, parseMarketTax, previewSale } from './market-rules';
 
 describe('taxe de marché lue par le client', () => {
   it('lit la taxe en vigueur ; une version publiée avant elle ne taxe rien', () => {
@@ -30,5 +30,24 @@ describe('taxe de marché lue par le client', () => {
     expect(netProceeds(tax, [{ price: 6, quantity: 3 }])).toBe(17);
     expect(netProceeds({ rateBps: 0, burnShareBps: 0 }, [unit, unit])).toBe(12);
     expect(netProceeds(tax, [])).toBe(0);
+  });
+
+  it('avant une vente : brut, taxe et net d’un échange unique ; rien pour un achat, une taxe nulle ou inconnue, une saisie incomplète', () => {
+    const tax = { rateBps: 500, burnShareBps: 5000 };
+    expect(previewSale(tax, 'sell', ' 46 ', '30')).toEqual({ gross: 1380, tax: 69, net: 1311 });
+    expect(previewSale(tax, 'sell', '1', '1')).toEqual({ gross: 1, tax: 1, net: 0 });
+    expect(previewSale(tax, 'buy', '46', '30')).toBeNull();
+    expect(previewSale(null, 'sell', '46', '30')).toBeNull();
+    expect(previewSale({ rateBps: 0, burnShareBps: 0 }, 'sell', '46', '30')).toBeNull();
+    for (const [price, quantity] of [
+      ['', '30'],
+      ['46', ''],
+      ['0', '30'],
+      ['4.6', '30'],
+      ['1e3', '30'],
+      ['-46', '30'],
+      ['9007199254740993', '2'],
+    ] as const)
+      expect(previewSale(tax, 'sell', price, quantity)).toBeNull();
   });
 });

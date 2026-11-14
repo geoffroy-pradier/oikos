@@ -214,11 +214,17 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     expect(net).toBeLessThan(gross);
     // La description accessible ramène les espaces insécables des nombres à des espaces simples.
     const plain = (value: number) => french.format(value).replace(/\s/g, ' ');
-    await expect(page.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription(
-      new RegExp(
-        `^Net attendu : ${plain(net)} oboles \\(${plain(gross)} moins ${gross - net} de taxe de marché\\)`,
-      ),
+    const expected = new RegExp(
+      `^Net attendu : ${plain(net)} oboles \\(${plain(gross)} moins ${gross - net} de taxe de marché\\)`,
     );
+    // Lue en arrivant sur chacun des deux champs et sur le bouton, sans être annoncée à chaque frappe.
+    for (const control of [
+      page.getByLabel('Prix limite par unité (oboles)'),
+      page.getByLabel('Quantité', { exact: true }),
+      page.getByRole('button', { name: "Déposer l'ordre" }),
+    ])
+      await expect(control).toHaveAccessibleDescription(expected);
+    await expect(page.locator('#expected-net')).not.toHaveAttribute('aria-live');
     await expectNoHorizontalScroll(page);
     await page.route('**/api/commands/market.placeOrder', async (route) => {
       await route.fetch();
