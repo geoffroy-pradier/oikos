@@ -169,10 +169,12 @@ export function registerAdminReads(
       .orderBy('number', 'desc')
       .execute();
     const activations = await db
-      .selectFrom('config.activations')
-      .select(['version_id', 'activate_at', 'created_by', 'created_at'])
-      .orderBy('activate_at', 'desc')
-      .orderBy('seq', 'desc')
+      .selectFrom('config.activations as a')
+      .leftJoin('config.activation_cancellations as c', 'c.activation_id', 'a.id')
+      .select(['a.id', 'a.version_id', 'a.activate_at', 'a.created_by', 'a.created_at'])
+      .select(['c.cancelled_at', 'c.cancelled_by'])
+      .orderBy('a.activate_at', 'desc')
+      .orderBy('a.seq', 'desc')
       .execute();
     const active = await sql<{ id: string | null }>`
       select config.active_version_at(now()) as id`.execute(db);
@@ -188,10 +190,14 @@ export function registerAdminReads(
           createdAt: version.created_at.toISOString(),
         })),
         activations: activations.map((activation) => ({
+          id: activation.id,
           versionId: activation.version_id,
           activateAt: activation.activate_at.toISOString(),
           createdBy: activation.created_by,
           createdAt: activation.created_at.toISOString(),
+          // Programmation annulée : elle reste au journal, mais n'entrera pas en vigueur.
+          cancelledAt: activation.cancelled_at?.toISOString() ?? null,
+          cancelledBy: activation.cancelled_by,
         })),
       },
     });

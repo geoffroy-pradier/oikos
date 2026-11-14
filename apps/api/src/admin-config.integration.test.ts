@@ -438,3 +438,156 @@ describe('admin.scheduleConfig', () => {
     );
   });
 });
+
+describe('admin.cancelActivation', () => {
+  /** Publie une version sans effet sur les autres suites, programmée par un second compte. */
+  async function scheduled(author: string, reviewer = root) {
+    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const versionId = published.body.data?.versionId ?? '';
+    const { body } = await send(reviewer, 'admin.scheduleConfig', { versionId });
+    const activateAt = body.data?.activateAt ?? '';
+    return { versionId, activateAt, due: new Date(activateAt), ...(await latest(versionId)) };
+  }
+  const latest = async (versionId: string) => {
+    const row = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', versionId)
+      .orderBy('seq', 'desc')
+      .executeTakeFirstOrThrow();
+    return { activationId: row.id };
+  };
+  const cancellations = (activationId: string) =>
+    db
+      .selectFrom('config.activation_cancellations')
+      .select('cancelled_by')
+      .where('activation_id', '=', activationId)
+      .execute();
+
+  it('annule toutes les programmations en attente pour la clôture : la version en vigueur le reste', async () => {
+    const author = await newUser('game_designer', root);
+    // Deux versions programmées pour la même clôture : la seconde l'emporterait.
+    const earlier = await scheduled(designer);
+    const { versionId, activateAt, due, activationId } = await scheduled(author);
+    expect(earlier.activateAt).toBe(activateAt);
+    expect(await activeAt(due)).toBe(versionId);
+
+    // L'auteur peut annuler lui-même : retirer une programmation ne demande pas de seconde personne.
+    const key = randomUUID();
+    const cancelled = await send(author, 'admin.cancelActivation', { activationId }, { key });
+    expect(cancelled.status).toBe(200);
+    const data = cancelled.body.data as unknown as {
+      cancelled: { activationId: string; versionId: string }[];
+    };
+    expect(cancelled.body.data).toMatchObject({ activationId, versionId, activateAt });
+    // Celle désignée en premier ; la programmation antérieure de la même clôture ne revient pas en jeu.
+    expect(data.cancelled[0]).toEqual({ activationId, versionId });
+    expect(data.cancelled).toContainEqual({
+      activationId: earlier.activationId,
+      versionId: earlier.versionId,
+    });
+    expect(await activeAt(due)).toBe(await activeAt(new Date()));
+    expect(await cancellations(activationId)).toEqual([{ cancelled_by: author }]);
+    expect(await cancellations(earlier.activationId)).toEqual([{ cancelled_by: author }]);
+    const events = await sql<{ activation: string }>`
+      select payload->>'activationId' as activation from game.domain_events
+      where type = 'ConfigActivationCancelled' and payload->>'cancelledBy' = ${author}`.execute(db);
+    // Un événement par programmation annulée (inscrits ensemble : leur ordre n'est pas significatif).
+    expect(events.rows.map((row) => row.activation).sort()).toEqual(
+      data.cancelled.map((row) => row.activationId).sort(),
+    );
+    // Même clé : la réponse enregistrée. Nouvelle demande, pour l'une ou l'autre : déjà annulée.
+    expect(await send(author, 'admin.cancelActivation', { activationId }, { key })).toEqual(
+      cancelled,
+    );
+    for (const id of [activationId, earlier.activationId]) {
+      expect(await send(designer, 'admin.cancelActivation', { activationId: id })).toMatchObject({
+        status: 409,
+        body: { error: { code: 'CONFIG_ACTIVATION_CANCELLED' } },
+      });
+    }
+
+    const listing = await app.request('/api/admin/config/versions', {
+      headers: { authorization: `Bearer aal2:${root}` },
+    });
+    const listed = (
+      (await listing.json()) as { data: { activations: { id: string; cancelledAt: string }[] } }
+    ).data.activations.find((activation) => activation.id === activationId);
+    expect(listed).toMatchObject({ versionId, activateAt, createdBy: root, cancelledBy: author });
+    expect(Date.parse(listed?.cancelledAt ?? '')).toBeLessThanOrEqual(Date.now());
+
+    // Reprogrammée par son auteur (une programmation annulée vaut toujours revue) : elle l'emporte.
+    expect((await send(author, 'admin.scheduleConfig', { versionId })).status).toBe(200);
+    expect(await activeAt(due)).toBe(versionId);
+    expect(await cancellations((await latest(versionId)).activationId)).toEqual([]);
+  });
+
+  it('refuse une programmation inconnue, une activation déjà en vigueur, un rôle de lecture', async () => {
+    expect(
+      await send(designer, 'admin.cancelActivation', { activationId: randomUUID() }),
+    ).toMatchObject({ status: 404, body: { error: { code: 'CONFIG_ACTIVATION_NOT_FOUND' } } });
+    const inForce = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('activate_at', '<=', new Date())
+      .orderBy('seq')
+      .executeTakeFirstOrThrow();
+    expect(
+      await send(designer, 'admin.cancelActivation', { activationId: inForce.id }),
+    ).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_ACTIVATION_PAST' } } });
+    expect(await cancellations(inForce.id)).toEqual([]);
+
+    const { activationId } = await scheduled(designer);
+    const observer = await newUser('observer', root);
+    expect((await send(observer, 'admin.cancelActivation', { activationId })).status).toBe(403);
+    expect(
+      (await send(designer, 'admin.cancelActivation', { activationId }, { aal2: false })).status,
+    ).toBe(403);
+    expect(await cancellations(activationId)).toEqual([]);
+  });
+
+  it('concurrence : deux annulations de la même programmation, une seule passe', async () => {
+    for (let round = 0; round < 4; round++) {
+      const { activationId } = await scheduled(designer);
+      const outcomes = await Promise.all(
+        [root, designer].map((user) => send(user, 'admin.cancelActivation', { activationId })),
+      );
+      expect(outcomes.map((outcome) => outcome.status).sort()).toEqual([200, 409]);
+      expect(outcomes.find((outcome) => outcome.status === 409)?.body.error?.code).toBe(
+        'CONFIG_ACTIVATION_CANCELLED',
+      );
+      expect(await cancellations(activationId)).toHaveLength(1);
+    }
+  });
+
+  it('concurrence : annuler pendant qu’une autre version est programmée pour la même clôture', async () => {
+    for (let round = 0; round < 4; round++) {
+      const first = await scheduled(designer);
+      const other = await send(designer, 'admin.publishConfig', { config: TEST_CONFIG.config });
+      const otherId = other.body.data?.versionId ?? '';
+      // En même temps : la première est annulée, une autre version est programmée, et la première
+      // (déjà revue) est reprogrammée par son auteur. Aucune ne tombe en panne.
+      const [cancel, schedule, again] = await Promise.all([
+        send(root, 'admin.cancelActivation', { activationId: first.activationId }),
+        send(root, 'admin.scheduleConfig', { versionId: otherId }),
+        send(designer, 'admin.scheduleConfig', { versionId: first.versionId }),
+      ]);
+      expect([cancel.status, schedule.status, again.status]).toEqual([200, 200, 200]);
+      expect(await cancellations(first.activationId)).toHaveLength(1);
+      // Selon l'ordre d'arrivée, les deux programmations simultanées ont été annulées avec elle ou
+      // restent en attente : dans les deux cas la clôture désigne la dernière qui reste, ou rien de neuf.
+      const pending = await db
+        .selectFrom('config.activations as a')
+        .leftJoin('config.activation_cancellations as c', 'c.activation_id', 'a.id')
+        .select('a.version_id')
+        .where('a.activate_at', '=', first.due)
+        .where('c.activation_id', 'is', null)
+        .orderBy('a.seq', 'desc')
+        .execute();
+      expect(pending.length).toBeLessThanOrEqual(2);
+      expect(await activeAt(first.due)).toBe(
+        pending[0]?.version_id ?? (await activeAt(new Date())),
+      );
+    }
+  });
+});

@@ -1,7 +1,10 @@
 import { publishVersion, scheduleActivation, validateConfig } from '@oikos/config';
 import {
+  ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
   ADMIN_PUBLISH_CONFIG_ERROR_CODES,
   ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
+  adminCancelActivationInputSchema,
+  adminCancelActivationOutputSchema,
   adminPublishConfigInputSchema,
   adminPublishConfigOutputSchema,
   adminScheduleConfigInputSchema,
@@ -9,6 +12,7 @@ import {
   CONFIG_EDITOR_ROLES,
 } from '@oikos/contracts';
 import { nextDailyClose } from '@oikos/sim';
+import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
 /**
@@ -65,7 +69,9 @@ export const adminScheduleConfig = defineCommand({
   async handler({ trx, userId, emit, config, now, settings }, input) {
     const version = await trx
       .selectFrom('config.versions')
-      .select(['id', 'payload', 'created_by'])
+      .select(['id', 'payload'])
+      // Comparé par la base, en `uuid` : pas de comparaison de chaînes (casse, forme) côté API.
+      .select(sql<boolean>`created_by = ${userId}::uuid`.as('own'))
       .where('id', '=', input.versionId)
       .executeTakeFirst();
     if (!version) {
@@ -74,7 +80,7 @@ export const adminScheduleConfig = defineCommand({
         error: { code: 'CONFIG_VERSION_NOT_FOUND', message: 'Unknown configuration version.' },
       };
     }
-    if (!settings.allowSelfReview && version.created_by === userId) {
+    if (!settings.allowSelfReview && version.own) {
       const reviewed = await trx
         .selectFrom('config.activations')
         .select('id')
@@ -111,5 +117,85 @@ export const adminScheduleConfig = defineCommand({
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };
     emit({ type: 'ConfigActivationScheduled', payload: { ...payload, scheduledBy: userId } });
     return { ok: true, data: payload };
+  },
+});
+
+/**
+ * Annule une programmation à venir, et avec elle toutes celles encore en attente pour la même clôture :
+ * la version en vigueur le reste. Le journal des activations est en ajout seul, chaque annulation est une
+ * ligne de plus, que `config.active_version_at` prend en compte. La base tranche : une seule annulation
+ * par programmation, et plus aucune à moins d'une minute de l'échéance.
+ */
+export const adminCancelActivation = defineCommand({
+  name: 'admin.cancelActivation',
+  admin: CONFIG_EDITOR_ROLES,
+  input: adminCancelActivationInputSchema,
+  output: adminCancelActivationOutputSchema,
+  errors: ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
+  errorByConstraint: {
+    activation_cancellations_pkey: {
+      code: 'CONFIG_ACTIVATION_CANCELLED',
+      message: 'This activation is already cancelled.',
+    },
+    activation_cancellations_before_activation: {
+      code: 'CONFIG_ACTIVATION_PAST',
+      message: 'An activation in force, or due in less than a minute, cannot be cancelled.',
+    },
+  },
+  async handler({ trx, userId, emit }, { activationId }) {
+    // La marge d'une minute de la base suppose une commande courte : au-delà de trente secondes, la
+    // transaction est abandonnée par Postgres plutôt que validée trop près de l'échéance.
+    await sql`set local transaction_timeout = '30s'`.execute(trx);
+    const activation = await trx
+      .selectFrom('config.activations')
+      .select(['version_id', 'activate_at'])
+      .where('id', '=', activationId)
+      .executeTakeFirst();
+    if (!activation) {
+      return {
+        ok: false,
+        error: { code: 'CONFIG_ACTIVATION_NOT_FOUND', message: 'Unknown activation.' },
+      };
+    }
+    // Une annulation à la fois : deux annulations visant la même clôture ne s'attendent pas l'une l'autre.
+    await sql`select pg_advisory_xact_lock(hashtext('config.activation_cancellations'))`.execute(
+      trx,
+    );
+    // Les autres programmations encore en attente pour la même clôture sont annulées avec elle.
+    const others = await trx
+      .selectFrom('config.activations as a')
+      .select(['a.id as activationId', 'a.version_id as versionId'])
+      .where('a.activate_at', '=', activation.activate_at)
+      .where('a.id', '<>', activationId)
+      .where(({ not, exists, selectFrom }) =>
+        not(
+          exists(
+            selectFrom('config.activation_cancellations as c')
+              .select('c.activation_id')
+              .whereRef('c.activation_id', '=', 'a.id'),
+          ),
+        ),
+      )
+      .orderBy('a.seq', 'desc')
+      .execute();
+    // La programmation désignée en premier : déjà annulée ou trop proche de l'échéance, la base refuse.
+    const cancelled = [{ activationId, versionId: activation.version_id }, ...others];
+    await trx
+      .insertInto('config.activation_cancellations')
+      .values(
+        cancelled.map((entry) => ({ activation_id: entry.activationId, cancelled_by: userId })),
+      )
+      .execute();
+    const activateAt = activation.activate_at.toISOString();
+    for (const entry of cancelled) {
+      emit({
+        type: 'ConfigActivationCancelled',
+        payload: { ...entry, activateAt, cancelledBy: userId },
+      });
+    }
+    return {
+      ok: true,
+      data: { activationId, versionId: activation.version_id, activateAt, cancelled },
+    };
   },
 });
