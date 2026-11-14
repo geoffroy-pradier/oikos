@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_ROLES,
+  adminCancelActivationInputSchema,
+  adminCancelActivationOutputSchema,
   adminGrantRoleInputSchema,
   adminGrantRoleOutputSchema,
   adminRevokeRoleInputSchema,
@@ -68,5 +70,35 @@ describe('admin.grantRole et admin.revokeRole', () => {
       domainEventSchema.safeParse({ ...revoked, payload: { ...revoked.payload, role: 'support' } })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('admin.cancelActivation', () => {
+  const cancelled = {
+    activationId: account,
+    versionId: other,
+    activateAt: '2026-11-15T04:00:00.000Z',
+  };
+
+  it('désigne une programmation par son identifiant, sans autre champ', () => {
+    expect(adminCancelActivationInputSchema.parse({ activationId: account })).toEqual({
+      activationId: account,
+    });
+    for (const input of [{}, { activationId: 'a1' }, { versionId: other }, { ...cancelled }]) {
+      expect(adminCancelActivationInputSchema.safeParse(input).success).toBe(false);
+    }
+  });
+
+  it('rend la version et la clôture annulées, et laisse un événement qui nomme l’auteur', () => {
+    expect(adminCancelActivationOutputSchema.parse(cancelled)).toEqual(cancelled);
+    expect(
+      adminCancelActivationOutputSchema.safeParse({ ...cancelled, activateAt: 'demain' }).success,
+    ).toBe(false);
+    const event = {
+      type: 'ConfigActivationCancelled',
+      payload: { ...cancelled, cancelledBy: other },
+    };
+    expect(domainEventSchema.parse(event)).toEqual(event);
+    expect(domainEventSchema.safeParse({ ...event, payload: cancelled }).success).toBe(false);
   });
 });

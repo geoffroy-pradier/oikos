@@ -21,7 +21,7 @@ insert into config.activations (id, version_id, activate_at, created_at) values
 
 select throws_ok($$update config.activations set activate_at = now()$$, '23001', null, 'activation non modifiable');
 select throws_ok('delete from config.activations', '23001', null, 'activation non supprimable');
-select throws_ok('truncate config.activations', '23001', null, 'activations non vidables');
+select throws_ok('truncate config.activations cascade', '23001', null, 'activations non vidables, même avec leurs annulations');
 
 select is(config.active_version_at('2030-01-01 03:59:59+00'), null, 'rien avant l''échéance');
 select is(config.active_version_at('2030-01-01 04:00+00'), '00000000-0000-7000-8000-0000000000c1'::uuid,

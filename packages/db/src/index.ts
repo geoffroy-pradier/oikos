@@ -268,6 +268,12 @@ export interface GameDatabase {
     created_by: string | null;
     created_at: Generated<Date>;
   };
+  /** Annulation d'une programmation à venir : en ajout seul, l'instant est posé par la base. */
+  'config.activation_cancellations': {
+    activation_id: string;
+    cancelled_by: string | null;
+    cancelled_at: Generated<Date>;
+  };
 }
 
 export type Db = Kysely<GameDatabase>;
