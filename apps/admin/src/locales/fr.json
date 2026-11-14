@@ -10,6 +10,7 @@
     "role": "Rôle : {{role}}",
     "navigation": "Modules",
     "forbidden": "Ce compte n'a pas accès au back-office.",
+    "forbiddenNext": "Pour obtenir un accès, transmettez à un super-administrateur l'identifiant de ce compte :",
     "forbiddenModule": "Votre rôle ne donne pas accès à ce module."
   },
   "languages": {

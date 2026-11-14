@@ -10,6 +10,7 @@
     "role": "Role: {{role}}",
     "navigation": "Modules",
     "forbidden": "This account has no access to the back office.",
+    "forbiddenNext": "To request access, send this account's identifier to a super administrator:",
     "forbiddenModule": "Your role does not give access to this module."
   },
   "languages": {

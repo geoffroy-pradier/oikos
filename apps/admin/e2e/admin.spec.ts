@@ -9,6 +9,10 @@ test('un compte sans rôle est refusé, même avec la double authentification', 
   await expect(page.getByRole('navigation', { name: 'Modules' })).toHaveCount(0);
   await enroll(page);
   await expect(page.getByRole('alert')).toContainText("n'a pas accès au back-office");
+  // Le compte lit son identifiant, à transmettre à un super-administrateur.
+  await expect(page.locator('code')).toHaveText(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
   await expect(page.getByRole('navigation', { name: 'Modules' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Vigie' })).toHaveCount(0);
   await expectNoHorizontalScroll(page);
