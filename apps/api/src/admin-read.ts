@@ -209,7 +209,18 @@ export function registerAdminReads(
     // sautée ni répétée d'une page à l'autre, même écrites dans la même milliseconde.
     let query = db
       .selectFrom('game.command_log')
-      .select(['id', 'user_id', 'command', 'status', 'error_code', 'response', 'created_at'])
+      .select([
+        'id',
+        'user_id',
+        'command',
+        'status',
+        'error_code',
+        'response',
+        'aal',
+        'admin_role',
+        'config_version_id',
+        'created_at',
+      ])
       .where('command', 'like', 'admin.%')
       .orderBy('id', 'desc')
       .limit(limit);
@@ -226,6 +237,10 @@ export function registerAdminReads(
           errorCode: entry.error_code,
           // Résultat rendu à l'appelant (identifiant de version, échéance) ; jamais l'entrée complète.
           result: (entry.response as { data?: unknown }).data ?? null,
+          // Contexte de la commande ; absent des lignes écrites avant qu'il soit journalisé.
+          aal: entry.aal ?? null,
+          adminRole: entry.admin_role ?? null,
+          configVersionId: entry.config_version_id ?? null,
           createdAt: entry.created_at.toISOString(),
         })),
       },

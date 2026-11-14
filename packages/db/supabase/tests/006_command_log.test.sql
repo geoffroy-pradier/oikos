@@ -1,5 +1,5 @@
 begin;
-select plan(24);
+select plan(31);
 
 insert into game.command_log (id, user_id, command, idempotency_key, input, status, response, duration_ms) values
   ('00000000-0000-7000-8000-00000000c001', '00000000-0000-4000-8000-00000000000a', 'house.rename', 'key-00000001',
@@ -65,6 +65,24 @@ select is(
 select is(
   (select count(*) from pg_class where relnamespace = 'game'::regnamespace and relrowsecurity and relname in ('command_log', 'domain_events')),
   2::bigint, 'règles par ligne actives sur les deux tables');
+
+-- Contexte de la commande (migration 14) : facultatif, mais contrôlé quand il est donné.
+select is((select aal is null and admin_role is null and config_version_id is null from game.command_log
+           where id = '00000000-0000-7000-8000-00000000c001'), true, 'une ligne sans contexte reste valide');
+select lives_ok($$insert into game.command_log (user_id, command, idempotency_key, input, status, response, duration_ms, aal, admin_role, config_version_id)
+  values ('00000000-0000-4000-8000-00000000000a', 'admin.publishConfig', 'key-contexte-1', '{}', 'ok', '{"ok": true}', 3,
+          'aal2', 'game_designer', '00000000-0000-7000-8000-00000000c0f1')$$, 'contexte complet accepté');
+select throws_ok($$insert into game.command_log (user_id, command, idempotency_key, input, status, response, duration_ms, aal)
+  values ('00000000-0000-4000-8000-00000000000a', 'house.rename', 'key-contexte-2', '{}', 'ok', '{"ok": true}', 3, 'aal3')$$,
+  '23514', null, 'niveau d''assurance inconnu refusé');
+select throws_ok($$insert into game.command_log (user_id, command, idempotency_key, input, status, response, duration_ms, admin_role)
+  values ('00000000-0000-4000-8000-00000000000a', 'house.rename', 'key-contexte-3', '{}', 'ok', '{"ok": true}', 3, 'Super Admin')$$,
+  '23514', null, 'rôle mal formé refusé');
+select throws_ok($$update game.command_log set aal = 'aal2' where idempotency_key = 'key-00000001'$$, '23001', null,
+  'le contexte ne se réécrit pas après coup');
+select ok(not has_column_privilege('authenticated', 'game.command_log', 'aal', 'select'), 'contexte illisible par un joueur');
+select ok(has_table_privilege('oikos_service', 'game.command_log', 'insert')
+  and not has_table_privilege('oikos_service', 'game.command_log', 'update'), 'le service ajoute au journal, sans le modifier');
 
 select * from finish();
 rollback;

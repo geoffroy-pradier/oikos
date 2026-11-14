@@ -89,6 +89,13 @@ const logOf = (userId: string) =>
     .where('user_id', '=', userId)
     .orderBy('id')
     .execute();
+const contextOf = (userId: string) =>
+  db
+    .selectFrom('game.command_log')
+    .select(['status', 'aal', 'admin_role', 'config_version_id'])
+    .where('user_id', '=', userId)
+    .orderBy('id')
+    .execute();
 const eventsOf = async (houseId: string) =>
   (await sql`select 1 from game.domain_events where payload->>'houseId' = ${houseId}`.execute(db))
     .rows.length;
@@ -353,5 +360,41 @@ describe('executeCommand', () => {
     expect((await executeCommand(db, command, request, testConfig)).response).toMatchObject({
       ok: true,
     });
+    // La panne est journalisée sans version (aucune n'a pu être lue), la réussite avec la sienne.
+    expect(await contextOf(house.userId)).toEqual([
+      { status: 'failed', aal: 'aal1', admin_role: null, config_version_id: null },
+      { status: 'ok', aal: 'aal1', admin_role: null, config_version_id: TEST_CONFIG.id },
+    ]);
+  });
+
+  it('le journal porte le contexte de chaque commande : session, version de configuration, y compris en cas de refus ou de panne', async () => {
+    const house = await newHouse();
+    const config = TEST_CONFIG.id;
+    await run(probe('probe.context'), house.userId, { name: `Contexte ${letters()}` });
+    await executeCommand(
+      db,
+      probe('probe.strong'),
+      {
+        userId: house.userId,
+        aal: 'aal2',
+        idempotencyKey: randomUUID(),
+        input: { name: `Fort ${letters()}` },
+      },
+      testConfig,
+    );
+    await run(probe('probe.invalid'), house.userId, { name: 42 });
+    await run(
+      probe('probe.broken', () => {
+        throw new Error('panne simulée');
+      }),
+      house.userId,
+      { name: `Panne ${letters()}` },
+    );
+    expect(await contextOf(house.userId)).toEqual([
+      { status: 'ok', aal: 'aal1', admin_role: null, config_version_id: config },
+      { status: 'ok', aal: 'aal2', admin_role: null, config_version_id: config },
+      { status: 'rejected', aal: 'aal1', admin_role: null, config_version_id: config },
+      { status: 'failed', aal: 'aal1', admin_role: null, config_version_id: config },
+    ]);
   });
 });
