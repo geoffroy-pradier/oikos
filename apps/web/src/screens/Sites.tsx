@@ -7,6 +7,7 @@ import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
+import { LoadProblem, Loading } from './LoadProblem';
 
 interface Site {
   id: string;
@@ -268,7 +269,10 @@ export function SitesCard({
         </Button>
       )}
       {announce(ALL)}
-      {(sites.failed || rulesFailed) && <p role="alert">{t('app.loadFailed')}</p>}
+      {(sites.failed || rulesFailed) && (
+        <LoadProblem onRetry={() => Promise.all([sites.reload(), reloadRules()])} />
+      )}
+      {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
       {watched.length > 0 && (
         <section aria-labelledby="sites-watch" className="flex flex-col gap-1">
@@ -309,6 +313,22 @@ export function SitesCard({
                     </p>
                     {upkeep !== null && upkeep > 0 && (
                       <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
+                    )}
+                    {recipe && (
+                      <p>
+                        {t('home.cap', {
+                          count: recipe.maxAccruedCycles,
+                          cycles: number.format(recipe.maxAccruedCycles),
+                          list: recipe.outputs
+                            .map((stack) =>
+                              stackText({
+                                goodId: stack.goodId,
+                                quantity: stack.quantity * recipe.maxAccruedCycles,
+                              }),
+                            )
+                            .join(', '),
+                        })}
+                      </p>
                     )}
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
+import { LoadProblem } from './LoadProblem';
 import { useHouse } from '../house';
 import { parseMarketTax, previewSale } from '../market-rules';
 import { orderNotice } from '../order-notice';
@@ -178,7 +179,7 @@ export function AgoraScreen() {
         </select>
       </Card>
       {(book.failed || mine.failed || rules.failed || (rules.rows && !(tax && candleSeconds))) && (
-        <p role="alert">{t('app.loadFailed')}</p>
+        <LoadProblem onRetry={() => Promise.all([book.reload(), mine.reload(), rules.reload()])} />
       )}
 
       {candleSeconds && (
