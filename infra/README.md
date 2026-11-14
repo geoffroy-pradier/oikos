@@ -9,7 +9,7 @@ toutes les valeurs sensibles vivent dans le fichier `.env` du serveur, créé et
 | `Caddyfile` | HTTPS, fichiers statiques du client et du back-office, proxy vers l'API et Supabase |
 | `docker/static.sh`, `docker/Dockerfile.static` | Construction du client joueur et du back-office, image de transport `oikos-static` |
 | `install-static.sh` | Sur le serveur : copie les fichiers de l'image dans `static/releases/`, bascule par lien symbolique |
-| `test-static.sh` | Contrôle lancé par `ci` : construction, installation, service par Caddy |
+| `test-static.sh` | Contrôle lancé par `ci` : construction, installation, service par Caddy, en-têtes de sécurité |
 | `backup/pgbackrest.conf`, `backup/backup.sh` | Archivage continu et sauvegardes vers un stockage objet |
 | `.env.example` | Variables OIKOS à ajouter au `.env` de Supabase |
 
@@ -72,6 +72,8 @@ Pour l'activer, un humain doit, une fois le serveur prêt :
 - Caddy et la base doivent déjà tourner (`docker compose up -d` une première fois, étape 7) : le contrôle de santé passe par Caddy.
 
 Cache : Caddy sert les fichiers nommés par leur empreinte (`/assets/*`) avec un cache définitif, et fait toujours revalider la coquille (`index.html`) et le service worker ; un fichier d'une version disparue répond 404, sans mise en cache.
+
+En-têtes de sécurité : Caddy ajoute aux deux clients une politique de contenu (`Content-Security-Policy`) qui n'admet que les fichiers du domaine, l'API de jeu et `supabase.<domaine>` — la variable `VITE_SUPABASE_URL` doit donc valoir exactement `https://supabase.<domaine>`, sinon le navigateur bloque les appels à Supabase. Le script de thème en ligne du client joueur est admis par son empreinte, écrite dans le `Caddyfile` : si `apps/web/index.html` change ce script, `infra/test-static.sh` échoue et affiche l'empreinte à y reporter. Cloudflare (étape 11) ne doit ni réécrire les pages ni y injecter de script, qui serait bloqué.
 
 Retour arrière manuel : relancer, depuis l'interface de GitHub, l'exécution du flux `deploy` d'un commit antérieur ; ou, sur le serveur, `bash /opt/oikos/oikos/infra/deploy.sh <empreinte du commit précédent>`.
 
