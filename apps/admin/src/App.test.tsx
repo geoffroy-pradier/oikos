@@ -139,7 +139,8 @@ describe('changement de session', () => {
     api({ ok: true, data: { role: 'super_admin' } });
     signedIn();
     render(<App />);
-    await screen.findByRole('heading', { name: 'Vigie', level: 1 });
+    // La Vigie du premier compte a fini de lire : aucune de ses lectures n'est encore en route.
+    await screen.findByText('Maisons fondées');
     adminGet.mockClear();
 
     setSession(sessionOf('bob', B1));
