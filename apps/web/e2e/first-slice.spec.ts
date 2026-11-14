@@ -3,7 +3,7 @@ import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '@oikos/engine';
 import { createRng, marketTax } from '@oikos/sim';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
@@ -784,7 +784,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(page.getByText('4 cycles are waiting for inputs.')).toBeVisible();
 });
 
-test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, triés et réessayés au clavier', async ({
+test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et oboles, triés et réessayés au clavier', async ({
   page,
 }) => {
   const houseName = await foundHouse(page);
@@ -828,8 +828,10 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
   await expect(page.getByLabel('Langue')).toBeFocused();
   await page.unroute(balanceSheet);
 
-  const line = (label: string) =>
-    page
+  // Chaque valeur est cherchée dans sa carte, nommée par son titre : aucun libellé d'une autre n'y répond.
+  const region = (name: string) => page.getByRole('region', { name, exact: true });
+  const line = (label: string, sheet = 'Bilan') =>
+    region(sheet)
       .locator('dl > div')
       .filter({ has: page.getByText(label, { exact: true }) })
       .locator('dd');
@@ -860,13 +862,13 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
       await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
       // Stocks valorisés : une fiche à 360 px, une ligne de tableau sur ordinateur, mêmes valeurs.
       const wide = (page.viewportSize()?.width ?? 0) >= 1024;
-      const card = page.getByRole('region', { name: 'Stocks valorisés' });
+      const card = region('Stocks valorisés');
       // Le nom du bien est pris tel quel : ni sous-chaîne d'un autre nom, ni motif d'expression.
       const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const stock = (good: string) =>
+      const stock = (good: string, stocks = card) =>
         wide
-          ? page.getByRole('row', { name: new RegExp(`^${literal(good)}`) })
-          : page
+          ? stocks.getByRole('row', { name: new RegExp(`^${literal(good)}`) })
+          : stocks
               .getByRole('listitem')
               .filter({ has: page.getByRole('heading', { name: good, exact: true }) });
       await expect(stock('Blé')).toContainText(
@@ -897,7 +899,7 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
       if (wide) {
         await expect(card.getByRole('status')).toBeEmpty();
         // Tri au clavier par un en-tête : la colonne triée l'annonce, les lignes suivent.
-        const header = (name: string) => page.getByRole('columnheader', { name });
+        const header = (name: string) => card.getByRole('columnheader', { name });
         await expect(header('Valeur')).toHaveAttribute('aria-sort', 'descending');
         await header('Bien').getByRole('button').focus();
         await page.keyboard.press('Enter');
@@ -906,11 +908,58 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
         await expect(goods).toHaveText(['Argile', 'Blé']);
         await expect(card.getByRole('status')).toHaveText('Trié par Bien, ordre croissant');
       }
+
+      // Compte de résultat : rien à l'exploitation (5e montant) ; la dotation de départ (7e) fait toute
+      // la variation de la monnaie (10e), à la date de sa journée de jeu : une date, pas un rang.
+      const periodOf = (income: Locator) =>
+        wide ? income.getByRole('rowheader') : income.getByRole('heading', { level: 3 });
+      const income = region('Compte de résultat');
+      const amounts = income.locator(wide ? 'td' : 'dd');
+      const aDay = /^\d{1,2}\S* \S+ \d{4}$/;
+      await expect(periodOf(income)).toHaveText(aDay);
+      await expect(amounts).toHaveCount(11);
+      await expect(amounts.nth(4)).toHaveText('0 obole');
+      await expect(amounts.nth(6)).toHaveText('500 drachmes');
+      // Lecture par saison en échec, puis retour à « Journée » au clavier : l'échec est annoncé puis
+      // effacé, et le foyer ne quitte pas la liste.
+      const bySeason = '**/rest/v1/my_income_statement_by_season*';
+      await page.route(bySeason, (route) => route.fulfill({ status: 500, json: {} }));
+      const grouping = income.getByLabel('Regrouper par');
+      await grouping.selectOption('season');
+      await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+      await grouping.focus();
+      await page.keyboard.press('ArrowUp');
+      await expect(periodOf(income)).toHaveText(aDay);
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(grouping).toBeFocused();
+      await page.unroute(bySeason);
+      // Par saison : une plage de dates. Davantage de périodes : toujours les dernières, jamais tout.
+      await grouping.selectOption('season');
+      await expect(periodOf(income)).toHaveText(/^\d.*–.*\d{4}$/);
+      await expect(amounts.nth(9)).toHaveText('500 drachmes');
+      const bounded = page.waitForRequest((request) =>
+        ['my_income_statement_by_season', 'order=season.desc', 'limit=30'].every((part) =>
+          request.url().includes(part),
+        ),
+      );
+      await income.getByLabel('Périodes affichées').selectOption('30');
+      await bounded;
+      if (wide) {
+        const column = (name: string) => income.getByRole('columnheader', { name });
+        await expect(column('Saison')).toHaveAttribute('aria-sort', 'descending');
+        await column('Ventes').getByRole('button').focus();
+        await page.keyboard.press('Enter');
+        await expect(column('Ventes')).toHaveAttribute('aria-sort', 'descending');
+        await expect(income.getByRole('status')).toHaveText('Trié par Ventes, ordre décroissant');
+      }
       await expectNoHorizontalScroll(page);
       await page.getByLabel('Langue').selectOption('en');
-      await expect(stock('Wheat')).toContainText('46 drachmas 4 obols');
-      await expect(line('Treasury')).toHaveText('500 drachmas');
-      await expect(line('Total')).toHaveText('546 drachmas 4 obols');
+      await expect(stock('Wheat', region('Valued stocks'))).toContainText('46 drachmas 4 obols');
+      await expect(line('Treasury', 'Balance sheet')).toHaveText('500 drachmas');
+      await expect(line('Total', 'Balance sheet')).toHaveText('546 drachmas 4 obols');
+      const incomeEn = region('Income statement');
+      await expect(periodOf(incomeEn)).toHaveText(/^[A-Z][a-z]+ \d.*\d{4}$/);
+      await expect(incomeEn.locator(wide ? 'td' : 'dd').nth(6)).toHaveText('500 drachmas');
     } finally {
       const previous = before.rows[0];
       await (

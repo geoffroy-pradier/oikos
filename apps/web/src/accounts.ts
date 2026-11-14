@@ -97,3 +97,52 @@ export function sortRows<T>(
     return descending ? -order : order;
   });
 }
+
+/** Colonnes de montants du compte de résultat, nommées comme dans ses vues (4.1), en oboles. */
+const OPERATING = ['sales', 'purchases', 'taxes', 'upkeep', 'operating_result'] as const;
+const NON_OPERATING = ['acquisitions', 'grants', 'other', 'non_operating'] as const;
+export const INCOME_COLUMNS = [
+  ...OPERATING,
+  ...NON_OPERATING,
+  'cash_change',
+  'escrow_change',
+] as const;
+export type IncomeColumn = (typeof INCOME_COLUMNS)[number];
+/**
+ * Une période du compte de résultat : un jour de jeu (`my_income_statement`) ou une saison
+ * (`my_income_statement_by_season`), du premier au dernier jour de jeu. `null` : horloge inconnue.
+ */
+export type IncomeRow = Record<IncomeColumn, number> & {
+  firstDay: number | null;
+  lastDay: number | null;
+};
+
+/** Rang d'un jour de jeu, du 1er janvier 1970 au 31 décembre 9999 : au-delà, aucune date à afficher. */
+const gameDay = z.number().int().min(0).max(2_932_896).nullable();
+const amount = Object.fromEntries(INCOME_COLUMNS.map((column) => [column, obols]));
+const amounts = z.object(amount as Record<IncomeColumn, typeof obols>);
+const incomeSchema = z.union([
+  amounts
+    .extend({ game_day: gameDay })
+    .transform((row) => ({ ...row, firstDay: row.game_day, lastDay: row.game_day })),
+  amounts
+    .extend({ first_game_day: gameDay, last_game_day: gameDay })
+    .transform((row) => ({ ...row, firstDay: row.first_game_day, lastDay: row.last_game_day })),
+]);
+
+/**
+ * Lignes du compte de résultat, par jour ou par saison, dans l'ordre de lecture. `null` si une ligne est
+ * illisible ou si ses totaux ne tombent pas juste (exploitation, hors exploitation, variation de la
+ * monnaie) : un compte faux n'est pas affiché, et n'est jamais pris pour « aucun mouvement ».
+ */
+export function parseIncomeStatement(raw: unknown): IncomeRow[] | null {
+  const parsed = z.array(incomeSchema).safeParse(raw);
+  if (!parsed.success) return null;
+  const sound = (row: IncomeRow) =>
+    row.sales + row.purchases + row.taxes + row.upkeep === row.operating_result &&
+    row.acquisitions + row.grants + row.other === row.non_operating &&
+    row.operating_result + row.non_operating === row.cash_change &&
+    (row.firstDay === null) === (row.lastDay === null) &&
+    (row.firstDay ?? 0) <= (row.lastDay ?? 0);
+  return parsed.data.every(sound) ? parsed.data : null;
+}
