@@ -3,6 +3,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { createTelemetry } from './telemetry';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 import { unlimited } from './rate-limit';
 
@@ -13,10 +14,12 @@ const CITY_ID = '01900000-0000-7000-8000-000000000101';
 
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
 const db = createDb(serviceRoleUrl(DATABASE_URL));
+const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
 // Le jeton est le compte lui-même : la vérification du JWT est testée à part (auth.test.ts).
 const app = createApp({
   db,
+  telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
@@ -236,6 +239,7 @@ describe('house.create', () => {
     const starting = { grantOboles: GRANT + 1234, siteRecipeId: other.id };
     const tuned = createApp({
       db,
+      telemetry,
       verifyToken: testVerifier,
       rateLimiter: unlimited,
       loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, starting } }),

@@ -17,6 +17,13 @@ interface VigieData {
     createdAt: string;
   }[];
   queuePending: number | null;
+  refusals24h: {
+    unauthenticated: number;
+    payloadTooLarge: number;
+    rateLimited: number;
+    forbidden: number;
+  };
+  adminReads24h: number;
 }
 
 /** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
@@ -41,6 +48,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           t('vigie.queue'),
           data.queuePending === null ? t('vigie.queueUnknown') : number.format(data.queuePending),
         ],
+        [t('vigie.refusedUnauthenticated'), number.format(data.refusals24h.unauthenticated)],
+        [t('vigie.refusedRateLimited'), number.format(data.refusals24h.rateLimited)],
+        [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
+        [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
+        [t('vigie.adminReads'), number.format(data.adminReads24h)],
       ]
     : [];
 

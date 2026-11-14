@@ -73,7 +73,12 @@
       "skipped": "Already played",
       "failed": "Failed"
     },
-    "tickDuration": "Duration"
+    "tickDuration": "Duration",
+    "refusedUnauthenticated": "Requests without a valid token (24 h)",
+    "refusedRateLimited": "Requests over the rate limit (24 h)",
+    "refusedTooLarge": "Oversized requests (24 h)",
+    "refusedForbidden": "Refused back-office reads (24 h)",
+    "adminReads": "Back-office reads (24 h)"
   },
   "audit": {
     "title": "Audit log",

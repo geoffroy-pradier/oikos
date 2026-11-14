@@ -103,6 +103,16 @@ export function registerAdminReads(
       .orderBy('id', 'desc')
       .limit(RECENT_TICKS)
       .execute();
+    // Refus avant exécution (comptés par heure : la fenêtre couvre les 24 dernières heures entamées)
+    // et lectures du back-office.
+    const refusals = await sql<{ reason: string; n: string }>`
+      select reason, sum(count)::text as n from telemetry.api_refusals
+      where bucket > now() - interval '24 hours' group by reason`.execute(db);
+    const refused = (reason: string) =>
+      Number(refusals.rows.find((row) => row.reason === reason)?.n ?? 0);
+    const reads = await sql<{ n: string }>`
+      select count(*)::text as n from telemetry.admin_reads
+      where created_at > now() - interval '24 hours'`.execute(db);
     // File de tâches du moteur (pg-boss) : absente tant que le moteur n'a jamais démarré sur cette base.
     const installed = await sql<{ present: boolean }>`
       select to_regclass('pgboss.job') is not null as present`.execute(db);
@@ -141,6 +151,13 @@ export function registerAdminReads(
           createdAt: tick.created_at.toISOString(),
         })),
         queuePending: queue === null ? null : Number(queue),
+        refusals24h: {
+          unauthenticated: refused('unauthenticated'),
+          payloadTooLarge: refused('payload_too_large'),
+          rateLimited: refused('rate_limited'),
+          forbidden: refused('forbidden'),
+        },
+        adminReads24h: Number(reads.rows[0]?.n),
       },
     });
   });

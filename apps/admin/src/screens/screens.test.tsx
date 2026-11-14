@@ -74,6 +74,11 @@ describe('Vigie', () => {
     expect(await figure('Ticks en échec (24 h)')).toBe('2');
     expect(await figure('Tick le plus long (24 h)')).toBe('850 ms');
     expect(await figure('Tâches en attente')).toBe('3');
+    expect(await figure('Requêtes sans jeton valide (24 h)')).toBe('91');
+    expect(await figure('Requêtes au-delà du débit (24 h)')).toBe('17');
+    expect(await figure('Requêtes trop volumineuses (24 h)')).toBe('4');
+    expect(await figure('Lectures du back-office refusées (24 h)')).toBe('6');
+    expect(await figure('Lectures du back-office (24 h)')).toBe('58');
     const table = screen.getByRole('table', { name: 'Dernières exécutions de tick' });
     const headers = within(table)
       .getAllByRole('columnheader')
