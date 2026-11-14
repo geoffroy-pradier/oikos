@@ -5,7 +5,13 @@
     "signOut": "Sign out",
     "loading": "Loading…",
     "loadFailed": "Your data could not be loaded right now.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "update": {
+      "title": "New version",
+      "ready": "A new version of OIKOS is ready. It will install when you choose: whatever you are typing stays on screen until then.",
+      "now": "Update",
+      "later": "Later"
+    }
   },
   "signIn": {
     "title": "Enter the Archipelago",
