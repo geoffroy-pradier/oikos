@@ -11,6 +11,7 @@ export interface ClockSettings {
 }
 
 const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 /** Rang (en jours depuis 1970-01-01) d'un lundi de référence : le 5 janvier 1970. */
 const REFERENCE_MONDAY = 4;
@@ -66,11 +67,36 @@ export function isDailyClose(index: number, clock: ClockSettings): boolean {
   return hour === clock.dailyCloseHour && minute < clock.tickMinutes;
 }
 
+/** Ce dont dépend le jour de jeu : ni la durée du tick ni celle de la saison. */
+export type DayClock = Pick<ClockSettings, 'dailyCloseHour' | 'timezone'>;
+
+/**
+ * Jour de jeu d'un instant : rang (en jours depuis 1970-01-01) du jour civil local dont la clôture l'a
+ * ouvert. La journée de jeu commence à la clôture : avant elle, on est encore dans la précédente.
+ */
+export function gameDayAt(instant: Date, clock: DayClock): number {
+  const { dayNumber, hour } = localTime(instant, clock.timezone);
+  return hour < clock.dailyCloseHour ? dayNumber - 1 : dayNumber;
+}
+
+/**
+ * Instant de la clôture qui ouvre un jour de jeu : le premier instant de ce jour. Il ne dépend pas de
+ * la durée du tick. Si l'heure de clôture est sautée par le passage à l'heure d'été, la clôture a lieu
+ * au premier instant qui la suit ; si elle se répète au retour à l'heure d'hiver, à sa première occurrence.
+ */
+export function dailyCloseAt(gameDay: number, clock: DayClock): Date {
+  if (!Number.isSafeInteger(gameDay)) throw new RangeError(`Invalid game day ${gameDay}`);
+  // L'heure locale lue comme une heure universelle, moins le plus grand décalage qui existe (UTC+14) :
+  // un instant sûrement antérieur à la clôture. De là, on avance par quarts d'heure, le pas de tous
+  // les fuseaux, jusqu'au premier instant du jour de jeu.
+  let time = gameDay * DAY_MS + (clock.dailyCloseHour - 14) * HOUR_MS;
+  while (gameDayAt(new Date(time), clock) < gameDay) time += 15 * MINUTE_MS;
+  return new Date(time);
+}
+
 /** Indice de la saison du jour local du tick. Une saison commence un lundi (pour `seasonDays` = 7). */
 export function seasonIndexAt(index: number, clock: ClockSettings): number {
-  const { dayNumber, hour } = localTime(tickStart(index, clock.tickMinutes), clock.timezone);
-  // La journée de jeu commence à la clôture : avant elle, on est encore dans la journée précédente.
-  const gameDay = hour < clock.dailyCloseHour ? dayNumber - 1 : dayNumber;
+  const gameDay = gameDayAt(tickStart(index, clock.tickMinutes), clock);
   return Math.floor((gameDay - REFERENCE_MONDAY) / clock.seasonDays);
 }
 

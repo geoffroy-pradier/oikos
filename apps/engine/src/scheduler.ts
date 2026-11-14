@@ -1,6 +1,7 @@
 import { ConfigError, type ConfigLoader } from '@oikos/config';
 import type { Db } from '@oikos/db';
 import { tickIndexAt, tickStart } from '@oikos/sim';
+import { sql } from 'kysely';
 import { runTick, type TickStep } from './tick';
 
 /** Nombre maximal de ticks rattrapés en un passage, après une panne du moteur (limite technique). */
@@ -19,6 +20,17 @@ export function dueTicks(
   const first = lastPlayed === null ? current : lastPlayed + 1;
   const count = Math.max(0, Math.min(current - first + 1, limit));
   return Array.from({ length: count }, (_, offset) => first + offset);
+}
+
+/**
+ * Instant présent du planificateur : l'horloge de la base. Tous les moteurs lisent la même, qui date
+ * aussi les écritures du jeu ; une horloge de processus mal réglée ne décale ni tick ni clôture.
+ */
+export async function databaseNow(db: Db): Promise<Date> {
+  const { rows } = await sql<{ now: Date }>`select clock_timestamp() as now`.execute(db);
+  const now = rows[0]?.now;
+  if (!(now instanceof Date)) throw new Error('The database did not return its clock');
+  return now;
 }
 
 export interface AdvanceRequest {
@@ -78,11 +90,15 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
   return played;
 }
 
-/** Fait avancer tous les mondes ; l'échec d'un monde n'arrête pas les autres. */
+/**
+ * Fait avancer tous les mondes ; l'échec d'un monde n'arrête pas les autres. Sans instant fourni (cas
+ * du moteur ; les tests en fournissent un), l'instant présent est lu une fois à l'horloge de la base.
+ */
 export async function advanceAllWorlds(
   db: Db,
-  request: Omit<AdvanceRequest, 'worldId'>,
+  { now, ...rest }: Omit<AdvanceRequest, 'worldId' | 'now'> & { now?: Date },
 ): Promise<{ worldId: string; played: number[]; error?: string }[]> {
+  const request = { ...rest, now: now ?? (await databaseNow(db)) };
   const worlds = await db.selectFrom('game.worlds').select('id').orderBy('id').execute();
   const results = [];
   for (const { id: worldId } of worlds) {

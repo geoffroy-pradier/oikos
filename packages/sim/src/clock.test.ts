@@ -1,6 +1,8 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
+  dailyCloseAt,
+  gameDayAt,
   isDailyClose,
   isSeasonSwitch,
   localTime,
@@ -9,6 +11,7 @@ import {
   tickIndexAt,
   tickStart,
   type ClockSettings,
+  type DayClock,
 } from './clock';
 
 const PARIS: ClockSettings = {
@@ -184,5 +187,83 @@ describe('prochaine clôture quotidienne', () => {
         expect(isDailyClose(tickIndexAt(close, PARIS.tickMinutes), PARIS)).toBe(true);
       }),
     );
+  });
+});
+
+describe('jour de jeu et instant de clôture', () => {
+  const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / 86_400_000;
+  const closeOf = (iso: string, clock: DayClock = PARIS) =>
+    dailyCloseAt(day(iso), clock).toISOString();
+
+  it('le jour de jeu commence à la clôture : avant 04 h 00 à Paris, c’est encore la veille', () => {
+    expect(gameDayAt(new Date('2026-11-14T02:59:59.999Z'), PARIS)).toBe(day('2026-11-13'));
+    expect(gameDayAt(new Date('2026-11-14T03:00:00Z'), PARIS)).toBe(day('2026-11-14'));
+    expect(gameDayAt(new Date('2026-11-14T23:30:00Z'), PARIS)).toBe(day('2026-11-14'));
+    // En été, 04 h 00 à Paris est 02 h 00 UTC.
+    expect(gameDayAt(new Date('2026-07-15T01:59:59Z'), PARIS)).toBe(day('2026-07-14'));
+    expect(gameDayAt(new Date('2026-07-15T02:00:00Z'), PARIS)).toBe(day('2026-07-15'));
+  });
+
+  it('la clôture d’un jour est celle que porte le tick de clôture, hiver, été et changements d’heure', () => {
+    expect(closeOf('2026-01-15')).toBe('2026-01-15T03:00:00.000Z');
+    expect(closeOf('2026-07-15')).toBe('2026-07-15T02:00:00.000Z');
+    expect(closeOf('2026-03-29')).toBe('2026-03-29T02:00:00.000Z');
+    expect(closeOf('2026-10-25')).toBe('2026-10-25T03:00:00.000Z');
+    const year = Array.from({ length: 365 }, (_, offset) =>
+      dailyCloseAt(day('2026-01-01') + offset, PARIS).toISOString(),
+    );
+    expect(year).toEqual(closesBetween('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z'));
+  });
+
+  it('heure de clôture sautée ou répétée par le changement d’heure : une clôture ce jour-là quand même', () => {
+    const two = { ...PARIS, dailyCloseHour: 2 };
+    // 29 mars 2026 : 02 h 00 n'existe pas à Paris (01 h 00 UTC : 02 h 00 devient 03 h 00).
+    expect(closeOf('2026-03-29', two)).toBe('2026-03-29T01:00:00.000Z');
+    expect(closesBetween('2026-03-29T00:00:00Z', '2026-03-30T00:00:00Z', two)).toEqual([]);
+    // 25 octobre 2026 : 02 h 00 a lieu deux fois (00 h 00 et 01 h 00 UTC) ; la première ouvre le jour.
+    expect(closeOf('2026-10-25', two)).toBe('2026-10-25T00:00:00.000Z');
+    // Aux bords de la carte : UTC+14, UTC−11, et un fuseau décalé de trois quarts d'heure.
+    expect(closeOf('2026-11-14', { dailyCloseHour: 0, timezone: 'Pacific/Kiritimati' })).toBe(
+      '2026-11-13T10:00:00.000Z',
+    );
+    expect(closeOf('2026-11-14', { dailyCloseHour: 23, timezone: 'Pacific/Pago_Pago' })).toBe(
+      '2026-11-15T10:00:00.000Z',
+    );
+    expect(closeOf('2026-11-14', { dailyCloseHour: 4, timezone: 'Asia/Kathmandu' })).toBe(
+      '2026-11-13T22:15:00.000Z',
+    );
+  });
+
+  it('propriété : la clôture est le premier instant de son jour de jeu, et les clôtures se suivent à un jour près', () => {
+    const timezone = fc.constantFrom(
+      'Europe/Paris',
+      'UTC',
+      'Asia/Kathmandu',
+      'Australia/Lord_Howe',
+      'America/St_Johns',
+      'Pacific/Kiritimati',
+      'Pacific/Pago_Pago',
+    );
+    fc.assert(
+      fc.property(
+        fc.integer({ min: day('2020-01-01'), max: day('2040-01-01') }),
+        fc.integer({ min: 0, max: 23 }),
+        timezone,
+        (gameDay, dailyCloseHour, zone) => {
+          const clock = { dailyCloseHour, timezone: zone };
+          const close = dailyCloseAt(gameDay, clock).getTime();
+          expect(gameDayAt(new Date(close), clock)).toBe(gameDay);
+          expect(gameDayAt(new Date(close - 1), clock)).toBe(gameDay - 1);
+          const gap = dailyCloseAt(gameDay + 1, clock).getTime() - close;
+          // 23, 24 ou 25 heures : le changement d'heure déplace la clôture d'une heure au plus.
+          expect(Math.abs(gap - 86_400_000)).toBeLessThanOrEqual(3_600_000);
+        },
+      ),
+    );
+  });
+
+  it('refuse un jour de jeu qui n’est pas un entier', () => {
+    expect(() => dailyCloseAt(20_000.5, PARIS)).toThrow(RangeError);
+    expect(() => dailyCloseAt(Number.NaN, PARIS)).toThrow(RangeError);
   });
 });
