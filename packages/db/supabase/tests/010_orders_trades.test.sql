@@ -88,7 +88,7 @@ select throws_ok($$insert into game.trades (world_id, sell_order_id, price, quan
 select throws_ok($$insert into game.trades (world_id, sell_order_id, price, quantity, ledger_entry_id) values ('01900000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-000000000301', 6, 1, '00000000-0000-7000-8000-0000000000e2')$$, '23503', 'insert or update on table "trades" violates foreign key constraint "trades_sell_order_same_world"', 'échange d''un autre monde que l''ordre de vente refusé');
 select throws_ok($$insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity, ledger_entry_id) values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-000000000301', '00000000-0000-7000-8000-000000000309', 6, 1, '00000000-0000-7000-8000-0000000000e1')$$, '23503', 'insert or update on table "trades" violates foreign key constraint "trades_buy_order_same_world"', 'ordre d''achat d''un autre monde refusé');
 
--- Ordre d'achat d'un joueur : servi à l'arrivée, jamais en attente.
+-- Ordre d'achat d'un joueur : sans monnaie sous séquestre, il ne reste pas ouvert (017_escrow.test.sql).
 select pg_temp.place('10', 'b1', 'buy', 7, 40);
 select throws_ok($$select pg_temp.trade('10', 7, 1)$$, '23514', 'trade does not match an open sell order', 'un ordre d''achat ne sert pas de vendeur');
 select throws_ok($$select pg_temp.trade('01', 6, 5, '01')$$, '23514', null, 'un ordre de vente ne sert pas d''acheteur');
@@ -97,8 +97,9 @@ select throws_ok($$select pg_temp.trade('01', 6, 5, '11')$$, '23514', null, 'pas
 select lives_ok($$select pg_temp.trade('01', 6, 35, '10')$$, 'échange entre deux joueurs');
 select is(pg_temp.state('01') || ', ' || pg_temp.state('10') || ', ' || pg_temp.stock(), '0 filled, 5 open, 100/0', 'les deux ordres sont servis');
 select throws_ok($$select pg_temp.trade('01', 6, 1)$$, '23514', null, 'un ordre servi ne s''échange plus');
-select throws_ok('set constraints all immediate', '23514', null, 'un ordre d''achat ne reste pas dans le carnet');
-update game.orders set status = 'cancelled' where side = 'buy' and status = 'open';
+select throws_ok('set constraints all immediate', '23514', null, 'un ordre d''achat ne reste pas ouvert sans séquestre');
+-- (Les ordres du jeu d'essai seulement : la base locale peut en porter d'autres.)
+update game.orders set status = 'cancelled' where side = 'buy' and status = 'open' and house_id in ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000b1', '00000000-0000-7000-8000-0000000000d1');
 select lives_ok('set constraints all immediate', 'reste d''achat annulé : transaction valide');
 set constraints all deferred;
 select pg_temp.place('03', 'a1', 'sell', 8, 30);
@@ -120,7 +121,7 @@ select throws_ok($$select pg_temp.trade('03', 8, 1, '12')$$, '23514', 'trade doe
 select throws_ok($$select pg_temp.trade('03', 8, 1, '13')$$, '23514', 'trade does not match its buy order', 'pas d''échange au-dessus du prix limite de l''acheteur');
 select throws_ok($$select pg_temp.trade('03', 8, 1, '14')$$, '23514', 'trade does not match its buy order', 'pas d''échange entre deux biens');
 select throws_ok($$select pg_temp.trade('03', 8, 1, '15')$$, '23514', 'trade does not match its buy order', 'pas d''échange entre deux cités');
-update game.orders set status = 'cancelled' where status = 'open' and (side = 'buy' or id = '00000000-0000-7000-8000-000000000320');
+update game.orders set status = 'cancelled' where status = 'open' and (side = 'buy' or id = '00000000-0000-7000-8000-000000000320') and house_id in ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000b1', '00000000-0000-7000-8000-0000000000d1');
 
 -- Contrôle d'accès.
 -- (La liste figée des colonnes lisibles de `game` est dans 002_world_houses.test.sql.)

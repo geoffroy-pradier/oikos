@@ -1,6 +1,12 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { matchLimitOrder, type RestingOrder } from './orderbook';
+import {
+  matchLimitOrder,
+  planLimitOrder,
+  type HouseOrder,
+  type RestingOrder,
+  type Side,
+} from './orderbook';
 import { accrueProduction } from './production';
 
 describe('production paresseuse', () => {
@@ -339,6 +345,170 @@ describe('appariement d’un ordre à cours limité', () => {
     expect(() => matchLimitOrder({ side: 'buy', price: 0, quantity: 1 }, [])).toThrow(RangeError);
     expect(() => matchLimitOrder({ side: 'sell', price: 5, quantity: 1.5 }, [])).toThrow(
       RangeError,
+    );
+  });
+});
+
+describe('sort d’un ordre à son arrivée : attente, séquestre, annulation', () => {
+  const bids: HouseOrder[] = [
+    { orderId: 'mien', houseId: 'a', price: 12, quantity: 5, sequence: 1 },
+    { orderId: 'autre', houseId: 'b', price: 9, quantity: 4, sequence: 2 },
+  ];
+
+  it('une maison n’échange pas avec elle-même : son propre ordre est ignoré, même mieux placé', () => {
+    const sell = { houseId: 'a', side: 'sell' as const, price: 8, quantity: 10 };
+    expect(planLimitOrder(sell, bids)).toEqual({
+      trades: [{ restingOrderId: 'autre', price: 9, quantity: 4 }],
+      remaining: 6,
+      shortOfFunds: false,
+      rests: true,
+      escrow: 0,
+    });
+  });
+
+  it('achat : le reste attend si le budget couvre prix × reste une fois les échanges payés', () => {
+    const asks: HouseOrder[] = [
+      { orderId: 'v', houseId: 'b', price: 7, quantity: 10, sequence: 1 },
+    ];
+    const buy = (budget: number) =>
+      planLimitOrder({ houseId: 'a', side: 'buy', price: 8, quantity: 30, budget }, asks);
+    // 70 pour les dix unités à 7, puis 20 × 8 = 160 à retenir : 230 suffisent tout juste.
+    expect(buy(230)).toMatchObject({
+      remaining: 20,
+      rests: true,
+      escrow: 160,
+      shortOfFunds: false,
+    });
+    expect(buy(229)).toMatchObject({ remaining: 20, rests: false, escrow: 0, shortOfFunds: true });
+    expect(buy(229).trades).toEqual([{ restingOrderId: 'v', price: 7, quantity: 10 }]);
+    // Rien ne croise : tout attend, ou rien n'est possible.
+    expect(buy(0)).toMatchObject({ trades: [], rests: false, shortOfFunds: true });
+    expect(
+      planLimitOrder({ houseId: 'a', side: 'buy', price: 6, quantity: 5, budget: 30 }, asks),
+    ).toEqual({ trades: [], remaining: 5, shortOfFunds: false, rests: true, escrow: 30 });
+    // Servi en entier : rien n'attend, rien n'est retenu.
+    expect(
+      planLimitOrder({ houseId: 'a', side: 'buy', price: 8, quantity: 10, budget: 70 }, asks),
+    ).toMatchObject({ remaining: 0, rests: false, escrow: 0, shortOfFunds: false });
+  });
+
+  it('propriété : monnaie et biens conservés, séquestre et réservation exacts, aucune auto-transaction, priorité prix puis temps', () => {
+    interface Open extends HouseOrder {
+      side: Side;
+    }
+    const houses = ['a', 'b', 'c'];
+    const command = fc.oneof(
+      fc.record({
+        house: fc.constantFrom(...houses),
+        side: fc.constantFrom('buy' as const, 'sell' as const),
+        price: fc.integer({ min: 1, max: 12 }),
+        quantity: fc.integer({ min: 1, max: 40 }),
+      }),
+      fc.record({ cancel: fc.nat() }),
+    );
+    fc.assert(
+      fc.property(fc.array(command, { maxLength: 40 }), (commands) => {
+        const state = new Map(
+          houses.map((house) => [house, { balance: 300, escrow: 0, stock: 60, reserved: 0 }]),
+        );
+        const of = (house: string) => {
+          const found = state.get(house);
+          if (!found) throw new Error(`unknown house ${house}`);
+          return found;
+        };
+        let book: Open[] = [];
+        let sequence = 0;
+        for (const step of commands) {
+          if ('cancel' in step) {
+            const target = book[step.cancel % Math.max(book.length, 1)];
+            if (!target) continue;
+            book = book.filter((entry) => entry !== target);
+            const owner = of(target.houseId);
+            if (target.side === 'sell') owner.reserved -= target.quantity;
+            else {
+              owner.escrow -= target.price * target.quantity;
+              owner.balance += target.price * target.quantity;
+            }
+            continue;
+          }
+          const mine = of(step.house);
+          // Comme la commande : pas de vente au-delà du stock libre.
+          if (step.side === 'sell' && mine.stock - mine.reserved < step.quantity) continue;
+          const opposite = book.filter((entry) => entry.side !== step.side);
+          const plan = planLimitOrder(
+            {
+              houseId: step.house,
+              side: step.side,
+              price: step.price,
+              quantity: step.quantity,
+              ...(step.side === 'buy' ? { budget: mine.balance } : {}),
+            },
+            opposite,
+          );
+          // Priorité : le premier ordre servi est le mieux placé des autres maisons, prix puis ancienneté.
+          const best = opposite
+            .filter(
+              (entry) =>
+                entry.houseId !== step.house &&
+                (step.side === 'buy' ? entry.price <= step.price : entry.price >= step.price),
+            )
+            .sort(
+              (x, y) =>
+                (step.side === 'buy' ? x.price - y.price : y.price - x.price) ||
+                x.sequence - y.sequence,
+            )[0];
+          if (plan.trades[0]) expect(plan.trades[0].restingOrderId).toBe(best?.orderId);
+          for (const trade of plan.trades) {
+            const resting = book.find((entry) => entry.orderId === trade.restingOrderId);
+            if (!resting) throw new Error('trade against an order that is not in the book');
+            expect(resting.houseId).not.toBe(step.house);
+            expect(trade.price).toBe(resting.price);
+            const other = of(resting.houseId);
+            const amount = trade.price * trade.quantity;
+            const [buyer, seller] = step.side === 'buy' ? [mine, other] : [other, mine];
+            // L'acheteur qui arrive paie de sa trésorerie ; celui qui attendait, de son séquestre.
+            if (step.side === 'buy') buyer.balance -= amount;
+            else buyer.escrow -= amount;
+            seller.balance += amount;
+            seller.stock -= trade.quantity;
+            buyer.stock += trade.quantity;
+            if (step.side === 'buy') seller.reserved -= trade.quantity;
+            resting.quantity -= trade.quantity;
+          }
+          book = book.filter((entry) => entry.quantity > 0);
+          if (plan.rests) {
+            book.push({
+              orderId: String(sequence),
+              houseId: step.house,
+              side: step.side,
+              price: step.price,
+              quantity: plan.remaining,
+              sequence: sequence++,
+            });
+            if (step.side === 'sell') mine.reserved += plan.remaining;
+            else {
+              expect(plan.escrow).toBe(plan.remaining * step.price);
+              mine.balance -= plan.escrow;
+              mine.escrow += plan.escrow;
+            }
+          } else expect(plan.escrow).toBe(0);
+
+          const all = [...state.values()];
+          expect(all.reduce((sum, house) => sum + house.balance + house.escrow, 0)).toBe(900);
+          expect(all.reduce((sum, house) => sum + house.stock, 0)).toBe(180);
+          for (const house of houses) {
+            const open = (side: Side) =>
+              book.filter((entry) => entry.houseId === house && entry.side === side);
+            const { balance, escrow, stock, reserved } = of(house);
+            expect(balance).toBeGreaterThanOrEqual(0);
+            expect(escrow).toBe(
+              open('buy').reduce((sum, entry) => sum + entry.price * entry.quantity, 0),
+            );
+            expect(reserved).toBe(open('sell').reduce((sum, entry) => sum + entry.quantity, 0));
+            expect(reserved).toBeLessThanOrEqual(stock);
+          }
+        }
+      }),
     );
   });
 });

@@ -79,3 +79,38 @@ export function matchLimitOrder(
   }
   return { trades, remaining, shortOfFunds };
 }
+
+/** Ordre du carnet, avec la maison qui l'a déposé. */
+export interface HouseOrder extends RestingOrder {
+  houseId: string;
+}
+
+export interface OrderPlan extends MatchResult {
+  /** Vrai si le reste de l'ordre attend dans le carnet ; faux s'il est servi en entier ou annulé. */
+  rests: boolean;
+  /** Achat qui attend : somme à mettre sous séquestre (prix limite × reste). Zéro sinon. */
+  escrow: number;
+}
+
+/**
+ * Décide du sort d'un ordre à son arrivée (5.3). Une maison n'échange pas avec elle-même : ses propres
+ * ordres sont ignorés. Le reste d'une vente attend toujours (son stock est réservé par l'appelant). Le
+ * reste d'un achat n'attend que si le budget, une fois les échanges payés, couvre prix × reste ; sinon
+ * il est annulé et le manque de fonds signalé.
+ */
+export function planLimitOrder(
+  incoming: IncomingOrder & { houseId: string },
+  opposite: readonly HouseOrder[],
+): OrderPlan {
+  const match = matchLimitOrder(
+    incoming,
+    opposite.filter((resting) => resting.houseId !== incoming.houseId),
+  );
+  if (match.remaining === 0) return { ...match, rests: false, escrow: 0 };
+  if (incoming.side === 'sell') return { ...match, rests: true, escrow: 0 };
+  const spent = match.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+  const escrow = match.remaining * incoming.price;
+  if (!match.shortOfFunds && (incoming.budget ?? Infinity) - spent >= escrow)
+    return { ...match, rests: true, escrow };
+  return { ...match, shortOfFunds: true, rests: false, escrow: 0 };
+}
