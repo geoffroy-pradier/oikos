@@ -74,6 +74,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
           previous: data.previousRole && t(`roles.${data.previousRole}`),
         }),
     );
+    if (granted) setRole('observer');
     if (granted) setAccount('');
   }
   async function revoke(row: RoleRow) {
@@ -135,7 +136,9 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                     <td>
                       {confirming === row.userId ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <span id="access-confirm">{t('access.confirm')}</span>
+                          <span id="access-confirm">
+                            {t('access.confirm', { ...row, role: t(`roles.${row.role}`) })}
+                          </span>
                           <Button
                             autoFocus
                             disabled={busy}
@@ -146,6 +149,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                           </Button>
                           <Button
                             variant="secondary"
+                            disabled={busy}
                             onClick={() => {
                               setConfirming(null);
                               setReturnTo(row.userId);
@@ -159,7 +163,8 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                           variant="secondary"
                           autoFocus={returnTo === row.userId}
                           disabled={busy}
-                          onClick={() => setConfirming(row.userId)}
+                          // Une autre confirmation a pu rendre le foyer à son bouton : plus maintenant.
+                          onClick={() => (setReturnTo(null), setConfirming(row.userId))}
                         >
                           {t('access.revoke', { account: row.userId.slice(0, 8) })}
                         </Button>

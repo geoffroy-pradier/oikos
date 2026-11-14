@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
+import { held } from '../test/fakes';
 import { Access } from './Access';
 
 const api = vi.hoisted(() => ({ adminGet: vi.fn(), adminCommand: vi.fn() }));
@@ -143,6 +144,7 @@ it('accorde un rôle par identifiant : saisie contrôlée à l’envoi, liste re
     'token',
   ]);
   expect([field.value, field.getAttribute('aria-invalid')]).toEqual(['', null]);
+  expect(screen.getByLabelText<HTMLSelectElement>('Rôle').value).toBe('observer');
   expect(cells()).toHaveLength(4);
   fill(field, OTHER, 'support');
   await waitFor(() =>
@@ -155,27 +157,31 @@ it('un refus est expliqué, la saisie reste ; après une panne, la même demande
     ROLES,
     { ok: false, code: 'ROLE_SELF_GRANT' },
     { ok: false, code: 'INTERNAL' },
+    { ok: false, code: 'INTERNAL' },
     { ok: false, code: 'ACCOUNT_NOT_FOUND' },
   );
   fill(field, ME);
   await waitFor(() => expect(notice('alert')).toMatch(/^On ne change pas son propre rôle/));
   expect(field.value).toBe(ME);
-  fill(field, NEW);
+  fill(field, ME);
   await waitFor(() => expect(notice('alert')).toMatch(/elle ne sera pas exécutée deux fois\.$/));
   fill(field, NEW);
+  await waitFor(() => expect(adminCommand).toHaveBeenCalledTimes(3));
+  fill(field, NEW);
   await waitFor(() => expect(notice('alert')).toBe('Aucun compte ne porte cet identifiant.'));
-  // Même demande après une panne : même clé ; une autre demande a la sienne.
-  expect([keyOf(2) === keyOf(1), keyOf(1) === keyOf(0)]).toEqual([true, false]);
+  // Clé neuve après un refus (intention close) et pour une autre demande ; gardée après une panne.
+  expect([1, 2, 3].map((call) => keyOf(call) === keyOf(call - 1))).toEqual([false, false, true]);
 });
 
 it('retire un rôle après confirmation ; annuler ne fait rien et rend le foyer au bouton', async () => {
-  await opened(ROLES.slice(0, 2), { ok: true, data: { userId: OTHER, previousRole: 'moderator' } });
+  const sent = held<{ userId: string; previousRole: string }>();
+  await opened(ROLES.slice(0, 2), sent.promise);
   const revoke = () => screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' });
   fireEvent.click(revoke());
   const confirm = screen.getByRole('button', { name: 'Confirmer le retrait' });
   expect(document.activeElement).toBe(confirm);
   expect(document.getElementById(confirm.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
-    'Ce compte perdra aussitôt tout accès à Olympe.',
+    `Le compte ${OTHER} perdra aussitôt son rôle Modérateur et tout accès à Olympe.`,
   );
   fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
   expect(adminCommand).not.toHaveBeenCalled();
@@ -183,23 +189,38 @@ it('retire un rôle après confirmation ; annuler ne fait rien et rend le foyer 
 
   fireEvent.click(revoke());
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer le retrait' }));
+  // Commande partie : on n'y renonce plus, et rien d'autre ne part avant sa réponse.
+  const enabled = screen.getAllByRole<HTMLButtonElement>('button').filter((b) => !b.disabled);
+  expect(enabled.map((button) => button.textContent)).toEqual([]);
+  sent.release({ ok: true, data: { userId: OTHER, previousRole: 'moderator' } });
   await waitFor(() => expect(notice('status')).toBe('Rôle Modérateur retiré.'));
   expect(adminCommand.mock.calls.map((call) => call.slice(0, 3))).toEqual([
     ['admin.revokeRole', { userId: OTHER }, 'token'],
   ]);
   expect(cells().map((row) => row[0])).toEqual([ROOT, `${ME} (vous)`]);
-  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Accès', level: 1 }));
+  // Le foyer est posé après l'annonce, dans un rendu suivant : il s'attend.
+  const title = screen.getByRole('heading', { name: 'Accès', level: 1 });
+  await waitFor(() => expect(document.activeElement).toBe(title));
 });
 
 it('un retrait refusé (dernier super-administrateur) est expliqué, le foyer revient à la ligne', async () => {
   await opened(ROLES, { ok: false, code: 'LAST_SUPER_ADMIN' });
+  // Renoncer rend le foyer au bouton de sa ligne ; ce retour ne vaut plus pour la confirmation
+  // suivante, sans quoi Entrée retirerait un autre compte que celui que l'on vient de choisir.
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' }));
   fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de aaaaaaaa' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmer le retrait' }));
+  const confirm = screen.getByRole('button', { name: 'Confirmer le retrait' });
+  expect(document.activeElement).toBe(confirm);
+  expect(document.getElementById(confirm.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+    `Le compte ${ROOT} perdra aussitôt son rôle Super-administrateur et tout accès à Olympe.`,
+  );
+  fireEvent.click(confirm);
   await waitFor(() =>
     expect(notice('alert')).toMatch(/^Il doit toujours rester un super-administrateur/),
   );
   expect(cells()).toHaveLength(3);
-  expect(document.activeElement).toBe(
-    screen.getByRole('button', { name: 'Retirer le rôle de aaaaaaaa' }),
-  );
+  const back = () => screen.getByRole('button', { name: 'Retirer le rôle de aaaaaaaa' });
+  await waitFor(() => expect(document.activeElement).toBe(back()));
 });

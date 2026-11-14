@@ -102,7 +102,7 @@
     "empty": "No account holds a role.",
     "actions": "Actions",
     "revoke": "Remove the role of {{account}}",
-    "confirm": "This account will lose all access to Olympe at once.",
+    "confirm": "Account {{userId}} will immediately lose its {{role}} role and all access to Olympus.",
     "confirmRevoke": "Confirm removal",
     "cancel": "Cancel",
     "revoked": "Role {{role}} removed.",

@@ -102,7 +102,7 @@
     "empty": "Aucun compte ne porte de rôle.",
     "actions": "Actions",
     "revoke": "Retirer le rôle de {{account}}",
-    "confirm": "Ce compte perdra aussitôt tout accès à Olympe.",
+    "confirm": "Le compte {{userId}} perdra aussitôt son rôle {{role}} et tout accès à Olympe.",
     "confirmRevoke": "Confirmer le retrait",
     "cancel": "Annuler",
     "revoked": "Rôle {{role}} retiré.",
