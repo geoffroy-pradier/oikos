@@ -69,6 +69,7 @@
     "review": "Second-person review of settings",
     "reviewRequired": "Required",
     "reviewLifted": "Lifted (test setting)",
+    "reviewUnknown": "Unknown (not reported by the API)",
     "reviewLiftedWarning": "Second-person review lifted (test setting): a configuration version can be scheduled by its own author.",
     "duration": "{{ms}} ms",
     "none": "—",

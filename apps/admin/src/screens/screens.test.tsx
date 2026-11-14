@@ -154,6 +154,16 @@ describe('Vigie', () => {
     expect(screen.getByText(/^Double validation levée/).textContent).toMatch(
       /une version de configuration peut être programmée par son auteur\.$/,
     );
+    // API antérieure à ce champ, ou valeur qui n'est pas un booléen : état inconnu, jamais « Exigée ».
+    for (const selfReviewAllowed of [undefined, null, 'true']) {
+      cleanup();
+      adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, selfReviewAllowed } });
+      render(<Vigie accessToken="token" />);
+      expect(await figure('Double validation des paramètres')).toBe(
+        "Inconnue (non indiquée par l'API)",
+      );
+      expect(screen.queryByText(/^Double validation levée/)).toBeNull();
+    }
     const table = screen.getByRole('table', { name: 'Dernières exécutions de tick' });
     const headers = within(table)
       .getAllByRole('columnheader')

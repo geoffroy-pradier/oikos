@@ -69,6 +69,7 @@
     "review": "Double validation des paramètres",
     "reviewRequired": "Exigée",
     "reviewLifted": "Levée (réglage de test)",
+    "reviewUnknown": "Inconnue (non indiquée par l'API)",
     "reviewLiftedWarning": "Double validation levée (réglage de test) : une version de configuration peut être programmée par son auteur.",
     "duration": "{{ms}} ms",
     "none": "—",

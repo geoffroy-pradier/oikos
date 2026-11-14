@@ -252,11 +252,13 @@ it('annule une programmation à venir après confirmation ; y renoncer ne fait r
   fireEvent.click(await screen.findByRole('button', { name }));
   // Seule une programmation à venir s'annule : la version 1, déjà entrée en vigueur, n'a pas de bouton.
   expect(screen.queryByRole('button', { name: /^Annuler la programmation/ })).toBeNull();
-  const confirm = screen.getByRole('button', { name: "Confirmer l'annulation" });
-  expect(document.activeElement).toBe(confirm);
-  expect(
-    document.getElementById(confirm.getAttribute('aria-describedby') ?? '')?.textContent,
-  ).toMatch(/^Toutes les programmations prévues pour cette clôture seront annulées/);
+  // L'avertissement décrit les deux choix : il est lu à l'arrivée du foyer comme sur la confirmation.
+  for (const choice of ["Confirmer l'annulation", 'Garder la programmation'])
+    expect(
+      document.getElementById(
+        screen.getByRole('button', { name: choice }).getAttribute('aria-describedby') ?? '',
+      )?.textContent,
+    ).toMatch(/^Toutes les programmations prévues pour cette clôture seront annulées/);
   fireEvent.click(screen.getByRole('button', { name: 'Garder la programmation' }));
   expect(api.adminCommand).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(screen.getByRole('button', { name }));
@@ -280,6 +282,75 @@ it('annule une programmation à venir après confirmation ; y renoncer ne fait r
   expect(item(3).textContent).not.toMatch(/Programmée/);
   const title = screen.getByRole('heading', { name: 'Paramètres' });
   await waitFor(() => expect(document.activeElement).toBe(title));
+});
+
+it('confirmation : le foyer arrive sur « Garder la programmation » ; une activation répétée ne confirme jamais', async () => {
+  api.adminCommand.mockResolvedValue({ ok: true, data: cancelOutput() });
+  render(<Config accessToken="token" role="super_admin" />);
+  const name = 'Annuler la programmation de la version 3';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Garder la programmation' }),
+  );
+  // Touche Entrée maintenue sur le bouton d'annulation : chaque répétition active l'élément qui a le
+  // foyer. Elle referme et rouvre la confirmation, sans jamais atteindre « Confirmer l'annulation ».
+  const activated: (string | null)[] = [];
+  for (let repeat = 0; repeat < 6; repeat++) {
+    const focused = document.activeElement as HTMLElement;
+    activated.push(focused.textContent);
+    fireEvent.click(focused);
+  }
+  expect(activated).toEqual([1, 2, 3].flatMap(() => ['Garder la programmation', name]));
+  expect(api.adminCommand).not.toHaveBeenCalled();
+});
+
+it('annulation réussie sans y avoir renoncé avant : le foyer va au titre', async () => {
+  api.adminCommand.mockResolvedValue({ ok: true, data: cancelOutput() });
+  render(<Config accessToken="token" role="super_admin" />);
+  const name = 'Annuler la programmation de la version 3';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  api.adminGet.mockResolvedValue({ ok: true, data: { ...LISTING, activations: [CANCELLED] } });
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'annulation" }));
+  await screen.findByText(/^Programmation de la version 3 .* annulée\.$/);
+  expect(screen.queryByRole('button', { name })).toBeNull();
+  const title = screen.getByRole('heading', { name: 'Paramètres' });
+  await waitFor(() => expect(document.activeElement).toBe(title));
+});
+
+it('deux clôtures à venir : le foyer rendu à une programmation ne vole pas la confirmation d’une autre', async () => {
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: {
+      ...LISTING,
+      activations: [
+        activation('a5', 'v1', '2998-01-01T00:00:00Z'),
+        activation('a3', 'v3', '2999-01-01T00:00:00Z'),
+      ],
+    },
+  });
+  render(<Config accessToken="token" role="super_admin" />);
+  const cancelA = 'Annuler la programmation de la version 3';
+  const cancelB = 'Annuler la programmation de la version 1';
+  const button = (name: string) => screen.getByRole('button', { name });
+  const keep = () => screen.getByRole('button', { name: 'Garder la programmation' });
+  // Renoncer pour A, rouvrir A, puis ouvrir B : la confirmation de B garde le foyer.
+  fireEvent.click(await screen.findByRole('button', { name: cancelA }));
+  fireEvent.click(keep());
+  expect(document.activeElement).toBe(button(cancelA));
+  fireEvent.click(button(cancelA));
+  fireEvent.click(button(cancelB));
+  expect(item(1).contains(keep())).toBe(true);
+  expect(document.activeElement).toBe(keep());
+  // Le foyer revient à la programmation dont la confirmation se referme, y compris deux fois de suite.
+  fireEvent.click(keep());
+  expect(document.activeElement).toBe(button(cancelB));
+  for (const name of [cancelA, cancelA]) {
+    fireEvent.click(button(name));
+    expect(item(3).contains(keep())).toBe(true);
+    fireEvent.click(keep());
+    expect(document.activeElement).toBe(button(name));
+  }
+  expect(api.adminCommand).not.toHaveBeenCalled();
 });
 
 it('annulation : plusieurs programmations de la clôture sont comptées ; un refus est expliqué ; lecture seule sans bouton', async () => {
