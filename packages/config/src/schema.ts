@@ -4,6 +4,8 @@ import { z } from 'zod';
 const id = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
 const positiveInt = z.number().int().positive();
 const MINUTES_PER_DAY = 1440;
+/** Constante de l'univers, pas d'équilibrage (docs/glossary.md) : 6 oboles font 1 drachme. */
+export const OBOLS_PER_DRACHMA = 6;
 
 function isTimezone(value: string): boolean {
   try {

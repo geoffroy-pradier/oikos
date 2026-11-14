@@ -104,7 +104,8 @@
     "collectedAll_other": "Harvest stored from {{number}} sites: {{list}}.",
     "collectAllFailed": "Failed for {{site}}. {{reason}}",
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
-    "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}"
+    "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
+    "accounts": "House accounts"
   },
   "agora": {
     "title": "Agora of {{city}}",
@@ -294,6 +295,19 @@
   },
   "money": {
     "oboles_one": "{{amount}} obol",
-    "oboles_other": "{{amount}} obols"
+    "oboles_other": "{{amount}} obols",
+    "drachmas_one": "{{amount}} drachma",
+    "drachmas_other": "{{amount}} drachmas",
+    "negative": "−{{amount}}"
+  },
+  "accounts": {
+    "title": "Accounts of house {{name}}",
+    "balanceSheet": "Balance sheet",
+    "treasury": "Treasury",
+    "escrow": "Escrow (held for your resting buy orders)",
+    "stockValue": "Stocks, at the observed average price",
+    "total": "Total",
+    "unpriced_one": "{{count}} stock with no observed price is not counted.",
+    "unpriced_other": "{{count}} stocks with no observed price are not counted."
   }
 }

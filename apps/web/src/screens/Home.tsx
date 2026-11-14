@@ -90,6 +90,12 @@ export function HomeScreen() {
             </Link>
           </p>
         )}
+        <Link
+          to="/comptes"
+          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        >
+          {t('home.accounts')}
+        </Link>
       </Card>
 
       <Card>

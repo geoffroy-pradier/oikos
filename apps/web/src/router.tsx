@@ -1,4 +1,5 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import { AccountsScreen } from './screens/Accounts';
 import { AgoraScreen } from './screens/Agora';
 import { HomeScreen } from './screens/Home';
 import { NotFound } from './screens/NotFound';
@@ -21,6 +22,8 @@ const route = <P extends string>(path: P, component: () => React.JSX.Element) =>
 
 const routeTree = rootRoute.addChildren([
   route('/', HomeScreen),
+  // Écrans de l'onglet Maison, ouverts depuis le tableau de bord.
+  route('/comptes', AccountsScreen),
   route('/carte', () => <Placeholder tab="map" />),
   route('/agora', AgoraScreen),
   route('/cite', () => <Placeholder tab="city" />),

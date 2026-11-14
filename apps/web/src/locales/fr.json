@@ -104,7 +104,8 @@
     "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
     "collectAllFailed": "Échec pour {{site}}. {{reason}}",
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
-    "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}"
+    "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
+    "accounts": "Comptes de la maison"
   },
   "agora": {
     "title": "Agora de {{city}}",
@@ -294,6 +295,19 @@
   },
   "money": {
     "oboles_one": "{{amount}} obole",
-    "oboles_other": "{{amount}} oboles"
+    "oboles_other": "{{amount}} oboles",
+    "drachmas_one": "{{amount}} drachme",
+    "drachmas_other": "{{amount}} drachmes",
+    "negative": "−{{amount}}"
+  },
+  "accounts": {
+    "title": "Comptes de la maison {{name}}",
+    "balanceSheet": "Bilan",
+    "treasury": "Trésorerie",
+    "escrow": "Séquestre (retenu pour vos achats en attente)",
+    "stockValue": "Stocks, au prix moyen observé",
+    "total": "Total",
+    "unpriced_one": "{{count}} stock sans prix observé n'est pas compté.",
+    "unpriced_other": "{{count}} stocks sans prix observé ne sont pas comptés."
   }
 }
