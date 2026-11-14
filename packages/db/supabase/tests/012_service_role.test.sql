@@ -41,7 +41,8 @@ select is(
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
   'accounts.balance api_refusals.count houses.name inventories.quantity npc_demand_carry.carry '
-    || 'npc_demand_carry.updated_at orders.status rate_windows.count sites.cycle_started_at sites.recipe_id',
+    || 'npc_demand_carry.updated_at orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
+    || 'price_candles.turnover price_candles.volume rate_windows.count sites.cycle_started_at sites.recipe_id',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
