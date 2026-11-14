@@ -50,6 +50,37 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'CONFIG_INVALID',
 ] as const;
 
+/**
+ * Commande `admin.cancelActivation` : annule une programmation à venir. La version reste enregistrée et
+ * peut être reprogrammée ; une activation déjà en vigueur ne s'annule pas, on programme un retour arrière.
+ */
+export const adminCancelActivationInputSchema = z.strictObject({ activationId: z.uuid() });
+export type AdminCancelActivationInput = z.infer<typeof adminCancelActivationInputSchema>;
+export const adminCancelActivationOutputSchema = z.object({
+  activationId: z.uuid(),
+  versionId: z.uuid(),
+  /** Clôture à laquelle la version serait entrée en vigueur (ISO 8601). */
+  activateAt: z.iso.datetime(),
+});
+export type AdminCancelActivationOutput = z.infer<typeof adminCancelActivationOutputSchema>;
+export const ADMIN_CANCEL_ACTIVATION_ERROR_CODES = [
+  'FORBIDDEN',
+  'CONFIG_ACTIVATION_NOT_FOUND',
+  'CONFIG_ACTIVATION_CANCELLED',
+  /** L'échéance est passée : la version est en vigueur ou l'a été. */
+  'CONFIG_ACTIVATION_PAST',
+] as const;
+
+export const configActivationCancelledSchema = z.strictObject({
+  type: z.literal('ConfigActivationCancelled'),
+  payload: z.strictObject({
+    activationId: z.uuid(),
+    versionId: z.uuid(),
+    activateAt: z.iso.datetime(),
+    cancelledBy: z.uuid(),
+  }),
+});
+
 /** Rôles qui gèrent les rôles des autres comptes (15.3). */
 export const ROLE_MANAGER_ROLES = ['super_admin'] as const satisfies AdminRole[];
 const adminRoleSchema = z.enum(ADMIN_ROLES);

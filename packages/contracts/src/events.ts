@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   adminRoleGrantedSchema,
   adminRoleRevokedSchema,
+  configActivationCancelledSchema,
   configActivationScheduledSchema,
   configVersionPublishedSchema,
 } from './admin';
@@ -35,6 +36,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   orderCancelledSchema,
   configVersionPublishedSchema,
   configActivationScheduledSchema,
+  configActivationCancelledSchema,
   adminRoleGrantedSchema,
   adminRoleRevokedSchema,
 ]);
