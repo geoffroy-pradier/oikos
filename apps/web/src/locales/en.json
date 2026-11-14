@@ -68,6 +68,12 @@
     "harvestNone": "Nothing to collect yet.",
     "harvestWaiting_one": "{{count}} cycle is waiting for inputs.",
     "harvestWaiting_other": "{{count}} cycles are waiting for inputs.",
+    "upkeep": "Upkeep: {{cost}} obols a day, charged at the daily close",
+    "halted": "Halted since {{date}}: upkeep unpaid. This site no longer produces.",
+    "restart": "Restart ({{cost}} obols)",
+    "restartSite": "Restart: {{site}}, for {{cost}} obols",
+    "restarted": "Site restarted: {{site}}, for {{cost}} obols of upkeep.",
+    "alreadyRestarted": "This site was already restarted: {{site}}, for {{cost}} obols. Nothing more was paid.",
     "held": "plus {{amount}} obols held for your resting buy orders at the agora"
   },
   "agora": {
@@ -207,7 +213,7 @@
     "SITE_NOT_FOUND": "This site cannot be found.",
     "GOOD_NOT_FOUND": "This good does not exist.",
     "INSUFFICIENT_STOCK": "Not enough free stock for this sale.",
-    "INSUFFICIENT_FUNDS": "Not enough money for this purchase.",
+    "INSUFFICIENT_FUNDS": "Not enough money in the treasury.",
     "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished.",
     "FORBIDDEN": "This action is restricted to administrators.",
     "ORDER_NOT_FOUND": "This order cannot be found.",
