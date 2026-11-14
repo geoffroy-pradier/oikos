@@ -99,7 +99,31 @@
     "grantedAt": "Depuis le",
     "you": "(vous)",
     "byHand": "Inscrit en base",
-    "empty": "Aucun compte ne porte de rôle."
+    "empty": "Aucun compte ne porte de rôle.",
+    "actions": "Actions",
+    "revoke": "Retirer le rôle de {{account}}",
+    "confirm": "Ce compte perdra aussitôt tout accès à Olympe.",
+    "confirmRevoke": "Confirmer le retrait",
+    "cancel": "Annuler",
+    "revoked": "Rôle {{role}} retiré.",
+    "grantTitle": "Accorder un rôle",
+    "accountId": "Identifiant du compte",
+    "accountHint": "Celui qu'un compte sans rôle lit sur son écran après sa connexion. Un compte qui porte déjà un rôle le voit remplacé.",
+    "accountInvalid": "Ce n'est pas un identifiant de compte : 36 caractères, chiffres et lettres de a à f en cinq groupes séparés par des tirets.",
+    "grant": "Accorder le rôle",
+    "granted": "Rôle {{role}} accordé.",
+    "replaced": "Rôle {{role}} accordé, à la place de {{previous}}.",
+    "errors": {
+      "FORBIDDEN": "Votre rôle ne permet pas cette action.",
+      "ACCOUNT_NOT_FOUND": "Aucun compte ne porte cet identifiant.",
+      "ROLE_UNCHANGED": "Ce compte porte déjà ce rôle.",
+      "ROLE_SELF_GRANT": "On ne change pas son propre rôle : un autre super-administrateur doit le faire.",
+      "ROLE_NOT_FOUND": "Ce compte ne porte plus aucun rôle.",
+      "LAST_SUPER_ADMIN": "Il doit toujours rester un super-administrateur : accordez d'abord ce rôle à un autre compte.",
+      "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
+      "VALIDATION_FAILED": "Demande refusée : identifiant ou rôle mal formé.",
+      "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois."
+    }
   },
   "audit": {
     "title": "Journal d'audit",
