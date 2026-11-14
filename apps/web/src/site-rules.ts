@@ -1,5 +1,5 @@
-import { DEFAULT_SITES } from '@oikos/config/schema';
-import { accrueWorkshop } from '@oikos/sim';
+import { DEFAULT_SITES, DEFAULT_UPKEEP } from '@oikos/config/schema';
+import { accrueWorkshop, dailyUpkeep } from '@oikos/sim';
 import { z } from 'zod';
 
 const name = z.string().min(1);
@@ -27,6 +27,13 @@ const siteRulesSchema = z.object({
     .object({
       limitByHeadquartersLevel: z.array(positiveInt).min(1),
       acquisitionCostOboles: z.record(name, positiveInt),
+      // Version publiée avant l'entretien : rien n'est dû, comme pour l'API.
+      upkeep: z
+        .object({
+          coefficientBps: z.number().int().nonnegative(),
+          dailyOboles: z.record(name, z.number().int().nonnegative()),
+        })
+        .default(DEFAULT_UPKEEP),
     })
     .nullable()
     .transform((sites) => sites ?? DEFAULT_SITES),
@@ -45,6 +52,11 @@ export interface SiteRules {
   alternatives(recipeId: string): SiteRecipe[];
   /** Recette d'un site, si la configuration en vigueur la connaît. */
   recipe(recipeId: string): SiteRecipe | null;
+  /**
+   * Entretien d'un jour du site qui exploite cette recette, en oboles (5.5) : ce que demande chaque
+   * clôture, et ce que coûte une relance. Nul pour une recette inconnue, qui n'a pas de tarif.
+   */
+  upkeepOf(recipeId: string): number;
 }
 
 /** Rend `null` si la réponse n'a pas la forme attendue : l'écran annonce alors un échec de lecture. */
@@ -68,6 +80,10 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
       return recipes.filter((recipe) => recipe.siteType === type && recipe.id !== recipeId);
     },
     recipe: (recipeId) => recipes.find((recipe) => recipe.id === recipeId) ?? null,
+    upkeepOf: (recipeId) => {
+      const base = new Map(Object.entries(sites.upkeep.dailyOboles)).get(typeOf(recipeId) ?? '');
+      return base === undefined ? 0 : dailyUpkeep(base, sites.upkeep.coefficientBps);
+    },
   };
 }
 
@@ -89,10 +105,17 @@ export function previewHarvest(
   cycleStartedAt: Date,
   now: Date,
   freeStock: (goodId: string) => number,
+  /** Instant de l'arrêt d'un site impayé (5.5), `null` s'il tourne. */
+  haltedAt: Date | null = null,
 ): Harvest {
+  // Un atelier à l'arrêt ne consomme aucun intrant : rien à récolter, rien en attente d'intrants.
+  if (haltedAt && recipe.inputs.length > 0)
+    return { cycles: 0, waiting: 0, inputs: [], outputs: [] };
+  // Pour un site à l'arrêt, le temps s'est arrêté à l'instant de l'arrêt.
+  const until = haltedAt && haltedAt < now ? haltedAt : now;
   const { cycles, elapsedCycles } = accrueWorkshop({
     since: cycleStartedAt,
-    now,
+    now: until,
     cycleMinutes: recipe.durationMinutes,
     maxCycles: recipe.maxAccruedCycles,
     inputs: recipe.inputs.map((stack) => ({

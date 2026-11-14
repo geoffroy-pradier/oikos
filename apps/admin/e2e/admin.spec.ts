@@ -75,6 +75,25 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
   await page.getByLabel('Language').selectOption('fr');
 
+  // Accès : le compte s'y lit avec son rôle ; l'API refuse un identifiant inconnu ; rien ne déborde à 360 px.
+  await modules.getByRole('button', { name: 'Accès' }).click();
+  await expect(page.getByRole('heading', { name: 'Accès', level: 1 })).toBeVisible();
+  await expect(
+    page.getByRole('row', { name: /\(vous\) Super-administrateur Inscrit en base/ }),
+  ).toBeVisible();
+  await page.getByLabel('Identifiant du compte').fill(randomUUID());
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Aucun compte ne porte cet identifiant.')).toBeVisible();
+  // Entrée tenue sur « Retirer le rôle » : la confirmation s'ouvre, foyer sur « Annuler », rien n'est validé.
+  const mine = page.getByRole('row', { name: /\(vous\) Super-administrateur Inscrit en base/ });
+  await mine.getByRole('button', { name: /^Retirer le rôle de / }).focus();
+  for (let held = 0; held < 3; held += 1) await page.keyboard.down('Enter');
+  await page.keyboard.up('Enter');
+  await expect(mine.getByRole('button', { name: 'Annuler' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(mine.getByRole('button', { name: /^Retirer le rôle de / })).toBeFocused();
+  await expectNoHorizontalScroll(page);
+
   // Nouvelle session : plus d'enrôlement, le code de l'application est demandé avant tout accès.
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page.getByRole('heading', { name: 'Connexion à Olympe' })).toBeVisible();

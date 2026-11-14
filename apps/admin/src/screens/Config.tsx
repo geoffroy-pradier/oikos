@@ -16,7 +16,7 @@ interface Listing {
     createdBy: string | null;
     createdAt: string;
   }[];
-  activations: { versionId: string; activateAt: string; cancelledAt?: string | null }[];
+  activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
 }
 interface Detail {
   id: string;
@@ -40,6 +40,13 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  /**
+   * `cancelling` : programmation dont l'annulation attend sa confirmation. `returnTo` : programmation
+   * dont la confirmation vient de se refermer, à qui rendre le foyer. Jamais les deux à la fois.
+   */
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  const title = useRef<HTMLHeadingElement>(null);
   // Intention en attente de réponse : la même action renvoyée après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
@@ -101,6 +108,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     await listing.reload();
     setNotice(next);
     setBusy(false);
+    return reply.ok;
   }
 
   const publish = () =>
@@ -117,6 +125,36 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       }),
     );
 
+  /** Ouvre la confirmation. Le foyer à rendre d'une confirmation précédente n'a plus cours. */
+  const confirmCancel = (activationId: string) => {
+    setReturnTo(null);
+    setCancelling(activationId);
+  };
+  /** Referme la confirmation : renoncement, annulation refusée ou annulation faite. */
+  const closeCancel = (activationId: string) => {
+    setCancelling(null);
+    setReturnTo(activationId);
+  };
+  // Seul endroit qui rend le foyer après une confirmation : au bouton de la programmation s'il est
+  // encore offert, sinon au titre (programmation annulée, par cette commande ou par un autre compte,
+  // ou échéance passée) plutôt que de le laisser se perdre.
+  useEffect(() => {
+    if (returnTo) (document.getElementById(`config-cancel-${returnTo}`) ?? title.current)?.focus();
+  }, [returnTo]);
+  async function cancel(activation: { id: string; activateAt: string }, number: number) {
+    await run<{ cancelled: unknown[] }>(
+      'admin.cancelActivation',
+      { activationId: activation.id },
+      (data) =>
+        t('config.cancelledDone', {
+          count: data.cancelled.length,
+          number,
+          date: date.format(new Date(activation.activateAt)),
+        }),
+    );
+    closeCancel(activation.id);
+  }
+
   const activeNumber =
     listing.data?.versions.find((version) => version.id === listing.data?.activeVersionId)
       ?.number ?? 0;
@@ -124,14 +162,15 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Par échéance, seule la dernière version programmée l'emporte (15.4) : l'API rend les
   // programmations de la plus récente à la plus ancienne, la première vue pour une échéance gagne.
   // Une programmation annulée reste dans la lecture, marquée : elle n'entrera pas en vigueur.
-  const winners = new Map<string, string>();
+  const winners = new Map<string, Listing['activations'][number]>();
   for (const entry of listing.data?.activations ?? [])
-    if (!entry.cancelledAt && !winners.has(entry.activateAt))
-      winners.set(entry.activateAt, entry.versionId);
+    if (!entry.cancelledAt && !winners.has(entry.activateAt)) winners.set(entry.activateAt, entry);
 
   return (
     <>
-      <h1 className="text-2xl">{t('config.title')}</h1>
+      <h1 ref={title} tabIndex={-1} className="text-2xl">
+        {t('config.title')}
+      </h1>
       {listing.error && <LoadError code={listing.error} onRetry={() => void listing.reload()} />}
       {!listing.data && !listing.error && <p>{t('app.loading')}</p>}
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
@@ -139,10 +178,10 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       <h2 className="text-xl">{t('config.versions')}</h2>
       <ul className="flex flex-col gap-3">
         {listing.data?.versions.map((version) => {
-          const upcoming = [...winners]
-            .filter(([activateAt, winner]) => winner === version.id && Date.parse(activateAt) > now)
-            .map(([activateAt]) => activateAt)
-            .sort()[0];
+          const next = [...winners.values()]
+            .filter((entry) => entry.versionId === version.id && Date.parse(entry.activateAt) > now)
+            .sort((a, b) => a.activateAt.localeCompare(b.activateAt))[0];
+          const upcoming = next?.activateAt;
           return (
             <li key={version.id} className="rounded-md border border-border p-3">
               <h3 className="text-lg">
@@ -175,7 +214,40 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                     })}
                   </Button>
                 )}
+                {canEdit && next && cancelling !== next.id && (
+                  <Button
+                    id={`config-cancel-${next.id}`}
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => confirmCancel(next.id)}
+                  >
+                    {t('config.cancel', { number: version.number })}
+                  </Button>
+                )}
               </div>
+              {canEdit && next && cancelling === next.id && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p id="config-cancel-warning">{t('config.cancelWarning')}</p>
+                  <Button
+                    disabled={busy}
+                    aria-describedby="config-cancel-warning"
+                    onClick={() => void cancel(next, version.number)}
+                  >
+                    {t('config.cancelConfirm')}
+                  </Button>
+                  {/* Foyer initial sur le choix sans effet : une touche Entrée maintenue sur le bouton
+                      d'annulation ne confirme pas par répétition. L'avertissement est lu à l'arrivée. */}
+                  <Button
+                    autoFocus
+                    variant="secondary"
+                    disabled={busy}
+                    aria-describedby="config-cancel-warning"
+                    onClick={() => closeCancel(next.id)}
+                  >
+                    {t('config.cancelKeep')}
+                  </Button>
+                </div>
+              )}
             </li>
           );
         })}

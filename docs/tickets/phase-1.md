@@ -16,7 +16,7 @@ chaque puits.
 **État de la phase 0.** Le flux de déploiement est en place mais n'a encore tourné sur aucun serveur : le
 ticket « Serveur de préproduction » (#33, `needs-human`) reste ouvert. Les tickets ci-dessous n'en dépendent pas.
 
-Les numéros sont ceux des tickets GitHub (#64 à #78).
+Les numéros sont ceux des tickets GitHub (#64 à #78, puis les tickets de suivi ouverts en cours de phase).
 
 ---
 
@@ -548,3 +548,103 @@ Ordres au marché, taxe de marché.
 ## Dépendances
 
 #69
+
+---
+
+# 123. Changer la durée de tick en configuration bloque les ticks du monde
+
+## Contexte
+
+Report des relectures des demandes de fusion #119 et suivantes (ticket #72, clôture quotidienne). L'indice d'un tick est calculé comme époque ÷ `tickMinutes` (`tickIndexAt`, `apps/engine/src/scheduler.ts`, `advanceWorld`) : il change d'échelle dès qu'une version de configuration modifie la durée de tick. Défaut antérieur au ticket #72 ; celui-ci rend seulement la clôture quotidienne indépendante de ce mécanisme.
+
+- **10 → 20 minutes** : l'indice courant est divisé par deux, le monde se retrouve « derrière le dernier tick joué » ; seul un `console.warn` le signale et plus aucun tick ne se joue tant que l'indice n'a pas rattrapé l'ancien (des décennies).
+- **10 → 5 minutes** : l'indice double ; le rattrapage repart du dernier indice + 1, donc de ticks dont l'instant prévu tombe vers 1998. `runTick` y charge la configuration et échoue (`ConfigError`) ; le rattrapage s'arrête sur ce tick à chaque passage : le monde est bloqué en erreur.
+- Dans les deux cas : plus de demande des PNJ, plus de chandeliers ni de prix observé.
+- Voisin : le drapeau `daily_close` d'un tick ne se lève pas un jour où l'heure de clôture est sautée par le passage à l'heure d'été (sans effet à 04 h 00 à Paris ; à supprimer ou corriger une fois la clôture décidée par la table des clôtures jouées).
+
+Rien n'empêche aujourd'hui de publier une configuration qui change `tickMinutes` depuis Olympe.
+
+## Spécification liée
+
+`docs/specs/03-boucles-progression.md` (temps et horloges), `docs/specs/13-moteur-anti-triche.md`, `docs/specs/11-architecture.md` (configuration versionnée)
+
+## Critères d'acceptation
+
+- [ ] Décision écrite dans la spécification : l'indice de tick devient indépendant de la durée (compteur par monde, ou origine et durée enregistrées à chaque changement), ou bien le changement de durée est refusé à la publication tant qu'une migration d'indice n'existe pas
+- [ ] Après un changement de durée de tick (plus longue et plus courte), le monde continue de jouer ses ticks : ni tick perdu, ni tick doublé, ni rattrapage de ticks antérieurs au changement
+- [ ] Tests d'intégration : 10 → 20 minutes et 10 → 5 minutes, avec demande des PNJ et chandeliers toujours servis ; deux moteurs concurrents pendant le changement
+- [ ] Un monde qui ne peut pas jouer son tick est visible dans la Vigie (pas seulement un `console.warn`)
+- [ ] Le drapeau `daily_close` des ticks est supprimé ou rendu cohérent avec la table des clôtures jouées
+- [ ] La programmation d'une version (`admin.scheduleConfig`) et la clôture quotidienne utilisent le même calcul de l'instant de clôture (`dailyCloseAt`) : aujourd'hui la programmation vise `nextDailyClose`, fondé sur les ticks, qui diverge quand l'heure de clôture est sautée par l'heure d'été, avec un fuseau à la demi-heure et un tick de 60 minutes, ou quand la version programmée change l'heure ou le fuseau de clôture ; testé dans ces trois cas
+
+## Hors périmètre
+
+Durée de tick par monde réglable à chaud par les joueurs ; changement de l'heure ou du fuseau de clôture.
+
+## Dépendances
+
+#72
+
+---
+
+# 130. Empêcher d'antidater une activation de configuration
+
+## Contexte
+
+Report de la relecture de la demande de fusion #127 (ticket #77, annulation d'une programmation). Défaut antérieur à ce ticket : `config.activations.created_at` est fourni par l'appelant et le rôle de service a le droit d'insertion sur toute la ligne. La contrainte `activations_not_backdated` compare donc `activate_at` à une date que l'appelant choisit : elle n'empêche pas d'antidater une activation, c'est-à-dire de faire relire le passé (ticks et clôtures déjà joués) avec une autre version de configuration. Seul le code des commandes l'empêche aujourd'hui.
+
+Même famille que le ticket #100 (contrôles que seule l'API garantit) ; le même durcissement a déjà été fait pour `game.trades` (migration 25) et `game.daily_closes` (migration 27).
+
+## Spécification liée
+
+`docs/specs/11-architecture.md` (configuration versionnée), `docs/specs/12-modele-donnees.md`, `docs/specs/13-moteur-anti-triche.md`
+
+## Critères d'acceptation
+
+- [ ] La date de création d'une activation est posée par la base (droit d'insertion par colonnes sans `created_at`, ou garde), jamais par le rôle de service
+- [ ] La base refuse une activation dont l'instant d'effet est antérieur à l'heure de la base, quel que soit le rôle appelant
+- [ ] Tests pgTAP joués sous `oikos_service`, avec le nom de la contrainte de chaque refus ; listes figées des droits mises à jour
+- [ ] Les commandes de programmation existantes et leurs tests d'intégration passent sans fournir la date
+- [ ] Une programmation trop proche de son échéance est refusée par la base (même marge que l'annulation), avec une erreur métier dédiée et son message fr/en dans Olympe ; la transaction de `admin.scheduleConfig` est bornée sous cette marge
+- [ ] Garantie stricte : contrôle à la validation (déclencheur de contrainte différé comparant l'heure de la base à l'échéance) pour l'annulation et la programmation, traduit en erreur métier et non en erreur interne ; aujourd'hui la marge d'une minute et la borne de durée des instructions ne sont qu'une protection en profondeur
+
+## Hors périmètre
+
+Annulation d'une programmation (#77), instant de clôture utilisé par la programmation (#123).
+
+## Dépendances
+
+#77
+
+---
+
+# 136. Une session de base fermée en cours de commande arrête l'API et le moteur
+
+## Contexte
+
+Report des relectures de la demande de fusion #134 (ticket #77). Défaut du socle, antérieur à ce ticket, établi par lecture des sources (`pg`, `pg-pool`, pilote Kysely) et par un essai local de l'auteur ; pas encore couvert par un test.
+
+- **Écouteur manquant.** `createDb` (`packages/db/src/index.ts`) ne pose un écouteur `error` que sur le pool, qui ne couvre que les connexions inactives. `pg-pool` retire son écouteur quand il prête une connexion, et le pilote Kysely n'en pose pas.
+- **Arrêt du processus.** Si la base ferme une session prêtée (redémarrage, bascule, `pg_terminate_backend`, délai de session), `pg` émet `error` sur le client (« Connection terminated unexpectedly »). Sans écouteur, c'est une exception non interceptée : l'API s'arrête avec toutes les commandes en cours. Le moteur utilise le même `createDb`.
+- **Pas de trace d'audit.** Si le processus survit, le `catch` d'`executeCommand` (`apps/api/src/registry.ts`) appelle `trx.rollback()` sur la connexion morte ; ce rejet sort du `catch` avant l'écriture de la ligne `failed` du journal des commandes.
+
+Un redémarrage de la base (mise à jour, bascule) arrêterait donc aujourd'hui les services au lieu de leur faire seulement échouer les commandes en cours.
+
+## Spécification liée
+
+`docs/specs/13-moteur-anti-triche.md`, `docs/specs/14-infrastructure.md`, `docs/specs/11-architecture.md`
+
+## Critères d'acceptation
+
+- [ ] Chaque connexion du pool a un écouteur `error` (`pool.on('connect', …)`) : une session fermée par la base n'arrête ni l'API ni le moteur
+- [ ] `executeCommand` tolère un `rollback` sur une connexion morte : la commande répond `INTERNAL`, une ligne `failed` est écrite au journal (par une autre connexion), la clé d'idempotence reste réutilisable
+- [ ] Même tolérance côté moteur : un tick ou une clôture interrompus sont rejoués au passage suivant, sans double effet
+- [ ] Tests d'intégration : la session d'une commande en cours et celle d'un tick en cours sont terminées par `pg_terminate_backend` ; le processus reste vivant, la requête suivante aboutit
+
+## Hors périmètre
+
+Reconnexion avec file d'attente des commandes, bascule automatique vers une réplique.
+
+## Dépendances
+
+aucune
