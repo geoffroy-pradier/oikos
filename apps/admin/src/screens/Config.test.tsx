@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
+import { held } from '../test/fakes';
 import { Config } from './Config';
 
 const api = vi.hoisted(() => ({ adminGet: vi.fn(), adminCommand: vi.fn() }));
@@ -158,4 +159,117 @@ it('un refus du schéma nomme les champs ; un refus de rôle a son message', asy
   await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
   fireEvent.click(publish);
   await screen.findByText('Votre rôle ne permet pas cette action.');
+});
+
+it("la réponse tardive d'une ouverture plus ancienne ne remplace ni la version ouverte ni la saisie", async () => {
+  const slow = held<unknown>();
+  const base = api.adminGet.getMockImplementation() as (path: string) => Promise<unknown>;
+  api.adminGet.mockImplementation((path: string) =>
+    path === 'config/versions/v3' ? slow.promise : base(path),
+  );
+  render(<Config accessToken="token" role="super_admin" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Ouvrir la version 3' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la version 1' }));
+  const editor = (await screen.findByLabelText('Configuration (JSON)')) as HTMLTextAreaElement;
+  fireEvent.change(editor, { target: { value: '{"saisie":1}' } });
+  slow.release({ ok: true, data: { id: 'v3', number: 3, config: CONFIGS['v3'] } });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(screen.getByRole('heading', { name: 'Contenu de la version 1' })).toBeTruthy();
+  expect(editor.value).toBe('{"saisie":1}');
+});
+
+it('pour une même clôture, seule la dernière version programmée est signalée', async () => {
+  const at = '2999-01-01T00:00:00Z';
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: {
+      ...LISTING,
+      // De la plus récente à la plus ancienne, comme l'API : v1 a été programmée après v3.
+      activations: [
+        { versionId: 'v1', activateAt: at },
+        { versionId: 'v3', activateAt: at },
+        { versionId: 'v3', activateAt: '2998-01-01T00:00:00Z' },
+        { versionId: 'v2', activateAt: '2997-06-01T00:00:00Z' },
+        { versionId: 'v2', activateAt: '2997-01-01T00:00:00Z' },
+      ],
+    },
+  });
+  render(<Config accessToken="token" role="observer" />);
+  await screen.findByRole('heading', { name: /^Version 3/ });
+  expect(item(1).textContent).toMatch(/Programmée pour le 01\/01\/2999/);
+  // v3 a perdu la clôture de 2999 mais garde celle de 2998.
+  expect(item(3).textContent).toMatch(/Programmée pour le 01\/01\/2998/);
+  // De plusieurs programmations gagnantes, la plus proche est affichée.
+  expect(item(2).textContent).toMatch(/Programmée pour le 01\/01\/2997/);
+});
+
+it('la comparaison nomme la version en vigueur et la suit quand elle change', async () => {
+  api.adminCommand.mockResolvedValue({ ok: true, data: { activateAt: '2999-01-01T00:00:00Z' } });
+  await openVersion(3);
+  expect(
+    await screen.findByRole('heading', { name: 'Différences avec la version 2, en vigueur' }),
+  ).toBeTruthy();
+  expect(screen.getByText('starting.grantOboles').closest('li')?.textContent).toContain(
+    '600 → 700',
+  );
+  // La clôture est passée : la liste relue après une commande désigne la version 3.
+  const base = api.adminGet.getMockImplementation() as (path: string) => Promise<unknown>;
+  api.adminGet.mockImplementation((path: string) =>
+    path === 'config/versions'
+      ? Promise.resolve({ ok: true, data: { ...LISTING, activeVersionId: 'v3' } })
+      : base(path),
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Revenir à la version 1/ }));
+  expect(
+    await screen.findByRole('heading', { name: 'Différences avec la version 3, en vigueur' }),
+  ).toBeTruthy();
+  expect(screen.getByText('Aucune différence avec la version 3, en vigueur.')).toBeTruthy();
+});
+
+it('un contenu ou une note modifiés après une panne sont une autre intention : nouvelle clé', async () => {
+  api.adminCommand.mockResolvedValue({ ok: false, code: 'INTERNAL' });
+  const editor = await openVersion(2);
+  const publish = screen.getByRole('button', { name: 'Enregistrer comme nouvelle version' });
+  const send = async (calls: number) => {
+    await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(publish);
+    await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(calls));
+  };
+  await send(1);
+  await send(2);
+  expect(keyOf(1)).toBe(keyOf(0));
+  fireEvent.change(editor, { target: { value: '{"starting":{"grantOboles":601}}' } });
+  await send(3);
+  expect(keyOf(2)).not.toBe(keyOf(0));
+  fireEvent.change(screen.getByLabelText('Note de version'), { target: { value: 'autre' } });
+  await send(4);
+  expect(keyOf(3)).not.toBe(keyOf(2));
+});
+
+it("pendant une commande, les actions sont désactivées ; l'ouverture d'une version vide la note", async () => {
+  const pendingReply = held<unknown>();
+  api.adminCommand.mockReturnValue(pendingReply.promise);
+  await openVersion(2);
+  fireEvent.change(screen.getByLabelText('Note de version'), { target: { value: 'brouillon' } });
+  const publish = screen.getByRole('button', { name: 'Enregistrer comme nouvelle version' });
+  const schedule = screen.getByRole('button', { name: /Programmer la version 3/ });
+  fireEvent.click(publish);
+  await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(true));
+  expect(schedule.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(schedule);
+  fireEvent.click(publish);
+  expect(api.adminCommand).toHaveBeenCalledTimes(1);
+  pendingReply.release({ ok: true, data: { number: 4 } });
+  await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la version 3' }));
+  await screen.findByRole('heading', { name: 'Contenu de la version 3' });
+  expect((screen.getByLabelText('Note de version') as HTMLInputElement).value).toBe('');
+});
+
+it('un changement de type reste visible dans la comparaison', async () => {
+  const editor = await openVersion(2);
+  fireEvent.change(editor, { target: { value: '{"starting":{"grantOboles":"600"}}' } });
+  expect(screen.getByText('starting.grantOboles').closest('li')?.textContent).toContain(
+    '600 → "600"',
+  );
 });

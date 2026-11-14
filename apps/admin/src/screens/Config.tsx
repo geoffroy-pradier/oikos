@@ -1,6 +1,6 @@
 import { CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
 import { Button } from '@oikos/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
@@ -43,8 +43,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
-  const show = (value: unknown) =>
-    value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+  // Rendu JSON : un changement de type reste visible (`"600" → 600`).
+  const show = (value: unknown) => JSON.stringify(value);
 
   let parsed: unknown;
   try {
@@ -55,20 +55,34 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
   const changes = isObject && active ? diffConfigs(active.config, parsed) : null;
 
+  // Dernière ouverture demandée : la réponse d'une ouverture plus ancienne est ignorée, elle
+  // remplacerait sans prévenir la version affichée et la saisie en cours.
+  const opening = useRef(0);
   async function open(id: string) {
+    const request = ++opening.current;
     setNotice(null);
-    const activeId = listing.data?.activeVersionId;
-    const [detail, inForce] = await Promise.all([
-      adminGet<Detail>(`config/versions/${id}`, accessToken),
-      activeId ? adminGet<Detail>(`config/versions/${activeId}`, accessToken) : null,
-    ]);
-    if (!detail.ok || (inForce && !inForce.ok))
-      return setNotice({ kind: 'alert', text: t('app.loadFailed') });
+    const detail = await adminGet<Detail>(`config/versions/${id}`, accessToken);
+    if (request !== opening.current) return;
+    if (!detail.ok) return setNotice({ kind: 'alert', text: t('app.loadFailed') });
     setOpened(detail.data);
-    setActive(inForce?.ok ? inForce.data : null);
     setText(JSON.stringify(detail.data.config, null, 2));
     setNote('');
   }
+
+  // La comparaison porte toujours sur la version en vigueur du moment : elle est relue dès que la
+  // liste en désigne une autre (après une clôture, par exemple).
+  const activeId = listing.data?.activeVersionId ?? null;
+  useEffect(() => {
+    if (!activeId) return setActive(null);
+    let cancelled = false;
+    setActive(null);
+    void adminGet<Detail>(`config/versions/${activeId}`, accessToken).then((reply) => {
+      if (!cancelled) setActive(reply.ok ? reply.data : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId, accessToken]);
 
   async function run<T>(name: string, input: unknown, done: (data: T) => string) {
     setBusy(true);
@@ -106,6 +120,11 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     listing.data?.versions.find((version) => version.id === listing.data?.activeVersionId)
       ?.number ?? 0;
   const now = Date.now();
+  // Par échéance, seule la dernière version programmée l'emporte (15.4) : l'API rend les
+  // programmations de la plus récente à la plus ancienne, la première vue pour une échéance gagne.
+  const winners = new Map<string, string>();
+  for (const entry of listing.data?.activations ?? [])
+    if (!winners.has(entry.activateAt)) winners.set(entry.activateAt, entry.versionId);
 
   return (
     <>
@@ -117,9 +136,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       <h2 className="text-xl">{t('config.versions')}</h2>
       <ul className="flex flex-col gap-3">
         {listing.data?.versions.map((version) => {
-          const upcoming = listing.data?.activations
-            .filter((entry) => entry.versionId === version.id && Date.parse(entry.activateAt) > now)
-            .map((entry) => entry.activateAt)
+          const upcoming = [...winners]
+            .filter(([activateAt, winner]) => winner === version.id && Date.parse(activateAt) > now)
+            .map(([activateAt]) => activateAt)
             .sort()[0];
           return (
             <li key={version.id} className="rounded-md border border-border p-3">
@@ -172,10 +191,16 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
-          <h3 className="text-lg">{t('config.diff')}</h3>
+          <h3 className="text-lg">
+            {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
+          </h3>
           {!isObject && <p role="alert">{t('config.invalidJson')}</p>}
-          {changes?.length === 0 && <p className="text-muted-foreground">{t('config.noDiff')}</p>}
-          <ul className="text-sm">
+          {changes?.length === 0 && (
+            <p className="text-muted-foreground">
+              {t('config.noDiff', { number: active?.number })}
+            </p>
+          )}
+          <ul className="text-sm break-all">
             {changes?.map((change) => (
               <li key={change.path}>
                 <code className="break-all">{change.path}</code> :{' '}

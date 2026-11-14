@@ -106,8 +106,8 @@
     "editing": "Contenu de la version {{number}}",
     "content": "Configuration (JSON)",
     "note": "Note de version",
-    "diff": "Différences avec la version en vigueur",
-    "noDiff": "Aucune différence avec la version en vigueur.",
+    "diff": "Différences avec la version {{number}}, en vigueur",
+    "noDiff": "Aucune différence avec la version {{number}}, en vigueur.",
     "added": "ajouté",
     "removed": "retiré",
     "publish": "Enregistrer comme nouvelle version",
@@ -122,6 +122,7 @@
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
-    }
+    },
+    "diffPending": "Différences avec la version en vigueur : lecture en cours…"
   }
 }

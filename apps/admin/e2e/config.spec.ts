@@ -21,7 +21,9 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   const number = /Version (\d+)/.exec(await inForce.getByRole('heading').innerText())?.[1] ?? '';
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
   const editor = page.getByLabel('Configuration (JSON)');
-  await expect(page.getByText('Aucune différence avec la version en vigueur.')).toBeVisible();
+  await expect(
+    page.getByText(`Aucune différence avec la version ${number}, en vigueur.`),
+  ).toBeVisible();
   const config = JSON.parse(await editor.inputValue()) as {
     starting: { grantOboles: number };
     market: { npcMaxPriceFactor: number };

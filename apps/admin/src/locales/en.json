@@ -106,8 +106,8 @@
     "editing": "Content of version {{number}}",
     "content": "Configuration (JSON)",
     "note": "Version note",
-    "diff": "Differences from the version in force",
-    "noDiff": "No difference from the version in force.",
+    "diff": "Differences from version {{number}}, in force",
+    "noDiff": "No difference from version {{number}}, in force.",
     "added": "added",
     "removed": "removed",
     "publish": "Save as a new version",
@@ -122,6 +122,7 @@
       "INTERNAL": "The action did not complete. Try again: it will not run twice.",
       "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
       "VALIDATION_FAILED": "Request rejected: content too large or malformed."
-    }
+    },
+    "diffPending": "Differences from the version in force: loading…"
   }
 }
