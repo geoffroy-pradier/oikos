@@ -10,6 +10,7 @@ import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 import { parseCandleSeconds } from '../price-history';
 import { PriceHistory } from './PriceHistory';
+import { useMoney } from '../money';
 
 /**
  * Biens proposés : ceux qui ont un nom (un test tient les traductions alignées sur la configuration).
@@ -84,6 +85,7 @@ export function AgoraScreen() {
   };
 
   const number = new Intl.NumberFormat(i18n.language);
+  const money = useMoney();
   const good = t(`goods.${goodId}`);
   const preview = previewSale(tax, side, price, quantity);
 
@@ -115,11 +117,11 @@ export function AgoraScreen() {
         kind: 'status',
         text: t(`agora.${outcome.key}`, {
           good,
-          price: number.format(input.data.price),
+          price: money(input.data.price),
           quantity: number.format(outcome.quantity),
           wanted: number.format(outcome.wanted),
-          amount: number.format(outcome.amount),
-          held: number.format(outcome.held),
+          amount: money(outcome.amount),
+          held: money(outcome.held),
         }),
       };
     }
@@ -142,7 +144,7 @@ export function AgoraScreen() {
             quantity: number.format(result.data.released),
             good: t(`goods.${order.good_id}`),
             // Ce que le séquestre retenait pour le reste : prix limite × quantité non servie.
-            amount: number.format(order.price * result.data.released),
+            amount: money(order.price * result.data.released),
           }),
         }
       : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
@@ -258,7 +260,7 @@ export function AgoraScreen() {
           <p id="expected-net" className="text-sm text-muted-foreground">
             {preview &&
               t('agora.expectedNet', {
-                net: number.format(preview.net),
+                net: money(preview.net),
                 gross: number.format(preview.gross),
                 tax: number.format(preview.tax),
               })}
@@ -288,8 +290,8 @@ export function AgoraScreen() {
               good: t(`goods.${order.good_id}`),
               remaining: number.format(order.remaining),
               quantity: number.format(order.quantity),
-              price: number.format(order.price),
-              held: number.format(order.price * order.remaining),
+              price: money(order.price),
+              held: money(order.price * order.remaining),
             };
             const buying = order.side === 'buy';
             return (

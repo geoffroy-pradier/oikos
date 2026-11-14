@@ -382,11 +382,11 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await other.keyboard.press('Enter');
     const bid = price + 1;
     await expect(other.getByRole('status')).toContainText(
-      `Achat en attente : 30 × Blé à ${bid} oboles. ${french.format(30 * bid)} oboles sont retenues`,
+      `Achat en attente : 30 × Blé à ${bid} oboles. Le séquestre retient ${french.format(30 * bid)} oboles`,
     );
     await expect(
       other.getByText(
-        `Blé : 30 sur 30 à ${bid} oboles (${french.format(30 * bid)} oboles retenues)`,
+        `Blé : 30 sur 30 à ${bid} oboles (séquestre : ${french.format(30 * bid)} oboles)`,
       ),
     ).toBeVisible();
     // Le carnet public montre l'achat de l'autre côté ; le vendeur le voit, sans savoir de qui il vient.
@@ -409,12 +409,14 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
       other.getByText(`${french.format(3000 - 30 * price - 30 * bid)} oboles`, { exact: true }),
     ).toBeVisible();
     await expect(
-      other.getByText(`plus ${french.format(26 * bid)} oboles retenues pour vos achats en attente`),
+      other.getByText(
+        `plus ${french.format(26 * bid)} oboles au séquestre pour vos achats en attente`,
+      ),
     ).toBeVisible();
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await other.getByRole('button', { name: /^Annuler l'achat de 26 × Blé/ }).click();
     await expect(other.getByRole('status')).toContainText(
-      `Achat annulé : 26 × Blé ; ${french.format(26 * bid)} oboles rendues à votre trésorerie.`,
+      `Achat annulé : 26 × Blé ; votre trésorerie récupère ${french.format(26 * bid)} oboles.`,
     );
     await expect(other.getByText('Aucun ordre en attente.')).toBeVisible();
 

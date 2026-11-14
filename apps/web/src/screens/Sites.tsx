@@ -5,6 +5,7 @@ import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandRespo
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, type StockLine } from '../site-rules';
+import { useMoney } from '../money';
 
 interface Site {
   id: string;
@@ -57,6 +58,7 @@ export function SitesCard({
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
+  const money = useMoney();
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   // Une recette ou un type ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const recipeName = (id: string) => t(`recipes.${id}`, { defaultValue: id });
@@ -143,7 +145,7 @@ export function SitesCard({
       (data, replayed) =>
         t(replayed ? 'home.alreadyRestarted' : 'home.restarted', {
           site: siteName(site),
-          cost: number.format(data.upkeepOboles),
+          cost: money(data.upkeepOboles),
         }),
     );
     // Un refus reste attaché à sa clé (« le site vient de changer », trésorerie insuffisante) : le
@@ -164,7 +166,7 @@ export function SitesCard({
       (data, replayed) =>
         t(replayed ? 'home.alreadyAcquired' : 'home.acquired', {
           site: recipeName(data.recipeId),
-          cost: number.format(data.costOboles),
+          cost: money(data.costOboles),
         }),
     );
     // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
@@ -224,7 +226,7 @@ export function SitesCard({
                       {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
                     </p>
                     {upkeep !== null && upkeep > 0 && (
-                      <p>{t('home.upkeep', { cost: number.format(upkeep) })}</p>
+                      <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
                     )}
                   </div>
                 </div>
@@ -250,11 +252,11 @@ export function SitesCard({
                       aria-disabled={busy}
                       aria-label={t('home.restartSite', {
                         site: name,
-                        cost: number.format(upkeep),
+                        cost: money(upkeep),
                       })}
                       onClick={() => void restart(site)}
                     >
-                      {t('home.restart', { cost: number.format(upkeep) })}
+                      {t('home.restart', { cost: money(upkeep) })}
                     </Button>
                   )}
                 </div>
@@ -344,7 +346,7 @@ export function SitesCard({
                 >
                   {offers.map(({ recipe, costOboles }) => {
                     const [site, type] = [recipeName(recipe.id), typeName(recipe.siteType)];
-                    const cost = number.format(costOboles);
+                    const cost = money(costOboles);
                     return (
                       <option key={recipe.id} value={recipe.id}>
                         {/* Le type n'est pas répété quand la production porte déjà son nom. */}
