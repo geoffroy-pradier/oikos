@@ -90,7 +90,13 @@
     "openSells_one": "{{number}} sell order",
     "openSells_other": "{{number}} sell orders",
     "toAgora": "Go to the agora",
-    "harvestFullShort": "Cap reached: this site produces nothing more until it gets its inputs."
+    "harvestFullShort": "Cap reached: this site produces nothing more until it gets its inputs.",
+    "collectAll": "Collect all",
+    "collectAllLabel_one": "Collect all: {{number}} site to collect",
+    "collectAllLabel_other": "Collect all: {{number}} sites to collect",
+    "collectedAll_one": "Harvest stored from {{number}} site: {{list}}.",
+    "collectedAll_other": "Harvest stored from {{number}} sites: {{list}}.",
+    "collectAllFailed": "Failed for {{site}}. {{reason}}"
   },
   "agora": {
     "title": "Agora of {{city}}",

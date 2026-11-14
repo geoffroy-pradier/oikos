@@ -90,7 +90,13 @@
     "openSells_one": "{{number}} vente",
     "openSells_other": "{{number}} ventes",
     "toAgora": "Aller à l'agora",
-    "harvestFullShort": "Plafond atteint : ce site ne produit plus rien tant qu'il lui manque des intrants."
+    "harvestFullShort": "Plafond atteint : ce site ne produit plus rien tant qu'il lui manque des intrants.",
+    "collectAll": "Tout récolter",
+    "collectAllLabel_one": "Tout récolter : {{number}} site à récolter",
+    "collectAllLabel_other": "Tout récolter : {{number}} sites à récolter",
+    "collectedAll_one": "Récolte engrangée sur {{number}} site : {{list}}.",
+    "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
+    "collectAllFailed": "Échec pour {{site}}. {{reason}}"
   },
   "agora": {
     "title": "Agora de {{city}}",

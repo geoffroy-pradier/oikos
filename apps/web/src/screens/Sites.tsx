@@ -6,6 +6,7 @@ import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
+import { collectAll } from '../collect-all';
 
 interface Site {
   id: string;
@@ -17,6 +18,7 @@ interface Site {
 /** Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire. */
 type Notice = { target: string; kind: 'status' | 'alert'; text: string } | null;
 const ACQUIRE = 'acquire';
+const ALL = 'all';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 // Pendant une commande, les boutons restent atteignables (le focus ne retombe pas sur la page).
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
@@ -186,6 +188,47 @@ export function SitesCard({
     if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(recipeId);
   }
 
+  /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */
+  const harvestable = rows.filter((site) => (stateOf(site).harvest?.cycles ?? 0) > 0);
+
+  /** « Tout récolter » : une commande par site récoltable ; le résultat dit ce qui a échoué, et où. */
+  async function collectEverything() {
+    if (running.current || harvestable.length === 0) return;
+    running.current = true;
+    setBusy(true);
+    setNotice(null);
+    const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
+    const outcome = await collectAll(
+      harvestable.map((site) => site.id),
+      (siteId) => collectSite(siteId, house.accessToken),
+    );
+    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    setNow(new Date());
+    const parts: string[] = [];
+    if (outcome.succeeded.length > 0)
+      parts.push(
+        t('home.collectedAll', {
+          count: outcome.succeeded.length,
+          number: number.format(outcome.succeeded.length),
+          list: outcome.collected.map(stackText).join(', '),
+        }),
+      );
+    for (const failure of outcome.failed)
+      parts.push(
+        t('home.collectAllFailed', {
+          site: names.get(failure.siteId) ?? failure.siteId,
+          reason: t([`errors.${failure.code}`, 'errors.INTERNAL']),
+        }),
+      );
+    setNotice({
+      target: ALL,
+      kind: outcome.succeeded.length === 0 ? 'alert' : 'status',
+      text: parts.join(' '),
+    });
+    setBusy(false);
+    running.current = false;
+  }
+
   const announce = (target: string) =>
     notice?.target === target && (
       <p
@@ -211,6 +254,20 @@ export function SitesCard({
           </p>
         )}
       </div>
+      {harvestable.length > 0 && (
+        <Button
+          className={`self-start ${WAITING}`}
+          aria-disabled={busy}
+          aria-label={t('home.collectAllLabel', {
+            count: harvestable.length,
+            number: number.format(harvestable.length),
+          })}
+          onClick={() => void collectEverything()}
+        >
+          {t('home.collectAll')}
+        </Button>
+      )}
+      {announce(ALL)}
       {(sites.failed || rulesFailed) && <p role="alert">{t('app.loadFailed')}</p>}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
       {watched.length > 0 && (
