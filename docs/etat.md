@@ -199,8 +199,6 @@ Limites assumées pour l'instant :
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
   décalée fausse ce choix, et la fenêtre annoncée se terminait au calcul, pas à l'instant de lecture.
 - La fiche d'un site calcule « à récolter » avec l'horloge du navigateur ; l'API reste seule à décider.
-- Les montants s'écrivent « 1 oboles » au singulier dans plusieurs textes : à corriger avec le critère
-  « pluriels corrects » du ticket #74.
 - Une base déjà initialisée ne taxe pas tant qu'une version de configuration qui porte cette section n'a
   pas été publiée dans Olympe, programmée par un second compte et activée à une clôture ; il en ira de
   même pour l'entretien une fois #140 fusionnée.

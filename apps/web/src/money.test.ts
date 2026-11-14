@@ -1,51 +1,45 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { initI18n } from './i18n';
-import { formatMoney, splitObols } from './money';
+import i18next from 'i18next';
+import { describe, expect, it } from 'vitest';
+import { formatOboles } from './money';
+import en from './locales/en.json';
+import fr from './locales/fr.json';
 
-let money: (language: 'fr' | 'en') => (amount: number) => string;
-beforeAll(async () => {
-  const i18n = await initI18n('fr');
-  money = (language) => (amount) =>
-    // Espaces insécables de `Intl` ramenées à des espaces simples, pour des attentes lisibles.
-    formatMoney(amount, i18n.getFixedT(language), language).replace(/\s/g, ' ');
-});
+async function translator(language: 'fr' | 'en') {
+  const instance = i18next.createInstance();
+  await instance.init({
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng: language,
+    interpolation: { escapeValue: false },
+  });
+  return instance.t;
+}
 
-describe('montants en drachmes et oboles', () => {
-  it.each([
-    [0, 0, 0],
-    [1, 0, 1],
-    [5, 0, 5],
-    [6, 1, 0],
-    [7, 1, 1],
-    [3000, 500, 0],
-    [Number.MAX_SAFE_INTEGER, 1_501_199_875_790_165, 1],
-  ])('%d oboles : %d drachmes et %d oboles, sans rien perdre', (amount, drachmas, obols) => {
-    expect(splitObols(amount)).toEqual({ negative: false, drachmas, obols });
-    // Le signe porte sur tout le montant : une dette de 7 oboles est 1 drachme 1 obole, pas −2 + 5.
-    expect(splitObols(-amount)).toEqual({ negative: amount > 0, drachmas, obols });
-    expect(drachmas * 6 + obols).toBe(amount);
+describe('montants en oboles', () => {
+  it('accorde l’unité au nombre en français : zéro et un au singulier', async () => {
+    const t = await translator('fr');
+    expect(formatOboles(t, 'fr', 0)).toBe('0 obole');
+    expect(formatOboles(t, 'fr', 1)).toBe('1 obole');
+    expect(formatOboles(t, 'fr', 2)).toBe('2 oboles');
+    expect(formatOboles(t, 'fr', 3000)).toBe(`${new Intl.NumberFormat('fr').format(3000)} oboles`);
   });
 
-  it.each([
-    [0, '0 obole', '0 obols'],
-    [1, '1 obole', '1 obol'],
-    [5, '5 oboles', '5 obols'],
-    [6, '1 drachme', '1 drachma'],
-    [7, '1 drachme 1 obole', '1 drachma 1 obol'],
-    [12, '2 drachmes', '2 drachmas'],
-    [17, '2 drachmes 5 oboles', '2 drachmas 5 obols'],
-    [-1, '−1 obole', '−1 obol'],
-    [-6, '−1 drachme', '−1 drachma'],
-    [-7, '−1 drachme 1 obole', '−1 drachma 1 obol'],
-    // Un million de drachmes : la catégorie « many » du français s'accorde comme le pluriel.
-    [6_000_000, '1 000 000 drachmes', '1,000,000 drachmas'],
-    [
-      Number.MAX_SAFE_INTEGER,
-      '1 501 199 875 790 165 drachmes 1 obole',
-      '1,501,199,875,790,165 drachmas 1 obol',
-    ],
-  ])('%d oboles s’écrit « %s » en français et « %s » en anglais', (amount, fr, en) => {
-    expect(money('fr')(amount)).toBe(fr);
-    expect(money('en')(amount)).toBe(en);
+  it('accorde l’unité au nombre en anglais : un seul singulier', async () => {
+    const t = await translator('en');
+    expect(formatOboles(t, 'en', 0)).toBe('0 obols');
+    expect(formatOboles(t, 'en', 1)).toBe('1 obol');
+    expect(formatOboles(t, 'en', 1500)).toBe('1,500 obols');
+  });
+
+  it('les textes qui reçoivent un montant ne répètent pas l’unité', async () => {
+    const t = await translator('fr');
+    const text = t('agora.placedBuy', {
+      quantity: '1',
+      good: 'Blé',
+      price: formatOboles(t, 'fr', 1),
+      held: formatOboles(t, 'fr', 1),
+    });
+    expect(text).toBe(
+      "Achat en attente : 1 × Blé à 1 obole. Le séquestre retient 1 obole jusqu'à l'exécution ou l'annulation.",
+    );
   });
 });
