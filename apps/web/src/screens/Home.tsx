@@ -1,4 +1,5 @@
 import { Card } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
@@ -21,14 +22,16 @@ export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const treasury = useRows<Treasury>('my_treasury', 'balance', 'house_id');
-  // Achats en attente à l'agora : leur prix (prix limite × reste) est retenu hors de la trésorerie.
-  const buys = useRows<{ price: number; remaining: number }>(
+  // Ordres ouverts à l'agora. Le prix des achats (prix limite × reste) est retenu hors de la trésorerie.
+  const orders = useRows<{ side: 'buy' | 'sell'; price: number; remaining: number }>(
     'my_orders',
-    'price, remaining',
+    'side, price, remaining',
     'created_at',
-    { side: 'buy', status: 'open' },
+    { status: 'open' },
   );
-  const held = (buys.rows ?? []).reduce((sum, order) => sum + order.price * order.remaining, 0);
+  const buys = (orders.rows ?? []).filter((order) => order.side === 'buy');
+  const sells = (orders.rows ?? []).filter((order) => order.side === 'sell');
+  const held = buys.reduce((sum, order) => sum + order.price * order.remaining, 0);
   const stock = useRows<Inventory>(
     'my_inventories',
     'id, city_id, good_id, quantity, reserved',
@@ -39,7 +42,7 @@ export function HomeScreen() {
   const money = useMoney();
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
-  const failed = treasury.failed || stock.failed || buys.failed;
+  const failed = treasury.failed || stock.failed || orders.failed;
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,6 +63,25 @@ export function HomeScreen() {
         ))}
         {held > 0 && (
           <p className="text-muted-foreground">{t('home.held', { amount: money(held) })}</p>
+        )}
+        {orders.rows && (
+          <p>
+            {orders.rows.length === 0
+              ? t('home.openOrdersNone')
+              : t('home.openOrders', {
+                  buys: t('home.openBuys', {
+                    count: buys.length,
+                    number: number.format(buys.length),
+                  }),
+                  sells: t('home.openSells', {
+                    count: sells.length,
+                    number: number.format(sells.length),
+                  }),
+                })}{' '}
+            <Link to="/agora" className="underline">
+              {t('home.toAgora')}
+            </Link>
+          </p>
         )}
       </Card>
 

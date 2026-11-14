@@ -86,6 +86,12 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(
     page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\. Ce site ne produit plus\.$/),
   ).toBeVisible();
+  // Le tableau de bord le signale aussi parmi les sites à surveiller.
+  await expect(
+    page
+      .getByRole('region', { name: 'À surveiller' })
+      .getByText('Champ de blé — arrêté, entretien non payé'),
+  ).toBeVisible();
   // Six heures avant l'arrêt : un cycle entier, 40 unités de blé — pas les 120 de trois cycles.
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -403,6 +409,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
     await otherNav.getByRole('link', { name: 'Maison' }).click();
     await expect(other.getByText('Blé : 34')).toBeVisible();
+    await expect(other.getByText(/Ordres ouverts à l'agora : 1 achat, /)).toBeVisible();
     await expect(
       other.getByText(`${oboles(3000 - 30 * price - 30 * bid)}`, { exact: true }),
     ).toBeVisible();
