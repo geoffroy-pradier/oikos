@@ -67,29 +67,27 @@ for host in web.localhost olympe.localhost; do
   ! grep -qi 'immutable' "$work/headers" || { echo "$host : 404 mis en cache définitif" >&2; exit 1; }
   # L'API est relayée (ici vers un service absent : 502), jamais servie comme un fichier.
   expect "$host" /api/health 502
-  # En-têtes de sécurité, sur un fichier comme sur la coquille.
-  expect "$host" "$asset" 200 'x-content-type-options: nosniff'
-  expect "$host" / 200 'x-frame-options: DENY'
-  expect "$host" / 200 'strict-transport-security: max-age=31536000'
-  ! grep -qi '^server:' "$work/headers" || { echo "$host : en-tête Server présent" >&2; exit 1; }
-  # Politique de contenu : sources limitées au domaine, à l'API et à Supabase, sans dérogation générale.
-  csp="$(grep -i '^content-security-policy:' "$work/headers" || true)"
-  for directive in "default-src 'self';" "style-src 'self';" "object-src 'none';" "base-uri 'self';" \
-    "connect-src 'self' https://supabase.jeu.example.test wss://supabase.jeu.example.test;" "frame-ancestors 'none'"; do
-    grep -qF "$directive" <<< "$csp" || { echo "$host : politique de contenu sans « $directive »" >&2; exit 1; }
+  # En-têtes de sécurité sur toute réponse, erreurs produites par Caddy comprises (fichier absent, API injoignable).
+  for target in "/ 200" "$asset 200" "/assets/absent-0000.js 404" "/api/health 502"; do
+    for header in 'x-content-type-options: nosniff' 'x-frame-options: DENY' \
+      'strict-transport-security: max-age=31536000' "content-security-policy: default-src 'self'; script-src 'self' "; do
+      expect "$host" "${target% *}" "${target#* }" "$header"
+    done
   done
-  ! grep -qE "unsafe-|\*|https?: " <<< "$csp" || { echo "$host : politique de contenu trop large : $csp" >&2; exit 1; }
-  # La coquille servie doit respecter cette politique, sinon le navigateur la bloque : chaque script en
-  # ligne y a son empreinte, aucun style en ligne, aucun fichier pris sur un autre domaine.
-  node -e 'const { readFileSync } = require("node:fs"); const { createHash } = require("node:crypto");
-    const html = readFileSync(process.argv[1], "utf8");
+  # La coquille servie doit respecter la politique, sinon le navigateur la bloque : la politique entière est
+  # comparée à l'attendu, où chaque script en ligne de la coquille a son empreinte. Aucun style en ligne,
+  # aucun gestionnaire d'événement en ligne, aucun fichier pris sur un autre domaine.
+  expect "$host" / 200
+  inline="$(node -e 'const { readFileSync } = require("node:fs"); const { createHash } = require("node:crypto");
+    const html = readFileSync(process.argv[1], "utf8"); const hashes = [];
     for (const [, code] of html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g))
-      console.log("sha256-" + createHash("sha256").update(code).digest("base64"));' "$work/body" > "$work/inline"
-  while read -r hash; do
-    grep -qF "script-src 'self' '$hash';" <<< "$csp" || { echo "$host : script en ligne absent de la politique, empreinte attendue '$hash'" >&2; exit 1; }
-  done < "$work/inline"
-  [ "$host" = web.localhost ] || [ ! -s "$work/inline" ] || { echo "$host : script en ligne dans Olympe" >&2; exit 1; }
-  ! grep -qiE '<style|[[:space:]]style=|(src|href)="(https?:)?//' "$work/body" || { echo "$host : style en ligne ou fichier d'un autre domaine" >&2; exit 1; }
+      hashes.push(`\x27sha256-${createHash("sha256").update(code).digest("base64")}\x27`);
+    console.log(hashes.join(" "));' "$work/body")"
+  [ "$host" = web.localhost ] || [ -z "$inline" ] || { echo "$host : script en ligne dans Olympe" >&2; exit 1; }
+  expected="default-src 'self'; script-src 'self' $inline; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://supabase.jeu.example.test wss://supabase.jeu.example.test; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  csp="$(grep -i '^content-security-policy:' "$work/headers" | cut -d ' ' -f 2- | tr -d '\r')"
+  [ "$csp" = "$expected" ] || { printf '%s : politique de contenu inattendue\n  servie   : %s\n  attendue : %s\n' "$host" "$csp" "$expected" >&2; exit 1; }
+  ! grep -qiE '<style|[[:space:]](style|on[a-z]+)=|(src|href)="(https?:)?//' "$work/body" || { echo "$host : style ou gestionnaire en ligne, ou fichier d'un autre domaine" >&2; exit 1; }
 done
 # Olympe ne transmet aucune adresse à un autre site ; le client joueur ne transmet que son origine.
 expect olympe.localhost / 200 'referrer-policy: no-referrer'
