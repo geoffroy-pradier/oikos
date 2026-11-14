@@ -2,18 +2,19 @@ import { Button, Card } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { parseBalanceSheet } from '../accounts';
+import { parseBalanceSheet, parseValuedStocks } from '../accounts';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { formatMoney } from '../money';
+import { ValuedStocks } from './ValuedStocks';
 
 /** Une ligne de libellé et de valeur ; la valeur passe sous le libellé quand la fiche est étroite. */
 const LINE = 'flex flex-wrap items-baseline justify-between gap-x-4';
 
 /**
- * Comptes de la maison (4.1) : le bilan, lu dans la vue du joueur, en drachmes et oboles. Fiches
- * empilées à toutes les largeurs. Une lecture en échec ou illisible est annoncée et se réessaie : elle
- * n'est jamais prise pour un bilan nul.
+ * Comptes de la maison (4.1) : bilan et stocks valorisés, lus dans les vues du joueur, en drachmes et
+ * oboles. Une lecture en échec ou illisible est annoncée et se réessaie : elle n'est jamais prise pour
+ * un bilan nul ou un entrepôt vide.
  */
 export function AccountsScreen() {
   const { t, i18n } = useTranslation();
@@ -25,9 +26,16 @@ export function AccountsScreen() {
     'house_id',
     mine,
   );
+  const stockRows = useRows<unknown>(
+    'my_valued_stocks',
+    'city_id, good_id, quantity, unit_price, value, priced_at',
+    'good_id',
+    mine,
+  );
   // `undefined` : pas encore lu ; `null` : illisible.
   const sheet = sheetRows.rows ? parseBalanceSheet(sheetRows.rows[0]) : undefined;
-  const failed = sheetRows.failed || sheet === null;
+  const stocks = stockRows.rows ? parseValuedStocks(stockRows.rows) : undefined;
+  const failed = sheetRows.failed || stockRows.failed || sheet === null || stocks === null;
 
   // Le foyer va au titre à l'arrivée sur l'écran, et y revient quand « Réessayer » disparaît.
   const title = useRef<HTMLHeadingElement>(null);
@@ -53,10 +61,12 @@ export function AccountsScreen() {
       {failed ? (
         <Card className="flex flex-col items-start gap-2">
           <p role="alert">{t('app.loadFailed')}</p>
-          <Button onClick={() => void sheetRows.reload()}>{t('app.retry')}</Button>
+          <Button onClick={() => void Promise.all([sheetRows.reload(), stockRows.reload()])}>
+            {t('app.retry')}
+          </Button>
         </Card>
       ) : (
-        !sheet && <p role="status">{t('app.loading')}</p>
+        !(sheet && stocks) && <p role="status">{t('app.loading')}</p>
       )}
 
       {sheet && (
@@ -80,6 +90,7 @@ export function AccountsScreen() {
           )}
         </Card>
       )}
+      {stocks && <ValuedStocks stocks={stocks} />}
     </div>
   );
 }
