@@ -47,7 +47,7 @@ describe('bandeau de mise à jour', () => {
     expect(html).toContain(`>${en.app.update.now}</button>`);
   });
 
-  it('la région nommée reste dans la page, vide tant qu’aucune version n’attend', async () => {
+  it('la zone d’annonce reste dans la page, vide et sans nom tant qu’aucune version n’attend', async () => {
     const instance = i18next.createInstance();
     await instance.use(initReactI18next).init({
       resources: { fr: { translation: fr } },
@@ -61,10 +61,11 @@ describe('bandeau de mise à jour', () => {
         </I18nextProvider>,
       );
     sw.needRefresh = false;
-    expect(page()).toBe(
-      `<section aria-label="${fr.app.update.title}" aria-live="polite"></section>`,
-    );
+    expect(page()).toBe('<div aria-live="polite"></div>');
     sw.needRefresh = true;
+    expect(page()).toContain(
+      `<div aria-live="polite"><section aria-label="${fr.app.update.title}"`,
+    );
     expect(page()).toContain(`>${fr.app.update.now}</button>`);
   });
 });
