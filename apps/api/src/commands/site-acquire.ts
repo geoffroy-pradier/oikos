@@ -38,9 +38,6 @@ export const siteAcquire = defineCommand({
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     const recipe = config.recipes.find((candidate) => candidate.id === input.recipeId);
     if (!recipe) return refuse('RECIPE_NOT_FOUND', 'Unknown recipe.');
-    // Les ateliers (recettes à intrants) ne se récoltent pas encore : on n'en vend pas.
-    if (recipe.inputs.length > 0)
-      return refuse('RECIPE_NOT_AVAILABLE', 'Workshop recipes are not available yet.');
 
     // Toute maison est au premier niveau de siège tant que le siège n'évolue pas.
     const limit = config.sites.limitByHeadquartersLevel[0] ?? 0;

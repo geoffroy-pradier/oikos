@@ -175,12 +175,12 @@
     "ORDER_NOT_FOUND": "This order cannot be found.",
     "ORDER_NOT_OPEN": "This order is already filled or cancelled.",
     "RECIPE_NOT_FOUND": "This production no longer exists. Reload the page.",
-    "RECIPE_NOT_AVAILABLE": "This production is not available yet.",
     "RECIPE_NOT_COMPATIBLE": "This site cannot host this production.",
     "RECIPE_UNCHANGED": "This site already has this production.",
     "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
     "COLLECT_FIRST": "Collect this site before changing its production.",
-    "SITE_CHANGED": "This site just changed. Try again."
+    "SITE_CHANGED": "This site just changed. Try again.",
+    "MISSING_INPUTS": "Not enough free stock of the inputs to run this workshop."
   },
   "shell": {
     "skipToContent": "Skip to content",

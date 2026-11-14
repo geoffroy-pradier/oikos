@@ -175,12 +175,12 @@
     "ORDER_NOT_FOUND": "Cet ordre est introuvable.",
     "ORDER_NOT_OPEN": "Cet ordre est déjà servi ou annulé.",
     "RECIPE_NOT_FOUND": "Cette production n'existe plus. Rechargez la page.",
-    "RECIPE_NOT_AVAILABLE": "Cette production n'est pas encore disponible.",
     "RECIPE_NOT_COMPATIBLE": "Ce site ne peut pas accueillir cette production.",
     "RECIPE_UNCHANGED": "Ce site a déjà cette production.",
     "SITE_LIMIT_REACHED": "Votre maison exploite déjà autant de sites que son siège le permet.",
     "COLLECT_FIRST": "Récoltez ce site avant de changer sa production.",
-    "SITE_CHANGED": "Ce site vient de changer. Réessayez."
+    "SITE_CHANGED": "Ce site vient de changer. Réessayez.",
+    "MISSING_INPUTS": "Il manque des intrants en stock libre pour faire tourner cet atelier."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
