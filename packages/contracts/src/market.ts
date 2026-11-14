@@ -27,6 +27,8 @@ export const marketPlaceOrderOutputSchema = z.object({
   remaining: z.number().int().nonnegative(),
   /** Échanges conclus à l'arrivée, chacun au prix de l'ordre de vente servi. */
   trades: z.array(fill),
+  /** Achat : vrai si une vente au prix limite restait à servir et que la trésorerie n'y suffisait pas. */
+  shortOfFunds: z.boolean().optional(),
 });
 export type MarketPlaceOrderOutput = z.infer<typeof marketPlaceOrderOutputSchema>;
 

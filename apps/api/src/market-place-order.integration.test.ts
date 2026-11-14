@@ -258,8 +258,9 @@ describe('market.placeOrder', () => {
     expect((await order(buyer, 'buy', 5, 3)).body).toMatchObject({
       data: { status: 'cancelled', remaining: 3, trades: [] },
     });
-    await order(seller, 'sell', GRANT, 2);
-    expect(await order(buyer, 'buy', GRANT, 2)).toMatchObject({
+    // Une vente attend au prix limite, mais pas même une unité n'est payable : l'achat est refusé.
+    await order(seller, 'sell', GRANT + 1, 2);
+    expect(await order(buyer, 'buy', GRANT + 1, 2)).toMatchObject({
       status: 409,
       body: { error: { code: 'INSUFFICIENT_FUNDS' } },
     });
@@ -267,6 +268,42 @@ describe('market.placeOrder', () => {
       [GRANT, '10/2'],
       [GRANT, 'aucun'],
     ]);
+  });
+
+  it('achat au-delà de ses moyens : exécuté pour la part payable, du moins cher au plus cher, et signalé', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    // 40 unités à 50 oboles (2 000), puis 40 à 100 : la dotation paie les premières et dix des secondes.
+    await order(seller, 'sell', 100, 40);
+    await order(seller, 'sell', 50, 40);
+    const affordable = (GRANT - 40 * 50) / 100;
+    expect(GRANT).toBe(3000);
+    const bought = await order(buyer, 'buy', 100, 80);
+    expect(bought).toMatchObject({
+      status: 200,
+      body: {
+        data: {
+          status: 'cancelled',
+          remaining: 80 - 40 - affordable,
+          shortOfFunds: true,
+          trades: [
+            { price: 50, quantity: 40 },
+            { price: 100, quantity: affordable },
+          ],
+        },
+      },
+    });
+    // Toute la trésorerie y est passée, pas une obole de plus ; le reste des ventes attend toujours.
+    expect([await stateOf(seller), await stateOf(buyer)]).toEqual([
+      [2 * GRANT, `${100 - 40 - affordable}/${40 - affordable}`],
+      [0, `${40 + affordable}/0`],
+    ]);
+    expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+    // Un achat entièrement payable, lui, ne signale rien.
+    const other = await newPlayer(cityId);
+    expect((await order(other, 'buy', 100, 5)).body).toMatchObject({
+      data: { status: 'filled', shortOfFunds: false },
+    });
   });
 
   it('un achat peut coûter toute la trésorerie, pas une obole de plus', async () => {
@@ -440,7 +477,7 @@ describe('market.cancelOrder', () => {
     (
       await db
         .selectFrom('game.orders')
-        .select(['status', 'remaining'])
+        .select('status')
         .where('id', '=', orderId)
         .executeTakeFirstOrThrow()
     ).status;
@@ -492,6 +529,25 @@ describe('market.cancelOrder', () => {
     expect(await statusOf(orderId)).toBe('open');
     expect(await stateOf(seller)).toEqual([GRANT, '100/60']);
     expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([]);
+  });
+
+  it("l'ordre d'un autre joueur n'est ni verrouillé ni attendu : pas de délai observable", async () => {
+    const cityId = await newCity();
+    const [seller, other] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    const orderId = idOf(await order(seller, 'sell', 6, 60));
+    // Une transaction tierce tient la ligne (comme le ferait un tick en cours).
+    const holder = await owner.startTransaction().execute();
+    try {
+      await sql`select 1 from game.orders where id = ${orderId} for update`.execute(holder);
+      const answer = await Promise.race([
+        cancel(other, orderId),
+        new Promise<'waited'>((resolve) => setTimeout(() => resolve('waited'), 2000)),
+      ]);
+      expect(answer).toMatchObject({ status: 404, body: { error: { code: 'ORDER_NOT_FOUND' } } });
+    } finally {
+      await holder.rollback().execute();
+    }
+    expect(await statusOf(orderId)).toBe('open');
   });
 
   it('un ordre déjà annulé ou entièrement servi ne s’annule pas ; le rejeu de la même clé rend la même réponse', async () => {

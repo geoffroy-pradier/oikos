@@ -187,6 +187,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   await nav.getByRole('link', { name: 'Agora' }).click();
   // Au-dessus du prix de réserve des PNJ (18 oboles) : seul un joueur achètera cette vente.
   const price = 19 + Math.floor(Math.random() * 80);
+  let paid = 0;
 
   await alone(async () => {
     // La vente est déposée, mais la réponse se perd : le joueur réessaie la même saisie.
@@ -227,17 +228,41 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByRole('status')).toContainText(
       "Aucune vente de Blé à ce prix : rien n'a été acheté.",
     );
+
+    // Le vendeur propose ses dix derniers blés à un prix dont l'acheteur ne peut payer que trois unités :
+    // l'achat s'exécute pour cette part et le dit.
+    const left = 3000 - 30 * price;
+    const dear = Math.floor(left / 3);
+    await page.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
+    await page.getByLabel('Quantité', { exact: true }).fill('10');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status')).toContainText(
+      `Vente déposée : 10 × Blé à ${french.format(dear)} oboles.`,
+    );
+    await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
+    await other.getByLabel('Quantité', { exact: true }).fill('10');
+    await other.keyboard.press('Enter');
+    await expect(other.getByRole('status')).toContainText(
+      `Achat partiel : 3 × Blé sur 10 pour ${french.format(3 * dear)} oboles. Votre trésorerie ne permettait pas d'en payer davantage.`,
+    );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
-    await expect(other.getByText(`${french.format(3000 - 30 * price)} oboles`)).toBeVisible();
-    await expect(other.getByText('Blé : 30')).toBeVisible();
+    await expect(other.getByText(`${french.format(left - 3 * dear)} oboles`)).toBeVisible();
+    await expect(other.getByText('Blé : 33')).toBeVisible();
     await context.close();
+    paid = 30 * price + 3 * dear;
+    // Le vendeur retire ce qui reste : rien ne traîne dans le carnet pour les autres tests.
+    await page.reload();
+    await page.getByRole('button', { name: /^Annuler la vente de 7 × Blé/ }).click();
+    await expect(page.getByRole('status')).toContainText(
+      'Vente annulée : 7 × Blé en stock libre de nouveau.',
+    );
   });
 
   // Le vendeur est payé, son blé est parti, sa vente a quitté la liste.
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.reload();
-  await expect(page.getByText(`${french.format(3000 + 30 * price)} oboles`)).toBeVisible();
-  await expect(page.getByText('Blé : 10')).toBeVisible();
+  await expect(page.getByText(`${french.format(3000 + paid)} oboles`)).toBeVisible();
+  await expect(page.getByText('Blé : 7', { exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
   await expect(page.getByText(/sur 30 à/)).toHaveCount(0);
