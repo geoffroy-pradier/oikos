@@ -62,20 +62,26 @@ select is((select count(*) from pg_policies where policyname = 'service_all' and
 select is(
   (select string_agg(n.nspname || '.' || p.proname, ' ' order by n.nspname, p.proname collate "C")
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('game', 'config', 'telemetry', 'admin') and p.prosecdef),
+   where (n.nspname in ('game', 'config', 'telemetry', 'admin')
+          or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
+    and p.prosecdef),
   'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
-    || 'game.current_house_ids game.order_book',
+    || 'game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book',
   'fonctions SECURITY DEFINER : liste figée');
 -- Le droit d'exécuter une fonction de déclencheur suffit à l'attacher à une table qu'on possède.
 select is(
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('game', 'config', 'telemetry', 'admin') and p.prorettype = 'trigger'::regtype
+   where (n.nspname in ('game', 'config', 'telemetry', 'admin')
+          or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
+    and p.prorettype = 'trigger'::regtype
      and has_function_privilege('oikos_service', p.oid, 'execute')),
   0::bigint, 'le service n''exécute aucune fonction de déclencheur');
 select is(
   (select string_agg(n.nspname || '.' || p.proname, ' ' order by n.nspname, p.proname collate "C")
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('game', 'config', 'telemetry', 'admin') and has_function_privilege('oikos_service', p.oid, 'execute')),
+   where (n.nspname in ('game', 'config', 'telemetry', 'admin')
+          or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
+    and has_function_privilege('oikos_service', p.oid, 'execute')),
   'config.active_version_at game.uuid_v7 game.written_by_owner_trigger',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');

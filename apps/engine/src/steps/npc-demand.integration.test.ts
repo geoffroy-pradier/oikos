@@ -61,7 +61,8 @@ const request = (worldId: string, config: GameConfig, tick = index): TickRequest
   };
 };
 
-async function newWorld(slug = 'kalliste', faucet = true) {
+// Le robinet des achats de PNJ naît avec le monde, comme tous les comptes système.
+async function newWorld(slug = 'kalliste') {
   const [worldId, cityId] = [randomUUID(), randomUUID()];
   await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`n-${worldId.slice(0, 12)}`}, 'Test')`.execute(
     owner,
@@ -69,18 +70,6 @@ async function newWorld(slug = 'kalliste', faucet = true) {
   await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, 'Agora')`.execute(
     owner,
   );
-  if (faucet) {
-    await db
-      .insertInto('game.accounts')
-      .values({
-        world_id: worldId,
-        kind: 'system',
-        system_key: 'faucet_npc_purchases',
-        house_id: null,
-        allow_negative: true,
-      })
-      .execute();
-  }
   return { worldId, cityId };
 }
 type World = Awaited<ReturnType<typeof newWorld>>;
@@ -421,16 +410,5 @@ describe('demande des PNJ au tick', () => {
       npcDemand: { units: 0, spent: 0, markets: [] },
     });
     expect(await balanceOf(seller.houseId)).toBe(0);
-  });
-
-  it('sans robinet, le tick échoue et n’écrit rien', async () => {
-    const world = await newWorld('kalliste', false);
-    const seller = await newSeller(world, 50, [[50, 6]]);
-    await expect(runTick(db, request(world.worldId, economy()))).rejects.toThrow(
-      /no faucet_npc_purchases account/,
-    );
-    expect(await balanceOf(seller.houseId)).toBe(0);
-    expect(await ordersOf(world.worldId)).toEqual([[50, 'open']]);
-    expect(await tradesOf(world.worldId)).toEqual([]);
   });
 });

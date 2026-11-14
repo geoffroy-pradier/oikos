@@ -49,16 +49,6 @@ it(
     await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Simulation')`.execute(
       owner,
     );
-    await db
-      .insertInto('game.accounts')
-      .values({
-        world_id: worldId,
-        kind: 'system',
-        system_key: 'faucet_npc_purchases',
-        house_id: null,
-        allow_negative: true,
-      })
-      .execute();
     const houses: { houseId: string; inventoryId: string }[] = [];
     for (let n = 0; n < HOUSES; n++) {
       const userId = randomUUID();
@@ -159,9 +149,10 @@ it(
     // Masse monétaire des maisons = exactement ce que le robinet des achats de PNJ a créé.
     expect(total('house')).toBe(spent);
     expect(total('system')).toBe(-spent);
-    expect(accounts.filter((account) => account.kind === 'system')).toEqual([
-      { kind: 'system', system_key: 'faucet_npc_purchases', balance: String(-spent) },
-    ]);
+    // Seul ce robinet a bougé : les autres comptes système du monde sont restés à zéro.
+    expect(
+      accounts.filter((account) => account.kind === 'system' && Number(account.balance) !== 0),
+    ).toEqual([{ kind: 'system', system_key: 'faucet_npc_purchases', balance: String(-spent) }]);
     // Aucune écriture d'une autre nature, et les soldes égalent la somme de leurs lignes.
     const kinds = await sql<{ kind: string; n: string }>`
       select kind, count(*) as n from game.ledger_entries where world_id = ${worldId} group by kind`.execute(

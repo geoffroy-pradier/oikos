@@ -29,26 +29,7 @@ beforeAll(async () => {
   await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`m-${WORLD.slice(0, 12)}`}, 'Marché de test')`.execute(
     owner,
   );
-  await db
-    .insertInto('game.accounts')
-    .values({
-      world_id: WORLD,
-      kind: 'system',
-      system_key: 'faucet_starting_grant',
-      house_id: null,
-      allow_negative: true,
-    })
-    .execute();
-  await db
-    .insertInto('game.accounts')
-    .values({
-      world_id: WORLD,
-      kind: 'system',
-      system_key: 'faucet_npc_purchases',
-      house_id: null,
-      allow_negative: true,
-    })
-    .execute();
+  // Les comptes système (robinets, puits) naissent avec le monde.
 });
 const GRANT = TEST_CONFIG.config.starting.grantOboles;
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
