@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SITES, validateConfig, type GameConfig } from './index';
+import { DEFAULT_MARKET_TAX, DEFAULT_SITES, validateConfig, type GameConfig } from './index';
 
 const clone = () => structuredClone(FIXTURE);
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
@@ -17,6 +17,7 @@ const errorsOf = (candidate: unknown) => {
 const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
+  marketTax: { rateBps: 400, burnShareBps: 2500 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -329,5 +330,39 @@ describe('sites', () => {
     const none = clone();
     none.sites.limitByHeadquartersLevel = [];
     expect(errorsOf(none)).toEqual([expect.stringMatching(/^sites\.limitByHeadquartersLevel: /)]);
+  });
+});
+
+describe('taxe de marché', () => {
+  it('une version publiée avant la taxe reste lisible et ne taxe rien', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.marketTax;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.marketTax).toEqual({ rateBps: 0, burnShareBps: 10_000 });
+    expect(Object.isFrozen(DEFAULT_MARKET_TAX)).toBe(true);
+  });
+
+  it('taux et part détruite : entiers, bornés, tous deux obligatoires, sans autre clé', () => {
+    const bounds = { rateBps: [0, 5000], burnShareBps: [0, 10_000] } as const;
+    for (const field of ['rateBps', 'burnShareBps'] as const) {
+      const [min, max] = bounds[field];
+      for (const good of [min, max]) {
+        const config = clone();
+        config.marketTax[field] = good;
+        expect(errorsOf(config)).toEqual([]);
+      }
+      for (const bad of [min - 1, max + 1, 12.5, Number.NaN]) {
+        const config = clone();
+        config.marketTax[field] = bad;
+        expect(errorsOf(config)).toEqual([expect.stringMatching(`^marketTax\\.${field}: `)]);
+      }
+      const partial = clone() as unknown as { marketTax: Record<string, unknown> };
+      partial.marketTax = { [field === 'rateBps' ? 'burnShareBps' : 'rateBps']: 0 };
+      expect(errorsOf(partial)).toEqual([expect.stringMatching(`^marketTax\\.${field}: `)]);
+    }
+    const unknown = clone() as unknown as { marketTax: Record<string, unknown> };
+    unknown.marketTax['exempt'] = true;
+    expect(errorsOf(unknown)).toEqual([expect.stringMatching(/^marketTax/)]);
   });
 });

@@ -158,6 +158,23 @@ export const sitesSchema = z.strictObject({
   acquisitionCostOboles: z.record(z.enum(SITE_TYPES), positiveInt),
 });
 
+/**
+ * Valeurs lues pour les versions publiées avant la taxe de marché : elles ne taxaient rien. FIGÉES, pour
+ * la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_MARKET_TAX = deepFreeze({ rateBps: 0, burnShareBps: 10_000 });
+
+/**
+ * Taxe de marché, prélevée sur le vendeur à chaque échange de l'agora (5.3, 5.6). Taux en points de
+ * base (1 pour 10 000) : le calcul reste en entiers, arrondi compris.
+ */
+export const marketTaxSchema = z.strictObject({
+  /** Taux de la taxe sur le montant brut d'un échange. Borné : au-delà, vendre ne paie plus. */
+  rateBps: z.number().int().min(0).max(5000),
+  /** Part de la taxe détruite (puits `sink_market_tax`) ; le reste va au trésor de la cité. */
+  burnShareBps: z.number().int().min(0).max(10_000),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -168,6 +185,8 @@ export const gameConfigSchema = z
      * valeurs de départ ci-dessus. Toute version publiée depuis le porte explicitement.
      */
     sites: sitesSchema.default(DEFAULT_SITES),
+    /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
+    marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
