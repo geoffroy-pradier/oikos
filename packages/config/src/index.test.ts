@@ -541,7 +541,9 @@ describe('dynamique de population', () => {
         ]);
       }
       const partial = clone() as unknown as { populationDynamics: Record<string, unknown> };
-      delete partial.populationDynamics[field];
+      partial.populationDynamics = Object.fromEntries(
+        Object.entries(partial.populationDynamics).filter(([key]) => key !== field),
+      );
       expect(errorsOf(partial)).toEqual([
         expect.stringMatching(`^populationDynamics\\.${field}: `),
       ]);
