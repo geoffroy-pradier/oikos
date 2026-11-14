@@ -160,12 +160,25 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await expect(page.getByText('Blé : 80 (dont 80 en vente)')).toBeVisible();
     await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
 
-    // Les PNJ achètent au tick, des ventes les moins chères aux plus chères : la vente finit servie.
+    // Les PNJ achètent au tick, des ventes les moins chères aux plus chères : la vente finit servie, et
+    // la maison touche le net de chaque échange (la taxe de marché s'arrondit échange par échange).
     await expect(async () => {
       await npcsBuy();
       await page.reload();
-      await expect(page.getByText(/^3\s160 oboles$/)).toBeVisible({ timeout: 2000 });
+      await expect(page.getByText('Blé : 0')).toBeVisible({ timeout: 2000 });
     }).toPass({ timeout: 20_000 });
+    const { config } = await createConfigLoader(db).at(new Date());
+    const sales = await sql<{ gross: string }>`
+      select t.price * t.quantity as gross from game.trades t join game.orders o on o.id = t.sell_order_id
+      where o.house_id = (select id from game.houses where name = ${houseName})`.execute(db);
+    const net = sales.rows.reduce(
+      (sum, sale) => sum + marketTax(Number(sale.gross), config.marketTax).net,
+      0,
+    );
+    expect(sales.rows.reduce((sum, sale) => sum + Number(sale.gross), 0)).toBe(160);
+    await expect(
+      page.getByText(`${french.format(3000 + net)} oboles`, { exact: true }),
+    ).toBeVisible();
   });
   await expect(page.getByText('Blé : 0')).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();

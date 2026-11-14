@@ -72,7 +72,7 @@ const npcTick = () =>
       worldId: WORLD,
       index: 0,
       scheduledAt: new Date(),
-      config: TEST_CONFIG.config,
+      config: { ...TEST_CONFIG.config, marketTax },
       rng: createRng('test'),
       dailyClose: false,
       seasonSwitch: false,
@@ -917,7 +917,7 @@ describe('market.cancelOrder', () => {
         worldId: WORLD,
         index: 0,
         scheduledAt: new Date(),
-        config: TEST_CONFIG.config,
+        config: { ...TEST_CONFIG.config, marketTax },
         rng: createRng('test'),
         dailyClose: false,
         seasonSwitch: false,
@@ -972,7 +972,7 @@ describe('taxe de marché', () => {
   const entriesOf = async (cityId: string) =>
     (
       await sql<{ lines: string }>`
-        select (select string_agg(a.kind || ':' || l.amount, ' ' order by l.amount)
+        select (select string_agg(a.kind || ':' || l.amount, ' ' order by l.amount, a.kind)
                   from game.ledger_lines l join game.accounts a on a.id = l.account_id
                  where l.entry_id = t.ledger_entry_id) as lines
         from game.trades t join game.orders o on o.id = t.sell_order_id
@@ -1036,5 +1036,51 @@ describe('taxe de marché', () => {
     ]);
     expect([await balanceOf({ city_id: cityId }), (await sinkOf()) - sink]).toEqual([2, 3]);
     expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('achat en attente servi en partie : taxe sur la part servie, le séquestre retient encore le reste', async () => {
+    const cityId = await newCity();
+    const [buyer, seller] = [await newPlayer(cityId), await newPlayer(cityId, 100)];
+    marketTax = { rateBps: 500, burnShareBps: 5000 };
+    await order(buyer, 'buy', 6, 10);
+    // 4 × 6 = 24, taxe ⌈1,2⌉ = 2 : une obole détruite, une au trésor.
+    expect((await order(seller, 'sell', 6, 4)).body).toMatchObject({ data: { status: 'filled' } });
+    expect(await entriesOf(cityId)).toEqual(['escrow:-24 system:1 treasury:1 house:22']);
+    expect([await stateOf(seller), await stateOf(buyer), await escrowOf(buyer)]).toEqual([
+      [GRANT + 22, '96/0'],
+      [GRANT - 60, '4/0'],
+      36,
+    ]);
+    expect(await openOrdersOf([buyer])).toMatchObject([{ side: 'buy', remaining: '6' }]);
+    expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
+  });
+
+  it('ticks des PNJ et ordres taxés en même temps : aucun interblocage sur le puits et le trésor, rien ne se crée hors du robinet', async () => {
+    const cityId = await kallisteCity();
+    const traders = await Promise.all(Array.from({ length: 4 }, () => newPlayer(cityId, 400)));
+    const before = (await balanceOf({ city_id: cityId })) + (await sinkOf());
+    marketTax = { rateBps: 500, burnShareBps: 5000 };
+    let npcSpent = 0;
+    for (let round = 0; round < 4; round++) {
+      await Promise.all(traders.map((trader) => order(trader, 'sell', 6, 40)));
+      const [ticks, orders] = await Promise.all([
+        Promise.all([npcTick(), npcTick()]),
+        Promise.all(
+          traders.flatMap((trader) => [order(trader, 'buy', 7, 5), order(trader, 'sell', 6, 10)]),
+        ),
+      ]);
+      expect(orders.map((result) => result.status)).toEqual(orders.map(() => 200));
+      npcSpent += ticks.reduce((sum, tick) => sum + Number(tick['spent']), 0);
+    }
+    expect(npcSpent).toBeGreaterThan(0);
+    await cancelOpenOrders(traders);
+    const levied = (await balanceOf({ city_id: cityId })) + (await sinkOf()) - before;
+    const money = (await Promise.all(traders.map(stateOf))).reduce(
+      (sum, [balance]) => sum + Number(balance) - GRANT,
+      0,
+    );
+    expect(levied).toBeGreaterThan(0);
+    expect(money + levied).toBe(npcSpent);
+    expect(await ledgersAreConsistent(traders)).toBe(0);
   });
 });

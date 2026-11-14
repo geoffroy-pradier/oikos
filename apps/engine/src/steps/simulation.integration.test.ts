@@ -7,7 +7,7 @@ import {
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { createRng, tickIndexAt, tickStart } from '@oikos/sim';
+import { createRng, marketTax, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { runTick } from '../tick';
@@ -146,13 +146,35 @@ it(
       accounts
         .filter((account) => account.kind === kind)
         .reduce((sum, account) => sum + Number(account.balance), 0);
-    // Masse monétaire des maisons = exactement ce que le robinet des achats de PNJ a créé.
-    expect(total('house')).toBe(spent);
-    expect(total('system')).toBe(-spent);
-    // Seul ce robinet a bougé : les autres comptes système du monde sont restés à zéro.
+    // Taxe de marché, échange par échange : ce que chaque vente laisse au vendeur, au puits et au trésor.
+    const trades = await sql<{ house_id: string; gross: string }>`
+      select o.house_id, t.price * t.quantity as gross
+      from game.trades t join game.orders o on o.id = t.sell_order_id where t.world_id = ${worldId}`.execute(
+      db,
+    );
+    const taxes = trades.rows.map((trade) => ({
+      houseId: trade.house_id,
+      ...marketTax(Number(trade.gross), config.marketTax),
+    }));
+    const sumOf = (part: 'net' | 'burned' | 'treasury', houseId?: string) =>
+      taxes
+        .filter((tax) => houseId === undefined || tax.houseId === houseId)
+        .reduce((sum, tax) => sum + tax[part], 0);
+    expect(sumOf('burned')).toBeGreaterThan(0);
+    expect(sumOf('treasury')).toBeGreaterThan(0);
+    // Ce que le robinet des achats de PNJ a créé est chez les maisons, au trésor de la cité, ou détruit.
+    expect(total('house') + total('treasury') + sumOf('burned')).toBe(spent);
+    expect(total('treasury')).toBe(sumOf('treasury'));
+    // Seuls ce robinet et le puits de la taxe ont bougé : les autres comptes système sont restés à zéro.
     expect(
-      accounts.filter((account) => account.kind === 'system' && Number(account.balance) !== 0),
-    ).toEqual([{ kind: 'system', system_key: 'faucet_npc_purchases', balance: String(-spent) }]);
+      accounts
+        .filter((account) => account.kind === 'system' && Number(account.balance) !== 0)
+        .map((account) => [account.system_key, Number(account.balance)])
+        .sort(),
+    ).toEqual([
+      ['faucet_npc_purchases', -spent],
+      ['sink_market_tax', sumOf('burned')],
+    ]);
     // Aucune écriture d'une autre nature, et les soldes égalent la somme de leurs lignes.
     const kinds = await sql<{ kind: string; n: string }>`
       select kind, count(*) as n from game.ledger_entries where world_id = ${worldId} group by kind`.execute(
@@ -202,22 +224,14 @@ it(
     const dearest = await sql<{ max: string }>`
       select max(price) from game.trades where world_id = ${worldId}`.execute(db);
     expect(Number(dearest.rows[0]?.max)).toBeLessThanOrEqual(reserve);
-    // Chaque maison a reçu exactement le prix de ce que ses propres ordres ont vendu.
+    // Chaque maison a reçu exactement le net de ce que ses propres ordres ont vendu.
     const balances = await db
       .selectFrom('game.accounts')
       .select(['house_id', 'balance'])
       .where('world_id', '=', worldId)
       .where('kind', '=', 'house')
       .execute();
-    for (const { house_id: houseId, balance } of balances) {
-      const earned = orders
-        .filter((order) => order.house_id === houseId)
-        .reduce(
-          (sum, order) =>
-            sum + (Number(order.quantity) - Number(order.remaining)) * Number(order.price),
-          0,
-        );
-      expect(Number(balance)).toBe(earned);
-    }
+    for (const { house_id: houseId, balance } of balances)
+      expect(Number(balance)).toBe(sumOf('net', houseId ?? ''));
   },
 );

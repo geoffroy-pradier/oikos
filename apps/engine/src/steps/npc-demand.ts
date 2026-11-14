@@ -1,5 +1,6 @@
 import {
   classDemand,
+  marketTax,
   matchNpcDemand,
   NEUTRAL_QUALITY,
   npcGoodBudget,
@@ -10,6 +11,8 @@ import type { TickStep } from '../tick';
 
 /** Compte système qui crée la monnaie des achats de PNJ (docs/specs/05-economie.md, 5.5). */
 const FAUCET: SystemAccountKey = 'faucet_npc_purchases';
+/** Puits de la part détruite de la taxe de marché (5.3). */
+const TAX_SINK: SystemAccountKey = 'sink_market_tax';
 /** Puits de stock : ce que les PNJ achètent est consommé. */
 const CONSUMPTION = 'npc_consumption';
 
@@ -18,7 +21,8 @@ const CONSUMPTION = 'npc_consumption';
  * panier, les PNJ achètent dans le carnet de la moins chère à la plus chère des ventes en attente, dans la
  * limite de leur demande à ce prix, de leur budget du tick et de leur prix de réserve. Chaque achat est
  * payé par le robinet au grand livre, enregistré comme échange sans ordre d'achat, puis consommé par le
- * journal des stocks. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
+ * journal des stocks. La même écriture prélève la taxe de marché sur le vendeur, comme entre joueurs : le
+ * budget des PNJ se compte en brut, le vendeur reçoit le net. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -40,16 +44,20 @@ export const npcDemand: TickStep = {
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
-    let faucetId: string | undefined;
-    const faucetAccount = async () =>
-      (faucetId ??= (
-        await trx
-          .selectFrom('game.accounts')
-          .select('id')
-          .where('world_id', '=', worldId)
-          .where('system_key', '=', FAUCET)
-          .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${FAUCET} account`))
-      ).id);
+    // Comptes du monde lus au premier besoin : le robinet, le puits de la taxe, le trésor de chaque cité.
+    const accountIds = new Map<string, string>();
+    const accountOf = async (column: 'system_key' | 'city_id', value: string) => {
+      const known = accountIds.get(value);
+      if (known) return known;
+      const { id } = await trx
+        .selectFrom('game.accounts')
+        .select('id')
+        .where('world_id', '=', worldId)
+        .where(column, '=', value)
+        .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${value} account`));
+      accountIds.set(value, id);
+      return id;
+    };
     for (const city of cities) {
       const population = config.cities.find((entry) => entry.id === city.slug)?.population;
       if (!population) continue;
@@ -112,7 +120,7 @@ export const npcDemand: TickStep = {
         const sellers = new Map(asks.map((ask) => [ask.id, ask.house_id]));
         for (const fill of purchase.fills) {
           const sellerId = sellers.get(fill.orderId) ?? '';
-          const faucet = await faucetAccount();
+          const faucet = await accountOf('system_key', FAUCET);
           const account = await trx
             .selectFrom('game.accounts')
             .select('id')
@@ -127,6 +135,14 @@ export const npcDemand: TickStep = {
             .where('good_id', '=', goodId)
             .executeTakeFirstOrThrow();
           const amount = fill.price * fill.quantity;
+          const tax = marketTax(amount, config.marketTax);
+          // Une ligne nulle n'est pas une ligne : part nulle, ou vente d'une obole que la taxe prend entière.
+          const lines = [{ account_id: faucet, amount: -amount }];
+          if (tax.net > 0) lines.push({ account_id: account.id, amount: tax.net });
+          if (tax.burned > 0)
+            lines.push({ account_id: await accountOf('system_key', TAX_SINK), amount: tax.burned });
+          if (tax.treasury > 0)
+            lines.push({ account_id: await accountOf('city_id', city.id), amount: tax.treasury });
           const entry = await trx
             .insertInto('game.ledger_entries')
             .values({ world_id: worldId, kind: 'npc.purchase' })
@@ -134,10 +150,7 @@ export const npcDemand: TickStep = {
             .executeTakeFirstOrThrow();
           await trx
             .insertInto('game.ledger_lines')
-            .values([
-              { entry_id: entry.id, account_id: faucet, amount: -amount },
-              { entry_id: entry.id, account_id: account.id, amount },
-            ])
+            .values(lines.map((line) => ({ entry_id: entry.id, ...line })))
             .execute();
           // L'échange d'abord (il libère la réservation du vendeur), la consommation ensuite.
           await trx
