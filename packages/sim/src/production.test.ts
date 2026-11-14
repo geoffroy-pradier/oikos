@@ -132,6 +132,67 @@ describe('accrueWorkshop', () => {
     );
   });
 
+  it('propriété : réapprovisionné au même instant, les cycles en attente tournent tous, ni plus ni moins', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 6000 }),
+        fc.integer({ min: 0, max: 12 }),
+        (minutes, stock) => {
+          const now = after(minutes);
+          const byTime = accrueProduction({ since: T0, now, ...mill, outputPerCycle: 1 });
+          const short = accrueWorkshop({
+            since: T0,
+            now,
+            ...mill,
+            inputs: [{ perCycle: 1, available: stock }],
+          });
+          expect(short.cycles).toBe(Math.min(byTime.cycles, stock));
+          expect(short.elapsedCycles).toBe(byTime.cycles);
+          const rest = accrueWorkshop({
+            since: short.since,
+            now,
+            ...mill,
+            inputs: [{ perCycle: 1, available: 1000 }],
+          });
+          // Rien ne se perd, rien ne se crée : les deux récoltes font ce que le temps seul aurait fait.
+          expect(short.cycles + rest.cycles).toBe(byTime.cycles);
+          expect(rest.since).toEqual(byTime.since);
+        },
+      ),
+    );
+  });
+
+  it('propriété : sous le plafond et sans pénurie, récolter en deux fois ne change pas le total', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 479 }),
+        fc.integer({ min: 0, max: 479 }),
+        (first, later) => {
+          fc.pre(first + later < mill.maxCycles * mill.cycleMinutes);
+          const plenty = [{ perCycle: 3, available: 1000 }];
+          const one = accrueWorkshop({ since: T0, now: after(first), ...mill, inputs: plenty });
+          const two = accrueWorkshop({
+            since: one.since,
+            now: after(first + later),
+            ...mill,
+            inputs: plenty,
+          });
+          expect(one.cycles + two.cycles).toBe(Math.floor((first + later) / mill.cycleMinutes));
+        },
+      ),
+    );
+  });
+
+  it('un horodatage dans le futur ne produit rien et ne bouge pas', () => {
+    const run = accrueWorkshop({
+      since: after(30),
+      now: T0,
+      ...mill,
+      inputs: [{ perCycle: 1, available: 5 }],
+    });
+    expect(run).toEqual({ cycles: 0, elapsedCycles: 0, since: after(30) });
+  });
+
   it('refuse des quantités invalides', () => {
     const base = { since: T0, now: after(60), ...mill };
     for (const bad of [0, -1, 1.5])
