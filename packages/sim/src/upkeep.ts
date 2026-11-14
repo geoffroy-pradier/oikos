@@ -4,8 +4,6 @@ import { shareRoundedUp } from './tax';
  * Entretien quotidien des sites (docs/specs/05-economie.md, 5.5) : calcul pur, en oboles entières.
  * La clôture quotidienne s'en sert pour savoir ce qu'une maison doit et ce qu'elle peut payer.
  */
-const MAX_COEFFICIENT_BPS = 100_000;
-
 /**
  * Entretien dû par un site pour un jour de jeu : ⌈base × coefficient ÷ 10 000⌉. Arrondi à l'obole
  * supérieure, jamais en faveur de la monnaie en circulation ; une base ou un coefficient nuls ne
@@ -14,12 +12,10 @@ const MAX_COEFFICIENT_BPS = 100_000;
 export function dailyUpkeep(baseOboles: number, coefficientBps: number): number {
   if (!Number.isSafeInteger(baseOboles) || baseOboles < 0)
     throw new RangeError('baseOboles must be a non-negative integer');
-  if (
-    !Number.isInteger(coefficientBps) ||
-    coefficientBps < 0 ||
-    coefficientBps > MAX_COEFFICIENT_BPS
-  )
-    throw new RangeError(`coefficientBps must be an integer between 0 and ${MAX_COEFFICIENT_BPS}`);
+  // La borne haute du coefficient appartient au schéma de configuration, seule source ; ici, seul
+  // compte que le résultat reste un entier sûr.
+  if (!Number.isSafeInteger(coefficientBps) || coefficientBps < 0)
+    throw new RangeError('coefficientBps must be a non-negative integer');
   const due = shareRoundedUp(baseOboles, coefficientBps);
   if (!Number.isSafeInteger(due)) throw new RangeError('Upkeep is too large');
   return due;
@@ -40,14 +36,17 @@ export interface UpkeepSettlement {
 }
 
 /**
- * Règle d'une maison qui ne peut pas tout payer. Les sites sont examinés dans l'ordre reçu (le plus
- * ancien d'abord) : chacun est payé en entier si ce qui reste de la trésorerie le permet, sinon il
+ * Règle d'une maison qui ne peut pas tout payer. Les sites sont examinés dans l'ordre reçu (date de
+ * création puis identifiant) : chacun est payé en entier si ce qui reste de la trésorerie le permet, sinon il
  * n'est pas payé du tout et l'examen continue, si bien qu'un site moins cher peut encore l'être. La
  * trésorerie ne passe jamais sous zéro et aucun entretien n'est payé en partie.
  */
 export function settleUpkeep(balance: number, dues: readonly UpkeepDue[]): UpkeepSettlement {
   if (!Number.isSafeInteger(balance) || balance < 0)
     throw new RangeError('balance must be a non-negative integer');
+  // Un site en double serait prélevé deux fois : c'est une erreur de l'appelant, pas un cas à régler.
+  if (new Set(dues.map((due) => due.siteId)).size !== dues.length)
+    throw new RangeError('each site is settled once');
   const settlement: UpkeepSettlement = { paid: [], unpaid: [], total: 0 };
   for (const due of dues) {
     if (!Number.isSafeInteger(due.oboles) || due.oboles < 0)

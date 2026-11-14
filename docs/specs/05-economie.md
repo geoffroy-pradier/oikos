@@ -72,7 +72,15 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 
 Entretien des sites, dans la première version : à chaque clôture quotidienne (section 3), chaque site d'une maison doit un entretien, détruit (puits « entretien »). Deux paramètres du back-office : un montant de base par jour de jeu et par type de site (`sites.upkeep.dailyOboles`) et un coefficient global en points de base (`sites.upkeep.coefficientBps`, 10 000 = ×1, de ×0 à ×10), qui est le levier « coefficient d'entretien » ci-dessous. Dû par site = ⌈base × coefficient ÷ 10 000⌉, arrondi à l'obole supérieure : l'arrondi ne joue jamais en faveur de la monnaie en circulation. Un montant nul ne prélève rien ; une version de configuration publiée avant l'entretien se lit sans entretien. Ces paramètres sont des règles publiques, lues par les joueurs avec le reste de la section `sites` (vue `site_rules`).
 
-Maison qui ne peut pas tout payer : ses sites sont examinés du plus ancien au plus récent. Chacun est payé en entier si ce qui reste de la trésorerie le couvre ; sinon il n'est pas payé du tout, et l'examen continue (un site moins cher peut encore être payé). Il n'y a ni paiement partiel, ni dette, ni solde négatif : la monnaie sous séquestre à l'agora n'est pas comptée. Un site impayé est à l'arrêt jusqu'au paiement.
+Ce qui est dû : chaque clôture demande à chaque site, à l'arrêt ou non, l'entretien d'un jour, au tarif de la configuration en vigueur après l'activation éventuelle d'une version programmée à cette clôture (activation d'abord, entretien ensuite). Payé à la clôture, le site tourne, ou repart s'il était à l'arrêt ; impayé, il est à l'arrêt jusqu'à la clôture suivante ou jusqu'à une relance. Il n'y a pas d'arriéré : un jour passé à l'arrêt ne crée aucune dette.
+
+Maison qui ne peut pas tout payer : ses sites sont examinés par date de création, puis par identifiant. Chacun est payé en entier si ce qui reste de la trésorerie le couvre ; sinon il n'est pas payé du tout, et l'examen continue (un site moins cher peut encore être payé). Il n'y a ni paiement partiel, ni solde négatif. La monnaie sous séquestre à l'agora n'est pas comptée dans la trésorerie disponible : c'est un choix, elle est déjà engagée.
+
+Effet de l'arrêt : un site à l'arrêt ne produit ni n'accumule, et le temps passé à l'arrêt n'est jamais récolté ensuite. Ce qu'il avait accumulé avant l'arrêt reste récoltable. Il compte toujours dans la limite de sites de la maison.
+
+Relance : la maison peut relancer un site à l'arrêt sans attendre la clôture, par une commande qui paie l'entretien d'un jour (au puits, au tarif de la configuration en vigueur) ; le site repart à cet instant, et la clôture suivante lui demande l'entretien normalement.
+
+Impayé volontaire : il est admis et ne coûte que l'arrêt du site (une mise en sommeil). Éviter le prélèvement de la clôture puis relancer coûte le même entretien : il n'y a aucun gain à l'esquiver.
 
 Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %. Trois leviers l'ajustent sans patch : taux directeur, coefficient d'entretien, revenu des classes PNJ.
 

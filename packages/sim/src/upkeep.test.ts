@@ -7,9 +7,10 @@ const coefficient = fc.oneof(
   fc.constantFrom(0, 1, 9_999, 10_000, 10_001, 100_000),
   fc.integer({ min: 0, max: 100_000 }),
 );
-const dues = fc.array(fc.record({ siteId: fc.uuid(), oboles: fc.integer({ min: 0, max: 500 }) }), {
-  maxLength: 8,
-});
+const dues = fc.uniqueArray(
+  fc.record({ siteId: fc.uuid(), oboles: fc.integer({ min: 0, max: 500 }) }),
+  { maxLength: 8, selector: (due) => due.siteId },
+);
 const balance = fc.integer({ min: 0, max: 2_000 });
 
 describe('entretien dû par un site', () => {
@@ -38,7 +39,14 @@ describe('entretien dû par un site', () => {
 
   it('refuse une base ou un coefficient qui ne sont pas des entiers dans les bornes', () => {
     for (const bad of [-1, 1.5, Number.NaN, 2 ** 53]) expect(() => dailyUpkeep(bad, 1)).toThrow();
-    for (const bad of [-1, 0.5, Number.NaN, 100_001]) expect(() => dailyUpkeep(1, bad)).toThrow();
+    for (const bad of [-1, 0.5, Number.NaN, 2 ** 53]) expect(() => dailyUpkeep(1, bad)).toThrow();
+  });
+
+  it('refuse un entretien qui sortirait des entiers sûrs, sans rendre un montant faux', () => {
+    const max = Number.MAX_SAFE_INTEGER;
+    expect(dailyUpkeep(max, 10_000)).toBe(max);
+    expect(() => dailyUpkeep(max, 10_001)).toThrow('Upkeep is too large');
+    expect(() => dailyUpkeep(max, 100_000)).toThrow('Upkeep is too large');
   });
 });
 
@@ -100,6 +108,7 @@ describe('règlement de l’entretien d’une maison', () => {
         expect(settleUpkeep(all + extra, sites)).toEqual({ paid: sites, unpaid: [], total: all });
       }),
     );
+    expect(() => settleUpkeep(1_000, [a, b, { ...a }])).toThrow('each site is settled once');
     for (const bad of [-1, 0.5, Number.NaN]) {
       expect(() => settleUpkeep(bad, [])).toThrow(RangeError);
       expect(() => settleUpkeep(10, [{ siteId: 'a', oboles: bad }])).toThrow(RangeError);
