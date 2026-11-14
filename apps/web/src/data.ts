@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseSiteRules, type SiteRules } from './site-rules';
 import { supabase } from './supabase';
 
 /**
@@ -38,4 +39,21 @@ export function useRows<T>(
     void reload();
   }, [reload]);
   return { rows, failed, reload };
+}
+
+/** Règles des sites de la configuration en vigueur. `rules` vaut `null` tant que rien n'a été lu. */
+export function useSiteRules() {
+  const [rules, setRules] = useState<SiteRules | null>(null);
+  const [failed, setFailed] = useState(false);
+  const reload = useCallback(async () => {
+    const result = await supabase.rpc('site_rules').then(
+      (response) => response,
+      () => null,
+    );
+    const next = result && !result.error ? parseSiteRules(result.data) : null;
+    setFailed(next === null);
+    if (next) setRules(next);
+  }, []);
+  useEffect(() => void reload(), [reload]);
+  return { rules, failed, reload };
 }

@@ -163,6 +163,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@oikos/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -187,10 +190,10 @@ importers:
       react-i18next:
         specifier: ^18.0.1
         version: 18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@5.9.3))(react@19.3.1)(typescript@5.9.3)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
-      '@oikos/config':
-        specifier: workspace:*
-        version: link:../../packages/config
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db

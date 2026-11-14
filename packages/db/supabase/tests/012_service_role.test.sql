@@ -67,7 +67,7 @@ select is(
     and p.prosecdef),
   'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book '
-    || 'telemetry.prune_rate_windows',
+    || 'public.site_rules telemetry.prune_rate_windows',
   'fonctions SECURITY DEFINER : liste figée');
 -- Le droit d'exécuter une fonction de déclencheur suffit à l'attacher à une table qu'on possède.
 select is(
