@@ -97,6 +97,8 @@
     "collectedAll_one": "Récolte engrangée sur {{number}} site : {{list}}.",
     "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
     "collectAllFailed": "Échec pour {{site}}. {{reason}}",
+    "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
+    "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison"
   },
   "agora": {
