@@ -81,14 +81,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Build and push image
+      # Installation et construction sans jeton du registre.
+      - name: Build
+        if: steps.vars.outputs.present == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          bash infra/docker/static.sh build/static
+      - name: Push image
         if: steps.vars.outputs.present == 'true'
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY_USER: ${{ github.actor }}
         run: |
-          pnpm install --frozen-lockfile
-          bash infra/docker/static.sh build/static
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/oikos-static"
           echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
           docker build -t "$image:${{ github.sha }}" -t "$image:main" build/static

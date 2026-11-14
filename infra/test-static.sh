@@ -16,11 +16,24 @@ trap cleanup EXIT
 bash "$repo/infra/docker/static.sh" "$work/context"
 docker build -q -t oikos-static:ci "$work/context"
 
-bash "$repo/infra/install-static.sh" oikos-static:ci "$work/static"
+# Première installation sur les dossiers vides du README, sous un masque strict, puis deux mises à jour.
+(umask 077 && mkdir -p "$work/static/web" "$work/static/admin")
+install() { (umask 077 && bash "$repo/infra/install-static.sh" oikos-static:ci "$work/static"); }
+install
+first="$(readlink "$work/static/web")"
 echo stale > "$work/static/web/stale.txt"
-bash "$repo/infra/install-static.sh" oikos-static:ci "$work/static"
+sleep 1
+install
+sleep 1
+install
+[ -L "$work/static/web" ] && [ -L "$work/static/admin" ] || { echo "web et admin doivent être des liens" >&2; exit 1; }
 [ ! -e "$work/static/web/stale.txt" ] || { echo "un fichier de l'ancienne version a survécu" >&2; exit 1; }
-[ -z "$(find "$work/static" -maxdepth 1 \( -name '*.next' -o -name '*.previous' \))" ] || { echo "dossier temporaire laissé" >&2; exit 1; }
+[ "$(ls -1 "$work/static/releases" | wc -l)" = 2 ] || { echo "versions conservées : $(ls "$work/static/releases")" >&2; exit 1; }
+[ ! -e "$work/static/$first" ] || { echo "la plus ancienne version n'a pas été retirée" >&2; exit 1; }
+[ -z "$(find "$work/static" -name '*.link' -o -name '*.replaced')" ] || { echo "reste d'installation" >&2; exit 1; }
+# Lisible par un Caddy qui ne serait pas root.
+[ "$(stat -c %A "$work/static" | cut -c8,10)" = "rx" ] || { echo "dossier static illisible" >&2; exit 1; }
+[ -z "$(find "$work/static/releases" ! -perm -o=r)" ] || { echo "fichiers illisibles" >&2; exit 1; }
 
 # Caddy en HTTP simple sur un port local : mêmes règles que la production, sans certificat.
 sed -e 's/^{\$OIKOS_DOMAIN} {/http:\/\/web.localhost:8080 {/' \
@@ -49,8 +62,9 @@ for host in web.localhost olympe.localhost; do
   asset="$(grep -o '/assets/[^"]*\.js' "$work/body" | head -n 1)"
   [ -n "$asset" ] || { echo "$host : aucun script dans la coquille" >&2; exit 1; }
   expect "$host" "$asset" 200 'cache-control: public, max-age=31536000, immutable'
-  # Un fichier d'une ancienne version répond 404, pas la coquille.
-  expect "$host" /assets/absent-0000.js 404
+  # Un fichier d'une ancienne version répond 404, pas la coquille, et cette absence n'est jamais mise en cache.
+  expect "$host" /assets/absent-0000.js 404 'cache-control: no-store'
+  ! grep -qi 'immutable' "$work/headers" || { echo "$host : 404 mis en cache définitif" >&2; exit 1; }
   # L'API est relayée (ici vers un service absent : 502), jamais servie comme un fichier.
   expect "$host" /api/health 502
 done
@@ -58,5 +72,11 @@ done
 fetch web.localhost / > /dev/null && cp "$work/body" "$work/web.html"
 fetch olympe.localhost / > /dev/null
 ! cmp -s "$work/web.html" "$work/body" || { echo "Olympe sert le client joueur" >&2; exit 1; }
-expect supabase.localhost /studio 404
+# Service worker du client joueur : toujours revalidé.
+expect web.localhost /sw.js 200 'cache-control: no-cache'
+# Passerelle Supabase : rien d'autre que les API du client.
+for path in / /studio /pg/ /mcp /api/health; do
+  expect supabase.localhost "$path" 404
+done
+expect supabase.localhost /auth/v1/health 502
 echo "Clients statiques : construction, installation et service vérifiés."
