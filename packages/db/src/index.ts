@@ -184,8 +184,9 @@ export interface GameDatabase {
     game_day: number;
     close_at: Date;
     config_version_id: string;
-    summary: ColumnType<unknown, string, never>;
-    finished_at: Generated<Date>;
+    summary: ColumnType<unknown, string | undefined, never>;
+    /** Horloge de la base à l'écriture : le service n'a pas le droit de la fournir. */
+    finished_at: ColumnType<Date, never, never>;
   };
 
   /** Fraction de demande des PNJ reportée d'un tick au suivant, par cité et par bien. */
