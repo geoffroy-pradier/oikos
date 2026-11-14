@@ -555,10 +555,10 @@ describe('dynamique de population', () => {
 
   it('population d’une classe : au plus 100 millions, limite du calcul exact', () => {
     const config = clone();
-    const classId = Object.keys(row(config.cities, 0).population)[0] ?? '';
-    row(config.cities, 0).population[classId] = 100_000_000;
+    const classId = Object.keys(at(config.cities, 0).population)[0] ?? '';
+    at(config.cities, 0).population[classId] = 100_000_000;
     expect(errorsOf(config)).toEqual([]);
-    row(config.cities, 0).population[classId] = 100_000_001;
-    expect(errorsOf(config)).toEqual([expect.stringMatching(/^cities\.0\.population\./)]);
+    at(config.cities, 0).population[classId] = 100_000_001;
+    expect(errorsOf(config)).toEqual([expect.stringMatching(/^cities\[0\]\.population\./)]);
   });
 });
