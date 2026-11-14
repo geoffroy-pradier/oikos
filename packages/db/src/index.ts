@@ -156,6 +156,16 @@ export interface GameDatabase {
     volume: ColumnType<string, number, number>;
     turnover: ColumnType<string, number, number>;
   };
+  /** Prix de référence observé d'un marché : une ligne, dont le moteur remplace les valeurs. */
+  'game.observed_prices': {
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    good_id: ColumnType<string, string, never>;
+    price: ColumnType<string, number, number>;
+    volume: ColumnType<string, number, number>;
+    window_seconds: number;
+    observed_at: Date;
+  };
   'game.sites': {
     id: Generated<string>;
     world_id: string;

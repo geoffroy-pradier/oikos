@@ -180,7 +180,7 @@ export const marketTaxSchema = z.strictObject({
  * Valeurs lues pour les versions publiées avant l'historique des prix. FIGÉES, pour la même raison que
  * `DEFAULT_SITES`.
  */
-export const DEFAULT_PRICE_HISTORY = deepFreeze({ candleMinutes: 60 });
+export const DEFAULT_PRICE_HISTORY = deepFreeze({ candleMinutes: 60, referenceWindowHours: 24 });
 
 /** Historique des prix de l'agora (5.3). */
 export const priceHistorySchema = z.strictObject({
@@ -189,6 +189,16 @@ export const priceHistorySchema = z.strictObject({
    * recalculée depuis les échanges ; l'ancienne reste telle quelle.
    */
   candleMinutes: z.number().int().min(1).max(1440),
+  /**
+   * Fenêtre du prix de référence observé, en heures : le prix moyen des échanges de cette durée, d'une
+   * heure à trente jours. Absente d'une version publiée avant lui : 24 heures.
+   */
+  referenceWindowHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(720)
+    .default(DEFAULT_PRICE_HISTORY.referenceWindowHours),
 });
 
 export const gameConfigSchema = z
@@ -216,6 +226,15 @@ export const gameConfigSchema = z
     const goods = new Set(config.goods.map((good) => good.id));
     const classes = new Set(config.npcClasses.map((npcClass) => npcClass.id));
 
+    // Une fenêtre plus courte qu'un chandelier n'en retiendrait aucun une partie du temps, sans erreur.
+    // Une fenêtre déjà hors bornes a son propre message : pas de second reproche.
+    const { candleMinutes, referenceWindowHours } = config.priceHistory;
+    if (referenceWindowHours >= 1 && referenceWindowHours * 60 < candleMinutes) {
+      issue(
+        ['priceHistory', 'referenceWindowHours'],
+        `the window must last at least one candle (${candleMinutes} minutes)`,
+      );
+    }
     for (const key of ['goods', 'recipes', 'npcClasses', 'cities'] as const) {
       for (const duplicate of duplicates(config[key].map((row) => row.id))) {
         issue([key], `duplicate id "${duplicate}"`);

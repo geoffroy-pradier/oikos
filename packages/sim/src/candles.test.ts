@@ -141,6 +141,10 @@ describe('prix de référence observé', () => {
       candle(2, Number.MAX_SAFE_INTEGER + 1),
     ])
       expect(() => observedPrice([bad])).toThrow(RangeError);
+    // Chaque montant est sûr, leur somme ne l'est plus.
+    const dear = candle(1, Number.MAX_SAFE_INTEGER);
+    expect(observedPrice([dear])).toEqual({ price: Number.MAX_SAFE_INTEGER, volume: 1 });
+    expect(() => observedPrice([dear, dear])).toThrow(RangeError);
     const half = candle(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
     expect(() => observedPrice([half])).toThrow(RangeError);
   });

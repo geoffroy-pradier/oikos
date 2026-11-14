@@ -11,6 +11,7 @@ import { tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { dryRunTick, runTick } from '../tick';
+import { observedPricesStep } from './observed-prices';
 import { priceCandlesStep } from './price-candles';
 
 // Tests d'intégration des chandeliers contre Supabase local. Chaque test a son monde : l'étape ne lit
@@ -30,16 +31,22 @@ beforeAll(async () => {
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
-/** Joue (ou simule, à blanc) le tick suivant du monde avec la seule étape des chandeliers. */
-async function tick(worldId: string, candleMinutes: number, dry = false) {
-  const scheduledAt = tickStart(index, active.config.clock.tickMinutes);
-  const config = { ...(INITIAL_CONFIG as GameConfig), priceHistory: { candleMinutes } };
+/**
+ * Joue (ou simule, à blanc) un tick du monde, chandeliers puis prix observés, et rend le résumé des
+ * chandeliers. Par défaut le tick suivant, loin des échanges d'essai ; `at` choisit son instant de jeu.
+ */
+async function tick(worldId: string, candleMinutes: number, dry = false, at?: string, hours = 24) {
+  const { tickMinutes } = active.config.clock;
+  const tickIndex = at ? tickIndexAt(new Date(at), tickMinutes) : index++;
+  const scheduledAt = tickStart(tickIndex, tickMinutes);
+  const priceHistory = { candleMinutes, referenceWindowHours: hours };
+  const config = { ...(INITIAL_CONFIG as GameConfig), priceHistory };
   const request = {
     worldId,
-    index: index++,
+    index: tickIndex,
     scheduledAt,
     config: { at: async () => ({ ...active, config }), byId: loader.byId },
-    steps: [priceCandlesStep],
+    steps: [priceCandlesStep, observedPricesStep],
     now: () => new Date(scheduledAt.getTime() + 1000),
   };
   const summary = dry
@@ -232,4 +239,49 @@ it('le service réécrit les valeurs d’un chandelier, mais ne le déplace ni n
     await expect(statement.execute(db)).rejects.toMatchObject({ code: '42501' });
   await sql`update game.price_candles set high = 7, close = 7 where ${mine}`.execute(db);
   expect(await candles(market.worldId)).toEqual(['wheat 3600 11-10T10:00 6/7/6/7 10 60']);
+});
+
+it('prix observé : moyenne pondérée des chandeliers de la fenêtre ; un marché sans échange garde le sien', async () => {
+  const market = await newMarket();
+  const observed = async () => {
+    const rows = await db
+      .selectFrom('game.observed_prices')
+      .selectAll()
+      .where('world_id', '=', market.worldId)
+      .orderBy('good_id')
+      .execute();
+    return rows.map(
+      (row) =>
+        `${row.good_id} ${row.price} ${row.volume} ${row.window_seconds} ${row.observed_at.toISOString().slice(5, 16)}`,
+    );
+  };
+  await trades(market, 'wheat', [
+    ['11:30:00', 20, 10], // avant la fenêtre du premier tick
+    ['12:00:00', 6, 10], // son heure commence avec la fenêtre : comptée
+    ['13:10:00', 9, 10],
+  ]);
+  await trades(market, 'olives', [['12:30:00', 9, 2]]);
+  // Tick du 11 novembre à midi, fenêtre de 24 heures : blé (60 + 90) ÷ 20 = 7,5, arrondi à 8.
+  await tick(market.worldId, 60, true, '2026-11-11T12:00:00Z');
+  expect(await observed()).toEqual([]);
+  await tick(market.worldId, 60, false, '2026-11-11T12:00:00Z');
+  expect(await observed()).toEqual([
+    'olives 9 2 86400 11-11T12:00',
+    'wheat 8 20 86400 11-11T12:00',
+  ]);
+  // Une heure plus tard : l'heure de midi sort de la fenêtre. Blé : 90 ÷ 10 ; les olives gardent leur ligne.
+  await tick(market.worldId, 60, false, '2026-11-11T13:00:00Z');
+  expect(await observed()).toEqual([
+    'olives 9 2 86400 11-11T12:00',
+    'wheat 9 10 86400 11-11T13:00',
+  ]);
+  // Fenêtre élargie à 48 heures : tout l'historique compte. Blé : (200 + 60 + 90) ÷ 30 = 11,67, arrondi à 12.
+  await tick(market.worldId, 60, false, '2026-11-11T13:10:00Z', 48);
+  expect(await observed()).toEqual([
+    'olives 9 2 172800 11-11T13:10',
+    'wheat 12 30 172800 11-11T13:10',
+  ]);
+  await expect(
+    sql`delete from game.observed_prices where world_id = ${market.worldId}`.execute(db),
+  ).rejects.toMatchObject({ code: '42501' });
 });
