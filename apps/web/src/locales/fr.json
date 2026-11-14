@@ -89,7 +89,8 @@
     "openBuys_other": "{{number}} achats",
     "openSells_one": "{{number}} vente",
     "openSells_other": "{{number}} ventes",
-    "toAgora": "Aller à l'agora"
+    "toAgora": "Aller à l'agora",
+    "harvestFullShort": "Plafond atteint : ce site ne produit plus rien tant qu'il lui manque des intrants."
   },
   "agora": {
     "title": "Agora de {{city}}",

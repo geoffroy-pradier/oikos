@@ -85,7 +85,7 @@ export function SitesCard({
       ? name
       : t('home.siteNumbered', { site: name, number: number.format(alike.indexOf(site) + 1) });
   };
-  /** Ce qu'une récolte donnerait maintenant, et les alertes qui en découlent ; `null` sans règles ni stock. */
+  /** Ce qu'une récolte donnerait maintenant (`harvest`, `null` sans règles ni stock) et les alertes du site. */
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
@@ -310,7 +310,10 @@ export function SitesCard({
                   {harvest.waiting > 0 && (
                     <> {t('home.harvestWaiting', { count: harvest.waiting })}</>
                   )}
-                  {alerts.includes('full') && <> {t('home.harvestFull')}</>}
+                  {alerts.includes('full') && (
+                    // Sans aucun cycle récoltable, récolter n'y changerait rien : il faut des intrants.
+                    <> {t(harvest.cycles > 0 ? 'home.harvestFull' : 'home.harvestFullShort')}</>
+                  )}
                 </p>
               )}
               {alternatives.length > 0 && (

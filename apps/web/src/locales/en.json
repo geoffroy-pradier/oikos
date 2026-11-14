@@ -85,11 +85,12 @@
     "harvestFull": "Cap reached: this site produces nothing more until it is collected.",
     "openOrdersNone": "No open orders at the agora.",
     "openOrders": "Open orders at the agora: {{buys}}, {{sells}}.",
-    "openBuys_one": "{{number}} buy",
-    "openBuys_other": "{{number}} buys",
-    "openSells_one": "{{number}} sell",
-    "openSells_other": "{{number}} sells",
-    "toAgora": "Go to the agora"
+    "openBuys_one": "{{number}} buy order",
+    "openBuys_other": "{{number}} buy orders",
+    "openSells_one": "{{number}} sell order",
+    "openSells_other": "{{number}} sell orders",
+    "toAgora": "Go to the agora",
+    "harvestFullShort": "Cap reached: this site produces nothing more until it gets its inputs."
   },
   "agora": {
     "title": "Agora of {{city}}",

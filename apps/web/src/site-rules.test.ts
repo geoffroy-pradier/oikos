@@ -249,6 +249,10 @@ describe('siteAlerts', () => {
     expect(siteAlerts(field, at(field, cap + 5, 0), false)).toEqual(['full']);
   });
 
+  it('atelier au plafond avec assez d’intrants : seulement au plafond', () => {
+    expect(siteAlerts(mill, at(mill, mill.maxAccruedCycles, 1_000_000), false)).toEqual(['full']);
+  });
+
   it('atelier au plafond et à court : les deux alertes, à court d’abord', () => {
     expect(siteAlerts(mill, at(mill, mill.maxAccruedCycles, 0), false)).toEqual(['short', 'full']);
   });
