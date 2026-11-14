@@ -208,15 +208,11 @@ describe('site.acquire', () => {
     expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.quarry - COST.field);
   });
 
-  it('recette inconnue, atelier pas encore jouable, compte sans maison : refus sans effet', async () => {
+  it('recette inconnue, compte sans maison : refus sans effet', async () => {
     const player = await newPlayer();
     expect(await acquire(player.user, 'grow_gold')).toMatchObject({
       status: 404,
       body: { error: { code: 'RECIPE_NOT_FOUND' } },
-    });
-    expect(await acquire(player.user, 'mill_flour')).toMatchObject({
-      status: 409,
-      body: { error: { code: 'RECIPE_NOT_AVAILABLE' } },
     });
     expect((await acquire(player.user, 'Bad Recipe')).status).toBe(400);
     expect(await acquire(await newUser(), 'grow_wheat')).toMatchObject({
@@ -402,49 +398,28 @@ describe('site.setRecipe', () => {
     expect((await setRecipe(salter.user, saltern, 'catch_fish')).status).toBe(200);
   });
 
-  it('refuse de passer à une recette à intrants du même type', async () => {
-    // Configuration injectée : le raisin y demande du bois. La configuration de départ n'a aucune
-    // recette à intrants sur un type de site qu'une maison peut posséder.
-    const withInputs = createApp({
-      db,
-      telemetry: createTelemetry(db),
-      verifyToken: testVerifier,
-      rateLimiter: unlimited,
-      loadConfig: async () => ({
-        ...TEST_CONFIG,
-        config: {
-          ...TEST_CONFIG.config,
-          recipes: recipes.map((candidate) =>
-            candidate.id === 'grow_grapes'
-              ? { ...candidate, inputs: [{ goodId: 'wood', quantity: 1 }] }
-              : candidate,
-          ),
-        },
-      }),
+  it('un atelier s’acquiert au prix de son type et change de recette parmi celles des ateliers', async () => {
+    const player = await newPlayer();
+    const bought = await acquire(player.user, 'mill_flour');
+    expect(bought).toMatchObject({
+      status: 200,
+      body: { data: { siteType: 'workshop', costOboles: COST.workshop } },
     });
-    const player = await withOrchard();
-    const res = await withInputs.request('/api/commands/site.setRecipe', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${player.user}`,
-        'Idempotency-Key': randomUUID(),
-      },
-      body: JSON.stringify({ siteId: player.siteId, recipeId: 'grow_grapes' }),
-    });
-    expect(res.status).toBe(409);
-    expect(((await res.json()) as Reply['body']).error?.code).toBe('RECIPE_NOT_AVAILABLE');
-    expect(await sitesOf(player.houseId)).toEqual(['grow_wheat', 'grow_olives']);
+    const siteId = bought.body.data.siteId as string;
+    expect((await setRecipe(player.user, siteId, 'bake_bread')).status).toBe(200);
+    expect((await setRecipe(player.user, siteId, 'grow_wheat')).body.error?.code).toBe(
+      'RECIPE_NOT_COMPATIBLE',
+    );
+    expect(await sitesOf(player.houseId)).toEqual(['grow_wheat', 'bake_bread']);
   });
 
-  it('refuse une recette d’un autre type, inconnue, inchangée ou pas encore jouable', async () => {
+  it('refuse une recette d’un autre type, inconnue ou inchangée', async () => {
     const player = await withOrchard();
     const attempt = async (recipeId: string) =>
       (await setRecipe(player.user, player.siteId, recipeId)).body.error?.code;
     expect(await attempt('grow_wheat')).toBe('RECIPE_NOT_COMPATIBLE');
     expect(await attempt('grow_gold')).toBe('RECIPE_NOT_FOUND');
     expect(await attempt('grow_olives')).toBe('RECIPE_UNCHANGED');
-    // Un atelier acquis plus tard ne pourra pas non plus passer à une recette à intrants d'ici là.
     expect(await attempt('mill_flour')).toBe('RECIPE_NOT_COMPATIBLE');
     expect(await sitesOf(player.houseId)).toEqual(['grow_wheat', 'grow_olives']);
     expect(await eventsOf(player.houseId, 'SiteRecipeChanged')).toEqual([]);

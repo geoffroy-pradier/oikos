@@ -45,8 +45,6 @@ export const siteSetRecipe = defineCommand({
     if (next.id === current.id) return refuse('RECIPE_UNCHANGED', 'The site already runs it.');
     if (next.siteType !== current.siteType)
       return refuse('RECIPE_NOT_COMPATIBLE', 'This recipe needs another type of site.');
-    if (next.inputs.length > 0)
-      return refuse('RECIPE_NOT_AVAILABLE', 'Workshop recipes are not available yet.');
 
     const { cycles } = accrueProduction({
       since: site.cycle_started_at,

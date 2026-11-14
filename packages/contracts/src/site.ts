@@ -13,13 +13,20 @@ export const siteCollectOutputSchema = z.object({
   siteId: z.uuid(),
   /** Nombre de cycles de recette récoltés. */
   cycles: z.number().int().positive(),
+  /** Intrants consommés dans le stock de la maison (vide pour une production primaire). */
+  inputs: z.array(collectedStack),
   outputs: z.array(collectedStack).min(1),
   /** Début du cycle désormais en cours (ISO 8601). */
   cycleStartedAt: z.iso.datetime(),
 });
 export type SiteCollectOutput = z.infer<typeof siteCollectOutputSchema>;
 
-export const SITE_COLLECT_ERROR_CODES = ['SITE_NOT_FOUND', 'NOTHING_TO_COLLECT'] as const;
+export const SITE_COLLECT_ERROR_CODES = [
+  'SITE_NOT_FOUND',
+  'NOTHING_TO_COLLECT',
+  /** Un cycle au moins est écoulé, mais le stock libre ne couvre les intrants d'aucun. */
+  'MISSING_INPUTS',
+] as const;
 export type SiteCollectErrorCode = (typeof SITE_COLLECT_ERROR_CODES)[number];
 
 export const siteCollectedSchema = z.strictObject({
@@ -28,6 +35,7 @@ export const siteCollectedSchema = z.strictObject({
     siteId: z.uuid(),
     houseId: z.uuid(),
     cycles: z.number().int().positive(),
+    inputs: z.array(collectedStack),
     outputs: z.array(collectedStack).min(1),
   }),
 });
@@ -51,7 +59,6 @@ export type SiteAcquireOutput = z.infer<typeof siteAcquireOutputSchema>;
 export const SITE_ACQUIRE_ERROR_CODES = [
   'HOUSE_NOT_FOUND',
   'RECIPE_NOT_FOUND',
-  'RECIPE_NOT_AVAILABLE',
   'SITE_LIMIT_REACHED',
   'INSUFFICIENT_FUNDS',
 ] as const;
@@ -75,7 +82,6 @@ export type SiteSetRecipeOutput = z.infer<typeof siteSetRecipeOutputSchema>;
 export const SITE_SET_RECIPE_ERROR_CODES = [
   'SITE_NOT_FOUND',
   'RECIPE_NOT_FOUND',
-  'RECIPE_NOT_AVAILABLE',
   'RECIPE_NOT_COMPATIBLE',
   'RECIPE_UNCHANGED',
   'COLLECT_FIRST',
