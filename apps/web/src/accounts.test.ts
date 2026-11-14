@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseBalanceSheet, parseIncomeStatement, parseValuedStocks, sortRows } from './accounts';
 
 const sheet = { treasury: 2990, escrow: 10, stock_value: 280, unpriced_stocks: 1 };
@@ -75,20 +75,34 @@ describe('stocks valorisés lus par le client', () => {
     [{ ...unpriced, value: 280 }],
     [{ ...priced, priced_at: 'hier' }],
     [{ ...priced, value: 2 ** 53 }],
+    // La valeur n'est pas quantité × prix (40 × 7 = 280) : d'une obole, ou parce que la quantité diffère.
+    [{ ...priced, value: 281 }],
+    [{ ...priced, quantity: 41 }],
     [priced, { ...priced, good_id: '' }],
   ])('ligne illisible ou incohérente (%j) : stocks inconnus, jamais « aucun stock »', (raw) => {
     expect(parseValuedStocks(raw)).toBeNull();
   });
+
+  it('date admise par le schéma mais illisible pour le navigateur : stocks inconnus', () => {
+    const parse = vi.spyOn(Date, 'parse').mockReturnValue(Number.NaN);
+    try {
+      expect(parseValuedStocks([priced])).toBeNull();
+      expect(parseValuedStocks([unpriced])).toHaveLength(1);
+    } finally {
+      parse.mockRestore();
+    }
+  });
 });
 
 describe('tri des tableaux de comptes', () => {
-  const rows = [
+  // Tableau gelé : un tri en place lèverait une erreur au lieu de passer inaperçu.
+  const rows = Object.freeze([
     { name: 'Blé', value: 30 },
     { name: 'Argile', value: null },
     { name: 'Vin', value: 280 },
     { name: 'Écorce', value: 30 },
     { name: 'Sel', value: null },
-  ];
+  ]);
   const names = (sorted: typeof rows) => sorted.map((row) => row.name);
 
   it('nombres dans les deux sens : sans valeur à la fin, ordre reçu gardé à égalité', () => {
@@ -96,7 +110,7 @@ describe('tri des tableaux de comptes', () => {
       names(sortRows(rows, (r) => r.value, descending, 'fr'));
     expect(byValue(true)).toEqual(['Vin', 'Blé', 'Écorce', 'Argile', 'Sel']);
     expect(byValue(false)).toEqual(['Blé', 'Écorce', 'Vin', 'Argile', 'Sel']);
-    expect(names(rows)[0]).toBe('Blé');
+    expect(names(rows)).toEqual(['Blé', 'Argile', 'Vin', 'Écorce', 'Sel']);
   });
 
   it('textes dans l’ordre de la langue : « Écorce » entre « Blé » et « Sel », pas après « Vin »', () => {

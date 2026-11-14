@@ -19,7 +19,10 @@ export default defineConfig({
     tailwindcss(),
     // Application installable : manifeste et service worker (Workbox) qui met en cache la coquille.
     VitePWA({
-      registerType: 'autoUpdate',
+      // Une nouvelle version attend que le joueur l'accepte : rien ne recharge la page sous ses doigts,
+      // une saisie en cours n'est jamais perdue (UpdatePrompt).
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['icon.svg'],
       manifest: {
         name: 'OIKOS',
@@ -41,6 +44,9 @@ export default defineConfig({
         // Toute adresse de l'application rend la coquille ; l'API et Supabase ne sont jamais mis en cache.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // Première installation : la page est prise en charge tout de suite (hors ligne dès le premier
+        // chargement). Les versions suivantes attendent l'accord du joueur (pas de `skipWaiting`).
+        clientsClaim: true,
       },
     }),
   ],

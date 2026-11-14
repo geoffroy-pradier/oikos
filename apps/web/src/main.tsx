@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { UpdatePrompt } from './UpdatePrompt';
 import { detectLanguage, initI18n } from './i18n';
 import { applyTheme, initialTheme, storedLanguage } from './preferences';
 import './styles.css';
@@ -11,6 +12,7 @@ applyTheme(initialTheme(window.matchMedia('(prefers-color-scheme: dark)').matche
 await initI18n(storedLanguage() ?? detectLanguage(navigator.languages));
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
+    <UpdatePrompt />
     <App />
   </StrictMode>,
 );

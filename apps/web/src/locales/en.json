@@ -5,7 +5,13 @@
     "signOut": "Sign out",
     "loading": "Loading…",
     "loadFailed": "Your data could not be loaded right now.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "update": {
+      "title": "New version",
+      "ready": "A new version of OIKOS is ready. It will install when you choose: whatever you are typing stays on screen until then.",
+      "now": "Update",
+      "later": "Later"
+    }
   },
   "signIn": {
     "title": "Enter the Archipelago",
@@ -91,6 +97,14 @@
     "openSells_other": "{{number}} sell orders",
     "toAgora": "Go to the agora",
     "harvestFullShort": "Cap reached: this site produces nothing more until it gets its inputs.",
+    "collectAll": "Collect all",
+    "collectAllLabel_one": "Collect all: {{number}} site to collect",
+    "collectAllLabel_other": "Collect all: {{number}} sites to collect",
+    "collectedAll_one": "Harvest stored from {{number}} site: {{list}}.",
+    "collectedAll_other": "Harvest stored from {{number}} sites: {{list}}.",
+    "collectAllFailed": "Failed for {{site}}. {{reason}}",
+    "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
+    "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts"
   },
   "agora": {
@@ -305,6 +319,8 @@
     "noPrice": "No observed price",
     "value": "Value",
     "notValued": "Not valued",
+    "sortedAscending": "Sorted by {{column}}, ascending order",
+    "sortedDescending": "Sorted by {{column}}, descending order",
     "income": {
       "title": "Income statement",
       "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close.",
