@@ -182,7 +182,10 @@ export const marketTaxSchema = z.strictObject({
  */
 export const DEFAULT_PRICE_HISTORY = deepFreeze({ candleMinutes: 60, referenceWindowHours: 24 });
 
-/** Historique des prix de l'agora (5.3). */
+/**
+ * Historique des prix de l'agora (5.3).
+ * Lue par les joueurs (vue `public.market_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ */
 export const priceHistorySchema = z.strictObject({
   /**
    * Durée d'un chandelier, en minutes, d'une minute à une journée. La changer ouvre une nouvelle série,
