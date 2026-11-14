@@ -12,6 +12,7 @@ import {
   siteCollectedSchema,
   siteRecipeChangedSchema,
   siteRestartedSchema,
+  upkeepSettledSchema,
 } from './site';
 
 /** Événements de domaine produits par les commandes et par le tick (temps réel, télémétrie, chronique). */
@@ -37,6 +38,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteAcquiredSchema,
   siteRecipeChangedSchema,
   siteRestartedSchema,
+  upkeepSettledSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

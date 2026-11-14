@@ -1,3 +1,4 @@
+import { upkeepSettledSchema } from '@oikos/contracts';
 import { dailyUpkeep, settleUpkeep, type SystemAccountKey } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
@@ -11,6 +12,7 @@ const SINK: SystemAccountKey = 'sink_upkeep';
  * paie ; le total part au puits par une écriture du grand livre, qui enregistre la décision (maison,
  * jour de jeu, sites payés). Un site impayé s'arrête, un site à l'arrêt qui est payé repart. Un site
  * dont la recette n'est plus dans la configuration n'a plus de type, donc pas d'entretien.
+ * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
  */
 export const siteUpkeep: CloseStep = {
   name: 'siteUpkeep',
@@ -71,10 +73,13 @@ export const siteUpkeep: CloseStep = {
           oboles: type ? dailyUpkeep(dailyOboles[type], coefficientBps) : 0,
         };
       });
-      const { paid, unpaid, total } = settleUpkeep(Number(account.balance), dues);
+      const { paid: settled, unpaid, total } = settleUpkeep(Number(account.balance), dues);
+      // Un site au dû nul (recette retirée) est réglé sans rien payer : il ne figure ni dans l'écriture,
+      // ni dans l'événement, ni dans le compte des sites payés.
+      const paid = settled.filter((due) => due.oboles > 0);
       const haltedBefore = new Set(sites.filter((site) => site.halted_at).map((site) => site.id));
       const halted = unpaid.map((due) => due.siteId).filter((id) => !haltedBefore.has(id));
-      const resumed = paid.map((due) => due.siteId).filter((id) => haltedBefore.has(id));
+      const resumed = settled.map((due) => due.siteId).filter((id) => haltedBefore.has(id));
       // Rien de dû (configuration sans entretien) et rien à relancer : la maison n'est pas concernée.
       if (total === 0 && unpaid.length === 0 && resumed.length === 0) continue;
 
@@ -84,7 +89,7 @@ export const siteUpkeep: CloseStep = {
           .values({
             world_id: worldId,
             kind: 'upkeep.daily',
-            meta: JSON.stringify({ houseId, gameDay, sites: paid.filter((due) => due.oboles > 0) }),
+            meta: JSON.stringify({ houseId, gameDay, sites: paid }),
           })
           .returning('id')
           .executeTakeFirstOrThrow();
@@ -115,10 +120,17 @@ export const siteUpkeep: CloseStep = {
           })
           .where('id', 'in', resumed)
           .execute();
+      const event = upkeepSettledSchema.parse({
+        type: 'UpkeepSettled',
+        payload: { houseId, gameDay, paidOboles: total, paid, unpaid, halted, resumed },
+      });
+      await trx
+        .insertInto('game.domain_events')
+        .values({ command_id: null, type: event.type, payload: JSON.stringify(event.payload) })
+        .execute();
       totals.houses += 1;
       totals.paidOboles += total;
-      // Un site au dû nul (recette retirée) est réglé sans rien payer : il n'est pas compté comme payé.
-      totals.sitesPaid += paid.filter((due) => due.oboles > 0).length;
+      totals.sitesPaid += paid.length;
       totals.sitesUnpaid += unpaid.length;
       totals.halted += halted.length;
       totals.resumed += resumed.length;

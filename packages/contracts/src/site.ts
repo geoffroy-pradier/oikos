@@ -147,3 +147,21 @@ export const siteRestartedSchema = z.strictObject({
     upkeepOboles: z.number().int().nonnegative(),
   }),
 });
+
+const upkeepDue = z.strictObject({ siteId: z.uuid(), oboles: z.number().int().nonnegative() });
+/**
+ * Entretien d'une maison réglé à une clôture quotidienne (5.5) : ce qui a été payé, ce qui ne l'a pas
+ * été, les sites que cette clôture a arrêtés et ceux qu'elle a relancés. Émis par le moteur, sans commande.
+ */
+export const upkeepSettledSchema = z.strictObject({
+  type: z.literal('UpkeepSettled'),
+  payload: z.strictObject({
+    houseId: z.uuid(),
+    gameDay: z.number().int().nonnegative(),
+    paidOboles: z.number().int().nonnegative(),
+    paid: z.array(upkeepDue),
+    unpaid: z.array(upkeepDue),
+    halted: z.array(z.uuid()),
+    resumed: z.array(z.uuid()),
+  }),
+});

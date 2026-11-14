@@ -96,6 +96,11 @@ const sitesOf = ({ houseId }: House) =>
   one(sql<{ halted: boolean; elapsed: number }>`select halted_at is not null as halted,
     extract(epoch from coalesce(halted_at, now()) - cycle_started_at)::float8 as elapsed
     from game.sites where house_id = ${houseId} order by created_at`);
+const upkeepEvents = async ({ houseId }: House) =>
+  (
+    await one(sql<{ payload: Record<string, unknown> }>`select payload from game.domain_events
+      where type = 'UpkeepSettled' and payload->>'houseId' = ${houseId} order by seq`)
+  ).map((row) => row.payload);
 const entriesOf = ({ houseId }: House) =>
   one(sql<{
     meta: unknown;
@@ -219,6 +224,16 @@ describe('entretien des sites à la clôture quotidienne', () => {
     expect((await entriesOf(house)).map((entry) => entry.meta)).toEqual([
       { houseId: house.houseId, gameDay: TODAY, sites: [{ siteId: first, oboles: FIELD }] },
     ]);
+    // L'événement dit la même chose que l'écriture : le site sans tarif n'y figure pas comme payé.
+    expect(await upkeepEvents(house)).toMatchObject([
+      {
+        paidOboles: FIELD,
+        paid: [{ siteId: first, oboles: FIELD }],
+        unpaid: [],
+        halted: [],
+        resumed: [],
+      },
+    ]);
   });
 
   it('rien à payer : maison sans monnaie arrêtée sans écriture, site sans tarif relancé sans payer, configuration sans entretien', async () => {
@@ -277,5 +292,75 @@ describe('entretien des sites à la clôture quotidienne', () => {
     }>`select halted_at = cycle_started_at as at_cycle,
       halted_at > ${rows[0]?.started}::timestamptz as after_start from game.sites where house_id = ${house.houseId}`);
     expect(halt).toEqual([{ at_cycle: true, after_start: true }]);
+  });
+
+  it('un événement de domaine par maison concernée : payé, impayé, sites arrêtés puis relancés ; aucun pour une maison à qui rien n’est demandé', async () => {
+    const house = await newHouse(100, ['grow_wheat', 'dig_clay', 'grow_olives']);
+    const [a, b, c] = house.siteIds;
+    await close(house.worldId, TODAY - 1);
+    await credit(house, 165);
+    await close(house.worldId, TODAY);
+    const [field, quarry, orchard] = [
+      { siteId: a, oboles: FIELD },
+      { siteId: b, oboles: QUARRY },
+      { siteId: c, oboles: ORCHARD },
+    ];
+    const settled = { houseId: house.houseId, halted: [], resumed: [], unpaid: [] };
+    // 100 : champ et verger payés (95), carrière arrêtée. Puis 5 + 165 = 170 : tout est payé, elle repart.
+    expect(await upkeepEvents(house)).toEqual([
+      {
+        ...settled,
+        gameDay: TODAY - 1,
+        paidOboles: 95,
+        paid: [field, orchard],
+        unpaid: [quarry],
+        halted: [b],
+      },
+      { ...settled, gameDay: TODAY, paidOboles: 170, paid: [field, quarry, orchard], resumed: [b] },
+    ]);
+    const free = await newHouse(50, ['grow_wheat']);
+    const before = { ...initial, clock, sites: { ...initial.sites, upkeep: DEFAULT_UPKEEP } };
+    await close(free.worldId, TODAY, { at: async () => ({ ...loaded, config: before }) });
+    expect(await upkeepEvents(free)).toEqual([]);
+  });
+
+  it('jamais de solde négatif : à une obole près, rien n’est prélevé et le site s’arrête ; à l’obole juste, la trésorerie tombe à zéro', async () => {
+    const short = await newHouse(FIELD - 1, ['grow_wheat']);
+    const exact = await newHouse(FIELD, ['grow_wheat']);
+    for (const house of [short, exact]) await close(house.worldId);
+    expect([await balances(short), await balances(exact)]).toEqual([
+      [FIELD - 1, 0],
+      [0, FIELD],
+    ]);
+    const halted = async (house: House) => (await sitesOf(house)).map((site) => site.halted);
+    expect([await halted(short), await halted(exact)]).toEqual([[true], [false]]);
+    const unpaid = [{ siteId: short.siteIds[0], oboles: FIELD }];
+    expect(await upkeepEvents(short)).toMatchObject([
+      { paidOboles: 0, paid: [], unpaid, halted: short.siteIds },
+    ]);
+  });
+
+  it('la monnaie sous séquestre n’est pas comptée : le site s’arrête, le séquestre reste intact', async () => {
+    const house = await newHouse(200, ['grow_wheat']);
+    // Un achat en attente de 20 unités à 10 oboles retient les 200 oboles de la maison.
+    await owner.transaction().execute(async (trx) => {
+      await sql`insert into game.accounts (world_id, kind, house_id) values (${house.worldId}, 'escrow', ${house.houseId})`.execute(
+        trx,
+      );
+      await sql`insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+        values (${house.worldId}, ${house.cityId}, ${house.houseId}, 'wheat', 'buy', 10, 20, 20)`.execute(
+        trx,
+      );
+      await sql`with entry as (insert into game.ledger_entries (world_id, kind) values (${house.worldId}, 'market.escrow_hold') returning id)
+        insert into game.ledger_lines (entry_id, account_id, amount)
+        select entry.id, a.id, case when a.kind = 'escrow' then 200 else -200 end from entry, game.accounts a
+        where a.house_id = ${house.houseId}`.execute(trx);
+    });
+    await close(house.worldId);
+    expect(await balances(house)).toEqual([0, 0]);
+    expect((await sitesOf(house)).map((site) => site.halted)).toEqual([true]);
+    const escrow = await one(sql<{ balance: string }>`select balance from game.accounts
+      where house_id = ${house.houseId} and kind = 'escrow'`);
+    expect(escrow).toEqual([{ balance: '200' }]);
   });
 });
