@@ -150,3 +150,21 @@ export function freeStockIn(stock: readonly StockLine[], cityId: string, goodId:
   );
   return line ? line.quantity - line.reserved : 0;
 }
+
+/** Ce qui demande l'attention du joueur sur un site, dans l'ordre où il faut y répondre. */
+export type SiteAlert = 'halted' | 'short' | 'full';
+
+/**
+ * Alertes d'un site, déduites de ce qu'une récolte donnerait maintenant (`previewHarvest`) :
+ * - `halted` : entretien impayé, le site ne produit plus ; seule alerte d'un site à l'arrêt, puisque
+ *   rien d'autre n'y change tant qu'il n'est pas relancé ;
+ * - `short` : un atelier a des cycles écoulés qui attendent des intrants ;
+ * - `full` : le plafond d'accumulation est atteint, le temps qui passe ne produit plus rien.
+ */
+export function siteAlerts(recipe: SiteRecipe, harvest: Harvest, halted: boolean): SiteAlert[] {
+  if (halted) return ['halted'];
+  const alerts: SiteAlert[] = [];
+  if (harvest.waiting > 0) alerts.push('short');
+  if (harvest.cycles + harvest.waiting >= recipe.maxAccruedCycles) alerts.push('full');
+  return alerts;
+}

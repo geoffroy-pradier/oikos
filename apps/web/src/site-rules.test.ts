@@ -1,7 +1,7 @@
 import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { freeStockIn, parseSiteRules, previewHarvest } from './site-rules';
+import { freeStockIn, parseSiteRules, previewHarvest, siteAlerts } from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
@@ -220,5 +220,40 @@ describe('freeStockIn', () => {
     expect(freeStockIn(stock, 'ailleurs', 'flour')).toBe(0);
     expect(freeStockIn(stock, 'ici', 'charcoal')).toBe(0);
     expect(freeStockIn([], 'ici', 'wheat')).toBe(0);
+  });
+});
+
+describe('siteAlerts', () => {
+  const rules = parseSiteRules(raw());
+  const mill = rules?.recipe('mill_flour');
+  const field = rules?.recipe('grow_wheat');
+  if (!mill || !field) throw new Error('recettes de départ introuvables');
+  const since = new Date('2026-11-14T00:00:00Z');
+  const after = (minutes: number) => new Date(since.getTime() + minutes * 60_000);
+  const at = (recipe: typeof mill, cycles: number, stock: number) =>
+    previewHarvest(recipe, since, after(cycles * recipe.durationMinutes), () => stock);
+
+  it('rien à signaler tant que le site produit sous son plafond', () => {
+    expect(siteAlerts(field, at(field, 1, 0), false)).toEqual([]);
+    expect(siteAlerts(mill, at(mill, 1, 1_000), false)).toEqual([]);
+  });
+
+  it('atelier à court : des cycles écoulés attendent des intrants', () => {
+    expect(siteAlerts(mill, at(mill, 1, 0), false)).toEqual(['short']);
+  });
+
+  it('au plafond : exactement au plafond, et au-delà', () => {
+    const cap = field.maxAccruedCycles;
+    expect(siteAlerts(field, at(field, cap - 1, 0), false)).toEqual([]);
+    expect(siteAlerts(field, at(field, cap, 0), false)).toEqual(['full']);
+    expect(siteAlerts(field, at(field, cap + 5, 0), false)).toEqual(['full']);
+  });
+
+  it('atelier au plafond et à court : les deux alertes, à court d’abord', () => {
+    expect(siteAlerts(mill, at(mill, mill.maxAccruedCycles, 0), false)).toEqual(['short', 'full']);
+  });
+
+  it('site à l’arrêt : seule l’alerte d’arrêt, même au plafond', () => {
+    expect(siteAlerts(field, at(field, field.maxAccruedCycles, 0), true)).toEqual(['halted']);
   });
 });
