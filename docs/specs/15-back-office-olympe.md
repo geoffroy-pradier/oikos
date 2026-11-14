@@ -62,3 +62,7 @@ Dans la première version, une commande d'administration (`admin.*`) n'est exéc
 | Signalements en attente | Plus de 24 h |
 | Coût IA du jour | Plus de 150 % de la moyenne sur 7 jours |
 | Sauvegarde | Dernière archive de plus de 15 min |
+
+## 15.6 Procédures d'exploitation
+
+- [Accès à Olympe](../exploitation/acces-olympe.md) : premier super-administrateur et enrôlement du second facteur, accès accordé à une autre personne, appareil perdu (dernier super-administrateur compris), retrait d'accès. Les étapes en base y sont faites par un humain ; celles qui touchent au schéma de Supabase Auth ne sont couvertes par aucun test du dépôt et sont à répéter en préproduction.

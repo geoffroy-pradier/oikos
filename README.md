@@ -110,9 +110,12 @@ données locales et rejoue les migrations.
 
 ### Back-office (facultatif)
 
-`pnpm --filter @oikos/admin exec vite --host 127.0.0.1`, puis `http://127.0.0.1:5174`. Le compte doit
-d'abord recevoir un rôle dans la table `admin.roles` (inscription à la main, voir
-`docs/specs/15-back-office-olympe.md`) et enrôler un second facteur à la première connexion.
+`pnpm --filter @oikos/admin exec vite --host 127.0.0.1`, puis `http://127.0.0.1:5174`. À la première
+connexion, le compte enrôle un second facteur (application d'authentification), puis lit son identifiant.
+Il lui faut ensuite un rôle dans la table `admin.roles` : le premier super-administrateur est inscrit à
+la main en base, les suivants reçoivent leur rôle dans l'écran « Accès ». Procédure complète, appareil
+perdu et retrait d'accès compris : `docs/exploitation/acces-olympe.md` (en local, ses instructions SQL se
+lancent comme ci-dessus, par `docker exec supabase_db_oikos psql -U postgres -c "…"`).
 
 ### Sous Linux ou macOS
 
