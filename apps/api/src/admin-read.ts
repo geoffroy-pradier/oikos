@@ -1,4 +1,4 @@
-import type { AdminRole, CommandError } from '@oikos/contracts';
+import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
@@ -7,9 +7,6 @@ import type { RateLimiter } from './rate-limit';
 
 type AdminEnv = { Variables: { identity: Identity; adminRole: AdminRole } };
 
-/** Tableaux de bord et paramètres : pas les rôles de modération ni de support (15.3). */
-const DASHBOARD_ROLES: readonly AdminRole[] = ['super_admin', 'game_designer', 'observer'];
-const AUDIT_ROLES: readonly AdminRole[] = ['super_admin', 'observer'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Tailles de page (limites techniques). */
 const RECENT_TICKS = 20;
@@ -52,12 +49,14 @@ export function registerAdminReads(
     c.set('adminRole', row.role);
     return next();
   });
-  // Chaque route déclare ses rôles : une route ajoutée sans eux n'est ouverte à personne d'autre.
-  for (const [path, roles] of [
-    ['/api/admin/vigie', DASHBOARD_ROLES],
-    ['/api/admin/config/*', DASHBOARD_ROLES],
-    ['/api/admin/audit', AUDIT_ROLES],
+  // Chaque route appartient à un module, dont les rôles viennent de la liste partagée avec le client
+  // (`ADMIN_MODULE_ROLES`) : une route ajoutée sans module n'est ouverte à personne.
+  for (const [path, module] of [
+    ['/api/admin/vigie', 'vigie'],
+    ['/api/admin/config/*', 'config'],
+    ['/api/admin/audit', 'audit'],
   ] as const) {
+    const roles: readonly AdminRole[] = ADMIN_MODULE_ROLES[module];
     app.use(path, async (c, next) => {
       if (!roles.includes(c.get('adminRole'))) return forbidden();
       return next();

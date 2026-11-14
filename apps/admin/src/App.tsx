@@ -1,4 +1,4 @@
-import type { AdminRole } from '@oikos/contracts';
+import { adminModulesFor, type AdminModule, type AdminRole } from '@oikos/contracts';
 import { Button, Card } from '@oikos/ui';
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,19 +13,6 @@ import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
 import { supabase } from './supabase';
 
-/** Modules ouverts à chaque rôle (docs/specs/15-back-office-olympe.md, 15.3). L'API fait foi. */
-const MODULES = {
-  vigie: ['super_admin', 'game_designer', 'observer'],
-  config: ['super_admin', 'game_designer', 'observer'],
-  audit: ['super_admin', 'observer'],
-} as const satisfies Record<string, readonly AdminRole[]>;
-type Module = keyof typeof MODULES;
-const MODULE_IDS = Object.keys(MODULES) as Module[];
-
-export function modulesFor(role: AdminRole): Module[] {
-  return MODULE_IDS.filter((id) => MODULES[id].some((allowed) => allowed === role));
-}
-
 export function App() {
   const { t, i18n } = useTranslation();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -35,7 +22,7 @@ export function App() {
     role: AdminRole | null;
     failed: boolean;
   } | null>(null);
-  const [module, setModule] = useState<Module>('vigie');
+  const [module, setModule] = useState<AdminModule>('vigie');
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -88,15 +75,24 @@ export function App() {
   // Rien de ce qui dépend du rôle n'est rendu sans session à second facteur.
   const answered = token && mine ? mine : null;
   const granted = answered && !answered.failed ? answered.role : undefined;
-  const modules = granted ? modulesFor(granted) : [];
+  // Navigation composée d'après la liste des rôles par module partagée avec l'API, qui fait foi.
+  const modules = granted ? adminModulesFor(granted) : [];
   const current = modules.includes(module) ? module : modules[0];
 
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn />;
   else if (session && level && level !== 'aal2') screen = <SecondFactor onVerified={refresh} />;
   else if (answered?.failed) screen = <p role="alert">{t('app.loadFailed')}</p>;
-  else if (granted === null) screen = <p role="alert">{t('app.forbidden')}</p>;
-  else if (granted && token) {
+  else if (granted === null) {
+    // Sans rôle : le compte lit son identifiant, à transmettre à un super-administrateur (15.3).
+    screen = (
+      <>
+        <p role="alert">{t('app.forbidden')}</p>
+        <p>{t('app.forbiddenNext')}</p>
+        <code className="break-all">{userId}</code>
+      </>
+    );
+  } else if (granted && token) {
     screen =
       current === 'vigie' ? (
         <Vigie accessToken={token} />
