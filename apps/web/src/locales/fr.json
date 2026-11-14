@@ -105,7 +105,10 @@
     "cancelledBuy": "Achat annulé : {{quantity}} × {{good}} ; {{amount}} oboles rendues à votre trésorerie.",
     "sold": "Vente conclue : {{quantity}} × {{good}} pour {{amount}} oboles.",
     "soldPartly": "Vente conclue en partie : {{quantity}} × {{good}} sur {{wanted}} pour {{amount}} oboles. Le reste attend dans le carnet.",
-    "placedBuy": "Achat en attente : {{quantity}} × {{good}} à {{price}} oboles. {{held}} oboles sont retenues jusqu'à l'exécution ou l'annulation."
+    "placedBuy": "Achat en attente : {{quantity}} × {{good}} à {{price}} oboles. {{held}} oboles sont retenues jusqu'à l'exécution ou l'annulation.",
+    "soldGross": "Vente conclue : {{quantity}} × {{good}} pour {{amount}} oboles avant taxe de marché.",
+    "soldPartlyGross": "Vente conclue en partie : {{quantity}} × {{good}} sur {{wanted}} pour {{amount}} oboles avant taxe de marché. Le reste attend dans le carnet.",
+    "expectedNet": "Net attendu : {{net}} oboles ({{gross}} moins {{tax}} de taxe de marché), si la vente est servie en un seul échange. Servie en plusieurs fois, elle peut rapporter quelques oboles de moins."
   },
   "goods": {
     "wheat": "Blé",

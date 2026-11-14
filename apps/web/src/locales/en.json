@@ -105,7 +105,10 @@
     "cancelledBuy": "Purchase cancelled: {{quantity}} × {{good}}; {{amount}} obols returned to your treasury.",
     "sold": "Sold: {{quantity}} × {{good}} for {{amount}} obols.",
     "soldPartly": "Partly sold: {{quantity}} × {{good}} out of {{wanted}} for {{amount}} obols. The rest is waiting in the book.",
-    "placedBuy": "Buy order waiting: {{quantity}} × {{good}} at {{price}} obols. {{held}} obols are held until it is filled or cancelled."
+    "placedBuy": "Buy order waiting: {{quantity}} × {{good}} at {{price}} obols. {{held}} obols are held until it is filled or cancelled.",
+    "soldGross": "Sold: {{quantity}} × {{good}} for {{amount}} obols before market tax.",
+    "soldPartlyGross": "Partly sold: {{quantity}} × {{good}} out of {{wanted}} for {{amount}} obols before market tax. The rest is waiting in the book.",
+    "expectedNet": "Expected net: {{net}} obols ({{gross}} less {{tax}} in market tax), if the sale is filled in a single trade. Filled in several trades, it may bring in a few obols less."
   },
   "goods": {
     "wheat": "Wheat",
