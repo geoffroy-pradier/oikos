@@ -25,7 +25,17 @@ interface VigieData {
     forbidden: number;
   };
   adminReads24h: number;
+  /** Absent d'une API antérieure à ce champ : l'écran affiche alors un état inconnu, pas « Exigée ». */
+  selfReviewAllowed?: boolean | null;
 }
+
+/** Seul un booléen rendu par l'API dit si la double validation est exigée ou levée. */
+const review = (selfReviewAllowed: unknown) =>
+  selfReviewAllowed === true
+    ? 'reviewLifted'
+    : selfReviewAllowed === false
+      ? 'reviewRequired'
+      : 'reviewUnknown';
 
 /** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
 export function Vigie({ accessToken }: { accessToken: string }) {
@@ -54,6 +64,7 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
         [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
         [t('vigie.adminReads'), number.format(data.adminReads24h)],
+        [t('vigie.review'), t(`vigie.${review(data.selfReviewAllowed)}`)],
       ]
     : [];
 
@@ -67,6 +78,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       </div>
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
+      {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
+      {data?.selfReviewAllowed === true && (
+        <p className="rounded-md border border-danger p-3 font-semibold text-danger">
+          {t('vigie.reviewLiftedWarning')}
+        </p>
+      )}
       {data && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {figures.map(([label, value]) => (
