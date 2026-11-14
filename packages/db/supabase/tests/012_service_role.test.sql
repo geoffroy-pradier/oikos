@@ -50,7 +50,7 @@ select is(
    where c.relnamespace in ('config'::regnamespace, 'telemetry'::regnamespace, 'admin'::regnamespace)
      and c.relkind = 'r' and has_table_privilege('oikos_service', c.oid, 'update')),
   0::bigint, 'aucune modification hors de game');
-select ok(not has_table_privilege('oikos_service', 'admin.roles', 'insert'), 'le service ne s''accorde pas de rôle d''administration');
+select ok(not has_table_privilege('oikos_service', 'admin.roles', 'insert'), 'le service n''inscrit aucun rôle à la main (seulement par admin.set_role, au nom d''un super-administrateur)');
 -- Toute table à règles par ligne ouverte au service a sa règle : sinon il n'y verrait aucune ligne.
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -67,7 +67,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
-  'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
+  'admin.set_role game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.market_rules game.order_book '
     || 'game.site_rules telemetry.prune_rate_windows',
   'fonctions SECURITY DEFINER : liste figée');
@@ -92,7 +92,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'config.active_version_at game.uuid_v7 game.written_by_owner_trigger telemetry.prune_rate_windows',
+  'admin.set_role config.active_version_at game.uuid_v7 game.written_by_owner_trigger telemetry.prune_rate_windows',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
 -- Échanges : le service ne choisit ni le rang d'exécution ni la date, qui décident des chandeliers de prix.
