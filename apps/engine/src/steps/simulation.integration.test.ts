@@ -6,7 +6,7 @@ import {
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { createRng, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -15,9 +15,11 @@ import { npcDemand } from './npc-demand';
 
 // Simulation de 30 jours de jeu contre Supabase local (ticket 9) : des maisons produisent du blé et le
 // vendent, les PNJ achètent à chaque tick. La masse monétaire ne doit bouger que par le robinet prévu.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const loader = createConfigLoader(db);
 let active: LoadedConfig;
 
@@ -34,7 +36,7 @@ beforeAll(async () => {
   await ensureInitialConfig(db, INITIAL_CONFIG);
   active = await loader.at(new Date());
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 it(
   '30 jours de production, de ventes et d’achats de PNJ : la monnaie ne vient que du robinet',
@@ -42,10 +44,10 @@ it(
   async () => {
     const [worldId, cityId] = [randomUUID(), randomUUID()];
     await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`s-${worldId.slice(0, 12)}`}, 'Simulation')`.execute(
-      db,
+      owner,
     );
     await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Simulation')`.execute(
-      db,
+      owner,
     );
     await db
       .insertInto('game.accounts')
@@ -61,7 +63,7 @@ it(
     for (let n = 0; n < HOUSES; n++) {
       const userId = randomUUID();
       await sql`insert into auth.users (id, email) values (${userId}, ${`${userId}@example.test`})`.execute(
-        db,
+        owner,
       );
       const name = `Ferme ${[...userId.replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
       const house = await db

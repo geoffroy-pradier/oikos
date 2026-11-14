@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { defineConfig, devices } from '@playwright/test';
+import { serviceRoleUrl } from '@oikos/db';
 
 // Les adresses et clés de Supabase local sont lues à l'exécution : rien n'est écrit dans le dépôt.
 const status = JSON.parse(
@@ -40,7 +41,8 @@ export default defineConfig({
       url: 'http://127.0.0.1:8787/api/health',
       reuseExistingServer: !process.env['CI'],
       env: {
-        DATABASE_URL: need('DB_URL'),
+        // L'API tourne sous le rôle de service, comme en production.
+        DATABASE_URL: serviceRoleUrl(need('DB_URL')),
         SUPABASE_URL: need('API_URL'),
         API_PORT: '8787',
       },

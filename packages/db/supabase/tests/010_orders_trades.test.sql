@@ -128,7 +128,8 @@ select ok(not has_function_privilege('anon', 'game.order_book()', 'execute'), 'a
 select is(
   (select count(*) from pg_class c, unnest(array['anon', 'authenticated']) r, unnest(array['insert', 'update', 'delete', 'truncate']) p
    where c.relnamespace = 'game'::regnamespace and c.relkind in ('r', 'p') and has_table_privilege(r, c.oid, p))
-  + (select count(*) from pg_policies where schemaname = 'game' and tablename in ('orders', 'trades') and cmd <> 'SELECT')
+  + (select count(*) from pg_policies where schemaname = 'game' and tablename in ('orders', 'trades') and cmd <> 'SELECT'
+       and roles <> '{oikos_service}')
   + (select count(*) from pg_class where oid in ('game.orders'::regclass, 'game.trades'::regclass) and not relrowsecurity),
   0::bigint, 'règles par ligne actives, aucune écriture client');
 set local role anon;

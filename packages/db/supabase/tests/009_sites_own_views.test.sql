@@ -55,7 +55,8 @@ select is(
    where c.relnamespace = 'game'::regnamespace and c.relkind in ('r', 'p') and has_table_privilege(r, c.oid, p)),
   0::bigint, 'toujours aucun droit d''écriture client sur game');
 select is(
-  (select count(*) from pg_policies where schemaname = 'game' and tablename in ('accounts', 'inventories', 'sites') and cmd <> 'SELECT'),
+  (select count(*) from pg_policies where schemaname = 'game' and tablename in ('accounts', 'inventories', 'sites') and cmd <> 'SELECT'
+     and roles <> '{oikos_service}'),
   0::bigint, 'aucune règle d''écriture');
 
 -- Visiteur anonyme : rien.

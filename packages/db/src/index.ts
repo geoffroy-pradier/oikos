@@ -214,6 +214,22 @@ export function createDb(connectionString: string, pool: { max?: number } = {}):
   });
 }
 
+/**
+ * Rôle de service de l'API et du moteur (migration 12) : aucun droit de propriété, écritures par les
+ * journaux seulement. En production, le compte de connexion des services en est membre.
+ */
+export const SERVICE_ROLE = 'oikos_service';
+
+/**
+ * Adresse de connexion qui prend le rôle de service dès l'ouverture (`SET ROLE`). Sert en local et dans
+ * les tests, où l'on se connecte avec le propriétaire des tables.
+ */
+export function serviceRoleUrl(connectionString: string): string {
+  const url = new URL(connectionString);
+  url.searchParams.set('options', `-c role=${SERVICE_ROLE}`);
+  return url.toString();
+}
+
 /** Nom de la contrainte violée (unicité 23505 ou vérification 23514), ou `null` pour toute autre erreur. */
 export function violatedConstraint(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) return null;

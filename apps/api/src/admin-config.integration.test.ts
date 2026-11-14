@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { ADMIN_ROLES, CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,22 +12,26 @@ import { unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Tests d'intégration des commandes d'administration de la configuration, contre Supabase local.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 async function newUser(role?: AdminRole, grantedBy: string | null = null): Promise<string> {
   const id = randomUUID();
-  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(db);
+  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(
+    owner,
+  );
   if (role) {
-    await db
+    await owner
       .insertInto('admin.roles')
       .values({ user_id: id, role, granted_by: grantedBy })
       .execute();
@@ -184,7 +188,7 @@ describe('accès aux commandes d’administration', () => {
     expect((await send(former, 'admin.publishConfig', { config: candidate(3200) })).status).toBe(
       200,
     );
-    await db.deleteFrom('admin.roles').where('user_id', '=', former).execute();
+    await owner.deleteFrom('admin.roles').where('user_id', '=', former).execute();
     expect((await send(former, 'admin.publishConfig', { config: candidate(3300) })).status).toBe(
       403,
     );

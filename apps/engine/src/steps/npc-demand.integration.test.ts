@@ -6,7 +6,7 @@ import {
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -15,9 +15,11 @@ import { npcDemand } from './npc-demand';
 
 // Tests d'intégration de la demande des PNJ contre Supabase local. Chaque test a son monde, sa cité
 // `kalliste` et son robinet : les carnets et les soldes ne se mélangent pas.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const loader = createConfigLoader(db);
 let active: LoadedConfig;
 let index: number;
@@ -27,7 +29,7 @@ beforeAll(async () => {
   active = await loader.at(new Date());
   index = tickIndexAt(new Date(), active.config.clock.tickMinutes) + 1;
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 /**
  * Une classe de 1 000 habitants qui ne veut que du blé : prix de référence 6, élasticité 0,4, prix de
@@ -62,10 +64,10 @@ const request = (worldId: string, config: GameConfig, tick = index): TickRequest
 async function newWorld(slug = 'kalliste', faucet = true) {
   const [worldId, cityId] = [randomUUID(), randomUUID()];
   await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`n-${worldId.slice(0, 12)}`}, 'Test')`.execute(
-    db,
+    owner,
   );
   await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, 'Agora')`.execute(
-    db,
+    owner,
   );
   if (faucet) {
     await db
@@ -87,7 +89,7 @@ type World = Awaited<ReturnType<typeof newWorld>>;
 async function newSeller({ worldId, cityId }: World, wheat: number, orders: [number, number][]) {
   const userId = randomUUID();
   await sql`insert into auth.users (id, email) values (${userId}, ${`${userId}@example.test`})`.execute(
-    db,
+    owner,
   );
   const house = await db
     .insertInto('game.houses')
@@ -327,7 +329,7 @@ describe('demande des PNJ au tick', () => {
     const kalliste = await newWorld();
     const delos = { worldId: kalliste.worldId, cityId: randomUUID() };
     await sql`insert into game.cities (id, world_id, slug, name) values (${delos.cityId}, ${delos.worldId}, 'delos', 'Agora')`.execute(
-      db,
+      owner,
     );
     // Kallistè, blé : une vente annulée à 1 obole, deux ventes à 6 (la plus ancienne d'abord), une à 16.
     const first = await newSeller(kalliste, 60, [
