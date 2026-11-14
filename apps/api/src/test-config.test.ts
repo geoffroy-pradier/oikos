@@ -60,5 +60,7 @@ describe('horloge de test à clôture lointaine', () => {
       expect([0, 12]).toContain(clock.dailyCloseHour);
       expect(nextDailyClose(now, clock).getTime() - ms).toBeGreaterThan(FAR_CLOSE_MARGIN_MS);
     }
-  });
+    // Près de six cents instants : une demi-seconde seule, plus de cinq quand `ci` lance tous les paquets
+    // en parallèle. La limite par défaut (5 s) ne mesure ici que la charge de la machine.
+  }, 30_000);
 });
