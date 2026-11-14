@@ -278,7 +278,8 @@ it('annule une programmation à venir après confirmation ; y renoncer ne fait r
   ]);
   expect(screen.queryByRole('button', { name })).toBeNull();
   expect(item(3).textContent).not.toMatch(/Programmée/);
-  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Paramètres' }));
+  const title = screen.getByRole('heading', { name: 'Paramètres' });
+  await waitFor(() => expect(document.activeElement).toBe(title));
 });
 
 it('annulation : plusieurs programmations de la clôture sont comptées ; un refus est expliqué ; lecture seule sans bouton', async () => {
@@ -295,8 +296,9 @@ it('annulation : plusieurs programmations de la clôture sont comptées ; un ref
     /tombe dans moins d'une minute\. Programmez un retour arrière\.$/,
   );
   // Refusée : la confirmation se referme, le foyer revient au bouton de la programmation.
+  const back = () => screen.getByRole('button', { name });
+  await waitFor(() => expect(document.activeElement).toBe(back()));
   expect(screen.queryByRole('button', { name: "Confirmer l'annulation" })).toBeNull();
-  expect(document.activeElement).toBe(screen.getByRole('button', { name }));
   await attempt();
   expect(await screen.findByText(/annulée, avec 2 programmations de la même clôture/)).toBeTruthy();
 
@@ -321,7 +323,9 @@ it('annulation refusée quand la programmation n’est plus à venir : le foyer 
   sent.release({ ok: false, code: 'CONFIG_ACTIVATION_CANCELLED' });
   expect((await screen.findByRole('alert')).textContent).toMatch(/déjà annulée/);
   expect(screen.queryByRole('button', { name })).toBeNull();
-  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Paramètres' }));
+  // Le foyer est posé par un effet, après l'annonce : il s'attend.
+  const title = screen.getByRole('heading', { name: 'Paramètres' });
+  await waitFor(() => expect(document.activeElement).toBe(title));
 });
 
 it('la comparaison nomme la version en vigueur et la suit quand elle change', async () => {
