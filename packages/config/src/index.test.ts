@@ -24,7 +24,7 @@ const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
   marketTax: { rateBps: 400, burnShareBps: 2500 },
-  priceHistory: { candleMinutes: 15 },
+  priceHistory: { candleMinutes: 15, referenceWindowHours: 48 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -380,7 +380,7 @@ describe('historique des prix', () => {
     delete older.priceHistory;
     const result = validateConfig(older);
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(result.config.priceHistory).toEqual({ candleMinutes: 60 });
+    expect(result.config.priceHistory).toEqual({ candleMinutes: 60, referenceWindowHours: 24 });
     expect(Object.isFrozen(DEFAULT_PRICE_HISTORY)).toBe(true);
   });
 
@@ -395,6 +395,25 @@ describe('historique des prix', () => {
       config.priceHistory.candleMinutes = bad;
       expect(errorsOf(config)).toEqual([expect.stringMatching(/^priceHistory\.candleMinutes: /)]);
     }
+    for (const [hours, valid] of [
+      [1, true],
+      [720, true],
+      [0, false],
+      [721, false],
+      [1.5, false],
+    ] as const) {
+      const config = clone();
+      config.priceHistory.referenceWindowHours = hours;
+      expect(errorsOf(config).map((error) => error.split(':')[0])).toEqual(
+        valid ? [] : ['priceHistory.referenceWindowHours'],
+      );
+    }
+    // Une version publiée entre les chandeliers et le prix observé : fenêtre de 24 heures.
+    const between = validateConfig({ ...clone(), priceHistory: { candleMinutes: 15 } });
+    expect(between.ok && between.config.priceHistory).toEqual({
+      candleMinutes: 15,
+      referenceWindowHours: 24,
+    });
     const loose = clone() as unknown as { priceHistory: Record<string, unknown> };
     loose.priceHistory = {};
     expect(errorsOf(loose)).toEqual([expect.stringMatching(/^priceHistory\.candleMinutes: /)]);
