@@ -48,10 +48,11 @@ describe('chandeliers de prix', () => {
   });
 
   it('refuse une durée, un prix ou une quantité qui ne sont pas des entiers positifs, et un montant hors des entiers sûrs', () => {
-    for (const period of [0, -3600, 1.5, Number.NaN])
+    for (const period of [0, -3600, 1.5, Number.NaN, 2_147_483_648])
       expect(() => priceCandles(TRADES, period)).toThrow(RangeError);
     for (const bad of [trade(T, 0, 1), trade(T, 1.5, 1), trade(T, 1, 0), trade(T + 0.5, 1, 1)])
       expect(() => priceCandles([bad], 3600)).toThrow(RangeError);
+    expect(priceCandles(TRADES, 2_147_483_647)).toHaveLength(1);
     const huge = trade(T, Number.MAX_SAFE_INTEGER, 1);
     expect(() => priceCandles([trade(T, Number.MAX_SAFE_INTEGER, 2)], 3600)).toThrow(RangeError);
     expect(() => priceCandles([huge, trade(T, 1, 1)], 3600)).toThrow(RangeError);
