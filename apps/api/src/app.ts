@@ -129,7 +129,7 @@ export function createApp({ db, verifyToken, rateLimiter, loadConfig, telemetry 
     if (!command) return fail({ code: 'COMMAND_NOT_FOUND', message: 'Unknown command.' });
     // Compté après l'authentification et pour une commande connue seulement : le nombre de compteurs
     // est borné par comptes × commandes du registre.
-    const quota = rateLimiter.hit(`${c.get('identity').userId}:${command.name}`);
+    const quota = await rateLimiter.hit(`${c.get('identity').userId}:${command.name}`);
     if (!quota.allowed) {
       c.header('Retry-After', String(quota.retryAfterSeconds));
       return c.json(

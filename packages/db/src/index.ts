@@ -184,6 +184,12 @@ export interface GameDatabase {
     reason: 'unauthenticated' | 'payload_too_large' | 'rate_limited' | 'forbidden';
     count: ColumnType<string, number, number>;
   };
+  /** Fenêtres de limite de débit, partagées entre répliques de l'API. */
+  'telemetry.rate_windows': {
+    key: string;
+    window_start: ColumnType<Date, string, never>;
+    count: number;
+  };
   /** Lectures du back-office par un compte admis. */
   'telemetry.admin_reads': {
     id: Generated<string>;

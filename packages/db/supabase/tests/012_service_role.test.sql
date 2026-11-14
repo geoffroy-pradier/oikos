@@ -41,7 +41,7 @@ select is(
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
   'accounts.balance api_refusals.count houses.name inventories.quantity npc_demand_carry.carry '
-    || 'npc_demand_carry.updated_at orders.status sites.cycle_started_at',
+    || 'npc_demand_carry.updated_at orders.status rate_windows.count sites.cycle_started_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
@@ -66,7 +66,8 @@ select is(
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
   'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
-    || 'game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book',
+    || 'game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book '
+    || 'telemetry.prune_rate_windows',
   'fonctions SECURITY DEFINER : liste figée');
 -- Le droit d'exécuter une fonction de déclencheur suffit à l'attacher à une table qu'on possède.
 select is(
@@ -82,7 +83,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'config.active_version_at game.uuid_v7 game.written_by_owner_trigger',
+  'config.active_version_at game.uuid_v7 game.written_by_owner_trigger telemetry.prune_rate_windows',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
 

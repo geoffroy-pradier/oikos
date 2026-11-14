@@ -3,7 +3,7 @@ import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/
 import { createDb } from '@oikos/db';
 import { createApp } from './app';
 import { tokenVerifierFromEnv } from './auth';
-import { createRateLimiter, rateLimitFromEnv } from './rate-limit';
+import { createSharedRateLimiter, rateLimitFromEnv } from './rate-limit';
 import { createTelemetry } from './telemetry';
 
 function requireEnv(name: string): string {
@@ -16,6 +16,10 @@ const db = createDb(requireEnv('DATABASE_URL'));
 // Premier démarrage : publie la configuration initiale (sans effet si une version existe déjà).
 await ensureInitialConfig(db, INITIAL_CONFIG);
 const telemetry = createTelemetry(db);
+// Limite de débit tenue en base : les répliques de l'API comptent ensemble.
+const rateLimiter = createSharedRateLimiter(db, rateLimitFromEnv(process.env));
+const PRUNE_MS = 10 * 60_000;
+setInterval(() => void rateLimiter.prune(), PRUNE_MS).unref();
 // Compteurs de refus écrits par lots : la base ne voit pas une écriture par requête refusée.
 const FLUSH_MS = 10_000;
 setInterval(() => void telemetry.flush(), FLUSH_MS).unref();
@@ -27,7 +31,7 @@ const app = createApp({
   telemetry,
   loadConfig: createConfigLoader(db).at,
   verifyToken: tokenVerifierFromEnv(process.env),
-  rateLimiter: createRateLimiter(rateLimitFromEnv(process.env)),
+  rateLimiter,
 });
 const port = Number(process.env['API_PORT'] ?? 8787);
 serve({ fetch: app.fetch, port }, () => console.log(`OIKOS API listening on :${port}`));
