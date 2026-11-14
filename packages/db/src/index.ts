@@ -66,9 +66,11 @@ export interface GameDatabase {
   'game.accounts': {
     id: Generated<string>;
     world_id: string;
-    kind: 'house' | 'system' | 'escrow';
+    kind: 'house' | 'system' | 'escrow' | 'treasury';
     house_id: string | null;
     system_key: string | null;
+    /** Trésor de la cité (`kind = 'treasury'`) : sa cité ; nul pour tout autre compte. */
+    city_id: Generated<string | null>;
     allow_negative: Generated<boolean>;
     /** `bigint` : lu en texte. */
     balance: ColumnType<string, never, never>;

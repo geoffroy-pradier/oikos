@@ -71,3 +71,5 @@ Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %
 ## 5.6 Fiscalité
 
 Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port (défaut 2 %), taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques. Les recettes alimentent le trésor de la cité, dépensé par les magistrats. La concurrence fiscale entre cités est un ressort de jeu assumé.
+
+Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité. Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux, et les joueurs ne le lisent pas encore.
