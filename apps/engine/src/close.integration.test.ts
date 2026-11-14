@@ -159,6 +159,30 @@ describe('clôtures quotidiennes d’un monde', () => {
     ).rejects.toThrow('is not due before');
   });
 
+  it('jamais en arrière, même pour un moteur en retard : après la clôture de D + 1, celle de D n’est plus jouée', async () => {
+    const worldId = await newWorld();
+    const run = (gameDay: number, steps = [probe]) =>
+      runDailyClose(db, {
+        worldId,
+        gameDay,
+        closeAt: dailyCloseAt(gameDay, clock),
+        config,
+        steps,
+        now: during(D + 1),
+      });
+    expect((await run(D + 1)).status).toBe('done');
+    // Le moteur en retard avait lu « rien de clos » avant que l'autre ne joue D + 1 : sous verrou, il le voit.
+    expect(await run(D)).toEqual({ status: 'skipped', summary: {} });
+    expect(await run(D + 1)).toEqual({ status: 'skipped', summary: { probe: { gameDay: D + 1 } } });
+    expect([await effectsOf(worldId), (await closesOf(worldId)).length]).toEqual([[D + 1], 1]);
+    await expect(run(D + 1, [probe, probe])).rejects.toThrow('Duplicate close step name');
+    // Instant de clôture écrit à la main : le jour de jeu 20 000 est le 4 octobre 2024, 04 h 00 d'été à Paris.
+    const fixed = await newWorld();
+    const now = new Date('2024-10-04T10:00:00Z');
+    expect(await closeWorld(db, { worldId: fixed, now, config, steps: [] })).toEqual([20_000]);
+    expect((await closesOf(fixed))[0]?.close_at.toISOString()).toBe('2024-10-04T02:00:00.000Z');
+  });
+
   it('monde neuf sans configuration en vigueur à la clôture du jour : commence à la suivante', async () => {
     const worldId = await newWorld();
     const today = dailyCloseAt(D, clock).getTime();

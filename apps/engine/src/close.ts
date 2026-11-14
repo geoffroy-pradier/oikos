@@ -31,7 +31,7 @@ export interface CloseRequest {
 }
 
 export interface CloseOutcome {
-  /** `skipped` : la clôture avait déjà été jouée, rien n'a été refait. */
+  /** `skipped` : cette clôture, ou une plus récente du même monde, était déjà jouée ; rien n'a été fait. */
   status: 'done' | 'skipped';
   summary: Record<string, unknown>;
 }
@@ -47,22 +47,31 @@ export async function runDailyClose(db: Db, request: CloseRequest): Promise<Clos
     throw new RangeError(`Invalid game day ${gameDay}`);
   if (closeAt.getTime() > now.getTime())
     throw new Error(`Daily close ${gameDay} is not due before ${closeAt.toISOString()}`);
+  const names = steps.map((step) => step.name);
+  if (new Set(names).size !== names.length)
+    throw new Error(`Duplicate close step name in [${names.join(', ')}]`);
   // Chargée avant la transaction, comme pour un tick : le chargeur a sa propre connexion. La version
   // programmée « à la prochaine clôture » est en vigueur à cet instant : activation d'abord.
   const loaded = await request.config.at(closeAt);
 
   return db.transaction().execute(async (trx): Promise<CloseOutcome> => {
-    // Deux moteurs sur la même clôture s'exécutent l'un après l'autre : le second constate qu'elle est jouée.
-    await sql`select pg_advisory_xact_lock(hashtextextended(${`close:${worldId}:${gameDay}`}, 0))`.execute(
+    // Un verrou par monde : ses clôtures se jouent l'une après l'autre. Sous ce verrou, la dernière
+    // clôture du monde est relue : la même, ou une plus récente jouée entre-temps par un autre moteur
+    // dont le passage a commencé après le nôtre, et celle-ci n'est pas jouée. Jamais en arrière.
+    await sql`select pg_advisory_xact_lock(hashtextextended(${`close:${worldId}`}, 0))`.execute(
       trx,
     );
-    const played = await trx
+    const last = await trx
       .selectFrom('game.daily_closes')
-      .select('summary')
+      .select(['game_day', 'summary'])
       .where('world_id', '=', worldId)
-      .where('game_day', '=', gameDay)
+      .orderBy('game_day', 'desc')
+      .limit(1)
       .executeTakeFirst();
-    if (played) return { status: 'skipped', summary: played.summary as Record<string, unknown> };
+    if (last && last.game_day >= gameDay) {
+      const summary = last.game_day === gameDay ? (last.summary as Record<string, unknown>) : {};
+      return { status: 'skipped', summary };
+    }
 
     const context: CloseContext = { trx, worldId, gameDay, closeAt, config: loaded.config };
     const raw: Record<string, unknown> = {};

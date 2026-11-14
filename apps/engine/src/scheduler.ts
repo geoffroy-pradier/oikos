@@ -117,19 +117,21 @@ export async function closeWorld(db: Db, request: CloseWorldRequest): Promise<nu
     .limit(1)
     .executeTakeFirst();
   const gameDay = gameDayAt(now, clock);
-  // Horloge qui recule, heure de clôture ou fuseau modifiés : jamais de clôture antérieure à la dernière.
+  // Déjà close, ou horloge qui recule : rien à faire. Simple raccourci, lu hors verrou : c'est
+  // `runDailyClose` qui garantit, sous verrou, qu'aucune clôture n'est jouée en arrière.
   if (last && gameDay <= last.game_day) return [];
   const closeAt = dailyCloseAt(gameDay, clock);
-  try {
-    const outcome = await runDailyClose(db, { worldId, gameDay, closeAt, config, steps, now });
-    // Une clôture déjà jouée par un autre moteur n'est pas comptée ici.
-    return outcome.status === 'done' ? [gameDay] : [];
-  } catch (error) {
-    // Monde neuf dont la configuration n'était pas encore en vigueur à la clôture du jour en cours
-    // (premier démarrage) : il commence à la clôture suivante.
-    if (!last && error instanceof ConfigError) return [];
+  // Monde neuf dont la configuration n'était pas encore en vigueur à la clôture du jour en cours
+  // (premier démarrage) : il commence à la clôture suivante. Sondé ici, avant de jouer : une
+  // erreur de configuration levée pendant la clôture, elle, n'est jamais avalée.
+  const unready = (error: unknown) => {
+    if (error instanceof ConfigError) return false;
     throw error;
-  }
+  };
+  if (!last && !(await config.at(closeAt).then(() => true, unready))) return [];
+  const outcome = await runDailyClose(db, { worldId, gameDay, closeAt, config, steps, now });
+  // Une clôture déjà jouée par un autre moteur n'est pas comptée ici.
+  return outcome.status === 'done' ? [gameDay] : [];
 }
 
 /** Joue la clôture échue de tous les mondes (`played` : le jour de jeu clos), comme `advanceAllWorlds`. */
