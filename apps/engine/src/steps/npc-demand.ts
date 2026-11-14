@@ -1,10 +1,12 @@
 import { tradeExecutedSchema } from '@oikos/contracts';
 import {
   classDemand,
+  gameDayAt,
   marketTax,
   matchNpcDemand,
   NEUTRAL_QUALITY,
   npcGoodBudget,
+  vitalMeasure,
   type SystemAccountKey,
 } from '@oikos/sim';
 import { sql } from 'kysely';
@@ -25,10 +27,15 @@ const CONSUMPTION = 'npc_consumption';
  * de domaine `TradeExecuted`, puis consommé par le
  * journal des stocks. La même écriture prélève la taxe de marché sur le vendeur, comme entre joueurs : le
  * budget des PNJ se compte en brut, le vendeur reçoit le net. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
+ *
+ * Demande et budget suivent la population courante de la cité (`game.npc_population`) : une classe sans
+ * état y naît à la population de la configuration, qui ne sert plus ensuite que de référence aux bornes.
+ * Chaque tick ajoute à la mesure du jour de jeu ce que chaque classe demandait de ses biens vitaux et ce
+ * qui lui a été servi, marché vide compris : la clôture suivante en tire la couverture.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
-  async run({ trx, worldId, config }) {
+  async run({ trx, worldId, scheduledAt, config }) {
     const goods = new Map(config.goods.map((good) => [good.id, good]));
     const referencePrice = (goodId: string) => goods.get(goodId)?.referencePriceOboles ?? 0;
     const basketGoods = [
@@ -61,12 +68,34 @@ export const npcDemand: TickStep = {
       return id;
     };
     for (const city of cities) {
-      const population = config.cities.find((entry) => entry.id === city.slug)?.population;
-      if (!population) continue;
+      const initial = config.cities.find((entry) => entry.id === city.slug)?.population;
+      if (!initial) continue;
+      const state = await trx
+        .selectFrom('game.npc_population')
+        .select(['class_id', 'population'])
+        .where('city_id', '=', city.id)
+        .execute();
+      const living = new Map(state.map((row) => [row.class_id, row.population]));
       const classes = config.npcClasses.map((npcClass) => ({
         ...npcClass,
-        population: population[npcClass.id] ?? 0,
+        population: living.get(npcClass.id) ?? initial[npcClass.id] ?? 0,
       }));
+      // Seules les classes sans état sont insérées : une ligne existante n'est jamais touchée ici, et
+      // le tick n'attend donc pas une clôture qui la fait évoluer (elle attend, elle, les appariements).
+      const born = classes.filter((npcClass) => !living.has(npcClass.id));
+      if (born.length > 0)
+        await trx
+          .insertInto('game.npc_population')
+          .values(
+            born.map(({ id, population }) => ({
+              world_id: worldId,
+              city_id: city.id,
+              class_id: id,
+              population,
+            })),
+          )
+          .execute();
+      const bought = new Map<string, number>();
       for (const goodId of basketGoods) {
         const good = goods.get(goodId);
         if (!good) continue;
@@ -207,14 +236,30 @@ export const npcDemand: TickStep = {
           )
           .execute();
         if (purchase.fills.length > 0) {
-          markets.push({
-            city: city.slug,
-            goodId,
-            units: purchase.fills.reduce((sum, fill) => sum + fill.quantity, 0),
-            spent: purchase.spent,
-          });
+          const units = purchase.fills.reduce((sum, fill) => sum + fill.quantity, 0);
+          bought.set(goodId, units);
+          markets.push({ city: city.slug, goodId, units, spent: purchase.spent });
         }
       }
+      await trx
+        .insertInto('game.npc_vital_coverage')
+        .values(
+          vitalMeasure(classes, bought).map(({ classId, served, demanded }) => ({
+            world_id: worldId,
+            city_id: city.id,
+            class_id: classId,
+            game_day: gameDayAt(scheduledAt, config.clock),
+            served,
+            demanded,
+          })),
+        )
+        .onConflict((conflict) =>
+          conflict.columns(['city_id', 'class_id', 'game_day']).doUpdateSet({
+            served: sql<number>`npc_vital_coverage.served + excluded.served`,
+            demanded: sql<number>`npc_vital_coverage.demanded + excluded.demanded`,
+          }),
+        )
+        .execute();
     }
     return {
       units: markets.reduce((sum, market) => sum + market.units, 0),
