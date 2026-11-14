@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { assuranceLevel } from './aal';
 import { adminGet } from './api';
 import { LANGUAGES } from './i18n';
+import { Access } from './screens/Access';
 import { Audit } from './screens/Audit';
 import { Config } from './screens/Config';
 import { SecondFactor } from './screens/SecondFactor';
@@ -92,7 +93,7 @@ export function App() {
         <code className="break-all">{userId}</code>
       </>
     );
-  } else if (granted && token) {
+  } else if (granted && token && userId) {
     screen =
       current === 'vigie' ? (
         <Vigie accessToken={token} />
@@ -100,6 +101,8 @@ export function App() {
         <Config accessToken={token} role={granted} />
       ) : current === 'audit' ? (
         <Audit accessToken={token} />
+      ) : current === 'access' ? (
+        <Access accessToken={token} userId={userId} />
       ) : (
         <p>{t('app.forbiddenModule')}</p>
       );

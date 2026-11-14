@@ -41,7 +41,7 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 
 Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux fonctions reçoit le rôle le plus large des deux ; le cumul sera rouvert si les modérateurs bénévoles le demandent.
 
-La liste des rôles admis dans chaque module est écrite une seule fois, dans les contrats partagés (`ADMIN_MODULE_ROLES`) : l'API ouvre ses routes de lecture d'après elle, l'application compose sa navigation d'après elle. Un compte connecté sans rôle n'a accès à rien ; il voit son identifiant, à transmettre à un super-administrateur.
+La liste des rôles admis dans chaque module est écrite une seule fois, dans les contrats partagés (`ADMIN_MODULE_ROLES`) : l'API ouvre ses routes de lecture d'après elle, l'application compose sa navigation d'après elle. Un compte connecté sans rôle n'a accès à rien ; il voit son identifiant, à transmettre à un super-administrateur. Le module Accès, réservé au super-administrateur, liste les comptes qui portent un rôle par `GET /api/admin/roles` : identifiant du compte, rôle, compte qui l'a accordé et date, du plus ancien au plus récent ; ni adresse ni autre donnée du compte.
 
 ## 15.4 Exigences de sécurité
 

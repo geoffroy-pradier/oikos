@@ -54,7 +54,8 @@
   "tabs": {
     "vigie": "Vigie",
     "config": "Paramètres",
-    "audit": "Journal d'audit"
+    "audit": "Journal d'audit",
+    "access": "Accès"
   },
   "vigie": {
     "title": "Vigie",
@@ -87,6 +88,18 @@
     "refusedTooLarge": "Requêtes trop volumineuses (24 h)",
     "refusedForbidden": "Lectures du back-office refusées (24 h)",
     "adminReads": "Lectures du back-office (24 h)"
+  },
+  "access": {
+    "title": "Accès",
+    "caption_one": "{{count}} compte porte un rôle",
+    "caption_other": "{{count}} comptes portent un rôle, du plus ancien au plus récent",
+    "account": "Compte",
+    "role": "Rôle",
+    "grantedBy": "Accordé par",
+    "grantedAt": "Depuis le",
+    "you": "(vous)",
+    "byHand": "Inscrit en base",
+    "empty": "Aucun compte ne porte de rôle."
   },
   "audit": {
     "title": "Journal d'audit",
