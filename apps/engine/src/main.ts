@@ -28,11 +28,8 @@ await boss.start();
 await boss.createQueue(QUEUE);
 await boss.schedule(QUEUE, '* * * * *');
 await boss.work(QUEUE, async () => {
-  const results = await advanceAllWorlds(db, {
-    now: new Date(),
-    config: loader,
-    steps: STEPS,
-  });
+  // Sans `now` : l'instant présent est l'heure de la base, pas celle de ce processus.
+  const results = await advanceAllWorlds(db, { config: loader, steps: STEPS });
   for (const { worldId, played, error } of results) {
     if (played.length > 0) console.log(`World ${worldId}: played ticks ${played.join(', ')}`);
     if (error) throw new Error(`World ${worldId}: ${error}`);

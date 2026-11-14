@@ -15,6 +15,8 @@ Le jeu tourne en temps réel persistant : une saison de jeu dure 7 jours réels,
 
 - **Tick économique** toutes les 10 minutes : demande des PNJ, prix de référence, avancement des trajets.
 - **Clôture quotidienne** à 04 h 00 (heure de Paris) : salaires, loyers, entretien, intérêts, impôts, chronique du jour.
+  Le jour de jeu commence à la clôture : c'est le jour civil local (fuseau et heure de clôture de la configuration) dont la clôture a eu lieu, et avant elle on est encore dans le jour précédent. Il y a une clôture par jour de jeu, à son premier instant. Ni le jour de jeu ni l'instant de sa clôture ne dépendent de la durée du tick : la changer dans la configuration ne décale aucune clôture. Si l'heure de clôture est sautée par le passage à l'heure d'été, la clôture a lieu au premier instant qui suit ; si elle se répète au retour à l'heure d'hiver, à sa première occurrence.
+- **Heure de référence** : le moteur lit l'instant présent à l'horloge de la base de données, jamais à celle de son processus. Plusieurs moteurs voient donc la même heure, celle qui date aussi les écritures du jeu.
 - **Bascule de saison** le lundi : météo, récoltes, fête du calendrier, ouverture des votes.
 - La production est calculée à la demande à partir des horodatages : un joueur absent ne perd rien, il retrouve ses stocks pleins jusqu'à la capacité de ses entrepôts.
 
