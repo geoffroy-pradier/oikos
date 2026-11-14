@@ -66,9 +66,8 @@ select throws_ok($$do $do$ begin
     set constraints all immediate;
   end $do$;$$, '23514', null, 'écriture sans ligne refusée');
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-000000000002', 'autre', 'Autre');
-insert into game.accounts (id, world_id, kind, system_key, allow_negative) values
-  ('00000000-0000-7000-8000-0000000000f2', '01900000-0000-7000-8000-000000000002', 'system', 'faucet_npc_purchases', true);
-select throws_ok($$select pg_temp.post(array['00000000-0000-7000-8000-0000000000f2', '00000000-0000-7000-8000-0000000000aa']::uuid[], array[-10, 10])$$,
+-- Le second monde a reçu ses comptes système à sa création (migration 13).
+select throws_ok($$select pg_temp.post(array[(select id from game.accounts where system_key = 'faucet_npc_purchases' and world_id = '01900000-0000-7000-8000-000000000002'), '00000000-0000-7000-8000-0000000000aa']::uuid[], array[-10, 10])$$,
   '23514', null, 'compte d''un autre monde refusé dans une écriture');
 select throws_ok($$select pg_temp.post(array[(select id from game.accounts where system_key = 'sink_upkeep' and world_id = '01900000-0000-7000-8000-000000000001'), '00000000-0000-7000-8000-0000000000aa'], array[-10, 10])$$,
   '23514', null, 'un puits ne crée pas de monnaie');
