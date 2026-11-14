@@ -218,6 +218,7 @@
     "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
     "COLLECT_FIRST": "Collect this site before changing its production.",
     "SITE_CHANGED": "This site just changed. Try again.",
+    "SITE_HALTED": "This site is halted: its upkeep is unpaid. Restart it first.",
     "MISSING_INPUTS": "Not enough free stock of the inputs to run this workshop."
   },
   "shell": {
