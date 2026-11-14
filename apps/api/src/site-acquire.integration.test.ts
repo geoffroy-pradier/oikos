@@ -228,19 +228,53 @@ describe('site.acquire', () => {
     expect(await eventsOf(player.houseId, 'SiteAcquired')).toEqual([]);
   });
 
+  // Plusieurs maisons : sans le verrou, une course isolée passe parfois par chance.
   it('acquisitions simultanées à la limite : une seule passe', async () => {
-    const player = await newPlayer();
-    for (let owned = 1; owned < LIMIT - 1; owned += 1) await acquire(player.user, 'grow_wheat');
-    const before = await balanceOf(player.houseId);
-    const outcomes = await Promise.all(
-      Array.from({ length: 4 }, () => acquire(player.user, 'grow_wheat')),
+    const players = await Promise.all(Array.from({ length: 6 }, () => newPlayer()));
+    await Promise.all(
+      players.map(async (player) => {
+        for (let owned = 1; owned < LIMIT - 1; owned += 1) await acquire(player.user, 'grow_wheat');
+        const before = await balanceOf(player.houseId);
+        const outcomes = await Promise.all(
+          Array.from({ length: 4 }, () => acquire(player.user, 'grow_wheat')),
+        );
+        expect(outcomes.map((outcome) => outcome.status).sort()).toEqual([200, 409, 409, 409]);
+        expect(
+          outcomes.filter((outcome) => outcome.body.error?.code === 'SITE_LIMIT_REACHED'),
+        ).toHaveLength(3);
+        expect(await sitesOf(player.houseId)).toHaveLength(LIMIT);
+        expect(await balanceOf(player.houseId)).toBe(before - COST.field);
+      }),
     );
-    expect(outcomes.map((outcome) => outcome.status).sort()).toEqual([200, 409, 409, 409]);
-    expect(
-      outcomes.filter((outcome) => outcome.body.error?.code === 'SITE_LIMIT_REACHED'),
-    ).toHaveLength(3);
-    expect(await sitesOf(player.houseId)).toHaveLength(LIMIT);
-    expect(await balanceOf(player.houseId)).toBe(before - COST.field);
+  });
+
+  it('acquisition et achats à l’agora simultanés : aucun interblocage', async () => {
+    // Un achat verrouille le compte puis touche la maison (clé étrangère de l'ordre) ; l'acquisition
+    // verrouille la maison puis le compte. Carnet vide : l'achat ne trouve rien et ne coûte rien.
+    const players = await Promise.all(Array.from({ length: 20 }, () => newPlayer()));
+    const buy = (user: string) =>
+      send(user, 'market.placeOrder', {
+        cityId: CITY,
+        goodId: 'amphorae',
+        side: 'buy',
+        price: 1,
+        quantity: 1,
+      });
+    const outcomes = await Promise.all(
+      players.flatMap((player) => [
+        buy(player.user),
+        acquire(player.user, 'grow_wheat'),
+        buy(player.user),
+        acquire(player.user, 'grow_wheat'),
+      ]),
+    );
+    expect(outcomes.map((outcome) => outcome.status).filter((status) => status !== 200)).toEqual(
+      [],
+    );
+    for (const player of players) {
+      expect(await sitesOf(player.houseId)).toHaveLength(3);
+      expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.field);
+    }
   });
 
   it('acquisitions simultanées avec de quoi en payer une seule : une seule passe, solde jamais négatif', async () => {
@@ -319,7 +353,12 @@ describe('site.setRecipe', () => {
 
   it('ce qui est déjà produit doit d’abord être récolté', async () => {
     const player = await withOrchard();
-    await age(player.siteId, recipe('grow_olives').durationMinutes * 2);
+    // Un seul cycle entier suffit à bloquer le changement.
+    await age(player.siteId, recipe('grow_olives').durationMinutes);
+    expect((await setRecipe(player.user, player.siteId, 'grow_grapes')).body.error?.code).toBe(
+      'COLLECT_FIRST',
+    );
+    await age(player.siteId, recipe('grow_olives').durationMinutes);
     expect(await setRecipe(player.user, player.siteId, 'grow_grapes')).toMatchObject({
       status: 409,
       body: { error: { code: 'COLLECT_FIRST' } },
@@ -343,6 +382,59 @@ describe('site.setRecipe', () => {
     expect(await sitesOf(player.houseId)).toEqual(['grow_wheat', 'grow_olives']);
     await age(player.siteId, 1);
     expect((await setRecipe(player.user, player.siteId, 'grow_grapes')).status).toBe(200);
+  });
+
+  it('la production accumulée se compte avec la durée de la recette en cours, pas de la nouvelle', async () => {
+    const [fish, salt] = [recipe('catch_fish'), recipe('rake_salt')];
+    expect(fish.durationMinutes).toBeLessThan(salt.durationMinutes);
+    const between = Math.floor((fish.durationMinutes + salt.durationMinutes) / 2);
+    // Une pêcherie a fini un cycle de pêche : elle ne passe pas au sel sans récolte.
+    const fisher = await newPlayer();
+    const fishery = (await acquire(fisher.user, 'catch_fish')).body.data.siteId as string;
+    await age(fishery, between);
+    expect((await setRecipe(fisher.user, fishery, 'rake_salt')).body.error?.code).toBe(
+      'COLLECT_FIRST',
+    );
+    // Une saline n'a pas fini son cycle, plus long : elle peut passer à la pêche.
+    const salter = await newPlayer();
+    const saltern = (await acquire(salter.user, 'rake_salt')).body.data.siteId as string;
+    await age(saltern, between);
+    expect((await setRecipe(salter.user, saltern, 'catch_fish')).status).toBe(200);
+  });
+
+  it('refuse de passer à une recette à intrants du même type', async () => {
+    // Configuration injectée : le raisin y demande du bois. La configuration de départ n'a aucune
+    // recette à intrants sur un type de site qu'une maison peut posséder.
+    const withInputs = createApp({
+      db,
+      telemetry: createTelemetry(db),
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: async () => ({
+        ...TEST_CONFIG,
+        config: {
+          ...TEST_CONFIG.config,
+          recipes: recipes.map((candidate) =>
+            candidate.id === 'grow_grapes'
+              ? { ...candidate, inputs: [{ goodId: 'wood', quantity: 1 }] }
+              : candidate,
+          ),
+        },
+      }),
+    });
+    const player = await withOrchard();
+    const res = await withInputs.request('/api/commands/site.setRecipe', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${player.user}`,
+        'Idempotency-Key': randomUUID(),
+      },
+      body: JSON.stringify({ siteId: player.siteId, recipeId: 'grow_grapes' }),
+    });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as Reply['body']).error?.code).toBe('RECIPE_NOT_AVAILABLE');
+    expect(await sitesOf(player.houseId)).toEqual(['grow_wheat', 'grow_olives']);
   });
 
   it('refuse une recette d’un autre type, inconnue, inchangée ou pas encore jouable', async () => {

@@ -63,6 +63,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Dotation de départ | Offrandes, fêtes et liturgies |
 |  | Intérêts payés au Trésor du temple |
 |  | Grands travaux et merveilles |
+|  | Acquisition de sites |
 
 Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %. Trois leviers l'ajustent sans patch : taux directeur, coefficient d'entretien, revenu des classes PNJ.
 

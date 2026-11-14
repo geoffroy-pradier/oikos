@@ -26,11 +26,14 @@ export const siteAcquire = defineCommand({
   },
   async handler({ trx, userId, emit, config }, input) {
     // Verrouille la maison : deux acquisitions simultanées se suivent, la limite est comptée juste.
+    // `FOR NO KEY UPDATE` et non `FOR UPDATE` : un achat à l'agora verrouille le compte puis insère un
+    // ordre, dont la clé étrangère demande `FOR KEY SHARE` sur la maison. Avec `FOR UPDATE`, les deux
+    // commandes s'attendraient l'une l'autre (interblocage, erreur interne).
     const house = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
       .where('user_id', '=', userId)
-      .forUpdate()
+      .forNoKeyUpdate()
       .executeTakeFirst();
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     const recipe = config.recipes.find((candidate) => candidate.id === input.recipeId);
