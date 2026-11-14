@@ -14,6 +14,17 @@ export default tseslint.config(
     },
   },
   {
+    // Le client n'embarque que les schémas de la configuration, jamais son chargeur (accès base).
+    files: ['apps/web/src/**'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [{ name: '@oikos/config', message: "Importer '@oikos/config/schema'." }] },
+      ],
+    },
+  },
+  {
     // Scripts Node hors TypeScript (outillage).
     files: ['**/*.mjs'],
     languageOptions: { globals: { console: 'readonly', process: 'readonly' } },

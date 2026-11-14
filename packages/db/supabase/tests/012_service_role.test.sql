@@ -1,5 +1,5 @@
 begin;
-select plan(55);
+select plan(56);
 
 -- Jeu d'essai, posé par le propriétaire : une maison, son compte (500 oboles), son stock (100 blés), un ordre de vente.
 insert into auth.users (id, email) values ('00000000-0000-4000-8000-00000000000a', 'alice@example.test');
@@ -67,8 +67,15 @@ select is(
     and p.prosecdef),
   'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book '
-    || 'public.site_rules telemetry.prune_rate_windows',
+    || 'game.site_rules telemetry.prune_rate_windows',
   'fonctions SECURITY DEFINER : liste figée');
+-- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
+select is(
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('game', 'config', 'telemetry', 'admin', 'public') and p.prosecdef
+     and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
+     and not coalesce(p.proconfig, '{}') @> array['search_path=""']),
+  0::bigint, 'toute fonction SECURITY DEFINER fixe un search_path vide');
 -- Le droit d'exécuter une fonction de déclencheur suffit à l'attacher à une table qu'on possède.
 select is(
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace

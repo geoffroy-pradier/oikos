@@ -5,7 +5,6 @@ import { parseSiteRules } from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
-  configVersionId: '01900000-0000-7000-8000-00000000c001',
   recipes: config.recipes,
   sites: config.sites,
   ...overrides,
@@ -25,6 +24,11 @@ describe('parseSiteRules', () => {
       ),
     );
     expect(rules?.limit).toBe(config.sites.limitByHeadquartersLevel[0]);
+    // Toute maison est au premier niveau de siège : c'est sa limite qui vaut.
+    const tiers = parseSiteRules(
+      raw({ sites: { ...config.sites, limitByHeadquartersLevel: [2, 5] } }),
+    );
+    expect(tiers?.limit).toBe(2);
   });
 
   it('ne propose à un site que les autres recettes de son type', () => {
@@ -35,6 +39,8 @@ describe('parseSiteRules', () => {
     expect(rules?.alternatives('mill_flour')).toEqual([]);
     expect(rules?.alternatives('inconnue')).toEqual([]);
     expect(rules?.siteTypeOf('rake_salt')).toBe('fishery');
+    // Le type d'un atelier déjà possédé reste connu, même si sa recette ne s'acquiert pas encore.
+    expect(rules?.siteTypeOf('mill_flour')).toBe('workshop');
     expect(rules?.siteTypeOf('inconnue')).toBeNull();
   });
 
@@ -68,12 +74,28 @@ describe('parseSiteRules', () => {
       raw({ sites: { ...config.sites, acquisitionCostOboles: { field: 600 } } }),
     );
     expect(rules?.offers.map((offer) => offer.recipe.id)).toEqual(['grow_wheat']);
-    for (const broken of [
+    const first = config.recipes[0];
+    const broken = [
       null,
       {},
       raw({ recipes: 'x' }),
-      raw({ sites: { limitByHeadquartersLevel: [] } }),
-    ])
-      expect(parseSiteRules(broken)).toBeNull();
+      raw({ sites: undefined }),
+      raw({ sites: { ...config.sites, limitByHeadquartersLevel: [] } }),
+      raw({ sites: { ...config.sites, limitByHeadquartersLevel: [0] } }),
+      raw({ sites: { ...config.sites, acquisitionCostOboles: { field: -5 } } }),
+      raw({ sites: { ...config.sites, acquisitionCostOboles: { field: 1.5 } } }),
+      raw({ recipes: [{ ...first, id: '' }] }),
+      raw({ recipes: [{ ...first, durationMinutes: 0 }] }),
+      raw({ recipes: [{ ...first, outputs: [] }] }),
+    ];
+    for (const value of broken) expect(parseSiteRules(value)).toBeNull();
+  });
+
+  it('un type de site nommé comme une propriété d’objet n’a pas de prix', () => {
+    const first = config.recipes[0];
+    const rules = parseSiteRules(
+      raw({ recipes: [{ ...first, id: 'odd', siteType: 'constructor' }, first] }),
+    );
+    expect(rules?.offers.map((offer) => offer.recipe.id)).toEqual([first?.id]);
   });
 });

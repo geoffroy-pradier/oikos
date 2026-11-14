@@ -38,7 +38,10 @@ export const goodSchema = z.strictObject({
 
 const stack = z.strictObject({ goodId: id, quantity: positiveInt });
 
-/** Une recette : intrants, durée, personnel, extrants (4.3). Une recette sans intrant est une production primaire. */
+/**
+ * Une recette : intrants, durée, personnel, extrants (4.3). Une recette sans intrant est une production primaire.
+ * Lue par les joueurs (vue `public.site_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ */
 export const recipeSchema = z.strictObject({
   id,
   siteType: z.enum(SITE_TYPES),
@@ -141,7 +144,10 @@ export const DEFAULT_SITES = deepFreeze({
   },
 });
 
-/** Sites d'une maison (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). */
+/**
+ * Sites d'une maison (docs/specs/04-systemes-gestion.md, 4.1 et 4.2).
+ * Lue par les joueurs (vue `public.site_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ */
 export const sitesSchema = z.strictObject({
   /**
    * Nombre de sites qu'une maison peut exploiter, par niveau de siège (le premier d'abord). Seul le
