@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
+  DEFAULT_POPULATION_DYNAMICS,
   DEFAULT_SITES,
   DEFAULT_UPKEEP,
   validateConfig,
@@ -26,6 +27,13 @@ const FIXTURE: GameConfig = {
   market: { npcMaxPriceFactor: 3 },
   marketTax: { rateBps: 400, burnShareBps: 2500 },
   priceHistory: { candleMinutes: 15, referenceWindowHours: 48 },
+  populationDynamics: {
+    vitalCoverageThresholdBps: 8_000,
+    growthBps: 50,
+    emigrationBps: 150,
+    minShareBps: 4_000,
+    maxShareBps: 30_000,
+  },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -491,5 +499,55 @@ describe('historique des prix', () => {
     expect(errorsOf(loose)).toEqual([expect.stringMatching(/^priceHistory\.candleMinutes: /)]);
     loose.priceHistory = { candleMinutes: 60, candleSeconds: 30 };
     expect(errorsOf(loose)).toEqual([expect.stringMatching(/^priceHistory/)]);
+  });
+});
+
+describe('dynamique de population', () => {
+  it('une version publiée avant la dynamique reste lisible : population constante', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.populationDynamics;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.populationDynamics).toEqual({
+      vitalCoverageThresholdBps: 10_000,
+      growthBps: 0,
+      emigrationBps: 0,
+      minShareBps: 10_000,
+      maxShareBps: 10_000,
+    });
+    expect(Object.isFrozen(DEFAULT_POPULATION_DYNAMICS)).toBe(true);
+  });
+
+  it('chaque champ : entier, borné, obligatoire, sans autre clé', () => {
+    const bounds = {
+      vitalCoverageThresholdBps: [1, 10_000],
+      growthBps: [0, 1_000],
+      emigrationBps: [0, 1_000],
+      minShareBps: [0, 10_000],
+      maxShareBps: [10_000, 100_000],
+    } as const;
+    for (const field of Object.keys(bounds) as (keyof typeof bounds)[]) {
+      const [min, max] = bounds[field];
+      for (const good of [min, max]) {
+        const config = clone();
+        config.populationDynamics[field] = good;
+        expect(errorsOf(config)).toEqual([]);
+      }
+      for (const bad of [min - 1, max + 1, 12.5, Number.NaN]) {
+        const config = clone();
+        config.populationDynamics[field] = bad;
+        expect(errorsOf(config)).toEqual([
+          expect.stringMatching(`^populationDynamics\\.${field}: `),
+        ]);
+      }
+      const partial = clone() as unknown as { populationDynamics: Record<string, unknown> };
+      delete partial.populationDynamics[field];
+      expect(errorsOf(partial)).toEqual([
+        expect.stringMatching(`^populationDynamics\\.${field}: `),
+      ]);
+    }
+    const unknown = clone() as unknown as { populationDynamics: Record<string, unknown> };
+    unknown.populationDynamics['migration'] = 1;
+    expect(errorsOf(unknown)).toEqual([expect.stringMatching(/^populationDynamics/)]);
   });
 });
