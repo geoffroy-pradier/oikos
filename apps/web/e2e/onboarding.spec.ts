@@ -117,7 +117,7 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await expect(page.getByRole('heading', { name: `House ${houseName}` })).toBeVisible();
   await expect(page.getByText('Metic in Kallistè')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('link', { name: 'House' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'House', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
