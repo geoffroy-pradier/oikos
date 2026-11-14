@@ -104,7 +104,31 @@
     "grantedAt": "Since",
     "you": "(you)",
     "byHand": "Set in the database",
-    "empty": "No account holds a role."
+    "empty": "No account holds a role.",
+    "actions": "Actions",
+    "revoke": "Remove the role of {{account}}",
+    "confirm": "Account {{userId}} will immediately lose its {{role}} role and all access to Olympus.",
+    "confirmRevoke": "Confirm removal",
+    "cancel": "Cancel",
+    "revoked": "Role {{role}} removed.",
+    "grantTitle": "Grant a role",
+    "accountId": "Account identifier",
+    "accountHint": "The one an account without a role reads on its screen after signing in. An account that already holds a role has it replaced.",
+    "accountInvalid": "This is not an account identifier: 36 characters, digits and letters a to f in five groups separated by hyphens.",
+    "grant": "Grant the role",
+    "granted": "Role {{role}} granted.",
+    "replaced": "Role {{role}} granted, replacing {{previous}}.",
+    "errors": {
+      "FORBIDDEN": "Your role does not allow this action.",
+      "ACCOUNT_NOT_FOUND": "No account has this identifier.",
+      "ROLE_UNCHANGED": "This account already holds this role.",
+      "ROLE_SELF_GRANT": "You cannot change your own role: another super administrator must do it.",
+      "ROLE_NOT_FOUND": "This account no longer holds a role.",
+      "LAST_SUPER_ADMIN": "There must always be one super administrator: grant that role to another account first.",
+      "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
+      "VALIDATION_FAILED": "Request refused: malformed identifier or role.",
+      "INTERNAL": "The action did not complete. Try again: it will not be executed twice."
+    }
   },
   "audit": {
     "title": "Audit log",
