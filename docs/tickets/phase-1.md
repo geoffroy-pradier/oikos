@@ -464,3 +464,59 @@ et une population qui varie, la cible d'inflation doit être tenue par la config
 ## Dépendances
 
 #67, #70, #72, #75, #76
+
+---
+
+# 97. Recette retirée de la configuration alors qu'un site l'utilise
+
+## Contexte
+
+Report des relectures des PR #90, #95 et #96 (tickets #66 et #67). Si une version de configuration retire une recette qu'un site utilise encore, `site.collect` et `site.setRecipe` lèvent une erreur interne : le site ne peut plus ni être récolté ni changer de recette. Rien n'empêche aujourd'hui de publier une telle configuration. Côté écran, la fiche d'un tel site n'affiche ni intrants ni annonce, et « Récolter » échoue en erreur interne.
+
+## Spécification liée
+
+`docs/specs/04-systemes-gestion.md` (4.2, 4.3), `docs/specs/11-architecture.md` (configuration versionnée)
+
+## Critères d'acceptation
+
+- [ ] Décision écrite dans la spécification : refus à la publication ou à l'activation d'une configuration qui retire une recette utilisée, ou repli côté commandes (un site dont la recette a disparu peut changer de recette, sans récolte), ou les deux
+- [ ] Aucune commande de site ne répond par une erreur interne pour un site dont la recette n'existe plus
+- [ ] Tests d'intégration : publication ou activation d'une configuration sans la recette d'un site existant ; récolte et changement de recette de ce site
+- [ ] L'écran dit clairement qu'un site est à l'arrêt faute de recette, en fr et en en
+
+## Hors périmètre
+
+Migration automatique des sites vers une autre recette, dédommagement des joueurs.
+
+## Dépendances
+
+#67
+
+---
+
+# 98. Carte des sites : accessibilité, rejeu d'acquisition, stock par cité ; test instable de l'agora
+
+## Contexte
+
+Reports des relectures des PR #92, #94 et #96 (écran des sites, tickets #66 et #67), regroupés parce qu'ils touchent le même écran du client joueur et ses tests de bout en bout.
+
+## Spécification liée
+
+`docs/specs/10-ux-ui.md` (accessibilité), `docs/specs/04-systemes-gestion.md` (4.2, 4.3)
+
+## Critères d'acceptation
+
+- [ ] Focus : après un changement de production réussi (le bouton « Changer » redevient inactif) et quand le formulaire d'acquisition disparaît à la limite de sites, le focus va à un élément utile au lieu de retomber sur la page ; testé au clavier
+- [ ] Annonce des résultats : région vivante fiable pour les lecteurs d'écran (région permanente par cible, ou focus posé sur le message), sans régression de l'affichage « près de l'action »
+- [ ] Rejeu d'acquisition : une clé restée en attente après une réponse perdue ne transforme plus la prochaine acquisition voulue de la même production en rejeu (« déjà acquis », un clic de plus) ; la clé ne se perd pas non plus en quittant l'onglet Maison
+- [ ] Stock par cité : l'entrepôt de l'onglet Maison distingue les cités (deux lignes du même bien dans deux cités sont aujourd'hui indistinctes) ; les sites lisent leur propre cité au lieu de supposer celle de la maison
+- [ ] Heure : l'annonce « À récolter » se cale sur l'heure du serveur (en-tête `Date` d'une réponse, par exemple) plutôt que sur l'horloge du navigateur ; recomptage au retour sur un onglet resté en arrière-plan
+- [ ] Test instable « agora : choisir un bien, déposer une vente puis l'annuler » : cause établie. Symptôme : la réponse perdue simulée par `page.route` n'était pas interceptée et la vente était déposée (une fois en `ci` sur la PR #93, une fois en local service worker bloqué). Le test a été durci dans la PR #94 (interception posée dès le début, vérifiée) sans que la cause soit prouvée ; conserver les traces Playwright en artefact de `ci` aiderait
+
+## Hors périmètre
+
+Nom de site choisi par le joueur, temps réel (Supabase Realtime) sur le stock.
+
+## Dépendances
+
+#67
