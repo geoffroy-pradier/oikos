@@ -12,7 +12,9 @@ import {
   type SiteSetRecipeOutput,
 } from '@oikos/contracts';
 
-export type CommandResponse<T> = { ok: true; data: T } | { ok: false; error: CommandError };
+/** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
+export type CommandResponse<T> =
+  { ok: true; data: T; replayed: boolean } | { ok: false; error: CommandError };
 
 /**
  * Envoie une commande à l'API de jeu. Ne lève jamais : toute panne devient une erreur `INTERNAL`.
@@ -40,7 +42,10 @@ export async function sendCommand<T>(
       data?: unknown;
       error?: unknown;
     } | null;
-    if (body?.ok === true && body.data !== undefined) return { ok: true, data: body.data as T };
+    if (body?.ok === true && body.data !== undefined) {
+      const replayed = response.headers.get('Idempotent-Replay') === 'true';
+      return { ok: true, data: body.data as T, replayed };
+    }
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
     if (error?.success) return { ok: false, error: error.data };
   } catch {

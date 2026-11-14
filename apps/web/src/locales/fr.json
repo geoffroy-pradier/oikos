@@ -58,7 +58,10 @@
     "acquireOption": "{{site}} ({{type}}) : {{cost}} oboles",
     "acquireSubmit": "Acquérir",
     "acquired": "Site acquis : {{site}}, pour {{cost}} oboles.",
-    "limitReached": "Votre maison exploite déjà autant de sites que son siège le permet."
+    "limitReached": "Votre maison exploite déjà autant de sites que son siège le permet.",
+    "siteNumbered": "{{site}} {{number}}",
+    "acquireOptionPlain": "{{site}} : {{cost}} oboles",
+    "alreadyAcquired": "Ce site était déjà acquis : {{site}}, pour {{cost}} oboles. Rien de plus n'a été payé."
   },
   "agora": {
     "title": "Agora de {{city}}",
@@ -124,7 +127,7 @@
   "siteTypes": {
     "field": "Champ",
     "orchard": "Verger",
-    "pasture": "Pâturage",
+    "pasture": "Pâture",
     "forest": "Forêt",
     "quarry": "Carrière",
     "fishery": "Pêcherie",

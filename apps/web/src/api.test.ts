@@ -13,12 +13,23 @@ it('envoie la commande avec le jeton et rend la réponse de l’API', async () =
     'key-12345678',
     fetchImpl,
   );
-  expect(result).toEqual({ ok: true, data: { houseId: 'h1' } });
+  expect(result).toEqual({ ok: true, data: { houseId: 'h1' }, replayed: false });
   const [url, init] = fetchImpl.mock.calls[0] ?? [];
   expect(url).toBe('/api/commands/house.create');
   expect(new Headers(init?.headers).get('authorization')).toBe('Bearer token-1');
   expect(new Headers(init?.headers).get('Idempotency-Key')).toBe('key-12345678');
   expect(init?.body).toBe('{"name":"Abc"}');
+});
+
+it('signale une commande rejouée sous la même clé', async () => {
+  const fetchImpl = vi.fn<typeof fetch>(
+    async () =>
+      new Response(JSON.stringify({ ok: true, data: { siteId: 's1' } }), {
+        headers: { 'Idempotent-Replay': 'true' },
+      }),
+  );
+  const result = await sendCommand('site.acquire', {}, 'token-1', 'key-12345678', fetchImpl);
+  expect(result).toEqual({ ok: true, data: { siteId: 's1' }, replayed: true });
 });
 
 it('transmet une erreur métier telle quelle', async () => {

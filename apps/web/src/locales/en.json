@@ -58,7 +58,10 @@
     "acquireOption": "{{site}} ({{type}}): {{cost}} obols",
     "acquireSubmit": "Acquire",
     "acquired": "Site acquired: {{site}}, for {{cost}} obols.",
-    "limitReached": "Your house already runs as many sites as its headquarters allows."
+    "limitReached": "Your house already runs as many sites as its headquarters allows.",
+    "siteNumbered": "{{site}} {{number}}",
+    "acquireOptionPlain": "{{site}}: {{cost}} obols",
+    "alreadyAcquired": "This site was already acquired: {{site}}, for {{cost}} obols. Nothing more was paid."
   },
   "agora": {
     "title": "Agora of {{city}}",

@@ -10,8 +10,12 @@ interface Site {
   recipe_id: string;
   cycle_started_at: string;
 }
-type Notice = { kind: 'status' | 'alert'; text: string } | null;
+/** Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire. */
+type Notice = { target: string; kind: 'status' | 'alert'; text: string } | null;
+const ACQUIRE = 'acquire';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
+// Pendant une commande, les boutons restent atteignables (le focus ne retombe pas sur la page).
+const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
 /**
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
@@ -20,6 +24,7 @@ const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3
 export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
+  // Par identifiant (ordre de création) : une récolte ne réordonne pas la liste.
   const sites = useRows<Site>('my_sites', 'id, recipe_id, cycle_started_at', 'id');
   const { rules, failed: rulesFailed, reload: reloadRules } = useSiteRules();
   const [busy, setBusy] = useState(false);
@@ -35,29 +40,45 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
   // Une recette ou un type ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const recipeName = (id: string) => t(`recipes.${id}`, { defaultValue: id });
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
+  const rows = sites.rows ?? [];
+  /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
+  const siteName = (site: Site) => {
+    const alike = rows.filter((other) => other.recipe_id === site.recipe_id);
+    const name = recipeName(site.recipe_id);
+    return alike.length < 2
+      ? name
+      : t('home.siteNumbered', { site: name, number: number.format(alike.indexOf(site) + 1) });
+  };
   const offers = rules?.offers ?? [];
   const offer = offers.find((candidate) => candidate.recipe.id === wanted) ?? offers[0];
   const full = rules !== null && sites.rows !== null && sites.rows.length >= rules.limit;
 
-  /** Envoie une commande, annonce son issue, puis relit ce qu'elle a pu changer. */
-  async function run<T>(send: () => Promise<CommandResponse<T>>, done: (data: T) => string) {
+  /** Envoie une commande, relit ce qu'elle a pu changer, puis annonce son issue à l'endroit de l'action. */
+  async function run<T>(
+    target: string,
+    send: () => Promise<CommandResponse<T>>,
+    done: (data: T, replayed: boolean) => string,
+  ) {
+    if (busy) return null;
     setBusy(true);
     setNotice(null);
     const result = await send();
-    setNotice(
-      result.ok
-        ? { kind: 'status', text: done(result.data) }
-        : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
-    );
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
+    setNotice(
+      result.ok
+        ? { target, kind: 'status', text: done(result.data, result.replayed) }
+        : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
+    );
     setBusy(false);
     return result;
   }
 
   const collect = (site: Site) =>
     run(
+      site.id,
       () => collectSite(site.id, house.accessToken),
       (data) =>
         t('home.collected', {
@@ -73,11 +94,13 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
     );
 
   async function change(site: Site, recipeId: string) {
-    await run(
+    const result = await run(
+      site.id,
       () => setSiteRecipe(site.id, recipeId, house.accessToken),
       (data) => t('home.recipeChanged', { site: recipeName(data.recipeId) }),
     );
-    setChosen(({ [site.id]: _done, ...others }) => others);
+    // Après un refus (récolter d'abord, par exemple), le choix reste : le joueur n'a qu'à réessayer.
+    if (result?.ok) setChosen(({ [site.id]: _done, ...others }) => others);
   }
 
   async function acquire(event: FormEvent) {
@@ -87,16 +110,25 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
     const key = pending.current.get(recipeId) ?? crypto.randomUUID();
     pending.current.set(recipeId, key);
     const result = await run(
+      ACQUIRE,
       () => acquireSite(recipeId, house.accessToken, key),
-      (data) =>
-        t('home.acquired', {
+      // Rejeu : cet achat avait abouti lors d'un essai resté sans réponse. Rien n'est payé cette fois.
+      (data, replayed) =>
+        t(replayed ? 'home.alreadyAcquired' : 'home.acquired', {
           site: recipeName(data.recipeId),
           cost: number.format(data.costOboles),
         }),
     );
     // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
-    if (result.ok || result.error.code !== 'INTERNAL') pending.current.delete(recipeId);
+    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(recipeId);
   }
+
+  const announce = (target: string) =>
+    notice?.target === target && (
+      <p role={notice.kind} className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}>
+        {notice.text}
+      </p>
+    );
 
   return (
     <Card className="flex flex-col gap-3">
@@ -105,7 +137,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
         {rules && sites.rows && (
           <p className="text-sm text-muted-foreground">
             {t('home.sitesCount', {
-              count: sites.rows.length,
+              count: number.format(sites.rows.length),
               limit: number.format(rules.limit),
             })}
           </p>
@@ -114,8 +146,8 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
       {(sites.failed || rulesFailed) && <p role="alert">{t('app.loadFailed')}</p>}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
       <ul className="flex flex-col gap-3">
-        {sites.rows?.map((site) => {
-          const name = recipeName(site.recipe_id);
+        {rows.map((site) => {
+          const name = siteName(site);
           const type = rules?.siteTypeOf(site.recipe_id);
           const alternatives = rules?.alternatives(site.recipe_id) ?? [];
           const choice = chosen[site.id] ?? site.recipe_id;
@@ -124,13 +156,16 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="text-lg">{name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {type && <>{t('home.siteType', { type: typeName(type) })} · </>}
-                    {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
-                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    {type && <p>{t('home.siteType', { type: typeName(type) })}</p>}
+                    <p>
+                      {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
+                    </p>
+                  </div>
                 </div>
                 <Button
-                  disabled={busy}
+                  className={WAITING}
+                  aria-disabled={busy}
                   aria-label={t('home.collectSite', { site: name })}
                   onClick={() => void collect(site)}
                 >
@@ -150,7 +185,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
                         setChosen((all) => ({ ...all, [site.id]: event.target.value }))
                       }
                     >
-                      <option value={site.recipe_id}>{name}</option>
+                      <option value={site.recipe_id}>{recipeName(site.recipe_id)}</option>
                       {alternatives.map((recipe) => (
                         <option key={recipe.id} value={recipe.id}>
                           {recipeName(recipe.id)}
@@ -160,7 +195,9 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
                   </label>
                   <Button
                     variant="secondary"
-                    disabled={busy || choice === site.recipe_id}
+                    className={WAITING}
+                    disabled={choice === site.recipe_id}
+                    aria-disabled={busy}
                     aria-label={t('home.changeSite', { site: name })}
                     onClick={() => void change(site, choice)}
                   >
@@ -168,6 +205,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
                   </Button>
                 </div>
               )}
+              {announce(site.id)}
             </li>
           );
         })}
@@ -191,31 +229,28 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
                   disabled={busy}
                   onChange={(event) => setWanted(event.target.value)}
                 >
-                  {offers.map(({ recipe, costOboles }) => (
-                    <option key={recipe.id} value={recipe.id}>
-                      {t('home.acquireOption', {
-                        site: recipeName(recipe.id),
-                        type: typeName(recipe.siteType),
-                        cost: number.format(costOboles),
-                      })}
-                    </option>
-                  ))}
+                  {offers.map(({ recipe, costOboles }) => {
+                    const [site, type] = [recipeName(recipe.id), typeName(recipe.siteType)];
+                    const cost = number.format(costOboles);
+                    return (
+                      <option key={recipe.id} value={recipe.id}>
+                        {/* Le type n'est pas répété quand la production porte déjà son nom. */}
+                        {site === type
+                          ? t('home.acquireOptionPlain', { site, cost })
+                          : t('home.acquireOption', { site, type, cost })}
+                      </option>
+                    );
+                  })}
                 </select>
               </label>
-              <Button type="submit" disabled={busy || !offer}>
+              <Button type="submit" className={WAITING} disabled={!offer} aria-disabled={busy}>
                 {t('home.acquireSubmit')}
               </Button>
             </>
           )}
+          {announce(ACQUIRE)}
         </form>
       )}
-      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
-      <p
-        role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
-      >
-        {notice?.text}
-      </p>
     </Card>
   );
 }
