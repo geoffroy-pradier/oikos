@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { SitesCard } from './Sites';
+import { useMoney } from '../money';
 
 interface Treasury {
   balance: number;
@@ -35,6 +36,7 @@ export function HomeScreen() {
   );
 
   const number = new Intl.NumberFormat(i18n.language);
+  const money = useMoney();
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
   const failed = treasury.failed || stock.failed || buys.failed;
@@ -53,11 +55,11 @@ export function HomeScreen() {
         <h2 className="text-xl">{t('home.treasury')}</h2>
         {treasury.rows?.map((account) => (
           <p key="balance" className="text-2xl font-semibold">
-            {t('home.balance', { amount: number.format(account.balance) })}
+            {t('home.balance', { amount: money(account.balance) })}
           </p>
         ))}
         {held > 0 && (
-          <p className="text-muted-foreground">{t('home.held', { amount: number.format(held) })}</p>
+          <p className="text-muted-foreground">{t('home.held', { amount: money(held) })}</p>
         )}
       </Card>
 
