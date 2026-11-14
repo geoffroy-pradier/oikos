@@ -41,7 +41,7 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 
 Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux fonctions reçoit le rôle le plus large des deux ; le cumul sera rouvert si les modérateurs bénévoles le demandent.
 
-La liste des rôles admis dans chaque module est écrite une seule fois, dans les contrats partagés (`ADMIN_MODULE_ROLES`) : l'API ouvre ses routes de lecture d'après elle, l'application compose sa navigation d'après elle. Un compte connecté sans rôle n'a accès à rien ; il voit son identifiant, à transmettre à un super-administrateur. Le module Accès, réservé au super-administrateur, liste les comptes qui portent un rôle par `GET /api/admin/roles` : identifiant du compte, rôle, compte qui l'a accordé et date, du plus ancien au plus récent ; ni adresse ni autre donnée du compte.
+La liste des rôles admis dans chaque module est écrite une seule fois, dans les contrats partagés (`ADMIN_MODULE_ROLES`) : l'API ouvre ses routes de lecture d'après elle, l'application compose sa navigation d'après elle. Un compte connecté sans rôle n'a accès à rien ; il voit son identifiant, à transmettre à un super-administrateur. Le module Accès, réservé au super-administrateur, liste les comptes qui portent un rôle par `GET /api/admin/roles` : identifiant du compte, rôle, compte qui l'a accordé et date, du plus ancien au plus récent (la date et l'ordre sont ceux du dernier changement de rôle du compte : un rôle remplacé repart de l'instant du remplacement) ; ni adresse ni autre donnée du compte. Il y accorde un rôle à un compte désigné par son identifiant (un rôle déjà porté est remplacé, et l'écran le dit) et retire un rôle après confirmation : la confirmation nomme le compte et le rôle, pose le foyer sur « Annuler », et la répétition d'une touche Entrée tenue n'ouvre, ne valide ni n'annule rien, de sorte qu'un retrait demande toujours un second geste voulu ; chaque refus de l'API y est expliqué.
 
 ## 15.4 Exigences de sécurité
 
@@ -62,3 +62,7 @@ Dans la première version, une commande d'administration (`admin.*`) n'est exéc
 | Signalements en attente | Plus de 24 h |
 | Coût IA du jour | Plus de 150 % de la moyenne sur 7 jours |
 | Sauvegarde | Dernière archive de plus de 15 min |
+
+## 15.6 Procédures d'exploitation
+
+- [Accès à Olympe](../exploitation/acces-olympe.md) : premier super-administrateur et enrôlement du second facteur, accès accordé à une autre personne, appareil perdu (dernier super-administrateur compris), retrait d'accès. Les étapes en base y sont faites par un humain ; celles qui touchent au schéma de Supabase Auth ne sont couvertes par aucun test du dépôt et sont à répéter en préproduction.

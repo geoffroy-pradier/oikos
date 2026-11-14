@@ -1,4 +1,8 @@
-import { ADMIN_ROLES } from '@oikos/contracts';
+import {
+  ADMIN_GRANT_ROLE_ERROR_CODES,
+  ADMIN_REVOKE_ROLE_ERROR_CODES,
+  ADMIN_ROLES,
+} from '@oikos/contracts';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
 import en from './locales/en.json';
@@ -18,6 +22,11 @@ describe('traductions du back-office', () => {
 
   it('chaque rôle du contrat a un nom', () => {
     expect(keys(fr)).toEqual(expect.arrayContaining(ADMIN_ROLES.map((role) => `roles.${role}`)));
+  });
+
+  it('chaque refus des commandes de rôle a son message', () => {
+    const codes = [...ADMIN_GRANT_ROLE_ERROR_CODES, ...ADMIN_REVOKE_ROLE_ERROR_CODES];
+    expect(keys(fr)).toEqual(expect.arrayContaining(codes.map((code) => `access.errors.${code}`)));
   });
 
   it('français par défaut, anglais si le navigateur le demande', () => {
