@@ -87,7 +87,7 @@ select is((select count(*) from game.accounts), 1::bigint, 'ni le compte de Bob 
 select is((select count(*) from game.sites where house_id = '00000000-0000-7000-8000-0000000000b1'), 0::bigint, 'pas le champ de Bob');
 select is((select count(*) from game.inventories where house_id = '00000000-0000-7000-8000-0000000000b1'), 0::bigint, 'pas le stock de Bob');
 select throws_ok('select id, world_id, allow_negative, system_key from game.accounts', '42501', null, 'colonnes internes des comptes illisibles');
-select throws_ok('select * from game.ledger_lines', '42501', null, 'le grand livre reste illisible');
+select results_eq('select amount from game.ledger_lines', $$values (600::bigint)$$, 'du grand livre, sa seule ligne : ni celle de Bob ni la contrepartie (migration 32)');
 select throws_ok('select * from game.stock_ledger', '42501', null, 'le journal des stocks reste illisible');
 select throws_ok($$update public.my_treasury set balance = 1000000$$, '42501', null, 'pas d''écriture par la vue de trésorerie');
 select throws_ok($$update public.my_sites set cycle_started_at = now() - interval '10 days'$$, '42501', null, 'pas d''antidatage de son champ');

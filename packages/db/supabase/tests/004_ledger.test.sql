@@ -113,13 +113,19 @@ select results_eq(
   $$select account_id, balance - lines_total from game.account_balance_check where not ok$$,
   $$values ('00000000-0000-7000-8000-0000000000bb'::uuid, 9::bigint)$$, 'la vue de contrôle désigne le compte en écart et son montant');
 
--- Aucun rôle client ne lit ni n'écrit le grand livre.
+-- Droits clients sur la monnaie. Aucun droit à l'échelle d'une table, lecture comprise ; aucune écriture
+-- ni référence à l'échelle d'une colonne ; aucune colonne lisible par un visiteur, ni de la vue de
+-- contrôle par un joueur. Restent à un joueur les colonnes figées dans 002, sous les règles par ligne
+-- que prouvent 009 et 027.
 select is(
-  (select count(*) from pg_class c, unnest(array['anon', 'authenticated']) r, unnest(array['select', 'insert', 'update', 'delete']) p
+  (select count(*) from pg_class c, unnest(array['anon', 'authenticated']) r,
+          unnest(array['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger']) p
    where c.relnamespace = 'game'::regnamespace and c.relkind in ('r', 'v')
      and c.relname in ('accounts', 'ledger_entries', 'ledger_lines', 'account_balance_check')
-     and has_table_privilege(r, c.oid, p)),
-  0::bigint, 'aucun droit client sur la monnaie');
+     and (has_table_privilege(r, c.oid, p)
+          or (p in ('insert', 'update', 'references') and has_any_column_privilege(r, c.oid, p))
+          or (p = 'select' and (r = 'anon' or c.relname = 'account_balance_check') and has_any_column_privilege(r, c.oid, p)))),
+  0::bigint, 'monnaie : aucune écriture cliente, de table ou de colonne ; aucune table lisible en entier ; rien pour un visiteur');
 
 select * from finish();
 rollback;
