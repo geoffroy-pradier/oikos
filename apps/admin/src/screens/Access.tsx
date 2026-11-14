@@ -1,6 +1,6 @@
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
 import { Button, Field } from '@oikos/ui';
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
 import { LoadError } from '../LoadError';
@@ -17,6 +17,10 @@ export interface RoleRow {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
+/** Entrée tenue : la répétition du clavier n'ouvre, ne confirme ni n'annule rien. */
+const ignoreHeldEnter = (event: KeyboardEvent) => {
+  if (event.repeat && event.key === 'Enter') event.preventDefault();
+};
 
 /**
  * Module Accès : comptes qui portent un rôle (15.3) ; accorder, remplacer et retirer un rôle. Les
@@ -44,19 +48,29 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
   async function run<T>(name: string, input: unknown, done: (data: T) => string) {
     setBusy(true);
     setNotice(null);
+    // Le retour de foyer d'un retrait passé ne vaut plus : la liste relue peut rendre sa ligne.
+    setReturnTo(null);
     const intent = `${name}:${JSON.stringify(input)}`;
-    if (pending.current?.intent !== intent) pending.current = { intent, key: crypto.randomUUID() };
-    const reply = await adminCommand<T>(name, input, accessToken, pending.current.key);
-    // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
-    if (reply.ok || reply.code !== 'INTERNAL') pending.current = null;
-    await reload();
-    setNotice(
-      reply.ok
-        ? { kind: 'status', text: done(reply.data) }
-        : { kind: 'alert', text: t([`access.errors.${reply.code}`, 'access.errors.INTERNAL']) },
-    );
-    setBusy(false);
-    return reply.ok;
+    try {
+      if (pending.current?.intent !== intent)
+        pending.current = { intent, key: crypto.randomUUID() };
+      const reply = await adminCommand<T>(name, input, accessToken, pending.current.key);
+      // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
+      if (reply.ok || reply.code !== 'INTERNAL') pending.current = null;
+      await reload();
+      setNotice(
+        reply.ok
+          ? { kind: 'status', text: done(reply.data) }
+          : { kind: 'alert', text: t([`access.errors.${reply.code}`, 'access.errors.INTERNAL']) },
+      );
+      return reply.ok;
+    } catch {
+      // Erreur inattendue : issue inconnue, comme une panne ; l'écran ne reste pas verrouillé.
+      setNotice({ kind: 'alert', text: t('access.errors.INTERNAL') });
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
   async function grant(event: FormEvent) {
     event.preventDefault();
@@ -133,23 +147,25 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                       )}
                     </td>
                     <td>{date.format(new Date(row.grantedAt))}</td>
-                    <td>
+                    <td onKeyDown={ignoreHeldEnter}>
                       {confirming === row.userId ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span id="access-confirm">
                             {t('access.confirm', { ...row, role: t(`roles.${row.role}`) })}
                           </span>
                           <Button
-                            autoFocus
                             disabled={busy}
                             aria-describedby="access-confirm"
                             onClick={() => void revoke(row)}
                           >
                             {t('access.confirmRevoke')}
                           </Button>
+                          {/* Le foyer va au geste sans effet : Entrée redoublée ne retire rien. */}
                           <Button
+                            autoFocus
                             variant="secondary"
                             disabled={busy}
+                            aria-describedby="access-confirm"
                             onClick={() => {
                               setConfirming(null);
                               setReturnTo(row.userId);
