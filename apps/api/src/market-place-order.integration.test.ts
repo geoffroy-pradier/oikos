@@ -226,7 +226,7 @@ describe('market.placeOrder', () => {
     expect(await stateOf(dear)).toEqual([GRANT + 270, '20/10']);
     expect(await ledgersAreConsistent([cheap, dear, buyer])).toBe(0);
     const book = await sql<{ price: string; quantity: string }>`
-      select price, quantity from game.order_book() where city_id = ${cityId}`.execute(db);
+      select price, quantity from game.order_book() where city_id = ${cityId}`.execute(owner);
     expect(book.rows).toEqual([{ price: '20', quantity: '10' }]);
     const buyOrderId = (bought.body.data as unknown as { orderId: string }).orderId;
     expect(await eventsOf(cityId, 'TradeExecuted')).toMatchObject([

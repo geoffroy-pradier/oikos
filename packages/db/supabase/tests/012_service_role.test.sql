@@ -1,5 +1,5 @@
 begin;
-select plan(42);
+select plan(55);
 
 -- Jeu d'essai, posé par le propriétaire : une maison, son compte (500 oboles), son stock (100 blés), un ordre de vente.
 insert into auth.users (id, email) values ('00000000-0000-4000-8000-00000000000a', 'alice@example.test');
@@ -31,9 +31,18 @@ select is(
   0::bigint, 'ni suppression, ni vidage, ni déclencheur sur aucune table du jeu');
 -- Liste exacte des tables modifiables : toute extension doit modifier ce test.
 select is(
-  (select string_agg(c.relname, ' ' order by c.relname collate "C") from pg_class c
+  (select count(*) from pg_class c
    where c.relnamespace = 'game'::regnamespace and c.relkind = 'r' and has_table_privilege('oikos_service', c.oid, 'update')),
-  'accounts houses inventories npc_demand_carry orders sites', 'tables de game modifiables par le service : liste figée');
+  0::bigint, 'aucune table de game modifiable en entier par le service');
+-- Colonnes modifiables : celles qu'une commande ou le tick change, plus une colonne gardée par table à
+-- verrouiller (solde, quantité : la garde refuse toute modification directe).
+select is(
+  (select string_agg(table_name || '.' || column_name, ' ' order by table_name collate "C", column_name collate "C")
+   from information_schema.column_privileges
+   where grantee = 'oikos_service' and table_schema = 'game' and privilege_type = 'UPDATE'),
+  'accounts.balance houses.name inventories.quantity npc_demand_carry.carry npc_demand_carry.updated_at '
+    || 'orders.status sites.cycle_started_at',
+  'colonnes de game modifiables par le service : liste figée');
 select is(
   (select count(*) from pg_class c
    where c.relnamespace in ('config'::regnamespace, 'telemetry'::regnamespace, 'admin'::regnamespace)
@@ -49,10 +58,27 @@ select is(
   0::bigint, 'chaque table à règles par ligne a sa règle de service');
 select is((select count(*) from pg_policies where policyname = 'service_all' and roles <> '{oikos_service}'), 0::bigint,
   'la règle de service ne vaut que pour le service');
-select ok(prosecdef, format('%s s''exécute au nom du propriétaire', proname))
-from pg_proc where pronamespace = 'game'::regnamespace
-  and proname in ('apply_ledger_line', 'apply_stock_movement', 'apply_order_reservation', 'apply_trade')
-order by proname;
+-- Fonctions exécutées au nom du propriétaire : liste figée, toute extension doit modifier ce test.
+select is(
+  (select string_agg(n.nspname || '.' || p.proname, ' ' order by n.nspname, p.proname collate "C")
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('game', 'config', 'telemetry', 'admin') and p.prosecdef),
+  'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
+    || 'game.current_house_ids game.order_book',
+  'fonctions SECURITY DEFINER : liste figée');
+-- Le droit d'exécuter une fonction de déclencheur suffit à l'attacher à une table qu'on possède.
+select is(
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('game', 'config', 'telemetry', 'admin') and p.prorettype = 'trigger'::regtype
+     and has_function_privilege('oikos_service', p.oid, 'execute')),
+  0::bigint, 'le service n''exécute aucune fonction de déclencheur');
+select is(
+  (select string_agg(n.nspname || '.' || p.proname, ' ' order by n.nspname, p.proname collate "C")
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('game', 'config', 'telemetry', 'admin') and has_function_privilege('oikos_service', p.oid, 'execute')),
+  'config.active_version_at game.uuid_v7 game.written_by_owner_trigger',
+  'fonctions exécutables par le service : liste figée');
+select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
 
 -- Le service au travail : les journaux passent, et mettent à jour soldes, stocks, réservations.
 -- Chaque instruction ci-dessous est exécutée sous le rôle de service (les assertions restent au propriétaire).
@@ -89,8 +115,12 @@ select is((select quantity || '/' || reserved from game.inventories where id = '
 -- Écritures directes : refusées par la garde (ou par les droits).
 select throws_ok($$select pg_temp.as_service($s$update game.accounts set balance = balance + 1000000$s$)$$, '23001', null, 'pas de solde modifié à la main');
 select throws_ok($$select pg_temp.as_service($s$update game.inventories set quantity = 1000000$s$)$$, '23001', null, 'pas de quantité modifiée à la main');
-select throws_ok($$select pg_temp.as_service($s$update game.inventories set reserved = 0$s$)$$, '23001', null, 'pas de réservation modifiée à la main');
-select throws_ok($$select pg_temp.as_service($s$update game.orders set remaining = 1$s$)$$, '23001', null, 'pas d''ordre servi à la main');
+select throws_ok($$select pg_temp.as_service($s$update game.inventories set reserved = 0$s$)$$, '42501', null, 'pas de réservation modifiée à la main (colonne fermée)');
+select throws_ok($$select pg_temp.as_service($s$update game.orders set remaining = 1$s$)$$, '42501', null, 'pas d''ordre servi à la main (colonne fermée)');
+select throws_ok($$select pg_temp.as_service($s$update game.orders set status = 'filled'$s$)$$, '23001', null,
+  'ni déclaré servi par son état');
+select throws_ok($$select pg_temp.as_service($s$update game.houses set user_id = gen_random_uuid()$s$)$$, '42501', null,
+  'pas de maison changée de compte');
 select throws_ok($$select pg_temp.as_service($s$delete from game.ledger_lines$s$)$$, '42501', null, 'pas de suppression d''écriture');
 select throws_ok($$select pg_temp.as_service($s$truncate game.stock_ledger$s$)$$, '42501', null, 'pas de vidage de journal');
 select throws_ok($$select pg_temp.as_service($s$insert into admin.roles (user_id, role) values ('00000000-0000-4000-8000-00000000000a', 'super_admin')$s$)$$, '42501', null,
@@ -114,11 +144,42 @@ select throws_ok($$select pg_temp.as_service($s$insert into forge values ('updat
   'account balance changes only through ledger lines', 'un déclencheur du service ne forge pas de solde');
 select throws_ok($$select pg_temp.as_service($s$insert into forge values ('update game.inventories set quantity = quantity + 1000000')$s$)$$, '23001',
   'inventory quantity changes only through the stock ledger', 'ni de stock');
-select throws_ok($$select pg_temp.as_service($s$insert into forge values ('update game.inventories set reserved = 0')$s$)$$, '23001',
-  'inventory reservation changes only through orders', 'ni ne libère une réservation');
-select throws_ok($$select pg_temp.as_service($s$insert into forge values ('update game.orders set remaining = 0, status = ''filled''')$s$)$$, '23001',
+select throws_ok($$select pg_temp.as_service($s$insert into forge values ('update game.inventories set reserved = 0')$s$)$$, '42501',
+  null, 'ni ne libère une réservation');
+select throws_ok($$select pg_temp.as_service($s$insert into forge values ('update game.orders set status = ''filled''')$s$)$$, '23001',
   'an order is only filled by a trade or cancelled', 'ni ne sert un ordre');
+
+-- Contournement par les fonctions du propriétaire : le service ne peut pas les attacher à sa table.
+select lives_ok($$select pg_temp.as_service($s$
+  create temporary table fake_lines (account_id uuid, amount bigint);
+  create temporary table fake_moves (from_inventory_id uuid, to_inventory_id uuid, good_id text, quantity bigint);
+  create temporary table fake_orders (house_id uuid, city_id uuid, good_id text, side text, status text, remaining bigint);
+  create temporary table fake_trades (sell_order_id uuid, buy_order_id uuid, price bigint, quantity bigint)$s$)$$,
+  'le service crée des tables à la forme des journaux');
+select throws_ok(format($$select pg_temp.as_service($s$create trigger t after insert on %s for each row execute function game.%s()$s$)$$, target, fn),
+  '42501', null, format('le service n''attache pas %s à sa table', fn))
+from (values ('fake_lines', 'apply_ledger_line'), ('fake_moves', 'apply_stock_movement'),
+             ('fake_orders', 'apply_order_reservation'), ('fake_trades', 'apply_trade')) as forged (target, fn);
+-- Défense en profondeur : même attachées par le propriétaire à une autre table, elles refusent de s'exécuter.
+create temporary table owner_lines (account_id uuid, amount bigint);
+create trigger t after insert on owner_lines for each row execute function game.apply_ledger_line();
+select throws_ok($$insert into owner_lines values ('00000000-0000-7000-8000-0000000000aa', 1000000)$$, '42501',
+  't only runs on game.ledger_lines', 'apply_ledger_line ne s''exécute que sur son journal');
+create temporary table owner_moves (from_inventory_id uuid, to_inventory_id uuid, good_id text, quantity bigint);
+create trigger t after insert on owner_moves for each row execute function game.apply_stock_movement();
+select throws_ok($$insert into owner_moves values (null, '00000000-0000-7000-8000-0000000001a1', 'wheat', 1000000)$$, '42501',
+  't only runs on game.stock_ledger', 'apply_stock_movement ne s''exécute que sur son journal');
+create temporary table owner_orders (house_id uuid, city_id uuid, good_id text, side text, status text, remaining bigint);
+create trigger t after insert on owner_orders for each row execute function game.apply_order_reservation();
+select throws_ok($$insert into owner_orders values ('00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'wheat', 'sell', 'open', -60)$$,
+  '42501', 't only runs on game.orders', 'apply_order_reservation ne s''exécute que sur les ordres');
+create temporary table owner_trades (sell_order_id uuid, buy_order_id uuid, price bigint, quantity bigint);
+create trigger t after insert on owner_trades for each row execute function game.apply_trade();
+select throws_ok($$insert into owner_trades values ('00000000-0000-7000-8000-000000000301', null, 6, 60)$$, '42501',
+  't only runs on game.trades', 'apply_trade ne s''exécute que sur les échanges');
 select is((select balance from game.accounts where id = '00000000-0000-7000-8000-0000000000aa'), 500::bigint, 'le solde n''a pas bougé');
+select is((select quantity || '/' || reserved from game.inventories where id = '00000000-0000-7000-8000-0000000001a1'), '100/60',
+  'ni le stock, ni la réservation');
 
 select * from finish();
 rollback;
