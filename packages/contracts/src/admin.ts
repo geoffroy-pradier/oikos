@@ -51,8 +51,9 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
 ] as const;
 
 /**
- * Commande `admin.cancelActivation` : annule une programmation à venir. La version reste enregistrée et
- * peut être reprogrammée ; une activation déjà en vigueur ne s'annule pas, on programme un retour arrière.
+ * Commande `admin.cancelActivation` : annule une programmation à venir, et avec elle celles encore en
+ * attente pour la même clôture. Les versions restent enregistrées et se reprogramment ; une activation en
+ * vigueur, ou à moins d'une minute de son échéance, ne s'annule pas : on programme un retour arrière.
  */
 export const adminCancelActivationInputSchema = z.strictObject({ activationId: z.uuid() });
 export type AdminCancelActivationInput = z.infer<typeof adminCancelActivationInputSchema>;
@@ -61,13 +62,15 @@ export const adminCancelActivationOutputSchema = z.object({
   versionId: z.uuid(),
   /** Clôture à laquelle la version serait entrée en vigueur (ISO 8601). */
   activateAt: z.iso.datetime(),
+  /** Toutes les programmations annulées pour cette clôture, celle désignée en premier. */
+  cancelled: z.array(z.object({ activationId: z.uuid(), versionId: z.uuid() })).min(1),
 });
 export type AdminCancelActivationOutput = z.infer<typeof adminCancelActivationOutputSchema>;
 export const ADMIN_CANCEL_ACTIVATION_ERROR_CODES = [
   'FORBIDDEN',
   'CONFIG_ACTIVATION_NOT_FOUND',
   'CONFIG_ACTIVATION_CANCELLED',
-  /** L'échéance est passée : la version est en vigueur ou l'a été. */
+  /** L'échéance est passée, ou dans moins d'une minute. */
   'CONFIG_ACTIVATION_PAST',
 ] as const;
 

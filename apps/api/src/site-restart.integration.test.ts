@@ -199,4 +199,53 @@ describe('site.restart', () => {
     });
     expect(await stateOf(player)).toEqual({ balance: GRANT, halted: false, hours: 3, paid: [] });
   });
+
+  it('site arrêté par une clôture commencée après la commande : conflit à rejouer, pas une erreur interne', async () => {
+    // L'arrêt est postérieur à l'instant de la commande (ici, dans une heure).
+    const player = await newPlayer(10, -1);
+    expect(await restart(player.user, player.siteId)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'SITE_CHANGED' } },
+    });
+    expect(await stateOf(player)).toMatchObject({ balance: GRANT, halted: true, paid: [] });
+  });
+
+  it('la monnaie sous séquestre ne paie pas la relance : 29 oboles en trésorerie et 200 retenues, refus', async () => {
+    const player = await newPlayer(10, 7);
+    await drain(player, GRANT - 229);
+    // Un achat en attente de 20 unités à 10 oboles retient 200 oboles : il en reste 29 en trésorerie.
+    // `hold` pose l'achat et son séquestre, puis les retire : le carnet de la cité est partagé.
+    const hold = (held: number) =>
+      owner.transaction().execute(async (trx) => {
+        if (held > 0) {
+          await sql`insert into game.accounts (world_id, kind, house_id) select world_id, 'escrow', id from game.houses where id = ${player.houseId}`.execute(
+            trx,
+          );
+          await sql`insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+            select world_id, city_id, house_id, 'wheat', 'buy', 10, 20, 20 from game.sites where id = ${player.siteId}`.execute(
+            trx,
+          );
+        } else
+          await sql`update game.orders set status = 'cancelled' where house_id = ${player.houseId}`.execute(
+            trx,
+          );
+        await sql`with entry as (insert into game.ledger_entries (world_id, kind) select world_id, 'test.escrow' from game.houses where id = ${player.houseId} returning id)
+          insert into game.ledger_lines (entry_id, account_id, amount)
+          select entry.id, a.id, case when a.kind = 'escrow' then ${held}::bigint else -${held}::bigint end from entry, game.accounts a where a.house_id = ${player.houseId}`.execute(
+          trx,
+        );
+      });
+    await hold(200);
+    const refused = await restart(player.user, player.siteId);
+    const state = await stateOf(player);
+    const escrow = await sql<{
+      balance: string;
+    }>`select balance from game.accounts where house_id = ${player.houseId} and kind = 'escrow'`.execute(
+      db,
+    );
+    await hold(-200);
+    expect(refused).toMatchObject({ status: 409, body: { error: { code: 'INSUFFICIENT_FUNDS' } } });
+    expect(state).toEqual({ balance: 29, halted: true, hours: 3, paid: [] });
+    expect(escrow.rows).toEqual([{ balance: '200' }]);
+  });
 });

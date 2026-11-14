@@ -98,18 +98,25 @@ async function alone(kept: string[], run: () => Promise<void>) {
  */
 async function contended<T>(run: () => Promise<T>): Promise<T> {
   const holder = await owner.startTransaction().execute();
-  await sql`select pg_advisory_xact_lock(hashtext('admin.roles'))`.execute(holder);
-  const pending = run();
-  for (let waiting = 0; waiting < 2;) {
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const locks = await sql<{ n: string }>`
-      select count(*) as n from pg_locks where locktype = 'advisory' and not granted`.execute(
-      owner,
-    );
-    waiting = Number(locks.rows[0]?.n);
+  try {
+    await sql`select pg_advisory_xact_lock(hashtext('admin.roles'))`.execute(holder);
+    const pending = run();
+    const deadline = Date.now() + 5_000;
+    for (let waiting = 0; waiting < 2;) {
+      if (Date.now() > deadline) throw new Error('The commands never reached the role lock.');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Attentes de ce verrou précis, dans cette base : clé de `hashtext('admin.roles')`.
+      const locks = await sql<{ n: string }>`
+        select count(*) as n from pg_locks l join pg_database d on d.oid = l.database
+        where d.datname = current_database() and l.locktype = 'advisory' and not l.granted
+          and l.objid::bigint = hashtext('admin.roles')::bigint & 4294967295`.execute(owner);
+      waiting = Number(locks.rows[0]?.n);
+    }
+    return pending;
+  } finally {
+    // Dans tous les cas le verrou est rendu : les commandes en attente se terminent.
+    await holder.rollback().execute();
   }
-  await holder.commit().execute();
-  return pending;
 }
 
 describe('admin.grantRole et admin.revokeRole', () => {

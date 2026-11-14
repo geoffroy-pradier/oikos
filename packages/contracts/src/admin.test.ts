@@ -90,10 +90,15 @@ describe('admin.cancelActivation', () => {
   });
 
   it('rend la version et la clôture annulées, et laisse un événement qui nomme l’auteur', () => {
-    expect(adminCancelActivationOutputSchema.parse(cancelled)).toEqual(cancelled);
-    expect(
-      adminCancelActivationOutputSchema.safeParse({ ...cancelled, activateAt: 'demain' }).success,
-    ).toBe(false);
+    const output = { ...cancelled, cancelled: [{ activationId: account, versionId: other }] };
+    expect(adminCancelActivationOutputSchema.parse(output)).toEqual(output);
+    for (const broken of [
+      cancelled,
+      { ...output, cancelled: [] },
+      { ...output, activateAt: 'demain' },
+    ]) {
+      expect(adminCancelActivationOutputSchema.safeParse(broken).success).toBe(false);
+    }
     const event = {
       type: 'ConfigActivationCancelled',
       payload: { ...cancelled, cancelledBy: other },

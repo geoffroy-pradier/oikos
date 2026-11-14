@@ -17,8 +17,9 @@ export const siteUpkeep: CloseStep = {
   async run({ trx, worldId, gameDay, closeAt, config }) {
     const { coefficientBps, dailyOboles } = config.sites.upkeep;
     const typeOf = new Map(config.recipes.map((recipe) => [recipe.id, recipe.siteType]));
-    // Ordre des verrous, le même que la relance d'un site : les appariements du monde (ils touchent
-    // plusieurs trésoreries à la fois), le puits, puis chaque trésorerie et ses sites.
+    // Ordre des verrous : d'abord les appariements du monde (ils touchent plusieurs trésoreries à la
+    // fois ; la relance d'un site ne prend pas ce verrou), puis, dans le même ordre que la relance,
+    // le puits, chaque trésorerie et ses sites.
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
@@ -100,7 +101,9 @@ export const siteUpkeep: CloseStep = {
       if (halted.length > 0)
         await trx
           .updateTable('game.sites')
-          .set({ halted_at: sql<Date>`now()` })
+          // Un site récolté ou changé de recette pendant cette clôture a un cycle postérieur à son
+          // début : l'arrêt est alors daté de ce cycle, que la garde admet dans la transaction.
+          .set({ halted_at: sql<Date>`greatest(now(), cycle_started_at)` })
           .where('id', 'in', halted)
           .execute();
       if (resumed.length > 0)
