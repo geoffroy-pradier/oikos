@@ -1,7 +1,7 @@
 import { Button, Card } from '@oikos/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { acquireSite, collectSite, setSiteRecipe, type CommandResponse } from '../api';
+import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, type StockLine } from '../site-rules';
@@ -10,6 +10,8 @@ interface Site {
   id: string;
   recipe_id: string;
   cycle_started_at: string;
+  /** Instant de l'arrêt d'un site dont l'entretien n'a pas été payé ; `null` s'il tourne (5.5). */
+  halted_at: string | null;
 }
 /** Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire. */
 type Notice = { target: string; kind: 'status' | 'alert'; text: string } | null;
@@ -33,7 +35,7 @@ export function SitesCard({
   const { t, i18n } = useTranslation();
   const house = useHouse();
   // Par identifiant (ordre de création) : une récolte ne réordonne pas la liste.
-  const sites = useRows<Site>('my_sites', 'id, recipe_id, cycle_started_at', 'id');
+  const sites = useRows<Site>('my_sites', 'id, recipe_id, cycle_started_at, halted_at', 'id');
   const { rules, failed: rulesFailed, reload: reloadRules } = useSiteRules();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -124,6 +126,25 @@ export function SitesCard({
     if (result?.ok) setChosen(({ [site.id]: _done, ...others }) => others);
   }
 
+  /** Relance un site à l'arrêt : la maison paie l'entretien d'un jour, le site repart (5.5). */
+  async function restart(site: Site) {
+    const intent = `restart:${site.id}`;
+    const key = pending.current.get(intent) ?? crypto.randomUUID();
+    pending.current.set(intent, key);
+    const result = await run(
+      site.id,
+      () => restartSite(site.id, house.accessToken, key),
+      (data, replayed) =>
+        t(replayed ? 'home.alreadyRestarted' : 'home.restarted', {
+          site: siteName(site),
+          cost: number.format(data.upkeepOboles),
+        }),
+    );
+    // Un refus reste attaché à sa clé (« le site vient de changer », trésorerie insuffisante) : le
+    // prochain essai en prend une neuve. Sans réponse de l'API, la même clé rejoue la relance.
+    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(intent);
+  }
+
   async function acquire(event: FormEvent) {
     event.preventDefault();
     if (!offer) return;
@@ -177,10 +198,12 @@ export function SitesCard({
           const alternatives = rules?.alternatives(site.recipe_id) ?? [];
           const choice = chosen[site.id] ?? site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
+          const halted = site.halted_at ? new Date(site.halted_at) : null;
+          const upkeep = rules?.upkeepOf(site.recipe_id) ?? 0;
           // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
           const harvest =
             recipe && stock
-              ? previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock)
+              ? previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock, halted)
               : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
@@ -192,6 +215,7 @@ export function SitesCard({
                     <p>
                       {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
                     </p>
+                    {upkeep > 0 && <p>{t('home.upkeep', { cost: number.format(upkeep) })}</p>}
                   </div>
                 </div>
                 <Button
@@ -203,6 +227,22 @@ export function SitesCard({
                   {t('home.collect')}
                 </Button>
               </div>
+              {halted && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="min-w-0 flex-1 font-semibold text-danger">
+                    {t('home.halted', { date: date.format(halted) })}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    className={WAITING}
+                    aria-disabled={busy}
+                    aria-label={t('home.restartSite', { site: name, cost: number.format(upkeep) })}
+                    onClick={() => void restart(site)}
+                  >
+                    {t('home.restart', { cost: number.format(upkeep) })}
+                  </Button>
+                </div>
+              )}
               {recipe && recipe.inputs.length > 0 && (
                 <div className="text-sm">
                   <p>{t('home.inputs')}</p>

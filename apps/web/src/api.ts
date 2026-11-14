@@ -9,6 +9,7 @@ import {
   type MarketPlaceOrderOutput,
   type SiteAcquireOutput,
   type SiteCollectOutput,
+  type SiteRestartOutput,
   type SiteSetRecipeOutput,
 } from '@oikos/contracts';
 
@@ -66,6 +67,10 @@ export const acquireSite = (recipeId: string, accessToken: string, idempotencyKe
 
 export const setSiteRecipe = (siteId: string, recipeId: string, accessToken: string) =>
   sendCommand<SiteSetRecipeOutput>('site.setRecipe', { siteId, recipeId }, accessToken);
+
+/** `idempotencyKey` : la même clé tant que cette relance n'a pas reçu de réponse ; une clé neuve après un refus. */
+export const restartSite = (siteId: string, accessToken: string, idempotencyKey: string) =>
+  sendCommand<SiteRestartOutput>('site.restart', { siteId }, accessToken, idempotencyKey);
 
 /** `idempotencyKey` : la même clé tant que la même intention n'a pas reçu de réponse (voir `Agora.tsx`). */
 export const placeOrder = (

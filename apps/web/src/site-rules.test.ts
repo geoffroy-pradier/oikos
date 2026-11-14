@@ -106,6 +106,30 @@ describe('parseSiteRules', () => {
   });
 });
 
+describe('entretien d’un site', () => {
+  it('annonce l’entretien d’un jour du type du site, coefficient compris, arrondi à l’obole supérieure', () => {
+    const upkeep = { coefficientBps: 12_500, dailyOboles: { field: 30, quarry: 60, workshop: 45 } };
+    const rules = parseSiteRules(raw({ sites: { ...config.sites, upkeep } }));
+    // 30 × 1,25 = 37,5 → 38 ; 60 × 1,25 = 75 ; 45 × 1,25 = 56,25 → 57.
+    expect(rules?.upkeepOf('grow_wheat')).toBe(38);
+    expect(rules?.upkeepOf('dig_clay')).toBe(75);
+    expect(rules?.upkeepOf('mill_flour')).toBe(57);
+    // Type sans tarif dans cette version, recette inconnue : rien n'est dû.
+    expect(rules?.upkeepOf('grow_olives')).toBe(0);
+    expect(rules?.upkeepOf('inconnue')).toBe(0);
+    expect(parseSiteRules(raw())?.upkeepOf('grow_wheat')).toBe(30);
+  });
+
+  it('version publiée avant l’entretien, ou sans section des sites : rien n’est dû ; montant invalide : lecture refusée', () => {
+    const { limitByHeadquartersLevel, acquisitionCostOboles } = config.sites;
+    const before = { limitByHeadquartersLevel, acquisitionCostOboles };
+    expect(parseSiteRules(raw({ sites: before }))?.upkeepOf('grow_wheat')).toBe(0);
+    expect(parseSiteRules(raw({ sites: null }))?.upkeepOf('dig_clay')).toBe(0);
+    const bad = { coefficientBps: 10_000, dailyOboles: { field: -1 } };
+    expect(parseSiteRules(raw({ sites: { ...config.sites, upkeep: bad } }))).toBeNull();
+  });
+});
+
 describe('previewHarvest', () => {
   const rules = parseSiteRules(raw());
   const mill = rules?.recipe('mill_flour');
@@ -122,6 +146,30 @@ describe('previewHarvest', () => {
       outputs: [{ goodId: 'wheat', quantity: 80 }],
     });
     expect(previewHarvest(field, since, after(10), () => 0).cycles).toBe(0);
+  });
+
+  it('site à l’arrêt : le temps s’arrête à l’arrêt ; un atelier à l’arrêt n’annonce rien', () => {
+    // Champ de 3,5 cycles dont les 1,25 derniers à l'arrêt : 2 cycles (80 blé), pas 3.
+    const [now, halted] = [after(3.5 * field.durationMinutes), after(2.25 * field.durationMinutes)];
+    expect(previewHarvest(field, since, now, () => 0, halted)).toMatchObject({
+      cycles: 2,
+      outputs: [{ goodId: 'wheat', quantity: 80 }],
+    });
+    expect(previewHarvest(field, since, now, () => 0, null).cycles).toBe(3);
+    // Arrêt postérieur à l'heure lue (horloge du navigateur en retard) : compté jusqu'à cette heure.
+    expect(
+      previewHarvest(field, since, now, () => 0, after(9 * field.durationMinutes)).cycles,
+    ).toBe(3);
+    // Moulin de trois cycles, du blé pour tous : à l'arrêt, ni récolte ni attente d'intrants annoncées.
+    const stocked = () => 1_000;
+    const milling = after(3 * mill.durationMinutes);
+    expect(previewHarvest(mill, since, milling, stocked, after(mill.durationMinutes))).toEqual({
+      cycles: 0,
+      waiting: 0,
+      inputs: [],
+      outputs: [],
+    });
+    expect(previewHarvest(mill, since, milling, stocked).cycles).toBe(3);
   });
 
   it('un atelier : borné par le stock libre, le reste attend', () => {

@@ -67,6 +67,47 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
 });
 
+test('site à l’arrêt : annoncé avec son entretien, « à récolter » borné à l’arrêt, relancé au clavier', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  await expect(page.getByText('Entretien : 30 oboles par jour', { exact: false })).toBeVisible();
+  await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
+
+  // Douze heures de champ (trois cycles), dont les six dernières à l'arrêt faute d'entretien payé.
+  await elapse(houseName, 720);
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set halted_at = now() - interval '6 hours'
+      where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+  await page.reload();
+  await expect(
+    page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\. Ce site ne produit plus\.$/),
+  ).toBeVisible();
+  // Six heures avant l'arrêt : un cycle entier, 40 unités de blé — pas les 120 de trois cycles.
+  await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
+  const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 30 oboles' });
+  await expect(restart).toHaveText('Relancer (30 oboles)');
+  await restart.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText(
+    "Site relancé : Champ de blé, pour 30 oboles d'entretien.",
+  );
+  await expect(page.getByText(/^2\s970 oboles$/)).toBeVisible();
+  await expect(restart).toHaveCount(0);
+  await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
+  // Le cycle gelé a repris là où il en était : toujours un cycle à récolter, pas trois.
+  await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText('Upkeep: 30 obols a day', { exact: false })).toBeVisible();
+});
+
 test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 240);
