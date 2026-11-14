@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INCOME_COLUMNS, sortRows, type IncomeColumn, type IncomeRow } from '../accounts';
 import { formatMoney } from '../money';
+import { Loading } from './LoadProblem';
 
 /** Ce que le joueur a choisi de lire : par jour ou par saison, et combien de périodes, les dernières. */
 export interface IncomeView {
@@ -27,10 +28,8 @@ export function IncomeStatement(props: {
 }) {
   const { rows, view, onView } = props;
   const { t, i18n } = useTranslation();
-  const [sort, setSort] = useState<{ column: 'period' | IncomeColumn; descending: boolean }>({
-    column: 'period',
-    descending: true,
-  });
+  type Sort = { column: 'period' | IncomeColumn; descending: boolean; changed?: true };
+  const [sort, setSort] = useState<Sort>({ column: 'period', descending: true });
   const money = (amount: number) => formatMoney(amount, t, i18n.language);
   const dates = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeZone: 'UTC' });
   const period = (row: IncomeRow) =>
@@ -48,8 +47,10 @@ export function IncomeStatement(props: {
     t(`accounts.income.${column === 'period' ? view.grouping : column}`);
 
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 className="text-xl">{t('accounts.income.title')}</h2>
+    <Card className="flex flex-col gap-3" aria-labelledby="income-statement">
+      <h2 id="income-statement" className="text-xl">
+        {t('accounts.income.title')}
+      </h2>
       <p className="text-sm text-muted-foreground">{t('accounts.income.intro')}</p>
       <div className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1 text-sm">
@@ -83,67 +84,86 @@ export function IncomeStatement(props: {
           </select>
         </label>
       </div>
-      {rows === undefined && <p role="status">{t('app.loading')}</p>}
+      {rows === undefined && <Loading />}
       {rows?.length === 0 && <p>{t('accounts.income.empty')}</p>}
-      <ul className="flex flex-col gap-3 lg:hidden">
-        {sorted.map((row) => (
-          <li key={row.firstDay ?? 'unknown'} className="rounded-md border border-border p-3">
-            <h3 className="text-lg">{period(row)}</h3>
-            <dl>
-              {INCOME_COLUMNS.map((column) => (
-                <div key={column} className="flex flex-wrap items-baseline justify-between gap-x-4">
-                  <dt>{label(column)}</dt>
-                  <dd>{money(row[column])}</dd>
-                </div>
-              ))}
-            </dl>
-          </li>
-        ))}
-      </ul>
       {sorted.length > 0 && (
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">{t('accounts.income.title')}</caption>
-            <thead>
-              <tr>
-                {(['period', ...INCOME_COLUMNS] as const).map((column) => (
-                  <th
-                    key={column}
-                    scope="col"
-                    className="pr-3 align-bottom"
-                    {...(by === column && { 'aria-sort': descending ? 'descending' : 'ascending' })}
-                  >
-                    <button
-                      type="button"
-                      className="inline-flex min-h-11 items-center gap-1 text-left font-semibold"
-                      // Même colonne : sens inverse. Autre colonne : du plus récent ou du plus grand au plus petit.
-                      onClick={() =>
-                        setSort({ column, descending: by === column ? !descending : true })
-                      }
-                    >
-                      {label(column)}
-                      {by === column && <span aria-hidden="true">{descending ? '▼' : '▲'}</span>}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((row) => (
-                <tr key={row.firstDay ?? 'unknown'} className="border-t border-border">
-                  <th scope="row" className="py-2 pr-3 font-normal">
-                    {period(row)}
-                  </th>
+        <>
+          <ul className="flex flex-col gap-3 lg:hidden">
+            {sorted.map((row) => (
+              <li key={row.firstDay ?? 'unknown'} className="rounded-md border border-border p-3">
+                <h3 className="text-lg">{period(row)}</h3>
+                <dl>
                   {INCOME_COLUMNS.map((column) => (
-                    <td key={column} className="py-2 pr-3">
-                      {money(row[column])}
-                    </td>
+                    <div
+                      key={column}
+                      className="flex flex-wrap items-baseline justify-between gap-x-4"
+                    >
+                      <dt>{label(column)}</dt>
+                      <dd>{money(row[column])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            ))}
+          </ul>
+          {/* Douze colonnes, montants gardés sur une ligne : le tableau défile dans sa carte. */}
+          <div className="hidden overflow-x-auto lg:block">
+            {/* Le tri changé est annoncé aux lecteurs d'écran, comme pour les stocks valorisés. */}
+            <p role="status" className="sr-only">
+              {sort.changed &&
+                t(descending ? 'accounts.sortedDescending' : 'accounts.sortedAscending', {
+                  column: label(by),
+                })}
+            </p>
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">{t('accounts.income.title')}</caption>
+              <thead>
+                <tr>
+                  {(['period', ...INCOME_COLUMNS] as const).map((column) => (
+                    <th
+                      key={column}
+                      scope="col"
+                      className="pr-3 align-bottom"
+                      {...(by === column && {
+                        'aria-sort': descending ? 'descending' : 'ascending',
+                      })}
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 items-center gap-1 text-left font-semibold"
+                        // Même colonne : sens inverse. Autre colonne : du plus récent ou du plus grand au plus petit.
+                        onClick={() =>
+                          setSort({
+                            column,
+                            descending: by !== column || !descending,
+                            changed: true,
+                          })
+                        }
+                      >
+                        {label(column)}
+                        {by === column && <span aria-hidden="true">{descending ? '▼' : '▲'}</span>}
+                      </button>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {sorted.map((row) => (
+                  <tr key={row.firstDay ?? 'unknown'} className="border-t border-border">
+                    <th scope="row" className="py-2 pr-3 font-normal whitespace-nowrap">
+                      {period(row)}
+                    </th>
+                    {INCOME_COLUMNS.map((column) => (
+                      <td key={column} className="py-2 pr-3 whitespace-nowrap">
+                        {money(row[column])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </Card>
   );

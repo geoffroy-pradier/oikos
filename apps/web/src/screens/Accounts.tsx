@@ -12,6 +12,7 @@ import { useRows } from '../data';
 import { useHouse } from '../house';
 import { formatMoney } from '../money';
 import { IncomeStatement, type IncomeView } from './IncomeStatement';
+import { Loading } from './LoadProblem';
 import { ValuedStocks } from './ValuedStocks';
 
 /** Une ligne de libellé et de valeur ; la valeur passe sous le libellé quand la fiche est étroite. */
@@ -87,12 +88,14 @@ export function AccountsScreen() {
           <Button onClick={retry}>{t('app.retry')}</Button>
         </Card>
       ) : (
-        !(sheet && stocks) && <p role="status">{t('app.loading')}</p>
+        !(sheet && stocks) && <Loading />
       )}
 
       {sheet && (
-        <Card>
-          <h2 className="text-xl">{t('accounts.balanceSheet')}</h2>
+        <Card aria-labelledby="balance-sheet">
+          <h2 id="balance-sheet" className="text-xl">
+            {t('accounts.balanceSheet')}
+          </h2>
           <dl>
             {(['treasury', 'escrow', 'stockValue', 'total'] as const).map((line) => (
               <div

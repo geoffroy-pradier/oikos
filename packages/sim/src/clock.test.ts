@@ -207,9 +207,11 @@ describe('jour de jeu et instant de clôture', () => {
 
   it('la date d’un jour de jeu est le jour civil local de la clôture qui l’ouvre, quel que soit le fuseau', () => {
     expect(gameDayDate(day('2026-11-14')).toISOString()).toBe('2026-11-14T00:00:00.000Z');
+    // Cent tirages, à partir du 1er janvier 2000 : un jour civil qu'un fuseau a sauté n'a pas de
+    // clôture à lui (Kiritimati n'a pas eu de 31 décembre 1994 en changeant de côté de la ligne de date).
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 40_000 }),
+        fc.integer({ min: day('2000-01-01'), max: day('2100-01-01') }),
         fc.integer({ min: 0, max: 23 }),
         fc.constantFrom('Europe/Paris', 'Pacific/Kiritimati', 'America/Los_Angeles', 'UTC'),
         (gameDay, dailyCloseHour, timezone) => {

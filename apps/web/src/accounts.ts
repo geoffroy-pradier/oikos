@@ -117,7 +117,8 @@ export type IncomeRow = Record<IncomeColumn, number> & {
   lastDay: number | null;
 };
 
-const gameDay = z.number().int().nullable();
+/** Rang d'un jour de jeu, du 1er janvier 1970 au 31 décembre 9999 : au-delà, aucune date à afficher. */
+const gameDay = z.number().int().min(0).max(2_932_896).nullable();
 const amount = Object.fromEntries(INCOME_COLUMNS.map((column) => [column, obols]));
 const amounts = z.object(amount as Record<IncomeColumn, typeof obols>);
 const incomeSchema = z.union([

@@ -147,6 +147,10 @@ describe('compte de résultat lu par le client', () => {
     null,
     [sums],
     [{ ...day, game_day: 1.5 }],
+    // Hors de la plage des dates affichables : avant 1970, après l'an 9999.
+    [{ ...day, game_day: -1 }],
+    [{ ...day, game_day: 2_932_897 }],
+    [{ ...season, first_game_day: 2_932_890, last_game_day: 1e9 }],
     [{ ...day, sales: '160' }],
     [{ ...day, escrow_change: undefined }],
     [{ ...day, upkeep: 2 ** 53 }],
