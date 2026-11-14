@@ -177,7 +177,9 @@ export function AgoraScreen() {
         {book.rows?.length === 0 ? (
           <p className="text-muted-foreground">{t('agora.bookEmpty')}</p>
         ) : (
-          <table className="w-full text-left">
+          // Colonnes de largeur fixe et mots sécables : en police agrandie sur petit écran, le tableau
+          // se resserre au lieu de faire défiler la page.
+          <table className="w-full table-fixed text-left [overflow-wrap:anywhere]">
             <caption className="text-left text-sm text-muted-foreground">
               {t('agora.bookCaption')}
             </caption>
