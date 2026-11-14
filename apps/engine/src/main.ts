@@ -6,14 +6,19 @@ import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { npcDemand } from './steps/npc-demand';
 import { observedPricesStep } from './steps/observed-prices';
 import { priceCandlesStep } from './steps/price-candles';
+import { siteUpkeep } from './steps/site-upkeep';
 import type { TickStep } from './tick';
 
 const QUEUE = 'world-clock';
 /** Étapes du tick, dans l'ordre : les chandeliers résument aussi les achats que les PNJ viennent de faire. */
 const STEPS: readonly TickStep[] = [npcDemand, priceCandlesStep, observedPricesStep];
 
-/** Étapes de la clôture quotidienne, dans l'ordre. */
-const CLOSE_STEPS: readonly CloseStep[] = [];
+/**
+ * Étapes de la clôture quotidienne, dans l'ordre. L'entretien reste la DERNIÈRE : il tient le verrou des
+ * appariements du monde, le puits et les trésoreries jusqu'à la validation de la clôture, et tout ce
+ * qui s'exécuterait après lui allongerait l'attente des ordres, des récoltes et des relances.
+ */
+const CLOSE_STEPS: readonly CloseStep[] = [siteUpkeep];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');

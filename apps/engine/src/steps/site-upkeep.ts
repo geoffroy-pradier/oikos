@@ -1,3 +1,4 @@
+import { upkeepSettledSchema } from '@oikos/contracts';
 import { dailyUpkeep, settleUpkeep, type SystemAccountKey } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
@@ -11,6 +12,7 @@ const SINK: SystemAccountKey = 'sink_upkeep';
  * paie ; le total part au puits par une écriture du grand livre, qui enregistre la décision (maison,
  * jour de jeu, sites payés). Un site impayé s'arrête, un site à l'arrêt qui est payé repart. Un site
  * dont la recette n'est plus dans la configuration n'a plus de type, donc pas d'entretien.
+ * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
  */
 export const siteUpkeep: CloseStep = {
   name: 'siteUpkeep',
@@ -115,6 +117,14 @@ export const siteUpkeep: CloseStep = {
           })
           .where('id', 'in', resumed)
           .execute();
+      const event = upkeepSettledSchema.parse({
+        type: 'UpkeepSettled',
+        payload: { houseId, gameDay, paidOboles: total, paid, unpaid, halted, resumed },
+      });
+      await trx
+        .insertInto('game.domain_events')
+        .values({ command_id: null, type: event.type, payload: JSON.stringify(event.payload) })
+        .execute();
       totals.houses += 1;
       totals.paidOboles += total;
       // Un site au dû nul (recette retirée) est réglé sans rien payer : il n'est pas compté comme payé.
