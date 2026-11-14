@@ -79,6 +79,7 @@ export const SITE_SET_RECIPE_ERROR_CODES = [
   'RECIPE_NOT_COMPATIBLE',
   'RECIPE_UNCHANGED',
   'COLLECT_FIRST',
+  'SITE_CHANGED',
 ] as const;
 export type SiteSetRecipeErrorCode = (typeof SITE_SET_RECIPE_ERROR_CODES)[number];
 

@@ -16,7 +16,9 @@ import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
+import { siteAcquire } from './commands/site-acquire';
 import { siteCollect } from './commands/site-collect';
+import { siteSetRecipe } from './commands/site-set-recipe';
 import type { RateLimiter } from './rate-limit';
 import { executeCommand, type CommandDefinition, type ConfigSource } from './registry';
 
@@ -36,6 +38,8 @@ export const COMMANDS = [
   houseCreate,
   houseRename,
   siteCollect,
+  siteAcquire,
+  siteSetRecipe,
   marketPlaceOrder,
   marketCancelOrder,
   adminPublishConfig,
