@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
-import { previewHarvest } from '../site-rules';
+import { freeStockIn, previewHarvest, type StockLine } from '../site-rules';
 
 interface Site {
   id: string;
@@ -22,12 +22,6 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
  * (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). `onChanged` : la trésorerie ou le stock ont pu bouger.
  */
-interface StockLine {
-  good_id: string;
-  quantity: number;
-  reserved: number;
-}
-
 export function SitesCard({
   stock,
   onChanged,
@@ -65,11 +59,8 @@ export function SitesCard({
       quantity: number.format(stack.quantity),
       good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
     });
-  // Stock libre : ce que des ventes en attente ont réservé n'est pas consommé par un atelier.
-  const freeStock = (goodId: string) => {
-    const line = stock?.find((candidate) => candidate.good_id === goodId);
-    return line ? line.quantity - line.reserved : 0;
-  };
+  // Les sites de la maison sont dans sa cité : c'est ce stock-là, et lui seul, qu'un atelier consomme.
+  const freeStock = (goodId: string) => freeStockIn(stock ?? [], house.cityId, goodId);
   // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {

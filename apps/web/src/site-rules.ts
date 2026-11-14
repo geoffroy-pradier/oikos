@@ -109,3 +109,21 @@ export function previewHarvest(
     outputs: scaled(recipe.outputs),
   };
 }
+
+export interface StockLine {
+  city_id: string;
+  good_id: string;
+  quantity: number;
+  reserved: number;
+}
+
+/**
+ * Stock libre d'un bien dans une cité : ce que des ventes en attente ont réservé n'est pas consommé
+ * par un atelier, et un site ne puise que dans le stock de sa propre cité.
+ */
+export function freeStockIn(stock: readonly StockLine[], cityId: string, goodId: string): number {
+  const line = stock.find(
+    (candidate) => candidate.city_id === cityId && candidate.good_id === goodId,
+  );
+  return line ? line.quantity - line.reserved : 0;
+}

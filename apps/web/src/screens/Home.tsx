@@ -9,6 +9,7 @@ interface Treasury {
 }
 interface Inventory {
   id: string;
+  city_id: string;
   good_id: string;
   quantity: number;
   reserved: number;
@@ -19,7 +20,11 @@ export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const treasury = useRows<Treasury>('my_treasury', 'balance', 'house_id');
-  const stock = useRows<Inventory>('my_inventories', 'id, good_id, quantity, reserved', 'good_id');
+  const stock = useRows<Inventory>(
+    'my_inventories',
+    'id, city_id, good_id, quantity, reserved',
+    'good_id',
+  );
 
   const number = new Intl.NumberFormat(i18n.language);
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.

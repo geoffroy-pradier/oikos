@@ -505,7 +505,9 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await page.getByLabel('Site à acquérir').selectOption('mill_flour');
   await page.getByRole('button', { name: 'Acquérir' }).click();
   await expect(page.getByRole('status')).toContainText('Site acquis : Moulin');
-  const mill = page.getByRole('listitem').filter({ hasText: 'Moulin' });
+  const mill = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: 'Moulin' }) });
   await expect(mill.getByText('Intrants par cycle :')).toBeVisible();
   await expect(mill.getByText('10 × Blé (stock libre : 80)')).toBeVisible();
   await expect(mill.getByText("Rien à récolter pour l'instant.")).toBeVisible();
@@ -521,8 +523,28 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(page.getByText('Farine : 16', { exact: true })).toBeVisible();
   await expect(mill.getByText('10 × Blé (stock libre : 60)')).toBeVisible();
 
-  // Dix heures de plus, du blé pour six moutures : quatre cycles attendent, et l'écran le dit.
-  await elapse(houseName, 600);
+  // Une vente en attente réserve 55 blés : il n'en reste que 5 de libres, pas de quoi moudre.
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
+  await page.getByLabel('Quantité', { exact: true }).fill('55');
+  await page.getByRole('button', { name: "Déposer l'ordre" }).click();
+  await expect(page.getByRole('status')).toContainText('Vente déposée : 55 × Blé');
+  await elapse(houseName, 60);
+  await nav.getByRole('link', { name: 'Maison' }).click();
+  await expect(mill.getByText('10 × Blé (stock libre : 5)')).toBeVisible();
+  await expect(
+    mill.getByText("Rien à récolter pour l'instant. 1 cycle attend des intrants."),
+  ).toBeVisible();
+  // La vente annulée, le blé redevient libre : le cycle en attente est récoltable.
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await page.getByRole('button', { name: 'Annuler la vente de 55 × Blé à 900 oboles' }).click();
+  await expect(page.getByRole('status')).toContainText('Vente annulée');
+  await nav.getByRole('link', { name: 'Maison' }).click();
+  await expect(mill.getByText('À récolter : 8 × Farine.')).toBeVisible();
+
+  // Neuf heures de plus (dix cycles dus), du blé pour six moutures : quatre attendent, l'écran le dit.
+  await elapse(houseName, 540);
   await page.reload();
   await expect(
     mill.getByText('À récolter : 48 × Farine. 4 cycles attendent des intrants.'),

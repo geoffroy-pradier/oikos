@@ -1,7 +1,7 @@
 import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { parseSiteRules, previewHarvest } from './site-rules';
+import { freeStockIn, parseSiteRules, previewHarvest } from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
@@ -139,8 +139,38 @@ describe('previewHarvest', () => {
     });
   });
 
+  it('ne dépasse pas le plafond d’accumulation du site', () => {
+    const long = after(100 * 60);
+    expect(mill.maxAccruedCycles).toBeLessThan(100);
+    expect(previewHarvest(mill, since, long, () => 100_000).cycles).toBe(mill.maxAccruedCycles);
+    expect(previewHarvest(mill, since, long, () => 0)).toMatchObject({
+      cycles: 0,
+      waiting: mill.maxAccruedCycles,
+    });
+  });
+
   it('un stock libre négatif ou fractionnaire lu par erreur ne fait rien tourner de trop', () => {
     expect(previewHarvest(mill, since, after(600), () => -5).cycles).toBe(0);
     expect(previewHarvest(mill, since, after(600), () => 19.9).cycles).toBe(1);
+  });
+});
+
+describe('freeStockIn', () => {
+  const stock = [
+    { city_id: 'ailleurs', good_id: 'wheat', quantity: 500, reserved: 0 },
+    { city_id: 'ici', good_id: 'wheat', quantity: 80, reserved: 75 },
+    { city_id: 'ici', good_id: 'flour', quantity: 12, reserved: 0 },
+  ];
+
+  it('retire ce que des ventes ont réservé', () => {
+    expect(freeStockIn(stock, 'ici', 'wheat')).toBe(5);
+    expect(freeStockIn(stock, 'ici', 'flour')).toBe(12);
+  });
+
+  it('ne compte que le stock de la cité du site, et zéro pour un bien absent', () => {
+    expect(freeStockIn(stock, 'ailleurs', 'wheat')).toBe(500);
+    expect(freeStockIn(stock, 'ailleurs', 'flour')).toBe(0);
+    expect(freeStockIn(stock, 'ici', 'charcoal')).toBe(0);
+    expect(freeStockIn([], 'ici', 'wheat')).toBe(0);
   });
 });
