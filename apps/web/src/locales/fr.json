@@ -304,6 +304,28 @@
     "priceAt": "{{price}} (calculé le {{date}})",
     "noPrice": "Aucun prix observé",
     "value": "Valeur",
-    "notValued": "Non valorisé"
+    "notValued": "Non valorisé",
+    "income": {
+      "title": "Compte de résultat",
+      "intro": "Au flux de trésorerie : un produit ou une charge compte le jour où la monnaie change de mains ; une charge est négative. Une journée de jeu commence à la clôture quotidienne.",
+      "groupBy": "Regrouper par",
+      "day": "Journée",
+      "season": "Saison",
+      "shown": "Périodes affichées",
+      "latest": "Les {{count}} dernières",
+      "empty": "Aucun mouvement de monnaie sur ces périodes.",
+      "unknown": "Période inconnue",
+      "sales": "Ventes",
+      "purchases": "Achats",
+      "taxes": "Taxes",
+      "upkeep": "Entretien",
+      "operating_result": "Résultat d'exploitation",
+      "acquisitions": "Acquisitions de sites",
+      "grants": "Dotations",
+      "other": "Autres mouvements",
+      "non_operating": "Hors exploitation",
+      "cash_change": "Variation de la monnaie",
+      "escrow_change": "dont séquestre"
+    }
   }
 }

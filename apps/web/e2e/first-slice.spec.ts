@@ -760,7 +760,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(page.getByText('4 cycles are waiting for inputs.')).toBeVisible();
 });
 
-test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, triés et réessayés au clavier', async ({
+test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et oboles, triés et réessayés au clavier', async ({
   page,
 }) => {
   const houseName = await foundHouse(page);
@@ -785,6 +785,26 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
   // « Réessayer » a disparu avec l'échec : le foyer est revenu au titre, pas perdu sur la page.
   await expect(title).toBeFocused();
 
+  // Fiches à 360 px, tableaux sur ordinateur : les mêmes valeurs, cherchées dans la carte du compte.
+  const wide = (page.viewportSize()?.width ?? 0) >= 1024;
+  const card = (name: string) =>
+    page.locator('section').filter({ has: page.getByRole('heading', { name }) });
+  // Compte de résultat : rien à l'exploitation (5e montant) ; la dotation de départ (7e) fait toute la
+  // variation de la monnaie (10e), à la date de sa journée de jeu, puis dans sa saison.
+  const income = card('Compte de résultat');
+  const amounts = income.locator(wide ? 'td' : 'dd');
+  await expect(income.locator(wide ? 'tbody th' : 'h3')).toHaveText(/^\d{1,2}\S* \S+ \d{4}$/);
+  await expect(amounts).toHaveCount(11);
+  await expect(amounts.nth(4)).toHaveText('0 obole');
+  await expect(amounts.nth(6)).toHaveText('500 drachmes');
+  await income.getByLabel('Regrouper par').selectOption('season');
+  await expect(income.locator(wide ? 'tbody th' : 'h3')).toHaveText(/^\d.*–.*\d{4}$/);
+  await expect(amounts.nth(9)).toHaveText('500 drachmes');
+  // Davantage de périodes : toujours une lecture bornée aux dernières, jamais tout l'historique.
+  const bounded = page.waitForRequest(/my_income_statement_by_season.*limit=30/);
+  await income.getByLabel('Périodes affichées').selectOption('30');
+  await bounded;
+
   const line = (label: string) =>
     page
       .locator('dl > div')
@@ -806,7 +826,6 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
     await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
     await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
     // Stocks valorisés : une fiche à 360 px, une ligne de tableau sur ordinateur, mêmes valeurs.
-    const wide = (page.viewportSize()?.width ?? 0) >= 1024;
     const stock = (good: string) =>
       wide
         ? page.getByRole('row', { name: new RegExp(`^${good}`) })
@@ -825,7 +844,7 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
       await route.fulfill({ response, json: [clay, ...rows] });
     });
     await page.reload();
-    const goods = wide ? page.getByRole('rowheader') : page.getByRole('heading', { level: 3 });
+    const goods = card('Stocks valorisés').locator(wide ? 'tbody th' : 'h3');
     await expect(goods).toHaveText(['Blé', 'Argile']);
     await expect(stock('Argile')).toContainText(/Aucun prix observé.*Non valorisé/);
     if (wide) {
@@ -837,6 +856,11 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
       await expect(header('Bien')).toHaveAttribute('aria-sort', 'ascending');
       await expect(header('Valeur')).not.toHaveAttribute('aria-sort', /./);
       await expect(goods).toHaveText(['Argile', 'Blé']);
+      await expect(header('Journée')).toHaveAttribute('aria-sort', 'descending');
+      await header('Ventes').getByRole('button').focus();
+      await page.keyboard.press('Enter');
+      await expect(header('Ventes')).toHaveAttribute('aria-sort', 'descending');
+      await expect(header('Journée')).not.toHaveAttribute('aria-sort', /./);
     }
     await expectNoHorizontalScroll(page);
     await page.getByLabel('Langue').selectOption('en');

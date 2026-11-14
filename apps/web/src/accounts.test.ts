@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseBalanceSheet, parseValuedStocks, sortRows } from './accounts';
+import { parseBalanceSheet, parseIncomeStatement, parseValuedStocks, sortRows } from './accounts';
 
 const sheet = { treasury: 2990, escrow: 10, stock_value: 280, unpriced_stocks: 1 };
 
@@ -104,4 +104,49 @@ describe('tri des tableaux de comptes', () => {
     expect(byName(false)).toEqual(['Argile', 'Blé', 'Écorce', 'Sel', 'Vin']);
     expect(byName(true)).toEqual(['Vin', 'Sel', 'Écorce', 'Blé', 'Argile']);
   });
+});
+
+describe('compte de résultat lu par le client', () => {
+  const operating = { sales: 160, purchases: -40, taxes: -8, upkeep: -30, operating_result: 82 };
+  const beyond = { acquisitions: -600, grants: 3000, other: 0, non_operating: 2400 };
+  const sums = { ...operating, ...beyond, cash_change: 2482, escrow_change: 12 };
+  const day = { ...sums, game_day: 20_771 };
+  const season = { ...sums, first_game_day: 20_766, last_game_day: 20_772 };
+
+  const period = (firstDay: number | null, lastDay: number | null) => [
+    { ...sums, firstDay, lastDay },
+  ];
+
+  it('un jour est une période d’un jour, une saison va de son premier à son dernier jour', () => {
+    expect(parseIncomeStatement([day])).toMatchObject(period(20_771, 20_771));
+    expect(parseIncomeStatement([season])).toMatchObject(period(20_766, 20_772));
+    expect(parseIncomeStatement([])).toEqual([]);
+  });
+
+  it('horloge inconnue : période sans jour, montants gardés', () => {
+    const lost = { ...season, first_game_day: null, last_game_day: null };
+    expect(parseIncomeStatement([{ ...day, game_day: null }])).toMatchObject(period(null, null));
+    expect(parseIncomeStatement([lost])).toMatchObject(period(null, null));
+  });
+
+  it.each([
+    null,
+    [sums],
+    [{ ...day, game_day: 1.5 }],
+    [{ ...day, sales: '160' }],
+    [{ ...day, escrow_change: undefined }],
+    [{ ...day, upkeep: 2 ** 53 }],
+    // Totaux qui ne tombent pas juste : exploitation, hors exploitation, variation de la monnaie.
+    [{ ...day, operating_result: 83, cash_change: 2483 }],
+    [{ ...day, non_operating: 2401, cash_change: 2483 }],
+    [{ ...day, cash_change: 2481 }],
+    [{ ...season, last_game_day: null }],
+    [{ ...season, first_game_day: 20_773 }],
+    [day, { ...day, taxes: 0 }],
+  ])(
+    'ligne illisible ou compte faux (%j) : résultat inconnu, jamais « aucun mouvement »',
+    (raw) => {
+      expect(parseIncomeStatement(raw)).toBeNull();
+    },
+  );
 });

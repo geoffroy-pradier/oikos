@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dailyCloseAt,
   gameDayAt,
+  gameDayDate,
   isDailyClose,
   isSeasonSwitch,
   localTime,
@@ -202,6 +203,22 @@ describe('jour de jeu et instant de clôture', () => {
     // En été, 04 h 00 à Paris est 02 h 00 UTC.
     expect(gameDayAt(new Date('2026-07-15T01:59:59Z'), PARIS)).toBe(day('2026-07-14'));
     expect(gameDayAt(new Date('2026-07-15T02:00:00Z'), PARIS)).toBe(day('2026-07-15'));
+  });
+
+  it('la date d’un jour de jeu est le jour civil local de la clôture qui l’ouvre, quel que soit le fuseau', () => {
+    expect(gameDayDate(day('2026-11-14')).toISOString()).toBe('2026-11-14T00:00:00.000Z');
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 40_000 }),
+        fc.integer({ min: 0, max: 23 }),
+        fc.constantFrom('Europe/Paris', 'Pacific/Kiritimati', 'America/Los_Angeles', 'UTC'),
+        (gameDay, dailyCloseHour, timezone) => {
+          const opening = localTime(dailyCloseAt(gameDay, { dailyCloseHour, timezone }), timezone);
+          const civil = Date.UTC(opening.year, opening.month - 1, opening.day);
+          expect(gameDayDate(gameDay).getTime()).toBe(civil);
+        },
+      ),
+    );
   });
 
   it('la clôture d’un jour est celle que porte le tick de clôture, hiver, été et changements d’heure', () => {

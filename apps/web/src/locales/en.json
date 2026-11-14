@@ -304,6 +304,28 @@
     "priceAt": "{{price}} (computed on {{date}})",
     "noPrice": "No observed price",
     "value": "Value",
-    "notValued": "Not valued"
+    "notValued": "Not valued",
+    "income": {
+      "title": "Income statement",
+      "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close.",
+      "groupBy": "Group by",
+      "day": "Day",
+      "season": "Season",
+      "shown": "Periods shown",
+      "latest": "Last {{count}}",
+      "empty": "No money moved over these periods.",
+      "unknown": "Unknown period",
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "taxes": "Taxes",
+      "upkeep": "Upkeep",
+      "operating_result": "Operating result",
+      "acquisitions": "Site acquisitions",
+      "grants": "Grants",
+      "other": "Other movements",
+      "non_operating": "Non-operating",
+      "cash_change": "Change in money",
+      "escrow_change": "of which escrow"
+    }
   }
 }

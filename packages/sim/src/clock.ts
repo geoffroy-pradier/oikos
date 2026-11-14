@@ -94,6 +94,15 @@ export function dailyCloseAt(gameDay: number, clock: DayClock): Date {
   return new Date(time);
 }
 
+/**
+ * Date civile d'un jour de jeu, rendue à minuit UTC et à afficher en UTC : celle du jour local dont la
+ * clôture l'ouvre (il court jusqu'à la clôture du lendemain). Inverse de `gameDayAt` qui se passe
+ * d'horloge : le rang d'un jour de jeu est celui de ce jour civil.
+ */
+export function gameDayDate(gameDay: number): Date {
+  return new Date(gameDay * DAY_MS);
+}
+
 /** Indice de la saison du jour local du tick. Une saison commence un lundi (pour `seasonDays` = 7). */
 export function seasonIndexAt(index: number, clock: ClockSettings): number {
   const gameDay = gameDayAt(tickStart(index, clock.tickMinutes), clock);
