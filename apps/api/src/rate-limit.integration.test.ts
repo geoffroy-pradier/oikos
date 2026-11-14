@@ -64,8 +64,28 @@ describe('limite de débit partagée', () => {
     const refused = await limiter.hit(mine);
     expect(refused.allowed).toBe(false);
     const wait = refused.allowed ? 0 : refused.retryAfterSeconds;
-    expect(wait).toBeGreaterThanOrEqual(1);
-    expect(wait).toBeLessThanOrEqual(60);
+    // Le délai annoncé est ce qui reste de la minute en cours, à une seconde près.
+    const left = Math.ceil((60_000 - (Date.now() % 60_000)) / 1000);
+    expect(Math.abs(wait - left)).toBeLessThanOrEqual(1);
+    // Insister ne coûte plus rien à la base : le refus suivant vient de la mémoire de la réplique.
+    const countOf = async () =>
+      Number(
+        (
+          await owner
+            .selectFrom('telemetry.rate_windows')
+            .select('count')
+            .where('key', '=', mine)
+            .executeTakeFirstOrThrow()
+        ).count,
+      );
+    const counted = await countOf();
+    for (let n = 0; n < 5; n += 1) expect((await limiter.hit(mine)).allowed).toBe(false);
+    expect(await countOf()).toBe(counted);
+    // Une autre réplique, elle, interroge la base : même refus.
+    expect(
+      (await createSharedRateLimiter(db, { limit: 1, windowMs: 60_000 }).hit(mine)).allowed,
+    ).toBe(false);
+    expect(await countOf()).toBe(counted + 1);
   });
 
   it('rouvre à la fenêtre suivante', async () => {

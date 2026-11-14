@@ -75,8 +75,19 @@ export function createSharedRateLimiter(
   fallback: RateLimiter = createRateLimiter(settings),
 ): RateLimiter & { prune(): Promise<void> } {
   const { limit, windowMs } = settings;
+  // Clés déjà refusées, jusqu'à la fin de leur fenêtre (heure locale) : un compte qui insiste est refusé
+  // sans nouvelle écriture en base. La base reste seule juge de la première tentative refusée.
+  const refusedUntil = new Map<string, number>();
+  let failureLoggedAt = 0;
   return {
     async hit(key) {
+      const until = refusedUntil.get(key);
+      if (until !== undefined) {
+        const left = until - Date.now();
+        if (left > 0)
+          return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(left / 1000)) };
+        refusedUntil.delete(key);
+      }
       try {
         const result = await sql<{ count: number; wait_ms: string }>`
           with slot as (
@@ -91,12 +102,20 @@ export function createSharedRateLimiter(
         const row = result.rows[0];
         if (!row) throw new Error('The rate window returned no row');
         if (row.count <= limit) return { allowed: true };
-        return {
-          allowed: false,
-          retryAfterSeconds: Math.max(1, Math.ceil(Number(row.wait_ms) / 1000)),
-        };
+        const waitMs = Math.max(0, Number(row.wait_ms));
+        // Mémoire bornée : les refus échus sont retirés quand la carte grossit.
+        if (refusedUntil.size > 10_000) {
+          const time = Date.now();
+          for (const [other, end] of refusedUntil) if (end <= time) refusedUntil.delete(other);
+        }
+        refusedUntil.set(key, Date.now() + waitMs);
+        return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)) };
       } catch (error) {
-        console.error('Shared rate limit unavailable, counting in memory', error);
+        // Une panne de base produirait une ligne par requête : une par minute suffit à la signaler.
+        if (Date.now() - failureLoggedAt >= 60_000) {
+          failureLoggedAt = Date.now();
+          console.error('Shared rate limit unavailable, counting in memory', error);
+        }
         return fallback.hit(key);
       }
     },

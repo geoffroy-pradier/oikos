@@ -19,9 +19,11 @@ select ok(has_table_privilege('oikos_service', 'telemetry.rate_windows', 'insert
 -- Purge : fenêtres closes depuis plus d'une heure seulement.
 insert into telemetry.rate_windows (key, window_start, count) values
   ('old:house.rename', now() - interval '61 minutes', 9), ('recent:house.rename', now() - interval '59 minutes', 9);
-select is(telemetry.prune_rate_windows(), 1::bigint, 'la purge dit combien de fenêtres elle retire');
-select is((select string_agg(key, ' ' order by key) from telemetry.rate_windows), 'alice:house.rename recent:house.rename',
-  'les fenêtres récentes restent');
+-- La base peut contenir d'autres fenêtres (suite d'intégration) : seules celles du test sont regardées.
+select cmp_ok(telemetry.prune_rate_windows(), '>=', 1::bigint, 'la purge dit combien de fenêtres elle retire');
+select is((select string_agg(key, ' ' order by key) from telemetry.rate_windows
+           where key in ('alice:house.rename', 'old:house.rename', 'recent:house.rename')),
+  'alice:house.rename recent:house.rename', 'la fenêtre close depuis plus d''une heure disparaît, les récentes restent');
 select ok(has_function_privilege('oikos_service', 'telemetry.prune_rate_windows()', 'execute')
   and not has_function_privilege('authenticated', 'telemetry.prune_rate_windows()', 'execute')
   and not has_function_privilege('anon', 'telemetry.prune_rate_windows()', 'execute'), 'seul le service purge');

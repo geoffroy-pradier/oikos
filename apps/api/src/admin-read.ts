@@ -238,7 +238,9 @@ export function registerAdminReads(
         'config_version_id',
         'created_at',
       ])
-      .where('command', 'like', 'admin.%')
+      // Motif écrit en littéral, comme dans la définition de l'index partiel : le planificateur le
+      // reconnaît même avec un plan générique.
+      .where(sql<boolean>`command like 'admin.%'`)
       .orderBy('id', 'desc')
       .limit(limit);
     if (before) query = query.where('id', '<', before);
