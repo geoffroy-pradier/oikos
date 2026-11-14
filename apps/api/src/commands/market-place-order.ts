@@ -104,6 +104,7 @@ export const marketPlaceOrder = defineCommand({
       .selectFrom('game.accounts')
       .select(['id', 'balance'])
       .where('house_id', '=', house.id)
+      .where('kind', '=', 'house')
       .forUpdate()
       .executeTakeFirstOrThrow();
     const asks = await trx
@@ -156,6 +157,7 @@ export const marketPlaceOrder = defineCommand({
         .selectFrom('game.accounts')
         .select('id')
         .where('house_id', '=', sellerId)
+        .where('kind', '=', 'house')
         .executeTakeFirstOrThrow();
       const origin = await stockOf(sellerId).executeTakeFirstOrThrow();
       const amount = trade.price * trade.quantity;

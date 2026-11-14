@@ -66,7 +66,7 @@ export interface GameDatabase {
   'game.accounts': {
     id: Generated<string>;
     world_id: string;
-    kind: 'house' | 'system';
+    kind: 'house' | 'system' | 'escrow';
     house_id: string | null;
     system_key: string | null;
     allow_negative: Generated<boolean>;

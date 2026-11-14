@@ -54,6 +54,7 @@ export const siteAcquire = defineCommand({
       .selectFrom('game.accounts')
       .select(['id', 'balance'])
       .where('house_id', '=', house.id)
+      .where('kind', '=', 'house')
       .forUpdate()
       .executeTakeFirstOrThrow();
     if (Number(account.balance) < costOboles)

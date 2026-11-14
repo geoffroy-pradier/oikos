@@ -117,6 +117,7 @@ export const npcDemand: TickStep = {
             .selectFrom('game.accounts')
             .select('id')
             .where('house_id', '=', sellerId)
+            .where('kind', '=', 'house')
             .executeTakeFirstOrThrow();
           const origin = await trx
             .selectFrom('game.inventories')
