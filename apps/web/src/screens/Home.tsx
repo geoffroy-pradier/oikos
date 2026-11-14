@@ -1,4 +1,5 @@
 import { Card } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
@@ -59,6 +60,12 @@ export function HomeScreen() {
         {held > 0 && (
           <p className="text-muted-foreground">{t('home.held', { amount: number.format(held) })}</p>
         )}
+        <Link
+          to="/comptes"
+          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        >
+          {t('home.accounts')}
+        </Link>
       </Card>
 
       <Card>

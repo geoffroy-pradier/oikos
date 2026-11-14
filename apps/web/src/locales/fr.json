@@ -74,7 +74,25 @@
     "restartSite": "Relancer : {{site}}, pour {{cost}} oboles",
     "restarted": "Site relancé : {{site}}, pour {{cost}} oboles d'entretien.",
     "alreadyRestarted": "Ce site était déjà relancé : {{site}}, pour {{cost}} oboles. Rien de plus n'a été payé.",
-    "held": "plus {{amount}} oboles retenues pour vos achats en attente à l'agora"
+    "held": "plus {{amount}} oboles retenues pour vos achats en attente à l'agora",
+    "accounts": "Comptes de la maison"
+  },
+  "accounts": {
+    "title": "Comptes de la maison {{name}}",
+    "balanceSheet": "Bilan",
+    "treasury": "Trésorerie",
+    "escrow": "Séquestre (retenu pour vos achats en attente)",
+    "stockValue": "Stocks, au prix moyen observé",
+    "total": "Total",
+    "unpriced_one": "{{count}} stock sans prix observé n'est pas compté.",
+    "unpriced_other": "{{count}} stocks sans prix observé ne sont pas comptés."
+  },
+  "money": {
+    "drachmas_one": "{{amount}} drachme",
+    "drachmas_other": "{{amount}} drachmes",
+    "obols_one": "{{amount}} obole",
+    "obols_other": "{{amount}} oboles",
+    "negative": "−{{amount}}"
   },
   "agora": {
     "title": "Agora de {{city}}",

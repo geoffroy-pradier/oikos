@@ -22,6 +22,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 4. Carte de la cité avec parcelles et quartiers.
 5. Séance de l'assemblée : décrets en cours, vote, débats.
 6. Comptes : résultat, bilan, flux, par période.
+   Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ; les stocks sans prix observé sont comptés à part, hors du total). Les montants s'y écrivent en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme) : une part nulle est tue, un montant nul s'écrit « 0 obole », le signe porte sur tout le montant. Une lecture en échec ou illisible est annoncée et se réessaie, jamais prise pour un bilan nul.
 7. Temple : Charis, grâces, offrandes, oracle.
 
 ## Direction artistique

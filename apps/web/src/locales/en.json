@@ -74,7 +74,25 @@
     "restartSite": "Restart: {{site}}, for {{cost}} obols",
     "restarted": "Site restarted: {{site}}, for {{cost}} obols of upkeep.",
     "alreadyRestarted": "This site was already restarted: {{site}}, for {{cost}} obols. Nothing more was paid.",
-    "held": "plus {{amount}} obols held for your resting buy orders at the agora"
+    "held": "plus {{amount}} obols held for your resting buy orders at the agora",
+    "accounts": "House accounts"
+  },
+  "accounts": {
+    "title": "Accounts of house {{name}}",
+    "balanceSheet": "Balance sheet",
+    "treasury": "Treasury",
+    "escrow": "Escrow (held for your resting buy orders)",
+    "stockValue": "Stocks, at the observed average price",
+    "total": "Total",
+    "unpriced_one": "{{count}} stock with no observed price is not counted.",
+    "unpriced_other": "{{count}} stocks with no observed price are not counted."
+  },
+  "money": {
+    "drachmas_one": "{{amount}} drachma",
+    "drachmas_other": "{{amount}} drachmas",
+    "obols_one": "{{amount}} obol",
+    "obols_other": "{{amount}} obols",
+    "negative": "−{{amount}}"
   },
   "agora": {
     "title": "Agora of {{city}}",

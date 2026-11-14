@@ -758,3 +758,53 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(page.getByText('Inputs per cycle:')).toBeVisible();
   await expect(page.getByText('4 cycles are waiting for inputs.')).toBeVisible();
 });
+
+test('comptes : bilan en drachmes et oboles, ouvert et réessayé au clavier', async ({ page }) => {
+  const houseName = await foundHouse(page);
+  await elapse(houseName, 240);
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByText('Blé : 40')).toBeVisible();
+
+  // Bilan illisible à l'arrivée : l'échec est annoncé, jamais pris pour un bilan nul.
+  await page.route('**/rest/v1/my_balance_sheet*', (route) =>
+    route.fulfill({ status: 500, json: { message: 'boom' } }),
+  );
+  await page.getByRole('link', { name: 'Comptes de la maison' }).focus();
+  await page.keyboard.press('Enter');
+  const title = page.getByRole('heading', { name: `Comptes de la maison ${houseName}` });
+  await expect(title).toBeFocused();
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
+  await page.unroute('**/rest/v1/my_balance_sheet*');
+  await page.getByRole('button', { name: 'Réessayer' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toBeVisible();
+  // « Réessayer » a disparu avec l'échec : le foyer est revenu au titre, pas perdu sur la page.
+  await expect(title).toBeFocused();
+
+  const line = (label: string) =>
+    page
+      .locator('dl > div')
+      .filter({ has: page.getByText(label, { exact: true }) })
+      .locator('dd');
+  await alone(async () => {
+    // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran : les tests de
+    // l'agora le recalculent sous ce même verrou avant de s'en servir.
+    await sql`insert into game.observed_prices
+        (world_id, city_id, good_id, price, volume, window_seconds, observed_at)
+      select world_id, id, 'wheat', 7, 1, 86400, now() from game.cities where id = ${KALLISTE_ID}
+      on conflict (city_id, good_id) do update
+        set price = excluded.price, observed_at = excluded.observed_at`.execute(db);
+    await page.reload();
+    // 3 000 oboles de dotation ; 40 blés à 7 oboles, soit 280 oboles ; 3 280 en tout.
+    await expect(line('Trésorerie')).toHaveText('500 drachmes');
+    await expect(line('Séquestre (retenu pour vos achats en attente)')).toHaveText('0 obole');
+    await expect(line('Stocks, au prix moyen observé')).toHaveText('46 drachmes 4 oboles');
+    await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
+    await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
+    await page.getByLabel('Langue').selectOption('en');
+    await expect(line('Treasury')).toHaveText('500 drachmas');
+    await expect(line('Total')).toHaveText('546 drachmas 4 obols');
+  });
+});
