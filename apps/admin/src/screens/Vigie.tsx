@@ -1,5 +1,6 @@
 import { Button } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
+import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
 import { useAdmin } from '../useAdmin';
 
@@ -64,9 +65,7 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           {t('app.refresh')}
         </Button>
       </div>
-      {error && (
-        <p role="alert">{t(error === 'FORBIDDEN' ? 'app.forbiddenModule' : 'app.loadFailed')}</p>
-      )}
+      {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
       {data && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -20,9 +20,14 @@ it('rend le code du refus de l’API', async () => {
   expect(await adminGet('vigie', 'jeton', fetchImpl)).toEqual({ ok: false, code: 'FORBIDDEN' });
 });
 
-it('ne lève jamais : panne réseau ou réponse illisible deviennent INTERNAL', async () => {
+it('ne lève jamais : sans réponse, NETWORK ; débit dépassé, RATE_LIMITED ; réponse illisible, INTERNAL', async () => {
   const down = vi.fn<typeof fetch>(async () => Promise.reject(new Error('réseau coupé')));
-  expect(await adminGet('vigie', 'jeton', down)).toEqual({ ok: false, code: 'INTERNAL' });
+  expect(await adminGet('vigie', 'jeton', down)).toEqual({ ok: false, code: 'NETWORK' });
+  const limited = respond(
+    { ok: false, error: { code: 'RATE_LIMITED', message: 'slow down' } },
+    429,
+  );
+  expect(await adminGet('vigie', 'jeton', limited)).toEqual({ ok: false, code: 'RATE_LIMITED' });
   const html = vi.fn<typeof fetch>(async () => new Response('<html>', { status: 502 }));
   expect(await adminGet('vigie', 'jeton', html)).toEqual({ ok: false, code: 'INTERNAL' });
   expect(await adminGet('vigie', 'jeton', respond({ ok: true }))).toEqual({

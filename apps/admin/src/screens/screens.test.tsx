@@ -60,9 +60,61 @@ describe('second facteur', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Code refusé'));
     expect(onVerified).not.toHaveBeenCalled();
   });
+  it.each([
+    [
+      { message: 'x', name: 'AuthRetryableFetchError', status: 0 },
+      'pas de réponse du service',
+      'false',
+    ],
+    [{ message: 'x', status: 429 }, 'Trop de tentatives. Patientez une minute', 'false'],
+    [{ message: 'x', status: 503 }, 'indisponible pour le moment', 'false'],
+    [{ message: 'x', status: 422 }, 'Code refusé', 'true'],
+  ])(
+    'réseau, débit, panne et code refusé ont chacun leur message (%j)',
+    async (codeError, text, invalid) => {
+      auth.factors = [{ id: 'known', status: 'verified' }];
+      Object.assign(auth, { acceptCode: false, codeError });
+      render(<SecondFactor onVerified={() => undefined} />);
+      await screen.findByText(/Entrez le code/);
+      const input = screen.getByLabelText('Code à six chiffres');
+      fireEvent.change(input, { target: { value: '000000' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+      await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(text));
+      // Seul un code refusé met la saisie en cause.
+      expect(input.getAttribute('aria-invalid')).toBe(invalid);
+    },
+  );
+
+  it('une panne à la lecture des facteurs se relance par « Réessayer », sans recharger la page', async () => {
+    auth.factors = [{ id: 'known', status: 'verified' }];
+    auth.listError = { message: 'down' };
+    render(<SecondFactor onVerified={() => undefined} />);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('indisponible'));
+    auth.listError = null;
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(await screen.findByText(/Entrez le code/)).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toBe('');
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+  });
 });
 
 describe('Vigie', () => {
+  it('une lecture sans réponse le dit, et « Réessayer » la relance', async () => {
+    adminGet.mockResolvedValueOnce({ ok: false, code: 'NETWORK' });
+    adminGet.mockResolvedValue({ ok: true, data: VIGIE });
+    render(<Vigie accessToken="token" />);
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "L'API ne répond pas. Vérifiez votre connexion, puis réessayez.",
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(await screen.findByText('Maisons fondées')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(adminGet.mock.calls).toEqual([
+      ['vigie', 'token'],
+      ['vigie', 'token'],
+    ]);
+  });
+
   it('chaque compteur porte son intitulé, le tableau des ticks son nom et sa durée', async () => {
     adminGet.mockResolvedValue({ ok: true, data: VIGIE });
     render(<Vigie accessToken="token" />);
@@ -95,6 +147,8 @@ describe('Vigie', () => {
       'Votre rôle ne donne pas accès à ce module.',
     );
     expect(screen.queryByText('Maisons fondées')).toBeNull();
+    // Un refus de rôle est définitif : rien à relancer.
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
   });
 });
 
@@ -155,11 +209,60 @@ describe("journal d'audit", () => {
     expect(outcomes).toEqual(['Réussie', 'Refusée (CONFIG_INVALID)', 'En panne', 'Refusée']);
   });
 
-  it('une panne de lecture est affichée', async () => {
-    adminGet.mockResolvedValue({ ok: false, code: 'INTERNAL' });
+  it.each([
+    ['NETWORK', "L'API ne répond pas. Vérifiez votre connexion, puis réessayez."],
+    ['RATE_LIMITED', 'Trop de demandes en peu de temps. Patientez une minute, puis réessayez.'],
+    ['INTERNAL', 'Lecture impossible pour le moment.'],
+  ])('une lecture en échec (%s) a son message et se relance', async (code, message) => {
+    adminGet.mockResolvedValueOnce({ ok: false, code });
+    adminGet.mockResolvedValue({ ok: true, data: { entries: range(1, 3) } });
     render(<Audit accessToken="token" />);
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'Lecture impossible pour le moment.',
+    expect((await screen.findByRole('alert')).textContent).toBe(message);
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(4));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('une page plus ancienne en échec laisse les pages lues à l’écran et se redemande telle quelle', async () => {
+    let down = true;
+    adminGet.mockImplementation((path: string) => {
+      if (!path.includes('before='))
+        return Promise.resolve({ ok: true, data: { entries: range(1, 50) } });
+      if (down) return Promise.resolve({ ok: false, code: 'NETWORK' });
+      return Promise.resolve({ ok: true, data: { entries: range(51, 60) } });
+    });
+    render(<Audit accessToken="token" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrées plus anciennes' }));
+    expect((await screen.findByRole('alert')).textContent).toContain("L'API ne répond pas");
+    expect(screen.getAllByRole('row')).toHaveLength(51);
+    down = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(61));
+    expect(adminGet.mock.calls.map(([path]) => path as string)).toEqual([
+      'audit?limit=50',
+      'audit?limit=50&before=id-050',
+      'audit?limit=50&before=id-050',
+    ]);
+    expect(commands()).toEqual(range(1, 60).map((item) => item.command));
+  });
+
+  it('au renouvellement du jeton, les pages lues restent ; la suivante part avec le nouveau jeton', async () => {
+    adminGet.mockImplementation((path: string) =>
+      Promise.resolve({
+        ok: true,
+        data: { entries: path.includes('before=id-050') ? range(51, 100) : range(1, 50) },
+      }),
     );
+    const { rerender } = render(<Audit accessToken="jeton-1" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrées plus anciennes' }));
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(101));
+    rerender(<Audit accessToken="jeton-2" />);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Rien n'est relu : la page affichée et sa position sont intactes.
+    expect(adminGet).toHaveBeenCalledTimes(2);
+    expect(commands()).toEqual(range(1, 100).map((item) => item.command));
+    fireEvent.click(screen.getByRole('button', { name: 'Entrées plus anciennes' }));
+    await waitFor(() => expect(adminGet).toHaveBeenCalledTimes(3));
+    expect(adminGet).toHaveBeenLastCalledWith('audit?limit=50&before=id-100', 'jeton-2');
   });
 });

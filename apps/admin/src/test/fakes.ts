@@ -11,6 +11,10 @@ export const auth = {
   unenrolled: [] as string[],
   codes: [] as string[],
   acceptCode: true,
+  /** Panne de la lecture des facteurs, tant qu'elle n'est pas remise à `null`. */
+  listError: null as { message: string } | null,
+  /** Erreur rendue par Supabase Auth quand le code n'est pas accepté. */
+  codeError: { message: 'invalid' } as { message: string; name?: string; status?: number },
 };
 
 /** Jeton au format de Supabase Auth : le niveau d'assurance est une revendication du jeton. */
@@ -42,7 +46,7 @@ export const supabase = {
     mfa: {
       listFactors: () =>
         Promise.resolve({
-          error: null,
+          error: auth.listError,
           data: {
             all: auth.factors,
             totp: auth.factors.filter((factor) => factor.status === 'verified'),
@@ -67,7 +71,7 @@ export const supabase = {
       },
       challengeAndVerify: ({ code }: { factorId: string; code: string }) => {
         auth.codes.push(code);
-        if (!auth.acceptCode) return Promise.resolve({ error: { message: 'invalid' } });
+        if (!auth.acceptCode) return Promise.resolve({ error: auth.codeError });
         // Comme Supabase Auth : après l'aller-retour réseau, une nouvelle session `aal2` est
         // enregistrée et annoncée avant que l'appel ne rende la main.
         return new Promise((resolve) => setTimeout(resolve, 5)).then(() => {
@@ -89,6 +93,8 @@ export function resetAuth() {
     unenrolled: [],
     codes: [],
     acceptCode: true,
+    codeError: { message: 'invalid' },
+    listError: null,
   });
 }
 

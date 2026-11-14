@@ -1,7 +1,8 @@
 import { Button } from '@oikos/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
+import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
 
 interface Entry {
@@ -19,23 +20,25 @@ const PAGE = 50;
 export function Audit({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const [entries, setEntries] = useState<Entry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** Lecture en échec : son code, et la page demandée, pour la relancer telle quelle. */
+  const [error, setError] = useState<{ code: string; before?: string | undefined } | null>(null);
   const [more, setMore] = useState(false);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'medium' });
+  // Le jeton se renouvelle pendant la lecture : les pages déjà affichées restent, et la lecture
+  // suivante part avec le jeton du moment. Seul le premier affichage lit la première page.
+  const token = useRef(accessToken);
+  token.current = accessToken;
 
-  const load = useCallback(
-    async (before?: string) => {
-      const query = `audit?limit=${PAGE}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
-      const reply = await adminGet<{ entries: Entry[] }>(query, accessToken);
-      setError(reply.ok ? null : reply.code);
-      if (!reply.ok) return;
-      setEntries((known) =>
-        before ? [...(known ?? []), ...reply.data.entries] : reply.data.entries,
-      );
-      setMore(reply.data.entries.length === PAGE);
-    },
-    [accessToken],
-  );
+  const load = useCallback(async (before?: string) => {
+    const query = `audit?limit=${PAGE}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+    const reply = await adminGet<{ entries: Entry[] }>(query, token.current);
+    setError(reply.ok ? null : { code: reply.code, before });
+    if (!reply.ok) return;
+    setEntries((known) =>
+      before ? [...(known ?? []), ...reply.data.entries] : reply.data.entries,
+    );
+    setMore(reply.data.entries.length === PAGE);
+  }, []);
   useEffect(() => {
     void load();
   }, [load]);
@@ -43,9 +46,6 @@ export function Audit({ accessToken }: { accessToken: string }) {
   return (
     <>
       <h1 className="text-2xl">{t('audit.title')}</h1>
-      {error && (
-        <p role="alert">{t(error === 'FORBIDDEN' ? 'app.forbiddenModule' : 'app.loadFailed')}</p>
-      )}
       {!entries && !error && <p>{t('app.loading')}</p>}
       {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
       {entries && entries.length > 0 && (
@@ -91,7 +91,9 @@ export function Audit({ accessToken }: { accessToken: string }) {
           </div>
         </>
       )}
-      {more && (
+      {/* Sous le tableau : l'échec d'une page plus ancienne laisse les pages déjà lues à l'écran. */}
+      {error && <LoadError code={error.code} onRetry={() => void load(error.before)} />}
+      {more && !error && (
         <Button variant="secondary" onClick={() => void load(entries?.at(-1)?.id)}>
           {t('audit.older')}
         </Button>

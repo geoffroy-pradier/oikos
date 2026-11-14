@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
+import { LoadError } from '../LoadError';
 import { useAdmin } from '../useAdmin';
 
 interface Listing {
@@ -129,7 +130,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   return (
     <>
       <h1 className="text-2xl">{t('config.title')}</h1>
-      {listing.error && <p role="alert">{t('app.loadFailed')}</p>}
+      {listing.error && <LoadError code={listing.error} onRetry={() => void listing.reload()} />}
       {!listing.data && !listing.error && <p>{t('app.loading')}</p>}
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
