@@ -8,6 +8,7 @@ import { LanguageSelect } from './LanguageSelect';
 import { router } from './router';
 import { CreateHouse, type City } from './screens/CreateHouse';
 import { SignIn } from './screens/SignIn';
+import { UpdatePrompt } from './UpdatePrompt';
 import { supabase } from './supabase';
 
 interface House {
@@ -87,6 +88,7 @@ export function App() {
           accessToken: session.access_token,
         }}
       >
+        <UpdatePrompt />
         <RouterProvider router={router} />
       </HouseProvider>
     );
@@ -108,6 +110,7 @@ export function App() {
   // Avant la maison : un seul écran centré, sans navigation.
   return (
     <div className="min-h-dvh bg-background text-foreground">
+      <UpdatePrompt />
       <header className="flex flex-wrap items-center justify-between gap-2 p-4">
         <p className="font-display text-3xl font-semibold text-primary">{t('app.title')}</p>
         <div className="flex items-center gap-2">
