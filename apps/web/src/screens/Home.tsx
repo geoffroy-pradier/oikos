@@ -5,6 +5,7 @@ import { useRows } from '../data';
 import { useHouse } from '../house';
 import { SitesCard } from './Sites';
 import { useMoney } from '../money';
+import { LoadProblem, Loading } from './LoadProblem';
 
 interface Treasury {
   balance: number;
@@ -52,10 +53,15 @@ export function HomeScreen() {
           {t(`home.status.${house.citizenshipStatus}`, { city: house.cityName })}
         </p>
       </Card>
-      {failed && <p role="alert">{t('app.loadFailed')}</p>}
+      {failed && (
+        <LoadProblem
+          onRetry={() => Promise.all([treasury.reload(), stock.reload(), orders.reload()])}
+        />
+      )}
 
       <Card>
         <h2 className="text-xl">{t('home.treasury')}</h2>
+        {treasury.rows === null && !treasury.failed && <Loading />}
         {treasury.rows?.map((account) => (
           <p key="balance" className="text-2xl font-semibold">
             {t('home.balance', { amount: money(account.balance) })}
@@ -64,6 +70,7 @@ export function HomeScreen() {
         {held > 0 && (
           <p className="text-muted-foreground">{t('home.held', { amount: money(held) })}</p>
         )}
+        {orders.rows === null && !orders.failed && <Loading />}
         {orders.rows && (
           <p>
             {orders.rows.length === 0
@@ -87,6 +94,7 @@ export function HomeScreen() {
 
       <Card>
         <h2 className="text-xl">{t('home.stock')}</h2>
+        {stock.rows === null && !stock.failed && <Loading />}
         {stock.rows?.length === 0 && (
           <p className="text-muted-foreground">{t('home.stockEmpty')}</p>
         )}

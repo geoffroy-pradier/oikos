@@ -96,7 +96,9 @@
     "collectAllLabel_other": "Tout récolter : {{number}} sites à récolter",
     "collectedAll_one": "Récolte engrangée sur {{number}} site : {{list}}.",
     "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
-    "collectAllFailed": "Échec pour {{site}}. {{reason}}"
+    "collectAllFailed": "Échec pour {{site}}. {{reason}}",
+    "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
+    "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}"
   },
   "agora": {
     "title": "Agora de {{city}}",
