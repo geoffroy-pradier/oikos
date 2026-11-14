@@ -420,11 +420,20 @@ test('acquisition sans réponse puis nouvel essai : un seul site, un seul paieme
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
 
-  // L'intention suivante est une nouvelle acquisition.
-  await acquire.click();
+  // L'intention suivante est une nouvelle acquisition. Un double clic n'envoie qu'une commande, et
+  // le prix payé s'affiche dans la fenêtre bien que le nouveau site ait poussé le formulaire.
+  let sent = 0;
+  await page.route('**/api/commands/site.acquire', async (route) => {
+    sent += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.continue();
+  });
+  await acquire.dblclick();
   await expect(page.getByRole('status')).toContainText('Site acquis : Champ de blé, pour 600');
+  await expect(page.getByRole('status')).toBeInViewport();
   await expect(page.getByText('3 sur 4')).toBeVisible();
   await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
+  expect(sent).toBe(1);
 });
 
 test('plusieurs sites : noms distincts, résultat affiché près de l’action, choix gardé après un refus', async ({

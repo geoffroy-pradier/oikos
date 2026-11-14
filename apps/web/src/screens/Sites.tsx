@@ -1,5 +1,5 @@
 import { Button, Card } from '@oikos/ui';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
@@ -34,6 +34,13 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
   const [wanted, setWanted] = useState('');
   // Une acquisition sans réponse garde sa clé : la renvoyer rejoue l'achat au lieu d'en payer un second.
   const pending = useRef(new Map<string, string>());
+  // Une commande à la fois, même pour deux activations que le rendu n'a pas eu le temps de séparer.
+  const running = useRef(false);
+  // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
+  const noticeElement = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    noticeElement.current?.scrollIntoView({ block: 'nearest' });
+  }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
@@ -59,7 +66,8 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
     send: () => Promise<CommandResponse<T>>,
     done: (data: T, replayed: boolean) => string,
   ) {
-    if (busy) return null;
+    if (running.current) return null;
+    running.current = true;
     setBusy(true);
     setNotice(null);
     const result = await send();
@@ -73,6 +81,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
         : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
     );
     setBusy(false);
+    running.current = false;
     return result;
   }
 
@@ -125,7 +134,11 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
 
   const announce = (target: string) =>
     notice?.target === target && (
-      <p role={notice.kind} className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}>
+      <p
+        ref={noticeElement}
+        role={notice.kind}
+        className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
+      >
         {notice.text}
       </p>
     );
