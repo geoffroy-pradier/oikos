@@ -46,6 +46,68 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'CONFIG_INVALID',
 ] as const;
 
+/** Rôles qui gèrent les rôles des autres comptes (15.3). */
+export const ROLE_MANAGER_ROLES = ['super_admin'] as const satisfies AdminRole[];
+const adminRoleSchema = z.enum(ADMIN_ROLES);
+
+/**
+ * Commande `admin.grantRole` : accorde un rôle à un compte, ou remplace celui qu'il porte (un seul rôle
+ * par compte). Le compte est désigné par son identifiant, jamais par une adresse : le journal n'en garde aucune.
+ */
+export const adminGrantRoleInputSchema = z.strictObject({
+  userId: z.uuid(),
+  role: adminRoleSchema,
+});
+export type AdminGrantRoleInput = z.infer<typeof adminGrantRoleInputSchema>;
+export const adminGrantRoleOutputSchema = z.object({
+  userId: z.uuid(),
+  role: adminRoleSchema,
+  /** Rôle remplacé ; `null` si le compte n'en portait aucun. */
+  previousRole: adminRoleSchema.nullable(),
+});
+export type AdminGrantRoleOutput = z.infer<typeof adminGrantRoleOutputSchema>;
+export const ADMIN_GRANT_ROLE_ERROR_CODES = [
+  'FORBIDDEN',
+  'ACCOUNT_NOT_FOUND',
+  /** Le compte porte déjà ce rôle. */
+  'ROLE_UNCHANGED',
+  /** On ne change pas son propre rôle : un autre super-administrateur le fait. */
+  'ROLE_SELF_GRANT',
+  'LAST_SUPER_ADMIN',
+] as const;
+
+/** Commande `admin.revokeRole` : retire son rôle à un compte, qui perd aussitôt tout accès à Olympe. */
+export const adminRevokeRoleInputSchema = z.strictObject({ userId: z.uuid() });
+export type AdminRevokeRoleInput = z.infer<typeof adminRevokeRoleInputSchema>;
+export const adminRevokeRoleOutputSchema = z.object({
+  userId: z.uuid(),
+  previousRole: adminRoleSchema,
+});
+export type AdminRevokeRoleOutput = z.infer<typeof adminRevokeRoleOutputSchema>;
+export const ADMIN_REVOKE_ROLE_ERROR_CODES = [
+  'FORBIDDEN',
+  'ACCOUNT_NOT_FOUND',
+  /** Le compte ne porte aucun rôle. */
+  'ROLE_NOT_FOUND',
+  /** Il doit toujours rester un super-administrateur. */
+  'LAST_SUPER_ADMIN',
+] as const;
+
+export const adminRoleGrantedSchema = z.strictObject({
+  type: z.literal('AdminRoleGranted'),
+  payload: z.strictObject({
+    userId: z.uuid(),
+    role: adminRoleSchema,
+    previousRole: adminRoleSchema.nullable(),
+    grantedBy: z.uuid(),
+  }),
+});
+
+export const adminRoleRevokedSchema = z.strictObject({
+  type: z.literal('AdminRoleRevoked'),
+  payload: z.strictObject({ userId: z.uuid(), previousRole: adminRoleSchema, revokedBy: z.uuid() }),
+});
+
 export const configVersionPublishedSchema = z.strictObject({
   type: z.literal('ConfigVersionPublished'),
   payload: z.strictObject({
