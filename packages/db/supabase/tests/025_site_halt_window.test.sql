@@ -1,5 +1,5 @@
 begin;
-select plan(7);
+select plan(8);
 
 -- Jeu d'essai : la maison d'Alice et son champ. Le cycle du champ est avancé à l'heure réelle, donc
 -- après le début de cette transaction, comme le laisse une récolte validée pendant une clôture.
@@ -31,6 +31,11 @@ select ok((select halted_at = cycle_started_at and halted_at > now() from game.s
 -- La règle du cycle tient toujours pour une écriture qui le change.
 select throws_ok($$select pg_temp.as_service($s$update game.sites set halted_at = null, cycle_started_at = clock_timestamp() + interval '1 minute'$s$)$$, '23001',
   'a site cycle only moves forward, up to now', 'un cycle ne part toujours pas dans le futur');
+-- Borne haute : l'heure réelle elle-même est admise (second champ, en marche).
+insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
+  ('00000000-0000-7000-8000-0000000002a2', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat');
+select lives_ok($$select pg_temp.as_service($s$update game.sites set halted_at = clock_timestamp() where id = '00000000-0000-7000-8000-0000000002a2'$s$)$$,
+  'un arrêt à l''heure réelle est admis');
 
 select * from finish();
 rollback;

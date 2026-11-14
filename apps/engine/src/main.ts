@@ -1,7 +1,7 @@
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
-import type { CloseStep } from './close';
+import { CLOSE_STEPS } from './close-steps';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { npcDemand } from './steps/npc-demand';
 import { observedPricesStep } from './steps/observed-prices';
@@ -11,9 +11,6 @@ import type { TickStep } from './tick';
 const QUEUE = 'world-clock';
 /** Étapes du tick, dans l'ordre : les chandeliers résument aussi les achats que les PNJ viennent de faire. */
 const STEPS: readonly TickStep[] = [npcDemand, priceCandlesStep, observedPricesStep];
-
-/** Étapes de la clôture quotidienne, dans l'ordre. */
-const CLOSE_STEPS: readonly CloseStep[] = [];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
