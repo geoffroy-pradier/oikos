@@ -6,8 +6,14 @@ import en from './locales/en.json';
 import fr from './locales/fr.json';
 
 // Le module virtuel du service worker n'existe que dans la construction de Vite.
-vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: () => ({}) }));
-const { UpdateBanner } = await import('./UpdatePrompt');
+const sw = vi.hoisted(() => ({ needRefresh: true }));
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [sw.needRefresh, () => undefined],
+    updateServiceWorker: () => Promise.resolve(),
+  }),
+}));
+const { UpdateBanner, UpdatePrompt } = await import('./UpdatePrompt');
 /** Le rendu serveur échappe l'apostrophe. */
 const escaped = (text: string) => text.replaceAll("'", '&#x27;');
 
@@ -26,10 +32,8 @@ async function render(language: 'fr' | 'en') {
 }
 
 describe('bandeau de mise à jour', () => {
-  it('nomme la région, annonce poliment, propose de mettre à jour ou plus tard (fr)', async () => {
+  it('propose de mettre à jour ou plus tard (fr)', async () => {
     const html = await render('fr');
-    expect(html).toContain(`aria-label="${fr.app.update.title}"`);
-    expect(html).toContain('aria-live="polite"');
     expect(html).toContain(escaped(fr.app.update.ready));
     expect(html).toContain(`>${fr.app.update.now}</button>`);
     expect(html).toContain(`>${fr.app.update.later}</button>`);
@@ -41,5 +45,26 @@ describe('bandeau de mise à jour', () => {
     const html = await render('en');
     expect(html).toContain(escaped(en.app.update.ready));
     expect(html).toContain(`>${en.app.update.now}</button>`);
+  });
+
+  it('la région nommée reste dans la page, vide tant qu’aucune version n’attend', async () => {
+    const instance = i18next.createInstance();
+    await instance.use(initReactI18next).init({
+      resources: { fr: { translation: fr } },
+      lng: 'fr',
+      interpolation: { escapeValue: false },
+    });
+    const page = () =>
+      renderToStaticMarkup(
+        <I18nextProvider i18n={instance}>
+          <UpdatePrompt />
+        </I18nextProvider>,
+      );
+    sw.needRefresh = false;
+    expect(page()).toBe(
+      `<section aria-label="${fr.app.update.title}" aria-live="polite"></section>`,
+    );
+    sw.needRefresh = true;
+    expect(page()).toContain(`>${fr.app.update.now}</button>`);
   });
 });
