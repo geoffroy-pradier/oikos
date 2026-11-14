@@ -54,9 +54,17 @@ export function AgoraScreen() {
   const [quantity, setQuantity] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  // Intention en attente de réponse : la même saisie renvoyée après une panne réutilise sa clé, pour que
-  // l'API rejoue l'ordre déjà déposé au lieu d'en déposer un second.
-  const pending = useRef<{ intent: string; key: string } | null>(null);
+  // Intentions en attente de réponse, chacune avec sa clé : la même saisie renvoyée après une panne
+  // réutilise la sienne, pour que l'API rejoue l'ordre déjà déposé au lieu d'en déposer un second.
+  // Une autre action entre-temps (une annulation, un autre ordre) ne la fait pas oublier.
+  const pending = useRef(new Map<string, string>());
+  const keyFor = (intent: string) => {
+    const known = pending.current.get(intent);
+    if (known) return known;
+    const key = crypto.randomUUID();
+    pending.current.set(intent, key);
+    return key;
+  };
 
   const number = new Intl.NumberFormat(i18n.language);
   const good = t(`goods.${goodId}`);
@@ -76,11 +84,10 @@ export function AgoraScreen() {
       return setNotice({ kind: 'alert', text: t('errors.VALIDATION_FAILED') });
     setBusy(true);
     setNotice(null);
-    const intent = JSON.stringify(input.data);
-    if (pending.current?.intent !== intent) pending.current = { intent, key: crypto.randomUUID() };
-    const result = await placeOrder(input.data, house.accessToken, pending.current.key);
+    const intent = `place:${JSON.stringify(input.data)}`;
+    const result = await placeOrder(input.data, house.accessToken, keyFor(intent));
     // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
-    if (result.ok || result.error.code !== 'INTERNAL') pending.current = null;
+    if (result.ok || result.error.code !== 'INTERNAL') pending.current.delete(intent);
     let next: Notice;
     if (!result.ok) {
       next = { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
@@ -97,7 +104,7 @@ export function AgoraScreen() {
         kind: 'status',
         text:
           bought === 0
-            ? t('agora.nothingBought')
+            ? t('agora.nothingBought', { good })
             : t(bought < input.data.quantity ? 'agora.boughtPartly' : 'agora.bought', {
                 quantity: number.format(bought),
                 wanted: number.format(input.data.quantity),
@@ -116,9 +123,8 @@ export function AgoraScreen() {
     setBusy(true);
     setNotice(null);
     const intent = `cancel:${order.id}`;
-    if (pending.current?.intent !== intent) pending.current = { intent, key: crypto.randomUUID() };
-    const result = await cancelOrder(order.id, house.accessToken, pending.current.key);
-    if (result.ok || result.error.code !== 'INTERNAL') pending.current = null;
+    const result = await cancelOrder(order.id, house.accessToken, keyFor(intent));
+    if (result.ok || result.error.code !== 'INTERNAL') pending.current.delete(intent);
     const next: Notice = result.ok
       ? {
           kind: 'status',
@@ -142,6 +148,9 @@ export function AgoraScreen() {
           className={CONTROL}
           id="good"
           value={goodId}
+          // Pas de changement de bien pendant qu'une commande est en route : son résultat et le carnet
+          // relu ensuite portent sur le bien affiché.
+          disabled={busy}
           onChange={(event) => {
             setGoodId(event.target.value);
             setNotice(null);

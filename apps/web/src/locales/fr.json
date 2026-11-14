@@ -66,11 +66,11 @@
     "myOrder": "{{good}} : {{remaining}} sur {{quantity}} à {{price}} oboles",
     "placedSell": "Vente déposée : {{quantity}} × {{good}} à {{price}} oboles.",
     "bought": "Achat conclu : {{quantity}} × {{good}} pour {{cost}} oboles.",
-    "nothingBought": "Aucune vente à ce prix : rien n'a été acheté.",
+    "nothingBought": "Aucune vente de {{good}} à ce prix : rien n'a été acheté.",
     "good": "Bien",
     "cancel": "Annuler",
     "cancelOrder": "Annuler la vente de {{remaining}} × {{good}} à {{price}} oboles",
-    "cancelled": "Vente annulée : {{quantity}} × {{good}} de nouveau disponibles.",
+    "cancelled": "Vente annulée : {{quantity}} × {{good}} en stock libre de nouveau.",
     "boughtPartly": "Achat partiel : {{quantity}} × {{good}} sur {{wanted}} pour {{cost}} oboles. Le reste n'a pas trouvé de vente à ce prix."
   },
   "goods": {

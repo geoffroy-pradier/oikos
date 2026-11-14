@@ -66,11 +66,11 @@
     "myOrder": "{{good}}: {{remaining}} of {{quantity}} at {{price}} obols",
     "placedSell": "Sell order placed: {{quantity}} × {{good}} at {{price}} obols.",
     "bought": "Bought: {{quantity}} × {{good}} for {{cost}} obols.",
-    "nothingBought": "No sell order at this price: nothing was bought.",
+    "nothingBought": "No sell order for {{good}} at this price: nothing was bought.",
     "good": "Good",
     "cancel": "Cancel",
     "cancelOrder": "Cancel the sale of {{remaining}} × {{good}} at {{price}} obols",
-    "cancelled": "Sale cancelled: {{quantity}} × {{good}} available again.",
+    "cancelled": "Sale cancelled: {{quantity}} × {{good}} back in free stock.",
     "boughtPartly": "Partial purchase: {{quantity}} × {{good}} out of {{wanted}} for {{cost}} obols. No sale was found at this price for the rest."
   },
   "goods": {
