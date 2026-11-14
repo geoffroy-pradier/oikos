@@ -13,6 +13,7 @@ import type { Identity, TokenVerifier } from './auth';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
+import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
 import { siteCollect } from './commands/site-collect';
 import type { RateLimiter } from './rate-limit';
@@ -33,6 +34,7 @@ export const COMMANDS = [
   houseRename,
   siteCollect,
   marketPlaceOrder,
+  marketCancelOrder,
   adminPublishConfig,
   adminScheduleConfig,
 ] as readonly CommandDefinition[];

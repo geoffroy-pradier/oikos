@@ -55,6 +55,25 @@ async function newCity(slug = `c-${letters()}`): Promise<string> {
   return id;
 }
 
+/** Cité qui porte l'identifiant de la configuration : les PNJ y achètent du blé à chaque tick. Une par monde. */
+let kalliste: Promise<string> | undefined;
+const kallisteCity = () => (kalliste ??= newCity('kalliste'));
+
+/** Un tick de demande des PNJ, dans sa propre transaction. */
+const npcTick = () =>
+  db.transaction().execute((trx) =>
+    npcDemand.run({
+      trx,
+      worldId: WORLD,
+      index: 0,
+      scheduledAt: new Date(),
+      config: TEST_CONFIG.config,
+      rng: createRng('test'),
+      dailyClose: false,
+      seasonSwitch: false,
+    }),
+  );
+
 /** Fonde une maison dans la cité par la commande réelle, et lui donne du blé par le journal des stocks. */
 async function newPlayer(cityId: string, wheat = 0) {
   const user = randomUUID();
@@ -309,23 +328,9 @@ describe('market.placeOrder', () => {
   });
 
   it('tick de demande des PNJ et ordres de joueurs en même temps : aucun interblocage', async () => {
-    // La cité porte l'identifiant de la configuration : les PNJ y achètent du blé à chaque tick.
-    const cityId = await newCity('kalliste');
+    const cityId = await kallisteCity();
     // Chaque maison vend et achète : son compte est crédité par le tick pendant qu'elle achète.
     const traders = await Promise.all(Array.from({ length: 4 }, () => newPlayer(cityId, 400)));
-    const npcTick = () =>
-      db.transaction().execute((trx) =>
-        npcDemand.run({
-          trx,
-          worldId: WORLD,
-          index: 0,
-          scheduledAt: new Date(),
-          config: TEST_CONFIG.config,
-          rng: createRng('test'),
-          dailyClose: false,
-          seasonSwitch: false,
-        }),
-      );
     let npcUnits = 0;
     for (let round = 0; round < 6; round++) {
       await Promise.all(traders.map((trader) => order(trader, 'sell', 6, 40)));
@@ -423,5 +428,194 @@ describe('market.placeOrder', () => {
       ).body,
     ).toMatchObject({ error: { code: 'HOUSE_NOT_FOUND' } });
     expect(await stateOf(player)).toEqual([GRANT, '5/0']);
+  });
+});
+
+describe('market.cancelOrder', () => {
+  const idOf = (result: { body: { data?: never } }) =>
+    (result.body.data as unknown as { orderId: string }).orderId;
+  const cancel = (player: Player, orderId: string, key?: string) =>
+    send(player.user, 'market.cancelOrder', { orderId }, key);
+  const statusOf = async (orderId: string) =>
+    (
+      await db
+        .selectFrom('game.orders')
+        .select(['status', 'remaining'])
+        .where('id', '=', orderId)
+        .executeTakeFirstOrThrow()
+    ).status;
+
+  it('annule une vente ouverte : le stock réservé est libéré, plus personne ne peut la servir', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    const orderId = idOf(await order(seller, 'sell', 6, 60));
+    expect(await stateOf(seller)).toEqual([GRANT, '100/60']);
+
+    expect(await cancel(seller, orderId)).toEqual({
+      status: 200,
+      body: { ok: true, data: { orderId, status: 'cancelled', released: 60 } },
+    });
+    expect(await statusOf(orderId)).toBe('cancelled');
+    expect(await stateOf(seller)).toEqual([GRANT, '100/0']);
+    expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([
+      { orderId, houseId: seller.houseId, cityId, goodId: 'wheat', side: 'sell', released: 60 },
+    ]);
+    // Le carnet est vide : un acheteur ne trouve plus rien, le stock libéré se revend.
+    expect((await order(buyer, 'buy', 10, 60)).body).toMatchObject({
+      data: { trades: [], remaining: 60 },
+    });
+    expect((await order(seller, 'sell', 7, 100)).status).toBe(200);
+  });
+
+  it('après une exécution partielle, seul le reste est libéré ; ce qui est vendu reste vendu', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    const orderId = idOf(await order(seller, 'sell', 6, 60));
+    await order(buyer, 'buy', 6, 20);
+    expect((await cancel(seller, orderId)).body).toMatchObject({ data: { released: 40 } });
+    expect(await stateOf(seller)).toEqual([GRANT + 120, '80/0']);
+    expect(await stateOf(buyer)).toEqual([GRANT - 120, '20/0']);
+    expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+  });
+
+  it("l'ordre d'un autre joueur est indiscernable d'un ordre inexistant, et reste intact", async () => {
+    const cityId = await newCity();
+    const [seller, other] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    const orderId = idOf(await order(seller, 'sell', 6, 60));
+    const foreign = await cancel(other, orderId);
+    const unknown = await cancel(other, randomUUID());
+    expect(foreign).toEqual({
+      status: 404,
+      body: { ok: false, error: { code: 'ORDER_NOT_FOUND', message: 'Unknown order.' } },
+    });
+    expect(unknown).toEqual(foreign);
+    expect(await statusOf(orderId)).toBe('open');
+    expect(await stateOf(seller)).toEqual([GRANT, '100/60']);
+    expect(await eventsOf(cityId, 'OrderCancelled')).toEqual([]);
+  });
+
+  it('un ordre déjà annulé ou entièrement servi ne s’annule pas ; le rejeu de la même clé rend la même réponse', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 100), await newPlayer(cityId)];
+    const cancelled = idOf(await order(seller, 'sell', 6, 30));
+    const key = randomUUID();
+    const first = await cancel(seller, cancelled, key);
+    expect(first.status).toBe(200);
+    expect(await cancel(seller, cancelled, key)).toEqual(first);
+    expect(await cancel(seller, cancelled)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'ORDER_NOT_OPEN' } },
+    });
+    const filled = idOf(await order(seller, 'sell', 6, 10));
+    await order(buyer, 'buy', 6, 10);
+    expect((await cancel(seller, filled)).body).toMatchObject({
+      error: { code: 'ORDER_NOT_OPEN' },
+    });
+    // L'achat, exécuté à l'arrivée, est déjà clos : son auteur ne peut pas l'annuler non plus.
+    const bought = idOf(await order(buyer, 'buy', 6, 5));
+    expect((await cancel(buyer, bought)).body).toMatchObject({ error: { code: 'ORDER_NOT_OPEN' } });
+    expect(await eventsOf(cityId, 'OrderCancelled')).toHaveLength(1);
+    expect(await stateOf(seller)).toEqual([GRANT + 60, '90/0']);
+  });
+
+  it('annulation et achat simultanés : quantité servie + quantité libérée = quantité de l’ordre', async () => {
+    const cityId = await newCity();
+    const [seller, buyer] = [await newPlayer(cityId, 400), await newPlayer(cityId)];
+    let [sold, releasedTotal, cancelledFirst, boughtFirst] = [0, 0, 0, 0];
+    for (let round = 0; round < 20; round++) {
+      const orderId = idOf(await order(seller, 'sell', 6, 10));
+      const [bought, cancelling] = await Promise.all([
+        order(buyer, 'buy', 6, 4),
+        cancel(seller, orderId),
+      ]);
+      expect([bought.status, cancelling.status]).toEqual([200, 200]);
+      const traded = (bought.body.data as unknown as { trades: { quantity: number }[] }).trades
+        .map((trade) => trade.quantity)
+        .reduce((sum, quantity) => sum + quantity, 0);
+      const released = (cancelling.body.data as unknown as { released: number }).released;
+      // L'achat passe en entier avant l'annulation, ou pas du tout après.
+      expect([
+        [4, 6],
+        [0, 10],
+      ]).toContainEqual([traded, released]);
+      expect(await statusOf(orderId)).toBe('cancelled');
+      sold += traded;
+      releasedTotal += released;
+      if (traded === 0) cancelledFirst += 1;
+      else boughtFirst += 1;
+    }
+    expect(sold + releasedTotal).toBe(200);
+    expect(cancelledFirst + boughtFirst).toBe(20);
+    expect(await stateOf(seller)).toEqual([GRANT + sold * 6, `${400 - sold}/0`]);
+    expect(await stateOf(buyer)).toEqual([GRANT - sold * 6, sold > 0 ? `${sold}/0` : 'aucun']);
+    expect(await ledgersAreConsistent([seller, buyer])).toBe(0);
+  });
+
+  it('annulation pendant un tick de demande des PNJ : elle attend la fin du tick et ne libère que le reste', async () => {
+    const cityId = await kallisteCity();
+    const seller = await newPlayer(cityId, 100);
+    // D'autres ventes attendent dans cette cité : celle-ci, moins chère, est servie la première.
+    const PRICE = 5;
+    const orderId = idOf(await order(seller, 'sell', PRICE, 50));
+    const remainingOf = async () =>
+      Number(
+        (
+          await owner
+            .selectFrom('game.orders')
+            .select('remaining')
+            .where('id', '=', orderId)
+            .executeTakeFirstOrThrow()
+        ).remaining,
+      );
+    const waiting = async () =>
+      Number(
+        (
+          await sql<{ n: string }>`select count(*) as n from pg_stat_activity
+            where wait_event_type = 'Lock' and query like '%game%orders%' and query not like '%pg_stat_activity%'`.execute(
+            owner,
+          )
+        ).rows[0]?.n,
+      );
+
+    let cancelling: ReturnType<typeof cancel> | undefined;
+    await db.transaction().execute(async (trx) => {
+      await npcDemand.run({
+        trx,
+        worldId: WORLD,
+        index: 0,
+        scheduledAt: new Date(),
+        config: TEST_CONFIG.config,
+        rng: createRng('test'),
+        dailyClose: false,
+        seasonSwitch: false,
+      });
+      // Le tick a servi l'ordre mais n'a pas encore validé : l'annulation arrive maintenant.
+      cancelling = cancel(seller, orderId);
+      for (let tries = 0; (await waiting()) < 1; tries += 1) {
+        if (tries > 200) throw new Error('the cancellation never queued behind the tick');
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      // Tant que le tick n'a pas validé, rien n'est annulé.
+      expect(await remainingOf()).toBe(50);
+    });
+    const outcome = await cancelling;
+    const sold = 50 - (await remainingOf());
+    // Les PNJ ont acheté à ce prix : sans cela le test ne prouverait rien.
+    expect(sold).toBeGreaterThan(0);
+    if (sold < 50) {
+      expect(outcome).toMatchObject({ status: 200, body: { data: { released: 50 - sold } } });
+      expect(await statusOf(orderId)).toBe('cancelled');
+    } else {
+      expect(outcome?.body).toMatchObject({ error: { code: 'ORDER_NOT_OPEN' } });
+      expect(await statusOf(orderId)).toBe('filled');
+    }
+    expect(await stateOf(seller)).toEqual([GRANT + sold * PRICE, `${100 - sold}/0`]);
+    expect(await ledgersAreConsistent([seller])).toBe(0);
+
+    // Dans l'autre sens : un ordre annulé avant le tick n'est pas servi.
+    const next = idOf(await order(seller, 'sell', PRICE, 10));
+    expect((await cancel(seller, next)).status).toBe(200);
+    await npcTick();
+    expect(await stateOf(seller)).toEqual([GRANT + sold * PRICE, `${100 - sold}/0`]);
   });
 });
