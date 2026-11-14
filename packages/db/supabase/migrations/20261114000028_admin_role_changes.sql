@@ -2,6 +2,13 @@
 -- Le rôle de service n'a toujours aucun droit d'écriture sur `admin.roles` : les commandes
 -- `admin.grantRole` et `admin.revokeRole` passent par cette fonction, exécutée au nom du propriétaire,
 -- qui porte les règles que la concurrence ne doit pas pouvoir contourner.
+--
+-- Ce que la fonction garantit, quel que soit l'appelant : `actor` porte le rôle de super-administrateur au
+-- moment du changement, nul ne change son propre rôle, il reste toujours un super-administrateur.
+-- Ce qu'elle ne garantit pas : que l'appelant EST `actor`. Le rôle de service fournit cet identifiant ; il
+-- pourrait donc nommer un compte au nom de n'importe quel super-administrateur existant. C'est à l'API
+-- d'établir l'identité avant d'appeler : jeton vérifié, session à second facteur, rôle relu (registre des
+-- commandes). Le service est déjà de confiance pour l'identité des comptes dans tout le reste du jeu.
 
 -- Accorde `new_role` à `target`, ou lui retire son rôle si `new_role` est null. Rend le rôle précédent.
 -- Chaque refus porte un nom de contrainte : c'est lui que l'API traduit en erreur métier.
@@ -14,6 +21,7 @@ declare
   previous text;
 begin
   -- Un seul changement de rôle à la fois : les contrôles ci-dessous voient les changements déjà validés.
+  -- (Suppose le niveau READ COMMITTED, celui des commandes : chaque instruction relit l'état validé.)
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('admin.roles'));
   -- Relu sous le verrou : un super-administrateur retiré à l'instant ne change plus rien.
   if not exists (select 1 from admin.roles where user_id = actor and role = 'super_admin') then

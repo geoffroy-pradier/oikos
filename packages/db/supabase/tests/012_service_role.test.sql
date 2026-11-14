@@ -50,7 +50,7 @@ select is(
    where c.relnamespace in ('config'::regnamespace, 'telemetry'::regnamespace, 'admin'::regnamespace)
      and c.relkind = 'r' and has_table_privilege('oikos_service', c.oid, 'update')),
   0::bigint, 'aucune modification hors de game');
-select ok(not has_table_privilege('oikos_service', 'admin.roles', 'insert'), 'le service ne s''accorde pas de rôle d''administration');
+select ok(not has_table_privilege('oikos_service', 'admin.roles', 'insert'), 'le service n''inscrit aucun rôle à la main (seulement par admin.set_role, au nom d''un super-administrateur)');
 -- Toute table à règles par ligne ouverte au service a sa règle : sinon il n'y verrait aucune ligne.
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
