@@ -40,7 +40,7 @@ sed -e 's/^{\$OIKOS_DOMAIN} {/http:\/\/web.localhost:8080 {/' \
     -e 's/^olympe\.{\$OIKOS_DOMAIN} {/http:\/\/olympe.localhost:8080 {/' \
     -e 's/^supabase\.{\$OIKOS_DOMAIN} {/http:\/\/supabase.localhost:8080 {/' \
     "$repo/infra/Caddyfile" > "$work/Caddyfile"
-caddy="$(docker run -d -p 127.0.0.1:18080:8080 -e OIKOS_ACME_EMAIL=ci@example.test \
+caddy="$(docker run -d -p 127.0.0.1:18080:8080 -e OIKOS_ACME_EMAIL=ci@example.test -e OIKOS_DOMAIN=jeu.example.test \
   -v "$work/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$work/static:/srv:ro" caddy:2.10-alpine)"
 
 fetch() { curl -sS -o "$work/body" -D "$work/headers" -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:18080$2"; }
@@ -67,7 +67,31 @@ for host in web.localhost olympe.localhost; do
   ! grep -qi 'immutable' "$work/headers" || { echo "$host : 404 mis en cache définitif" >&2; exit 1; }
   # L'API est relayée (ici vers un service absent : 502), jamais servie comme un fichier.
   expect "$host" /api/health 502
+  # En-têtes de sécurité sur toute réponse, erreurs produites par Caddy comprises (fichier absent, API injoignable).
+  for target in "/ 200" "$asset 200" "/assets/absent-0000.js 404" "/api/health 502"; do
+    for header in 'x-content-type-options: nosniff' 'x-frame-options: DENY' \
+      'strict-transport-security: max-age=31536000' "content-security-policy: default-src 'self'; script-src 'self' "; do
+      expect "$host" "${target% *}" "${target#* }" "$header"
+    done
+  done
+  # La coquille servie doit respecter la politique, sinon le navigateur la bloque : la politique entière est
+  # comparée à l'attendu, où chaque script en ligne de la coquille a son empreinte. Aucun style en ligne,
+  # aucun gestionnaire d'événement en ligne, aucun fichier pris sur un autre domaine.
+  expect "$host" / 200
+  inline="$(node -e 'const { readFileSync } = require("node:fs"); const { createHash } = require("node:crypto");
+    const html = readFileSync(process.argv[1], "utf8"); const hashes = [];
+    for (const [, code] of html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g))
+      hashes.push(`\x27sha256-${createHash("sha256").update(code).digest("base64")}\x27`);
+    console.log(hashes.join(" "));' "$work/body")"
+  [ "$host" = web.localhost ] || [ -z "$inline" ] || { echo "$host : script en ligne dans Olympe" >&2; exit 1; }
+  expected="default-src 'self'; script-src 'self' $inline; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://supabase.jeu.example.test wss://supabase.jeu.example.test; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  csp="$(grep -i '^content-security-policy:' "$work/headers" | cut -d ' ' -f 2- | tr -d '\r')"
+  [ "$csp" = "$expected" ] || { printf '%s : politique de contenu inattendue\n  servie   : %s\n  attendue : %s\n' "$host" "$csp" "$expected" >&2; exit 1; }
+  ! grep -qiE '<style|[[:space:]](style|on[a-z]+)=|(src|href)="(https?:)?//' "$work/body" || { echo "$host : style ou gestionnaire en ligne, ou fichier d'un autre domaine" >&2; exit 1; }
 done
+# Olympe ne transmet aucune adresse à un autre site ; le client joueur ne transmet que son origine.
+expect olympe.localhost / 200 'referrer-policy: no-referrer'
+expect web.localhost / 200 'referrer-policy: strict-origin-when-cross-origin'
 # Les deux domaines servent deux applications distinctes.
 fetch web.localhost / > /dev/null && cp "$work/body" "$work/web.html"
 fetch olympe.localhost / > /dev/null

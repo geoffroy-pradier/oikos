@@ -28,8 +28,26 @@
 	}
 }
 
-# Client joueur et API de jeu.
+# En-têtes de sécurité des deux clients (docs/specs/14-infrastructure.md, 14.3). Politique de contenu :
+# rien d'autre que les fichiers du domaine, l'API de jeu sous ce même domaine et Supabase sous le sien ;
+# aucun script ni style en ligne, sauf les scripts dont l'empreinte est passée en argument ; aucune
+# inclusion dans une autre page. `infra/test-static.sh` vérifie que la coquille servie la respecte.
+# Aucun en-tête n'est retiré dans ce bloc : une suppression différerait tout le bloc à l'écriture de la
+# réponse, et les erreurs produites par Caddy (404, 502) partiraient sans aucun de ces en-têtes.
+(security) {
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' {args[0]}; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://supabase.{$OIKOS_DOMAIN} wss://supabase.{$OIKOS_DOMAIN}; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Strict-Transport-Security "max-age=31536000"
+		Referrer-Policy {args[1]}
+	}
+}
+
+# Client joueur et API de jeu. L'empreinte est celle du script de thème en ligne de `apps/web/index.html` :
+# le modifier oblige à la recalculer (le contrôle des clients statiques affiche l'empreinte attendue).
 {$OIKOS_DOMAIN} {
+	import security "'sha256-GAYMHG+tRoWnsItEpvlekjvQTDDIMawpDA4vjlE6A4U='" strict-origin-when-cross-origin
 	import spa /srv/web
 }
 
@@ -46,7 +64,9 @@ supabase.{$OIKOS_DOMAIN} {
 }
 
 # Back-office Olympe : sous-domaine distinct (docs/specs/15-back-office-olympe.md). Il lit et écrit
-# par la même API de jeu, relayée sous son propre domaine.
+# par la même API de jeu, relayée sous son propre domaine. Aucun script en ligne ; aucune adresse d'Olympe
+# ne part vers un autre site (le lien de connexion porte un jeton).
 olympe.{$OIKOS_DOMAIN} {
+	import security "" no-referrer
 	import spa /srv/admin
 }
