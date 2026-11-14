@@ -297,6 +297,69 @@ describe('site.collect sur un atelier', () => {
     );
   });
 
+  it('un atelier à court d’intrants change de recette ; s’il a de quoi tourner, il se récolte d’abord', async () => {
+    const player = await newPlayer('mill_flour');
+    const [mill] = player.sites as [string];
+    const change = (recipeId: string) =>
+      send(player.user, 'site.setRecipe', { siteId: mill, recipeId });
+    await age(mill, 3 * MILL.durationMinutes);
+    // Aucun stock de blé, pas même une ligne : rien à moudre, mais rien n'empêche de changer.
+    expect((await collect(player.user, mill)).body.error?.code).toBe('MISSING_INPUTS');
+    // De quoi moudre une fois : il faut récolter d'abord.
+    await give(player.houseId, 'wheat', WHEAT_PER_FLOUR);
+    expect((await change('bake_bread')).body.error?.code).toBe('COLLECT_FIRST');
+    expect((await collect(player.user, mill)).body.data).toMatchObject({ cycles: 1 });
+    // Deux cycles attendent encore, sans blé : le changement passe, et ils sont perdus.
+    expect((await collect(player.user, mill)).body.error?.code).toBe('MISSING_INPUTS');
+    expect((await change('bake_bread')).status).toBe(200);
+    await give(player.houseId, 'charcoal', 10 * CHARCOAL_PER_BREAD);
+    expect((await collect(player.user, mill)).body.error?.code).toBe('NOTHING_TO_COLLECT');
+    expect(await stockOf(player.houseId)).toEqual({
+      wheat: 0,
+      flour: FLOUR,
+      charcoal: 10 * CHARCOAL_PER_BREAD,
+    });
+    // Du blé réservé par une vente ne compte pas : le moulin reste « à court ».
+    expect((await change('mill_flour')).status).toBe(200);
+    await give(player.houseId, 'wheat', WHEAT_PER_FLOUR);
+    expect((await sell(player.user, 'wheat', WHEAT_PER_FLOUR)).status).toBe(200);
+    await age(mill, MILL.durationMinutes);
+    expect((await change('bake_bread')).status).toBe(200);
+  });
+
+  it('moulin et four de la même maison récoltés ensemble : la farine n’est ni créée ni perdue', async () => {
+    const players = await Promise.all(
+      Array.from({ length: 6 }, () => newPlayer('mill_flour', 'bake_bread')),
+    );
+    await Promise.all(
+      players.map(async (player) => {
+        const [mill, bakery] = player.sites as [string, string];
+        await give(player.houseId, 'wheat', 4 * WHEAT_PER_FLOUR);
+        await give(player.houseId, 'charcoal', 100);
+        await Promise.all([
+          age(mill, 4 * MILL.durationMinutes),
+          age(bakery, 4 * BAKERY.durationMinutes),
+        ]);
+        // Première récolte des deux : le stock de farine n'existe pas encore.
+        const [milled, baked] = await Promise.all([
+          collect(player.user, mill),
+          collect(player.user, bakery),
+        ]);
+        expect(milled.body.data).toMatchObject({ cycles: 4 });
+        // Le four passe avant la mouture (pas de farine) ou après (farine pour cinq fournées, quatre dues).
+        const bakes = baked.status === 200 ? (baked.body.data.cycles as number) : 0;
+        if (baked.status !== 200) expect(baked.body.error?.code).toBe('MISSING_INPUTS');
+        else expect(bakes).toBe(4);
+        expect(await stockOf(player.houseId)).toEqual({
+          wheat: 0,
+          flour: 4 * FLOUR - bakes * FLOUR_PER_BREAD,
+          charcoal: 100 - bakes * CHARCOAL_PER_BREAD,
+          ...(baked.status === 200 ? { bread: bakes * BREAD } : {}),
+        });
+      }),
+    );
+  });
+
   it('le temps perdu faute d’intrants ne se rattrape pas au-delà du plafond du site', async () => {
     const player = await newPlayer('mill_flour');
     const [mill] = player.sites as [string];

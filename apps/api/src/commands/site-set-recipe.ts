@@ -3,7 +3,7 @@ import {
   siteSetRecipeInputSchema,
   siteSetRecipeOutputSchema,
 } from '@oikos/contracts';
-import { accrueProduction } from '@oikos/sim';
+import { accrueWorkshop } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 
@@ -25,7 +25,7 @@ export const siteSetRecipe = defineCommand({
     // Verrouille le site : une collecte simultanée passe avant ou après, jamais pendant.
     const site = await trx
       .selectFrom('game.sites')
-      .select(['id', 'house_id', 'recipe_id', 'cycle_started_at'])
+      .select(['id', 'house_id', 'city_id', 'recipe_id', 'cycle_started_at'])
       .select(sql<boolean>`cycle_started_at > now()`.as('moved'))
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
@@ -46,12 +46,33 @@ export const siteSetRecipe = defineCommand({
     if (next.siteType !== current.siteType)
       return refuse('RECIPE_NOT_COMPATIBLE', 'This recipe needs another type of site.');
 
-    const { cycles } = accrueProduction({
+    // « Déjà produit » : ce qu'une récolte livrerait maintenant. Un atelier à court d'intrants n'a rien
+    // produit : il peut changer de recette, et ses cycles en attente sont perdus avec le cycle entamé.
+    // Sans cela, il serait renvoyé d'un refus à l'autre (rien à moudre, mais « récoltez d'abord »).
+    // Stocks d'intrants verrouillés dans l'ordre des biens, comme à la récolte.
+    const inputGoods = current.inputs.map((stack) => stack.goodId);
+    const stocks =
+      inputGoods.length === 0
+        ? []
+        : await trx
+            .selectFrom('game.inventories')
+            .select(['good_id', 'quantity', 'reserved'])
+            .where('house_id', '=', site.house_id)
+            .where('city_id', '=', site.city_id)
+            .where('good_id', 'in', inputGoods)
+            .orderBy(sql`good_id collate "C"`)
+            .forUpdate()
+            .execute();
+    const { cycles } = accrueWorkshop({
       since: site.cycle_started_at,
       now,
       cycleMinutes: current.durationMinutes,
-      outputPerCycle: 1,
       maxCycles: current.maxAccruedCycles,
+      inputs: current.inputs.map((stack) => {
+        const stock = stocks.find((candidate) => candidate.good_id === stack.goodId);
+        const free = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
+        return { perCycle: stack.quantity, available: free };
+      }),
     });
     if (cycles > 0) return refuse('COLLECT_FIRST', 'Collect what the site has produced first.');
 

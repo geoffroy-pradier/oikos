@@ -3,7 +3,8 @@ import {
   siteCollectInputSchema,
   siteCollectOutputSchema,
 } from '@oikos/contracts';
-import { accrueWorkshop } from '@oikos/sim';
+import { accrueProduction, accrueWorkshop } from '@oikos/sim';
+import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
 /**
@@ -34,13 +35,29 @@ export const siteCollect = defineCommand({
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!recipe) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
 
-    // Stocks touchés, intrants et extrants confondus, verrouillés dans l'ordre des biens : deux
-    // récoltes de la même maison, ou une récolte et une vente, ne s'attendent jamais l'une l'autre.
+    // Le cas le plus fréquent d'abord, sans toucher à aucun stock : aucun cycle n'est écoulé.
+    const byTime = accrueProduction({
+      since: site.cycle_started_at,
+      now,
+      cycleMinutes: recipe.durationMinutes,
+      outputPerCycle: 1,
+      maxCycles: recipe.maxAccruedCycles,
+    });
+    if (byTime.cycles === 0) {
+      const message = 'No full production cycle has elapsed yet.';
+      return { ok: false, error: { code: 'NOTHING_TO_COLLECT', message } };
+    }
+
+    // Stocks touchés, intrants et extrants confondus, ouverts puis verrouillés dans l'ordre des biens
+    // (celui des unités de code, le même en JavaScript et en base avec le classement "C", que suit
+    // aussi le moteur) : deux récoltes de la même maison, une récolte et une vente, une récolte et un
+    // tick ne s'attendent jamais l'une l'autre.
     const goods = [...new Set([...recipe.inputs, ...recipe.outputs].map((stack) => stack.goodId))];
     goods.sort();
+    const produced = new Set(recipe.outputs.map((stack) => stack.goodId));
     const place = { house_id: site.house_id, city_id: site.city_id };
     // Un extrant jamais produit n'a pas encore de stock : il est ouvert, vide.
-    for (const { goodId } of recipe.outputs) {
+    for (const goodId of goods.filter((candidate) => produced.has(candidate))) {
       await trx
         .insertInto('game.inventories')
         .values({ world_id: site.world_id, ...place, good_id: goodId })
@@ -53,14 +70,14 @@ export const siteCollect = defineCommand({
       .where('house_id', '=', place.house_id)
       .where('city_id', '=', place.city_id)
       .where('good_id', 'in', goods)
-      .orderBy('good_id')
+      .orderBy(sql`good_id collate "C"`)
       .forUpdate()
       .execute();
     const inventoryOf = (goodId: string) =>
       inventories.find((inventory) => inventory.good_id === goodId);
 
     // Un atelier ne tourne que sur le stock libre : ce qui est réservé par des ventes n'est pas consommé.
-    const { cycles, elapsedCycles, since } = accrueWorkshop({
+    const { cycles, since } = accrueWorkshop({
       since: site.cycle_started_at,
       now,
       cycleMinutes: recipe.durationMinutes,
@@ -71,10 +88,6 @@ export const siteCollect = defineCommand({
         return { perCycle: stack.quantity, available: free };
       }),
     });
-    if (elapsedCycles === 0) {
-      const message = 'No full production cycle has elapsed yet.';
-      return { ok: false, error: { code: 'NOTHING_TO_COLLECT', message } };
-    }
     if (cycles === 0) {
       const message = 'Not enough free stock of the inputs to run a single cycle.';
       return { ok: false, error: { code: 'MISSING_INPUTS', message } };

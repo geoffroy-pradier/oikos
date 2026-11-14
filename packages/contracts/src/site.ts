@@ -35,7 +35,8 @@ export const siteCollectedSchema = z.strictObject({
     siteId: z.uuid(),
     houseId: z.uuid(),
     cycles: z.number().int().positive(),
-    inputs: z.array(collectedStack),
+    // Absent des événements enregistrés avant les ateliers : lu comme « aucun intrant ».
+    inputs: z.array(collectedStack).default([]),
     outputs: z.array(collectedStack).min(1),
   }),
 });
