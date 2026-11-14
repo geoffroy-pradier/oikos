@@ -51,6 +51,17 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
+  it('chaque type de site a un entretien quotidien, inférieur à son prix d’acquisition', () => {
+    const { acquisitionCostOboles, upkeep } = config.sites;
+    // Garde-fou de cohérence, pas une formule d'équilibrage : les montants se règlent librement.
+    for (const [type, cost] of Object.entries(acquisitionCostOboles)) {
+      const daily = upkeep.dailyOboles[type as keyof typeof upkeep.dailyOboles];
+      expect(daily).toBeGreaterThan(0);
+      expect(daily).toBeLessThan(cost);
+    }
+    expect(upkeep.coefficientBps).toBeGreaterThan(0);
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {

@@ -126,6 +126,29 @@ function deepFreeze<T>(value: T): T {
 }
 
 /**
+ * Valeurs lues pour les versions publiées avant l'entretien des sites : elles ne prélevaient rien.
+ * FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_UPKEEP = deepFreeze({
+  coefficientBps: 10_000,
+  dailyOboles: { field: 0, orchard: 0, pasture: 0, forest: 0, quarry: 0, fishery: 0, workshop: 0 },
+});
+
+/**
+ * Entretien quotidien des sites, prélevé à la clôture et détruit (puits `sink_upkeep`, 5.5).
+ * Dû par site : ⌈dailyOboles[type] × coefficientBps ÷ 10 000⌉.
+ */
+export const upkeepSchema = z.strictObject({
+  /**
+   * Coefficient d'entretien global, en points de base (10 000 = ×1), de ×0 à ×10 : l'un des trois
+   * leviers d'inflation, qui se règle sans retoucher chaque type de site.
+   */
+  coefficientBps: z.number().int().min(0).max(100_000),
+  /** Entretien de base par jour de jeu, en oboles, pour chaque type de site. Nul : pas d'entretien. */
+  dailyOboles: z.record(z.enum(SITE_TYPES), z.number().int().min(0).max(1_000_000_000)),
+});
+
+/**
  * Valeurs lues pour les versions publiées avant que la section `sites` n'existe. FIGÉES : les changer
  * changerait après coup le prix d'une version immuable, et le rejeu d'un tick avec sa version
  * enregistrée divergerait. Un rééquilibrage passe par une nouvelle version de configuration, jamais
@@ -142,6 +165,7 @@ export const DEFAULT_SITES = deepFreeze({
     fishery: 800,
     workshop: 1000,
   },
+  upkeep: DEFAULT_UPKEEP,
 });
 
 /**
@@ -156,6 +180,8 @@ export const sitesSchema = z.strictObject({
   limitByHeadquartersLevel: z.array(positiveInt).min(1).max(10),
   /** Prix d'acquisition d'un site, en oboles, pour chaque type de site. La monnaie est détruite. */
   acquisitionCostOboles: z.record(z.enum(SITE_TYPES), positiveInt),
+  /** Absent d'une version publiée avant l'entretien : elle reste lisible, sans entretien. */
+  upkeep: upkeepSchema.default(DEFAULT_UPKEEP),
 });
 
 /**
