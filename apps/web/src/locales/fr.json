@@ -75,6 +75,22 @@
     "restarted": "Site relancé : {{site}}, pour {{cost}} d'entretien.",
     "alreadyRestarted": "Ce site était déjà relancé : {{site}}, pour {{cost}}. Rien de plus n'a été payé.",
     "held": "plus {{amount}} au séquestre pour vos achats en attente à l'agora",
+    "watch": "À surveiller",
+    "watchLine": "{{site}} — {{alerts}}",
+    "alert": {
+      "halted": "arrêté, entretien non payé",
+      "short": "à court d'intrants",
+      "full": "plafond de production atteint"
+    },
+    "harvestFull": "Plafond atteint : ce site ne produit plus rien tant qu'il n'est pas récolté.",
+    "openOrdersNone": "Aucun ordre ouvert à l'agora.",
+    "openOrders": "Ordres ouverts à l'agora : {{buys}}, {{sells}}.",
+    "openBuys_one": "{{number}} achat",
+    "openBuys_other": "{{number}} achats",
+    "openSells_one": "{{number}} vente",
+    "openSells_other": "{{number}} ventes",
+    "toAgora": "Aller à l'agora",
+    "harvestFullShort": "Plafond atteint : ce site ne produit plus rien tant qu'il lui manque des intrants.",
     "accounts": "Comptes de la maison"
   },
   "agora": {

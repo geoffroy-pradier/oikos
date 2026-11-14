@@ -75,6 +75,22 @@
     "restarted": "Site restarted: {{site}}, for {{cost}} of upkeep.",
     "alreadyRestarted": "This site was already restarted: {{site}}, for {{cost}}. Nothing more was paid.",
     "held": "plus {{amount}} held for your resting buy orders at the agora",
+    "watch": "Needs attention",
+    "watchLine": "{{site}} — {{alerts}}",
+    "alert": {
+      "halted": "stopped, upkeep not paid",
+      "short": "short of inputs",
+      "full": "production cap reached"
+    },
+    "harvestFull": "Cap reached: this site produces nothing more until it is collected.",
+    "openOrdersNone": "No open orders at the agora.",
+    "openOrders": "Open orders at the agora: {{buys}}, {{sells}}.",
+    "openBuys_one": "{{number}} buy order",
+    "openBuys_other": "{{number}} buy orders",
+    "openSells_one": "{{number}} sell order",
+    "openSells_other": "{{number}} sell orders",
+    "toAgora": "Go to the agora",
+    "harvestFullShort": "Cap reached: this site produces nothing more until it gets its inputs.",
     "accounts": "House accounts"
   },
   "agora": {
