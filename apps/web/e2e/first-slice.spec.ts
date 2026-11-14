@@ -42,6 +42,7 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
+  await expect(page.getByText("Plafond d'accumulation : 18 cycles, soit 720 × Blé")).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // Trop tôt : le refus de l'API est affiché, rien n'entre en stock.
@@ -125,7 +126,10 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
   await page.unroute('**/rest/v1/site_rules*');
-  await page.reload();
+  // « Réessayer » relit les règles sans recharger la page : l'alerte disparaît, le bouton revient.
+  await page.getByRole('button', { name: 'Réessayer' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Relancer/ })).toBeVisible();
 
   // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
   const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 30 oboles' });
