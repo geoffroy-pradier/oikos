@@ -143,9 +143,11 @@ export const adminCancelActivation = defineCommand({
     },
   },
   async handler({ trx, userId, emit }, { activationId }) {
-    // La marge d'une minute de la base suppose une commande courte : au-delà de trente secondes, la
-    // transaction est abandonnée par Postgres plutôt que validée trop près de l'échéance.
-    await sql`set local transaction_timeout = '30s'`.execute(trx);
+    // La marge d'une minute de la base, mesurée à l'inscription de l'annulation, suppose une fin de
+    // commande courte : chaque requête de la transaction est bornée à vingt secondes (il n'en reste que
+    // deux après l'inscription, le journal et les événements). Une requête trop longue est abandonnée par
+    // Postgres, la connexion reste ouverte : la commande échoue comme toute autre panne, tracée.
+    await sql`set local statement_timeout = '20s'`.execute(trx);
     const activation = await trx
       .selectFrom('config.activations')
       .select(['version_id', 'activate_at'])

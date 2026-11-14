@@ -19,12 +19,19 @@ const DATABASE_URL =
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
+// Clôture de test à plus d'une heure, quelle que soit l'heure réelle : dans la dernière minute avant
+// l'échéance, la base refuserait les annulations et ces tests dépendraient de l'heure où ils tournent.
+const clock =
+  [0, 12]
+    .map((dailyCloseHour) => ({ ...TEST_CONFIG.config.clock, dailyCloseHour }))
+    .find((far) => nextDailyClose(new Date(), far).getTime() - Date.now() > 3_600_000) ??
+  TEST_CONFIG.config.clock;
 const app = createApp({
   db,
   telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
-  loadConfig: testConfig,
+  loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, clock } }),
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
@@ -306,7 +313,7 @@ describe('admin.scheduleConfig', () => {
     const scheduled = await send(root, 'admin.scheduleConfig', { versionId });
     expect(scheduled.status).toBe(200);
     const activateAt = new Date(scheduled.body.data?.activateAt ?? 0);
-    expect(activateAt.getTime()).toBe(nextDailyClose(before, TEST_CONFIG.config.clock).getTime());
+    expect(activateAt.getTime()).toBe(nextDailyClose(before, clock).getTime());
 
     expect(await activeAt(activateAt)).toBe(versionId);
     expect(await activeAt(new Date(activateAt.getTime() - 1))).not.toBe(versionId);

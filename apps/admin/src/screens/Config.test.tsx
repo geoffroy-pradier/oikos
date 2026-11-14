@@ -203,6 +203,30 @@ it('pour une même clôture, seule la dernière version programmée est signalé
   expect(item(2).textContent).toMatch(/Programmée pour le 01\/01\/2997/);
 });
 
+it('une programmation annulée n’est plus signalée ; une clôture entièrement annulée ne désigne personne', async () => {
+  const [at, cancelledAt] = ['2999-01-01T00:00:00Z', '2026-11-14T09:00:00Z'];
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: {
+      ...LISTING,
+      // Forme rendue par l'API : les annulées restent, marquées. La commande annule toute la clôture.
+      activations: [
+        { versionId: 'v1', activateAt: at, cancelledAt },
+        { versionId: 'v3', activateAt: at, cancelledAt },
+        { versionId: 'v2', activateAt: '2998-01-01T00:00:00Z', cancelledAt },
+        { versionId: 'v3', activateAt: '2998-01-01T00:00:00Z', cancelledAt: null },
+      ],
+    },
+  });
+  render(<Config accessToken="token" role="observer" />);
+  await screen.findByRole('heading', { name: /^Version 3/ });
+  expect(item(1).textContent).not.toMatch(/Programmée/);
+  expect(item(2).textContent).not.toMatch(/Programmée/);
+  // Reprogrammée après une annulation : la programmation qui tient est signalée, pas celle de 2999.
+  expect(item(3).textContent).toMatch(/Programmée pour le 01\/01\/2998/);
+  expect(item(3).textContent).not.toMatch(/2999/);
+});
+
 it('la comparaison nomme la version en vigueur et la suit quand elle change', async () => {
   api.adminCommand.mockResolvedValue({ ok: true, data: { activateAt: '2999-01-01T00:00:00Z' } });
   await openVersion(3);

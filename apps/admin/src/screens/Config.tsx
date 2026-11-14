@@ -15,7 +15,7 @@ interface Listing {
     createdBy: string | null;
     createdAt: string;
   }[];
-  activations: { versionId: string; activateAt: string }[];
+  activations: { versionId: string; activateAt: string; cancelledAt?: string | null }[];
 }
 interface Detail {
   id: string;
@@ -122,9 +122,11 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const now = Date.now();
   // Par échéance, seule la dernière version programmée l'emporte (15.4) : l'API rend les
   // programmations de la plus récente à la plus ancienne, la première vue pour une échéance gagne.
+  // Une programmation annulée reste dans la lecture, marquée : elle n'entrera pas en vigueur.
   const winners = new Map<string, string>();
   for (const entry of listing.data?.activations ?? [])
-    if (!winners.has(entry.activateAt)) winners.set(entry.activateAt, entry.versionId);
+    if (!entry.cancelledAt && !winners.has(entry.activateAt))
+      winners.set(entry.activateAt, entry.versionId);
 
   return (
     <>
