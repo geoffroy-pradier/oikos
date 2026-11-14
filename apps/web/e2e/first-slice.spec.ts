@@ -783,29 +783,68 @@ test('comptes : bilan en drachmes et oboles, ouvert et réessayé au clavier', a
   // « Réessayer » a disparu avec l'échec : le foyer est revenu au titre, pas perdu sur la page.
   await expect(title).toBeFocused();
 
+  // Réponse sans aucune ligne : annoncée comme un échec à réessayer, jamais affichée comme un bilan nul.
+  const balanceSheet = '**/rest/v1/my_balance_sheet*';
+  await page.route(balanceSheet, (route) => route.fulfill({ status: 200, json: [] }));
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
+  await page.unroute(balanceSheet);
+  // Nouvelle lecture, lente : le foyer que le joueur pose ailleurs en l'attendant ne lui est pas repris.
+  await page.route(balanceSheet, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Réessayer' }).click();
+  await page.getByLabel('Langue').focus();
+  await expect(page.getByRole('heading', { name: 'Bilan' })).toBeVisible();
+  await expect(page.getByLabel('Langue')).toBeFocused();
+  await page.unroute(balanceSheet);
+
   const line = (label: string) =>
     page
       .locator('dl > div')
       .filter({ has: page.getByText(label, { exact: true }) })
       .locator('dd');
   await alone(async () => {
-    // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran : les tests de
-    // l'agora le recalculent sous ce même verrou avant de s'en servir.
+    // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran, puis remis comme
+    // il était (la ligne d'avant, ou aucune) : sans échange, le tick garderait ces 7 oboles. Rien d'autre
+    // n'écrit ce prix hors de ce verrou, et les tests de l'agora le recalculent avant de s'en servir.
+    const wheat = sql`city_id = ${KALLISTE_ID} and good_id = 'wheat'`;
+    const before = await sql<{
+      price: string;
+      volume: string;
+      window_seconds: number;
+      observed_at: string;
+    }>`select price, volume, window_seconds, observed_at::text as observed_at
+      from game.observed_prices where ${wheat}`.execute(db);
     await sql`insert into game.observed_prices
         (world_id, city_id, good_id, price, volume, window_seconds, observed_at)
       select world_id, id, 'wheat', 7, 1, 86400, now() from game.cities where id = ${KALLISTE_ID}
       on conflict (city_id, good_id) do update
         set price = excluded.price, observed_at = excluded.observed_at`.execute(db);
-    await page.reload();
-    // 3 000 oboles de dotation ; 40 blés à 7 oboles, soit 280 oboles ; 3 280 en tout.
-    await expect(line('Trésorerie')).toHaveText('500 drachmes');
-    await expect(line('Séquestre (retenu pour vos achats en attente)')).toHaveText('0 obole');
-    await expect(line('Stocks, au prix moyen observé')).toHaveText('46 drachmes 4 oboles');
-    await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
-    await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
-    await expectNoHorizontalScroll(page);
-    await page.getByLabel('Langue').selectOption('en');
-    await expect(line('Treasury')).toHaveText('500 drachmas');
-    await expect(line('Total')).toHaveText('546 drachmas 4 obols');
+    try {
+      await page.reload();
+      // 3 000 oboles de dotation ; 40 blés à 7 oboles, soit 280 oboles ; 3 280 en tout.
+      await expect(line('Trésorerie')).toHaveText('500 drachmes');
+      await expect(line('Séquestre (retenu pour vos achats en attente)')).toHaveText('0 obole');
+      await expect(line('Stocks, au prix moyen observé')).toHaveText('46 drachmes 4 oboles');
+      await expect(line('Total')).toHaveText('546 drachmes 4 oboles');
+      await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
+      await expectNoHorizontalScroll(page);
+      await page.getByLabel('Langue').selectOption('en');
+      await expect(line('Treasury')).toHaveText('500 drachmas');
+      await expect(line('Total')).toHaveText('546 drachmas 4 obols');
+    } finally {
+      const previous = before.rows[0];
+      await (
+        previous
+          ? sql`update game.observed_prices set price = ${previous.price}, volume = ${previous.volume},
+              window_seconds = ${previous.window_seconds},
+              observed_at = ${previous.observed_at}::timestamptz where ${wheat}`
+          : sql`delete from game.observed_prices where ${wheat}`
+      ).execute(db);
+    }
   });
 });
