@@ -15,7 +15,7 @@
     "retry": "Réessayer",
     "errors": {
       "network": "L'API ne répond pas. Vérifiez votre connexion, puis réessayez.",
-      "rateLimited": "Trop de demandes en peu de temps. Patientez une minute, puis réessayez."
+      "rateLimited": "Trop de demandes en peu de temps. Patientez un instant, puis réessayez."
     }
   },
   "languages": {
@@ -49,7 +49,7 @@
     "invalid": "Code refusé. Vérifiez l'heure de votre appareil et réessayez.",
     "failed": "La double authentification est indisponible pour le moment.",
     "network": "Le code n'a pas pu être vérifié : pas de réponse du service. Vérifiez votre connexion, puis réessayez.",
-    "rateLimited": "Trop de tentatives. Patientez une minute, puis réessayez avec un nouveau code."
+    "rateLimited": "Trop de tentatives. Patientez un instant, puis réessayez avec un nouveau code."
   },
   "tabs": {
     "vigie": "Vigie",

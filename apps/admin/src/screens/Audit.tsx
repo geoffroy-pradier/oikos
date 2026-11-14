@@ -29,14 +29,25 @@ export function Audit({ accessToken }: { accessToken: string }) {
   const token = useRef(accessToken);
   token.current = accessToken;
 
-  const load = useCallback(async (before?: string) => {
+  // Une lecture à la fois : un double clic ne demande pas deux fois la même page.
+  const reading = useRef(false);
+  const title = useRef<HTMLHeadingElement>(null);
+  const load = useCallback(async (before?: string, retried = false) => {
+    if (reading.current) return;
+    reading.current = true;
     const query = `audit?limit=${PAGE}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
     const reply = await adminGet<{ entries: Entry[] }>(query, token.current);
+    reading.current = false;
     setError(reply.ok ? null : { code: reply.code, before });
     if (!reply.ok) return;
-    setEntries((known) =>
-      before ? [...(known ?? []), ...reply.data.entries] : reply.data.entries,
-    );
+    // Par sûreté, une entrée déjà affichée n'est jamais ajoutée une seconde fois.
+    setEntries((known) => {
+      const seen = new Set(before ? known?.map((entry) => entry.id) : []);
+      const fresh = reply.data.entries.filter((entry) => !seen.has(entry.id));
+      return before ? [...(known ?? []), ...fresh] : fresh;
+    });
+    // Le bouton « Réessayer » disparaît : le foyer clavier va au titre plutôt que de se perdre.
+    if (retried) title.current?.focus();
     setMore(reply.data.entries.length === PAGE);
   }, []);
   useEffect(() => {
@@ -45,7 +56,9 @@ export function Audit({ accessToken }: { accessToken: string }) {
 
   return (
     <>
-      <h1 className="text-2xl">{t('audit.title')}</h1>
+      <h1 ref={title} tabIndex={-1} className="text-2xl">
+        {t('audit.title')}
+      </h1>
       {!entries && !error && <p>{t('app.loading')}</p>}
       {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
       {entries && entries.length > 0 && (
@@ -92,7 +105,7 @@ export function Audit({ accessToken }: { accessToken: string }) {
         </>
       )}
       {/* Sous le tableau : l'échec d'une page plus ancienne laisse les pages déjà lues à l'écran. */}
-      {error && <LoadError code={error.code} onRetry={() => void load(error.before)} />}
+      {error && <LoadError code={error.code} onRetry={() => void load(error.before, true)} />}
       {more && !error && (
         <Button variant="secondary" onClick={() => void load(entries?.at(-1)?.id)}>
           {t('audit.older')}

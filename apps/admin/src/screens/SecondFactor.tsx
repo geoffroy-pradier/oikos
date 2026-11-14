@@ -11,13 +11,16 @@ interface Factor {
 }
 
 /**
- * Cause d'un code non validé, d'après l'erreur de Supabase Auth : sans réponse (réseau), trop de
- * tentatives (429), service en panne (5xx), ou code refusé. Seul le dernier cas met le code en cause.
+ * Cause d'un code non validé, d'après l'erreur du client Supabase Auth (`@supabase/auth-js`, `lib/fetch.ts`) :
+ * - sans réponse : `AuthRetryableFetchError` de statut 0 ;
+ * - service en panne : la même erreur avec son statut 5xx, ou `AuthUnknownError`, sans statut ;
+ * - trop de tentatives : `AuthApiError` 429 ; code refusé : toute autre `AuthApiError` 4xx.
+ * Seul le dernier cas met le code saisi en cause.
  */
-export function verifyFailure(error: { name?: string | undefined; status?: number | undefined }) {
-  if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network' as const;
+export function verifyFailure(error: { status?: number | undefined }) {
+  if (error.status === 0) return 'network' as const;
   if (error.status === 429) return 'rateLimited' as const;
-  return error.status !== undefined && error.status >= 500
+  return error.status === undefined || error.status >= 500
     ? ('failed' as const)
     : ('invalid' as const);
 }

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
+import { AuthApiError, AuthRetryableFetchError, AuthUnknownError } from '@supabase/supabase-js';
 import { auth, resetAuth, VIGIE } from '../test/fakes';
 import { Audit } from './Audit';
 import { SecondFactor } from './SecondFactor';
@@ -60,30 +61,42 @@ describe('second facteur', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Code refusé'));
     expect(onVerified).not.toHaveBeenCalled();
   });
+  // Erreurs telles que le client Supabase Auth les produit (`@supabase/auth-js`, `lib/fetch.ts`).
   it.each([
     [
-      { message: 'x', name: 'AuthRetryableFetchError', status: 0 },
+      'sans réponse',
+      new AuthRetryableFetchError('Failed to fetch', 0),
       'pas de réponse du service',
-      'false',
     ],
-    [{ message: 'x', status: 429 }, 'Trop de tentatives. Patientez une minute', 'false'],
-    [{ message: 'x', status: 503 }, 'indisponible pour le moment', 'false'],
-    [{ message: 'x', status: 422 }, 'Code refusé', 'true'],
-  ])(
-    'réseau, débit, panne et code refusé ont chacun leur message (%j)',
-    async (codeError, text, invalid) => {
-      auth.factors = [{ id: 'known', status: 'verified' }];
-      Object.assign(auth, { acceptCode: false, codeError });
-      render(<SecondFactor onVerified={() => undefined} />);
-      await screen.findByText(/Entrez le code/);
-      const input = screen.getByLabelText('Code à six chiffres');
-      fireEvent.change(input, { target: { value: '000000' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
-      await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(text));
-      // Seul un code refusé met la saisie en cause.
-      expect(input.getAttribute('aria-invalid')).toBe(invalid);
-    },
-  );
+    ['503', new AuthRetryableFetchError('Service Unavailable', 503), 'indisponible pour le moment'],
+    [
+      'réponse illisible',
+      new AuthUnknownError('Unexpected token', {}),
+      'indisponible pour le moment',
+    ],
+    [
+      '429',
+      new AuthApiError('Too many requests', 429, 'over_request_rate_limit'),
+      'Trop de tentatives',
+    ],
+    [
+      'code faux',
+      new AuthApiError('Invalid TOTP code', 422, 'mfa_verification_failed'),
+      'Code refusé',
+    ],
+  ])('échec de vérification (%s) : message propre à sa cause', async (cause, codeError, text) => {
+    const invalid = String(cause === 'code faux');
+    auth.factors = [{ id: 'known', status: 'verified' }];
+    Object.assign(auth, { acceptCode: false, codeError });
+    render(<SecondFactor onVerified={() => undefined} />);
+    await screen.findByText(/Entrez le code/);
+    const input = screen.getByLabelText('Code à six chiffres');
+    fireEvent.change(input, { target: { value: '000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(text));
+    // Seul un code refusé met la saisie en cause.
+    expect(input.getAttribute('aria-invalid')).toBe(invalid);
+  });
 
   it('une panne à la lecture des facteurs se relance par « Réessayer », sans recharger la page', async () => {
     auth.factors = [{ id: 'known', status: 'verified' }];
@@ -211,7 +224,7 @@ describe("journal d'audit", () => {
 
   it.each([
     ['NETWORK', "L'API ne répond pas. Vérifiez votre connexion, puis réessayez."],
-    ['RATE_LIMITED', 'Trop de demandes en peu de temps. Patientez une minute, puis réessayez.'],
+    ['RATE_LIMITED', 'Trop de demandes en peu de temps. Patientez un instant, puis réessayez.'],
     ['INTERNAL', 'Lecture impossible pour le moment.'],
   ])('une lecture en échec (%s) a son message et se relance', async (code, message) => {
     adminGet.mockResolvedValueOnce({ ok: false, code });
@@ -244,6 +257,32 @@ describe("journal d'audit", () => {
       'audit?limit=50&before=id-050',
     ]);
     expect(commands()).toEqual(range(1, 60).map((item) => item.command));
+  });
+
+  it('un double clic ne lit la page qu’une fois : aucune entrée en double', async () => {
+    let failing = true;
+    adminGet.mockImplementation((path: string) => {
+      if (!path.includes('before='))
+        return Promise.resolve({ ok: true, data: { entries: range(1, 50) } });
+      const reply = failing
+        ? { ok: false, code: 'NETWORK' }
+        : { ok: true, data: { entries: range(51, 60) } };
+      return new Promise((resolve) => setTimeout(() => resolve(reply), 10));
+    });
+    render(<Audit accessToken="token" />);
+    const older = await screen.findByRole('button', { name: 'Entrées plus anciennes' });
+    fireEvent.click(older);
+    fireEvent.click(older);
+    const retry = await screen.findByRole('button', { name: 'Réessayer' });
+    expect(adminGet).toHaveBeenCalledTimes(2);
+    failing = false;
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(61));
+    expect(adminGet).toHaveBeenCalledTimes(3);
+    expect(commands()).toEqual(range(1, 60).map((item) => item.command));
+    // « Réessayer » a disparu : le foyer est posé sur le titre, pas perdu.
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
   });
 
   it('au renouvellement du jeton, les pages lues restent ; la suivante part avec le nouveau jeton', async () => {
