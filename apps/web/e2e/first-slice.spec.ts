@@ -273,6 +273,16 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
 });
 
 test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', async ({ page }) => {
+  // Interception posée dès le début et commandée par un drapeau : la poser juste avant l'envoi a
+  // laissé passer, de loin en loin, la vraie réponse (la vente était déposée au lieu d'être « perdue »).
+  let loseReply = false;
+  let lost = 0;
+  await page.route('**/api/commands/market.placeOrder', async (route) => {
+    if (!loseReply) return route.continue();
+    lost += 1;
+    await route.fetch();
+    await route.abort();
+  });
   const houseName = await foundHouse(page);
   await elapse(houseName, 480);
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
@@ -327,13 +337,11 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   // l'annulation ne fait pas oublier la clé du dépôt, un seul ordre existe.
   await page.getByLabel('Prix limite par unité (oboles)').fill('901');
   await page.getByLabel('Quantité', { exact: true }).fill('10');
-  await page.route('**/api/commands/market.placeOrder', async (route) => {
-    await route.fetch();
-    await route.abort();
-  });
+  loseReply = true;
   await page.keyboard.press('Enter');
   await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
-  await page.unroute('**/api/commands/market.placeOrder');
+  expect(lost).toBe(1);
+  loseReply = false;
 
   // Annulation au clavier : le stock réservé redevient disponible.
   await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 900 oboles' }).focus();
