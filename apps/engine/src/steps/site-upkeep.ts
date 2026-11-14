@@ -114,7 +114,8 @@ export const siteUpkeep: CloseStep = {
           .execute();
       totals.houses += 1;
       totals.paidOboles += total;
-      totals.sitesPaid += paid.length;
+      // Un site au dû nul (recette retirée) est réglé sans rien payer : il n'est pas compté comme payé.
+      totals.sitesPaid += paid.filter((due) => due.oboles > 0).length;
       totals.sitesUnpaid += unpaid.length;
       totals.halted += halted.length;
       totals.resumed += resumed.length;

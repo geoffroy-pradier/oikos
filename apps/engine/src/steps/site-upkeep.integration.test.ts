@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   createConfigLoader,
+  DEFAULT_UPKEEP,
   ensureInitialConfig,
   INITIAL_CONFIG,
   type GameConfig,
@@ -93,7 +94,7 @@ const balances = async ({ worldId, houseId }: House) =>
 /** État de chaque site, dans l'ordre de création : à l'arrêt ou non, et secondes de cycle écoulées. */
 const sitesOf = ({ houseId }: House) =>
   one(sql<{ halted: boolean; elapsed: number }>`select halted_at is not null as halted,
-    round(extract(epoch from coalesce(halted_at, now()) - cycle_started_at))::int as elapsed
+    extract(epoch from coalesce(halted_at, now()) - cycle_started_at)::float8 as elapsed
     from game.sites where house_id = ${houseId} order by created_at`);
 const entriesOf = ({ houseId }: House) =>
   one(sql<{
@@ -102,12 +103,27 @@ const entriesOf = ({ houseId }: House) =>
   }>`select e.meta, array_agg(l.amount order by l.amount) as amounts
     from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
     where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId} group by e.id order by e.created_at`);
+/** Ordre de lecture du résumé : maisons, oboles payées, sites payés, sites impayés, arrêtés, relancés. */
+const SUMMARY_KEYS = ['houses', 'paidOboles', 'sitesPaid', 'sitesUnpaid', 'halted', 'resumed'];
+/** Résumé de l'étape enregistré avec chaque clôture du monde, dans l'ordre des jours de jeu. */
+const summariesOf = async (worldId: string) =>
+  (
+    await one(sql<{
+      summary: { siteUpkeep: Record<string, number> };
+    }>`select summary from game.daily_closes
+      where world_id = ${worldId} order by game_day`)
+  ).map(({ summary }) => {
+    expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS].sort());
+    return SUMMARY_KEYS.map((key) => summary.siteUpkeep[key]);
+  });
 
 describe('entretien des sites à la clôture quotidienne', () => {
   it('chaque site paie son jour d’entretien au puits, une seule fois par jour de jeu', async () => {
     const house = await newHouse(1_000, ['grow_wheat', 'dig_clay', 'grow_olives']);
     const [a, b, c] = house.siteIds;
-    expect(await close(house.worldId)).toEqual([TODAY]);
+    // La première clôture est demandée par trois moteurs à la fois : un seul la joue, un seul prélèvement.
+    const engines = await Promise.all([1, 2, 3].map(() => close(house.worldId)));
+    expect(engines.flat()).toEqual([TODAY]);
     // 38 + 75 + 57 = 170 : 1 000 − 170 = 830, et le puits a tout reçu.
     expect(await balances(house)).toEqual([830, 170]);
     const paid = [
@@ -119,8 +135,9 @@ describe('entretien des sites à la clôture quotidienne', () => {
       { meta: { houseId: house.houseId, gameDay: TODAY, sites: paid }, amounts: ['-170', '170'] },
     ]);
     expect((await sitesOf(house)).map((site) => site.halted)).toEqual([false, false, false]);
-    // Rejouée, y compris par deux moteurs à la fois : rien de plus.
-    expect((await Promise.all([close(house.worldId), close(house.worldId)])).flat()).toEqual([]);
+    expect(await summariesOf(house.worldId)).toEqual([[1, 170, 3, 0, 0, 0]]);
+    // Rejouée : rien de plus.
+    expect(await close(house.worldId)).toEqual([]);
     expect(await balances(house)).toEqual([830, 170]);
     // Même si l'étape était relancée hors de la clôture, la base refuse le second prélèvement.
     const { config } = await charged.at();
@@ -159,13 +176,14 @@ describe('entretien des sites à la clôture quotidienne', () => {
     const after = await sitesOf(house);
     expect(after.map((site) => site.halted)).toEqual([false, false, false]);
     // Le temps passé à l'arrêt n'est pas compté : neuf jours de cycle moins deux heures, avant comme après.
-    expect(before.slice(1).map((site) => site.elapsed)).toEqual([
-      9 * 86_400 - 7_200,
-      9 * 86_400 - 7_200,
+    // (à une seconde près : l'essai lui-même prend quelques millisecondes).
+    for (const site of [...before.slice(1), ...after.slice(1)])
+      expect(Math.abs(site.elapsed - (9 * 86_400 - 7_200))).toBeLessThan(1);
+    expect(await summariesOf(house.worldId)).toEqual([
+      [1, 95, 2, 1, 1, 0],
+      [1, 38, 1, 2, 1, 0],
+      [1, 170, 3, 0, 0, 2],
     ]);
-    expect(after.slice(1).map((site) => site.elapsed)).toEqual(
-      before.slice(1).map((site) => site.elapsed),
-    );
     // Chaque écriture ne porte que les sites payés ce jour-là.
     const [first] = house.siteIds;
     expect((await entriesOf(house)).map((entry) => entry.meta)).toMatchObject([
@@ -200,6 +218,38 @@ describe('entretien des sites à la clôture quotidienne', () => {
     expect((await sitesOf(house)).map((site) => site.halted)).toEqual([false, false, false]);
     expect((await entriesOf(house)).map((entry) => entry.meta)).toEqual([
       { houseId: house.houseId, gameDay: TODAY, sites: [{ siteId: first, oboles: FIELD }] },
+    ]);
+  });
+
+  it('rien à payer : maison sans monnaie arrêtée sans écriture, site sans tarif relancé sans payer, configuration sans entretien', async () => {
+    // Trésorerie vide : le champ s'arrête, aucune écriture (une écriture nulle n'existe pas).
+    const broke = await newHouse(0, ['grow_wheat']);
+    await close(broke.worldId);
+    expect([await balances(broke), await entriesOf(broke)]).toEqual([[0, 0], []]);
+    expect((await sitesOf(broke)).map((site) => site.halted)).toEqual([true]);
+    expect(await summariesOf(broke.worldId)).toEqual([[1, 0, 0, 1, 1, 0]]);
+    // Site à l'arrêt dont la recette a quitté la configuration : dû nul, il repart sans rien payer.
+    const retired = await newHouse(0, ['grow_wheat']);
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await sql`update game.sites set recipe_id = 'retired_recipe', halted_at = now() - interval '1 hour'
+        where house_id = ${retired.houseId}`.execute(trx);
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+    });
+    await close(retired.worldId);
+    expect([await sitesOf(retired), await entriesOf(retired)]).toMatchObject([
+      [{ halted: false }],
+      [],
+    ]);
+    expect(await summariesOf(retired.worldId)).toEqual([[1, 0, 0, 0, 0, 1]]);
+    // Configuration publiée avant l'entretien : rien n'est dû, la maison n'est pas concernée du tout.
+    const old = await newHouse(0, ['grow_wheat', 'dig_clay']);
+    const before = { ...initial, clock, sites: { ...initial.sites, upkeep: DEFAULT_UPKEEP } };
+    await close(old.worldId, TODAY, { at: async () => ({ ...loaded, config: before }) });
+    expect((await sitesOf(old)).map((site) => site.halted)).toEqual([false, false]);
+    expect([await entriesOf(old), await summariesOf(old.worldId)]).toEqual([
+      [],
+      [[0, 0, 0, 0, 0, 0]],
     ]);
   });
 });
