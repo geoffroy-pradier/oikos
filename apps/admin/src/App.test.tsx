@@ -73,6 +73,9 @@ describe('accès au back-office', () => {
     render(<App />);
     expect((await screen.findByRole('alert')).textContent).toContain("n'a pas accès");
     expect(nav()).toBeNull();
+    // Il lit son identifiant, celui que le super-administrateur saisira pour lui accorder un rôle.
+    expect(screen.getByText(/transmettez à un super-administrateur/)).toBeTruthy();
+    expect(screen.getByText('alice').tagName).toBe('CODE');
   });
 
   it("n'interroge pas l'API avant le second facteur", async () => {

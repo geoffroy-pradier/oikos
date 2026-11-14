@@ -11,7 +11,8 @@ import { defineCommand } from '../registry';
  * Récolte un site : la production est calculée ici, à partir de l'horodatage du cycle en cours
  * (évaluation paresseuse). Un atelier consomme ses intrants dans le stock libre de la maison ; à court
  * d'intrants, les cycles en attente restent dus (docs/specs/04-systemes-gestion.md, 4.3). Tout passe
- * par le journal des stocks.
+ * par le journal des stocks. Un site à l'arrêt, faute d'entretien payé, ne compte le temps que jusqu'à
+ * son arrêt.
  */
 export const siteCollect = defineCommand({
   name: 'site.collect',
@@ -22,7 +23,15 @@ export const siteCollect = defineCommand({
     // Verrouille le site : deux collectes simultanées s'exécutent l'une après l'autre.
     const site = await trx
       .selectFrom('game.sites')
-      .select(['id', 'world_id', 'house_id', 'city_id', 'recipe_id', 'cycle_started_at'])
+      .select([
+        'id',
+        'world_id',
+        'house_id',
+        'city_id',
+        'recipe_id',
+        'cycle_started_at',
+        'halted_at',
+      ])
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
         houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
@@ -35,10 +44,13 @@ export const siteCollect = defineCommand({
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!recipe) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
 
+    // Un site à l'arrêt ne produit pas (5.5) : pour lui, le temps s'est arrêté à l'instant de l'arrêt.
+    // Ce qu'il avait accumulé avant reste récoltable ; le cycle entamé est gelé jusqu'à la reprise.
+    const until = site.halted_at && site.halted_at < now ? site.halted_at : now;
     // Le cas le plus fréquent d'abord, sans toucher à aucun stock : aucun cycle n'est écoulé.
     const byTime = accrueProduction({
       since: site.cycle_started_at,
-      now,
+      now: until,
       cycleMinutes: recipe.durationMinutes,
       outputPerCycle: 1,
       maxCycles: recipe.maxAccruedCycles,
@@ -79,7 +91,7 @@ export const siteCollect = defineCommand({
     // Un atelier ne tourne que sur le stock libre : ce qui est réservé par des ventes n'est pas consommé.
     const { cycles, since } = accrueWorkshop({
       since: site.cycle_started_at,
-      now,
+      now: until,
       cycleMinutes: recipe.durationMinutes,
       maxCycles: recipe.maxAccruedCycles,
       inputs: recipe.inputs.map((stack) => {

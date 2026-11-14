@@ -218,6 +218,7 @@
     "SITE_LIMIT_REACHED": "Votre maison exploite déjà autant de sites que son siège le permet.",
     "COLLECT_FIRST": "Récoltez ce site avant de changer sa production.",
     "SITE_CHANGED": "Ce site vient de changer. Réessayez.",
+    "SITE_HALTED": "Ce site est à l'arrêt : son entretien n'est pas payé. Relancez-le d'abord.",
     "MISSING_INPUTS": "Il manque des intrants en stock libre pour faire tourner cet atelier."
   },
   "shell": {

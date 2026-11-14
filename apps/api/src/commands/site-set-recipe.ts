@@ -25,7 +25,7 @@ export const siteSetRecipe = defineCommand({
     // Verrouille le site : une collecte simultanée passe avant ou après, jamais pendant.
     const site = await trx
       .selectFrom('game.sites')
-      .select(['id', 'house_id', 'city_id', 'recipe_id', 'cycle_started_at'])
+      .select(['id', 'house_id', 'city_id', 'recipe_id', 'cycle_started_at', 'halted_at'])
       .select(sql<boolean>`cycle_started_at > now()`.as('moved'))
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
@@ -38,6 +38,10 @@ export const siteSetRecipe = defineCommand({
     // Une collecte commencée après cette commande a validé avant elle et a avancé le cycle au-delà de
     // notre instant : la garde refuserait d'y revenir. Conflit à rejouer, pas une erreur interne.
     if (site.moved) return refuse('SITE_CHANGED', 'The site just changed. Try again.');
+    // Un site à l'arrêt garde sa recette et son cycle gelé : il faut le relancer d'abord. La base le
+    // refuserait de toute façon (le cycle d'un site à l'arrêt ne dépasse pas l'instant de l'arrêt).
+    if (site.halted_at)
+      return refuse('SITE_HALTED', 'This site is halted until its upkeep is paid.');
     const current = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!current) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
     const next = config.recipes.find((candidate) => candidate.id === input.recipeId);

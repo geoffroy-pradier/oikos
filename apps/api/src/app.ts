@@ -12,6 +12,7 @@ import { registerAdminReads } from './admin-read';
 import { adminRouteTemplate, type RefusalReason, type Telemetry } from './telemetry';
 import type { Identity, TokenVerifier } from './auth';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
+import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
@@ -20,7 +21,12 @@ import { siteAcquire } from './commands/site-acquire';
 import { siteCollect } from './commands/site-collect';
 import { siteSetRecipe } from './commands/site-set-recipe';
 import type { RateLimiter } from './rate-limit';
-import { executeCommand, type CommandDefinition, type ConfigSource } from './registry';
+import {
+  executeCommand,
+  type ApiSettings,
+  type CommandDefinition,
+  type ConfigSource,
+} from './registry';
 
 export interface AppDeps {
   db: Db;
@@ -31,6 +37,8 @@ export interface AppDeps {
   loadConfig: ConfigSource;
   /** Refus avant exécution et lectures du back-office. Obligatoire, pour la même raison. */
   telemetry: Telemetry;
+  /** Réglages tirés de l'environnement. Absents : ceux de la production (revue exigée). */
+  settings?: ApiSettings;
 }
 
 /** Registre des commandes servies par l'API. */
@@ -44,6 +52,8 @@ export const COMMANDS = [
   marketCancelOrder,
   adminPublishConfig,
   adminScheduleConfig,
+  adminGrantRole,
+  adminRevokeRole,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
@@ -74,7 +84,8 @@ const REFUSAL_BY_STATUS: Record<number, RefusalReason> = {
   429: 'rate_limited',
 };
 
-export function createApp({ db, verifyToken, rateLimiter, loadConfig, telemetry }: AppDeps) {
+export function createApp(deps: AppDeps) {
+  const { db, verifyToken, rateLimiter, loadConfig, telemetry, settings } = deps;
   const app = new Hono<{ Variables: { identity: Identity; adminRole: AdminRole } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
@@ -150,7 +161,7 @@ export function createApp({ db, verifyToken, rateLimiter, loadConfig, telemetry 
     }
     const input: unknown = await c.req.json().catch(() => null);
     const request = { ...c.get('identity'), idempotencyKey: key.data, input };
-    const { response, replayed } = await executeCommand(db, command, request, loadConfig);
+    const { response, replayed } = await executeCommand(db, command, request, loadConfig, settings);
     c.header('Idempotent-Replay', String(replayed));
     return c.json(response, response.ok ? 200 : statusOf(response.error.code));
   });

@@ -86,6 +86,8 @@ export const SITE_SET_RECIPE_ERROR_CODES = [
   'RECIPE_NOT_COMPATIBLE',
   'RECIPE_UNCHANGED',
   'COLLECT_FIRST',
+  /** Le site est à l'arrêt, entretien impayé : il ne change pas de recette avant d'être relancé. */
+  'SITE_HALTED',
   /** Le site a bougé pendant la commande. Comme tout refus, il est lié à sa clé : réessayer avec une clé neuve. */
   'SITE_CHANGED',
 ] as const;

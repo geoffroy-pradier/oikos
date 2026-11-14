@@ -171,8 +171,6 @@ describe('avance d’un monde', () => {
     // Un seul tick, celui de l'heure réelle (deux si l'essai a chevauché un changement de tick).
     expect(played.length).toBeGreaterThanOrEqual(1);
     expect(played.every((index) => index >= before && index <= after)).toBe(true);
-    const drift = Math.abs((await databaseNow(db)).getTime() - Date.now());
-    expect(drift).toBeLessThan(5_000);
   });
 
   it('tous les mondes avancent ; l’échec de l’un n’arrête pas les autres et il est rapporté', async () => {

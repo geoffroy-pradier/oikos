@@ -199,7 +199,8 @@ describe('paramètres et journal d’audit', () => {
     const harmless = await command(users.designer, 'admin.publishConfig', {
       config: TEST_CONFIG.config,
     });
-    const scheduled = await command(users.designer, 'admin.scheduleConfig', {
+    // Programmée par un autre compte que son auteur : la revue par une seconde personne (15.2).
+    const scheduled = await command(users.root, 'admin.scheduleConfig', {
       versionId: harmless?.versionId,
     });
 
@@ -215,7 +216,7 @@ describe('paramètres et journal d’audit', () => {
     expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
     expect(
       listing.activations.find((a: { versionId: string }) => a.versionId === harmless?.versionId),
-    ).toMatchObject({ activateAt: scheduled?.activateAt, createdBy: users.designer });
+    ).toMatchObject({ activateAt: scheduled?.activateAt, createdBy: users.root });
 
     const detail = await get(users.designer, `config/versions/${published?.versionId}`);
     expect(detail.body.data).toMatchObject({
@@ -237,7 +238,7 @@ describe('paramètres et journal d’audit', () => {
     await command(intruder, 'admin.publishConfig', { config: TEST_CONFIG.config });
 
     const audit = await get(users.root, 'audit?limit=100');
-    const entries: { userId: string; createdAt: string }[] = audit.body.data.entries;
+    const entries: { id: string; userId: string }[] = audit.body.data.entries;
     expect(entries.find((entry) => entry.userId === author)).toMatchObject({
       command: 'admin.publishConfig',
       status: 'ok',
@@ -250,8 +251,10 @@ describe('paramètres et journal d’audit', () => {
       errorCode: 'FORBIDDEN',
       result: null,
     });
-    const dates = entries.map((entry) => entry.createdAt);
-    expect(dates).toEqual([...dates].sort().reverse());
+    // Ordre d'inscription au journal (identifiant croissant dans le temps), pas ordre des heures : l'heure
+    // est celle du début de la commande, et deux commandes simultanées peuvent s'inscrire à l'envers.
+    const ids = entries.map((entry) => entry.id);
+    expect(ids).toEqual([...ids].sort().reverse());
     // La configuration soumise n'est pas recopiée dans le journal rendu.
     expect(JSON.stringify(audit.body)).not.toContain('referencePriceOboles');
   });

@@ -1,7 +1,8 @@
 import { ConfigError, type ConfigLoader } from '@oikos/config';
 import type { Db } from '@oikos/db';
-import { tickIndexAt, tickStart } from '@oikos/sim';
+import { dailyCloseAt, gameDayAt, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
+import { runDailyClose, type CloseStep } from './close';
 import { runTick, type TickStep } from './tick';
 
 /** Nombre maximal de ticks rattrapés en un passage, après une panne du moteur (limite technique). */
@@ -90,6 +91,58 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
   return played;
 }
 
+export interface CloseWorldRequest {
+  worldId: string;
+  now: Date;
+  config: Pick<ConfigLoader, 'at'>;
+  steps: readonly CloseStep[];
+}
+
+/**
+ * Joue la clôture du jour de jeu en cours d'un monde si elle ne l'est pas encore, et rend le jour que
+ * cet appel a lui-même clos. Une clôture manquée (moteur arrêté à l'heure dite) est rattrapée au
+ * premier passage, une seule fois : après une panne de plusieurs jours, seule la clôture du jour en
+ * cours est jouée, les jours manqués n'en ont pas et ne coûtent rien aux maisons. Rien ici ne dépend
+ * de la durée du tick : le jour de jeu et l'instant de sa clôture se déduisent de l'heure de clôture
+ * et du fuseau, en vigueur à l'instant présent.
+ */
+export async function closeWorld(db: Db, request: CloseWorldRequest): Promise<number[]> {
+  const { worldId, now, config, steps } = request;
+  const { clock } = (await config.at(now)).config;
+  const last = await db
+    .selectFrom('game.daily_closes')
+    .select('game_day')
+    .where('world_id', '=', worldId)
+    .orderBy('game_day', 'desc')
+    .limit(1)
+    .executeTakeFirst();
+  const gameDay = gameDayAt(now, clock);
+  // Déjà close, ou horloge qui recule : rien à faire. Simple raccourci, lu hors verrou : c'est
+  // `runDailyClose` qui garantit, sous verrou, qu'aucune clôture n'est jouée en arrière.
+  if (last && gameDay <= last.game_day) return [];
+  const closeAt = dailyCloseAt(gameDay, clock);
+  // Monde neuf dont la configuration n'était pas encore en vigueur à la clôture du jour en cours
+  // (premier démarrage) : il commence à la clôture suivante. Sondé ici, avant de jouer : une
+  // erreur de configuration levée pendant la clôture, elle, n'est jamais avalée.
+  const unready = (error: unknown) => {
+    if (error instanceof ConfigError) return false;
+    throw error;
+  };
+  if (!last && !(await config.at(closeAt).then(() => true, unready))) return [];
+  const outcome = await runDailyClose(db, { worldId, gameDay, closeAt, config, steps, now });
+  // Une clôture déjà jouée par un autre moteur n'est pas comptée ici.
+  return outcome.status === 'done' ? [gameDay] : [];
+}
+
+/** Joue la clôture échue de tous les mondes (`played` : le jour de jeu clos), comme `advanceAllWorlds`. */
+export async function closeAllWorlds(
+  db: Db,
+  { now, ...rest }: Omit<CloseWorldRequest, 'worldId' | 'now'> & { now?: Date },
+): Promise<{ worldId: string; played: number[]; error?: string }[]> {
+  const request = { ...rest, now: now ?? (await databaseNow(db)) };
+  return eachWorld(db, (worldId) => closeWorld(db, { ...request, worldId }));
+}
+
 /**
  * Fait avancer tous les mondes ; l'échec d'un monde n'arrête pas les autres. Sans instant fourni (cas
  * du moteur ; les tests en fournissent un), l'instant présent est lu une fois à l'horloge de la base.
@@ -99,11 +152,16 @@ export async function advanceAllWorlds(
   { now, ...rest }: Omit<AdvanceRequest, 'worldId' | 'now'> & { now?: Date },
 ): Promise<{ worldId: string; played: number[]; error?: string }[]> {
   const request = { ...rest, now: now ?? (await databaseNow(db)) };
+  return eachWorld(db, (worldId) => advanceWorld(db, { ...request, worldId }));
+}
+
+/** Applique une action à chaque monde ; l'échec d'un monde n'arrête pas les autres et il est rapporté. */
+async function eachWorld(db: Db, run: (worldId: string) => Promise<number[]>) {
   const worlds = await db.selectFrom('game.worlds').select('id').orderBy('id').execute();
-  const results = [];
+  const results: { worldId: string; played: number[]; error?: string }[] = [];
   for (const { id: worldId } of worlds) {
     try {
-      results.push({ worldId, played: await advanceWorld(db, { ...request, worldId }) });
+      results.push({ worldId, played: await run(worldId) });
     } catch (error) {
       console.error(`World ${worldId} could not advance`, error);
       results.push({
