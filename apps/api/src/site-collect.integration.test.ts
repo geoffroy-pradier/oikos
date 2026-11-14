@@ -75,6 +75,24 @@ async function age(siteId: string, cycles: number) {
   });
 }
 
+/** Met le site à l'arrêt depuis `cycles` cycles, ou le relance comme le fait le service (`null`). */
+async function halt(siteId: string, cycles: number | null) {
+  await owner.transaction().execute(async (trx) => {
+    if (cycles === null) {
+      await sql`update game.sites set halted_at = null,
+        cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second' where id = ${siteId}`.execute(
+        trx,
+      );
+      return;
+    }
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set halted_at = now() - ${`${cycles * CYCLE_MS} milliseconds`}::interval where id = ${siteId}`.execute(
+      trx,
+    );
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+}
+
 const stockOf = async (houseId: string) =>
   (
     await db
@@ -128,6 +146,58 @@ describe('site.collect', () => {
       .where(sql<boolean>`payload->>'siteId' = ${player.siteId}`)
       .execute();
     expect(events).toEqual([{ type: 'SiteCollected' }, { type: 'SiteCollected' }]);
+  });
+
+  it('site à l’arrêt : le temps s’arrête à l’arrêt, l’accumulé reste récoltable, le cycle entamé est gelé puis repris', async () => {
+    const player = await newPlayer();
+    // 3,5 cycles d'âge, dont les 1,25 derniers à l'arrêt : 2,25 cycles de production, donc 2 récoltés.
+    await age(player.siteId, 3.5);
+    await halt(player.siteId, 1.25);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({ data: { cycles: 2 } });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 2 * PER_CYCLE]]);
+    // Le temps passé à l'arrêt ne produit rien, aussi long soit-il.
+    expect(await collect(player.user, player.siteId)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'NOTHING_TO_COLLECT' } },
+    });
+    // À l'arrêt, pas de changement de recette : le refus vient de l'arrêt, avant tout examen de la recette.
+    const change = await send(player.user, 'site.setRecipe', {
+      siteId: player.siteId,
+      recipeId: 'grow_nothing',
+    });
+    expect([change.status, await change.json()]).toMatchObject([
+      409,
+      { error: { code: 'SITE_HALTED' } },
+    ]);
+    // Relancé, le site reprend son quart de cycle gelé : 0,8 cycle de plus font un cycle (1,05), pas 2,3.
+    await halt(player.siteId, null);
+    const resumed = await send(player.user, 'site.setRecipe', {
+      siteId: player.siteId,
+      recipeId: 'grow_nothing',
+    });
+    expect(await resumed.json()).toMatchObject({ error: { code: 'RECIPE_NOT_FOUND' } });
+    expect((await collect(player.user, player.siteId)).status).toBe(409);
+    await age(player.siteId, 0.8);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({ data: { cycles: 1 } });
+    expect(await stockOf(player.houseId)).toEqual([[GOOD, 3 * PER_CYCLE]]);
+  });
+
+  it('site plein puis arrêté : la récolte livre le plafond et le cycle repart de l’instant de l’arrêt, pas après', async () => {
+    const player = await newPlayer();
+    await age(player.siteId, recipe.maxAccruedCycles + 5);
+    await halt(player.siteId, 2);
+    expect((await collect(player.user, player.siteId)).body).toMatchObject({
+      data: { cycles: recipe.maxAccruedCycles },
+    });
+    // Deux cycles à l'arrêt depuis : rien de plus, et le cycle n'a pas dépassé l'arrêt (à la milliseconde).
+    expect((await collect(player.user, player.siteId)).status).toBe(409);
+    const { rows } = await sql<{
+      gap: string;
+    }>`select extract(epoch from halted_at - cycle_started_at) * 1000 as gap
+      from game.sites where id = ${player.siteId}`.execute(db);
+    // L'API compte en millisecondes, la base en microsecondes : l'écart est positif et de moins d'une milliseconde.
+    expect(Number(rows[0]?.gap)).toBeGreaterThanOrEqual(0);
+    expect(Number(rows[0]?.gap)).toBeLessThan(1);
   });
 
   it('plafonne à la capacité du site', async () => {
