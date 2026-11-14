@@ -145,10 +145,10 @@ select is(pg_temp.balances(), 'house:844 house:156 escrow:0 escrow:50', 'la monn
 select is((select sum(balance) from game.accounts where world_id = '01900000-0000-7000-8000-000000000001'), 0::numeric,
   'conservation : la somme de tous les soldes du monde est nulle');
 
--- Un joueur ne lit que sa trésorerie : le séquestre passera par une vue dédiée.
+-- Un joueur lit sa trésorerie et son séquestre (bilan de la maison, migration 32), jamais ceux d'un autre.
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-00000000000b", "role": "authenticated"}';
-select results_eq('select kind, balance from game.accounts', $$values ('house', 156::bigint)$$, 'Bob ne lit ni le séquestre d''Alice ni le sien en direct');
+select results_eq('select kind, balance from game.accounts order by kind', $$values ('escrow', 50::bigint), ('house', 156)$$, 'Bob lit ses deux comptes, ni la trésorerie ni le séquestre d''Alice');
 reset role;
 select * from finish();
 rollback;

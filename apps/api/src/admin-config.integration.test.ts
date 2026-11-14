@@ -10,7 +10,13 @@ import { createTelemetry } from './telemetry';
 import { adminPublishConfig } from './commands/admin-config';
 import { executeCommand } from './registry';
 import { unlimited } from './rate-limit';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import {
+  farCloseClock,
+  TEST_CONFIG,
+  testConfig,
+  testConfigWithClock,
+  testVerifier,
+} from './test-config';
 
 // Tests d'intégration des commandes d'administration de la configuration, contre Supabase local.
 const DATABASE_URL =
@@ -21,17 +27,15 @@ const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
 // Clôture de test à plus d'une heure, quelle que soit l'heure réelle : dans la dernière minute avant
 // l'échéance, la base refuserait les annulations et ces tests dépendraient de l'heure où ils tournent.
-const clock =
-  [0, 12]
-    .map((dailyCloseHour) => ({ ...TEST_CONFIG.config.clock, dailyCloseHour }))
-    .find((far) => nextDailyClose(new Date(), far).getTime() - Date.now() > 3_600_000) ??
-  TEST_CONFIG.config.clock;
+// Toute application de ce fichier programme avec cette horloge : une seule clôture à venir pour la suite.
+const clock = farCloseClock(new Date());
+const loadConfig = testConfigWithClock(clock);
 const app = createApp({
   db,
   telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
-  loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, clock } }),
+  loadConfig,
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
@@ -111,6 +115,24 @@ const contextOf = (userId: string) =>
 const activeAt = async (instant: Date) =>
   (await sql<{ id: string }>`select config.active_version_at(${instant}) as id`.execute(db)).rows[0]
     ?.id;
+/**
+ * Version que la clôture `due` trouve en vigueur : celle de l'instant qui la précède. Ce n'est pas
+ * forcément celle de maintenant : la base est partagée et son journal en ajout seul, d'autres suites ou
+ * une exécution précédente peuvent y avoir laissé une programmation qui échoit avant `due`.
+ */
+const inForceBefore = (due: Date) => activeAt(new Date(due.getTime() - 1));
+/** Versions des programmations de l'instant donné qui ne sont pas annulées, la dernière en premier. */
+const pendingAt = async (due: Date) =>
+  (
+    await db
+      .selectFrom('config.activations as a')
+      .leftJoin('config.activation_cancellations as c', 'c.activation_id', 'a.id')
+      .select('a.version_id')
+      .where('a.activate_at', '=', due)
+      .where('c.activation_id', 'is', null)
+      .orderBy('a.seq', 'desc')
+      .execute()
+  ).map((row) => row.version_id);
 
 describe('accès aux commandes d’administration', () => {
   it('refuse un compte sans rôle, un rôle insuffisant et une session sans second facteur ; le refus est journalisé', async () => {
@@ -396,7 +418,9 @@ describe('admin.scheduleConfig', () => {
       telemetry,
       verifyToken: testVerifier,
       rateLimiter: unlimited,
-      loadConfig: testConfig,
+      // Même horloge que `app` : programmée à 04 h 00 (`testConfig`), cette version entrerait en vigueur
+      // avant la clôture de test de 23 h 00 à 04 h 00, heure de Paris, sous les tests d'annulation.
+      loadConfig,
       settings: { allowSelfReview: true },
     });
     const author = await newUser('game_designer', root);
@@ -412,6 +436,9 @@ describe('admin.scheduleConfig', () => {
       body: JSON.stringify({ versionId }),
     });
     expect(selfScheduled.status).toBe(200);
+    expect(((await selfScheduled.json()) as { data: { activateAt: string } }).data.activateAt).toBe(
+      nextDailyClose(new Date(), clock).toISOString(),
+    );
     // La programmation par l'auteur lui-même n'est pas une revue : l'API par défaut refuse toujours.
     expect((await send(author, 'admin.scheduleConfig', { versionId })).body.error?.code).toBe(
       'CONFIG_REVIEW_REQUIRED',
@@ -478,6 +505,10 @@ describe('admin.cancelActivation', () => {
     const { versionId, activateAt, due, activationId } = await scheduled(author);
     expect(earlier.activateAt).toBe(activateAt);
     expect(await activeAt(due)).toBe(versionId);
+    // Ce que la clôture trouve en vigueur : ni l'une ni l'autre des deux versions programmées pour elle.
+    const inForce = await inForceBefore(due);
+    expect(inForce).toEqual(expect.any(String));
+    expect([versionId, earlier.versionId]).not.toContain(inForce);
 
     // L'auteur peut annuler lui-même : retirer une programmation ne demande pas de seconde personne.
     const key = randomUUID();
@@ -493,7 +524,11 @@ describe('admin.cancelActivation', () => {
       activationId: earlier.activationId,
       versionId: earlier.versionId,
     });
-    expect(await activeAt(due)).toBe(await activeAt(new Date()));
+    // Plus rien n'attend cette clôture, pas même les programmations laissées par les tests précédents :
+    // elle ne change rien, la version en vigueur à son arrivée le reste. Rien d'autre n'a bougé.
+    expect(await pendingAt(due)).toEqual([]);
+    expect(await activeAt(due)).toBe(inForce);
+    expect(await inForceBefore(due)).toBe(inForce);
     expect(await cancellations(activationId)).toEqual([{ cancelled_by: author }]);
     expect(await cancellations(earlier.activationId)).toEqual([{ cancelled_by: author }]);
     const events = await sql<{ activation: string }>`
@@ -583,18 +618,9 @@ describe('admin.cancelActivation', () => {
       expect(await cancellations(first.activationId)).toHaveLength(1);
       // Selon l'ordre d'arrivée, les deux programmations simultanées ont été annulées avec elle ou
       // restent en attente : dans les deux cas la clôture désigne la dernière qui reste, ou rien de neuf.
-      const pending = await db
-        .selectFrom('config.activations as a')
-        .leftJoin('config.activation_cancellations as c', 'c.activation_id', 'a.id')
-        .select('a.version_id')
-        .where('a.activate_at', '=', first.due)
-        .where('c.activation_id', 'is', null)
-        .orderBy('a.seq', 'desc')
-        .execute();
+      const pending = await pendingAt(first.due);
       expect(pending.length).toBeLessThanOrEqual(2);
-      expect(await activeAt(first.due)).toBe(
-        pending[0]?.version_id ?? (await activeAt(new Date())),
-      );
+      expect(await activeAt(first.due)).toBe(pending[0] ?? (await inForceBefore(first.due)));
     }
   });
 });

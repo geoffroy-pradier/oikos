@@ -51,7 +51,7 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    ```
    Les services ne se connectent jamais avec le propriétaire des tables : ils ne peuvent ni supprimer une écriture, ni modifier un solde ou un stock hors des journaux.
 9. **Sauvegardes** : installer pgBackRest à côté de Postgres avec `backup/pgbackrest.conf`, activer l'archivage (`archive_mode=on`, `archive_command='pgbackrest --stanza=oikos archive-push %p'`), créer la stanza (`pgbackrest --stanza=oikos stanza-create`), puis planifier `backup/backup.sh full` le dimanche et `backup/backup.sh diff` les autres jours. Tester une restauration chaque mois sur la préproduction.
-10. **Accès d'administration** : Studio et les outils de supervision ne sont joignables que par VPN (WireGuard ou Tailscale) ; aucun n'est relayé par le `Caddyfile`.
+10. **Accès d'administration** : Studio et les outils de supervision ne sont joignables que par VPN (WireGuard ou Tailscale) ; aucun n'est relayé par le `Caddyfile`. Le premier super-administrateur d'Olympe est inscrit en base par un humain : voir `docs/exploitation/acces-olympe.md`.
 11. 👤 **Cloudflare** en façade (cache, pare-feu applicatif), une fois le domaine vérifié.
 
 ## Déploiement automatique
