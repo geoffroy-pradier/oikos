@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   candleMarks,
   dayAgoCutoff,
+  parseCandleSeconds,
   parsePriceSeries,
   priceSummary,
   type Candle,
@@ -32,14 +33,57 @@ const candle = (hoursBefore: number, ohlc: [number, number, number, number]): Ca
 });
 
 describe('série de chandeliers lue par le client', () => {
-  it('rend la série du plus ancien au plus récent, à la durée du chandelier le plus récent', () => {
-    const series = parsePriceSeries([
+  it('rend la série de la durée en vigueur, du plus ancien au plus récent', () => {
+    const rows = [
       row('2026-11-14T10:00:00+00:00', [7, 9, 7, 8]),
-      row('2026-11-14T00:00:00+00:00', [6, 9, 5, 8], 86_400), // ancienne série, en journées
       row('2026-11-14T08:00:00+00:00', [6, 8, 5, 7]),
+    ];
+    expect(parsePriceSeries(rows, 3600)).toEqual([
+      candle(2, [6, 8, 5, 7]),
+      candle(0, [7, 9, 7, 8]),
     ]);
-    expect(series).toEqual([candle(2, [6, 8, 5, 7]), candle(0, [7, 9, 7, 8])]);
-    expect(parsePriceSeries([])).toEqual([]);
+    expect(parsePriceSeries(rows, 900)).toEqual([]);
+    expect(parsePriceSeries([], 3600)).toEqual([]);
+  });
+
+  it('après un changement de durée, les deux séries se recouvrent : seule celle en vigueur est rendue', () => {
+    // Heure → journée à 9 h 30 : la journée en cours, reconstruite, commence avant les dernières heures.
+    const day = row('2026-11-14T00:00:00+00:00', [6, 9, 5, 9], 86_400);
+    const hours = [
+      row('2026-11-14T08:00:00+00:00', [6, 8, 5, 7]),
+      row('2026-11-14T09:00:00+00:00', [7, 7, 6, 6]),
+    ];
+    expect(parsePriceSeries([...hours, day], 86_400)).toEqual([
+      { ...candle(10, [6, 9, 5, 9]), periodSeconds: 86_400 },
+    ]);
+    // Heure → quart d'heure à 10 h 05 : deux chandeliers commencent à 10 h, quel que soit l'ordre des lignes.
+    const hour = row('2026-11-14T10:00:00+00:00', [7, 9, 7, 8]);
+    const quarter = row('2026-11-14T10:00:00+00:00', [9, 9, 8, 8], 900);
+    for (const rows of [
+      [hour, quarter],
+      [quarter, hour],
+    ])
+      expect(parsePriceSeries(rows, 900)).toEqual([
+        { ...candle(0, [9, 9, 8, 8]), periodSeconds: 900 },
+      ]);
+  });
+
+  it('durée en vigueur lue dans les règles de marché ; version antérieure : une heure ; illisible : inconnue', () => {
+    expect(
+      parseCandleSeconds({
+        market_tax: null,
+        price_history: { candleMinutes: 15, referenceWindowHours: 48 },
+      }),
+    ).toBe(900);
+    expect(parseCandleSeconds({ price_history: null })).toBe(3600);
+    for (const raw of [
+      null,
+      {},
+      { price_history: {} },
+      { price_history: { candleMinutes: 0 } },
+      { price_history: { candleMinutes: '15' } },
+    ])
+      expect(parseCandleSeconds(raw)).toBeNull();
   });
 
   it.each([
@@ -52,7 +96,7 @@ describe('série de chandeliers lue par le client', () => {
     [{ ...row('2026-11-14T10:00:00+00:00', [6, 8, 5, 7]), volume: '5' }],
     [row('2026-11-14T10:00:00+00:00', [6, 8, 5, 7]), {}],
   ])('lecture illisible (%j) : inconnue, jamais prise pour une absence d’échange', (raw) => {
-    expect(parsePriceSeries(raw)).toBeNull();
+    expect(parsePriceSeries(raw, 3600)).toBeNull();
   });
 });
 
@@ -71,6 +115,19 @@ describe('dernier prix et variation sur 24 heures', () => {
     expect(priceSummary(series, now)).toEqual({ last: 10, lastAt: T, change: 0.25 }); // (10 − 8) ÷ 8
     expect(priceSummary([candle(25, [5, 8, 5, 8]), candle(1, [8, 8, 6, 6])], now)?.change).toBe(
       -0.25,
+    );
+  });
+
+  it('variation arrondie au millième, sans zéro négatif', () => {
+    // (2 999 − 3 000) ÷ 3 000 = −0,033 % : nulle à l'affichage, et pas « −0 ».
+    const tiny = priceSummary(
+      [candle(25, [3000, 3000, 3000, 3000]), candle(0, [2999, 2999, 2999, 2999])],
+      now,
+    );
+    expect(Object.is(tiny?.change, 0)).toBe(true);
+    // (7 − 6) ÷ 6 = 16,67 %.
+    expect(priceSummary([candle(25, [6, 6, 6, 6]), candle(0, [7, 7, 7, 7])], now)?.change).toBe(
+      0.167,
     );
   });
 
@@ -114,6 +171,6 @@ describe('tracé des chandeliers', () => {
       80,
     ).marks;
     expect(edges.map((mark) => mark.bodyTop)).toEqual([0, 79]);
-    expect(candleMarks([], 100, 80).marks).toEqual([]);
+    expect(candleMarks([], 100, 80)).toEqual({ marks: [], slot: 100, low: 0, high: 0 });
   });
 });

@@ -1,3 +1,4 @@
+import { DEFAULT_PRICE_HISTORY } from '@oikos/config/schema';
 import { z } from 'zod';
 
 /** Un chandelier lu par le client (vue `public.price_candles`), instants en millisecondes. */
@@ -26,13 +27,30 @@ const candleSchema = z
   })
   .refine((c) => c.low <= Math.min(c.open, c.close) && Math.max(c.open, c.close) <= c.high);
 
+const rulesSchema = z.object({
+  price_history: z
+    .object({ candleMinutes: z.number().int().min(1).max(1440) })
+    .nullable()
+    .transform((history) => history ?? DEFAULT_PRICE_HISTORY),
+});
+
 /**
- * Lit des chandeliers et en garde la série à afficher, du plus ancien au plus récent : ceux qui ont la
- * durée du plus récent. Le client ne lit pas la configuration ; après un changement de durée, la série
- * en cours est celle que le moteur vient d'écrire. `null` si une ligne est illisible : jamais pris pour
- * « aucun échange ».
+ * Durée, en secondes, des chandeliers de la série en cours : celle de la configuration en vigueur, lue
+ * dans la vue `public.market_rules` (une ligne). Version publiée avant l'historique : valeur du schéma
+ * partagé. `null` si la ligne manque ou est illisible : la série en cours est alors inconnue.
  */
-export function parsePriceSeries(raw: unknown): Candle[] | null {
+export function parseCandleSeconds(raw: unknown): number | null {
+  const parsed = rulesSchema.safeParse(raw);
+  return parsed.success ? parsed.data.price_history.candleMinutes * 60 : null;
+}
+
+/**
+ * Lit des chandeliers et en garde la série en cours, du plus ancien au plus récent : ceux de la durée
+ * donnée. Après un changement de durée, l'ancienne série reste en base et recouvre la nouvelle dans le
+ * temps : rien dans les lignes ne dit laquelle est en cours, c'est la configuration qui le dit. `null`
+ * si une ligne est illisible : jamais pris pour « aucun échange ».
+ */
+export function parsePriceSeries(raw: unknown, periodSeconds: number): Candle[] | null {
   const parsed = z.array(candleSchema).safeParse(raw);
   if (!parsed.success) return null;
   const candles = parsed.data
@@ -42,8 +60,7 @@ export function parsePriceSeries(raw: unknown): Candle[] | null {
       ...values,
     }))
     .sort((a, b) => a.periodStart - b.periodStart);
-  const current = candles.at(-1)?.periodSeconds;
-  return candles.filter((candle) => candle.periodSeconds === current);
+  return candles.filter((candle) => candle.periodSeconds === periodSeconds);
 }
 
 /**
@@ -67,8 +84,10 @@ export function priceSummary(series: readonly Candle[], now: number) {
   return {
     last: last.close,
     lastAt: last.periodStart,
-    /** Rapport signé : 0,25 pour +25 %. */
-    change: before ? (last.close - before.close) / before.close : null,
+    /** Rapport signé, arrondi au millième : 0,25 pour +25 %. Jamais « −0 » : une baisse infime vaut 0. */
+    change: before
+      ? Math.round(((last.close - before.close) / before.close) * 1000) / 1000 || 0
+      : null,
   };
 }
 
@@ -88,11 +107,12 @@ export interface CandleMark {
 /**
  * Place les chandeliers dans un cadre `width` × `height` (unités du dessin, origine en haut à gauche) :
  * un créneau de même largeur par chandelier, dans l'ordre reçu, et une échelle verticale linéaire du
- * plus bas au plus haut de la série. Si tous les prix sont égaux, ils sont tracés à mi-hauteur.
+ * plus bas au plus haut de la série. Si tous les prix sont égaux, ils sont tracés à mi-hauteur. Série
+ * vide : aucune marque, et une échelle de 0 à 0.
  */
 export function candleMarks(series: readonly Candle[], width: number, height: number) {
-  const low = Math.min(...series.map((candle) => candle.low));
-  const high = Math.max(...series.map((candle) => candle.high));
+  const low = series.length ? Math.min(...series.map((candle) => candle.low)) : 0;
+  const high = series.length ? Math.max(...series.map((candle) => candle.high)) : 0;
   const y = (value: number) =>
     high === low ? height / 2 : ((high - value) / (high - low)) * height;
   const slot = width / Math.max(series.length, 1);
