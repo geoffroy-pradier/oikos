@@ -49,7 +49,11 @@ export function SitesCard({
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
-    noticeElement.current?.scrollIntoView({ block: 'nearest' });
+    const element = noticeElement.current;
+    element?.scrollIntoView({ block: 'nearest' });
+    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer ») :
+    // le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
+    if (element && document.activeElement === document.body) element.focus();
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
@@ -128,7 +132,9 @@ export function SitesCard({
 
   /** Relance un site à l'arrêt : la maison paie l'entretien d'un jour, le site repart (5.5). */
   async function restart(site: Site) {
-    const intent = `restart:${site.id}`;
+    // L'arrêt fait partie de l'intention : relancer un site arrêté de nouveau est une autre demande, qui
+    // ne doit pas rejouer la réponse d'une relance précédente restée sans réponse.
+    const intent = `restart:${site.id}:${site.halted_at}`;
     const key = pending.current.get(intent) ?? crypto.randomUUID();
     pending.current.set(intent, key);
     const result = await run(
@@ -169,6 +175,7 @@ export function SitesCard({
     notice?.target === target && (
       <p
         ref={noticeElement}
+        tabIndex={-1}
         role={notice.kind}
         className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
       >
@@ -199,7 +206,8 @@ export function SitesCard({
           const choice = chosen[site.id] ?? site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
           const halted = site.halted_at ? new Date(site.halted_at) : null;
-          const upkeep = rules?.upkeepOf(site.recipe_id) ?? 0;
+          // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
+          const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
           // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
           const harvest =
             recipe && stock
@@ -215,7 +223,9 @@ export function SitesCard({
                     <p>
                       {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
                     </p>
-                    {upkeep > 0 && <p>{t('home.upkeep', { cost: number.format(upkeep) })}</p>}
+                    {upkeep !== null && upkeep > 0 && (
+                      <p>{t('home.upkeep', { cost: number.format(upkeep) })}</p>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -232,15 +242,21 @@ export function SitesCard({
                   <p className="min-w-0 flex-1 font-semibold text-danger">
                     {t('home.halted', { date: date.format(halted) })}
                   </p>
-                  <Button
-                    variant="secondary"
-                    className={WAITING}
-                    aria-disabled={busy}
-                    aria-label={t('home.restartSite', { site: name, cost: number.format(upkeep) })}
-                    onClick={() => void restart(site)}
-                  >
-                    {t('home.restart', { cost: number.format(upkeep) })}
-                  </Button>
+                  {/* Sans les règles, le prix est inconnu : pas de bouton qui annoncerait « 0 obole ». */}
+                  {upkeep !== null && (
+                    <Button
+                      variant="secondary"
+                      className={WAITING}
+                      aria-disabled={busy}
+                      aria-label={t('home.restartSite', {
+                        site: name,
+                        cost: number.format(upkeep),
+                      })}
+                      onClick={() => void restart(site)}
+                    >
+                      {t('home.restart', { cost: number.format(upkeep) })}
+                    </Button>
+                  )}
                 </div>
               )}
               {recipe && recipe.inputs.length > 0 && (

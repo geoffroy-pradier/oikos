@@ -90,6 +90,17 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
   await expectNoHorizontalScroll(page);
 
+  // Règles des sites illisibles : l'arrêt reste annoncé, mais aucun bouton n'affiche un prix inventé.
+  await page.route('**/rest/v1/site_rules*', (route) =>
+    route.fulfill({ status: 500, json: { message: 'boom' } }),
+  );
+  await page.reload();
+  await expect(page.getByText('entretien impayé', { exact: false })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
+  await page.unroute('**/rest/v1/site_rules*');
+  await page.reload();
+
   // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
   const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 30 oboles' });
   await expect(restart).toHaveText('Relancer (30 oboles)');
@@ -100,6 +111,8 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   );
   await expect(page.getByText(/^2\s970 oboles$/)).toBeVisible();
   await expect(restart).toHaveCount(0);
+  // Le bouton a disparu avec l'arrêt : le foyer est sur le message, pas perdu sur la page.
+  await expect(page.getByRole('status')).toBeFocused();
   await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
   // Le cycle gelé a repris là où il en était : toujours un cycle à récolter, pas trois.
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
