@@ -174,7 +174,19 @@ export interface GameDatabase {
     /** Modifiable, à condition de repartir d'un cycle neuf (garde de la base). */
     recipe_id: string;
     cycle_started_at: ColumnType<Date, Date | undefined, Date>;
+    /** Instant de l'arrêt d'un site impayé ; nul s'il tourne. Un site naît en marche. */
+    halted_at: ColumnType<Date | null, never, Date | null>;
     created_at: Generated<Date>;
+  };
+  /** Clôtures quotidiennes jouées : une ligne par monde et par jour de jeu, en ajout seul. */
+  'game.daily_closes': {
+    world_id: string;
+    game_day: number;
+    close_at: Date;
+    config_version_id: string;
+    summary: ColumnType<unknown, string | undefined, never>;
+    /** Horloge de la base à l'écriture : le service n'a pas le droit de la fournir. */
+    finished_at: ColumnType<Date, never, never>;
   };
 
   /** Fraction de demande des PNJ reportée d'un tick au suivant, par cité et par bien. */
