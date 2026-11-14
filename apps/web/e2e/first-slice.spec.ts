@@ -202,11 +202,24 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   // pour que l'acheteur puisse ensuite retenir le prix d'un second achat de trente unités.
   const price = 19 + Math.floor(Math.random() * 30);
   let paid = 0;
+  const { config } = await createConfigLoader(db).at(new Date());
+  const netOf = (gross: number) => marketTax(gross, config.marketTax).net;
 
   await alone(async () => {
     // La vente est déposée, mais la réponse se perd : le joueur réessaie la même saisie.
     await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
     await page.getByLabel('Quantité', { exact: true }).fill('30');
+    // Avant de déposer la vente, le formulaire annonce ce qu'elle rapportera, taxe de marché déduite.
+    const [gross, net] = [30 * price, netOf(30 * price)];
+    expect(net).toBeLessThan(gross);
+    // La description accessible ramène les espaces insécables des nombres à des espaces simples.
+    const plain = (value: number) => french.format(value).replace(/\s/g, ' ');
+    await expect(page.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription(
+      new RegExp(
+        `^Net attendu : ${plain(net)} oboles \\(${plain(gross)} moins ${gross - net} de taxe de marché\\)`,
+      ),
+    );
+    await expectNoHorizontalScroll(page);
     await page.route('**/api/commands/market.placeOrder', async (route) => {
       await route.fetch();
       await route.abort();
@@ -258,7 +271,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Quantité', { exact: true }).fill('4');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText(
-      `Vente conclue : 4 × Blé pour ${french.format(4 * bid)} oboles.`,
+      `Vente conclue : 4 × Blé pour ${french.format(netOf(4 * bid))} oboles.`,
     );
     await expect(bids.getByRole('row', { name: `${bid} 26` })).toBeVisible();
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
@@ -290,6 +303,8 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
     await other.getByLabel('Quantité', { exact: true }).fill('6');
+    // Un achat ne paie pas la taxe : rien n'est annoncé.
+    await expect(other.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription('');
     await other.keyboard.press('Enter');
     await expect(other.getByRole('status')).toContainText(
       `Achat partiel : 3 × Blé sur 6 pour ${french.format(3 * dear)} oboles. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
@@ -301,10 +316,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByText('Blé : 37')).toBeVisible();
     await context.close();
     // Trois échanges, taxés un par un : le vendeur touche le net de chacun.
-    const { config } = await createConfigLoader(db).at(new Date());
-    paid = [30 * price, 4 * bid, 3 * dear]
-      .map((gross) => marketTax(gross, config.marketTax).net)
-      .reduce((sum, net) => sum + net, 0);
+    paid = netOf(30 * price) + netOf(4 * bid) + netOf(3 * dear);
     // Le vendeur retire ce qui reste : rien ne traîne dans le carnet pour les autres tests.
     await page.reload();
     await page.getByRole('button', { name: /^Annuler la vente de 3 × Blé/ }).click();

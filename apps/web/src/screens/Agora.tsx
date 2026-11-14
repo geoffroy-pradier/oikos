@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { netProceeds, parseMarketTax } from '../market-rules';
 import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 
@@ -53,6 +54,9 @@ export function AgoraScreen() {
       status: 'open',
     },
   );
+  // Taxe de marché en vigueur : `null` tant qu'elle n'est pas lue, ou si elle est illisible.
+  const rules = useRows<{ market_tax: unknown }>('market_rules', 'market_tax', 'market_tax');
+  const tax = rules.rows ? parseMarketTax(rules.rows[0] ?? null) : null;
   const [side, setSide] = useState<'sell' | 'buy'>('sell');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -72,6 +76,16 @@ export function AgoraScreen() {
 
   const number = new Intl.NumberFormat(i18n.language);
   const good = t(`goods.${goodId}`);
+  // Net attendu d'une vente, annoncé avant de la déposer : brut saisi moins la taxe d'un échange unique.
+  const typed = /^\d+$/.test(price.trim()) && /^\d+$/.test(quantity.trim());
+  const gross = typed ? Number(price.trim()) * Number(quantity.trim()) : 0;
+  const preview =
+    side === 'sell' && tax && tax.rateBps > 0 && Number.isSafeInteger(gross) && gross > 0
+      ? {
+          gross,
+          tax: gross - netProceeds(tax, [{ price: Number(price), quantity: Number(quantity) }]),
+        }
+      : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -96,7 +110,7 @@ export function AgoraScreen() {
     if (!result.ok) {
       next = { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
     } else {
-      const outcome = orderNotice(input.data, result.data);
+      const outcome = orderNotice(input.data, result.data, tax);
       next = {
         kind: 'status',
         text: t(`agora.${outcome.key}`, {
@@ -161,7 +175,9 @@ export function AgoraScreen() {
           ))}
         </select>
       </Card>
-      {(book.failed || mine.failed) && <p role="alert">{t('app.loadFailed')}</p>}
+      {(book.failed || mine.failed || rules.failed || (rules.rows && !tax)) && (
+        <p role="alert">{t('app.loadFailed')}</p>
+      )}
 
       <Card>
         <h2 className="text-xl">{t('agora.book', { good })}</h2>
@@ -230,8 +246,18 @@ export function AgoraScreen() {
             id="quantity"
             inputMode="numeric"
             value={quantity}
+            aria-describedby="expected-net"
             onChange={(event) => setQuantity(event.target.value)}
           />
+          {/* Toujours présent : le champ garde sa description, annoncée quand elle change. */}
+          <p id="expected-net" aria-live="polite" className="text-sm text-muted-foreground">
+            {preview &&
+              t('agora.expectedNet', {
+                net: number.format(preview.gross - preview.tax),
+                gross: number.format(preview.gross),
+                tax: number.format(preview.tax),
+              })}
+          </p>
           <Button type="submit" disabled={busy}>
             {t('agora.submit')}
           </Button>

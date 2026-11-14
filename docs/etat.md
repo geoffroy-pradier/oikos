@@ -1,6 +1,6 @@
 # État du projet
 
-Point d'étape au 14 novembre 2026, après la fusion du ticket #69. Ce fichier décrit ce qui tourne
+Point d'étape au 14 novembre 2026, après la fusion du ticket #70. Ce fichier décrit ce qui tourne
 réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -8,7 +8,7 @@ réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible
 - **Phase 0 (fondations)** : terminée, sauf le ticket #33 (serveur de préproduction), marqué
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
-- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #69. Ouverts : #70 à #78, #97, #98, #100.
+- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #70. Ouverts : #71 à #78, #97, #98, #100.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -27,20 +27,23 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   réserve son stock, un achat met son prix sous séquestre. Exécution à l'arrivée, au prix de l'ordre qui
   attendait ; annulation d'un ordre ouvert. Le carnet public montre les deux côtés par niveau de prix,
   sans identité.
+- **Taxe de marché.** Chaque échange de l'agora, entre joueurs comme avec les PNJ, prélève 5 % sur le
+  vendeur, arrondis à l'obole supérieure : la moitié est détruite, l'autre va au trésor de la cité, que
+  rien ne dépense encore. Le formulaire de vente annonce le net attendu.
 - **Demande des PNJ.** Toutes les dix minutes, le moteur fait acheter les habitants de la cité aux ventes
   en attente, des moins chères aux plus chères, jusqu'à trois fois le prix de référence du bien. C'est la
-  seule création de monnaie en jeu, avec la dotation de départ.
+  seule création de monnaie en jeu, avec la dotation de départ ; le vendeur en reçoit le net de taxe.
 - **Client.** Application web installable (PWA), utilisable à 360 px de large et au clavier, en français
   et en anglais. Onglets Maison et Agora ; les onglets Cité et Messages sont des coquilles vides.
 - **Back-office Olympe (v0).** Connexion avec second facteur, Vigie (compteurs de refus de l'API),
   Paramètres (versions de configuration : consulter, comparer, enregistrer, programmer à la prochaine
   clôture), journal d'audit. Le premier super-administrateur s'inscrit à la main en base.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : taxe de marché (#70), historique des prix
-(#71), entretien des sites à la clôture quotidienne (#72), comptes de la maison (#73), tableau de bord de
+Ce qui manque encore pour le critère de sortie de la phase 1 : historique des prix (#71), entretien des sites à la clôture quotidienne (#72), comptes de la maison (#73), tableau de bord de
 la maison (#74), population des PNJ (#75), tableau de bord économique et rôles d'Olympe (#76, #77),
-équilibrage (#78). Sans entretien ni taxe, rien ne détruit de monnaie en dehors de l'acquisition de
-sites : l'économie actuelle est inflationniste par construction.
+équilibrage (#78). La taxe de marché détruit une part de chaque échange, mais sans entretien, salaires ni
+dépense du trésor, les puits restent faibles face aux achats des PNJ : l'économie actuelle reste
+inflationniste, et son réglage attend l'équilibrage (#78).
 
 ## Décisions prises en cours de route
 
@@ -66,6 +69,13 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
     prix en entier, sinon il est annulé et signalé (pas d'attente partielle) ;
   - un échange se fait au prix de l'ordre qui attendait ;
   - une maison n'échange pas avec elle-même : ses ordres peuvent se croiser sans s'exécuter.
+- **Taxe de marché** (5.3, ticket #70) :
+  - taux et part détruite en points de base, dans la configuration ; une version publiée avant la taxe
+    se lit à taux nul, donc une base déjà initialisée ne taxe rien tant qu'Olympe ne publie pas de version ;
+  - arrondi à l'obole supérieure, par échange : découper ses ventes ne fait jamais payer moins, mais une
+    vente servie en plusieurs échanges peut rapporter quelques oboles de moins que le net annoncé ;
+  - le trésor de la cité est un compte du grand livre par cité, ouvert par la base, jamais débiteur ;
+  - le client lit la taxe par la vue `market_rules` et calcule le net comme l'API ; le grand livre fait foi.
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.

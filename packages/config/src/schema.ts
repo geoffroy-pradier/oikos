@@ -167,6 +167,7 @@ export const DEFAULT_MARKET_TAX = deepFreeze({ rateBps: 0, burnShareBps: 10_000 
 /**
  * Taxe de marché, prélevée sur le vendeur à chaque échange de l'agora (5.3, 5.6). Taux en points de
  * base (1 pour 10 000) : le calcul reste en entiers, arrondi compris.
+ * Lue par les joueurs (vue `public.market_rules`) : n'y ranger aucun paramètre qui doive rester caché.
  */
 export const marketTaxSchema = z.strictObject({
   /** Taux de la taxe sur le montant brut d'un échange. Borné : au-delà, vendre ne paie plus. */
