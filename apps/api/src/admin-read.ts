@@ -4,6 +4,7 @@ import type { Hono } from 'hono';
 import { sql } from 'kysely';
 import type { Identity, TokenVerifier } from './auth';
 import type { RateLimiter } from './rate-limit';
+import { DEFAULT_SETTINGS, type ApiSettings } from './registry';
 
 type AdminEnv = { Variables: { identity: Identity; adminRole: AdminRole } };
 
@@ -20,10 +21,15 @@ const MAX_AUDIT_PAGE = 100;
  */
 export function registerAdminReads(
   app: Hono<AdminEnv>,
-  deps: { db: Db; verifyToken: TokenVerifier; rateLimiter: RateLimiter },
+  deps: {
+    db: Db;
+    verifyToken: TokenVerifier;
+    rateLimiter: RateLimiter;
+    settings?: ApiSettings | undefined;
+  },
   fail: (error: CommandError) => Response,
 ) {
-  const { db, verifyToken, rateLimiter } = deps;
+  const { db, verifyToken, rateLimiter, settings = DEFAULT_SETTINGS } = deps;
   const forbidden = () =>
     fail({ code: 'FORBIDDEN', message: 'Administrator role and two-factor session required.' });
 
@@ -181,6 +187,8 @@ export function registerAdminReads(
           forbidden: refused('forbidden'),
         },
         adminReads24h: Number(reads.rows[0]?.n),
+        // Réglage de l'API pour un monde de test (15.4) : visible, pour qu'il ne reste pas actif par oubli.
+        selfReviewAllowed: settings.allowSelfReview,
       },
     });
   });
