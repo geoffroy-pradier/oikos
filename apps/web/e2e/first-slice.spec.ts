@@ -42,7 +42,7 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
-  await expect(page.getByText("Plafond d'accumulation : ", { exact: false })).toBeVisible();
+  await expect(page.getByText("Plafond d'accumulation : 18 cycles, soit 720 × Blé")).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // Trop tôt : le refus de l'API est affiché, rien n'entre en stock.

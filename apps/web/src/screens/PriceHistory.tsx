@@ -1,7 +1,7 @@
 import { Card } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
-import { LoadProblem } from './LoadProblem';
+import { LoadProblem, Loading } from './LoadProblem';
 import { candleMarks, observedAverage, parsePriceSeries, priceSummary } from '../price-history';
 
 /** Lignes lues : de quoi couvrir plus d'une semaine de chandeliers d'une heure. */
@@ -63,6 +63,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
       {(candles.failed || observed.failed || average === null || (candles.rows && !series)) && (
         <LoadProblem onRetry={() => Promise.all([candles.reload(), observed.reload()])} />
       )}
+      {candles.rows === null && !candles.failed && <Loading />}
       {series?.length === 0 && <p className="text-muted-foreground">{t('agora.priceEmpty')}</p>}
       {summary && (
         <>

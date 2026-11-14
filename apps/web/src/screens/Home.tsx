@@ -70,6 +70,7 @@ export function HomeScreen() {
         {held > 0 && (
           <p className="text-muted-foreground">{t('home.held', { amount: money(held) })}</p>
         )}
+        {orders.rows === null && !orders.failed && <Loading />}
         {orders.rows && (
           <p>
             {orders.rows.length === 0

@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
-import { LoadProblem } from './LoadProblem';
+import { LoadProblem, Loading } from './LoadProblem';
 import { useHouse } from '../house';
 import { parseMarketTax, previewSale } from '../market-rules';
 import { orderNotice } from '../order-notice';
@@ -188,42 +188,44 @@ export function AgoraScreen() {
 
       <Card>
         <h2 className="text-xl">{t('agora.book', { good })}</h2>
-        {(
-          [
-            ['asks', asks, 'bookCaption', 'offered', 'bookEmpty'],
-            ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty'],
-          ] as const
-        ).map(([key, levels, caption, column, empty]) =>
-          levels?.length === 0 ? (
-            <p key={key} className="text-muted-foreground">
-              {t(`agora.${empty}`)}
-            </p>
-          ) : (
-            // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
-            // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-            <div key={key} className="overflow-x-auto">
-              <table className="w-full text-left">
-                <caption className="text-left text-sm text-muted-foreground">
-                  {t(`agora.${caption}`)}
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">{t('agora.price')}</th>
-                    <th scope="col">{t(`agora.${column}`)}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {levels?.map((level) => (
-                    <tr key={level.price}>
-                      <td className="whitespace-nowrap">{number.format(level.price)}</td>
-                      <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+        {book.rows === null && !book.failed && <Loading />}
+        {book.rows !== null &&
+          (
+            [
+              ['asks', asks, 'bookCaption', 'offered', 'bookEmpty'],
+              ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty'],
+            ] as const
+          ).map(([key, levels, caption, column, empty]) =>
+            levels?.length === 0 ? (
+              <p key={key} className="text-muted-foreground">
+                {t(`agora.${empty}`)}
+              </p>
+            ) : (
+              // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
+              // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
+              <div key={key} className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <caption className="text-left text-sm text-muted-foreground">
+                    {t(`agora.${caption}`)}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('agora.price')}</th>
+                      <th scope="col">{t(`agora.${column}`)}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ),
-        )}
+                  </thead>
+                  <tbody>
+                    {levels?.map((level) => (
+                      <tr key={level.price}>
+                        <td className="whitespace-nowrap">{number.format(level.price)}</td>
+                        <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ),
+          )}
       </Card>
 
       <Card>
@@ -282,6 +284,7 @@ export function AgoraScreen() {
 
       <Card>
         <h2 className="text-xl">{t('agora.myOrders')}</h2>
+        {mine.rows === null && !mine.failed && <Loading />}
         {mine.rows?.length === 0 && (
           <p className="text-muted-foreground">{t('agora.myOrdersEmpty')}</p>
         )}
