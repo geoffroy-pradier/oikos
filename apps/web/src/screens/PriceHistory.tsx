@@ -9,12 +9,6 @@ const HISTORY_ROWS = 200;
 const SHOWN = 48;
 const [WIDTH, HEIGHT, MARGIN] = [320, 128, 6];
 
-interface Observed {
-  price: number;
-  volume: number;
-  window_seconds: number;
-}
-
 /**
  * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures, prix moyen
  * observé, chandeliers et tableau des mêmes valeurs. Le graphique est une image décrite ; tout ce qu'il
@@ -33,18 +27,11 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
     { ...market, period_seconds: String(periodSeconds) },
     { limit: HISTORY_ROWS },
   );
-  const observed = useRows<Observed>(
-    'observed_prices',
-    'price, volume, window_seconds',
-    'good_id',
-    market,
-  );
   const series = candles.rows ? parsePriceSeries(candles.rows, periodSeconds) : null;
   // Variation jugée à l'heure du navigateur : indicative, comme « à récolter » sur la fiche d'un site.
   const summary = series ? priceSummary(series, Date.now()) : null;
   const shown = series?.slice(-SHOWN) ?? [];
   const { marks, slot, low, high } = candleMarks(shown, WIDTH, HEIGHT - 2 * MARGIN);
-  const average = observed.rows?.[0];
 
   const number = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
@@ -63,9 +50,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
   return (
     <Card>
       <h2 className="text-xl">{t('agora.priceTitle', { good })}</h2>
-      {(candles.failed || observed.failed || (candles.rows && !series)) && (
-        <p role="alert">{t('app.loadFailed')}</p>
-      )}
+      {(candles.failed || (candles.rows && !series)) && <p role="alert">{t('app.loadFailed')}</p>}
       {series?.length === 0 && <p className="text-muted-foreground">{t('agora.priceEmpty')}</p>}
       {summary && (
         <>
@@ -80,15 +65,6 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
               ? t('agora.changeUnknown')
               : t('agora.change', { change: percent.format(summary.change) })}
           </p>
-          {average && (
-            <p>
-              {t('agora.observedPrice', {
-                hours: number.format(Math.round(average.window_seconds / 3600)),
-                price: number.format(average.price),
-                volume: number.format(average.volume),
-              })}
-            </p>
-          )}
           <svg
             role="img"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -158,6 +134,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
             </summary>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
+                <caption className="sr-only">{t('agora.priceTitle', { good })}</caption>
                 <thead>
                   <tr>
                     {(['period', 'open', 'high', 'low', 'close', 'volume'] as const).map(

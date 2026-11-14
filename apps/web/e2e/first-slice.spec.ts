@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
-import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '@oikos/engine';
+import { npcDemand, priceCandlesStep, type TickStep } from '@oikos/engine';
 import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
@@ -183,7 +183,6 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     // Le tick résume les échanges en chandeliers : l'agora montre le dernier prix du blé, le graphique
     // décrit, et les mêmes valeurs dans un tableau ouvert au clavier.
     await npcsBuy(priceCandlesStep);
-    await npcsBuy(observedPricesStep);
     const candle = (
       await sql<{ open: string; high: string; low: string; close: string; volume: string }>`
         select open, high, low, close, volume from game.price_candles
@@ -197,20 +196,21 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
       page.getByText(`Dernier prix, en oboles : ${french.format(Number(candle.close))} (`),
     ).toBeVisible();
     await expect(page.getByText(/Variation sur 24 h : /)).toBeVisible();
-    const average = await sql<{
-      price: string;
-      volume: string;
-    }>`select price, volume from game.observed_prices
-      where city_id = ${KALLISTE_ID} and good_id = 'wheat'`.execute(db);
-    const [price, volume] = [average.rows[0]?.price, average.rows[0]?.volume].map((value) =>
-      french.format(Number(value)),
+    // Description exacte de l'image, accord du nombre compris ; seules les dates, mises en forme par le
+    // navigateur, sont laissées libres.
+    const shown = await sql<{ count: string; low: string; high: string }>`
+      select count(*), min(low) as low, max(high) as high from (select low, high from game.price_candles
+        where city_id = ${KALLISTE_ID} and good_id = 'wheat' and period_seconds = ${config.priceHistory.candleMinutes * 60}
+        order by period_start desc limit 48) recent`.execute(db);
+    const [count, low, high] = [shown.rows[0]?.count, shown.rows[0]?.low, shown.rows[0]?.high].map(
+      Number,
     );
-    await expect(
-      page.getByText(`Prix moyen sur 24 h, en oboles : ${price} (volume échangé : ${volume}).`),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('img', { name: /^Chandeliers de Blé : \d+ périodes/ }),
-    ).toBeVisible();
+    const periods = count === 1 ? '1 période' : `${count} périodes`;
+    await expect(page.getByRole('img', { name: /^Chandeliers/ })).toHaveAccessibleName(
+      new RegExp(
+        `^Chandeliers : Blé, ${periods}, du .+ au .+, prix en oboles de ${french.format(low ?? 0)} à ${french.format(high ?? 0)}\\. Le tableau des prix donne les mêmes valeurs\\.$`,
+      ),
+    );
     const table = page.getByText('Tableau des prix par période');
     await expect(page.getByRole('columnheader', { name: 'Clôture' })).toBeHidden();
     await table.focus();
