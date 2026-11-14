@@ -131,5 +131,7 @@ Limites assumées pour l'instant :
 - Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
+- Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
+  décalée fausse ce choix, et la fenêtre annoncée se terminait au calcul, pas à l'instant de lecture.
 - La fiche d'un site calcule « à récolter » avec l'horloge du navigateur ; l'API reste seule à décider.
 - Aucun usage d'IA en jeu à ce stade.

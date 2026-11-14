@@ -126,7 +126,7 @@
     "close": "Close",
     "volume": "Volume",
     "observedPrice": "Average price over {{hours}} h, in obols: {{price}} (volume traded: {{volume}}).",
-    "observedPriceDated": "Last average price computed, as of {{date}}, in obols: {{price}} (volume traded in {{hours}} h: {{volume}}). No trade since."
+    "observedPriceDated": "Last average price computed, as of {{date}}, in obols: {{price}} (volume traded in {{hours}} h: {{volume}})."
   },
   "goods": {
     "wheat": "Wheat",

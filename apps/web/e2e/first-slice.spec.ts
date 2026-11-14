@@ -209,6 +209,16 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await expect(
       page.getByText(`Prix moyen sur 24 h, en oboles : ${price} (volume échangé : ${volume}).`),
     ).toBeVisible();
+    // Le même prix, calculé il y a plus d'une fenêtre : annoncé comme un prix passé, avec sa date.
+    await sql`update game.observed_prices set observed_at = observed_at - interval '25 hours'
+      where city_id = ${KALLISTE_ID} and good_id = 'wheat'`.execute(db);
+    await page.reload();
+    await expect(
+      page.getByText(
+        /^Dernier prix moyen calculé, au .+, en oboles : .+ \(volume échangé en 24 h : .+\)\.$/,
+      ),
+    ).toBeVisible();
+    await expect(page.getByText(/Prix moyen sur 24 h/)).toHaveCount(0);
     // Description exacte de l'image, accord du nombre compris ; seules les dates, mises en forme par le
     // navigateur, sont laissées libres.
     const shown = await sql<{ count: string; low: string; high: string }>`

@@ -202,6 +202,8 @@ describe('prix moyen observé annoncé par l’écran', () => {
       hours: 1,
       current: false,
     });
+    // Calcul daté après l'instant de lecture (horloge du navigateur en retard) : tenu pour courant.
+    expect(observedAverage(row, T - HOUR)).toEqual({ ...read, current: true });
   });
 
   it.each([
