@@ -38,6 +38,8 @@ afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 const economy = (quantityPerThousand = 20, incomePerThousand = 300): GameConfig => ({
   ...(INITIAL_CONFIG as GameConfig),
   market: { npcMaxPriceFactor: 3 },
+  // Les cas ci-dessous se lisent en montants bruts ; la taxe a son propre test, en fin de fichier.
+  marketTax: { rateBps: 0, burnShareBps: 0 },
   npcClasses: [
     {
       id: 'thetes',
@@ -410,5 +412,34 @@ describe('demande des PNJ au tick', () => {
       npcDemand: { units: 0, spent: 0, markets: [] },
     });
     expect(await balanceOf(seller.houseId)).toBe(0);
+  });
+
+  it('taxe de marché : le robinet paie le brut, le vendeur reçoit le net, le reste va au puits et au trésor de la cité', async () => {
+    const world = await newWorld();
+    // 20 unités demandées, 300 oboles de budget : 10 à 5 (taxe ⌈2,5⌉ = 3, dont 2 détruites), 10 à 6 (3, dont 2).
+    const seller = await newSeller(world, 100, [
+      [10, 5],
+      [10, 6],
+    ]);
+    const taxed = { ...economy(), marketTax: { rateBps: 500, burnShareBps: 5000 } };
+    const outcome = await runTick(db, request(world.worldId, taxed));
+    // Le budget des PNJ se compte en brut : la taxe ne leur fait rien acheter de plus ni de moins.
+    expect(outcome.summary['npcDemand']).toMatchObject({ units: 20, spent: 110 });
+    const lines = await sql<{ lines: string }>`
+      select string_agg(coalesce(a.system_key, a.kind) || ':' || l.amount, ' ' order by l.amount, a.kind) as lines
+      from game.trades t join game.ledger_lines l on l.entry_id = t.ledger_entry_id
+      join game.accounts a on a.id = l.account_id
+      where t.world_id = ${world.worldId} group by t.id order by t.id`.execute(db);
+    expect(lines.rows.map((row) => row.lines)).toEqual([
+      'faucet_npc_purchases:-50 treasury:1 sink_market_tax:2 house:47',
+      'faucet_npc_purchases:-60 treasury:1 sink_market_tax:2 house:57',
+    ]);
+    expect([await balanceOf(seller.houseId), await faucetOf(world.worldId)]).toEqual([104, -110]);
+    // Rien ne se crée au-delà du robinet : tous les soldes du monde s'annulent, et égalent leurs lignes.
+    const check = await sql<{ total: string; broken: string }>`
+      select sum(a.balance) as total, count(*) filter (where not c.ok) as broken
+      from game.accounts a join game.account_balance_check c on c.account_id = a.id
+      where a.world_id = ${world.worldId}`.execute(db);
+    expect(check.rows).toEqual([{ total: '0', broken: '0' }]);
   });
 });
