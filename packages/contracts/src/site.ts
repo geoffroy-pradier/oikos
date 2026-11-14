@@ -134,6 +134,8 @@ export const SITE_RESTART_ERROR_CODES = [
   'SITE_NOT_FOUND',
   'SITE_NOT_HALTED',
   'INSUFFICIENT_FUNDS',
+  /** Le site vient d'être arrêté par une clôture pendant la commande : réessayer avec une clé neuve. */
+  'SITE_CHANGED',
 ] as const;
 export type SiteRestartErrorCode = (typeof SITE_RESTART_ERROR_CODES)[number];
 
