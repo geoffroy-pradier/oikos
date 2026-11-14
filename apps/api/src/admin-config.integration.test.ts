@@ -90,6 +90,14 @@ const logOf = (userId: string) =>
     .orderBy('created_at')
     .orderBy('id')
     .execute();
+const contextOf = (userId: string) =>
+  db
+    .selectFrom('game.command_log')
+    .select(['status', 'aal', 'admin_role'])
+    .where('user_id', '=', userId)
+    .orderBy('created_at')
+    .orderBy('id')
+    .execute();
 const activeAt = async (instant: Date) =>
   (await sql<{ id: string }>`select config.active_version_at(${instant}) as id`.execute(db)).rows[0]
     ?.id;
@@ -193,6 +201,34 @@ describe('accès aux commandes d’administration', () => {
       403,
     );
     expect(await versionsBy(former)).toHaveLength(1);
+  });
+
+  it('le journal garde la session et le rôle relu au moment de chaque commande', async () => {
+    const [editor, watcher, player] = [
+      await newUser('game_designer', root),
+      await newUser('observer', root),
+      await newUser(),
+    ];
+    const body = { config: candidate(4100), note: 'contexte' };
+    await send(editor, 'admin.publishConfig', body);
+    await send(editor, 'admin.publishConfig', body, { aal2: false });
+    await send(watcher, 'admin.publishConfig', body);
+    await send(player, 'admin.publishConfig', body);
+    // Rôle retiré : la commande suivante est refusée, et le journal le montre sans rôle.
+    await owner.deleteFrom('admin.roles').where('user_id', '=', editor).execute();
+    await send(editor, 'admin.publishConfig', body);
+    expect(await contextOf(editor)).toEqual([
+      { status: 'ok', aal: 'aal2', admin_role: 'game_designer' },
+      // Refusée faute de second facteur : le rôle du moment est tout de même noté.
+      { status: 'rejected', aal: 'aal1', admin_role: 'game_designer' },
+      { status: 'rejected', aal: 'aal2', admin_role: null },
+    ]);
+    expect(await contextOf(watcher)).toEqual([
+      { status: 'rejected', aal: 'aal2', admin_role: 'observer' },
+    ]);
+    expect(await contextOf(player)).toEqual([
+      { status: 'rejected', aal: 'aal2', admin_role: null },
+    ]);
   });
 
   it('sans jeton, rien n’est exécuté', async () => {

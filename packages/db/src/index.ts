@@ -48,6 +48,9 @@ export interface GameDatabase {
     error_code: string | null;
     response: ColumnType<unknown, string, never>;
     duration_ms: number;
+    aal?: 'aal1' | 'aal2' | null;
+    admin_role?: string | null;
+    config_version_id?: string | null;
     created_at: Generated<Date>;
   };
   'game.domain_events': {

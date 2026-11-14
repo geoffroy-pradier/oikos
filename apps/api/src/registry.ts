@@ -122,9 +122,16 @@ export async function executeCommand(
   });
   let authorized = !command.admin;
   let trx: ControlledTransaction<GameDatabase> | undefined;
+  // Contexte porté au journal, que la commande réussisse, soit refusée ou tombe en panne.
+  const context: {
+    aal: 'aal1' | 'aal2';
+    admin_role: string | null;
+    config_version_id: string | null;
+  } = { aal: aal ?? 'aal1', admin_role: null, config_version_id: null };
   try {
     // Chargée avant la transaction : le chargeur lit par le pool, jamais pendant qu'on tient une connexion.
-    const { config } = await loadConfig(new Date());
+    const { config, id: configVersionId } = await loadConfig(new Date());
+    context.config_version_id = configVersionId;
     trx = await db.startTransaction().setIsolationLevel('read committed').execute();
     // Deux requêtes portant la même clé s'exécutent l'une après l'autre : la seconde rejoue la première.
     // (Suppose le niveau READ COMMITTED, fixé ci-dessus : la seconde doit voir la ligne validée par la première.)
@@ -164,6 +171,7 @@ export async function executeCommand(
             .executeTakeFirst()
         )?.role ?? null)
       : null;
+    context.admin_role = adminRole;
     if (command.admin && (aal !== 'aal2' || !adminRole || !command.admin.includes(adminRole))) {
       response = failure('FORBIDDEN', 'Administrator role and two-factor session required.');
     } else if (((authorized = true), storable === null)) {
@@ -206,6 +214,7 @@ export async function executeCommand(
         error_code: response.ok ? null : response.error.code,
         response: JSON.stringify(response),
         duration_ms: duration(),
+        ...context,
       })
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -239,6 +248,7 @@ export async function executeCommand(
         error_code: 'INTERNAL',
         response: JSON.stringify(response),
         duration_ms: duration(),
+        ...context,
       })
       .execute()
       .catch((logError: unknown) => console.error('Audit log write failed', logError));
