@@ -26,6 +26,8 @@ export const SITE_COLLECT_ERROR_CODES = [
   'NOTHING_TO_COLLECT',
   /** Un cycle au moins est écoulé, mais le stock libre ne couvre les intrants d'aucun. */
   'MISSING_INPUTS',
+  /** Atelier à l'arrêt, entretien impayé : il ne consomme aucun intrant avant d'être relancé. */
+  'SITE_HALTED',
 ] as const;
 export type SiteCollectErrorCode = (typeof SITE_COLLECT_ERROR_CODES)[number];
 

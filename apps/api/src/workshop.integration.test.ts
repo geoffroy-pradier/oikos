@@ -376,4 +376,34 @@ describe('site.collect sur un atelier', () => {
       flour: cap * FLOUR,
     });
   });
+
+  it('atelier à l’arrêt : aucun intrant consommé, même réapprovisionné ; ses cycles dus tournent après la relance', async () => {
+    const player = await newPlayer('mill_flour');
+    const [mill] = player.sites as [string];
+    // Trois cycles d'âge dont le dernier à l'arrêt : deux cycles dus, sans blé pour les faire tourner.
+    await age(mill, 3 * MILL.durationMinutes);
+    const halt = (statement: ReturnType<typeof sql>) =>
+      owner.transaction().execute(async (trx) => {
+        await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+        await statement.execute(trx);
+        await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+      });
+    await halt(
+      sql`update game.sites set halted_at = now() - ${`${MILL.durationMinutes} minutes`}::interval where id = ${mill}`,
+    );
+    // Le blé arrive pendant l'arrêt : l'atelier n'y touche pas.
+    await give(player.houseId, 'wheat', 5 * WHEAT_PER_FLOUR);
+    expect(await collect(player.user, mill)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'SITE_HALTED' } },
+    });
+    expect(await stockOf(player.houseId)).toEqual({ wheat: 5 * WHEAT_PER_FLOUR });
+    // Relancé (comme le fait le service), il fait tourner ses deux cycles dus, pas le temps de l'arrêt.
+    await sql`update game.sites set halted_at = null,
+      cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second' where id = ${mill}`.execute(
+      db,
+    );
+    expect((await collect(player.user, mill)).body.data).toMatchObject({ cycles: 2 });
+    expect(await stockOf(player.houseId)).toEqual({ wheat: 3 * WHEAT_PER_FLOUR, flour: 2 * FLOUR });
+  });
 });
