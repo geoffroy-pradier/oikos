@@ -22,7 +22,7 @@ export interface MarketTax {
 }
 
 /** ⌈amount × bps / 10 000⌉ sans quitter les entiers sûrs : le produit direct les dépasserait. */
-function shareRoundedUp(amount: number, bps: number): number {
+export function shareRoundedUp(amount: number, bps: number): number {
   const rest = amount % BPS;
   return ((amount - rest) / BPS) * bps + Math.ceil((rest * bps) / BPS);
 }

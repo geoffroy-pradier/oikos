@@ -70,6 +70,10 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 |  | Grands travaux et merveilles |
 |  | Acquisition de sites |
 
+Entretien des sites, dans la première version : à chaque clôture quotidienne (section 3), chaque site d'une maison doit un entretien, détruit (puits « entretien »). Deux paramètres du back-office : un montant de base par jour de jeu et par type de site (`sites.upkeep.dailyOboles`) et un coefficient global en points de base (`sites.upkeep.coefficientBps`, 10 000 = ×1, de ×0 à ×10), qui est le levier « coefficient d'entretien » ci-dessous. Dû par site = ⌈base × coefficient ÷ 10 000⌉, arrondi à l'obole supérieure : l'arrondi ne joue jamais en faveur de la monnaie en circulation. Un montant nul ne prélève rien ; une version de configuration publiée avant l'entretien se lit sans entretien. Ces paramètres sont des règles publiques, lues par les joueurs avec le reste de la section `sites` (vue `site_rules`).
+
+Maison qui ne peut pas tout payer : ses sites sont examinés du plus ancien au plus récent. Chacun est payé en entier si ce qui reste de la trésorerie le couvre ; sinon il n'est pas payé du tout, et l'examen continue (un site moins cher peut encore être payé). Il n'y a ni paiement partiel, ni dette, ni solde négatif : la monnaie sous séquestre à l'agora n'est pas comptée. Un site impayé est à l'arrêt jusqu'au paiement.
+
 Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %. Trois leviers l'ajustent sans patch : taux directeur, coefficient d'entretien, revenu des classes PNJ.
 
 ## 5.6 Fiscalité

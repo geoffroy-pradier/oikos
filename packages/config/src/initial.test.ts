@@ -51,6 +51,17 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
+  it('l’entretien quotidien d’un site vaut 5 % de son prix d’acquisition, au coefficient ×1', () => {
+    const { acquisitionCostOboles, upkeep } = config.sites;
+    expect(upkeep.coefficientBps).toBe(10_000);
+    expect(upkeep.dailyOboles).toEqual(
+      Object.fromEntries(
+        Object.entries(acquisitionCostOboles).map(([type, cost]) => [type, cost / 20]),
+      ),
+    );
+    expect(upkeep.dailyOboles.field).toBe(30);
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {

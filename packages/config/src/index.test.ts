@@ -3,6 +3,7 @@ import {
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
   DEFAULT_SITES,
+  DEFAULT_UPKEEP,
   validateConfig,
   type GameConfig,
 } from './index';
@@ -36,6 +37,18 @@ const FIXTURE: GameConfig = {
       quarry: 540,
       fishery: 550,
       workshop: 560,
+    },
+    upkeep: {
+      coefficientBps: 12_500,
+      dailyOboles: {
+        field: 20,
+        orchard: 21,
+        pasture: 22,
+        forest: 23,
+        quarry: 24,
+        fishery: 25,
+        workshop: 26,
+      },
     },
   },
   goods: [
@@ -266,6 +279,12 @@ describe('une configuration invalide est refusée avec un message précis', () =
   });
 });
 
+/** Entretien d'une version publiée avant lui, en toutes lettres : coefficient ×1, rien à payer. */
+const NO_UPKEEP = {
+  coefficientBps: 10_000,
+  dailyOboles: { field: 0, orchard: 0, pasture: 0, forest: 0, quarry: 0, fishery: 0, workshop: 0 },
+};
+
 describe('sites', () => {
   it('une version publiée avant l’acquisition de sites reste lisible, avec les valeurs de départ', () => {
     const older: Partial<GameConfig> = clone();
@@ -285,7 +304,47 @@ describe('sites', () => {
         fishery: 800,
         workshop: 1000,
       },
+      upkeep: NO_UPKEEP,
     });
+  });
+
+  it('une version publiée avant l’entretien reste lisible et ne prélève rien', () => {
+    const older = clone() as unknown as { sites: Record<string, unknown> };
+    delete older.sites['upkeep'];
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.sites.upkeep).toEqual(NO_UPKEEP);
+    expect(result.config.sites.acquisitionCostOboles.field).toBe(500);
+    expect(Object.isFrozen(DEFAULT_UPKEEP) && Object.isFrozen(DEFAULT_UPKEEP.dailyOboles)).toBe(
+      true,
+    );
+  });
+
+  it('entretien : coefficient de ×0 à ×10, un montant entier positif ou nul par type, sans autre clé', () => {
+    const upkeepErrors = (change: (upkeep: Record<string, unknown>) => void) => {
+      const config = clone();
+      change(config.sites.upkeep as unknown as Record<string, unknown>);
+      return errorsOf(config);
+    };
+    for (const good of [0, 10_000, 100_000])
+      expect(upkeepErrors((upkeep) => (upkeep['coefficientBps'] = good))).toEqual([]);
+    for (const bad of [-1, 100_001, 0.5, Number.NaN, undefined])
+      expect(upkeepErrors((upkeep) => (upkeep['coefficientBps'] = bad))).toEqual([
+        expect.stringMatching(/^sites\.upkeep\.coefficientBps: /),
+      ]);
+    const daily = (value: unknown) =>
+      upkeepErrors(
+        (upkeep) => ((upkeep['dailyOboles'] as Record<string, unknown>)['quarry'] = value),
+      );
+    for (const good of [0, 1, 1_000_000_000]) expect(daily(good)).toEqual([]);
+    for (const bad of [-1, 2.5, 1_000_000_001, undefined])
+      expect(daily(bad)).toEqual([expect.stringMatching(/^sites\.upkeep\.dailyOboles\.quarry: /)]);
+    expect(
+      upkeepErrors((upkeep) => ((upkeep['dailyOboles'] as Record<string, unknown>)['palace'] = 1)),
+    ).toEqual([expect.stringMatching(/^sites\.upkeep\.dailyOboles/)]);
+    expect(upkeepErrors((upkeep) => (upkeep['graceDays'] = 2))).toEqual([
+      expect.stringMatching(/^sites\.upkeep/),
+    ]);
   });
 
   it('les valeurs par défaut ne se modifient pas en mémoire', () => {
