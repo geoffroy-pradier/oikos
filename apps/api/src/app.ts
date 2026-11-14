@@ -12,6 +12,7 @@ import { registerAdminReads } from './admin-read';
 import { adminRouteTemplate, type RefusalReason, type Telemetry } from './telemetry';
 import type { Identity, TokenVerifier } from './auth';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
+import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
@@ -44,6 +45,8 @@ export const COMMANDS = [
   marketCancelOrder,
   adminPublishConfig,
   adminScheduleConfig,
+  adminGrantRole,
+  adminRevokeRole,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
