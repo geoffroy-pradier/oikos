@@ -31,8 +31,8 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   plusieurs moteurs ; une clôture manquée est rattrapée une fois. L'étape qui prélève l'entretien des
   sites, la commande `site.restart` (relancer un site à l'arrêt en payant un jour) et la récolte bornée
   à l'arrêt existent et sont testées, mais l'étape n'est pas branchée dans le moteur : **rien n'est
-  prélevé et aucun site ne s'arrête en jeu** tant que les demandes de fusion #140 et #142 ne sont pas
-  fusionnées.
+  prélevé et aucun site ne s'arrête en jeu** tant que la demande de fusion #140 n'est pas fusionnée (à
+  fusionner avec #142, qui en est l'écran).
 - **Agora.** Carnet d'ordres à cours limité par bien : ventes et achats attendent dans le carnet, une vente
   réserve son stock, un achat met son prix sous séquestre. Exécution à l'arrivée, au prix de l'ordre qui
   attendait ; annulation d'un ordre ouvert. Le carnet public montre les deux côtés par niveau de prix,
@@ -56,8 +56,9 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   « Réessayer »), Accès (liste des rôles, réservée au super-administrateur, en consultation). Une version
   n'est programmable que par un autre compte que son auteur. Par l'API seulement, sans écran : accorder
   et retirer un rôle (`admin.grantRole`, `admin.revokeRole`), annuler une programmation à venir
-  (`admin.cancelActivation`). Le premier super-administrateur s'inscrit à la main en base. Les deux
-  clients sont servis avec une politique de contenu et des en-têtes de sécurité, vérifiés en `ci`.
+  (`admin.cancelActivation`). Le premier super-administrateur s'inscrit à la main en base. Le
+  `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de sécurité sur les deux
+  clients, vérifiés en `ci` (`infra/test-static.sh`) ; en local, servis par Vite, ils ne les portent pas.
 
 Ce qui manque encore pour le critère de sortie de la phase 1 : la mise en jeu de l'entretien et son
 écran (#72 : demandes #140 et #142), comptes de la maison (#73), tableau de bord de la maison (#74),
@@ -94,7 +95,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   - une maison n'échange pas avec elle-même : ses ordres peuvent se croiser sans s'exécuter.
 - **Taxe de marché** (5.3, ticket #70) :
   - taux et part détruite en points de base, dans la configuration ; une version publiée avant la taxe
-    se lit à taux nul, donc une base déjà initialisée ne taxe rien tant qu'Olympe ne publie pas de version ;
+    se lit à taux nul, donc une base déjà initialisée ne taxe rien tant qu'une version n'est pas publiée,
+    programmée et activée ;
   - arrondi à l'obole supérieure, par échange : découper ses ventes ne fait jamais payer moins, mais une
     vente servie en plusieurs échanges peut rapporter quelques oboles de moins que le net annoncé ;
   - le trésor de la cité est un compte du grand livre par cité, ouvert par la base, jamais débiteur ;
@@ -134,8 +136,9 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
     n'a pas été mesuré à l'échelle.
 - **Olympe** (15.2 à 15.4, ticket #77) :
   - un rôle ne change que par une fonction de la base, sous verrou : elle relit que l'auteur est
-    super-administrateur, refuse de se changer soi-même et de retirer le dernier super-administrateur ;
-    l'API reste de confiance pour l'identité de l'auteur (jeton, second facteur) ;
+    super-administrateur et refuse de retirer le dernier super-administrateur ; nul ne s'accorde un rôle
+    à lui-même, mais un super-administrateur peut se retirer s'il en reste un autre ; l'API reste de
+    confiance pour l'identité de l'auteur (jeton, second facteur) ;
   - la double validation d'une programmation est tenue par l'API, pas par la base ; un réglage d'API
     (`OLYMPE_ALLOW_SELF_REVIEW`, désactivé par défaut) la lève pour un monde de test ;
   - annuler une programmation annule toutes celles de la même clôture ; la base refuse d'annuler une
@@ -149,7 +152,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Limitation de débit tenue en base**, partagée entre les répliques de l'API.
 - **Demandes de fusion de plus de 400 lignes** : plusieurs ont dépassé la limite du `CLAUDE.md` jusqu'au
   ticket #69, presque toujours par leurs tests d'intégration. Depuis le ticket #70, toutes sont restées
-  sous 400 lignes modifiées, en découpant chaque ticket en tranches (six à treize par ticket).
+  sous 400 lignes modifiées, en découpant chaque ticket en tranches (six à onze par ticket à ce jour, #72 et
+  #77 n'étant pas terminés).
 
 ## Points en suspens
 
@@ -178,7 +182,6 @@ Défauts connus, déjà en tickets :
   heure du serveur ; un test de bout en bout de l'agora a échoué deux fois sans cause établie.
 - **#100** : la base ne relie pas le montant d'une écriture à l'échange qu'elle règle, ni ne contrôle la
   destination d'un débit de séquestre ; seul le code des commandes le garantit aujourd'hui.
-
 - **#123** : changer la durée de tick en configuration bloque les ticks du monde (plus de demande des
   PNJ ni de chandeliers) ; la clôture quotidienne, elle, n'en dépend plus. La programmation d'une version
   et la clôture ne calculent pas non plus l'instant de clôture de la même façon.
@@ -198,6 +201,7 @@ Limites assumées pour l'instant :
 - La fiche d'un site calcule « à récolter » avec l'horloge du navigateur ; l'API reste seule à décider.
 - Les montants s'écrivent « 1 oboles » au singulier dans plusieurs textes : à corriger avec le critère
   « pluriels corrects » du ticket #74.
-- Une base déjà initialisée ne taxe ni ne prélève d'entretien tant qu'Olympe ne publie pas une version
-  de configuration qui porte ces sections.
+- Une base déjà initialisée ne taxe pas tant qu'une version de configuration qui porte cette section n'a
+  pas été publiée dans Olympe, programmée par un second compte et activée à une clôture ; il en ira de
+  même pour l'entretien une fois #140 fusionnée.
 - Aucun usage d'IA en jeu à ce stade.
