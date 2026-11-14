@@ -64,3 +64,31 @@ export const tradeExecutedSchema = z.strictObject({
     quantity: z.number().int().positive(),
   }),
 });
+
+/** Commande `market.cancelOrder` : annule un ordre encore ouvert de sa propre maison. */
+export const marketCancelOrderInputSchema = z.strictObject({ orderId: z.uuid() });
+export type MarketCancelOrderInput = z.infer<typeof marketCancelOrderInputSchema>;
+
+export const marketCancelOrderOutputSchema = z.object({
+  orderId: z.uuid(),
+  status: z.literal('cancelled'),
+  /** Quantité qui restait à servir : pour une vente, le stock que l'annulation libère. */
+  released: z.number().int().positive(),
+});
+export type MarketCancelOrderOutput = z.infer<typeof marketCancelOrderOutputSchema>;
+
+export const MARKET_CANCEL_ORDER_ERROR_CODES = ['ORDER_NOT_FOUND', 'ORDER_NOT_OPEN'] as const;
+export type MarketCancelOrderErrorCode = (typeof MARKET_CANCEL_ORDER_ERROR_CODES)[number];
+
+export const orderCancelledSchema = z.strictObject({
+  type: z.literal('OrderCancelled'),
+  payload: z.strictObject({
+    orderId: z.uuid(),
+    houseId: z.uuid(),
+    cityId: z.uuid(),
+    goodId: z.string(),
+    side: z.enum(['buy', 'sell']),
+    /** Quantité non servie au moment de l'annulation. */
+    released: z.number().int().positive(),
+  }),
+});

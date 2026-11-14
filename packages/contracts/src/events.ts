@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { configActivationScheduledSchema, configVersionPublishedSchema } from './admin';
-import { orderPlacedSchema, tradeExecutedSchema } from './market';
+import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
 import { siteCollectedSchema } from './site';
 
 /** Événements de domaine produits par les commandes (temps réel, télémétrie, chronique). */
@@ -25,6 +25,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteCollectedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
+  orderCancelledSchema,
   configVersionPublishedSchema,
   configActivationScheduledSchema,
 ]);
