@@ -3,11 +3,12 @@ import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
 import { advanceAllWorlds } from './scheduler';
 import { npcDemand } from './steps/npc-demand';
+import { priceCandlesStep } from './steps/price-candles';
 import type { TickStep } from './tick';
 
 const QUEUE = 'world-clock';
-/** Étapes du tick, dans l'ordre. */
-const STEPS: readonly TickStep[] = [npcDemand];
+/** Étapes du tick, dans l'ordre : les chandeliers résument aussi les achats que les PNJ viennent de faire. */
+const STEPS: readonly TickStep[] = [npcDemand, priceCandlesStep];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');

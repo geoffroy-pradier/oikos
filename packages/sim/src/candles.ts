@@ -34,8 +34,9 @@ const positiveInteger = (value: number) => Number.isSafeInteger(value) && value 
  * plutôt qu'arrondie.
  */
 export function priceCandles(trades: readonly TradePrint[], periodSeconds: number): PriceCandle[] {
-  if (!positiveInteger(periodSeconds))
-    throw new RangeError('periodSeconds must be a positive integer');
+  // Borne haute : la colonne `period_seconds` de la table est un entier de 32 bits.
+  if (!positiveInteger(periodSeconds) || periodSeconds > 2_147_483_647)
+    throw new RangeError('periodSeconds must be a positive 32-bit integer');
   const periodMs = periodSeconds * 1000;
   const candles = new Map<number, PriceCandle>();
   for (const { at, price, quantity } of trades) {

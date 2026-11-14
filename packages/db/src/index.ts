@@ -137,7 +137,24 @@ export interface GameDatabase {
     price: ColumnType<string, number, never>;
     quantity: ColumnType<string, number, never>;
     ledger_entry_id: string;
-    created_at: Generated<Date>;
+    /** Écrit par les tests pour dater un échange ; le jeu laisse la base le remplir. */
+    created_at: ColumnType<Date, Date | undefined, never>;
+    /** Rang d'exécution : départage les échanges d'une même transaction. */
+    seq: GeneratedAlways<string>;
+  };
+  /** Chandeliers de prix : le moteur les insère et n'en recalcule que les valeurs. */
+  'game.price_candles': {
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    good_id: ColumnType<string, string, never>;
+    period_seconds: ColumnType<number, number, never>;
+    period_start: ColumnType<Date, Date, never>;
+    open: ColumnType<string, number, number>;
+    high: ColumnType<string, number, number>;
+    low: ColumnType<string, number, number>;
+    close: ColumnType<string, number, number>;
+    volume: ColumnType<string, number, number>;
+    turnover: ColumnType<string, number, number>;
   };
   'game.sites': {
     id: Generated<string>;
