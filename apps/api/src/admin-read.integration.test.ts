@@ -199,7 +199,8 @@ describe('paramètres et journal d’audit', () => {
     const harmless = await command(users.designer, 'admin.publishConfig', {
       config: TEST_CONFIG.config,
     });
-    const scheduled = await command(users.designer, 'admin.scheduleConfig', {
+    // Programmée par un autre compte que son auteur : la revue par une seconde personne (15.2).
+    const scheduled = await command(users.root, 'admin.scheduleConfig', {
       versionId: harmless?.versionId,
     });
 
@@ -215,7 +216,7 @@ describe('paramètres et journal d’audit', () => {
     expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
     expect(
       listing.activations.find((a: { versionId: string }) => a.versionId === harmless?.versionId),
-    ).toMatchObject({ activateAt: scheduled?.activateAt, createdBy: users.designer });
+    ).toMatchObject({ activateAt: scheduled?.activateAt, createdBy: users.root });
 
     const detail = await get(users.designer, `config/versions/${published?.versionId}`);
     expect(detail.body.data).toMatchObject({

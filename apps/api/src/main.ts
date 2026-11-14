@@ -3,6 +3,7 @@ import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/
 import { createDb } from '@oikos/db';
 import { createApp } from './app';
 import { tokenVerifierFromEnv } from './auth';
+import { SELF_REVIEW_ENV, selfReviewFromEnv } from './commands/admin-config';
 import { createSharedRateLimiter, rateLimitFromEnv } from './rate-limit';
 import { createTelemetry } from './telemetry';
 
@@ -26,8 +27,13 @@ setInterval(() => void telemetry.flush(), FLUSH_MS).unref();
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => void telemetry.flush().finally(() => process.exit(0)));
 }
+const allowSelfReview = selfReviewFromEnv(process.env);
+if (allowSelfReview) {
+  console.warn(`${SELF_REVIEW_ENV}=true: configuration versions can be scheduled by their author.`);
+}
 const app = createApp({
   db,
+  settings: { allowSelfReview },
   telemetry,
   loadConfig: createConfigLoader(db).at,
   verifyToken: tokenVerifierFromEnv(process.env),

@@ -92,6 +92,26 @@ async function alone(kept: string[], run: () => Promise<void>) {
   }
 }
 
+/**
+ * Lance `run` pendant que le verrou des changements de rôle est retenu, et ne le rend que lorsque deux
+ * commandes l'attendent : toutes deux ont alors passé le contrôle du registre, la base les départage.
+ */
+async function contended<T>(run: () => Promise<T>): Promise<T> {
+  const holder = await owner.startTransaction().execute();
+  await sql`select pg_advisory_xact_lock(hashtext('admin.roles'))`.execute(holder);
+  const pending = run();
+  for (let waiting = 0; waiting < 2;) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const locks = await sql<{ n: string }>`
+      select count(*) as n from pg_locks where locktype = 'advisory' and not granted`.execute(
+      owner,
+    );
+    waiting = Number(locks.rows[0]?.n);
+  }
+  await holder.commit().execute();
+  return pending;
+}
+
 describe('admin.grantRole et admin.revokeRole', () => {
   it('ne s’ouvrent qu’au super-administrateur à double authentification ; le refus est journalisé', async () => {
     const [player, target] = [await newUser(), await newUser('observer', root)];
@@ -233,10 +253,12 @@ describe('admin.grantRole et admin.revokeRole', () => {
       const [a, b] = [await newUser('super_admin'), await newUser('super_admin')];
       await alone([a, b], async () => {
         // Croisés : chacun retire l'autre. Sinon : chacun se retire lui-même.
-        const outcomes = await Promise.all([
-          send(a, 'admin.revokeRole', { userId: crossed ? b : a }),
-          send(b, 'admin.revokeRole', { userId: crossed ? a : b }),
-        ]);
+        const outcomes = await contended(() =>
+          Promise.all([
+            send(a, 'admin.revokeRole', { userId: crossed ? b : a }),
+            send(b, 'admin.revokeRole', { userId: crossed ? a : b }),
+          ]),
+        );
         expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(
           crossed ? [200, 403] : [200, 409],
         );
@@ -246,6 +268,17 @@ describe('admin.grantRole et admin.revokeRole', () => {
           error: { code: crossed ? 'FORBIDDEN' : 'LAST_SUPER_ADMIN' },
         });
         expect(await superAdmins()).toHaveLength(1);
+        // Le perdant avait passé le contrôle du registre (son rôle, relu, est au journal) : c'est sous
+        // le verrou de la base que son changement a été refusé.
+        const loser = outcomes[0].status === 200 ? b : a;
+        const logged = await db
+          .selectFrom('game.command_log')
+          .select(['admin_role', 'error_code'])
+          .where('user_id', '=', loser)
+          .execute();
+        expect(logged).toEqual([
+          { admin_role: 'super_admin', error_code: crossed ? 'FORBIDDEN' : 'LAST_SUPER_ADMIN' },
+        ]);
       });
     }
   });

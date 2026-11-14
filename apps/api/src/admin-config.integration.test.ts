@@ -302,7 +302,8 @@ describe('admin.scheduleConfig', () => {
     const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
     const versionId = published.body.data?.versionId ?? '';
     const before = new Date();
-    const scheduled = await send(author, 'admin.scheduleConfig', { versionId });
+    // Revue par une seconde personne : c'est un autre compte que l'auteur qui programme.
+    const scheduled = await send(root, 'admin.scheduleConfig', { versionId });
     expect(scheduled.status).toBe(200);
     const activateAt = new Date(scheduled.body.data?.activateAt ?? 0);
     expect(activateAt.getTime()).toBe(nextDailyClose(before, TEST_CONFIG.config.clock).getTime());
@@ -314,12 +315,14 @@ describe('admin.scheduleConfig', () => {
       .select(['created_by', 'activate_at'])
       .where('version_id', '=', versionId)
       .executeTakeFirstOrThrow();
-    expect(activation).toEqual({ created_by: author, activate_at: activateAt });
+    expect(activation).toEqual({ created_by: root, activate_at: activateAt });
     const events = await sql<{ payload: unknown }>`
       select payload from game.domain_events
-      where type = 'ConfigActivationScheduled' and payload->>'scheduledBy' = ${author}`.execute(db);
+      where type = 'ConfigActivationScheduled' and payload->>'versionId' = ${versionId}`.execute(
+      db,
+    );
     expect(events.rows).toEqual([
-      { payload: { versionId, activateAt: activateAt.toISOString(), scheduledBy: author } },
+      { payload: { versionId, activateAt: activateAt.toISOString(), scheduledBy: root } },
     ]);
   });
 
@@ -329,9 +332,83 @@ describe('admin.scheduleConfig', () => {
       (await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config })).body.data
         ?.versionId ?? '';
     const [older, newer] = [await publish(), await publish()];
-    await send(author, 'admin.scheduleConfig', { versionId: newer });
-    const back = await send(author, 'admin.scheduleConfig', { versionId: older });
+    await send(designer, 'admin.scheduleConfig', { versionId: newer });
+    const back = await send(designer, 'admin.scheduleConfig', { versionId: older });
     expect(await activeAt(new Date(back.body.data?.activateAt ?? 0))).toBe(older);
+  });
+
+  it('double validation : l’auteur ne programme pas sa version tant qu’un autre compte ne l’a pas fait', async () => {
+    const author = await newUser('game_designer', root);
+    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const versionId = published.body.data?.versionId ?? '';
+    const activations = () =>
+      db
+        .selectFrom('config.activations')
+        .select('created_by')
+        .where('version_id', '=', versionId)
+        .orderBy('seq')
+        .execute();
+
+    const refused = await send(author, 'admin.scheduleConfig', { versionId });
+    expect(refused).toEqual({
+      status: 409,
+      body: {
+        ok: false,
+        error: {
+          code: 'CONFIG_REVIEW_REQUIRED',
+          message: 'A version is scheduled by an account other than its author.',
+        },
+      },
+    });
+    expect(await activations()).toEqual([]);
+    expect(await logOf(author)).toEqual([
+      { command: 'admin.publishConfig', status: 'ok', error_code: null },
+      { command: 'admin.scheduleConfig', status: 'rejected', error_code: 'CONFIG_REVIEW_REQUIRED' },
+    ]);
+
+    // Un autre compte la programme : elle est revue. Son auteur peut alors y revenir (retour arrière).
+    expect((await send(designer, 'admin.scheduleConfig', { versionId })).status).toBe(200);
+    expect((await send(author, 'admin.scheduleConfig', { versionId })).status).toBe(200);
+    expect(await activations()).toEqual([{ created_by: designer }, { created_by: author }]);
+  });
+
+  it('une version sans auteur (configuration initiale) se programme sans revue', async () => {
+    const initial = await db
+      .insertInto('config.versions')
+      .values({ payload: JSON.stringify(TEST_CONFIG.config), note: 'sans auteur' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    expect((await send(designer, 'admin.scheduleConfig', { versionId: initial.id })).status).toBe(
+      200,
+    );
+  });
+
+  it('monde de test : le réglage de l’API lève la revue, sans valoir revue pour une API qui l’exige', async () => {
+    const lenient = createApp({
+      db,
+      telemetry,
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: testConfig,
+      settings: { allowSelfReview: true },
+    });
+    const author = await newUser('game_designer', root);
+    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const versionId = published.body.data?.versionId ?? '';
+    const selfScheduled = await lenient.request('/api/commands/admin.scheduleConfig', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer aal2:${author}`,
+        'Idempotency-Key': randomUUID(),
+      },
+      body: JSON.stringify({ versionId }),
+    });
+    expect(selfScheduled.status).toBe(200);
+    // La programmation par l'auteur lui-même n'est pas une revue : l'API par défaut refuse toujours.
+    expect((await send(author, 'admin.scheduleConfig', { versionId })).body.error?.code).toBe(
+      'CONFIG_REVIEW_REQUIRED',
+    );
   });
 
   it('refuse de programmer une version dont le contenu ne respecte plus le schéma', async () => {
