@@ -71,7 +71,8 @@
     "cancel": "Annuler",
     "cancelOrder": "Annuler la vente de {{remaining}} × {{good}} à {{price}} oboles",
     "cancelled": "Vente annulée : {{quantity}} × {{good}} en stock libre de nouveau.",
-    "boughtPartly": "Achat partiel : {{quantity}} × {{good}} sur {{wanted}} pour {{cost}} oboles. Le reste n'a pas trouvé de vente à ce prix."
+    "boughtPartly": "Achat partiel : {{quantity}} × {{good}} sur {{wanted}} pour {{cost}} oboles. Le reste n'a pas trouvé de vente à ce prix.",
+    "boughtShort": "Achat partiel : {{quantity}} × {{good}} sur {{wanted}} pour {{cost}} oboles. Votre trésorerie ne permettait pas d'en payer davantage."
   },
   "goods": {
     "wheat": "Blé",

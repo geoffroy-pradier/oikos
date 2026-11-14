@@ -17,6 +17,9 @@ interface House {
   citizenship_status: 'metic' | 'citizen';
 }
 
+/** Âge (monde de jeu) servi par ce client : identifiant court, fixé à la construction (`.env.example`). */
+const WORLD_SLUG = (import.meta.env['VITE_WORLD_SLUG'] as string | undefined) ?? 'archipel';
+
 export function App() {
   const { t, i18n } = useTranslation();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -37,18 +40,32 @@ export function App() {
   const userId = session?.user.id;
   const load = useCallback(async () => {
     // Un échec de lecture (erreur de l'API ou réseau coupé) n'est jamais pris pour « pas de maison ».
-    const [mine, allCities] = await Promise.all([
+    const [mine, world] = await Promise.all([
       supabase
         .from('houses')
         .select('id, name, city_id, citizenship_status')
         .eq('is_mine', true)
         .maybeSingle(),
-      supabase.from('cities').select('id, name').order('name'),
+      supabase.from('worlds').select('id').eq('slug', WORLD_SLUG).maybeSingle(),
     ]).catch(() => [null, null] as const);
-    const failed = !mine || !allCities || Boolean(mine.error ?? allCities.error);
+    // Seules les cités de l'Âge servi par ce client sont proposées : jamais celles d'un autre monde.
+    const worldId = (world?.data as { id: string } | null)?.id;
+    const worldCities = worldId
+      ? await supabase
+          .from('cities')
+          .select('id, name')
+          .eq('world_id', worldId)
+          .order('name')
+          .then(
+            (response) => response,
+            () => null,
+          )
+      : null;
+    const failed =
+      !mine || !world || !worldCities || Boolean(mine.error ?? world.error ?? worldCities.error);
     setLoadFailed(failed);
     if (failed) return;
-    setCities((allCities.data as City[] | null) ?? []);
+    setCities((worldCities.data as City[] | null) ?? []);
     setHouse((mine.data as House | null) ?? null);
   }, []);
   useEffect(() => {

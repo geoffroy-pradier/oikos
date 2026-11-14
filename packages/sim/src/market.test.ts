@@ -119,7 +119,87 @@ describe('appariement d’un ordre à cours limité', () => {
         { restingOrderId: 'a', price: 8, quantity: 10 },
       ],
       remaining: 10,
+      shortOfFunds: false,
     });
+  });
+
+  it('achat borné par le budget : exécuté pour la part payable, du moins cher au plus cher', () => {
+    const buy = (budget: number) =>
+      matchLimitOrder({ side: 'buy', price: 8, quantity: 30, budget }, asks);
+    // 70 oboles paient les dix unités à 7 ; il ne reste rien pour celles à 8.
+    expect(buy(70)).toEqual({
+      trades: [
+        { restingOrderId: 'b', price: 7, quantity: 5 },
+        { restingOrderId: 'c', price: 7, quantity: 5 },
+      ],
+      remaining: 20,
+      shortOfFunds: true,
+    });
+    // Une unité de plus à 8 se paie avec 78 oboles ; 77 n'y suffisent pas, et rien n'est sauté.
+    expect(buy(78).trades.at(-1)).toEqual({ restingOrderId: 'a', price: 8, quantity: 1 });
+    expect(buy(77).trades).toHaveLength(2);
+    expect(buy(40).trades).toEqual([{ restingOrderId: 'b', price: 7, quantity: 5 }]);
+    expect(buy(6)).toEqual({ trades: [], remaining: 30, shortOfFunds: true });
+    // Budget suffisant pour tout ce qui croise : le reste tient au carnet, pas à la trésorerie.
+    expect(buy(150)).toMatchObject({ remaining: 10, shortOfFunds: false });
+    // Sans offre au prix limite, le manque de fonds n'est pas en cause.
+    expect(matchLimitOrder({ side: 'buy', price: 6, quantity: 5, budget: 0 }, asks)).toEqual({
+      trades: [],
+      remaining: 5,
+      shortOfFunds: false,
+    });
+  });
+
+  it('propriété : un achat ne dépense jamais plus que son budget, et ne laisse rien de payable', () => {
+    const row = fc.record({
+      price: fc.integer({ min: 1, max: 50 }),
+      quantity: fc.integer({ min: 1, max: 100 }),
+    });
+    fc.assert(
+      fc.property(
+        fc.array(row, { maxLength: 20 }),
+        row,
+        fc.integer({ min: 0, max: 3000 }),
+        (rows, incoming, budget) => {
+          const book = rows.map((entry, index) => ({
+            ...entry,
+            orderId: String(index),
+            sequence: index,
+          }));
+          const free = matchLimitOrder({ side: 'buy', ...incoming }, book);
+          const { trades, remaining, shortOfFunds } = matchLimitOrder(
+            { side: 'buy', ...incoming, budget },
+            book,
+          );
+          const spent = trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+          const bought = trades.reduce((sum, trade) => sum + trade.quantity, 0);
+          expect(spent).toBeLessThanOrEqual(budget);
+          expect(bought + remaining).toBe(incoming.quantity);
+          // Le budget ne change que la fin : les échanges sont un préfixe de l'appariement sans budget.
+          const freeCost = free.trades.reduce(
+            (sum, trade) => sum + trade.price * trade.quantity,
+            0,
+          );
+          if (freeCost <= budget) {
+            expect({ trades, remaining, shortOfFunds }).toEqual({ ...free, shortOfFunds: false });
+          } else {
+            expect(shortOfFunds).toBe(true);
+            trades.forEach((trade, index) => {
+              expect(trade.restingOrderId).toBe(free.trades[index]?.restingOrderId);
+              expect(trade.quantity).toBeLessThanOrEqual(free.trades[index]?.quantity ?? 0);
+            });
+            // L'unité suivante, la moins chère encore offerte, coûte plus que ce qui reste.
+            const next = free.trades[trades.length - 1];
+            const last = trades.at(-1);
+            const nextPrice =
+              last && next && last.quantity < next.quantity
+                ? next.price
+                : free.trades[trades.length]?.price;
+            expect(nextPrice).toBeGreaterThan(budget - spent);
+          }
+        },
+      ),
+    );
   });
 
   it('vente : sert les acheteurs les plus offrants ; aucun échange sous le prix limite', () => {
@@ -130,6 +210,7 @@ describe('appariement d’un ordre à cours limité', () => {
     expect(matchLimitOrder({ side: 'sell', price: 6, quantity: 10 }, bids)).toEqual({
       trades: [{ restingOrderId: 'y', price: 9, quantity: 4 }],
       remaining: 6,
+      shortOfFunds: false,
     });
   });
 
@@ -245,6 +326,13 @@ describe('appariement d’un ordre à cours limité', () => {
         },
       ),
     );
+  });
+
+  it('refuse un budget négatif, non entier, ou donné à une vente', () => {
+    const order = { price: 5, quantity: 1 };
+    expect(() => matchLimitOrder({ side: 'buy', ...order, budget: -1 }, [])).toThrow(RangeError);
+    expect(() => matchLimitOrder({ side: 'buy', ...order, budget: 1.5 }, [])).toThrow(RangeError);
+    expect(() => matchLimitOrder({ side: 'sell', ...order, budget: 10 }, [])).toThrow(RangeError);
   });
 
   it('refuse un prix ou une quantité non entiers ou non positifs', () => {

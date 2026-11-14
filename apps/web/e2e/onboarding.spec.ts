@@ -46,7 +46,9 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await expect(page.getByLabel('Nom de la maison')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByLabel('Nom de la maison').fill(houseName);
-  // La base de test peut contenir d'autres cités (tests d'intégration) : on choisit la sienne.
+  // La base de test contient les cités d'autres mondes (tests d'intégration) : seules celles de l'Âge
+  // servi par ce client sont proposées.
+  await expect(page.getByLabel('Cité').getByRole('option')).toHaveText(['Kallistè']);
   await page.getByLabel('Cité').selectOption(KALLISTE_ID);
   await page.getByLabel('Emblème').selectOption('trident');
   await page.getByLabel('Nom de la maison').press('Enter');

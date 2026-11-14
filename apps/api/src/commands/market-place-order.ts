@@ -91,7 +91,7 @@ export const marketPlaceOrder = defineCommand({
       placed(order.id);
       return {
         ok: true,
-        data: { orderId: order.id, status: 'open', remaining: input.quantity, trades: [] },
+        data: { orderId: order.id, status: 'open' as const, remaining: input.quantity, trades: [] },
       };
     }
 
@@ -120,8 +120,14 @@ export const marketPlaceOrder = defineCommand({
       .forUpdate()
       .execute();
     const sellers = new Map(asks.map((ask) => [ask.id, ask.house_id]));
-    const { trades, remaining } = matchLimitOrder(
-      { side: 'buy', price: input.price, quantity: input.quantity },
+    // L'achat s'exécute pour ce que la trésorerie permet de payer, du moins cher au plus cher.
+    const { trades, remaining, shortOfFunds } = matchLimitOrder(
+      {
+        side: 'buy',
+        price: input.price,
+        quantity: input.quantity,
+        budget: Number(account.balance),
+      },
       asks.map((ask) => ({
         orderId: ask.id,
         price: Number(ask.price),
@@ -129,8 +135,9 @@ export const marketPlaceOrder = defineCommand({
         sequence: Number(ask.seq),
       })),
     );
-    const cost = trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
-    if (cost > Number(account.balance)) return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
+    // Pas même une unité payable alors qu'une vente attendait à ce prix : rien à exécuter.
+    if (trades.length === 0 && shortOfFunds)
+      return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
 
     const order = await place();
     placed(order.id);
@@ -215,9 +222,10 @@ export const marketPlaceOrder = defineCommand({
       ok: true,
       data: {
         orderId: order.id,
-        status: remaining > 0 ? 'cancelled' : 'filled',
+        status: remaining > 0 ? ('cancelled' as const) : ('filled' as const),
         remaining,
         trades: trades.map(({ price, quantity }) => ({ price, quantity })),
+        shortOfFunds,
       },
     };
   },

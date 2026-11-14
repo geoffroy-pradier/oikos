@@ -3,6 +3,7 @@ import {
   FRAMEWORK_ERROR_CODES,
   HOUSE_CREATE_ERROR_CODES,
   HOUSE_RENAME_ERROR_CODES,
+  MARKET_CANCEL_ORDER_ERROR_CODES,
   MARKET_PLACE_ORDER_ERROR_CODES,
   SITE_COLLECT_ERROR_CODES,
 } from '@oikos/contracts';
@@ -32,6 +33,7 @@ describe('traductions', () => {
         ...FRAMEWORK_ERROR_CODES,
         ...HOUSE_CREATE_ERROR_CODES,
         ...HOUSE_RENAME_ERROR_CODES,
+        ...MARKET_CANCEL_ORDER_ERROR_CODES,
         ...MARKET_PLACE_ORDER_ERROR_CODES,
         ...SITE_COLLECT_ERROR_CODES,
       ].map((code) => `errors.${code}`),
@@ -49,6 +51,11 @@ describe('traductions', () => {
       ...config.recipes.map((recipe) => `recipes.${recipe.id}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
+  });
+
+  it('les biens nommés sont exactement ceux de la configuration : l’agora ne propose rien d’autre', () => {
+    const config = INITIAL_CONFIG as GameConfig;
+    expect(Object.keys(fr.goods).sort()).toEqual(config.goods.map((good) => good.id).sort());
   });
 });
 

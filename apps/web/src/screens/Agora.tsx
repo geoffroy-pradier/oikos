@@ -105,12 +105,19 @@ export function AgoraScreen() {
         text:
           bought === 0
             ? t('agora.nothingBought', { good })
-            : t(bought < input.data.quantity ? 'agora.boughtPartly' : 'agora.bought', {
-                quantity: number.format(bought),
-                wanted: number.format(input.data.quantity),
-                good,
-                cost: number.format(cost),
-              }),
+            : t(
+                result.data.shortOfFunds
+                  ? 'agora.boughtShort'
+                  : bought < input.data.quantity
+                    ? 'agora.boughtPartly'
+                    : 'agora.bought',
+                {
+                  quantity: number.format(bought),
+                  wanted: number.format(input.data.quantity),
+                  good,
+                  cost: number.format(cost),
+                },
+              ),
       };
     }
     // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
