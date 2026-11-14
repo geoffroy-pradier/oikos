@@ -33,8 +33,8 @@ update game.sites set created_at = created_at - interval '1 day', cycle_started_
 alter table game.sites enable trigger sites_guard;
 select throws_ok($$update game.sites set recipe_id = 'grow_olives' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001',
   'a site that changes recipe starts a new cycle now', 'un site ne change pas de recette en gardant son cycle');
-select throws_ok($$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() - interval '1 hour' where id = '00000000-0000-7000-8000-0000000002a1'$$,
-  '23001', 'a site that changes recipe starts a new cycle now', 'ni en n''avançant son cycle qu''en partie');
+select throws_ok($$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() - interval '1 second' where id = '00000000-0000-7000-8000-0000000002a1'$$,
+  '23001', 'a site that changes recipe starts a new cycle now', 'ni en repartant d''un cycle déjà entamé, fût-ce d''une seconde');
 select lives_ok($$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() where id = '00000000-0000-7000-8000-0000000002a1'$$,
   'un site change de recette en repartant d''un cycle neuf');
 select throws_ok($$update game.sites set city_id = gen_random_uuid() where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de cité');

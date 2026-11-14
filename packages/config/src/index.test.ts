@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SITES, INITIAL_CONFIG, validateConfig, type GameConfig } from './index';
+import { DEFAULT_SITES, validateConfig, type GameConfig } from './index';
 
 const clone = () => structuredClone(FIXTURE);
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
@@ -264,9 +264,37 @@ describe('sites', () => {
     delete older.sites;
     const result = validateConfig(older);
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(result.config.sites).toEqual(DEFAULT_SITES);
-    // La configuration initiale porte explicitement ces mêmes valeurs.
-    expect((INITIAL_CONFIG as GameConfig).sites).toEqual(DEFAULT_SITES);
+    // Valeurs écrites ici en toutes lettres : elles appartiennent aux versions déjà publiées et ne
+    // suivent pas les rééquilibrages de la configuration initiale.
+    expect(result.config.sites).toEqual({
+      limitByHeadquartersLevel: [4],
+      acquisitionCostOboles: {
+        field: 600,
+        orchard: 900,
+        pasture: 700,
+        forest: 700,
+        quarry: 1200,
+        fishery: 800,
+        workshop: 1000,
+      },
+    });
+  });
+
+  it('les valeurs par défaut ne se modifient pas en mémoire', () => {
+    expect(Object.isFrozen(DEFAULT_SITES)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SITES.acquisitionCostOboles)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SITES.limitByHeadquartersLevel)).toBe(true);
+  });
+
+  it('refuse une clé inconnue dans la section et plus de dix niveaux de siège', () => {
+    const unknown = clone() as unknown as { sites: Record<string, unknown> };
+    unknown.sites['surprise'] = 1;
+    expect(errorsOf(unknown)).toEqual([expect.stringMatching(/^sites/)]);
+    const tall = clone();
+    tall.sites.limitByHeadquartersLevel = Array.from({ length: 11 }, () => 4);
+    expect(errorsOf(tall)).toEqual([expect.stringMatching(/^sites\.limitByHeadquartersLevel: /)]);
+    tall.sites.limitByHeadquartersLevel = Array.from({ length: 10 }, () => 4);
+    expect(errorsOf(tall)).toEqual([]);
   });
 
   it('exige un prix pour chaque type de site, et aucun autre', () => {

@@ -22,6 +22,10 @@ La carte de chaque cité est découpée en parcelles finies (200 à 600 par cit�
 | Carrière et mine | Marbre, argile, cuivre, fer, argent | Concession accordée aux enchères par la cité, durée limitée |
 | Pêcherie et saline | Poisson, sel | Exige un accès côtier |
 
+Dans la première version : une maison acquiert un site dans sa cité en choisissant sa recette ; le type du site est celui de la recette, et son prix, fixé par type dans la configuration, est détruit (puits « acquisition de sites »). Le nombre de sites d'une maison est borné par le niveau de son siège (toute maison est au premier niveau). Un site peut changer de recette parmi celles de son type : ce qu'il a déjà produit doit d'abord être récolté, le cycle entamé est perdu et le nouveau commence à l'instant du changement. Il n'y a encore ni carte des parcelles, ni fertilité, ni marché foncier.
+
+Partage des contrôles : la base garantit qu'un changement de recette repart d'un cycle neuf, si bien qu'aucune production de l'ancienne recette n'est récoltée sous la nouvelle. Un site n'a pas de type enregistré : son type se déduit de sa recette, que seule la configuration connaît. L'existence de la recette et sa compatibilité avec le type du site sont donc vérifiées par la commande, pas par la base.
+
 ## 4.3 Les ateliers
 
 Un atelier applique des recettes : intrants, durée, personnel requis, extrant. Trois leviers le différencient.

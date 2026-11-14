@@ -114,8 +114,21 @@ export const startingSchema = z.strictObject({
   siteRecipeId: id,
 });
 
-/** Valeurs de départ des sites : celles de la configuration initiale. */
-export const DEFAULT_SITES = {
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/**
+ * Valeurs lues pour les versions publiées avant que la section `sites` n'existe. FIGÉES : les changer
+ * changerait après coup le prix d'une version immuable, et le rejeu d'un tick avec sa version
+ * enregistrée divergerait. Un rééquilibrage passe par une nouvelle version de configuration, jamais
+ * par cette constante.
+ */
+export const DEFAULT_SITES = deepFreeze({
   limitByHeadquartersLevel: [4],
   acquisitionCostOboles: {
     field: 600,
@@ -126,7 +139,7 @@ export const DEFAULT_SITES = {
     fishery: 800,
     workshop: 1000,
   },
-};
+});
 
 /** Sites d'une maison (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). */
 export const sitesSchema = z.strictObject({
