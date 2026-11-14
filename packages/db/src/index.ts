@@ -142,6 +142,7 @@ export interface GameDatabase {
     world_id: string;
     house_id: string;
     city_id: string;
+    /** Modifiable, à condition de repartir d'un cycle neuf (garde de la base). */
     recipe_id: string;
     cycle_started_at: ColumnType<Date, Date | undefined, Date>;
     created_at: Generated<Date>;

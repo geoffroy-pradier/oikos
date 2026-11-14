@@ -1,5 +1,5 @@
 begin;
-select plan(36);
+select plan(38);
 
 -- Jeu d'essai : Alice et Bob ont chacun une maison, un compte crédité, un stock et un champ.
 insert into auth.users (id, email) values
@@ -25,7 +25,18 @@ insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
 
 -- Intégrité des sites.
 select throws_ok($$update game.sites set house_id = '00000000-0000-7000-8000-0000000000b1' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de maison');
-select throws_ok($$update game.sites set recipe_id = 'grow_olives' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de recette');
+-- Changement de recette : seulement en repartant d'un cycle neuf. Le site est vieilli d'un jour (garde
+-- levée le temps de poser le jeu d'essai) pour que « maintenant » diffère du début de son cycle.
+alter table game.sites disable trigger sites_guard;
+update game.sites set created_at = created_at - interval '1 day', cycle_started_at = cycle_started_at - interval '1 day'
+  where id = '00000000-0000-7000-8000-0000000002a1';
+alter table game.sites enable trigger sites_guard;
+select throws_ok($$update game.sites set recipe_id = 'grow_olives' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001',
+  'a site that changes recipe starts a new cycle now', 'un site ne change pas de recette en gardant son cycle');
+select throws_ok($$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() - interval '1 hour' where id = '00000000-0000-7000-8000-0000000002a1'$$,
+  '23001', 'a site that changes recipe starts a new cycle now', 'ni en n''avançant son cycle qu''en partie');
+select lives_ok($$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() where id = '00000000-0000-7000-8000-0000000002a1'$$,
+  'un site change de recette en repartant d''un cycle neuf');
 select throws_ok($$update game.sites set city_id = gen_random_uuid() where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de cité');
 select throws_ok($$update game.sites set id = gen_random_uuid() where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas d''identifiant');
 select throws_ok($$update game.sites set world_id = '01900000-0000-7000-8000-000000000002' where id = '00000000-0000-7000-8000-0000000002a1'$$, '23001', null, 'un site ne change pas de monde');

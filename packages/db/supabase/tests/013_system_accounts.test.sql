@@ -6,7 +6,7 @@ select is(
   (select string_agg(system_key, ' ' order by system_key collate "C") from game.accounts
    where world_id = '01900000-0000-7000-8000-000000000001' and kind = 'system'),
   'faucet_npc_purchases faucet_rewards faucet_starting_grant faucet_temple_loans '
-    || 'sink_market_tax sink_npc_wages sink_offerings sink_public_works sink_temple_interest sink_upkeep',
+    || 'sink_market_tax sink_npc_wages sink_offerings sink_public_works sink_site_acquisition sink_temple_interest sink_upkeep',
   'comptes système du monde de test : liste figée');
 
 -- Un monde naît avec tous ses comptes système, à zéro ; seuls les robinets peuvent devenir débiteurs.
@@ -14,7 +14,7 @@ insert into game.worlds (id, slug, name) values ('00000000-0000-7000-8000-000000
 select is(
   (select count(*) from game.accounts where world_id = '00000000-0000-7000-8000-00000000e001' and kind = 'system'),
   (select count(*) from game.system_account_kinds), 'un monde naît avec un compte par robinet et par puits');
-select is((select count(*) from game.system_account_kinds), 10::bigint, 'dix robinets et puits au catalogue');
+select is((select count(*) from game.system_account_kinds), 11::bigint, 'onze robinets et puits au catalogue');
 select is(
   (select count(*) from game.accounts where world_id = '00000000-0000-7000-8000-00000000e001'
      and (balance <> 0 or allow_negative <> (system_key like 'faucet\_%'))),

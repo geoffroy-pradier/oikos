@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateConfig, type GameConfig } from './index';
+import { DEFAULT_SITES, INITIAL_CONFIG, validateConfig, type GameConfig } from './index';
 
 const clone = () => structuredClone(FIXTURE);
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
@@ -18,6 +18,18 @@ const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
+  sites: {
+    limitByHeadquartersLevel: [2, 5],
+    acquisitionCostOboles: {
+      field: 500,
+      orchard: 510,
+      pasture: 520,
+      forest: 530,
+      quarry: 540,
+      fishery: 550,
+      workshop: 560,
+    },
+  },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -243,5 +255,51 @@ describe('une configuration invalide est refusée avec un message précis', () =
     const withoutClock: Partial<GameConfig> = clone();
     delete withoutClock.clock;
     expect(errorsOf(withoutClock)).toEqual([expect.stringMatching(/^clock: /)]);
+  });
+});
+
+describe('sites', () => {
+  it('une version publiée avant l’acquisition de sites reste lisible, avec les valeurs de départ', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.sites;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.sites).toEqual(DEFAULT_SITES);
+    // La configuration initiale porte explicitement ces mêmes valeurs.
+    expect((INITIAL_CONFIG as GameConfig).sites).toEqual(DEFAULT_SITES);
+  });
+
+  it('exige un prix pour chaque type de site, et aucun autre', () => {
+    const missing = clone() as unknown as {
+      sites: { acquisitionCostOboles: Record<string, number> };
+    };
+    delete missing.sites.acquisitionCostOboles['quarry'];
+    expect(errorsOf(missing)).toEqual([
+      expect.stringMatching(/^sites\.acquisitionCostOboles\.quarry: /),
+    ]);
+    const extra = clone() as unknown as {
+      sites: { acquisitionCostOboles: Record<string, number> };
+    };
+    extra.sites.acquisitionCostOboles['palace'] = 1;
+    expect(errorsOf(extra)).toEqual([expect.stringMatching(/^sites\.acquisitionCostOboles/)]);
+  });
+
+  it.each([0, -5, 1.5])('refuse un prix ou une limite de %s', (bad) => {
+    const cost = clone();
+    cost.sites.acquisitionCostOboles.field = bad;
+    expect(errorsOf(cost)).toEqual([
+      expect.stringMatching(/^sites\.acquisitionCostOboles\.field: /),
+    ]);
+    const limit = clone();
+    limit.sites.limitByHeadquartersLevel = [bad];
+    expect(errorsOf(limit)).toEqual([
+      expect.stringMatching(/^sites\.limitByHeadquartersLevel\[0\]: /),
+    ]);
+  });
+
+  it('exige au moins un niveau de siège', () => {
+    const none = clone();
+    none.sites.limitByHeadquartersLevel = [];
+    expect(errorsOf(none)).toEqual([expect.stringMatching(/^sites\.limitByHeadquartersLevel: /)]);
   });
 });

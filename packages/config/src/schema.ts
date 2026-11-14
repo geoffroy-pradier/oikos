@@ -114,11 +114,41 @@ export const startingSchema = z.strictObject({
   siteRecipeId: id,
 });
 
+/** Valeurs de départ des sites : celles de la configuration initiale. */
+export const DEFAULT_SITES = {
+  limitByHeadquartersLevel: [4],
+  acquisitionCostOboles: {
+    field: 600,
+    orchard: 900,
+    pasture: 700,
+    forest: 700,
+    quarry: 1200,
+    fishery: 800,
+    workshop: 1000,
+  },
+};
+
+/** Sites d'une maison (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). */
+export const sitesSchema = z.strictObject({
+  /**
+   * Nombre de sites qu'une maison peut exploiter, par niveau de siège (le premier d'abord). Seul le
+   * premier niveau existe pour l'instant : toute maison est au niveau 1.
+   */
+  limitByHeadquartersLevel: z.array(positiveInt).min(1).max(10),
+  /** Prix d'acquisition d'un site, en oboles, pour chaque type de site. La monnaie est détruite. */
+  acquisitionCostOboles: z.record(z.enum(SITE_TYPES), positiveInt),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
     market: marketSchema,
     starting: startingSchema,
+    /**
+     * Absent des versions publiées avant l'acquisition de sites : elles restent lisibles, avec les
+     * valeurs de départ ci-dessus. Toute version publiée depuis le porte explicitement.
+     */
+    sites: sitesSchema.default(DEFAULT_SITES),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
