@@ -52,3 +52,56 @@ export function accrueProduction({
     since: new Date(since.getTime() + elapsed * cycleMs),
   };
 }
+
+export interface WorkshopAccrualInput {
+  since: Date;
+  now: Date;
+  cycleMinutes: number;
+  maxCycles: number;
+  /** Intrants de la recette : quantité consommée par cycle et quantité libre en stock. */
+  inputs: readonly { perCycle: number; available: number }[];
+}
+
+export interface WorkshopAccrual {
+  /** Cycles réalisés : bornés par le temps écoulé, par le plafond du site et par les intrants. */
+  cycles: number;
+  /** Cycles que le temps écoulé permettait, intrants mis à part (plafond du site compris). */
+  elapsedCycles: number;
+  since: Date;
+}
+
+/**
+ * Production d'un atelier (docs/specs/04-systemes-gestion.md, 4.3). Un cycle ne tourne que si ses
+ * intrants sont en stock. À court d'intrants, le cycle attend : le temps qu'il a attendu reste dû et se
+ * rattrape à la collecte suivante, mais jamais au-delà du plafond d'accumulation du site.
+ * Sans intrant, le résultat est celui de `accrueProduction`.
+ */
+export function accrueWorkshop({
+  since,
+  now,
+  cycleMinutes,
+  maxCycles,
+  inputs,
+}: WorkshopAccrualInput): WorkshopAccrual {
+  for (const { perCycle, available } of inputs) {
+    if (!Number.isSafeInteger(perCycle) || perCycle <= 0)
+      throw new RangeError('perCycle must be a positive integer');
+    if (!Number.isSafeInteger(available) || available < 0)
+      throw new RangeError('available must be a non-negative integer');
+  }
+  const byTime = accrueProduction({ since, now, cycleMinutes, outputPerCycle: 1, maxCycles });
+  const affordable = Math.min(
+    ...inputs.map(({ perCycle, available }) => Math.floor(available / perCycle)),
+  );
+  const cycles = Math.min(byTime.cycles, affordable);
+  if (cycles === byTime.cycles)
+    return { cycles, elapsedCycles: byTime.cycles, since: byTime.since };
+  // Cycles en attente d'intrants : leur temps reste dû, compté à rebours depuis l'horodatage que le
+  // temps seul aurait donné (qui a déjà écarté ce qui dépasse le plafond).
+  const owed = (byTime.cycles - cycles) * cycleMinutes * MINUTE_MS;
+  return {
+    cycles,
+    elapsedCycles: byTime.cycles,
+    since: new Date(byTime.since.getTime() - owed),
+  };
+}
