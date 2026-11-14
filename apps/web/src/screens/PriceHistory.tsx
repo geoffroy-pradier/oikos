@@ -10,8 +10,8 @@ const SHOWN = 48;
 const [WIDTH, HEIGHT, MARGIN] = [320, 128, 6];
 
 /**
- * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures, prix moyen
- * observé, chandeliers et tableau des mêmes valeurs. Le graphique est une image décrite ; tout ce qu'il
+ * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures,
+ * chandeliers et tableau des mêmes valeurs. Le graphique est une image décrite ; tout ce qu'il
  * montre se lit aussi dans le tableau, au clavier comme au lecteur d'écran. Hausse et baisse se
  * distinguent par la forme (corps vide ou plein), pas par la couleur.
  */
