@@ -169,6 +169,9 @@ importers:
       '@oikos/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@oikos/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
       '@oikos/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -200,9 +203,6 @@ importers:
       '@oikos/engine':
         specifier: workspace:*
         version: link:../engine
-      '@oikos/sim':
-        specifier: workspace:*
-        version: link:../../packages/sim
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(vite@8.3.8(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))

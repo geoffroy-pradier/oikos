@@ -492,3 +492,54 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
   await expect(headings).toHaveText(['Champ de blé', 'Vigne', 'Oliveraie']);
   await expectNoHorizontalScroll(page);
 });
+
+test('atelier : intrants requis, stock libre, production récoltable, puis pénurie', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  await elapse(houseName, 480);
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByText('Blé : 80')).toBeVisible();
+
+  // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
+  await page.getByLabel('Site à acquérir').selectOption('mill_flour');
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(page.getByRole('status')).toContainText('Site acquis : Moulin');
+  const mill = page.getByRole('listitem').filter({ hasText: 'Moulin' });
+  await expect(mill.getByText('Intrants par cycle :')).toBeVisible();
+  await expect(mill.getByText('10 × Blé (stock libre : 80)')).toBeVisible();
+  await expect(mill.getByText("Rien à récolter pour l'instant.")).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Deux heures plus tard : deux moutures récoltables, annoncées avant la récolte puis engrangées.
+  await elapse(houseName, 120);
+  await page.reload();
+  await expect(mill.getByText('À récolter : 16 × Farine.')).toBeVisible();
+  await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 16 × Farine.');
+  await expect(page.getByText('Blé : 60', { exact: true })).toBeVisible();
+  await expect(page.getByText('Farine : 16', { exact: true })).toBeVisible();
+  await expect(mill.getByText('10 × Blé (stock libre : 60)')).toBeVisible();
+
+  // Dix heures de plus, du blé pour six moutures : quatre cycles attendent, et l'écran le dit.
+  await elapse(houseName, 600);
+  await page.reload();
+  await expect(
+    mill.getByText('À récolter : 48 × Farine. 4 cycles attendent des intrants.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 48 × Farine.');
+  await expect(
+    mill.getByText("Rien à récolter pour l'instant. 4 cycles attendent des intrants."),
+  ).toBeVisible();
+  await expect(mill.getByText('10 × Blé (stock libre : 0)')).toBeVisible();
+  // Récolter quand même : le refus de l'API est traduit, sous le site.
+  await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
+  await expect(page.getByRole('alert')).toContainText('Il manque des intrants');
+  await expect(page.getByRole('alert')).toBeInViewport();
+  await expectNoHorizontalScroll(page);
+
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText('Inputs per cycle:')).toBeVisible();
+  await expect(page.getByText('4 cycles are waiting for inputs.')).toBeVisible();
+});

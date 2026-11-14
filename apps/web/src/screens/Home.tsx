@@ -68,7 +68,10 @@ export function HomeScreen() {
         </ul>
       </Card>
 
-      <SitesCard onChanged={() => Promise.all([treasury.reload(), stock.reload()])} />
+      <SitesCard
+        stock={stock.rows}
+        onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
+      />
     </div>
   );
 }

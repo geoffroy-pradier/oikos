@@ -61,7 +61,13 @@
     "limitReached": "Votre maison exploite déjà autant de sites que son siège le permet.",
     "siteNumbered": "{{site}} {{number}}",
     "acquireOptionPlain": "{{site}} : {{cost}} oboles",
-    "alreadyAcquired": "Ce site était déjà acquis : {{site}}, pour {{cost}} oboles. Rien de plus n'a été payé."
+    "alreadyAcquired": "Ce site était déjà acquis : {{site}}, pour {{cost}} oboles. Rien de plus n'a été payé.",
+    "inputs": "Intrants par cycle :",
+    "inputLine": "{{quantity}} × {{good}} (stock libre : {{free}})",
+    "harvestable": "À récolter : {{list}}.",
+    "harvestNone": "Rien à récolter pour l'instant.",
+    "harvestWaiting_one": "{{count}} cycle attend des intrants.",
+    "harvestWaiting_other": "{{count}} cycles attendent des intrants."
   },
   "agora": {
     "title": "Agora de {{city}}",
