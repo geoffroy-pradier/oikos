@@ -186,10 +186,21 @@ const ordersOf = async (worldId: string) =>
 const tradesOf = (worldId: string) =>
   db
     .selectFrom('game.trades')
-    .select(['sell_order_id', 'buy_order_id', 'price', 'quantity', 'ledger_entry_id'])
+    .select(['id', 'sell_order_id', 'buy_order_id', 'price', 'quantity', 'ledger_entry_id'])
     .where('world_id', '=', worldId)
     .orderBy('id')
     .execute();
+/** Charges utiles des événements `TradeExecuted` d'une cité, dans l'ordre d'émission. */
+const tradeEventsOf = async (cityId: string) =>
+  (
+    await db
+      .selectFrom('game.domain_events')
+      .select(['payload', 'command_id'])
+      .where('type', '=', 'TradeExecuted')
+      .where(sql<boolean>`payload->>'cityId' = ${cityId}`)
+      .orderBy('seq')
+      .execute()
+  ).map((event) => ({ ...(event.payload as object), commandId: event.command_id }));
 const carryOf = async (cityId: string) =>
   (
     await db
@@ -239,6 +250,21 @@ describe('demande des PNJ au tick', () => {
       [dear.orderIds[1], 6, 10],
     ]);
     expect(trades.every((trade) => trade.buy_order_id === null)).toBe(true);
+    // Un événement de domaine par achat, dans l'ordre des achats : sans ordre d'achat ni commande.
+    const sold = (orderId: string | undefined, price: number, quantity: number) => ({
+      tradeId: trades.find((trade) => trade.sell_order_id === orderId)?.id,
+      cityId: world.cityId,
+      goodId: 'wheat',
+      sellOrderId: orderId,
+      buyOrderId: null,
+      price,
+      quantity,
+      commandId: null,
+    });
+    expect(await tradeEventsOf(world.cityId)).toEqual([
+      sold(cheap.orderIds[0], 5, 8),
+      sold(dear.orderIds[1], 6, 10),
+    ]);
     const moves = await db
       .selectFrom('game.stock_ledger')
       .select(['to_system', 'quantity', 'ledger_entry_id'])
@@ -398,9 +424,11 @@ describe('demande des PNJ au tick', () => {
     expect(dry).toMatchObject({ npcDemand: { units: 20, spent: 120 } });
     expect(await balanceOf(seller.houseId)).toBe(0);
     expect(await tradesOf(world.worldId)).toEqual([]);
+    expect(await tradeEventsOf(world.cityId)).toEqual([]);
 
     expect((await runTick(db, tick)).status).toBe('done');
     expect((await runTick(db, tick)).status).toBe('skipped');
+    expect(await tradeEventsOf(world.cityId)).toMatchObject([{ price: 6, quantity: 20 }]);
     expect(await balanceOf(seller.houseId)).toBe(120);
     expect(await stockOf(seller.houseId)).toEqual({ quantity: 30, reserved: 30 });
   });

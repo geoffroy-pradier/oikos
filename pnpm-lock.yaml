@@ -139,6 +139,9 @@ importers:
       '@oikos/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@oikos/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db
