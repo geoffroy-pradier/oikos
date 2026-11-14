@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { priceCandles, type TradePrint } from './candles';
+import { observedPrice, priceCandles, type TradePrint } from './candles';
 
 const HOUR = 3_600_000;
 /** 14 novembre 2026, 10 h en temps universel : un début d'heure. */
@@ -118,6 +118,51 @@ describe('chandeliers de prix', () => {
           expect(c.volume).toBe((a?.volume ?? 0) + (b?.volume ?? 0));
           expect(c.turnover).toBe((a?.turnover ?? 0) + (b?.turnover ?? 0));
         }
+      }),
+    );
+  });
+});
+
+describe('prix de référence observé', () => {
+  const candle = (volume: number, turnover: number) => ({ volume, turnover });
+
+  it('exemples : moyenne pondérée par les volumes, demi-obole vers le haut, rien sans échange', () => {
+    // 6×10 + 9×10 = 150 oboles pour 20 unités : 7,5, donc 8.
+    expect(observedPrice([candle(10, 60), candle(10, 90)])).toEqual({ price: 8, volume: 20 });
+    // 149 ÷ 20 = 7,45, donc 7 ; une grosse vente pèse plus qu'une petite : (1×100 + 99×1) ÷ 100 = 1,99.
+    expect(observedPrice([candle(10, 60), candle(10, 89)])).toEqual({ price: 7, volume: 20 });
+    expect(observedPrice([candle(1, 100), candle(99, 99)])).toEqual({ price: 2, volume: 100 });
+    expect(observedPrice([])).toBeNull();
+    for (const bad of [
+      candle(0, 5),
+      candle(2, 0),
+      candle(3, 2),
+      candle(1.5, 5),
+      candle(2, Number.MAX_SAFE_INTEGER + 1),
+    ])
+      expect(() => observedPrice([bad])).toThrow(RangeError);
+    const half = candle(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+    expect(() => observedPrice([half])).toThrow(RangeError);
+  });
+
+  it('reste à une demi-obole de la moyenne exacte, entre le moins cher et le plus cher des chandeliers', () => {
+    const unit = fc.integer({ min: 1, max: 1_000_000 });
+    const candles = fc.array(
+      fc.tuple(unit, unit).map(([volume, price]) => ({ volume, price, turnover: volume * price })),
+      { minLength: 1, maxLength: 30 },
+    );
+    fc.assert(
+      fc.property(candles, (list) => {
+        const observed = observedPrice(list);
+        const [volume, turnover] = [
+          list.reduce((sum, c) => sum + BigInt(c.volume), 0n),
+          list.reduce((sum, c) => sum + BigInt(c.turnover), 0n),
+        ];
+        expect(BigInt(observed?.volume ?? 0)).toBe(volume);
+        const gap = BigInt(observed?.price ?? 0) * volume - turnover;
+        expect(2n * gap <= volume && 2n * gap > -volume).toBe(true);
+        expect(observed?.price).toBeGreaterThanOrEqual(Math.min(...list.map((c) => c.price)));
+        expect(observed?.price).toBeLessThanOrEqual(Math.max(...list.map((c) => c.price)));
       }),
     );
   });
