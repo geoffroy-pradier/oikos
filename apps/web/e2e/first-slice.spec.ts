@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
-import { npcDemand } from '@oikos/engine';
+import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '@oikos/engine';
 import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
@@ -109,11 +109,11 @@ function alone<T>(section: () => Promise<T>): Promise<T> {
 }
 const french = new Intl.NumberFormat('fr-FR');
 
-/** Le moteur joue l'étape de demande des PNJ sur le monde de test, comme à un tick. */
-async function npcsBuy() {
+/** Le moteur joue une étape du tick (par défaut la demande des PNJ) sur le monde de test. */
+async function npcsBuy(step: TickStep = npcDemand) {
   const { config } = await createConfigLoader(db).at(new Date());
   await db.transaction().execute((trx) =>
-    npcDemand.run({
+    step.run({
       trx,
       worldId: '01900000-0000-7000-8000-000000000001',
       index: 0,
@@ -179,6 +179,51 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await expect(
       page.getByText(`${french.format(3000 + net)} oboles`, { exact: true }),
     ).toBeVisible();
+
+    // Le tick résume les échanges en chandeliers : l'agora montre le dernier prix du blé, le graphique
+    // décrit, et les mêmes valeurs dans un tableau ouvert au clavier.
+    await npcsBuy(priceCandlesStep);
+    await npcsBuy(observedPricesStep);
+    const candle = (
+      await sql<{ open: string; high: string; low: string; close: string; volume: string }>`
+        select open, high, low, close, volume from game.price_candles
+        where city_id = ${KALLISTE_ID} and good_id = 'wheat'
+          and period_seconds = ${config.priceHistory.candleMinutes * 60}
+        order by period_start desc limit 1`.execute(db)
+    ).rows[0];
+    if (!candle) throw new Error('aucun chandelier du blé après le tick');
+    await nav.getByRole('link', { name: 'Agora' }).click();
+    await expect(
+      page.getByText(`Dernier prix, en oboles : ${french.format(Number(candle.close))} (`),
+    ).toBeVisible();
+    await expect(page.getByText(/Variation sur 24 h : /)).toBeVisible();
+    const average = await sql<{
+      price: string;
+      volume: string;
+    }>`select price, volume from game.observed_prices
+      where city_id = ${KALLISTE_ID} and good_id = 'wheat'`.execute(db);
+    const [price, volume] = [average.rows[0]?.price, average.rows[0]?.volume].map((value) =>
+      french.format(Number(value)),
+    );
+    await expect(
+      page.getByText(`Prix moyen sur 24 h, en oboles : ${price} (volume échangé : ${volume}).`),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('img', { name: /^Chandeliers de Blé : \d+ périodes/ }),
+    ).toBeVisible();
+    const table = page.getByText('Tableau des prix par période');
+    await expect(page.getByRole('columnheader', { name: 'Clôture' })).toBeHidden();
+    await table.focus();
+    await page.keyboard.press('Enter');
+    const values = [candle.open, candle.high, candle.low, candle.close, candle.volume];
+    await expect(
+      page
+        .getByRole('row')
+        .filter({ has: page.getByRole('rowheader') })
+        .first(),
+    ).toContainText(values.map((value) => french.format(Number(value))).join(''));
+    await expectNoHorizontalScroll(page);
+    await nav.getByRole('link', { name: 'Maison' }).click();
   });
   await expect(page.getByText('Blé : 0')).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();

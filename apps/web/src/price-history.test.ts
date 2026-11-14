@@ -145,20 +145,27 @@ describe('dernier prix et variation sur 24 heures', () => {
 });
 
 describe('tracé des chandeliers', () => {
-  it('un créneau par chandelier, échelle du plus bas au plus haut de la série, origine en haut', () => {
-    // Prix de 4 à 12 sur 80 unités de haut : 10 unités par obole.
+  it('un créneau par chandelier, échelle logarithmique du plus bas au plus haut, origine en haut', () => {
+    // Prix de 2 à 16 sur 90 unités de haut : trois doublements, 30 unités chacun (16 → 0, 8 → 30, 4 → 60, 2 → 90).
     const { marks, slot, low, high } = candleMarks(
-      [candle(2, [6, 12, 4, 10]), candle(1, [10, 10, 6, 8]), candle(0, [8, 9, 8, 8])],
+      [candle(2, [4, 16, 2, 8]), candle(1, [8, 8, 4, 4]), candle(0, [4, 8, 4, 4])],
       300,
-      80,
+      90,
     );
-    expect([slot, low, high]).toEqual([100, 4, 12]);
+    expect([slot, low, high]).toEqual([100, 2, 16]);
     expect(marks).toEqual([
-      { x: 50, wickTop: 0, wickBottom: 80, bodyTop: 20, bodyHeight: 40, trend: 'up' },
-      { x: 150, wickTop: 20, wickBottom: 60, bodyTop: 20, bodyHeight: 20, trend: 'down' },
-      // Ouverture = clôture : corps d'une unité, centré sur le prix (8, soit 40).
-      { x: 250, wickTop: 30, wickBottom: 40, bodyTop: 39.5, bodyHeight: 1, trend: 'flat' },
+      { x: 50, wickTop: 0, wickBottom: 90, bodyTop: 30, bodyHeight: 30, trend: 'up' },
+      { x: 150, wickTop: 30, wickBottom: 60, bodyTop: 30, bodyHeight: 30, trend: 'down' },
+      // Ouverture = clôture : corps d'une unité, centré sur le prix (4, soit 60).
+      { x: 250, wickTop: 30, wickBottom: 60, bodyTop: 59.5, bodyHeight: 1, trend: 'flat' },
     ]);
+    // Un prix aberrant ne tasse pas les autres : de 2 à 4 096, passer de 2 à 4 occupe encore un onzième du cadre.
+    const spike = candleMarks(
+      [candle(1, [2, 4, 2, 4]), candle(0, [4, 4096, 4, 4])],
+      100,
+      110,
+    ).marks;
+    expect([spike[0]?.bodyTop, spike[0]?.bodyHeight]).toEqual([100, 10]);
   });
 
   it('prix tous égaux : tracés à mi-hauteur ; corps minimal au bord : gardé dans le cadre ; série vide : rien', () => {

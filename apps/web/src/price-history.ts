@@ -106,15 +106,16 @@ export interface CandleMark {
 
 /**
  * Place les chandeliers dans un cadre `width` × `height` (unités du dessin, origine en haut à gauche) :
- * un créneau de même largeur par chandelier, dans l'ordre reçu, et une échelle verticale linéaire du
- * plus bas au plus haut de la série. Si tous les prix sont égaux, ils sont tracés à mi-hauteur. Série
- * vide : aucune marque, et une échelle de 0 à 0.
+ * un créneau de même largeur par chandelier, dans l'ordre reçu, et une échelle verticale logarithmique
+ * du plus bas au plus haut de la série : un doublement de prix occupe partout la même hauteur, et un
+ * échange à un prix aberrant n'écrase pas tous les autres chandeliers sur une ligne. Si tous les prix
+ * sont égaux, ils sont tracés à mi-hauteur. Série vide : aucune marque, et une échelle de 0 à 0.
  */
 export function candleMarks(series: readonly Candle[], width: number, height: number) {
   const low = series.length ? Math.min(...series.map((candle) => candle.low)) : 0;
   const high = series.length ? Math.max(...series.map((candle) => candle.high)) : 0;
   const y = (value: number) =>
-    high === low ? height / 2 : ((high - value) / (high - low)) * height;
+    high === low ? height / 2 : (Math.log2(high / value) / Math.log2(high / low)) * height;
   const slot = width / Math.max(series.length, 1);
   const marks = series.map((candle, index): CandleMark => {
     const [top, bottom] = [
