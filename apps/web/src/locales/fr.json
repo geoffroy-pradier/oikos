@@ -96,7 +96,7 @@
     "collectAllLabel_other": "Tout récolter : {{number}} sites à récolter",
     "collectedAll_one": "Récolte engrangée sur {{number}} site : {{list}}.",
     "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
-    "collectAllFailed": "Échec pour {{site}} : {{reason}}"
+    "collectAllFailed": "Échec pour {{site}}. {{reason}}"
   },
   "agora": {
     "title": "Agora de {{city}}",

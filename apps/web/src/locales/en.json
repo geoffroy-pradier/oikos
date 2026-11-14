@@ -96,7 +96,7 @@
     "collectAllLabel_other": "Collect all: {{number}} sites to collect",
     "collectedAll_one": "Harvest stored from {{number}} site: {{list}}.",
     "collectedAll_other": "Harvest stored from {{number}} sites: {{list}}.",
-    "collectAllFailed": "Failed for {{site}}: {{reason}}"
+    "collectAllFailed": "Failed for {{site}}. {{reason}}"
   },
   "agora": {
     "title": "Agora of {{city}}",
