@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createDb, serviceRoleUrl } from '@oikos/db';
+import { siteUpkeep } from '@oikos/engine';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
@@ -45,7 +46,11 @@ const restart = (user: string, siteId: string, key?: string) =>
   send(user, 'site.restart', { siteId }, key);
 
 /** Une maison fondée par la commande réelle ; son champ, âgé de `ageHours`, est à l'arrêt depuis `haltedHours`. */
-async function newPlayer(ageHours = 0, haltedHours?: number) {
+async function newPlayer(
+  ageHours = 0,
+  haltedHours?: number,
+  cityId = '01900000-0000-7000-8000-000000000101',
+) {
   const user = randomUUID();
   await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
     owner,
@@ -53,7 +58,7 @@ async function newPlayer(ageHours = 0, haltedHours?: number) {
   const name = `Relance ${[...user.replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
   const blazon = { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' };
   const founded = await send(user, 'house.create', {
-    cityId: '01900000-0000-7000-8000-000000000101',
+    cityId,
     name,
     blazon,
   });
@@ -247,5 +252,85 @@ describe('site.restart', () => {
     expect(refused).toMatchObject({ status: 409, body: { error: { code: 'INSUFFICIENT_FUNDS' } } });
     expect(state).toEqual({ balance: 29, halted: true, hours: 3, paid: [] });
     expect(escrow.rows).toEqual([{ balance: '200' }]);
+  });
+
+  describe('relance et clôture quotidienne', () => {
+    /** Un monde à part : l'étape d'entretien prélève toutes les maisons du monde où elle tourne. */
+    async function newWorld() {
+      const [worldId, cityId] = [randomUUID(), randomUUID()];
+      await sql`with world as (insert into game.worlds (id, slug, name) values (${worldId}, ${`r-${worldId.slice(0, 12)}`}, 'Test'))
+        insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Agora')`.execute(
+        owner,
+      );
+      const context = { worldId, gameDay: 20_771, closeAt: new Date(), config: TEST_CONFIG.config };
+      return {
+        cityId,
+        upkeep: (trx: typeof db) => siteUpkeep.run({ ...context, trx, closeAt: new Date() }),
+      };
+    }
+    const dailyOf = async ({ houseId }: Player) =>
+      (
+        await sql<{
+          amount: string;
+        }>`select l.amount from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
+          join game.accounts a on a.id = l.account_id and a.system_key = 'sink_upkeep'
+          where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId}`.execute(db)
+      ).rows.map((row) => row.amount);
+
+    it('site relancé juste avant la clôture : il paie de nouveau à la clôture, par deux écritures de natures distinctes', async () => {
+      const world = await newWorld();
+      const player = await newPlayer(10, 7, world.cityId);
+      expect((await restart(player.user, player.siteId)).status).toBe(200);
+      const summary = await db.transaction().execute(world.upkeep);
+      // 3 000 − 30 (relance) − 30 (clôture) = 2 940 : la règle écrite, pas un double prélèvement fautif.
+      expect(summary).toMatchObject({ houses: 1, paidOboles: 30, sitesPaid: 1, resumed: 0 });
+      expect(await stateOf(player)).toMatchObject({
+        balance: GRANT - 60,
+        halted: false,
+        paid: ['30'],
+      });
+      expect(await dailyOf(player)).toEqual(['30']);
+    });
+
+    it('relance validée après le début de la clôture, puis impayé à cette clôture : le site est arrêté de nouveau, son cycle intact à la durée de la clôture près', async () => {
+      const world = await newWorld();
+      const player = await newPlayer(10, 7, world.cityId);
+      await drain(player, GRANT - 30);
+      // La clôture commence (son « maintenant » est fixé) ; la relance passe avant qu'elle ne prenne le puits.
+      const closing = await db.startTransaction().execute();
+      await sql`select now()`.execute(closing);
+      expect((await restart(player.user, player.siteId)).status).toBe(200);
+      const summary = await world.upkeep(closing).finally(() => closing.commit().execute());
+      // La relance a pris les 30 oboles : la clôture ne peut rien prélever et arrête le site.
+      expect(summary).toMatchObject({ paidOboles: 0, sitesUnpaid: 1, halted: 1 });
+      // Trois heures de cycle avant l'arrêt, toujours trois heures après (à la durée de la clôture près).
+      expect(await stateOf(player)).toEqual({ balance: 0, halted: true, hours: 3, paid: ['30'] });
+      expect(await dailyOf(player)).toEqual([]);
+    });
+
+    it('relance demandée pendant la clôture : elle attend, sans interblocage, puis constate que la clôture a relancé le site', async () => {
+      const world = await newWorld();
+      const player = await newPlayer(10, 7, world.cityId);
+      const closing = await db.startTransaction().execute();
+      let settled = false;
+      let pending: ReturnType<typeof restart> | undefined;
+      try {
+        // La clôture a prélevé et relancé le site, mais n'a pas encore validé : elle tient le puits.
+        await world.upkeep(closing);
+        // La relance n'est demandée qu'une fois l'étape terminée : elle ne peut qu'attendre la validation.
+        pending = restart(player.user, player.siteId).finally(() => (settled = true));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        expect(settled).toBe(false);
+      } finally {
+        await closing.commit().execute();
+      }
+      expect(await pending).toMatchObject({
+        status: 409,
+        body: { error: { code: 'SITE_NOT_HALTED' } },
+      });
+      // Un seul paiement, celui de la clôture : 3 000 − 30.
+      expect(await stateOf(player)).toMatchObject({ balance: GRANT - 30, halted: false, paid: [] });
+      expect(await dailyOf(player)).toEqual(['30']);
+    });
   });
 });

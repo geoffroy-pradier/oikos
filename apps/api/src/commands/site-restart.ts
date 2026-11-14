@@ -40,8 +40,8 @@ export const siteRestart = defineCommand({
     if (!owned) return refuse('SITE_NOT_FOUND', 'Unknown site.');
     // Ordre des verrous, le même que l'entretien à la clôture : le puits, la trésorerie, puis le site.
     // Dans un autre ordre, une relance et une clôture s'attendraient l'une l'autre. Le verrou du puits
-    // met en file toutes les relances d'un monde, et les fait attendre la fin de l'étape d'entretien
-    // quand une clôture est en cours.
+    // met en file toutes les relances d'un monde ; quand une clôture a commencé à prélever l'entretien,
+    // elles attendent la validation de toute sa transaction, puisque ce verrou est tenu jusqu'au bout.
     const sink = await trx
       .selectFrom('game.accounts')
       .select('id')
