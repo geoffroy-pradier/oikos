@@ -1,7 +1,8 @@
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
-import { advanceAllWorlds } from './scheduler';
+import type { CloseStep } from './close';
+import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { npcDemand } from './steps/npc-demand';
 import { observedPricesStep } from './steps/observed-prices';
 import { priceCandlesStep } from './steps/price-candles';
@@ -10,6 +11,9 @@ import type { TickStep } from './tick';
 const QUEUE = 'world-clock';
 /** Étapes du tick, dans l'ordre : les chandeliers résument aussi les achats que les PNJ viennent de faire. */
 const STEPS: readonly TickStep[] = [npcDemand, priceCandlesStep, observedPricesStep];
+
+/** Étapes de la clôture quotidienne, dans l'ordre. */
+const CLOSE_STEPS: readonly CloseStep[] = [];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -28,12 +32,17 @@ await boss.start();
 await boss.createQueue(QUEUE);
 await boss.schedule(QUEUE, '* * * * *');
 await boss.work(QUEUE, async () => {
-  // Sans `now` : l'instant présent est l'heure de la base, pas celle de ce processus.
-  const results = await advanceAllWorlds(db, { config: loader, steps: STEPS });
-  for (const { worldId, played, error } of results) {
+  // Un seul instant présent pour tout le passage, lu à l'horloge de la base, pas à celle de ce processus.
+  const now = await databaseNow(db);
+  const ticks = await advanceAllWorlds(db, { now, config: loader, steps: STEPS });
+  // Les clôtures quotidiennes ont leur propre échéancier, par jour de jeu : un tick en échec ne les retient pas.
+  const closes = await closeAllWorlds(db, { now, config: loader, steps: CLOSE_STEPS });
+  for (const { worldId, played } of ticks)
     if (played.length > 0) console.log(`World ${worldId}: played ticks ${played.join(', ')}`);
+  for (const { worldId, played } of closes)
+    if (played.length > 0) console.log(`World ${worldId}: closed game days ${played.join(', ')}`);
+  for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
-  }
 });
 console.log('OIKOS engine started');
 

@@ -35,8 +35,11 @@ export interface TickRequest {
   steps: readonly TickStep[];
   /** Graine du tick. Par défaut : 128 bits d'aléa du système, imprévisibles avant le tick. */
   newSeed?: () => string;
-  /** Horloge réelle. Un tick ne se joue qu'une fois son instant de jeu atteint. */
-  now?: () => Date;
+  /**
+   * Instant présent : un tick ne se joue qu'une fois son instant de jeu atteint. Obligatoire, pour que
+   * l'appelant choisisse son horloge (celle de la base pour le moteur), jamais celle du processus par défaut.
+   */
+  now: () => Date;
 }
 
 export interface TickOutcome {
@@ -112,7 +115,7 @@ export async function runTick(db: Db, request: TickRequest): Promise<TickOutcome
 
   let outcome: TickOutcome;
   try {
-    if (scheduledAt.getTime() > (request.now?.() ?? new Date()).getTime()) {
+    if (scheduledAt.getTime() > request.now().getTime()) {
       throw new Error(`Tick ${index} is not due before ${scheduledAt.toISOString()}`);
     }
     // La configuration est chargée AVANT d'ouvrir la transaction : le chargeur utilise sa propre connexion,
