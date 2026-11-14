@@ -1,7 +1,7 @@
 import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { parseSiteRules } from './site-rules';
+import { freeStockIn, parseSiteRules, previewHarvest } from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
@@ -11,16 +11,18 @@ const raw = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('parseSiteRules', () => {
-  it('propose les productions primaires au prix de leur type de site, jamais les ateliers', () => {
+  it('propose chaque recette, ateliers compris, au prix de son type de site', () => {
     const rules = parseSiteRules(raw());
     const offers = Object.fromEntries(
       rules?.offers.map((offer) => [offer.recipe.id, offer.costOboles]) ?? [],
     );
-    const primary = config.recipes.filter((recipe) => recipe.inputs.length === 0);
-    expect(primary.length).toBeLessThan(config.recipes.length);
+    expect(config.recipes.some((recipe) => recipe.inputs.length > 0)).toBe(true);
     expect(offers).toEqual(
       Object.fromEntries(
-        primary.map((recipe) => [recipe.id, config.sites.acquisitionCostOboles[recipe.siteType]]),
+        config.recipes.map((recipe) => [
+          recipe.id,
+          config.sites.acquisitionCostOboles[recipe.siteType],
+        ]),
       ),
     );
     expect(rules?.limit).toBe(config.sites.limitByHeadquartersLevel[0]);
@@ -35,11 +37,15 @@ describe('parseSiteRules', () => {
     const rules = parseSiteRules(raw());
     expect(rules?.alternatives('grow_olives').map((recipe) => recipe.id)).toEqual(['grow_grapes']);
     expect(rules?.alternatives('grow_wheat')).toEqual([]);
-    // Un atelier n'a pas d'alternative tant que ses recettes ne sont pas disponibles.
-    expect(rules?.alternatives('mill_flour')).toEqual([]);
+    // Un atelier passe d'une recette d'atelier à une autre, jamais à une culture.
+    const workshops = config.recipes
+      .filter((recipe) => recipe.siteType === 'workshop' && recipe.id !== 'mill_flour')
+      .map((recipe) => recipe.id);
+    expect(rules?.alternatives('mill_flour').map((recipe) => recipe.id)).toEqual(workshops);
+    expect(rules?.recipe('mill_flour')?.inputs).toEqual([{ goodId: 'wheat', quantity: 10 }]);
+    expect(rules?.recipe('inconnue')).toBeNull();
     expect(rules?.alternatives('inconnue')).toEqual([]);
     expect(rules?.siteTypeOf('rake_salt')).toBe('fishery');
-    // Le type d'un atelier déjà possédé reste connu, même si sa recette ne s'acquiert pas encore.
     expect(rules?.siteTypeOf('mill_flour')).toBe('workshop');
     expect(rules?.siteTypeOf('inconnue')).toBeNull();
   });
@@ -97,5 +103,74 @@ describe('parseSiteRules', () => {
       raw({ recipes: [{ ...first, id: 'odd', siteType: 'constructor' }, first] }),
     );
     expect(rules?.offers.map((offer) => offer.recipe.id)).toEqual([first?.id]);
+  });
+});
+
+describe('previewHarvest', () => {
+  const rules = parseSiteRules(raw());
+  const mill = rules?.recipe('mill_flour');
+  const field = rules?.recipe('grow_wheat');
+  if (!mill || !field) throw new Error('recipes missing from the initial configuration');
+  const since = new Date('2026-01-01T00:00:00Z');
+  const after = (minutes: number) => new Date(since.getTime() + minutes * 60_000);
+
+  it('une production primaire : les cycles écoulés, sans intrant', () => {
+    expect(previewHarvest(field, since, after(2.5 * field.durationMinutes), () => 0)).toEqual({
+      cycles: 2,
+      waiting: 0,
+      inputs: [],
+      outputs: [{ goodId: 'wheat', quantity: 80 }],
+    });
+    expect(previewHarvest(field, since, after(10), () => 0).cycles).toBe(0);
+  });
+
+  it('un atelier : borné par le stock libre, le reste attend', () => {
+    // Trois cycles écoulés, du blé pour deux.
+    const stock = (goodId: string) => (goodId === 'wheat' ? 25 : 0);
+    expect(previewHarvest(mill, since, after(3 * mill.durationMinutes), stock)).toEqual({
+      cycles: 2,
+      waiting: 1,
+      inputs: [{ goodId: 'wheat', quantity: 20 }],
+      outputs: [{ goodId: 'flour', quantity: 16 }],
+    });
+    expect(previewHarvest(mill, since, after(3 * mill.durationMinutes), () => 0)).toMatchObject({
+      cycles: 0,
+      waiting: 3,
+    });
+  });
+
+  it('ne dépasse pas le plafond d’accumulation du site', () => {
+    const long = after(100 * 60);
+    expect(mill.maxAccruedCycles).toBeLessThan(100);
+    expect(previewHarvest(mill, since, long, () => 100_000).cycles).toBe(mill.maxAccruedCycles);
+    expect(previewHarvest(mill, since, long, () => 0)).toMatchObject({
+      cycles: 0,
+      waiting: mill.maxAccruedCycles,
+    });
+  });
+
+  it('un stock libre négatif ou fractionnaire lu par erreur ne fait rien tourner de trop', () => {
+    expect(previewHarvest(mill, since, after(600), () => -5).cycles).toBe(0);
+    expect(previewHarvest(mill, since, after(600), () => 19.9).cycles).toBe(1);
+  });
+});
+
+describe('freeStockIn', () => {
+  const stock = [
+    { city_id: 'ailleurs', good_id: 'wheat', quantity: 500, reserved: 0 },
+    { city_id: 'ici', good_id: 'wheat', quantity: 80, reserved: 75 },
+    { city_id: 'ici', good_id: 'flour', quantity: 12, reserved: 0 },
+  ];
+
+  it('retire ce que des ventes ont réservé', () => {
+    expect(freeStockIn(stock, 'ici', 'wheat')).toBe(5);
+    expect(freeStockIn(stock, 'ici', 'flour')).toBe(12);
+  });
+
+  it('ne compte que le stock de la cité du site, et zéro pour un bien absent', () => {
+    expect(freeStockIn(stock, 'ailleurs', 'wheat')).toBe(500);
+    expect(freeStockIn(stock, 'ailleurs', 'flour')).toBe(0);
+    expect(freeStockIn(stock, 'ici', 'charcoal')).toBe(0);
+    expect(freeStockIn([], 'ici', 'wheat')).toBe(0);
   });
 });

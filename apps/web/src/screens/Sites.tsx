@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
+import { freeStockIn, previewHarvest, type StockLine } from '../site-rules';
 
 interface Site {
   id: string;
@@ -21,7 +22,14 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
  * (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). `onChanged` : la trésorerie ou le stock ont pu bouger.
  */
-export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) {
+export function SitesCard({
+  stock,
+  onChanged,
+}: {
+  /** Stock de la maison (`null` tant qu'il n'est pas lu) : intrants disponibles des ateliers. */
+  stock: StockLine[] | null;
+  onChanged: () => Promise<unknown>;
+}) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   // Par identifiant (ordre de création) : une récolte ne réordonne pas la liste.
@@ -46,6 +54,19 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   // Une recette ou un type ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const recipeName = (id: string) => t(`recipes.${id}`, { defaultValue: id });
+  const stackText = (stack: { goodId: string; quantity: number }) =>
+    t('home.stack', {
+      quantity: number.format(stack.quantity),
+      good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
+    });
+  // Les sites de la maison sont dans sa cité : c'est ce stock-là, et lui seul, qu'un atelier consomme.
+  const freeStock = (goodId: string) => freeStockIn(stock ?? [], house.cityId, goodId);
+  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -74,6 +95,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    setNow(new Date());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
@@ -89,17 +111,7 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
     run(
       site.id,
       () => collectSite(site.id, house.accessToken),
-      (data) =>
-        t('home.collected', {
-          list: data.outputs
-            .map((stack) =>
-              t('home.stack', {
-                quantity: number.format(stack.quantity),
-                good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
-              }),
-            )
-            .join(', '),
-        }),
+      (data) => t('home.collected', { list: data.outputs.map(stackText).join(', ') }),
     );
 
   async function change(site: Site, recipeId: string) {
@@ -164,6 +176,12 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
           const type = rules?.siteTypeOf(site.recipe_id);
           const alternatives = rules?.alternatives(site.recipe_id) ?? [];
           const choice = chosen[site.id] ?? site.recipe_id;
+          const recipe = rules?.recipe(site.recipe_id);
+          // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
+          const harvest =
+            recipe && stock
+              ? previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock)
+              : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -185,6 +203,32 @@ export function SitesCard({ onChanged }: { onChanged: () => Promise<unknown> }) 
                   {t('home.collect')}
                 </Button>
               </div>
+              {recipe && recipe.inputs.length > 0 && (
+                <div className="text-sm">
+                  <p>{t('home.inputs')}</p>
+                  <ul>
+                    {recipe.inputs.map((stack) => (
+                      <li key={stack.goodId}>
+                        {t('home.inputLine', {
+                          quantity: number.format(stack.quantity),
+                          good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
+                          free: number.format(freeStock(stack.goodId)),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {harvest && (
+                <p className="text-sm">
+                  {harvest.cycles > 0
+                    ? t('home.harvestable', { list: harvest.outputs.map(stackText).join(', ') })
+                    : t('home.harvestNone')}
+                  {harvest.waiting > 0 && (
+                    <> {t('home.harvestWaiting', { count: harvest.waiting })}</>
+                  )}
+                </p>
+              )}
               {alternatives.length > 0 && (
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
