@@ -58,4 +58,4 @@ oikos/
 
 ## 11.4 Contrat d'une commande
 
-Chaque action de jeu est une commande nommée (`market.placeOrder`, `site.startRecipe`, `city.castVote`), décrite par un schéma d'entrée, un schéma de sortie et une liste d'erreurs métier. Une commande porte une clé d'idempotence, s'exécute dans une seule transaction et produit des événements de domaine (`OrderMatched`, `ShipArrived`) qui alimentent le temps réel, la télémétrie et la chronique. Le lancement compte environ 90 commandes.
+Chaque action de jeu est une commande nommée (`market.placeOrder`, `site.startRecipe`, `city.castVote`), décrite par un schéma d'entrée, un schéma de sortie et une liste d'erreurs métier. Une commande porte une clé d'idempotence, s'exécute dans une seule transaction et produit des événements de domaine (`OrderMatched`, `ShipArrived`) qui alimentent le temps réel, la télémétrie et la chronique. Le tick en produit aussi, sans commande, dans sa propre transaction : un `TradeExecuted` par achat des PNJ, par exemple. Le lancement compte environ 90 commandes.

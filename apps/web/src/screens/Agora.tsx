@@ -8,6 +8,8 @@ import { useHouse } from '../house';
 import { parseMarketTax, previewSale } from '../market-rules';
 import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
+import { parseCandleSeconds } from '../price-history';
+import { PriceHistory } from './PriceHistory';
 
 /**
  * Biens proposés : ceux qui ont un nom (un test tient les traductions alignées sur la configuration).
@@ -56,8 +58,14 @@ export function AgoraScreen() {
   );
   // Taxe de marché en vigueur, relue après chaque commande : `null` tant qu'elle n'est pas lue, ou si
   // elle est illisible.
-  const rules = useRows<{ market_tax: unknown }>('market_rules', 'market_tax', 'market_tax');
+  const rules = useRows<{ market_tax: unknown }>(
+    'market_rules',
+    'market_tax, price_history',
+    'market_tax',
+  );
   const tax = rules.rows ? parseMarketTax(rules.rows[0] ?? null) : null;
+  // Durée des chandeliers en vigueur : elle désigne la série de prix à afficher.
+  const candleSeconds = rules.rows ? parseCandleSeconds(rules.rows[0] ?? null) : null;
   const [side, setSide] = useState<'sell' | 'buy'>('sell');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -167,8 +175,12 @@ export function AgoraScreen() {
           ))}
         </select>
       </Card>
-      {(book.failed || mine.failed || rules.failed || (rules.rows && !tax)) && (
+      {(book.failed || mine.failed || rules.failed || (rules.rows && !(tax && candleSeconds))) && (
         <p role="alert">{t('app.loadFailed')}</p>
+      )}
+
+      {candleSeconds && (
+        <PriceHistory cityId={house.cityId} goodId={goodId} periodSeconds={candleSeconds} />
       )}
 
       <Card>

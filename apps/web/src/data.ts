@@ -14,17 +14,22 @@ export function useRows<T>(
   columns: string,
   order: string,
   filters: Record<string, string> = {},
+  /** Les `limit` dernières lignes selon `order`, rendues de la plus récente à la plus ancienne. */
+  latestOnly?: { limit: number },
 ) {
   const [rows, setRows] = useState<T[] | null>(null);
   const [failed, setFailed] = useState(false);
   const filterKey = JSON.stringify(filters);
+  const limit = latestOnly?.limit;
   const latest = useRef(0);
   const reload = useCallback(async () => {
     const request = ++latest.current;
     let query = supabase.from(view).select(columns);
     for (const [column, value] of Object.entries(JSON.parse(filterKey) as Record<string, string>))
       query = query.eq(column, value);
-    const result = await query.order(order).then(
+    let ordered = query.order(order, { ascending: limit === undefined });
+    if (limit !== undefined) ordered = ordered.limit(limit);
+    const result = await ordered.then(
       (response) => response,
       () => null,
     );
@@ -32,7 +37,7 @@ export function useRows<T>(
     if (!result || result.error) return setFailed(true);
     setFailed(false);
     setRows((result.data as T[] | null) ?? []);
-  }, [view, columns, order, filterKey]);
+  }, [view, columns, order, filterKey, limit]);
   useEffect(() => {
     setRows(null);
     setFailed(false);
