@@ -1,3 +1,4 @@
+import { tradeExecutedSchema } from '@oikos/contracts';
 import {
   classDemand,
   marketTax,
@@ -20,7 +21,8 @@ const CONSUMPTION = 'npc_consumption';
  * Demande finale des PNJ (5.2). Pour chaque cité du monde connue de la configuration et chaque bien d'un
  * panier, les PNJ achètent dans le carnet de la moins chère à la plus chère des ventes en attente, dans la
  * limite de leur demande à ce prix, de leur budget du tick et de leur prix de réserve. Chaque achat est
- * payé par le robinet au grand livre, enregistré comme échange sans ordre d'achat, puis consommé par le
+ * payé par le robinet au grand livre, enregistré comme échange sans ordre d'achat, annoncé par un événement
+ * de domaine `TradeExecuted`, puis consommé par le
  * journal des stocks. La même écriture prélève la taxe de marché sur le vendeur, comme entre joueurs : le
  * budget des PNJ se compte en brut, le vendeur reçoit le net. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
  */
@@ -153,7 +155,7 @@ export const npcDemand: TickStep = {
             .values(lines.map((line) => ({ entry_id: entry.id, ...line })))
             .execute();
           // L'échange d'abord (il libère la réservation du vendeur), la consommation ensuite.
-          await trx
+          const trade = await trx
             .insertInto('game.trades')
             .values({
               world_id: worldId,
@@ -163,6 +165,24 @@ export const npcDemand: TickStep = {
               quantity: fill.quantity,
               ledger_entry_id: entry.id,
             })
+            .returning('id')
+            .executeTakeFirstOrThrow();
+          // Même événement qu'entre joueurs, sans ordre d'achat : c'est ce qui désigne un achat de PNJ.
+          const event = tradeExecutedSchema.parse({
+            type: 'TradeExecuted',
+            payload: {
+              tradeId: trade.id,
+              cityId: city.id,
+              goodId,
+              sellOrderId: fill.orderId,
+              buyOrderId: null,
+              price: fill.price,
+              quantity: fill.quantity,
+            },
+          });
+          await trx
+            .insertInto('game.domain_events')
+            .values({ command_id: null, type: event.type, payload: JSON.stringify(event.payload) })
             .execute();
           await trx
             .insertInto('game.stock_ledger')

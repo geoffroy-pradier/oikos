@@ -3,7 +3,7 @@ import { configActivationScheduledSchema, configVersionPublishedSchema } from '.
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
 import { siteAcquiredSchema, siteCollectedSchema, siteRecipeChangedSchema } from './site';
 
-/** Événements de domaine produits par les commandes (temps réel, télémétrie, chronique). */
+/** Événements de domaine produits par les commandes et par le tick (temps réel, télémétrie, chronique). */
 export const houseFoundedSchema = z.strictObject({
   type: z.literal('HouseFounded'),
   payload: z.strictObject({

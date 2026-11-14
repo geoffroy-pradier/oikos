@@ -54,6 +54,7 @@ export const orderPlacedSchema = z.strictObject({
   }),
 });
 
+/** Un échange de l'agora. `buyOrderId` nul : achat des PNJ de la cité, émis par le tick, sans commande. */
 export const tradeExecutedSchema = z.strictObject({
   type: z.literal('TradeExecuted'),
   payload: z.strictObject({
