@@ -520,3 +520,31 @@ Nom de site choisi par le joueur, temps réel (Supabase Realtime) sur le stock.
 ## Dépendances
 
 #67
+
+---
+
+# 100. Agora : relier le montant payé à l'échange, et durcir les contrôles du séquestre
+
+## Contexte
+
+La relecture de la demande de fusion 99 (ticket #69, séquestre des achats en attente) a relevé des faiblesses de la base qui ne sont pas des failles ouvertes par le code actuel, mais que seul le code des commandes empêche aujourd'hui.
+
+## Spécification liée
+
+`docs/specs/05-economie.md` (5.3), `docs/specs/12-modele-donnees.md`
+
+## Critères d'acceptation
+
+- [ ] La base refuse un échange dont l'écriture de monnaie ne crédite pas le vendeur de prix × quantité exactement (aujourd'hui, un échange 8 × 5 réglé par une écriture de 30 passe ; vrai avant #69)
+- [ ] La base refuse qu'un séquestre soit débité au profit d'un autre compte que le vendeur d'un échange de cette maison ou la trésorerie de cette même maison (aujourd'hui, seul le montant retenu est contrôlé)
+- [ ] Le contrôle « séquestre = somme des restes à payer » ne dépend plus de ce que le rôle appelant peut lire (un rôle qui verrait moins de lignes passerait en silence)
+- [ ] Tests pgTAP joués sous le rôle de service, avec le message attendu de chaque refus
+- [ ] Test de propriétés de `planLimitOrder` renforcé : la propriété seule tue la mutation « budget non diminué des échanges payés » ; un achat sans budget n'attend pas avec un séquestre non borné
+
+## Hors périmètre
+
+Ordres au marché, taxe de marché.
+
+## Dépendances
+
+#69
