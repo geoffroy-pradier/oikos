@@ -124,7 +124,9 @@
     "high": "High",
     "low": "Low",
     "close": "Close",
-    "volume": "Volume"
+    "volume": "Volume",
+    "observedPrice": "Average price over {{hours}} h, in obols: {{price}} (volume traded: {{volume}}).",
+    "observedPriceDated": "Last average price computed, as of {{date}}, in obols: {{price}} (volume traded in {{hours}} h: {{volume}})."
   },
   "goods": {
     "wheat": "Wheat",

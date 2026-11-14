@@ -135,3 +135,29 @@ export function candleMarks(series: readonly Candle[], width: number, height: nu
   });
   return { marks, slot, low, high };
 }
+
+const observedSchema = z.object({
+  price,
+  volume: z.number().int().positive(),
+  window_seconds: z.number().int().positive(),
+  observed_at: z.iso.datetime({ offset: true }),
+});
+
+/**
+ * Prix moyen observé d'un marché (vue `public.observed_prices`), tel que l'écran peut l'annoncer. Le tick
+ * ne remplace la ligne que s'il y a eu des échanges dans la fenêtre : une ligne ancienne reste, à sa
+ * date. `current` dit si le calcul date de moins d'une fenêtre : alors seulement le prix vaut « sur N
+ * heures » ; sinon c'est un prix passé, à annoncer avec sa date. `null` si la ligne est illisible.
+ */
+export function observedAverage(raw: unknown, now: number) {
+  const parsed = observedSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const { window_seconds: windowSeconds, observed_at, ...values } = parsed.data;
+  const observedAt = Date.parse(observed_at);
+  return {
+    ...values,
+    hours: Math.round(windowSeconds / 3600),
+    observedAt,
+    current: now - observedAt <= windowSeconds * 1000,
+  };
+}
