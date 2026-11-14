@@ -5,7 +5,13 @@
     "signOut": "Se déconnecter",
     "loading": "Chargement…",
     "loadFailed": "Impossible de lire vos données pour le moment.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "update": {
+      "title": "Nouvelle version",
+      "ready": "Une nouvelle version d'OIKOS est prête. Elle s'installera quand vous le choisirez : ce que vous êtes en train de saisir reste à l'écran d'ici là.",
+      "now": "Mettre à jour",
+      "later": "Plus tard"
+    }
   },
   "signIn": {
     "title": "Entrer dans l'Archipel",
