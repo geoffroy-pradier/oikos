@@ -1,8 +1,11 @@
+import type { Db } from '@oikos/db';
+import { sql } from 'kysely';
+
 /**
  * Limitation de débit par compte et par commande (docs/specs/13-moteur-anti-triche.md).
- * Fenêtre fixe, en mémoire : chaque instance de l'API compte pour elle-même. Avec deux instances, la
- * limite effective est donc au plus doublée ; un compteur partagé viendra si l'abus le justifie.
- * Une rafale à cheval sur deux fenêtres peut atteindre deux fois la limite par instance.
+ * Fenêtre fixe. En production le compteur est tenu en base (`createSharedRateLimiter`) : toutes les
+ * répliques de l'API comptent ensemble. Le compteur en mémoire sert de repli si la base ne répond pas,
+ * et aux tests. Une rafale à cheval sur deux fenêtres peut atteindre deux fois la limite.
  */
 export interface RateLimitSettings {
   /** Nombre maximal de commandes par fenêtre, pour un compte et une commande donnés. */
@@ -10,11 +13,18 @@ export interface RateLimitSettings {
   windowMs: number;
 }
 
+export type Quota = { allowed: true } | { allowed: false; retryAfterSeconds: number };
+
 export interface RateLimiter {
   /** Compte une tentative. `retryAfterSeconds` est renseigné quand elle est refusée. */
-  hit(key: string): { allowed: true } | { allowed: false; retryAfterSeconds: number };
+  hit(key: string): Quota | Promise<Quota>;
   /** Nombre de compteurs en mémoire (observation et tests). */
   size(): number;
+}
+
+/** Compteur en mémoire : répond sans attendre. */
+export interface LocalRateLimiter extends RateLimiter {
+  hit(key: string): Quota;
 }
 
 /** Aucune limite : pour les tests qui ne portent pas sur le débit. Jamais en production (`main.ts`). */
@@ -23,7 +33,7 @@ export const unlimited: RateLimiter = { hit: () => ({ allowed: true }), size: ()
 export function createRateLimiter(
   { limit, windowMs }: RateLimitSettings,
   now: () => number = Date.now,
-): RateLimiter {
+): LocalRateLimiter {
   const windows = new Map<string, { startedAt: number; count: number }>();
   let prunedAt = now();
   return {
@@ -51,6 +61,53 @@ export function createRateLimiter(
       return { allowed: true };
     },
     size: () => windows.size,
+  };
+}
+
+/**
+ * Compteur tenu en base (`telemetry.rate_windows`) : une instruction par tentative, atomique, et la
+ * même fenêtre pour toutes les répliques (l'heure est celle de la base). Si la base ne répond pas, la
+ * tentative est comptée par le compteur en mémoire de cette réplique : la limite reste bornée.
+ */
+export function createSharedRateLimiter(
+  db: Db,
+  settings: RateLimitSettings,
+  fallback: RateLimiter = createRateLimiter(settings),
+): RateLimiter & { prune(): Promise<void> } {
+  const { limit, windowMs } = settings;
+  return {
+    async hit(key) {
+      try {
+        const result = await sql<{ count: number; wait_ms: string }>`
+          with slot as (
+            select to_timestamp(floor(extract(epoch from clock_timestamp()) * 1000 / ${windowMs}) * ${windowMs} / 1000) as starts
+          )
+          insert into telemetry.rate_windows (key, window_start, count)
+          select ${key}, starts, 1 from slot
+          on conflict (key, window_start) do update set count = telemetry.rate_windows.count + 1
+          returning count,
+            (extract(epoch from window_start + ${windowMs} * interval '1 millisecond' - clock_timestamp()) * 1000)::bigint as wait_ms
+        `.execute(db);
+        const row = result.rows[0];
+        if (!row) throw new Error('The rate window returned no row');
+        if (row.count <= limit) return { allowed: true };
+        return {
+          allowed: false,
+          retryAfterSeconds: Math.max(1, Math.ceil(Number(row.wait_ms) / 1000)),
+        };
+      } catch (error) {
+        console.error('Shared rate limit unavailable, counting in memory', error);
+        return fallback.hit(key);
+      }
+    },
+    size: () => fallback.size(),
+    /** Retire les fenêtres closes depuis plus d'une heure. Ne lève jamais. */
+    async prune() {
+      await sql`select telemetry.prune_rate_windows()`
+        .execute(db)
+        .then(() => undefined)
+        .catch((error: unknown) => console.error('Rate window pruning failed', error));
+    },
   };
 }
 

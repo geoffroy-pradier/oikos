@@ -35,7 +35,7 @@ export function registerAdminReads(
     const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
     const identity = token ? await verifyToken(token) : null;
     if (!identity) return fail({ code: 'UNAUTHENTICATED', message: 'Missing or invalid token.' });
-    const quota = rateLimiter.hit(`${identity.userId}:admin.read`);
+    const quota = await rateLimiter.hit(`${identity.userId}:admin.read`);
     if (!quota.allowed) {
       const refused = fail({ code: 'RATE_LIMITED', message: 'Too many requests.' });
       refused.headers.set('Retry-After', String(quota.retryAfterSeconds));

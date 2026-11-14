@@ -23,9 +23,9 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
 
 Dans un jeu à économie ouverte, la triche principale est le transfert de richesse entre comptes d'un même joueur.
 
-- Limitation de débit par commande et par compte ; délai de 7 jours avant les transferts importants pour un nouveau compte.
+- Limitation de débit par commande et par compte, tenue en base pour que toutes les répliques de l'API comptent ensemble (repli en mémoire si la base ne répond pas) ; délai de 7 jours avant les transferts importants pour un nouveau compte.
 - Fourchette de prix sur les contrats de gré à gré : un écart de plus de 30 % au prix de référence est bloqué ou signalé.
 - Détection par graphe : flux à sens unique, prêts jamais remboursés, ventes systématiquement à perte vers le même bénéficiaire.
 - Rapprochement des comptes par appareil, réseau et horaires de connexion, visible dans la fiche joueur du back-office.
-- Journal d'audit inaltérable de toutes les commandes, conservé 90 jours.
+- Journal d'audit inaltérable de toutes les commandes, conservé 90 jours ; durées et mode de purge des journaux : `docs/adr/0002-conservation-journaux.md`.
 - Sanctions graduées et annulation des transactions par écritures inverses tracées.
