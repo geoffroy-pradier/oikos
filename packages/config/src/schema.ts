@@ -176,6 +176,21 @@ export const marketTaxSchema = z.strictObject({
   burnShareBps: z.number().int().min(0).max(10_000),
 });
 
+/**
+ * Valeurs lues pour les versions publiées avant l'historique des prix. FIGÉES, pour la même raison que
+ * `DEFAULT_SITES`.
+ */
+export const DEFAULT_PRICE_HISTORY = deepFreeze({ candleMinutes: 60 });
+
+/** Historique des prix de l'agora (5.3). */
+export const priceHistorySchema = z.strictObject({
+  /**
+   * Durée d'un chandelier, en minutes, d'une minute à une journée. La changer ouvre une nouvelle série,
+   * recalculée depuis les échanges ; l'ancienne reste telle quelle.
+   */
+  candleMinutes: z.number().int().min(1).max(1440),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -188,6 +203,8 @@ export const gameConfigSchema = z
     sites: sitesSchema.default(DEFAULT_SITES),
     /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
+    /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
+    priceHistory: priceHistorySchema.default(DEFAULT_PRICE_HISTORY),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),

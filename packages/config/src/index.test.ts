@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MARKET_TAX, DEFAULT_SITES, validateConfig, type GameConfig } from './index';
+import {
+  DEFAULT_MARKET_TAX,
+  DEFAULT_PRICE_HISTORY,
+  DEFAULT_SITES,
+  validateConfig,
+  type GameConfig,
+} from './index';
 
 const clone = () => structuredClone(FIXTURE);
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
@@ -18,6 +24,7 @@ const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
   marketTax: { rateBps: 400, burnShareBps: 2500 },
+  priceHistory: { candleMinutes: 15 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -364,5 +371,34 @@ describe('taxe de marché', () => {
     const unknown = clone() as unknown as { marketTax: Record<string, unknown> };
     unknown.marketTax['exempt'] = true;
     expect(errorsOf(unknown)).toEqual([expect.stringMatching(/^marketTax/)]);
+  });
+});
+
+describe('historique des prix', () => {
+  it('une version publiée avant l’historique reste lisible, en chandeliers d’une heure', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.priceHistory;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.priceHistory).toEqual({ candleMinutes: 60 });
+    expect(Object.isFrozen(DEFAULT_PRICE_HISTORY)).toBe(true);
+  });
+
+  it('durée d’un chandelier : entière, d’une minute à une journée, obligatoire, sans autre clé', () => {
+    for (const good of [1, 15, 1440]) {
+      const config = clone();
+      config.priceHistory.candleMinutes = good;
+      expect(errorsOf(config)).toEqual([]);
+    }
+    for (const bad of [0, -60, 1441, 7.5, Number.NaN]) {
+      const config = clone();
+      config.priceHistory.candleMinutes = bad;
+      expect(errorsOf(config)).toEqual([expect.stringMatching(/^priceHistory\.candleMinutes: /)]);
+    }
+    const loose = clone() as unknown as { priceHistory: Record<string, unknown> };
+    loose.priceHistory = {};
+    expect(errorsOf(loose)).toEqual([expect.stringMatching(/^priceHistory\.candleMinutes: /)]);
+    loose.priceHistory = { candleMinutes: 60, candleSeconds: 30 };
+    expect(errorsOf(loose)).toEqual([expect.stringMatching(/^priceHistory/)]);
   });
 });
