@@ -429,7 +429,7 @@ describe('demande des PNJ au tick', () => {
       select string_agg(coalesce(a.system_key, a.kind) || ':' || l.amount, ' ' order by l.amount, a.kind) as lines
       from game.trades t join game.ledger_lines l on l.entry_id = t.ledger_entry_id
       join game.accounts a on a.id = l.account_id
-      where t.world_id = ${world.worldId} group by t.id order by t.id`.execute(db);
+      where t.world_id = ${world.worldId} group by t.id, t.price order by t.price`.execute(db);
     expect(lines.rows.map((row) => row.lines)).toEqual([
       'faucet_npc_purchases:-50 treasury:1 sink_market_tax:2 house:47',
       'faucet_npc_purchases:-60 treasury:1 sink_market_tax:2 house:57',

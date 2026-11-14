@@ -66,7 +66,7 @@ select is(
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
   'game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
-    || 'game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.order_book '
+    || 'game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.market_rules game.order_book '
     || 'game.site_rules telemetry.prune_rate_windows',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
