@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   candleMarks,
   dayAgoCutoff,
+  observedAverage,
   parseCandleSeconds,
   parsePriceSeries,
   priceSummary,
@@ -180,4 +181,34 @@ describe('tracé des chandeliers', () => {
     expect(edges.map((mark) => mark.bodyTop)).toEqual([0, 79]);
     expect(candleMarks([], 100, 80)).toEqual({ marks: [], slot: 100, low: 0, high: 0 });
   });
+});
+
+describe('prix moyen observé annoncé par l’écran', () => {
+  const row = {
+    price: 8,
+    volume: 20,
+    window_seconds: 86_400,
+    observed_at: '2026-11-14T10:00:00+00:00',
+  };
+  const read = { price: 8, volume: 20, hours: 24, observedAt: T };
+
+  it('calcul de moins d’une fenêtre : prix « sur 24 heures » ; plus ancien : prix passé, à dater', () => {
+    expect(observedAverage(row, T + 10 * 60_000)).toEqual({ ...read, current: true });
+    // Plus aucun échange depuis : la ligne reste. À 24 heures pile elle vaut encore, une seconde après non.
+    expect(observedAverage(row, T + 24 * HOUR)).toEqual({ ...read, current: true });
+    expect(observedAverage(row, T + 24 * HOUR + 1000)).toEqual({ ...read, current: false });
+    expect(observedAverage({ ...row, window_seconds: 3600 }, T + 2 * HOUR)).toEqual({
+      ...read,
+      hours: 1,
+      current: false,
+    });
+  });
+
+  it.each([
+    null,
+    {},
+    { ...row, price: 0 },
+    { ...row, volume: '20' },
+    { ...row, observed_at: 'hier' },
+  ])('ligne illisible (%j) : inconnue', (raw) => expect(observedAverage(raw, T)).toBeNull());
 });

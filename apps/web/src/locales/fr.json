@@ -124,7 +124,9 @@
     "high": "Plus haut",
     "low": "Plus bas",
     "close": "Clôture",
-    "volume": "Volume"
+    "volume": "Volume",
+    "observedPrice": "Prix moyen sur {{hours}} h, en oboles : {{price}} (volume échangé : {{volume}}).",
+    "observedPriceDated": "Dernier prix moyen calculé, au {{date}}, en oboles : {{price}} (volume échangé en {{hours}} h : {{volume}}). Aucun échange depuis."
   },
   "goods": {
     "wheat": "Blé",

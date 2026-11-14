@@ -1,7 +1,7 @@
 import { Card } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
-import { candleMarks, parsePriceSeries, priceSummary } from '../price-history';
+import { candleMarks, observedAverage, parsePriceSeries, priceSummary } from '../price-history';
 
 /** Lignes lues : de quoi couvrir plus d'une semaine de chandeliers d'une heure. */
 const HISTORY_ROWS = 200;
@@ -10,8 +10,9 @@ const SHOWN = 48;
 const [WIDTH, HEIGHT, MARGIN] = [320, 128, 6];
 
 /**
- * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures,
- * chandeliers et tableau des mêmes valeurs. Le graphique est une image décrite ; tout ce qu'il
+ * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures, prix moyen
+ * observé (daté s'il est plus ancien que sa fenêtre), chandeliers et tableau des mêmes valeurs. Le
+ * graphique est une image décrite ; tout ce qu'il
  * montre se lit aussi dans le tableau, au clavier comme au lecteur d'écran. Hausse et baisse se
  * distinguent par la forme (corps vide ou plein), pas par la couleur.
  */
@@ -28,6 +29,14 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
     { limit: HISTORY_ROWS },
   );
   const series = candles.rows ? parsePriceSeries(candles.rows, periodSeconds) : null;
+  const observed = useRows<unknown>(
+    'observed_prices',
+    'price, volume, window_seconds, observed_at',
+    'good_id',
+    market,
+  );
+  // `undefined` : pas de prix observé pour ce marché ; `null` : ligne illisible.
+  const average = observed.rows?.[0] ? observedAverage(observed.rows[0], Date.now()) : undefined;
   // Variation jugée à l'heure du navigateur : indicative, comme « à récolter » sur la fiche d'un site.
   const summary = series ? priceSummary(series, Date.now()) : null;
   const shown = series?.slice(-SHOWN) ?? [];
@@ -50,7 +59,9 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
   return (
     <Card>
       <h2 className="text-xl">{t('agora.priceTitle', { good })}</h2>
-      {(candles.failed || (candles.rows && !series)) && <p role="alert">{t('app.loadFailed')}</p>}
+      {(candles.failed || observed.failed || average === null || (candles.rows && !series)) && (
+        <p role="alert">{t('app.loadFailed')}</p>
+      )}
       {series?.length === 0 && <p className="text-muted-foreground">{t('agora.priceEmpty')}</p>}
       {summary && (
         <>
@@ -65,6 +76,16 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
               ? t('agora.changeUnknown')
               : t('agora.change', { change: percent.format(summary.change) })}
           </p>
+          {average && (
+            <p>
+              {t(average.current ? 'agora.observedPrice' : 'agora.observedPriceDated', {
+                hours: number.format(average.hours),
+                price: number.format(average.price),
+                volume: number.format(average.volume),
+                date: date(average.observedAt),
+              })}
+            </p>
+          )}
           <svg
             role="img"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}

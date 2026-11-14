@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
-import { npcDemand, priceCandlesStep, type TickStep } from '@oikos/engine';
+import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '@oikos/engine';
 import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
@@ -183,6 +183,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     // Le tick résume les échanges en chandeliers : l'agora montre le dernier prix du blé, le graphique
     // décrit, et les mêmes valeurs dans un tableau ouvert au clavier.
     await npcsBuy(priceCandlesStep);
+    await npcsBuy(observedPricesStep);
     const candle = (
       await sql<{ open: string; high: string; low: string; close: string; volume: string }>`
         select open, high, low, close, volume from game.price_candles
@@ -196,6 +197,18 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
       page.getByText(`Dernier prix, en oboles : ${french.format(Number(candle.close))} (`),
     ).toBeVisible();
     await expect(page.getByText(/Variation sur 24 h : /)).toBeVisible();
+    // Prix moyen observé, calculé à l'instant par le tick : annoncé « sur 24 h », avec son volume.
+    const average = await sql<{
+      price: string;
+      volume: string;
+    }>`select price, volume from game.observed_prices
+      where city_id = ${KALLISTE_ID} and good_id = 'wheat'`.execute(db);
+    const [price, volume] = [average.rows[0]?.price, average.rows[0]?.volume].map((value) =>
+      french.format(Number(value)),
+    );
+    await expect(
+      page.getByText(`Prix moyen sur 24 h, en oboles : ${price} (volume échangé : ${volume}).`),
+    ).toBeVisible();
     // Description exacte de l'image, accord du nombre compris ; seules les dates, mises en forme par le
     // navigateur, sont laissées libres.
     const shown = await sql<{ count: string; low: string; high: string }>`
