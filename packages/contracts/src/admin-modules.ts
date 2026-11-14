@@ -1,4 +1,4 @@
-import type { AdminRole } from './admin';
+import { ROLE_MANAGER_ROLES, type AdminRole } from './admin';
 
 /**
  * Modules d'Olympe et rôles qui y ont accès (docs/specs/15-back-office-olympe.md, 15.3). Liste unique :
@@ -10,6 +10,8 @@ export const ADMIN_MODULE_ROLES = {
   vigie: ['super_admin', 'game_designer', 'observer'],
   config: ['super_admin', 'game_designer', 'observer'],
   audit: ['super_admin', 'observer'],
+  /** Accès : qui porte quel rôle. Mêmes comptes que ceux qui accordent et retirent les rôles. */
+  access: ROLE_MANAGER_ROLES,
 } as const satisfies Record<string, readonly AdminRole[]>;
 export type AdminModule = keyof typeof ADMIN_MODULE_ROLES;
 export const ADMIN_MODULES = Object.keys(ADMIN_MODULE_ROLES) as AdminModule[];
