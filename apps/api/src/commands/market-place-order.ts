@@ -3,7 +3,7 @@ import {
   marketPlaceOrderInputSchema,
   marketPlaceOrderOutputSchema,
 } from '@oikos/contracts';
-import { planLimitOrder } from '@oikos/sim';
+import { marketTax, planLimitOrder } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 
@@ -17,7 +17,8 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
  * ordre servi ; son reste attend. Une vente réserve son stock, un achat met prix × reste sous séquestre ;
  * un achat que la trésorerie ne permet pas de retenir voit son reste annulé. Chaque échange est réglé par
  * une écriture au grand livre (l'acheteur qui attendait paie de son séquestre), puis livré par le journal
- * des stocks.
+ * des stocks. La même écriture prélève la taxe de marché sur le vendeur : l'acheteur paie le brut, le
+ * vendeur reçoit le net, le reste va au puits et au trésor de la cité.
  */
 export const marketPlaceOrder = defineCommand({
   name: 'market.placeOrder',
@@ -151,7 +152,15 @@ export const marketPlaceOrder = defineCommand({
 
     const order = await place();
     placed(order.id);
-    const post = async (kind: string, from: string, to: string, amount: number) => {
+    /** `amount` passe de `from` à `to`, moins ce que l'écriture prélève au passage pour d'autres comptes. */
+    const post = async (
+      kind: string,
+      from: string,
+      to: string,
+      amount: number,
+      levies: { account_id: string; amount: number }[] = [],
+    ) => {
+      const kept = levies.reduce((rest, levy) => rest - levy.amount, amount);
       const entry = await trx
         .insertInto('game.ledger_entries')
         .values({ world_id: house.world_id, kind })
@@ -160,13 +169,31 @@ export const marketPlaceOrder = defineCommand({
       // Le compte débité l'est avant que l'autre soit crédité ; l'écriture est équilibrée.
       await trx
         .insertInto('game.ledger_lines')
-        .values([
-          { entry_id: entry.id, account_id: from, amount: -amount },
-          { entry_id: entry.id, account_id: to, amount },
-        ])
+        .values(
+          [{ account_id: from, amount: -amount }, { account_id: to, amount: kept }, ...levies]
+            // Une ligne nulle n'est pas une ligne : part détruite ou versée nulle, vente d'une obole taxée.
+            .filter((line) => line.amount !== 0)
+            .map((line) => ({ entry_id: entry.id, ...line })),
+        )
         .execute();
       return entry.id;
     };
+    // Comptes de la taxe : le puits du monde et le trésor de la cité, lus seulement s'il y a à prélever.
+    const taxed = trades.length > 0 && config.marketTax.rateBps > 0;
+    const taxAccount = (key: 'sink' | 'treasury') =>
+      trx
+        .selectFrom('game.accounts')
+        .select('id')
+        .where('world_id', '=', house.world_id)
+        .where(
+          key === 'sink' ? 'system_key' : 'city_id',
+          '=',
+          key === 'sink' ? 'sink_market_tax' : city.id,
+        )
+        .executeTakeFirstOrThrow();
+    const [sink, cityTreasury] = taxed
+      ? [await taxAccount('sink'), await taxAccount('treasury')]
+      : [];
     for (const trade of trades) {
       const otherId = counterparties.get(trade.restingOrderId) ?? '';
       const [buyerId, sellerId] = buying ? [house.id, otherId] : [otherId, house.id];
@@ -176,7 +203,20 @@ export const marketPlaceOrder = defineCommand({
       // L'acheteur qui arrive paie de sa trésorerie ; celui qui attendait, de son séquestre.
       const payer = buying ? account : await accountOf(otherId, 'escrow').executeTakeFirstOrThrow();
       const payee = buying ? await accountOf(otherId, 'house').executeTakeFirstOrThrow() : account;
-      const entryId = await post('market.trade', payer.id, payee.id, trade.price * trade.quantity);
+      const gross = trade.price * trade.quantity;
+      const tax = marketTax(gross, config.marketTax);
+      const entryId = await post(
+        'market.trade',
+        payer.id,
+        payee.id,
+        gross,
+        sink && cityTreasury
+          ? [
+              { account_id: sink.id, amount: tax.burned },
+              { account_id: cityTreasury.id, amount: tax.treasury },
+            ]
+          : [],
+      );
       // L'échange d'abord (il libère la réservation du vendeur), la livraison ensuite.
       const executed = await trx
         .insertInto('game.trades')
