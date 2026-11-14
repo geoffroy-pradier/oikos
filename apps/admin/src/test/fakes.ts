@@ -1,6 +1,11 @@
+import { AuthApiError, type AuthError } from '@supabase/supabase-js';
 import type { AdminReply } from '../api';
 
 type Listener = (event: string, session: unknown) => void;
+/** Réponse de Supabase Auth à un code TOTP faux, telle que la rend son client. */
+function refusedCode() {
+  return new AuthApiError('Invalid TOTP code entered', 422, 'mfa_verification_failed');
+}
 
 /** Faux Supabase Auth, piloté par les tests : session, niveau d'assurance par jeton, facteurs. */
 export const auth = {
@@ -11,6 +16,10 @@ export const auth = {
   unenrolled: [] as string[],
   codes: [] as string[],
   acceptCode: true,
+  /** Panne de la lecture des facteurs, tant qu'elle n'est pas remise à `null`. */
+  listError: null as { message: string } | null,
+  /** Erreur rendue par Supabase Auth quand le code n'est pas accepté : par défaut, code refusé. */
+  codeError: refusedCode() as AuthError,
 };
 
 /** Jeton au format de Supabase Auth : le niveau d'assurance est une revendication du jeton. */
@@ -42,7 +51,7 @@ export const supabase = {
     mfa: {
       listFactors: () =>
         Promise.resolve({
-          error: null,
+          error: auth.listError,
           data: {
             all: auth.factors,
             totp: auth.factors.filter((factor) => factor.status === 'verified'),
@@ -67,7 +76,7 @@ export const supabase = {
       },
       challengeAndVerify: ({ code }: { factorId: string; code: string }) => {
         auth.codes.push(code);
-        if (!auth.acceptCode) return Promise.resolve({ error: { message: 'invalid' } });
+        if (!auth.acceptCode) return Promise.resolve({ error: auth.codeError });
         // Comme Supabase Auth : après l'aller-retour réseau, une nouvelle session `aal2` est
         // enregistrée et annoncée avant que l'appel ne rende la main.
         return new Promise((resolve) => setTimeout(resolve, 5)).then(() => {
@@ -89,6 +98,8 @@ export function resetAuth() {
     unenrolled: [],
     codes: [],
     acceptCode: true,
+    codeError: refusedCode(),
+    listError: null,
   });
 }
 

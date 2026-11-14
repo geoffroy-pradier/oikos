@@ -11,7 +11,12 @@
     "navigation": "Modules",
     "forbidden": "This account has no access to the back office.",
     "forbiddenNext": "To request access, send this account's identifier to a super administrator:",
-    "forbiddenModule": "Your role does not give access to this module."
+    "forbiddenModule": "Your role does not give access to this module.",
+    "retry": "Retry",
+    "errors": {
+      "network": "The API is not responding. Check your connection, then retry.",
+      "rateLimited": "Too many requests in a short time. Wait a moment, then retry."
+    }
   },
   "languages": {
     "fr": "Français",
@@ -42,7 +47,9 @@
     "code": "Six-digit code",
     "submit": "Confirm",
     "invalid": "Code rejected. Check your device clock and try again.",
-    "failed": "Two-factor authentication is unavailable right now."
+    "failed": "Two-factor authentication is unavailable right now.",
+    "network": "The code could not be checked: no response from the service. Check your connection, then retry.",
+    "rateLimited": "Too many attempts. Wait a moment, then retry with a new code."
   },
   "tabs": {
     "vigie": "Watch",

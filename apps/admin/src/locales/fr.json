@@ -11,7 +11,12 @@
     "navigation": "Modules",
     "forbidden": "Ce compte n'a pas accès au back-office.",
     "forbiddenNext": "Pour obtenir un accès, transmettez à un super-administrateur l'identifiant de ce compte :",
-    "forbiddenModule": "Votre rôle ne donne pas accès à ce module."
+    "forbiddenModule": "Votre rôle ne donne pas accès à ce module.",
+    "retry": "Réessayer",
+    "errors": {
+      "network": "L'API ne répond pas. Vérifiez votre connexion, puis réessayez.",
+      "rateLimited": "Trop de demandes en peu de temps. Patientez un instant, puis réessayez."
+    }
   },
   "languages": {
     "fr": "Français",
@@ -42,7 +47,9 @@
     "code": "Code à six chiffres",
     "submit": "Valider",
     "invalid": "Code refusé. Vérifiez l'heure de votre appareil et réessayez.",
-    "failed": "La double authentification est indisponible pour le moment."
+    "failed": "La double authentification est indisponible pour le moment.",
+    "network": "Le code n'a pas pu être vérifié : pas de réponse du service. Vérifiez votre connexion, puis réessayez.",
+    "rateLimited": "Trop de tentatives. Patientez un instant, puis réessayez avec un nouveau code."
   },
   "tabs": {
     "vigie": "Vigie",
