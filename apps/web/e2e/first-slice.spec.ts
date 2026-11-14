@@ -67,6 +67,26 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
 });
 
+test('tout récolter : une action au clavier, une commande par site, le résultat dit ce qui est engrangé', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  // Rien à récolter : pas de bouton « Tout récolter ».
+  await expect(page.getByRole('button', { name: /^Tout récolter/ })).toHaveCount(0);
+
+  await elapse(houseName, 480);
+  await page.reload();
+  const all = page.getByRole('button', { name: 'Tout récolter : 1 site à récolter' });
+  await all.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée sur 1 site : 80 × Blé.');
+  await expect(page.getByText('Blé : 80')).toBeVisible();
+  // Tout est récolté : le bouton disparaît, le foyer passe au message qui annonce l'issue.
+  await expect(all).toHaveCount(0);
+  await expect(page.getByRole('status')).toBeFocused();
+  await expectNoHorizontalScroll(page);
+});
+
 test('site à l’arrêt : annoncé avec son entretien, « à récolter » borné à l’arrêt, relancé au clavier', async ({
   page,
 }) => {
