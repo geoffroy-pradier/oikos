@@ -54,7 +54,7 @@
     "price": "Price (obols)",
     "offered": "Quantity offered",
     "bookEmpty": "No resting sell order.",
-    "place": "Place an order",
+    "place": "Place an order: {{good}}",
     "side": "Side",
     "sell": "Sell",
     "buy": "Buy",
@@ -63,10 +63,15 @@
     "submit": "Place order",
     "myOrders": "My resting sell orders",
     "myOrdersEmpty": "No resting sell order.",
-    "myOrder": "{{remaining}} of {{quantity}} at {{price}} obols",
+    "myOrder": "{{good}}: {{remaining}} of {{quantity}} at {{price}} obols",
     "placedSell": "Sell order placed: {{quantity}} × {{good}} at {{price}} obols.",
     "bought": "Bought: {{quantity}} × {{good}} for {{cost}} obols.",
-    "nothingBought": "No sell order at this price: nothing was bought."
+    "nothingBought": "No sell order at this price: nothing was bought.",
+    "good": "Good",
+    "cancel": "Cancel",
+    "cancelOrder": "Cancel the sale of {{remaining}} × {{good}} at {{price}} obols",
+    "cancelled": "Sale cancelled: {{quantity}} × {{good}} available again.",
+    "boughtPartly": "Partial purchase: {{quantity}} × {{good}} out of {{wanted}} for {{cost}} obols. No sale was found at this price for the rest."
   },
   "goods": {
     "wheat": "Wheat",
@@ -140,7 +145,9 @@
     "INSUFFICIENT_STOCK": "Not enough free stock for this sale.",
     "INSUFFICIENT_FUNDS": "Not enough money for this purchase.",
     "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished.",
-    "FORBIDDEN": "This action is restricted to administrators."
+    "FORBIDDEN": "This action is restricted to administrators.",
+    "ORDER_NOT_FOUND": "This order cannot be found.",
+    "ORDER_NOT_OPEN": "This order is already filled or cancelled."
   },
   "shell": {
     "skipToContent": "Skip to content",

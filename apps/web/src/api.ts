@@ -4,6 +4,7 @@ import {
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
+  type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
   type SiteCollectOutput,
@@ -58,3 +59,12 @@ export const placeOrder = (
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<MarketPlaceOrderOutput>('market.placeOrder', input, accessToken, idempotencyKey);
+
+/** `idempotencyKey` : la même clé tant que l'annulation de cet ordre n'a pas reçu de réponse. */
+export const cancelOrder = (orderId: string, accessToken: string, idempotencyKey: string) =>
+  sendCommand<MarketCancelOrderOutput>(
+    'market.cancelOrder',
+    { orderId },
+    accessToken,
+    idempotencyKey,
+  );
