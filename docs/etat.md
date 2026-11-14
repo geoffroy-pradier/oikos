@@ -48,12 +48,6 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   24 heures. L'agora affiche pour le bien choisi le dernier prix, la variation sur 24 heures, ce prix
   moyen, un graphique en chandeliers décrit et le tableau des mêmes valeurs. Chaque achat des PNJ
   laisse un événement de domaine.
-- **Comptes de la maison** (#73). Depuis le tableau de bord, l'écran Comptes montre, en drachmes et
-  oboles : le bilan (trésorerie, séquestre, stocks au prix moyen observé), les stocks valorisés et le
-  compte de résultat par journée de jeu ou par saison, sur les 7, 30 ou 90 dernières périodes. Fiches
-  sur téléphone, tableaux triables au clavier sur ordinateur. Tout est calculé à la lecture depuis le
-  grand livre, par des vues sous règles par ligne ; le compte de résultat est tenu au flux de trésorerie.
-  Pas encore : consultation par année, marge par filière et par site, écran des flux détaillés.
 - **Client.** Application web installable (PWA), utilisable à 360 px de large et au clavier, en français
   et en anglais. Onglets Maison et Agora ; les onglets Cité et Messages sont des coquilles vides.
 - **Back-office Olympe.** Connexion avec second facteur, Vigie (compteurs de refus de l'API),
@@ -67,7 +61,7 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   clients, vérifiés en `ci` (`infra/test-static.sh`) ; en local, servis par Vite, ils ne les portent pas.
 
 Ce qui manque encore pour le critère de sortie de la phase 1 : la mise en jeu de l'entretien et son
-écran (#72 : demandes #140 et #142), tableau de bord de la maison (#74),
+écran (#72 : demandes #140 et #142), comptes de la maison (#73), tableau de bord de la maison (#74),
 population des PNJ (#75), tableau de bord économique (#76), la fin d'Olympe (#77 : écrans d'accès et
 d'annulation en relecture, procédure écrite, paramètres par formulaire), équilibrage (#78). La taxe de
 marché détruit une part de chaque échange, mais tant que l'entretien n'est pas branché, sans salaires ni
