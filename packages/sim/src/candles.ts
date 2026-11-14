@@ -60,3 +60,31 @@ export function priceCandles(trades: readonly TradePrint[], periodSeconds: numbe
   }
   return [...candles.values()].sort((a, b) => a.periodStart - b.periodStart);
 }
+
+/**
+ * Prix de référence observé (5.3) : prix moyen des échanges résumés par ces chandeliers, pondéré par les
+ * volumes, arrondi à l'obole la plus proche (la demi-obole vers le haut). `null` sans échange.
+ */
+export function observedPrice(
+  candles: readonly Pick<PriceCandle, 'volume' | 'turnover'>[],
+): { price: number; volume: number } | null {
+  let [volume, turnover] = [0, 0];
+  for (const candle of candles) {
+    // Une unité s'échange au moins une obole : le prix observé n'est jamais nul.
+    if (
+      !positiveInteger(candle.volume) ||
+      !positiveInteger(candle.turnover) ||
+      candle.turnover < candle.volume
+    )
+      throw new RangeError(
+        'candle volume and turnover must be positive integers, turnover ≥ volume',
+      );
+    volume += candle.volume;
+    turnover += candle.turnover;
+  }
+  if (volume === 0) return null;
+  if (!Number.isSafeInteger(turnover) || !Number.isSafeInteger(2 * volume))
+    throw new RangeError('observed turnover or volume exceeds safe integers');
+  const rest = turnover % volume;
+  return { price: (turnover - rest) / volume + (2 * rest >= volume ? 1 : 0), volume };
+}

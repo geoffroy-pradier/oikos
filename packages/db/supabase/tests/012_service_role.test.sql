@@ -1,5 +1,5 @@
 begin;
-select plan(56);
+select plan(58);
 
 -- Jeu d'essai, posé par le propriétaire : une maison, son compte (500 oboles), son stock (100 blés), un ordre de vente.
 insert into auth.users (id, email) values ('00000000-0000-4000-8000-00000000000a', 'alice@example.test');
@@ -41,7 +41,8 @@ select is(
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
   'accounts.balance api_refusals.count houses.name inventories.quantity npc_demand_carry.carry '
-    || 'npc_demand_carry.updated_at orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
+    || 'npc_demand_carry.updated_at observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
+    || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
     || 'price_candles.turnover price_candles.volume rate_windows.count sites.cycle_started_at sites.recipe_id',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
@@ -94,6 +95,12 @@ select is(
   'config.active_version_at game.uuid_v7 game.written_by_owner_trigger telemetry.prune_rate_windows',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
+-- Échanges : le service ne choisit ni le rang d'exécution ni la date, qui décident des chandeliers de prix.
+select is(
+  (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
+   where table_schema = 'game' and table_name = 'trades' and grantee = 'oikos_service' and privilege_type = 'INSERT'),
+  'buy_order_id id ledger_entry_id price quantity sell_order_id world_id', 'colonnes d''un échange écrites par le service : liste figée, sans seq ni created_at');
+select is((select indisunique from pg_index where indexrelid = 'game.trades_seq_unique'::regclass), true, 'le rang d''exécution d''un échange est unique');
 
 -- Le service au travail : les journaux passent, et mettent à jour soldes, stocks, réservations.
 -- Chaque instruction ci-dessous est exécutée sous le rôle de service (les assertions restent au propriétaire).

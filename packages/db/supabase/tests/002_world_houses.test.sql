@@ -40,6 +40,7 @@ select is(
   'accounts(balance,house_id,kind) cities(created_at,id,name,slug,world_id) '
     || 'citizenships(city_id,house_id,id,since,status) houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
+    || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) sites(city_id,cycle_started_at,house_id,id,recipe_id) '
     || 'worlds(created_at,id,name,slug)',

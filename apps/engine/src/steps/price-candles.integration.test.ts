@@ -77,14 +77,29 @@ async function newMarket() {
 }
 type Market = Awaited<ReturnType<typeof newMarket>>;
 
-/** Échanges `[heure, prix, quantité]` du 10 novembre 2026 (temps universel), exécutés dans l'ordre donné. */
-async function trades(market: Market, goodId: string, list: [string, number, number][]) {
+/**
+ * Échanges `[heure, prix, quantité]` du 10 novembre 2026 (temps universel), exécutés dans l'ordre donné.
+ * `reversed` : écrits dans l'ordre donné mais exécutés dans l'ordre inverse (rangs réservés puis distribués
+ * à rebours), pour que l'ordre des lignes sur le disque ne soit pas celui de l'exécution.
+ */
+async function trades(
+  market: Market,
+  goodId: string,
+  list: [string, number, number][],
+  reversed = false,
+) {
   const { worldId, cityId, houseId } = market;
   await owner.transaction().execute(async (trx) => {
     const inventory = sql`(select id from game.inventories where house_id = ${houseId} and good_id = ${goodId})`;
     await sql`insert into game.inventories (world_id, house_id, city_id, good_id) values (${worldId}, ${houseId}, ${cityId}, ${goodId})
       on conflict do nothing`.execute(trx);
-    for (const [time, price, quantity] of list) {
+    const reserved = await sql<{
+      seq: string;
+    }>`select nextval(pg_get_serial_sequence('game.trades', 'seq')) as seq
+      from generate_series(1, ${list.length})`.execute(trx);
+    const seqs = reserved.rows.map((row) => row.seq);
+    if (reversed) seqs.reverse();
+    for (const [position, [time, price, quantity]] of list.entries()) {
       await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
         values (${worldId}, ${goodId}, ${quantity}, 'production', ${inventory}, 'test.seed')`.execute(
         trx,
@@ -113,18 +128,10 @@ async function trades(market: Market, goodId: string, list: [string, number, num
         where world_id = ${worldId} and (house_id = ${houseId} or system_key = 'faucet_npc_purchases')`.execute(
         trx,
       );
-      await trx
-        .insertInto('game.trades')
-        .values({
-          world_id: worldId,
-          sell_order_id: order.id,
-          buy_order_id: null,
-          price,
-          quantity,
-          ledger_entry_id: entry.id,
-          created_at: new Date(`2026-11-10T${time}Z`),
-        })
-        .execute();
+      await sql`insert into game.trades (seq, world_id, sell_order_id, price, quantity, ledger_entry_id, created_at)
+        overriding system value values (${seqs[position]}, ${worldId}, ${order.id}, ${price}, ${quantity}, ${entry.id}, ${`2026-11-10T${time}Z`})`.execute(
+        trx,
+      );
     }
   });
 }
@@ -147,13 +154,15 @@ async function candles(worldId: string) {
 
 it('résume les échanges par cité, bien et heure ; rejouer ne double rien', async () => {
   const market = await newMarket();
-  // Deux échanges portent le même instant, comme ceux d'un appariement : l'ordre d'exécution clôt l'heure.
-  await trades(market, 'wheat', [
-    ['10:05:00', 6, 10],
-    ['10:59:59.999', 8, 5],
+  await trades(market, 'wheat', [['10:05:00', 6, 10]]);
+  // Deux échanges du même instant, comme ceux d'un appariement, écrits à rebours de leur exécution :
+  // c'est le rang d'exécution qui clôt l'heure à 5, pas l'ordre des lignes (qui la clorait à 8).
+  const sameInstant: [string, number, number][] = [
     ['10:59:59.999', 5, 20],
-    ['11:00:00', 7, 1],
-  ]);
+    ['10:59:59.999', 8, 5],
+  ];
+  await trades(market, 'wheat', sameInstant, true);
+  await trades(market, 'wheat', [['11:00:00', 7, 1]]);
   await trades(market, 'olives', [['10:30:00', 9, 2]]);
   const expected = [
     'olives 3600 11-10T10:00 9/9/9/9 2 18',
@@ -221,6 +230,6 @@ it('le service réécrit les valeurs d’un chandelier, mais ne le déplace ni n
     sql`delete from game.price_candles where ${mine}`,
   ])
     await expect(statement.execute(db)).rejects.toMatchObject({ code: '42501' });
-  await sql`update game.price_candles set close = 6 where ${mine}`.execute(db);
-  expect(await candles(market.worldId)).toEqual(['wheat 3600 11-10T10:00 6/6/6/6 10 60']);
+  await sql`update game.price_candles set high = 7, close = 7 where ${mine}`.execute(db);
+  expect(await candles(market.worldId)).toEqual(['wheat 3600 11-10T10:00 6/7/6/7 10 60']);
 });
