@@ -197,6 +197,25 @@ export interface GameDatabase {
     carry: number;
     updated_at: Generated<Date>;
   };
+  /** Population courante d'une classe de PNJ dans une cité ; une clôture la fait évoluer une fois. */
+  'game.npc_population': {
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    class_id: ColumnType<string, string, never>;
+    population: number;
+    /** Dernière clôture qui l'a fait évoluer et couverture retenue : nulles à la création. */
+    closed_day: ColumnType<number | null, never, number>;
+    coverage_bps: ColumnType<number | null, never, number>;
+  };
+  /** Unités de biens vitaux demandées et servies à une classe, cumulées par les ticks d'un jour de jeu. */
+  'game.npc_vital_coverage': {
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    class_id: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, never>;
+    served: number;
+    demanded: number;
+  };
   'game.ticks': {
     world_id: string;
     /** `bigint` : lu en texte, écrit en nombre (un indice de tick tient dans un entier sûr). */
