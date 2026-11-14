@@ -45,6 +45,7 @@
   },
   "tabs": {
     "vigie": "Vigie",
+    "config": "Paramètres",
     "audit": "Journal d'audit"
   },
   "vigie": {
@@ -90,5 +91,38 @@
       "failed": "En panne"
     },
     "rejectedNoCode": "Refusée"
+  },
+  "config": {
+    "title": "Paramètres",
+    "versions": "Versions de configuration",
+    "version": "Version {{number}}",
+    "active": "En vigueur",
+    "scheduled": "Programmée pour le {{date}}",
+    "noNote": "Sans note",
+    "by": "par {{account}}, le {{date}}",
+    "open": "Ouvrir la version {{number}}",
+    "schedule": "Programmer la version {{number}} à la prochaine clôture",
+    "rollback": "Revenir à la version {{number}} à la prochaine clôture",
+    "editing": "Contenu de la version {{number}}",
+    "content": "Configuration (JSON)",
+    "note": "Note de version",
+    "diff": "Différences avec la version {{number}}, en vigueur",
+    "noDiff": "Aucune différence avec la version {{number}}, en vigueur.",
+    "added": "ajouté",
+    "removed": "retiré",
+    "publish": "Enregistrer comme nouvelle version",
+    "published": "Version {{number}} enregistrée. Elle n'est pas encore programmée.",
+    "scheduledDone": "Version {{number}} programmée pour le {{date}}.",
+    "invalidJson": "Ce texte n'est pas un objet JSON valide.",
+    "invalidConfig": "Configuration refusée par le schéma :",
+    "readOnly": "Votre rôle permet de consulter les paramètres, pas de les modifier.",
+    "errors": {
+      "FORBIDDEN": "Votre rôle ne permet pas cette action.",
+      "CONFIG_VERSION_NOT_FOUND": "Cette version n'existe plus.",
+      "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
+      "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
+      "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
+    },
+    "diffPending": "Différences avec la version en vigueur : lecture en cours…"
   }
 }

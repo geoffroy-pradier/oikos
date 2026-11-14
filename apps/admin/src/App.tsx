@@ -7,6 +7,7 @@ import { assuranceLevel } from './aal';
 import { adminGet } from './api';
 import { LANGUAGES } from './i18n';
 import { Audit } from './screens/Audit';
+import { Config } from './screens/Config';
 import { SecondFactor } from './screens/SecondFactor';
 import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
@@ -15,6 +16,7 @@ import { supabase } from './supabase';
 /** Modules ouverts à chaque rôle (docs/specs/15-back-office-olympe.md, 15.3). L'API fait foi. */
 const MODULES = {
   vigie: ['super_admin', 'game_designer', 'observer'],
+  config: ['super_admin', 'game_designer', 'observer'],
   audit: ['super_admin', 'observer'],
 } as const satisfies Record<string, readonly AdminRole[]>;
 type Module = keyof typeof MODULES;
@@ -98,6 +100,8 @@ export function App() {
     screen =
       current === 'vigie' ? (
         <Vigie accessToken={token} />
+      ) : current === 'config' ? (
+        <Config accessToken={token} role={granted} />
       ) : current === 'audit' ? (
         <Audit accessToken={token} />
       ) : (

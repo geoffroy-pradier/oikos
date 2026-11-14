@@ -15,6 +15,7 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
   adminGet.mockImplementation((path: string) => {
     if (path === 'me') return Promise.resolve(me);
     if (path === 'vigie') return Promise.resolve({ ok: true, data: VIGIE });
+    if (path.startsWith('config')) return Promise.resolve({ ok: false, code: 'INTERNAL' });
     return Promise.resolve({ ok: true, data: { entries: [] } });
   });
 }
@@ -85,9 +86,9 @@ describe('accès au back-office', () => {
   });
 
   it.each([
-    ['super_admin', ['Vigie', "Journal d'audit"]],
-    ['observer', ['Vigie', "Journal d'audit"]],
-    ['game_designer', ['Vigie']],
+    ['super_admin', ['Vigie', 'Paramètres', "Journal d'audit"]],
+    ['observer', ['Vigie', 'Paramètres', "Journal d'audit"]],
+    ['game_designer', ['Vigie', 'Paramètres']],
   ])('le rôle %s voit les onglets prévus', async (role, expected) => {
     api({ ok: true, data: { role } });
     signedIn();
@@ -200,7 +201,7 @@ describe('changement de session', () => {
     await waitFor(() => expect(adminGet).toHaveBeenCalledWith('vigie', renewed));
     expect(adminGet.mock.calls.every((call) => call[1] === renewed)).toBe(true);
     expect(screen.getByText('Rôle : Observateur')).toBeTruthy();
-    expect(tabs()).toEqual(['Vigie', "Journal d'audit"]);
+    expect(tabs()).toEqual(['Vigie', 'Paramètres', "Journal d'audit"]);
     expect(screen.queryByText('Lecture impossible pour le moment.')).toBeNull();
   });
 
