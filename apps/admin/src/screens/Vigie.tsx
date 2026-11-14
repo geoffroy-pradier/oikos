@@ -72,6 +72,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       </div>
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
+      {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
+      {data?.selfReviewAllowed && (
+        <p className="rounded-md border border-danger p-3 font-semibold text-danger">
+          {t('vigie.reviewLiftedWarning')}
+        </p>
+      )}
       {data && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {figures.map(([label, value]) => (

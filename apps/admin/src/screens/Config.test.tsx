@@ -8,6 +8,24 @@ import { Config } from './Config';
 const api = vi.hoisted(() => ({ adminGet: vi.fn(), adminCommand: vi.fn() }));
 vi.mock('../api', () => api);
 
+// Programmation telle que la lecture des paramètres la rend (`apps/api/src/admin-read.ts`).
+const activation = (id: string, versionId: string, activateAt: string, cancelledAt?: string) => ({
+  id,
+  versionId,
+  activateAt,
+  createdBy: 'bbbbbbbb-0000',
+  createdAt: '2026-11-13T11:00:00Z',
+  cancelledAt: cancelledAt ?? null,
+  cancelledBy: cancelledAt ? 'bbbbbbbb-0000' : null,
+});
+// Sortie de `admin.cancelActivation` : la programmation désignée, puis toutes celles de sa clôture.
+const cancelOutput = (...others: string[]) => ({
+  activationId: 'a3',
+  versionId: 'v3',
+  activateAt: '2999-01-01T00:00:00Z',
+  cancelled: ['a3', ...others].map((activationId) => ({ activationId, versionId: 'v3' })),
+});
+const CANCELLED = activation('a3', 'v3', '2999-01-01T00:00:00Z', '2026-11-14T09:00:00Z');
 const LISTING = {
   activeVersionId: 'v2',
   versions: [
@@ -22,8 +40,8 @@ const LISTING = {
     { id: 'v1', number: 1, note: 'initiale', createdBy: null, createdAt: '2026-11-11T10:00:00Z' },
   ],
   activations: [
-    { id: 'a3', versionId: 'v3', activateAt: '2999-01-01T00:00:00Z' },
-    { id: 'a1', versionId: 'v1', activateAt: '2020-01-01T00:00:00Z' },
+    activation('a3', 'v3', '2999-01-01T00:00:00Z'),
+    activation('a1', 'v1', '2020-01-01T00:00:00Z'),
   ],
 };
 const CONFIGS: Record<string, unknown> = {
@@ -186,11 +204,11 @@ it('pour une même clôture, seule la dernière version programmée est signalé
       ...LISTING,
       // De la plus récente à la plus ancienne, comme l'API : v1 a été programmée après v3.
       activations: [
-        { versionId: 'v1', activateAt: at },
-        { versionId: 'v3', activateAt: at },
-        { versionId: 'v3', activateAt: '2998-01-01T00:00:00Z' },
-        { versionId: 'v2', activateAt: '2997-06-01T00:00:00Z' },
-        { versionId: 'v2', activateAt: '2997-01-01T00:00:00Z' },
+        activation('a5', 'v1', at),
+        activation('a4', 'v3', at),
+        activation('a3', 'v3', '2998-01-01T00:00:00Z'),
+        activation('a2', 'v2', '2997-06-01T00:00:00Z'),
+        activation('a1', 'v2', '2997-01-01T00:00:00Z'),
       ],
     },
   });
@@ -211,10 +229,10 @@ it('une programmation annulée n’est plus signalée ; une clôture entièremen
       ...LISTING,
       // Forme rendue par l'API : les annulées restent, marquées. La commande annule toute la clôture.
       activations: [
-        { versionId: 'v1', activateAt: at, cancelledAt },
-        { versionId: 'v3', activateAt: at, cancelledAt },
-        { versionId: 'v2', activateAt: '2998-01-01T00:00:00Z', cancelledAt },
-        { versionId: 'v3', activateAt: '2998-01-01T00:00:00Z', cancelledAt: null },
+        activation('a4', 'v1', at, cancelledAt),
+        activation('a3', 'v3', at, cancelledAt),
+        activation('a2', 'v2', '2998-01-01T00:00:00Z', cancelledAt),
+        activation('a1', 'v3', '2998-01-01T00:00:00Z'),
       ],
     },
   });
@@ -228,8 +246,7 @@ it('une programmation annulée n’est plus signalée ; une clôture entièremen
 });
 
 it('annule une programmation à venir après confirmation ; y renoncer ne fait rien', async () => {
-  const cancelled = { id: 'a3', versionId: 'v3', activateAt: '2999-01-01T00:00:00Z' };
-  api.adminCommand.mockResolvedValue({ ok: true, data: { cancelled: [cancelled] } });
+  api.adminCommand.mockResolvedValue({ ok: true, data: cancelOutput() });
   render(<Config accessToken="token" role="game_designer" />);
   const name = 'Annuler la programmation de la version 3';
   fireEvent.click(await screen.findByRole('button', { name }));
@@ -248,7 +265,7 @@ it('annule une programmation à venir après confirmation ; y renoncer ne fait r
   fireEvent.click(screen.getByRole('button', { name }));
   api.adminGet.mockResolvedValue({
     ok: true,
-    data: { ...LISTING, activations: [{ ...cancelled, cancelledAt: '2026-11-14T09:00:00Z' }] },
+    data: { ...LISTING, activations: [CANCELLED] },
   });
   fireEvent.click(screen.getByRole('button', { name: "Confirmer l'annulation" }));
   expect(
@@ -266,7 +283,7 @@ it('annule une programmation à venir après confirmation ; y renoncer ne fait r
 
 it('annulation : plusieurs programmations de la clôture sont comptées ; un refus est expliqué ; lecture seule sans bouton', async () => {
   api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'CONFIG_ACTIVATION_PAST' });
-  api.adminCommand.mockResolvedValue({ ok: true, data: { cancelled: [{}, {}] } });
+  api.adminCommand.mockResolvedValue({ ok: true, data: cancelOutput('a4') });
   const view = render(<Config accessToken="token" role="super_admin" />);
   const name = 'Annuler la programmation de la version 3';
   const attempt = async () => {
@@ -287,6 +304,24 @@ it('annulation : plusieurs programmations de la clôture sont comptées ; un ref
   render(<Config accessToken="token" role="observer" />);
   await screen.findByRole('heading', { name: /^Version 3/ });
   expect(screen.queryByRole('button', { name })).toBeNull();
+});
+
+it('annulation refusée quand la programmation n’est plus à venir : le foyer va au titre', async () => {
+  // Un autre compte l'a annulée entre-temps : la liste relue après le refus n'offre plus le bouton.
+  render(<Config accessToken="token" role="super_admin" />);
+  const name = 'Annuler la programmation de la version 3';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  api.adminGet.mockResolvedValue({ ok: true, data: { ...LISTING, activations: [CANCELLED] } });
+  // Pendant l'envoi, on ne renonce plus : la commande est partie.
+  const sent = held<never>();
+  api.adminCommand.mockReturnValueOnce(sent.promise);
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'annulation" }));
+  const keep = screen.getByRole('button', { name: 'Garder la programmation' });
+  expect((keep as HTMLButtonElement).disabled).toBe(true);
+  sent.release({ ok: false, code: 'CONFIG_ACTIVATION_CANCELLED' });
+  expect((await screen.findByRole('alert')).textContent).toMatch(/déjà annulée/);
+  expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Paramètres' }));
 });
 
 it('la comparaison nomme la version en vigueur et la suit quand elle change', async () => {

@@ -127,6 +127,12 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     setCancelling(null);
     setReturnTo(activationId);
   };
+  // Après un refus, la liste relue peut ne plus offrir ce bouton (programmation annulée par un autre
+  // compte, échéance passée) : le foyer va alors au titre plutôt que de se perdre.
+  useEffect(() => {
+    if (returnTo && !cancelling && !document.getElementById(`config-cancel-${returnTo}`))
+      title.current?.focus();
+  }, [returnTo, cancelling]);
   async function cancel(activation: { id: string; activateAt: string }, number: number) {
     const done = await run<{ cancelled: unknown[] }>(
       'admin.cancelActivation',
@@ -206,6 +212,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 )}
                 {canEdit && next && cancelling !== next.id && (
                   <Button
+                    id={`config-cancel-${next.id}`}
                     variant="secondary"
                     autoFocus={returnTo === next.id}
                     disabled={busy}
@@ -226,7 +233,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   >
                     {t('config.cancelConfirm')}
                   </Button>
-                  <Button variant="secondary" onClick={() => keep(next.id)}>
+                  <Button variant="secondary" disabled={busy} onClick={() => keep(next.id)}>
                     {t('config.cancelKeep')}
                   </Button>
                 </div>

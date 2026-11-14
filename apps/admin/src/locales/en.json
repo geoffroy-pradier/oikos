@@ -68,6 +68,7 @@
     "review": "Second-person review of settings",
     "reviewRequired": "Required",
     "reviewLifted": "Lifted (test setting)",
+    "reviewLiftedWarning": "Second-person review lifted (test setting): a configuration version can be scheduled by its own author.",
     "duration": "{{ms}} ms",
     "none": "—",
     "queue": "Pending jobs",
