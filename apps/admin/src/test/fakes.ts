@@ -128,4 +128,5 @@ export const VIGIE = {
   queuePending: 3,
   refusals24h: { unauthenticated: 91, payloadTooLarge: 4, rateLimited: 17, forbidden: 6 },
   adminReads24h: 58,
+  selfReviewAllowed: false,
 };

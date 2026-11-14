@@ -149,6 +149,22 @@ describe('limitation de débit des lectures', () => {
 });
 
 describe('Vigie', () => {
+  it('montre le réglage qui lève la double validation, désactivé par défaut', async () => {
+    expect((await get(users.observer, 'vigie')).body.data.selfReviewAllowed).toBe(false);
+    const lenient = createApp({
+      db,
+      telemetry,
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: testConfig,
+      settings: { allowSelfReview: true },
+    });
+    const reply = await lenient.request('/api/admin/vigie', {
+      headers: { authorization: `Bearer aal2:${users.observer}` },
+    });
+    expect(((await reply.json()) as Reply['body']).data.selfReviewAllowed).toBe(true);
+  });
+
   it('compte les commandes et montre les ticks récents, échecs compris', async () => {
     const before = (await get(users.observer, 'vigie')).body.data;
     const worldId = randomUUID();

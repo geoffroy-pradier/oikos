@@ -144,6 +144,12 @@ describe('Vigie', () => {
     expect(await figure('Requêtes trop volumineuses (24 h)')).toBe('4');
     expect(await figure('Lectures du back-office refusées (24 h)')).toBe('6');
     expect(await figure('Lectures du back-office (24 h)')).toBe('58');
+    expect(await figure('Double validation des paramètres')).toBe('Exigée');
+    // Réglage d'un monde de test actif sur l'API : la Vigie le montre.
+    cleanup();
+    adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, selfReviewAllowed: true } });
+    render(<Vigie accessToken="token" />);
+    expect(await figure('Double validation des paramètres')).toBe('Levée (réglage de test)');
     const table = screen.getByRole('table', { name: 'Dernières exécutions de tick' });
     const headers = within(table)
       .getAllByRole('columnheader')

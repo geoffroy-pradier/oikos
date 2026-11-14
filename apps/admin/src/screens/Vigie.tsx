@@ -25,6 +25,7 @@ interface VigieData {
     forbidden: number;
   };
   adminReads24h: number;
+  selfReviewAllowed: boolean;
 }
 
 /** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
@@ -54,6 +55,10 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
         [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
         [t('vigie.adminReads'), number.format(data.adminReads24h)],
+        [
+          t('vigie.review'),
+          t(data.selfReviewAllowed ? 'vigie.reviewLifted' : 'vigie.reviewRequired'),
+        ],
       ]
     : [];
 

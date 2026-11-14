@@ -22,8 +22,8 @@ const LISTING = {
     { id: 'v1', number: 1, note: 'initiale', createdBy: null, createdAt: '2026-11-11T10:00:00Z' },
   ],
   activations: [
-    { versionId: 'v3', activateAt: '2999-01-01T00:00:00Z' },
-    { versionId: 'v1', activateAt: '2020-01-01T00:00:00Z' },
+    { id: 'a3', versionId: 'v3', activateAt: '2999-01-01T00:00:00Z' },
+    { id: 'a1', versionId: 'v1', activateAt: '2020-01-01T00:00:00Z' },
   ],
 };
 const CONFIGS: Record<string, unknown> = {
@@ -225,6 +225,68 @@ it('une programmation annulée n’est plus signalée ; une clôture entièremen
   // Reprogrammée après une annulation : la programmation qui tient est signalée, pas celle de 2999.
   expect(item(3).textContent).toMatch(/Programmée pour le 01\/01\/2998/);
   expect(item(3).textContent).not.toMatch(/2999/);
+});
+
+it('annule une programmation à venir après confirmation ; y renoncer ne fait rien', async () => {
+  const cancelled = { id: 'a3', versionId: 'v3', activateAt: '2999-01-01T00:00:00Z' };
+  api.adminCommand.mockResolvedValue({ ok: true, data: { cancelled: [cancelled] } });
+  render(<Config accessToken="token" role="game_designer" />);
+  const name = 'Annuler la programmation de la version 3';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  // Seule une programmation à venir s'annule : la version 1, déjà entrée en vigueur, n'a pas de bouton.
+  expect(screen.queryByRole('button', { name: /^Annuler la programmation/ })).toBeNull();
+  const confirm = screen.getByRole('button', { name: "Confirmer l'annulation" });
+  expect(document.activeElement).toBe(confirm);
+  expect(
+    document.getElementById(confirm.getAttribute('aria-describedby') ?? '')?.textContent,
+  ).toMatch(/^Toutes les programmations prévues pour cette clôture seront annulées/);
+  fireEvent.click(screen.getByRole('button', { name: 'Garder la programmation' }));
+  expect(api.adminCommand).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name }));
+
+  // Après la commande, la lecture rend la programmation marquée annulée.
+  fireEvent.click(screen.getByRole('button', { name }));
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: { ...LISTING, activations: [{ ...cancelled, cancelledAt: '2026-11-14T09:00:00Z' }] },
+  });
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'annulation" }));
+  expect(
+    (
+      await screen.findByText(/^Programmation de la version 3 pour le 01\/01\/2999.* annulée\.$/)
+    ).getAttribute('role'),
+  ).toBe('status');
+  expect(api.adminCommand.mock.calls.map((call) => call.slice(0, 3))).toEqual([
+    ['admin.cancelActivation', { activationId: 'a3' }, 'token'],
+  ]);
+  expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(item(3).textContent).not.toMatch(/Programmée/);
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Paramètres' }));
+});
+
+it('annulation : plusieurs programmations de la clôture sont comptées ; un refus est expliqué ; lecture seule sans bouton', async () => {
+  api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'CONFIG_ACTIVATION_PAST' });
+  api.adminCommand.mockResolvedValue({ ok: true, data: { cancelled: [{}, {}] } });
+  const view = render(<Config accessToken="token" role="super_admin" />);
+  const name = 'Annuler la programmation de la version 3';
+  const attempt = async () => {
+    fireEvent.click(await screen.findByRole('button', { name }));
+    fireEvent.click(screen.getByRole('button', { name: "Confirmer l'annulation" }));
+  };
+  await attempt();
+  expect((await screen.findByText(/^Trop tard pour annuler/)).textContent).toMatch(
+    /tombe dans moins d'une minute\. Programmez un retour arrière\.$/,
+  );
+  // Refusée : la confirmation se referme, le foyer revient au bouton de la programmation.
+  expect(screen.queryByRole('button', { name: "Confirmer l'annulation" })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name }));
+  await attempt();
+  expect(await screen.findByText(/annulée, avec 2 programmations de la même clôture/)).toBeTruthy();
+
+  view.unmount();
+  render(<Config accessToken="token" role="observer" />);
+  await screen.findByRole('heading', { name: /^Version 3/ });
+  expect(screen.queryByRole('button', { name })).toBeNull();
 });
 
 it('la comparaison nomme la version en vigueur et la suit quand elle change', async () => {
