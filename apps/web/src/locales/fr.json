@@ -312,6 +312,8 @@
     "priceAt": "{{price}} (calculé le {{date}})",
     "noPrice": "Aucun prix observé",
     "value": "Valeur",
-    "notValued": "Non valorisé"
+    "notValued": "Non valorisé",
+    "sortedAscending": "Trié par {{column}}, ordre croissant",
+    "sortedDescending": "Trié par {{column}}, ordre décroissant"
   }
 }

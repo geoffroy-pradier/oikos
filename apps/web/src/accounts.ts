@@ -46,7 +46,9 @@ const stockSchema = z
     priced_at: z.iso.datetime({ offset: true }).nullable(),
   })
   // Un prix, sa date et la valeur vont ensemble : jamais de valeur sans prix, ni de prix sans valeur.
-  .refine((s) => [s.value, s.priced_at].every((v) => (v === null) === (s.unit_price === null)));
+  .refine((s) => [s.value, s.priced_at].every((v) => (v === null) === (s.unit_price === null)))
+  // La valeur est celle que la vue calcule, à l'obole près : quantité × prix. Sinon la ligne est illisible.
+  .refine((s) => s.unit_price === null || s.value === s.quantity * s.unit_price);
 
 /** Un stock valorisé (vue `my_valued_stocks`) ; sans prix observé, ni prix, ni valeur, ni date. */
 export interface ValuedStock {
@@ -63,7 +65,7 @@ export interface ValuedStock {
 export function parseValuedStocks(raw: unknown): ValuedStock[] | null {
   const parsed = z.array(stockSchema).safeParse(raw);
   if (!parsed.success) return null;
-  return parsed.data.map((stock) => ({
+  const stocks = parsed.data.map((stock) => ({
     cityId: stock.city_id,
     goodId: stock.good_id,
     quantity: stock.quantity,
@@ -71,6 +73,8 @@ export function parseValuedStocks(raw: unknown): ValuedStock[] | null {
     value: stock.value,
     pricedAt: stock.priced_at === null ? null : Date.parse(stock.priced_at),
   }));
+  // Une date admise par le schéma mais que le navigateur ne sait pas lire rendrait l'écran inaffichable.
+  return stocks.some((stock) => Number.isNaN(stock.pricedAt)) ? null : stocks;
 }
 
 /**

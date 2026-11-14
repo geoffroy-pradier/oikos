@@ -860,10 +860,15 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
       await expect(page.getByText(/sans prix observé/)).toHaveCount(0);
       // Stocks valorisés : une fiche à 360 px, une ligne de tableau sur ordinateur, mêmes valeurs.
       const wide = (page.viewportSize()?.width ?? 0) >= 1024;
+      const card = page.getByRole('region', { name: 'Stocks valorisés' });
+      // Le nom du bien est pris tel quel : ni sous-chaîne d'un autre nom, ni motif d'expression.
+      const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const stock = (good: string) =>
         wide
-          ? page.getByRole('row', { name: new RegExp(`^${good}`) })
-          : page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: good }) });
+          ? page.getByRole('row', { name: new RegExp(`^${literal(good)}`) })
+          : page
+              .getByRole('listitem')
+              .filter({ has: page.getByRole('heading', { name: good, exact: true }) });
       await expect(stock('Blé')).toContainText(
         /40.*1 drachme 1 obole \(calculé le .+\).*46 drachmes 4 oboles/,
       );
@@ -884,10 +889,13 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
         await route.fulfill({ response, json: [clay, ...rows] });
       });
       await page.reload();
-      const goods = wide ? page.getByRole('rowheader') : page.getByRole('heading', { level: 3 });
+      const goods = wide ? card.getByRole('rowheader') : card.getByRole('heading', { level: 3 });
       await expect(goods).toHaveText(['Blé', 'Argile']);
       await expect(stock('Argile')).toContainText(/Aucun prix observé.*Non valorisé/);
+      // L'annonce du tri n'existe qu'avec le tableau, et reste muette tant que le tri n'a pas changé.
+      await expect(card.getByRole('status')).toHaveCount(wide ? 1 : 0);
       if (wide) {
+        await expect(card.getByRole('status')).toBeEmpty();
         // Tri au clavier par un en-tête : la colonne triée l'annonce, les lignes suivent.
         const header = (name: string) => page.getByRole('columnheader', { name });
         await expect(header('Valeur')).toHaveAttribute('aria-sort', 'descending');
@@ -896,6 +904,7 @@ test('comptes : bilan et stocks valorisés en drachmes et oboles, ouverts, trié
         await expect(header('Bien')).toHaveAttribute('aria-sort', 'ascending');
         await expect(header('Valeur')).not.toHaveAttribute('aria-sort', /./);
         await expect(goods).toHaveText(['Argile', 'Blé']);
+        await expect(card.getByRole('status')).toHaveText('Trié par Bien, ordre croissant');
       }
       await expectNoHorizontalScroll(page);
       await page.getByLabel('Langue').selectOption('en');
