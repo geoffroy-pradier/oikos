@@ -34,7 +34,7 @@ select throws_ok($$insert into admin.roles (user_id, role) values ('00000000-000
 -- Contrôle d'accès, lu dans le catalogue : règles par ligne actives, aucune règle, aucun privilège de
 -- table ni de colonne pour les rôles de l'API de Supabase.
 select ok((select relrowsecurity from pg_class where oid = 'admin.roles'::regclass), 'règles par ligne actives');
-select is((select count(*) from pg_policies where schemaname = 'admin' and tablename = 'roles'), 0::bigint, 'aucune règle : personne ne passe');
+select is((select count(*) from pg_policies where schemaname = 'admin' and tablename = 'roles' and roles <> '{oikos_service}'), 0::bigint, 'aucune règle pour les clients : personne ne passe');
 select is(
   (select count(*) from unnest(array['anon', 'authenticated', 'service_role']) r,
      unnest(array['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger']) p

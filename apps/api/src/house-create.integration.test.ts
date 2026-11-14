@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
@@ -11,7 +11,9 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const CITY_ID = '01900000-0000-7000-8000-000000000101';
 
-const db = createDb(DATABASE_URL);
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 // Le jeton est le compte lui-même : la vérification du JWT est testée à part (auth.test.ts).
 const app = createApp({
   db,
@@ -24,7 +26,9 @@ const suffix = [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 6).join('');
 
 async function newUser(): Promise<string> {
   const id = randomUUID();
-  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(db);
+  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(
+    owner,
+  );
   users.push(id);
   return id;
 }
@@ -55,7 +59,7 @@ beforeAll(async () => {
 
 // Pas de nettoyage : une maison fondée a une écriture au grand livre, qui est en ajout seul.
 // Les comptes et les noms sont aléatoires ; la base locale se recrée par `pnpm db:reset`.
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 const GRANT = TEST_CONFIG.config.starting.grantOboles;
 /** Monnaie créée par le robinet de dotation dans le monde de test, en oboles (solde négatif du robinet). */
@@ -111,17 +115,17 @@ describe('house.create', () => {
   it('est atomique : si l’inscription dans la cité échoue, la maison n’est pas créée', async () => {
     const user = await newUser();
     await sql`alter table game.citizenships drop constraint if exists test_always_fails`.execute(
-      db,
+      owner,
     );
     await sql`alter table game.citizenships add constraint test_always_fails check (false) not valid`.execute(
-      db,
+      owner,
     );
     try {
       const res = await post(user, input(`Orpheline ${suffix}`));
       expect(res.status).toBe(500);
       expect(await res.json()).toMatchObject({ error: { code: 'INTERNAL' } });
     } finally {
-      await sql`alter table game.citizenships drop constraint test_always_fails`.execute(db);
+      await sql`alter table game.citizenships drop constraint test_always_fails`.execute(owner);
     }
     expect(await housesOf(user)).toEqual([]);
   });
@@ -129,16 +133,16 @@ describe('house.create', () => {
   it('est atomique jusqu’au bout : si le premier site échoue, ni maison, ni compte, ni monnaie créée', async () => {
     const user = await newUser();
     const before = await granted();
-    await sql`alter table game.sites drop constraint if exists test_always_fails`.execute(db);
+    await sql`alter table game.sites drop constraint if exists test_always_fails`.execute(owner);
     await sql`alter table game.sites add constraint test_always_fails check (false) not valid`.execute(
-      db,
+      owner,
     );
     try {
       const res = await post(user, input(`Sans champ ${suffix}`));
       expect(res.status).toBe(500);
       expect(await res.json()).toMatchObject({ error: { code: 'INTERNAL' } });
     } finally {
-      await sql`alter table game.sites drop constraint test_always_fails`.execute(db);
+      await sql`alter table game.sites drop constraint test_always_fails`.execute(owner);
     }
     expect([await housesOf(user), await granted()]).toEqual([[], before]);
   });

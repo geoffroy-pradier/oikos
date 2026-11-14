@@ -1,4 +1,4 @@
-import { createDb, type Db } from '@oikos/db';
+import { createDb, type Db, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { INITIAL_CONFIG, type GameConfig } from './index';
@@ -12,10 +12,12 @@ import {
 
 // Tests d'intégration contre Supabase local. Les tables étant en ajout seul, chaque test s'exécute dans
 // une transaction annulée : rien ne subsiste en base.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
-afterAll(() => db.destroy());
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 class Rollback extends Error {}
 async function inRolledBackTransaction(body: (trx: Db) => Promise<void>): Promise<void> {

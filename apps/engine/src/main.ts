@@ -18,7 +18,9 @@ const loader = createConfigLoader(db);
 
 // File de tâches dans Postgres (pg-boss) : pas de Redis. L'horloge passe chaque minute ; le moteur joue
 // alors tous les ticks échus, dans l'ordre. Une tâche en échec est reprise sans double effet.
-const boss = new PgBoss(databaseUrl);
+// Le schéma `pgboss` est créé par les migrations et appartient au rôle de service : le moteur y installe
+// ses tables, sans droit de création dans la base.
+const boss = new PgBoss({ connectionString: databaseUrl, createSchema: false });
 boss.on('error', (error) => console.error('pg-boss error', error));
 await boss.start();
 await boss.createQueue(QUEUE);

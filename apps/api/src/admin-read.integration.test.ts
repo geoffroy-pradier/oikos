@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
@@ -10,22 +10,26 @@ import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Tests d'intégration des lectures du back-office, contre Supabase local (base partagée avec les autres
 // suites : les compteurs globaux sont vérifiés par différence).
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 async function newUser(role?: AdminRole, grantedBy: string | null = null): Promise<string> {
   const id = randomUUID();
-  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(db);
+  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(
+    owner,
+  );
   if (role)
-    await db
+    await owner
       .insertInto('admin.roles')
       .values({ user_id: id, role, granted_by: grantedBy })
       .execute();
@@ -115,7 +119,7 @@ describe('accès aux lectures du back-office', () => {
   it('un rôle retiré perd l’accès à la requête suivante', async () => {
     const former = await newUser('observer', users.root);
     expect((await get(former, 'vigie')).status).toBe(200);
-    await db.deleteFrom('admin.roles').where('user_id', '=', former).execute();
+    await owner.deleteFrom('admin.roles').where('user_id', '=', former).execute();
     expect((await get(former, 'vigie')).status).toBe(403);
   });
 });
@@ -255,7 +259,7 @@ describe('paramètres et journal d’audit', () => {
       insert into game.command_log (user_id, command, idempotency_key, input, status, response, duration_ms)
       select ${author}, case when n = 0 then 'house.rename' else 'admin.publishConfig' end,
              'audit-' || ${author} || '-' || n, '{}', 'ok', '{"ok":true,"data":{"n":1}}', 1
-      from generate_series(0, 120) as n`.execute(db);
+      from generate_series(0, 120) as n`.execute(owner);
     const written = await sql<{ n: string }>`
       select count(*) as n from game.command_log where command like 'admin.%'`.execute(db);
 

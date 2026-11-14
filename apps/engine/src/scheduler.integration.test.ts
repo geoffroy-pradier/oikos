@@ -5,16 +5,18 @@ import {
   ensureInitialConfig,
   INITIAL_CONFIG,
 } from '@oikos/config';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { advanceAllWorlds, advanceWorld } from './scheduler';
 import type { TickStep } from './tick';
 
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const loader = createConfigLoader(db);
 let tickMinutes: number;
 let first: number;
@@ -25,12 +27,12 @@ beforeAll(async () => {
   // Premier tick dont le début est postérieur à l'activation de la configuration (base neuve).
   first = tickIndexAt(new Date(), tickMinutes) + 1;
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 async function newWorld(): Promise<string> {
   const id = randomUUID();
   await sql`insert into game.worlds (id, slug, name) values (${id}, ${`s-${id.slice(0, 12)}`}, 'Test')`.execute(
-    db,
+    owner,
   );
   return id;
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { npcDemand } from '@oikos/engine';
 import { createRng } from '@oikos/sim';
 import { sql } from 'kysely';
@@ -11,21 +11,23 @@ import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 // Tests d'intégration de `market.placeOrder` contre Supabase local. Le fichier a son propre monde (cités et
 // ordres ne se suppriment pas : rien ne doit apparaître dans le monde de test des autres suites), et chaque
 // test sa propre cité : les carnets ne se mélangent pas d'un test à l'autre.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 const WORLD = randomUUID();
 beforeAll(async () => {
   await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`m-${WORLD.slice(0, 12)}`}, 'Marché de test')`.execute(
-    db,
+    owner,
   );
   await db
     .insertInto('game.accounts')
@@ -67,7 +69,7 @@ const send = async (user: string, command: string, body: unknown, key: string = 
 async function newCity(slug = `c-${letters()}`): Promise<string> {
   const id = randomUUID();
   await sql`insert into game.cities (id, world_id, slug, name) values (${id}, ${WORLD}, ${slug}, 'Agora de test')`.execute(
-    db,
+    owner,
   );
   return id;
 }
@@ -76,7 +78,7 @@ async function newCity(slug = `c-${letters()}`): Promise<string> {
 async function newPlayer(cityId: string, wheat = 0) {
   const user = randomUUID();
   await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
-    db,
+    owner,
   );
   const founded = await send(user, 'house.create', {
     cityId,
@@ -224,7 +226,7 @@ describe('market.placeOrder', () => {
     expect(await stateOf(dear)).toEqual([GRANT + 270, '20/10']);
     expect(await ledgersAreConsistent([cheap, dear, buyer])).toBe(0);
     const book = await sql<{ price: string; quantity: string }>`
-      select price, quantity from game.order_book() where city_id = ${cityId}`.execute(db);
+      select price, quantity from game.order_book() where city_id = ${cityId}`.execute(owner);
     expect(book.rows).toEqual([{ price: '20', quantity: '10' }]);
     const buyOrderId = (bought.body.data as unknown as { orderId: string }).orderId;
     expect(await eventsOf(cityId, 'TradeExecuted')).toMatchObject([

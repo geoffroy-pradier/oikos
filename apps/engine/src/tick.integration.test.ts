@@ -8,16 +8,18 @@ import {
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { createRng, isDailyClose, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { dryRunTick, runTick, type TickRequest, type TickStep } from './tick';
 
 // Tests d'intégration du moteur contre Supabase local. Chaque test travaille dans un monde qui lui est propre.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const loader = createConfigLoader(db);
 let active: LoadedConfig;
 let index: number;
@@ -29,12 +31,12 @@ beforeAll(async () => {
   // vigueur au début du tick en cours. L'horloge injectée (`now`) fait comme si son heure était venue.
   index = tickIndexAt(new Date(), active.config.clock.tickMinutes) + 1;
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 async function newWorld(): Promise<string> {
   const id = randomUUID();
   await sql`insert into game.worlds (id, slug, name) values (${id}, ${`t-${id.slice(0, 12)}`}, 'Test')`.execute(
-    db,
+    owner,
   );
   return id;
 }
@@ -311,12 +313,12 @@ describe('exécution d’un tick', () => {
   it('un échec de télémétrie ne change pas l’issue d’un tick validé', async () => {
     const worldId = await newWorld();
     await sql`alter table telemetry.tick_runs add constraint test_always_fails check (false) not valid`.execute(
-      db,
+      owner,
     );
     try {
       expect((await runTick(db, request(worldId, [probe(worldId)]))).status).toBe('done');
     } finally {
-      await sql`alter table telemetry.tick_runs drop constraint test_always_fails`.execute(db);
+      await sql`alter table telemetry.tick_runs drop constraint test_always_fails`.execute(owner);
     }
     expect([
       (await ticksOf(worldId)).length,

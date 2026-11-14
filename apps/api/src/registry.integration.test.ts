@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { DomainEvent } from '@oikos/contracts';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -10,7 +10,9 @@ import { TEST_CONFIG, testConfig } from './test-config';
 // Tests d'intégration du registre contre Supabase local, avec des commandes d'essai qui renomment une maison.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
-const db = createDb(DATABASE_URL);
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
 const users: string[] = [];
 const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
@@ -18,7 +20,7 @@ const letters = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join
 async function newHouse() {
   const [userId, name] = [randomUUID(), `Maison ${letters()}`];
   await sql`insert into auth.users (id, email) values (${userId}, ${`${userId}@example.test`})`.execute(
-    db,
+    owner,
   );
   const house = await db
     .insertInto('game.houses')
@@ -92,9 +94,9 @@ const eventsOf = async (houseId: string) =>
     .rows.length;
 
 afterAll(async () => {
-  await sql`delete from game.houses where user_id = any(${users}::uuid[])`.execute(db);
-  await sql`delete from auth.users where id = any(${users}::uuid[])`.execute(db);
-  await db.destroy();
+  await sql`delete from game.houses where user_id = any(${users}::uuid[])`.execute(owner);
+  await sql`delete from auth.users where id = any(${users}::uuid[])`.execute(owner);
+  await Promise.all([db.destroy(), owner.destroy()]);
 });
 
 describe('executeCommand', () => {

@@ -44,6 +44,12 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    pnpm exec supabase db push --workdir packages/db --db-url "$DATABASE_URL"
    ```
    Les migrations sont appliquées avant le basculement des conteneurs et restent compatibles avec la version précédente du code.
+   Les migrations créent le rôle `oikos_service` (sans connexion), qui porte les seuls droits de l'API et du moteur.
+   👤 Créer ensuite le compte de connexion des services, membre de ce rôle, avec un mot de passe généré (jamais dans le dépôt), et le placer dans `OIKOS_DATABASE_URL` :
+   ```sql
+   create role oikos_app login password '<mot de passe généré>' in role oikos_service;
+   ```
+   Les services ne se connectent jamais avec le propriétaire des tables : ils ne peuvent ni supprimer une écriture, ni modifier un solde ou un stock hors des journaux.
 9. **Sauvegardes** : installer pgBackRest à côté de Postgres avec `backup/pgbackrest.conf`, activer l'archivage (`archive_mode=on`, `archive_command='pgbackrest --stanza=oikos archive-push %p'`), créer la stanza (`pgbackrest --stanza=oikos stanza-create`), puis planifier `backup/backup.sh full` le dimanche et `backup/backup.sh diff` les autres jours. Tester une restauration chaque mois sur la préproduction.
 10. **Accès d'administration** : Studio et les outils de supervision ne sont joignables que par VPN (WireGuard ou Tailscale) ; aucun n'est relayé par le `Caddyfile`.
 11. 👤 **Cloudflare** en façade (cache, pare-feu applicatif), une fois le domaine vérifié.

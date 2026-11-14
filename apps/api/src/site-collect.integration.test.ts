@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createDb } from '@oikos/db';
+import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
@@ -7,16 +7,18 @@ import { unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Tests d'intégration de `site.collect` contre Supabase local. Le champ de départ vient de `house.create`.
-const db = createDb(
-  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-);
+const DATABASE_URL =
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+// Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
+const db = createDb(serviceRoleUrl(DATABASE_URL));
+const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
-afterAll(() => db.destroy());
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 const recipe = TEST_CONFIG.config.recipes.find(
   (candidate) => candidate.id === TEST_CONFIG.config.starting.siteRecipeId,
@@ -42,7 +44,7 @@ const send = (user: string, command: string, body: unknown, key: string = random
 async function newPlayer() {
   const user = randomUUID();
   await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
-    db,
+    owner,
   );
   const founded = await send(user, 'house.create', {
     cityId: '01900000-0000-7000-8000-000000000101',
@@ -60,7 +62,7 @@ async function newPlayer() {
 
 /** Fait vieillir le cycle en cours : la garde de la base interdit l'antidatage, levée ici le temps du test. */
 async function age(siteId: string, cycles: number) {
-  await db.transaction().execute(async (trx) => {
+  await owner.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
     await sql`update game.sites set created_at = created_at - ${`${cycles * CYCLE_MS} milliseconds`}::interval,
       cycle_started_at = cycle_started_at - ${`${cycles * CYCLE_MS} milliseconds`}::interval where id = ${siteId}`.execute(
@@ -147,7 +149,7 @@ describe('site.collect', () => {
         (
           await sql<{ n: string }>`select count(*) as n from pg_stat_activity
             where wait_event_type = 'Lock' and query like '%game%sites%' and query not like '%pg_stat_activity%'`.execute(
-            db,
+            owner,
           )
         ).rows[0]?.n,
       );
