@@ -8,8 +8,8 @@ import {
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { advanceAllWorlds, advanceWorld } from './scheduler';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { advanceAllWorlds, advanceWorld, databaseNow } from './scheduler';
 import type { TickStep } from './tick';
 
 const DATABASE_URL =
@@ -148,6 +148,31 @@ describe('avance d’un monde', () => {
       .where('status', '=', 'done')
       .execute();
     expect(runs).toHaveLength(5);
+  });
+
+  it('sans instant fourni, l’instant présent est l’heure de la base, pas celle du processus', async () => {
+    const worldId = await newWorld();
+    // Configuration toujours en vigueur : sur une base neuve, elle vient à peine d'être activée.
+    const loaded = await loader.at(new Date());
+    const config = { at: async () => loaded, byId: loader.byId };
+    const before = tickIndexAt(new Date(), tickMinutes);
+    // Horloge du processus fausse de plusieurs décennies, dans un sens puis dans l'autre.
+    for (const wrong of ['2000-01-01T00:00:00Z', '2100-01-01T00:00:00Z']) {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(wrong) });
+      try {
+        expect((await databaseNow(db)).getTime()).not.toBe(Date.now());
+        await advanceAllWorlds(db, { config, steps: [] });
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+    const after = tickIndexAt(new Date(), tickMinutes);
+    const played = await playedOf(worldId);
+    // Un seul tick, celui de l'heure réelle (deux si l'essai a chevauché un changement de tick).
+    expect(played.length).toBeGreaterThanOrEqual(1);
+    expect(played.every((index) => index >= before && index <= after)).toBe(true);
+    const drift = Math.abs((await databaseNow(db)).getTime() - Date.now());
+    expect(drift).toBeLessThan(5_000);
   });
 
   it('tous les mondes avancent ; l’échec de l’un n’arrête pas les autres et il est rapporté', async () => {
