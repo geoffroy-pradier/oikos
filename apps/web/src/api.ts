@@ -7,10 +7,14 @@ import {
   type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
+  type SiteAcquireOutput,
   type SiteCollectOutput,
+  type SiteSetRecipeOutput,
 } from '@oikos/contracts';
 
-export type CommandResponse<T> = { ok: true; data: T } | { ok: false; error: CommandError };
+/** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
+export type CommandResponse<T> =
+  { ok: true; data: T; replayed: boolean } | { ok: false; error: CommandError };
 
 /**
  * Envoie une commande à l'API de jeu. Ne lève jamais : toute panne devient une erreur `INTERNAL`.
@@ -38,7 +42,10 @@ export async function sendCommand<T>(
       data?: unknown;
       error?: unknown;
     } | null;
-    if (body?.ok === true && body.data !== undefined) return { ok: true, data: body.data as T };
+    if (body?.ok === true && body.data !== undefined) {
+      const replayed = response.headers.get('Idempotent-Replay') === 'true';
+      return { ok: true, data: body.data as T, replayed };
+    }
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
     if (error?.success) return { ok: false, error: error.data };
   } catch {
@@ -52,6 +59,13 @@ export const createHouse = (input: HouseCreateInput, accessToken: string) =>
 
 export const collectSite = (siteId: string, accessToken: string) =>
   sendCommand<SiteCollectOutput>('site.collect', { siteId }, accessToken);
+
+/** `idempotencyKey` : la même clé tant que cette acquisition n'a pas reçu de réponse. */
+export const acquireSite = (recipeId: string, accessToken: string, idempotencyKey: string) =>
+  sendCommand<SiteAcquireOutput>('site.acquire', { recipeId }, accessToken, idempotencyKey);
+
+export const setSiteRecipe = (siteId: string, recipeId: string, accessToken: string) =>
+  sendCommand<SiteSetRecipeOutput>('site.setRecipe', { siteId, recipeId }, accessToken);
 
 /** `idempotencyKey` : la même clé tant que la même intention n'a pas reçu de réponse (voir `Agora.tsx`). */
 export const placeOrder = (

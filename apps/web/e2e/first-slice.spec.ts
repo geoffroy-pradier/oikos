@@ -246,7 +246,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
       `Achat partiel : 3 × Blé sur 10 pour ${french.format(3 * dear)} oboles. Votre trésorerie ne permettait pas d'en payer davantage.`,
     );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
-    await expect(other.getByText(`${french.format(left - 3 * dear)} oboles`)).toBeVisible();
+    await expect(
+      other.getByText(`${french.format(left - 3 * dear)} oboles`, { exact: true }),
+    ).toBeVisible();
     await expect(other.getByText('Blé : 33')).toBeVisible();
     await context.close();
     paid = 30 * price + 3 * dear;
@@ -261,7 +263,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   // Le vendeur est payé, son blé est parti, sa vente a quitté la liste.
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.reload();
-  await expect(page.getByText(`${french.format(3000 + paid)} oboles`)).toBeVisible();
+  await expect(
+    page.getByText(`${french.format(3000 + paid)} oboles`, { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('Blé : 7', { exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
@@ -345,4 +349,133 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
   await nav.getByRole('link', { name: 'Maison' }).click();
   await expect(page.getByText('Blé : 80', { exact: true })).toBeVisible();
+});
+
+test('sites : acquisition au clavier, changement de production, limite du siège', async ({
+  page,
+}) => {
+  await foundHouse(page);
+  await expect(page.getByText('1 sur 4')).toBeVisible();
+
+  // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
+  const offer = page.getByLabel('Site à acquérir');
+  await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
+  await offer.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
+  await expect(page.getByText(/^2\s100 oboles$/)).toBeVisible();
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(page.getByText('Type : Verger')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Un champ n'a qu'une production : seul le verger propose d'en changer.
+  await expect(page.getByLabel('Production : Champ de blé', { exact: true })).toHaveCount(0);
+  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie' });
+  await expect(change).toBeDisabled();
+  await page.getByLabel('Production : Oliveraie', { exact: true }).selectOption({ label: 'Vigne' });
+  await change.click();
+  await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
+  await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
+
+  // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
+  await offer.selectOption({ label: 'Champ de blé (Champ) : 600 oboles' });
+  for (const balance of [/^1\s500 oboles$/, /^900 oboles$/]) {
+    await page.getByRole('button', { name: 'Acquérir' }).click();
+    await expect(page.getByText(balance)).toBeVisible();
+  }
+  await expect(page.getByText('4 sur 4')).toBeVisible();
+  await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+
+  // Après rechargement, tout vient de la base ; les textes suivent la langue.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Champ de blé' })).toHaveCount(3);
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText('4 of 4')).toBeVisible();
+  await expect(page.getByText('Type: Orchard')).toBeVisible();
+});
+
+test('acquisition sans réponse puis nouvel essai : un seul site, un seul paiement', async ({
+  page,
+}) => {
+  await foundHouse(page);
+  // L'acquisition aboutit côté serveur, mais sa réponse n'arrive jamais.
+  await page.route('**/api/commands/site.acquire', async (route) => {
+    await route.fetch();
+    await route.abort();
+  });
+  const acquire = page.getByRole('button', { name: 'Acquérir' });
+  await acquire.click();
+  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
+
+  // Nouvel essai, même intention : l'API rejoue l'achat, l'écran le dit, rien n'est payé de plus.
+  await page.unroute('**/api/commands/site.acquire');
+  await acquire.click();
+  await expect(page.getByRole('status')).toContainText('Ce site était déjà acquis : Champ de blé');
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
+
+  // L'intention suivante est une nouvelle acquisition. Un double clic n'envoie qu'une commande, et
+  // le prix payé s'affiche dans la fenêtre bien que le nouveau site ait poussé le formulaire.
+  let sent = 0;
+  await page.route('**/api/commands/site.acquire', async (route) => {
+    sent += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.continue();
+  });
+  await acquire.dblclick();
+  await expect(page.getByRole('status')).toContainText('Site acquis : Champ de blé, pour 600');
+  await expect(page.getByRole('status')).toBeInViewport();
+  await expect(page.getByText('3 sur 4')).toBeVisible();
+  await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
+  expect(sent).toBe(1);
+});
+
+test('plusieurs sites : noms distincts, résultat affiché près de l’action, choix gardé après un refus', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  const offer = page.getByLabel('Site à acquérir');
+  await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
+  for (const count of ['2 sur 4', '3 sur 4']) {
+    await page.getByRole('button', { name: 'Acquérir' }).click();
+    await expect(page.getByText(count)).toBeVisible();
+  }
+  const headings = page.getByRole('listitem').getByRole('heading');
+  await expect(headings).toHaveText(['Champ de blé', 'Oliveraie 1', 'Oliveraie 2']);
+
+  // Un cycle d'olives s'est écoulé : changer de production exige de récolter d'abord. Au clavier.
+  await elapse(houseName, 360);
+  const production = page.getByLabel('Production : Oliveraie 1', { exact: true });
+  await production.selectOption({ label: 'Vigne' });
+  await production.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  const refusal = page.getByRole('alert');
+  await expect(refusal).toContainText('Récoltez ce site avant de changer sa production.');
+  await expect(refusal).toBeInViewport();
+  // Le choix est gardé, et le bouton activé garde le focus.
+  await expect(production).toHaveValue('grow_grapes');
+  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie 1' });
+  await expect(change).toBeFocused();
+
+  // Récolte du premier site, page en haut : le résultat paraît sous ce site, dans la fenêtre.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 40 × Blé.');
+  await expect(page.getByRole('status')).toBeInViewport();
+  // Une récolte ne réordonne pas les sites.
+  await expect(headings).toHaveText(['Champ de blé', 'Oliveraie 1', 'Oliveraie 2']);
+
+  await page.getByRole('button', { name: 'Récolter : Oliveraie 1' }).click();
+  await expect(page.getByRole('status')).toContainText('Récolte engrangée');
+  await change.click();
+  await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
+  await expect(headings).toHaveText(['Champ de blé', 'Vigne', 'Oliveraie']);
+  await expectNoHorizontalScroll(page);
 });
