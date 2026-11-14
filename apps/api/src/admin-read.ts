@@ -61,6 +61,7 @@ export function registerAdminReads(
     ['/api/admin/vigie', 'vigie'],
     ['/api/admin/config/*', 'config'],
     ['/api/admin/audit', 'audit'],
+    ['/api/admin/roles', 'access'],
   ] as const) {
     const roles: readonly AdminRole[] = ADMIN_MODULE_ROLES[module];
     app.use(path, async (c, next) => {
@@ -69,7 +70,7 @@ export function registerAdminReads(
     });
   }
   // Tout autre chemin que ceux déclarés ici et `/me` est refusé, quel que soit le rôle.
-  const OPEN_PATHS = ['/api/admin/me', '/api/admin/vigie', '/api/admin/audit'];
+  const OPEN_PATHS = ['/api/admin/me', '/api/admin/vigie', '/api/admin/audit', '/api/admin/roles'];
   app.use('/api/admin/*', async (c, next) => {
     const known = OPEN_PATHS.includes(c.req.path) || c.req.path.startsWith('/api/admin/config/');
     if (!known) return forbidden();
@@ -79,6 +80,29 @@ export function registerAdminReads(
     fail({ code: 'VALIDATION_FAILED', message: 'Invalid query parameter.', fields: [field] });
 
   app.get('/api/admin/me', (c) => c.json({ ok: true, data: { role: c.get('adminRole') } }));
+
+  // Accès : comptes qui portent un rôle, du plus ancien au plus récent. Identifiants seuls, aucune adresse :
+  // comme les commandes de rôle, cette lecture ne touche pas aux comptes de Supabase Auth.
+  app.get('/api/admin/roles', async (c) => {
+    const roles = await db
+      .selectFrom('admin.roles')
+      .select(['user_id', 'role', 'granted_by', 'granted_at'])
+      .orderBy('granted_at')
+      .orderBy('user_id')
+      .execute();
+    return c.json({
+      ok: true,
+      data: {
+        roles: roles.map((row) => ({
+          userId: row.user_id,
+          role: row.role,
+          // `null` : premier super-administrateur, inscrit en base par un humain.
+          grantedBy: row.granted_by,
+          grantedAt: row.granted_at.toISOString(),
+        })),
+      },
+    });
+  });
 
   // Vigie : joueurs, commandes et ticks des dernières 24 heures.
   app.get('/api/admin/vigie', async (c) => {

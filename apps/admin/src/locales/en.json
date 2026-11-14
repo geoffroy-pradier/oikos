@@ -54,7 +54,8 @@
   "tabs": {
     "vigie": "Watch",
     "config": "Parameters",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "access": "Access"
   },
   "vigie": {
     "title": "Watch",
@@ -91,6 +92,18 @@
     "refusedTooLarge": "Oversized requests (24 h)",
     "refusedForbidden": "Refused back-office reads (24 h)",
     "adminReads": "Back-office reads (24 h)"
+  },
+  "access": {
+    "title": "Access",
+    "caption_one": "{{count}} account holds a role",
+    "caption_other": "{{count}} accounts hold a role, oldest first",
+    "account": "Account",
+    "role": "Role",
+    "grantedBy": "Granted by",
+    "grantedAt": "Since",
+    "you": "(you)",
+    "byHand": "Set in the database",
+    "empty": "No account holds a role."
   },
   "audit": {
     "title": "Audit log",
