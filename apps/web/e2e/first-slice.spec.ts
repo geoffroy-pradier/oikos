@@ -317,7 +317,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await good.selectOption({ label: 'Blé' });
   await expect(page.getByRole('row', { name: /^900 \d+$/ })).toBeVisible();
   await expectNoHorizontalScroll(page);
-  // Police très agrandie : le tableau du carnet se resserre, la page ne défile pas de côté. (260 % :
+  // Police très agrandie : le tableau du carnet défile dans sa carte, pas la page. (260 % :
   // marge prise sur les 200 % visés, la largeur des lettres variant d'une machine à l'autre.)
   await page.evaluate(() => (document.documentElement.style.fontSize = '260%'));
   await expectNoHorizontalScroll(page);

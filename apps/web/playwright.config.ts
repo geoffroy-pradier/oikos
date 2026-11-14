@@ -23,7 +23,15 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:5173', trace: 'off', locale: 'fr-FR' },
+  // Service worker bloqué par défaut : une page qu'il contrôle peut échapper à `page.route`, et un
+  // test qui simule une réponse perdue voit alors la vraie réponse. Seul le test d'installation le
+  // laisse actif (`onboarding.spec.ts`).
+  use: {
+    baseURL: 'http://127.0.0.1:5173',
+    trace: 'off',
+    locale: 'fr-FR',
+    serviceWorkers: 'block',
+  },
   // Définition de terminé : utilisable à 360 px (téléphone) comme à 1 440 px (ordinateur).
   projects: [
     {

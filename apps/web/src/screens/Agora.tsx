@@ -177,27 +177,29 @@ export function AgoraScreen() {
         {book.rows?.length === 0 ? (
           <p className="text-muted-foreground">{t('agora.bookEmpty')}</p>
         ) : (
-          // Colonnes de largeur fixe et mots sécables : en police agrandie sur petit écran, le tableau
-          // se resserre au lieu de faire défiler la page.
-          <table className="w-full table-fixed text-left [overflow-wrap:anywhere]">
-            <caption className="text-left text-sm text-muted-foreground">
-              {t('agora.bookCaption')}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('agora.price')}</th>
-                <th scope="col">{t('agora.offered')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {book.rows?.map((level) => (
-                <tr key={level.price}>
-                  <td>{number.format(level.price)}</td>
-                  <td>{number.format(level.quantity)}</td>
+          // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
+          // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <caption className="text-left text-sm text-muted-foreground">
+                {t('agora.bookCaption')}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('agora.price')}</th>
+                  <th scope="col">{t('agora.offered')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {book.rows?.map((level) => (
+                  <tr key={level.price}>
+                    <td className="whitespace-nowrap">{number.format(level.price)}</td>
+                    <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
