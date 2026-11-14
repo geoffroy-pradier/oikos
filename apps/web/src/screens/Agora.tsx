@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 
 /**
@@ -16,11 +17,13 @@ const DEFAULT_GOOD = 'wheat';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 
 interface Level {
+  side: 'buy' | 'sell';
   price: number;
   quantity: number;
 }
 interface Order {
   id: string;
+  side: 'buy' | 'sell';
   good_id: string;
   price: number;
   quantity: number;
@@ -28,24 +31,25 @@ interface Order {
 }
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 
-/** Onglet Agora : carnet d'ordres agrégé, dépôt d'un ordre à cours limité, ventes en attente de la maison. */
+/** Onglet Agora : carnet d'ordres agrégé (ventes et achats), dépôt d'un ordre à cours limité, ordres en attente de la maison. */
 export function AgoraScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const [goodId, setGoodId] = useState(DEFAULT_GOOD);
-  const book = useRows<Level>('order_book', 'price, quantity', 'price', {
+  const book = useRows<Level>('order_book', 'side, price, quantity', 'price', {
     city_id: house.cityId,
     good_id: goodId,
-    side: 'sell',
   });
-  // Toutes les ventes en attente de la maison dans cette cité, quel que soit le bien affiché.
+  // Ventes de la moins chère à la plus chère ; achats du plus offrant au moins offrant.
+  const asks = book.rows?.filter((level) => level.side === 'sell');
+  const bids = book.rows?.filter((level) => level.side === 'buy').reverse();
+  // Tous les ordres en attente de la maison dans cette cité, quel que soit le bien affiché.
   const mine = useRows<Order>(
     'my_orders',
-    'id, good_id, price, quantity, remaining',
+    'id, side, good_id, price, quantity, remaining',
     'created_at',
     {
       city_id: house.cityId,
-      side: 'sell',
       status: 'open',
     },
   );
@@ -91,33 +95,18 @@ export function AgoraScreen() {
     let next: Notice;
     if (!result.ok) {
       next = { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
-    } else if (side === 'sell') {
-      const values = { quantity: number.format(input.data.quantity), good };
-      next = {
-        kind: 'status',
-        text: t('agora.placedSell', { ...values, price: number.format(input.data.price) }),
-      };
     } else {
-      const bought = result.data.trades.reduce((sum, trade) => sum + trade.quantity, 0);
-      const cost = result.data.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+      const outcome = orderNotice(input.data, result.data);
       next = {
         kind: 'status',
-        text:
-          bought === 0
-            ? t('agora.nothingBought', { good })
-            : t(
-                result.data.shortOfFunds
-                  ? 'agora.boughtShort'
-                  : bought < input.data.quantity
-                    ? 'agora.boughtPartly'
-                    : 'agora.bought',
-                {
-                  quantity: number.format(bought),
-                  wanted: number.format(input.data.quantity),
-                  good,
-                  cost: number.format(cost),
-                },
-              ),
+        text: t(`agora.${outcome.key}`, {
+          good,
+          price: number.format(input.data.price),
+          quantity: number.format(outcome.quantity),
+          wanted: number.format(outcome.wanted),
+          amount: number.format(outcome.amount),
+          held: number.format(outcome.held),
+        }),
       };
     }
     // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
@@ -135,9 +124,11 @@ export function AgoraScreen() {
     const next: Notice = result.ok
       ? {
           kind: 'status',
-          text: t('agora.cancelled', {
+          text: t(order.side === 'buy' ? 'agora.cancelledBuy' : 'agora.cancelled', {
             quantity: number.format(result.data.released),
             good: t(`goods.${order.good_id}`),
+            // Ce que le séquestre retenait pour le reste : prix limite × quantité non servie.
+            amount: number.format(order.price * result.data.released),
           }),
         }
       : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
@@ -174,32 +165,41 @@ export function AgoraScreen() {
 
       <Card>
         <h2 className="text-xl">{t('agora.book', { good })}</h2>
-        {book.rows?.length === 0 ? (
-          <p className="text-muted-foreground">{t('agora.bookEmpty')}</p>
-        ) : (
-          // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
-          // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <caption className="text-left text-sm text-muted-foreground">
-                {t('agora.bookCaption')}
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t('agora.price')}</th>
-                  <th scope="col">{t('agora.offered')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {book.rows?.map((level) => (
-                  <tr key={level.price}>
-                    <td className="whitespace-nowrap">{number.format(level.price)}</td>
-                    <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+        {(
+          [
+            ['asks', asks, 'bookCaption', 'offered', 'bookEmpty'],
+            ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty'],
+          ] as const
+        ).map(([key, levels, caption, column, empty]) =>
+          levels?.length === 0 ? (
+            <p key={key} className="text-muted-foreground">
+              {t(`agora.${empty}`)}
+            </p>
+          ) : (
+            // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
+            // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
+            <div key={key} className="overflow-x-auto">
+              <table className="w-full text-left">
+                <caption className="text-left text-sm text-muted-foreground">
+                  {t(`agora.${caption}`)}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('agora.price')}</th>
+                    <th scope="col">{t(`agora.${column}`)}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {levels?.map((level) => (
+                    <tr key={level.price}>
+                      <td className="whitespace-nowrap">{number.format(level.price)}</td>
+                      <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ),
         )}
       </Card>
 
@@ -258,14 +258,21 @@ export function AgoraScreen() {
               remaining: number.format(order.remaining),
               quantity: number.format(order.quantity),
               price: number.format(order.price),
+              held: number.format(order.price * order.remaining),
             };
+            const buying = order.side === 'buy';
             return (
               <li key={order.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span>{t('agora.myOrder', values)}</span>
+                <span>
+                  <strong>{t(buying ? 'agora.sideBuy' : 'agora.sideSell')}</strong>
+                  {' · '}
+                  {t('agora.myOrder', values)}
+                  {buying && ` (${t('agora.myOrderHeld', values)})`}
+                </span>
                 <Button
                   variant="secondary"
                   disabled={busy}
-                  aria-label={t('agora.cancelOrder', values)}
+                  aria-label={t(buying ? 'agora.cancelBuyOrder' : 'agora.cancelOrder', values)}
                   onClick={() => void cancel(order)}
                 >
                   {t('agora.cancel')}

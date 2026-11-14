@@ -6,8 +6,9 @@ import {
 import { defineCommand } from '../registry';
 
 /**
- * Annule un ordre ouvert de sa propre maison. La base libère la réservation du stock d'une vente
- * (déclencheur des ordres) : ce qui a déjà été servi reste acquis, seul le reste est retiré du carnet.
+ * Annule un ordre ouvert de sa propre maison : ce qui a déjà été servi reste acquis, seul le reste est
+ * retiré du carnet. La base libère la réservation du stock d'une vente (déclencheur des ordres) ; pour
+ * un achat, la commande rend à la trésorerie ce que le séquestre retenait (prix × reste).
  */
 export const marketCancelOrder = defineCommand({
   name: 'market.cancelOrder',
@@ -19,7 +20,17 @@ export const marketCancelOrder = defineCommand({
     // jamais pendant. L'état lu ici est donc celui qui sera annulé.
     const order = await trx
       .selectFrom('game.orders')
-      .select(['id', 'house_id', 'city_id', 'good_id', 'side', 'remaining', 'status'])
+      .select([
+        'id',
+        'world_id',
+        'house_id',
+        'city_id',
+        'good_id',
+        'side',
+        'price',
+        'remaining',
+        'status',
+      ])
       .where('id', '=', input.orderId)
       .where('house_id', 'in', (houses) =>
         houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
@@ -33,12 +44,36 @@ export const marketCancelOrder = defineCommand({
       return { ok: false, error: { code: 'ORDER_NOT_OPEN', message } };
     }
 
+    const released = Number(order.remaining);
+    if (order.side === 'buy') {
+      // La trésorerie avant le séquestre, comme à la mise en attente : même ordre de verrouillage.
+      const accountOf = (kind: 'house' | 'escrow') =>
+        trx
+          .selectFrom('game.accounts')
+          .select('id')
+          .where('house_id', '=', order.house_id)
+          .where('kind', '=', kind);
+      const treasury = await accountOf('house').forUpdate().executeTakeFirstOrThrow();
+      const escrow = await accountOf('escrow').executeTakeFirstOrThrow();
+      const entry = await trx
+        .insertInto('game.ledger_entries')
+        .values({ world_id: order.world_id, kind: 'market.escrow_release' })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      const amount = Number(order.price) * released;
+      await trx
+        .insertInto('game.ledger_lines')
+        .values([
+          { entry_id: entry.id, account_id: escrow.id, amount: -amount },
+          { entry_id: entry.id, account_id: treasury.id, amount },
+        ])
+        .execute();
+    }
     await trx
       .updateTable('game.orders')
       .set({ status: 'cancelled' })
       .where('id', '=', order.id)
       .execute();
-    const released = Number(order.remaining);
     emit({
       type: 'OrderCancelled',
       payload: {
