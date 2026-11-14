@@ -21,10 +21,17 @@ export interface MarketTax {
   treasury: number;
 }
 
-/** ⌈amount × bps / 10 000⌉ sans quitter les entiers sûrs : le produit direct les dépasserait. */
+/**
+ * ⌈amount × bps / 10 000⌉ sans quitter les entiers sûrs : le produit direct les dépasserait. Garde
+ * technique, pas une règle de jeu : si un produit intermédiaire ou le résultat sortent des entiers
+ * sûrs, le calcul est refusé plutôt que rendu faux.
+ */
 export function shareRoundedUp(amount: number, bps: number): number {
   const rest = amount % BPS;
-  return ((amount - rest) / BPS) * bps + Math.ceil((rest * bps) / BPS);
+  const share = ((amount - rest) / BPS) * bps + Math.ceil((rest * bps) / BPS);
+  if (!Number.isSafeInteger(rest * bps) || !Number.isSafeInteger(share))
+    throw new RangeError('amount × bps is too large');
+  return share;
 }
 
 /** Répartit le montant brut d'un échange (prix × quantité) entre le vendeur, le puits et le trésor. */

@@ -12,13 +12,11 @@ import { shareRoundedUp } from './tax';
 export function dailyUpkeep(baseOboles: number, coefficientBps: number): number {
   if (!Number.isSafeInteger(baseOboles) || baseOboles < 0)
     throw new RangeError('baseOboles must be a non-negative integer');
-  // La borne haute du coefficient appartient au schéma de configuration, seule source ; ici, seul
-  // compte que le résultat reste un entier sûr.
+  // La borne de jeu du coefficient appartient au schéma de configuration, seule source ; au-delà des
+  // entiers sûrs, `shareRoundedUp` refuse le calcul.
   if (!Number.isSafeInteger(coefficientBps) || coefficientBps < 0)
     throw new RangeError('coefficientBps must be a non-negative integer');
-  const due = shareRoundedUp(baseOboles, coefficientBps);
-  if (!Number.isSafeInteger(due)) throw new RangeError('Upkeep is too large');
-  return due;
+  return shareRoundedUp(baseOboles, coefficientBps);
 }
 
 export interface UpkeepDue {

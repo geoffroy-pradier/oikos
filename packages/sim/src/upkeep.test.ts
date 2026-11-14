@@ -42,11 +42,27 @@ describe('entretien dû par un site', () => {
     for (const bad of [-1, 0.5, Number.NaN, 2 ** 53]) expect(() => dailyUpkeep(1, bad)).toThrow();
   });
 
-  it('refuse un entretien qui sortirait des entiers sûrs, sans rendre un montant faux', () => {
+  it('hors des entiers sûrs, le calcul est refusé, jamais rendu faux', () => {
     const max = Number.MAX_SAFE_INTEGER;
     expect(dailyUpkeep(max, 10_000)).toBe(max);
-    expect(() => dailyUpkeep(max, 10_001)).toThrow('Upkeep is too large');
-    expect(() => dailyUpkeep(max, 100_000)).toThrow('Upkeep is too large');
+    expect(() => dailyUpkeep(max, 10_001)).toThrow('amount × bps is too large');
+    // Produit intermédiaire 9 999 × coefficient : 9 007 199 254 733 526 tient, une unité de plus non.
+    expect(dailyUpkeep(9_999, 900_810_006_474)).toBe(900_719_925_474);
+    expect(() => dailyUpkeep(9_999, 900_810_006_475)).toThrow('amount × bps is too large');
+    // Sans la garde, ce calcul rendait 452 523 346 987 115 : l'exact est 452 523 346 987 116.
+    expect(() => dailyUpkeep(9_986, 453_157_767_862_122)).toThrow('amount × bps is too large');
+    fc.assert(
+      fc.property(base, fc.integer({ min: 0, max: max }), (oboles, bps) => {
+        const exact = (BigInt(oboles) * BigInt(bps) + 9_999n) / 10_000n;
+        let due: bigint | null = null;
+        try {
+          due = BigInt(dailyUpkeep(oboles, bps));
+        } catch (error) {
+          expect(error).toBeInstanceOf(RangeError);
+        }
+        if (due !== null) expect(due).toBe(exact);
+      }),
+    );
   });
 });
 
