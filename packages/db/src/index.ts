@@ -271,7 +271,7 @@ export interface GameDatabase {
   /** Annulation d'une programmation à venir : en ajout seul, l'instant est posé par la base. */
   'config.activation_cancellations': {
     activation_id: string;
-    cancelled_by: string | null;
+    cancelled_by: string;
     cancelled_at: Generated<Date>;
   };
 }

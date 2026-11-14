@@ -5,21 +5,25 @@
 
 create table if not exists config.activation_cancellations (
   activation_id uuid primary key references config.activations (id),
-  cancelled_by uuid,
+  -- Toujours connu : une annulation vient d'une commande d'administration, donc d'un compte.
+  cancelled_by uuid not null,
   -- Toujours l'horloge de la base, posée par la garde ci-dessous.
   cancelled_at timestamptz not null default now()
 );
 
--- Garde : l'instant d'annulation n'est pas choisi par l'appelant, et il précède l'échéance. Le refus porte
--- un nom de contrainte, que l'API traduit en erreur métier.
+-- Garde : l'instant d'annulation n'est pas choisi par l'appelant, et il précède l'échéance d'au moins une
+-- minute. Cette marge (limite technique, pas un réglage du jeu) couvre le délai entre ce contrôle et la
+-- validation de la transaction : sans elle, une annulation contrôlée juste avant la clôture et validée
+-- juste après laisserait un tick lire la version, puis les suivants lire la précédente.
+-- Le refus porte un nom de contrainte, que l'API traduit en erreur métier.
 create or replace function config.guard_activation_cancellation() returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
   new.cancelled_at := pg_catalog.clock_timestamp();
-  if exists (select 1 from config.activations a where a.id = new.activation_id and a.activate_at <= new.cancelled_at) then
-    raise exception 'an activation already in force cannot be cancelled'
+  if exists (select 1 from config.activations a where a.id = new.activation_id and a.activate_at <= new.cancelled_at + interval '1 minute') then
+    raise exception 'an activation in force or about to be cannot be cancelled'
       using errcode = 'check_violation', constraint = 'activation_cancellations_before_activation';
   end if;
   return new;
