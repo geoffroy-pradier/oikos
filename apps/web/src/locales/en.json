@@ -45,7 +45,20 @@
     "collect": "Collect",
     "collectSite": "Collect: {{site}}",
     "collected": "Harvest stored: {{list}}.",
-    "stack": "{{quantity}} × {{good}}"
+    "stack": "{{quantity}} × {{good}}",
+    "sitesCount": "{{count}} of {{limit}}",
+    "siteType": "Type: {{type}}",
+    "production": "Production",
+    "productionOf": "Production: {{site}}",
+    "change": "Change",
+    "changeSite": "Change production: {{site}}",
+    "recipeChanged": "Production changed: {{site}}. A new cycle begins.",
+    "acquire": "Acquire a site",
+    "acquireRecipe": "Site to acquire",
+    "acquireOption": "{{site}} ({{type}}): {{cost}} obols",
+    "acquireSubmit": "Acquire",
+    "acquired": "Site acquired: {{site}}, for {{cost}} obols.",
+    "limitReached": "Your house already runs as many sites as its headquarters allows."
   },
   "agora": {
     "title": "Agora of {{city}}",
@@ -108,6 +121,15 @@
     "throw_amphorae": "Pottery workshop",
     "ferment_wine": "Wine cellar"
   },
+  "siteTypes": {
+    "field": "Field",
+    "orchard": "Orchard",
+    "pasture": "Pasture",
+    "forest": "Forest",
+    "quarry": "Quarry",
+    "fishery": "Fishery",
+    "workshop": "Workshop"
+  },
   "blazon": {
     "shape": {
       "hoplon": "Round hoplon",
@@ -148,7 +170,14 @@
     "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished.",
     "FORBIDDEN": "This action is restricted to administrators.",
     "ORDER_NOT_FOUND": "This order cannot be found.",
-    "ORDER_NOT_OPEN": "This order is already filled or cancelled."
+    "ORDER_NOT_OPEN": "This order is already filled or cancelled.",
+    "RECIPE_NOT_FOUND": "This production no longer exists. Reload the page.",
+    "RECIPE_NOT_AVAILABLE": "This production is not available yet.",
+    "RECIPE_NOT_COMPATIBLE": "This site cannot host this production.",
+    "RECIPE_UNCHANGED": "This site already has this production.",
+    "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
+    "COLLECT_FIRST": "Collect this site before changing its production.",
+    "SITE_CHANGED": "This site just changed. Try again."
   },
   "shell": {
     "skipToContent": "Skip to content",

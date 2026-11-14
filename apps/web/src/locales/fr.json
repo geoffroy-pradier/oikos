@@ -45,7 +45,20 @@
     "collect": "Récolter",
     "collectSite": "Récolter : {{site}}",
     "collected": "Récolte engrangée : {{list}}.",
-    "stack": "{{quantity}} × {{good}}"
+    "stack": "{{quantity}} × {{good}}",
+    "sitesCount": "{{count}} sur {{limit}}",
+    "siteType": "Type : {{type}}",
+    "production": "Production",
+    "productionOf": "Production : {{site}}",
+    "change": "Changer",
+    "changeSite": "Changer la production : {{site}}",
+    "recipeChanged": "Production changée : {{site}}. Un nouveau cycle commence.",
+    "acquire": "Acquérir un site",
+    "acquireRecipe": "Site à acquérir",
+    "acquireOption": "{{site}} ({{type}}) : {{cost}} oboles",
+    "acquireSubmit": "Acquérir",
+    "acquired": "Site acquis : {{site}}, pour {{cost}} oboles.",
+    "limitReached": "Votre maison exploite déjà autant de sites que son siège le permet."
   },
   "agora": {
     "title": "Agora de {{city}}",
@@ -108,6 +121,15 @@
     "throw_amphorae": "Atelier de potier",
     "ferment_wine": "Cellier"
   },
+  "siteTypes": {
+    "field": "Champ",
+    "orchard": "Verger",
+    "pasture": "Pâturage",
+    "forest": "Forêt",
+    "quarry": "Carrière",
+    "fishery": "Pêcherie",
+    "workshop": "Atelier"
+  },
   "blazon": {
     "shape": {
       "hoplon": "Hoplon rond",
@@ -148,7 +170,14 @@
     "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé.",
     "FORBIDDEN": "Cette action est réservée à l'administration.",
     "ORDER_NOT_FOUND": "Cet ordre est introuvable.",
-    "ORDER_NOT_OPEN": "Cet ordre est déjà servi ou annulé."
+    "ORDER_NOT_OPEN": "Cet ordre est déjà servi ou annulé.",
+    "RECIPE_NOT_FOUND": "Cette production n'existe plus. Rechargez la page.",
+    "RECIPE_NOT_AVAILABLE": "Cette production n'est pas encore disponible.",
+    "RECIPE_NOT_COMPATIBLE": "Ce site ne peut pas accueillir cette production.",
+    "RECIPE_UNCHANGED": "Ce site a déjà cette production.",
+    "SITE_LIMIT_REACHED": "Votre maison exploite déjà autant de sites que son siège le permet.",
+    "COLLECT_FIRST": "Récoltez ce site avant de changer sa production.",
+    "SITE_CHANGED": "Ce site vient de changer. Réessayez."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

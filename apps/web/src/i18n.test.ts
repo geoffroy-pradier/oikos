@@ -5,10 +5,12 @@ import {
   HOUSE_RENAME_ERROR_CODES,
   MARKET_CANCEL_ORDER_ERROR_CODES,
   MARKET_PLACE_ORDER_ERROR_CODES,
+  SITE_ACQUIRE_ERROR_CODES,
   SITE_COLLECT_ERROR_CODES,
+  SITE_SET_RECIPE_ERROR_CODES,
 } from '@oikos/contracts';
 import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
-import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
+import { INITIAL_CONFIG, SITE_TYPES, type GameConfig } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
 import en from './locales/en.json';
@@ -35,7 +37,9 @@ describe('traductions', () => {
         ...HOUSE_RENAME_ERROR_CODES,
         ...MARKET_CANCEL_ORDER_ERROR_CODES,
         ...MARKET_PLACE_ORDER_ERROR_CODES,
+        ...SITE_ACQUIRE_ERROR_CODES,
         ...SITE_COLLECT_ERROR_CODES,
+        ...SITE_SET_RECIPE_ERROR_CODES,
       ].map((code) => `errors.${code}`),
       ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),
       ...BLAZON_TINCTURES.map((value) => `blazon.tincture.${value}`),
@@ -49,6 +53,7 @@ describe('traductions', () => {
     const expected = [
       ...config.goods.map((good) => `goods.${good.id}`),
       ...config.recipes.map((recipe) => `recipes.${recipe.id}`),
+      ...SITE_TYPES.map((type) => `siteTypes.${type}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
   });

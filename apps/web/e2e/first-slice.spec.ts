@@ -246,7 +246,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
       `Achat partiel : 3 × Blé sur 10 pour ${french.format(3 * dear)} oboles. Votre trésorerie ne permettait pas d'en payer davantage.`,
     );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
-    await expect(other.getByText(`${french.format(left - 3 * dear)} oboles`)).toBeVisible();
+    await expect(
+      other.getByText(`${french.format(left - 3 * dear)} oboles`, { exact: true }),
+    ).toBeVisible();
     await expect(other.getByText('Blé : 33')).toBeVisible();
     await context.close();
     paid = 30 * price + 3 * dear;
@@ -261,7 +263,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   // Le vendeur est payé, son blé est parti, sa vente a quitté la liste.
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.reload();
-  await expect(page.getByText(`${french.format(3000 + paid)} oboles`)).toBeVisible();
+  await expect(
+    page.getByText(`${french.format(3000 + paid)} oboles`, { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('Blé : 7', { exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
@@ -345,4 +349,51 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
   await nav.getByRole('link', { name: 'Maison' }).click();
   await expect(page.getByText('Blé : 80', { exact: true })).toBeVisible();
+});
+
+test('sites : acquisition au clavier, changement de production, limite du siège', async ({
+  page,
+}) => {
+  await foundHouse(page);
+  await expect(page.getByText('1 sur 4')).toBeVisible();
+
+  // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
+  const offer = page.getByLabel('Site à acquérir');
+  await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
+  await offer.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
+  await expect(page.getByText(/^2\s100 oboles$/)).toBeVisible();
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(page.getByText('Type : Verger')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Un champ n'a qu'une production : seul le verger propose d'en changer.
+  await expect(page.getByLabel('Production : Champ de blé', { exact: true })).toHaveCount(0);
+  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie' });
+  await expect(change).toBeDisabled();
+  await page.getByLabel('Production : Oliveraie', { exact: true }).selectOption({ label: 'Vigne' });
+  await change.click();
+  await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
+  await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
+
+  // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
+  await offer.selectOption({ label: 'Champ de blé (Champ) : 600 oboles' });
+  for (const balance of [/^1\s500 oboles$/, /^900 oboles$/]) {
+    await page.getByRole('button', { name: 'Acquérir' }).click();
+    await expect(page.getByText(balance)).toBeVisible();
+  }
+  await expect(page.getByText('4 sur 4')).toBeVisible();
+  await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+
+  // Après rechargement, tout vient de la base ; les textes suivent la langue.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Champ de blé' })).toHaveCount(3);
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText('4 of 4')).toBeVisible();
+  await expect(page.getByText('Type: Orchard')).toBeVisible();
 });
