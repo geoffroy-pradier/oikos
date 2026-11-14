@@ -66,7 +66,7 @@ lectures du back-office n'y figurent pas. La Vigie et le journal d'audit lisent 
 
 ## Critères d'acceptation
 
-- [ ] `telemetry.command_log` porte le niveau `aal`, le rôle d'administration relu et la version de configuration de la commande (migration compatible)
+- [ ] `game.command_log` porte le niveau `aal`, le rôle d'administration relu et la version de configuration de la commande (migration compatible)
 - [ ] Les refus 401, 413 et 429 sont comptés (table ou compteur dédié, sans contenu de requête) et visibles dans la Vigie
 - [ ] Les lectures `GET /api/admin/*` laissent une trace (compte, route, issue)
 - [ ] Index couvrant les requêtes de la Vigie et du journal d'audit ; plan vérifié par un test
@@ -98,7 +98,7 @@ sites dans sa cité et choisir ce qu'ils produisent, dans la limite fixée par l
 
 - [ ] Configuration : coût d'acquisition par type de site, nombre de sites par niveau de siège, types de site et recettes compatibles
 - [ ] Commande `site.acquire` : paie le coût par le grand livre (puits), crée le site ; refus si limite atteinte ou solde insuffisant
-- [ ] Commande `site.setRecipe` : change la recette d'un site parmi les recettes compatibles ; la production en cours non récoltée suit une règle écrite dans la spécification
+- [ ] Commande `site.setRecipe` : change la recette d'un site parmi les recettes compatibles (la garde de base qui rend la recette immuable est adaptée par migration) ; la production en cours non récoltée suit une règle écrite dans la spécification
 - [ ] Tests : idempotence, concurrence (deux acquisitions simultanées à la limite), solde jamais négatif
 - [ ] Écran : liste des sites de la maison, acquisition et choix de recette, utilisable à 360 px et au clavier, fr et en
 
@@ -158,7 +158,7 @@ que le stock qu'il réserve est immobilisé.
 - [ ] Commande `market.cancelOrder` : annule un ordre ouvert de sa propre maison, libère la réservation ; l'ordre d'un autre est indiscernable d'un ordre inexistant
 - [ ] Tests : annulation concurrente d'un achat ou d'un tick qui sert le même ordre (la quantité servie et la quantité libérée font toujours la quantité de l'ordre)
 - [ ] Écran : choix du bien parmi les 15, carnet par niveau de prix, liste de mes ordres avec annulation, à 360 px et au clavier
-- [ ] La liste des cités proposées se limite au monde du joueur
+- [ ] À la création de maison comme à l'agora, les cités proposées sont celles d'un seul monde
 - [ ] Un achat dont une partie dépasse le prix limite ou le solde est exécuté pour la partie possible et le dit clairement
 
 ## Hors périmètre
@@ -188,6 +188,7 @@ attendre. Un achat en attente doit mettre sa monnaie sous séquestre, comme une 
 - [ ] Une vente qui arrive s'exécute contre les achats en attente, du plus cher au moins cher, puis par ancienneté, au prix de l'ordre en attente
 - [ ] La garde de base « un achat ne reste pas dans le carnet » est remplacée par « séquestre = somme des restes à payer », testée en pgTAP
 - [ ] Tests de propriétés sur l'appariement (`packages/sim`) : conservation de la monnaie et des biens, aucune auto-transaction, priorité prix puis temps
+- [ ] Une vente qui rencontrerait un achat en attente de la même maison ne s'exécute pas contre lui ; la règle est écrite dans la spécification
 - [ ] Le carnet public montre les deux côtés par niveau de prix, sans identité
 - [ ] Spécification 5.3 mise à jour
 
@@ -328,7 +329,7 @@ fiche de site. L'accueil actuel est une liste minimale.
 
 ## Critères d'acceptation
 
-- [ ] Tableau de bord : trésorerie, production récoltable par site, ordres ouverts, alertes (atelier à court d'intrants, site à l'arrêt, entrepôt plein)
+- [ ] Tableau de bord : trésorerie, production récoltable par site, ordres ouverts, alertes (atelier à court d'intrants, site à l'arrêt, site au plafond d'accumulation)
 - [ ] « Tout récolter » en une action, une commande par site, résultat lisible si certaines échouent
 - [ ] Fiche de site : recette, intrants, production accumulée, plafond, entretien
 - [ ] Une action courante en trois touches au plus ; états de chargement, d'erreur et « Réessayer » sur chaque lecture ; pluriels corrects
@@ -390,6 +391,7 @@ que la Vigie technique.
 - [ ] Route `GET /api/admin/economy` (rôles : super-administrateur, concepteur de jeu, observateur) : masse monétaire, création et destruction par robinet et par puits et par jour, indice des prix sur le panier de référence, inflation sur 30 jours glissants
 - [ ] Les chiffres viennent du grand livre et des agrégats de prix ; un test compare la masse affichée à la somme des soldes
 - [ ] Module « Économie » dans Olympe, tableaux lisibles à 360 px, fr et en
+- [ ] Spécification 5.5 : définition de la masse monétaire (comptes comptés, trésor de la cité compris ou non) et de la mesure de l'inflation (panier de référence, période)
 - [ ] Alerte visible quand l'inflation sort de la cible de 0 % à 3 %
 
 ## Hors périmètre
@@ -417,7 +419,7 @@ procédure d'enrôlement du second facteur n'est pas écrite.
 ## Critères d'acceptation
 
 - [ ] Commandes `admin.grantRole` et `admin.revokeRole` (super-administrateur), journalisées ; le dernier super-administrateur ne peut pas être retiré
-- [ ] Une version de configuration n'est programmable que par un compte différent de son auteur (15.2, étape 3), sauf réglage explicite pour un monde de test
+- [ ] Une version de configuration n'est programmable que par un compte différent de son auteur (15.2, étape 3), sauf variable d'environnement de l'API, désactivée par défaut, pour un monde de test
 - [ ] Commande `admin.cancelActivation` pour une programmation à venir
 - [ ] Édition des paramètres par formulaire pour les tables courantes (biens, recettes, classes), le JSON restant disponible ; les erreurs de schéma désignent le champ
 - [ ] Paramètres : avertissement avant de remplacer un texte modifié, foyer déplacé vers la version ouverte, annonces d'erreur sans
