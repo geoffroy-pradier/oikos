@@ -5,6 +5,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { createTelemetry } from './telemetry';
 import { createRateLimiter, unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
@@ -14,9 +15,11 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
 const db = createDb(serviceRoleUrl(DATABASE_URL));
+const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
+  telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,
@@ -128,6 +131,7 @@ describe('limitation de débit des lectures', () => {
   it('au-delà de la limite, la requête est refusée avec le délai d’attente', async () => {
     const limited = createApp({
       db,
+      telemetry,
       verifyToken: testVerifier,
       rateLimiter: createRateLimiter({ limit: 2, windowMs: 60_000 }),
       loadConfig: testConfig,
@@ -304,5 +308,29 @@ describe('paramètres et journal d’audit', () => {
         body: { ok: false, error: { code: 'VALIDATION_FAILED' } },
       });
     }
+  });
+
+  it('le journal d’audit rend le contexte de chaque commande : session, rôle du moment, version de configuration', async () => {
+    const res = await app.request('/api/commands/admin.scheduleConfig', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer aal2:${users.designer}`,
+        'Idempotency-Key': randomUUID(),
+      },
+      body: JSON.stringify({ versionId: randomUUID() }),
+    });
+    expect(res.status).toBe(404);
+    const audit = await get(users.root, 'audit?limit=100');
+    const mine = (audit.body.data.entries as { userId: string }[]).find(
+      (entry) => entry.userId === users.designer,
+    );
+    expect(mine).toMatchObject({
+      command: 'admin.scheduleConfig',
+      status: 'rejected',
+      aal: 'aal2',
+      adminRole: 'game_designer',
+      configVersionId: TEST_CONFIG.id,
+    });
   });
 });

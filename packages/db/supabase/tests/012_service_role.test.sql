@@ -39,10 +39,10 @@ select is(
 select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name collate "C", column_name collate "C")
    from information_schema.column_privileges
-   where grantee = 'oikos_service' and table_schema = 'game' and privilege_type = 'UPDATE'),
-  'accounts.balance houses.name inventories.quantity npc_demand_carry.carry npc_demand_carry.updated_at '
-    || 'orders.status sites.cycle_started_at',
-  'colonnes de game modifiables par le service : liste figée');
+   where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
+  'accounts.balance api_refusals.count houses.name inventories.quantity npc_demand_carry.carry '
+    || 'npc_demand_carry.updated_at orders.status sites.cycle_started_at',
+  'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
    where c.relnamespace in ('config'::regnamespace, 'telemetry'::regnamespace, 'admin'::regnamespace)

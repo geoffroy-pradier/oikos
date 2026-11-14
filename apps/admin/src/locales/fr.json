@@ -73,7 +73,12 @@
       "skipped": "Déjà joué",
       "failed": "Échec"
     },
-    "tickDuration": "Durée"
+    "tickDuration": "Durée",
+    "refusedUnauthenticated": "Requêtes sans jeton valide (24 h)",
+    "refusedRateLimited": "Requêtes au-delà du débit (24 h)",
+    "refusedTooLarge": "Requêtes trop volumineuses (24 h)",
+    "refusedForbidden": "Lectures du back-office refusées (24 h)",
+    "adminReads": "Lectures du back-office (24 h)"
   },
   "audit": {
     "title": "Journal d'audit",

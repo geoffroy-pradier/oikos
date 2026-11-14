@@ -4,6 +4,7 @@ import { createDb } from '@oikos/db';
 import { createApp } from './app';
 import { tokenVerifierFromEnv } from './auth';
 import { createRateLimiter, rateLimitFromEnv } from './rate-limit';
+import { createTelemetry } from './telemetry';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -14,8 +15,16 @@ function requireEnv(name: string): string {
 const db = createDb(requireEnv('DATABASE_URL'));
 // Premier démarrage : publie la configuration initiale (sans effet si une version existe déjà).
 await ensureInitialConfig(db, INITIAL_CONFIG);
+const telemetry = createTelemetry(db);
+// Compteurs de refus écrits par lots : la base ne voit pas une écriture par requête refusée.
+const FLUSH_MS = 10_000;
+setInterval(() => void telemetry.flush(), FLUSH_MS).unref();
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => void telemetry.flush().finally(() => process.exit(0)));
+}
 const app = createApp({
   db,
+  telemetry,
   loadConfig: createConfigLoader(db).at,
   verifyToken: tokenVerifierFromEnv(process.env),
   rateLimiter: createRateLimiter(rateLimitFromEnv(process.env)),

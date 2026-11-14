@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { registerAdminReads } from './admin-read';
+import { adminRouteTemplate, type RefusalReason, type Telemetry } from './telemetry';
 import type { Identity, TokenVerifier } from './auth';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
 import { houseCreate } from './commands/house-create';
@@ -26,6 +27,8 @@ export interface AppDeps {
   rateLimiter: RateLimiter;
   /** Configuration de jeu active, fournie à chaque commande. */
   loadConfig: ConfigSource;
+  /** Refus avant exécution et lectures du back-office. Obligatoire, pour la même raison. */
+  telemetry: Telemetry;
 }
 
 /** Registre des commandes servies par l'API. */
@@ -60,10 +63,36 @@ const MAX_BODY_BYTES = 16 * 1024;
  */
 const MAX_ADMIN_BODY_BYTES = 128 * 1024;
 
-export function createApp({ db, verifyToken, rateLimiter, loadConfig }: AppDeps) {
+/** Refus qui n'atteignent jamais le journal des commandes, par statut HTTP. */
+const REFUSAL_BY_STATUS: Record<number, RefusalReason> = {
+  401: 'unauthenticated',
+  413: 'payload_too_large',
+  429: 'rate_limited',
+};
+
+export function createApp({ db, verifyToken, rateLimiter, loadConfig, telemetry }: AppDeps) {
   const app = new Hono<{ Variables: { identity: Identity; adminRole: AdminRole } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
+
+  // Avant tout le reste : ce qui est refusé en amont est compté, les lectures admises sont tracées.
+  app.use('/api/*', async (c, next) => {
+    await next();
+    const adminRead = c.req.path === '/api/admin' || c.req.path.startsWith('/api/admin/');
+    const status = c.res.status;
+    const reason = REFUSAL_BY_STATUS[status] ?? (adminRead && status === 403 ? 'forbidden' : null);
+    if (reason) telemetry.refusal(adminRead ? 'admin_read' : 'command', reason);
+    // Compte admis (second facteur et rôle relus) : la lecture est tracée, quelle que soit son issue.
+    const [identity, adminRole] = [c.get('identity'), c.get('adminRole')];
+    if (adminRead && identity && adminRole) {
+      await telemetry.adminRead({
+        userId: identity.userId,
+        adminRole,
+        route: adminRouteTemplate(c.req.path),
+        status,
+      });
+    }
+  });
 
   app.get('/api/health', (c) => c.json({ ok: true }));
   registerAdminReads(app, { db, verifyToken, rateLimiter }, fail);

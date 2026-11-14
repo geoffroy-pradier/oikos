@@ -177,6 +177,23 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  /** Refus avant exécution, comptés par heure, sans contenu de requête. */
+  'telemetry.api_refusals': {
+    bucket: ColumnType<Date, string, never>;
+    kind: 'command' | 'admin_read';
+    reason: 'unauthenticated' | 'payload_too_large' | 'rate_limited' | 'forbidden';
+    count: ColumnType<string, number, number>;
+  };
+  /** Lectures du back-office par un compte admis. */
+  'telemetry.admin_reads': {
+    id: Generated<string>;
+    user_id: string;
+    admin_role: string;
+    route: string;
+    status: number;
+    created_at: Generated<Date>;
+  };
+
   /** Rôles du back-office : un compte sans ligne n'a aucun accès. */
   'admin.roles': {
     user_id: string;

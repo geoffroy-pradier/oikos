@@ -3,6 +3,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { createTelemetry } from './telemetry';
 import { unlimited } from './rate-limit';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
@@ -11,9 +12,11 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
 const db = createDb(serviceRoleUrl(DATABASE_URL));
+const telemetry = createTelemetry(db);
 const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
+  telemetry,
   verifyToken: testVerifier,
   rateLimiter: unlimited,
   loadConfig: testConfig,

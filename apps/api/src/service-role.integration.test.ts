@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { createDb, SERVICE_ROLE, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 
 // La connexion des services (API, moteur) agit sous le rôle de service : les autres tests d'intégration
 // reposent sur cette adresse, ce test en fixe les propriétés.
@@ -9,7 +10,26 @@ const db = createDb(
     process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
   ),
 );
-afterAll(() => db.destroy());
+const owner = createDb(
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+);
+afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
+
+// Un stock existe : sans ligne à modifier, une mise à jour refusée passerait pour acceptée.
+beforeAll(async () => {
+  const [user, house] = [randomUUID(), randomUUID()];
+  const WORLD = '01900000-0000-7000-8000-000000000001';
+  const CITY = '01900000-0000-7000-8000-000000000101';
+  await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
+    owner,
+  );
+  await sql`insert into game.houses (id, world_id, user_id, name, blazon)
+    values (${house}, ${WORLD}, ${user}, ${`Stock ${[...user.replace(/[^a-f]/g, '')].slice(0, 10).join('')}`}, '{}')`.execute(
+    owner,
+  );
+  await sql`insert into game.inventories (world_id, house_id, city_id, good_id)
+    values (${WORLD}, ${house}, ${CITY}, 'wheat')`.execute(owner);
+});
 
 it('chaque connexion du pool prend le rôle de service', async () => {
   const roles = await Promise.all(
