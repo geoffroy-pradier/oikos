@@ -13,7 +13,7 @@ alter table game.accounts add constraint accounts_owner check (
 );
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'accounts_one_per_house_kind') then
+  if not exists (select 1 from pg_constraint where conname = 'accounts_one_per_house_kind' and conrelid = 'game.accounts'::regclass) then
     alter table game.accounts add constraint accounts_one_per_house_kind unique (house_id, kind);
   end if;
 end $$;
@@ -64,6 +64,15 @@ begin
 end;
 $$;
 revoke execute on function game.apply_trade() from public, anon, authenticated, oikos_service;
+
+-- L'ancienneté (`seq`) décide du prix d'un échange : elle est unique, et le service ne la choisit pas.
+-- Sans cela, un ordre inséré avec une ancienneté choisie (OVERRIDING SYSTEM VALUE) imposerait son prix.
+create unique index if not exists orders_seq_unique on game.orders (seq);
+revoke insert on game.orders from oikos_service;
+grant insert (id, world_id, city_id, house_id, good_id, side, price, quantity, remaining, status, created_at)
+  on game.orders to oikos_service;
+-- Achats ouverts d'une maison : la somme du contrôle ci-dessous ne parcourt pas tout son historique.
+create index if not exists orders_open_buys_idx on game.orders (house_id) where side = 'buy' and status = 'open';
 
 -- Séquestre = somme des restes à payer. Contrôlé à la validation de la transaction, pour la maison de
 -- tout ordre d'achat créé ou modifié et de tout compte de séquestre mouvementé : ni achat en attente

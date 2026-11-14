@@ -1,5 +1,5 @@
 begin;
-select plan(32);
+select plan(35);
 
 -- Jeu d'essai : Alice (acheteuse, 1 000 oboles) et Bob (vendeur, 100 blés), chacun sa trésorerie.
 insert into auth.users (id, email) values
@@ -122,6 +122,17 @@ set constraints all deferred;
 select pg_temp.post('00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000aa', 144);
 select lives_ok('set constraints all immediate', 'reste rendu à la trésorerie : valide');
 set constraints all deferred;
+
+-- L'ancienneté décide du prix : le service ne la choisit pas, et elle est unique.
+select throws_ok($$select pg_temp.as_service($s$insert into game.orders (seq, world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+  overriding system value values (1, '01900000-0000-7000-8000-000000000001', '01900000-0000-7000-8000-000000000101',
+          '00000000-0000-7000-8000-0000000000b1', 'wheat', 'sell', 6, 1, 1)$s$)$$, '42501', null, 'le service ne choisit pas l''ancienneté d''un ordre');
+select lives_ok($$select pg_temp.as_service($s$insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+  values ('01900000-0000-7000-8000-000000000001', '01900000-0000-7000-8000-000000000101',
+          '00000000-0000-7000-8000-0000000000b1', 'wheat', 'sell', 50, 1, 1)$s$)$$, 'il dépose un ordre sans la donner');
+select throws_ok($$insert into game.orders (seq, world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+  overriding system value values ((select min(seq) from game.orders), '01900000-0000-7000-8000-000000000001', '01900000-0000-7000-8000-000000000101',
+          '00000000-0000-7000-8000-0000000000b1', 'wheat', 'sell', 50, 1, 1)$$, '23505', null, 'deux ordres n''ont jamais la même ancienneté');
 
 -- Sens inverse : une vente attend, un achat arrive ; l'échange se fait au prix de la vente.
 select pg_temp.place('04', 'b1', 'sell', 6, 10);
