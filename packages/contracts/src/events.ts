@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { configActivationScheduledSchema, configVersionPublishedSchema } from './admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
-import { siteCollectedSchema } from './site';
+import { siteAcquiredSchema, siteCollectedSchema, siteRecipeChangedSchema } from './site';
 
 /** Événements de domaine produits par les commandes (temps réel, télémétrie, chronique). */
 export const houseFoundedSchema = z.strictObject({
@@ -23,6 +23,8 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
   siteCollectedSchema,
+  siteAcquiredSchema,
+  siteRecipeChangedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateConfig, type GameConfig } from './index';
+import { DEFAULT_SITES, validateConfig, type GameConfig } from './index';
 
 const clone = () => structuredClone(FIXTURE);
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
@@ -18,6 +18,18 @@ const FIXTURE: GameConfig = {
   clock: { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 },
   market: { npcMaxPriceFactor: 3 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
+  sites: {
+    limitByHeadquartersLevel: [2, 5],
+    acquisitionCostOboles: {
+      field: 500,
+      orchard: 510,
+      pasture: 520,
+      forest: 530,
+      quarry: 540,
+      fishery: 550,
+      workshop: 560,
+    },
+  },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -243,5 +255,79 @@ describe('une configuration invalide est refusée avec un message précis', () =
     const withoutClock: Partial<GameConfig> = clone();
     delete withoutClock.clock;
     expect(errorsOf(withoutClock)).toEqual([expect.stringMatching(/^clock: /)]);
+  });
+});
+
+describe('sites', () => {
+  it('une version publiée avant l’acquisition de sites reste lisible, avec les valeurs de départ', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.sites;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    // Valeurs écrites ici en toutes lettres : elles appartiennent aux versions déjà publiées et ne
+    // suivent pas les rééquilibrages de la configuration initiale.
+    expect(result.config.sites).toEqual({
+      limitByHeadquartersLevel: [4],
+      acquisitionCostOboles: {
+        field: 600,
+        orchard: 900,
+        pasture: 700,
+        forest: 700,
+        quarry: 1200,
+        fishery: 800,
+        workshop: 1000,
+      },
+    });
+  });
+
+  it('les valeurs par défaut ne se modifient pas en mémoire', () => {
+    expect(Object.isFrozen(DEFAULT_SITES)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SITES.acquisitionCostOboles)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SITES.limitByHeadquartersLevel)).toBe(true);
+  });
+
+  it('refuse une clé inconnue dans la section et plus de dix niveaux de siège', () => {
+    const unknown = clone() as unknown as { sites: Record<string, unknown> };
+    unknown.sites['surprise'] = 1;
+    expect(errorsOf(unknown)).toEqual([expect.stringMatching(/^sites/)]);
+    const tall = clone();
+    tall.sites.limitByHeadquartersLevel = Array.from({ length: 11 }, () => 4);
+    expect(errorsOf(tall)).toEqual([expect.stringMatching(/^sites\.limitByHeadquartersLevel: /)]);
+    tall.sites.limitByHeadquartersLevel = Array.from({ length: 10 }, () => 4);
+    expect(errorsOf(tall)).toEqual([]);
+  });
+
+  it('exige un prix pour chaque type de site, et aucun autre', () => {
+    const missing = clone() as unknown as {
+      sites: { acquisitionCostOboles: Record<string, number> };
+    };
+    delete missing.sites.acquisitionCostOboles['quarry'];
+    expect(errorsOf(missing)).toEqual([
+      expect.stringMatching(/^sites\.acquisitionCostOboles\.quarry: /),
+    ]);
+    const extra = clone() as unknown as {
+      sites: { acquisitionCostOboles: Record<string, number> };
+    };
+    extra.sites.acquisitionCostOboles['palace'] = 1;
+    expect(errorsOf(extra)).toEqual([expect.stringMatching(/^sites\.acquisitionCostOboles/)]);
+  });
+
+  it.each([0, -5, 1.5])('refuse un prix ou une limite de %s', (bad) => {
+    const cost = clone();
+    cost.sites.acquisitionCostOboles.field = bad;
+    expect(errorsOf(cost)).toEqual([
+      expect.stringMatching(/^sites\.acquisitionCostOboles\.field: /),
+    ]);
+    const limit = clone();
+    limit.sites.limitByHeadquartersLevel = [bad];
+    expect(errorsOf(limit)).toEqual([
+      expect.stringMatching(/^sites\.limitByHeadquartersLevel\[0\]: /),
+    ]);
+  });
+
+  it('exige au moins un niveau de siège', () => {
+    const none = clone();
+    none.sites.limitByHeadquartersLevel = [];
+    expect(errorsOf(none)).toEqual([expect.stringMatching(/^sites\.limitByHeadquartersLevel: /)]);
   });
 });

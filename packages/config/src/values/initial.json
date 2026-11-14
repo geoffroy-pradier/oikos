@@ -2,6 +2,18 @@
   "clock": { "tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7 },
   "market": { "npcMaxPriceFactor": 3 },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
+  "sites": {
+    "limitByHeadquartersLevel": [4],
+    "acquisitionCostOboles": {
+      "field": 600,
+      "orchard": 900,
+      "pasture": 700,
+      "forest": 700,
+      "quarry": 1200,
+      "fishery": 800,
+      "workshop": 1000
+    }
+  },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },
