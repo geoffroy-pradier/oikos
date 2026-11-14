@@ -252,4 +252,30 @@ describe('entretien des sites à la clôture quotidienne', () => {
       [[0, 0, 0, 0, 0, 0]],
     ]);
   });
+
+  it('récolte validée pendant la clôture : le site s’arrête quand même, au début de son nouveau cycle', async () => {
+    const house = await newHouse(0, ['grow_wheat']);
+    const { config } = await charged.at();
+    // La transaction de la clôture commence : son « maintenant » est fixé ici.
+    const trx = await db.startTransaction().execute();
+    const { rows } = await sql<{ started: Date }>`select now() as started`.execute(trx);
+    // Une récolte de site plein est validée entre-temps : le cycle repart après le début de la clôture.
+    await sql`update game.sites set cycle_started_at = now() where house_id = ${house.houseId}`.execute(
+      db,
+    );
+    const context = {
+      worldId: house.worldId,
+      gameDay: TODAY,
+      closeAt: dailyCloseAt(TODAY, clock),
+      config,
+    };
+    const summary = await siteUpkeep.run({ ...context, trx }).finally(() => trx.commit().execute());
+    expect(summary).toMatchObject({ sitesUnpaid: 1, halted: 1 });
+    const halt = await one(sql<{
+      at_cycle: boolean;
+      after_start: boolean;
+    }>`select halted_at = cycle_started_at as at_cycle,
+      halted_at > ${rows[0]?.started}::timestamptz as after_start from game.sites where house_id = ${house.houseId}`);
+    expect(halt).toEqual([{ at_cycle: true, after_start: true }]);
+  });
 });

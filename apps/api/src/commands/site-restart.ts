@@ -39,7 +39,9 @@ export const siteRestart = defineCommand({
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!owned) return refuse('SITE_NOT_FOUND', 'Unknown site.');
     // Ordre des verrous, le même que l'entretien à la clôture : le puits, la trésorerie, puis le site.
-    // Dans un autre ordre, une relance et une clôture s'attendraient l'une l'autre.
+    // Dans un autre ordre, une relance et une clôture s'attendraient l'une l'autre. Le verrou du puits
+    // met en file toutes les relances d'un monde, et les fait attendre la fin de l'étape d'entretien
+    // quand une clôture est en cours.
     const sink = await trx
       .selectFrom('game.accounts')
       .select('id')
@@ -57,12 +59,17 @@ export const siteRestart = defineCommand({
     const site = await trx
       .selectFrom('game.sites')
       .select(['recipe_id', 'halted_at'])
+      .select(sql<boolean>`halted_at > now()`.as('moved'))
       .where('id', '=', owned.id)
       .forUpdate()
       .executeTakeFirstOrThrow();
     // Relu sous verrou : la clôture ou une autre relance a pu le faire repartir entre-temps.
     if (!site.halted_at) return refuse('SITE_NOT_HALTED', 'This site is already running.');
 
+    // Une clôture commencée après cette commande vient d'arrêter le site pendant qu'elle attendait le
+    // puits : l'arrêt est postérieur à notre instant, et la reprise ferait reculer le cycle, ce que la
+    // garde refuse. Conflit à rejouer, comme pour `site.setRecipe`, pas une erreur interne.
+    if (site.moved) return refuse('SITE_CHANGED', 'The site just changed. Try again.');
     // Un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif.
     const type = config.recipes.find((recipe) => recipe.id === site.recipe_id)?.siteType;
     const { coefficientBps, dailyOboles } = config.sites.upkeep;
