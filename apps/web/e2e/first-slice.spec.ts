@@ -224,7 +224,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByRole('row', { name: `${price} 30` })).toHaveCount(0);
     // Plus rien à ce prix : un second achat ne conclut rien et ne coûte rien.
     await other.keyboard.press('Enter');
-    await expect(other.getByRole('status')).toContainText("rien n'a été acheté");
+    await expect(other.getByRole('status')).toContainText(
+      "Aucune vente de Blé à ce prix : rien n'a été acheté.",
+    );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
     await expect(other.getByText(`${french.format(3000 - 30 * price)} oboles`)).toBeVisible();
     await expect(other.getByText('Blé : 30')).toBeVisible();
@@ -239,4 +241,83 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
   await expect(page.getByText(/sur 30 à/)).toHaveCount(0);
+});
+
+test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', async ({ page }) => {
+  const houseName = await foundHouse(page);
+  await elapse(houseName, 480);
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(page.getByText('Blé : 80')).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await nav.getByRole('link', { name: 'Agora' }).click();
+
+  // Les quinze biens sont proposés ; le carnet et le formulaire suivent le bien choisi.
+  const good = page.getByLabel('Bien');
+  await expect(good.getByRole('option')).toHaveCount(15);
+  await good.selectOption({ label: 'Olives' });
+  await expect(page.getByRole('heading', { name: "Carnet d'ordres : Olives" })).toBeVisible();
+  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
+  await page.getByLabel('Quantité', { exact: true }).fill('30');
+  await page.keyboard.press('Enter');
+  // La maison n'a pas d'olives : la vente est refusée, rien n'est déposé.
+  await expect(page.getByRole('alert')).toContainText('Stock libre insuffisant');
+
+  // Une vente de blé, à un prix que les PNJ n'atteignent pas : elle attend dans le carnet.
+  await good.selectOption({ label: 'Blé' });
+  await expect(page.getByRole('heading', { name: 'Déposer un ordre : Blé' })).toBeVisible();
+  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
+  await page.getByLabel('Quantité', { exact: true }).fill('30');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Vente déposée : 30 × Blé à 900 oboles.');
+  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toBeVisible();
+  // Une réponse tardive du carnet du blé ne s'affiche pas sous le titre d'un autre bien.
+  await page.route('**/rest/v1/order_book*', async (route) => {
+    if (route.request().url().includes('good_id=eq.wheat'))
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    await route.continue();
+  });
+  await good.selectOption({ label: 'Olives' });
+  await good.selectOption({ label: 'Blé' });
+  await good.selectOption({ label: 'Olives' });
+  await page.waitForTimeout(1200);
+  await expect(page.getByRole('heading', { name: "Carnet d'ordres : Olives" })).toBeVisible();
+  await expect(page.getByRole('row', { name: /^900 \d+$/ })).toHaveCount(0);
+  await page.unroute('**/rest/v1/order_book*');
+  // La liste de mes ventes, elle, ne dépend pas du bien affiché.
+  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toBeVisible();
+  await good.selectOption({ label: 'Blé' });
+  await expect(page.getByRole('row', { name: /^900 \d+$/ })).toBeVisible();
+  await expectNoHorizontalScroll(page);
+
+  // Un second dépôt dont la réponse se perd, puis une annulation, puis le même dépôt renvoyé :
+  // l'annulation ne fait pas oublier la clé du dépôt, un seul ordre existe.
+  await page.getByLabel('Prix limite par unité (oboles)').fill('901');
+  await page.getByLabel('Quantité', { exact: true }).fill('10');
+  await page.route('**/api/commands/market.placeOrder', async (route) => {
+    await route.fetch();
+    await route.abort();
+  });
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await page.unroute('**/api/commands/market.placeOrder');
+
+  // Annulation au clavier : le stock réservé redevient disponible.
+  await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 900 oboles' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText(
+    'Vente annulée : 30 × Blé en stock libre de nouveau.',
+  );
+  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toHaveCount(0);
+
+  await page.getByRole('button', { name: "Déposer l'ordre" }).click();
+  await expect(page.getByRole('status')).toContainText('Vente déposée : 10 × Blé à 901 oboles.');
+  await expect(page.getByText('Blé : 10 sur 10 à 901 oboles')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Annuler la vente de 10 × Blé à 901 oboles' }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'Vente annulée : 10 × Blé en stock libre de nouveau.',
+  );
+  await expect(page.getByRole('button', { name: /^Annuler la vente/ })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Mes ventes en attente' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Maison' }).click();
+  await expect(page.getByText('Blé : 80', { exact: true })).toBeVisible();
 });
