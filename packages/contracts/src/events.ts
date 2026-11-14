@@ -6,7 +6,12 @@ import {
   configVersionPublishedSchema,
 } from './admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
-import { siteAcquiredSchema, siteCollectedSchema, siteRecipeChangedSchema } from './site';
+import {
+  siteAcquiredSchema,
+  siteCollectedSchema,
+  siteRecipeChangedSchema,
+  siteRestartedSchema,
+} from './site';
 
 /** Événements de domaine produits par les commandes et par le tick (temps réel, télémétrie, chronique). */
 export const houseFoundedSchema = z.strictObject({
@@ -30,6 +35,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteCollectedSchema,
   siteAcquiredSchema,
   siteRecipeChangedSchema,
+  siteRestartedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

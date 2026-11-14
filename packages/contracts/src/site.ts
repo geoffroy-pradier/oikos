@@ -114,3 +114,32 @@ export const siteRecipeChangedSchema = z.strictObject({
     recipeId: z.string(),
   }),
 });
+
+/** Commande `site.restart` : relance un site à l'arrêt en payant l'entretien d'un jour (5.5). */
+export const siteRestartInputSchema = z.strictObject({ siteId: z.uuid() });
+export type SiteRestartInput = z.infer<typeof siteRestartInputSchema>;
+
+export const siteRestartOutputSchema = z.object({
+  siteId: z.uuid(),
+  /** Entretien payé, en oboles, détruit par le puits. */
+  upkeepOboles: z.number().int().nonnegative(),
+  /** Début du cycle repris : celui d'avant l'arrêt, décalé de la durée de l'arrêt (ISO 8601). */
+  cycleStartedAt: z.iso.datetime(),
+});
+export type SiteRestartOutput = z.infer<typeof siteRestartOutputSchema>;
+
+export const SITE_RESTART_ERROR_CODES = [
+  'SITE_NOT_FOUND',
+  'SITE_NOT_HALTED',
+  'INSUFFICIENT_FUNDS',
+] as const;
+export type SiteRestartErrorCode = (typeof SITE_RESTART_ERROR_CODES)[number];
+
+export const siteRestartedSchema = z.strictObject({
+  type: z.literal('SiteRestarted'),
+  payload: z.strictObject({
+    siteId: z.uuid(),
+    houseId: z.uuid(),
+    upkeepOboles: z.number().int().nonnegative(),
+  }),
+});
