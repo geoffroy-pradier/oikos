@@ -98,9 +98,13 @@ describe('refus avant exécution', () => {
     expect((await command(users.player, 'house.rename', { name: 'x'.repeat(20_000) })).status).toBe(
       413,
     );
-    // Débit : une commande admise, la suivante refusée.
+    // Débit : une commande admise, les deux suivantes refusées ; de même pour une lecture d'administration.
     expect((await command(users.player, 'house.rename', rename)).status).not.toBe(429);
     expect((await command(users.player, 'house.rename', rename)).status).toBe(429);
+    expect((await command(users.player, 'house.rename', rename)).status).toBe(429);
+    const reader = await newUser('observer', users.root);
+    expect((await read(`aal2:${reader}`, 'me')).status).toBe(200);
+    expect((await read(`aal2:${reader}`, 'me')).status).toBe(429);
     // Lectures d'administration refusées : compte sans rôle, puis rôle sans second facteur.
     expect((await read(`aal2:${users.player}`, 'vigie')).status).toBe(403);
     expect((await read(users.root, 'vigie')).status).toBe(403);
@@ -115,7 +119,8 @@ describe('refus avant exécution', () => {
       'command:unauthenticated': 3,
       'admin_read:unauthenticated': 1,
       'command:payload_too_large': 1,
-      'command:rate_limited': 1,
+      'command:rate_limited': 2,
+      'admin_read:rate_limited': 1,
       'admin_read:forbidden': 2,
     };
     expect(await counted()).toEqual(expected);
@@ -131,6 +136,10 @@ describe('refus avant exécution', () => {
     const { telemetry, counted, command } = isolated();
     await command(null, 'house.rename', {});
     await command(null, 'house.rename', {});
+    // Une exécution interrompue a pu laisser la contrainte : on repart d'une table saine.
+    await sql`alter table telemetry.api_refusals drop constraint if exists test_always_fails`.execute(
+      owner,
+    );
     await sql`alter table telemetry.api_refusals add constraint test_always_fails check (false) not valid`.execute(
       owner,
     );
@@ -166,7 +175,8 @@ describe('lectures du back-office', () => {
       { admin_role: 'super_admin', route: '/api/admin/config/versions/:id', status: 404 },
       // Les paramètres de la requête ne sont jamais recopiés.
       { admin_role: 'super_admin', route: '/api/admin/audit', status: 400 },
-      { admin_role: 'super_admin', route: '/api/admin/inconnue', status: 403 },
+      // Un chemin qui n'est pas une route connue n'est jamais recopié, même bien formé.
+      { admin_role: 'super_admin', route: '/api/admin/:unknown', status: 403 },
       { admin_role: 'super_admin', route: '/api/admin/:unknown', status: 403 },
     ]);
   });
@@ -206,6 +216,13 @@ describe('lectures du back-office', () => {
     const before = await vigie();
     for (let n = 0; n < 3; n += 1)
       await app.request('/api/commands/house.rename', { method: 'POST' });
+    for (let n = 0; n < 2; n += 1) {
+      await app.request('/api/commands/house.rename', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${users.player}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'x'.repeat(20_000) }),
+      });
+    }
     await app.request('/api/admin/me', {
       headers: { authorization: `Bearer aal2:${users.player}` },
     });
@@ -215,6 +232,10 @@ describe('lectures du back-office', () => {
       (before.refusals24h['unauthenticated'] ?? 0) + 3,
     );
     expect(after.refusals24h['forbidden']).toBe((before.refusals24h['forbidden'] ?? 0) + 1);
+    expect(after.refusals24h['payloadTooLarge']).toBe(
+      (before.refusals24h['payloadTooLarge'] ?? 0) + 2,
+    );
+    expect(after.refusals24h['rateLimited']).toBe(before.refusals24h['rateLimited'] ?? 0);
     expect(Object.keys(after.refusals24h).sort()).toEqual([
       'forbidden',
       'payloadTooLarge',
@@ -232,10 +253,11 @@ it('le gabarit d’une route remplace les identifiants et ne recopie pas un chem
     adminRouteTemplate('/api/admin/config/versions/01900000-0000-7000-8000-000000000001'),
   ).toBe('/api/admin/config/versions/:id');
   for (const odd of [
+    '/api/admin',
     '/api/admin/',
-    '/api/admin/A',
+    '/api/admin/inconnue',
+    '/api/admin/me/plus',
     '/api/admin/a b',
-    `/api/admin/${'a'.repeat(81)}`,
     '/api/other/x',
   ])
     expect(adminRouteTemplate(odd)).toBe('/api/admin/:unknown');

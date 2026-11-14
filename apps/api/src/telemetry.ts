@@ -27,7 +27,7 @@ export interface Telemetry {
 
 /**
  * Les refus sont accumulés en mémoire puis écrits par lots : le nombre d'écritures ne dépend pas du
- * nombre de requêtes refusées, seulement des heures, natures et raisons distinctes (16 lignes par heure
+ * nombre de requêtes refusées, seulement des heures, natures et raisons distinctes (8 lignes par heure
  * au plus). Un arrêt brutal perd au plus l'intervalle en cours.
  */
 export function createTelemetry(db: Db, now: () => Date = () => new Date()): Telemetry {
@@ -65,14 +65,23 @@ export function createTelemetry(db: Db, now: () => Date = () => new Date()): Tel
   };
 }
 
+/** Routes de lecture du back-office, sous la forme où elles sont tracées. */
+const ADMIN_ROUTES = [
+  '/api/admin/me',
+  '/api/admin/vigie',
+  '/api/admin/audit',
+  '/api/admin/config/versions',
+  '/api/admin/config/versions/:id',
+];
+
 /**
  * Gabarit d'une route d'administration : tout identifiant est remplacé, les paramètres sont ignorés.
- * Un chemin qui ne ressemble à aucune route (trop long, caractères inattendus) n'est pas recopié.
+ * Liste fermée : un chemin qui n'est pas une route connue n'est jamais recopié dans la trace.
  */
 export function adminRouteTemplate(path: string): string {
   const template = path
     .split('/')
     .map((segment) => (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(segment) ? ':id' : segment))
     .join('/');
-  return /^\/api\/admin\/[a-z0-9/:_-]{1,80}$/.test(template) ? template : '/api/admin/:unknown';
+  return ADMIN_ROUTES.includes(template) ? template : '/api/admin/:unknown';
 }

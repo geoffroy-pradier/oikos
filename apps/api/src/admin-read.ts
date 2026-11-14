@@ -103,11 +103,11 @@ export function registerAdminReads(
       .orderBy('id', 'desc')
       .limit(RECENT_TICKS)
       .execute();
-    // Refus avant exécution (comptés par heure : la fenêtre couvre les 24 dernières heures entamées)
-    // et lectures du back-office.
+    // Refus avant exécution, comptés par heure : la fenêtre va de l'heure qui suit « il y a 24 heures »
+    // à l'heure en cours (entre 23 et 24 heures). Lectures du back-office : 24 heures glissantes.
     const refusals = await sql<{ reason: string; n: string }>`
       select reason, sum(count)::text as n from telemetry.api_refusals
-      where bucket > now() - interval '24 hours' group by reason`.execute(db);
+      where bucket > now() - interval '24 hours' and bucket <= now() group by reason`.execute(db);
     const refused = (reason: string) =>
       Number(refusals.rows.find((row) => row.reason === reason)?.n ?? 0);
     const reads = await sql<{ n: string }>`

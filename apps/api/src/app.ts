@@ -78,7 +78,7 @@ export function createApp({ db, verifyToken, rateLimiter, loadConfig, telemetry 
   // Avant tout le reste : ce qui est refusé en amont est compté, les lectures admises sont tracées.
   app.use('/api/*', async (c, next) => {
     await next();
-    const adminRead = c.req.path.startsWith('/api/admin/');
+    const adminRead = c.req.path === '/api/admin' || c.req.path.startsWith('/api/admin/');
     const status = c.res.status;
     const reason = REFUSAL_BY_STATUS[status] ?? (adminRead && status === 403 ? 'forbidden' : null);
     if (reason) telemetry.refusal(adminRead ? 'admin_read' : 'command', reason);
