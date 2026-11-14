@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(24);
 
 -- Le monde de test (seed) a reçu ses comptes sans qu'aucun script ne les crée.
 select is(
@@ -57,6 +57,12 @@ select lives_ok($$select pg_temp.as_service($s$insert into game.accounts (world_
 select throws_ok($$select pg_temp.as_service($s$insert into game.accounts (world_id, kind, system_key, allow_negative)
   values ('00000000-0000-7000-8000-00000000e001', 'system', 'faucet_forged', true)$s$)$$, '42501', null,
   'le service ne crée pas de robinet');
+select throws_ok($$select pg_temp.as_service($s$insert into game.accounts (world_id, kind, system_key, allow_negative)
+  values ('00000000-0000-7000-8000-00000000e001', 'system', 'faucet_npc_purchases', true) on conflict do nothing$s$)$$, '42501', null,
+  'ni par une insertion qui ignore les doublons');
+select throws_ok($$select pg_temp.as_service($s$update game.accounts set kind = 'system', house_id = null, system_key = 'faucet_forged', allow_negative = true
+  where house_id = '00000000-0000-7000-8000-0000000000a1'$s$)$$, '42501', null,
+  'ni en transformant le compte d''une maison');
 select throws_ok($$select pg_temp.as_service($s$insert into game.system_account_kinds (key, allow_negative) values ('faucet_forged', true)$s$)$$,
   '42501', null, 'ni n''en ajoute au catalogue');
 select lives_ok($$select pg_temp.as_service($s$select count(*) from game.system_account_kinds$s$)$$, 'le service lit le catalogue');
@@ -66,6 +72,19 @@ select throws_ok(format($$select pg_temp.as_service($s$
   create trigger t after insert on fake_%1$s for each row execute function game.%1$s()$s$)$$, fn),
   '42501', null, format('le service n''attache pas %s à sa table', fn))
 from unnest(array['create_world_system_accounts', 'create_kind_system_accounts']) fn;
+
+-- La garde ne dépend pas de la règle par ligne : même avec une règle large (rejeu de la migration 12
+-- seule), le service ne crée pas de compte système.
+drop policy service_all on game.accounts;
+create policy service_all on game.accounts for all to oikos_service using (true) with check (true);
+select throws_ok($$select pg_temp.as_service($s$insert into game.accounts (world_id, kind, system_key, allow_negative)
+  values ('00000000-0000-7000-8000-00000000e001', 'system', 'faucet_forged', true)$s$)$$, '42501',
+  'system accounts are created with their world', 'sans la règle par ligne, la garde refuse encore');
+select lives_ok($$select pg_temp.as_service($s$select 1 from game.accounts where kind = 'system' limit 1 for update$s$)$$,
+  'le service verrouille toujours un robinet');
+-- Le propriétaire, lui, peut encore créer un compte système (migrations, tests).
+select lives_ok($$insert into game.accounts (world_id, kind, system_key, allow_negative)
+  values ('00000000-0000-7000-8000-00000000e001', 'system', 'sink_owner_only', false)$$, 'le propriétaire crée un compte système');
 
 select * from finish();
 rollback;

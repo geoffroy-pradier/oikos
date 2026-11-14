@@ -84,3 +84,36 @@ on conflict do nothing;
 -- une planche à billets.
 drop policy if exists service_all on game.accounts;
 create policy service_all on game.accounts for all to oikos_service using (true) with check (kind = 'house');
+
+-- La règle ci-dessus est recréée, plus large, si la migration 12 est rejouée seule. La garde suivante ne
+-- dépend d'aucune règle : un compte système n'est créé qu'au nom du propriétaire de la table (les deux
+-- déclencheurs ci-dessus, ou le propriétaire lui-même).
+create or replace function game.guard_system_account() returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if current_user <> (select pg_catalog.pg_get_userbyid(c.relowner) from pg_catalog.pg_class c where c.oid = tg_relid) then
+    raise exception 'system accounts are created with their world' using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function game.guard_system_account() from public, anon, authenticated, oikos_service;
+drop trigger if exists accounts_system_guard on game.accounts;
+create trigger accounts_system_guard before insert on game.accounts
+  for each row when (new.kind = 'system') execute function game.guard_system_account();
+
+-- Base existante : un compte système hors catalogue, ou dont la nature diffère du catalogue, aurait été
+-- laissé tel quel par les insertions ci-dessus. Mieux vaut arrêter la migration que le garder en silence.
+do $$
+declare
+  odd text;
+begin
+  select string_agg(a.world_id || ':' || a.system_key, ', ') into odd
+  from game.accounts a left join game.system_account_kinds k on k.key = a.system_key
+  where a.kind = 'system' and (k.key is null or k.allow_negative <> a.allow_negative);
+  if odd is not null then
+    raise exception 'system accounts out of catalogue: %', odd using errcode = 'check_violation';
+  end if;
+end $$;
