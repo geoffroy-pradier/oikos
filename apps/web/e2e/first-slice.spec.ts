@@ -188,6 +188,8 @@ function alone<T>(section: () => Promise<T>): Promise<T> {
   });
 }
 const french = new Intl.NumberFormat('fr-FR');
+/** Un montant comme l'écrit l'interface : « 0 obole », « 1 obole », « 2 oboles » (singulier jusqu'à 1). */
+const oboles = (amount: number) => `${french.format(amount)} ${amount < 2 ? 'obole' : 'oboles'}`;
 
 /** Le moteur joue une étape du tick (par défaut la demande des PNJ) sur le monde de test. */
 async function npcsBuy(step: TickStep = npcDemand) {
@@ -256,9 +258,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
       0,
     );
     expect(sales.rows.reduce((sum, sale) => sum + Number(sale.gross), 0)).toBe(160);
-    await expect(
-      page.getByText(`${french.format(3000 + net)} oboles`, { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText(`${oboles(3000 + net)}`, { exact: true })).toBeVisible();
 
     // Le tick résume les échanges en chandeliers : l'agora montre le dernier prix du blé, le graphique
     // décrit, et les mêmes valeurs dans un tableau ouvert au clavier.
@@ -408,12 +408,10 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await other.keyboard.press('Enter');
     const bid = price + 1;
     await expect(other.getByRole('status')).toContainText(
-      `Achat en attente : 30 × Blé à ${bid} oboles. Le séquestre retient ${french.format(30 * bid)} oboles`,
+      `Achat en attente : 30 × Blé à ${bid} oboles. Le séquestre retient ${oboles(30 * bid)}`,
     );
     await expect(
-      other.getByText(
-        `Blé : 30 sur 30 à ${bid} oboles (séquestre : ${french.format(30 * bid)} oboles)`,
-      ),
+      other.getByText(`Blé : 30 sur 30 à ${bid} oboles (séquestre : ${oboles(30 * bid)})`),
     ).toBeVisible();
     // Le carnet public montre l'achat de l'autre côté ; le vendeur le voit, sans savoir de qui il vient.
     await page.reload();
@@ -425,7 +423,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Quantité', { exact: true }).fill('4');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText(
-      `Vente conclue : 4 × Blé pour ${french.format(netOf(4 * bid))} oboles.`,
+      `Vente conclue : 4 × Blé pour ${oboles(netOf(4 * bid))}.`,
     );
     await expect(bids.getByRole('row', { name: `${bid} 26` })).toBeVisible();
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
@@ -433,17 +431,15 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByText('Blé : 34')).toBeVisible();
     await expect(other.getByText(/Ordres ouverts à l'agora : 1 achat, /)).toBeVisible();
     await expect(
-      other.getByText(`${french.format(3000 - 30 * price - 30 * bid)} oboles`, { exact: true }),
+      other.getByText(`${oboles(3000 - 30 * price - 30 * bid)}`, { exact: true }),
     ).toBeVisible();
     await expect(
-      other.getByText(
-        `plus ${french.format(26 * bid)} oboles au séquestre pour vos achats en attente`,
-      ),
+      other.getByText(`plus ${oboles(26 * bid)} au séquestre pour vos achats en attente`),
     ).toBeVisible();
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await other.getByRole('button', { name: /^Annuler l'achat de 26 × Blé/ }).click();
     await expect(other.getByRole('status')).toContainText(
-      `Achat annulé : 26 × Blé ; votre trésorerie récupère ${french.format(26 * bid)} oboles.`,
+      `Achat annulé : 26 × Blé ; votre trésorerie récupère ${oboles(26 * bid)}.`,
     );
     await expect(other.getByText('Aucun ordre en attente.')).toBeVisible();
 
@@ -455,7 +451,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Quantité', { exact: true }).fill('6');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText(
-      `Vente déposée : 6 × Blé à ${french.format(dear)} oboles.`,
+      `Vente déposée : 6 × Blé à ${oboles(dear)}.`,
     );
     await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
@@ -464,12 +460,10 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription('');
     await other.keyboard.press('Enter');
     await expect(other.getByRole('status')).toContainText(
-      `Achat partiel : 3 × Blé sur 6 pour ${french.format(3 * dear)} oboles. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
+      `Achat partiel : 3 × Blé sur 6 pour ${oboles(3 * dear)}. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
     );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
-    await expect(
-      other.getByText(`${french.format(left - 3 * dear)} oboles`, { exact: true }),
-    ).toBeVisible();
+    await expect(other.getByText(`${oboles(left - 3 * dear)}`, { exact: true })).toBeVisible();
     await expect(other.getByText('Blé : 37')).toBeVisible();
     await context.close();
     // Trois échanges, taxés un par un : le vendeur touche le net de chacun.
@@ -485,9 +479,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   // Le vendeur est payé, son blé est parti, sa vente a quitté la liste.
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.reload();
-  await expect(
-    page.getByText(`${french.format(3000 + paid)} oboles`, { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText(`${oboles(3000 + paid)}`, { exact: true })).toBeVisible();
   await expect(page.getByText('Blé : 3', { exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ordres en attente' })).toBeVisible();
