@@ -140,27 +140,27 @@ it('double clic : le second clic n’agit pas dans la liste, ni un clic au point
   const editor = await openVersion(2);
   type(editor);
   const schedule = button('Programmer la version 3 à la prochaine clôture');
-  // Souris : le second clic porte le compte 2. Il n'agit pas, et son appui ne prend pas le foyer.
-  const stray = (detail: number) => {
+  const clock = vi.spyOn(performance, 'now');
+  const stray = (detail: number, now: number) => {
+    clock.mockReturnValue(now);
     const focusKept = !fireEvent.mouseDown(schedule, { detail });
     fireEvent.click(schedule, { detail });
     return focusKept;
   };
-  expect(stray(2)).toBe(true);
-  const clock = vi.spyOn(performance, 'now');
-  // Toucher : le compte reste à 1. Une confirmation se referme, la fiche suivante remonte sous le doigt.
-  for (const [ask, keep] of [
-    ['Ouvrir la version 3', 'Garder le texte modifié'],
-    ['Annuler la programmation de la version 3', 'Garder la programmation'],
+  // Souris : le second clic porte le compte 2. Il n'agit pas, et son appui ne prend pas le foyer.
+  expect(stray(2, 0)).toBe(true);
+  // Toucher : le compte reste à 1. Horloge figée, fermeture à 1000 : ignoré à 1499 ; à 1500, le clic agit.
+  for (const [closedAt, ask, keep] of [
+    [1000, 'Ouvrir la version 3', 'Garder le texte modifié'],
+    [1500, 'Annuler la programmation de la version 3', 'Garder la programmation'],
   ] as const) {
+    clock.mockReturnValue(closedAt);
     fireEvent.click(button(ask), { detail: 1 });
     fireEvent.click(button(keep), { detail: 1 });
-    expect(stray(1)).toBe(true);
-    // Passé le délai, les clics au pointeur agissent de nouveau : le suivant rouvre une confirmation.
-    clock.mockReturnValue(performance.now() + 500);
+    expect(stray(1, closedAt + 499)).toBe(true);
   }
   expect(api.adminCommand).not.toHaveBeenCalled();
-  expect(stray(1)).toBe(false);
+  expect(stray(1, 2000)).toBe(false);
   clock.mockRestore();
   await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(1));
 });
