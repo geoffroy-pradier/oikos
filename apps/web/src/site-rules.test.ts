@@ -57,6 +57,36 @@ describe('parseSiteRules', () => {
     );
   });
 
+  it('prix d’une relance : entretien plus travailleurs × salaire du jour de la cité (4.4, 5.5)', () => {
+    const staff = { dailyWageOboles: { kalliste: 5, elaia: 0 } };
+    const rules = parseSiteRules(raw({ sites: { ...config.sites, staff } }));
+    const upkeep = rules?.upkeepOf('grow_wheat') ?? -1;
+    // Champ de blé : 4 travailleurs ; moulin : 2 ; à Elaia, salaire nul.
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste')).toBe(upkeep + 20);
+    expect(rules?.restartCostOf('mill_flour', 'kalliste')).toBe(
+      (rules?.upkeepOf('mill_flour') ?? -1) + 10,
+    );
+    expect(rules?.restartCostOf('grow_wheat', 'elaia')).toBe(upkeep);
+    // Cité inconnue ou non lue, version publiée avant le personnel : aucun salaire.
+    expect(rules?.restartCostOf('grow_wheat', 'thera')).toBe(upkeep);
+    expect(rules?.restartCostOf('grow_wheat', null)).toBe(upkeep);
+    expect(rules?.restartCostOf('grow_wheat', 'constructor')).toBe(upkeep);
+    expect(parseSiteRules(raw())?.restartCostOf('grow_wheat', 'kalliste')).toBe(upkeep);
+    expect(parseSiteRules(raw({ sites: null }))?.restartCostOf('grow_wheat', 'kalliste')).toBe(0);
+    // Recette retirée : pas de tarif. Un salaire hors bornes rend les règles illisibles.
+    expect(rules?.restartCostOf('inconnue', 'kalliste')).toBe(0);
+    const bad = { dailyWageOboles: { kalliste: 1.5 } };
+    expect(parseSiteRules(raw({ sites: { ...config.sites, staff: bad } }))).toBeNull();
+    // Au-delà des entiers sûrs, aucun prix n'est annoncé.
+    const many = config.recipes.map((recipe) => ({ ...recipe, workers: 2 ** 40 }));
+    const huge = { dailyWageOboles: { kalliste: 1_000_000_000 } };
+    expect(
+      parseSiteRules(
+        raw({ recipes: many, sites: { ...config.sites, staff: huge } }),
+      )?.restartCostOf('grow_wheat', 'kalliste'),
+    ).toBeNull();
+  });
+
   it('applique les valeurs par défaut du schéma partagé à une version sans section des sites', () => {
     const rules = parseSiteRules(raw({ sites: null }));
     expect(rules?.limit).toBe(DEFAULT_SITES.limitByHeadquartersLevel[0]);

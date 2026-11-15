@@ -11,11 +11,12 @@ import { parseSiteRules } from '../site-rules';
 // Prix envoyés par la carte des sites : celui affiché au premier envoi, puis, tant que la clé reste en
 // attente, ce même prix, même quand le tarif relu a changé (ticket 145).
 const config = INITIAL_CONFIG as GameConfig;
-const withPrices = (fieldCost: number, fieldUpkeep: number) =>
+const withPrices = (fieldCost: number, fieldUpkeep: number, dailyWageOboles = {}) =>
   parseSiteRules({
     recipes: config.recipes,
     sites: {
       ...config.sites,
+      staff: { dailyWageOboles },
       acquisitionCostOboles: { ...config.sites.acquisitionCostOboles, field: fieldCost },
       upkeep: {
         ...config.sites.upkeep,
@@ -39,10 +40,22 @@ vi.mock('../api', () => ({
   restartSite: api.restartSite,
   setSiteRecipe: vi.fn(),
 }));
+/** Identité de la cité du site : Kallistè, dont le salaire du jour vient des règles des sites. */
+const identity = {
+  city_id: 'c1',
+  slug: 'kalliste',
+  terroir: null,
+  has_port: true,
+  patron_god_id: null,
+  starting_recipe_id: 'grow_wheat',
+};
 vi.mock('../data', () => {
-  const rows = [halted];
+  const [sites, identities] = [[halted], [identity]];
   return {
-    useRows: () => ({ rows, failed: false, reload: () => Promise.resolve(rows) }),
+    useRows: (view: string) => {
+      const rows = view === 'city_identity' ? identities : sites;
+      return { rows, failed: false, reload: () => Promise.resolve(rows) };
+    },
     useSiteRules: () => ({ rules: state.rules, failed: false, reload: () => Promise.resolve() }),
   };
 });
@@ -85,6 +98,23 @@ const sends = (command: typeof api.acquireSite) =>
   command.mock.calls.map((call) => ({ price: call[1] as unknown, key: call[3] as unknown }));
 
 describe('prix envoyés par la carte des sites', () => {
+  it('relance avec des salaires : le prix envoyé est l’entretien plus les salaires du site dans sa cité', async () => {
+    // Champ : 30 d'entretien, 4 travailleurs à 5 oboles à Kallistè ; ailleurs, aucun salaire.
+    state.rules = withPrices(600, 30, { kalliste: 5, elaia: 9 });
+    // Réponse reçue : la clé ne reste pas en attente pour l'essai suivant.
+    api.restartSite.mockResolvedValue({
+      ok: true,
+      data: { siteId: 's1', upkeepOboles: 30, wagesOboles: 20, cycleStartedAt: halted.halted_at },
+    });
+    await show();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Relancer : .*8 drachmes 2 oboles/ }),
+    );
+    await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
+    expect(sends(api.restartSite).map((sent) => sent.price)).toEqual([50]);
+    expect(await screen.findByText(/Site relancé.*8 drachmes 2 oboles/)).toBeTruthy();
+  });
+
   it('relance : le prix affiché, puis le même sous la clé en attente ; après « prix changé », le nouveau sous une clé neuve', async () => {
     api.restartSite.mockResolvedValueOnce(LOST).mockResolvedValueOnce(CHANGED);
     api.restartSite.mockResolvedValue(LOST);

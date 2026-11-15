@@ -61,7 +61,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le service ne modifie que quelques colonnes (nom d'une maison, cycle et arrêt d'un site, annulation d'un ordre, report de la demande, valeurs d'un chandelier de prix ou d'un prix observé), n'exécute aucune fonction de déclencheur du jeu et ne possède que le schéma de sa file de tâches.
   Il garde le droit, accordé à tous par Postgres, de créer des tables temporaires : elles sont sans effet sur le jeu.
 - Les données privées d'un concurrent (stocks, trésorerie, règles d'intendant) ne quittent jamais le serveur.
-- Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
+- Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant, nature de la ligne), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
   Il ne lit ni les autres lignes de ces écritures (contrepartie, taxe), ni leur détail (`meta`), ni les échanges où il achète.
   Les vues `my_cash_flows`, `my_valued_stocks` et `my_balance_sheet` en sont des agrégats calculés à la lecture, et le compte de résultat (`my_income_statement`, `my_income_statement_by_season`) un agrégat de `my_cash_flows`, sans droit supplémentaire ;
   leur horloge (heure de clôture, fuseau, durée de la saison) vient de `game.clock_rules()`, seul extrait de la section `clock` de la configuration rendu aux joueurs.
@@ -83,8 +83,14 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   sa clé garantit qu'une clôture n'est appliquée qu'une fois. Le service n'écrit pas l'heure réelle d'une clôture (`finished_at`, toujours l'horloge de la base) : il ne peut donc pas enregistrer une clôture avant son heure.
   En plus, la base refuse une seconde écriture d'entretien (`upkeep.daily`) pour la même maison et le même jour de jeu ;
   cette écriture porte l'identifiant de la maison et le jour de jeu sous une seule forme admise (identifiant en minuscules, jour entier), pour que la même clé ne s'écrive pas de deux façons.
+  Le détail d'une écriture `upkeep.daily` (`meta.sites`) donne, pour chaque site payé, son dû (`oboles`) et ses parts : entretien (`upkeepOboles`) et salaires (`wagesOboles`).
   La relance d'un site par sa maison est une écriture d'une autre nature (`upkeep.restart`), que cette unicité ne concerne pas.
   Les joueurs ne lisent pas la table des clôtures.
+- Nature d'une ligne du grand livre (`ledger_lines.nature`, migration 60) : marqueur facultatif, pris dans une liste fermée tenue par la base (`upkeep`, `wages` ; `LEDGER_LINE_NATURES` dans `packages/sim`), écrit à l'insertion et jamais modifié, puisque le grand livre est en ajout seul.
+  Les lignes d'avant le marqueur n'en ont pas ; les comptes de la maison les classent par la nature de leur écriture (4.1).
+  Une nature nouvelle recrée la contrainte `ledger_lines_nature_known` avec la liste étendue, par une migration nouvelle.
+- Une vue de `public` (ou sa fonction) créée par un `create or replace` sans condition ne gagne pas de colonne : sa migration la recrée telle quelle quand la suite est rejouée (`pnpm test:db:replay`), et échouerait sur une colonne de plus.
+  Une donnée nouvelle passe par une vue nouvelle, ou par une colonne `jsonb` existante (ainsi le salaire du jour, rendu dans la colonne `sites` de `site_rules`) : voir l'ADR 0006.
 - Activations de configuration (`config.activations`, en ajout seul) : la date de création est toujours l'heure de la transaction, posée par une garde de la base pour tout appelant, et le service n'écrit ni cette date ni le rang (`seq`) ;
   la base refuse une échéance antérieure à cette heure. Une programmation est refusée à moins d'une minute de son échéance, puis contrôlée de nouveau à la validation (déclencheur différé) : validée après son échéance, elle est refusée.
   Une activation immédiate (sans échéance, réservée en pratique à la configuration initiale) prend effet à l'heure de sa transaction : elle est refusée si cette transaction est validée plus de cinq secondes après son début, si bien que son effet ne couvre jamais plus de ces cinq secondes de passé.

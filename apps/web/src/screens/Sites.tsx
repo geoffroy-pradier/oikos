@@ -70,7 +70,7 @@ export function SitesCard({
   // que l'identité n'est pas lue, ou si elle est illisible, tout est proposé et l'API tranche.
   const identityRows = useRows<unknown>(
     'city_identity',
-    'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
+    'city_id, slug, terroir, has_port, patron_god_id, starting_recipe_id',
     'city_id',
   );
   const identities = useMemo(
@@ -294,8 +294,8 @@ export function SitesCard({
     if (result?.ok) setChosen(({ [site.id]: _done, ...others }) => others);
   }
 
-  /** Relance un site à l'arrêt : la maison paie l'entretien d'un jour, le site repart (5.5). */
-  async function restart(site: Site, upkeep: number) {
+  /** Relance un site à l'arrêt : la maison paie un jour d'entretien et de salaires, le site repart (5.5). */
+  async function restart(site: Site, cost: number) {
     // Un refus reste attaché à sa clé (« le site vient de changer », prix changé) : le prochain essai en
     // prend une neuve. Sans réponse de l'API, la même clé rejoue la relance, au prix alors envoyé.
     const intent = restartIntent(site.id, site.halted_at ?? '');
@@ -306,13 +306,14 @@ export function SitesCard({
           pending,
           intent,
           () => crypto.randomUUID(),
-          upkeep,
+          cost,
           (key, sent) => restartSite(site.id, sent, house.accessToken, key),
         ),
       (data, replayed) =>
         t(replayed ? 'home.alreadyRestarted' : 'home.restarted', {
           site: siteName(site),
-          cost: money(data.upkeepOboles),
+          // Une réponse rejouée d'avant les salaires n'a pas `wagesOboles`.
+          cost: money(data.upkeepOboles + ((data.wagesOboles as number | undefined) ?? 0)),
         }),
     );
   }
@@ -502,6 +503,10 @@ export function SitesCard({
           const retired = alerts.includes('retired');
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
           const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
+          // Prix d'une relance : l'entretien et les salaires du site (5.5). Sans l'identité de la cité,
+          // aucun salaire n'est compté ; si elle en a, l'API refuse ce prix plutôt que d'en prélever un autre.
+          const slug = identities?.get(site.city_id)?.slug ?? null;
+          const restartCost = rules ? rules.restartCostOf(site.recipe_id, slug) : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -559,18 +564,18 @@ export function SitesCard({
                     {t('home.halted', { date: date.format(halted) })}
                   </p>
                   {/* Sans les règles, le prix est inconnu : pas de bouton qui annoncerait « 0 obole ». */}
-                  {upkeep !== null && (
+                  {restartCost !== null && (
                     <Button
                       variant="secondary"
                       className={WAITING}
                       aria-disabled={busy}
                       aria-label={t('home.restartSite', {
                         site: name,
-                        cost: money(upkeep),
+                        cost: money(restartCost),
                       })}
-                      onClick={() => void restart(site, upkeep)}
+                      onClick={() => void restart(site, restartCost)}
                     >
-                      {t('home.restart', { cost: money(upkeep) })}
+                      {t('home.restart', { cost: money(restartCost) })}
                     </Button>
                   )}
                 </div>

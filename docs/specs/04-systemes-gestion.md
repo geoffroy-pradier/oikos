@@ -8,7 +8,10 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), acquisitions (`acquisitions` : un site, un navire), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
+  Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
+  Un ticket qui ajoute une écriture de maison lui donne sa nature ici.
   Chaque ligne du grand livre y est comptée une fois et en entier : la somme des flux d'un compte sur une période est la variation de son solde, et un flux de somme nulle n'est pas affiché.
   Un achat en attente quitte la trésorerie le jour où son prix est retenu (nature séquestre) ;
   servi plus tard, c'est un achat du compte de séquestre, pas de la trésorerie.
@@ -19,6 +22,9 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   il n'y a ni variation de stock ni amortissement, les stocks sont au bilan.
   La monnaie de la maison y est sa trésorerie plus son séquestre : retenir ou rendre le prix d'un achat en attente est un mouvement entre ses deux comptes, sans effet sur le résultat, et l'achat est une charge le jour où il est servi (au flux de la seule trésorerie, un achat payé par le séquestre ne serait jamais une charge).
   Exploitation : ventes au brut, achats, taxes, entretien ; leur somme est le résultat (`operating_result`).
+  La colonne de l'entretien (`upkeep`) y porte le dû quotidien des sites, entretien et salaires, dont `my_cash_flows` donne le détail par nature.
+  Les colonnes du compte de résultat sont figées : la migration qui l'a créé le recrée tel quel quand la suite des migrations est rejouée, ce qu'une colonne de plus rendrait impossible.
+  Une nature nouvelle y entre dans une colonne existante, ou dans une vue nouvelle.
   Hors exploitation (`non_operating`) : acquisitions de sites et de navires, dotation de départ, et `other` pour tout le reste.
   Résultat plus hors exploitation font la variation de la monnaie de la maison sur la période (`cash_change`), dont `escrow_change` est la part du séquestre : la variation de la trésorerie seule est leur différence.
   La saison d'un jour de jeu est celle du moteur (`seasonIndexAt`) : des saisons de `seasonDays` jours de jeu (au plus 366) comptés depuis le lundi 5 janvier 1970, lues comme le jour avec l'horloge en vigueur à la lecture ;
@@ -119,6 +125,13 @@ Pour un atelier, rien n'est « accumulé » tant que les intrants ne sont pas co
 ## 4.4 Le personnel
 
 - **Travailleurs** : salariés recrutés sur le marché du travail de la cité, dont le salaire d'équilibre dépend de l'offre et de la demande locales. Moral influencé par salaire, logement, fêtes et cadence.
+  Dans la première version (ticket 255), les travailleurs sont attachés à leur site : sa recette dit combien il en faut (`workers`), et il n'y a pas de commande d'embauche.
+  Chacun est payé chaque jour le salaire du jour de la cité du site, un paramètre du back-office par cité (`staff.dailyWageOboles`), nul dans la configuration initiale ; une version publiée avant le personnel, ou une cité qu'elle ne nomme pas, ne paie aucun salaire.
+  Une section `staff` non vide nomme chaque cité de la configuration, et elles seules.
+  Salaires d'un site pour un jour = travailleurs × salaire du jour, en oboles, sans arrondi.
+  Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et détruits (puits `sink_npc_wages`, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.
+  Le salaire du jour est une règle publique, lue par les joueurs avec les règles des sites (vue `site_rules`, clé `staff` de la colonne `sites`).
+  Le salaire d'équilibre, le logement et le moral viendront ensuite (#258).
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
 

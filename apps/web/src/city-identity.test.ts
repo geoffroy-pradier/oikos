@@ -26,9 +26,10 @@ describe('identité des cités', () => {
   it('lit chaque cité par son identifiant ; champs nuls d’une version antérieure : valeurs par défaut', () => {
     const identities = parseCityIdentities([
       row(),
-      row({ city_id: 'c-2', terroir: null, has_port: null, patron_god_id: null }),
+      row({ city_id: 'c-2', terroir: null, has_port: null, patron_god_id: null, slug: 'ampelos' }),
     ]);
     expect(identities?.get('c-1')).toEqual({
+      slug: null,
       terroir: ['grow_grapes', 'catch_fish'],
       hasPort: true,
       patronGodId: 'dionysos',
@@ -36,6 +37,7 @@ describe('identité des cités', () => {
     });
     // Terroir ouvert, port, aucun dieu : comme l'API lit une version publiée avant les quatre cités.
     expect(identities?.get('c-2')).toEqual({
+      slug: 'ampelos',
       terroir: null,
       hasPort: true,
       patronGodId: null,
@@ -77,7 +79,13 @@ describe('identité des cités', () => {
     const t = await translator('fr');
     expect(
       describeCity(
-        { terroir: null, hasPort: false, patronGodId: null, startingRecipeId: 'grow_barley' },
+        {
+          slug: null,
+          terroir: null,
+          hasPort: false,
+          patronGodId: null,
+          startingRecipeId: 'grow_barley',
+        },
         t,
         'fr',
       ),
