@@ -1,5 +1,5 @@
 import { Button, Card } from '@oikos/ui';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
@@ -7,6 +7,7 @@ import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
+import { acquireIntent, acquireIntentBelow, outcomeKnown, pendingKeys } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { serverClock, syncServerClock } from '../server-clock';
 
@@ -52,10 +53,19 @@ export function SitesCard({
   // Production choisie pour chaque site (tant que le joueur n'a pas validé) et site à acquérir.
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [wanted, setWanted] = useState('');
-  // Une acquisition sans réponse garde sa clé : la renvoyer rejoue l'achat au lieu d'en payer un second.
-  const pending = useRef(new Map<string, string>());
+  // Une commande sans réponse garde sa clé, même onglet quitté : la renvoyer rejoue la commande au lieu
+  // de la payer une seconde fois.
+  const pending = useMemo(() => pendingKeys(house.id, () => window.sessionStorage), [house.id]);
   // Une commande à la fois, même pour deux activations que le rendu n'a pas eu le temps de séparer.
   const running = useRef(false);
+  // Sites lus, hors commande (à sa fin, écran rouvert, retour sur l'onglet) : une acquisition demandée
+  // avec moins de sites et restée sans réponse ne sera plus rejouée. Sa clé n'est rendue qu'ici, et le
+  // joueur est prévenu avant l'affichage : réessayer serait un nouvel achat.
+  useLayoutEffect(() => {
+    if (running.current || !sites.rows) return;
+    if (pending.settleWhere(acquireIntentBelow(sites.rows.length)) > 0)
+      setNotice({ target: ACQUIRE, kind: 'alert', text: t('home.acquireUnanswered') });
+  }, [pending, sites.rows, busy]);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
@@ -187,8 +197,7 @@ export function SitesCard({
     // L'arrêt fait partie de l'intention : relancer un site arrêté de nouveau est une autre demande, qui
     // ne doit pas rejouer la réponse d'une relance précédente restée sans réponse.
     const intent = `restart:${site.id}:${site.halted_at}`;
-    const key = pending.current.get(intent) ?? crypto.randomUUID();
-    pending.current.set(intent, key);
+    const key = pending.keyFor(intent, () => crypto.randomUUID());
     const result = await run(
       site.id,
       () => restartSite(site.id, house.accessToken, key),
@@ -200,18 +209,36 @@ export function SitesCard({
     );
     // Un refus reste attaché à sa clé (« le site vient de changer », trésorerie insuffisante) : le
     // prochain essai en prend une neuve. Sans réponse de l'API, la même clé rejoue la relance.
-    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(intent);
+    if (result && outcomeKnown(result)) pending.settle(intent);
   }
 
   async function acquire(event: FormEvent) {
     event.preventDefault();
     if (!offer) return;
     const recipeId = offer.recipe.id;
-    const key = pending.current.get(recipeId) ?? crypto.randomUUID();
-    pending.current.set(recipeId, key);
-    const result = await run(
+    // Un achat abouti sans réponse a ajouté un site, vu à la relecture : vouloir de nouveau la même
+    // production est alors un nouvel achat. Sans site de plus, l'issue reste inconnue : même clé.
+    const intent = acquireIntent(recipeId, sites.rows?.length ?? null);
+    // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
+    if (intent === null) return;
+    const key = pending.keyFor(intent, () => crypto.randomUUID());
+    const send = async () => {
+      const answer = await acquireSite(recipeId, house.accessToken, key);
+      // Issue connue : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée
+      // avant son registre, elle reste en attente.
+      if (outcomeKnown(answer)) pending.settle(intent);
+      return answer;
+    };
+    await run(
       ACQUIRE,
-      () => acquireSite(recipeId, house.accessToken, key),
+      async () => {
+        const first = await send();
+        if (first.ok || first.error.code !== 'INTERNAL') return first;
+        // Sans réponse, mais un site de plus qu'à l'envoi : l'achat a sans doute abouti. La même clé
+        // repart une fois, pour connaître l'issue.
+        const read = await sites.reload();
+        return read !== null && read.length > rows.length ? send() : first;
+      },
       // Rejeu : cet achat avait abouti lors d'un essai resté sans réponse. Rien n'est payé cette fois.
       (data, replayed) =>
         t(replayed ? 'home.alreadyAcquired' : 'home.acquired', {
@@ -219,8 +246,6 @@ export function SitesCard({
           cost: money(data.costOboles),
         }),
     );
-    // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
-    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.current.delete(recipeId);
   }
 
   /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */
@@ -473,7 +498,8 @@ export function SitesCard({
         })}
       </ul>
 
-      {rules && (
+      {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
+      {rules && sites.rows && (
         <form
           aria-labelledby="sites-acquire"
           className="flex flex-col gap-2 border-t border-border pt-3"
