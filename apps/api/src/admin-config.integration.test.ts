@@ -806,3 +806,236 @@ describe('admin.cancelActivation', () => {
     }
   });
 });
+
+describe('bien retiré encore détenu ou porté par un ordre ouvert (#191)', () => {
+  // Bien propre à cette exécution : aucun autre monde ne le porte. Il est rendu à zéro après chaque
+  // test, sinon plus aucune version sans lui ne se programmerait dans la base partagée.
+  // Le contrôle porte sur tous les mondes : une exécution tuée avant `afterAll(clearRelic)` laisse un
+  // bien `relic_*` détenu, et toute programmation de ce fichier (versions sans ce bien) est ensuite
+  // refusée (`CONFIG_GOOD_IN_USE`). Pour remettre la base en état : `pnpm db:reset`, ou, sans
+  // effacer la base, annuler les ordres ouverts `relic_*` par `market.cancelOrder` et rendre leurs
+  // stocks à un puits par le journal des stocks (`to_system = 'consumption'`), comme `clearRelic`.
+  const RELIC = `relic_${randomUUID().replace(/-/g, '').slice(0, 10)}`;
+  const relic = { id: RELIC, tier: 'finished' as const, referencePriceOboles: 40, elasticity: 1 };
+  const WITH_RELIC = { ...SAME_CLOCK, goods: [...SAME_CLOCK.goods, relic] };
+  const GRANT = SAME_CLOCK.starting.grantOboles;
+  // Le marché tant que le bien est en vigueur ; `app` est celui d'après son retrait.
+  const market = createApp({
+    db,
+    telemetry,
+    verifyToken: testVerifier,
+    rateLimiter: unlimited,
+    loadConfig: async () => ({ ...TEST_CONFIG, config: WITH_RELIC }),
+  });
+  const WORLD = randomUUID();
+  const CITY = randomUUID();
+  const players: { user: string; houseId: string }[] = [];
+  beforeAll(async () => {
+    await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`r-${WORLD.slice(0, 12)}`}, 'Bien retiré')`.execute(
+      owner,
+    );
+    await sql`insert into game.cities (id, world_id, slug, name) values (${CITY}, ${WORLD}, ${`c-${CITY.slice(0, 8)}`}, 'Agora')`.execute(
+      owner,
+    );
+  });
+  const moveStock = (
+    quantity: number,
+    ends:
+      | { from_inventory_id: string; to_system: string }
+      | { from_system: string; to_inventory_id: string },
+  ) =>
+    db
+      .insertInto('game.stock_ledger')
+      .values({ world_id: WORLD, good_id: RELIC, quantity, kind: 'test.relic', ...ends })
+      .execute();
+  /** Ce que le bien laisse : ordres ouverts annulés par leur maison, stock rendu à un puits. */
+  const clearRelic = async () => {
+    for (const player of players) {
+      const open = await db
+        .selectFrom('game.orders')
+        .select('id')
+        .where('house_id', '=', player.houseId)
+        .where('good_id', '=', RELIC)
+        .where('status', '=', 'open')
+        .execute();
+      for (const { id } of open)
+        expect(
+          (await send(player.user, 'market.cancelOrder', { orderId: id }, { aal2: false })).status,
+        ).toBe(200);
+    }
+    const held = await db
+      .selectFrom('game.inventories')
+      .select(['id', 'quantity'])
+      .where('world_id', '=', WORLD)
+      .where('good_id', '=', RELIC)
+      .where('quantity', '>', '0')
+      .execute();
+    for (const stock of held)
+      await moveStock(Number(stock.quantity), {
+        from_inventory_id: stock.id,
+        to_system: 'consumption',
+      });
+  };
+  afterAll(clearRelic);
+
+  const player = async (stock = 0) => {
+    const user = await newUser();
+    const founded = await send(
+      user,
+      'house.create',
+      {
+        cityId: CITY,
+        name: `Maison ${randomUUID()
+          .replace(/[^a-f]/g, '')
+          .slice(0, 8)}`,
+        blazon: { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' },
+      },
+      { aal2: false, via: market },
+    );
+    const houseId = (founded.body.data as unknown as { houseId: string }).houseId;
+    players.push({ user, houseId });
+    if (stock > 0) {
+      const inventory = await db
+        .insertInto('game.inventories')
+        .values({ world_id: WORLD, house_id: houseId, city_id: CITY, good_id: RELIC })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      await moveStock(stock, { from_system: 'production', to_inventory_id: inventory.id });
+    }
+    return { user, houseId };
+  };
+  const order = (
+    user: string,
+    side: 'buy' | 'sell',
+    price: number,
+    quantity: number,
+    via = market,
+  ) =>
+    send(
+      user,
+      'market.placeOrder',
+      { cityId: CITY, goodId: RELIC, side, price, quantity },
+      { aal2: false, via },
+    );
+  const publish = async (config: unknown) =>
+    (await send(designer, 'admin.publishConfig', { config })).body.data?.versionId ?? '';
+  /** Ce qu'Olympe montre de la version avant sa programmation. */
+  const retiredInUse = async (versionId: string) => {
+    const res = await app.request('/api/admin/config/versions', {
+      headers: { authorization: `Bearer aal2:${root}` },
+    });
+    const listing = (await res.json()) as {
+      data: { versions: { id: string; retiredInUse: { goods: { goodId: string }[] } }[] };
+    };
+    const version = listing.data.versions.find((entry) => entry.id === versionId);
+    return version?.retiredInUse.goods.filter((good) => good.goodId === RELIC);
+  };
+  const activations = (versionId: string) =>
+    db.selectFrom('config.activations').select('id').where('version_id', '=', versionId).execute();
+  const balances = async (houseId: string) =>
+    Object.fromEntries(
+      (
+        await db
+          .selectFrom('game.accounts')
+          .select(['kind', 'balance'])
+          .where('house_id', '=', houseId)
+          .execute()
+      ).map((account) => [account.kind, Number(account.balance)]),
+    );
+
+  it('refuse de programmer une version sans un bien détenu en stock, et Olympe le dit avant', async () => {
+    const [without, withRelic] = [await publish(SAME_CLOCK), await publish(WITH_RELIC)];
+    await player(7);
+    expect(await retiredInUse(without)).toEqual([
+      { goodId: RELIC, houses: 1, quantity: 7, openOrders: 0, escrowOboles: 0 },
+    ]);
+    expect(await retiredInUse(withRelic)).toEqual([]);
+    const refused = await send(root, 'admin.scheduleConfig', { versionId: without });
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_GOOD_IN_USE', fields: [`goods.${RELIC}`] } },
+    });
+    expect(await activations(without)).toEqual([]);
+    // La version qui garde le bien se programme ; le stock rendu, celle qui le retire aussi.
+    expect((await send(root, 'admin.scheduleConfig', { versionId: withRelic })).status).toBe(200);
+    await clearRelic();
+    expect(await retiredInUse(without)).toEqual([]);
+    expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
+  });
+
+  it('refuse une version sans un bien porté par un seul ordre d’achat ouvert, sans aucun stock ; acceptée après annulation', async () => {
+    const without = await publish(SAME_CLOCK);
+    const buyer = await player();
+    const placed = await order(buyer.user, 'buy', 8, 5);
+    expect(placed.status).toBe(200);
+    // Seul le séquestre porte le bien : aucune maison n'en détient une unité.
+    expect(await retiredInUse(without)).toEqual([
+      { goodId: RELIC, houses: 1, quantity: 0, openOrders: 1, escrowOboles: 40 },
+    ]);
+    expect(await send(root, 'admin.scheduleConfig', { versionId: without })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_GOOD_IN_USE', fields: [`goods.${RELIC}`] } },
+    });
+    expect(await activations(without)).toEqual([]);
+    const orderId = (placed.body.data as unknown as { orderId: string }).orderId;
+    const cancel = { aal2: false, via: market };
+    expect((await send(buyer.user, 'market.cancelOrder', { orderId }, cancel)).status).toBe(200);
+    expect(await retiredInUse(without)).toEqual([]);
+    expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
+  });
+
+  it('refuse une version sans un bien porté par un ordre ouvert ; retiré, l’ordre reste annulable et son séquestre rendu', async () => {
+    const without = await publish(SAME_CLOCK);
+    const [seller, buyer] = [await player(4), await player()];
+    // Ni l'un ni l'autre ne se croisent : tous deux attendent dans le carnet.
+    expect((await order(seller.user, 'sell', 50, 3)).status).toBe(200);
+    expect((await order(buyer.user, 'buy', 9, 5)).status).toBe(200);
+    expect(await balances(buyer.houseId)).toEqual({ house: GRANT - 45, escrow: 45 });
+    expect(await retiredInUse(without)).toEqual([
+      { goodId: RELIC, houses: 2, quantity: 4, openOrders: 2, escrowOboles: 45 },
+    ]);
+    expect(await send(root, 'admin.scheduleConfig', { versionId: without })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_GOOD_IN_USE', fields: [`goods.${RELIC}`] } },
+    });
+
+    // Repli, si le bien est retiré quand même (acquis entre la programmation et la clôture) : aucune
+    // erreur interne. Un nouvel ordre est refusé, les ordres ouverts s'annulent, le séquestre est rendu.
+    expect(await order(buyer.user, 'buy', 9, 1, app)).toMatchObject({
+      status: 404,
+      body: { error: { code: 'GOOD_NOT_FOUND' } },
+    });
+    for (const { user, houseId } of [buyer, seller]) {
+      const [open] = await db
+        .selectFrom('game.orders')
+        .select(['id', 'remaining'])
+        .where('house_id', '=', houseId)
+        .where('status', '=', 'open')
+        .execute();
+      const cancelled = await send(
+        user,
+        'market.cancelOrder',
+        { orderId: open?.id },
+        { aal2: false },
+      );
+      expect(cancelled).toMatchObject({
+        status: 200,
+        body: { data: { status: 'cancelled', released: Number(open?.remaining) } },
+      });
+    }
+    expect(await balances(buyer.houseId)).toEqual({ house: GRANT, escrow: 0 });
+    const stock = await db
+      .selectFrom('game.inventories')
+      .select(['quantity', 'reserved'])
+      .where('house_id', '=', seller.houseId)
+      .where('good_id', '=', RELIC)
+      .executeTakeFirstOrThrow();
+    expect(stock).toEqual({ quantity: '4', reserved: '0' });
+    // Le stock libéré reste détenu : la version qui retire le bien reste refusée tant qu'il l'est.
+    expect(await retiredInUse(without)).toEqual([
+      { goodId: RELIC, houses: 1, quantity: 4, openOrders: 0, escrowOboles: 0 },
+    ]);
+    await clearRelic();
+    expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
+  });
+});

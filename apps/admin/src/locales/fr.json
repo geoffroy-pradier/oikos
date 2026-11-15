@@ -202,6 +202,8 @@
     "version": "Version {{number}}",
     "active": "En vigueur",
     "scheduled": "Programmée pour le {{date}}",
+    "retiredInUse": "Biens retirés par cette version et encore détenus : sa programmation sera refusée tant qu'ils le sont.",
+    "goodInUse": "{{good}} — maisons : {{houses}} ; unités en stock : {{quantity}} ; ordres ouverts : {{orders}} ; séquestre : {{escrow}} oboles",
     "noNote": "Sans note",
     "by": "par {{account}}, le {{date}}",
     "open": "Ouvrir la version {{number}}",
@@ -241,7 +243,8 @@
       "CONFIG_ACTIVATION_PAST": "Trop tard pour annuler : l'échéance est passée ou tombe dans moins d'une minute. Programmez un retour arrière.",
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
-      "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
+      "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé.",
+      "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
     "tableForm": {
