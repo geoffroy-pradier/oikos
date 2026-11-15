@@ -231,7 +231,7 @@
       "FORBIDDEN": "Your role does not allow this action.",
       "CONFIG_VERSION_NOT_FOUND": "This version no longer exists.",
       "CONFIG_REVIEW_REQUIRED": "The author of a version does not schedule it: another account must review and schedule it.",
-      "CONFIG_TICK_CHANGED": "The tick duration cannot change: the index of the ticks already played depends on it. Keep the one of the version in effect.",
+      "CONFIG_CLOCK_CHANGED": "The world clock cannot change: keep the tick duration, close hour and timezone of the version in effect.",
       "CONFIG_ACTIVATION_NOT_FOUND": "This activation no longer exists.",
       "CONFIG_ACTIVATION_CANCELLED": "This activation is already cancelled.",
       "CONFIG_ACTIVATION_PAST": "Too late to cancel: the close has passed or is less than a minute away. Schedule a rollback instead.",

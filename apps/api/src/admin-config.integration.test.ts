@@ -86,8 +86,10 @@ const send = async (
     },
   };
 };
+// Les versions publiées ici gardent l'horloge chargée par ce fichier : elle ne change pas (#123).
+const SAME_CLOCK = { ...TEST_CONFIG.config, clock };
 const candidate = (grantOboles: number) => ({
-  ...TEST_CONFIG.config,
+  ...SAME_CLOCK,
   starting: { ...TEST_CONFIG.config.starting, grantOboles },
 });
 const versionsBy = (userId: string) =>
@@ -323,19 +325,29 @@ describe('admin.publishConfig', () => {
     expect(await versionsBy(author)).toEqual([]);
   });
 
-  it('refuse une version qui change la durée du tick, sans rien enregistrer (#123)', async () => {
+  it('refuse une version qui change l’horloge (durée du tick, heure ou fuseau de clôture), sans rien enregistrer (#123)', async () => {
     const author = await newUser('super_admin');
-    for (const tickMinutes of [5, 20]) {
-      const base = candidate(3000) as { clock: Record<string, unknown> };
+    const base = candidate(3000) as { clock: Record<string, unknown> };
+    for (const [change, fields] of [
+      [{ tickMinutes: 5 }, ['clock.tickMinutes']],
+      [{ tickMinutes: 20 }, ['clock.tickMinutes']],
+      [{ dailyCloseHour: 6 }, ['clock.dailyCloseHour']],
+      [{ timezone: 'UTC', dailyCloseHour: 2 }, ['clock.dailyCloseHour', 'clock.timezone']],
+    ] as const) {
       const refused = await send(author, 'admin.publishConfig', {
-        config: { ...base, clock: { ...base.clock, tickMinutes } },
+        config: { ...base, clock: { ...base.clock, ...change } },
       });
       expect(refused).toMatchObject({
         status: 409,
-        body: { error: { code: 'CONFIG_TICK_CHANGED', fields: ['clock.tickMinutes'] } },
+        body: { error: { code: 'CONFIG_CLOCK_CHANGED', fields } },
       });
     }
-    expect(await versionsBy(author)).toEqual([]);
+    // La saison, elle, reste réglable.
+    const seasons = await send(author, 'admin.publishConfig', {
+      config: { ...base, clock: { ...base.clock, seasonDays: 14 } },
+    });
+    expect(seasons.status).toBe(200);
+    expect(await versionsBy(author)).toHaveLength(1);
   });
 });
 
@@ -343,7 +355,7 @@ describe('admin.scheduleConfig', () => {
   it('programme l’activation à la prochaine clôture quotidienne, pas avant', async () => {
     const author = await newUser('game_designer', root);
     // Même contenu que la configuration de test : l'activation ne change rien pour les autres suites.
-    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const published = await send(author, 'admin.publishConfig', { config: SAME_CLOCK });
     const versionId = published.body.data?.versionId ?? '';
     const before = new Date();
     // Revue par une seconde personne : c'est un autre compte que l'auteur qui programme.
@@ -373,8 +385,8 @@ describe('admin.scheduleConfig', () => {
   it('retour arrière : reprogrammer une version antérieure la remet en vigueur à la clôture', async () => {
     const author = await newUser('super_admin');
     const publish = async () =>
-      (await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config })).body.data
-        ?.versionId ?? '';
+      (await send(author, 'admin.publishConfig', { config: SAME_CLOCK })).body.data?.versionId ??
+      '';
     const [older, newer] = [await publish(), await publish()];
     await send(designer, 'admin.scheduleConfig', { versionId: newer });
     const back = await send(designer, 'admin.scheduleConfig', { versionId: older });
@@ -383,7 +395,7 @@ describe('admin.scheduleConfig', () => {
 
   it('double validation : l’auteur ne programme pas sa version tant qu’un autre compte ne l’a pas fait', async () => {
     const author = await newUser('game_designer', root);
-    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const published = await send(author, 'admin.publishConfig', { config: SAME_CLOCK });
     const versionId = published.body.data?.versionId ?? '';
     const activations = () =>
       db
@@ -419,7 +431,7 @@ describe('admin.scheduleConfig', () => {
   it('une version sans auteur (configuration initiale) se programme sans revue', async () => {
     const initial = await db
       .insertInto('config.versions')
-      .values({ payload: JSON.stringify(TEST_CONFIG.config), note: 'sans auteur' })
+      .values({ payload: JSON.stringify(SAME_CLOCK), note: 'sans auteur' })
       .returning('id')
       .executeTakeFirstOrThrow();
     expect((await send(designer, 'admin.scheduleConfig', { versionId: initial.id })).status).toBe(
@@ -439,7 +451,7 @@ describe('admin.scheduleConfig', () => {
       settings: { allowSelfReview: true },
     });
     const author = await newUser('game_designer', root);
-    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const published = await send(author, 'admin.publishConfig', { config: SAME_CLOCK });
     const versionId = published.body.data?.versionId ?? '';
     const selfScheduled = await lenient.request('/api/commands/admin.scheduleConfig', {
       method: 'POST',
@@ -481,8 +493,8 @@ describe('admin.scheduleConfig', () => {
   it('refuse de programmer une version qui change la durée du tick (#123)', async () => {
     // Version écrite directement en base, avant le refus à la publication.
     const other = {
-      ...TEST_CONFIG.config,
-      clock: { ...TEST_CONFIG.config.clock, tickMinutes: 20 },
+      ...SAME_CLOCK,
+      clock: { ...clock, tickMinutes: 20 },
     };
     const stale = await db
       .insertInto('config.versions')
@@ -492,7 +504,7 @@ describe('admin.scheduleConfig', () => {
     const refused = await send(designer, 'admin.scheduleConfig', { versionId: stale.id });
     expect(refused).toMatchObject({
       status: 409,
-      body: { error: { code: 'CONFIG_TICK_CHANGED', fields: ['clock.tickMinutes'] } },
+      body: { error: { code: 'CONFIG_CLOCK_CHANGED', fields: ['clock.tickMinutes'] } },
     });
     const activations = await db
       .selectFrom('config.activations')
@@ -515,7 +527,7 @@ describe('admin.scheduleConfig', () => {
 describe('admin.cancelActivation', () => {
   /** Publie une version sans effet sur les autres suites, programmée par un second compte. */
   async function scheduled(author: string, reviewer = root) {
-    const published = await send(author, 'admin.publishConfig', { config: TEST_CONFIG.config });
+    const published = await send(author, 'admin.publishConfig', { config: SAME_CLOCK });
     const versionId = published.body.data?.versionId ?? '';
     const { body } = await send(reviewer, 'admin.scheduleConfig', { versionId });
     const activateAt = body.data?.activateAt ?? '';
@@ -644,7 +656,7 @@ describe('admin.cancelActivation', () => {
   it('concurrence : annuler pendant qu’une autre version est programmée pour la même clôture', async () => {
     for (let round = 0; round < 4; round++) {
       const first = await scheduled(designer);
-      const other = await send(designer, 'admin.publishConfig', { config: TEST_CONFIG.config });
+      const other = await send(designer, 'admin.publishConfig', { config: SAME_CLOCK });
       const otherId = other.body.data?.versionId ?? '';
       // En même temps : la première est annulée, une autre version est programmée, et la première
       // (déjà revue) est reprogrammée par son auteur. Aucune ne tombe en panne.

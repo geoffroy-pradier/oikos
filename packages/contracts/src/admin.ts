@@ -29,8 +29,8 @@ export type AdminPublishConfigOutput = z.infer<typeof adminPublishConfigOutputSc
 export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = [
   'FORBIDDEN',
   'CONFIG_INVALID',
-  /** La version change la durée du tick : refusé tant que l'indice des ticks en dépend (#123). */
-  'CONFIG_TICK_CHANGED',
+  /** La version change l'horloge (durée du tick, heure ou fuseau de clôture) : refusé (#123). */
+  'CONFIG_CLOCK_CHANGED',
 ] as const;
 
 /**
@@ -53,7 +53,7 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   /** La version attend sa revue : un autre compte que son auteur doit la programmer. */
   'CONFIG_REVIEW_REQUIRED',
   'CONFIG_INVALID',
-  'CONFIG_TICK_CHANGED',
+  'CONFIG_CLOCK_CHANGED',
 ] as const;
 
 /**

@@ -572,10 +572,10 @@ Rien n'empêche aujourd'hui de publier une configuration qui change `tickMinutes
 
 - [ ] Décision écrite dans la spécification : l'indice de tick devient indépendant de la durée (compteur par monde, ou origine et durée enregistrées à chaque changement), ou bien le changement de durée est refusé à la publication tant qu'une migration d'indice n'existe pas
 - [ ] Après un changement de durée de tick (plus longue et plus courte), le monde continue de jouer ses ticks : ni tick perdu, ni tick doublé, ni rattrapage de ticks antérieurs au changement (sans objet avec la décision retenue : le changement de durée est refusé, voir la demande de fusion)
-- [ ] Tests d'intégration : 10 → 20 minutes et 10 → 5 minutes, avec demande des PNJ et chandeliers toujours servis ; deux moteurs concurrents pendant le changement
+- [ ] Tests d'intégration : 10 → 20 minutes et 10 → 5 minutes, avec demande des PNJ et chandeliers toujours servis ; deux moteurs concurrents pendant le changement (sans objet avec la décision retenue : remplacés par les tests du refus)
 - [ ] Un monde qui ne peut pas jouer son tick est visible dans la Vigie (pas seulement un `console.warn`)
 - [ ] Le drapeau `daily_close` des ticks est supprimé ou rendu cohérent avec la table des clôtures jouées
-- [ ] La programmation d'une version (`admin.scheduleConfig`) et la clôture quotidienne utilisent le même calcul de l'instant de clôture (`dailyCloseAt`) : aujourd'hui la programmation vise `nextDailyClose`, fondé sur les ticks, qui diverge quand l'heure de clôture est sautée par l'heure d'été, avec un fuseau à la demi-heure et un tick de 60 minutes, ou quand la version programmée change l'heure ou le fuseau de clôture ; testé dans ces trois cas
+- [ ] La programmation d'une version (`admin.scheduleConfig`) et la clôture quotidienne utilisent le même calcul de l'instant de clôture (`dailyCloseAt`) : aujourd'hui la programmation vise `nextDailyClose`, fondé sur les ticks, qui diverge quand l'heure de clôture est sautée par l'heure d'été, avec un fuseau à la demi-heure et un tick de 60 minutes, ou quand la version programmée change l'heure ou le fuseau de clôture ; testé dans ces trois cas (le troisième, changement d'heure ou de fuseau, est refusé par la décision retenue)
 
 ## Hors périmètre
 

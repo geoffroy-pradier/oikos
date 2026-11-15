@@ -1,4 +1,4 @@
-import { publishVersion, scheduleActivation, validateConfig } from '@oikos/config';
+import { publishVersion, scheduleActivation, validateConfig, type GameConfig } from '@oikos/config';
 import {
   ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
   ADMIN_PUBLISH_CONFIG_ERROR_CODES,
@@ -15,12 +15,23 @@ import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
-const tickChanged = (tickMinutes: number) => ({
+/**
+ * L'horloge d'un monde ne change pas (#123). L'indice d'un tick se compte en durées de tick depuis
+ * l'origine : changer la durée changerait l'échelle des indices déjà joués et bloquerait le monde. Changer
+ * l'heure ou le fuseau de clôture déplacerait le jour de jeu d'une version programmée « à la prochaine
+ * clôture » : elle entrerait en vigueur à l'ancienne heure, et la clôture de ce jour la lirait ou non selon
+ * le sens du changement. Rend les champs d'horloge qui diffèrent de la version en vigueur.
+ */
+const clockChanges = (next: GameConfig['clock'], current: GameConfig['clock']) =>
+  (['tickMinutes', 'dailyCloseHour', 'timezone'] as const).filter(
+    (key) => next[key] !== current[key],
+  );
+const clockChanged = (fields: readonly string[]) => ({
   ok: false as const,
   error: {
-    code: 'CONFIG_TICK_CHANGED',
-    message: `The tick duration cannot change: the version in effect uses ${tickMinutes}-minute ticks.`,
-    fields: ['clock.tickMinutes'],
+    code: 'CONFIG_CLOCK_CHANGED',
+    message: 'The world clock (tick duration, close hour, timezone) cannot change.',
+    fields: fields.map((key) => `clock.${key}`),
   },
 });
 
@@ -35,12 +46,10 @@ export const adminPublishConfig = defineCommand({
   output: adminPublishConfigOutputSchema,
   errors: ADMIN_PUBLISH_CONFIG_ERROR_CODES,
   async handler({ trx, userId, emit, config }, input) {
-    // L'indice d'un tick se compte en durées de tick depuis l'origine : changer la durée changerait
-    // l'échelle des indices déjà joués et bloquerait le monde (#123). Refusé, à la publication comme à la
-    // programmation, tant qu'aucune migration des indices n'existe.
+    // L'horloge ne change pas (#123) : refusé à la publication comme à la programmation.
     const parsed = validateConfig(input.config);
-    if (parsed.ok && parsed.config.clock.tickMinutes !== config.clock.tickMinutes)
-      return tickChanged(config.clock.tickMinutes);
+    const changed = parsed.ok ? clockChanges(parsed.config.clock, config.clock) : [];
+    if (changed.length > 0) return clockChanged(changed);
     const published = await publishVersion(trx, input.config, {
       note: input.note,
       createdBy: userId,
@@ -127,8 +136,8 @@ export const adminScheduleConfig = defineCommand({
         },
       };
     }
-    if (stored.config.clock.tickMinutes !== config.clock.tickMinutes)
-      return tickChanged(config.clock.tickMinutes);
+    const changed = clockChanges(stored.config.clock, config.clock);
+    if (changed.length > 0) return clockChanged(changed);
     const activateAt = nextDailyClose(now, config.clock);
     await scheduleActivation(trx, version.id, activateAt, userId);
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };

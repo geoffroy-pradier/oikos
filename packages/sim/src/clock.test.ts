@@ -151,6 +151,10 @@ describe('bascule de saison', () => {
   });
 });
 
+/** Premier tick qui commence à l'instant donné ou après. */
+const firstTickFrom = (instant: Date, tickMinutes: number) =>
+  tickIndexAt(new Date(instant.getTime() - 1), tickMinutes) + 1;
+
 describe('prochaine clôture quotidienne', () => {
   it('est la clôture du jour avant 04 h 00 locales, celle du lendemain ensuite', () => {
     // Hiver : 04 h 00 à Paris = 03 h 00 UTC.
@@ -201,9 +205,26 @@ describe('prochaine clôture quotidienne', () => {
     expect(close.toISOString()).toBe(
       dailyCloseAt(gameDayAt(after, clock) + 1, clock).toISOString(),
     );
-    // Et le tick qui le contient porte le drapeau de clôture.
-    expect(isDailyClose(tickIndexAt(close, clock.tickMinutes), clock)).toBe(true);
+    // Le premier tick qui commence à cet instant ou après porte le drapeau de clôture, pas celui d'avant.
+    const first = firstTickFrom(close, clock.tickMinutes);
+    expect(isDailyClose(first, clock)).toBe(true);
+    expect(isDailyClose(first - 1, clock)).toBe(false);
+    expect(isDailyClose(first + 1, clock)).toBe(false);
   });
+
+  it.each(['Asia/Kolkata', 'Asia/Kathmandu', 'Australia/Lord_Howe', 'America/St_Johns'])(
+    '%s, tick d’une heure : une bascule de saison par semaine, le lundi (#123)',
+    (timezone) => {
+      const clock = { dailyCloseHour: 4, timezone, tickMinutes: 60, seasonDays: 7 };
+      const from = tickIndexAt(new Date('2026-11-01T00:00:00Z'), 60);
+      const switches: number[] = [];
+      for (let index = from; index < from + 28 * 24; index++)
+        if (isSeasonSwitch(index, clock)) switches.push(index);
+      expect(switches).toHaveLength(4);
+      for (const index of switches)
+        expect(new Date(gameDayDate(gameDayAt(tickStart(index, 60), clock))).getUTCDay()).toBe(1);
+    },
+  );
 
   it('l’heure de clôture de la version en vigueur fait foi : changer d’heure déplace l’échéance', () => {
     const after = new Date('2026-01-15T12:00:00Z');
@@ -221,7 +242,7 @@ describe('prochaine clôture quotidienne', () => {
         expect(close.getTime() - ms).toBeLessThanOrEqual(
           25 * 3_600_000 + PARIS.tickMinutes * 60_000,
         );
-        expect(isDailyClose(tickIndexAt(close, PARIS.tickMinutes), PARIS)).toBe(true);
+        expect(isDailyClose(firstTickFrom(close, PARIS.tickMinutes), PARIS)).toBe(true);
       }),
     );
   });

@@ -62,21 +62,19 @@ export function localTime(instant: Date, timezone: string) {
 }
 
 /**
- * Vrai pour le tick dont l'intervalle contient l'instant d'une clôture quotidienne (`dailyCloseAt`) : le
- * même calcul que la clôture elle-même, que l'heure de clôture soit sautée par l'heure d'été ou que le
- * fuseau soit décalé d'une demi-heure.
+ * Vrai pour le premier tick qui commence à l'instant d'une clôture quotidienne (`dailyCloseAt`) ou après :
+ * il est le premier du nouveau jour de jeu, lit la configuration activée à cette clôture, et c'est à lui
+ * que la saison change. Même calcul que la clôture, que l'heure de clôture soit sautée par l'heure d'été
+ * ou que le fuseau soit décalé d'une demi-heure ou d'un quart d'heure.
  */
 export function isDailyClose(index: number, clock: ClockSettings): boolean {
-  // Le jour de jeu change exactement à l'instant de sa clôture : le tick en contient une si le jour de
-  // son dernier instant n'est pas celui de l'instant qui le précède (un tick dure moins d'un jour).
-  const start = tickStart(index, clock.tickMinutes).getTime();
-  const end = tickStart(index + 1, clock.tickMinutes).getTime();
-  // Filtre rapide, une seule lecture de l'heure locale : un tick qui commence à plus d'une heure (écart
-  // d'heure d'été compris) avant ou après l'heure de clôture, compte tenu de sa durée, n'en contient pas.
-  const { hour, minute } = localTime(new Date(start), clock.timezone);
+  const start = tickStart(index, clock.tickMinutes);
+  // Filtre rapide, une seule lecture de l'heure locale : un tick qui commence à plus de sa durée après
+  // l'heure de clôture, ou avant elle (écart d'heure d'été d'une heure compris), n'est pas le premier du jour.
+  const { hour, minute } = localTime(start, clock.timezone);
   const sinceClose = ((((hour - clock.dailyCloseHour) * 60 + minute) % 1440) + 1440) % 1440;
-  if (sinceClose > 60 && sinceClose < 1440 - clock.tickMinutes - 60) return false;
-  return gameDayAt(new Date(end - 1), clock) !== gameDayAt(new Date(start - 1), clock);
+  if (sinceClose > clock.tickMinutes + 60 && sinceClose < 1440 - 60) return false;
+  return gameDayAt(start, clock) !== gameDayAt(tickStart(index - 1, clock.tickMinutes), clock);
 }
 
 /** Ce dont dépend le jour de jeu : ni la durée du tick ni celle de la saison. */
