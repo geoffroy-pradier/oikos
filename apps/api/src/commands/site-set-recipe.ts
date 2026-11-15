@@ -4,7 +4,7 @@ import {
   siteSetRecipeOutputSchema,
 } from '@oikos/contracts';
 import { accrueWorkshop } from '@oikos/sim';
-import type { Recipe } from '@oikos/config';
+import { cityTerroirAdmits, type Recipe } from '@oikos/config';
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
@@ -15,8 +15,9 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
 });
 
 /**
- * Change la recette d'un site, parmi celles de son type. Ce qui est déjà produit doit d'abord être
- * récolté ; le cycle entamé est perdu, et le nouveau commence à l'instant présent (la base l'exige).
+ * Change la recette d'un site, parmi celles de son type et, pour une production primaire, du terroir de
+ * sa cité (6.1) ; un site qui exploite déjà une recette hors terroir continue de la produire.
+ * Ce qui est déjà produit doit d'abord être récolté ; le cycle entamé est perdu, et le nouveau commence à l'instant présent (la base l'exige).
  * Un site dont la recette a quitté la configuration n'a plus de type ni de production : il adopte
  * n'importe quelle recette, sans récolte préalable, et repart sans rien payer s'il était à l'arrêt.
  */
@@ -58,6 +59,17 @@ export const siteSetRecipe = defineCommand({
       if (next.id === current.id) return refuse('RECIPE_UNCHANGED', 'The site already runs it.');
       if (next.siteType !== current.siteType)
         return refuse('RECIPE_NOT_COMPATIBLE', 'This recipe needs another type of site.');
+    }
+    // Avant toute écriture, relance sans frais comprise : un refus ne change rien au site.
+    const { slug } = await trx
+      .selectFrom('game.cities')
+      .select('slug')
+      .where('id', '=', site.city_id)
+      .executeTakeFirstOrThrow();
+    const city = config.cities.find((candidate) => candidate.id === slug);
+    if (!cityTerroirAdmits(city, next))
+      return refuse('RECIPE_NOT_IN_TERROIR', 'This production does not grow in this city.');
+    if (current) {
       if (await producedSomething(trx, site, current, now))
         return refuse('COLLECT_FIRST', 'Collect what the site has produced first.');
     } else if (site.halted_at) {

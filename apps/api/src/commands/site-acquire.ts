@@ -3,6 +3,7 @@ import {
   siteAcquireInputSchema,
   siteAcquireOutputSchema,
 } from '@oikos/contracts';
+import { cityTerroirAdmits } from '@oikos/config';
 import { defineCommand, type CommandResult } from '../registry';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
@@ -13,7 +14,8 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
 /**
  * La maison acquiert un site dans sa cité (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). Le type du
  * site est celui de la recette choisie ; son prix, fixé par la configuration, est détruit (puits
- * `sink_site_acquisition`). Le nombre de sites est borné par le niveau du siège.
+ * `sink_site_acquisition`). Le nombre de sites est borné par le niveau du siège. Une production primaire
+ * doit être du terroir de la cité (6.1) ; un atelier est admis partout.
  */
 export const siteAcquire = defineCommand({
   name: 'site.acquire',
@@ -38,6 +40,15 @@ export const siteAcquire = defineCommand({
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     const recipe = config.recipes.find((candidate) => candidate.id === input.recipeId);
     if (!recipe) return refuse('RECIPE_NOT_FOUND', 'Unknown recipe.');
+    const citizenship = await trx
+      .selectFrom('game.citizenships as c')
+      .innerJoin('game.cities as city', 'city.id', 'c.city_id')
+      .select(['c.city_id', 'city.slug'])
+      .where('c.house_id', '=', house.id)
+      .executeTakeFirstOrThrow();
+    const city = config.cities.find((candidate) => candidate.id === citizenship.slug);
+    if (!cityTerroirAdmits(city, recipe))
+      return refuse('RECIPE_NOT_IN_TERROIR', 'This production does not grow in this city.');
 
     // Toute maison est au premier niveau de siège tant que le siège n'évolue pas.
     const limit = config.sites.limitByHeadquartersLevel[0] ?? 0;
@@ -62,11 +73,6 @@ export const siteAcquire = defineCommand({
       .executeTakeFirstOrThrow();
     if (Number(account.balance) < costOboles)
       return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
-    const citizenship = await trx
-      .selectFrom('game.citizenships')
-      .select('city_id')
-      .where('house_id', '=', house.id)
-      .executeTakeFirstOrThrow();
     const sink = await trx
       .selectFrom('game.accounts')
       .select('id')

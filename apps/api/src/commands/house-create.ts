@@ -3,11 +3,13 @@ import {
   houseCreateInputSchema,
   houseCreateOutputSchema,
 } from '@oikos/contracts';
+import { cityStartingRecipeId } from '@oikos/config';
 import { defineCommand } from '../registry';
 
 /**
  * Fonde la maison du joueur, l'inscrit comme métèque dans sa cité d'accueil, ouvre son compte, lui verse
- * la dotation de départ (robinet `faucet_starting_grant`) et lui confie son premier site.
+ * la dotation de départ (robinet `faucet_starting_grant`) et lui confie son premier site, qui lance la
+ * recette de départ de cette cité (6.1), sinon la recette de départ commune.
  */
 export const houseCreate = defineCommand({
   name: 'house.create',
@@ -31,7 +33,7 @@ export const houseCreate = defineCommand({
   async handler({ trx, userId, emit, config }, input) {
     const city = await trx
       .selectFrom('game.cities')
-      .select(['id', 'world_id'])
+      .select(['id', 'world_id', 'slug'])
       .where('id', '=', input.cityId)
       .executeTakeFirst();
     if (!city) return { ok: false, error: { code: 'CITY_NOT_FOUND', message: 'Unknown city.' } };
@@ -73,7 +75,9 @@ export const houseCreate = defineCommand({
       })
       .returning('id')
       .executeTakeFirstOrThrow();
-    const { grantOboles, siteRecipeId } = config.starting;
+    const { grantOboles } = config.starting;
+    // Le schéma garantit qu'elle est connue, sans intrant, et dans le terroir de la cité.
+    const siteRecipeId = cityStartingRecipeId(config, city.slug);
     await trx
       .insertInto('game.ledger_lines')
       .values([
