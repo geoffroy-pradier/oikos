@@ -1,25 +1,20 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 16 h (heure de Paris). L'après-midi, dix tickets ont été fermés : les
-suivis de relecture #176, #181, #184, #191, #200, #205, #208, #213, #218 et #222 (demandes de fusion #226 à
-#239, hors #229 et #234). Deux suivis en sont nés : #229 (`needs-human`) et #234. #78 (équilibrage) attend toujours les
-décisions humaines décrites plus bas. Ce fichier décrit ce qui tourne réellement sur `main` ; les
-spécifications (`docs/specs/`) décrivent la cible.
+Point d'étape au 15 novembre 2026, vers 18 h (heure de Paris).
+La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
+Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286).
+Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
 
 - **Phase 0 (fondations)** : terminée, sauf le ticket #33 (serveur de préproduction), marqué
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
-- **Phase 1 (prototype « une cité »)** : en cours.
-  - Fermés : #64 à #77, #97, #98, #100, #123, #130, #136, #145, #155, #158, #161, #176, #181, #184, #191,
-    #200, #205, #208, #213, #218 et #222.
-  - Ouvert, partiellement livré : #78 (équilibrage). Le banc de mesure est fusionné (#215, #223, puis #224 pour les mesures) ; le calibrage attend les décisions humaines décrites plus bas.
-  - Ouverts, pas commencés :
-    - #229 (`sensible`, `needs-human`) : reprendre le stock d'un bien à retirer (rachat ou correction tracée) ;
-      la manière de faire est à décider par un humain ;
-    - #234 (`sensible`) : ne demander la confirmation d'une recette ou d'une classe retirée que pour ce que la
-      version retire par rapport à celle en vigueur (l'avertissement reviendrait sinon à chaque version).
+- **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
+  Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
+- **Phase 2 (alpha fermée)** : tickets #250 à #286 ouverts, aucun commencé.
+  Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
+  Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -94,15 +89,17 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   sous chaque version, ce qu'elle retire et que le monde porte encore. Un bien détenu en stock, en carnet ou
   sous séquestre interdit sa programmation (`CONFIG_GOOD_IN_USE`, #191). Une recette encore exploitée ou une
   classe qui a encore une population demande une confirmation explicite (case à cocher,
-  `CONFIG_RETIRED_UNCONFIRMED`, #200). Formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
+  `CONFIG_RETIRED_UNCONFIRMED`, #200), si la version en vigueur la contient encore (#234). Formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
   du texte JSON (#77). Une version qui change l'horloge du monde (durée du tick, heure ou fuseau de clôture)
   est refusée, et une programmation ne peut viser une clôture à moins d'une minute. Le premier
   super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
   sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
-Ce qui manque encore pour fermer la phase 1 : #229 (décision humaine), #234, et l'équilibrage (#78). Le banc de mesure existe
-(voir « Points en suspens »), mais la configuration initiale n'a pas été ajustée. Il faut d'abord trancher
-la taille de la cité prototype, la consommation par habitant et le taux de croissance.
+Ajouts de la fin de la phase 1 :
+
+- **Calibrage de la cité prototype** (#78, 5.5) : 28 maisons de quatre sites approvisionnent Kallistè ; le banc d'équilibrage tient ses bornes écrites à la main.
+- **Rachat d'un bien à retirer** (#229) : le super-administrateur rachète, au prix de référence, tout le stock d'un bien qu'une version retire, par le robinet `faucet_good_buyback`, depuis le module Paramètres.
+- **Confirmation d'un retrait** (#234) : seules les recettes et les classes que la version retire par rapport à celle en vigueur demandent la case ; ce qui était déjà retiré est montré une fois, pour information.
 
 ## Décisions prises en cours de route
 
@@ -244,7 +241,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   - Un bien acquis entre la programmation et la clôture reste dans les journaux. Aucun nouvel ordre ne
     l'accepte (`GOOD_NOT_FOUND`) et les PNJ ne l'achètent plus, mais ses ordres ouverts restent
     annulables, jusqu'à ce qu'une version le remette.
-  - Une seule unité détenue bloque le retrait : #229.
+  - Une seule unité détenue bloquait le retrait ; depuis #229, le super-administrateur peut racheter le stock.
 - **Entretien et prix vu par le joueur** (4.2, 5.5, ticket #145) : le client envoie le prix qu'il affiche,
   et une clé en attente repart toujours avec son entrée d'origine. À la relance, le joueur ne paie ni deux
   fois ni un autre prix que celui qu'il a vu ; à l'acquisition non plus depuis #176. La clôture fixe elle-même son isolation (READ COMMITTED) et
@@ -273,6 +270,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   l'après-midi #226 (401), #228 (415), #231 (484), #236 (422), #237 (471) et #239 (507). Le plus souvent, ce sont
   les tests ou les reprises demandés en relecture qui ont fait passer la limite ; #231 dépassait dès sa
   première version. Les autres tickets sont découpés en tranches.
+  En fin de phase 1, #243 (403 lignes) et #246 (637 lignes, dont 415 de tests d'intégration gardés avec la commande de rachat) ont aussi dépassé la limite, avec une justification dans la demande de fusion.
 - **Règle 9 et mise en page des documents** : `CLAUDE.md` dit maintenant qu'une migration publiée ne se modifie plus, et que les documents de `docs/` s'écrivent une phrase par ligne.
   Les lignes de plus de 400 caractères des spécifications ont été coupées ainsi, sans changer leur rendu : elles provoquaient des conflits à chaque demande de fusion qui touchait le même paragraphe.
 - **Après-midi du 15 novembre** : plusieurs tickets ont avancé en parallèle, chacun dans son arbre de travail
@@ -302,25 +300,21 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 
 À décider ou à faire par un humain :
 
-- **#33, préproduction** : serveur, nom de domaine, secrets. Bloque tout déploiement.
+- **#33, préproduction** : serveur, nom de domaine, secrets ; reporté par le propriétaire, qui préfère développer et tester en local jusqu'à une version à mettre en ligne.
 - **Critère de sortie de la phase 1** : retenu et vérifié par le code (`docs/specs/17-feuille-de-route.md`), par délégation du propriétaire ;
   il reste à l'éprouver avec des joueurs réels, une fois le serveur en place.
-- **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les
-  supprimer. À nettoyer à la main.
+- **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les supprimer.
+  Le propriétaire peut supprimer toutes les branches sauf `main` : aucune ne porte de travail non fusionné.
 - **Équilibrage (#78)** : décidé par délégation du propriétaire et décrit en 5.5 (demande de fusion #242).
   Le banc joue 10 jours de mise en route puis 30 jours mesurés avec 28 maisons scriptées, et ses bornes sont écrites : coût du panier de 0 à 2 % sur vingt jours, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
-  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; à traiter en phase 2.
+  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; la phase 2 la borne (#283).
 - **Indice des prix** (relevé par #181) : panier d'un jour de consommation de référence et cible de 0 à 3 %, retenus par délégation avec le calibrage de #78 ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
   Le serveur devra aussi garder `max_prepared_transactions = 0` (ADR 0003), ce que rien ne vérifie.
-- **#229, stock d'un bien à retirer** : décidé (rachat au prix de référence par un robinet dédié), en cours.
 
 Défauts connus :
 
-- **#234** : une classe retirée garde son état de population, et un site oublié garde sa recette. Toute
-  version future redemande donc la confirmation, alors qu'elle ne devrait porter que sur ce que la version
-  retire par rapport à celle en vigueur.
 - **Non suivis en ticket, relevés en relecture** :
   - le rapprochement d'audit de #208 n'est exécuté par aucune vue ni tâche ;
   - la Vigie n'envoie aucune alerte : il faut l'ouvrir ;
