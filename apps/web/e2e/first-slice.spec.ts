@@ -7,6 +7,13 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
+/**
+ * Message annoncé : les régions vivantes vides, présentes en permanence près de chaque action, ne
+ * comptent pas.
+ */
+const said = (page: Page, kind: 'status' | 'alert') =>
+  page.getByRole(kind).filter({ hasText: /\S/ });
+
 // Première tranche verticale (ticket 9) : du champ à la trésorerie, par l'interface seule.
 const db = createDb(process.env['DATABASE_URL'] ?? '');
 test.afterAll(() => db.destroy());
@@ -48,14 +55,14 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   // Trop tôt : le refus de l'API est affiché, rien n'entre en stock.
   const collect = page.getByRole('button', { name: 'Récolter : Champ de blé' });
   await collect.click();
-  await expect(page.getByRole('alert')).toContainText('Rien à récolter');
+  await expect(said(page, 'alert')).toContainText('Rien à récolter');
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
 
   // Deux cycles de quatre heures plus tard : 80 unités de blé, récoltées au clavier.
   await elapse(houseName, 480);
   await collect.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 80 × Blé.');
+  await expect(said(page, 'status')).toContainText('Récolte engrangée : 80 × Blé.');
   await expect(page.getByText('Blé : 80')).toBeVisible();
   await expectNoHorizontalScroll(page);
 
@@ -66,6 +73,27 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText('Wheat: 80')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Wheat field' })).toBeVisible();
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
+});
+
+test('à récolter : calé sur l’heure du serveur, même quand le navigateur retarde de quatre heures', async ({
+  page,
+}) => {
+  // L'horloge du navigateur retarde ; le temps y passe ensuite normalement.
+  await page.clock.install({ time: new Date(Date.now() - 4 * 3_600_000) });
+  const houseName = await foundHouse(page);
+  // Huit heures de jeu, soit deux cycles de quatre heures. À l'heure du navigateur, il n'y en aurait
+  // qu'un.
+  await elapse(houseName, 480);
+  await page.reload();
+  await expect(page.getByText('À récolter : 80 × Blé.')).toBeVisible();
+
+  // Onglet resté en arrière-plan : à son retour, l'heure est relue et tout est recompté.
+  await elapse(houseName, 240);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByText('À récolter : 120 × Blé.')).toBeVisible();
 });
 
 test('tout récolter : une action au clavier, une commande par site, le résultat dit ce qui est engrangé', async ({
@@ -80,11 +108,11 @@ test('tout récolter : une action au clavier, une commande par site, le résulta
   const all = page.getByRole('button', { name: 'Tout récolter : 1 site à récolter' });
   await all.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée sur 1 site : 80 × Blé.');
+  await expect(said(page, 'status')).toContainText('Récolte engrangée sur 1 site : 80 × Blé.');
   await expect(page.getByText('Blé : 80')).toBeVisible();
   // Tout est récolté : le bouton disparaît, le foyer passe au message qui annonce l'issue.
   await expect(all).toHaveCount(0);
-  await expect(page.getByRole('status')).toBeFocused();
+  await expect(said(page, 'status').locator('p')).toBeFocused();
   await expectNoHorizontalScroll(page);
 });
 
@@ -139,12 +167,12 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   );
   await page.reload();
   await expect(page.getByText('entretien impayé', { exact: false })).toBeVisible();
-  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
   await page.unroute('**/rest/v1/site_rules*');
   // « Réessayer » relit les règles sans recharger la page : l'alerte disparaît, le bouton revient.
   await page.getByRole('button', { name: 'Réessayer' }).click();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(said(page, 'alert')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Relancer/ })).toBeVisible();
 
   // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
@@ -152,13 +180,13 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(restart).toHaveText('Relancer (30 oboles)');
   await restart.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText(
+  await expect(said(page, 'status')).toContainText(
     "Site relancé : Champ de blé, pour 30 oboles d'entretien.",
   );
   await expect(page.getByText(/^2\s970 oboles$/)).toBeVisible();
   await expect(restart).toHaveCount(0);
   // Le bouton a disparu avec l'arrêt : le foyer est sur le message, pas perdu sur la page.
-  await expect(page.getByRole('status')).toBeFocused();
+  await expect(said(page, 'status').locator('p')).toBeFocused();
   await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
   // Le cycle gelé a repris là où il en était : toujours un cycle à récolter, pas trois.
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
@@ -178,7 +206,7 @@ test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock
     await route.abort();
   });
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
-  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('Blé : 40')).toBeVisible();
   await page.unroute('**/api/commands/site.collect');
 
@@ -187,7 +215,7 @@ test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock
     route.fulfill({ status: 500, json: { message: 'boom' } }),
   );
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByText('Aucun bien en stock')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
 });
@@ -243,16 +271,16 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await page.getByLabel('Prix limite par unité (oboles)').fill('2');
     await page.getByLabel('Quantité', { exact: true }).fill('beaucoup');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('alert')).toContainText('ne sont pas valides');
+    await expect(said(page, 'alert')).toContainText('ne sont pas valides');
     await page.getByLabel('Quantité', { exact: true }).fill('8e1');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('alert')).toContainText('ne sont pas valides');
+    await expect(said(page, 'alert')).toContainText('ne sont pas valides');
     await page.getByLabel('Quantité', { exact: true }).fill('81');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('alert')).toContainText('Stock libre insuffisant');
+    await expect(said(page, 'alert')).toContainText('Stock libre insuffisant');
     await page.getByLabel('Quantité', { exact: true }).fill('80');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText('Vente déposée : 80 × Blé à 2 oboles.');
+    await expect(said(page, 'status')).toContainText('Vente déposée : 80 × Blé à 2 oboles.');
     await expect(page.getByText('80 sur 80 à 2 oboles')).toBeVisible();
     // Le carnet public montre ce niveau de prix : colonne du prix, puis quantité offerte.
     await expect(page.getByRole('row', { name: /^2 \d+$/ })).toBeVisible();
@@ -400,12 +428,10 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
       await route.abort();
     });
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+    await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
     await page.unroute('**/api/commands/market.placeOrder');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText(
-      `Vente déposée : 30 × Blé à ${price} oboles.`,
-    );
+    await expect(said(page, 'status')).toContainText(`Vente déposée : 30 × Blé à ${price} oboles.`);
     // Un seul ordre : la même clé d'idempotence a rejoué le premier dépôt.
     await expect(page.getByText(`30 sur 30 à ${price} oboles`)).toHaveCount(1);
     await expect(page.getByRole('row', { name: `${price} 30` })).toBeVisible();
@@ -421,14 +447,14 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await other.getByLabel('Quantité', { exact: true }).fill('30');
     await other.keyboard.press('Enter');
     const cost = french.format(30 * price);
-    await expect(other.getByRole('status')).toContainText(
+    await expect(said(other, 'status')).toContainText(
       `Achat conclu : 30 × Blé pour ${cost} oboles.`,
     );
     await expect(other.getByRole('row', { name: `${price} 30` })).toHaveCount(0);
     // Plus rien à ce prix : un second achat attend dans le carnet, son prix retenu hors de la trésorerie.
     await other.keyboard.press('Enter');
     const bid = price + 1;
-    await expect(other.getByRole('status')).toContainText(
+    await expect(said(other, 'status')).toContainText(
       `Achat en attente : 30 × Blé à ${bid} oboles. Le séquestre retient ${oboles(30 * bid)}`,
     );
     await expect(
@@ -443,7 +469,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
     await page.getByLabel('Quantité', { exact: true }).fill('4');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText(
+    await expect(said(page, 'status')).toContainText(
       `Vente conclue : 4 × Blé pour ${oboles(netOf(4 * bid))}.`,
     );
     await expect(bids.getByRole('row', { name: `${bid} 26` })).toBeVisible();
@@ -459,7 +485,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     ).toBeVisible();
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await other.getByRole('button', { name: /^Annuler l'achat de 26 × Blé/ }).click();
-    await expect(other.getByRole('status')).toContainText(
+    await expect(said(other, 'status')).toContainText(
       `Achat annulé : 26 × Blé ; votre trésorerie récupère ${oboles(26 * bid)}.`,
     );
     await expect(other.getByText('Aucun ordre en attente.')).toBeVisible();
@@ -471,16 +497,14 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
     await page.getByLabel('Quantité', { exact: true }).fill('6');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText(
-      `Vente déposée : 6 × Blé à ${oboles(dear)}.`,
-    );
+    await expect(said(page, 'status')).toContainText(`Vente déposée : 6 × Blé à ${oboles(dear)}.`);
     await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
     await other.getByLabel('Quantité', { exact: true }).fill('6');
     // Un achat ne paie pas la taxe : rien n'est annoncé.
     await expect(other.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription('');
     await other.keyboard.press('Enter');
-    await expect(other.getByRole('status')).toContainText(
+    await expect(said(other, 'status')).toContainText(
       `Achat partiel : 3 × Blé sur 6 pour ${oboles(3 * dear)}. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
     );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
@@ -492,7 +516,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // Le vendeur retire ce qui reste : rien ne traîne dans le carnet pour les autres tests.
     await page.reload();
     await page.getByRole('button', { name: /^Annuler la vente de 3 × Blé/ }).click();
-    await expect(page.getByRole('status')).toContainText(
+    await expect(said(page, 'status')).toContainText(
       'Vente annulée : 3 × Blé en stock libre de nouveau.',
     );
   });
@@ -534,7 +558,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await page.getByLabel('Quantité', { exact: true }).fill('30');
   await page.keyboard.press('Enter');
   // La maison n'a pas d'olives : la vente est refusée, rien n'est déposé.
-  await expect(page.getByRole('alert')).toContainText('Stock libre insuffisant');
+  await expect(said(page, 'alert')).toContainText('Stock libre insuffisant');
 
   // Une vente de blé, à un prix que les PNJ n'atteignent pas : elle attend dans le carnet.
   await good.selectOption({ label: 'Blé' });
@@ -542,7 +566,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await page.getByLabel('Prix limite par unité (oboles)').fill('900');
   await page.getByLabel('Quantité', { exact: true }).fill('30');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Vente déposée : 30 × Blé à 900 oboles.');
+  await expect(said(page, 'status')).toContainText('Vente déposée : 30 × Blé à 900 oboles.');
   await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toBeVisible();
   // Une réponse tardive du carnet du blé ne s'affiche pas sous le titre d'un autre bien.
   await page.route('**/rest/v1/order_book*', async (route) => {
@@ -574,23 +598,23 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await page.getByLabel('Quantité', { exact: true }).fill('10');
   loseReply = true;
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   expect(lost).toBe(1);
   loseReply = false;
 
   // Annulation au clavier : le stock réservé redevient disponible.
   await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 900 oboles' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText(
+  await expect(said(page, 'status')).toContainText(
     'Vente annulée : 30 × Blé en stock libre de nouveau.',
   );
   await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toHaveCount(0);
 
   await page.getByRole('button', { name: "Déposer l'ordre" }).click();
-  await expect(page.getByRole('status')).toContainText('Vente déposée : 10 × Blé à 901 oboles.');
+  await expect(said(page, 'status')).toContainText('Vente déposée : 10 × Blé à 901 oboles.');
   await expect(page.getByText('Blé : 10 sur 10 à 901 oboles')).toHaveCount(1);
   await page.getByRole('button', { name: 'Annuler la vente de 10 × Blé à 901 oboles' }).click();
-  await expect(page.getByRole('status')).toContainText(
+  await expect(said(page, 'status')).toContainText(
     'Vente annulée : 10 × Blé en stock libre de nouveau.',
   );
   await expect(page.getByRole('button', { name: /^Annuler la vente/ })).toHaveCount(0);
@@ -607,11 +631,15 @@ test('sites : acquisition au clavier, changement de production, limite du siège
 
   // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
   const offer = page.getByLabel('Site à acquérir');
+  // La région vivante du formulaire est là, vide, avant toute annonce : le message y paraît ensuite.
+  const region = page.getByRole('form', { name: 'Acquérir un site' }).getByRole('status');
+  await expect(region).toHaveCount(1);
+  await expect(region).toBeEmpty();
   await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
   await offer.focus();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
+  await expect(region).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
   await expect(page.getByText(/^2\s100 oboles$/)).toBeVisible();
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText('Type : Verger')).toBeVisible();
@@ -622,20 +650,29 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   const change = page.getByRole('button', { name: 'Changer la production : Oliveraie' });
   await expect(change).toBeDisabled();
   await page.getByLabel('Production : Oliveraie', { exact: true }).selectOption({ label: 'Vigne' });
-  await change.click();
-  await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
+  await change.focus();
+  await page.keyboard.press('Enter');
+  await expect(said(page, 'status')).toContainText('Production changée : Vigne.');
   await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
+  // « Changer » redevient inactif : le foyer passe au message, il ne retombe pas sur la page.
+  await expect(page.getByRole('button', { name: 'Changer la production : Vigne' })).toBeDisabled();
+  await expect(said(page, 'status').locator('p')).toBeFocused();
   await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
 
   // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
   await offer.selectOption({ label: 'Champ de blé (Champ) : 600 oboles' });
-  for (const balance of [/^1\s500 oboles$/, /^900 oboles$/]) {
-    await page.getByRole('button', { name: 'Acquérir' }).click();
-    await expect(page.getByText(balance)).toBeVisible();
-  }
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(page.getByText(/^1\s500 oboles$/)).toBeVisible();
+  // La dernière au clavier : le bouton disparaît à la limite, le foyer va au message.
+  await page.getByRole('button', { name: 'Acquérir' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/^900 oboles$/)).toBeVisible();
   await expect(page.getByText('4 sur 4')).toBeVisible();
   await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
+  // Le message paraît dans la région du formulaire, et le foyer est sur lui.
+  await expect(region).toContainText('Site acquis : Champ de blé');
+  await expect(region.locator('p')).toBeFocused();
   await expectNoHorizontalScroll(page);
 
   // Après rechargement, tout vient de la base ; les textes suivent la langue.
@@ -657,14 +694,14 @@ test('acquisition sans réponse puis nouvel essai : un seul site, un seul paieme
   });
   const acquire = page.getByRole('button', { name: 'Acquérir' });
   await acquire.click();
-  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
 
   // Nouvel essai, même intention : l'API rejoue l'achat, l'écran le dit, rien n'est payé de plus.
   await page.unroute('**/api/commands/site.acquire');
   await acquire.click();
-  await expect(page.getByRole('status')).toContainText('Ce site était déjà acquis : Champ de blé');
+  await expect(said(page, 'status')).toContainText('Ce site était déjà acquis : Champ de blé');
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
 
@@ -677,8 +714,8 @@ test('acquisition sans réponse puis nouvel essai : un seul site, un seul paieme
     await route.continue();
   });
   await acquire.dblclick();
-  await expect(page.getByRole('status')).toContainText('Site acquis : Champ de blé, pour 600');
-  await expect(page.getByRole('status')).toBeInViewport();
+  await expect(said(page, 'status')).toContainText('Site acquis : Champ de blé, pour 600');
+  await expect(said(page, 'status')).toBeInViewport();
   await expect(page.getByText('3 sur 4')).toBeVisible();
   await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
   expect(sent).toBe(1);
@@ -704,7 +741,7 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
   await production.focus();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  const refusal = page.getByRole('alert');
+  const refusal = said(page, 'alert');
   await expect(refusal).toContainText('Récoltez ce site avant de changer sa production.');
   await expect(refusal).toBeInViewport();
   // Le choix est gardé, et le bouton activé garde le focus.
@@ -715,15 +752,15 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
   // Récolte du premier site, page en haut : le résultat paraît sous ce site, dans la fenêtre.
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 40 × Blé.');
-  await expect(page.getByRole('status')).toBeInViewport();
+  await expect(said(page, 'status')).toContainText('Récolte engrangée : 40 × Blé.');
+  await expect(said(page, 'status')).toBeInViewport();
   // Une récolte ne réordonne pas les sites.
   await expect(headings).toHaveText(['Champ de blé', 'Oliveraie 1', 'Oliveraie 2']);
 
   await page.getByRole('button', { name: 'Récolter : Oliveraie 1' }).click();
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée');
+  await expect(said(page, 'status')).toContainText('Récolte engrangée');
   await change.click();
-  await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
+  await expect(said(page, 'status')).toContainText('Production changée : Vigne.');
   await expect(headings).toHaveText(['Champ de blé', 'Vigne', 'Oliveraie']);
   await expectNoHorizontalScroll(page);
 });
@@ -739,7 +776,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
   await page.getByLabel('Site à acquérir').selectOption('mill_flour');
   await page.getByRole('button', { name: 'Acquérir' }).click();
-  await expect(page.getByRole('status')).toContainText('Site acquis : Moulin');
+  await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   const mill = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: 'Moulin' }) });
@@ -753,7 +790,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await page.reload();
   await expect(mill.getByText('À récolter : 16 × Farine.')).toBeVisible();
   await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 16 × Farine.');
+  await expect(said(page, 'status')).toContainText('Récolte engrangée : 16 × Farine.');
   await expect(page.getByText('Blé : 60', { exact: true })).toBeVisible();
   await expect(page.getByText('Farine : 16', { exact: true })).toBeVisible();
   await expect(mill.getByText('10 × Blé (stock libre : 60)')).toBeVisible();
@@ -764,7 +801,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await page.getByLabel('Prix limite par unité (oboles)').fill('900');
   await page.getByLabel('Quantité', { exact: true }).fill('55');
   await page.getByRole('button', { name: "Déposer l'ordre" }).click();
-  await expect(page.getByRole('status')).toContainText('Vente déposée : 55 × Blé');
+  await expect(said(page, 'status')).toContainText('Vente déposée : 55 × Blé');
   await elapse(houseName, 60);
   await nav.getByRole('link', { name: 'Maison' }).click();
   await expect(mill.getByText('10 × Blé (stock libre : 5)')).toBeVisible();
@@ -774,7 +811,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   // La vente annulée, le blé redevient libre : le cycle en attente est récoltable.
   await nav.getByRole('link', { name: 'Agora' }).click();
   await page.getByRole('button', { name: 'Annuler la vente de 55 × Blé à 900 oboles' }).click();
-  await expect(page.getByRole('status')).toContainText('Vente annulée');
+  await expect(said(page, 'status')).toContainText('Vente annulée');
   await nav.getByRole('link', { name: 'Maison' }).click();
   await expect(mill.getByText('À récolter : 8 × Farine.')).toBeVisible();
 
@@ -785,15 +822,15 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
     mill.getByText('À récolter : 48 × Farine. 4 cycles attendent des intrants.'),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
-  await expect(page.getByRole('status')).toContainText('Récolte engrangée : 48 × Farine.');
+  await expect(said(page, 'status')).toContainText('Récolte engrangée : 48 × Farine.');
   await expect(
     mill.getByText("Rien à récolter pour l'instant. 4 cycles attendent des intrants."),
   ).toBeVisible();
   await expect(mill.getByText('10 × Blé (stock libre : 0)')).toBeVisible();
   // Récolter quand même : le refus de l'API est traduit, sous le site.
   await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
-  await expect(page.getByRole('alert')).toContainText('Il manque des intrants');
-  await expect(page.getByRole('alert')).toBeInViewport();
+  await expect(said(page, 'alert')).toContainText('Il manque des intrants');
+  await expect(said(page, 'alert')).toBeInViewport();
   await expectNoHorizontalScroll(page);
 
   await page.getByLabel('Langue').selectOption('en');
@@ -817,7 +854,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
   await page.keyboard.press('Enter');
   const title = page.getByRole('heading', { name: `Comptes de la maison ${houseName}` });
   await expect(title).toBeFocused();
-  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
   await page.unroute('**/rest/v1/my_balance_sheet*');
   await page.getByRole('button', { name: 'Réessayer' }).focus();
@@ -830,7 +867,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
   const balanceSheet = '**/rest/v1/my_balance_sheet*';
   await page.route(balanceSheet, (route) => route.fulfill({ status: 200, json: [] }));
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+  await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
   await page.unroute(balanceSheet);
@@ -943,11 +980,11 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
       await page.route(bySeason, (route) => route.fulfill({ status: 500, json: {} }));
       const grouping = income.getByLabel('Regrouper par');
       await grouping.selectOption('season');
-      await expect(page.getByRole('alert')).toContainText('Impossible de lire vos données');
+      await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
       await grouping.focus();
       await page.keyboard.press('ArrowUp');
       await expect(periodOf(income)).toHaveText(aDay);
-      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(said(page, 'alert')).toHaveCount(0);
       await expect(grouping).toBeFocused();
       await page.unroute(bySeason);
       // Par saison : une plage de dates. Davantage de périodes : toujours les dernières, jamais tout.

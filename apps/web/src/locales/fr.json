@@ -43,6 +43,7 @@
     "balance": "{{amount}}",
     "stock": "Entrepôt",
     "stockEmpty": "Aucun bien en stock pour l'instant.",
+    "stockCity": "Stock à {{city}}",
     "stockLine": "{{good}} : {{quantity}}",
     "stockReserved": "dont {{reserved}} en vente",
     "sites": "Sites",

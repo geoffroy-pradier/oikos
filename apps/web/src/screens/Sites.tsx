@@ -8,9 +8,11 @@ import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
 import { LoadProblem, Loading } from './LoadProblem';
+import { serverClock, syncServerClock } from '../server-clock';
 
 interface Site {
   id: string;
+  city_id: string;
   recipe_id: string;
   cycle_started_at: string;
   /** Instant de l'arrêt d'un site dont l'entretien n'a pas été payé ; `null` s'il tourne (5.5). */
@@ -39,7 +41,11 @@ export function SitesCard({
   const { t, i18n } = useTranslation();
   const house = useHouse();
   // Par identifiant (ordre de création) : une récolte ne réordonne pas la liste.
-  const sites = useRows<Site>('my_sites', 'id, recipe_id, cycle_started_at, halted_at', 'id');
+  const sites = useRows<Site>(
+    'my_sites',
+    'id, city_id, recipe_id, cycle_started_at, halted_at',
+    'id',
+  );
   const { rules, failed: rulesFailed, reload: reloadRules } = useSiteRules();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -55,9 +61,12 @@ export function SitesCard({
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
-    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer ») :
-    // le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
-    if (element && document.activeElement === document.body) element.focus();
+    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer »,
+    // « Acquérir » s'efface à la limite) ou devenir inactif (« Changer » après un
+    // changement réussi) : le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
+    const active = document.activeElement;
+    const lost = active === document.body || active?.matches(':disabled') === true;
+    if (element && lost) element.focus();
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
@@ -70,14 +79,33 @@ export function SitesCard({
       quantity: number.format(stack.quantity),
       good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
     });
-  // Les sites de la maison sont dans sa cité : c'est ce stock-là, et lui seul, qu'un atelier consomme.
-  const freeStock = (goodId: string) => freeStockIn(stock ?? [], house.cityId, goodId);
-  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
-  const [now, setNow] = useState(() => new Date());
+  // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
+  const freeStockOf = (site: Site) => (goodId: string) =>
+    freeStockIn(stock ?? [], site.city_id, goodId);
+  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute, à l'heure
+  // du serveur. Au retour sur un onglet resté en arrière-plan (minuterie ralentie, clôture passée
+  // entre-temps), l'heure et les sites sont relus, puis tout est recompté.
+  // Tant que la première lecture de l'heure n'a pas abouti (ou échoué), rien n'est annoncé : l'heure
+  // du navigateur peut être fausse de plusieurs heures. Deux lectures simultanées : la dernière gagne.
+  const [now, setNow] = useState<Date | null>(null);
+  const reloadSites = sites.reload;
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
+    let live = true;
+    const sync = () => void syncServerClock().then(() => live && setNow(serverClock.now()));
+    sync();
+    const timer = setInterval(() => setNow(serverClock.now()), 60_000);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void reloadSites();
+      sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [reloadSites]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -92,10 +120,16 @@ export function SitesCard({
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
-    // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
-    if (!recipe || !stock)
+    // Tant que le stock ou l'heure ne sont pas lus, rien n'est annoncé : on ne dit pas « à court » à tort.
+    if (!recipe || !stock || !now)
       return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
-    const harvest = previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock, halted);
+    const harvest = previewHarvest(
+      recipe,
+      new Date(site.cycle_started_at),
+      now,
+      freeStockOf(site),
+      halted,
+    );
     return { halted, harvest, alerts: siteAlerts(recipe, harvest, halted !== null) };
   };
   const watched = rows
@@ -119,7 +153,7 @@ export function SitesCard({
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(new Date());
+    setNow(serverClock.now());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
@@ -204,7 +238,7 @@ export function SitesCard({
       (siteId) => collectSite(siteId, house.accessToken),
     );
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(new Date());
+    setNow(serverClock.now());
     const parts: string[] = [];
     if (outcome.succeeded.length > 0)
       parts.push(
@@ -230,17 +264,24 @@ export function SitesCard({
     running.current = false;
   }
 
+  // Chaque cible a ses deux régions vivantes, présentes avant le message : un lecteur d'écran n'annonce
+  // de façon sûre que ce qui change dans une région déjà là. Le message lui-même n'a pas de rôle (une
+  // seule région l'annonce). Vide, une région sort du flux (`absolute`) sans quitter l'arbre
+  // d'accessibilité : l'espacement de la carte ne bouge pas.
   const announce = (target: string) =>
-    notice?.target === target && (
-      <p
-        ref={noticeElement}
-        tabIndex={-1}
-        role={notice.kind}
-        className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
-      >
-        {notice.text}
-      </p>
-    );
+    (['status', 'alert'] as const).map((kind) => (
+      <div key={kind} role={kind} className="empty:absolute">
+        {notice?.target === target && notice.kind === kind && (
+          <p
+            ref={noticeElement}
+            tabIndex={-1}
+            className={kind === 'alert' ? 'font-semibold text-danger' : ''}
+          >
+            {notice.text}
+          </p>
+        )}
+      </div>
+    ));
 
   return (
     <Card className="flex flex-col gap-3">
@@ -372,7 +413,7 @@ export function SitesCard({
                         {t('home.inputLine', {
                           quantity: number.format(stack.quantity),
                           good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
-                          free: number.format(freeStock(stack.goodId)),
+                          free: number.format(freeStockOf(site)(stack.goodId)),
                         })}
                       </li>
                     ))}
@@ -434,10 +475,13 @@ export function SitesCard({
 
       {rules && (
         <form
+          aria-labelledby="sites-acquire"
           className="flex flex-col gap-2 border-t border-border pt-3"
           onSubmit={(event) => void acquire(event)}
         >
-          <h3 className="text-lg">{t('home.acquire')}</h3>
+          <h3 id="sites-acquire" className="text-lg">
+            {t('home.acquire')}
+          </h3>
           {full ? (
             <p className="text-muted-foreground">{t('home.limitReached')}</p>
           ) : (

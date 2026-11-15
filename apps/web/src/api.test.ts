@@ -74,3 +74,25 @@ it('génère une clé d’idempotence différente à chaque intention quand aucu
   expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{8,128}$/);
   expect(keys[0]).not.toBe(keys[1]);
 });
+
+it('toute réponse de l’API, même un refus, donne l’heure du serveur', async () => {
+  const { serverClock } = await import('./server-clock');
+  const date = new Date(Date.now() - 5 * 3_600_000).toUTCString();
+  const error = { code: 'NOTHING_TO_COLLECT', message: 'nothing' };
+  await sendCommand(
+    'site.collect',
+    {},
+    't',
+    'k',
+    vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify({ ok: false, error }), {
+          status: 409,
+          headers: { Date: date },
+        }),
+    ),
+  );
+  const behind = Date.now() - serverClock.now().getTime();
+  expect(behind).toBeGreaterThan(5 * 3_600_000 - 2_000);
+  expect(behind).toBeLessThan(5 * 3_600_000 + 2_000);
+});
