@@ -244,7 +244,15 @@ export async function executeCommand(
     await trx.commit().execute();
     return { response, replayed: false };
   } catch (error) {
-    if (trx && !trx.isCommitted && !trx.isRolledBack) await trx.rollback().execute();
+    // Sur une connexion morte (session fermée par la base), l'annulation échoue à son tour : la base a
+    // déjà tout annulé. Ce second échec ne doit pas empêcher la réponse ni la trace d'audit.
+    if (trx && !trx.isCommitted && !trx.isRolledBack)
+      await trx
+        .rollback()
+        .execute()
+        .catch((rollbackError: unknown) =>
+          console.error(`Command ${command.name}: rollback failed`, rollbackError),
+        );
     console.error(`Command ${command.name} failed`, error);
     const response = failure('INTERNAL', 'Unexpected error.');
     // Trace d'audit hors transaction, sans clé : la commande pourra être retentée avec la même clé.

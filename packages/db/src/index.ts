@@ -302,6 +302,13 @@ export function createDb(connectionString: string, pool: { max?: number } = {}):
   // Une connexion inactive fermée par Postgres (redémarrage, bascule) émet `error` sur le pool : sans
   // écouteur, le processus s'arrêterait. Le pool rouvre une connexion à la requête suivante.
   connections.on('error', (error) => console.error('Database pool error', error));
+  // Une connexion prêtée (transaction en cours) n'est plus couverte par l'écouteur du pool : `pg-pool`
+  // le retire au prêt, et le pilote Kysely n'en pose pas. Si la base la ferme (redémarrage, bascule,
+  // `pg_terminate_backend`), `pg` émet `error` sur le client, ce qui arrêterait le processus. La requête
+  // en cours échoue de son côté ; le pool écarte la connexion morte et en rouvre une à la suite.
+  connections.on('connect', (client) =>
+    client.on('error', (error) => console.error('Database connection error', error)),
+  );
   return new Kysely<GameDatabase>({
     dialect: new PostgresDialect({ pool: connections }),
   });
