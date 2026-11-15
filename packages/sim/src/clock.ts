@@ -71,6 +71,11 @@ export function isDailyClose(index: number, clock: ClockSettings): boolean {
   // son dernier instant n'est pas celui de l'instant qui le précède (un tick dure moins d'un jour).
   const start = tickStart(index, clock.tickMinutes).getTime();
   const end = tickStart(index + 1, clock.tickMinutes).getTime();
+  // Filtre rapide, une seule lecture de l'heure locale : un tick qui commence à plus d'une heure (écart
+  // d'heure d'été compris) avant ou après l'heure de clôture, compte tenu de sa durée, n'en contient pas.
+  const { hour, minute } = localTime(new Date(start), clock.timezone);
+  const sinceClose = ((((hour - clock.dailyCloseHour) * 60 + minute) % 1440) + 1440) % 1440;
+  if (sinceClose > 60 && sinceClose < 1440 - clock.tickMinutes - 60) return false;
   return gameDayAt(new Date(end - 1), clock) !== gameDayAt(new Date(start - 1), clock);
 }
 
