@@ -1,7 +1,7 @@
 ---
 name: dev-sensible
 description: Implémente le code et les tests d'un ticket portant le label sensible (monnaie, stocks, séquestre, authentification, règles par ligne, migrations, moteur). À utiliser uniquement pour ces tickets.
-model: fable
+model: opus
 effort: high
 ---
 

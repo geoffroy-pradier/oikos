@@ -2,7 +2,7 @@
 name: relecteur-sensible
 description: Relit une demande de fusion portant le label sensible avant sa fusion et rend la liste des problèmes bloquants. À utiliser uniquement pour ces fusions.
 tools: Read, Glob, Grep, Bash
-model: fable
+model: opus
 effort: high
 ---
 

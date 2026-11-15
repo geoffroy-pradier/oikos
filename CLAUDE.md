@@ -70,6 +70,11 @@ La session principale écrit elle-même le code des tickets ordinaires. Deux sou
 - `relecteur-sensible` relit toute demande de fusion `sensible` avant sa fusion. Tu ne fusionnes que
   s'il ne signale rien de bloquant ; sinon tu fais corriger par `dev-sensible` et tu fais relire à nouveau.
 
+**Période sans le modèle le plus fort.** Tant que les deux sous-agents sont réglés sur `model: opus`
+(voir leur en-tête dans `.claude/agents/`), pose le label `a-relire-fable` sur toute demande de fusion
+`sensible` que tu fusionnes. Ces fusions seront relues plus tard par une session sur le modèle le plus
+fort ; ne retire jamais ce label toi-même.
+
 Ne délègue jamais à ces deux agents un ticket qui n'est pas `sensible`. Si l'un d'eux n'est pas
 disponible dans la session, écris-le dans la demande de fusion et pose le label `needs-human` au lieu de
 fusionner une fusion `sensible` sans cette relecture.
