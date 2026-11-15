@@ -7,7 +7,7 @@ import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
-import { acquireIntent, acquireIntentBelow, pendingKeys } from '../pending-keys';
+import { acquireIntent, acquireIntentBelow, outcomeKnown, pendingKeys } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 
 interface Site {
@@ -131,6 +131,8 @@ export function SitesCard({
     target: string,
     send: () => Promise<CommandResponse<T>>,
     done: (data: T, replayed: boolean) => string,
+    /** Texte d'une commande restée sans réponse, d'après les sites relus ; `false` : l'erreur ordinaire. */
+    unanswered?: (read: Site[] | null) => string | false,
   ) {
     if (running.current) return null;
     running.current = true;
@@ -139,13 +141,18 @@ export function SitesCard({
     const result = await send();
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
-    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    const [read] = await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    const lost = !result.ok && result.error.code === 'INTERNAL' && unanswered?.(read);
     setNow(new Date());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
         ? { target, kind: 'status', text: done(result.data, result.replayed) }
-        : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
+        : {
+            target,
+            kind: 'alert',
+            text: lost || t([`errors.${result.error.code}`, 'errors.INTERNAL']),
+          },
     );
     setBusy(false);
     running.current = false;
@@ -186,7 +193,7 @@ export function SitesCard({
     );
     // Un refus reste attaché à sa clé (« le site vient de changer », trésorerie insuffisante) : le
     // prochain essai en prend une neuve. Sans réponse de l'API, la même clé rejoue la relance.
-    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.settle(intent);
+    if (result && outcomeKnown(result)) pending.settle(intent);
   }
 
   async function acquire(event: FormEvent) {
@@ -199,18 +206,29 @@ export function SitesCard({
     // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
     if (intent === null) return;
     const key = pending.keyFor(intent, () => crypto.randomUUID());
+    const send = () => acquireSite(recipeId, house.accessToken, key);
+    // Un site de plus qu'à l'envoi : l'achat a sans doute abouti, et la lecture rend sa clé.
+    const more = (read: Site[] | null) => read !== null && read.length > rows.length;
     const result = await run(
       ACQUIRE,
-      () => acquireSite(recipeId, house.accessToken, key),
+      async () => {
+        const first = await send();
+        if (first.ok || first.error.code !== 'INTERNAL' || !more(await sites.reload()))
+          return first;
+        // Sans réponse, mais un site de plus : la même clé repart une fois, pour connaître l'issue.
+        return send();
+      },
       // Rejeu : cet achat avait abouti lors d'un essai resté sans réponse. Rien n'est payé cette fois.
       (data, replayed) =>
         t(replayed ? 'home.alreadyAcquired' : 'home.acquired', {
           site: recipeName(data.recipeId),
           cost: money(data.costOboles),
         }),
+      // Toujours sans réponse : le joueur est prévenu que réessayer serait un nouvel achat.
+      (read) => more(read) && t('home.acquireUnanswered'),
     );
-    // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
-    if (result && (result.ok || result.error.code !== 'INTERNAL')) pending.settle(intent);
+    // Sans réponse de l'API, ou écartée avant son registre : l'intention reste en attente.
+    if (result && outcomeKnown(result)) pending.settle(intent);
   }
 
   /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */

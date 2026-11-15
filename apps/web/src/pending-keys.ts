@@ -11,11 +11,14 @@ export interface KeyStorage {
  * Clés d'idempotence des commandes restées sans réponse, par intention. Une intention en attente
  * renvoie la même clé : l'API rejoue la commande au lieu de la jouer deux fois. Les clés survivent au
  * changement d'onglet et au rechargement (stockage de session) ; un stockage indisponible (navigation
- * privée) les garde en mémoire seulement.
+ * privée) les garde en mémoire seulement : elles survivent au changement d'onglet (mémoire du module,
+ * par maison), pas au rechargement de la page.
  */
+const memories = new Map<string, Map<string, string>>();
 export function pendingKeys(scope: string, storage: () => KeyStorage | undefined) {
   const prefix = `oikos.pending.${scope}.`;
-  const memory = new Map<string, string>();
+  const memory = memories.get(scope) ?? new Map<string, string>();
+  memories.set(scope, memory);
   const safe = <T>(action: (store: KeyStorage) => T): T | undefined => {
     try {
       const store = storage();
@@ -50,6 +53,15 @@ export function pendingKeys(scope: string, storage: () => KeyStorage | undefined
     },
   };
 }
+
+/**
+ * Refus qui ne disent rien de l'issue d'une commande : restée sans réponse (`INTERNAL`), ou écartée par
+ * l'API avant son registre d'idempotence. La clé reste en attente ; tout autre refus est attaché à la
+ * sienne, et l'essai suivant en prend une neuve.
+ */
+const UNKNOWN = ['INTERNAL', 'UNAUTHENTICATED', 'RATE_LIMITED', 'IDEMPOTENCY_KEY_REQUIRED'];
+export const outcomeKnown = (result: { ok: true } | { ok: false; error: { code: string } }) =>
+  result.ok || !UNKNOWN.includes(result.error.code);
 
 /**
  * Intention d'une acquisition : la production voulue et le nombre de sites que la maison avait en la

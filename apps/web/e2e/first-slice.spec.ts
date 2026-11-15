@@ -679,11 +679,13 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('1 sur 4')).toBeVisible();
 
-  // Onglet quitté puis rouvert, la clé est gardée ; l'essai suivant la renvoie.
+  // Onglet quitté puis rouvert, la clé est gardée ; l'essai suivant la renvoie. Le serveur achète, mais
+  // `lost` réponses n'arrivent jamais : un site de plus est relu, la même clé repart d'elle-même.
   await page.unroute('**/api/commands/site.acquire');
+  let lost = 1;
   await page.route('**/api/commands/site.acquire', async (route) => {
     keyOf(route);
-    // Le serveur achète, mais sa réponse n'arrive jamais.
+    if (lost-- <= 0) return route.continue();
     await route.fetch();
     await route.abort();
   });
@@ -693,13 +695,21 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   // Les sites sont relus avant le clic : l'intention porte leur nombre.
   await expect(page.getByText('1 sur 4')).toBeVisible();
   await acquire.click();
-  await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
+  // Le rejeu dit l'issue : acquis une fois, payé une fois.
+  await expect(said(page, 'status')).toContainText('Ce site était déjà acquis : Champ de blé');
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
 
-  // Le site est là, relu : vouloir de nouveau un champ de blé est un nouvel achat, pas un rejeu. Un
-  // double clic n'envoie qu'une commande, et le prix payé s'affiche dans la fenêtre bien que le
-  // nouveau site ait poussé le formulaire.
+  // Le rejeu reste lui aussi sans réponse : l'écran dit qu'un site de plus est là, et qu'un nouvel
+  // essai serait un nouvel achat, au lieu d'inviter à réessayer.
+  lost = 2;
+  await acquire.click();
+  await expect(said(page, 'alert')).toContainText('un nouvel essai serait un nouvel achat');
+  await expect(page.getByText('3 sur 4')).toBeVisible();
+  await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
+
+  // Prévenu, le joueur veut encore un champ de blé : nouvel achat, clé neuve. Un double clic n'envoie
+  // qu'une commande, et le prix payé s'affiche dans la fenêtre bien que le site ait poussé le formulaire.
   await page.unroute('**/api/commands/site.acquire');
   let sent = 0;
   await page.route('**/api/commands/site.acquire', async (route) => {
@@ -711,12 +721,11 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   await acquire.dblclick();
   await expect(said(page, 'status')).toContainText('Site acquis : Champ de blé, pour 600');
   await expect(said(page, 'status')).toBeInViewport();
-  await expect(page.getByText('3 sur 4')).toBeVisible();
-  await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
+  await expect(page.getByText('4 sur 4')).toBeVisible();
+  await expect(page.getByText(/^1\s200 oboles$/)).toBeVisible();
   expect(sent).toBe(1);
-  expect(keys).toHaveLength(3);
-  expect(keys[1]).toBe(keys[0]);
-  expect(keys[2]).not.toBe(keys[0]);
+  // Trois achats : la clé du premier est partie trois fois, celle du deuxième deux, la dernière une.
+  expect(keys.map((key) => keys.indexOf(key))).toEqual([0, 0, 0, 3, 3, 5]);
 });
 
 test('plusieurs sites : noms distincts, résultat affiché près de l’action, choix gardé après un refus', async ({

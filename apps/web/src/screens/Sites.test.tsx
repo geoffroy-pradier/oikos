@@ -19,7 +19,12 @@ vi.mock('../data', async () => {
 });
 const { SitesCard } = await import('./Sites');
 
-const field = { id: 's1', recipe_id: 'grow_wheat', cycle_started_at: '2026-01-01T00:00:00Z' };
+const field = {
+  id: 's1',
+  city_id: 'c1',
+  recipe_id: 'grow_wheat',
+  cycle_started_at: '2026-01-01T00:00:00Z',
+};
 async function render(rows: object[] | null, failed = false) {
   Object.assign(sites, { rows, failed });
   const instance = i18next.createInstance();
@@ -31,7 +36,7 @@ async function render(rows: object[] | null, failed = false) {
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
   return renderToStaticMarkup(
     <I18nextProvider i18n={instance}>
-      <HouseProvider value={{ ...house, citizenshipStatus: 'metic' }}>
+      <HouseProvider value={{ ...house, cityNames: {}, citizenshipStatus: 'metic' }}>
         <SitesCard stock={[]} onChanged={() => Promise.resolve()} />
       </HouseProvider>
     </I18nextProvider>,
