@@ -199,8 +199,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Activations de configuration** (13, 15, ticket #130) : la base pose elle-même leur date de création et
   refuse une échéance passée, quel que soit le rôle. Elle refuse aussi une programmation à moins d'une
   minute de son échéance, et contrôle de nouveau l'échéance à la validation par des déclencheurs différés.
-  Un refus au COMMIT devient une erreur métier du registre (`CONFIG_ACTIVATION_TOO_LATE`), rejouable sous
-  la même clé. Limite connue : `SET CONSTRAINTS ALL IMMEDIATE` contourne ce contrôle (#208).
+  Un refus au COMMIT devient une erreur métier du registre (`CONFIG_ACTIVATION_TOO_LATE` pour une
+  programmation, `CONFIG_ACTIVATION_PAST` pour une annulation), rejouable sous la même clé. Limite connue : `SET CONSTRAINTS ALL IMMEDIATE` contourne ce contrôle (#208).
 - **Session de base fermée** (14.3, ticket #136) : une connexion coupée en cours de commande, de tick ou de
   clôture ne fait échouer que ce passage. La trace d'audit est écrite par une autre connexion, la clé
   d'idempotence reste utilisable et le passage suivant rejoue une seule fois.
@@ -211,15 +211,15 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   faute de production, sans erreur interne ; sa maison peut en changer. L'avertissement avant programmation
   est suivi dans #200.
 - **Entretien et prix vu par le joueur** (4.2, 5.5, ticket #145) : le client envoie le prix qu'il affiche,
-  et une clé en attente repart toujours avec son entrée d'origine. Le joueur ne paie jamais deux fois, et
-  jamais un autre prix que celui qu'il a vu. La clôture fixe elle-même son isolation (READ COMMITTED) et
+  et une clé en attente repart toujours avec son entrée d'origine. À la relance, le joueur ne paie ni deux
+  fois ni un autre prix que celui qu'il a vu ; à l'acquisition restent les cas étroits de #176. La clôture fixe elle-même son isolation (READ COMMITTED) et
   inscrit chaque tentative dans `telemetry.close_runs`, en ajout seul.
 - **Lectures de comptes rapides** (12, ticket #155) : `jit = off` pour les rôles `anon` et `authenticated`
   plutôt qu'une réécriture des règles par ligne ; la migration fait recharger PostgREST. La vérification
   après déploiement passe par `/rest/v1/rpc/client_jit`, et la mesure est reproductible par
   `pnpm --filter @oikos/db bench:cash-flows`.
 - **Migrations rejouables** (règle 9, ticket #158) : toutes se rejouent sur une base déjà migrée sans changer
-  l'état final, ce que `pnpm test:db:replay` vérifie en `ci` par une empreinte du schéma. Pendant un
+  le schéma, ce que `pnpm test:db:replay` vérifie en `ci` par une empreinte du schéma. Pendant un
   rejeu, un fichier peut remettre brièvement une définition ou un droit antérieurs : #218 doit faire
   appliquer seulement les migrations nouvelles. La saison est bornée à 366 jours. Un fuseau inconnu de la
   base n'est refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais.
@@ -231,7 +231,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   ticket #69, presque toujours par leurs tests d'intégration. Depuis, deux seulement : #141 (481 lignes)
   et #160 (468), acceptées en relecture ; les autres tickets sont découpés en tranches.
 - **Tranches et rebases** : les tickets de la session ont été livrés en tranches de moins de 400 lignes,
-  dans l'ordre des numéros de migration (36 à 40). Chaque tranche `sensible` a été relue par
+  dans l'ordre des numéros de migration (35 à 40). Chaque tranche `sensible` a été relue par
   `relecteur-sensible` avant sa fusion et porte le label `a-relire-fable`.
 - **Répartition entre modèles** (#143) : le code des tickets `sensible` est écrit par le sous-agent
   `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
@@ -251,11 +251,11 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   monétaire, le coût du panier, la couverture et la part de chaque puits, et rapproche chaque compte
   système de flux comptés à part. Avec la configuration initiale telle quelle, les mesures ne tiennent
   pas la cible :
-  - les 23 maisons scriptées ne couvrent qu'une petite part des besoins vitaux de 10 000 habitants, et la
-    population émigre (environ −39 % sur le mois) ;
+  - les 23 maisons scriptées ne couvrent qu'une petite part des besoins vitaux, et la population émigre :
+    de 8 794 à 5 375 habitants sur les 30 jours mesurés (10 000 au départ) ;
   - les prix montent tant que tout se vend : le coût du panier des dix derniers jours dépasse de 20 % celui des
-    dix premiers, surtout parce que la règle de prix du banc relève de 1 % par jour un prix dont tout s'est vendu ;
-  - l'entretien fait 46 % des puits, la taxe 32 % et l'acquisition de sites 22 %.
+    dix premiers, vraisemblablement parce que la règle de prix du banc relève de 1 % par jour un prix dont tout s'est vendu ;
+  - l'entretien fait 46 % des puits, la part détruite de la taxe 32 % et l'acquisition de sites 22 %.
 
   Avant d'ajuster la configuration, un humain doit décider :
   - la taille de la cité prototype au regard du nombre de joueurs attendu ;
@@ -277,7 +277,7 @@ Défauts connus, déjà en tickets :
   utilise encore ; Olympe devrait avertir avant la programmation.
 - **#205, #208** : suivis du règlement des échanges et du contrôle à la validation des activations,
   contournable par `SET CONSTRAINTS`.
-- **#213** : pas de rétention pour `telemetry.tick_runs` et `close_runs` ; une activation à l'horloge
+- **#213** : pas de rétention pour `telemetry.tick_runs` (ni pour `close_runs`, à ajouter au ticket) ; une activation à l'horloge
   différente, programmée avant #123, serait encore appliquée.
 - **#222** : un monde dont le fuseau quitte tzdata peut encore publier, mais ses comptes perdent jour
   de jeu et saison, et la Vigie ne le signale pas.
@@ -291,7 +291,8 @@ Limites assumées pour l'instant :
 - Une seule cité, pas de transport : tout stock est dans la cité de la maison (l'affichage par cité de
   l'entrepôt est prêt, sans être encore atteignable).
 - Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
-  des sites relit ses sites, ses règles et l'heure chaque minute et au retour sur l'onglet.
+  des sites relit ses sites et ses règles chaque minute (onglet visible), et l'heure du serveur au retour sur
+  l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
