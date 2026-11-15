@@ -285,7 +285,8 @@ export interface GameDatabase {
     /** Par défaut : immédiatement, à l'horloge de la base. */
     activate_at: Generated<Date>;
     created_by: string | null;
-    created_at: Generated<Date>;
+    /** Toujours l'heure de la base, posée par sa garde : le service n'a pas le droit de l'écrire. */
+    created_at: GeneratedAlways<Date>;
   };
   /** Annulation d'une programmation à venir : en ajout seul, l'instant est posé par la base. */
   'config.activation_cancellations': {

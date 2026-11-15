@@ -14,10 +14,11 @@ select throws_ok($$insert into config.versions (payload) values ('[1]')$$, '2351
 
 select is(config.active_version_at('2030-01-01'), null, 'aucune version active avant la première activation');
 
-insert into config.activations (id, version_id, activate_at, created_at) values
-  ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000c1', '2030-01-01 04:00+00', '2029-12-31 10:00+00'),
+-- Échéances à venir : la date de création est toujours l'heure de la base (migration 37).
+insert into config.activations (id, version_id, activate_at) values
+  ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000c1', '2030-01-01 04:00+00'),
   -- Activation programmée de la version 2 à la clôture suivante.
-  ('00000000-0000-7000-8000-0000000000a2', '00000000-0000-7000-8000-0000000000c2', '2030-01-02 04:00+00', '2030-01-01 12:00+00');
+  ('00000000-0000-7000-8000-0000000000a2', '00000000-0000-7000-8000-0000000000c2', '2030-01-02 04:00+00');
 
 select throws_ok($$update config.activations set activate_at = now()$$, '23001', null, 'activation non modifiable');
 select throws_ok('delete from config.activations', '23001', null, 'activation non supprimable');
@@ -32,11 +33,11 @@ select is(config.active_version_at('2030-01-02 04:00+00'), '00000000-0000-7000-8
   'bascule à l''heure programmée');
 
 -- Retour arrière : nouvelle activation de la version 1, sans toucher à l'historique.
-insert into config.activations (version_id, activate_at, created_at) values
-  ('00000000-0000-7000-8000-0000000000c1', '2030-01-03 04:00+00', '2030-01-02 09:00+00'),
-  -- Deux décisions pour la même échéance : la plus récente l'emporte.
-  ('00000000-0000-7000-8000-0000000000c2', '2030-01-04 04:00+00', '2030-01-03 09:00+00'),
-  ('00000000-0000-7000-8000-0000000000c1', '2030-01-04 04:00+00', '2030-01-03 10:00+00');
+insert into config.activations (version_id, activate_at) values
+  ('00000000-0000-7000-8000-0000000000c1', '2030-01-03 04:00+00'),
+  -- Deux décisions pour la même échéance : la plus récente (le rang le plus grand) l'emporte.
+  ('00000000-0000-7000-8000-0000000000c2', '2030-01-04 04:00+00'),
+  ('00000000-0000-7000-8000-0000000000c1', '2030-01-04 04:00+00');
 select is(config.active_version_at('2030-01-03 12:00+00'), '00000000-0000-7000-8000-0000000000c1'::uuid,
   'retour arrière par une nouvelle activation');
 select is(config.active_version_at('2030-01-04 12:00+00'), '00000000-0000-7000-8000-0000000000c1'::uuid,

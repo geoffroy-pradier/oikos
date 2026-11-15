@@ -1,5 +1,5 @@
 begin;
-select plan(58);
+select plan(59);
 
 -- Jeu d'essai, posé par le propriétaire : une maison, son compte (500 oboles), son stock (100 blés), un ordre de vente.
 insert into auth.users (id, email) values ('00000000-0000-4000-8000-00000000000a', 'alice@example.test');
@@ -103,6 +103,11 @@ select is(
    where table_schema = 'game' and table_name = 'trades' and grantee = 'oikos_service' and privilege_type = 'INSERT'),
   'buy_order_id id ledger_entry_id price quantity sell_order_id world_id', 'colonnes d''un échange écrites par le service : liste figée, sans seq ni created_at');
 select is((select indisunique from pg_index where indexrelid = 'game.trades_seq_unique'::regclass), true, 'le rang d''exécution d''un échange est unique');
+-- Activations : le service ne choisit ni la date de création ni le rang (ticket 130).
+select is(
+  (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
+   where table_schema = 'config' and table_name = 'activations' and grantee = 'oikos_service' and privilege_type = 'INSERT'),
+  'activate_at created_by id version_id', 'colonnes d''une activation écrites par le service : liste figée, sans seq ni created_at');
 
 -- Le service au travail : les journaux passent, et mettent à jour soldes, stocks, réservations.
 -- Chaque instruction ci-dessous est exécutée sous le rôle de service (les assertions restent au propriétaire).
