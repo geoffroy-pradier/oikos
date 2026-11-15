@@ -1,6 +1,11 @@
 import en from './locales/en.json';
 
-type Row = Record<string, unknown>;
+export type Row = Record<string, unknown>;
+/** Champ d'une ligne de table : sa clé, et la façon dont une saisie s'y écrit (`typed`). */
+export interface TableField {
+  key: string;
+  kind: 'text' | 'choice' | 'integer' | 'decimal';
+}
 const isRecord = (value: unknown): value is Row =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -11,15 +16,21 @@ export const GOOD_FIELDS = [
   { key: 'referencePriceOboles', kind: 'integer' },
   { key: 'elasticity', kind: 'decimal' },
 ] as const;
-export type GoodField = (typeof GOOD_FIELDS)[number];
 /** Niveaux proposés : ceux qui ont un libellé. Un test vérifie qu'ils sont ceux du schéma. */
 export const GOOD_TIERS = Object.keys(en.config.goodsForm.tiers);
 
-/** Biens d'une configuration. Sans `goods` : liste vide. `null` : pas un objet dont `goods` est une liste d'objets. */
-export function readGoods(config: unknown): Row[] | null {
-  const goods = isRecord(config) && Object.hasOwn(config, 'goods') ? config['goods'] : [];
-  return isRecord(config) && Array.isArray(goods) && goods.every(isRecord) ? goods : null;
+/** Lignes de la liste `key` d'un objet. Sans cette clé : liste vide. `null` : pas un objet dont `key` est une liste d'objets. */
+export function readRows(value: unknown, key: string): Row[] | null {
+  const rows = isRecord(value) && Object.hasOwn(value, key) ? value[key] : [];
+  return isRecord(value) && Array.isArray(rows) && rows.every(isRecord) ? rows : null;
 }
+/** Biens d'une configuration (`readRows`). */
+export const readGoods = (config: unknown) => readRows(config, 'goods');
+/** L'objet avec cette liste à la clé `key` : à sa place si elle y était, sinon en dernier. Le reste est gardé. */
+export const withRows = (value: unknown, key: string, rows: Row[]): Row => ({
+  ...(isRecord(value) ? value : {}),
+  [key]: rows,
+});
 
 // Entier : des chiffres seuls, sans zéro en tête. Décimal : point (ou virgule, voir `typed`), exposant.
 const NUMBER = { integer: /^-?(0|[1-9]\d*)$/, decimal: /^-?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i };
@@ -30,7 +41,7 @@ const NUMBER = { integer: /^-?(0|[1-9]\d*)$/, decimal: /^-?(\d+(\.\d*)?|\.\d+)(e
  * nommant le champ. Dans un prix, « 1.000 », « 1,000 », « 1e3 », « 5. » et « 007 » ne deviennent ni 1, ni
  * 1 000, ni 5, ni 7. Au-delà de 2^53 ou infini, JSON écrirait un autre nombre ou `null` : texte aussi.
  */
-export function typed(kind: GoodField['kind'], input: string): unknown {
+export function typed(kind: TableField['kind'], input: string): unknown {
   if (input === '') return undefined;
   if (kind === 'text' || kind === 'choice') return input;
   const literal = (kind === 'decimal' ? input.replace(',', '.') : input).trim();
@@ -40,26 +51,26 @@ export function typed(kind: GoodField['kind'], input: string): unknown {
 }
 
 /** Texte d'un champ. Une valeur d'un autre type que le sien est montrée en JSON (`"12"`, `null`), pas comme un nombre. */
-export function shown(kind: GoodField['kind'], value: unknown): string {
+export function shown(kind: TableField['kind'], value: unknown): string {
   if (value === undefined) return '';
   const native = kind === 'integer' || kind === 'decimal' ? 'number' : 'string';
   return typeof value === native ? String(value) : JSON.stringify(value);
 }
 
-/** Biens après une saisie dans un champ : seule cette valeur change, les clés inconnues sont gardées. */
-export function editGood(goods: Row[], row: number, field: GoodField, input: string): Row[] {
+/** Lignes après une saisie dans un champ : seule cette valeur change, les clés inconnues sont gardées. */
+export function editRow(rows: Row[], row: number, field: TableField, input: string): Row[] {
   const value = typed(field.kind, input);
-  return goods.map((good, index) => {
-    if (index !== row) return good;
-    if (value !== undefined) return { ...good, [field.key]: value };
-    return Object.fromEntries(Object.entries(good).filter(([key]) => key !== field.key));
+  return rows.map((line, index) => {
+    if (index !== row) return line;
+    if (value !== undefined) return { ...line, [field.key]: value };
+    return Object.fromEntries(Object.entries(line).filter(([key]) => key !== field.key));
   });
 }
 
-/** Texte JSON de la configuration avec ces biens : la seule chose que le formulaire écrit. */
-export function composeGoods(config: unknown, goods: Row[]): string {
-  return JSON.stringify({ ...(isRecord(config) ? config : {}), goods }, null, 2);
-}
+/** Texte JSON de la configuration avec cette table : la seule chose qu'un formulaire écrit. */
+export const composeTable = (config: unknown, key: string, rows: Row[]): string =>
+  JSON.stringify(withRows(config, key, rows), null, 2);
+export const composeGoods = (config: unknown, goods: Row[]) => composeTable(config, 'goods', goods);
 
 /**
  * Biens après un ajout : un objet vide en fin de liste, sans aucune valeur, pas même un niveau. Le

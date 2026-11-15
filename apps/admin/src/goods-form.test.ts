@@ -3,8 +3,8 @@ import fc from 'fast-check';
 import { expect, it } from 'vitest';
 import * as form from './goods-form';
 
-const { addGood, composeGoods, editGood, GOOD_FIELDS, readGoods, removeGood, shown, typed } = form;
-type Kind = form.GoodField['kind'];
+const { addGood, composeGoods, editRow, GOOD_FIELDS, readGoods, removeGood, shown, typed } = form;
+type Kind = form.TableField['kind'];
 
 it('les champs et les niveaux du formulaire sont ceux du schéma, dans son ordre', () => {
   expect(GOOD_FIELDS.map((field) => field.key)).toEqual(Object.keys(goodSchema.shape));
@@ -60,7 +60,7 @@ it('sans liste de biens lisible, pas de formulaire ; sans `goods`, liste vide', 
 it('une clé `__proto__` du texte reste une donnée : gardée telle quelle, à la racine et dans un bien', () => {
   const kept = '{"__proto__":{"a":1},"goods":[{"__proto__":2,"extra":true}]}';
   const config = JSON.parse(kept.replace('"extra"', '"id":"wheat","extra"')) as { goods: never[] };
-  expect(composeGoods(config, editGood(config.goods, 0, GOOD_FIELDS[0], ''))).toBe(
+  expect(composeGoods(config, editRow(config.goods, 0, GOOD_FIELDS[0], ''))).toBe(
     JSON.stringify(JSON.parse(kept), null, 2),
   );
 });
@@ -81,7 +81,7 @@ it('conservation : une saisie ne change que sa valeur, tout le reste de la confi
       const before = JSON.stringify({ ...rest, goods });
       const config = JSON.parse(before) as { goods: Record<string, unknown>[] };
       const row = pick % config.goods.length;
-      const after = composeGoods(config, editGood(config.goods, row, field, text));
+      const after = composeGoods(config, editRow(config.goods, row, field, text));
       const expected = JSON.parse(before) as typeof config;
       const value = typed(field.kind, text);
       if (value === undefined) Reflect.deleteProperty(expected.goods[row] ?? {}, field.key);

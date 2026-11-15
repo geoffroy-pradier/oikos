@@ -862,3 +862,22 @@ it('formulaire des biens : ni Entrée tenue, ni double clic, ni toucher juste ap
   expect(announced()).toBe(REMOVED('élément 2'));
   now.mockRestore();
 });
+
+it('formulaire des biens : deux retraits de suite au même nom font deux annonces ; Entrée tenue sur l’ajout n’ajoute rien', async () => {
+  const editor = await openVersion(1);
+  type(editor, '{"goods":[{},{}]}');
+  const region = document.getElementById('goods-announce');
+  fireEvent.click(button('Retirer élément 1'));
+  const first = region?.firstChild;
+  expect(announced()).toBe(REMOVED('élément 1'));
+  // Même texte, nœud neuf : le lecteur d'écran lit la seconde annonce.
+  fireEvent.click(button('Retirer élément 1'));
+  expect([announced(), region?.firstChild === first]).toEqual([REMOVED('élément 1'), false]);
+  // Le seul bien retiré, le foyer est sur l'ajout : la répétition de la touche n'y ajoute rien.
+  expect(document.activeElement).toBe(button('Ajouter un bien'));
+  enter(true);
+  enter(true);
+  expect(goodsOf(editor)).toEqual([]);
+  enter();
+  expect(goodsOf(editor)).toEqual([{}]);
+});
