@@ -169,11 +169,20 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByText('entretien impayé', { exact: false })).toBeVisible();
   await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
+  // Une relecture qui échoue encore est annoncée de nouveau : le message est un nouvel élément.
+  await said(page, 'alert').evaluate((element) => element.setAttribute('data-first', ''));
+  const retry = page.getByRole('button', { name: 'Réessayer' });
+  await retry.click();
+  await expect(page.locator('[data-first]')).toHaveCount(0);
+  await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await page.unroute('**/rest/v1/site_rules*');
-  // « Réessayer » relit les règles sans recharger la page : l'alerte disparaît, le bouton revient.
-  await page.getByRole('button', { name: 'Réessayer' }).click();
+  // « Réessayer », au clavier, relit les règles sans recharger la page : l'alerte disparaît, le bouton
+  // revient, et le foyer va au titre de la carte au lieu de retomber sur la page.
+  await retry.focus();
+  await page.keyboard.press('Enter');
   await expect(said(page, 'alert')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Relancer/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeFocused();
 
   // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
   const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 30 oboles' });

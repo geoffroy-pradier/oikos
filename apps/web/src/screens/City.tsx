@@ -1,4 +1,5 @@
 import { Card } from '@oikos/ui';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
@@ -11,6 +12,8 @@ import { LoadProblem, Loading } from './LoadProblem';
  */
 export function CityScreen() {
   const { t, i18n } = useTranslation();
+  // Titre de la carte : le foyer y va après une relecture réussie.
+  const title = useRef<HTMLHeadingElement>(null);
   const house = useHouse();
   const rows = useRows<unknown>(
     'city_population',
@@ -37,9 +40,11 @@ export function CityScreen() {
         <p className="text-muted-foreground">{t('city.intro')}</p>
       </Card>
       <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('city.population')}</h2>
+        <h2 ref={title} tabIndex={-1} className="text-xl">
+          {t('city.population')}
+        </h2>
         {rows.rows === null && !rows.failed && <Loading />}
-        {failed && <LoadProblem onRetry={() => rows.reload()} />}
+        {failed && <LoadProblem heading={title} onRetry={() => rows.reload()} />}
         {city && city.classes.length === 0 && (
           <p className="text-muted-foreground">{t('city.empty')}</p>
         )}
