@@ -707,6 +707,97 @@ it('bien retiré encore détenu : dit sous la version avant la programmation, et
   );
 });
 
+it('recette ou classe retirée encore en usage : avertie sous la version, programmée après confirmation cochée', async () => {
+  const [v3, ...rest] = LISTING.versions;
+  const withUsage = (npcClasses: { classId: string; cities: number; population: number }[]) => ({
+    ...LISTING,
+    versions: [
+      {
+        ...v3,
+        retiredInUse: {
+          goods: [],
+          recipes: [{ recipeId: 'grow_wheat', sites: 1200, houses: 3 }],
+          npcClasses,
+        },
+      },
+      ...rest,
+    ],
+  });
+  // Lue sans usage, puis, après le refus de l'API, avec la recette et une classe ; puis deux classes.
+  const listings = [
+    LISTING,
+    withUsage([{ classId: 'metoikoi', cities: 2, population: 0 }]),
+    withUsage([
+      { classId: 'metoikoi', cities: 2, population: 0 },
+      { classId: 'thetes', cities: 1, population: 4500 },
+    ]),
+  ];
+  let read = 0;
+  const detail = api.adminGet.getMockImplementation();
+  api.adminGet.mockImplementation((path: string) =>
+    path === 'config/versions'
+      ? Promise.resolve({ ok: true, data: listings[Math.min(read++, listings.length - 1)] })
+      : detail?.(path),
+  );
+  api.adminCommand
+    .mockResolvedValueOnce({ ok: false, code: 'CONFIG_RETIRED_UNCONFIRMED' })
+    .mockResolvedValueOnce({ ok: true, data: { activateAt: '2999-01-01T03:00:00Z' } });
+  render(<Config accessToken="token" role="game_designer" />);
+  const name = 'Programmer la version 3 à la prochaine clôture';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    'cochez la confirmation sous la version',
+  );
+  // La liste relue dit ce qui est en usage ; le bouton attend la confirmation, et la lit.
+  const confirm = await screen.findByRole('checkbox', {
+    name: 'Je confirme : programmer la version 3 malgré ces recettes et ces classes en usage',
+  });
+  const notice = within(item(3))
+    .getByText(/grow_wheat/)
+    .closest('div');
+  expect(notice?.textContent?.replace(/\s/g, ' ')).toContain(
+    'Recette grow_wheat — sites : 1 200 ; maisons : 3',
+  );
+  expect(notice?.textContent).toContain('Classe metoikoi — cités : 2 ; habitants gardés : 0');
+  expect(notice?.textContent).toContain("à l'arrêt faute de recette");
+  expect(button(name)).toHaveProperty('disabled', true);
+  expect(button(name).getAttribute('aria-describedby')).toBe(notice?.id);
+  expect(confirm.getAttribute('aria-describedby')).toBe(notice?.id);
+  expect(item(2).textContent).not.toContain('encore en usage');
+  fireEvent.click(confirm);
+  expect(button(name)).toHaveProperty('disabled', false);
+  fireEvent.click(button(name));
+  expect(await screen.findByRole('status')).toHaveProperty(
+    'textContent',
+    expect.stringContaining('Version 3 programmée'),
+  );
+  expect(api.adminCommand.mock.calls.map((call) => call[1])).toEqual([
+    { versionId: 'v3' },
+    { versionId: 'v3', confirmRetiredInUse: true },
+  ]);
+  // La liste relue nomme une classe de plus : la confirmation ne la couvrait pas, elle se décoche.
+  await waitFor(() => expect(within(item(3)).getByText(/thetes/)).toBeTruthy());
+  expect(confirm).toHaveProperty('checked', false);
+  expect(button(name)).toHaveProperty('disabled', true);
+});
+
+it('recette retirée en usage : l’observateur lit l’avertissement, sans case à cocher', async () => {
+  const [v3, ...rest] = LISTING.versions;
+  const retiredInUse = {
+    goods: [],
+    recipes: [{ recipeId: 'grow_wheat', sites: 1, houses: 1 }],
+    npcClasses: [],
+  };
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: { ...LISTING, versions: [{ ...v3, retiredInUse }, ...rest] },
+  });
+  render(<Config accessToken="token" role="observer" />);
+  const warning = await screen.findByText(/Recette grow_wheat/);
+  expect(item(3).contains(warning)).toBe(true);
+  expect(screen.queryByRole('checkbox')).toBeNull();
+});
+
 it('un refus du schéma désigne table, ligne et champ d’après la configuration envoyée', async () => {
   const fields = [
     'goods[1].elasticity: Too big',
