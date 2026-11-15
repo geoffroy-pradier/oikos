@@ -255,15 +255,15 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   `pnpm --filter @oikos/db bench:cash-flows`.
 - **Migrations rejouables** (règle 9, ticket #158) : toutes se rejouent sur une base déjà migrée sans changer
   le schéma, ce que `pnpm test:db:replay` vérifie en `ci` par une empreinte du schéma, sur une base neuve
-  puis après les tests d'intégration.
+  puis après les tests d'intégration. La saison est bornée à 366 jours. Un fuseau inconnu de la base n'est
+  refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais.
 - **Migrations au déploiement** (14.4, ticket #218) : `infra/apply-migrations.sh` n'applique que les
   migrations absentes de `supabase_migrations.schema_migrations`, chacune dans sa transaction avec son
   enregistrement, et refuse une migration enregistrée dont le fichier a changé (`oikos_md5`). Une base déjà
   déployée sans cette table adopte, sans les rejouer, les migrations de la version précédente restées
   identiques (ADR 0004). Une migration publiée est immuable, et la `ci` refuse qu'on la modifie : on
   corrige par une migration nouvelle. Les migrations enregistrées par la CLI (`supabase db push`) n'ont pas
-  d'empreinte : seule la `ci` les protège. La saison est bornée à 366 jours. Un fuseau inconnu de la
-  base n'est refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais (#158).
+  d'empreinte : seule la `ci` les protège.
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.
@@ -288,10 +288,10 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   fois pour tous les mondes. S'il quitte la base des fuseaux de PostgreSQL, un humain doit le remettre sur
   le serveur (`needs-human`) : changer de fuseau serait un changement d'horloge, refusé.
 - **Tranches et rebases** : les tickets du matin ont été livrés en tranches de moins de 400 lignes,
-  dans l'ordre des numéros de migration (35 à 40). L'après-midi aussi, chaque demande `sensible` a été relue
+  dans l'ordre des numéros de migration (35 à 40) ; chaque tranche `sensible` a été relue par
+  `relecteur-sensible` avant sa fusion et porte le label `a-relire-fable`. L'après-midi aussi, chaque demande `sensible` a été relue
   par `relecteur-sensible` et porte `a-relire-fable` ; #231 (#213), non `sensible`, a été relue par une
-  session distincte. Chaque tranche `sensible` a été relue par
-  `relecteur-sensible` avant sa fusion et porte le label `a-relire-fable`.
+  session distincte.
 - **Répartition entre modèles** (#143) : le code des tickets `sensible` est écrit par le sous-agent
   `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
   distincte. Les commits des sous-agents portent leur propre ligne `Co-Authored-By`.
