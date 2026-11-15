@@ -1087,3 +1087,70 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
     }
   });
 });
+
+test('à surveiller : plafond atteint et atelier à court d’intrants ; « Tout récolter » nomme un échec', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  // Trois jours : le champ a atteint son plafond (18 cycles de 4 h).
+  await elapse(houseName, 18 * 240);
+  await page.reload();
+  const watch = page.getByRole('region', { name: 'À surveiller' });
+  await expect(watch.getByRole('listitem')).toHaveText([
+    'Champ de blé — plafond de production atteint',
+  ]);
+  // Un moulin, acquis ensuite, sans blé libre : une heure plus tard, son premier cycle attend.
+  await page.getByLabel('Site à acquérir').selectOption('mill_flour');
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set created_at = created_at - interval '60 minutes',
+      cycle_started_at = cycle_started_at - interval '60 minutes'
+      where recipe_id = 'mill_flour'
+        and house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+  await page.reload();
+  await expect(watch.getByRole('listitem')).toHaveText([
+    'Champ de blé — plafond de production atteint',
+    "Moulin — à court d'intrants",
+  ]);
+  await expectNoHorizontalScroll(page);
+
+  // Le champ récolté, le moulin a du blé : plus rien à surveiller.
+  await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
+  await expect(said(page, 'status')).toContainText('Récolte engrangée : 720 × Blé.');
+  await expect(watch).toHaveCount(0);
+
+  // Quatre heures plus tard, deux sites à récolter. Le moulin est refusé par l'API : le résultat
+  // dit ce qui a été engrangé, puis nomme le site en échec et la raison.
+  await elapse(houseName, 240);
+  await page.reload();
+  const mill = await sql<{ id: string }>`
+    select s.id from game.sites s join game.houses h on h.id = s.house_id
+    where h.name = ${houseName} and s.recipe_id = 'mill_flour'`.execute(db);
+  const millId = mill.rows[0]?.id;
+  expect(millId).toBeDefined();
+  await page.route('**/api/commands/site.collect', (route) =>
+    (route.request().postDataJSON() as { siteId?: string }).siteId === millId
+      ? route.fulfill({
+          status: 409,
+          json: { ok: false, error: { code: 'MISSING_INPUTS', message: 'Missing inputs.' } },
+        })
+      : route.continue(),
+  );
+  const all = page.getByRole('button', { name: 'Tout récolter : 2 sites à récolter' });
+  await all.focus();
+  await page.keyboard.press('Enter');
+  await expect(said(page, 'status')).toHaveText(
+    'Récolte engrangée sur 1 site : 40 × Blé. Échec pour Moulin. Il manque des intrants en stock libre pour faire tourner cet atelier.',
+  );
+  await expect(said(page, 'status')).toBeInViewport();
+  await page.unroute('**/api/commands/site.collect');
+  // Seul le moulin reste à récolter.
+  await expect(
+    page.getByRole('button', { name: 'Tout récolter : 1 site à récolter' }),
+  ).toBeVisible();
+  await expectNoHorizontalScroll(page);
+});
