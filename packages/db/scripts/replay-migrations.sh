@@ -3,7 +3,8 @@
 # nouvelles (`infra/apply-migrations.sh`) ; ce rejeu reste un filet : sur une base déjà migrée, chacune doit
 # passer, et le schéma doit en sortir inchangé. Le script rejoue deux fois toutes les migrations, chaque
 # fichier en une transaction, et compare l'empreinte du schéma (`schema-fingerprint.sql`) avant et après.
-# `ci` le lance après `db:reset`, puis après les tests d'intégration, sur une base qui contient des données.
+# `ci` le lance après `db:reset` (job `database`), puis après les tests d'intégration de chaque job `integration`,
+# sur une base qui contient des données.
 #
 #   REPLAY_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres pnpm test:db:replay
 #
