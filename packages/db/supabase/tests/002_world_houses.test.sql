@@ -37,12 +37,16 @@ select is(
          from information_schema.column_privileges
          where grantee = 'authenticated' and table_schema = 'game' and privilege_type = 'SELECT'
          group by table_name) granted),
-  'accounts(balance,house_id,id,kind) cities(created_at,id,name,slug,world_id) '
-    || 'citizenships(city_id,house_id,id,since,status) houses(blazon,created_at,id,name,world_id) '
+  'accounts(balance,house_id,id,kind) ballots(cast_at,election_id,house_id) '
+    || 'candidacies(created_at,election_id,house_id,id,withdrawn_at) cities(created_at,id,name,slug,world_id) '
+    || 'citizenships(city_id,house_id,id,since,status) '
+    || 'elections(candidacy_opens_at,city_id,id,office,tallied_at,term_ends_at,voting_closes_at,voting_opens_at,world_id) '
+    || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'npc_population(city_id,class_id,closed_day,coverage_bps,population) '
     || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '
+    || 'offices(city_id,election_id,ends_at,house_id,id,office,starts_at,world_id) '
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'ships(class_id,docked_city_id,house_id,id,laid_up_at) sites(city_id,cycle_started_at,halted_at,house_id,id,recipe_id) '

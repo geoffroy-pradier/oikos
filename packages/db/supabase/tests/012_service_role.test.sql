@@ -71,8 +71,8 @@ select is(
     and p.prosecdef),
   'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_trade_settled game.check_trade_settlement '
-    || 'game.city_identity game.clock_rules game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.market_rules game.order_book '
-    || 'game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
+    || 'game.city_identity game.clock_rules game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.election_results game.market_rules game.order_book '
+    || 'game.politics_rules game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
 select is(

@@ -196,6 +196,48 @@ export interface GameDatabase {
     laid_up_at: ColumnType<Date | null, never, never>;
     created_at: ColumnType<Date, never, never>;
   };
+  /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
+  'game.elections': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    office: ColumnType<'archon', 'archon', never>;
+    candidacy_opens_at: ColumnType<Date, Date, never>;
+    voting_opens_at: ColumnType<Date, Date, never>;
+    /** Fin du vote, début du mandat pourvu. */
+    voting_closes_at: ColumnType<Date, Date, never>;
+    term_ends_at: ColumnType<Date, Date, never>;
+    /** Instant du dépouillement, une fois, daté de la transaction (garde). */
+    tallied_at: ColumnType<Date | null, never, Date>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Candidatures : datées par la base ; elles ne changent que par leur retrait. */
+  'game.candidacies': {
+    id: ColumnType<string, never, never>;
+    election_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    created_at: ColumnType<Date, never, never>;
+    withdrawn_at: ColumnType<Date | null, never, Date>;
+  };
+  /** Bulletins : un par maison et par élection, datés par la base, définitifs. */
+  'game.ballots': {
+    id: ColumnType<string, never, never>;
+    election_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    candidacy_id: ColumnType<string, string, never>;
+    cast_at: ColumnType<Date, never, never>;
+  };
+  /** Charges pourvues par le dépouillement de leur élection, définitives. */
+  'game.offices': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    office: ColumnType<'archon', 'archon', never>;
+    house_id: ColumnType<string, string, never>;
+    election_id: ColumnType<string, string, never>;
+    starts_at: ColumnType<Date, Date, never>;
+    ends_at: ColumnType<Date, Date, never>;
+  };
   /** Clôtures quotidiennes jouées : une ligne par monde et par jour de jeu, en ajout seul. */
   'game.daily_closes': {
     world_id: string;
