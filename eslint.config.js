@@ -31,6 +31,24 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', { patterns: ['@oikos/config*'] }] },
   },
   {
+    // Forcer les contrôles différés contourne ceux de la validation, dont celui des activations de
+    // configuration : limite assumée tant qu'aucun code du jeu ne le fait (ticket 208, spécification 13).
+    files: ['apps/*/src/**', 'packages/*/src/**'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          'Literal[value=/set\\s+constraints/i]',
+          'TemplateElement[value.raw=/set\\s+constraints/i]',
+        ].map((selector) => ({
+          selector,
+          message: 'Le code du jeu ne force jamais les contrôles différés (spécification 13).',
+        })),
+      ],
+    },
+  },
+  {
     // Scripts Node hors TypeScript (outillage).
     files: ['**/*.mjs'],
     languageOptions: { globals: { console: 'readonly', process: 'readonly' } },
