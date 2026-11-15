@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   archonElectedSchema,
+  ballotCastSchema,
   citizenshipGrantedSchema,
+  cityCastVoteInputSchema,
   cityStandForElectionInputSchema,
 } from './city';
 import { domainEventSchema } from './events';
@@ -48,12 +50,23 @@ describe('élection de l’archonte', () => {
 });
 
 describe('commandes de l’élection', () => {
-  it('élection désignée par son identifiant, aucun autre champ', () => {
-    const ELECTION = '01900000-0000-7000-8000-0000000005e1';
+  const ELECTION = '01900000-0000-7000-8000-0000000005e1';
+  it('élection et candidature désignées par leur identifiant, aucun autre champ', () => {
     expect(cityStandForElectionInputSchema.safeParse({ electionId: ELECTION }).success).toBe(true);
     expect(cityStandForElectionInputSchema.safeParse({ electionId: 'x' }).success).toBe(false);
-    expect(
-      cityStandForElectionInputSchema.safeParse({ electionId: ELECTION, houseId: HOUSE }).success,
-    ).toBe(false);
+    const vote = { electionId: ELECTION, candidacyId: HOUSE };
+    expect(cityCastVoteInputSchema.safeParse(vote).success).toBe(true);
+    expect(cityCastVoteInputSchema.safeParse({ electionId: ELECTION }).success).toBe(false);
+    expect(cityCastVoteInputSchema.safeParse({ ...vote, houseId: HOUSE }).success).toBe(false);
+  });
+
+  it('BallotCast ne porte pas la candidature choisie', () => {
+    const cast = {
+      type: 'BallotCast' as const,
+      payload: { electionId: ELECTION, cityId: CITY, houseId: HOUSE },
+    };
+    expect(domainEventSchema.parse(JSON.parse(JSON.stringify(cast)))).toEqual(cast);
+    const leaked = { ...cast, payload: { ...cast.payload, candidacyId: HOUSE } };
+    expect(ballotCastSchema.safeParse(leaked).success).toBe(false);
   });
 });

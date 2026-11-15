@@ -43,6 +43,21 @@ Une cité du monde absente de la configuration n'a pas de terroir, donc admet to
 
 Garde-fous : mandats limités à deux consécutifs, comptes publics visibles de tous, motion de destitution à la majorité des deux tiers, plafonds de dépense par décision.
 
+Dans la phase 2 (ticket 260), l'archonte est le seul magistrat ; les autres charges, le conseil, la destitution et l'ostracisme viennent ensuite.
+Seuls les citoyens votent et se présentent, dans leur cité ; une maison y devient citoyenne d'elle-même après `politics.meticDays` jours de jeu comme métèque (3, progression).
+Le calendrier vient de la configuration (`politics.archon`) : un mandat de `termDays` jours de jeu (28, une année), précédé du dépôt des candidatures (`candidacyDays`, 4 jours) puis du vote (`votingDays`, 3 jours).
+La clôture qui ouvre un mandat dépouille l'élection qui le pourvoit, puis ouvre celle du mandat suivant quand son dépôt doit commencer ; ces deux étapes passent avant l'entretien.
+Le premier mandat d'une cité commence `candidacyDays + votingDays` jours après la première clôture qui lit une configuration avec la section `politics` ; chaque mandat suivant commence à la fin du précédent, pourvu ou vacant.
+Si les clôtures ont manqué l'ouverture d'une élection (moteur arrêté), son dépôt est écourté ; si elles ont manqué le début de son vote, elle s'ouvre à la clôture suivante avec un calendrier complet, et la charge est vacante d'ici là.
+Le calendrier d'une élection est fixé à son ouverture : une version de configuration publiée ensuite ne vaut que pour les suivantes.
+Commandes : `city.standForElection` et `city.withdrawCandidacy` pendant le dépôt (un retrait est définitif : la candidature ne se redépose pas), `city.castVote` pendant le vote (un bulletin par maison et par élection, pour une candidature maintenue).
+Décision (ambiguïté de cette section) : le vote est secret ; un joueur lit que sa maison a voté, jamais pour qui, et les résultats ne sont publics qu'après le dépouillement.
+La charge va à la candidature maintenue qui a le plus de bulletins.
+Décision (ticket 260) : une égalité, à zéro bulletin comme ailleurs, est départagée par l'ancienneté de la candidature ; un candidat seul est donc élu même sans voix.
+Une élection sans candidat laisse la charge vacante jusqu'au mandat suivant.
+Une maison qui a tenu la charge aux `maxConsecutiveTerms` derniers mandats de sa cité (2) ne se présente pas au suivant ; un mandat vacant ou tenu par une autre maison interrompt la suite.
+Les joueurs connectés lisent le calendrier de chaque cité, les candidatures, les résultats après dépouillement et les magistrats, en charge ou passés (12).
+
 ## 6.3 Décrets
 
 Un décret est un type de loi pris dans un catalogue de 40 modèles paramétrés (taux, durées, cibles) : taxe, subvention d'une filière, embargo, grands travaux, fête, pacte commercial. Le joueur rédige son intention en langage naturel ; l'IA la convertit en décret paramétré qu'il valide avant dépôt. Le moteur n'applique que des paramètres bornés.
