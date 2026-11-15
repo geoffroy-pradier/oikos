@@ -11,7 +11,7 @@ S'y ajoutent de nouveaux puits de monnaie, un banc d'équilibrage à plusieurs c
    Il paie son personnel, transporte un bien par mer d'une cité à l'autre et l'y vend, achète, loue et rénove un logement, confie un site à un intendant par formulaire, se porte candidat et vote à l'élection de l'archonte, vote un décret, écrit dans le canal de sa cité et à une autre maison, signale un message, fait une offrande, invoque une grâce, consulte la Pythie et lit la chronique de sa cité.
    Chaque étape est couverte par un test de bout en bout de `apps/web`.
 2. **Économie à quatre cités.**
-   Le banc d'équilibrage joue 10 jours de mise en route puis 30 jours mesurés à quatre cités, avec la configuration initiale calibrée par P2-34.
+   Le banc d'équilibrage joue 10 jours de mise en route puis 30 jours mesurés à quatre cités, avec la configuration initiale calibrée par #283.
    Il tient dans chaque cité les bornes de la phase 1 (coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas).
    La masse monétaire varie de −3 % à +3 % sur les 30 jours mesurés, au lieu de croître d'environ 60 000 oboles par jour (limite connue de 5.5).
    La marge nette quotidienne d'un site de chaque filière d'atelier se situe entre la moitié et le double de la médiane de celle des sites de matières premières.
@@ -31,27 +31,27 @@ Ils ne sont pas une porte de sortie de la phase tant que le serveur est reporté
 
 **État de la phase 1.**
 La phase 1 se ferme avec son dernier suivi, #234 ; aucun ticket ci-dessous n'en dépend.
-Le serveur de préproduction (#33, `needs-human`) reste reporté : aucun ticket ci-dessous ne demande de serveur, de domaine, de secret ni de compte tiers, sauf P2-20, marqué `needs-human`.
+Le serveur de préproduction (#33, `needs-human`) reste reporté : aucun ticket ci-dessous ne demande de serveur, de domaine, de secret ni de compte tiers, sauf #269, marqué `needs-human`.
 
 **Numérotation.**
-Les numéros P2-1 à P2-37 sont provisoires et seront remplacés par ceux des tickets GitHub, dépendances comprises.
+Les numéros sont ceux des tickets GitHub, de #250 à #286, dépendances comprises.
 
 **Décisions prises en rédigeant ces tickets.**
 Chaque décision est rappelée dans le ticket qu'elle concerne, et la demande de fusion met la spécification à jour.
 
 - **Paramètres neutres.** Le banc de #78 tourne en `ci` sur la configuration initiale (`INITIAL_CONFIG`), avec des bornes écrites à la main.
   Tout nouveau paramètre économique de la phase entre donc neutre dans la configuration initiale : montant nul (salaires, hébergement, provisions, droit de port, entretien des navires et des logements, vétusté, salaire des intendants), probabilité nulle (événements), taux de la cité égal à celui du monde, offre de travail sans limite, usage d'IA désactivé.
-  P2-34 les active, par une version de configuration éprouvée par le banc à quatre cités.
+  #283 les active, par une version de configuration éprouvée par le banc à quatre cités.
   Un montant nul ne prélève rien et n'écrit aucune ligne.
 - **Puits nommés.** Chaque flux de monnaie détruite a son puits, ajouté au catalogue des comptes système (migration), à `SYSTEM_ACCOUNT_KEYS` (`packages/sim/src/ledger.ts`), à la liste figée du test pgTAP 013 et aux libellés `fr` et `en` d'Olympe que vérifie `apps/admin/src/i18n.test.ts`.
 - **Natures des flux de la maison.** `my_cash_flows` (migration 32) classe une ligne selon la nature de son écriture.
-  P2-6 ajoute un marqueur de nature par ligne du grand livre, que lisent `my_cash_flows` et `my_income_statement` quand il est présent : une écriture `upkeep.daily` ou `upkeep.restart` porte une ligne de débit par nature (entretien, salaires, hébergement), si bien que 4.1 les distingue.
+  #255 ajoute un marqueur de nature par ligne du grand livre, que lisent `my_cash_flows` et `my_income_statement` quand il est présent : une écriture `upkeep.daily` ou `upkeep.restart` porte une ligne de débit par nature (entretien, salaires, hébergement), si bien que 4.1 les distingue.
   Chaque ticket qui ajoute une écriture de maison lui donne sa nature 4.1 et met 4.1 à jour.
 - **Ordre de la clôture.** L'entretien reste la dernière étape (5.5).
   Avant lui, dans cet ordre : loyers (et fin des baux impayés), vétusté des logements, application des décrets, déclin de la Charis, planification des événements, salaire du jour et prix de l'hébergement ; la capacité de logement se lit après la fin des baux impayés.
 - Les liturgies restent en phase 3, où 17 les place ; 06 ne leur donne pas de phase.
 - Un site reste dans la cité de sa maison (4.2, inchangé) ; les autres cités s'atteignent par le transport, l'agora et l'immobilier.
-- Kallistè, cité fondatrice, garde toutes ses matières premières de la phase 1 ; seul P2-34 resserre son terroir.
+- Kallistè, cité fondatrice, garde toutes ses matières premières de la phase 1 ; seul #283 resserre son terroir.
 - Les quatre cités ont un port ; les caravanes terrestres (4.6) attendent une carte.
 - Le risque en mer de la phase 2 est un retard (tempête, événement planifié), jamais une perte de cargaison ; la perte viendra avec le prêt maritime (phase 3).
 - Le droit de port est un forfait par arrivée et par classe de navire, modulé par la cité, et non un pourcentage de la valeur de la cargaison (5.6) : celle-ci n'a pas de valeur publique sûre.
@@ -66,7 +66,7 @@ Chaque décision est rappelée dans le ticket qu'elle concerne, et la demande de
 
 ---
 
-# P2-1. Quatre cités : terroir, port et dieu protecteur
+# 250. Quatre cités : terroir, port et dieu protecteur
 
 ## Contexte
 
@@ -76,8 +76,8 @@ Ce ticket ouvre trois cités de plus, sans transport : chacune vit d'abord de sa
 
 Décision (ambiguïté de 6.1) : les quatre cités ont un port, puisque le seul transport de la phase est maritime.
 Décision : un site reste dans la cité de sa maison (4.2) ; le terroir ne fait que restreindre les recettes qu'on peut y lancer.
-Décision : Kallistè, cité fondatrice, garde au départ toutes les matières premières de la phase 1 ; son terroir se resserre par configuration une fois le banc à quatre cités en place (P2-34).
-Décision : la configuration reçoit ici une liste de dieux, réduite à leurs identifiants, que P2-16 complète.
+Décision : Kallistè, cité fondatrice, garde au départ toutes les matières premières de la phase 1 ; son terroir se resserre par configuration une fois le banc à quatre cités en place (#283).
+Décision : la configuration reçoit ici une liste de dieux, réduite à leurs identifiants, que #265 complète.
 Décision : chaque cité peut avoir sa propre recette de départ, puisque Ampelos et Halos n'ont pas de blé.
 Label : `sensible` (règles par ligne de `city_identity` ; `site.acquire`, `site.setRecipe` et `house.create` touchés).
 
@@ -89,8 +89,8 @@ Label : `sensible` (règles par ligne de `city_identity` ; `site.acquire`, `site
 
 - [ ] Configuration : liste `gods` (identifiants seuls : Déméter, Athéna, Dionysos, Poséidon, Apollon) ; chaque cité porte son terroir (identifiants des recettes de matière première admises ; les ateliers sont admis partout), son port, son dieu protecteur et, si elle veut, sa recette de départ ; le schéma refuse un dieu, une recette ou une population inconnus.
 - [ ] Le schéma refuse une cité dont la recette de départ (la sienne, sinon `starting.siteRecipeId`) n'est pas dans son terroir.
-- [ ] Valeurs de départ, à ajuster par P2-34 : Kallistè (Déméter) garde toutes les matières premières de la phase 1, pour que la cité prototype, ses tests de bout en bout et le banc de #78 restent tels quels ; Elaia (Athéna : olives, blé, sel, bois ; départ : blé), Ampelos (Dionysos : raisin, poisson, laine, argile ; départ : raisin), Halos (Poséidon : poisson, sel, argile, bois, laine ; départ : poisson) ; aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
-- [ ] Restreindre le terroir de Kallistè, pour qu'aucune cité ne soit autosuffisante (6.1), revient à P2-34 : c'est une version de configuration, éprouvée par le banc à quatre cités.
+- [ ] Valeurs de départ, à ajuster par #283 : Kallistè (Déméter) garde toutes les matières premières de la phase 1, pour que la cité prototype, ses tests de bout en bout et le banc de #78 restent tels quels ; Elaia (Athéna : olives, blé, sel, bois ; départ : blé), Ampelos (Dionysos : raisin, poisson, laine, argile ; départ : raisin), Halos (Poséidon : poisson, sel, argile, bois, laine ; départ : poisson) ; aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
+- [ ] Restreindre le terroir de Kallistè, pour qu'aucune cité ne soit autosuffisante (6.1), revient à #283 : c'est une version de configuration, éprouvée par le banc à quatre cités.
 - [ ] Population de chaque cité en configuration, à l'échelle de la cité prototype (5.5), et demande des PNJ jouée pour les quatre.
 - [ ] `seed.sql` crée les trois cités dans le monde de développement ; leurs noms sont dans les fichiers de traduction `fr` et `en`, par identifiant court.
 - [ ] `house.create` lance la recette de départ de la cité choisie.
@@ -110,12 +110,12 @@ aucune
 
 ---
 
-# P2-2. Transport (1/4) : navires
+# 251. Transport (1/4) : navires
 
 ## Contexte
 
 « Les prix diffèrent d'une cité à l'autre ; le transport est le métier qui les rapproche » (4.6).
-Ce ticket donne aux maisons des navires, à quai dans leur cité ; le départ et l'entretien viennent avec P2-3.
+Ce ticket donne aux maisons des navires, à quai dans leur cité ; le départ et l'entretien viennent avec #252.
 
 Décision (ambiguïté de 4.6) : deux classes de navires en phase 2, le caboteur et le navire rond ; la galère d'escorte et l'escorte attendent les conflits (phase 3).
 Décision (paramètres neutres) : l'entretien des navires entre à zéro dans la configuration initiale.
@@ -138,25 +138,25 @@ Label : `sensible` (monnaie, règles par ligne).
 
 ## Hors périmètre
 
-Routes, départ, entretien (P2-3), galère d'escorte, revente d'un navire.
+Routes, départ, entretien (#252), galère d'escorte, revente d'un navire.
 
 ## Dépendances
 
-P2-1
+#250
 
 ---
 
-# P2-3. Transport (2/4) : départ d'un voyage et entretien des navires
+# 252. Transport (2/4) : départ d'un voyage et entretien des navires
 
 ## Contexte
 
-Un navire part chargé d'une cité vers une autre ; l'arrivée est jouée par le moteur (P2-4).
+Un navire part chargé d'une cité vers une autre ; l'arrivée est jouée par le moteur (#253).
 Le droit de port, les provisions et l'entretien des navires sont des puits de monnaie.
 
-Décision (ambiguïté de 5.6) : le droit de port de la cité d'arrivée est un forfait par classe de navire, payé au départ, dont la cité module le montant (P2-13) ; une part est détruite, le reste va au trésor de la cité d'arrivée, comme la taxe de marché.
+Décision (ambiguïté de 5.6) : le droit de port de la cité d'arrivée est un forfait par classe de navire, payé au départ, dont la cité module le montant (#262) ; une part est détruite, le reste va au trésor de la cité d'arrivée, comme la taxe de marché.
 5.6, qui fixe le droit de port à 2 % par défaut, est mis à jour en conséquence.
 Décision : un navire dont l'entretien n'est pas payé est désarmé jusqu'à une clôture qui le paie ; il n'a pas de commande de relance.
-Décision (paramètres neutres) : provisions et droit de port entrent à zéro dans la configuration initiale, comme l'entretien des navires (P2-2).
+Décision (paramètres neutres) : provisions et droit de port entrent à zéro dans la configuration initiale, comme l'entretien des navires (#251).
 Label : `sensible` (monnaie, stocks, règles par ligne).
 
 Tranches prévues : (1) routes, voyages, cargaison et garde du journal des stocks, avec leurs tests pgTAP ; (2) `voyage.depart` ; (3) entretien des navires à la clôture et vues.
@@ -182,19 +182,19 @@ Tranches prévues : (1) routes, voyages, cargaison et garde du journal des stock
 
 ## Hors périmètre
 
-Arrivée et déchargement (P2-4), tempêtes (P2-18), marché du fret, prêt maritime, perte de cargaison.
+Arrivée et déchargement (#253), tempêtes (#267), marché du fret, prêt maritime, perte de cargaison.
 
 ## Dépendances
 
-P2-2, P2-6
+#251, #255
 
 ---
 
-# P2-4. Transport (3/4) : arrivée des voyages par le moteur
+# 253. Transport (3/4) : arrivée des voyages par le moteur
 
 ## Contexte
 
-Un voyage parti (P2-3) doit arriver à son heure : sa cargaison entre dans le stock de la maison dans la cité d'arrivée, et le navire y est à quai.
+Un voyage parti (#252) doit arriver à son heure : sa cargaison entre dans le stock de la maison dans la cité d'arrivée, et le navire y est à quai.
 
 Décision (écart avec l'évaluation paresseuse des trajets en 13) : l'arrivée est une étape du tick, qui ne traite que les voyages échus ; son coût suit donc l'activité, comme le veut 13, et le déchargement reste une écriture du journal des stocks dans une transaction du moteur.
 Label : `sensible` (stocks).
@@ -214,15 +214,15 @@ Label : `sensible` (stocks).
 
 ## Hors périmètre
 
-Tempêtes et autres retards (P2-18), écran (P2-5).
+Tempêtes et autres retards (#267), écran (#254).
 
 ## Dépendances
 
-P2-3
+#252
 
 ---
 
-# P2-5. Transport (4/4) : écran Carte, flotte et voyages
+# 254. Transport (4/4) : écran Carte, flotte et voyages
 
 ## Contexte
 
@@ -250,11 +250,11 @@ Parcelles, temps réel, notifications push.
 
 ## Dépendances
 
-P2-4
+#253
 
 ---
 
-# P2-6. Personnel (1/2) : salaires des travailleurs à la clôture
+# 255. Personnel (1/2) : salaires des travailleurs à la clôture
 
 ## Contexte
 
@@ -263,7 +263,7 @@ Les salaires versés aux travailleurs PNJ sont un puits prévu en 5.5 (`sink_npc
 
 Décision (ambiguïté de 4.4) : les travailleurs sont attachés à leur site ; la recette dit combien il en faut, et la maison les paie à la clôture avec l'entretien du site, sans commande d'embauche.
 Un site est payé en entier (entretien et salaires) ou pas du tout, et un site impayé est à l'arrêt comme aujourd'hui (5.5).
-Décision (natures des flux) : une écriture `upkeep.daily` ou `upkeep.restart` porte une ligne de débit de la trésorerie par nature, chacune marquée (entretien, salaires, puis hébergement avec P2-9) ; `my_cash_flows` et `my_income_statement` lisent ce marqueur quand il est présent, sinon la nature de l'écriture comme aujourd'hui.
+Décision (natures des flux) : une écriture `upkeep.daily` ou `upkeep.restart` porte une ligne de débit de la trésorerie par nature, chacune marquée (entretien, salaires, puis hébergement avec #258) ; `my_cash_flows` et `my_income_statement` lisent ce marqueur quand il est présent, sinon la nature de l'écriture comme aujourd'hui.
 Décision (paramètres neutres) : le salaire entre à zéro dans la configuration initiale.
 Label : `sensible` (monnaie, règles par ligne des vues de comptes).
 
@@ -286,15 +286,15 @@ Label : `sensible` (monnaie, règles par ligne des vues de comptes).
 
 ## Hors périmètre
 
-Salaire d'équilibre et logement (P2-9), artisans, moral, cadence, intendants (P2-29).
+Salaire d'équilibre et logement (#258), artisans, moral, cadence, intendants (#278).
 
 ## Dépendances
 
-P2-1
+#250
 
 ---
 
-# P2-7. Immobilier (1/2) : parc de la cité, achat, entretien et rénovation
+# 256. Immobilier (1/2) : parc de la cité, achat, entretien et rénovation
 
 ## Contexte
 
@@ -330,20 +330,20 @@ Tranches prévues : (1) configuration, table, création du parc et gardes de la 
 
 ## Hors périmètre
 
-Baux et revente (P2-8), logement des travailleurs (P2-9), écran (P2-10), saisie et enchères.
+Baux et revente (#257), logement des travailleurs (#258), écran (#259), saisie et enchères.
 
 ## Dépendances
 
-P2-6
+#255
 
 ---
 
-# P2-8. Immobilier (2/2) : baux et revente entre maisons
+# 257. Immobilier (2/2) : baux et revente entre maisons
 
 ## Contexte
 
 « Cycle : achat, rénovation, location, revente » (4.5).
-Après l'achat à la cité (P2-7), les biens doivent se louer et se revendre entre maisons.
+Après l'achat à la cité (#256), les biens doivent se louer et se revendre entre maisons.
 Ces mouvements transfèrent de la monnaie sans en créer ; la revente paie la taxe de marché de la cité.
 
 Décision : le loyer est fixé par le propriétaire et payé chaque jour au début de la clôture par le locataire ; un loyer impayé met fin au bail.
@@ -369,15 +369,15 @@ Label : `sensible` (monnaie, règles par ligne).
 
 ## Hors périmètre
 
-Loyer d'équilibre et logement des travailleurs (P2-9), enchères, saisie, baux à durée fixe.
+Loyer d'équilibre et logement des travailleurs (#258), enchères, saisie, baux à durée fixe.
 
 ## Dépendances
 
-P2-7
+#256
 
 ---
 
-# P2-9. Personnel (2/2) : marché du travail, salaire d'équilibre et logement
+# 258. Personnel (2/2) : marché du travail, salaire d'équilibre et logement
 
 ## Contexte
 
@@ -415,16 +415,16 @@ Moral, artisans, débauchage, migration de travailleurs entre cités.
 
 ## Dépendances
 
-P2-6, P2-8
+#255, #257
 
 ---
 
-# P2-10. Écrans Personnel et Immobilier
+# 259. Écrans Personnel et Immobilier
 
 ## Contexte
 
 L'onglet Maison doit montrer le personnel et l'immobilier (10), et l'onglet Cité le marché du travail et le parc de logements.
-Les vues existent (P2-6 à P2-9) ; ce ticket n'ajoute que des écrans.
+Les vues existent (#255 à #258) ; ce ticket n'ajoute que des écrans.
 Label : aucun.
 
 ## Spécification liée
@@ -447,11 +447,11 @@ Carte des quartiers, temps réel.
 
 ## Dépendances
 
-P2-9
+#258
 
 ---
 
-# P2-11. Citoyenneté et élection de l'archonte
+# 260. Citoyenneté et élection de l'archonte
 
 ## Contexte
 
@@ -481,15 +481,15 @@ Label : `sensible` (règles par ligne).
 
 ## Hors périmètre
 
-Autres magistrats, conseil, destitution, ostracisme, campagne électorale, écran (P2-15).
+Autres magistrats, conseil, destitution, ostracisme, campagne électorale, écran (#264).
 
 ## Dépendances
 
-P2-1
+#250
 
 ---
 
-# P2-12. Décrets (1/3) : catalogue fermé, proposition et vote
+# 261. Décrets (1/3) : catalogue fermé, proposition et vote
 
 ## Contexte
 
@@ -516,15 +516,15 @@ Label : `sensible` (règles par ligne).
 
 ## Hors périmètre
 
-Effets des décrets (P2-13, P2-14), conversion par l'IA, subventions, embargos, pactes, écran (P2-15).
+Effets des décrets (#262, #263), conversion par l'IA, subventions, embargos, pactes, écran (#264).
 
 ## Dépendances
 
-P2-11
+#260
 
 ---
 
-# P2-13. Décrets (2/3) : taux de la taxe de marché et droit de port par cité
+# 262. Décrets (2/3) : taux de la taxe de marché et droit de port par cité
 
 ## Contexte
 
@@ -549,15 +549,15 @@ Label : `sensible` (monnaie, règles par ligne).
 
 ## Hors périmètre
 
-Dépenses du trésor (P2-14), impôt sur la fortune, taxe de résidence des métèques.
+Dépenses du trésor (#263), impôt sur la fortune, taxe de résidence des métèques.
 
 ## Dépendances
 
-P2-3, P2-8, P2-12
+#252, #257, #261
 
 ---
 
-# P2-14. Décrets (3/3) : grands travaux, fêtes et comptes publics du trésor
+# 263. Décrets (3/3) : grands travaux, fêtes et comptes publics du trésor
 
 ## Contexte
 
@@ -588,16 +588,16 @@ Subventions, liturgies (phase 3), Charis de cité.
 
 ## Dépendances
 
-P2-13
+#262
 
 ---
 
-# P2-15. Écran Cité : assemblée, archonte, décrets et trésor public
+# 264. Écran Cité : assemblée, archonte, décrets et trésor public
 
 ## Contexte
 
 « Séance de l'assemblée : décrets en cours, vote, débats » est un écran clé (10).
-Les vues existent (P2-11 à P2-14) ; ce ticket n'ajoute que des écrans.
+Les vues existent (#260 à #263) ; ce ticket n'ajoute que des écrans.
 Label : aucun.
 
 ## Spécification liée
@@ -614,15 +614,15 @@ Label : aucun.
 
 ## Hors périmètre
 
-Débats (la discussion de la cité vient avec P2-25), temps réel.
+Débats (la discussion de la cité vient avec #274), temps réel.
 
 ## Dépendances
 
-P2-14
+#263
 
 ---
 
-# P2-16. Charis : dieux, offrandes et déclin
+# 265. Charis : dieux, offrandes et déclin
 
 ## Contexte
 
@@ -630,7 +630,7 @@ P2-14
 Les offrandes sont un puits de monnaie (5.5, `sink_offerings`, déjà au catalogue) et un puits de biens.
 
 Décision (ambiguïté de 7.1) : en phase 2, la Charis ne se gagne que par offrandes de biens ou de monnaie ; temples, fêtes privées, actes, paliers passifs, présages et rang sacerdotal attendent la phase 3.
-Le catalogue de départ est la liste `gods` de P2-1 : les dieux protecteurs des quatre cités et Apollon (la Pythie).
+Le catalogue de départ est la liste `gods` de #250 : les dieux protecteurs des quatre cités et Apollon (la Pythie).
 Label : `sensible` (monnaie, stocks, règles par ligne).
 
 ## Spécification liée
@@ -640,7 +640,7 @@ Label : `sensible` (monnaie, stocks, règles par ligne).
 ## Critères d'acceptation
 
 - [ ] Configuration : chaque dieu de `gods` reçoit Charis par unité offerte de chaque bien et par obole, déclin quotidien en points de base, poids de la Charis de cité ; ajouter un dieu ne demande aucun code.
-- [ ] Migration : table `favor` (maison, dieu, Charis entière), modifiée seulement par une offrande, une grâce (P2-17), une consultation de la Pythie (P2-21) ou la clôture.
+- [ ] Migration : table `favor` (maison, dieu, Charis entière), modifiée seulement par une offrande, une grâce (#266), une consultation de la Pythie (#270) ou la clôture.
 - [ ] Commande `temple.makeOffering` (dieu, biens du stock libre de la cité de la maison, oboles) : biens vers l'extrémité système `offering`, monnaie vers `sink_offerings` dans une écriture `temple.offering`, dans une transaction ; événement `OfferingMade`.
 - [ ] Nature 4.1 `offerings` (hors exploitation) ; `my_cash_flows`, `my_income_statement` et 4.1 mis à jour.
 - [ ] Étape de clôture, avant l'entretien : déclin arrondi vers zéro, une seule fois par monde et par jour de jeu (index unique).
@@ -652,15 +652,15 @@ Label : `sensible` (monnaie, stocks, règles par ligne).
 
 ## Hors périmètre
 
-Grâces (P2-17), Hybris et Némésis, miracles collectifs, temples, écran (P2-23).
+Grâces (#266), Hybris et Némésis, miracles collectifs, temples, écran (#272).
 
 ## Dépendances
 
-P2-1
+#250
 
 ---
 
-# P2-17. Grâces : catalogue fermé, recharge et effets bornés
+# 266. Grâces : catalogue fermé, recharge et effets bornés
 
 ## Contexte
 
@@ -691,16 +691,16 @@ Paliers passifs, présages, miracles collectifs, grâces qui visent une autre ma
 
 ## Dépendances
 
-P2-3, P2-16
+#252, #265
 
 ---
 
-# P2-18. Événements du monde planifiés
+# 267. Événements du monde planifiés
 
 ## Contexte
 
 « Les événements du monde sont planifiés par le moteur plusieurs jours à l'avance » (7.3).
-La Pythie (P2-21) et la chronique (P2-22) en ont besoin, et le risque en mer (4.6) en vient.
+La Pythie (#270) et la chronique (#271) en ont besoin, et le risque en mer (4.6) en vient.
 
 Décision (ambiguïté de 17, qui ne cite pas les événements en phase 2) : un petit catalogue fermé de modèles, planifiés par le moteur avec un aléa déterministe (13) : sécheresse (rendement des champs d'une cité réduit), bonne année (rendement des vergers accru), tempête (trajets d'une route allongés), caravane étrangère (demande des PNJ d'une cité accrue pour un bien).
 Décision : une tempête retarde, elle ne fait rien perdre.
@@ -729,11 +729,11 @@ Déclenchement manuel et création d'événements depuis Olympe, maître du jeu 
 
 ## Dépendances
 
-P2-1, P2-3
+#250, #252
 
 ---
 
-# P2-19. Passerelle IA : journal, interrupteurs, plafonds et repli
+# 268. Passerelle IA : journal, interrupteurs, plafonds et repli
 
 ## Contexte
 
@@ -741,7 +741,7 @@ Trois usages d'IA arrivent en phase 2 : oracles, chronique, consignes d'intendan
 La règle 6 et la section 8 imposent une passerelle unique côté serveur, des sorties structurées validées, un texte ou un formulaire de repli, des quotas, un plafond mensuel et un interrupteur par usage.
 Le paquet `packages/ai` est vide.
 
-Décision : la passerelle est développée et testée avec un fournisseur factice déterministe ; l'appel à un vrai fournisseur est P2-20 (`needs-human`).
+Décision : la passerelle est développée et testée avec un fournisseur factice déterministe ; l'appel à un vrai fournisseur est #269 (`needs-human`).
 Décision : le plafond mensuel se déduit du budget par joueur actif et par mois et du nombre de joueurs actifs attendu, deux valeurs de configuration, réparti entre les usages.
 Décision (paramètres neutres) : tous les usages sont désactivés dans la configuration initiale.
 Seul le moteur appelle la passerelle (11).
@@ -764,7 +764,7 @@ Label : aucun.
 
 ## Hors périmètre
 
-Appel réel à un fournisseur (P2-20), mémoire vectorielle des PNJ, mentor, prompts éditables dans Olympe.
+Appel réel à un fournisseur (#269), mémoire vectorielle des PNJ, mentor, prompts éditables dans Olympe.
 
 ## Dépendances
 
@@ -772,11 +772,11 @@ aucune
 
 ---
 
-# P2-20. Fournisseur d'IA réel
+# 269. Fournisseur d'IA réel
 
 ## Contexte
 
-La passerelle (P2-19) ne connaît qu'un fournisseur factice.
+La passerelle (#268) ne connaît qu'un fournisseur factice.
 Brancher un vrai fournisseur demande de créer un compte, une clé d'API et un plafond de dépense chez lui, et de signer un contrat de sous-traitance (18, RGPD) : un humain doit le faire.
 Le jeu reste entièrement jouable sans ce ticket.
 Label : `needs-human` (compte tiers, clé d'API, contrat).
@@ -788,7 +788,7 @@ Label : `needs-human` (compte tiers, clé d'API, contrat).
 ## Critères d'acceptation
 
 - [ ] Un humain choisit le fournisseur, crée le compte et la clé, fixe le plafond de dépense chez lui et signe le contrat de sous-traitance.
-- [ ] Adaptateur de ce fournisseur dans `packages/ai`, derrière l'interface de P2-19, testé sur des réponses enregistrées, sans clé dans le dépôt.
+- [ ] Adaptateur de ce fournisseur dans `packages/ai`, derrière l'interface de #268, testé sur des réponses enregistrées, sans clé dans le dépôt.
 - [ ] La clé est lue d'une variable d'environnement du moteur, documentée dans `.env.example`.
 - [ ] Un essai manuel en local, clé saisie par l'humain, génère un oracle et une chronique, dont le coût est relevé dans la Vigie.
 
@@ -798,11 +798,11 @@ Déploiement, choix de modèles par usage au-delà de la configuration.
 
 ## Dépendances
 
-P2-19
+#268
 
 ---
 
-# P2-21. Pythie : oracles des événements et consultation
+# 270. Pythie : oracles des événements et consultation
 
 ## Contexte
 
@@ -820,7 +820,7 @@ Label : `sensible` (monnaie, règles par ligne).
 ## Critères d'acceptation
 
 - [ ] Oracles de repli par modèle d'événement dans les fichiers de contenu `fr` et `en`, choisis par la graine de l'événement.
-- [ ] Migration : tables `oracles` (événement, textes, source : repli ou IA) et `oracle_consultations` ; la planification d'un événement (P2-18) écrit son oracle de repli dans la même transaction.
+- [ ] Migration : tables `oracles` (événement, textes, source : repli ou IA) et `oracle_consultations` ; la planification d'un événement (#267) écrit son oracle de repli dans la même transaction.
 - [ ] Tâche nocturne du moteur : chaque oracle encore de repli est réécrit par la passerelle (usage `oracle`) dans les deux langues ; la sortie ne contient aucun chiffre ni nom de cité en clair, sinon elle est rejetée et le repli reste.
 - [ ] Configuration : prix de la consultation, ajouté à `temple_rules`.
 - [ ] Commande `temple.consultOracle` (prix vu) : écriture `temple.oracle` vers `sink_offerings`, nature 4.1 `offerings`, Charis d'Apollon accrue, oracles des événements à venir de la cité rendus ; événement `OracleConsulted`.
@@ -830,15 +830,15 @@ Label : `sensible` (monnaie, règles par ligne).
 
 ## Hors périmètre
 
-Marché des oracles, présages de Némésis, écran (P2-23).
+Marché des oracles, présages de Némésis, écran (#272).
 
 ## Dépendances
 
-P2-16, P2-18, P2-19
+#265, #267, #268
 
 ---
 
-# P2-22. Chronique quotidienne des cités
+# 271. Chronique quotidienne des cités
 
 ## Contexte
 
@@ -868,16 +868,16 @@ Tribunes libres des joueurs, chronique de ligue, illustrations.
 
 ## Dépendances
 
-P2-14, P2-18, P2-19
+#263, #267, #268
 
 ---
 
-# P2-23. Écran Temple : Charis, offrandes, grâces et oracle
+# 272. Écran Temple : Charis, offrandes, grâces et oracle
 
 ## Contexte
 
 « Temple : Charis, grâces, offrandes, oracle » est un écran clé (10).
-Les vues existent (P2-16, P2-17, P2-21) ; ce ticket n'ajoute que des écrans.
+Les vues existent (#265, #266, #270) ; ce ticket n'ajoute que des écrans.
 Label : aucun.
 
 ## Spécification liée
@@ -899,11 +899,11 @@ Temples construits, calendrier sacré.
 
 ## Dépendances
 
-P2-17, P2-21
+#266, #270
 
 ---
 
-# P2-24. Discussion (1/2) : canaux de cité et messages privés
+# 273. Discussion (1/2) : canaux de cité et messages privés
 
 ## Contexte
 
@@ -930,15 +930,15 @@ Label : `sensible` (règles par ligne).
 
 ## Hors périmètre
 
-Temps réel et écran (P2-25), signalement (P2-26), pièces jointes, réactions.
+Temps réel et écran (#274), signalement (#275), pièces jointes, réactions.
 
 ## Dépendances
 
-P2-1
+#250
 
 ---
 
-# P2-25. Discussion (2/2) : temps réel et onglet Messages
+# 274. Discussion (2/2) : temps réel et onglet Messages
 
 ## Contexte
 
@@ -970,16 +970,16 @@ Notifications push, recherche dans les messages, statut en ligne.
 
 ## Dépendances
 
-P2-24
+#273
 
 ---
 
-# P2-26. Modération v1 (1/3) : signalement, sanctions du joueur et blocage
+# 275. Modération v1 (1/3) : signalement, sanctions du joueur et blocage
 
 ## Contexte
 
 « Procédure de signalement et d'appel » (18) ; « sanctions graduées (avertissement, silence, suspension, exclusion) » (15.1).
-Ce ticket fait le côté du joueur : signaler, voir ses sanctions, faire appel, et être bloqué par l'API ; les commandes d'administration viennent avec P2-27.
+Ce ticket fait le côté du joueur : signaler, voir ses sanctions, faire appel, et être bloqué par l'API ; les commandes d'administration viennent avec #276.
 
 Décision : un filtre de vocabulaire, liste de configuration, refuse un message qui contient un terme interdit, avant tout enregistrement.
 Label : `sensible` (authentification : une suspension coupe l'accès aux commandes ; règles par ligne).
@@ -1001,15 +1001,15 @@ Label : `sensible` (authentification : une suspension coupe l'accès aux command
 
 ## Hors périmètre
 
-Commandes d'administration (P2-27), module Olympe (P2-28), pré-tri par l'IA.
+Commandes d'administration (#276), module Olympe (#277), pré-tri par l'IA.
 
 ## Dépendances
 
-P2-24
+#273
 
 ---
 
-# P2-27. Modération v1 (2/3) : commandes d'administration
+# 276. Modération v1 (2/3) : commandes d'administration
 
 ## Contexte
 
@@ -1037,15 +1037,15 @@ Label : `sensible` (authentification, règles par ligne).
 
 ## Hors périmètre
 
-Écran (P2-28), modérateurs bénévoles recrutés, export des données d'un joueur.
+Écran (#277), modérateurs bénévoles recrutés, export des données d'un joueur.
 
 ## Dépendances
 
-P2-26
+#275
 
 ---
 
-# P2-28. Modération v1 (3/3) : module Modération d'Olympe
+# 277. Modération v1 (3/3) : module Modération d'Olympe
 
 ## Contexte
 
@@ -1070,17 +1070,17 @@ Fiche joueur complète, support.
 
 ## Dépendances
 
-P2-27
+#276
 
 ---
 
-# P2-29. Intendants (1/3) : règles à grammaire fermée, embauche et formulaire
+# 278. Intendants (1/3) : règles à grammaire fermée, embauche et formulaire
 
 ## Contexte
 
 Les intendants sont des « PNJ animés par IA qui gèrent un site selon des consignes en langage naturel, traduites en règles vérifiables » (4.4).
 Chacun est « une file d'opérations parallèle ».
-Les règles appartiennent à une grammaire fermée (8.1) ; le formulaire qui les saisit est le repli de la consigne en langage naturel (P2-31), et suffit pour jouer.
+Les règles appartiennent à une grammaire fermée (8.1) ; le formulaire qui les saisit est le repli de la consigne en langage naturel (#280), et suffit pour jouer.
 Les règles d'intendant d'une maison ne quittent jamais le serveur pour un concurrent (12).
 
 Décision (paramètres neutres) : le salaire des intendants entre à zéro dans la configuration initiale.
@@ -1103,19 +1103,19 @@ Label : `sensible` (monnaie : salaire ; règles par ligne).
 
 ## Hors périmètre
 
-Exécution des règles (P2-30), consigne en langage naturel (P2-31), traits et mémoire des intendants.
+Exécution des règles (#279), consigne en langage naturel (#280), traits et mémoire des intendants.
 
 ## Dépendances
 
-P2-6
+#255
 
 ---
 
-# P2-30. Intendants (2/3) : exécution des règles par le moteur
+# 279. Intendants (2/3) : exécution des règles par le moteur
 
 ## Contexte
 
-Les règles d'un intendant (P2-29) doivent agir sans le joueur : récolter, vendre, racheter.
+Les règles d'un intendant (#278) doivent agir sans le joueur : récolter, vendre, racheter.
 Ces actions doivent suivre exactement les mêmes règles que les commandes du joueur, qui vivent aujourd'hui dans `apps/api/src/commands`.
 
 Décision : le cœur transactionnel de `site.collect` et de `market.placeOrder` est déplacé dans un paquet de l'espace de travail partagé par l'API et le moteur, sans changement de comportement, avant toute exécution par le moteur.
@@ -1143,16 +1143,16 @@ Contrats, transport par intendant.
 
 ## Dépendances
 
-P2-29
+#278
 
 ---
 
-# P2-31. Intendants (3/3) : consigne en langage naturel
+# 280. Intendants (3/3) : consigne en langage naturel
 
 ## Contexte
 
 Le joueur peut écrire sa consigne en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke », 4.4) ; l'IA la traduit en règles de la grammaire fermée, simulées avant validation (8.1).
-Le formulaire de P2-29 en est le repli et reste toujours offert.
+Le formulaire de #278 en est le repli et reste toujours offert.
 L'IA ne fait que proposer des règles, que le joueur valide par `steward.setRules`.
 Label : `sensible` pour la tranche schéma (consignes et propositions privées, règles par ligne).
 
@@ -1165,7 +1165,7 @@ Label : `sensible` pour la tranche schéma (consignes et propositions privées, 
 - [ ] Migration : tables `steward_instructions` (texte, état) et `steward_proposals` (règles proposées, simulation, refus motivé), lisibles par la seule maison, règles par ligne testées en pgTAP ; texte purgé selon l'ADR 0002.
 - [ ] Commande `steward.submitInstruction` (texte borné) : refusée IA coupée ou quota atteint (`AI_UNAVAILABLE`), sinon mise en file pour le moteur.
 - [ ] Tâche du moteur : traduction par la passerelle (usage `steward`), sortie validée par le schéma de la grammaire, texte du joueur passé comme donnée ; proposition enregistrée, ou refus motivé.
-- [ ] Simulation à blanc des règles proposées sur l'état présent du site : ce qu'elles feraient maintenant, sans rien écrire, avec le cœur partagé de P2-30.
+- [ ] Simulation à blanc des règles proposées sur l'état présent du site : ce qu'elles feraient maintenant, sans rien écrire, avec le cœur partagé de #279.
 - [ ] Écran : consigne, règles proposées affichées dans le formulaire, simulation, « Valider » ou « Modifier » ; IA coupée, l'écran le dit et ouvre le formulaire.
 - [ ] Tests : consigne qui tente de sortir de la grammaire, proposition rejetée par le schéma, parcours IA coupée.
 - [ ] Spécification 4.4 mise à jour.
@@ -1176,16 +1176,16 @@ Dialogue avec l'intendant, mémoire.
 
 ## Dépendances
 
-P2-19, P2-29, P2-30
+#268, #278, #279
 
 ---
 
-# P2-32. Banc d'équilibrage (1/3) : quatre cités, négociants et mesures
+# 281. Banc d'équilibrage (1/3) : quatre cités, négociants et mesures
 
 ## Contexte
 
 Le banc de #78 (`apps/api/src/balance/`, `apps/api/src/balance.integration.test.ts`) ne joue qu'une cité, sur la configuration initiale, avec un délai de 600 secondes.
-Ce ticket l'étend à quatre cités reliées par la mer, et publie les mesures dont le calibrage (P2-34) aura besoin.
+Ce ticket l'étend à quatre cités reliées par la mer, et publie les mesures dont le calibrage (#283) aura besoin.
 
 Décision : le banc à quatre cités tourne dans un job à part du flux `ci`, dont l'échec rend `ci` rouge, hors du test d'intégration ordinaire ; sa durée est mesurée et bornée.
 Décision : le banc joue les événements avec une graine de monde fixe, écrite dans le test ; tant que leur probabilité est nulle (configuration initiale), il n'y en a aucun.
@@ -1206,15 +1206,15 @@ Label : aucun (test ; aucune écriture de monnaie nouvelle).
 
 ## Hors périmètre
 
-Stratégies de logement et d'archonte (P2-33), calibrage et borne sur la masse monétaire (P2-34).
+Stratégies de logement et d'archonte (#282), calibrage et borne sur la masse monétaire (#283).
 
 ## Dépendances
 
-P2-4, P2-9, P2-13, P2-18, P2-30
+#253, #258, #262, #267, #279
 
 ---
 
-# P2-33. Banc d'équilibrage (2/3) : stratégies de logement et d'archonte
+# 282. Banc d'équilibrage (2/3) : stratégies de logement et d'archonte
 
 ## Contexte
 
@@ -1234,15 +1234,15 @@ Label : aucun (test).
 
 ## Hors périmètre
 
-Calibrage (P2-34).
+Calibrage (#283).
 
 ## Dépendances
 
-P2-14, P2-32
+#263, #281
 
 ---
 
-# P2-34. Banc d'équilibrage (3/3) : calibrage et borne sur la masse monétaire
+# 283. Banc d'équilibrage (3/3) : calibrage et borne sur la masse monétaire
 
 ## Contexte
 
@@ -1250,7 +1250,7 @@ Le banc de #78 a laissé une limite connue en 5.5 : la masse monétaire croît d
 Les paramètres économiques de la phase sont entrés neutres dans la configuration initiale ; ce ticket les active et les calibre ensemble, à quatre cités.
 
 Décision : la borne sur la masse monétaire est une variation de −3 % à +3 % sur les 30 jours mesurés, comme la cible d'inflation mensuelle (5.5), écrite à la main dans le test.
-Décision : le terroir de Kallistè se resserre ici, par la même version de configuration, pour qu'aucune cité ne soit autosuffisante (6.1, P2-1).
+Décision : le terroir de Kallistè se resserre ici, par la même version de configuration, pour qu'aucune cité ne soit autosuffisante (6.1, #250).
 Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 
 ## Spécification liée
@@ -1267,20 +1267,20 @@ Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 
 ## Hors périmètre
 
-Marges des ateliers (P2-36), banques et prêts, qualité.
+Marges des ateliers (#285), banques et prêts, qualité.
 
 ## Dépendances
 
-P2-33
+#282
 
 ---
 
-# P2-35. Simulateur d'équilibrage
+# 284. Simulateur d'équilibrage
 
 ## Contexte
 
 « Simulateur : rejoue N jours sur une copie du monde avec une configuration candidate et des agents automates, puis compare les indicateurs à la référence » (15.1) ; c'est l'étape 2 de tout changement d'équilibrage (15.2).
-Le banc de P2-32 à P2-34 sait déjà jouer un monde neuf avec des agents automates et les vrais ticks, clôtures et commandes.
+Le banc de #281 à #283 sait déjà jouer un monde neuf avec des agents automates et les vrais ticks, clôtures et commandes.
 
 Décision (ambiguïté de 15.1, sans serveur) : le simulateur de la phase 2 est ce banc, rendu réutilisable et lancé en local par une commande, sur un monde neuf de la base locale, avec une configuration candidate et la configuration de référence ; son module dans Olympe, sur une copie du monde réel, attend le serveur.
 Label : aucun.
@@ -1304,17 +1304,17 @@ Module Simulateur dans Olympe, copie du monde réel, agents pilotés par IA.
 
 ## Dépendances
 
-P2-34
+#283
 
 ---
 
-# P2-36. Équilibrage des marges des ateliers
+# 285. Équilibrage des marges des ateliers
 
 ## Contexte
 
 « Plusieurs manières de gagner : aucune voie n'écrase les autres » (01, pilier 2), et le simulateur doit comparer les « marges par filière » (15.2).
 Aux prix de référence de la configuration actuelle, un champ de blé rapporte 1 440 oboles brutes par jour, une pêcherie 1 296, alors qu'un pressoir à huile rapporte 144 oboles et un chai 108 de marge sur ses intrants, pour un entretien de 50 oboles et une acquisition de 1 000 : la voie de l'atelier (Technitès) est écrasée par celle de la terre.
-Les salaires et le logement (P2-6, P2-9), calibrés par P2-34, changent encore ce rapport, puisqu'ils pèsent par travailleur.
+Les salaires et le logement (#255, #258), calibrés par #283, changent encore ce rapport, puisqu'ils pèsent par travailleur.
 Label : aucun (configuration et test).
 
 ## Spécification liée
@@ -1326,7 +1326,7 @@ Label : aucun (configuration et test).
 - [ ] Le banc mesure, par recette, la marge nette quotidienne d'un site : ventes, moins intrants achetés au prix payé, entretien, salaires et part d'hébergement.
 - [ ] Configuration ajustée par une nouvelle version (rendements, durées, travailleurs, entretien ou prix de référence des biens transformés), chaque changement justifié par le rapport du simulateur joint à la demande de fusion.
 - [ ] Borne écrite à la main dans le banc : la marge nette quotidienne d'un site de chaque filière d'atelier se situe entre la moitié et le double de la médiane de celle des sites de matières premières.
-- [ ] Les bornes de P2-34 tiennent toujours.
+- [ ] Les bornes de #283 tiennent toujours.
 - [ ] Spécifications 4.3 et 5.5 : marges retenues par filière et raison des choix.
 
 ## Hors périmètre
@@ -1335,11 +1335,11 @@ Qualité, marque, cadence, marge par site affichée au joueur.
 
 ## Dépendances
 
-P2-35
+#284
 
 ---
 
-# P2-37. Parcours de l'alpha et vérification du critère de sortie
+# 286. Parcours de l'alpha et vérification du critère de sortie
 
 ## Contexte
 
@@ -1364,4 +1364,4 @@ Mesures avec des joueurs réels (attendent le serveur, #33).
 
 ## Dépendances
 
-P2-5, P2-10, P2-15, P2-22, P2-23, P2-25, P2-28, P2-30, P2-31, P2-36
+#254, #259, #264, #271, #272, #274, #277, #279, #280, #285
