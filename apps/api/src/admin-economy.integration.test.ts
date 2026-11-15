@@ -4,7 +4,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { readEconomy } from './admin-economy';
+import { historyStarts, readEconomy } from './admin-economy';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
@@ -80,8 +80,8 @@ async function entry(kind: string, day: number, ms: number, lines: Record<string
 }
 
 /**
- * Chandelier du monde de test, commencé il y a `age` jours (au début de l'heure ; négatif : dans le futur)
- * ou à l'instant donné : `turnover` oboles pour `volume` unités.
+ * Chandelier du monde de test (ou du monde et de la cité `place`), commencé il y a `age` jours (au début
+ * de l'heure ; négatif : dans le futur) ou à l'instant donné : `turnover` oboles pour `volume` unités.
  */
 const candle = (
   goodId: string,
@@ -89,10 +89,11 @@ const candle = (
   turnover: number,
   volume: number,
   seconds = 3600,
+  [world, city]: [string, string] = [WORLD, CITY],
 ) =>
   sql`insert into game.price_candles
         (world_id, city_id, good_id, period_seconds, period_start, open, high, low, close, volume, turnover)
-      select ${WORLD}, ${CITY}, ${goodId}, ${seconds},
+      select ${world}, ${city}, ${goodId}, ${seconds},
              ${typeof age === 'number' ? sql`date_trunc('hour', now() - make_interval(days => ${age}))` : sql`${age}::timestamptz`},
              p.low, p.high, p.low, p.high, ${volume}, ${turnover}
       from (select floor(${turnover}::numeric / ${volume}) as low, ceil(${turnover}::numeric / ${volume}) as high) p`.execute(
@@ -140,6 +141,18 @@ async function read(id: string, query = '') {
   if (!world) throw new Error(`world ${id} missing`);
   return { data, world };
 }
+/** Fonde un monde et sa cité, propres au test qui l'appelle ; rend [monde, cité]. */
+async function newWorld(): Promise<[string, string]> {
+  const [world, city] = [randomUUID(), randomUUID()];
+  const slug = `bord-${randomUUID().slice(0, 8)}`;
+  await sql`insert into game.worlds (id, slug, name) values (${world}, ${slug}, 'Bords')`.execute(
+    owner,
+  );
+  await sql`insert into game.cities (id, world_id, slug, name)
+    values (${city}, ${world}, 'agora', 'Agora')`.execute(owner);
+  return [world, city];
+}
+
 /** Comptes système qui ont bougé : cumul, puis [jour de jeu compté depuis aujourd'hui, montant]. */
 const moved = (world: AdminEconomy['worlds'][number]) =>
   Object.fromEntries(
@@ -253,7 +266,11 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
     partialWindow: null,
   };
   const { data, world } = await read(WORLD);
-  expect([data.priceWindowDays, data.inflationTargetBps]).toEqual([30, { min: 0, max: 300 }]);
+  expect([data.priceWindowDays, data.inflationTargetBps, data.basketEmpty]).toEqual([
+    30,
+    { min: 0, max: 300 },
+    false,
+  ]);
   expect(world.priceIndex).toEqual({ ...index, status: 'below', ...known });
   const unknown = { currentBps: null, previousBps: null, inflationBps: null, status: 'unknown' };
   const none = { current: [], previous: [] };
@@ -280,6 +297,9 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
   ]);
   const empty = { ...unknown, unpricedByWindow: none, partialWindow: null };
   expect(await withIndex({ basket: [] })).toEqual({ ...empty, unpricedGoods: [] });
+  // Panier vide : la réponse le dit, l'écran n'a pas à le déduire d'une liste de biens vide.
+  const noBasket = { ...config, priceIndex: { ...priceIndex, basket: [] } };
+  expect((await readEconomy(db, noBasket, 1)).basketEmpty).toBe(true);
   // Un bien du panier sans échange : inconnu, jamais un prix inventé.
   const salted = [...basket, { goodId: 'salt', quantity: 1 }];
   expect(await withIndex({ basket: salted })).toEqual({
@@ -324,31 +344,84 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
 });
 
 it('bords des fenêtres : début compris, fin exclue, à l’instant près', async () => {
-  // Horloge de la base épinglée au début d'une heure (première requête de la route), pour poser des
-  // chandeliers exactement sur les bords : il y a 60 jours, il y a 30 jours, et maintenant.
-  const now = new Date(Math.floor(Date.now() / HOUR) * HOUR);
-  const ago = (days: number) => new Date(now.getTime() - days * 24 * HOUR);
-  await candle('salt', ago(60), 14, 2);
-  await candle('salt', ago(30), 16, 2);
-  await candle('salt', now, 900, 1);
-  let queries = 0;
-  const pinned = db.withPlugin({
-    transformQuery: ({ node }) => node,
-    transformResult: async ({ result }) =>
-      ++queries === 1 ? { ...result, rows: [{ now }] } : result,
-  });
+  // Monde propre au test : ni ses chandeliers ni son historique ne dépendent des autres tests.
+  const place = await newWorld();
+  // Horloge de la base épinglée (première requête de la route) près d'un début d'heure `hour`, pour
+  // poser des chandeliers exactement sur les bords : il y a 60 jours, il y a 30 jours, et à `hour`.
+  const hour = new Date(Math.floor(Date.now() / HOUR) * HOUR);
+  const ago = (days: number, from = hour) => new Date(from.getTime() - days * 24 * HOUR);
+  await candle('salt', ago(60), 14, 2, 3600, place);
+  await candle('salt', ago(30), 16, 2, 3600, place);
+  await candle('salt', hour, 900, 1, 3600, place);
   const salt = {
     ...config,
     priceIndex: { ...priceIndex, basket: [{ goodId: 'salt', quantity: 1 }] },
   };
-  const seen = (await readEconomy(pinned, salt, 1)).worlds.find((w) => w.worldId === WORLD);
+  const at = async (now: Date) => {
+    let queries = 0;
+    const pinned = db.withPlugin({
+      transformQuery: ({ node }) => node,
+      transformResult: async ({ result }) =>
+        ++queries === 1 ? { ...result, rows: [{ now }] } : result,
+    });
+    const seen = (await readEconomy(pinned, salt, 1)).worlds.find((w) => w.worldId === place[0]);
+    return seen?.priceIndex;
+  };
   // Précédente [−60 j, −30 j) : sel à 7 ; courante [−30 j, maintenant) : sel à 8 ; le chandelier qui
-  // commence à l'instant même n'est dans aucune. Référence du sel : 7.
-  expect(seen?.priceIndex).toMatchObject({
-    currentBps: 11_429,
-    previousBps: 10_000,
-    inflationBps: 1_429,
+  // commence à l'instant même n'est dans aucune. Référence du sel : 7. L'historique commence au début
+  // exact de la précédente : elle est entière.
+  const known = { unpricedGoods: [], unpricedByWindow: { current: [], previous: [] } };
+  const both = { currentBps: 11_429, previousBps: 10_000, inflationBps: 1_429, ...known };
+  expect(await at(hour)).toEqual({ ...both, status: 'above', partialWindow: null });
+  // Une milliseconde plus tôt, l'historique commence strictement à l'intérieur de la précédente.
+  const early = new Date(hour.getTime() - 1);
+  expect(await at(early)).toEqual({ ...both, status: 'above', partialWindow: 'previous' });
+  // Trente jours plus tôt : l'historique commence au début exact de la courante (entière, sel à 7, le
+  // chandelier de −30 j commence à l'instant même), et la précédente est vide.
+  const unknown = { inflationBps: null, status: 'unknown', unpricedGoods: ['salt'] };
+  const alone = { ...unknown, unpricedByWindow: { current: [], previous: ['salt'] } };
+  const month = ago(30);
+  expect(await at(month)).toEqual({
+    currentBps: 10_000,
+    previousBps: null,
+    ...alone,
+    partialWindow: null,
   });
+  // Une milliseconde plus tôt encore, l'historique commence à l'intérieur de la courante.
+  expect(await at(new Date(month.getTime() - 1))).toMatchObject({ partialWindow: 'current' });
+});
+
+it('l’historique d’un monde commence au premier chandelier passé, jamais à un chandelier futur', async () => {
+  const [world, city] = await newWorld();
+  const hour = new Date(Math.floor(Date.now() / HOUR) * HOUR);
+  const later = new Date(hour.getTime() + 2 * HOUR);
+  // Seul chandelier du monde, daté au-delà de l'horloge (horloge décalée) : pas d'historique.
+  await candle('salt', later, 7, 1, 3600, [world, city]);
+  expect((await historyStarts(db, 3600, hour)).has(world)).toBe(false);
+  // Un chandelier qui commence à l'instant même n'est pas encore passé ; une heure après, il l'est.
+  await candle('salt', hour, 7, 1, 3600, [world, city]);
+  expect((await historyStarts(db, 3600, hour)).has(world)).toBe(false);
+  const next = new Date(hour.getTime() + HOUR);
+  expect((await historyStarts(db, 3600, next)).get(world)).toEqual(hour);
+  // Le plus ancien l'emporte, quel que soit l'ordre d'insertion ; une autre série ne compte pas.
+  const before = new Date(hour.getTime() - 5 * HOUR);
+  await candle('wheat', before, 7, 1, 3600, [world, city]);
+  const day = new Date(hour.getTime() - 24 * HOUR);
+  await candle('wheat', day, 7, 1, 900, [world, city]);
+  expect((await historyStarts(db, 3600, next)).get(world)).toEqual(before);
+  expect((await historyStarts(db, 900, next)).get(world)).toEqual(day);
+  // Recoupement avec l'agrégat sur toute la série, pour tous les mondes de la base, dans un même instantané.
+  const [rows, starts] = await owner
+    .transaction()
+    .setIsolationLevel('repeatable read')
+    .execute(async (trx) => {
+      const all = await sql<{ world_id: string; first: Date }>`
+        select world_id, min(period_start) as first from game.price_candles
+        where period_seconds = 3600 and period_start < ${next} group by world_id`.execute(trx);
+      return [all.rows, await historyStarts(trx, 3600, next)] as const;
+    });
+  expect(rows.length).toBeGreaterThan(0);
+  expect(new Map(rows.map((row) => [row.world_id, row.first]))).toEqual(starts);
 });
 
 it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même instantané', async () => {

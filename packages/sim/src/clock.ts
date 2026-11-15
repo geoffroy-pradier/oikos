@@ -68,13 +68,23 @@ export function localTime(instant: Date, timezone: string) {
  * ou que le fuseau soit décalé d'une demi-heure ou d'un quart d'heure.
  */
 export function isDailyClose(index: number, clock: ClockSettings): boolean {
-  const start = tickStart(index, clock.tickMinutes);
-  // Filtre rapide, une seule lecture de l'heure locale : un tick qui commence à plus de sa durée après
-  // l'heure de clôture, ou avant elle (écart d'heure d'été d'une heure compris), n'est pas le premier du jour.
-  const { hour, minute } = localTime(start, clock.timezone);
-  const sinceClose = ((((hour - clock.dailyCloseHour) * 60 + minute) % 1440) + 1440) % 1440;
-  if (sinceClose > clock.tickMinutes + 60 && sinceClose < 1440 - 60) return false;
-  return gameDayAt(start, clock) !== gameDayAt(tickStart(index - 1, clock.tickMinutes), clock);
+  // Pas de filtre sur l'heure locale du tick : un saut d'heure de plus d'une heure (Antarctica/Casey,
+  // +3 h le 18 octobre 2009 ; Pacific/Apia, un jour sauté fin 2011) mettrait le premier tick du jour loin
+  // de l'heure de clôture (#213). Le jour de jeu du dernier tick lu est gardé : à la suite (moteur,
+  // parcours de ticks), une seule lecture de l'heure locale par tick.
+  // Le précédent d'abord : l'appel pour le tick suivant le retrouvera gardé.
+  const before = tickGameDay(index - 1, clock);
+  return tickGameDay(index, clock) !== before;
+}
+
+/** Dernier jour de jeu calculé pour un tick, par horloge : la lecture de l'heure locale est coûteuse. */
+let lastTick: { key: string; day: number } | undefined;
+function tickGameDay(index: number, clock: ClockSettings): number {
+  const key = `${clock.timezone}|${clock.dailyCloseHour}|${clock.tickMinutes}|${index}`;
+  if (lastTick?.key === key) return lastTick.day;
+  const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+  lastTick = { key, day };
+  return day;
 }
 
 /** Ce dont dépend le jour de jeu : ni la durée du tick ni celle de la saison. */

@@ -38,7 +38,9 @@ export function Economy({ accessToken }: { accessToken: string }) {
       <tbody>
         {rows.map(([label, amount], row) => (
           <tr key={label} className={total && row === rows.length - 1 ? 'font-semibold' : ''}>
-            <th scope="row">{label}</th>
+            <th scope="row" className="wrap-anywhere">
+              {label}
+            </th>
             <td className="text-right">{number.format(amount)}</td>
           </tr>
         ))}
@@ -94,8 +96,10 @@ export function Economy({ accessToken }: { accessToken: string }) {
                 </div>
               ))}
             </dl>
-            {index.status === 'unknown' && (
-              <p>{t(`economy.${goods ? 'unpriced' : 'noBasket'}`, { goods })}</p>
+            {/* Panier vide : lu dans la réponse, jamais déduit d'une liste de biens vide. */}
+            {index.status === 'unknown' && data.basketEmpty && <p>{t('economy.noBasket')}</p>}
+            {index.status === 'unknown' && !data.basketEmpty && goods && (
+              <p>{t('economy.unpriced', { goods })}</p>
             )}
             {amounts(
               t('economy.supply.title'),
@@ -107,25 +111,28 @@ export function Economy({ accessToken }: { accessToken: string }) {
               systemAccounts.map((account) => [name(account), account.total]),
             )}
             <h3 className="text-lg">{t('economy.byDay', { count: data.windowDays })}</h3>
-            {days.length === 0 && <p className="text-muted-foreground">{t('economy.noDays')}</p>}
-            {/* Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà. */}
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {days.map((day) => (
-                <li key={day} className={`${BOX} border-border`}>
-                  <h4 className="font-semibold">{date(day)}</h4>
-                  <dl className="[&_dd]:whitespace-nowrap">
-                    {moving
-                      .filter((account) => on(account, day) !== undefined)
-                      .map((account) => (
-                        <div key={account.key} className="flex justify-between gap-x-4">
-                          <dt>{name(account)}</dt>
-                          <dd>{number.format(on(account, day) ?? 0)}</dd>
-                        </div>
-                      ))}
-                  </dl>
-                </li>
-              ))}
-            </ul>
+            {days.length === 0 ? (
+              <p className="text-muted-foreground">{t('economy.noDays')}</p>
+            ) : (
+              // Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà.
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {days.map((day) => (
+                  <li key={day} className={`${BOX} border-border`}>
+                    <h4 className="font-semibold">{date(day)}</h4>
+                    <dl className="[&_dd]:whitespace-nowrap">
+                      {moving
+                        .filter((account) => on(account, day) !== undefined)
+                        .map((account) => (
+                          <div key={account.key} className="flex justify-between gap-x-4">
+                            <dt className="min-w-0 wrap-anywhere">{name(account)}</dt>
+                            <dd>{number.format(on(account, day) ?? 0)}</dd>
+                          </div>
+                        ))}
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         );
       })}

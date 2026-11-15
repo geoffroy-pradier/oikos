@@ -9,7 +9,7 @@ import {
   inflationStatus,
   type Traded,
 } from '@oikos/sim';
-import { sql } from 'kysely';
+import { type QueryExecutorProvider, sql } from 'kysely';
 
 const DAY_MS = 86_400_000;
 type Balance = { world_id: string; slug: string; kind: string; key: string | null; n: string };
@@ -70,12 +70,7 @@ export async function readEconomy(
         where period_seconds = ${config.priceHistory.candleMinutes * 60} and good_id = any(${goodIds}::text[])
           and period_start >= ${previousFrom} and period_start < ${now}
         group by world_id, good_id, current`.execute(trx);
-      // Début de l'historique de la série dans chaque monde (premier chandelier, tous biens et cités) :
-      // une fenêtre commencée avant lui n'est mesurée que sur sa fin.
-      const since = await sql<{ world_id: string; first: Date }>`
-        select world_id, min(period_start) as first from game.price_candles
-        where period_seconds = ${config.priceHistory.candleMinutes * 60} and period_start < ${now}
-        group by world_id`.execute(trx);
+      const since = await historyStarts(trx, config.priceHistory.candleMinutes * 60, now);
       const windows = { previousFrom, currentFrom, now };
       return [today, accounts, flows, candles, since, windows] as const;
     });
@@ -96,7 +91,7 @@ export async function readEconomy(
     const unpriced = (window: Map<string, Traded>) => goodIds.filter((id) => !window.has(id));
     // Fenêtre partielle : l'historique commence strictement à l'intérieur. Au plus une l'est : si c'est la
     // courante, la précédente est vide. Signalée telle quelle, sans rien estimer.
-    const first = since.rows.find((row) => row.world_id === worldId)?.first.getTime();
+    const first = since.get(worldId)?.getTime();
     const inside = (from: Date, to: Date) =>
       first !== undefined && first > from.getTime() && first < to.getTime();
     const partialWindow = inside(windows.currentFrom, windows.now)
@@ -155,5 +150,33 @@ export async function readEconomy(
     }
   }
   const { windowDays: priceWindowDays, inflationTargetBps } = priceIndex;
-  return { windowDays, priceWindowDays, inflationTargetBps, worlds: [...worlds.values()] };
+  const basketEmpty = priceIndex.basket.length === 0;
+  return {
+    windowDays,
+    priceWindowDays,
+    inflationTargetBps,
+    basketEmpty,
+    worlds: [...worlds.values()],
+  };
+}
+
+/**
+ * Début de l'historique de la série `seconds` dans chaque monde : le premier chandelier commencé
+ * strictement avant `now`, tous biens et cités ; un monde sans chandelier passé est absent. Une fenêtre
+ * commencée avant lui n'est mesurée que sur sa fin. Un chandelier par monde, lu au début de l'index
+ * `(world_id, period_seconds, period_start)` : la recherche ne parcourt pas la série.
+ */
+export async function historyStarts(
+  db: QueryExecutorProvider,
+  seconds: number,
+  now: Date,
+): Promise<Map<string, Date>> {
+  const { rows } = await sql<{ world_id: string; first: Date }>`
+    select w.id as world_id, c.first from game.worlds w
+    cross join lateral (
+      select period_start as first from game.price_candles
+      where world_id = w.id and period_seconds = ${seconds} and period_start < ${now}
+      order by period_start limit 1
+    ) c`.execute(db);
+  return new Map(rows.map((row) => [row.world_id, row.first]));
 }

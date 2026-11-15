@@ -22,6 +22,7 @@
       { "goodId": "wine", "quantity": 24 }
     ]
   },
+  "telemetry": { "retentionDays": 90 },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
   "sites": {
     "limitByHeadquartersLevel": [4],
