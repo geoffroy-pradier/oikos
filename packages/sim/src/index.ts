@@ -11,3 +11,4 @@ export * from './production';
 export * from './rng';
 export * from './tax';
 export * from './upkeep';
+export * from './voyage';
