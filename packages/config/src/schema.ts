@@ -388,6 +388,40 @@ export const telemetrySchema = z.strictObject({
   retentionDays: z.number().int().min(2).max(3650),
 });
 
+/**
+ * Magistrature de l'archonte (docs/specs/06-cites-politique-communaute.md, 6.2), en jours de jeu.
+ * Une élection ouvre le dépôt des candidatures `candidacyDays + votingDays` jours avant le début du
+ * mandat qu'elle pourvoit, puis le vote `votingDays` jours avant ; elle est dépouillée à la clôture qui
+ * ouvre ce mandat. Lue par les joueurs (vue `public.politics_rules`) : rien de caché.
+ */
+export const archonSchema = z
+  .strictObject({
+    /** Durée du mandat : une année de jeu (4 semaines) au départ. */
+    termDays: z.number().int().min(1).max(366),
+    candidacyDays: z.number().int().min(1).max(366),
+    votingDays: z.number().int().min(1).max(366),
+    /** Mandats consécutifs au plus : une maison qui les a tenus ne se présente pas au suivant. */
+    maxConsecutiveTerms: z.number().int().min(1).max(100),
+  })
+  // L'élection suivante s'ouvre pendant le mandat en cours : jamais avant son début.
+  .refine((archon) => archon.candidacyDays + archon.votingDays <= archon.termDays, {
+    message: 'the candidacy and voting periods must fit in a term',
+    path: ['termDays'],
+  });
+
+/**
+ * Citoyenneté et magistratures (3, progression ; 6.2). Lue par les joueurs (vue `public.politics_rules`) :
+ * n'y ranger aucun paramètre qui doive rester caché.
+ */
+export const politicsSchema = z.strictObject({
+  /**
+   * Jours de jeu comme métèque : une maison fondée un jour de jeu devient citoyenne à la clôture qui ouvre
+   * le jour situé autant de jours plus loin (3 : métèque les jours 1 à 3, citoyenne au quatrième).
+   */
+  meticDays: z.number().int().min(1).max(366),
+  archon: archonSchema,
+});
+
 /** Usages de l'IA de la phase 2 (8.1) : oracles de la Pythie, chronique des cités, consignes d'intendant. */
 export const AI_USAGES = ['oracle', 'chronicle', 'steward'] as const;
 export type AiUsage = (typeof AI_USAGES)[number];
@@ -546,6 +580,11 @@ export const gameConfigSchema = z
     telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
     /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
     ai: aiSchema.default(DEFAULT_AI),
+    /**
+     * Absent des versions publiées avant la citoyenneté : une maison y reste métèque et aucune élection
+     * ne s'ouvre ; une élection déjà ouverte est dépouillée à ses dates.
+     */
+    politics: politicsSchema.optional(),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
     goods: z.array(goodSchema).min(1),
@@ -717,4 +756,5 @@ export type CityConfig = z.infer<typeof cityConfigSchema>;
 export type Good = z.infer<typeof goodSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type ShipClass = z.infer<typeof shipClassSchema>;
+export type Politics = z.infer<typeof politicsSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;

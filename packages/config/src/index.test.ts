@@ -108,6 +108,10 @@ const FIXTURE: GameConfig = {
     ],
   },
   staff: { dailyWageOboles: { kalliste: 3 } },
+  politics: {
+    meticDays: 2,
+    archon: { termDays: 21, candidacyDays: 3, votingDays: 2, maxConsecutiveTerms: 3 },
+  },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -994,5 +998,60 @@ describe('navires (4.6)', () => {
     expect(errorsOf({ ...clone(), ships: { classes: many } }).map((e) => e.split(':')[0])).toEqual([
       'ships.classes',
     ]);
+  });
+});
+
+describe('citoyenneté et archonte (3, 6.2)', () => {
+  const fieldsOf = (politics: unknown) =>
+    errorsOf({ ...clone(), politics }).map((error) => error.split(':')[0]);
+  const politics = () => structuredClone(FIXTURE.politics) as NonNullable<GameConfig['politics']>;
+
+  it('une version publiée avant la citoyenneté reste lisible, sans section politique', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.politics;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.politics).toBeUndefined();
+  });
+
+  it('jours entiers d’au moins un jour et d’au plus une année, mandats consécutifs de 1 à 100', () => {
+    expect(fieldsOf(politics())).toEqual([]);
+    const tight = politics();
+    tight.archon = { termDays: 2, candidacyDays: 1, votingDays: 1, maxConsecutiveTerms: 1 };
+    tight.meticDays = 366;
+    expect(fieldsOf(tight)).toEqual([]);
+    expect(fieldsOf({ ...politics(), meticDays: 0 })).toEqual(['politics.meticDays']);
+    expect(fieldsOf({ ...politics(), meticDays: 1.5 })).toEqual(['politics.meticDays']);
+    for (const [key, values] of [
+      ['termDays', [367, 30.5]],
+      ['candidacyDays', [0, -1]],
+      ['votingDays', [0, 1.5]],
+      ['maxConsecutiveTerms', [0, 101]],
+    ] as const)
+      for (const value of values)
+        expect([
+          key,
+          value,
+          fieldsOf({ ...politics(), archon: { ...politics().archon, [key]: value } }),
+        ]).toEqual([key, value, [`politics.archon.${key}`]]);
+  });
+
+  it('dépôt et vote tiennent dans un mandat : l’élection suivante s’ouvre pendant le mandat en cours', () => {
+    const exact = politics();
+    exact.archon = { ...exact.archon, termDays: 5, candidacyDays: 3, votingDays: 2 };
+    expect(fieldsOf(exact)).toEqual([]);
+    expect(fieldsOf({ ...exact, archon: { ...exact.archon, termDays: 4 } })).toEqual([
+      'politics.archon.termDays',
+    ]);
+  });
+
+  it('section et magistrature sans autre clé', () => {
+    expect(fieldsOf({ ...politics(), council: {} })).toEqual(['politics']);
+    expect(fieldsOf({ ...politics(), archon: { ...politics().archon, salary: 1 } })).toEqual([
+      'politics.archon',
+    ]);
+    const missing: Record<string, unknown> = politics();
+    delete missing['archon'];
+    expect(fieldsOf(missing)).toEqual(['politics.archon']);
   });
 });
