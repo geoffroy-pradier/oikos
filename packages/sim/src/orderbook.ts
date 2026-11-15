@@ -96,12 +96,15 @@ export interface OrderPlan extends MatchResult {
  * Décide du sort d'un ordre à son arrivée (5.3). Une maison n'échange pas avec elle-même : ses propres
  * ordres sont ignorés. Le reste d'une vente attend toujours (son stock est réservé par l'appelant). Le
  * reste d'un achat n'attend que si le budget, une fois les échanges payés, couvre prix × reste ; sinon
- * il est annulé et le manque de fonds signalé.
+ * il est annulé et le manque de fonds signalé. Un achat dit donc toujours son budget : sans lui, rien ne
+ * bornerait ce qu'il dépense ni ce qu'il met sous séquestre.
  */
 export function planLimitOrder(
   incoming: IncomingOrder & { houseId: string },
   opposite: readonly HouseOrder[],
 ): OrderPlan {
+  if (incoming.side === 'buy' && incoming.budget === undefined)
+    throw new RangeError('a buy order needs a budget');
   const match = matchLimitOrder(
     incoming,
     opposite.filter((resting) => resting.houseId !== incoming.houseId),
@@ -110,7 +113,7 @@ export function planLimitOrder(
   if (incoming.side === 'sell') return { ...match, rests: true, escrow: 0 };
   const spent = match.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
   const escrow = match.remaining * incoming.price;
-  if (!match.shortOfFunds && (incoming.budget ?? Infinity) - spent >= escrow)
+  if (!match.shortOfFunds && (incoming.budget ?? 0) - spent >= escrow)
     return { ...match, rests: true, escrow };
   return { ...match, shortOfFunds: true, rests: false, escrow: 0 };
 }
