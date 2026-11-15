@@ -1,5 +1,11 @@
 import { createDb, type Db, serviceRoleUrl } from '@oikos/db';
-import { sql } from 'kysely';
+import {
+  IdentifierNode,
+  OperationNodeTransformer,
+  sql,
+  type SchemableIdentifierNode,
+} from 'kysely';
+import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { INITIAL_CONFIG, type GameConfig } from './index';
 import {
@@ -22,8 +28,11 @@ const owner = createDb(DATABASE_URL);
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 class Rollback extends Error {}
-async function inRolledBackTransaction(body: (trx: Db) => Promise<void>): Promise<void> {
-  await db
+async function inRolledBackTransaction(
+  body: (trx: Db) => Promise<void>,
+  as: Db = db,
+): Promise<void> {
+  await as
     .transaction()
     .execute(async (trx) => {
       await body(trx);
@@ -32,6 +41,24 @@ async function inRolledBackTransaction(body: (trx: Db) => Promise<void>): Promis
     .catch((error: unknown) => {
       if (!(error instanceof Rollback)) throw error;
     });
+}
+
+/** Greffon qui lit et écrit un autre schéma que `from` : une base vide simulée sans toucher à la vraie. */
+class SchemaSwap extends OperationNodeTransformer {
+  constructor(
+    private readonly from: string,
+    private readonly to: string,
+  ) {
+    super();
+  }
+  protected override transformSchemableIdentifier(
+    node: SchemableIdentifierNode,
+  ): SchemableIdentifierNode {
+    const swapped = super.transformSchemableIdentifier(node);
+    return swapped.schema?.name === this.from
+      ? { ...swapped, schema: IdentifierNode.create(this.to) }
+      : swapped;
+  }
 }
 
 const variant = (tickMinutes: number): GameConfig => {
@@ -188,6 +215,46 @@ describe('stockage versionné de la configuration', () => {
         /activations_not_backdated/,
       );
     }));
+
+  it('ensureInitialConfig, sur une base sans version, refuse un fuseau inconnu de la base', () =>
+    inRolledBackTransaction(async (trx) => {
+      // Base vide simulée : un schéma créé dans la transaction annulée, que le greffon substitue à
+      // `config` ; les versions de la base partagée ne sont ni lues ni touchées.
+      const schema = `config_empty_${randomUUID().replaceAll('-', '')}`;
+      await sql`create schema ${sql.id(schema)}`.execute(trx);
+      await sql`create table ${sql.id(schema, 'versions')} (
+        id uuid primary key default gen_random_uuid(),
+        number integer generated always as identity,
+        payload jsonb not null, note text not null, created_by uuid)`.execute(trx);
+      await sql`create table ${sql.id(schema, 'activations')} (
+        version_id uuid not null references ${sql.id(schema, 'versions')},
+        created_by uuid, activate_at timestamptz not null default now())`.execute(trx);
+      const empty = trx.withPlugin({
+        transformQuery: ({ node }) => new SchemaSwap('config', schema).transformNode(node),
+        transformResult: ({ result }) => Promise.resolve(result),
+      });
+      const realVersions = await trx.selectFrom('config.versions').select('id').execute();
+      const rows = (table: string) =>
+        sql<{ n: number }>`select count(*)::int as n from ${sql.id(schema, table)}`
+          .execute(trx)
+          .then((result) => result.rows[0]?.n);
+
+      const config = structuredClone(INITIAL_CONFIG) as GameConfig;
+      for (const timezone of ['US/Pacific-New', 'us/pacific-new']) {
+        config.clock.timezone = timezone;
+        const refused = ensureInitialConfig(empty, config);
+        await expect(refused).rejects.toThrow(ConfigError);
+        await expect(refused).rejects.toThrow(
+          'Initial configuration is invalid: clock.timezone: unknown to the database',
+        );
+      }
+      expect([await rows('versions'), await rows('activations')]).toEqual([0, 0]);
+      // Témoin : sur la même base vide, un fuseau connu publie et active la version 1.
+      config.clock.timezone = 'Europe/Paris';
+      expect(await ensureInitialConfig(empty, config)).toMatchObject({ number: 1 });
+      expect([await rows('versions'), await rows('activations')]).toEqual([1, 1]);
+      expect(await trx.selectFrom('config.versions').select('id').execute()).toEqual(realVersions);
+    }, owner));
 
   it('ensureInitialConfig publie et active une seule fois', () =>
     inRolledBackTransaction(async (trx) => {

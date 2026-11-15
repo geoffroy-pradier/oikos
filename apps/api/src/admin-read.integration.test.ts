@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
+import { ConfigError, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { createTelemetry } from './telemetry';
 import { createRateLimiter, unlimited } from './rate-limit';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import type { ConfigSource } from './registry';
+import { TEST_CONFIG, testConfig, testConfigWithClock, testVerifier } from './test-config';
 
 // Tests d'intégration des lectures du back-office, contre Supabase local (base partagée avec les autres
 // suites : les compteurs globaux sont vérifiés par différence).
@@ -218,6 +219,54 @@ describe('Vigie', () => {
       headers: { authorization: `Bearer aal2:${users.observer}` },
     });
     expect(((await reply.json()) as Reply['body']).data.selfReviewAllowed).toBe(true);
+  });
+
+  it('dit le fuseau en vigueur, le même pour tous les mondes, et s’il est inconnu de la base', async () => {
+    const vigieWith = async (loadConfig: ConfigSource) => {
+      const reply = await createApp({
+        db,
+        telemetry,
+        verifyToken: testVerifier,
+        rateLimiter: unlimited,
+        loadConfig,
+      }).request('/api/admin/vigie', {
+        headers: { authorization: `Bearer aal2:${users.observer}` },
+      });
+      expect(reply.status).toBe(200);
+      return ((await reply.json()) as Reply['body']).data.clock;
+    };
+    const worlds = async () =>
+      Number(
+        (await sql<{ n: string }>`select count(*) as n from game.worlds`.execute(db)).rows[0]?.n,
+      );
+    const clock = TEST_CONFIG.config.clock;
+    // Fuseau connu : nommé, sans alerte. Le nombre de mondes est lu entre deux comptages, d'autres
+    // suites pouvant en créer au même moment.
+    const fewest = await worlds();
+    const known = await vigieWith(testConfig);
+    expect(known).toEqual({
+      timezone: clock.timezone,
+      knownToDatabase: true,
+      worlds: expect.any(Number) as number,
+    });
+    expect(known.worlds).toBeGreaterThanOrEqual(fewest);
+    expect(known.worlds).toBeLessThanOrEqual(await worlds());
+    expect(fewest).toBeGreaterThan(0);
+    // Connu à la casse près, comme à la publication et pour `at time zone`.
+    expect(
+      await vigieWith(testConfigWithClock({ ...clock, timezone: 'europe/paris' })),
+    ).toMatchObject({ timezone: 'europe/paris', knownToDatabase: true });
+    // Sorti de la base des fuseaux (2020), encore accepté par `Intl` : signalé et nommé. La base ne sait
+    // pas le lire, d'où le jour de jeu nul de `game.clock_rules()`.
+    expect(
+      await vigieWith(testConfigWithClock({ ...clock, timezone: 'US/Pacific-New' })),
+    ).toMatchObject({ timezone: 'US/Pacific-New', knownToDatabase: false });
+    await expect(sql`select now() at time zone 'US/Pacific-New'`.execute(db)).rejects.toThrow(
+      /time zone "US\/Pacific-New" not recognized/,
+    );
+    // Sans configuration en vigueur lisible : rien à vérifier, et la Vigie reste lisible.
+    const none: ConfigSource = () => Promise.reject(new ConfigError('No active configuration'));
+    expect(await vigieWith(none)).toBeNull();
   });
 
   it('compte les commandes et montre les ticks récents, échecs compris', async () => {

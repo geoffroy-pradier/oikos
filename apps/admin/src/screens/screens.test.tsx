@@ -12,8 +12,9 @@ const adminGet = vi.hoisted(() => vi.fn());
 vi.mock('../api', () => ({ adminGet }));
 vi.mock('../supabase', async () => ({ supabase: (await import('../test/fakes')).supabase }));
 
+let i18n: Awaited<ReturnType<typeof initI18n>>;
 beforeAll(async () => {
-  await initI18n('fr');
+  i18n = await initI18n('fr');
 });
 beforeEach(() => {
   resetAuth();
@@ -175,6 +176,64 @@ describe('Vigie', () => {
     expect(headers).toEqual(['Heure', 'Monde', 'Tick', 'État', 'Durée', 'Erreur']);
     expect(within(table).getByText('120 ms')).toBeTruthy();
     expect(within(table).getByText('Joué')).toBeTruthy();
+  });
+
+  it('dit le fuseau en vigueur de tous les mondes, et alerte s’il est inconnu de la base, en fr et en en', async () => {
+    const show = async (clock: unknown) => {
+      cleanup();
+      adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, clock } });
+      render(<Vigie accessToken="token" />);
+      await screen.findByText(i18n.t('vigie.houses'));
+    };
+    const figure = (label: string) =>
+      screen.getByText(label).parentElement?.querySelector('dd')?.textContent;
+    const warning = () =>
+      screen.queryByText(/^(Fuseau en vigueur inconnu|Time zone in force unknown)/);
+
+    // Fuseau connu : nommé, sans alerte.
+    await show(VIGIE.clock);
+    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe('Europe/Paris');
+    expect(warning()).toBeNull();
+    // Fuseau sorti de la base : la tuile le nomme, l'alerte dit sa portée et ce qu'il faut faire.
+    const unknown = { timezone: 'US/Pacific-New', knownToDatabase: false, worlds: 1234 };
+    await show(unknown);
+    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe(
+      'US/Pacific-New (inconnu de la base)',
+    );
+    expect(warning()?.textContent).toBe(
+      'Fuseau en vigueur inconnu de la base : US/Pacific-New. Il vaut pour tous les mondes (1\u202f234) : ' +
+        "les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à " +
+        'PostgreSQL, sur le serveur (spécification 03).',
+    );
+    // Un nom long ne déborde pas de sa tuile ni de l'alerte.
+    expect(warning()?.classList).toContain('wrap-anywhere');
+    expect(screen.getByText(/\(inconnu de la base\)$/).classList).toContain('wrap-anywhere');
+    // Sans configuration en vigueur lisible ; API antérieure au champ : rien à sa place.
+    await show(null);
+    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe('Aucune configuration en vigueur');
+    expect(warning()).toBeNull();
+    await show(undefined);
+    expect(screen.queryByText('Fuseau en vigueur (tous les mondes)')).toBeNull();
+
+    await i18n.changeLanguage('en');
+    try {
+      await show(VIGIE.clock);
+      expect(figure('Time zone in force (all worlds)')).toBe('Europe/Paris');
+      expect(warning()).toBeNull();
+      await show(unknown);
+      expect(figure('Time zone in force (all worlds)')).toBe(
+        'US/Pacific-New (unknown to the database)',
+      );
+      expect(warning()?.textContent).toBe(
+        'Time zone in force unknown to the database: US/Pacific-New. It applies to every world ' +
+          '(1,234): house accounts there no longer have a game day or season. This time zone must ' +
+          'be given back to PostgreSQL, on the server (specification 03).',
+      );
+      await show(null);
+      expect(figure('Time zone in force (all worlds)')).toBe('No configuration in force');
+    } finally {
+      await i18n.changeLanguage('fr');
+    }
   });
 
   it("un refus de l'API est affiché, sans compteur", async () => {

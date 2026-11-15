@@ -1,3 +1,4 @@
+import { ConfigError, databaseKnowsTimezone } from '@oikos/config';
 import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
@@ -115,6 +116,7 @@ export function registerAdminReads(
   // Vigie : joueurs, commandes, ticks et clôtures des dernières 24 heures.
   app.get('/api/admin/vigie', async (c) => {
     const totals = await sql<{
+      worlds: string;
       houses: string;
       active_accounts: string;
       commands_ok: string;
@@ -125,7 +127,8 @@ export function registerAdminReads(
       closes_failed: string;
       close_last_error: string | null;
     }>`
-      select (select count(*) from game.houses) as houses,
+      select (select count(*) from game.worlds) as worlds,
+             (select count(*) from game.houses) as houses,
              count(distinct l.user_id) as active_accounts,
              count(*) filter (where l.status = 'ok') as commands_ok,
              count(*) filter (where l.status = 'rejected') as commands_rejected,
@@ -171,6 +174,17 @@ export function registerAdminReads(
             () => null,
           )
       : null;
+    // Horloge (3) : la configuration est globale, son fuseau en vigueur vaut pour tous les mondes. Un
+    // fuseau sorti de la base des fuseaux n'est pas refusé à la publication (version en vigueur), mais
+    // `game.clock_rules()` le rend nul : les comptes de tous les mondes perdent jour de jeu et saison.
+    // Sans configuration en vigueur lisible, rien à vérifier : `null`, sans faire tomber la Vigie.
+    const timezone = await loadConfig(new Date()).then(
+      (loaded) => loaded.config.clock.timezone,
+      (error: unknown) => {
+        if (error instanceof ConfigError) return null;
+        throw error;
+      },
+    );
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -208,6 +222,16 @@ export function registerAdminReads(
           forbidden: refused('forbidden'),
         },
         adminReads24h: Number(reads.rows[0]?.n),
+        // Même fuseau pour tous les mondes (`worlds` : leur nombre) ; `knownToDatabase` comme à la
+        // publication (`pg_timezone_names`, casse ignorée).
+        clock:
+          timezone === null
+            ? null
+            : {
+                timezone,
+                knownToDatabase: await databaseKnowsTimezone(db, timezone),
+                worlds: Number(total?.worlds),
+              },
         // Réglage de l'API pour un monde de test (15.4) : visible, pour qu'il ne reste pas actif par oubli.
         selfReviewAllowed: settings.allowSelfReview,
       },

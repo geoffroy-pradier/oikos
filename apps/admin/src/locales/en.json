@@ -95,7 +95,11 @@
     "refusedRateLimited": "Requests over the rate limit (24 h)",
     "refusedTooLarge": "Oversized requests (24 h)",
     "refusedForbidden": "Refused back-office reads (24 h)",
-    "adminReads": "Back-office reads (24 h)"
+    "adminReads": "Back-office reads (24 h)",
+    "timezone": "Time zone in force (all worlds)",
+    "timezoneNone": "No configuration in force",
+    "timezoneUnknownValue": "{{timezone}} (unknown to the database)",
+    "timezoneUnknownWarning": "Time zone in force unknown to the database: {{timezone}}. It applies to every world ({{worlds}}): house accounts there no longer have a game day or season. This time zone must be given back to PostgreSQL, on the server (specification 03)."
   },
   "economy": {
     "title": "Economy",

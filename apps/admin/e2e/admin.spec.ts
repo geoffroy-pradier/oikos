@@ -44,6 +44,30 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expect(page.getByRole('heading', { name: 'Dernières exécutions de tick' })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
+  // Fuseau en vigueur, lu par l'API : connu de la base. Puis inconnu (réponse de l'API modifiée, le
+  // nom allongé) : la Vigie le nomme et alerte, sans déborder à 360 px, en français et en anglais.
+  await expect(page.getByText('Fuseau en vigueur (tous les mondes)')).toBeVisible();
+  await expect(page.getByText(/^Fuseau en vigueur inconnu/)).toHaveCount(0);
+  const vigie = '**/api/admin/vigie';
+  const lostZone = `America/${'Ancienne_Zone_'.repeat(4)}Retiree`;
+  await page.route(vigie, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { data: { clock: Record<string, unknown> } };
+    body.data.clock = { ...body.data.clock, timezone: lostZone, knownToDatabase: false };
+    await route.fulfill({ response, json: body });
+  });
+  await page.getByRole('button', { name: 'Actualiser' }).click();
+  await expect(page.getByText(`${lostZone} (inconnu de la base)`)).toBeVisible();
+  await expect(page.getByText(/^Fuseau en vigueur inconnu de la base/)).toContainText(lostZone);
+  await expectNoHorizontalScroll(page);
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText(/^Time zone in force unknown to the database/)).toContainText(
+    lostZone,
+  );
+  await expectNoHorizontalScroll(page);
+  await page.getByLabel('Language').selectOption('fr');
+  await page.unroute(vigie);
+
   // Journal d'audit, au clavier : une commande d'administration refusée y figure avec son code.
   const key = randomUUID();
   const token = await page.evaluate(() => {
