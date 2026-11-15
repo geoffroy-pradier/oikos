@@ -87,9 +87,9 @@ const send = async (
   user: string,
   command: string,
   body: unknown,
-  { aal2 = true, key = randomUUID() as string } = {},
+  { aal2 = true, key = randomUUID() as string, via = app } = {},
 ) => {
-  const res = await app.request(`/api/commands/${command}`, {
+  const res = await via.request(`/api/commands/${command}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -372,6 +372,21 @@ describe('admin.publishConfig', () => {
     expect(seasons.status).toBe(200);
     expect(await versionsBy(author)).toHaveLength(1);
   });
+
+  it('un fuseau inconnu de la base, différent de celui en vigueur, est refusé comme changement d’horloge', async () => {
+    // Le changement d'horloge est contrôlé avant le fuseau : `US/Pacific-New`, valide pour `Intl` mais
+    // retiré de la base des fuseaux, est un fuseau de clôture changé.
+    const author = await newUser('super_admin');
+    const config = { ...candidate(3000), clock: { ...clock, timezone: 'US/Pacific-New' } };
+    expect(await send(author, 'admin.publishConfig', { config })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_CLOCK_CHANGED', fields: ['clock.timezone'] } },
+    });
+    expect(await versionsBy(author)).toEqual([]);
+    expect(await logOf(author)).toEqual([
+      { command: 'admin.publishConfig', status: 'rejected', error_code: 'CONFIG_CLOCK_CHANGED' },
+    ]);
+  });
 });
 
 describe('admin.scheduleConfig', () => {
@@ -535,6 +550,60 @@ describe('admin.scheduleConfig', () => {
       .where('version_id', '=', stale.id)
       .execute();
     expect(activations).toEqual([]);
+  });
+
+  it('refuse de programmer une version au fuseau inconnu de la base et différent : changement d’horloge', async () => {
+    // Version publiée avant ces contrôles : son fuseau, retiré de la base, n'est pas celui en vigueur.
+    const other = { ...SAME_CLOCK, clock: { ...clock, timezone: 'Canada/East-Saskatchewan' } };
+    const stale = await db
+      .insertInto('config.versions')
+      .values({ payload: JSON.stringify(other), note: 'fuseau retiré', created_by: root })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    expect(await send(designer, 'admin.scheduleConfig', { versionId: stale.id })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_CLOCK_CHANGED', fields: ['clock.timezone'] } },
+    });
+    const activations = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', stale.id)
+      .execute();
+    expect(activations).toEqual([]);
+  });
+
+  it('le fuseau en vigueur n’est jamais refusé comme inconnu de la base : la version se publie et se programme', async () => {
+    // Monde dont le fuseau en vigueur est sorti de la base des fuseaux (mise à jour de tzdata) : l'horloge
+    // ne changeant pas, le refuser comme inconnu à la publication empêcherait toute nouvelle version. La
+    // programmation ne contrôle pas le fuseau : elle refuse déjà tout changement d'horloge.
+    const stranded = farCloseClock(new Date(), {
+      ...TEST_CONFIG.config.clock,
+      timezone: 'US/Pacific-New',
+    });
+    const via = createApp({
+      db,
+      telemetry,
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: testConfigWithClock(stranded),
+    });
+    const author = await newUser('game_designer', root);
+    const config = { ...TEST_CONFIG.config, clock: stranded };
+    const published = await send(author, 'admin.publishConfig', { config }, { via });
+    expect(published.status).toBe(200);
+    const versionId = published.body.data?.versionId ?? '';
+    expect(await send(designer, 'admin.scheduleConfig', { versionId }, { via })).toMatchObject({
+      status: 200,
+      body: { data: { activateAt: nextDailyClose(new Date(), stranded).toISOString() } },
+    });
+    // Retirée aussitôt : la base locale n'est pas à cette horloge.
+    const activation = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', versionId)
+      .executeTakeFirstOrThrow();
+    const cancelled = await send(root, 'admin.cancelActivation', { activationId: activation.id });
+    expect(cancelled.status).toBe(200);
   });
 
   it('refuse une version inconnue', async () => {

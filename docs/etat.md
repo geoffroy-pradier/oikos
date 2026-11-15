@@ -224,8 +224,6 @@ Défauts connus, déjà en tickets :
   annulation validée à cheval sur l'échéance n'est écartée que par une marge, pas par une garantie.
 - **#155** : la lecture des flux de trésorerie (`my_cash_flows`) prend environ 950 ms sous règles par
   ligne, à cause de la compilation à la volée.
-- **#158** : les migrations 09, 19 et 21 ne sont pas rejouables, contrairement à la règle 9 du
-  `CLAUDE.md` ; à corriger, avec le bornage de `seasonDays` et le refus d'un fuseau inconnu de la base.
 - **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (trois tranches de #161 fusionnées, dont #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
   Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
   étroits de double paiement et le `try/finally` des commandes de la carte des sites.

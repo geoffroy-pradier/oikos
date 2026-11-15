@@ -31,6 +31,12 @@ export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = [
   'CONFIG_INVALID',
   /** La version change l'horloge (durée du tick, heure ou fuseau de clôture) : refusé (#123). */
   'CONFIG_CLOCK_CHANGED',
+  /**
+   * Fuseau valide pour `Intl` mais inconnu de la base, et différent de celui de la version en vigueur :
+   * le fuseau en vigueur n'est jamais refusé comme inconnu. Le changement d'horloge étant contrôlé avant,
+   * la commande ne le produit pas tant que l'horloge ne change pas (spécification 03).
+   */
+  'CONFIG_TIMEZONE_UNKNOWN',
 ] as const;
 
 /**

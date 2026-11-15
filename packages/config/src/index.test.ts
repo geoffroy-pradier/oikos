@@ -167,6 +167,19 @@ describe('une configuration invalide est refusée avec un message précis', () =
     ]);
   });
 
+  it('horloge : une saison dure au plus une année, bien en deçà des entiers de la base', () => {
+    const config = clone();
+    config.clock.seasonDays = 366;
+    expect(errorsOf(config)).toEqual([]);
+    for (const days of [367, 2 ** 31, 0, 7.5]) {
+      config.clock.seasonDays = days;
+      expect([days, errorsOf(config).map((e) => e.split(':')[0])]).toEqual([
+        days,
+        ['clock.seasonDays'],
+      ]);
+    }
+  });
+
   it('horloge : fuseau inexistant, tick qui ne divise pas la journée', () => {
     for (const timezone of ['Mars/Olympus', ' ', 'Europe/Paris ']) {
       const config = clone();

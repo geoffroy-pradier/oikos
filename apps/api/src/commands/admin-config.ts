@@ -15,6 +15,8 @@ import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
+const TIMEZONE_UNKNOWN_MESSAGE = 'The clock time zone is unknown to the database.';
+
 /**
  * L'horloge d'un monde ne change pas (#123). L'indice d'un tick se compte en durées de tick depuis
  * l'origine : changer la durée changerait l'échelle des indices déjà joués et bloquerait le monde. Changer
@@ -50,16 +52,21 @@ export const adminPublishConfig = defineCommand({
     const parsed = validateConfig(input.config);
     const changed = parsed.ok ? clockChanges(parsed.config.clock, config.clock) : [];
     if (changed.length > 0) return clockChanged(changed);
+    // Le fuseau de la version en vigueur n'est jamais refusé comme inconnu de la base (spécification 03).
     const published = await publishVersion(trx, input.config, {
       note: input.note,
       createdBy: userId,
+      timezoneInForce: config.clock.timezone,
     });
     if (!published.ok) {
       return {
         ok: false,
         error: {
-          code: 'CONFIG_INVALID',
-          message: 'The configuration does not match the schema.',
+          code: published.code,
+          message:
+            published.code === 'CONFIG_INVALID'
+              ? 'The configuration does not match the schema.'
+              : TIMEZONE_UNKNOWN_MESSAGE,
           fields: published.errors,
         },
       };

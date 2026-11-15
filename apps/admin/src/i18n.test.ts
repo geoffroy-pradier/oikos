@@ -1,6 +1,7 @@
 import {
   ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
   ADMIN_GRANT_ROLE_ERROR_CODES,
+  ADMIN_PUBLISH_CONFIG_ERROR_CODES,
   ADMIN_REVOKE_ROLE_ERROR_CODES,
   ADMIN_ROLES,
   ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
@@ -31,9 +32,16 @@ describe('traductions du back-office', () => {
     expect(keys(fr)).toEqual(expect.arrayContaining(codes.map((code) => `access.errors.${code}`)));
   });
 
-  it('chaque refus de la programmation et de l’annulation a son message (le refus du schéma a le sien)', () => {
-    const codes = [...ADMIN_SCHEDULE_CONFIG_ERROR_CODES, ...ADMIN_CANCEL_ACTIVATION_ERROR_CODES];
+  it('chaque refus des commandes de configuration a son message (le refus du schéma a le sien)', () => {
+    const codes = [
+      ...ADMIN_PUBLISH_CONFIG_ERROR_CODES,
+      ...ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
+      ...ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
+    ];
     const listed = codes.filter((code) => code !== 'CONFIG_INVALID');
+    expect(listed).toEqual(
+      expect.arrayContaining(['CONFIG_CLOCK_CHANGED', 'CONFIG_TIMEZONE_UNKNOWN']),
+    );
     expect(keys(fr)).toEqual(expect.arrayContaining(listed.map((code) => `config.errors.${code}`)));
     expect(keys(fr)).toContain('config.invalidConfig');
   });
