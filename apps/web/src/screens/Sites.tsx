@@ -32,8 +32,11 @@ interface Site {
   /** Instant de l'arrêt d'un site dont l'entretien n'a pas été payé ; `null` s'il tourne (5.5). */
   halted_at: string | null;
 }
-/** Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire. */
-type Notice = { target: string; kind: 'status' | 'alert'; text: string } | null;
+/**
+ * Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire.
+ * `unanswered` : l'avertissement d'une acquisition abandonnée, que le joueur dit avoir vérifiée.
+ */
+type Notice = { target: string; kind: 'status' | 'alert'; text: string; unanswered?: true } | null;
 const ACQUIRE = 'acquire';
 const ALL = 'all';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
@@ -72,12 +75,23 @@ export function SitesCard({
   // Une commande à la fois, même pour deux activations que le rendu n'a pas eu le temps de séparer.
   const running = useRef(false);
   // Sites lus, hors commande (à sa fin, écran rouvert, retour sur l'onglet) : une acquisition demandée
-  // avec moins de sites et restée sans réponse ne sera plus rejouée. Sa clé n'est rendue qu'ici, et le
-  // joueur est prévenu avant l'affichage : réessayer serait un nouvel achat.
+  // avec moins de sites ne sera plus rejouée. Sa clé n'est rendue qu'ici, même après un succès. Restée
+  // sans réponse, le joueur est prévenu avant l'affichage : réessayer serait un nouvel achat. Cet
+  // avertissement est rappelé à chaque ouverture de l'écran, tant qu'il n'a pas dit avoir vérifié.
+  const recalled = useRef(false);
   useLayoutEffect(() => {
     if (running.current || !sites.rows) return;
-    if (pending.settleWhere(acquireIntentBelow(sites.rows.length)) > 0)
-      setNotice({ target: ACQUIRE, kind: 'alert', text: t('home.acquireUnanswered') });
+    const abandoned = pending.settleWhere(acquireIntentBelow(sites.rows.length)) > 0;
+    if (abandoned) pending.warning.set(true);
+    const opening = !recalled.current;
+    recalled.current = true;
+    if ((abandoned || opening) && pending.warning.get())
+      setNotice({
+        target: ACQUIRE,
+        kind: 'alert',
+        text: t('home.acquireUnanswered'),
+        unanswered: true,
+      });
   }, [pending, sites.rows, busy]);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
@@ -282,7 +296,8 @@ export function SitesCard({
 
   async function acquire(event: FormEvent) {
     event.preventDefault();
-    if (!offer) return;
+    // Pendant une autre commande, rien ne part : aucune clé n'est créée qui ne serait jamais envoyée.
+    if (!offer || running.current) return;
     const { recipe, costOboles } = offer;
     const recipeId = recipe.id;
     // Un achat abouti sans réponse a ajouté un site, vu à la relecture : vouloir de nouveau la même
@@ -290,9 +305,11 @@ export function SitesCard({
     const intent = acquireIntent(recipeId, sites.rows?.length ?? null);
     // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
     if (intent === null) return;
-    // Issue connue : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée
-    // avant son registre, elle reste en attente, avec le prix envoyé : un nouvel essai renvoie ce prix
-    // sous la même clé, même si le tarif affiché a changé entre-temps.
+    // Le joueur réessaie : l'avertissement d'une acquisition abandonnée a fait son office.
+    pending.warning.set(false);
+    // Refus : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée avant
+    // son registre, elle reste en attente, avec le prix envoyé : un nouvel essai renvoie ce prix sous
+    // la même clé, même si le tarif affiché a changé entre-temps.
     const send = () =>
       sendUnderKey(
         pending,
@@ -300,6 +317,9 @@ export function SitesCard({
         () => crypto.randomUUID(),
         costOboles,
         (key, sent) => acquireSite(recipeId, sent, house.accessToken, key),
+        // Un succès ne rend la clé qu'à la relecture qui montre le site acquis : un autre écran de
+        // cette maison, encore à N sites, renverrait sinon la même intention sous une clé neuve.
+        true,
       );
     await run(
       ACQUIRE,
@@ -639,6 +659,19 @@ export function SitesCard({
             </>
           )}
           {announce(ACQUIRE)}
+          {notice?.unanswered && (
+            <Button
+              variant="secondary"
+              className="self-start"
+              onClick={() => {
+                pending.warning.set(false);
+                setNotice(null);
+                title.current?.focus();
+              }}
+            >
+              {t('home.acquireChecked')}
+            </Button>
+          )}
         </form>
       )}
     </Card>

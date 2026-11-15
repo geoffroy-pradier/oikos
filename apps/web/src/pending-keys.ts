@@ -15,19 +15,28 @@ export interface KeyStorage {
  * par maison), pas au rechargement de la page.
  */
 const memories = new Map<string, Map<string, string>>();
+/** Maisons prévenues d'une acquisition abandonnée, sans stockage de session (voir `warning`). */
+const warnedInMemory = new Set<string>();
 
-/** Clé en attente et entrée envoyée sous elle (`undefined` : aucune, ou rangée sans entrée). */
+/**
+ * Clé en attente et entrée envoyée sous elle (`undefined` : aucune, ou rangée sans entrée).
+ * `answered` : la commande a abouti, mais l'écran ne l'a pas encore relue (`sendUnderKey`).
+ */
 export interface PendingEntry<T> {
   key: string;
   input?: T;
+  answered?: true;
 }
 /** Valeur rangée : `{ key, input }` en JSON, ou une clé seule (version antérieure de l'écran). */
 function parseEntry<T>(stored: string): PendingEntry<T> {
   try {
     const parsed = JSON.parse(stored) as unknown;
     if (typeof parsed === 'object' && parsed !== null && 'key' in parsed) {
-      const { key, input } = parsed as { key: unknown; input?: T };
-      if (typeof key === 'string') return input === undefined ? { key } : { key, input };
+      const { key, input, answered } = parsed as { key: unknown; input?: T; answered?: unknown };
+      if (typeof key === 'string') {
+        const entry: PendingEntry<T> = input === undefined ? { key } : { key, input };
+        return answered === true ? { ...entry, answered } : entry;
+      }
     }
   } catch {
     // Pas du JSON : une clé seule.
@@ -56,22 +65,39 @@ export function pendingKeys(scope: string, storage: () => KeyStorage | undefined
    * clé neuve et `input`, retenues ensemble. Une clé rangée seule (sans entrée, version antérieure de
    * l'écran) rend une entrée absente : l'appelant renvoie alors l'entrée de cette version.
    */
-  function entryFor<T>(intent: string, fresh: () => string, input: T): PendingEntry<T> {
-    const stored = memory.get(intent) ?? safe((store) => store.getItem(prefix + intent));
-    const entry: PendingEntry<T> =
-      stored === undefined || stored === null ? { key: fresh(), input } : parseEntry<T>(stored);
+  const read = (intent: string) =>
+    memory.get(intent) ?? safe((store) => store.getItem(prefix + intent)) ?? undefined;
+  const keep = (intent: string, entry: PendingEntry<unknown>) => {
     const value = JSON.stringify(entry);
     memory.set(intent, value);
     safe((store) => store.setItem(prefix + intent, value));
+  };
+  function entryFor<T>(intent: string, fresh: () => string, input: T): PendingEntry<T> {
+    const stored = read(intent);
+    const entry: PendingEntry<T> =
+      stored === undefined ? { key: fresh(), input } : parseEntry<T>(stored);
+    keep(intent, entry);
     return entry;
   }
+  const flag = `oikos.unanswered.${scope}`;
   return {
     /** Clé de l'intention : celle d'un essai resté sans réponse, sinon une neuve, retenue. */
     keyFor: (intent: string, fresh: () => string): string =>
       entryFor<undefined>(intent, fresh, undefined).key,
     entryFor,
     settle,
-    /** Rend les clés des intentions de cette maison que `obsolete` désigne, et les compte. */
+    /**
+     * La commande a abouti, mais la clé reste en attente jusqu'à la relecture qui montre son effet
+     * (`settleWhere`) : un écran qui n'a pas encore relu renvoie la même intention, donc la même clé.
+     */
+    answered(intent: string): void {
+      const stored = read(intent);
+      if (stored !== undefined) keep(intent, { ...parseEntry(stored), answered: true });
+    },
+    /**
+     * Rend les clés des intentions de cette maison que `obsolete` désigne. Compte celles dont l'issue
+     * restait inconnue (pas `answered`) : abandonnées sans réponse, elles ont pu payer.
+     */
     settleWhere(obsolete: (intent: string) => boolean): number {
       const names =
         safe((store) => Array.from({ length: store.length }, (_, index) => store.key(index))) ?? [];
@@ -79,8 +105,22 @@ export function pendingKeys(scope: string, storage: () => KeyStorage | undefined
         name?.startsWith(prefix) ? [name.slice(prefix.length)] : [],
       );
       const settled = [...new Set([...memory.keys(), ...stored])].filter(obsolete);
+      const unknown = settled.filter((intent) => !parseEntry(read(intent) ?? '').answered);
       settled.forEach(settle);
-      return settled.length;
+      return unknown.length;
+    },
+    /**
+     * Avertissement d'une acquisition abandonnée sans réponse, rappelé à chaque ouverture de l'écran
+     * tant que le joueur n'a pas dit avoir vérifié la liste. Même stockage que les clés.
+     */
+    warning: {
+      get: (): boolean =>
+        warnedInMemory.has(scope) || (safe((store) => store.getItem(flag) !== null) ?? false),
+      set(on: boolean): void {
+        if (on) warnedInMemory.add(scope);
+        else warnedInMemory.delete(scope);
+        safe((store) => (on ? store.setItem(flag, '1') : store.removeItem(flag)));
+      },
     },
   };
 }
@@ -88,9 +128,10 @@ export function pendingKeys(scope: string, storage: () => KeyStorage | undefined
 /**
  * Refus qui ne disent rien de l'issue d'une commande : restée sans réponse (`INTERNAL`), ou écartée par
  * l'API avant son registre d'idempotence. La clé reste en attente ; tout autre refus est attaché à la
- * sienne, et l'essai suivant en prend une neuve.
+ * sienne, et l'essai suivant en prend une neuve. Une clé absente ou mal formée
+ * (`IDEMPOTENCY_KEY_REQUIRED`) n'a jamais pu être consommée : la rendre ne paie rien deux fois.
  */
-const UNKNOWN = ['INTERNAL', 'UNAUTHENTICATED', 'RATE_LIMITED', 'IDEMPOTENCY_KEY_REQUIRED'];
+const UNKNOWN = ['INTERNAL', 'UNAUTHENTICATED', 'RATE_LIMITED'];
 export const outcomeKnown = (result: { ok: true } | { ok: false; error: { code: string } }) =>
   result.ok || !UNKNOWN.includes(result.error.code);
 
@@ -102,20 +143,25 @@ export const outcomeKnown = (result: { ok: true } | { ok: false; error: { code: 
  * le prix (« le prix a changé »), l'intention est réglée, et le joueur confirme le nouveau prix d'un
  * nouvel essai. Dès que l'issue est connue (succès ou refus), l'essai suivant prend une clé neuve ;
  * sans réponse (`INTERNAL`, refus d'avant le registre), la clé et l'entrée restent en attente.
+ * `untilRead` : un succès ne rend pas la clé, il la marque `answered` ; elle est rendue à la relecture
+ * qui montre son effet (`settleWhere`), car un autre écran, qui ne l'a pas encore vu, renverrait sinon
+ * la même intention sous une clé neuve.
  */
 export async function sendUnderKey<
   T,
   R extends { ok: true } | { ok: false; error: { code: string } },
 >(
-  keys: Pick<ReturnType<typeof pendingKeys>, 'entryFor' | 'settle'>,
+  keys: Pick<ReturnType<typeof pendingKeys>, 'entryFor' | 'settle' | 'answered'>,
   intent: string,
   fresh: () => string,
   input: T,
   send: (key: string, input: T | undefined) => Promise<R>,
+  untilRead = false,
 ): Promise<R> {
   const entry = keys.entryFor(intent, fresh, input);
   const result = await send(entry.key, entry.input);
-  if (outcomeKnown(result)) keys.settle(intent);
+  if (result.ok && untilRead) keys.answered(intent);
+  else if (outcomeKnown(result)) keys.settle(intent);
   return result;
 }
 

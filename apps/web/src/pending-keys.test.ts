@@ -71,11 +71,12 @@ describe('clés des commandes restées sans réponse', () => {
 
   it('sans réponse ou écartée avant le registre de l’API, l’issue reste inconnue : la clé est gardée', () => {
     const refused = (code: string) => outcomeKnown({ ok: false, error: { code } });
-    for (const code of ['INTERNAL', 'UNAUTHENTICATED', 'RATE_LIMITED', 'IDEMPOTENCY_KEY_REQUIRED'])
+    for (const code of ['INTERNAL', 'UNAUTHENTICATED', 'RATE_LIMITED'])
       expect(refused(code)).toBe(false);
-    // Un refus du registre ou de la commande est attaché à sa clé, comme un succès.
-    for (const code of ['INSUFFICIENT_FUNDS', 'SITE_LIMIT_REACHED', 'IDEMPOTENCY_KEY_REUSED'])
-      expect(refused(code)).toBe(true);
+    // Un refus du registre ou de la commande est attaché à sa clé, comme un succès. Une clé absente ou
+    // mal formée n'a jamais pu être consommée : la rendre ne paie rien deux fois.
+    const known = ['INSUFFICIENT_FUNDS', 'SITE_LIMIT_REACHED', 'IDEMPOTENCY_KEY_REUSED'];
+    for (const code of [...known, 'IDEMPOTENCY_KEY_REQUIRED']) expect(refused(code)).toBe(true);
     expect(outcomeKnown({ ok: true })).toBe(true);
   });
 
@@ -171,6 +172,59 @@ describe('clés des commandes restées sans réponse', () => {
     expect(sent.map((entry) => entry.key)).toEqual(['key-1', 'key-2']);
     expect(restartIntent('site-1', '2026-11-16T03:00:00Z')).not.toBe(intent);
     expect(restartIntent('site-2', '2026-11-15T03:00:00Z')).not.toBe(intent);
+  });
+
+  it('succès rendu à la relecture : la clé reste tant que N sites sont lus, puis part sans avertir', async () => {
+    const storage = memoryStorage();
+    const fresh = counter();
+    const keys = pendingKeys('house-a', () => storage);
+    const [won, lost] = [acquireIntent('grow_wheat', 1), acquireIntent('grow_olives', 1)];
+    if (!won || !lost) throw new Error('intentions attendues');
+    const { sent, send } = recorder({ ok: true }, LOST, { ok: true }, { ok: true });
+    // Un écran resté à 1 site renvoie la même intention : même clé, même prix, rejouée par l'API. Un
+    // écran remonté (page rechargée) la lit dans le stockage, marquée aboutie.
+    await sendUnderKey(keys, won, fresh, 100, send, true);
+    await sendUnderKey(keys, lost, fresh, 150, send, true);
+    await sendUnderKey(
+      pendingKeys('house-a', () => storage),
+      won,
+      fresh,
+      120,
+      send,
+      true,
+    );
+    expect(sent).toEqual([
+      { key: 'key-1', price: 100 },
+      { key: 'key-2', price: 150 },
+      { key: 'key-1', price: 100 },
+    ]);
+    // Relecture à 1 site : rien n'est rendu. À 2 sites : les deux, et seule celle restée sans réponse
+    // est comptée (avertissement). Sans `untilRead`, un succès règle aussitôt l'intention.
+    expect(keys.settleWhere(acquireIntentBelow(1))).toBe(0);
+    expect(keys.settleWhere(acquireIntentBelow(2))).toBe(1);
+    expect(storage.store.size).toBe(0);
+    await sendUnderKey(keys, won, fresh, 100, send);
+    expect(storage.store.size).toBe(0);
+  });
+
+  it('avertissement rappelé jusqu’à ce qu’il soit levé, par maison, même sans stockage', () => {
+    const storage = memoryStorage();
+    const [first, again] = [pendingKeys('warn', () => storage), pendingKeys('warn', () => storage)];
+    expect(first.warning.get()).toBe(false);
+    first.warning.set(true);
+    expect(again.warning.get()).toBe(true);
+    expect(pendingKeys('warn-2', () => storage).warning.get()).toBe(false);
+    // Il ne passe pas pour une clé en attente.
+    expect(first.settleWhere(() => true)).toBe(0);
+    again.warning.set(false);
+    expect(first.warning.get()).toBe(false);
+    const broken = () => {
+      throw new Error('storage disabled');
+    };
+    pendingKeys('warn-p', broken).warning.set(true);
+    expect(pendingKeys('warn-p', () => undefined).warning.get()).toBe(true);
+    pendingKeys('warn-p', broken).warning.set(false);
+    expect(pendingKeys('warn-p', () => undefined).warning.get()).toBe(false);
   });
 
   it('clé rangée seule par une version antérieure de l’écran : renvoyée telle quelle, sans prix', async () => {
