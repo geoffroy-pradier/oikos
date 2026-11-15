@@ -1,4 +1,4 @@
-import { CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
+import { CONFIG_EDITOR_ROLES, type AdminRole, type RetiredUsage } from '@oikos/contracts';
 import { Button, cn } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,8 @@ interface Listing {
     note: string;
     createdBy: string | null;
     createdAt: string;
+    /** Biens que la version retire et que le monde porte encore : sa programmation est refusée (#191). */
+    retiredInUse?: RetiredUsage;
   }[];
   activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
 }
@@ -90,6 +92,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const count = new Intl.NumberFormat(i18n.language);
   // Rendu JSON : un changement de type reste visible (`"600" → 600`).
   const show = (value: unknown) => JSON.stringify(value);
 
@@ -266,6 +269,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             .filter((entry) => entry.versionId === version.id && Date.parse(entry.activateAt) > now)
             .sort((a, b) => a.activateAt.localeCompare(b.activateAt))[0];
           const upcoming = next?.activateAt;
+          const retired = version.retiredInUse?.goods ?? [];
+          const retiredId = `config-retired-${version.id}`;
           return (
             <li key={version.id} className="rounded-md border border-border p-3">
               <h3 className="text-lg">
@@ -283,6 +288,24 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 {upcoming &&
                   ` · ${t('config.scheduled', { date: date.format(new Date(upcoming)) })}`}
               </p>
+              {retired.length > 0 && (
+                <div id={retiredId} className="text-sm wrap-break-word">
+                  <p className="font-semibold text-danger">{t('config.retiredInUse')}</p>
+                  <ul>
+                    {retired.map((good) => (
+                      <li key={good.goodId}>
+                        {t('config.goodInUse', {
+                          good: good.goodId,
+                          houses: count.format(good.houses),
+                          quantity: count.format(good.quantity),
+                          orders: count.format(good.openOrders),
+                          escrow: count.format(good.escrowOboles),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {/* Reste affiché pendant sa confirmation, qui s'ouvre sous la rangée sans la déplacer. */}
                 <Button
@@ -296,6 +319,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   <Button
                     variant="secondary"
                     disabled={busy}
+                    aria-describedby={retired.length > 0 ? retiredId : undefined}
                     onClick={() => void schedule(version)}
                   >
                     {t(version.number < activeNumber ? 'config.rollback' : 'config.schedule', {

@@ -679,6 +679,34 @@ it('double validation : le refus de programmer sa propre version est expliqué',
   ]);
 });
 
+it('bien retiré encore détenu : dit sous la version avant la programmation, et le refus est expliqué', async () => {
+  const retiredInUse = {
+    goods: [{ goodId: 'wheat', houses: 3, quantity: 1200, openOrders: 2, escrowOboles: 45 }],
+  };
+  const [v3, ...rest] = LISTING.versions;
+  api.adminGet.mockResolvedValue({
+    ok: true,
+    data: { ...LISTING, versions: [{ ...v3, retiredInUse }, ...rest] },
+  });
+  api.adminCommand.mockResolvedValue({ ok: false, code: 'CONFIG_GOOD_IN_USE' });
+  render(<Config accessToken="token" role="game_designer" />);
+  const schedule = await screen.findByRole('button', {
+    name: 'Programmer la version 3 à la prochaine clôture',
+  });
+  const notice = within(item(3)).getByText(/wheat/).closest('div');
+  expect(notice?.textContent).toContain('sa programmation sera refusée');
+  expect(notice?.textContent?.replace(/\s/g, ' ')).toContain(
+    'wheat — maisons : 3 ; unités en stock : 1 200 ; ordres ouverts : 2 ; séquestre : 45 oboles',
+  );
+  // Lu avec le bouton de programmation ; une version qui ne retire rien n'a pas d'avertissement.
+  expect(schedule.getAttribute('aria-describedby')).toBe(notice?.id);
+  expect(item(2).textContent).not.toContain('encore détenus');
+  fireEvent.click(schedule);
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    'Cette version retire des biens encore détenus',
+  );
+});
+
 it('un refus du schéma désigne table, ligne et champ d’après la configuration envoyée', async () => {
   const fields = [
     'goods[1].elasticity: Too big',
