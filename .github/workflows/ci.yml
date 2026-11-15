@@ -22,6 +22,21 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # Une migration publiée est immuable : `infra/deploy.sh` ne rejoue jamais une migration enregistrée, une
+      # modification sur place ne serait donc jamais déployée. On corrige par une migration nouvelle.
+      - name: Published migrations are immutable
+        if: hashFiles('packages/db/supabase/migrations/*.sql') != ''
+        # Comparaison au premier parent : la branche de base pour le commit de fusion d'une demande de
+        # fusion, le commit précédent pour une fusion en squash sur `main`.
+        run: |
+          git fetch --quiet --depth=2 origin "$GITHUB_SHA"
+          git rev-parse --quiet --verify HEAD^1 > /dev/null || exit 0
+          changed="$(git diff --diff-filter=MDR --name-only HEAD^1 HEAD -- packages/db/supabase/migrations)"
+          if [ -n "$changed" ]; then
+            echo "::error::Migrations publiées modifiées, supprimées ou renommées : $changed"
+            exit 1
+          fi
+
       # Tant que le monorepo n'est pas initialisé (ticket 1), il n'y a rien à vérifier.
       - name: Detect workspace
         id: ws
