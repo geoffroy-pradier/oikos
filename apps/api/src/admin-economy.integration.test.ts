@@ -121,6 +121,8 @@ beforeAll(async () => {
   // Bord de la fenêtre de 30 jours : la milliseconde d'avant n'entre que dans le cumul.
   await entry('quest.reward', -29, -1, { faucet_rewards: -500, [b]: 500 });
   await entry('quest.reward', -29, 0, { faucet_rewards: -1, [b]: 1 });
+  // Écriture datée du lendemain (horloge décalée) : dans le cumul, jamais dans le jour en cours.
+  await entry('quest.reward', 1, 0, { faucet_rewards: -9, [a]: 9 });
   // Prêt remboursé le même jour : net nul, aucun mouvement ce jour-là, cumul nul.
   await entry('temple.loan', -5, HOUR, { faucet_temple_loans: -200, [a]: 200 });
   await entry('temple.repay', -5, 2 * HOUR, { faucet_temple_loans: 200, [a]: -200 });
@@ -159,15 +161,15 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
   const { data, world } = await read(WORLD);
   expect(data.windowDays).toBe(30);
   expect(world.moneySupply).toEqual({
-    total: 2 * GRANT - ORCHARD + 515,
-    houses: 2 * GRANT - ORCHARD + 443,
+    total: 2 * GRANT - ORCHARD + 524,
+    houses: 2 * GRANT - ORCHARD + 452,
     escrow: 70,
     cityTreasuries: 2,
     other: 0,
   });
   expect(moved(world)).toEqual({
     faucet_starting_grant: [2 * GRANT, [0, 2 * GRANT]],
-    faucet_rewards: [548, [-29, 1], [-3, 7], [-2, 40]],
+    faucet_rewards: [557, [-29, 1], [-3, 7], [-2, 40]],
     sink_site_acquisition: [ORCHARD, [0, ORCHARD]],
     sink_upkeep: [30, [-3, 30]],
     sink_market_tax: [3, [-3, 3]],
@@ -185,19 +187,20 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
 it('`days` règle le nombre de jours détaillés, sans toucher aux cumuls', async () => {
   const two = await read(WORLD, '?days=2');
   expect(two.data.windowDays).toBe(2);
-  expect(moved(two.world)['faucet_rewards']).toEqual([548]);
+  expect(moved(two.world)['faucet_rewards']).toEqual([557]);
   expect(moved(two.world)['sink_site_acquisition']).toEqual([ORCHARD, [0, ORCHARD]]);
   // Au-delà du maximum, la fenêtre est bornée et la réponse le dit.
   const wide = await read(WORLD, '?days=999');
   expect(wide.data.windowDays).toBe(90);
   expect(moved(wide.world)['faucet_rewards']).toEqual([
-    548,
+    557,
     [-30, 500],
     [-29, 1],
     [-3, 7],
     [-2, 40],
   ]);
-  for (const bad of ['0', '-1', '1.5', '1000', 'abc', '']) {
+  expect((await read(WORLD, '?days=1000')).data.windowDays).toBe(90);
+  for (const bad of ['0', '-1', '1.5', '090', 'abc', '']) {
     const res = await get(observer, `?days=${bad}`);
     expect([bad, res.status]).toEqual([bad, 400]);
   }
@@ -244,11 +247,9 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
     ...unknown,
     unpricedGoods: ['wheat', 'bread'],
   });
-  const now = new Date();
-  const withIndex = async (patch: Partial<typeof priceIndex>, at = now) => {
+  const withIndex = async (patch: Partial<typeof priceIndex>) => {
     const patched = { ...config, priceIndex: { ...priceIndex, ...patch } };
-    return (await readEconomy(db, patched, 1, at)).worlds.find((w) => w.worldId === WORLD)
-      ?.priceIndex;
+    return (await readEconomy(db, patched, 1)).worlds.find((w) => w.worldId === WORLD)?.priceIndex;
   };
   expect((await withIndex({ inflationTargetBps: { min: 0, max: 277 } }))?.status).toBe('above');
   expect((await withIndex({ inflationTargetBps: { min: 279, max: 300 } }))?.status).toBe('below');
@@ -256,23 +257,29 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
   // Un bien du panier sans échange : inconnu, jamais un prix inventé.
   const salted = [...basket, { goodId: 'salt', quantity: 1 }];
   expect(await withIndex({ basket: salted })).toEqual({ ...unknown, unpricedGoods: ['salt'] });
-  // Trente jours plus tard, la fenêtre courante est devenue la précédente, et rien ne s'est échangé depuis.
-  expect(await withIndex({}, new Date(now.getTime() + 30 * 24 * HOUR))).toEqual({
-    ...unknown,
-    previousBps: 11_212,
-    unpricedGoods: ['wheat', 'bread'],
-  });
+  // Fenêtres comptées depuis l'horloge de la base. De 45 jours : la courante prend aussi les chandeliers
+  // de 40 jours (blé 55 ÷ 8, pain 65 ÷ 4, panier à 36,875) ; la précédente n'a que du blé, à 61 jours.
+  // De 19 jours : les chandeliers de 40 jours sont trop anciens pour la précédente, qui est vide.
+  const [wide, narrow] = [await withIndex({ windowDays: 45 }), await withIndex({ windowDays: 19 })];
+  expect(wide).toEqual({ ...unknown, currentBps: 11_174, unpricedGoods: ['bread'] });
+  expect(narrow).toEqual({ ...unknown, currentBps: 11_212, unpricedGoods: ['wheat', 'bread'] });
 });
 
-it('lue pendant que des maisons se fondent, garde cumul et jours d’un même instantané', async () => {
-  const founding = [...'abcdefgh'].map(async (letter) =>
-    send(await newUser(), 'house.create', { cityId: CITY, name: `Gamma ${letter}`, blazon }),
-  );
-  const reads = await Promise.all(Array.from({ length: 16 }, () => read(WORLD)));
-  await Promise.all(founding);
-  for (const { world } of [...reads, await read(WORLD)]) {
-    const grant = world.systemAccounts.find((row) => row.key === 'faucet_starting_grant');
-    expect(grant?.days.reduce((sum, day) => sum + day.amount, 0)).toBe(grant?.total);
-  }
-  expect((await read(WORLD)).world.moneySupply.total).toBe(10 * GRANT - ORCHARD + 515);
+it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même instantané', async () => {
+  // Course rendue certaine : une fondation est validée entre la lecture des soldes (deuxième requête de
+  // la route, après l'horloge) et celle des mouvements par jour.
+  let queries = 0;
+  const racing = db.withPlugin({
+    transformQuery: ({ node }) => node,
+    transformResult: async ({ result }) => {
+      const founded = { cityId: CITY, name: 'Gamma', blazon };
+      if (++queries === 2) await send(await newUser(), 'house.create', founded);
+      return result;
+    },
+  });
+  const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
+  expect(queries).toBe(4);
+  expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
+  const { world } = await read(WORLD);
+  expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);
 });

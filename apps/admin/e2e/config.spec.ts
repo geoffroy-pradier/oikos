@@ -22,6 +22,9 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
   const editor = page.getByLabel('Configuration (JSON)');
   await expect(
+    page.getByRole('heading', { name: `Contenu de la version ${number}` }),
+  ).toBeFocused();
+  await expect(
     page.getByText(`Aucune différence avec la version ${number}, en vigueur.`),
   ).toBeVisible();
   const config = JSON.parse(await editor.inputValue()) as {
@@ -30,17 +33,20 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   };
   const grant = config.starting.grantOboles;
 
-  // Un texte qui n'est pas du JSON est signalé, et rien n'est envoyé.
+  // Un texte qui n'est pas du JSON est signalé à la sortie du champ, pas pendant la frappe.
   await editor.fill('{ "starting": ');
-  await expect(page.getByRole('alert')).toContainText("n'est pas un objet JSON valide");
+  const invalid = page.getByRole('alert').filter({ hasText: "n'est pas un objet JSON valide" });
+  await expect(invalid).toHaveCount(0);
+  await editor.blur();
+  await expect(invalid).toHaveCount(1);
 
   // Une valeur hors bornes est refusée par le schéma de l'API, champ nommé.
   const broken = { ...config, market: { npcMaxPriceFactor: 0 } };
   await editor.fill(JSON.stringify(broken, null, 2));
   await expect(page.getByText('market.npcMaxPriceFactor : 3 → 0')).toBeVisible();
   await page.getByRole('button', { name: 'Enregistrer comme nouvelle version' }).click();
-  const alert = page.getByRole('alert');
-  await expect(alert).toContainText('Configuration refusée par le schéma');
+  // La zone du champ est aussi une alerte, vide ici : celle des résultats se désigne par son texte.
+  const alert = page.getByRole('alert').filter({ hasText: 'Configuration refusée par le schéma' });
   await expect(alert).toContainText('market.npcMaxPriceFactor');
 
   // Une modification valide : la différence est affichée, puis enregistrée comme nouvelle version.
@@ -64,6 +70,21 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     .click();
   await expect(page.getByRole('status')).toContainText(`Version ${number} programmée pour le`);
   await expect(inForce).toContainText('Programmée pour le');
+
+  // Texte modifié : ouvrir demande confirmation, foyer sur le geste sans effet. Double clic dessus, vers
+  // le bas : la fiche suivante remonte, son bouton « Programmer » vient sous le pointeur ; rien n'est envoyé.
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST') sent.push(new URL(request.url()).pathname);
+  });
+  await editor.fill('{}');
+  const open = created.getByRole('button', { name: /^Ouvrir la version/ });
+  await open.click();
+  const keep = page.getByRole('button', { name: 'Garder le texte modifié' });
+  await expect(keep).toBeFocused();
+  await keep.dblclick({ position: { x: 20, y: 38 } });
+  await expect(open).toBeFocused();
+  expect(sent.filter((path) => path.startsWith('/api/commands/'))).toEqual([]);
 
   // Le journal d'audit garde la trace des deux commandes réussies et du refus.
   await page
