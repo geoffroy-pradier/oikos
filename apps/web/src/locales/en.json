@@ -276,7 +276,10 @@
     "NOT_CITIZEN": "Only citizens of the city take part in its election.",
     "FILING_CLOSED": "Candidacies are not open.",
     "ALREADY_CANDIDATE": "Your house is already a candidate in this election, or withdrew from it.",
-    "TERM_LIMIT_REACHED": "Your house has already served the maximum number of consecutive terms."
+    "TERM_LIMIT_REACHED": "Your house has already served the maximum number of consecutive terms.",
+    "CANDIDACY_NOT_FOUND": "This candidacy does not exist or was withdrawn.",
+    "VOTING_CLOSED": "The vote is not open.",
+    "ALREADY_VOTED": "Your house has already voted in this election."
   },
   "shell": {
     "skipToContent": "Skip to content",

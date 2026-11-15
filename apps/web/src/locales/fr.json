@@ -276,7 +276,10 @@
     "NOT_CITIZEN": "Seuls les citoyens de la cité prennent part à son élection.",
     "FILING_CLOSED": "Le dépôt des candidatures n'est pas ouvert.",
     "ALREADY_CANDIDATE": "Votre maison est déjà candidate à cette élection, ou s'en est retirée.",
-    "TERM_LIMIT_REACHED": "Votre maison a déjà exercé le nombre maximal de mandats consécutifs."
+    "TERM_LIMIT_REACHED": "Votre maison a déjà exercé le nombre maximal de mandats consécutifs.",
+    "CANDIDACY_NOT_FOUND": "Cette candidature n'existe pas ou a été retirée.",
+    "VOTING_CLOSED": "Le vote n'est pas ouvert.",
+    "ALREADY_VOTED": "Votre maison a déjà voté à cette élection."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

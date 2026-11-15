@@ -95,6 +95,8 @@ async function newWorld(opened = true) {
 type World = Awaited<ReturnType<typeof newWorld>>;
 const stand = (user: string, electionId: string, key?: string) =>
   send(user, 'city.standForElection', { electionId }, key);
+const vote = (user: string, electionId: string, candidacyId: string, key?: string) =>
+  send(user, 'city.castVote', { electionId, candidacyId }, key);
 const eventsOf = (type: string, electionId: string) =>
   one(sql<{ payload: Record<string, unknown> }>`select payload from game.domain_events
     where type = ${type} and payload->>'electionId' = ${electionId} order by seq`).then((rows) =>
@@ -131,8 +133,8 @@ async function pastTerm({ worldId, kalliste }: World, ago: number, houseId: stri
   });
 }
 
-describe('city.standForElection', () => {
-  it('un citoyen se présente une fois', async () => {
+describe('city.standForElection et city.withdrawCandidacy', () => {
+  it('un citoyen se présente une fois, se retire pendant le dépôt, et ne se représente pas', async () => {
     const world = await newWorld();
     const alice = await world.player();
     const key = randomUUID();
@@ -148,6 +150,17 @@ describe('city.standForElection', () => {
     expect(await eventsOf('CandidacyFiled', world.electionId)).toEqual([
       { candidacyId, electionId: world.electionId, cityId: world.kalliste, houseId: alice.houseId },
     ]);
+
+    const withdrawn = await send(alice.user, 'city.withdrawCandidacy', {
+      electionId: world.electionId,
+    });
+    expect(withdrawn).toMatchObject({ status: 200, body: { data: { candidacyId } } });
+    expect(
+      (await send(alice.user, 'city.withdrawCandidacy', { electionId: world.electionId })).body
+        .error?.code,
+    ).toBe('CANDIDACY_NOT_FOUND');
+    expect((await stand(alice.user, world.electionId)).body.error?.code).toBe('ALREADY_CANDIDATE');
+    expect(await eventsOf('CandidacyWithdrawn', world.electionId)).toHaveLength(1);
   });
 
   it('seul un citoyen de la cité se présente, pendant le dépôt, à une élection de son monde', async () => {
@@ -164,6 +177,10 @@ describe('city.standForElection', () => {
     expect((await stand(foreigner.user, world.electionId)).body.error?.code).toBe('NOT_CITIZEN');
     const late = await world.player();
     expect((await stand(late.user, world.electionId)).body.error?.code).toBe('FILING_CLOSED');
+    expect(
+      (await send(citizen.user, 'city.withdrawCandidacy', { electionId: world.electionId })).body
+        .error?.code,
+    ).toBe('FILING_CLOSED');
     expect(filed.status).toBe(200);
     expect(await eventsOf('CandidacyFiled', world.electionId)).toHaveLength(1);
   });
@@ -192,4 +209,95 @@ describe('city.standForElection', () => {
       expect((await stand(houses.B.user, world.electionId)).status).toBe(200);
     },
   );
+});
+
+describe('city.castVote', () => {
+  it('un citoyen vote une fois pendant le vote ; ni la réponse ni l’événement ne disent pour qui', async () => {
+    const world = await newWorld();
+    const [alice, bob, metic] = [
+      await world.player(),
+      await world.player(),
+      await world.player(world.kalliste, false),
+    ];
+    const candidacyId = (await stand(alice.user, world.electionId)).body.data.candidacyId as string;
+    expect((await vote(bob.user, world.electionId, candidacyId)).body.error?.code).toBe(
+      'VOTING_CLOSED',
+    );
+    await world.startVoting();
+    const cast = await vote(bob.user, world.electionId, candidacyId);
+    expect(cast.status).toBe(200);
+    expect(Object.keys(cast.body.data).sort()).toEqual(['castAt', 'electionId']);
+    expect((await vote(bob.user, world.electionId, candidacyId)).body.error?.code).toBe(
+      'ALREADY_VOTED',
+    );
+    expect((await vote(metic.user, world.electionId, candidacyId)).body.error?.code).toBe(
+      'NOT_CITIZEN',
+    );
+    expect((await vote(alice.user, world.electionId, randomUUID())).body.error?.code).toBe(
+      'CANDIDACY_NOT_FOUND',
+    );
+    expect(await eventsOf('BallotCast', world.electionId)).toEqual([
+      { electionId: world.electionId, cityId: world.kalliste, houseId: bob.houseId },
+    ]);
+  });
+
+  it('rejouée avec la même clé : même réponse, un seul bulletin ; même clé, autre entrée : refusée', async () => {
+    const world = await newWorld();
+    const [alice, carol, bob] = [await world.player(), await world.player(), await world.player()];
+    const first = (await stand(alice.user, world.electionId)).body.data.candidacyId as string;
+    const second = (await stand(carol.user, world.electionId)).body.data.candidacyId as string;
+    await world.startVoting();
+    const key = randomUUID();
+    const cast = await vote(bob.user, world.electionId, first, key);
+    expect(cast.status).toBe(200);
+    expect(await vote(bob.user, world.electionId, first, key)).toEqual(cast);
+    const reused = await vote(bob.user, world.electionId, second, key);
+    expect(reused.body.error?.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    const ballots = await one(sql<{ candidacy_id: string }>`select candidacy_id from game.ballots
+      where election_id = ${world.electionId}`);
+    expect(ballots).toEqual([{ candidacy_id: first }]);
+    expect(await eventsOf('BallotCast', world.electionId)).toHaveLength(1);
+  });
+
+  it('votes concurrents : un seul bulletin par maison, et chaque maison est comptée', async () => {
+    const world = await newWorld();
+    const candidate = await world.player();
+    const voters = await Promise.all([1, 2, 3, 4, 5].map(() => world.player()));
+    const candidacyId = (await stand(candidate.user, world.electionId)).body.data
+      .candidacyId as string;
+    await world.startVoting();
+    // La même maison, cinq intentions (cinq clés) à la fois : une seule passe.
+    const same = await Promise.all(
+      [1, 2, 3, 4, 5].map(() => vote(candidate.user, world.electionId, candidacyId)),
+    );
+    expect(same.map((reply) => reply.body.error?.code ?? 'ok').sort()).toEqual([
+      'ALREADY_VOTED',
+      'ALREADY_VOTED',
+      'ALREADY_VOTED',
+      'ALREADY_VOTED',
+      'ok',
+    ]);
+    // Cinq maisons à la fois : toutes votent.
+    const many = await Promise.all(
+      voters.map((voter) => vote(voter.user, world.electionId, candidacyId)),
+    );
+    expect(many.every((reply) => reply.status === 200)).toBe(true);
+    const [count] = await one(sql<{
+      ballots: number;
+      houses: number;
+    }>`select count(*)::int as ballots,
+      count(distinct house_id)::int as houses from game.ballots where election_id = ${world.electionId}`);
+    expect(count).toEqual({ ballots: 6, houses: 6 });
+  });
+
+  it('pas de bulletin pour une candidature retirée', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    const candidacyId = (await stand(alice.user, world.electionId)).body.data.candidacyId as string;
+    await send(alice.user, 'city.withdrawCandidacy', { electionId: world.electionId });
+    await world.startVoting();
+    expect((await vote(bob.user, world.electionId, candidacyId)).body.error?.code).toBe(
+      'CANDIDACY_NOT_FOUND',
+    );
+  });
 });
