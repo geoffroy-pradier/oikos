@@ -55,9 +55,13 @@ export function SitesCard({
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
-    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer ») :
-    // le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
-    if (element && document.activeElement === document.body) element.focus();
+    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer »,
+    // le formulaire d'acquisition s'efface à la limite) ou devenir inactif (« Changer » après un
+    // changement réussi) : le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
+    const active = document.activeElement;
+    const lost =
+      active === document.body || (active instanceof HTMLButtonElement && active.disabled);
+    if (element && lost) element.focus();
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
@@ -230,17 +234,23 @@ export function SitesCard({
     running.current = false;
   }
 
-  const announce = (target: string) =>
-    notice?.target === target && (
-      <p
-        ref={noticeElement}
-        tabIndex={-1}
-        role={notice.kind}
-        className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
-      >
-        {notice.text}
-      </p>
-    );
+  // Chaque cible a sa région vivante, présente avant le message : un lecteur d'écran n'annonce de façon
+  // sûre que ce qui change dans une région déjà là, pas une région qui paraît avec son texte. Vide, elle
+  // n'occupe aucune place (`contents`) : l'espacement de la carte ne bouge pas.
+  const announce = (target: string) => (
+    <div aria-live="polite" aria-atomic="true" className="contents">
+      {notice?.target === target && (
+        <p
+          ref={noticeElement}
+          tabIndex={-1}
+          role={notice.kind}
+          className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
+        >
+          {notice.text}
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <Card className="flex flex-col gap-3">

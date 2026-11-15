@@ -607,11 +607,17 @@ test('sites : acquisition au clavier, changement de production, limite du siège
 
   // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
   const offer = page.getByLabel('Site à acquérir');
+  // La région vivante du formulaire est là, vide, avant toute annonce : le message y paraît ensuite.
+  const region = page.locator('form [aria-live="polite"]');
+  await expect(region).toHaveCount(1);
+  await expect(region).toBeEmpty();
   await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
   await offer.focus();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
+  await expect(region.getByRole('status')).toContainText(
+    'Site acquis : Oliveraie, pour 900 oboles.',
+  );
   await expect(page.getByText(/^2\s100 oboles$/)).toBeVisible();
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText('Type : Verger')).toBeVisible();
@@ -622,20 +628,27 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   const change = page.getByRole('button', { name: 'Changer la production : Oliveraie' });
   await expect(change).toBeDisabled();
   await page.getByLabel('Production : Oliveraie', { exact: true }).selectOption({ label: 'Vigne' });
-  await change.click();
+  await change.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Production changée : Vigne.');
   await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
+  // « Changer » redevient inactif : le foyer passe au message, il ne retombe pas sur la page.
+  await expect(page.getByRole('button', { name: 'Changer la production : Vigne' })).toBeDisabled();
+  await expect(page.getByRole('status')).toBeFocused();
   await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
 
   // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
   await offer.selectOption({ label: 'Champ de blé (Champ) : 600 oboles' });
-  for (const balance of [/^1\s500 oboles$/, /^900 oboles$/]) {
-    await page.getByRole('button', { name: 'Acquérir' }).click();
-    await expect(page.getByText(balance)).toBeVisible();
-  }
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(page.getByText(/^1\s500 oboles$/)).toBeVisible();
+  // La dernière au clavier : le formulaire disparaît avec son bouton, le foyer va au message.
+  await page.getByRole('button', { name: 'Acquérir' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/^900 oboles$/)).toBeVisible();
   await expect(page.getByText('4 sur 4')).toBeVisible();
   await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
+  await expect(region.getByRole('status')).toBeFocused();
   await expectNoHorizontalScroll(page);
 
   // Après rechargement, tout vient de la base ; les textes suivent la langue.
