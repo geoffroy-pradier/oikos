@@ -1,7 +1,8 @@
 begin;
 select plan(61);
 
--- Jeu d'essai : Alice (100 blés) et Bob (acheteur), une écriture de monnaie équilibrée pour régler les échanges.
+-- Jeu d'essai : Alice (100 blés) et Bob (acheteur, 500 oboles), chacun sa trésorerie. Chaque échange est
+-- réglé par sa propre écriture, du montant de l'échange (migration 35, 030_trade_settlement.test.sql).
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'alice@example.test'),
   ('00000000-0000-4000-8000-00000000000b', 'bob@example.test');
@@ -9,11 +10,12 @@ insert into game.houses (id, world_id, user_id, name, blazon) values
   ('00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000001', '00000000-0000-4000-8000-00000000000a', 'Alcméonides', '{}'),
   ('00000000-0000-7000-8000-0000000000b1', '01900000-0000-7000-8000-000000000001', '00000000-0000-4000-8000-00000000000b', 'Philaïdes', '{}');
 insert into game.accounts (id, world_id, kind, house_id) values
-  ('00000000-0000-7000-8000-0000000000aa', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000a1');
+  ('00000000-0000-7000-8000-0000000000aa', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000a1'),
+  ('00000000-0000-7000-8000-0000000000bb', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000b1');
 insert into game.ledger_entries (id, world_id, kind) values ('00000000-0000-7000-8000-0000000000e1', '01900000-0000-7000-8000-000000000001', 'test');
 insert into game.ledger_lines (entry_id, account_id, amount) values
-  ('00000000-0000-7000-8000-0000000000e1', (select id from game.accounts where system_key = 'faucet_npc_purchases' and world_id = '01900000-0000-7000-8000-000000000001'), -500),
-  ('00000000-0000-7000-8000-0000000000e1', '00000000-0000-7000-8000-0000000000aa', 500);
+  ('00000000-0000-7000-8000-0000000000e1', (select id from game.accounts where system_key = 'faucet_starting_grant' and world_id = '01900000-0000-7000-8000-000000000001'), -500),
+  ('00000000-0000-7000-8000-0000000000e1', '00000000-0000-7000-8000-0000000000bb', 500);
 insert into game.inventories (id, world_id, house_id, city_id, good_id) values
   ('00000000-0000-7000-8000-0000000001a1', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'wheat');
 insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind) values
@@ -25,12 +27,27 @@ language sql as $$
   values (('00000000-0000-7000-8000-0000000003' || order_id)::uuid, '01900000-0000-7000-8000-000000000001',
           '01900000-0000-7000-8000-000000000101', ('00000000-0000-7000-8000-0000000000' || house)::uuid, good, side, price, quantity, quantity)
 $$;
+-- Un échange réglé comme le fait le jeu : les PNJ paient du robinet de leurs achats, un joueur qui
+-- arrive de sa trésorerie ; le vendeur reçoit le brut (aucune taxe dans ce jeu d'essai).
 create function pg_temp.trade(sell text, price bigint, quantity bigint, buy text default null) returns void
-language sql as $$
+language plpgsql as $$
+declare
+  entry uuid;
+  sell_id uuid := ('00000000-0000-7000-8000-0000000003' || sell)::uuid;
+  buy_id uuid := ('00000000-0000-7000-8000-0000000003' || buy)::uuid;
+begin
+  insert into game.ledger_entries (world_id, kind)
+    values ('01900000-0000-7000-8000-000000000001', case when buy is null then 'npc.purchase' else 'market.trade' end)
+    returning id into entry;
+  insert into game.ledger_lines (entry_id, account_id, amount) values
+    (entry, coalesce((select a.id from game.accounts a join game.orders o on o.house_id = a.house_id where o.id = buy_id and a.kind = 'house'),
+                     (select id from game.accounts where system_key = 'faucet_npc_purchases' and world_id = '01900000-0000-7000-8000-000000000001')),
+     -price * quantity),
+    (entry, (select a.id from game.accounts a join game.orders o on o.house_id = a.house_id where o.id = sell_id and a.kind = 'house'),
+     price * quantity);
   insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity, ledger_entry_id)
-  values ('01900000-0000-7000-8000-000000000001', ('00000000-0000-7000-8000-0000000003' || sell)::uuid,
-          ('00000000-0000-7000-8000-0000000003' || buy)::uuid, price, quantity, '00000000-0000-7000-8000-0000000000e1')
-$$;
+  values ('01900000-0000-7000-8000-000000000001', sell_id, buy_id, price, quantity, entry);
+end $$;
 create function pg_temp.stock() returns text language sql as
   $$select quantity || '/' || reserved from game.inventories where id = '00000000-0000-7000-8000-0000000001a1'$$;
 create function pg_temp.state(order_id text) returns text language sql as
@@ -69,13 +86,14 @@ $$;
 select throws_ok($$select pg_temp.order_in('02', '01900000-0000-7000-8000-000000000002', '01900000-0000-7000-8000-000000000201', '00000000-0000-7000-8000-0000000000a1', 'buy')$$, '23503', 'insert or update on table "orders" violates foreign key constraint "orders_house_same_world"', 'ordre d''un autre monde que sa maison refusé');
 select throws_ok($$select pg_temp.order_in('02', '01900000-0000-7000-8000-000000000002', '01900000-0000-7000-8000-000000000101', '00000000-0000-7000-8000-0000000000d1', 'buy')$$, '23503', 'insert or update on table "orders" violates foreign key constraint "orders_city_same_world"', 'ordre d''un autre monde que sa cité refusé');
 
--- Échanges : achat par les PNJ (sans ordre d'achat).
+-- Échanges : achat par les PNJ (sans ordre d'achat). Avant tout échange : un échange en attente de
+-- contrôle à la validation empêcherait le vidage pour une autre raison.
+select throws_ok($$truncate game.trades$$, '23001', null, 'les échanges ne se vident pas');
 select throws_ok($$select pg_temp.trade('01', 5, 10)$$, '23514', null, 'échange à un autre prix que l''ordre refusé');
 select throws_ok($$select pg_temp.trade('01', 6, 61)$$, '23514', null, 'échange au-delà du reste refusé');
 select lives_ok($$select pg_temp.trade('01', 6, 25)$$, 'échange partiel');
 select is(pg_temp.state('01') || ' ' || pg_temp.stock(), '35 open 100/35', 'l''ordre est servi et la réservation libérée d''autant');
 select throws_ok($$update game.trades set quantity = 1$$, '23001', null, 'un échange ne se modifie pas');
-select throws_ok($$truncate game.trades$$, '23001', null, 'les échanges ne se vident pas');
 select throws_ok($$select pg_temp.trade('01', 6, 0)$$, '23514', null, 'échange de quantité nulle refusé');
 select throws_ok($$insert into game.trades (world_id, sell_order_id, price, quantity) values ('01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-000000000301', 6, 1)$$, '23502', null, 'pas d''échange sans écriture de monnaie');
 select throws_ok($$delete from game.trades$$, '23001', null, 'un échange ne se supprime pas');
