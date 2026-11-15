@@ -10,6 +10,9 @@ Ce fichier est lu au début de chaque session. Il prime sur toute habitude par d
 - `docs/adr/` : décisions d'architecture. Toute décision structurante nouvelle y ajoute un fichier.
 - `docs/tickets/` et les tickets GitHub : le travail à faire, dans l'ordre.
 
+Dans `docs/`, écris une phrase par ligne : deux demandes de fusion qui touchent des phrases différentes
+d'un même paragraphe n'entrent alors pas en conflit.
+
 Si une spécification est ambiguë ou contradictoire, choisis l'option la plus simple compatible avec
 `docs/specs/01-vision.md`, note la décision dans la demande de fusion et mets la spécification à jour.
 
@@ -31,7 +34,8 @@ Si une spécification est ambiguë ou contradictoire, choisis l'option la plus s
 6. Un modèle de langage ne décide jamais d'un chiffre et n'écrit jamais en base. Chaque usage d'IA a un texte ou un formulaire de repli, développé en même temps que lui : le jeu doit rester entièrement jouable IA coupée.
 7. Aucun texte d'interface en dur : fichiers de traduction `fr` et `en`.
 8. Aucun secret dans le dépôt. Variables d'environnement documentées dans `.env.example`.
-9. Migrations SQL versionnées, rejouables, compatibles avec la version précédente du code.
+9. Migrations SQL versionnées, rejouables, compatibles avec la version précédente du code. Une migration
+   publiée sur `main` ne se modifie plus : on corrige par une migration nouvelle (ADR 0004, contrôlé en `ci`).
 
 ## Boucle de travail autonome
 
