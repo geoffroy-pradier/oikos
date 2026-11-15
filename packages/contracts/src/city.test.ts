@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { archonElectedSchema, citizenshipGrantedSchema } from './city';
+import {
+  archonElectedSchema,
+  citizenshipGrantedSchema,
+  cityStandForElectionInputSchema,
+} from './city';
 import { domainEventSchema } from './events';
 
 const HOUSE = '01900000-0000-7000-8000-0000000000a1';
@@ -40,5 +44,16 @@ describe('élection de l’archonte', () => {
         .success;
     expect(bad({ votes: -1 })).toBe(false);
     expect(bad({ termEndsAt: 'demain' })).toBe(false);
+  });
+});
+
+describe('commandes de l’élection', () => {
+  it('élection désignée par son identifiant, aucun autre champ', () => {
+    const ELECTION = '01900000-0000-7000-8000-0000000005e1';
+    expect(cityStandForElectionInputSchema.safeParse({ electionId: ELECTION }).success).toBe(true);
+    expect(cityStandForElectionInputSchema.safeParse({ electionId: 'x' }).success).toBe(false);
+    expect(
+      cityStandForElectionInputSchema.safeParse({ electionId: ELECTION, houseId: HOUSE }).success,
+    ).toBe(false);
   });
 });

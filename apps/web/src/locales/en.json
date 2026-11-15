@@ -271,7 +271,12 @@
     "SITE_HALTED": "This site is halted: its upkeep is unpaid. Restart it first.",
     "SITE_NOT_HALTED": "This site is already running.",
     "MISSING_INPUTS": "Not enough free stock of the inputs to run this workshop.",
-    "CITY_REQUIRED": "Choose your home city."
+    "CITY_REQUIRED": "Choose your home city.",
+    "ELECTION_NOT_FOUND": "This election does not exist.",
+    "NOT_CITIZEN": "Only citizens of the city take part in its election.",
+    "FILING_CLOSED": "Candidacies are not open.",
+    "ALREADY_CANDIDATE": "Your house is already a candidate in this election, or withdrew from it.",
+    "TERM_LIMIT_REACHED": "Your house has already served the maximum number of consecutive terms."
   },
   "shell": {
     "skipToContent": "Skip to content",

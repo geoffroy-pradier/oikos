@@ -18,6 +18,7 @@ import {
 } from './commands/admin-config';
 import { adminBuyBackGood } from './commands/admin-buyback';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
+import { cityStandForElection } from './commands/city-election';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
@@ -57,6 +58,7 @@ export const COMMANDS = [
   siteSetRecipe,
   siteRestart,
   shipAcquire,
+  cityStandForElection,
   marketPlaceOrder,
   marketCancelOrder,
   adminPublishConfig,
