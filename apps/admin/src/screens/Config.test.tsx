@@ -89,7 +89,13 @@ afterEach(cleanup);
 async function openVersion(number: number, role: 'super_admin' | 'observer' = 'super_admin') {
   render(<Config accessToken="token" role={role} />);
   fireEvent.click(await screen.findByRole('button', { name: `Ouvrir la version ${number}` }));
-  return (await screen.findByLabelText('Configuration (JSON)')) as HTMLTextAreaElement;
+  const editor = (await screen.findByLabelText('Configuration (JSON)')) as HTMLTextAreaElement;
+  // L'ouverture pose le foyer sur le titre de la version par un effet : on l'attend, sinon un geste
+  // du test fait dans la foulée (sous charge, avant l'effet) se verrait reprendre le foyer.
+  await waitFor(() =>
+    expect(document.activeElement?.textContent).toBe(`Contenu de la version ${number}`),
+  );
+  return editor;
 }
 
 it('liste les versions : en vigueur, programmation à venir seulement, retour arrière', async () => {
