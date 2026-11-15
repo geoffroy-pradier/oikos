@@ -81,7 +81,16 @@ Limites : le script n'a encore tourné sur aucun serveur réel ; le contrôle de
 
 ## Réglages de la base
 
-- **Pas de compilation à la volée pour les clients** (ticket 155, migration 40) : `alter role authenticated set jit = off` et de même pour `anon`. PostgREST applique à chaque requête les réglages du rôle qu'il endosse, comme le `statement_timeout` que Supabase pose sur ces rôles. Les règles par ligne du grand livre donnent à la lecture des flux de trésorerie un coût estimé qui déclencherait la compilation, pour un surcoût de plusieurs fois la lecture (mesure : `pnpm --filter @oikos/db bench:cash-flows`, à jouer dans une base neuve, migrations et seed appliqués). Le rôle de service (API, moteur) garde le réglage de la base. L'image Postgres de Supabase n'embarque pas toujours la compilation à la volée (`select pg_jit_available()`) : le réglage est alors sans effet, et reste le bon si l'on change d'image ou d'hébergeur. Vérification : `select rolname, rolconfig from pg_roles where rolname in ('anon', 'authenticated')`.
+- **Pas de compilation à la volée pour les clients** (ticket 155, migration 40) : `alter role authenticated set jit = off` et de même pour `anon`. Les règles par ligne du grand livre donnent à la lecture des flux de trésorerie un coût estimé qui déclencherait la compilation, pour un surcoût de plusieurs fois la lecture (mesure : `BENCH_DATABASE_URL=… pnpm --filter @oikos/db bench:cash-flows`, dans une base neuve dédiée, migrations et seed appliqués ; jamais la base de développement partagée). Le rôle de service (API, moteur) garde le réglage de la base. L'image Postgres de Supabase n'embarque pas toujours la compilation à la volée (`select pg_jit_available()`) : le réglage est alors sans effet, et reste le bon si l'on change d'image ou d'hébergeur.
+- **PostgREST ne lit pas ces réglages à chaque requête** : il lit les réglages des rôles à son démarrage et à chaque rechargement de son cache de schéma, puis les applique aux requêtes. Le déclencheur d'événements de Supabase qui provoque ce rechargement ne réagit pas à `alter role`, et `deploy.sh` ne redémarre pas le conteneur `rest` : la migration 40 se termine donc par `notify pgrst, 'reload schema'`. Toute migration future qui change un réglage de rôle doit faire de même.
+- **Vérification, par PostgREST lui-même** (le catalogue, `select rolname, rolconfig from pg_roles where rolname in ('anon', 'authenticated')`, ne dit que ce que PostgREST appliquera après rechargement) : la fonction `public.client_jit()` rend le réglage de la requête en cours. Après chaque déploiement qui touche aux réglages des rôles :
+
+  ```sh
+  curl -s "$SUPABASE_URL/rest/v1/rpc/client_jit" -H "apikey: $ANON_KEY" -H 'Content-Type: application/json' -d '{}'
+  # attendu : "off" (même vérification avec le jeton d'un joueur dans Authorization: Bearer)
+  ```
+
+  Si la réponse est `"on"` : `docker compose exec db psql -U postgres -c "notify pgrst, 'reload schema'"` (ou redémarrer le conteneur `rest`), puis vérifier à nouveau.
 
 ## État et limites
 

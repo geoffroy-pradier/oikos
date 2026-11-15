@@ -1,19 +1,36 @@
 -- Mesure reproductible de la lecture des flux de trésorerie par un joueur (ticket 155).
 --
---   pnpm --filter @oikos/db bench:cash-flows                  # base locale (DATABASE_URL sinon)
+--   BENCH_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/oikos_bench \
+--     pnpm --filter @oikos/db bench:cash-flows
+--
+-- Pas de base par défaut : la variable dédiée `BENCH_DATABASE_URL` est obligatoire, et le script refuse une
+-- base qui contient autre chose que le seed (comptes, maisons ou écritures). À jouer dans une base neuve,
+-- migrations et seed appliqués, avec le compte propriétaire du schéma (`postgres` en local) : le script
+-- crée des comptes, désactive un déclencheur et lance ANALYZE. `DATABASE_URL` (`.env.example`) endosse
+-- `oikos_service`, qui n'en a pas le droit.
 --
 -- Jeu d'essai du ticket : 40 maisons, 40 000 écritures (deux lignes chacune), réparties sur 60 jours,
--- statistiques à jour. Tout se joue dans une transaction annulée : rien n'est écrit. ANALYZE met
--- toutefois à jour en place le nombre de lignes estimé des tables : à jouer de préférence dans une base
--- neuve, migrations et seed appliqués.
+-- statistiques à jour. Tout se joue dans une transaction annulée : rien n'est écrit, mais ANALYZE met à
+-- jour en place le nombre de lignes estimé des tables.
 --
 -- La lecture est faite comme par PostgREST : rôle `authenticated`, jeton d'Alice, puis les réglages
 -- propres à ce rôle (`alter role authenticated set …`), que PostgREST applique à chaque requête. Chaque
--- mesure est la médiane de sept lectures complètes, planification comprise, avec `jit` actif puis avec
--- les réglages du rôle. Le script échoue si cette dernière dépasse 50 ms.
+-- mesure est la médiane de sept lectures complètes, avec `jit` actif puis avec les réglages du rôle. La
+-- lecture est planifiée une fois puis son plan réutilisé (PL/pgSQL) : la mesure porte sur l'exécution,
+-- compilation à la volée comprise, pas sur la planification. Le script échoue si `jit` reste actif avec
+-- les réglages du rôle ou si la médiane atteint 50 ms. `pg_jit_available()` faux : la grappe n'embarque
+-- pas la compilation, et les deux mesures sont alors égales.
 \set ON_ERROR_STOP on
 \set world '01900000-0000-7000-8000-000000000001'
 begin;
+
+select pg_jit_available() as compilation_disponible;
+do $$
+begin
+  if exists (select from auth.users) or exists (select from game.houses) or exists (select from game.ledger_entries) then
+    raise exception 'base non neuve (comptes, maisons ou écritures) : mesure refusée, voir l''en-tête du script';
+  end if;
+end $$;
 
 insert into auth.users (id, email)
 select ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'bench-' || n || '@example.test'

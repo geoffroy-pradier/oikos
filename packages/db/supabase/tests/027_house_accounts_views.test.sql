@@ -1,5 +1,5 @@
 begin;
-select plan(42);
+select plan(45);
 
 -- Jeu d'essai : clôture à 4 h, heure de Paris. Alice et Bob ont chacun une maison, Chloé n'en a pas.
 insert into config.versions (id, payload) values
@@ -75,13 +75,27 @@ insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity,
 select lives_ok('set constraints all immediate', 'jeu d''essai valide : écritures équilibrées, séquestre égal au reste à payer');
 set constraints all deferred;
 
--- Lectures des clients sans compilation à la volée (ticket 155) : réglage des rôles, que PostgREST applique à
--- chaque requête. Mesure : `pnpm --filter @oikos/db bench:cash-flows`.
+-- Lectures des clients sans compilation à la volée (ticket 155) : réglage des rôles, que PostgREST lit à son
+-- démarrage ou à un rechargement de son cache de schéma. Mesure : `pnpm --filter @oikos/db bench:cash-flows`.
 select is(
   (select string_agg(r.rolname || ':' || s, ' ' order by r.rolname)
    from pg_db_role_setting d join pg_roles r on r.oid = d.setrole, unnest(d.setconfig) s
    where d.setdatabase = 0 and r.rolname in ('anon', 'authenticated', 'oikos_service') and s like 'jit=%'),
   'anon:jit=off authenticated:jit=off', 'pas de compilation à la volée pour les clients ; le service garde le réglage de la base');
+-- `client_jit()` : vérification par PostgREST lui-même. Droits de l'appelant, exécutable par les seuls clients.
+select is(
+  (select string_agg(r || ':' || has_function_privilege(r, 'public.client_jit()', 'execute'), ' ' order by r)
+   from unnest(array['anon', 'authenticated', 'oikos_service', 'public']) r)
+  || ' definer:' || (select prosecdef from pg_proc where oid = 'public.client_jit()'::regprocedure),
+  'anon:true authenticated:true oikos_service:false public:false definer:false',
+  'client_jit : exécutable par anon et authenticated seulement, avec les droits de l''appelant');
+set local role authenticated;
+set local jit = on;
+select is(public.client_jit(), 'on', 'client_jit rend le réglage de la requête en cours (actif)');
+set local jit = off;
+select is(public.client_jit(), 'off', 'client_jit rend le réglage de la requête en cours (coupé)');
+reset role;
+reset jit;
 -- Catalogue : vues en lecture seule, exécutées avec les droits de l'appelant ; règles par ligne figées.
 select is(
   (select string_agg(table_name || '(' || cols || ')', ' ' order by table_name)
