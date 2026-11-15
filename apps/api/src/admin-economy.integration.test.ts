@@ -79,17 +79,21 @@ async function entry(kind: string, day: number, ms: number, lines: Record<string
   });
 }
 
-/** Chandelier du monde de test, commencé il y a `ageDays` jours : `turnover` oboles pour `volume` unités. */
+/**
+ * Chandelier du monde de test, commencé il y a `age` jours (au début de l'heure ; négatif : dans le futur)
+ * ou à l'instant donné : `turnover` oboles pour `volume` unités.
+ */
 const candle = (
   goodId: string,
-  ageDays: number,
+  age: number | Date,
   turnover: number,
   volume: number,
   seconds = 3600,
 ) =>
   sql`insert into game.price_candles
         (world_id, city_id, good_id, period_seconds, period_start, open, high, low, close, volume, turnover)
-      select ${WORLD}, ${CITY}, ${goodId}, ${seconds}, date_trunc('hour', now() - make_interval(days => ${ageDays})),
+      select ${WORLD}, ${CITY}, ${goodId}, ${seconds},
+             ${typeof age === 'number' ? sql`date_trunc('hour', now() - make_interval(days => ${age}))` : sql`${age}::timestamptz`},
              p.low, p.high, p.low, p.high, ${volume}, ${turnover}
       from (select floor(${turnover}::numeric / ${volume}) as low, ceil(${turnover}::numeric / ${volume}) as high) p`.execute(
     owner,
@@ -227,9 +231,9 @@ it('dans chaque monde, la masse affichée est la somme des soldes et le net des 
 });
 
 it('indice du panier et inflation d’une fenêtre à la précédente, situés par rapport à la cible', async () => {
-  // Fenêtre courante : blé (20 + 22) ÷ 6 = 7, pain 32 ÷ 2 = 16. Précédente : blé 6,5, pain 16,5.
+  // Fenêtre courante : blé (20 + 19) ÷ 6 = 6,5, pain 32 ÷ 2 = 16. Précédente : blé 6,5, pain 16,5.
   await candle('wheat', 10, 20, 3);
-  await candle('wheat', 2, 22, 3);
+  await candle('wheat', 2, 19, 3);
   await candle('bread', 5, 32, 2);
   await candle('wheat', 40, 13, 2);
   await candle('bread', 40, 33, 2);
@@ -237,32 +241,114 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
   await candle('wheat', 61, 900, 1);
   await candle('bread', 3, 900, 1, 900);
   await candle('fish', 3, 900, 1);
-  // Panier de référence : 3 × 6 + 15 = 33. Courant : 3 × 7 + 16 = 37. Précédent : 3 × 6,5 + 16,5 = 36.
-  const index = { currentBps: 11_212, previousBps: 10_909, inflationBps: 278 };
+  // Ignoré aussi : un chandelier daté dans le futur (horloge décalée), au-delà de l'horloge de la base.
+  await candle('wheat', -1, 900, 1);
+  // Panier de référence : 3 × 6 + 15 = 33. Courant : 3 × 6,5 + 16 = 35,5. Précédent : 3 × 6,5 + 16,5 = 36.
+  // Inflation exacte : 35,5 ÷ 36 − 1 = −138,9 points, soit −139 ; le rapport des indices arrondis
+  // (10 758 ÷ 10 909) donnerait −138.
+  const index = { currentBps: 10_758, previousBps: 10_909, inflationBps: -139 };
+  const known = {
+    unpricedGoods: [],
+    unpricedByWindow: { current: [], previous: [] },
+    partialWindow: null,
+  };
   const { data, world } = await read(WORLD);
   expect([data.priceWindowDays, data.inflationTargetBps]).toEqual([30, { min: 0, max: 300 }]);
-  expect(world.priceIndex).toEqual({ ...index, status: 'in_target', unpricedGoods: [] });
+  expect(world.priceIndex).toEqual({ ...index, status: 'below', ...known });
   const unknown = { currentBps: null, previousBps: null, inflationBps: null, status: 'unknown' };
+  const none = { current: [], previous: [] };
+  const missing = (current: string[], previous: string[]) => ({
+    unpricedGoods: [...new Set([...current, ...previous])],
+    unpricedByWindow: { current, previous },
+  });
   expect((await read(EMPTY)).world.priceIndex).toEqual({
     ...unknown,
-    unpricedGoods: ['wheat', 'bread'],
+    ...missing(['wheat', 'bread'], ['wheat', 'bread']),
+    partialWindow: null,
   });
   const withIndex = async (patch: Partial<typeof priceIndex>) => {
     const patched = { ...config, priceIndex: { ...priceIndex, ...patch } };
     return (await readEconomy(db, patched, 1)).worlds.find((w) => w.worldId === WORLD)?.priceIndex;
   };
-  expect((await withIndex({ inflationTargetBps: { min: 0, max: 277 } }))?.status).toBe('above');
-  expect((await withIndex({ inflationTargetBps: { min: 279, max: 300 } }))?.status).toBe('below');
-  expect(await withIndex({ basket: [] })).toEqual({ ...unknown, unpricedGoods: [] });
+  // Cible bornes comprises.
+  const status = async (min: number, max: number) =>
+    (await withIndex({ inflationTargetBps: { min, max } }))?.status;
+  expect([await status(-139, -139), await status(-300, -140), await status(-138, 0)]).toEqual([
+    'in_target',
+    'above',
+    'below',
+  ]);
+  const empty = { ...unknown, unpricedByWindow: none, partialWindow: null };
+  expect(await withIndex({ basket: [] })).toEqual({ ...empty, unpricedGoods: [] });
   // Un bien du panier sans échange : inconnu, jamais un prix inventé.
   const salted = [...basket, { goodId: 'salt', quantity: 1 }];
-  expect(await withIndex({ basket: salted })).toEqual({ ...unknown, unpricedGoods: ['salt'] });
+  expect(await withIndex({ basket: salted })).toEqual({
+    ...unknown,
+    ...missing(['salt'], ['salt']),
+    partialWindow: null,
+  });
   // Fenêtres comptées depuis l'horloge de la base. De 45 jours : la courante prend aussi les chandeliers
-  // de 40 jours (blé 55 ÷ 8, pain 65 ÷ 4, panier à 36,875) ; la précédente n'a que du blé, à 61 jours.
+  // de 40 jours (blé 52 ÷ 8, pain 65 ÷ 4, panier à 35,75) ; la précédente n'a que du blé, à 61 jours,
+  // et commence avant le premier chandelier du monde : elle est partielle.
   // De 19 jours : les chandeliers de 40 jours sont trop anciens pour la précédente, qui est vide.
   const [wide, narrow] = [await withIndex({ windowDays: 45 }), await withIndex({ windowDays: 19 })];
-  expect(wide).toEqual({ ...unknown, currentBps: 11_174, unpricedGoods: ['bread'] });
-  expect(narrow).toEqual({ ...unknown, currentBps: 11_212, unpricedGoods: ['wheat', 'bread'] });
+  expect(wide).toEqual({
+    ...unknown,
+    currentBps: 10_833,
+    ...missing([], ['bread']),
+    partialWindow: 'previous',
+  });
+  expect(narrow).toEqual({
+    ...unknown,
+    currentBps: 10_758,
+    ...missing([], ['wheat', 'bread']),
+    partialWindow: null,
+  });
+  // L'historique du monde commence il y a 61 jours (premier chandelier). Fenêtres de 31 jours : la
+  // précédente commence avant lui, n'est mesurée que sur ses 30 derniers jours, et le dit ; l'inflation
+  // est calculée telle quelle (blé (13 + 900) ÷ 3, pain 16,5 : panier à 929,5 ; 35,5 ÷ 929,5 − 1).
+  expect(await withIndex({ windowDays: 31 })).toEqual({
+    currentBps: 10_758,
+    previousBps: 281_667,
+    inflationBps: -9_618,
+    status: 'below',
+    ...known,
+    partialWindow: 'previous',
+  });
+  // Fenêtres de 65 jours : la courante commence avant l'historique, la précédente est vide.
+  expect(await withIndex({ windowDays: 65 })).toMatchObject({
+    inflationBps: null,
+    ...missing([], ['wheat', 'bread']),
+    partialWindow: 'current',
+  });
+});
+
+it('bords des fenêtres : début compris, fin exclue, à l’instant près', async () => {
+  // Horloge de la base épinglée au début d'une heure (première requête de la route), pour poser des
+  // chandeliers exactement sur les bords : il y a 60 jours, il y a 30 jours, et maintenant.
+  const now = new Date(Math.floor(Date.now() / HOUR) * HOUR);
+  const ago = (days: number) => new Date(now.getTime() - days * 24 * HOUR);
+  await candle('salt', ago(60), 14, 2);
+  await candle('salt', ago(30), 16, 2);
+  await candle('salt', now, 900, 1);
+  let queries = 0;
+  const pinned = db.withPlugin({
+    transformQuery: ({ node }) => node,
+    transformResult: async ({ result }) =>
+      ++queries === 1 ? { ...result, rows: [{ now }] } : result,
+  });
+  const salt = {
+    ...config,
+    priceIndex: { ...priceIndex, basket: [{ goodId: 'salt', quantity: 1 }] },
+  };
+  const seen = (await readEconomy(pinned, salt, 1)).worlds.find((w) => w.worldId === WORLD);
+  // Précédente [−60 j, −30 j) : sel à 7 ; courante [−30 j, maintenant) : sel à 8 ; le chandelier qui
+  // commence à l'instant même n'est dans aucune. Référence du sel : 7.
+  expect(seen?.priceIndex).toMatchObject({
+    currentBps: 11_429,
+    previousBps: 10_000,
+    inflationBps: 1_429,
+  });
 });
 
 it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même instantané', async () => {
@@ -278,7 +364,7 @@ it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même inst
     },
   });
   const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
-  expect(queries).toBe(4);
+  expect(queries).toBe(5);
   expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
   const { world } = await read(WORLD);
   expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);

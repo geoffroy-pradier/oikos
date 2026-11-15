@@ -156,7 +156,13 @@ export const ECONOMY: AdminEconomy = {
         account('sink_upkeep', 185, [20771, 30], [20772, 155]),
         account('sink_future', 0),
       ],
-      priceIndex: { ...index, status: 'in_target', unpricedGoods: [] },
+      priceIndex: {
+        ...index,
+        status: 'in_target',
+        unpricedGoods: [],
+        unpricedByWindow: { current: [], previous: [] },
+        partialWindow: null,
+      },
     },
   ],
 };

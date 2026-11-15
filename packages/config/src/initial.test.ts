@@ -73,6 +73,37 @@ describe('jeu de valeurs initial', () => {
     expect(config.recipes.filter((recipe) => recipe.id === 'grow_wheat')).toHaveLength(1);
   });
 
+  it('le panier de l’indice des prix est la consommation de référence de Kallistè (5.5)', () => {
+    // Six biens principaux, à la consommation par tick de la population initiale arrondie à l'unité,
+    // soit 97 % de la dépense de référence de la cité. Garde-fou : un panier vide rendrait l'indice inconnu.
+    const city = config.cities.find((candidate) => candidate.id === 'kalliste');
+    if (!city) throw new Error('kalliste missing');
+    const consumed = new Map<string, number>();
+    for (const npcClass of config.npcClasses) {
+      for (const { goodId, quantityPerThousand } of npcClass.basket) {
+        const eaten = (quantityPerThousand * (city.population[npcClass.id] ?? 0)) / 1000;
+        consumed.set(goodId, (consumed.get(goodId) ?? 0) + eaten);
+      }
+    }
+    const { basket } = config.priceIndex;
+    expect(basket.map((entry) => entry.goodId)).toEqual([
+      'wheat',
+      'bread',
+      'fish',
+      'salt',
+      'olive_oil',
+      'wine',
+    ]);
+    for (const { goodId, quantity } of basket) {
+      expect([goodId, quantity]).toEqual([goodId, Math.round(consumed.get(goodId) ?? 0)]);
+    }
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    const spend = (entries: [string, number][]) =>
+      entries.reduce((sum, [goodId, quantity]) => sum + quantity * (price.get(goodId) ?? 0), 0);
+    const share = spend(basket.map((e) => [e.goodId, e.quantity])) / spend([...consumed]);
+    expect(Math.round(share * 100)).toBe(97);
+  });
+
   it('chaque bien fini est demandé par au moins une classe de PNJ', () => {
     const wanted = new Set(config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)));
     const unsold = config.goods.filter((good) => good.tier === 'finished' && !wanted.has(good.id));

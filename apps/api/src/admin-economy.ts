@@ -28,7 +28,7 @@ export async function readEconomy(
 ): Promise<AdminEconomy> {
   const { clock, priceIndex } = config;
   const goodIds = priceIndex.basket.map((entry) => entry.goodId);
-  const [today, accounts, flows, candles] = await db
+  const [today, accounts, flows, candles, since, windows] = await db
     .transaction()
     .setIsolationLevel('repeatable read')
     .setAccessMode('read only')
@@ -60,9 +60,9 @@ export async function readEconomy(
         order by bucket`.execute(trx);
       // Fenêtres de prix : les `priceIndex.windowDays` × 24 heures qui finissent à l'horloge de la base, et
       // celles d'avant. Un chandelier de la série en cours compte en entier dans la fenêtre où il commence.
-      const [previousFrom, currentFrom] = [2, 1].map(
-        (windows) => new Date(now.getTime() - windows * priceIndex.windowDays * DAY_MS),
-      );
+      const ago = (windows: number) =>
+        new Date(now.getTime() - windows * priceIndex.windowDays * DAY_MS);
+      const [previousFrom, currentFrom] = [ago(2), ago(1)];
       const candles = await sql<Candle>`
         select world_id, good_id, period_start >= ${currentFrom} as current,
                sum(turnover)::text as paid, sum(volume)::text as units
@@ -70,7 +70,14 @@ export async function readEconomy(
         where period_seconds = ${config.priceHistory.candleMinutes * 60} and good_id = any(${goodIds}::text[])
           and period_start >= ${previousFrom} and period_start < ${now}
         group by world_id, good_id, current`.execute(trx);
-      return [today, accounts, flows, candles] as const;
+      // Début de l'historique de la série dans chaque monde (premier chandelier, tous biens et cités) :
+      // une fenêtre commencée avant lui n'est mesurée que sur sa fin.
+      const since = await sql<{ world_id: string; first: Date }>`
+        select world_id, min(period_start) as first from game.price_candles
+        where period_seconds = ${config.priceHistory.candleMinutes * 60} and period_start < ${now}
+        group by world_id`.execute(trx);
+      const windows = { previousFrom, currentFrom, now };
+      return [today, accounts, flows, candles, since, windows] as const;
     });
   const listed = config.goods.map((good) => [good.id, BigInt(good.referencePriceOboles)] as const);
   const reference = basketCost(
@@ -86,6 +93,17 @@ export async function readEconomy(
           .map((c) => [c.good_id, { turnover: BigInt(c.paid), volume: BigInt(c.units) }]),
       );
     const [current, previous] = [traded(true), traded(false)];
+    const unpriced = (window: Map<string, Traded>) => goodIds.filter((id) => !window.has(id));
+    // Fenêtre partielle : l'historique commence strictement à l'intérieur. Au plus une l'est : si c'est la
+    // courante, la précédente est vide. Signalée telle quelle, sans rien estimer.
+    const first = since.rows.find((row) => row.world_id === worldId)?.first.getTime();
+    const inside = (from: Date, to: Date) =>
+      first !== undefined && first > from.getTime() && first < to.getTime();
+    const partialWindow = inside(windows.currentFrom, windows.now)
+      ? 'current'
+      : inside(windows.previousFrom, windows.currentFrom)
+        ? 'previous'
+        : null;
     const cost = basketCost(priceIndex.basket, current);
     const before = basketCost(priceIndex.basket, previous);
     // Inflation : rapport exact des deux coûts, pas des deux indices déjà arrondis.
@@ -97,6 +115,8 @@ export async function readEconomy(
       inflationBps,
       status: inflationStatus(inflationBps, priceIndex.inflationTargetBps),
       unpricedGoods: goodIds.filter((id) => !current.has(id) || !previous.has(id)),
+      unpricedByWindow: { current: unpriced(current), previous: unpriced(previous) },
+      partialWindow,
     };
   };
   // Monnaie créée par un robinet (compte débiteur) ou détruite par un puits (compte créditeur), en net.
