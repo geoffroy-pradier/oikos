@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   aiMonthlyCapMicroEuros,
   DEFAULT_AI,
+  cityHasPort,
+  cityStartingRecipeId,
+  cityTerroirAdmits,
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
   DEFAULT_POPULATION_DYNAMICS,
@@ -129,7 +132,16 @@ const FIXTURE: GameConfig = {
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 26 }],
     },
   ],
-  cities: [{ id: 'kalliste', population: { thetes: 6000, hippeis: 1200 } }],
+  gods: [{ id: 'demeter' }, { id: 'poseidon' }],
+  cities: [
+    {
+      id: 'kalliste',
+      population: { thetes: 6000, hippeis: 1200 },
+      terroir: ['grow_wheat'],
+      hasPort: true,
+      patronGodId: 'demeter',
+    },
+  ],
 };
 
 describe('une configuration valide', () => {
@@ -714,5 +726,128 @@ describe('passerelle IA', () => {
     expect(errors({ usages: { oracle: usages.oracle, chronicle: usages.chronicle } })).toEqual([
       expect.stringMatching(/^ai\.usages\.steward: /),
     ]);
+  });
+});
+
+describe('dieux et identité des cités (6.1)', () => {
+  const city = () => at(clone().cities, 0);
+  const withCity = (patch: Record<string, unknown>) => ({
+    ...clone(),
+    cities: [{ ...city(), ...patch }],
+  });
+  /** Une production primaire de plus, hors du terroir de la cité du jeu d'essai. */
+  const GROW_OLIVES = {
+    id: 'grow_olives',
+    siteType: 'orchard' as const,
+    inputs: [],
+    outputs: [{ goodId: 'wheat', quantity: 1 }],
+    durationMinutes: 240,
+    workers: 1,
+    maxAccruedCycles: 18,
+  };
+  const withOlives = (patch: Record<string, unknown>) => ({
+    ...withCity(patch),
+    recipes: [...clone().recipes, GROW_OLIVES],
+  });
+
+  it('une version publiée avant les quatre cités reste lisible : aucun dieu, terroir ouvert, port', () => {
+    const older: Record<string, unknown> = clone();
+    delete older['gods'];
+    older['cities'] = [{ id: 'kalliste', population: { thetes: 6000, hippeis: 1200 } }];
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.gods).toEqual([]);
+    expect(result.config.cities).toEqual([
+      { id: 'kalliste', population: { thetes: 6000, hippeis: 1200 } },
+    ]);
+    const [kalliste] = result.config.cities;
+    expect(cityHasPort(kalliste)).toBe(true);
+    // Sans terroir, toute recette est admise ; la recette de départ est la commune.
+    expect(cityTerroirAdmits(kalliste, GROW_OLIVES)).toBe(true);
+    expect(cityStartingRecipeId(result.config, 'kalliste')).toBe('grow_wheat');
+  });
+
+  it('dieu : identifiant seul, sans doublon ; un dieu protecteur inconnu est refusé', () => {
+    expect(errorsOf({ ...clone(), gods: [{ id: 'demeter' }, { id: 'demeter' }] })).toEqual([
+      'gods: duplicate id "demeter"',
+    ]);
+    expect(errorsOf({ ...clone(), gods: [{ id: 'demeter', charis: 1 }] })).toEqual([
+      expect.stringMatching(/^gods\[0\]: /),
+    ]);
+    expect(errorsOf(withCity({ patronGodId: 'zeus' }))).toEqual([
+      'cities[0].patronGodId: unknown god "zeus"',
+    ]);
+    // Sans liste de dieux, aucun dieu protecteur n'est connu.
+    expect(errorsOf({ ...clone(), gods: [] })).toEqual([
+      'cities[0].patronGodId: unknown god "demeter"',
+    ]);
+    expect(errorsOf(withCity({ patronGodId: undefined }))).toEqual([]);
+  });
+
+  it('terroir : recettes connues de production primaire, sans doublon ; un atelier y est refusé', () => {
+    expect(errorsOf(withCity({ terroir: ['grow_wheat', 'grow_barley'] }))).toEqual([
+      'cities[0].terroir[1]: unknown recipe "grow_barley"',
+    ]);
+    expect(errorsOf(withCity({ terroir: ['grow_wheat', 'grow_wheat'] }))).toEqual([
+      'cities[0].terroir: duplicate recipe "grow_wheat"',
+    ]);
+    expect(errorsOf(withCity({ terroir: ['grow_wheat', 'mill_flour'] }))).toEqual([
+      'cities[0].terroir[1]: workshops are admitted in every city',
+    ]);
+    expect(errorsOf(withCity({ terroir: 'grow_wheat' }))).toEqual([
+      expect.stringMatching(/^cities\[0\]\.terroir: /),
+    ]);
+  });
+
+  it('port : un booléen ; une cité inconnue de la configuration n’en a pas', () => {
+    expect(errorsOf(withCity({ hasPort: false }))).toEqual([]);
+    expect([cityHasPort({ hasPort: false }), cityHasPort({ hasPort: true })]).toEqual([
+      false,
+      true,
+    ]);
+    expect(cityHasPort(undefined)).toBe(false);
+    expect(errorsOf(withCity({ hasPort: 'yes' }))).toEqual([
+      expect.stringMatching(/^cities\[0\]\.hasPort: /),
+    ]);
+  });
+
+  it('recette de départ : connue, sans intrant, et dans le terroir de la cité', () => {
+    expect(
+      errorsOf(withOlives({ terroir: ['grow_olives'], startingRecipeId: 'grow_olives' })),
+    ).toEqual([]);
+    expect(errorsOf(withCity({ startingRecipeId: 'grow_barley' }))).toEqual([
+      'cities[0].startingRecipeId: unknown recipe "grow_barley"',
+    ]);
+    expect(errorsOf(withCity({ startingRecipeId: 'mill_flour' }))).toEqual([
+      'cities[0].startingRecipeId: the starting site must run a recipe without inputs',
+    ]);
+    // La sienne, hors de son terroir.
+    expect(errorsOf(withOlives({ startingRecipeId: 'grow_olives' }))).toEqual([
+      'cities[0].startingRecipeId: the starting recipe "grow_olives" is not in the terroir',
+    ]);
+    // La commune, faute de la sienne, hors de son terroir.
+    expect(errorsOf(withOlives({ terroir: ['grow_olives'] }))).toEqual([
+      'cities[0].terroir: the starting recipe "grow_wheat" is not in the terroir',
+    ]);
+    // Terroir vide : seule une cité qui n'a pas de production primaire, refusée faute de départ.
+    expect(errorsOf(withCity({ terroir: [] }))).toEqual([
+      'cities[0].terroir: the starting recipe "grow_wheat" is not in the terroir',
+    ]);
+  });
+
+  it('un atelier est admis partout, une production primaire seulement dans son terroir', () => {
+    const [mill, wheat] = [at(clone().recipes, 1), at(clone().recipes, 0)];
+    expect(cityTerroirAdmits({ terroir: [] }, mill)).toBe(true);
+    expect(cityTerroirAdmits({ terroir: [] }, wheat)).toBe(false);
+    expect(cityTerroirAdmits({ terroir: ['grow_wheat'] }, wheat)).toBe(true);
+    expect(cityTerroirAdmits({ terroir: ['grow_wheat'] }, GROW_OLIVES)).toBe(false);
+    // Cité inconnue de la configuration : rien ne la restreint, comme avant les quatre cités.
+    expect(cityTerroirAdmits(undefined, GROW_OLIVES)).toBe(true);
+  });
+
+  it('recette de départ d’une cité : la sienne, sinon la commune, y compris pour une cité inconnue', () => {
+    const config = withOlives({ terroir: ['grow_olives'], startingRecipeId: 'grow_olives' });
+    expect(cityStartingRecipeId(config, 'kalliste')).toBe('grow_olives');
+    expect(cityStartingRecipeId(config, 'delos')).toBe('grow_wheat');
   });
 });

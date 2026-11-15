@@ -77,11 +77,35 @@ export const npcClassSchema = z.strictObject({
     .min(1),
 });
 
+/**
+ * Un dieu du panthéon (docs/specs/07-dieux-faveur-evenements.md) : son identifiant seul pour l'instant,
+ * que la Charis (#265) complétera.
+ */
+export const godSchema = z.strictObject({ id });
+
+/**
+ * Une cité et son identité (docs/specs/06-cites-politique-communaute.md, 6.1).
+ * Les champs d'identité sont lus par les joueurs (vue `public.city_identity`) : rien de caché.
+ * Ils sont absents des versions publiées avant les quatre cités, qui restent lisibles : terroir ouvert à
+ * toutes les recettes, port, aucun dieu protecteur, recette de départ commune (`cityTerroirAdmits`,
+ * `cityHasPort`, `cityStartingRecipeId`). Toute version publiée depuis les porte explicitement.
+ */
 export const cityConfigSchema = z.strictObject({
   id,
   /** Population de PNJ par classe. */
   // Au plus 100 millions par classe : la limite de calcul exact de `nextPopulation` (packages/sim).
   population: z.record(id, z.number().int().nonnegative().max(100_000_000)),
+  /**
+   * Terroir : recettes de production primaire qu'un site de la cité peut lancer (4.2). Les ateliers sont
+   * admis partout et n'y figurent pas. Absent : toutes les recettes sont admises.
+   */
+  terroir: z.array(id).max(100).optional(),
+  /** La cité a-t-elle un port ? Absent : oui (`cityHasPort`), comme Kallistè dans les versions antérieures. */
+  hasPort: z.boolean().optional(),
+  /** Dieu protecteur, parmi `gods`. Absent : aucun. */
+  patronGodId: id.optional(),
+  /** Recette du premier site d'une maison fondée ici. Absente : `starting.siteRecipeId`. */
+  startingRecipeId: id.optional(),
 });
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
@@ -391,6 +415,40 @@ export function aiMonthlyCapMicroEuros(ai: z.infer<typeof aiSchema>, usage: AiUs
   );
 }
 
+/** Un atelier transforme des intrants : il est admis dans toute cité, hors terroir (4.2, 4.3). */
+export function isWorkshop(recipe: { siteType: string }): boolean {
+  return recipe.siteType === 'workshop';
+}
+
+/**
+ * Un site de la cité peut-il lancer cette recette (4.2) ? Oui pour un atelier, pour une cité sans
+ * terroir (version antérieure aux quatre cités) ou inconnue de la configuration (`undefined`), et pour
+ * une recette de son terroir.
+ */
+export function cityTerroirAdmits(
+  city: { terroir?: readonly string[] | undefined } | undefined,
+  recipe: { id: string; siteType: string },
+): boolean {
+  return isWorkshop(recipe) || city?.terroir === undefined || city.terroir.includes(recipe.id);
+}
+
+/**
+ * La cité a-t-elle un port ? Une version publiée avant les quatre cités ne le dit pas : Kallistè, sa seule
+ * cité, en a un. Une cité inconnue de la configuration n'en a pas.
+ */
+export function cityHasPort(city: { hasPort?: boolean | undefined } | undefined): boolean {
+  return city ? (city.hasPort ?? true) : false;
+}
+
+/** Recette du premier site d'une maison fondée dans la cité : la sienne, sinon la commune. */
+export function cityStartingRecipeId(
+  config: Pick<GameConfig, 'cities' | 'starting'>,
+  cityId: string,
+): string {
+  const city = config.cities.find((candidate) => candidate.id === cityId);
+  return city?.startingRecipeId ?? config.starting.siteRecipeId;
+}
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -413,6 +471,8 @@ export const gameConfigSchema = z
     telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
     /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
     ai: aiSchema.default(DEFAULT_AI),
+    /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
+    gods: z.array(godSchema).max(100).default([]),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
@@ -433,7 +493,7 @@ export const gameConfigSchema = z
         `the window must last at least one candle (${candleMinutes} minutes)`,
       );
     }
-    for (const key of ['goods', 'recipes', 'npcClasses', 'cities'] as const) {
+    for (const key of ['gods', 'goods', 'recipes', 'npcClasses', 'cities'] as const) {
       for (const duplicate of duplicates(config[key].map((row) => row.id))) {
         issue([key], `duplicate id "${duplicate}"`);
       }
@@ -488,7 +548,45 @@ export const gameConfigSchema = z
         }
       });
     });
+    const gods = new Set(config.gods.map((god) => god.id));
+    const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
     config.cities.forEach((city, index) => {
+      if (city.patronGodId !== undefined && !gods.has(city.patronGodId)) {
+        issue(['cities', index, 'patronGodId'], `unknown god "${city.patronGodId}"`);
+      }
+      for (const duplicate of duplicates(city.terroir ?? [])) {
+        issue(['cities', index, 'terroir'], `duplicate recipe "${duplicate}"`);
+      }
+      city.terroir?.forEach((recipeId, position) => {
+        const recipe = recipes.get(recipeId);
+        if (!recipe) {
+          issue(['cities', index, 'terroir', position], `unknown recipe "${recipeId}"`);
+        } else if (isWorkshop(recipe)) {
+          issue(['cities', index, 'terroir', position], 'workshops are admitted in every city');
+        }
+      });
+      const ownStart = city.startingRecipeId;
+      if (ownStart !== undefined) {
+        const recipe = recipes.get(ownStart);
+        if (!recipe) {
+          issue(['cities', index, 'startingRecipeId'], `unknown recipe "${ownStart}"`);
+        } else if (recipe.inputs.length > 0) {
+          issue(
+            ['cities', index, 'startingRecipeId'],
+            'the starting site must run a recipe without inputs',
+          );
+        }
+      }
+      // La recette de départ de la cité, la sienne ou la commune, doit pouvoir y tourner. Une recette
+      // inconnue a déjà son propre message : pas de second reproche.
+      const start = ownStart ?? config.starting.siteRecipeId;
+      const startRecipe = recipes.get(start);
+      if (startRecipe && !cityTerroirAdmits(city, startRecipe)) {
+        issue(
+          ['cities', index, ownStart === undefined ? 'terroir' : 'startingRecipeId'],
+          `the starting recipe "${start}" is not in the terroir`,
+        );
+      }
       for (const classId of Object.keys(city.population)) {
         if (!classes.has(classId)) {
           issue(['cities', index, 'population', classId], `unknown NPC class "${classId}"`);
@@ -503,6 +601,7 @@ export const gameConfigSchema = z
   });
 
 export type GameConfig = z.infer<typeof gameConfigSchema>;
+export type CityConfig = z.infer<typeof cityConfigSchema>;
 export type Good = z.infer<typeof goodSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;
