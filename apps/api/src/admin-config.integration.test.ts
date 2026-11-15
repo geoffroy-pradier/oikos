@@ -810,6 +810,11 @@ describe('admin.cancelActivation', () => {
 describe('bien retiré encore détenu ou porté par un ordre ouvert (#191)', () => {
   // Bien propre à cette exécution : aucun autre monde ne le porte. Il est rendu à zéro après chaque
   // test, sinon plus aucune version sans lui ne se programmerait dans la base partagée.
+  // Le contrôle porte sur tous les mondes : une exécution tuée avant `afterAll(clearRelic)` laisse un
+  // bien `relic_*` détenu, et toute programmation de ce fichier (versions sans ce bien) est ensuite
+  // refusée (`CONFIG_GOOD_IN_USE`). Pour remettre la base en état : `pnpm db:reset`, ou, sans
+  // effacer la base, annuler les ordres ouverts `relic_*` par `market.cancelOrder` et rendre leurs
+  // stocks à un puits par le journal des stocks (`to_system = 'consumption'`), comme `clearRelic`.
   const RELIC = `relic_${randomUUID().replace(/-/g, '').slice(0, 10)}`;
   const relic = { id: RELIC, tier: 'finished' as const, referencePriceOboles: 40, elasticity: 1 };
   const WITH_RELIC = { ...SAME_CLOCK, goods: [...SAME_CLOCK.goods, relic] };
@@ -954,6 +959,27 @@ describe('bien retiré encore détenu ou porté par un ordre ouvert (#191)', () 
     // La version qui garde le bien se programme ; le stock rendu, celle qui le retire aussi.
     expect((await send(root, 'admin.scheduleConfig', { versionId: withRelic })).status).toBe(200);
     await clearRelic();
+    expect(await retiredInUse(without)).toEqual([]);
+    expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
+  });
+
+  it('refuse une version sans un bien porté par un seul ordre d’achat ouvert, sans aucun stock ; acceptée après annulation', async () => {
+    const without = await publish(SAME_CLOCK);
+    const buyer = await player();
+    const placed = await order(buyer.user, 'buy', 8, 5);
+    expect(placed.status).toBe(200);
+    // Seul le séquestre porte le bien : aucune maison n'en détient une unité.
+    expect(await retiredInUse(without)).toEqual([
+      { goodId: RELIC, houses: 1, quantity: 0, openOrders: 1, escrowOboles: 40 },
+    ]);
+    expect(await send(root, 'admin.scheduleConfig', { versionId: without })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_GOOD_IN_USE', fields: [`goods.${RELIC}`] } },
+    });
+    expect(await activations(without)).toEqual([]);
+    const orderId = (placed.body.data as unknown as { orderId: string }).orderId;
+    const cancel = { aal2: false, via: market };
+    expect((await send(buyer.user, 'market.cancelOrder', { orderId }, cancel)).status).toBe(200);
     expect(await retiredInUse(without)).toEqual([]);
     expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
   });
