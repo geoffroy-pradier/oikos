@@ -273,10 +273,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   l'après-midi #226 (401), #228 (415), #231 (484), #236 (422), #237 (471) et #239 (507). Le plus souvent, ce sont
   les tests ou les reprises demandés en relecture qui ont fait passer la limite ; #231 dépassait dès sa
   première version. Les autres tickets sont découpés en tranches.
-- **Règle 9 et mise en page des documents** : `CLAUDE.md` dit maintenant qu'une migration publiée ne se
-  modifie plus, et que les documents de `docs/` s'écrivent une phrase par ligne. Les lignes de plus de
-  400 caractères des spécifications ont été coupées ainsi, sans changer leur rendu : elles provoquaient des
-  conflits à chaque demande de fusion qui touchait le même paragraphe.
+- **Règle 9 et mise en page des documents** : `CLAUDE.md` dit maintenant qu'une migration publiée ne se modifie plus, et que les documents de `docs/` s'écrivent une phrase par ligne.
+  Les lignes de plus de 400 caractères des spécifications ont été coupées ainsi, sans changer leur rendu : elles provoquaient des conflits à chaque demande de fusion qui touchait le même paragraphe.
 - **Après-midi du 15 novembre** : plusieurs tickets ont avancé en parallèle, chacun dans son arbre de travail
   (`git worktree`), sur une seule base Supabase locale partagée. La base est donc salie par les tests
   d'intégration : en local, beaucoup de fichiers pgTAP y échouent pour cette seule raison, et la `ci`, qui

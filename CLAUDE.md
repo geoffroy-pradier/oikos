@@ -10,8 +10,8 @@ Ce fichier est lu au début de chaque session. Il prime sur toute habitude par d
 - `docs/adr/` : décisions d'architecture. Toute décision structurante nouvelle y ajoute un fichier.
 - `docs/tickets/` et les tickets GitHub : le travail à faire, dans l'ordre.
 
-Dans `docs/`, écris une phrase par ligne : deux demandes de fusion qui touchent des phrases différentes
-d'un même paragraphe n'entrent alors pas en conflit.
+Dans `docs/`, écris une phrase par ligne tout texte nouveau ou modifié : deux demandes de fusion qui
+touchent des phrases différentes d'un même paragraphe n'entrent alors pas en conflit.
 
 Si une spécification est ambiguë ou contradictoire, choisis l'option la plus simple compatible avec
 `docs/specs/01-vision.md`, note la décision dans la demande de fusion et mets la spécification à jour.
