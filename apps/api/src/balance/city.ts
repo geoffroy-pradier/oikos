@@ -10,6 +10,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { CLOSE_STEPS, npcDemand, runDailyClose, runTick } from '@oikos/engine';
 import {
   accrueProduction,
+  accrueWorkshop,
   dailyCloseAt,
   dailyUpkeep,
   gameDayAt,
@@ -37,8 +38,26 @@ const DATABASE_URL =
 
 const validation = validateConfig(INITIAL_CONFIG);
 if (!validation.ok) throw new Error(validation.errors.join('\n'));
-/** La configuration initiale, telle que le dépôt la porte. */
-export const config = validation.config;
+/**
+ * La configuration initiale, jouée en ticks d'une heure plutôt que de dix minutes pour garder le test
+ * court : la demande de référence et le revenu des PNJ, donnés par tick, sont multipliés d'autant. La
+ * demande et la dépense d'une journée, la production, l'entretien, la taxe et la population sont ceux
+ * de la configuration telle quelle.
+ */
+const TICKS_MERGED = 60 / validation.config.clock.tickMinutes;
+if (!Number.isInteger(TICKS_MERGED)) throw new Error('Ticks do not merge into one-hour ticks');
+export const config = {
+  ...validation.config,
+  clock: { ...validation.config.clock, tickMinutes: 60 },
+  npcClasses: validation.config.npcClasses.map((npcClass) => ({
+    ...npcClass,
+    incomePerThousand: npcClass.incomePerThousand * TICKS_MERGED,
+    basket: npcClass.basket.map((need) => ({
+      ...need,
+      quantityPerThousand: need.quantityPerThousand * TICKS_MERGED,
+    })),
+  })),
+};
 
 export const MINUTE = 60_000;
 export const recipeOf = (id: string) => {
@@ -49,6 +68,13 @@ export const recipeOf = (id: string) => {
 export const referenceOf = (goodId: string) =>
   config.goods.find((good) => good.id === goodId)?.referencePriceOboles ?? 1;
 
+/** Rôle d'une maison scriptée : nombre de maisons, portefeuille de sites dans l'ordre d'acquisition. */
+export interface Role {
+  name: string;
+  count: number;
+  sites: string[];
+  trader?: true;
+}
 export interface Site {
   id: string;
   recipeId: string;
@@ -57,6 +83,7 @@ export interface Site {
   since: Date;
 }
 export interface House {
+  role: Role;
   user: string;
   houseId: string;
   sites: Site[];
@@ -135,9 +162,9 @@ export async function createCity(bench: Bench, days: number): Promise<City> {
 export const closeOf = (city: City, day: number) => dailyCloseAt(city.firstDay + day, config.clock);
 
 /** Maisons fondées par `house.create`, chacune avec le champ de blé de la fondation, ramené au jour 0. */
-export async function foundHouses(city: City, count: number) {
+export async function foundHouses(city: City, roles: readonly Role[]) {
   const [houses, day0]: [House[], Date] = [[], closeOf(city, 0)];
-  for (let n = 0; n < count; n++) {
+  for (const role of roles.flatMap((each) => Array<Role>(each.count).fill(each))) {
     const user = randomUUID();
     await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
       city.owner,
@@ -155,6 +182,7 @@ export async function foundHouses(city: City, count: number) {
       .executeTakeFirstOrThrow();
     await backdate(city, field.id, day0);
     houses.push({
+      role,
       user,
       houseId: founded.data.houseId,
       sites: [{ id: field.id, recipeId: 'grow_wheat', createdAt: day0, since: day0 }],
@@ -179,21 +207,38 @@ export async function inventoryOf(city: City, houseId: string, goodId: string) {
     .returning(['id', 'quantity', 'reserved'])
     .executeTakeFirstOrThrow();
 }
-/** Mouvement de stock : récolte, de la production vers l'inventaire. */
-export async function move(city: City, houseId: string, goodId: string, quantity: number) {
+export async function free(city: City, houseId: string, goodId: string) {
+  const inventory = await inventoryOf(city, houseId, goodId);
+  return Number(inventory.quantity) - Number(inventory.reserved);
+}
+/** Mouvement de stock : de la production vers l'inventaire si `delta` > 0, l'inverse sinon. */
+export async function move(city: City, houseId: string, goodId: string, delta: number) {
   const inventory = await inventoryOf(city, houseId, goodId);
   await city.db
     .insertInto('game.stock_ledger')
     .values({
       world_id: city.worldId,
       good_id: goodId,
-      quantity,
+      quantity: Math.abs(delta),
       kind: 'test.harvest',
-      from_system: 'production',
-      to_inventory_id: inventory.id,
+      ...(delta > 0
+        ? { from_system: 'production', to_inventory_id: inventory.id }
+        : { from_inventory_id: inventory.id, to_system: 'production' }),
     })
     .execute();
 }
+/** Trésorerie de la maison, en oboles. */
+export const cash = async (city: City, houseId: string) =>
+  Number(
+    (
+      await city.db
+        .selectFrom('game.accounts')
+        .select('balance')
+        .where('house_id', '=', houseId)
+        .where('kind', '=', 'house')
+        .executeTakeFirstOrThrow()
+    ).balance,
+  );
 /**
  * Un site est daté par la base à l'instant réel de son acquisition ; il est ramené à son instant de
  * jeu, sinon aucune clôture passée ne lui demanderait d'entretien (garde levée le temps de l'écriture).
@@ -222,16 +267,32 @@ export async function harvest(city: City, house: House, now: Date) {
   if (halted) throw new Error(`Site ${halted.id} is halted: its upkeep was not paid`);
   for (const site of house.sites) {
     const recipe = recipeOf(site.recipeId);
-    if (recipe.inputs.length > 0) throw new Error(`${recipe.id}: workshops are not harvested yet`);
-    const { cycles, since } = accrueProduction({
-      since: site.since,
-      now,
-      cycleMinutes: recipe.durationMinutes,
-      outputPerCycle: 1,
-      maxCycles: recipe.maxAccruedCycles,
-    });
+    const inputs = [];
+    for (const stack of recipe.inputs)
+      inputs.push({
+        perCycle: stack.quantity,
+        available: await free(city, house.houseId, stack.goodId),
+      });
+    const { cycles, since } =
+      inputs.length === 0
+        ? accrueProduction({
+            since: site.since,
+            now,
+            cycleMinutes: recipe.durationMinutes,
+            outputPerCycle: 1,
+            maxCycles: recipe.maxAccruedCycles,
+          })
+        : accrueWorkshop({
+            since: site.since,
+            now,
+            cycleMinutes: recipe.durationMinutes,
+            maxCycles: recipe.maxAccruedCycles,
+            inputs,
+          });
     site.since = since;
     if (cycles === 0) continue;
+    for (const stack of recipe.inputs)
+      await move(city, house.houseId, stack.goodId, -cycles * stack.quantity);
     for (const stack of recipe.outputs) {
       await move(city, house.houseId, stack.goodId, cycles * stack.quantity);
       house.produced.set(
