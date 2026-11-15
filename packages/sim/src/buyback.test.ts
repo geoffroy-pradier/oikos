@@ -42,22 +42,34 @@ describe('planBuyback', () => {
     fc.assert(
       fc.property(price, stocks, orders, (unitPrice, held, open) => {
         const plan = planBuyback(unitPrice, held, open);
-        // Monnaie : le robinet perd ce que les trésoreries gagnent ; le séquestre passe à la trésorerie.
-        const faucet = -sum(plan.houses.map((house) => house.oboles));
-        const treasuries = sum(
-          plan.houses.map((house) => house.oboles + house.escrowReleasedOboles),
-        );
-        const escrows = -sum(plan.houses.map((house) => house.escrowReleasedOboles));
-        expect(faucet + treasuries + escrows).toBe(0);
-        expect(-faucet).toBe(plan.totals.oboles);
-        // Stock : tout ce qui est détenu passe au rachat, rien de plus.
-        const retired = sum(plan.houses.flatMap((house) => house.stocks.map((s) => s.quantity)));
-        expect(retired).toBe(sum(held.map((stock) => stock.quantity)));
-        expect(plan.totals.units).toBe(retired);
-        expect(plan.totals.oboles).toBe(plan.totals.units * unitPrice);
-        // Séquestre rendu : exactement prix × reste des achats ouverts.
+        // Ce que chaque trésorerie doit recevoir, recompté depuis les entrées, sans passer par le plan :
+        // ses unités au prix de référence, plus prix × reste de ses achats ouverts.
+        const owedTo = (houseId: string) =>
+          sum(held.filter((s) => s.houseId === houseId).map((s) => s.quantity * unitPrice)) +
+          sum(
+            open
+              .filter((o) => o.houseId === houseId && o.side === 'buy')
+              .map((o) => o.price * o.remaining),
+          );
+        for (const house of plan.houses)
+          expect(house.oboles + house.escrowReleasedOboles).toBe(owedTo(house.houseId));
+        // Monnaie créée : unités détenues × prix, et rien pour une maison absente du plan.
+        expect(plan.totals.oboles).toBe(sum(held.map((s) => s.quantity)) * unitPrice);
+        expect(
+          sum(HOUSES.filter((h) => !plan.houses.some((p) => p.houseId === h)).map(owedTo)),
+        ).toBe(0);
+        // Séquestre rendu : exactement prix × reste des achats ouverts, ni plus ni moins.
         const owed = sum(open.filter((o) => o.side === 'buy').map((o) => o.price * o.remaining));
-        expect(-escrows).toBe(owed);
+        expect(sum(plan.houses.map((house) => house.escrowReleasedOboles))).toBe(owed);
+        // Stock : chaque inventaire non vide part une fois, en entier ; rien de plus.
+        const retired = plan.houses.flatMap((house) => house.stocks);
+        expect(retired.map((s) => s.inventoryId).sort()).toEqual(
+          held
+            .filter((s) => s.quantity > 0)
+            .map((s) => s.inventoryId)
+            .sort(),
+        );
+        expect(plan.totals.units).toBe(sum(held.map((stock) => stock.quantity)));
       }),
     );
   });
