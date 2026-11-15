@@ -265,6 +265,37 @@ test('production retirée de la configuration : site à l’arrêt sans récolte
   await expect(page.getByRole('button', { name: /Collect/ })).toHaveCount(0);
 });
 
+test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur l’onglet, sans recharger', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  // Les sites sont lus (le champ est affiché) avant l'arrêt : c'est une relecture qui le découvre.
+  await expect(page.getByRole('button', { name: 'Récolter : Champ de blé' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
+  // La clôture arrête le site pendant que la page reste ouverte.
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set halted_at = now()
+      where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+  // Retour sur l'onglet : les sites et les règles sont relus, l'arrêt est annoncé et affiché.
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(said(page, 'alert')).toContainText(
+    "Arrêté pendant votre visite, faute d'entretien payé à la clôture : Champ de blé.",
+  );
+  await expect(page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\./)).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' }),
+  ).toBeVisible();
+  // Relancé au prix affiché : l'API reçoit ce prix et le prélève.
+  await page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' }).click();
+  await expect(said(page, 'status')).toContainText(
+    "Site relancé : Champ de blé, pour 5 drachmes d'entretien.",
+  );
+  await expectNoHorizontalScroll(page);
+});
+
 test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 240);

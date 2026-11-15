@@ -142,17 +142,21 @@ export const DEFAULT_UPKEEP = deepFreeze({
 });
 
 /**
+ * Coefficient d'entretien global, en points de base (10 000 = ×1), de ×0 à ×10 : l'un des trois leviers
+ * d'inflation, qui se règle sans retoucher chaque type de site. Partagé avec le client (`site_rules`).
+ */
+export const upkeepCoefficientBpsSchema = z.number().int().min(0).max(100_000);
+/** Entretien de base par jour de jeu, en oboles. Nul : pas d'entretien. Partagé avec le client. */
+export const upkeepDailyObolesSchema = z.number().int().min(0).max(1_000_000_000);
+
+/**
  * Entretien quotidien des sites, prélevé à la clôture et détruit (puits `sink_upkeep`, 5.5).
  * Dû par site : ⌈dailyOboles[type] × coefficientBps ÷ 10 000⌉.
  */
 export const upkeepSchema = z.strictObject({
-  /**
-   * Coefficient d'entretien global, en points de base (10 000 = ×1), de ×0 à ×10 : l'un des trois
-   * leviers d'inflation, qui se règle sans retoucher chaque type de site.
-   */
-  coefficientBps: z.number().int().min(0).max(100_000),
-  /** Entretien de base par jour de jeu, en oboles, pour chaque type de site. Nul : pas d'entretien. */
-  dailyOboles: z.record(z.enum(SITE_TYPES), z.number().int().min(0).max(1_000_000_000)),
+  coefficientBps: upkeepCoefficientBpsSchema,
+  /** Pour chaque type de site. */
+  dailyOboles: z.record(z.enum(SITE_TYPES), upkeepDailyObolesSchema),
 });
 
 /**
