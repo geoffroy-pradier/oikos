@@ -5,6 +5,7 @@ import {
   configActivationCancelledSchema,
   configActivationScheduledSchema,
   configVersionPublishedSchema,
+  goodBoughtBackSchema,
 } from './admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
 import {
@@ -47,6 +48,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   configActivationCancelledSchema,
   adminRoleGrantedSchema,
   adminRoleRevokedSchema,
+  goodBoughtBackSchema,
 ]);
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 export type DomainEventType = DomainEvent['type'];

@@ -507,6 +507,84 @@ describe('paramètres et journal d’audit', () => {
     }
   });
 
+  it('rachats possibles (#229) : bien retiré encore détenu et en vigueur, au prix de référence ; aucun sans configuration lisible ni au-delà des entiers sûrs', async () => {
+    // Bien propre à ce test, qu'aucune version enregistrée ne connaît : toutes le retirent. Son stock est
+    // rendu à un puits à la fin, sinon plus aucune version sans lui ne se programmerait (#191).
+    const relic = `relic_${randomUUID().replace(/-/g, '').slice(0, 10)}`;
+    const [world, city] = [randomUUID(), randomUUID()];
+    await sql`insert into game.worlds (id, slug, name) values (${world}, ${`r-${world.slice(0, 12)}`}, 'Rachat')`.execute(
+      owner,
+    );
+    await sql`insert into game.cities (id, world_id, slug, name) values (${city}, ${world}, ${`c-${city.slice(0, 8)}`}, 'Agora')`.execute(
+      owner,
+    );
+    const house = randomUUID();
+    await owner
+      .insertInto('game.houses')
+      .values({ id: house, world_id: world, user_id: users.player, name: 'Rachat', blazon: '{}' })
+      .execute();
+    const { id: inventory } = await owner
+      .insertInto('game.inventories')
+      .values({ world_id: world, house_id: house, city_id: city, good_id: relic })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const move = (
+      ends:
+        | { from_system: string; to_inventory_id: string }
+        | { from_inventory_id: string; to_system: string },
+    ) =>
+      owner
+        .insertInto('game.stock_ledger')
+        .values({ world_id: world, good_id: relic, quantity: 4, kind: 'test.relic', ...ends })
+        .execute();
+    await move({ from_system: 'production', to_inventory_id: inventory });
+    const buybacksWith = async (loadConfig: ConfigSource) => {
+      const res = await createApp({
+        db,
+        telemetry,
+        verifyToken: testVerifier,
+        rateLimiter: unlimited,
+        loadConfig,
+      }).request('/api/admin/config/versions', {
+        headers: { authorization: `Bearer aal2:${users.observer}` },
+      });
+      expect(res.status).toBe(200);
+      const { data } = (await res.json()) as { data: { buybacks: { goodId: string }[] } };
+      return data.buybacks.filter((entry) => entry.goodId === relic);
+    };
+    const priced =
+      (referencePriceOboles: number): ConfigSource =>
+      async () => ({
+        ...TEST_CONFIG,
+        config: {
+          ...TEST_CONFIG.config,
+          goods: [
+            ...TEST_CONFIG.config.goods,
+            { id: relic, tier: 'finished', referencePriceOboles, elasticity: 1 },
+          ],
+        },
+      });
+    try {
+      expect(await buybacksWith(priced(40))).toEqual([
+        {
+          goodId: relic,
+          unitPriceOboles: 40,
+          totals: { houses: 1, units: 4, cancelledOrders: 0, oboles: 160 },
+        },
+      ]);
+      // La configuration en vigueur ne connaît pas le bien : pas de prix, pas de rachat proposé.
+      expect(await buybacksWith(testConfig)).toEqual([]);
+      // Sans version en vigueur lisible : la liste reste lisible, sans rachat.
+      expect(
+        await buybacksWith(() => Promise.reject(new ConfigError('No active configuration'))),
+      ).toEqual([]);
+      // 4 × 2^51 dépasse les entiers sûrs : la commande refuserait d'arrondir, rien n'est proposé.
+      expect(await buybacksWith(priced(2 ** 51))).toEqual([]);
+    } finally {
+      await move({ from_inventory_id: inventory, to_system: 'consumption' });
+    }
+  });
+
   it('le journal d’audit montre réussites et refus, du plus récent au plus ancien, sans l’entrée', async () => {
     const [author, intruder] = [await newUser('game_designer', users.root), await newUser()];
     const published = await command(author, 'admin.publishConfig', { config: TEST_CONFIG.config });

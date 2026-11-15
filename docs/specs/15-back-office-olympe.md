@@ -129,6 +129,10 @@ Le module Paramètres liste les versions de configuration, signale celle en vigu
 l'avertissement est lu avec le bouton de programmation, que l'API refusera), puis les recettes et les classes de PNJ qu'elle retire et que le monde porte encore, dont la programmation se confirme par une case à cocher (15.2), ouvre une version sous forme de texte JSON, affiche ses différences avec la version en vigueur (listes comparées par identifiant), enregistre le texte modifié comme nouvelle version, programme une version à la prochaine clôture et annule, après confirmation, une programmation à venir (l'écran prévient que toutes celles de la même clôture le seront) ;
 l'observateur consulte et compare sans pouvoir modifier. Une action renvoyée après une panne réutilise sa clé d'idempotence : elle n'est pas exécutée deux fois.
 
+Rachat du stock d'un bien à retirer (5.1, décision de #229).
+`GET /api/admin/config/versions` rend les totaux de chaque rachat possible (`buybacks` : bien, prix de référence en vigueur, totaux), que la commande recompte avec les mêmes règles.
+Sans configuration en vigueur lisible, ou si unités × prix dépasse les entiers sûrs, la liste est vide plutôt qu'en erreur : la commande n'en ferait aucun.
+
 Saisie dans le module Paramètres. Ouvrir une version porte le foyer sur le titre de son contenu.
 Tant que le texte ouvert a été modifié sans être enregistré comme nouvelle version, ouvrir une version (la même comprise) demande confirmation avant de le remplacer : la confirmation nomme les deux versions et pose le foyer sur « Garder le texte modifié », le bouton d'ouverture reste affiché, et y renoncer lui rend le foyer.
 Dans la liste des versions, la répétition d'une touche Entrée tenue n'ouvre, ne confirme ni n'annule rien ;

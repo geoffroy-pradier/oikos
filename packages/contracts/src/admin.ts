@@ -117,6 +117,80 @@ export const retiredUsageSchema = z.object({
 });
 export type RetiredUsage = z.infer<typeof retiredUsageSchema>;
 
+/** Rôles qui rachètent le stock d'un bien à retirer (#229) : le super-administrateur seul. */
+export const BUYBACK_ROLES = ['super_admin'] as const satisfies AdminRole[];
+/**
+ * Totaux d'un rachat, tous mondes confondus : maisons concernées (stock ou ordre ouvert), unités
+ * rachetées, ordres ouverts annulés, oboles créées (unités × prix de référence en vigueur).
+ */
+export const buybackTotalsSchema = z.strictObject({
+  houses: count,
+  units: count,
+  cancelledOrders: count,
+  oboles: count,
+});
+export type BuybackTotals = z.infer<typeof buybackTotalsSchema>;
+/**
+ * Rachat qu'Olympe montre sous un bien retiré encore détenu, quand la configuration en vigueur le
+ * connaît encore (`GET /api/admin/config/versions`, champ `buybacks`).
+ */
+export const buybackPreviewSchema = z.object({
+  goodId: z.string(),
+  unitPriceOboles: z.number().int().positive(),
+  totals: buybackTotalsSchema,
+});
+export type BuybackPreview = z.infer<typeof buybackPreviewSchema>;
+
+/**
+ * Commande `admin.buyBackGood` (#229) : annule les ordres ouverts du bien, puis rachète tout son stock au
+ * prix de référence en vigueur. `expected` porte les totaux qu'Olympe a montrés ; s'ils ne sont plus
+ * ceux de l'état du monde, rien n'est fait (`BUYBACK_CHANGED`).
+ */
+export const adminBuyBackGoodInputSchema = z.strictObject({
+  goodId: z.string().regex(/^[a-z][a-z0-9_]{1,31}$/),
+  expected: buybackTotalsSchema.extend({ houses: z.number().int().positive() }),
+});
+export type AdminBuyBackGoodInput = z.infer<typeof adminBuyBackGoodInputSchema>;
+export const adminBuyBackGoodOutputSchema = z.object({
+  goodId: z.string(),
+  unitPriceOboles: z.number().int().positive(),
+  totals: buybackTotalsSchema,
+  /** Chaque maison concernée, nommée pour le journal d'audit. */
+  houses: z.array(
+    z.object({
+      houseId: z.uuid(),
+      worldId: z.uuid(),
+      units: count,
+      oboles: count,
+      cancelledOrders: count,
+      escrowReleasedOboles: count,
+    }),
+  ),
+});
+export type AdminBuyBackGoodOutput = z.infer<typeof adminBuyBackGoodOutputSchema>;
+export const ADMIN_BUY_BACK_GOOD_ERROR_CODES = [
+  'FORBIDDEN',
+  /** La configuration en vigueur ne connaît pas le bien : pas de prix de référence. */
+  'GOOD_NOT_FOUND',
+  /** Les totaux ne sont plus ceux qu'Olympe a montrés (ordre, récolte, rachat déjà fait) : rien n'est fait. */
+  'BUYBACK_CHANGED',
+] as const;
+
+/** Rachat d'une maison : un événement par maison concernée, même sans unité (ordre d'achat seul). */
+export const goodBoughtBackSchema = z.strictObject({
+  type: z.literal('GoodBoughtBack'),
+  payload: z.strictObject({
+    houseId: z.uuid(),
+    worldId: z.uuid(),
+    goodId: z.string(),
+    units: count,
+    oboles: count,
+    unitPriceOboles: z.number().int().positive(),
+    cancelledOrders: count,
+    boughtBackBy: z.uuid(),
+  }),
+});
+
 /**
  * Commande `admin.cancelActivation` : annule une programmation à venir, et avec elle celles encore en
  * attente pour la même clôture. Les versions restent enregistrées et se reprogramment ; une activation en

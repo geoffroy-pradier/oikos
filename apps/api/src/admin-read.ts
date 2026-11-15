@@ -288,10 +288,31 @@ export function registerAdminReads(
     // #200). La base ne lit que ce qu'une version au moins retire, réparti ensuite version par version.
     const ids = await versionConfigIds(db);
     const usage = await readWorldUsage(db, commonIds([...ids.values()]));
+    // Rachat possible (#229) : un bien retiré encore détenu que la configuration en vigueur connaît, au
+    // prix de référence en vigueur. Mêmes totaux que ceux que `admin.buyBackGood` recompte et compare.
+    // Sans configuration en vigueur lisible (`ConfigError`), aucun rachat n'est proposé : la commande, qui
+    // la charge aussi, n'en ferait aucun. Au-delà des entiers sûrs non plus : elle refuserait d'arrondir.
+    const goods = await loadConfig(new Date()).then(
+      (loaded) => loaded.config.goods,
+      (error: unknown) => {
+        if (error instanceof ConfigError) return [];
+        throw error;
+      },
+    );
+    const buybacks = usage.goods.flatMap(({ goodId, houses, quantity: units, openOrders }) => {
+      const unitPriceOboles = goods.find((good) => good.id === goodId)?.referencePriceOboles;
+      if (unitPriceOboles === undefined) return [];
+      const oboles = units * unitPriceOboles;
+      if (!Number.isSafeInteger(units) || !Number.isSafeInteger(oboles)) return [];
+      return [
+        { goodId, unitPriceOboles, totals: { houses, units, cancelledOrders: openOrders, oboles } },
+      ];
+    });
     return c.json({
       ok: true,
       data: {
         activeVersionId: active.rows[0]?.id ?? null,
+        buybacks,
         versions: versions.map((version) => ({
           id: version.id,
           number: version.number,
