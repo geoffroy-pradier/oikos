@@ -244,6 +244,7 @@
     "recipeInUse": "Recipe {{recipe}} — sites: {{sites}}; houses: {{houses}}",
     "classInUse": "Class {{npcClass}} — cities: {{cities}}; inhabitants kept: {{population}}",
     "confirmRetired": "I confirm: schedule version {{number}} despite these recipes and classes in use",
+    "alreadyRetired": "Recipes and NPC classes still in use that the version in force already retired: this version does not bring them back, so there is nothing to confirm.",
     "noNote": "No note",
     "by": "by {{account}}, on {{date}}",
     "open": "Open version {{number}}",

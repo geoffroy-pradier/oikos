@@ -2,6 +2,7 @@ import {
   BUYBACK_ROLES,
   CONFIG_EDITOR_ROLES,
   type AdminRole,
+  type AlreadyRetiredUsage,
   type BuybackPreview,
   type BuybackTotals,
   type RetiredUsage,
@@ -30,9 +31,11 @@ interface Listing {
     createdAt: string;
     /**
      * Ce que la version retire et que le monde porte encore : un bien refuse sa programmation (#191),
-     * une recette ou une classe la soumet à confirmation (#200).
+     * une recette ou une classe que la version en vigueur connaît la soumet à confirmation (#200, #234).
      */
     retiredInUse?: RetiredUsage;
+    /** Recettes et classes encore en usage que la version en vigueur ne connaît déjà plus (#234). */
+    alreadyRetiredInUse?: AlreadyRetiredUsage;
   }[];
   activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
   /** Rachats possibles (#229) : biens retirés encore détenus que la configuration en vigueur connaît. */
@@ -324,12 +327,19 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
           const npcClasses = version.retiredInUse?.npcClasses ?? [];
           const unconfirmedId = `config-unconfirmed-${version.id}`;
           const toConfirm = recipes.length + npcClasses.length > 0;
+          const already = version.alreadyRetiredInUse;
+          const alreadyId = `config-already-retired-${version.id}`;
+          const hasAlready = !!already && already.recipes.length + already.npcClasses.length > 0;
           const signature = JSON.stringify([
             recipes.map((recipe) => recipe.recipeId),
             npcClasses.map((npcClass) => npcClass.classId),
           ]);
           const isConfirmed = toConfirm && confirmed[version.id] === signature;
-          const described = [retired.length > 0 && retiredId, toConfirm && unconfirmedId]
+          const described = [
+            retired.length > 0 && retiredId,
+            toConfirm && unconfirmedId,
+            hasAlready && alreadyId,
+          ]
             .filter(Boolean)
             .join(' ');
           return (
@@ -420,26 +430,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 <div className="text-sm wrap-break-word">
                   <div id={unconfirmedId}>
                     <p className="font-semibold text-danger">{t('config.retiredUnconfirmed')}</p>
-                    <ul>
-                      {recipes.map((recipe) => (
-                        <li key={recipe.recipeId}>
-                          {t('config.recipeInUse', {
-                            recipe: recipe.recipeId,
-                            sites: count.format(recipe.sites),
-                            houses: count.format(recipe.houses),
-                          })}
-                        </li>
-                      ))}
-                      {npcClasses.map((npcClass) => (
-                        <li key={npcClass.classId}>
-                          {t('config.classInUse', {
-                            npcClass: npcClass.classId,
-                            cities: count.format(npcClass.cities),
-                            population: count.format(npcClass.population),
-                          })}
-                        </li>
-                      ))}
-                    </ul>
+                    <UsageList recipes={recipes} npcClasses={npcClasses} />
                   </div>
                   {canEdit && (
                     <label className="mt-1 flex min-h-11 items-center gap-2">
@@ -458,6 +449,13 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                       {t('config.confirmRetired', { number: version.number })}
                     </label>
                   )}
+                </div>
+              )}
+              {/* Déjà absentes de la version en vigueur : rien à confirmer, l'écran les dit (#234). */}
+              {hasAlready && (
+                <div id={alreadyId} className="text-sm wrap-break-word">
+                  <p className="font-semibold">{t('config.alreadyRetired')}</p>
+                  <UsageList {...already} />
                 </div>
               )}
               <div className="mt-2 flex flex-wrap gap-2">
@@ -643,5 +641,33 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
         )}
       </div>
     </>
+  );
+}
+
+/** Recettes et classes de PNJ en usage, une ligne chacune (#200, #234). */
+function UsageList({ recipes, npcClasses }: AlreadyRetiredUsage) {
+  const { t, i18n } = useTranslation();
+  const count = new Intl.NumberFormat(i18n.language);
+  return (
+    <ul>
+      {recipes.map((recipe) => (
+        <li key={recipe.recipeId}>
+          {t('config.recipeInUse', {
+            recipe: recipe.recipeId,
+            sites: count.format(recipe.sites),
+            houses: count.format(recipe.houses),
+          })}
+        </li>
+      ))}
+      {npcClasses.map((npcClass) => (
+        <li key={npcClass.classId}>
+          {t('config.classInUse', {
+            npcClass: npcClass.classId,
+            cities: count.format(npcClass.cities),
+            population: count.format(npcClass.population),
+          })}
+        </li>
+      ))}
+    </ul>
   );
 }

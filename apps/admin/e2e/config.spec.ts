@@ -17,7 +17,10 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expect(page.getByRole('heading', { name: 'Paramètres', level: 1 })).toBeVisible();
 
   // La version en vigueur est signalée ; on l'ouvre : aucune différence avec elle-même.
-  const inForce = page.getByRole('listitem').filter({ hasText: 'En vigueur' });
+  // Le signe exact : « en vigueur » figure aussi dans ce qui est dit des éléments déjà retirés (#234).
+  const inForce = page
+    .getByRole('listitem')
+    .filter({ has: page.getByText('En vigueur', { exact: true }) });
   await expect(inForce).toHaveCount(1);
   const number = /Version (\d+)/.exec(await inForce.getByRole('heading').innerText())?.[1] ?? '';
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
@@ -141,14 +144,9 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     test.setTimeout(test.info().timeout + untilClose + 5_000);
     await page.waitForTimeout(untilClose + 2_000);
   }
-  // Une base où d'autres essais ont laissé des sites sur des recettes absentes de cette version, ou des
-  // classes de PNJ retirées, fait confirmer la programmation (#200) : la case se coche au clavier.
-  const confirm = inForce.getByRole('checkbox', { name: /^Je confirme : programmer la version/ });
-  if ((await confirm.count()) > 0) {
-    await confirm.focus();
-    await page.keyboard.press('Space');
-    await expect(confirm).toBeChecked();
-  }
+  // La version en vigueur ne retire rien par rapport à elle-même : ce que d'autres essais ont laissé en
+  // usage hors d'elle est dit à titre d'information, sans rien à confirmer (#234).
+  await expect(inForce.getByRole('checkbox')).toHaveCount(0);
   await inForce
     .getByRole('button', { name: `Programmer la version ${number} à la prochaine clôture` })
     .click();
@@ -231,5 +229,52 @@ test('paramètres : rachat d’un bien retiré encore détenu, au clavier, à 36
   await expect(page.getByRole('alert')).toContainText(
     'La configuration en vigueur ne connaît plus ce bien',
   );
+  await expectNoHorizontalScroll(page);
+});
+
+test('paramètres : retiré par cette version (case requise) ou déjà retiré (information), au clavier, à 360 px', async ({
+  page,
+}) => {
+  const email = `olympe-${randomUUID()}@example.test`;
+  await signIn(page, email);
+  await grantSuperAdmin(email);
+  await enroll(page);
+  // Ajoutés à la lecture de l'API, sous la dernière version : une recette qu'elle retire, une classe que
+  // la version en vigueur a déjà retirée. Noms longs : rien ne déborde à 360 px. Rien n'est programmé.
+  const [recipe, npcClass] = [`rite_${'tres_long'.repeat(3)}`, `cls_${'tres_long'.repeat(3)}`];
+  await page.route('**/api/admin/config/versions', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      data: { versions: { retiredInUse: { recipes: unknown[] }; alreadyRetiredInUse?: unknown }[] };
+    };
+    const [latest] = body.data.versions;
+    latest?.retiredInUse.recipes.push({ recipeId: recipe, sites: 3, houses: 2 });
+    if (latest)
+      latest.alreadyRetiredInUse = {
+        recipes: [],
+        npcClasses: [{ classId: npcClass, cities: 4, population: 0 }],
+      };
+    await route.fulfill({ response, json: body });
+  });
+  await page
+    .getByRole('navigation', { name: 'Modules' })
+    .getByRole('button', { name: 'Paramètres' })
+    .click();
+  const confirm = page.getByRole('checkbox', { name: /^Je confirme : programmer la version/ });
+  const card = page.getByRole('listitem').filter({ has: confirm }).filter({ hasText: npcClass });
+  await expect(card.getByText(`Recette ${recipe} — sites : 3 ; maisons : 2`)).toBeVisible();
+  await expect(
+    card.getByText(/^Recettes et classes de PNJ encore en usage que la version/),
+  ).toBeVisible();
+  await expect(
+    card.getByText(`Classe ${npcClass} — cités : 4 ; habitants gardés : 0`),
+  ).toBeVisible();
+  // Une seule case, pour la recette ; le bouton l'attend, puis se programme au clavier.
+  await expect(card.getByRole('checkbox')).toHaveCount(1);
+  const schedule = card.getByRole('button', { name: /^Programmer la version/ });
+  await expect(schedule).toBeDisabled();
+  await card.getByRole('checkbox').focus();
+  await page.keyboard.press('Space');
+  await expect(schedule).toBeEnabled();
   await expectNoHorizontalScroll(page);
 });

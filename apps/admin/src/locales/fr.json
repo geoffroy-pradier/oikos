@@ -244,6 +244,7 @@
     "recipeInUse": "Recette {{recipe}} — sites : {{sites}} ; maisons : {{houses}}",
     "classInUse": "Classe {{npcClass}} — cités : {{cities}} ; habitants gardés : {{population}}",
     "confirmRetired": "Je confirme : programmer la version {{number}} malgré ces recettes et ces classes en usage",
+    "alreadyRetired": "Recettes et classes de PNJ encore en usage que la version en vigueur a déjà retirées : cette version ne les rend pas, il n'y a rien à confirmer.",
     "noNote": "Sans note",
     "by": "par {{account}}, le {{date}}",
     "open": "Ouvrir la version {{number}}",
