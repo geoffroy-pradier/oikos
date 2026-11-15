@@ -9,114 +9,169 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Les contrôles tournent en parallèle, chacun dans son propre runner : vérifications statiques, base de
+# données, tests d'intégration (un job par groupe de paquets, chacun sur sa base), bout en bout, images.
+# Le job `ci`, en dernier, est le seul contrôle requis : il est vert si tous les autres le sont, ou si ceux
+# qui ne concernent pas le changement ont été sautés (documents seuls).
 jobs:
-  ci:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
     steps:
-      # Les ports de Supabase local (54320 à 54329) sont dans la plage éphémère de Linux : une connexion
-      # sortante du runner (téléchargement, tirage d'image) peut en occuper un et faire échouer le démarrage.
-      # On les réserve avant toute autre étape : le noyau ne les attribue plus aux connexions sortantes.
-      - name: Reserve Supabase ports
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Une migration publiée est immuable : `infra/deploy.sh` ne rejoue jamais une migration enregistrée, une
       # modification sur place ne serait donc jamais déployée. On corrige par une migration nouvelle.
+      # Base de comparaison : la branche de base d'une demande de fusion, ou l'état de `main` avant l'envoi.
       - name: Published migrations are immutable
-        if: hashFiles('packages/db/supabase/migrations/*.sql') != ''
-        # Base de comparaison : le premier parent du commit de fusion d'une demande de fusion (la branche de
-        # base), ou l'état de `main` avant l'envoi (tous ses commits sont contrôlés).
+        id: diff
         env:
           BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
+          PR_BASE: ${{ github.event.pull_request.base.sha || '' }}
         run: |
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-            git fetch --quiet --depth=1 origin "$BEFORE"
+          if [ -n "$PR_BASE" ]; then
+            base="$PR_BASE"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
             base="$BEFORE"
           else
-            git fetch --quiet --depth=2 origin "$GITHUB_SHA"
-            git rev-parse --quiet --verify HEAD^1 > /dev/null || exit 0
-            base=HEAD^1
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           changed="$(git diff --diff-filter=MDR --name-only "$base" HEAD -- packages/db/supabase/migrations)"
           if [ -n "$changed" ]; then
             echo "::error::Migrations publiées modifiées, supprimées ou renommées : $changed"
             exit 1
           fi
+          # Documents seuls (docs/, fichiers Markdown, réglages des agents) : ni base, ni intégration, ni
+          # bout en bout. Tout autre fichier déclenche toute la suite. Sans détection des renommages, un
+          # fichier de code renommé en document compte par son ancien chemin. La liste est lue avant le
+          # filtre : un tube interrompu ne peut pas la faire passer pour vide.
+          files="$(git diff --no-renames --name-only "$base" HEAD)"
+          if printf '%s\n' "$files" | grep -qvE '^(docs/|\.claude/)|\.md$|^$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Documents seuls : base, intégration, bout en bout et images sautés."
+          fi
 
-      # Tant que le monorepo n'est pas initialisé (ticket 1), il n'y a rien à vérifier.
-      - name: Detect workspace
-        id: ws
-        run: |
-          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
-
+  # Lint, types et tests unitaires. Le cache de Turborepo est gardé d'une exécution à l'autre : un paquet
+  # que le changement ne touche pas n'est ni revérifié ni retesté.
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        if: steps.ws.outputs.present == 'true'
-
       - uses: actions/setup-node@v4
-        if: steps.ws.outputs.present == 'true'
         with:
           node-version: 22
           cache: pnpm
-
-      - name: Install
-        if: steps.ws.outputs.present == 'true'
-        run: pnpm install --frozen-lockfile
-
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
       - name: Lint
-        if: steps.ws.outputs.present == 'true'
         run: pnpm lint
-
       - name: Typecheck
-        if: steps.ws.outputs.present == 'true'
         run: pnpm typecheck
-
       - name: Test
-        if: steps.ws.outputs.present == 'true'
         run: pnpm test
 
-      # pgTAP sur Supabase local : migrations rejouées depuis zéro, puis tests de schéma et de règles par ligne.
+  # pgTAP sur Supabase local : migrations rejouées depuis zéro, tests de schéma et de règles par ligne, rejeu
+  # de la suite (règle 9) et application des migrations comme au déploiement.
+  database:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Les ports de Supabase local (54320 à 54329) sont dans la plage éphémère de Linux : une connexion
+      # sortante du runner peut en occuper un et faire échouer le démarrage. On les réserve d'abord.
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
-        # Filet de sécurité : une connexion de courte durée ouverte avant la réservation peut encore tenir un
-        # port. En cas d'échec, on journalise l'occupant avant de réessayer une fois.
         run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
-
       - name: Test database
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm db:reset && pnpm test:db
-
-      # Filet de la règle 9 : `infra/deploy.sh` n'applique que les migrations nouvelles, mais toute la suite
-      # doit encore se rejouer sur la base migrée sans changer le schéma.
       - name: Replay migrations
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         env:
           REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:replay
-
-      # Application des migrations au déploiement (`infra/apply-migrations.sh`), dans des bases jetables.
       - name: Deploy migrations
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         env:
           MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:deploy
 
+  # Tests d'intégration, un job par groupe de paquets, chacun sur sa propre base : l'API d'un côté, le
+  # moteur, la configuration et la passerelle IA de l'autre. Dans un job, les paquets passent l'un après
+  # l'autre, comme en local.
+  integration:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # Le second groupe prend tous les autres paquets, y compris ceux qui recevront plus tard des tests
+        # d'intégration.
+        filter:
+          - '@oikos/api'
+          - '!@oikos/api'
+    steps:
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Supabase
+        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
       - name: Integration tests
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
-        run: pnpm test:integration
-
-      # Même rejeu, sur la base que les tests d'intégration ont remplie de données.
+        env:
+          FILTER: ${{ matrix.filter }}
+        run: pnpm exec turbo run test:integration --concurrency=1 "--filter=$FILTER"
+      # Filet de la règle 9 : la suite des migrations se rejoue aussi sur une base remplie de données.
       - name: Replay migrations on data
-        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         env:
           REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:replay
 
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Supabase
+        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
       - name: End-to-end tests
-        if: steps.ws.outputs.present == 'true' && hashFiles('apps/web/playwright.config.ts') != ''
         run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
-
       # Traces des tests rejoués (échec puis nouvel essai), à ouvrir avec `playwright show-trace`.
       - name: Upload end-to-end traces
         if: always() && hashFiles('apps/web/test-results/**/trace.zip') != ''
@@ -126,21 +181,53 @@ jobs:
           path: apps/web/test-results/**/trace.zip
           retention-days: 14
 
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       # Les images de l'API et du moteur doivent toujours pouvoir être construites.
       - name: Build server images
-        if: steps.ws.outputs.present == 'true' && hashFiles('infra/docker/Dockerfile') != ''
         run: |
           for app in api engine; do
             [ -f "apps/$app/src/main.ts" ] || continue
             node infra/docker/bundle.mjs "$app" "build/$app/main.mjs"
             docker build -q -f infra/docker/Dockerfile -t "oikos-$app:ci" "build/$app"
           done
-
       # Clients statiques : construits, mis en image, puis installés comme sur le serveur et servis par
       # Caddy avec le Caddyfile du dépôt.
       - name: Build and install static clients
-        if: steps.ws.outputs.present == 'true' && hashFiles('infra/docker/static.sh') != ''
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
           VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
         run: bash infra/test-static.sh
+
+  # Seul contrôle à attendre avant une fusion (CLAUDE.md, boucle de travail, étapes 7 et 8). Il n'est créé
+  # qu'à la fin de l'exécution : tant qu'il est absent, rien n'est fusionné. Tout job ajouté à ce fichier
+  # doit être ajouté à `needs` et à la liste `expected` ci-dessous.
+  ci:
+    if: always()
+    needs: [changes, static, database, integration, e2e, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed, or was skipped for a documentation-only change
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e '
+            (.changes.outputs.code) as $code
+            | (keys == ["build", "changes", "database", "e2e", "integration", "static"])
+            and (to_entries
+            | all(.value.result == "success"
+                  or (.value.result == "skipped" and $code == "false"
+                      and (.key | IN("changes", "static") | not))))' > /dev/null
