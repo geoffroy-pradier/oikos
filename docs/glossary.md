@@ -17,3 +17,5 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Âge | Un monde de jeu (un serveur) |
 | Olympe (Olympus) | Le back-office : l'outil des administrateurs, distinct du client joueur |
 | Vigie (Watch) | Module d'Olympe qui surveille joueurs, commandes, ticks et file de tâches |
+| Caboteur (coaster) | Petit navire de commerce, rapide, qui longe les côtes d'une cité à l'autre (`coaster`) |
+| Navire rond (round ship) | Grand navire de commerce, plus lent que le caboteur, qui porte plus de fret (`round_ship`) |

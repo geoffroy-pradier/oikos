@@ -104,4 +104,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   ce n'est ni de la monnaie ni du stock, et rien ne garantit en base qu'elle ne fait que croître.
   Les joueurs connectés lisent la première par la vue `city_population`, sans le monde ;
   la seconde n'est pas exposée.
+- Navires (4.6, #251) : `ships` porte la maison, la classe (identifiant de la configuration), la cité où le navire est à quai (nulle en mer) et l'instant de son désarmement (nul s'il est armé).
+  La base garantit qu'un navire naît à l'instant de sa création, à quai dans une cité de son monde (clé étrangère) et armé, puis qu'il ne change ni d'identifiant, ni de monde, ni de maison, ni de classe, ni de date de naissance.
+  Le service crée un navire sans choisir son identifiant, sa date ni son désarmement, et ne le modifie ni ne le supprime ; les voyages et l'entretien (#252) lui ouvriront le quai et le désarmement.
+  Un joueur lit ses propres navires par `my_ships`, sous règle par ligne, et les classes et tarifs par `ship_rules`, extrait public de la configuration en vigueur rendu par `game.ship_rules()`, exécutée au nom du propriétaire comme `site_rules`.
 - Migrations SQL versionnées dans le dépôt, jamais de modification manuelle en production. Chaque migration appliquée est enregistrée dans `supabase_migrations.schema_migrations` et n'est plus rejouée au déploiement (14.4). Une migration publiée sur `main` est donc immuable (ni modifiée, ni supprimée, ni renommée) : on corrige par une migration nouvelle, ce que vérifie `ci`.
