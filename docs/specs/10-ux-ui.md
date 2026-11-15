@@ -22,7 +22,17 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 4. Carte de la cité avec parcelles et quartiers.
 5. Séance de l'assemblée : décrets en cours, vote, débats.
 6. Comptes : résultat, bilan, flux, par période.
-   Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ; les stocks sans prix observé sont comptés à part, hors du total). Les montants s'y écrivent en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme) : une part nulle est tue, un montant nul s'écrit « 0 obole », le signe porte sur tout le montant. Une lecture en échec ou illisible est annoncée et se réessaie, jamais prise pour un bilan nul. Sous le bilan, les stocks valorisés : une fiche par stock sur téléphone ; à partir de la largeur d'ordinateur, un tableau (bien, quantité, prix moyen observé et sa date, valeur) trié par défaut de la plus forte valeur à la plus faible, dont chaque en-tête est un bouton qui change le tri au clavier (`aria-sort` et flèche sur la colonne triée ; chaque changement de tri est annoncé aux lecteurs d'écran). Un stock sans prix observé est dit tel, non valorisé, et reste en fin de liste quel que soit le tri. Enfin le compte de résultat (4.1), par journée de jeu ou par saison au choix, borné aux 7, 30 ou 90 dernières périodes : mêmes fiches et même tableau triable, périodes les plus récentes d'abord. Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ; sans horloge lisible, la période est dite inconnue et ses montants restent affichés. Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
+   Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ;
+   les stocks sans prix observé sont comptés à part, hors du total).
+   Les montants s'y écrivent en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme) : une part nulle est tue, un montant nul s'écrit « 0 obole », le signe porte sur tout le montant.
+   Une lecture en échec ou illisible est annoncée et se réessaie, jamais prise pour un bilan nul.
+   Sous le bilan, les stocks valorisés : une fiche par stock sur téléphone ;
+   à partir de la largeur d'ordinateur, un tableau (bien, quantité, prix moyen observé et sa date, valeur) trié par défaut de la plus forte valeur à la plus faible, dont chaque en-tête est un bouton qui change le tri au clavier (`aria-sort` et flèche sur la colonne triée ;
+   chaque changement de tri est annoncé aux lecteurs d'écran). Un stock sans prix observé est dit tel, non valorisé, et reste en fin de liste quel que soit le tri.
+   Enfin le compte de résultat (4.1), par journée de jeu ou par saison au choix, borné aux 7, 30 ou 90 dernières périodes : mêmes fiches et même tableau triable, périodes les plus récentes d'abord.
+   Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ;
+   sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
+   Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
 7. Temple : Charis, grâces, offrandes, oracle.
 
 ## Direction artistique
@@ -37,5 +47,9 @@ Inspiration de la céramique grecque à figures noires et rouges : aplats terre 
 - Français et anglais dès la structure du code, aucun texte en dur.
 - Montants : partout dans le client, un seul format, en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme ; une part nulle est omise, un montant nul s'écrit « 0 obole »), comme l'écran Comptes. Seules les saisies de prix restent en oboles, l'unité des commandes, et le disent dans leur libellé ; les prix des carnets et des chandeliers sont des nombres d'oboles, annoncés comme tels.
 - Une commande dont un appel lève (relecture ou annonce en échec ; un réseau coupé, lui, rend déjà une erreur) est annoncée comme une erreur et rend l'écran utilisable : les contrôles ne restent jamais en attente.
-- Accessibilité : contrastes AA, navigation clavier, tailles de police réglables, aucune information portée par la couleur seule. Un graphique est une image décrite, doublée d'un tableau des mêmes valeurs accessible au clavier ; sur les chandeliers de l'agora, hausse et baisse se distinguent par la forme (corps vide ou plein). Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ; si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
+- Accessibilité : contrastes AA, navigation clavier, tailles de police réglables, aucune information portée par la couleur seule.
+  Un graphique est une image décrite, doublée d'un tableau des mêmes valeurs accessible au clavier ;
+  sur les chandeliers de l'agora, hausse et baisse se distinguent par la forme (corps vide ou plein).
+  Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ;
+  si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
 - Accueil : 15 minutes guidées qui mènent à une première vente, puis objectifs quotidiens du mentor pendant 7 jours.

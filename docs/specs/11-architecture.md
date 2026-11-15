@@ -11,7 +11,9 @@ Les lectures et le temps réel passent par Supabase, toute action de jeu par l'A
 - **Lectures** : le client interroge des vues exposées par l'API automatique de Supabase, protégées par les règles de sécurité par ligne. Les mises à jour en direct passent par Supabase Realtime.
 - **Écritures** : aucune table de jeu n'est modifiable depuis le client. Toute action passe par une commande de l'API de jeu, qui vérifie le jeton Supabase, valide, applique les règles dans une transaction et écrit.
 - **Simulation** : un service moteur exécute les ticks, la clôture quotidienne, les événements et les appels IA, via une file de tâches stockée dans Postgres.
-- **Configuration versionnée** : les versions sont immuables et leurs activations, programmées, sont tenues en ajout seul (`config.activations`). Un tick ou une clôture lit la version en vigueur à son instant avant d'ouvrir sa transaction, sans verrou sur les activations, et l'enregistre : c'est elle qui fait foi pour le rejouer. Garanties de la base sur les activations et limite assumée : 13 (ticket 208).
+- **Configuration versionnée** : les versions sont immuables et leurs activations, programmées, sont tenues en ajout seul (`config.activations`).
+  Un tick ou une clôture lit la version en vigueur à son instant avant d'ouvrir sa transaction, sans verrou sur les activations, et l'enregistre : c'est elle qui fait foi pour le rejouer.
+  Garanties de la base sur les activations et limite assumée : 13 (ticket 208).
 
 ## 11.2 Choix techniques
 
@@ -59,4 +61,7 @@ oikos/
 
 ## 11.4 Contrat d'une commande
 
-Chaque action de jeu est une commande nommée (`market.placeOrder`, `site.startRecipe`, `city.castVote`), décrite par un schéma d'entrée, un schéma de sortie et une liste d'erreurs métier. Une commande porte une clé d'idempotence, s'exécute dans une seule transaction et produit des événements de domaine (`OrderMatched`, `ShipArrived`) qui alimentent le temps réel, la télémétrie et la chronique. Le tick en produit aussi, sans commande, dans sa propre transaction : un `TradeExecuted` par achat des PNJ, par exemple. Le lancement compte environ 90 commandes.
+Chaque action de jeu est une commande nommée (`market.placeOrder`, `site.startRecipe`, `city.castVote`), décrite par un schéma d'entrée, un schéma de sortie et une liste d'erreurs métier.
+Une commande porte une clé d'idempotence, s'exécute dans une seule transaction et produit des événements de domaine (`OrderMatched`, `ShipArrived`) qui alimentent le temps réel, la télémétrie et la chronique.
+Le tick en produit aussi, sans commande, dans sa propre transaction : un `TradeExecuted` par achat des PNJ, par exemple.
+Le lancement compte environ 90 commandes.
