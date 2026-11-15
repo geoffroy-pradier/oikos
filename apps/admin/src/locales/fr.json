@@ -102,7 +102,27 @@
     "timezoneUnknownWarning": "Fuseau en vigueur inconnu de la base : {{timezone}}. Il vaut pour tous les mondes ({{worlds}}) : les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03).",
     "timezoneMissing": "Absent de la configuration en vigueur",
     "timezoneUnknownWarningNoWorld": "Fuseau en vigueur inconnu de la base : {{timezone}}. Aucun monde n'existe encore, mais les comptes des maisons de tout monde créé n'auraient ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03).",
-    "configInvalidWarning": "La configuration en vigueur ne respecte plus le schéma : l'API et le moteur ne peuvent pas la charger. Son fuseau est lu tel qu'enregistré."
+    "configInvalidWarning": "La configuration en vigueur ne respecte plus le schéma : l'API et le moteur ne peuvent pas la charger. Son fuseau est lu tel qu'enregistré.",
+    "ai": {
+      "title": "Passerelle IA (estimation)",
+      "usage": "Usage",
+      "state": "État",
+      "today": "Coût du jour (UTC)",
+      "month": "Coût du mois / plafond",
+      "rejected": "Sorties rejetées (mois)",
+      "ofCap": "{{spent}} sur {{cap}}",
+      "rejectedOf": "{{rejected}} sur {{answered}}",
+      "usages": {
+        "oracle": "Oracles de la Pythie",
+        "chronicle": "Chronique des cités",
+        "steward": "Consignes d'intendant"
+      },
+      "cut": {
+        "open": "Ouvert",
+        "disabled": "Coupé (configuration)",
+        "capped": "Coupé (plafond du mois atteint)"
+      }
+    }
   },
   "economy": {
     "title": "Économie",

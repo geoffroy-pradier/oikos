@@ -3,6 +3,7 @@ import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/co
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
+import { readAiUsage } from './admin-ai';
 import { readEconomy } from './admin-economy';
 import {
   commonIds,
@@ -206,6 +207,15 @@ export function registerAdminReads(
         return row ? { timezone: row.timezone, invalidConfig: true } : null;
       },
     );
+    // Passerelle IA (ADR 0005) : nul sans configuration en vigueur lisible, comme l'horloge.
+    const now = new Date();
+    const ai = await loadConfig(now).then(
+      (loaded) => readAiUsage(db, loaded.config.ai, now),
+      (error: unknown) => {
+        if (error instanceof ConfigError) return null;
+        throw error;
+      },
+    );
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -261,6 +271,7 @@ export function registerAdminReads(
               },
         // Réglage de l'API pour un monde de test (15.4) : visible, pour qu'il ne reste pas actif par oubli.
         selfReviewAllowed: settings.allowSelfReview,
+        ai,
       },
     });
   });
