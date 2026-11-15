@@ -129,14 +129,11 @@ export const marketPlaceOrder = defineCommand({
       .forUpdate()
       .execute();
     const counterparties = new Map(opposite.map((resting) => [resting.id, resting.house_id]));
+    const terms = { houseId: house.id, price: input.price, quantity: input.quantity };
     const plan = planLimitOrder(
-      {
-        houseId: house.id,
-        side: input.side,
-        price: input.price,
-        quantity: input.quantity,
-        ...(buying ? { budget: Number(account.balance) } : {}),
-      },
+      buying
+        ? { ...terms, side: 'buy', budget: Number(account.balance) }
+        : { ...terms, side: 'sell' },
       opposite.map((resting) => ({
         orderId: resting.id,
         houseId: resting.house_id,
