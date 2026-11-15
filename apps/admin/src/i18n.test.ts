@@ -6,6 +6,7 @@ import {
   ADMIN_ROLES,
   ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
 } from '@oikos/contracts';
+import { SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
 import en from './locales/en.json';
@@ -21,6 +22,12 @@ function keys(node: unknown, prefix = ''): string[] {
 describe('traductions du back-office', () => {
   it('fr et en ont exactement les mêmes clés', () => {
     expect(keys(en).sort()).toEqual(keys(fr).sort());
+  });
+
+  it('chaque robinet et chaque puits a un libellé dans les deux langues', () => {
+    const labels = SYSTEM_ACCOUNT_KEYS.map((key) => `economy.accounts.${key}`);
+    expect(keys(fr)).toEqual(expect.arrayContaining(labels));
+    expect(keys(en)).toEqual(expect.arrayContaining(labels));
   });
 
   it('chaque rôle du contrat a un nom', () => {

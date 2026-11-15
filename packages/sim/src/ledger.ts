@@ -3,7 +3,10 @@
  * Montants en oboles entières. Positif : crédit du compte ; négatif : débit.
  */
 
-/** Comptes système : un par robinet (création de monnaie) et par puits (destruction), spécification 5.5. */
+/**
+ * Comptes système : un par robinet (création de monnaie) et par puits (destruction), spécification 5.5.
+ * Même liste que le catalogue de la base (`game.system_account_kinds`, figé par le test pgTAP 013).
+ */
 export const SYSTEM_ACCOUNT_KEYS = [
   'faucet_npc_purchases',
   'faucet_temple_loans',
@@ -16,6 +19,7 @@ export const SYSTEM_ACCOUNT_KEYS = [
   'sink_offerings',
   'sink_temple_interest',
   'sink_public_works',
+  'sink_site_acquisition',
 ] as const;
 export type SystemAccountKey = (typeof SYSTEM_ACCOUNT_KEYS)[number];
 
