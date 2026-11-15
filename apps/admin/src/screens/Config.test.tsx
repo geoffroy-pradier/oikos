@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18next from 'i18next';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
 import { held } from '../test/fakes';
@@ -632,4 +633,38 @@ it('double validation : le refus de programmer sa propre version est expliqué',
     'admin.scheduleConfig',
     { versionId: 'v3' },
   ]);
+});
+
+it('un refus du schéma désigne table, ligne et champ d’après la configuration envoyée', async () => {
+  const fields = [
+    'goods[1].elasticity: Too big',
+    'weather.rain: wet',
+    'goods[1].tier',
+    'goods[1].tier',
+  ];
+  api.adminCommand.mockResolvedValue({ ok: false, code: 'CONFIG_INVALID', fields });
+  const editor = await openVersion(2);
+  fireEvent.change(editor, { target: { value: '{"goods":[{"id":"wheat"},{"id":"bread"}]}' } });
+  const publish = screen.getByRole('button', { name: 'Enregistrer comme nouvelle version' });
+  fireEvent.click(publish);
+  const alert = await screen.findByText(/^Configuration refusée par le schéma/);
+  const lines = () => [...alert.querySelectorAll('li')].map((line) => line.textContent);
+  // Chemin inconnu rendu tel quel ; deux erreurs identiques restent deux lignes.
+  expect(lines()).toEqual([
+    'Biens › bread › élasticité (goods[1].elasticity) — Too big',
+    'weather.rain — wet',
+    'Biens › bread › niveau (goods[1].tier)',
+    'Biens › bread › niveau (goods[1].tier)',
+  ]);
+  expect(screen.getByText('— Too big').getAttribute('lang')).toBe('en');
+  // Le texte change après le refus : l'erreur garde la ligne que l'API a refusée.
+  fireEvent.change(editor, { target: { value: '{"goods":[{"id":"fish"},{"id":"wine"}]}' } });
+  expect(lines()[0]).toContain('Biens › bread › élasticité');
+  // Programmation refusée : elle vise une version enregistrée, pas le texte ouvert. Rang seulement.
+  await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: /^Programmer la version 3/ }));
+  await waitFor(() => expect(lines()[0]).toContain('Biens › élément 2 › élasticité (goods[1]'));
+  await i18next.changeLanguage('en');
+  await waitFor(() => expect(lines()[0]).toContain('Goods › item 2 › elasticity (goods[1]'));
+  await i18next.changeLanguage('fr');
 });

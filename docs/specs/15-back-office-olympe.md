@@ -28,6 +28,8 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 4. **Programmation** : activation à la prochaine clôture quotidienne, annoncée aux joueurs dans la chronique.
 5. **Suivi** : alerte automatique si un indicateur sort de sa plage dans les 72 heures ; retour arrière en un clic.
 
+Quand le schéma refuse une configuration, l'écran désigne chaque valeur fautive en clair, dans la langue de l'écran : la table, la ligne et le champ (« Biens › wheat › élasticité »), suivis du chemin rendu par l'API, qui situe la valeur dans le texte JSON, et de son diagnostic (en anglais). Une ligne est désignée par son identifiant tel qu'il figure dans la configuration envoyée (pas dans le texte du moment, qui a pu changer depuis le refus), sinon par sa position comptée à partir de 1 : identifiant absent ou illisible, ou programmation refusée d'une version enregistrée, que l'écran n'a pas. Toutes les tables ont un libellé ; les champs des biens, des recettes et des classes de PNJ aussi, les autres gardent leur clé. Un chemin que l'écran ne sait pas découper est rendu tel quel. L'écran ne contrôle rien lui-même : `apps/admin` ne dépend de `packages/config` que dans ses tests, qui vérifient que ces libellés suivent le schéma (une table ou un champ ajouté sans libellé les fait échouer).
+
 ## 15.3 Rôles
 
 | Rôle | Peut |

@@ -9,6 +9,7 @@ export {
 } from './tick';
 export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './scheduler';
 export { npcDemand } from './steps/npc-demand';
+export { npcPopulation } from './steps/npc-population';
 export { observedPricesStep } from './steps/observed-prices';
 export { priceCandlesStep } from './steps/price-candles';
 export { siteUpkeep } from './steps/site-upkeep';

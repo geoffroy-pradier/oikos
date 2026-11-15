@@ -191,6 +191,51 @@
       "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
       "VALIDATION_FAILED": "Request rejected: content too large or malformed."
     },
-    "diffPending": "Differences from the version in force: loading…"
+    "diffPending": "Differences from the version in force: loading…",
+    "schemaPath": {
+      "root": "Whole configuration",
+      "position": "item {{rank}}",
+      "tables": {
+        "clock": "Clocks",
+        "market": "Market",
+        "starting": "Starting grant",
+        "sites": "Sites",
+        "marketTax": "Market tax",
+        "priceHistory": "Price history",
+        "populationDynamics": "Population dynamics",
+        "goods": "Goods",
+        "recipes": "Recipes",
+        "npcClasses": "NPC classes",
+        "cities": "Cities"
+      },
+      "fields": {
+        "goods": {
+          "id": "identifier",
+          "tier": "tier",
+          "referencePriceOboles": "reference price (obols)",
+          "elasticity": "elasticity"
+        },
+        "recipes": {
+          "id": "identifier",
+          "siteType": "site type",
+          "inputs": "inputs",
+          "outputs": "outputs",
+          "goodId": "good",
+          "quantity": "quantity",
+          "durationMinutes": "duration (minutes)",
+          "workers": "workers",
+          "maxAccruedCycles": "max accrued cycles"
+        },
+        "npcClasses": {
+          "id": "identifier",
+          "qualitySensitivity": "quality sensitivity",
+          "incomePerThousand": "income per 1,000 inhabitants (obols per tick)",
+          "basket": "basket",
+          "goodId": "good",
+          "need": "need",
+          "quantityPerThousand": "quantity per 1,000 inhabitants"
+        }
+      }
+    }
   }
 }

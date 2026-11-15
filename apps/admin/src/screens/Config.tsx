@@ -6,6 +6,7 @@ import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
 import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
+import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
 
 interface Listing {
@@ -24,7 +25,16 @@ interface Detail {
   number: number;
   config: unknown;
 }
-type Notice = { kind: 'status' | 'alert'; text: string; fields?: string[] | undefined } | null;
+/**
+ * `fields` : erreurs de schéma rendues par l'API. `refused` : la configuration qu'elles visent, si l'écran
+ * l'a envoyée (pas le texte du moment, qui a pu changer ; pas une version programmée, qu'il n'a pas).
+ */
+type Notice = {
+  kind: 'status' | 'alert';
+  text: string;
+  fields?: string[] | undefined;
+  refused?: unknown;
+} | null;
 const CONTROL = 'w-full rounded-md border border-border bg-surface px-3';
 
 /**
@@ -130,10 +140,11 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     const reply = await adminCommand<T>(name, input, accessToken, pending.current.key);
     // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
     if (reply.ok || reply.code !== 'INTERNAL') pending.current = null;
+    const refused = (input as { config?: unknown } | null)?.config;
     const next: Notice = reply.ok
       ? { kind: 'status', text: done(reply.data) }
       : reply.code === 'CONFIG_INVALID'
-        ? { kind: 'alert', text: t('config.invalidConfig'), fields: reply.fields }
+        ? { kind: 'alert', text: t('config.invalidConfig'), fields: reply.fields, refused }
         : { kind: 'alert', text: t([`config.errors.${reply.code}`, 'config.errors.INTERNAL']) };
     await listing.reload();
     setNotice(next);
@@ -393,15 +404,19 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       >
         {notice?.text}
         {notice?.fields && (
-          <ul className="font-normal">
-            {notice.fields.map((field) => {
-              // « chemin : diagnostic » rendu par l'API. Le diagnostic du schéma est une donnée
+          <ul className="font-normal wrap-break-word">
+            {notice.fields.map((field, index) => {
+              // « chemin : diagnostic » rendu par l'API : table, ligne et champ en clair, puis le chemin,
+              // qui situe la valeur dans le texte JSON. Le diagnostic du schéma est une donnée
               // technique, en anglais : il est balisé comme tel, pas traduit.
-              const [path, ...detail] = field.split(': ');
+              const { path, detail, target } = parseSchemaError(field, notice.refused);
+              const labels = labelSchemaTarget(target, i18n.language);
               return (
-                <li key={field}>
+                <li key={`${index}:${field}`}>
+                  {labels && `${labels.join(' › ')} (`}
                   <code className="break-all">{path}</code>
-                  {detail.length > 0 && <span lang="en"> — {detail.join(': ')}</span>}
+                  {labels && ')'}
+                  {detail && <span lang="en"> — {detail}</span>}
                 </li>
               );
             })}

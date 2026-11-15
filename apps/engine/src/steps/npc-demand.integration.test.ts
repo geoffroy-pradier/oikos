@@ -7,11 +7,14 @@ import {
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { tickIndexAt, tickStart } from '@oikos/sim';
+import { dailyCloseAt, gameDayAt, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { dryRunTick, runTick, type TickRequest } from '../tick';
+import { CLOSE_STEPS } from '../close-steps';
+import { advanceWorld, closeWorld } from '../scheduler';
+import { dryRunTick, runTick, type TickRequest, type TickStep } from '../tick';
 import { npcDemand } from './npc-demand';
+import { npcPopulation } from './npc-population';
 
 // Tests d'intégration de la demande des PNJ contre Supabase local. Chaque test a son monde, sa cité
 // `kalliste` et son robinet : les carnets et les soldes ne se mélangent pas.
@@ -209,6 +212,47 @@ const carryOf = async (cityId: string) =>
       .where('city_id', '=', cityId)
       .executeTakeFirst()
   )?.carry;
+/** Seuil à 90 % et ±10 % par jour, pour que l'effet se lise en unités entières dès la première clôture. */
+const populationDynamics = {
+  vitalCoverageThresholdBps: 9_000,
+  growthBps: 1_000,
+  emigrationBps: 1_000,
+  minShareBps: 5_000,
+  maxShareBps: 20_000,
+};
+/** Clôture du jour de jeu en cours, déjà échue, et dernier tick de la veille. */
+const closeOfToday = (config: GameConfig, steps = [npcPopulation]) => {
+  const today = gameDayAt(new Date(), config.clock);
+  const closeAt = dailyCloseAt(today, config.clock);
+  const loads = { at: async () => ({ ...active, config }), byId: loader.byId };
+  return {
+    today,
+    closeAt,
+    loads,
+    eve: tickIndexAt(closeAt, config.clock.tickMinutes) - 1,
+    play: (worldId: string) => closeWorld(db, { worldId, now: closeAt, config: loads, steps }),
+  };
+};
+/** État de la cité, par classe : habitants, dernière clôture, couverture retenue. */
+const populationOf = async (cityId: string) =>
+  (
+    await db
+      .selectFrom('game.npc_population')
+      .selectAll()
+      .where('city_id', '=', cityId)
+      .orderBy('class_id')
+      .execute()
+  ).map((row) => [row.class_id, row.population, row.closed_day, row.coverage_bps]);
+/** Mesure de la cité, jour de jeu après jour de jeu : unités de biens vitaux servies et demandées. */
+const measureOf = async (cityId: string) =>
+  (
+    await db
+      .selectFrom('game.npc_vital_coverage')
+      .select(['served', 'demanded'])
+      .where('city_id', '=', cityId)
+      .orderBy('game_day')
+      .execute()
+  ).map((row) => [row.served, row.demanded]);
 
 describe('demande des PNJ au tick', () => {
   it('achète de la moins chère à la plus chère, dans la limite de la demande à chaque prix', async () => {
@@ -425,10 +469,12 @@ describe('demande des PNJ au tick', () => {
     expect(await balanceOf(seller.houseId)).toBe(0);
     expect(await tradesOf(world.worldId)).toEqual([]);
     expect(await tradeEventsOf(world.cityId)).toEqual([]);
+    expect([await populationOf(world.cityId), await measureOf(world.cityId)]).toEqual([[], []]);
 
     expect((await runTick(db, tick)).status).toBe('done');
     expect((await runTick(db, tick)).status).toBe('skipped');
     expect(await tradeEventsOf(world.cityId)).toMatchObject([{ price: 6, quantity: 20 }]);
+    expect(await measureOf(world.cityId)).toEqual([[20, 20]]);
     expect(await balanceOf(seller.houseId)).toBe(120);
     expect(await stockOf(seller.houseId)).toEqual({ quantity: 30, reserved: 30 });
   });
@@ -440,6 +486,105 @@ describe('demande des PNJ au tick', () => {
       npcDemand: { units: 0, spent: 0, markets: [] },
     });
     expect(await balanceOf(seller.houseId)).toBe(0);
+    expect([await populationOf(world.cityId), await measureOf(world.cityId)]).toEqual([[], []]);
+  });
+
+  it('la population naît de la configuration, la clôture la fait évoluer d’après la mesure des ticks, demande et budget la suivent', async () => {
+    const [rich, poor] = [economy(), economy(20, 100)].map((config) => ({
+      ...config,
+      populationDynamics,
+    })) as [GameConfig, GameConfig];
+    // Deux derniers ticks de la veille : une cité servie en entier (20 unités sur 20 à chaque tick), une
+    // cité au marché vide. La mesure du jour cumule les deux ticks.
+    const { today, eve } = closeOfToday(rich);
+    const [fed, starved] = [await newWorld(), await newWorld()];
+    const seller = await newSeller(fed, 100, [[100, 6]]);
+    for (const tick of [eve - 1, eve]) {
+      await runTick(db, request(fed.worldId, rich, tick));
+      await runTick(db, request(starved.worldId, poor, tick));
+    }
+    expect(await populationOf(fed.cityId)).toEqual([['thetes', 1000, null, null]]);
+    expect(await measureOf(fed.cityId)).toEqual([[40, 40]]);
+    expect(await populationOf(starved.cityId)).toEqual([['thetes', 1000, null, null]]);
+    expect(await measureOf(starved.cityId)).toEqual([[0, 40]]);
+
+    expect(await closeOfToday(rich).play(fed.worldId)).toEqual([today]);
+    expect(await closeOfToday(poor).play(starved.worldId)).toEqual([today]);
+    expect(await populationOf(fed.cityId)).toEqual([['thetes', 1100, today, 10_000]]);
+    expect(await populationOf(starved.cityId)).toEqual([['thetes', 900, today, 0]]);
+
+    // 1 100 habitants : 22 unités demandées, 330 oboles de budget. 900 habitants, 100 oboles de revenu
+    // pour mille : 18 unités demandées, mais 90 oboles de budget, soit 15 unités à 6 oboles.
+    const late = await newSeller(starved, 100, [[100, 6]]);
+    const grown = await runTick(db, request(fed.worldId, rich));
+    expect(grown.summary).toMatchObject({ npcDemand: { units: 22, spent: 132 } });
+    const shrunk = await runTick(db, request(starved.worldId, poor));
+    expect(shrunk.summary).toMatchObject({ npcDemand: { units: 15, spent: 90 } });
+    expect(await balanceOf(seller.houseId)).toBe(240 + 132);
+    expect(await balanceOf(late.houseId)).toBe(90);
+    expect(await faucetOf(starved.worldId)).toBe(-90);
+    // La mesure du nouveau jour repart de zéro et suit la population courante, pas celle de la configuration.
+    expect((await measureOf(fed.cityId)).at(-1)).toEqual([22, 22]);
+    expect((await measureOf(starved.cityId)).at(-1)).toEqual([15, 18]);
+  });
+
+  it('panne du moteur : les ticks rattrapés achètent mais ne mesurent rien, la classe ne bouge pas', async () => {
+    // 108 oboles de budget : 18 unités sur 20 à chaque tick, soit exactement le seuil de 90 %.
+    const config = { ...economy(20, 108), populationDynamics };
+    const { today, closeAt, eve, loads, play } = closeOfToday(config);
+    const world = await newWorld();
+    // Un tick joué à l'heure (18 unités), puis de quoi servir trois ticks de plus, pas davantage.
+    const seller = await newSeller(world, 72, [[72, 6]]);
+    await runTick(db, request(world.worldId, config, eve - 11));
+    // Le moteur s'arrête onze ticks et repart juste après la clôture : il rattrape la veille d'une
+    // traite, contre un carnet que personne n'a pu regarnir, puis joue à l'heure le tick en cours.
+    const now = new Date(closeAt.getTime() + 1000);
+    const played = await advanceWorld(db, {
+      worldId: world.worldId,
+      now,
+      config: loads,
+      steps: [npcDemand],
+    });
+    expect(played).toEqual(Array.from({ length: 12 }, (_, rank) => eve - 10 + rank));
+    expect(await balanceOf(seller.houseId)).toBe(72 * 6);
+    // La veille n'a qu'une mesure, celle du tick joué à l'heure ; le tick en cours ouvre celle du jour.
+    expect(await measureOf(world.cityId)).toEqual([
+      [18, 20],
+      [0, 20],
+    ]);
+    expect(await play(world.worldId)).toEqual([today]);
+    // 90 % de couverture, pas 30 % (72 unités sur 240) : au seuil, la classe ne bouge pas.
+    expect(await populationOf(world.cityId)).toEqual([['thetes', 1000, today, 9_000]]);
+  });
+
+  it('une clôture complète jouée pendant un tick : ni attente du tick, ni interblocage', async () => {
+    const config = { ...economy(), populationDynamics };
+    const { today, eve, play } = closeOfToday(config, [...CLOSE_STEPS]);
+    const world = await newWorld();
+    await newSeller(world, 100, [[100, 6]]);
+    await runTick(db, request(world.worldId, config, eve));
+    // Le tick prend le verrou des appariements, puis attend que la clôture soit bloquée dessus (étape
+    // d'entretien) : elle a déjà fait croître la population, dont elle tient les lignes.
+    let closing: Promise<number[]> | undefined;
+    const hold: TickStep = {
+      name: 'hold',
+      async run({ trx }) {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${world.worldId}`}, 0))`.execute(
+          trx,
+        );
+        closing = play(world.worldId);
+        const blocked = sql`select 1 from pg_locks where locktype = 'advisory' and not granted`;
+        while ((await blocked.execute(owner)).rows.length === 0)
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        return {};
+      },
+    };
+    const tick = await runTick(db, { ...request(world.worldId, config), steps: [hold, npcDemand] });
+    expect(await closing).toEqual([today]);
+    // Le tick a lu, sans attendre, la population d'avant la clôture : 20 unités pour 1 000 habitants.
+    expect(tick.summary).toMatchObject({ npcDemand: { units: 20, spent: 120 } });
+    expect(await populationOf(world.cityId)).toEqual([['thetes', 1100, today, 10_000]]);
+    expect((await measureOf(world.cityId)).at(-1)).toEqual([20, 20]);
   });
 
   it('taxe de marché : le robinet paie le brut, le vendeur reçoit le net, le reste va au puits et au trésor de la cité', async () => {
