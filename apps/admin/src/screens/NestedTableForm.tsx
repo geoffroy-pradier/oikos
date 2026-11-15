@@ -9,6 +9,7 @@ import {
   readNested,
   readRows,
   removeRow,
+  updateLines,
   type NestedTable,
   type Row,
 } from '../goods-form';
@@ -91,6 +92,12 @@ export function NestedTableForm(props: {
             ))}
             {lists.map((list) => {
               const lines = readRows(entry, list.key) ?? [];
+              const where = { list: label(list.key), row: name };
+              const first = (line: number) =>
+                `${table}-${row}-${list.key}-${line}-${list.fields[0]?.key ?? ''}`;
+              const addLine = `${table}-${row}-${list.key}-add`;
+              const change = (lines: (all: Row[]) => Row[]) =>
+                compose(updateLines(rows, row, list.key, lines));
               return (
                 <fieldset key={list.key} className="col-span-full min-w-0 space-y-2">
                   <legend className="first-letter:uppercase">{label(list.key)}</legend>
@@ -117,8 +124,41 @@ export function NestedTableForm(props: {
                           }
                         />
                       ))}
+                      {!props.readOnly && (
+                        <Button
+                          variant="secondary"
+                          className="col-span-full justify-self-start"
+                          {...guard}
+                          onClick={(event) => {
+                            const lineName = nameOf(item['goodId'], line);
+                            // Foyer : la ligne suivante, sinon la précédente, sinon l'ajout de ligne.
+                            const next = line + 1 < lines.length ? line : line - 1;
+                            reshape(
+                              event,
+                              change((all) => removeRow(all, line)),
+                              next < 0 ? addLine : first(next),
+                              t('config.tableForm.lineRemoved', { ...where, name: lineName }),
+                            );
+                          }}
+                        >
+                          {t('config.tableForm.removeLine', {
+                            ...where,
+                            name: nameOf(item['goodId'], line),
+                          })}
+                        </Button>
+                      )}
                     </fieldset>
                   ))}
+                  {!props.readOnly && (
+                    <Button
+                      id={addLine}
+                      variant="secondary"
+                      {...guard}
+                      onClick={(event) => reshape(event, change(addRow), first(lines.length))}
+                    >
+                      {t('config.tableForm.addLine', where)}
+                    </Button>
+                  )}
                 </fieldset>
               );
             })}

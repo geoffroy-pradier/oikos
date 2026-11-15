@@ -72,6 +72,14 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expect(
     page.getByText(`${quantity} : ${output.quantity} → ${output.quantity + 1}`),
   ).toBeVisible();
+  // Une ligne d'extrant ajoutée puis retirée : le texte revient à ce qu'il était.
+  const before = await editor.inputValue();
+  const where = `extrants de ${recipe.id}`;
+  await recipes.getByRole('button', { name: `Ajouter une ligne (${where})`, exact: true }).click();
+  const line = `élément ${recipe.outputs.length + 1}`;
+  await recipes.getByRole('button', { name: `Retirer ${line} (${where})`, exact: true }).click();
+  await expect(page.getByText(`${line} retiré (${where})`)).toBeVisible();
+  expect(await editor.inputValue()).toBe(before);
   await expectNoHorizontalScroll(page);
   // Formulaire des classes : de même, une saisie dans le panier d'une classe.
   const classes = page.locator('details').filter({
