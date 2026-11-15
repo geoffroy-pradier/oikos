@@ -49,6 +49,18 @@ export default tseslint.config(
     },
   },
   {
+    // L'outil de test ne s'importe que dans les tests et leurs jeux d'essai, jamais dans le code du jeu.
+    // Règle de typescript-eslint : celle d'ESLint garde les restrictions propres au client et à Olympe.
+    files: ['apps/*/src/**', 'packages/*/src/**'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx', '**/*.integration-fixtures.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { paths: [{ name: 'vitest', message: 'vitest ne sert que dans les tests.' }] },
+      ],
+    },
+  },
+  {
     // Scripts Node hors TypeScript (outillage).
     files: ['**/*.mjs'],
     languageOptions: { globals: { console: 'readonly', process: 'readonly' } },
