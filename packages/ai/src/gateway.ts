@@ -99,6 +99,18 @@ export function estimateCostMicroEuros(
   );
 }
 
+/**
+ * Règle de coupure au plafond, la même pour la passerelle et la Vigie : un plafond nul coupe toujours ;
+ * sinon l'usage est coupé quand la dépense du mois plus le coût de la sortie la plus chère d'un appel
+ * (`maxOutputTokens`) dépasse le plafond. Le coût d'entrée n'est pas réservé (ADR 0005).
+ */
+export function isCapped(settings: AiSettings, usage: AiUsage, spentMicroEuros: number): boolean {
+  const cap = aiMonthlyCapMicroEuros(settings, usage);
+  const { maxOutputTokens } = settings.usages[usage];
+  const reserved = estimateCostMicroEuros(settings.usages[usage], 0, maxOutputTokens);
+  return cap === 0 || spentMicroEuros + reserved > cap;
+}
+
 class Timeout extends Error {}
 
 /**
@@ -157,8 +169,7 @@ export function createGateway(options: {
     // L'appel ne part que si son coût de sortie le plus cher (maxOutputTokens) tient encore sous le
     // plafond. Le coût d'entrée, inconnu avant l'appel, n'est pas réservé : un appel peut dépasser le
     // plafond de son coût d'entrée, et des appels simultanés le dépasser ensemble (ADR 0005).
-    const reserved = estimateCostMicroEuros(usage, 0, usage.maxOutputTokens);
-    if (spent + reserved > aiMonthlyCapMicroEuros(settings, request.usage)) {
+    if (isCapped(settings, request.usage, spent)) {
       await record({ ...none, outcome: 'capped' });
       return fallback('capped');
     }

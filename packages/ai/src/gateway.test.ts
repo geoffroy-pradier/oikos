@@ -185,6 +185,16 @@ describe('passerelle IA', () => {
     const { provider, ask } = setup([reply({ text: 'x' })], settings({ capShareBps: 0 }));
     expect((await ask()).outcome).toBe('capped');
     expect(provider.requests).toHaveLength(0);
+    // Même avec une sortie gratuite (réserve nulle) : 0 + 0 n'excède pas 0, mais un plafond nul coupe.
+    const free = setup(
+      [reply({ text: 'x' })],
+      settings({
+        capShareBps: 0,
+        inputMicroEurosPerThousandTokens: 0,
+        outputMicroEurosPerThousandTokens: 0,
+      }),
+    );
+    expect((await free.ask()).outcome).toBe('capped');
   });
 
   it('un journal en panne : pas de dépense lisible, repli ; une écriture perdue ne prive pas du texte', async () => {
