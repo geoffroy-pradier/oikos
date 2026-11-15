@@ -763,7 +763,7 @@ it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisibl
 
 it('formulaire des biens : une saisie est un texte modifié et l’emporte sur une ouverture en route ; indisponible sans liste lisible ; lecture seule', async () => {
   const editor = await openVersion(1);
-  expect(screen.getByText(/^Chaque saisie réécrit le texte JSON/)).toBeTruthy();
+  expect(screen.getByText(/^Chaque saisie réécrit le texte JSON ci-dessus, comme/)).toBeTruthy();
   // Version 2 lente à s'ouvrir : la saisie faite entre-temps reste, sa réponse est ignorée.
   const slow = held<unknown>();
   api.adminGet.mockImplementationOnce(() => slow.promise);
@@ -777,7 +777,7 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
   // Sans liste de biens lisible : plus de champs, la raison est dite ; le texte n'est pas touché.
   for (const text of ['{ "goods": ', '[]', '{"goods":{"wheat":{}}}', '{"goods":[1]}']) {
     type(editor, text);
-    expect(screen.getByText(/^Formulaire indisponible/)).toBeTruthy();
+    expect(screen.getByText(/^Formulaire indisponible.*« goods »/)).toBeTruthy();
     expect(screen.queryAllByLabelText('identifiant')).toEqual([]);
     expect(editor.value).toBe(text);
   }
@@ -786,7 +786,7 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
   for (const label of ['identifiant', PRICE, 'élasticité'])
     expect(cell('bread', label).readOnly).toBe(true);
   expect(cell('bread', 'niveau').disabled).toBe(true);
-  expect(screen.queryByText(/^Chaque saisie réécrit/)).toBeNull();
+  expect(screen.queryAllByText(/^Chaque saisie réécrit/)).toEqual([]);
   expect(screen.queryAllByRole('button', { name: /^(Ajouter un bien|Retirer )/ })).toEqual([]);
 });
 
@@ -880,4 +880,97 @@ it('formulaire des biens : deux retraits de suite au même nom font deux annonce
   expect(goodsOf(editor)).toEqual([]);
   enter();
   expect(goodsOf(editor)).toEqual([{}]);
+});
+
+const BAKE = {
+  id: 'bake',
+  siteType: 'workshop',
+  inputs: [{ goodId: 'wheat', quantity: 3 }],
+  outputs: [{ goodId: 'bread', quantity: 1, extra: true }],
+  durationMinutes: 60,
+  workers: 2,
+  maxAccruedCycles: 8,
+};
+/** Champ d'une ligne : recette, liste (« intrants », « extrants »), ligne (bien ou rang), libellé. */
+const stackCell = (recipe: string, side: string, line: string, label: string) => {
+  const list = within(screen.getByRole('group', { name: recipe })).getByRole('group', {
+    name: side,
+  });
+  return within(within(list).getByRole('group', { name: line })).getByLabelText<HTMLInputElement>(
+    label,
+  );
+};
+const recipesOf = (editor: HTMLTextAreaElement) =>
+  (JSON.parse(editor.value) as { recipes: Record<string, unknown>[] }).recipes;
+
+it('formulaire des recettes : champs et lignes d’intrants et d’extrants se lisent du texte et le réécrivent, rien d’autre ne change', async () => {
+  const editor = await openVersion(1);
+  expect(screen.getByText('Recettes').closest('details')?.open).toBe(false);
+  const text = { recipes: [BAKE, { siteType: 'mine', outputs: [] }], goods: GOODS };
+  type(editor, JSON.stringify(text, null, 2));
+  expect([cell('bake', 'type de site').value, cell('bake', 'durée (minutes)').value]).toEqual([
+    'workshop',
+    '60',
+  ]);
+  expect(stackCell('bake', 'intrants', 'wheat', 'quantité').value).toBe('3');
+  // Une saisie dans une ligne : seule sa valeur change, ordre des clés et clés inconnues compris.
+  type(stackCell('bake', 'extrants', 'bread', 'quantité'), '2');
+  const outputs = [{ goodId: 'bread', quantity: 2, extra: true }];
+  const bake = { ...BAKE, outputs };
+  expect(editor.value).toBe(JSON.stringify({ ...text, recipes: [bake, text.recipes[1]] }, null, 2));
+  // Le bien est un texte libre ; les biens du texte sont proposés. Une ligne se nomme par son bien.
+  type(stackCell('bake', 'intrants', 'wheat', 'bien'), 'flour');
+  expect(recipesOf(editor)[0]?.['inputs']).toEqual([{ goodId: 'flour', quantity: 3 }]);
+  const list = stackCell('bake', 'intrants', 'flour', 'bien').getAttribute('list') ?? '';
+  const options = document.getElementById(list)?.querySelectorAll('option') ?? [];
+  expect([...options].map((option) => option.value)).toEqual(['wheat', 'bread']);
+  // Les entiers suivent la règle du prix : « 007 » reste un texte, que l'API refusera ; vidé, la clé part.
+  type(cell('bake', 'personnel'), '007');
+  type(cell('bake', 'cycles accumulés au plus'), '');
+  expect(recipesOf(editor)[0]).toEqual({
+    ...bake,
+    inputs: [{ goodId: 'flour', quantity: 3 }],
+    workers: '007',
+    maxAccruedCycles: undefined,
+  });
+  expect(Object.keys(recipesOf(editor)[0] ?? {})).not.toContain('maxAccruedCycles');
+  // Sans identifiant : nommée par son rang. Un type de site inconnu reste affiché ; liste absente ou vide.
+  const types = cell('élément 2', 'type de site');
+  expect([types.value, types.textContent?.startsWith('mine')]).toEqual(['', true]);
+  for (const side of ['intrants', 'extrants']) {
+    const group = within(screen.getByRole('group', { name: 'élément 2' }));
+    expect(group.getByRole('group', { name: side }).textContent).toBe(`${side}Aucun.`);
+  }
+  type(types, 'field');
+  expect(recipesOf(editor)[1]).toEqual({ siteType: 'field', outputs: [] });
+  // Même chemin qu'une frappe dans le texte : ouvrir une autre version demande confirmation.
+  fireEvent.click(button('Ouvrir la version 2'));
+  expect(document.activeElement).toBe(button('Garder le texte modifié'));
+});
+
+it('formulaire des recettes : indisponible sans listes lisibles, sans toucher au texte ; lecture seule pour l’observateur', async () => {
+  const editor = await openVersion(1);
+  for (const text of ['{"recipes":{}}', '{"recipes":[{"id":"bake","inputs":{}}]}']) {
+    type(editor, text);
+    expect(screen.getByText(/^Formulaire indisponible.*« recipes »/)).toBeTruthy();
+    expect(screen.queryAllByLabelText('type de site')).toEqual([]);
+    expect(editor.value).toBe(text);
+  }
+  // L'observateur ne saisit pas dans le texte : la version qu'il ouvre a des recettes.
+  cleanup();
+  api.adminGet.mockImplementation((path: string) =>
+    Promise.resolve({
+      ok: true,
+      data:
+        path === 'config/versions'
+          ? LISTING
+          : { id: 'v1', number: 1, config: { goods: GOODS, recipes: [BAKE] } },
+    }),
+  );
+  await openVersion(1, 'observer');
+  for (const label of ['identifiant', 'durée (minutes)', 'personnel'])
+    expect(cell('bake', label).readOnly).toBe(true);
+  expect(cell('bake', 'type de site').disabled).toBe(true);
+  expect(stackCell('bake', 'intrants', 'wheat', 'quantité').readOnly).toBe(true);
+  expect(screen.queryAllByText(/^Chaque saisie réécrit/)).toEqual([]);
 });
