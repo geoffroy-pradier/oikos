@@ -40,7 +40,8 @@ select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name collate "C", column_name collate "C")
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
-  'accounts.balance api_refusals.count citizenships.since citizenships.status houses.name inventories.quantity npc_demand_carry.carry '
+  'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status elections.tallied_at '
+    || 'houses.name inventories.quantity npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
     || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
