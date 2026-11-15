@@ -188,6 +188,51 @@
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
     },
-    "diffPending": "Différences avec la version en vigueur : lecture en cours…"
+    "diffPending": "Différences avec la version en vigueur : lecture en cours…",
+    "schemaPath": {
+      "root": "Configuration entière",
+      "position": "élément {{rank}}",
+      "tables": {
+        "clock": "Horloges",
+        "market": "Marché",
+        "starting": "Dotation de départ",
+        "sites": "Sites",
+        "marketTax": "Taxe de marché",
+        "priceHistory": "Historique des prix",
+        "populationDynamics": "Dynamique de population",
+        "goods": "Biens",
+        "recipes": "Recettes",
+        "npcClasses": "Classes de PNJ",
+        "cities": "Cités"
+      },
+      "fields": {
+        "goods": {
+          "id": "identifiant",
+          "tier": "niveau",
+          "referencePriceOboles": "prix de référence (oboles)",
+          "elasticity": "élasticité"
+        },
+        "recipes": {
+          "id": "identifiant",
+          "siteType": "type de site",
+          "inputs": "intrants",
+          "outputs": "extrants",
+          "goodId": "bien",
+          "quantity": "quantité",
+          "durationMinutes": "durée (minutes)",
+          "workers": "personnel",
+          "maxAccruedCycles": "cycles accumulés au plus"
+        },
+        "npcClasses": {
+          "id": "identifiant",
+          "qualitySensitivity": "sensibilité à la qualité",
+          "incomePerThousand": "revenu pour 1 000 habitants (oboles par tick)",
+          "basket": "panier",
+          "goodId": "bien",
+          "need": "besoin",
+          "quantityPerThousand": "quantité pour 1 000 habitants"
+        }
+      }
+    }
   }
 }
