@@ -1,17 +1,20 @@
 # État du projet
 
-Point d'étape au 14 novembre 2026, au soir : tickets #70 et #71 fermés, tickets #72 et #77 en cours
-(quatre demandes de fusion ouvertes, voir « Points en suspens »). Ce fichier décrit ce qui tourne
-réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
+Point d'étape au 15 novembre 2026, vers 3 h du matin (heure de Paris) : tickets #72 à #76 et #98 fermés pendant la
+session, #77 bien avancé. Ce fichier décrit ce qui tourne réellement sur `main` ; les
+spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
 
 - **Phase 0 (fondations)** : terminée, sauf le ticket #33 (serveur de préproduction), marqué
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
-- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #71. En cours : #72 (entretien des
-  sites) et #77 (Olympe). Ouverts, pas commencés : #73 à #76, #78, #97, #98, #100, et trois tickets de
-  suivi ouverts en route : #123, #130, #136.
+- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #76 et #98. En cours : #77 (Olympe :
+  reste le critère 4, paramètres par formulaire) et #161 (suivis du tableau de bord : restent le
+  `try/finally` des commandes, la vérification périodique du service worker, des e2e d'alertes et un
+  format unique des montants).
+  Ouverts, pas commencés : #78 (équilibrage, désormais débloqué), #97, #100, et les tickets de suivi
+  #123, #130, #136, #145, #155, #158, #176, #181, #184.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -24,15 +27,17 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   premières (blé, olives, raisin, bois, argile, laine, poisson, sel) et sept transformations en atelier
   (farine, huile, charbon de bois, tissu, pain, amphores, vin).
 - **Production.** Elle s'accumule avec le temps, jusqu'à un plafond, et se récolte à la demande. Un atelier
-  consomme ses intrants dans le stock libre de la maison ; à court d'intrants, il attend. La fiche d'un
-  atelier affiche les intrants par cycle, le stock libre et ce qui est récoltable.
-- **Clôture quotidienne et entretien : posés, pas encore en jeu.** Le moteur enregistre une clôture par
-  monde et par jour de jeu (04 h 00, heure de Paris), à l'heure de la base, une seule fois même avec
-  plusieurs moteurs ; une clôture manquée est rattrapée une fois. L'étape qui prélève l'entretien des
-  sites, la commande `site.restart` (relancer un site à l'arrêt en payant un jour) et la récolte bornée
-  à l'arrêt existent et sont testées, mais l'étape n'est pas branchée dans le moteur : **rien n'est
-  prélevé et aucun site ne s'arrête en jeu** tant que la demande de fusion #140 n'est pas fusionnée (à
-  fusionner avec #142, qui en est l'écran).
+  consomme ses intrants dans le stock libre de sa cité ; à court d'intrants, il attend. La fiche d'un
+  site affiche son entretien, son plafond, les intrants par cycle, le stock libre et ce qui est
+  récoltable, calculé à l'heure du serveur (en-tête `Date` de l'API) et recompté au retour sur l'onglet.
+- **Clôture quotidienne et entretien : en jeu.** Le moteur joue une clôture par monde et par jour de jeu
+  (04 h 00, heure de Paris), à l'heure de la base, une seule fois même avec plusieurs moteurs ; une
+  clôture manquée est rattrapée une fois. Chaque clôture fait évoluer la population des PNJ, puis
+  prélève un jour d'entretien par site (30 à 60 oboles). Un site impayé s'arrête ; sa fiche le dit, et
+  « Relancer » le repart en payant un jour, au prix affiché.
+- **Population des PNJ : en jeu.** Chaque classe de chaque cité croît ou émigre à la clôture selon la
+  couverture de ses besoins vitaux la veille ; la demande des PNJ suit la population courante. L'onglet
+  Cité montre la population par classe et la couverture retenue.
 - **Agora.** Carnet d'ordres à cours limité par bien : ventes et achats attendent dans le carnet, une vente
   réserve son stock, un achat met son prix sous séquestre. Exécution à l'arrivée, au prix de l'ordre qui
   attendait ; annulation d'un ordre ouvert. Le carnet public montre les deux côtés par niveau de prix,
@@ -48,26 +53,34 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   24 heures. L'agora affiche pour le bien choisi le dernier prix, la variation sur 24 heures, ce prix
   moyen, un graphique en chandeliers décrit et le tableau des mêmes valeurs. Chaque achat des PNJ
   laisse un événement de domaine.
+- **Tableau de bord et comptes.** L'onglet Maison montre la trésorerie, l'entrepôt (par cité dès qu'un
+  stock est ailleurs), les ordres ouverts, les sites à surveiller (arrêt, à court d'intrants, plafond) et
+  « Tout récolter » (une commande par site, échecs nommés). L'écran Comptes (`/comptes`) donne le bilan
+  en drachmes et oboles, les stocks valorisés au prix moyen observé et le compte de résultat par jour ou
+  par saison.
 - **Client.** Application web installable (PWA), utilisable à 360 px de large et au clavier, en français
-  et en anglais. Onglets Maison et Agora ; les onglets Cité et Messages sont des coquilles vides.
-- **Back-office Olympe.** Connexion avec second facteur, Vigie (compteurs de refus de l'API),
-  Paramètres (versions de configuration : consulter, comparer, enregistrer, programmer à la prochaine
-  clôture), journal d'audit (ses pages survivent au renouvellement du jeton ; erreurs distinctes et
-  « Réessayer »), Accès (liste des rôles, réservée au super-administrateur, en consultation). Une version
-  n'est programmable que par un autre compte que son auteur. Par l'API seulement, sans écran : accorder
-  et retirer un rôle (`admin.grantRole`, `admin.revokeRole`), annuler une programmation à venir
-  (`admin.cancelActivation`). Le premier super-administrateur s'inscrit à la main en base. Le
-  `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de sécurité sur les deux
-  clients, vérifiés en `ci` (`infra/test-static.sh`) ; en local, servis par Vite, ils ne les portent pas.
+  et en anglais. Onglets Maison, Agora et Cité ; Carte et Messages sont des coquilles vides. Une nouvelle
+  version est proposée, jamais imposée pendant une saisie. Une acquisition restée sans réponse garde sa
+  clé d'idempotence, même onglet quitté : la renvoyer rejoue l'achat au lieu de le payer deux fois.
+- **Back-office Olympe.** Connexion avec second facteur, Vigie (compteurs de refus de l'API ; elle montre
+  si la double validation est levée), Paramètres (versions de configuration : consulter, comparer,
+  enregistrer, programmer à la prochaine clôture, annuler une programmation à venir ; un refus du
+  schéma désigne la table, la ligne et le champ ; un texte modifié n'est jamais remplacé sans
+  confirmation), journal d'audit, Accès (liste des rôles, accorder par identifiant de compte, retirer
+  après confirmation ; réservé au super-administrateur). Une version n'est programmable que par un
+  autre compte que son auteur. Procédure écrite d'accès : `docs/exploitation/` (premier enrôlement,
+  appareil perdu, retrait). Économie : masse monétaire par nature de compte, robinets et puits par jour de
+  jeu, indice des prix sur un panier de six biens et inflation sur 30 jours, avec une alerte écrite
+  quand elle sort de la cible de 0 à 3 % (la mesure est dite inconnue tant qu'un bien du panier n'a
+  aucun échange dans l'une des deux fenêtres ; elle peut donc être annoncée dès le 31e jour, sur une
+  fenêtre précédente partielle, #181). Paramètres : formulaire des biens existants, replié sous le texte JSON. Le premier
+  super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
+  sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : la mise en jeu de l'entretien et son
-écran (#72 : demandes #140 et #142), comptes de la maison (#73), tableau de bord de la maison (#74),
-population des PNJ (#75), tableau de bord économique (#76), la fin d'Olympe (#77 : écrans d'accès et
-d'annulation en relecture, procédure écrite, paramètres par formulaire), équilibrage (#78). La taxe de
-marché détruit une part de chaque échange, mais tant que l'entretien n'est pas branché, sans salaires ni
-dépense du trésor, les puits restent faibles face aux achats des PNJ : l'économie actuelle reste
-inflationniste. Les montants d'entretien initiaux (30 à 60 oboles par jour et par site, 5 % du prix
-d'acquisition) sont posés sans mesure ; leur réglage attend l'équilibrage (#78).
+Ce qui manque encore pour le critère de sortie de la phase 1 : les paramètres par formulaire (#77 :
+restent l'ajout et le retrait d'un bien, puis les recettes et les classes) et l'équilibrage (#78). Avec l'entretien
+et l'émigration en jeu, l'économie a enfin des puits réguliers, mais aucun montant n'a été mesuré :
+entretien, taxe, seuil de couverture et taux de croissance attendent #78.
 
 ## Décisions prises en cours de route
 
@@ -146,14 +159,42 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
     voir #130) ;
   - la liste des rôles par module est partagée entre l'API et le client ; la lecture des rôles ne rend
     que des identifiants de compte, jamais d'adresse.
+- **Population des PNJ** (5.1, ticket #75 ; à confirmer par un humain) :
+  - un état par cité et par classe, créé par le moteur au premier tick qui les connaît ; la base refuse
+    toute évolution hors de la transaction de la clôture de son jour ;
+  - la couverture d'une classe est un seul rapport, unités servies sur unités demandées, tous biens
+    vitaux confondus : un bien vital trop cher est moins acheté, donc moins servi, et **la cherté fait
+    émigrer comme la pénurie**. Avec les valeurs initiales, des biens vitaux vendus durablement de 25 à
+    40 % au-dessus de leur prix de référence suffisent ; Kallistè peut perdre jusqu'à 2 % par jour, avec
+    un plancher à 50 % de sa population initiale ;
+  - un tick rattrapé après une panne achète mais ne compte pas dans la mesure : une panne ne fait ni
+    croître ni émigrer, mais le premier tick à l'heure est mesuré contre un carnet vidé par le rattrapage.
+- **Comptes de la maison** (4.1, ticket #73) : montants affichés en drachmes et oboles (6 oboles pour 1
+  drachme), stocks valorisés au prix moyen observé, ceux sans prix comptés à part ; un compte dont les
+  totaux ne tombent pas juste n'est pas affiché.
+- **Carte des sites de l'onglet Maison** (ticket #98) : l'intention d'une acquisition est la production voulue et le nombre
+  de sites lus ; sans réponse, l'écran rejoue une fois la même clé, puis prévient le joueur avant
+  d'abandonner la clé (suivis : #176). Les résultats sont annoncés dans des régions vivantes
+  permanentes ; ce qui est récoltable est calculé à l'heure du serveur.
+- **Économie d'Olympe** (5.5, ticket #76 ; panier et cible à confirmer par un humain) : la masse
+  monétaire compte tous les comptes non système, trésor de la cité compris ; robinets et puits sont des
+  nets par jour de jeu ; la lecture est un instantané unique, à l'heure de la base. L'indice pondère les
+  prix par les volumes, en fractions exactes ; un bien du panier sans échange rend la mesure inconnue,
+  jamais estimée. Panier initial : blé, pain, poisson, sel, huile, vin (97 % de la dépense de référence).
+- **Heure du serveur dans le client** (#173, #182) : lue dans l'en-tête `Date`, à la seconde près ;
+  l'horloge du navigateur est gardée quand l'en-tête lui donne raison. Une première version la
+  corrigeait toujours d'une demi-seconde et a rendu `main` rouge un moment (cycles à la
+  seconde près dans les tests de bout en bout) : réparé par #182.
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.
 - **Limitation de débit tenue en base**, partagée entre les répliques de l'API.
 - **Demandes de fusion de plus de 400 lignes** : plusieurs ont dépassé la limite du `CLAUDE.md` jusqu'au
-  ticket #69, presque toujours par leurs tests d'intégration. Depuis le ticket #70, toutes sont restées
-  sous 400 lignes modifiées, en découpant chaque ticket en tranches (six à onze par ticket à ce jour, #72 et
-  #77 n'étant pas terminés).
+  ticket #69, presque toujours par leurs tests d'intégration. Depuis, deux seulement : #141 (481 lignes)
+  et #160 (468), acceptées en relecture ; les autres tickets sont découpés en tranches.
+- **Répartition entre modèles** (#143) : le code des tickets `sensible` est écrit par le sous-agent
+  `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
+  distincte. Les commits des sous-agents portent leur propre ligne `Co-Authored-By`.
 
 ## Points en suspens
 
@@ -164,22 +205,16 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   quand les tickets seront fermés ; il demande des joueurs réels.
 - **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les
   supprimer. À nettoyer à la main.
-- **Quatre demandes de fusion `sensible` ouvertes, marquées `needs-human`** : #140 et #142 (ticket #72),
-  #139 et #141 (ticket #77). La règle « Répartition entre modèles » du `CLAUDE.md` (#143) exige une
-  relecture par le sous-agent `relecteur-sensible`, absent de la session qui les a écrites. Leur état
-  est dans leur dernier commentaire. #140 met l'entretien en jeu : à fusionner juste avant #142 (son
-  écran), jamais seule. Aucune ne porte `Closes #72` : le ticket sera à fermer après ces deux fusions.
-- **Ticket #77, travail restant** : la branche `claude/77-12-procedure-acces` porte un brouillon non relu
-  de la procédure écrite (premier enrôlement, appareil perdu, retrait d'accès) ; restent les paramètres
-  par formulaire, les retouches de l'écran Paramètres et la clôture du ticket.
+- **Ticket #77** : restent l'ajout et le retrait d'un bien par le formulaire, puis les formulaires des
+  recettes et des classes (listes imbriquées). Le schéma ne plafonne pas le prix de référence d'un bien.
+- **Indice des prix** (#181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
+  l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
 
 Défauts connus, déjà en tickets :
 
 - **#97** : une recette retirée de la configuration alors qu'un site l'utilise fait échouer la récolte de
   ce site en erreur interne.
-- **#98** : accessibilité de la carte des sites (focus, annonces), rejeu d'acquisition, stock par cité,
-  heure du serveur ; un test de bout en bout de l'agora a échoué deux fois sans cause établie.
 - **#100** : la base ne relie pas le montant d'une écriture à l'échange qu'elle règle, ni ne contrôle la
   destination d'un débit de séquestre ; seul le code des commandes le garantit aujourd'hui.
 - **#123** : changer la durée de tick en configuration bloque les ticks du monde (plus de demande des
@@ -187,19 +222,32 @@ Défauts connus, déjà en tickets :
   et la clôture ne calculent pas non plus l'instant de clôture de la même façon.
 - **#130** : la base n'empêche pas d'antidater une activation de configuration ; une programmation ou une
   annulation validée à cheval sur l'échéance n'est écartée que par une marge, pas par une garantie.
+- **#155** : la lecture des flux de trésorerie (`my_cash_flows`) prend environ 950 ms sous règles par
+  ligne, à cause de la compilation à la volée.
+- **#158** : les migrations 09, 19 et 21 ne sont pas rejouables, contrairement à la règle 9 du
+  `CLAUDE.md` ; à corriger, avec le bornage de `seasonDays` et le refus d'un fuseau inconnu de la base.
+- **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (trois tranches de #161 fusionnées, dont #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
+  Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
+  étroits de double paiement et le `try/finally` des commandes de la carte des sites.
+- **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
+  traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
 - **#136** : une session de base fermée en cours de commande (redémarrage, bascule) arrête l'API et le
   moteur au lieu de faire échouer la seule commande en cours. À traiter avant toute préproduction.
 
 Limites assumées pour l'instant :
 
-- Une seule cité, pas de transport : tout stock est dans la cité de la maison.
-- Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement.
+- Une seule cité, pas de transport : tout stock est dans la cité de la maison (l'affichage par cité de
+  l'entrepôt est prêt, sans être encore atteignable).
+- Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
+  des sites relit ses sites et l'heure au retour sur l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
   décalée fausse ce choix, et la fenêtre annoncée se terminait au calcul, pas à l'instant de lecture.
-- La fiche d'un site calcule « à récolter » avec l'horloge du navigateur ; l'API reste seule à décider.
-- Une base déjà initialisée ne taxe pas tant qu'une version de configuration qui porte cette section n'a
-  pas été publiée dans Olympe, programmée par un second compte et activée à une clôture ; il en ira de
-  même pour l'entretien une fois #140 fusionnée.
+- La fiche d'un site estime « à récolter » à l'heure du serveur (en-tête `Date`, à la seconde près) ;
+  l'API reste seule à décider.
+- Une base déjà initialisée ne taxe pas, ne prélève aucun entretien, garde sa population constante et a
+  un indice des prix inconnu tant qu'une version de configuration qui porte `marketTax`,
+  `sites.upkeep`, `populationDynamics` et `priceIndex` n'a pas été publiée dans Olympe, programmée par un
+  second compte et activée à une clôture. « En jeu » vaut pour une base neuve.
 - Aucun usage d'IA en jeu à ce stade.
