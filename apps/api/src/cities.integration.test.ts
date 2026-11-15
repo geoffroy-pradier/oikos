@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { GameConfig, LoadedConfig } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
@@ -53,6 +53,10 @@ beforeAll(async () => {
     );
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
+// Chaque test part de la configuration de test, même si le précédent a échoué sur une variante.
+beforeEach(() => {
+  active = TEST_CONFIG;
+});
 
 interface Reply {
   status: number;
@@ -148,7 +152,6 @@ async function backdate(siteId: string, ms: number, halted = false) {
 
 describe('quatre cités : terroir et recette de départ (6.1)', () => {
   it('fonde une maison dans chacune des quatre cités, avec la recette de départ de sa cité', async () => {
-    active = TEST_CONFIG;
     const founded = [];
     for (const slug of SLUGS) {
       const player = await newPlayer(slug);
@@ -174,11 +177,9 @@ describe('quatre cités : terroir et recette de départ (6.1)', () => {
     expect((await stateOf(player)).sites.map((site) => site.recipe_id)).toEqual([
       config.starting.siteRecipeId,
     ]);
-    active = TEST_CONFIG;
   });
 
   it('refuse une acquisition hors terroir sans rien prélever, même rejouée ; admet terroir et atelier', async () => {
-    active = TEST_CONFIG;
     const player = await newPlayer('ampelos');
     const before = await stateOf(player);
     const key = randomUUID();
@@ -214,21 +215,30 @@ describe('quatre cités : terroir et recette de départ (6.1)', () => {
     ]);
   });
 
-  it('refuse un changement de recette hors terroir ; le site garde sa recette et son cycle', async () => {
-    active = TEST_CONFIG;
+  it('refuse un changement de recette hors terroir, même rejoué ; le site garde sa recette et son cycle', async () => {
     const ampelos = await newPlayer('ampelos');
     const before = await stateOf(ampelos);
     // Verger : les olives sont du même type que le raisin, mais pas du terroir d'Ampelos.
-    expect(
-      await send(ampelos.user, 'site.setRecipe', {
-        siteId: ampelos.siteId,
-        recipeId: 'grow_olives',
-      }),
-    ).toMatchObject({
+    const olives = { siteId: ampelos.siteId, recipeId: 'grow_olives' };
+    const key = randomUUID();
+    const refused = await send(ampelos.user, 'site.setRecipe', olives, key);
+    expect(refused).toMatchObject({
       status: 409,
-      body: { error: { code: 'RECIPE_NOT_IN_TERROIR' } },
+      body: { ok: false, error: { code: 'RECIPE_NOT_IN_TERROIR' } },
+      replayed: 'false',
     });
     expect(await stateOf(ampelos)).toEqual(before);
+    // Même clé, même après une version qui admet les olives à Ampelos : le refus est rejoué tel quel.
+    active = variant({
+      cities: withCity('ampelos', (city) => ({
+        terroir: [...(city.terroir ?? []), 'grow_olives'],
+      })),
+    });
+    const replay = await send(ampelos.user, 'site.setRecipe', olives, key);
+    expect([replay.status, replay.replayed, replay.body]).toEqual([409, 'true', refused.body]);
+    expect(await stateOf(ampelos)).toEqual(before);
+    // Une clé neuve est une nouvelle demande, jugée sous la version en vigueur.
+    expect(await send(ampelos.user, 'site.setRecipe', olives)).toMatchObject({ status: 200 });
     // Pêcherie de Halos : le sel est de son terroir.
     const halos = await newPlayer('halos');
     expect(
@@ -266,7 +276,6 @@ describe('quatre cités : terroir et recette de départ (6.1)', () => {
   });
 
   it('un site sans recette, à l’arrêt, n’est pas relancé pour une recette hors terroir', async () => {
-    active = TEST_CONFIG;
     const player = await newPlayer('ampelos');
     await backdate(player.siteId, cycleMs('grow_grapes'), true);
     // La recette du raisin est retirée (renommée) : le site n'a plus de type, il peut tout adopter…
@@ -299,6 +308,5 @@ describe('quatre cités : terroir et recette de départ (6.1)', () => {
       'SiteRecipeChanged',
       'SiteRestarted',
     ]);
-    active = TEST_CONFIG;
   });
 });
