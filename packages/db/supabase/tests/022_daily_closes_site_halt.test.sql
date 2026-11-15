@@ -1,5 +1,5 @@
 begin;
-select plan(51);
+select plan(52);
 
 -- Jeu d'essai : une version de configuration, un second monde, la maison d'Alice et son champ, vieilli
 -- d'un jour (garde levée le temps de le poser) pour que « maintenant » diffère du début de son cycle.
@@ -43,6 +43,7 @@ select throws_like($$select pg_temp.close(20773, world => game.uuid_v7())$$, '%"
 select throws_ok($$update game.daily_closes set summary = '{"x": 1}'$$, '23001', 'game.daily_closes is append-only', 'clôture non modifiable');
 select throws_ok($$delete from game.daily_closes$$, '23001', 'game.daily_closes is append-only', 'clôture non supprimable');
 -- La population des PNJ référence les clôtures (migration 34) : sans `cascade`, Postgres refuse avant la garde.
+select throws_ok($$truncate game.daily_closes$$, '0A000', null, 'table des clôtures non vidable');
 select throws_ok($$truncate game.daily_closes cascade$$, '23001', 'game.daily_closes is append-only', 'table des clôtures non vidable, même en cascade');
 
 -- Accès : le service lit et insère, sans dater lui-même la clôture ; les clients n'ont rien.

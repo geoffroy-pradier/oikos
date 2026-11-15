@@ -15,14 +15,21 @@ create table if not exists game.npc_population (
   primary key (city_id, class_id),
   constraint npc_population_city_same_world foreign key (city_id, world_id) references game.cities (id, world_id),
   constraint npc_population_closed_together check ((closed_day is null) = (coverage_bps is null)),
-  -- Une population n'évolue que dans la transaction d'une clôture jouée : la ligne `daily_closes` du
-  -- jour est écrite à la fin de la clôture, la référence est donc vérifiée à la validation.
+  -- Le jour retenu est celui d'une clôture enregistrée. La ligne `daily_closes` du jour est écrite à
+  -- la fin de la clôture, après l'évolution : la référence n'est donc vérifiée qu'à la validation.
+  -- Seule, elle accepterait n'importe quelle clôture déjà enregistrée : la garde ci-dessous les refuse.
   constraint npc_population_played_close foreign key (world_id, closed_day)
     references game.daily_closes (world_id, game_day) deferrable initially deferred
 );
 
--- Au plus une évolution par jour de jeu, jamais en arrière : même si une clôture était rejouée par
--- erreur, la base refuserait la seconde. Toute modification doit avancer le jour de clôture.
+-- Une population n'évolue que dans la transaction qui enregistre la clôture de son jour, une fois :
+-- 1. toute modification avance le jour de clôture de la ligne (ni deux fois le même jour, ni en arrière) ;
+-- 2. à cet instant, aucune clôture de ce jour ou d'un jour postérieur n'est encore enregistrée pour le
+--    monde : la ligne `daily_closes` du jour doit donc apparaître entre la modification et la validation
+--    (référence différée ci-dessus), c'est-à-dire dans cette même transaction, qui l'écrit en dernier.
+-- La garde prend d'abord le verrou des clôtures du monde, celui du moteur (`close:<monde>`, déjà tenu
+-- par une clôture en cours) : sans lui, une clôture validée par une autre transaction entre la
+-- modification et la validation satisferait la référence à la place de celle-ci.
 create or replace function game.guard_npc_population() returns trigger
 language plpgsql
 set search_path = ''
@@ -30,6 +37,10 @@ as $$
 begin
   if new.closed_day is null or new.closed_day <= coalesce(old.closed_day, -1) then
     raise exception 'a population moves once per game day, forward' using errcode = 'restrict_violation';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('close:' || new.world_id::text, 0));
+  if exists (select 1 from game.daily_closes c where c.world_id = new.world_id and c.game_day >= new.closed_day) then
+    raise exception 'a population moves before its close is recorded' using errcode = 'restrict_violation';
   end if;
   return new;
 end;
