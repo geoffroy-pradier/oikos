@@ -141,10 +141,6 @@ export interface StockLine {
 }
 
 /**
- * Stock libre d'un bien dans une cité : ce que des ventes en attente ont réservé n'est pas consommé
- * par un atelier, et un site ne puise que dans le stock de sa propre cité.
- */
-/**
  * Lignes de stock regroupées par cité : celle de la maison d'abord, puis les autres dans l'ordre où
  * elles paraissent. L'ordre des lignes est gardé dans chaque cité.
  */
@@ -153,7 +149,11 @@ export function stockByCity<T extends { city_id: string }>(
   homeCityId: string,
 ): { cityId: string; lines: T[] }[] {
   const groups = new Map<string, T[]>();
-  for (const line of lines) groups.set(line.city_id, [...(groups.get(line.city_id) ?? []), line]);
+  for (const line of lines) {
+    const group = groups.get(line.city_id);
+    if (group) group.push(line);
+    else groups.set(line.city_id, [line]);
+  }
   const home = groups.get(homeCityId);
   const others = [...groups].filter(([cityId]) => cityId !== homeCityId);
   return [
@@ -162,6 +162,10 @@ export function stockByCity<T extends { city_id: string }>(
   ];
 }
 
+/**
+ * Stock libre d'un bien dans une cité : ce que des ventes en attente ont réservé n'est pas consommé
+ * par un atelier, et un site ne puise que dans le stock de sa propre cité.
+ */
 export function freeStockIn(stock: readonly StockLine[], cityId: string, goodId: string): number {
   const line = stock.find(
     (candidate) => candidate.city_id === cityId && candidate.good_id === goodId,
