@@ -10,6 +10,18 @@
     "minShareBps": 5000,
     "maxShareBps": 20000
   },
+  "priceIndex": {
+    "windowDays": 30,
+    "inflationTargetBps": { "min": 0, "max": 300 },
+    "basket": [
+      { "goodId": "wheat", "quantity": 174 },
+      { "goodId": "bread", "quantity": 216 },
+      { "goodId": "fish", "quantity": 72 },
+      { "goodId": "salt", "quantity": 23 },
+      { "goodId": "olive_oil", "quantity": 25 },
+      { "goodId": "wine", "quantity": 24 }
+    ]
+  },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
   "sites": {
     "limitByHeadquartersLevel": [4],

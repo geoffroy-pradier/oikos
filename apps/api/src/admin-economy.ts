@@ -1,21 +1,34 @@
+import type { GameConfig } from '@oikos/config';
 import type { AdminEconomy } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
-import { dailyCloseAt, gameDayAt, type DayClock } from '@oikos/sim';
+import {
+  basketCost,
+  costRatioBps,
+  dailyCloseAt,
+  gameDayAt,
+  inflationStatus,
+  type Traded,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 
+const DAY_MS = 86_400_000;
 type Balance = { world_id: string; slug: string; kind: string; key: string | null; n: string };
+type Candle = { world_id: string; good_id: string; current: boolean; paid: string; units: string };
 
 /**
  * Tableau de bord économique (docs/specs/05-economie.md, 5.5) : masse monétaire, robinets et puits.
  * Lecture seule, dans un seul instantané de la base : la masse, les cumuls et les mouvements par jour
  * se recoupent donc toujours. `windowDays` : nombre de jours de jeu détaillés, jour en cours compris.
+ * L'indice des prix suit le panier, la fenêtre et la cible de la configuration (`priceIndex`).
  */
 export async function readEconomy(
   db: Db,
-  clock: DayClock,
+  config: Readonly<GameConfig>,
   windowDays: number,
 ): Promise<AdminEconomy> {
-  const [today, accounts, flows] = await db
+  const { clock, priceIndex } = config;
+  const goodIds = priceIndex.basket.map((entry) => entry.goodId);
+  const [today, accounts, flows, candles] = await db
     .transaction()
     .setIsolationLevel('repeatable read')
     .setAccessMode('read only')
@@ -45,8 +58,47 @@ export async function readEconomy(
         where a.kind = 'system' and e.created_at >= ${dayStarts[0]} and e.created_at < ${dayStarts.at(-1)}
         group by a.world_id, a.system_key, bucket having sum(l.amount) <> 0
         order by bucket`.execute(trx);
-      return [today, accounts, flows] as const;
+      // Fenêtres de prix : les `priceIndex.windowDays` × 24 heures qui finissent à l'horloge de la base, et
+      // celles d'avant. Un chandelier de la série en cours compte en entier dans la fenêtre où il commence.
+      const [previousFrom, currentFrom] = [2, 1].map(
+        (windows) => new Date(now.getTime() - windows * priceIndex.windowDays * DAY_MS),
+      );
+      const candles = await sql<Candle>`
+        select world_id, good_id, period_start >= ${currentFrom} as current,
+               sum(turnover)::text as paid, sum(volume)::text as units
+        from game.price_candles
+        where period_seconds = ${config.priceHistory.candleMinutes * 60} and good_id = any(${goodIds}::text[])
+          and period_start >= ${previousFrom} and period_start < ${now}
+        group by world_id, good_id, current`.execute(trx);
+      return [today, accounts, flows, candles] as const;
     });
+  const listed = config.goods.map((good) => [good.id, BigInt(good.referencePriceOboles)] as const);
+  const reference = basketCost(
+    priceIndex.basket,
+    new Map(listed.map(([id, turnover]) => [id, { turnover, volume: 1n }])),
+  );
+  /** Indice et inflation d'un monde : coûts exacts du panier sur les deux fenêtres, arrondis à la fin. */
+  const indexOf = (worldId: string): AdminEconomy['worlds'][number]['priceIndex'] => {
+    const traded = (current: boolean) =>
+      new Map<string, Traded>(
+        candles.rows
+          .filter((candle) => candle.world_id === worldId && candle.current === current)
+          .map((c) => [c.good_id, { turnover: BigInt(c.paid), volume: BigInt(c.units) }]),
+      );
+    const [current, previous] = [traded(true), traded(false)];
+    const cost = basketCost(priceIndex.basket, current);
+    const before = basketCost(priceIndex.basket, previous);
+    // Inflation : rapport exact des deux coûts, pas des deux indices déjà arrondis.
+    const ratio = costRatioBps(cost, before);
+    const inflationBps = ratio === null ? null : ratio - 10_000;
+    return {
+      currentBps: costRatioBps(cost, reference),
+      previousBps: costRatioBps(before, reference),
+      inflationBps,
+      status: inflationStatus(inflationBps, priceIndex.inflationTargetBps),
+      unpricedGoods: goodIds.filter((id) => !current.has(id) || !previous.has(id)),
+    };
+  };
   // Monnaie créée par un robinet (compte débiteur) ou détruite par un puits (compte créditeur), en net.
   const moved = (key: string, sum: string) =>
     key.startsWith('faucet_') ? 0 - Number(sum) : Number(sum);
@@ -57,6 +109,7 @@ export async function readEconomy(
       slug,
       moneySupply: { total: 0, houses: 0, escrow: 0, cityTreasuries: 0, other: 0 },
       systemAccounts: [],
+      priceIndex: indexOf(worldId),
     };
     worlds.set(worldId, world);
     if (kind === 'system' && key) {
@@ -81,5 +134,6 @@ export async function readEconomy(
       world.moneySupply.total += Number(n);
     }
   }
-  return { windowDays, worlds: [...worlds.values()] };
+  const { windowDays: priceWindowDays, inflationTargetBps } = priceIndex;
+  return { windowDays, priceWindowDays, inflationTargetBps, worlds: [...worlds.values()] };
 }
