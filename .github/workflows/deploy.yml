@@ -127,9 +127,10 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Le script est copié puis exécuté depuis un fichier : lu sur l'entrée standard, il serait tronqué
-      # par la première commande qui la consomme. Il applique les migrations avant de basculer les
-      # conteneurs, contrôle la santé, et revient à la version précédente en cas d'échec.
+      # Le script est copié, avec celui des migrations, puis exécuté depuis un fichier : lu sur l'entrée
+      # standard, il serait tronqué par la première commande qui la consomme. Il applique les migrations
+      # nouvelles avant de basculer les conteneurs, contrôle la santé, et revient à la version précédente
+      # en cas d'échec.
       - name: Deploy
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -138,5 +139,6 @@ jobs:
         run: |
           remote="$DEPLOY_USER@$DEPLOY_HOST"
           ssh_opts=(-i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes)
-          scp "${ssh_opts[@]}" infra/deploy.sh "$remote:/tmp/oikos-deploy-$VERSION.sh"
-          ssh "${ssh_opts[@]}" "$remote" "bash /tmp/oikos-deploy-$VERSION.sh $VERSION; code=\$?; rm -f /tmp/oikos-deploy-$VERSION.sh; exit \$code"
+          dir="$(ssh "${ssh_opts[@]}" "$remote" mktemp -d)"
+          scp "${ssh_opts[@]}" infra/deploy.sh infra/apply-migrations.sh "$remote:$dir/"
+          ssh "${ssh_opts[@]}" "$remote" "bash $dir/deploy.sh $VERSION; code=\$?; rm -rf $dir; exit \$code"

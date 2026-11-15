@@ -64,17 +64,31 @@ jobs:
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm db:reset && pnpm test:db
 
-      # Rejeu de toutes les migrations sur la base migrée, comme `infra/deploy.sh` à chaque déploiement :
-      # chacune passe, et le schéma en sort inchangé (CLAUDE.md, règle 9).
+      # Filet de la règle 9 : `infra/deploy.sh` n'applique que les migrations nouvelles, mais toute la suite
+      # doit encore se rejouer sur la base migrée sans changer le schéma.
       - name: Replay migrations
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         env:
           REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:replay
 
+      # Application des migrations au déploiement (`infra/apply-migrations.sh`), dans des bases jetables.
+      - name: Deploy migrations
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        env:
+          MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: pnpm test:db:deploy
+
       - name: Integration tests
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm test:integration
+
+      # Même rejeu, sur la base que les tests d'intégration ont remplie de données.
+      - name: Replay migrations on data
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        env:
+          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: pnpm test:db:replay
 
       - name: End-to-end tests
         if: steps.ws.outputs.present == 'true' && hashFiles('apps/web/playwright.config.ts') != ''
