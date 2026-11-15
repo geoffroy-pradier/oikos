@@ -3,6 +3,7 @@ import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
 import { readEconomy } from './admin-economy';
+import { readWorldUsage, retiredUsage, versionGoodIds } from './config-usage';
 import type { Identity, TokenVerifier } from './auth';
 import type { RateLimiter } from './rate-limit';
 import { DEFAULT_SETTINGS, type ApiSettings, type ConfigSource } from './registry';
@@ -240,6 +241,9 @@ export function registerAdminReads(
       .execute();
     const active = await sql<{ id: string | null }>`
       select config.active_version_at(now()) as id`.execute(db);
+    // Ce que chaque version retirerait de ce que le monde porte encore : dit avant la programmation (#191).
+    const usage = await readWorldUsage(db);
+    const goodIds = usage.goods.length > 0 ? await versionGoodIds(db) : new Map<string, string[]>();
     return c.json({
       ok: true,
       data: {
@@ -250,6 +254,7 @@ export function registerAdminReads(
           note: version.note,
           createdBy: version.created_by,
           createdAt: version.created_at.toISOString(),
+          retiredInUse: retiredUsage(usage, { goods: goodIds.get(version.id) ?? [] }),
         })),
         activations: activations.map((activation) => ({
           id: activation.id,

@@ -62,7 +62,32 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'CONFIG_CLOCK_CHANGED',
   /** La prochaine clôture tombe dans moins d'une minute, ou elle est passée avant la validation. */
   'CONFIG_ACTIVATION_TOO_LATE',
+  /**
+   * La version retire un bien encore détenu en stock ou porté par un ordre ouvert (#191) : `fields`
+   * nomme chaque bien (`goods.wheat`).
+   */
+  'CONFIG_GOOD_IN_USE',
 ] as const;
+
+/**
+ * Ce que l'état du monde, tous mondes confondus, porte encore d'un bien (#191) : maisons qui en
+ * détiennent ou qui ont un ordre ouvert dessus, unités en stock (réservées comprises), ordres ouverts
+ * des deux côtés, oboles sous séquestre pour les achats ouverts.
+ */
+export interface GoodUsage {
+  goodId: string;
+  houses: number;
+  quantity: number;
+  openOrders: number;
+  escrowOboles: number;
+}
+/**
+ * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore.
+ * Étendu par #200 aux recettes et aux classes de PNJ.
+ */
+export interface RetiredUsage {
+  goods: GoodUsage[];
+}
 
 /**
  * Commande `admin.cancelActivation` : annule une programmation à venir, et avec elle celles encore en
