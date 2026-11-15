@@ -75,6 +75,30 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
   await page.getByLabel('Language').selectOption('fr');
 
+  // Économie, au clavier : lisible à 360 px, même avec une clé de compte système inconnue et longue
+  // (ajoutée à la réponse de l'API, au premier monde).
+  const economy = '**/api/admin/economy';
+  const unknownKey = `sink_${'inconnu'.repeat(12)}`;
+  await page.route(economy, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { data: { worlds: { systemAccounts: unknown[] }[] } };
+    const gameDay = Math.floor(Date.now() / 86_400_000);
+    const long = { key: unknownKey, kind: 'sink', total: 1, days: [{ gameDay, amount: 1 }] };
+    body.data.worlds[0]?.systemAccounts.push(long);
+    await route.fulfill({ response, json: body });
+  });
+  await modules.getByRole('button', { name: 'Économie' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Économie', level: 1 })).toBeVisible();
+  await expect(modules.getByRole('button', { name: 'Économie' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.getByRole('table', { name: /^Masse monétaire/ }).first()).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: `${unknownKey} (puits)` })).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.unroute(economy);
+
   // Accès : le compte s'y lit avec son rôle ; l'API refuse un identifiant inconnu ; rien ne déborde à 360 px.
   await modules.getByRole('button', { name: 'Accès' }).click();
   await expect(page.getByRole('heading', { name: 'Accès', level: 1 })).toBeVisible();
