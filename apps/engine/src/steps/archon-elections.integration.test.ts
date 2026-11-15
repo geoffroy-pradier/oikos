@@ -10,6 +10,7 @@ import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeWorld } from '../scheduler';
+import { archonOpening } from './archon-opening';
 import { archonTally } from './archon-tally';
 
 // Élection de l'archonte à la clôture, contre Supabase local. Chaque test a son monde.
@@ -27,7 +28,7 @@ const config = { at: async () => ({ ...loaded, config: politics }) };
 const TODAY = gameDayAt(new Date(), clock);
 const at = (day: number) => dailyCloseAt(day, clock);
 const close = (worldId: string) =>
-  closeWorld(db, { worldId, now: at(TODAY), config, steps: [archonTally] });
+  closeWorld(db, { worldId, now: at(TODAY), config, steps: [archonTally, archonOpening] });
 
 beforeAll(async () => {
   await ensureInitialConfig(db, INITIAL_CONFIG);
@@ -116,6 +117,7 @@ const electionsOf = (cityId: string) =>
       calendar: row.calendar.map((instant) => new Date(instant).getTime()),
     })),
   );
+const calendar = (...days: number[]) => days.map((day) => at(day).getTime());
 const officesOf = (cityId: string) =>
   one(sql<{
     house_id: string;
@@ -138,6 +140,21 @@ const summaryOf = async (worldId: string) =>
   )[0]?.summary;
 
 describe('élection de l’archonte à la clôture quotidienne', () => {
+  it('monde neuf : chaque cité ouvre une élection, dépôt maintenant, vote 4 jours plus tard, mandat de 28 jours', async () => {
+    const world = await newWorld(2);
+    // Trois moteurs à la fois : une seule clôture, une seule élection par cité.
+    expect((await Promise.all([1, 2, 3].map(() => close(world.worldId)))).flat()).toEqual([TODAY]);
+    const expected = {
+      calendar: calendar(TODAY, TODAY + 4, TODAY + 7, TODAY + 35),
+      tallied: false,
+    };
+    for (const cityId of world.cityIds) expect(await electionsOf(cityId)).toEqual([expected]);
+    expect(await summaryOf(world.worldId)).toEqual({
+      archonTally: { tallied: 0, elected: 0, vacant: 0 },
+      archonOpening: { opened: 2 },
+    });
+  });
+
   it('dépouillement : la candidature qui a le plus de bulletins est élue pour le mandat de son élection', async () => {
     const world = await newWorld(1, 4);
     const [a, b, c, d] = world.houseIds as [string, string, string, string];
@@ -167,19 +184,26 @@ describe('élection de l’archonte à la clôture quotidienne', () => {
         termEndsAt: at(TODAY + 28).toISOString(),
       },
     ]);
+    // Le mandat suivant commence dans 28 jours : son élection ne s'ouvre pas encore.
     expect(await summaryOf(world.worldId)).toEqual({
       archonTally: { tallied: 1, elected: 1, vacant: 0 },
+      archonOpening: { opened: 0 },
     });
     expect((await electionsOf(cityId)).map((row) => row.tallied)).toEqual([true]);
-    // Rejouée hors du registre des clôtures (même jour), l'étape ne dépouille rien de plus.
+    // Rejouées hors du registre des clôtures (même jour), les étapes ne dépouillent ni n'ouvrent rien de plus.
     const context = {
       worldId: world.worldId,
       gameDay: TODAY,
       closeAt: at(TODAY),
       config: politics,
     };
-    const again = await db.transaction().execute((trx) => archonTally.run({ ...context, trx }));
-    expect(again).toEqual({ tallied: 0, elected: 0, vacant: 0 });
+    const again = await db
+      .transaction()
+      .execute(async (trx) => [
+        await archonTally.run({ ...context, trx }),
+        await archonOpening.run({ ...context, trx }),
+      ]);
+    expect(again).toEqual([{ tallied: 0, elected: 0, vacant: 0 }, { opened: 0 }]);
     expect(await officesOf(cityId)).toHaveLength(1);
   });
 
@@ -213,6 +237,113 @@ describe('élection de l’archonte à la clôture quotidienne', () => {
     expect(await electedEvents(cityId)).toEqual([]);
     expect(await summaryOf(world.worldId)).toEqual({
       archonTally: { tallied: 1, elected: 0, vacant: 1 },
+      archonOpening: { opened: 0 },
     });
+  });
+
+  it('l’élection suivante s’ouvre à son calendrier, à la fin du mandat en cours, ou plus tard si son vote a été manqué', async () => {
+    const world = await newWorld(4);
+    const [onTime, early, late, missed] = world.cityIds as [string, string, string, string];
+    // Mandats en cours finissant dans 7, 8, 5 et 2 jours ; le dépôt dure 4 jours et le vote 3.
+    for (const [cityId, end] of [
+      [onTime, 7],
+      [early, 8],
+      [late, 5],
+      [missed, 2],
+    ] as const)
+      await seed(cityId, [TODAY - 30, TODAY - 29, TODAY - 28 + end, TODAY + end], [], [], true);
+    expect(await summaryOf(world.worldId)).toBeUndefined();
+    await close(world.worldId);
+    const opened = async (cityId: string) => (await electionsOf(cityId)).slice(1);
+    expect(await opened(onTime)).toEqual([
+      { calendar: calendar(TODAY, TODAY + 4, TODAY + 7, TODAY + 35), tallied: false },
+    ]);
+    expect(await opened(early)).toEqual([]);
+    // Ouverture manquée (moteur arrêté) : le dépôt est écourté, le vote et le mandat restent à leur date.
+    expect(await opened(late)).toEqual([
+      { calendar: calendar(TODAY, TODAY + 2, TODAY + 5, TODAY + 33), tallied: false },
+    ]);
+    // Vote manqué : l'élection s'ouvre maintenant, au calendrier complet, et la charge est vacante d'ici là.
+    expect(await opened(missed)).toEqual([
+      { calendar: calendar(TODAY, TODAY + 4, TODAY + 7, TODAY + 35), tallied: false },
+    ]);
+  });
+});
+
+describe('dépouillement et bulletins concurrents', () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  /** Une élection dont le vote finit dans une seconde et demie, et la candidature de la première maison. */
+  async function closingSoon() {
+    const world = await newWorld(1, 2);
+    const [a] = world.houseIds as [string, string];
+    const electionId = randomUUID();
+    const candidacyId = randomUUID();
+    await owner.transaction().execute(async (trx) => {
+      await sql`insert into game.elections (id, world_id, city_id, office, candidacy_opens_at, voting_opens_at, voting_closes_at, term_ends_at)
+        values (${electionId}, ${world.worldId}, ${world.cityIds[0]}, 'archon', now() - interval '2 days', now() - interval '1 hour',
+          now() + interval '1.5 seconds', now() + interval '28 days')`.execute(trx);
+      await sql`alter table game.candidacies disable trigger candidacies_guard`.execute(trx);
+      await sql`insert into game.candidacies (id, election_id, house_id, created_at)
+        values (${candidacyId}, ${electionId}, ${a}, now() - interval '1 day')`.execute(trx);
+      await sql`alter table game.candidacies enable trigger candidacies_guard`.execute(trx);
+    });
+    const vote = (trx: typeof db, voter: string) =>
+      sql`insert into game.ballots (election_id, house_id, candidacy_id) values (${electionId}, ${voter}, ${candidacyId})`.execute(
+        trx,
+      );
+    const tally = (trx: typeof db) =>
+      archonTally.run({
+        trx,
+        worldId: world.worldId,
+        gameDay: TODAY,
+        closeAt: new Date(),
+        config: politics,
+      });
+    return { ...world, vote, tally };
+  }
+  const pending = <T>(promise: Promise<T>) => {
+    const state = { settled: false };
+    void promise.then(
+      () => (state.settled = true),
+      () => (state.settled = true),
+    );
+    return state;
+  };
+
+  it('un bulletin déposé avant la fin du vote et validé pendant le dépouillement est attendu et compté', async () => {
+    const world = await closingSoon();
+    const [a, b] = world.houseIds as [string, string];
+    const ballot = await db.startTransaction().execute();
+    await world.vote(ballot, b);
+    await sleep(1_600);
+    const tally = db.transaction().execute((trx) => world.tally(trx));
+    const state = pending(tally);
+    await sleep(300);
+    expect(state.settled).toBe(false);
+    await ballot.commit().execute();
+    expect(await tally).toEqual({ tallied: 1, elected: 1, vacant: 0 });
+    expect(
+      (await electedEvents(world.cityIds[0] ?? '')).map((event) => [
+        event['houseId'],
+        event['votes'],
+      ]),
+    ).toEqual([[a, 1]]);
+  });
+
+  it('un bulletin commencé avant la fin du vote mais qui attend le dépouillement est refusé', async () => {
+    const world = await closingSoon();
+    const [, b] = world.houseIds as [string, string];
+    const ballot = await db.startTransaction().execute();
+    await sql`select now()`.execute(ballot);
+    await sleep(1_600);
+    const tally = await db.startTransaction().execute();
+    expect(await world.tally(tally)).toEqual({ tallied: 1, elected: 1, vacant: 0 });
+    const late = world.vote(ballot, b);
+    const state = pending(late);
+    await sleep(300);
+    expect(state.settled).toBe(false);
+    await tally.commit().execute();
+    await expect(late).rejects.toMatchObject({ constraint: 'ballots_voting_period' });
+    await ballot.rollback().execute();
   });
 });
