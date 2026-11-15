@@ -20,6 +20,7 @@ export const SYSTEM_ACCOUNT_KEYS = [
   'sink_temple_interest',
   'sink_public_works',
   'sink_site_acquisition',
+  'sink_ship_purchase',
 ] as const;
 export type SystemAccountKey = (typeof SYSTEM_ACCOUNT_KEYS)[number];
 
