@@ -175,7 +175,9 @@ it('mesure inconnue : dite telle, sans alerte, avec la fenêtre en cause pour ch
   const unpricedByWindow = { current: ['wheat'], previous: ['wheat', 'bread'] };
   await show({ ...unknown, unpricedGoods: ['wheat', 'bread'], unpricedByWindow });
   expect(figures('dd')).toEqual(['112,12', 'Sans mesure', 'Sans mesure', 'Sans mesure']);
-  expect(screen.getByText(/^Mesure incomplète\. Biens du panier de référence sans échange/));
+  expect(
+    screen.getByText(/^Mesure incomplète\. Biens du panier de référence sans échange/),
+  ).toBeTruthy();
   const goods = () => screen.getAllByRole('listitem').map((item) => text(item));
   expect(goods().slice(0, 2)).toEqual([
     'wheat : 30 derniers jours et 30 jours précédents',
@@ -226,8 +228,43 @@ it('fenêtre partielle : dite à côté de l’indice et dans l’alerte, en fra
   expect(text(document.querySelector('dl.grid')?.nextElementSibling)).toBe(
     "La fenêtre courante ne couvre qu'une partie des 30 jours : l'historique des prix de ce monde commence à l'intérieur.",
   );
+  await i18n.changeLanguage('en');
+  expect(text(document.querySelector('dl.grid')?.nextElementSibling)).toBe(
+    "The current window covers only part of the 30 days: this world's price history starts inside it.",
+  );
+  await i18n.changeLanguage('fr');
   await show();
   expect(screen.queryByText(/ne couvre qu'une partie/)).toBeNull();
+});
+
+it('fenêtre partielle d’un jour : accordée au singulier, en français et en anglais', async () => {
+  const note = () => text(document.querySelector('dl.grid')?.nextElementSibling);
+  const above = world({ inflationBps: 420, status: 'above', partialWindow: 'previous' });
+  await showAll([above], { priceWindowDays: 1 });
+  const previous =
+    "La fenêtre précédente ne couvre qu'une partie de son jour : l'historique des prix de ce monde commence à l'intérieur.";
+  expect(note()).toBe(previous);
+  expect(text(screen.getByRole('alert'))).toBe(
+    `Alerte : inflation de +4,2 % sur 1 jour. Au-dessus de la cible (0 % à 3 %). ${previous}`,
+  );
+  await i18n.changeLanguage('en');
+  const previousEn =
+    "The previous window covers only part of its day: this world's price history starts inside it.";
+  expect(note()).toBe(previousEn);
+  expect(text(screen.getByRole('alert'))).toBe(
+    `Alert: inflation of +4.2% over 1 day. Above target (0% to 3%). ${previousEn}`,
+  );
+  await i18n.changeLanguage('fr');
+  const unknown = { previousBps: null, inflationBps: null, status: 'unknown' } as const;
+  const current = world({ ...unknown, partialWindow: 'current' });
+  await showAll([current], { priceWindowDays: 1 });
+  expect(note()).toBe(
+    "La fenêtre courante ne couvre qu'une partie de son jour : l'historique des prix de ce monde commence à l'intérieur.",
+  );
+  await i18n.changeLanguage('en');
+  expect(note()).toBe(
+    "The current window covers only part of its day: this world's price history starts inside it.",
+  );
 });
 
 it('plusieurs mondes : alertes rappelées en tête de page, légendes propres à chaque monde', async () => {
