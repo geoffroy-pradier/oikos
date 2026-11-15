@@ -240,7 +240,10 @@
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
     "goodsForm": {
-      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Un bien s'y ajoute ou s'y retire.",
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait. Un bien retiré qu'une recette, un panier ou l'indice des prix utilise encore est refusé à l'enregistrement.",
+      "add": "Ajouter un bien",
+      "remove": "Retirer {{name}}",
+      "removed": "{{name}} retiré du texte, pas encore enregistré.",
       "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « goods » est une liste d'objets.",
       "choose": "— choisir —",
       "tiers": {

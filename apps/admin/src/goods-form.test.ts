@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import { expect, it } from 'vitest';
 import * as form from './goods-form';
 
-const { composeGoods, editGood, GOOD_FIELDS, readGoods, shown, typed } = form;
+const { addGood, composeGoods, editGood, GOOD_FIELDS, readGoods, removeGood, shown, typed } = form;
 type Kind = form.GoodField['kind'];
 
 it('les champs et les niveaux du formulaire sont ceux du schéma, dans son ordre', () => {
@@ -91,6 +91,43 @@ it('conservation : une saisie ne change que sa valeur, tout le reste de la confi
       // Rien n'est modifié en place, et relire puis recomposer rend le même texte.
       expect(JSON.stringify(config)).toBe(before);
       expect(composeGoods(JSON.parse(after), readGoods(JSON.parse(after)) ?? [])).toBe(after);
+    }),
+  );
+});
+
+it('ajout : un bien vide en fin de liste, sans valeur inventée ; sans `goods`, la liste est créée en dernier', () => {
+  expect(composeGoods({ a: 1, goods: [{ id: 'wheat' }], b: 2 }, addGood([{ id: 'wheat' }]))).toBe(
+    JSON.stringify({ a: 1, goods: [{ id: 'wheat' }, {}], b: 2 }, null, 2),
+  );
+  expect(composeGoods({ recipes: [] }, addGood(readGoods({ recipes: [] }) ?? []))).toBe(
+    JSON.stringify({ recipes: [], goods: [{}] }, null, 2),
+  );
+  // Le dernier bien retiré : liste vide, que l'API refuse (au moins un bien).
+  expect(composeGoods({ goods: [{ id: 'wheat' }] }, removeGood([{ id: 'wheat' }], 0))).toBe(
+    JSON.stringify({ goods: [] }, null, 2),
+  );
+});
+
+it('conservation : un ajout ou un retrait ne touche que ce bien, le reste du texte est gardé, ordre des clés compris', () => {
+  const json = fc.jsonValue();
+  const source = fc.record({
+    goods: fc.array(fc.dictionary(fc.string(), json)),
+    rest: fc.dictionary(fc.string(), json),
+  });
+  fc.assert(
+    fc.property(source, fc.nat(), fc.boolean(), ({ goods, rest }, pick, adding) => {
+      fc.pre(adding || goods.length > 0);
+      // Comme à l'écran : la configuration est lue d'un texte JSON.
+      const before = JSON.stringify({ ...rest, goods });
+      const config = JSON.parse(before) as { goods: Record<string, unknown>[] };
+      const row = pick % Math.max(config.goods.length, 1);
+      const next = adding ? addGood(config.goods) : removeGood(config.goods, row);
+      const expected = JSON.parse(before) as typeof config;
+      if (adding) expected.goods.push({});
+      else expected.goods.splice(row, 1);
+      expect(composeGoods(config, next)).toBe(JSON.stringify(expected, null, 2));
+      // Rien n'est modifié en place.
+      expect(JSON.stringify(config)).toBe(before);
     }),
   );
 });

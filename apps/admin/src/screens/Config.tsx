@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'r
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
-import { ignoreHeldEnter } from '../keyboard';
+import { ignoreHeldEnter, SHIFT_GUARD_MS } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
@@ -37,8 +37,6 @@ type Notice = {
   refused?: unknown;
 } | null;
 const CONTROL = 'w-full rounded-md border border-border bg-surface px-3';
-/** Après la disparition d'une confirmation, durée pendant laquelle la liste ignore un clic au pointeur. */
-const SHIFT_GUARD_MS = 500;
 
 /**
  * Module Paramètres (15.1, 15.2) : versions de configuration, comparaison avec la version en vigueur,

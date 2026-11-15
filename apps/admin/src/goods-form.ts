@@ -60,3 +60,13 @@ export function editGood(goods: Row[], row: number, field: GoodField, input: str
 export function composeGoods(config: unknown, goods: Row[]): string {
   return JSON.stringify({ ...(isRecord(config) ? config : {}), goods }, null, 2);
 }
+
+/**
+ * Biens après un ajout : un objet vide en fin de liste, sans aucune valeur, pas même un niveau. Le
+ * formulaire n'invente aucun paramètre : l'API refuse ce bien, champ par champ, tant qu'il n'est pas rempli.
+ */
+export const addGood = (goods: Row[]): Row[] => [...goods, {}];
+
+/** Biens après le retrait d'un bien, désigné par son rang : les autres sont gardés, dans leur ordre. */
+export const removeGood = (goods: Row[], row: number): Row[] =>
+  goods.filter((_, index) => index !== row);
