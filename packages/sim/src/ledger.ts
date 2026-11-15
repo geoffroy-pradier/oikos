@@ -24,6 +24,16 @@ export const SYSTEM_ACCOUNT_KEYS = [
 ] as const;
 export type SystemAccountKey = (typeof SYSTEM_ACCOUNT_KEYS)[number];
 
+/**
+ * Natures d'une ligne du grand livre (docs/specs/04-systemes-gestion.md, 4.1) : le marqueur facultatif
+ * `game.ledger_lines.nature`, qui range un débit de la trésorerie dans les comptes de la maison quand une
+ * même écriture en porte plusieurs (entretien et salaires d'un site). Même liste que la contrainte de la
+ * base (`ledger_lines_nature_known`, figée par le test pgTAP 045 ; les deux sont comparées par
+ * `apps/engine/src/ledger-natures.integration.test.ts`).
+ */
+export const LEDGER_LINE_NATURES = ['upkeep', 'wages'] as const;
+export type LedgerLineNature = (typeof LEDGER_LINE_NATURES)[number];
+
 export interface LedgerLine {
   accountId: string;
   amount: number;
