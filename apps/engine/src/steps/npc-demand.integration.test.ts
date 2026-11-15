@@ -3,6 +3,7 @@ import {
   createConfigLoader,
   ensureInitialConfig,
   INITIAL_CONFIG,
+  validateConfig,
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
@@ -693,5 +694,64 @@ describe('demande des PNJ au tick', () => {
       [0, 'filled'],
       [5, 'open'],
     ]);
+  });
+
+  it('la configuration initiale joue la demande dans chacune des quatre cités (#250)', async () => {
+    const validation = validateConfig(INITIAL_CONFIG);
+    if (!validation.ok) throw new Error(validation.errors.join('\n'));
+    const { config } = validation;
+    const kalliste = await newWorld();
+    const others = ['elaia', 'ampelos', 'halos', 'delos'].map((slug) => ({
+      slug,
+      worldId: kalliste.worldId,
+      cityId: randomUUID(),
+    }));
+    for (const { slug, worldId, cityId } of others)
+      await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, 'Agora')`.execute(
+        owner,
+      );
+    // Le même blé au prix de référence dans chaque cité, y compris Délos, absente de la configuration.
+    for (const city of [kalliste, ...others]) await newSeller(city, 100, [[100, 6]]);
+
+    const outcome = await runTick(db, request(kalliste.worldId, config));
+    // Même population et même panier partout : la même demande, 30,45 blés au prix de référence.
+    const wheat = { goodId: 'wheat', units: 30, spent: 180 };
+    expect(outcome.summary).toEqual({
+      npcDemand: {
+        units: 120,
+        spent: 720,
+        markets: ['ampelos', 'elaia', 'halos', 'kalliste'].map((city) => ({ city, ...wheat })),
+      },
+    });
+    // Chaque cité de la configuration a ses classes, à leur population initiale, et sa mesure du jour.
+    const born = await db
+      .selectFrom('game.npc_population as p')
+      .innerJoin('game.cities as c', 'c.id', 'p.city_id')
+      .select(['c.slug', 'p.class_id', 'p.population'])
+      .where('p.world_id', '=', kalliste.worldId)
+      .orderBy('c.slug')
+      .orderBy('p.class_id')
+      .execute();
+    const classes = config.npcClasses.map((npcClass) => npcClass.id).sort();
+    expect([...new Set(born.map((row) => row.slug))]).toEqual([
+      'ampelos',
+      'elaia',
+      'halos',
+      'kalliste',
+    ]);
+    for (const city of config.cities)
+      expect(born.filter((row) => row.slug === city.id)).toEqual(
+        classes.map((classId) => ({
+          slug: city.id,
+          class_id: classId,
+          population: city.population[classId],
+        })),
+      );
+    const measured = await db
+      .selectFrom('game.npc_vital_coverage')
+      .select((eb) => eb.fn.count<string>('city_id').distinct().as('cities'))
+      .where('world_id', '=', kalliste.worldId)
+      .executeTakeFirstOrThrow();
+    expect(Number(measured.cities)).toBe(4);
   });
 });
