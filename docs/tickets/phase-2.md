@@ -64,6 +64,7 @@ Ce ticket ouvre trois cités de plus, sans transport : chacune vit d'abord de sa
 
 Décision (ambiguïté de 6.1) : les quatre cités ont un port, puisque le seul transport de la phase est maritime.
 Décision : un site reste dans la cité de sa maison (4.2) ; le terroir ne fait que restreindre les recettes qu'on peut y lancer.
+Décision : Kallistè, cité fondatrice, garde au départ toutes les matières premières de la phase 1 ; son terroir se resserre par configuration une fois le banc à quatre cités en place (P2-29).
 Label : aucun.
 Le refus d'une recette hors terroir tombe avant tout paiement, sans changer l'écriture d'une acquisition.
 
@@ -74,8 +75,8 @@ Le refus d'une recette hors terroir tombe avant tout paiement, sans changer l'é
 ## Critères d'acceptation
 
 - [ ] Configuration : chaque cité porte son terroir (identifiants des recettes de matière première admises ; les ateliers sont admis partout), son port et son dieu protecteur, validés par le schéma (recette, dieu et population connus).
-- [ ] Valeurs de départ, à ajuster par P2-29 : Kallistè (Déméter : blé, laine, bois, argile), Elaia (Athéna : olives, blé, sel, bois), Ampelos (Dionysos : raisin, poisson, laine, argile), Halos (Poséidon : poisson, sel, argile, bois, laine) ; aucune n'a toutes les matières premières du panier de ses PNJ.
-- [ ] Le banc d'équilibrage de #78 lève la restriction de terroir dans sa propre configuration, pour garder ses bornes jusqu'à P2-29.
+- [ ] Valeurs de départ, à ajuster par P2-29 : Kallistè (Déméter) garde toutes les matières premières de la phase 1, pour que la cité prototype, ses tests de bout en bout et le banc de #78 restent tels quels ; Elaia (Athéna : olives, blé, sel, bois), Ampelos (Dionysos : raisin, poisson, laine, argile), Halos (Poséidon : poisson, sel, argile, bois, laine) ; aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
+- [ ] Restreindre le terroir de Kallistè, pour qu'aucune cité ne soit autosuffisante (6.1), revient à P2-29 : c'est une version de configuration, éprouvée par le banc à quatre cités.
 - [ ] Population de chaque cité en configuration, à l'échelle de la cité prototype (5.5), et demande des PNJ jouée pour les quatre.
 - [ ] `seed.sql` crée les trois cités dans le monde de développement ; leurs noms sont dans les fichiers de traduction `fr` et `en`, par identifiant court.
 - [ ] `site.acquire` et `site.setRecipe` refusent une recette absente du terroir de la cité du site (`RECIPE_NOT_IN_TERROIR`), sans rien prélever ; un site existant hors terroir continue de tourner.
@@ -1043,6 +1044,7 @@ Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 - [ ] Configuration ajustée par une nouvelle version, chaque changement justifié dans la demande de fusion ; aucune constante d'équilibrage dans le code.
 - [ ] Bornes écrites à la main, pas recalculées par le code testé : dans chaque cité, celles de la phase 1 (coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas) ; pour le monde, variation de la masse monétaire de −3 % à +3 % sur les 30 jours mesurés.
 - [ ] Robinets, puits et trésors des cités rapprochés des flux comptés, comme aujourd'hui.
+- [ ] Le terroir de Kallistè se resserre pour qu'aucune cité ne soit autosuffisante (6.1, P2-1), par la même version de configuration ; les tests de bout en bout de la cité prototype suivent.
 - [ ] Spécification 5.5 : calibrage à quatre cités, part de chaque puits, limite connue levée ou redite avec sa nouvelle valeur.
 
 ## Hors périmètre
