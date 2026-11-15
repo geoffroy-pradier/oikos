@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
-import { ADMIN_ROLES, CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
+import {
+  ADMIN_ROLES,
+  CONFIG_EDITOR_ROLES,
+  retiredUsageSchema,
+  type AdminRole,
+} from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
@@ -925,10 +930,12 @@ describe('bien retiré encore détenu ou porté par un ordre ouvert (#191)', () 
       headers: { authorization: `Bearer aal2:${root}` },
     });
     const listing = (await res.json()) as {
-      data: { versions: { id: string; retiredInUse: { goods: { goodId: string }[] } }[] };
+      data: { versions: { id: string; retiredInUse: unknown }[] };
     };
     const version = listing.data.versions.find((entry) => entry.id === versionId);
-    return version?.retiredInUse.goods.filter((good) => good.goodId === RELIC);
+    return retiredUsageSchema
+      .parse(version?.retiredInUse)
+      .goods.filter((good) => good.goodId === RELIC);
   };
   const activations = (versionId: string) =>
     db.selectFrom('config.activations').select('id').where('version_id', '=', versionId).execute();
@@ -1037,5 +1044,131 @@ describe('bien retiré encore détenu ou porté par un ordre ouvert (#191)', () 
     ]);
     await clearRelic();
     expect((await send(root, 'admin.scheduleConfig', { versionId: without })).status).toBe(200);
+  });
+});
+
+describe('recette ou classe retirée encore en usage (#200)', () => {
+  // Recette, classe et bien propres à cette exécution, ôtés après les tests : le contrôle porte sur
+  // tous les mondes, et la base partagée ne doit rien en garder.
+  const tag = randomUUID().replace(/-/g, '').slice(0, 10);
+  const [RECIPE, CLASS, GOOD] = [`rite_${tag}`, `cls_${tag}`, `token_${tag}`];
+  const [recipe] = SAME_CLOCK.recipes;
+  const [npcClass] = SAME_CLOCK.npcClasses;
+  const WITH_RECIPE = {
+    ...SAME_CLOCK,
+    recipes: [...SAME_CLOCK.recipes, { ...recipe, id: RECIPE }],
+  };
+  const WITH_BOTH = {
+    ...WITH_RECIPE,
+    npcClasses: [...SAME_CLOCK.npcClasses, { ...npcClass, id: CLASS }],
+    cities: SAME_CLOCK.cities.map((city) => ({
+      ...city,
+      population: { ...city.population, [CLASS]: 10 },
+    })),
+  };
+  const WORLD = randomUUID();
+  const CITY = randomUUID();
+  const OTHER_CITY = randomUUID();
+  /** Stock du bien, entré ou rendu à un puits par le journal des stocks, qui ne s'efface pas. */
+  const moveToken = (inventoryId: string, quantity: number, back = false) =>
+    db
+      .insertInto('game.stock_ledger')
+      .values({
+        world_id: WORLD,
+        good_id: GOOD,
+        quantity,
+        kind: 'test.token',
+        ...(back
+          ? { from_inventory_id: inventoryId, to_system: 'consumption' }
+          : { from_system: 'production', to_inventory_id: inventoryId }),
+      })
+      .execute();
+  const house = async () => {
+    const created = await send(
+      await newUser(),
+      'house.create',
+      {
+        cityId: CITY,
+        name: `Maison ${randomUUID()
+          .replace(/[^a-f]/g, '')
+          .slice(0, 8)}`,
+        blazon: { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' },
+      },
+      { aal2: false },
+    );
+    return (created.body.data as unknown as { houseId: string }).houseId;
+  };
+  const site = (houseId: string) =>
+    sql`insert into game.sites (world_id, house_id, city_id, recipe_id) values (${WORLD}, ${houseId}, ${CITY}, ${RECIPE})`.execute(
+      owner,
+    );
+  // Deux maisons, trois sites sur la recette ; la classe a un état dans les deux cités, l'un vide.
+  beforeAll(async () => {
+    await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`u-${WORLD.slice(0, 12)}`}, 'Usages')`.execute(
+      owner,
+    );
+    for (const city of [CITY, OTHER_CITY])
+      await sql`insert into game.cities (id, world_id, slug, name) values (${city}, ${WORLD}, ${`c-${city.slice(0, 8)}`}, 'Cité')`.execute(
+        owner,
+      );
+    const [first, second] = [await house(), await house()];
+    for (const houseId of [first, first, second]) await site(houseId);
+    await owner
+      .insertInto('game.npc_population')
+      .values([
+        { world_id: WORLD, city_id: CITY, class_id: CLASS, population: 25 },
+        { world_id: WORLD, city_id: OTHER_CITY, class_id: CLASS, population: 0 },
+      ])
+      .execute();
+  });
+  afterAll(async () => {
+    await sql`delete from game.sites where recipe_id = ${RECIPE}`.execute(owner);
+    await sql`delete from game.npc_population where class_id = ${CLASS}`.execute(owner);
+    const held = await db
+      .selectFrom('game.inventories')
+      .select(['id', 'quantity'])
+      .where('good_id', '=', GOOD)
+      .where('quantity', '>', '0')
+      .execute();
+    for (const stock of held) await moveToken(stock.id, Number(stock.quantity), true);
+  });
+  const publish = async (config: unknown) =>
+    (await send(designer, 'admin.publishConfig', { config })).body.data?.versionId ?? '';
+  /** Ce qu'Olympe montre de chaque version avant sa programmation, réduit aux éléments de ce test. */
+  const retiredInUse = async () => {
+    const res = await app.request('/api/admin/config/versions', {
+      headers: { authorization: `Bearer aal2:${root}` },
+    });
+    const { data } = (await res.json()) as {
+      data: { versions: { id: string; retiredInUse: unknown }[] };
+    };
+    return new Map(
+      data.versions.map((version) => {
+        const usage = retiredUsageSchema.parse(version.retiredInUse);
+        return [
+          version.id,
+          {
+            goods: usage.goods.filter((entry) => entry.goodId === GOOD),
+            recipes: usage.recipes.filter((entry) => entry.recipeId === RECIPE),
+            npcClasses: usage.npcClasses.filter((entry) => entry.classId === CLASS),
+          },
+        ];
+      }),
+    );
+  };
+  const recipes = [{ recipeId: RECIPE, sites: 3, houses: 2 }];
+  // Une classe vide garde un état : la cité compte, à zéro habitant.
+  const npcClasses = [{ classId: CLASS, cities: 2, population: 25 }];
+
+  it('compte, sous chaque version, les sites et maisons d’une recette retirée et la population d’une classe retirée', async () => {
+    const [without, withRecipe, withBoth] = [
+      await publish(SAME_CLOCK),
+      await publish(WITH_RECIPE),
+      await publish(WITH_BOTH),
+    ];
+    const usage = await retiredInUse();
+    expect(usage.get(without)).toEqual({ goods: [], recipes, npcClasses });
+    expect(usage.get(withRecipe)).toEqual({ goods: [], recipes: [], npcClasses });
+    expect(usage.get(withBoth)).toEqual({ goods: [], recipes: [], npcClasses: [] });
   });
 });
