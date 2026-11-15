@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_CONFIG, validateConfig } from './index';
+import { cityStartingRecipeId, cityTerroirAdmits, INITIAL_CONFIG, validateConfig } from './index';
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
@@ -15,7 +15,82 @@ describe('jeu de valeurs initial', () => {
       'hippeis',
       'pentakosiomedimnoi',
     ]);
-    expect(config.cities).toHaveLength(1);
+    expect(config.cities.map((city) => city.id)).toEqual(['kalliste', 'elaia', 'ampelos', 'halos']);
+  });
+
+  it('cinq dieux, dont le protecteur de chaque cité ; toutes les cités ont un port (#250)', () => {
+    expect(config.gods.map((god) => god.id)).toEqual([
+      'demeter',
+      'athena',
+      'dionysos',
+      'poseidon',
+      'apollo',
+    ]);
+    expect(config.cities.map((city) => [city.id, city.patronGodId, city.hasPort])).toEqual([
+      ['kalliste', 'demeter', true],
+      ['elaia', 'athena', true],
+      ['ampelos', 'dionysos', true],
+      ['halos', 'poseidon', true],
+    ]);
+  });
+
+  it('terroirs et recettes de départ des quatre cités (#250)', () => {
+    const terroir = (cityId: string) =>
+      [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])].sort();
+    const primary = config.recipes.filter((recipe) => recipe.siteType !== 'workshop');
+    // Kallistè garde toutes les matières premières de la phase 1 : le banc de #78 reste tel quel.
+    expect(terroir('kalliste')).toEqual(primary.map((recipe) => recipe.id).sort());
+    expect(terroir('elaia')).toEqual(['fell_wood', 'grow_olives', 'grow_wheat', 'rake_salt']);
+    expect(terroir('ampelos')).toEqual(['catch_fish', 'dig_clay', 'grow_grapes', 'shear_wool']);
+    expect(terroir('halos')).toEqual([
+      'catch_fish',
+      'dig_clay',
+      'fell_wood',
+      'rake_salt',
+      'shear_wool',
+    ]);
+    expect(config.cities.map((city) => cityStartingRecipeId(config, city.id))).toEqual([
+      'grow_wheat',
+      'grow_wheat',
+      'grow_grapes',
+      'catch_fish',
+    ]);
+  });
+
+  it('aucune des trois nouvelles cités n’a toutes les matières premières du panier de ses PNJ (6.1)', () => {
+    // Matières premières d'un bien : lui-même s'il est produit sans intrant, sinon celles de ses intrants.
+    const rawOf = (goodId: string, seen = new Set<string>()): string[] => {
+      if (seen.has(goodId)) return [];
+      seen.add(goodId);
+      return config.recipes
+        .filter((recipe) => recipe.outputs.some((output) => output.goodId === goodId))
+        .flatMap((recipe) =>
+          recipe.inputs.length === 0
+            ? [goodId]
+            : recipe.inputs.flatMap((input) => rawOf(input.goodId, seen)),
+        );
+    };
+    const wanted = new Set(
+      config.npcClasses.flatMap((npcClass) =>
+        npcClass.basket.flatMap((entry) => rawOf(entry.goodId)),
+      ),
+    );
+    for (const city of config.cities) {
+      const grown = new Set(
+        config.recipes
+          .filter((recipe) => recipe.inputs.length === 0 && cityTerroirAdmits(city, recipe))
+          .flatMap((recipe) => recipe.outputs.map((output) => output.goodId)),
+      );
+      const missing = [...wanted].filter((goodId) => !grown.has(goodId));
+      // Kallistè, cité fondatrice, reste autosuffisante jusqu'à #283.
+      if (city.id === 'kalliste') expect(missing).toEqual([]);
+      else expect(missing.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('chaque cité a la population de la cité prototype, classe par classe (5.5)', () => {
+    const [kalliste, ...others] = config.cities;
+    for (const city of others) expect(city.population).toEqual(kalliste?.population);
   });
 
   it('chaque bien est produit par au moins une recette', () => {

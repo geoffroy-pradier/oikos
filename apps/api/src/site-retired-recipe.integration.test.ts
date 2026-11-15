@@ -42,6 +42,11 @@ beforeAll(async () => {
       ...config,
       recipes: [...config.recipes.filter((recipe) => recipe.id !== RETIRED), REPLACEMENT],
       starting: { ...config.starting, siteRecipeId: REPLACEMENT.id },
+      // Le schéma refuse un terroir qui cite une recette inconnue : le renommage y est reporté.
+      cities: config.cities.map((city) => ({
+        ...city,
+        terroir: city.terroir?.map((id) => (id === RETIRED ? REPLACEMENT.id : id)),
+      })),
     },
     { note: 'test : recette du champ de départ retirée (ticket 97)' },
   );

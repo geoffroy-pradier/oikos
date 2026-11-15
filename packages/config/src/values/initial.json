@@ -302,10 +302,72 @@
       ]
     }
   ],
+  "gods": [
+    { "id": "demeter" },
+    { "id": "athena" },
+    { "id": "dionysos" },
+    { "id": "poseidon" },
+    { "id": "apollo" }
+  ],
   "cities": [
     {
       "id": "kalliste",
-      "population": { "thetes": 6000, "zeugitai": 2500, "hippeis": 1200, "pentakosiomedimnoi": 300 }
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": [
+        "grow_wheat",
+        "grow_olives",
+        "grow_grapes",
+        "fell_wood",
+        "dig_clay",
+        "shear_wool",
+        "catch_fish",
+        "rake_salt"
+      ],
+      "hasPort": true,
+      "patronGodId": "demeter"
+    },
+    {
+      "id": "elaia",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_olives", "grow_wheat", "rake_salt", "fell_wood"],
+      "hasPort": true,
+      "patronGodId": "athena"
+    },
+    {
+      "id": "ampelos",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_grapes", "catch_fish", "shear_wool", "dig_clay"],
+      "hasPort": true,
+      "patronGodId": "dionysos",
+      "startingRecipeId": "grow_grapes"
+    },
+    {
+      "id": "halos",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["catch_fish", "rake_salt", "dig_clay", "fell_wood", "shear_wool"],
+      "hasPort": true,
+      "patronGodId": "poseidon",
+      "startingRecipeId": "catch_fish"
     }
   ]
 }
