@@ -3,7 +3,7 @@ import { createConfigLoader } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '@oikos/engine';
 import { createRng, marketTax } from '@oikos/sim';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { sql } from 'kysely';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
@@ -646,33 +646,47 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await expect(page.getByText('Type: Orchard')).toBeVisible();
 });
 
-test('acquisition sans réponse puis nouvel essai : un seul site, un seul paiement', async ({
+test('acquisition sans réponse : rejouée tant que son issue est inconnue, jamais payée deux fois', async ({
   page,
 }) => {
   await foundHouse(page);
-  // L'acquisition aboutit côté serveur, mais sa réponse n'arrive jamais.
+  const acquire = page.getByRole('button', { name: 'Acquérir' });
+
+  // La commande n'atteint pas le serveur : rien n'est acquis, l'issue reste inconnue pour l'écran.
+  const keys: string[] = [];
+  const keyOf = (route: Route) => keys.push(route.request().headers()['idempotency-key'] ?? '');
   await page.route('**/api/commands/site.acquire', async (route) => {
+    keyOf(route);
+    await route.abort();
+  });
+  await acquire.click();
+  await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
+  await expect(page.getByText('1 sur 4')).toBeVisible();
+
+  // Onglet quitté puis rouvert, la clé est gardée ; l'essai suivant la renvoie.
+  await page.unroute('**/api/commands/site.acquire');
+  await page.route('**/api/commands/site.acquire', async (route) => {
+    keyOf(route);
+    // Le serveur achète, mais sa réponse n'arrive jamais.
     await route.fetch();
     await route.abort();
   });
-  const acquire = page.getByRole('button', { name: 'Acquérir' });
+  const nav = page.getByRole('navigation');
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await nav.getByRole('link', { name: 'Maison' }).click();
   await acquire.click();
   await expect(page.getByRole('alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
 
-  // Nouvel essai, même intention : l'API rejoue l'achat, l'écran le dit, rien n'est payé de plus.
+  // Le site est là, relu : vouloir de nouveau un champ de blé est un nouvel achat, pas un rejeu. Un
+  // double clic n'envoie qu'une commande, et le prix payé s'affiche dans la fenêtre bien que le
+  // nouveau site ait poussé le formulaire.
   await page.unroute('**/api/commands/site.acquire');
-  await acquire.click();
-  await expect(page.getByRole('status')).toContainText('Ce site était déjà acquis : Champ de blé');
-  await expect(page.getByText('2 sur 4')).toBeVisible();
-  await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
-
-  // L'intention suivante est une nouvelle acquisition. Un double clic n'envoie qu'une commande, et
-  // le prix payé s'affiche dans la fenêtre bien que le nouveau site ait poussé le formulaire.
   let sent = 0;
   await page.route('**/api/commands/site.acquire', async (route) => {
     sent += 1;
+    keyOf(route);
     await new Promise((resolve) => setTimeout(resolve, 300));
     await route.continue();
   });
@@ -682,6 +696,9 @@ test('acquisition sans réponse puis nouvel essai : un seul site, un seul paieme
   await expect(page.getByText('3 sur 4')).toBeVisible();
   await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
   expect(sent).toBe(1);
+  expect(keys).toHaveLength(3);
+  expect(keys[1]).toBe(keys[0]);
+  expect(keys[2]).not.toBe(keys[0]);
 });
 
 test('plusieurs sites : noms distincts, résultat affiché près de l’action, choix gardé après un refus', async ({
