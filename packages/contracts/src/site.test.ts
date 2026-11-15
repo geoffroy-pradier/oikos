@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { siteAcquireInputSchema, siteRestartInputSchema, upkeepSettledSchema } from './site';
+import {
+  siteAcquireInputSchema,
+  siteRestartedSchema,
+  siteRestartInputSchema,
+  upkeepSettledSchema,
+} from './site';
 
 const HOUSE = '01900000-0000-7000-8000-0000000000a1';
 const [FIELD, QUARRY] = [
@@ -96,5 +101,19 @@ describe('prix attendu des commandes de site', () => {
       expect(
         siteRestartInputSchema.safeParse({ siteId: FIELD, expectedUpkeepOboles }).success,
       ).toBe(false);
+  });
+});
+
+describe('SiteRestarted', () => {
+  it('distingue entretien et salaires payés ; refuse un montant absent, négatif ou fractionnaire', () => {
+    const payload = { siteId: FIELD, houseId: HOUSE, upkeepOboles: 30, wagesOboles: 20 };
+    const event = { type: 'SiteRestarted' as const, payload };
+    expect(domainEventSchema.parse(event)).toEqual(event);
+    for (const candidate of [
+      (({ wagesOboles: _wages, ...rest }) => rest)(payload),
+      { ...payload, wagesOboles: -1 },
+      { ...payload, wagesOboles: 0.5 },
+    ])
+      expect(siteRestartedSchema.safeParse({ ...event, payload: candidate }).success).toBe(false);
   });
 });
