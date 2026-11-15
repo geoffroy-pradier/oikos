@@ -8,10 +8,13 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "VITEST_INTEGRATION=1 vitest run"
   },
   "dependencies": {
     "@oikos/config": "workspace:*",
+    "@oikos/db": "workspace:*",
+    "kysely": "^0.29.9",
     "zod": "^4.6.7"
   }
 }

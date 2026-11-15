@@ -249,6 +249,19 @@ export interface GameDatabase {
     created_at: Generated<Date>;
   };
 
+  /** Appels de la passerelle IA (ADR 0005) : jamais de texte, seulement jetons, coût estimé et issue. */
+  'telemetry.ai_calls': {
+    id: Generated<string>;
+    usage: 'oracle' | 'chronicle' | 'steward';
+    model: string;
+    input_tokens: number;
+    output_tokens: number;
+    cost_micro_euros: ColumnType<string, number, never>;
+    outcome: 'ok' | 'capped' | 'timeout' | 'invalid' | 'error';
+    duration_ms: number;
+    called_at: Date;
+    created_at: Generated<Date>;
+  };
   /** Refus avant exécution, comptés par heure, sans contenu de requête. */
   'telemetry.api_refusals': {
     bucket: ColumnType<Date, string, never>;
