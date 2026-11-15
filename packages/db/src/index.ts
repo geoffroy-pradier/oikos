@@ -178,6 +178,18 @@ export interface GameDatabase {
     halted_at: ColumnType<Date | null, never, Date | null>;
     created_at: Generated<Date>;
   };
+  /** Navires des maisons (4.6). Le service crée un navire, il ne choisit ni sa date ni son désarmement. */
+  'game.ships': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    class_id: ColumnType<string, string, never>;
+    /** Cité où le navire est à quai ; nulle en mer. Un navire naît à quai (garde de la base). */
+    docked_city_id: ColumnType<string | null, string, never>;
+    /** Instant du désarmement, entretien impayé ; nul pour un navire armé. Un navire naît armé. */
+    laid_up_at: ColumnType<Date | null, never, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Clôtures quotidiennes jouées : une ligne par monde et par jour de jeu, en ajout seul. */
   'game.daily_closes': {
     world_id: string;
