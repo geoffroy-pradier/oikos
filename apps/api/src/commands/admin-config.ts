@@ -15,6 +15,15 @@ import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
+const tickChanged = (tickMinutes: number) => ({
+  ok: false as const,
+  error: {
+    code: 'CONFIG_TICK_CHANGED',
+    message: `The tick duration cannot change: the version in effect uses ${tickMinutes}-minute ticks.`,
+    fields: ['clock.tickMinutes'],
+  },
+});
+
 /**
  * Enregistre une nouvelle version de configuration (docs/specs/15-back-office-olympe.md, 15.2).
  * La version est immuable et n'est pas active : il faut la programmer par `admin.scheduleConfig`.
@@ -25,7 +34,13 @@ export const adminPublishConfig = defineCommand({
   input: adminPublishConfigInputSchema,
   output: adminPublishConfigOutputSchema,
   errors: ADMIN_PUBLISH_CONFIG_ERROR_CODES,
-  async handler({ trx, userId, emit }, input) {
+  async handler({ trx, userId, emit, config }, input) {
+    // L'indice d'un tick se compte en durées de tick depuis l'origine : changer la durée changerait
+    // l'échelle des indices déjà joués et bloquerait le monde (#123). Refusé, à la publication comme à la
+    // programmation, tant qu'aucune migration des indices n'existe.
+    const parsed = validateConfig(input.config);
+    if (parsed.ok && parsed.config.clock.tickMinutes !== config.clock.tickMinutes)
+      return tickChanged(config.clock.tickMinutes);
     const published = await publishVersion(trx, input.config, {
       note: input.note,
       createdBy: userId,
@@ -112,6 +127,8 @@ export const adminScheduleConfig = defineCommand({
         },
       };
     }
+    if (stored.config.clock.tickMinutes !== config.clock.tickMinutes)
+      return tickChanged(config.clock.tickMinutes);
     const activateAt = nextDailyClose(now, config.clock);
     await scheduleActivation(trx, version.id, activateAt, userId);
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };

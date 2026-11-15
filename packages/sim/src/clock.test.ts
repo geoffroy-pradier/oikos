@@ -177,6 +177,42 @@ describe('prochaine clôture quotidienne', () => {
     );
   });
 
+  // #123 : la programmation vise l'instant que la clôture elle-même calcule (`dailyCloseAt`), même là où
+  // l'ancien calcul par ticks divergeait.
+  it.each([
+    [
+      'heure de clôture sautée par l’heure d’été',
+      { ...PARIS, dailyCloseHour: 2 },
+      '2026-03-28T12:00:00Z',
+    ],
+    [
+      'fuseau à la demi-heure, tick d’une heure',
+      { dailyCloseHour: 4, timezone: 'Asia/Kolkata', tickMinutes: 60, seasonDays: 7 },
+      '2026-11-14T12:00:00Z',
+    ],
+    [
+      'fuseau au quart d’heure, tick d’une heure',
+      { dailyCloseHour: 4, timezone: 'Asia/Kathmandu', tickMinutes: 60, seasonDays: 7 },
+      '2026-11-14T12:00:00Z',
+    ],
+  ])('%s : même instant que la clôture du jour suivant', (_name, clock, at) => {
+    const after = new Date(at);
+    const close = nextDailyClose(after, clock);
+    expect(close.toISOString()).toBe(
+      dailyCloseAt(gameDayAt(after, clock) + 1, clock).toISOString(),
+    );
+    // Et le tick qui le contient porte le drapeau de clôture.
+    expect(isDailyClose(tickIndexAt(close, clock.tickMinutes), clock)).toBe(true);
+  });
+
+  it('l’heure de clôture de la version en vigueur fait foi : changer d’heure déplace l’échéance', () => {
+    const after = new Date('2026-01-15T12:00:00Z');
+    expect(nextDailyClose(after, PARIS).toISOString()).toBe('2026-01-16T03:00:00.000Z');
+    expect(nextDailyClose(after, { ...PARIS, dailyCloseHour: 6 }).toISOString()).toBe(
+      '2026-01-16T05:00:00.000Z',
+    );
+  });
+
   it('propriété : toujours un tick de clôture, dans le futur, à moins de 25 heures', () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 4_000_000_000_000 }), (ms) => {
@@ -238,7 +274,10 @@ describe('jour de jeu et instant de clôture', () => {
     const two = { ...PARIS, dailyCloseHour: 2 };
     // 29 mars 2026 : 02 h 00 n'existe pas à Paris (01 h 00 UTC : 02 h 00 devient 03 h 00).
     expect(closeOf('2026-03-29', two)).toBe('2026-03-29T01:00:00.000Z');
-    expect(closesBetween('2026-03-29T00:00:00Z', '2026-03-30T00:00:00Z', two)).toEqual([]);
+    // Le drapeau de tick suit la même clôture (#123) : le tick de 01 h 00 UTC la porte.
+    expect(closesBetween('2026-03-29T00:00:00Z', '2026-03-30T00:00:00Z', two)).toEqual([
+      '2026-03-29T01:00:00.000Z',
+    ]);
     // 25 octobre 2026 : 02 h 00 a lieu deux fois (00 h 00 et 01 h 00 UTC) ; la première ouvre le jour.
     expect(closeOf('2026-10-25', two)).toBe('2026-10-25T00:00:00.000Z');
     // Aux bords de la carte : UTC+14, UTC−11, et un fuseau décalé de trois quarts d'heure.

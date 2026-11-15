@@ -322,6 +322,21 @@ describe('admin.publishConfig', () => {
     expect((await send(author, 'admin.publishConfig', { config: 'texte' })).status).toBe(400);
     expect(await versionsBy(author)).toEqual([]);
   });
+
+  it('refuse une version qui change la durée du tick, sans rien enregistrer (#123)', async () => {
+    const author = await newUser('super_admin');
+    for (const tickMinutes of [5, 20]) {
+      const base = candidate(3000) as { clock: Record<string, unknown> };
+      const refused = await send(author, 'admin.publishConfig', {
+        config: { ...base, clock: { ...base.clock, tickMinutes } },
+      });
+      expect(refused).toMatchObject({
+        status: 409,
+        body: { error: { code: 'CONFIG_TICK_CHANGED', fields: ['clock.tickMinutes'] } },
+      });
+    }
+    expect(await versionsBy(author)).toEqual([]);
+  });
 });
 
 describe('admin.scheduleConfig', () => {
@@ -455,6 +470,30 @@ describe('admin.scheduleConfig', () => {
     const refused = await send(designer, 'admin.scheduleConfig', { versionId: stale.id });
     expect(refused).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_INVALID' } } });
     expect(refused.body.error?.fields?.length).toBeGreaterThan(0);
+    const activations = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', stale.id)
+      .execute();
+    expect(activations).toEqual([]);
+  });
+
+  it('refuse de programmer une version qui change la durée du tick (#123)', async () => {
+    // Version écrite directement en base, avant le refus à la publication.
+    const other = {
+      ...TEST_CONFIG.config,
+      clock: { ...TEST_CONFIG.config.clock, tickMinutes: 20 },
+    };
+    const stale = await db
+      .insertInto('config.versions')
+      .values({ payload: JSON.stringify(other), note: 'tick de 20 min', created_by: root })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const refused = await send(designer, 'admin.scheduleConfig', { versionId: stale.id });
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_TICK_CHANGED', fields: ['clock.tickMinutes'] } },
+    });
     const activations = await db
       .selectFrom('config.activations')
       .select('id')

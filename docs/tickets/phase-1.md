@@ -571,7 +571,7 @@ Rien n'empêche aujourd'hui de publier une configuration qui change `tickMinutes
 ## Critères d'acceptation
 
 - [ ] Décision écrite dans la spécification : l'indice de tick devient indépendant de la durée (compteur par monde, ou origine et durée enregistrées à chaque changement), ou bien le changement de durée est refusé à la publication tant qu'une migration d'indice n'existe pas
-- [ ] Après un changement de durée de tick (plus longue et plus courte), le monde continue de jouer ses ticks : ni tick perdu, ni tick doublé, ni rattrapage de ticks antérieurs au changement
+- [ ] Après un changement de durée de tick (plus longue et plus courte), le monde continue de jouer ses ticks : ni tick perdu, ni tick doublé, ni rattrapage de ticks antérieurs au changement (sans objet avec la décision retenue : le changement de durée est refusé, voir la demande de fusion)
 - [ ] Tests d'intégration : 10 → 20 minutes et 10 → 5 minutes, avec demande des PNJ et chandeliers toujours servis ; deux moteurs concurrents pendant le changement
 - [ ] Un monde qui ne peut pas jouer son tick est visible dans la Vigie (pas seulement un `console.warn`)
 - [ ] Le drapeau `daily_close` des ticks est supprimé ou rendu cohérent avec la table des clôtures jouées

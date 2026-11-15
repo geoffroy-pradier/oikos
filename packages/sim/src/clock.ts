@@ -61,10 +61,17 @@ export function localTime(instant: Date, timezone: string) {
   };
 }
 
-/** Vrai pour le tick qui ouvre l'heure de clôture locale : c'est lui qui porte la clôture quotidienne. */
+/**
+ * Vrai pour le tick dont l'intervalle contient l'instant d'une clôture quotidienne (`dailyCloseAt`) : le
+ * même calcul que la clôture elle-même, que l'heure de clôture soit sautée par l'heure d'été ou que le
+ * fuseau soit décalé d'une demi-heure.
+ */
 export function isDailyClose(index: number, clock: ClockSettings): boolean {
-  const { hour, minute } = localTime(tickStart(index, clock.tickMinutes), clock.timezone);
-  return hour === clock.dailyCloseHour && minute < clock.tickMinutes;
+  // Le jour de jeu change exactement à l'instant de sa clôture : le tick en contient une si le jour de
+  // son dernier instant n'est pas celui de l'instant qui le précède (un tick dure moins d'un jour).
+  const start = tickStart(index, clock.tickMinutes).getTime();
+  const end = tickStart(index + 1, clock.tickMinutes).getTime();
+  return gameDayAt(new Date(end - 1), clock) !== gameDayAt(new Date(start - 1), clock);
 }
 
 /** Ce dont dépend le jour de jeu : ni la durée du tick ni celle de la saison. */
@@ -117,15 +124,10 @@ export function isSeasonSwitch(index: number, clock: ClockSettings): boolean {
 }
 
 /**
- * Début du premier tick de clôture quotidienne strictement après l'instant donné. C'est l'échéance d'un
- * changement programmé « à la prochaine clôture ».
+ * Instant de la première clôture quotidienne strictement après l'instant donné : c'est l'échéance d'un
+ * changement programmé « à la prochaine clôture ». Même calcul que la clôture (`dailyCloseAt`), sans
+ * dépendre de la durée du tick.
  */
-export function nextDailyClose(after: Date, clock: ClockSettings): Date {
-  const first = tickIndexAt(after, clock.tickMinutes) + 1;
-  // Trois jours de ticks : couvre une heure de clôture sautée par un passage à l'heure d'été.
-  const horizon = first + Math.ceil((3 * DAY_MS) / (clock.tickMinutes * MINUTE_MS));
-  for (let index = first; index <= horizon; index++) {
-    if (isDailyClose(index, clock)) return tickStart(index, clock.tickMinutes);
-  }
-  throw new Error('No daily close within three days');
+export function nextDailyClose(after: Date, clock: DayClock): Date {
+  return dailyCloseAt(gameDayAt(after, clock) + 1, clock);
 }
