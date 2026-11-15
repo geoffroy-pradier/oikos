@@ -261,6 +261,31 @@ export const priceHistorySchema = z.strictObject({
     .default(DEFAULT_PRICE_HISTORY.referenceWindowHours),
 });
 
+/**
+ * Valeurs lues pour les versions publiées avant l'indice des prix : la cible de la règle de conception
+ * (5.5) et un panier vide, donc un indice inconnu. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_PRICE_INDEX = deepFreeze({
+  windowDays: 30,
+  inflationTargetBps: { min: 0, max: 300 },
+  basket: [] as { goodId: string; quantity: number }[],
+});
+
+/** Indice des prix et mesure de l'inflation du tableau de bord économique (5.5). Rien du jeu ne s'y règle. */
+export const priceIndexSchema = z.strictObject({
+  /** Fenêtre de mesure, en jours : l'inflation compare cette fenêtre à celle qui la précède. */
+  windowDays: z.number().int().min(1).max(365),
+  /** Cible d'inflation sur la fenêtre, en points de base, bornes comprises ; hors d'elle, alerte. */
+  inflationTargetBps: z
+    .strictObject({
+      min: z.number().int().min(-10_000).max(10_000),
+      max: z.number().int().min(-10_000).max(10_000),
+    })
+    .refine((target) => target.min <= target.max, { message: 'min must not exceed max' }),
+  /** Panier de référence : quantités fixes de biens, dont l'indice suit le coût. Vide : indice inconnu. */
+  basket: z.array(stack).max(100),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -277,6 +302,8 @@ export const gameConfigSchema = z
     priceHistory: priceHistorySchema.default(DEFAULT_PRICE_HISTORY),
     /** Absent des versions publiées avant la dynamique de population : population constante. */
     populationDynamics: populationDynamicsSchema.default(DEFAULT_POPULATION_DYNAMICS),
+    /** Absent des versions publiées avant l'indice des prix : cible de la spécification, panier vide. */
+    priceIndex: priceIndexSchema.default(DEFAULT_PRICE_INDEX),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
@@ -331,6 +358,14 @@ export const gameConfigSchema = z
     } else if (startingRecipe.inputs.length > 0) {
       issue(['starting', 'siteRecipeId'], 'the starting site must run a recipe without inputs');
     }
+    for (const duplicate of duplicates(config.priceIndex.basket.map((entry) => entry.goodId))) {
+      issue(['priceIndex', 'basket'], `duplicate good "${duplicate}"`);
+    }
+    config.priceIndex.basket.forEach((entry, position) => {
+      if (!goods.has(entry.goodId)) {
+        issue(['priceIndex', 'basket', position, 'goodId'], `unknown good "${entry.goodId}"`);
+      }
+    });
     config.npcClasses.forEach((npcClass, index) => {
       for (const duplicate of duplicates(npcClass.basket.map((entry) => entry.goodId))) {
         issue(['npcClasses', index, 'basket'], `duplicate good "${duplicate}"`);

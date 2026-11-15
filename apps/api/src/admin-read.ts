@@ -207,8 +207,8 @@ export function registerAdminReads(
     if (rawDays !== undefined && !/^[1-9]\d{0,2}$/.test(rawDays)) return invalid('days');
     const days = Math.min(Number(rawDays ?? DEFAULT_ECONOMY_DAYS), MAX_ECONOMY_DAYS);
     const now = new Date();
-    const { clock } = (await loadConfig(now)).config;
-    return c.json({ ok: true, data: await readEconomy(db, clock, days, now) });
+    const { config } = await loadConfig(now);
+    return c.json({ ok: true, data: await readEconomy(db, config, days, now) });
   });
 
   // Paramètres : versions de configuration, activations programmées, version en vigueur.
