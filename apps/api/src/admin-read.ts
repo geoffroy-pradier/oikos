@@ -201,14 +201,13 @@ export function registerAdminReads(
   });
 
   // Économie : masse monétaire, robinets et puits (5.5). `days` : jours de jeu détaillés, jour en cours
-  // compris, comptés avec l'horloge de la configuration en vigueur.
+  // compris (tout entier positif, borné au maximum), comptés avec l'horloge de la configuration en vigueur.
   app.get('/api/admin/economy', async (c) => {
     const rawDays = c.req.query('days');
-    if (rawDays !== undefined && !/^[1-9]\d{0,2}$/.test(rawDays)) return invalid('days');
+    if (rawDays !== undefined && !/^[1-9]\d*$/.test(rawDays)) return invalid('days');
     const days = Math.min(Number(rawDays ?? DEFAULT_ECONOMY_DAYS), MAX_ECONOMY_DAYS);
-    const now = new Date();
-    const { clock } = (await loadConfig(now)).config;
-    return c.json({ ok: true, data: await readEconomy(db, clock, days, now) });
+    const { clock } = (await loadConfig(new Date())).config;
+    return c.json({ ok: true, data: await readEconomy(db, clock, days) });
   });
 
   // Paramètres : versions de configuration, activations programmées, version en vigueur.
