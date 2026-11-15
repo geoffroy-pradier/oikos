@@ -1,14 +1,16 @@
 import { Card } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { describeCity, parseCityIdentities } from '../city-identity';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { coverageShare, parseCityPopulation } from '../population';
 import { LoadProblem, Loading } from './LoadProblem';
 
 /**
- * Onglet Cité : population de la cité de la maison, classe par classe, et couverture de ses besoins
- * vitaux à la dernière clôture (docs/specs/05-economie.md, 5.2). Lecture seule, vue `city_population`.
+ * Onglet Cité : identité de la cité de la maison (6.1, vue `city_identity`), puis sa population, classe
+ * par classe, et la couverture de ses besoins vitaux à la dernière clôture (docs/specs/05-economie.md,
+ * 5.2, vue `city_population`). Lecture seule.
  */
 export function CityScreen() {
   const { t, i18n } = useTranslation();
@@ -24,6 +26,16 @@ export function CityScreen() {
     },
   );
   const city = rows.rows === null ? null : parseCityPopulation(rows.rows);
+  const identityTitle = useRef<HTMLHeadingElement>(null);
+  const read = useRows<unknown>(
+    'city_identity',
+    'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
+    'city_id',
+    { city_id: house.cityId },
+  );
+  const identities = read.rows === null ? null : parseCityIdentities(read.rows);
+  const identity = identities?.get(house.cityId);
+  const lines = identity ? describeCity(identity, t, i18n.language) : null;
   const number = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
@@ -38,6 +50,25 @@ export function CityScreen() {
       <Card>
         <h1 className="text-2xl">{t('city.title', { city: house.cityName })}</h1>
         <p className="text-muted-foreground">{t('city.intro')}</p>
+      </Card>
+      <Card className="flex flex-col gap-3">
+        <h2 ref={identityTitle} tabIndex={-1} className="text-xl">
+          {t('cityIdentity.title')}
+        </h2>
+        {read.rows === null && !read.failed && <Loading />}
+        {(read.failed || (read.rows !== null && identities === null)) && (
+          <LoadProblem heading={identityTitle} onRetry={() => read.reload()} />
+        )}
+        {identities && !lines && (
+          <p className="text-muted-foreground">{t('cityIdentity.missing')}</p>
+        )}
+        {lines && (
+          <ul className="flex flex-col gap-1">
+            {[lines.god, lines.port, lines.terroir, lines.start].map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={title} tabIndex={-1} className="text-xl">

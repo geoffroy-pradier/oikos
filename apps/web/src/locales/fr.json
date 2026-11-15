@@ -27,6 +27,7 @@
     "name": "Nom de la maison",
     "nameHint": "3 à 24 caractères : lettres, espaces, apostrophes et tirets.",
     "city": "Cité d'accueil",
+    "cityHint": "Chaque cité a son dieu protecteur et son terroir : les productions de matière première qu'on peut y lancer. Les ateliers sont admis partout.",
     "blazon": "Blason",
     "shape": "Bouclier",
     "tincture": "Couleur",
@@ -268,7 +269,8 @@
     "SITE_CHANGED": "Ce site vient de changer. Réessayez.",
     "SITE_HALTED": "Ce site est à l'arrêt : son entretien n'est pas payé. Relancez-le d'abord.",
     "SITE_NOT_HALTED": "Ce site tourne déjà.",
-    "MISSING_INPUTS": "Il manque des intrants en stock libre pour faire tourner cet atelier."
+    "MISSING_INPUTS": "Il manque des intrants en stock libre pour faire tourner cet atelier.",
+    "CITY_REQUIRED": "Choisissez votre cité d'accueil."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -372,5 +374,29 @@
     "zeugitai": "Zeugites",
     "hippeis": "Hippeis",
     "pentakosiomedimnoi": "Pentacosiomédimnes"
+  },
+  "cityIdentity": {
+    "title": "Identité de la cité",
+    "god": "Protégée par {{god}}",
+    "noGod": "Sans dieu protecteur",
+    "port": "Cité portuaire",
+    "noPort": "Sans port",
+    "terroir": "Terroir : {{list}}",
+    "anyTerroir": "Terroir : toutes les productions",
+    "start": "Premier site : {{recipe}}",
+    "missing": "L'identité de cette cité n'est pas connue de la configuration en vigueur."
+  },
+  "gods": {
+    "demeter": "Déméter",
+    "athena": "Athéna",
+    "dionysos": "Dionysos",
+    "poseidon": "Poséidon",
+    "apollo": "Apollon"
+  },
+  "cities": {
+    "kalliste": "Kallistè",
+    "elaia": "Elaia",
+    "ampelos": "Ampelos",
+    "halos": "Halos"
   }
 }
