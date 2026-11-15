@@ -77,6 +77,8 @@ export async function runDailyClose(db: Db, request: CloseRequest): Promise<Clos
     const raw: Record<string, unknown> = {};
     for (const step of steps) raw[step.name] = await step.run(context);
     const summary = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
+    // La ligne de la clôture reste écrite en DERNIER, après toutes les étapes : la base refuse de faire
+    // évoluer une population dès que la clôture de son jour est enregistrée (garde de `npc_population`).
     await trx
       .insertInto('game.daily_closes')
       .values({
