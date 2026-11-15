@@ -690,6 +690,8 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   const nav = page.getByRole('navigation');
   await nav.getByRole('link', { name: 'Agora' }).click();
   await nav.getByRole('link', { name: 'Maison' }).click();
+  // Les sites sont relus avant le clic : l'intention porte leur nombre.
+  await expect(page.getByText('1 sur 4')).toBeVisible();
   await acquire.click();
   await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('2 sur 4')).toBeVisible();

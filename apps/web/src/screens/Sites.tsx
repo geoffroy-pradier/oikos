@@ -7,7 +7,7 @@ import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
-import { acquireIntent, pendingKeys } from '../pending-keys';
+import { acquireIntent, acquireIntentBelow, pendingKeys } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 
 interface Site {
@@ -50,6 +50,10 @@ export function SitesCard({
   // Une commande sans réponse garde sa clé, même onglet quitté : la renvoyer rejoue la commande au lieu
   // de la payer une seconde fois.
   const pending = useMemo(() => pendingKeys(house.id, () => window.sessionStorage), [house.id]);
+  // Sites lus : les achats demandés avec moins de sites ne seront plus rejoués, leurs clés sont rendues.
+  useEffect(() => {
+    if (sites.rows) pending.settleWhere(acquireIntentBelow(sites.rows.length));
+  }, [pending, sites.rows]);
   // Une commande à la fois, même pour deux activations que le rendu n'a pas eu le temps de séparer.
   const running = useRef(false);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
@@ -179,7 +183,9 @@ export function SitesCard({
     const recipeId = offer.recipe.id;
     // Un achat abouti sans réponse a ajouté un site, vu à la relecture : vouloir de nouveau la même
     // production est alors un nouvel achat. Sans site de plus, l'issue reste inconnue : même clé.
-    const intent = acquireIntent(recipeId, rows.length);
+    const intent = acquireIntent(recipeId, sites.rows?.length ?? null);
+    // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
+    if (intent === null) return;
     const key = pending.keyFor(intent, () => crypto.randomUUID());
     const result = await run(
       ACQUIRE,
@@ -445,7 +451,8 @@ export function SitesCard({
         })}
       </ul>
 
-      {rules && (
+      {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
+      {rules && sites.rows && (
         <form
           aria-labelledby="sites-acquire"
           className="flex flex-col gap-2 border-t border-border pt-3"
