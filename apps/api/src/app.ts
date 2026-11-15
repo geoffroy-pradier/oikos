@@ -27,6 +27,7 @@ import { marketPlaceOrder } from './commands/market-place-order';
 import { shipAcquire } from './commands/ship-acquire';
 import { siteAcquire } from './commands/site-acquire';
 import { siteRestart } from './commands/site-restart';
+import { voyageDepart } from './commands/voyage-depart';
 import { siteCollect } from './commands/site-collect';
 import { siteSetRecipe } from './commands/site-set-recipe';
 import type { RateLimiter } from './rate-limit';
@@ -62,6 +63,7 @@ export const COMMANDS = [
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,
+  voyageDepart,
   marketPlaceOrder,
   marketCancelOrder,
   adminPublishConfig,
