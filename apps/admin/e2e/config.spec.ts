@@ -30,8 +30,17 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   const config = JSON.parse(await editor.inputValue()) as {
     starting: { grantOboles: number };
     market: { npcMaxPriceFactor: number };
+    goods: [{ id: string; elasticity: number }];
   };
   const grant = config.starting.grantOboles;
+  // Formulaire des biens, replié : déplié, une saisie y réécrit le texte, la comparaison la montre.
+  await page.getByText('Biens', { exact: true }).click();
+  const [good] = config.goods;
+  const fields = page.getByRole('group', { name: good.id, exact: true });
+  await fields.getByLabel('élasticité').fill(String(good.elasticity + 1));
+  await expect(
+    page.getByText(`goods[${good.id}].elasticity : ${good.elasticity} → ${good.elasticity + 1}`),
+  ).toBeVisible();
 
   // Un texte qui n'est pas du JSON est signalé à la sortie du champ, pas pendant la frappe.
   await editor.fill('{ "starting": ');

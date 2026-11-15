@@ -192,6 +192,17 @@
       "VALIDATION_FAILED": "Request rejected: content too large or malformed."
     },
     "diffPending": "Differences from the version in force: loading…",
+    "goodsForm": {
+      "hint": "Each entry rewrites the JSON text above. Goods are added or removed there.",
+      "unavailable": "Form unavailable: the text must be a JSON object whose “goods” is a list of objects.",
+      "choose": "— choose —",
+      "tiers": {
+        "raw": "Raw",
+        "intermediate": "Intermediate",
+        "finished": "Finished",
+        "service": "Service"
+      }
+    },
     "schemaPath": {
       "root": "Whole configuration",
       "position": "item {{rank}}",

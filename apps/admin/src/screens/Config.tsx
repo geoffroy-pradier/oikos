@@ -8,6 +8,7 @@ import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
+import { GoodsForm } from './GoodsForm';
 
 interface Listing {
   activeVersionId: string | null;
@@ -105,6 +106,11 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Dernière ouverture demandée : la réponse d'une ouverture plus ancienne est ignorée, elle
   // remplacerait sans prévenir la version affichée et la saisie en cours.
   const opening = useRef(0);
+  /** Saisie, dans le texte ou par le formulaire : elle l'emporte sur une ouverture encore en route. */
+  const edit = (next: string) => {
+    opening.current += 1;
+    setText(next);
+  };
   async function open(id: string) {
     const request = ++opening.current;
     setNotice(null);
@@ -372,11 +378,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             aria-invalid={invalid}
             aria-describedby={invalid ? 'config-json-error' : undefined}
             value={text}
-            onChange={(event) => {
-              // Une saisie l'emporte sur une ouverture encore en route : sa réponse est ignorée.
-              opening.current += 1;
-              setText(event.target.value);
-            }}
+            onChange={(event) => edit(event.target.value)}
             onKeyDown={(event) => {
               if (!event.repeat) heldSubmit.current = false;
               else if (heldSubmit.current && event.key === 'Enter') event.preventDefault();
@@ -391,6 +393,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
           >
             {invalid && t('config.invalidJson')}
           </p>
+          <GoodsForm config={parsed} readOnly={!canEdit} onChange={edit} />
           <h3 className="text-lg">
             {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
           </h3>
