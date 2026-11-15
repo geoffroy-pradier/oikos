@@ -5,6 +5,7 @@ Le lancement de la version 1.0 est visé en 32 semaines, en cinq phases dont cha
 > Schéma « feuille de route · 5 phases, 5 jalons » : voir le document source (non exporté en Markdown).
 
 Chaque losange est une porte : la phase suivante ne démarre que si le critère est atteint.
+Exception décidée par le propriétaire le 15 novembre 2026 : le serveur de préproduction de la phase 0 est reporté, et le développement des phases suivantes continue en local jusqu'à une version à mettre en ligne.
 
 ## Contenu par phase
 
@@ -17,7 +18,8 @@ Chaque losange est une porte : la phase suivante ne démarre que si le critère 
 
 ## Critères de sortie
 
-Le schéma des jalons n'est pas exporté en Markdown ; les critères ci-dessous sont ceux retenus pour piloter les phases.
+Le schéma des jalons n'est pas exporté en Markdown ; les critères ci-dessous en sont repris.
+Le propriétaire a délégué aux agents, le 15 novembre 2026, leur emploi pour piloter les phases et les décisions d'équilibrage de la phase 1 (5.5).
 
 - **Phase 0** : déploiement automatique en place.
   Le flux existe (`infra/deploy.sh`, `.github/workflows/deploy.yml`), mais il n'a tourné sur aucun serveur : le serveur de préproduction (#33) est reporté par décision du propriétaire, qui préfère développer et tester en local jusqu'à une version à mettre en ligne.
@@ -30,7 +32,9 @@ Vérification du critère de la phase 1, le 15 novembre 2026 :
 - Simulation de 30 jours : banc d'équilibrage du ticket #78, borné (coût du panier de 0 à 2 % sur vingt jours, besoins vitaux couverts à 98 % au moins) ; calibrage décrit en 5.5.
 - Tableau de bord d'Olympe : masse monétaire, robinets et puits par jour de jeu, indice des prix et inflation (tickets #76, #181, #184).
 
-Le critère est atteint par le code. La phase 1 se ferme quand ses derniers tickets de suivi le sont ; le passage en phase 2 ne demande pas de serveur.
+Le critère est atteint par le code.
+Il reste à l'éprouver avec des joueurs réels, ce qui attend le serveur.
+La phase 1 se ferme quand ses derniers tickets de suivi le sont ; le passage en phase 2 ne demande pas de serveur (exception ci-dessus).
 
 ## Ce qui est volontairement hors de la 1.0
 

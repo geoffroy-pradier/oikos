@@ -24,8 +24,8 @@ import { morning, ROLES, seller } from './balance/strategy';
  * Équilibrage de la cité prototype (ticket #78, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à
  * part : récolte, demande des PNJ et clôtures, joués à leur heure de jeu (`balance/city.ts`). D'abord
  * trois jours où des maisons vendent leur blé au prix de référence ; puis dix jours de mise en route
- * et 30 jours mesurés, avec la configuration initiale, bornés : inflation et besoins vitaux. Les maisons scriptées acquièrent leurs sites,
- * achètent leurs intrants et vendent leur production par les vraies commandes (`balance/strategy.ts`) ;
+ * et 30 jours mesurés, avec la configuration initiale, bornés : inflation et besoins vitaux. Les
+ * maisons scriptées acquièrent leurs sites, achètent leurs intrants et vendent leur production par les vraies commandes (`balance/strategy.ts`) ;
  * la demande des PNJ et la clôture quotidienne (population, entretien) sont celles du moteur. Les prix
  * sont relevés jour par jour, d'après le rang des échanges.
  */
@@ -218,12 +218,16 @@ it(
     expect(basketLast10VsFirst10Bps).not.toBeNull();
     expect(basketLast10VsFirst10Bps).toBeGreaterThanOrEqual(0);
     expect(basketLast10VsFirst10Bps).toBeLessThanOrEqual(200);
-    // Besoins vitaux couverts : chaque classe, chaque jour mesuré, à 98 % au moins.
+    // Besoins vitaux couverts : chaque classe, chaque jour mesuré, à 98 % au moins. Chaque jour mesuré
+    // porte toutes les classes, pour que le minimum ne passe pas à vide.
+    const classes = config.npcClasses.map((npcClass) => npcClass.id).sort();
+    for (const entry of daily) expect(Object.keys(entry.coverage).sort()).toEqual(classes);
     const lowest = Math.min(
       ...daily.flatMap((entry) => Object.values(entry.coverage).map((coverage) => coverage ?? 0)),
     );
     expect(lowest).toBeGreaterThanOrEqual(9_800);
     // La cité ne se vide pas : la population de fin n'est pas sous celle du début de la mesure.
+    expect(daily[0]?.population ?? 0).toBeGreaterThan(0);
     expect(daily.at(-1)?.population ?? 0).toBeGreaterThanOrEqual(daily[0]?.population ?? Infinity);
   },
 );

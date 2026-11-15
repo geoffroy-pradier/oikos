@@ -7,7 +7,7 @@ La phase 0 a déjà livré une première tranche : maison, un site de matière p
 achats à l'arrivée), demande des PNJ, tick, back-office (Vigie, paramètres, journal d'audit). La phase 1 la
 complète jusqu'à une cité jouable de bout en bout.
 
-**Critère de sortie proposé** (le schéma de la feuille de route n'est pas exporté ; à confirmer par un humain) :
+**Critère de sortie** (le schéma de la feuille de route n'est pas exporté ; retenu par délégation du propriétaire le 15 novembre 2026, vérifié dans `docs/specs/17-feuille-de-route.md`) :
 dans une cité, un joueur peut, sur téléphone, acquérir des sites, produire et transformer les 15 biens, les
 vendre et les acheter à l'agora, et lire des comptes exacts ; une simulation de 30 jours avec maisons actives
 tient l'inflation mensuelle entre 0 % et 3 % ; le tableau de bord économique d'Olympe suit chaque robinet et

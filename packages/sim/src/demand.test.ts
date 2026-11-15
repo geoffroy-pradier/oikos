@@ -131,7 +131,7 @@ describe('achats des PNJ dans le carnet', () => {
       ],
       spent: 498,
     });
-    // Formule 5.2 pour le blé de Kallistè : sans budget, 1 unité s'achèterait encore à 2 millions d'oboles.
+    // Formule 5.2 pour le blé de Kallistè, avec ses valeurs d'avant le calibrage de #78 : sans budget, 1 unité s'achèterait encore à 2 millions d'oboles.
     const wheat = (price: number) => 174 * (price / 6) ** -0.4;
     const greedy = [{ orderId: 'rente', price: 2_000_000, quantity: 10 }];
     expect(

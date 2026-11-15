@@ -135,8 +135,10 @@ it(
     }
     // La simulation a réellement fait tourner l'économie, jusqu'à buter sur le budget.
     expect(units).toBeGreaterThan(DAYS * 500);
-    // Le budget est atteint au moins une fois, à moins d'une unité au prix de réserve près : la borne est
-    // réellement mise à l'épreuve (le tirage des prix ne laisse pas toujours tomber juste).
+    // Un tick au moins dépense à moins d'une unité au prix de réserve près du budget (227 est premier :
+    // l'égalité exacte n'est pas atteignable). Ce n'est pas la preuve que le budget plafonne : une demande
+    // non plafonnée peut aussi tomber dans cet intervalle. La borne elle-même est `spent <= budget`, à
+    // chaque tick, ci-dessus.
     expect(busiest).toBeGreaterThan(budget - reserve);
 
     const accounts = await db
