@@ -298,6 +298,20 @@ export const priceIndexSchema = z.strictObject({
   basket: z.array(stack).max(100),
 });
 
+/**
+ * Valeurs lues pour les versions publiées avant la rétention de la télémétrie : 90 jours. FIGÉES, pour la
+ * même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_TELEMETRY = deepFreeze({ retentionDays: 90 });
+
+/**
+ * Télémétrie du moteur (15.1) : passages de tick et de clôture que la Vigie lit. Au-delà de la rétention,
+ * le moteur les supprime. Au moins deux jours : la Vigie compte les échecs des dernières 24 heures.
+ */
+export const telemetrySchema = z.strictObject({
+  retentionDays: z.number().int().min(2).max(3650),
+});
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -316,6 +330,8 @@ export const gameConfigSchema = z
     populationDynamics: populationDynamicsSchema.default(DEFAULT_POPULATION_DYNAMICS),
     /** Absent des versions publiées avant l'indice des prix : cible de la spécification, panier vide. */
     priceIndex: priceIndexSchema.default(DEFAULT_PRICE_INDEX),
+    /** Absent des versions publiées avant la rétention de la télémétrie : 90 jours. */
+    telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),

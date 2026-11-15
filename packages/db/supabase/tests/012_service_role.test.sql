@@ -68,10 +68,10 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
-  'admin.set_role game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
+  'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_trade_settled game.check_trade_settlement '
     || 'game.clock_rules game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.market_rules game.order_book '
-    || 'game.site_rules telemetry.prune_rate_windows',
+    || 'game.site_rules telemetry.prune_rate_windows telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
 select is(
@@ -94,7 +94,8 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.set_role config.active_version_at game.uuid_v7 game.written_by_owner_trigger telemetry.prune_rate_windows',
+  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.uuid_v7 '
+    || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
 -- Échanges : le service ne choisit ni le rang d'exécution ni la date, qui décident des chandeliers de prix.

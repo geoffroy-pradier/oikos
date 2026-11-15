@@ -313,6 +313,24 @@ describe('jour de jeu et instant de clôture', () => {
     );
   });
 
+  it('saut d’heure de plus d’une heure : le premier tick du jour porte la clôture (#213)', () => {
+    // Antarctica/Casey, 18 octobre 2009 : 02 h 00 locales deviennent 05 h 00 (18 h 00 UTC, la veille).
+    const casey = { ...PARIS, dailyCloseHour: 3, timezone: 'Antarctica/Casey' };
+    expect(closeOf('2009-10-18', casey)).toBe('2009-10-17T18:00:00.000Z');
+    expect(closesBetween('2009-10-17T00:00:00Z', '2009-10-19T00:00:00Z', casey)).toEqual([
+      '2009-10-17T18:00:00.000Z',
+      '2009-10-18T16:00:00.000Z',
+    ]);
+    // Pacific/Apia, 30 décembre 2011 sauté : 23 h 59 le 29, puis minuit le 31 (10 h 00 UTC). Le jour de
+    // jeu du 30 s'ouvre à cet instant, celui du 31 à 04 h 00 locales.
+    const apia = { ...PARIS, dailyCloseHour: 4, timezone: 'Pacific/Apia' };
+    expect(closeOf('2011-12-30', apia)).toBe('2011-12-30T10:00:00.000Z');
+    expect(closesBetween('2011-12-30T00:00:00Z', '2011-12-31T00:00:00Z', apia)).toEqual([
+      '2011-12-30T10:00:00.000Z',
+      '2011-12-30T14:00:00.000Z',
+    ]);
+  });
+
   it('propriété : la clôture est le premier instant de son jour de jeu, et les clôtures se suivent à un jour près', () => {
     const timezone = fc.constantFrom(
       'Europe/Paris',
