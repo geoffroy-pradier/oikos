@@ -46,10 +46,21 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await expect(page.getByLabel('Nom de la maison')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByLabel('Nom de la maison').fill(houseName);
-  // La base de test contient les cités d'autres mondes (tests d'intégration) : seules celles de l'Âge
-  // servi par ce client sont proposées.
-  await expect(page.getByLabel('Cité').getByRole('option')).toHaveText(['Kallistè']);
-  await page.getByLabel('Cité').selectOption(KALLISTE_ID);
+  // La base de test contient les cités d'autres mondes (tests d'intégration) : seules les quatre de
+  // l'Âge servi par ce client sont proposées, chacune avec son dieu protecteur et son terroir (6.1).
+  const cities = page.getByRole('group', { name: "Cité d'accueil" }).getByRole('radio');
+  await expect(cities).toHaveCount(4);
+  const city = (name: string) => page.getByRole('radio', { name: new RegExp(`^${name}`) });
+  await expect(city('Halos')).toHaveAccessibleDescription(
+    "Protégée par Poséidon · Cité portuaire · Terroir : Pêcherie, Saline, Carrière d'argile, Coupe de bois et Pâturage à moutons · Premier site : Pêcherie",
+  );
+  await expect(city('Ampelos')).toHaveAccessibleDescription(/^Protégée par Dionysos .* Vigne$/);
+  // Choix au clavier : les flèches parcourent le groupe, de la première cité à la dernière.
+  await city('Ampelos').focus();
+  await expect(city('Ampelos')).toBeChecked();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator(`input[value="${KALLISTE_ID}"]`)).toBeChecked();
+  await expectNoHorizontalScroll(page);
   await page.getByLabel('Emblème').selectOption('trident');
   await page.getByLabel('Nom de la maison').press('Enter');
 
@@ -116,6 +127,9 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.getByLabel('Langue').selectOption('en');
   await expect(page.getByRole('heading', { name: `House ${houseName}` })).toBeVisible();
   await expect(page.getByText('Metic in Kallistè')).toBeVisible();
+  // L'identité de la cité suit la langue.
+  await page.getByRole('navigation').getByRole('link', { name: 'City' }).click();
+  await expect(page.getByText('Protected by Demeter')).toBeVisible();
   await page.reload();
   await expect(page.getByRole('link', { name: 'House', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');

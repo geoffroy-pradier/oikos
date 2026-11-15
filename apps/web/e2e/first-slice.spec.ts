@@ -34,7 +34,7 @@ async function foundHouse(page: Page) {
   const houseName = `Champs ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
   await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.getByLabel('Cité').selectOption(KALLISTE_ID);
+  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
   await page.getByLabel('Nom de la maison').press('Enter');
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   return houseName;
@@ -117,7 +117,7 @@ test('tout récolter : une action au clavier, une commande par site, le résulta
   await expectNoHorizontalScroll(page);
 });
 
-test('onglet Cité : la population de la cité et la couverture de ses besoins, au clavier', async ({
+test('onglet Cité : identité, population de la cité et couverture de ses besoins, au clavier', async ({
   page,
 }) => {
   await foundHouse(page);
@@ -125,6 +125,15 @@ test('onglet Cité : la population de la cité et la couverture de ses besoins, 
   await nav.getByRole('link', { name: 'Cité' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Cité de Kallistè', level: 1 })).toBeVisible();
+  // Identité de la cité (6.1) : Kallistè, cité fondatrice, garde toutes ses matières premières.
+  const identity = page.getByRole('heading', { name: 'Identité de la cité', level: 2 });
+  await expect(identity).toBeVisible();
+  await expect(page.getByRole('listitem')).toContainText([
+    'Protégée par Déméter',
+    'Cité portuaire',
+    "Terroir : Champ de blé, Oliveraie, Vigne, Coupe de bois, Carrière d'argile, Pâturage à moutons, Pêcherie et Saline",
+    'Premier site : Champ de blé',
+  ]);
   await expect(page.getByRole('heading', { name: 'Population', level: 2 })).toBeVisible();
   // Selon l'ordre des tests, un tick de demande a déjà créé la population de Kallistè ou non.
   await expect(

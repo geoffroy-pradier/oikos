@@ -53,7 +53,7 @@ export function App() {
     const worldCities = worldId
       ? await supabase
           .from('cities')
-          .select('id, name')
+          .select('id, worldId:world_id, slug, name')
           .eq('world_id', worldId)
           .order('name')
           .then(
@@ -75,7 +75,10 @@ export function App() {
 
   // Maison fondée : la coquille de navigation et ses cinq onglets.
   if (session && house && !loadFailed) {
-    const cityName = cities.find((candidate) => candidate.id === house.city_id)?.name ?? '';
+    // Nom traduit par identifiant court ; le nom enregistré, faute de traduction.
+    const nameOf = (city: City) => t(`cities.${city.slug}`, { defaultValue: city.name });
+    const home = cities.find((candidate) => candidate.id === house.city_id);
+    const cityName = home ? nameOf(home) : '';
     return (
       <HouseProvider
         value={{
@@ -83,7 +86,7 @@ export function App() {
           name: house.name,
           cityId: house.city_id,
           cityName,
-          cityNames: Object.fromEntries(cities.map((city) => [city.id, city.name])),
+          cityNames: Object.fromEntries(cities.map((city) => [city.id, nameOf(city)])),
           citizenshipStatus: house.citizenship_status,
           accessToken: session.access_token,
         }}

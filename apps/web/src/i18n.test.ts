@@ -50,12 +50,14 @@ describe('traductions', () => {
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
   });
 
-  it('chaque bien et chaque recette de la configuration initiale a un nom', () => {
+  it('chaque bien, recette, dieu et cité de la configuration initiale a un nom', () => {
     const config = INITIAL_CONFIG as GameConfig;
     const expected = [
       ...config.goods.map((good) => `goods.${good.id}`),
       ...config.recipes.map((recipe) => `recipes.${recipe.id}`),
       ...config.npcClasses.map((npcClass) => `npcClasses.${npcClass.id}`),
+      ...config.gods.map((god) => `gods.${god.id}`),
+      ...config.cities.map((city) => `cities.${city.id}`),
       ...SITE_TYPES.map((type) => `siteTypes.${type}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));

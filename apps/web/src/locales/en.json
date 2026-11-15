@@ -27,6 +27,7 @@
     "name": "House name",
     "nameHint": "3 to 24 characters: letters, spaces, apostrophes and hyphens.",
     "city": "Home city",
+    "cityHint": "Each city has its patron god and its land: the raw-material productions that can be started there. Workshops are allowed everywhere.",
     "blazon": "Blazon",
     "shape": "Shield",
     "tincture": "Colour",
@@ -372,5 +373,29 @@
     "zeugitai": "Zeugitai",
     "hippeis": "Hippeis",
     "pentakosiomedimnoi": "Pentakosiomedimnoi"
+  },
+  "cityIdentity": {
+    "title": "City identity",
+    "god": "Protected by {{god}}",
+    "noGod": "No patron god",
+    "port": "Port city",
+    "noPort": "No port",
+    "terroir": "Land: {{list}}",
+    "anyTerroir": "Land: every production",
+    "start": "First site: {{recipe}}",
+    "missing": "This city's identity is not known to the configuration in force."
+  },
+  "gods": {
+    "demeter": "Demeter",
+    "athena": "Athena",
+    "dionysos": "Dionysus",
+    "poseidon": "Poseidon",
+    "apollo": "Apollo"
+  },
+  "cities": {
+    "kalliste": "Kallistè",
+    "elaia": "Elaia",
+    "ampelos": "Ampelos",
+    "halos": "Halos"
   }
 }

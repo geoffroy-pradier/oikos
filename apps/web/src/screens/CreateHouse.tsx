@@ -10,11 +10,18 @@ import { Button } from '@oikos/ui';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createHouse } from '../api';
+import { describeCity, parseCityIdentities } from '../city-identity';
+import { useRows } from '../data';
+import { LoadProblem } from './LoadProblem';
 
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 
 export interface City {
   id: string;
+  worldId: string;
+  /** Identifiant court : celui de la configuration et des traductions. */
+  slug: string;
+  /** Nom enregistré, affiché faute de traduction. */
   name: string;
 }
 
@@ -26,7 +33,15 @@ interface Props {
 }
 
 export function CreateHouse({ cities, accessToken, onCreated }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Identité des cités du monde (6.1) : dieu protecteur, port, terroir, premier site.
+  const read = useRows<unknown>(
+    'city_identity',
+    'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
+    'slug',
+    { world_id: cities[0]?.worldId ?? '' },
+  );
+  const identities = read.rows === null ? null : parseCityIdentities(read.rows);
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState(cities[0]?.id ?? '');
   const [blazon, setBlazon] = useState<Blazon>({
@@ -85,19 +100,48 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
       <p id="name-hint" className="text-sm text-muted-foreground">
         {t('createHouse.nameHint')}
       </p>
-      <label htmlFor="city">{t('createHouse.city')}</label>
-      <select
-        className={CONTROL}
-        id="city"
-        value={cityId}
-        onChange={(event) => setCityId(event.target.value)}
-      >
-        {cities.map((city) => (
-          <option key={city.id} value={city.id}>
-            {city.name}
-          </option>
-        ))}
-      </select>
+      <fieldset className="flex flex-col gap-2" aria-describedby="city-hint">
+        <legend>{t('createHouse.city')}</legend>
+        <p id="city-hint" className="text-sm text-muted-foreground">
+          {t('createHouse.cityHint')}
+        </p>
+        {(read.failed || (read.rows !== null && identities === null)) && (
+          <LoadProblem onRetry={() => read.reload()} />
+        )}
+        {cities.map((city) => {
+          const identity = identities?.get(city.id);
+          const lines = identity ? describeCity(identity, t, i18n.language) : null;
+          return (
+            <label
+              key={city.id}
+              className="flex gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+            >
+              <input
+                type="radio"
+                name="city"
+                className="mt-1 size-5 shrink-0"
+                value={city.id}
+                checked={cityId === city.id}
+                onChange={() => setCityId(city.id)}
+                aria-describedby={lines ? `city-${city.id}` : undefined}
+              />
+              <span className="flex min-w-0 flex-col">
+                <span className="font-semibold">
+                  {t(`cities.${city.slug}`, { defaultValue: city.name })}
+                </span>
+                {lines && (
+                  <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
+                    {[lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
+                  </span>
+                )}
+                {identities && !identity && (
+                  <span className="text-sm text-muted-foreground">{t('cityIdentity.missing')}</span>
+                )}
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
       <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
         <legend>{t('createHouse.blazon')}</legend>
         {select('shape', BLAZON_SHAPES)}
