@@ -12,10 +12,11 @@ afterAll(() => db.destroy());
 
 const store = dbCallStore(db);
 /**
- * Un mois tiré au hasard dans le passé lointain : le journal est en ajout seul et partagé entre les
- * exécutions, donc chaque test part de la dépense déjà enregistrée ce mois-là et ne compte que ses écarts.
+ * Un mois tiré au hasard dans un futur lointain, que la purge n'atteint jamais : le journal est en ajout
+ * seul et partagé entre les exécutions, donc chaque test part de la dépense déjà enregistrée ce mois-là et
+ * ne compte que ses écarts.
  */
-const year = 1900 + Math.floor(Math.random() * 100);
+const year = 2200 + Math.floor(Math.random() * 100);
 const month = Math.floor(Math.random() * 12);
 const inMonth = (day: number, hour = 12) => new Date(Date.UTC(year, month, day, hour));
 

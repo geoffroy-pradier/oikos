@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(10);
 
 -- Journal des appels de la passerelle IA (migration 50, ticket 268).
 create function pg_temp.as_service(statement text) returns void language plpgsql as $$
@@ -11,8 +11,8 @@ end $$;
 
 select lives_ok($$select pg_temp.as_service($q$
   insert into telemetry.ai_calls (usage, model, input_tokens, output_tokens, cost_micro_euros, outcome, duration_ms, called_at)
-  values ('oracle', 'small', 1000, 200, 270, 'ok', 12, now() - interval '40 days'),
-         ('oracle', 'small', 0, 0, 0, 'capped', 0, now())$q$)$$,
+  values ('oracle', 'pgtap-037', 1000, 200, 270, 'ok', 12, now() - interval '40 days'),
+         ('oracle', 'pgtap-037', 0, 0, 0, 'capped', 0, now())$q$)$$,
   'le service journalise un appel');
 select throws_ok($$insert into telemetry.ai_calls (usage, model, input_tokens, output_tokens, cost_micro_euros, outcome, duration_ms, called_at)
   values ('mentor', 'small', 0, 0, 0, 'ok', 0, now())$$, '23514', null, 'un usage inconnu est refusé');
@@ -28,7 +28,9 @@ select throws_ok($$select telemetry.purge_ai_calls(now() - interval '31 days')$$
 select lives_ok($$select pg_temp.as_service('select telemetry.purge_ai_calls(now() - interval ''35 days'')')$$,
   'le service purge par la fonction du propriétaire');
 select is((select count(*) from telemetry.ai_calls where called_at < now() - interval '35 days'), 0::bigint,
-  'les appels plus anciens que la rétention sont partis, les récents restent');
+  'les appels plus anciens que la rétention sont partis');
+select is((select count(*) from telemetry.ai_calls where model = 'pgtap-037' and called_at > now() - interval '1 hour'), 1::bigint,
+  'l''appel récent reste');
 
 select is(
   (select count(*) from unnest(array['anon', 'authenticated']) r
