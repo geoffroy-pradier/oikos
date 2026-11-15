@@ -51,8 +51,11 @@ enabled = false
 [storage]
 enabled = false
 
+# Studio, l'interface d'administration de la base locale : http://127.0.0.1:54323. Le contrôle `ci` ne
+# le démarre pas (`pnpm db:start:ci`).
 [studio]
-enabled = false
+enabled = true
+port = 54323
 
 [edge_runtime]
 enabled = false

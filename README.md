@@ -61,18 +61,19 @@ Prérequis, à installer une fois :
    version de la CLI) et la coller dans `.env`, à la ligne `VITE_SUPABASE_PUBLISHABLE_KEY=`. Les autres
    valeurs de `.env.example` conviennent telles quelles en local.
 
-4. Lancer les trois services, chacun dans son terminal PowerShell, depuis la racine du dépôt :
+4. Lancer les trois services, chacun dans son terminal PowerShell, depuis la racine du dépôt. L'API et le
+   moteur lisent le fichier `.env` de la racine :
 
    ```powershell
-   pnpm --filter @oikos/api exec tsx --env-file=../../.env src/main.ts
+   pnpm local:api
    ```
 
    ```powershell
-   pnpm --filter @oikos/engine exec tsx --env-file=../../.env src/main.ts
+   pnpm local:engine
    ```
 
    ```powershell
-   pnpm --filter @oikos/web exec vite --host 127.0.0.1
+   pnpm local:web
    ```
 
    L'API répond sur `http://127.0.0.1:8787/api/health` et affiche « OIKOS API listening on :8787 » ; le
@@ -105,12 +106,16 @@ docker exec supabase_db_oikos psql -U postgres -c "begin; alter table game.sites
 
 Puis recharger la page : le champ a deux récoltes en attente.
 
+Pour regarder la base locale, Supabase Studio est ouvert sur `http://127.0.0.1:54323` (tables, requêtes
+SQL, utilisateurs d'Auth). Il a tous les droits sur la base : en local seulement. Si Supabase tournait
+déjà avant cette version du dépôt, `pnpm db:stop` puis `pnpm db:start` le font apparaître.
+
 Pour arrêter : `Ctrl+C` dans chaque terminal, puis `pnpm db:stop`. `pnpm db:reset` efface toutes les
 données locales et rejoue les migrations.
 
 ### Back-office (facultatif)
 
-`pnpm --filter @oikos/admin exec vite --host 127.0.0.1`, puis `http://127.0.0.1:5174`. À la première
+`pnpm local:admin`, puis `http://127.0.0.1:5174`. À la première
 connexion, le compte enrôle un second facteur (application d'authentification), puis lit son identifiant.
 Il lui faut ensuite un rôle dans la table `admin.roles` : le premier super-administrateur est inscrit à
 la main en base, les suivants reçoivent leur rôle dans l'écran « Accès ». Procédure complète, appareil
