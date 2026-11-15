@@ -21,7 +21,6 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   const number = /Version (\d+)/.exec(await inForce.getByRole('heading').innerText())?.[1] ?? '';
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
   const editor = page.getByLabel('Configuration (JSON)');
-  // Le foyer suit l'ouverture, jusqu'au titre du contenu ouvert.
   await expect(
     page.getByRole('heading', { name: `Contenu de la version ${number}` }),
   ).toBeFocused();
@@ -40,14 +39,6 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expect(invalid).toHaveCount(0);
   await editor.blur();
   await expect(invalid).toHaveCount(1);
-
-  // Texte modifié : ouvrir une version demande confirmation ; y renoncer au clavier garde la saisie.
-  const open = inForce.getByRole('button', { name: `Ouvrir la version ${number}` });
-  await open.click();
-  await expect(page.getByRole('button', { name: 'Garder le texte modifié' })).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(open).toBeFocused();
-  await expect(editor).toHaveValue('{ "starting": ');
 
   // Une valeur hors bornes est refusée par le schéma de l'API, champ nommé.
   const broken = { ...config, market: { npcMaxPriceFactor: 0 } };
@@ -79,6 +70,21 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     .click();
   await expect(page.getByRole('status')).toContainText(`Version ${number} programmée pour le`);
   await expect(inForce).toContainText('Programmée pour le');
+
+  // Texte modifié : ouvrir demande confirmation, foyer sur le geste sans effet. Double clic dessus, vers
+  // le bas : la fiche suivante remonte, son bouton « Programmer » vient sous le pointeur ; rien n'est envoyé.
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST') sent.push(new URL(request.url()).pathname);
+  });
+  await editor.fill('{}');
+  const open = created.getByRole('button', { name: /^Ouvrir la version/ });
+  await open.click();
+  const keep = page.getByRole('button', { name: 'Garder le texte modifié' });
+  await expect(keep).toBeFocused();
+  await keep.dblclick({ position: { x: 20, y: 38 } });
+  await expect(open).toBeFocused();
+  expect(sent.filter((path) => path.startsWith('/api/commands/'))).toEqual([]);
 
   // Le journal d'audit garde la trace des deux commandes réussies et du refus.
   await page

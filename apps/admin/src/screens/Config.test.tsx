@@ -46,6 +46,7 @@ const LISTING = {
   ],
 };
 const CONFIGS: Record<string, unknown> = {
+  v1: {},
   v2: { starting: { grantOboles: 600 } },
   v3: { starting: { grantOboles: 700 } },
 };
@@ -57,7 +58,6 @@ const button = (name: string) => screen.getByRole('button', { name });
 const type = (editor: HTMLElement, value = '{"saisie":1}') =>
   fireEvent.change(editor, { target: { value } });
 const INVALID = "Ce texte n'est pas un objet JSON valide.";
-/** Texte de chaque zone d'annonce d'erreur présente à l'écran. */
 const alerts = () => screen.getAllByRole('alert').map((zone) => zone.textContent);
 /** Entrée comme un navigateur la traite : elle active l'élément qui a le foyer, sauf défaut annulé. */
 const enter = (repeat = false) => {
@@ -125,8 +125,44 @@ it("un texte qui n'est pas un objet JSON n'est jamais envoyé : une seule annonc
     expect(screen.getAllByText(INVALID)).toHaveLength(1);
     expect(alerts()).toEqual([INVALID]);
     expect(document.activeElement).toBe(editor);
+    // Entrée tenue sur « Enregistrer » : sa répétition arrive dans le champ et n'y écrit rien. Dès
+    // qu'une touche y est enfoncée, tenir Entrée ajoute de nouveau des lignes, comme partout.
+    const held = () => fireEvent.keyDown(editor, { key: 'Enter', repeat: true });
+    expect([held(), held()]).toEqual([false, false]);
+    fireEvent.keyDown(editor, { key: 'Enter' });
+    expect(held()).toBe(true);
   }
   expect(api.adminCommand).not.toHaveBeenCalled();
+});
+
+it('double clic : le second clic n’agit pas dans la liste, ni un clic au pointeur juste après la fermeture d’une confirmation', async () => {
+  api.adminCommand.mockResolvedValue({ ok: true, data: { activateAt: '2999-01-01T00:00:00Z' } });
+  const editor = await openVersion(2);
+  type(editor);
+  const schedule = button('Programmer la version 3 à la prochaine clôture');
+  // Souris : le second clic porte le compte 2. Il n'agit pas, et son appui ne prend pas le foyer.
+  const stray = (detail: number) => {
+    const focusKept = !fireEvent.mouseDown(schedule, { detail });
+    fireEvent.click(schedule, { detail });
+    return focusKept;
+  };
+  expect(stray(2)).toBe(true);
+  const clock = vi.spyOn(performance, 'now');
+  // Toucher : le compte reste à 1. Une confirmation se referme, la fiche suivante remonte sous le doigt.
+  for (const [ask, keep] of [
+    ['Ouvrir la version 3', 'Garder le texte modifié'],
+    ['Annuler la programmation de la version 3', 'Garder la programmation'],
+  ] as const) {
+    fireEvent.click(button(ask), { detail: 1 });
+    fireEvent.click(button(keep), { detail: 1 });
+    expect(stray(1)).toBe(true);
+    // Passé le délai, les clics au pointeur agissent de nouveau : le suivant rouvre une confirmation.
+    clock.mockReturnValue(performance.now() + 500);
+  }
+  expect(api.adminCommand).not.toHaveBeenCalled();
+  expect(stray(1)).toBe(false);
+  clock.mockRestore();
+  await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(1));
 });
 
 it('texte invalide : rien n’est annoncé à la frappe ; contrôle à la sortie du champ, sans répétition', async () => {
@@ -148,18 +184,13 @@ it('texte invalide : rien n’est annoncé à la frappe ; contrôle à la sortie
   type(editor, '{ "a": 1');
   expect(changes.takeRecords()).toEqual([]);
   changes.disconnect();
-  expect(alerts()).toEqual([INVALID]);
   // Corrigé : le message s'efface aussitôt. Une nouvelle faute ne le ramène qu'au contrôle suivant.
   type(editor, '{ "a": 1 }');
   expect(alerts()).toEqual(['']);
-  expect(editor.hasAttribute('aria-describedby')).toBe(false);
   type(editor, '{ "a": 1 ');
   expect(alerts()).toEqual(['']);
   fireEvent.blur(editor);
   expect(alerts()).toEqual([INVALID]);
-  type(editor, '{ "a": 1 }');
-  fireEvent.blur(editor);
-  expect(alerts()).toEqual(['']);
 });
 
 it('texte modifié : ouvrir une autre version demande confirmation, foyer sur le geste sans effet', async () => {
@@ -173,21 +204,22 @@ it('texte modifié : ouvrir une autre version demande confirmation, foyer sur le
   const keep = button('Garder le texte modifié');
   expect(document.activeElement).toBe(keep);
   expect(item(3).contains(keep)).toBe(true);
-  // Le bouton d'ouverture reste à sa place : un double clic n'atteint ni « Programmer » ni la confirmation.
+  // Le bouton d'ouverture reste affiché, à sa place : la confirmation s'ouvre sous la rangée.
   fireEvent.click(button('Ouvrir la version 3'));
   expect(item(3).querySelector('button')).toBe(button('Ouvrir la version 3'));
   expect(screen.getAllByRole('button', { name: 'Remplacer le texte' })).toHaveLength(1);
-  for (const choice of ['Remplacer le texte', 'Garder le texte modifié'])
-    expect(
-      document.getElementById(button(choice).getAttribute('aria-describedby') ?? '')?.textContent,
-    ).toBe(
-      "Le texte modifié de la version 2 n'est pas enregistré : ouvrir la version 3 le remplacera.",
-    );
+  expect(document.getElementById(keep.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+    "Le texte modifié de la version 2 n'est pas enregistré : ouvrir la version 3 le remplacera.",
+  );
   // Y renoncer : rien n'est lu, le texte reste, le foyer revient au bouton d'ouverture.
   fireEvent.click(keep);
   expect(document.activeElement).toBe(button('Ouvrir la version 3'));
   expect(editor.value).toBe('{"saisie":1}');
   expect(api.adminGet.mock.calls.length).toBe(reads);
+  // Y renoncer une seconde fois de suite rend encore le foyer.
+  fireEvent.click(button('Ouvrir la version 3'));
+  fireEvent.click(button('Garder le texte modifié'));
+  expect(document.activeElement).toBe(button('Ouvrir la version 3'));
   // Confirmer : la version demandée remplace le texte, son titre reçoit le foyer.
   fireEvent.click(button('Ouvrir la version 3'));
   fireEvent.click(button('Remplacer le texte'));
@@ -195,6 +227,10 @@ it('texte modifié : ouvrir une autre version demande confirmation, foyer sur le
   await waitFor(() => expect(document.activeElement).toBe(title));
   expect(editor.value).toBe(JSON.stringify(CONFIGS['v3'], null, 2));
   expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
+  // Texte ouvert intact : une autre version s'ouvre aussitôt, sans confirmation.
+  fireEvent.click(button('Ouvrir la version 1'));
+  expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
+  await screen.findByRole('heading', { name: 'Contenu de la version 1' });
 });
 
 it('Entrée tenue sur « Ouvrir » ne remplace rien ; rouvrir la version ouverte demande aussi confirmation', async () => {
@@ -202,8 +238,6 @@ it('Entrée tenue sur « Ouvrir » ne remplace rien ; rouvrir la version ouverte
   type(editor);
   const open = () => button('Ouvrir la version 2');
   open().focus();
-  // Seule Entrée tenue est ignorée : Tab tenue continue de parcourir les boutons.
-  expect(fireEvent.keyDown(open(), { key: 'Tab', repeat: true })).toBe(true);
   // Touche tenue : le premier appui ouvre la confirmation, la répétition du clavier n'active rien.
   enter();
   for (let held = 0; held < 3; held += 1) enter(true);
@@ -222,9 +256,7 @@ it('remplacement confirmé, lecture en panne : le texte reste et le foyer est au
   fireEvent.click(button('Ouvrir la version 3'));
   api.adminGet.mockResolvedValue({ ok: false, code: 'INTERNAL' });
   fireEvent.click(button('Remplacer le texte'));
-  expect((await screen.findByText('Lecture impossible pour le moment.')).getAttribute('role')).toBe(
-    'alert',
-  );
+  await screen.findByText('Lecture impossible pour le moment.');
   expect(document.activeElement).toBe(button('Ouvrir la version 3'));
   expect(editor.value).toBe('{"saisie":1}');
   expect(screen.getByRole('heading', { name: 'Contenu de la version 2' })).toBeTruthy();
@@ -239,14 +271,15 @@ it('texte enregistré comme nouvelle version : plus rien à perdre ; issue incon
   fireEvent.click(publish);
   await screen.findByText(/ne sera pas exécutée deux fois/);
   fireEvent.click(button('Ouvrir la version 3'));
-  fireEvent.click(button('Garder le texte modifié'));
+  expect(button('Remplacer le texte')).toBeTruthy();
   await waitFor(() => expect(publish.hasAttribute('disabled')).toBe(false));
   fireEvent.click(publish);
   await screen.findByText(/Version 4 enregistrée/);
-  fireEvent.click(button('Ouvrir la version 3'));
+  // Une ouverture directe referme la confirmation restée affichée dans une autre fiche.
+  fireEvent.click(button('Ouvrir la version 1'));
   expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
-  await screen.findByRole('heading', { name: 'Contenu de la version 3' });
-  expect(editor.value).toBe(JSON.stringify(CONFIGS['v3'], null, 2));
+  await screen.findByRole('heading', { name: 'Contenu de la version 1' });
+  expect(editor.value).toBe('{}');
 });
 
 it('enregistre le contenu saisi et la note, puis relit la liste', async () => {

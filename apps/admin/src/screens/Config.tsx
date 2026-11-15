@@ -1,6 +1,6 @@
 import { CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
 import { Button, cn } from '@oikos/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
@@ -36,11 +36,12 @@ type Notice = {
   refused?: unknown;
 } | null;
 const CONTROL = 'w-full rounded-md border border-border bg-surface px-3';
+/** Après la disparition d'une confirmation, durée pendant laquelle la liste ignore un clic au pointeur. */
+const SHIFT_GUARD_MS = 500;
 
 /**
  * Module Paramètres (15.1, 15.2) : versions de configuration, comparaison avec la version en vigueur,
  * enregistrement d'une nouvelle version, programmation à la prochaine clôture, retour arrière.
- * Un texte modifié n'est remplacé par une autre version qu'après confirmation (15.4).
  * Le schéma et les droits sont contrôlés par l'API ; l'écran ne fait que proposer.
  */
 export function Config({ accessToken, role }: { accessToken: string; role: AdminRole }) {
@@ -59,14 +60,30 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   /**
-   * `cancelling` : programmation dont l'annulation attend sa confirmation. `returnTo` : bouton (par
-   * son identifiant) dont la confirmation vient de se refermer, à qui rendre le foyer.
+   * `cancelling` : programmation dont l'annulation attend sa confirmation. `returnTo` : programmation
+   * ou version (par l'identifiant de son bouton) dont la confirmation vient de se refermer : ce bouton reprend le foyer.
    */
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const openedTitle = useRef<HTMLHeadingElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
+  // Une confirmation qui disparaît fait remonter les fiches suivantes : un bouton qui programme peut
+  // venir sous le pointeur. Dans la liste, le second clic d'un double clic n'agit pas et ne prend pas le
+  // foyer : compte de clics (`detail`) à la souris ; où il reste à 1 (toucher), le délai. Un clic né du
+  // clavier (`detail` nul) passe toujours. L'instant est pris au retrait d'une confirmation affichée.
+  const closedAt = useRef(-Infinity);
+  useLayoutEffect(
+    () => () => {
+      if (replacing ?? cancelling) closedAt.current = performance.now();
+    },
+    [replacing, cancelling],
+  );
+  const strayClick = ({ detail }: MouseEvent) =>
+    detail > 1 || (detail === 1 && performance.now() - closedAt.current < SHIFT_GUARD_MS);
+  // Entrée tenue sur « Enregistrer », envoi refusé : le foyer arrive dans le champ, où la répétition de
+  // la touche ne doit rien écrire. Armée par `publish`, levée à la première touche enfoncée dans le champ.
+  const heldSubmit = useRef(false);
   // Intention en attente de réponse : la même action renvoyée après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
@@ -157,6 +174,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     setInvalid(!isObject);
     if (!isObject) {
       setNotice(null);
+      heldSubmit.current = true;
       return editor.current?.focus();
     }
     const sent = text;
@@ -165,7 +183,6 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       { config: parsed, note },
       (data) => t('config.published', { number: data.number }),
     );
-    // Enregistré : ce texte n'est plus une saisie à perdre.
     if (published) setSaved(sent);
   }
   const schedule = (version: { id: string; number: number }) =>
@@ -227,7 +244,16 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
       <h2 className="text-xl">{t('config.versions')}</h2>
-      <ul className="flex flex-col gap-3" onKeyDown={ignoreHeldEnter}>
+      <ul
+        className="flex flex-col gap-3"
+        onKeyDown={ignoreHeldEnter}
+        onMouseDownCapture={(event) => {
+          if (strayClick(event)) event.preventDefault();
+        }}
+        onClickCapture={(event) => {
+          if (strayClick(event)) event.stopPropagation();
+        }}
+      >
         {listing.data?.versions.map((version) => {
           const next = [...winners.values()]
             .filter((entry) => entry.versionId === version.id && Date.parse(entry.activateAt) > now)
@@ -251,8 +277,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   ` · ${t('config.scheduled', { date: date.format(new Date(upcoming)) })}`}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {/* Reste en place pendant sa confirmation : un double clic ne tombe pas sur le
-                    bouton voisin, qui programme. */}
+                {/* Reste affiché pendant sa confirmation, qui s'ouvre sous la rangée sans la déplacer. */}
                 <Button
                   id={`config-open-${version.id}`}
                   variant="secondary"
@@ -352,10 +377,13 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
               opening.current += 1;
               setText(event.target.value);
             }}
+            onKeyDown={(event) => {
+              if (!event.repeat) heldSubmit.current = false;
+              else if (heldSubmit.current && event.key === 'Enter') event.preventDefault();
+            }}
             onBlur={() => setInvalid(!isObject)}
           />
-          {/* Seule zone qui annonce un texte invalide. Toujours présente, hauteur réservée : le
-              message, posé à la sortie du champ, ne déplace pas le bouton en train d'être cliqué. */}
+          {/* Seule zone qui annonce un texte invalide ; hauteur réservée : rien ne bouge sous un clic. */}
           <p
             id="config-json-error"
             role="alert"
