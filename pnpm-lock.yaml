@@ -66,6 +66,9 @@ importers:
         specifier: ^18.0.1
         version: 18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@5.9.3))(react@19.3.1)(typescript@5.9.3)
     devDependencies:
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db

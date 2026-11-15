@@ -25,6 +25,12 @@ export default tseslint.config(
     },
   },
   {
+    // Le back-office ne contrôle pas la configuration, l'API fait foi : seuls ses tests lisent le schéma.
+    files: ['apps/admin/src/**'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: { 'no-restricted-imports': ['error', { patterns: ['@oikos/config*'] }] },
+  },
+  {
     // Scripts Node hors TypeScript (outillage).
     files: ['**/*.mjs'],
     languageOptions: { globals: { console: 'readonly', process: 'readonly' } },
