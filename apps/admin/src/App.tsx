@@ -9,6 +9,7 @@ import { LANGUAGES } from './i18n';
 import { Access } from './screens/Access';
 import { Audit } from './screens/Audit';
 import { Config } from './screens/Config';
+import { Economy } from './screens/Economy';
 import { SecondFactor } from './screens/SecondFactor';
 import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
@@ -23,7 +24,7 @@ export function App() {
     role: AdminRole | null;
     failed: boolean;
   } | null>(null);
-  const [module, setModule] = useState<Exclude<AdminModule, 'economy'>>('vigie');
+  const [module, setModule] = useState<AdminModule>('vigie');
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -77,8 +78,7 @@ export function App() {
   const answered = token && mine ? mine : null;
   const granted = answered && !answered.failed ? answered.role : undefined;
   // Navigation composée d'après la liste des rôles par module partagée avec l'API, qui fait foi.
-  // L'écran du module Économie vient dans la tranche suivante du ticket 76 : pas d'onglet d'ici là.
-  const modules = (granted ? adminModulesFor(granted) : []).filter((id) => id !== 'economy');
+  const modules = granted ? adminModulesFor(granted) : [];
   const current = modules.includes(module) ? module : modules[0];
 
   let screen = <p>{t('app.loading')}</p>;
@@ -98,6 +98,8 @@ export function App() {
     screen =
       current === 'vigie' ? (
         <Vigie accessToken={token} />
+      ) : current === 'economy' ? (
+        <Economy accessToken={token} />
       ) : current === 'config' ? (
         <Config accessToken={token} role={granted} />
       ) : current === 'audit' ? (
