@@ -81,6 +81,43 @@ describe('UpkeepSettled', () => {
     expect(domainEventSchema.safeParse({ ...settled, type: 'UpkeepPaid' }).success).toBe(false);
   });
 });
+describe('UpkeepSettled, navires compris (#252)', () => {
+  const ship = (n: number) => `01900000-0000-7000-8000-0000000004f${n}`;
+  const settled = {
+    type: 'UpkeepSettled' as const,
+    payload: {
+      houseId: HOUSE,
+      gameDay: 20_771,
+      paidOboles: 25,
+      upkeepOboles: 0,
+      wagesOboles: 0,
+      paid: [],
+      unpaid: [],
+      halted: [],
+      resumed: [],
+      ships: {
+        upkeepOboles: 25,
+        paid: [{ shipId: ship(1), oboles: 25 }],
+        unpaid: [{ shipId: ship(2), oboles: 40 }],
+        laidUp: [ship(2)],
+        rearmed: [ship(1)],
+      },
+    },
+  };
+
+  it('se relit tel qu’il est écrit ; l’entretien des navires payés entre dans le total', () => {
+    const written = JSON.parse(JSON.stringify(settled)) as unknown;
+    expect(domainEventSchema.parse(written)).toEqual(settled);
+    const payload = settled.payload;
+    for (const changed of [
+      { ...payload, paidOboles: 0 },
+      { ...payload, ships: { ...payload.ships, upkeepOboles: 24 } },
+      { ...payload, ships: { ...payload.ships, laidUp: ['navire'] } },
+      { ...payload, ships: { ...payload.ships, sunk: [] } },
+    ])
+      expect(upkeepSettledSchema.safeParse({ ...settled, payload: changed }).success).toBe(false);
+  });
+});
 
 describe('prix attendu des commandes de site', () => {
   it('facultatif pour un client antérieur ; entier, positif pour une acquisition, nul permis pour une relance', () => {
