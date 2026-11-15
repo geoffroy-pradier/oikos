@@ -4,6 +4,7 @@ import {
   MAX_CLASS_POPULATION,
   nextPopulation,
   vitalCoverageBps,
+  vitalMeasure,
   type PopulationDynamics,
 } from './population';
 
@@ -124,5 +125,82 @@ describe('population d’une classe après un jour', () => {
     expect(() => nextPopulation(10, 10, 10_001, dynamics)).toThrow(RangeError);
     expect(() => nextPopulation(10.5, 10, 0, dynamics)).toThrow(RangeError);
     expect(() => nextPopulation(MAX_CLASS_POPULATION + 1, 10, 0, dynamics)).toThrow(RangeError);
+  });
+});
+
+describe('mesure d’un tick pour la couverture des besoins vitaux', () => {
+  const entry = (goodId: string, need: string, quantityPerThousand: number) => ({
+    goodId,
+    need,
+    quantityPerThousand,
+  });
+  // Pain vital pour tous (20 et 10 pour mille), vin de confort pour les uns, vital pour les autres.
+  const poor = { id: 'poor', population: 3_000, basket: [entry('bread', 'vital', 20)] };
+  const rich = {
+    id: 'rich',
+    population: 1_000,
+    basket: [entry('bread', 'vital', 10), entry('wine', 'vital', 4), entry('salt', 'comfort', 1)],
+  };
+  const drinkers = { ...poor, basket: [...poor.basket, entry('wine', 'comfort', 4)] };
+
+  it('demandé : le besoin de référence des biens vitaux ; servi : la part de la classe dans les achats', () => {
+    // 35 pains achetés pour un besoin de 60 + 10 : chacun en reçoit la moitié de son besoin.
+    expect(vitalMeasure([poor, rich], new Map([['bread', 35]]))).toEqual([
+      { classId: 'poor', served: 30, demanded: 60 },
+      { classId: 'rich', served: 5, demanded: 14 },
+    ]);
+    // Le vin se partage avec ceux pour qui il n'est qu'un confort (12 et 4) ; le sel, confort, ne compte pas.
+    const shared = new Map([
+      ['wine', 8],
+      ['salt', 9],
+    ]);
+    expect(vitalMeasure([drinkers, rich], shared)).toEqual([
+      { classId: 'poor', served: 0, demanded: 60 },
+      { classId: 'rich', served: 2, demanded: 14 },
+    ]);
+    // Rien d'acheté, classe vide, classe sans bien vital : rien de servi, et le besoin reste compté.
+    const idle = { id: 'idle', population: 500, basket: [entry('salt', 'luxury', 1)] };
+    expect(vitalMeasure([{ ...poor, population: 0 }, rich, idle], new Map())).toEqual([
+      { classId: 'poor', served: 0, demanded: 0 },
+      { classId: 'rich', served: 0, demanded: 14 },
+      { classId: 'idle', served: 0, demanded: 0 },
+    ]);
+  });
+
+  it('propriété : jamais plus d’unités servies qu’achetées ; tout est servi si le bien est vital pour tous', () => {
+    const goods = ['bread', 'fish', 'salt'];
+    const anyClass = (levels: string[]) =>
+      fc.record({
+        population: fc.integer({ min: 0, max: MAX_CLASS_POPULATION }),
+        basket: fc.subarray(goods).chain((wanted) =>
+          fc.tuple(
+            ...wanted.map((goodId) =>
+              fc.record({
+                goodId: fc.constant(goodId),
+                need: fc.constantFrom(...levels),
+                quantityPerThousand: fc.double({ min: 0.1, max: 50, noNaN: true }),
+              }),
+            ),
+          ),
+        ),
+      });
+    const units = fc.dictionary(fc.constantFrom(...goods), fc.integer({ min: 0, max: 1e9 }));
+    const run = (levels: string[], exact: boolean) =>
+      fc.assert(
+        fc.property(fc.array(anyClass(levels), { maxLength: 5 }), units, (drawn, purchases) => {
+          const classes = drawn.map((npcClass, rank) => ({ ...npcClass, id: `c${rank}` }));
+          const wanted = (goodId: string) =>
+            classes.some((c) => c.population > 0 && c.basket.some((e) => e.goodId === goodId));
+          const bought = new Map(Object.entries(purchases).filter(([goodId]) => wanted(goodId)));
+          const measure = vitalMeasure(classes, bought);
+          const total = [...bought.values()].reduce((sum, quantity) => sum + quantity, 0);
+          const served = measure.reduce((sum, { served }) => sum + served, 0);
+          expect(measure.every((m) => m.served >= 0 && Number.isFinite(m.demanded))).toBe(true);
+          expect(served).toBeLessThanOrEqual(total * (1 + 1e-9));
+          if (exact) expect(served).toBeGreaterThanOrEqual(total * (1 - 1e-9));
+        }),
+      );
+    run(['vital', 'comfort', 'luxury'], false);
+    run(['vital'], true);
   });
 });

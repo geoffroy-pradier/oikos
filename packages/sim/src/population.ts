@@ -70,3 +70,35 @@ export function nextPopulation(
   const max = Math.min(MAX_CLASS_POPULATION, Math.floor((initial * dynamics.maxShareBps) / FULL));
   return Math.min(max, Math.max(min, current + delta));
 }
+
+export interface NeedClass {
+  id: string;
+  /** Population courante de la classe dans la cité. */
+  population: number;
+  basket: readonly { goodId: string; need: string; quantityPerThousand: number }[];
+}
+
+/**
+ * Mesure d'un tick pour la couverture des besoins vitaux (5.2), par classe, en unités. Demandé : le
+ * besoin de référence de ses biens vitaux (Q0 × N ÷ 1000, la demande au prix de référence). Servi : sa
+ * part des unités achetées de ces biens, au prorata des besoins de référence de toutes les classes qui
+ * veulent le bien, vital pour elles ou non. Il n'est jamais servi plus d'unités qu'il n'en a été acheté.
+ */
+export function vitalMeasure(
+  classes: readonly NeedClass[],
+  bought: ReadonlyMap<string, number>,
+): { classId: string; served: number; demanded: number }[] {
+  const need = ({ basket, population }: NeedClass, goodId: string) =>
+    ((basket.find((e) => e.goodId === goodId)?.quantityPerThousand ?? 0) * population) / 1000;
+  return classes.map((npcClass) => {
+    let [served, demanded] = [0, 0];
+    for (const { goodId, need: level } of npcClass.basket) {
+      if (level !== 'vital') continue;
+      const own = need(npcClass, goodId);
+      const all = classes.reduce((sum, other) => sum + need(other, goodId), 0);
+      demanded += own;
+      if (own > 0) served += ((bought.get(goodId) ?? 0) * own) / all;
+    }
+    return { classId: npcClass.id, served, demanded };
+  });
+}
