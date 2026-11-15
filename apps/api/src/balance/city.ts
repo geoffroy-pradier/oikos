@@ -393,3 +393,12 @@ export async function reconcile(city: City, founded: number, counted: Record<str
     mass: grant - flows.faucet_npc_purchases - sinks,
   };
 }
+/** Rang du dernier échange du monde. */
+export const lastSeq = async (city: City) =>
+  Number(
+    (
+      await sql<{
+        seq: string | null;
+      }>`select max(seq) as seq from game.trades where world_id = ${city.worldId}`.execute(city.db)
+    ).rows[0]?.seq ?? 0,
+  );
