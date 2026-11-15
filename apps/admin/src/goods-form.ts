@@ -67,6 +67,38 @@ export function editRow(rows: Row[], row: number, field: TableField, input: stri
   });
 }
 
+/**
+ * Lignes d'une table dont chaque ligne porte des listes imbriquées (`lists` : intrants et extrants d'une
+ * recette, panier d'une classe). `null` aussi quand l'une d'elles, présente, n'est pas une liste d'objets :
+ * un formulaire ne montre pas une ligne à moitié.
+ */
+export function readNested(config: unknown, key: string, lists: readonly string[]): Row[] | null {
+  const rows = readRows(config, key);
+  return rows?.every((row) => lists.every((list) => readRows(row, list))) ? rows : null;
+}
+
+/** Lignes après une saisie dans un élément de leur liste `list` : seule cette valeur change. */
+export function editNested(
+  rows: Row[],
+  row: number,
+  list: string,
+  line: number,
+  field: TableField,
+  input: string,
+): Row[] {
+  return rows.map((entry, index) => {
+    // Une liste absente n'est pas créée : il n'y a pas d'élément où saisir.
+    const lines = index === row && Object.hasOwn(entry, list) ? readRows(entry, list) : null;
+    return lines ? withRows(entry, list, editRow(lines, line, field, input)) : entry;
+  });
+}
+
+/** Identifiants des biens du texte, sans doublon : de simples suggestions pour un champ « bien ». */
+export function goodIds(config: unknown): string[] {
+  const ids = (readRows(config, 'goods') ?? []).map((good) => good['id']);
+  return [...new Set(ids.filter((id): id is string => typeof id === 'string' && id !== ''))];
+}
+
 /** Texte JSON de la configuration avec cette table : la seule chose qu'un formulaire écrit. */
 export const composeTable = (config: unknown, key: string, rows: Row[]): string =>
   JSON.stringify(withRows(config, key, rows), null, 2);

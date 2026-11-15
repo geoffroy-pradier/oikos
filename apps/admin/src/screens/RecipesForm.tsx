@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { composeTable, editRow, readRows, type Row } from '../goods-form';
+import { composeTable, editNested, editRow, goodIds, readRows, type Row } from '../goods-form';
 import {
-  editStack,
-  goodIds,
   readRecipes,
   RECIPE_FIELDS,
   RECIPE_SIDES,
@@ -85,7 +83,7 @@ export function RecipesForm(props: {
                         readOnly={props.readOnly}
                         list={field.key === 'goodId' ? 'recipes-good-ids' : undefined}
                         onInput={(input) =>
-                          write(editStack(recipes, row, side, line, field, input))
+                          write(editNested(recipes, row, side, line, field, input))
                         }
                       />
                     ))}

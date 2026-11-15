@@ -974,3 +974,80 @@ it('formulaire des recettes : indisponible sans listes lisibles, sans toucher au
   expect(stackCell('bake', 'intrants', 'wheat', 'quantité').readOnly).toBe(true);
   expect(screen.queryAllByText(/^Chaque saisie réécrit/)).toEqual([]);
 });
+
+const PLEBS = {
+  id: 'plebs',
+  qualitySensitivity: 0.2,
+  incomePerThousand: 400,
+  basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 1.5, extra: 1 }],
+};
+/** Champ d'une ligne du panier d'une classe : classe, ligne (bien ou rang), libellé. */
+const basketCell = (npcClass: string, line: string, label: string) => {
+  const basket = within(screen.getByRole('group', { name: npcClass })).getByRole('group', {
+    name: 'panier',
+  });
+  return within(within(basket).getByRole('group', { name: line })).getByLabelText<
+    HTMLInputElement | HTMLSelectElement
+  >(label);
+};
+const classesOf = (editor: HTMLTextAreaElement) =>
+  (JSON.parse(editor.value) as { npcClasses: Record<string, unknown>[] }).npcClasses;
+
+it('formulaire des classes : champs et panier se lisent du texte et le réécrivent, rien d’autre ne change', async () => {
+  const editor = await openVersion(1);
+  expect(screen.getByText('Classes de PNJ').closest('details')?.open).toBe(false);
+  const text = { npcClasses: [PLEBS, { need: 'x' }], goods: GOODS };
+  type(editor, JSON.stringify(text, null, 2));
+  expect(cell('plebs', 'sensibilité à la qualité').value).toBe('0.2');
+  expect(basketCell('plebs', 'bread', 'besoin').value).toBe('vital');
+  // Décimal à virgule dans le panier : seule cette valeur change, clé inconnue et ordre gardés.
+  type(basketCell('plebs', 'bread', 'quantité pour 1 000 habitants'), '2,5');
+  const basket = [{ ...PLEBS.basket[0], quantityPerThousand: 2.5 }];
+  const plebs = { ...PLEBS, basket };
+  expect(editor.value).toBe(
+    JSON.stringify({ ...text, npcClasses: [plebs, { need: 'x' }] }, null, 2),
+  );
+  // Le revenu suit la règle du prix ; le besoin se choisit dans la liste du schéma.
+  type(cell('plebs', 'revenu pour 1 000 habitants (oboles par tick)'), '1.000');
+  type(basketCell('plebs', 'bread', 'besoin'), 'luxury');
+  expect(classesOf(editor)[0]).toEqual({
+    ...plebs,
+    incomePerThousand: '1.000',
+    basket: [{ ...basket[0], need: 'luxury' }],
+  });
+  // Les biens du texte sont proposés au champ « bien ».
+  const list = basketCell('plebs', 'bread', 'bien').getAttribute('list') ?? '';
+  const options = document.getElementById(list)?.querySelectorAll('option') ?? [];
+  expect([...options].map((option) => option.value)).toEqual(['wheat', 'bread']);
+  // Sans identifiant : nommée par son rang ; sans panier, la liste est dite vide.
+  const second = within(screen.getByRole('group', { name: 'élément 2' }));
+  expect(second.getByRole('group', { name: 'panier' }).textContent).toBe('panierAucune ligne.');
+  type(cell('élément 2', 'identifiant'), 'rich');
+  expect(classesOf(editor)[1]).toEqual({ need: 'x', id: 'rich' });
+  fireEvent.click(button('Ouvrir la version 2'));
+  expect(document.activeElement).toBe(button('Garder le texte modifié'));
+});
+
+it('formulaire des classes : indisponible sans panier lisible ; lecture seule pour l’observateur', async () => {
+  const editor = await openVersion(1);
+  for (const text of ['{"npcClasses":{}}', '{"npcClasses":[{"basket":{}}]}']) {
+    type(editor, text);
+    expect(screen.getByText(/^Formulaire indisponible.*« npcClasses »/)).toBeTruthy();
+    expect(screen.queryAllByLabelText('sensibilité à la qualité')).toEqual([]);
+    expect(editor.value).toBe(text);
+  }
+  cleanup();
+  api.adminGet.mockImplementation((path: string) =>
+    Promise.resolve({
+      ok: true,
+      data:
+        path === 'config/versions'
+          ? LISTING
+          : { id: 'v1', number: 1, config: { npcClasses: [PLEBS] } },
+    }),
+  );
+  await openVersion(1, 'observer');
+  expect(cell('plebs', 'sensibilité à la qualité').readOnly).toBe(true);
+  expect((basketCell('plebs', 'bread', 'bien') as HTMLInputElement).readOnly).toBe(true);
+  expect(basketCell('plebs', 'bread', 'besoin').disabled).toBe(true);
+});

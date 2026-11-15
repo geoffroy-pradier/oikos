@@ -267,6 +267,16 @@
         "workshop": "Atelier"
       }
     },
+    "npcClassesForm": {
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Une classe ou une ligne de panier s'y ajoute ou s'y retire encore.",
+      "empty": "Aucune ligne.",
+      "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « npcClasses » est une liste d'objets, dont « basket » est une liste d'objets.",
+      "needs": {
+        "vital": "Vital",
+        "comfort": "Confort",
+        "luxury": "Luxe"
+      }
+    },
     "schemaPath": {
       "root": "Configuration entière",
       "position": "élément {{rank}}",

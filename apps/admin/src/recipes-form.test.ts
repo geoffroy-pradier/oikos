@@ -1,10 +1,10 @@
 import { recipeSchema, SITE_TYPES as SCHEMA_SITE_TYPES } from '@oikos/config/schema';
 import fc from 'fast-check';
 import { expect, it } from 'vitest';
-import { composeTable, editRow, typed } from './goods-form';
+import { composeTable, editNested, editRow, goodIds, typed } from './goods-form';
 import * as form from './recipes-form';
 
-const { editStack, goodIds, readRecipes, RECIPE_FIELDS, RECIPE_SIDES, STACK_FIELDS } = form;
+const { readRecipes, RECIPE_FIELDS, RECIPE_SIDES, STACK_FIELDS } = form;
 type Recipes = { recipes: Record<string, Record<string, unknown>[]>[] };
 
 it('les champs, les listes, les lignes et les types de site du formulaire sont ceux du schéma, dans son ordre', () => {
@@ -40,8 +40,8 @@ it('suggestions du champ « bien » : les identifiants des biens du texte, sans 
 
 it('une saisie dans une ligne absente ne crée pas sa liste', () => {
   const recipes = [{ id: 'gather', outputs: [] }];
-  expect(editStack(recipes, 0, 'inputs', 0, STACK_FIELDS[1], '3')).toEqual(recipes);
-  expect(editStack(recipes, 0, 'outputs', 0, STACK_FIELDS[1], '3')).toEqual(recipes);
+  expect(editNested(recipes, 0, 'inputs', 0, STACK_FIELDS[1], '3')).toEqual(recipes);
+  expect(editNested(recipes, 0, 'outputs', 0, STACK_FIELDS[1], '3')).toEqual(recipes);
 });
 
 it('conservation : une saisie dans une recette ou dans une de ses lignes ne change que sa valeur, ordre des clés compris', () => {
@@ -73,7 +73,7 @@ it('conservation : une saisie dans une recette ou dans une de ses lignes ne chan
       const line = pickLine % (lines?.length ?? 1);
       const next =
         'side' in aim
-          ? editStack(config.recipes, row, aim.side, line, aim.field, text)
+          ? editNested(config.recipes, row, aim.side, line, aim.field, text)
           : editRow(config.recipes, row, aim.field, text);
       // Valeur attendue écrite à la main, à sa place : seule cette clé change, ou disparaît si vidée.
       const changed = (lines?.[line] ?? recipe) as Record<string, unknown>;

@@ -267,6 +267,16 @@
         "workshop": "Workshop"
       }
     },
+    "npcClassesForm": {
+      "hint": "Each entry rewrites the JSON text above. Classes and basket lines are still added or removed there.",
+      "empty": "No line.",
+      "unavailable": "Form unavailable: the text must be a JSON object whose “npcClasses” is a list of objects, whose “basket” is a list of objects.",
+      "needs": {
+        "vital": "Vital",
+        "comfort": "Comfort",
+        "luxury": "Luxury"
+      }
+    },
     "schemaPath": {
       "root": "Whole configuration",
       "position": "item {{rank}}",

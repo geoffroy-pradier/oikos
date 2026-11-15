@@ -32,6 +32,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     market: { npcMaxPriceFactor: number };
     goods: [{ id: string; elasticity: number }];
     recipes: [{ id: string; outputs: [{ goodId: string; quantity: number }] }];
+    npcClasses: [{ id: string; basket: [{ goodId: string; quantityPerThousand: number }] }];
   };
   const grant = config.starting.grantOboles;
   // Formulaire des biens, replié : déplié, une saisie y réécrit le texte, la comparaison la montre.
@@ -70,6 +71,24 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   const quantity = `recipes[${recipe.id}].outputs[${output.goodId}].quantity`;
   await expect(
     page.getByText(`${quantity} : ${output.quantity} → ${output.quantity + 1}`),
+  ).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  // Formulaire des classes : de même, une saisie dans le panier d'une classe.
+  const classes = page.locator('details').filter({
+    has: page.getByText('Classes de PNJ', { exact: true }),
+  });
+  await classes.getByText('Classes de PNJ', { exact: true }).click();
+  const [npcClass] = config.npcClasses;
+  const [need] = npcClass.basket;
+  await classes
+    .getByRole('group', { name: npcClass.id, exact: true })
+    .getByRole('group', { name: 'panier', exact: true })
+    .getByRole('group', { name: need.goodId, exact: true })
+    .getByLabel('quantité pour 1 000 habitants')
+    .fill(String(need.quantityPerThousand + 1));
+  const demand = `npcClasses[${npcClass.id}].basket[${need.goodId}].quantityPerThousand`;
+  await expect(
+    page.getByText(`${demand} : ${need.quantityPerThousand} → ${need.quantityPerThousand + 1}`),
   ).toBeVisible();
   await expectNoHorizontalScroll(page);
 
