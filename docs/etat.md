@@ -10,7 +10,9 @@ spécifications (`docs/specs/`) décrivent la cible.
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
 - **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #76 et #98. En cours : #77 (Olympe :
-  reste le critère 4, paramètres par formulaire) et #161 (suivis du tableau de bord, en partie faits).
+  reste le critère 4, paramètres par formulaire) et #161 (suivis du tableau de bord : restent le
+  `try/finally` des commandes, la vérification périodique du service worker, des e2e d'alertes et un
+  format unique des montants).
   Ouverts, pas commencés : #78 (équilibrage, désormais débloqué), #97, #100, et les tickets de suivi
   #123, #130, #136, #145, #155, #158, #176, #181, #184.
 
@@ -224,8 +226,7 @@ Défauts connus, déjà en tickets :
   ligne, à cause de la compilation à la volée.
 - **#158** : les migrations 09, 19 et 21 ne sont pas rejouables, contrairement à la règle 9 du
   `CLAUDE.md` ; à corriger, avec le bornage de `seasonDays` et le refus d'un fuseau inconnu de la base.
-- **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (la
-  tranche 3 de #161 est en relecture, #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
+- **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (trois tranches de #161 fusionnées, dont #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
   Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
   étroits de double paiement et le `try/finally` des commandes de la carte des sites.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
