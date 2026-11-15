@@ -7,6 +7,7 @@ import { useHouse } from '../house';
 import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
+import { formatList } from '../lists';
 import { acquireIntent, acquireIntentBelow, outcomeKnown, pendingKeys } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { serverClock, syncServerClock } from '../server-clock';
@@ -80,6 +81,7 @@ export function SitesCard({
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
+  const list = (items: string[]) => formatList(i18n.language, items);
   const money = useMoney();
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   // Une recette ou un type ajoutés par le back-office sans traduction s'affichent par leur identifiant.
@@ -179,7 +181,7 @@ export function SitesCard({
     run(
       site.id,
       () => collectSite(site.id, house.accessToken),
-      (data) => t('home.collected', { list: data.outputs.map(stackText).join(', ') }),
+      (data) => t('home.collected', { list: list(data.outputs.map(stackText)) }),
     );
 
   async function change(site: Site, recipeId: string) {
@@ -270,7 +272,7 @@ export function SitesCard({
         t('home.collectedAll', {
           count: outcome.succeeded.length,
           number: number.format(outcome.succeeded.length),
-          list: outcome.collected.map(stackText).join(', '),
+          list: list(outcome.collected.map(stackText)),
         }),
       );
     for (const failure of outcome.failed)
@@ -350,7 +352,7 @@ export function SitesCard({
               <li key={site.id}>
                 {t('home.watchLine', {
                   site: siteName(site),
-                  alerts: alerts.map((alert) => t(`home.alert.${alert}`)).join(', '),
+                  alerts: list(alerts.map((alert) => t(`home.alert.${alert}`))),
                 })}
               </li>
             ))}
@@ -385,14 +387,14 @@ export function SitesCard({
                         {t('home.cap', {
                           count: recipe.maxAccruedCycles,
                           cycles: number.format(recipe.maxAccruedCycles),
-                          list: recipe.outputs
-                            .map((stack) =>
+                          list: list(
+                            recipe.outputs.map((stack) =>
                               stackText({
                                 goodId: stack.goodId,
                                 quantity: stack.quantity * recipe.maxAccruedCycles,
                               }),
-                            )
-                            .join(', '),
+                            ),
+                          ),
                         })}
                       </p>
                     )}
@@ -448,7 +450,7 @@ export function SitesCard({
               {harvest && (
                 <p className="text-sm">
                   {harvest.cycles > 0
-                    ? t('home.harvestable', { list: harvest.outputs.map(stackText).join(', ') })
+                    ? t('home.harvestable', { list: list(harvest.outputs.map(stackText)) })
                     : t('home.harvestNone')}
                   {harvest.waiting > 0 && (
                     <> {t('home.harvestWaiting', { count: harvest.waiting })}</>
