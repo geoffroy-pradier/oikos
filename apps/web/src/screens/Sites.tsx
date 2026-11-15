@@ -57,9 +57,12 @@ export function SitesCard({
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
-    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer ») :
-    // le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
-    if (element && document.activeElement === document.body) element.focus();
+    // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer »,
+    // « Acquérir » s'efface à la limite) ou devenir inactif (« Changer » après un
+    // changement réussi) : le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
+    const active = document.activeElement;
+    const lost = active === document.body || active?.matches(':disabled') === true;
+    if (element && lost) element.focus();
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
@@ -233,17 +236,24 @@ export function SitesCard({
     running.current = false;
   }
 
+  // Chaque cible a ses deux régions vivantes, présentes avant le message : un lecteur d'écran n'annonce
+  // de façon sûre que ce qui change dans une région déjà là. Le message lui-même n'a pas de rôle (une
+  // seule région l'annonce). Vide, une région sort du flux (`absolute`) sans quitter l'arbre
+  // d'accessibilité : l'espacement de la carte ne bouge pas.
   const announce = (target: string) =>
-    notice?.target === target && (
-      <p
-        ref={noticeElement}
-        tabIndex={-1}
-        role={notice.kind}
-        className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
-      >
-        {notice.text}
-      </p>
-    );
+    (['status', 'alert'] as const).map((kind) => (
+      <div key={kind} role={kind} className="empty:absolute">
+        {notice?.target === target && notice.kind === kind && (
+          <p
+            ref={noticeElement}
+            tabIndex={-1}
+            className={kind === 'alert' ? 'font-semibold text-danger' : ''}
+          >
+            {notice.text}
+          </p>
+        )}
+      </div>
+    ));
 
   return (
     <Card className="flex flex-col gap-3">
@@ -437,10 +447,13 @@ export function SitesCard({
 
       {rules && (
         <form
+          aria-labelledby="sites-acquire"
           className="flex flex-col gap-2 border-t border-border pt-3"
           onSubmit={(event) => void acquire(event)}
         >
-          <h3 className="text-lg">{t('home.acquire')}</h3>
+          <h3 id="sites-acquire" className="text-lg">
+            {t('home.acquire')}
+          </h3>
           {full ? (
             <p className="text-muted-foreground">{t('home.limitReached')}</p>
           ) : (
