@@ -120,7 +120,7 @@
       "cut": {
         "open": "Ouvert",
         "disabled": "Coupé (configuration)",
-        "capped": "Coupé (plafond du mois atteint)"
+        "capped": "Coupé (plafond du mois atteint ou trop proche)"
       }
     }
   },

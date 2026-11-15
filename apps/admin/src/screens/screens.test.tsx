@@ -323,7 +323,7 @@ describe('Vigie : passerelle IA', () => {
       ['Chronique des cités', 'Ouvert', '0,0013 €', '0,4321 € sur 2,00 €', '3 sur 40'],
       [
         'Consignes d’intendant'.replace('’', "'"),
-        'Coupé (plafond du mois atteint)',
+        'Coupé (plafond du mois atteint ou trop proche)',
         '0,00 €',
         '0,4999 € sur 0,50 €',
         '0 sur 12',

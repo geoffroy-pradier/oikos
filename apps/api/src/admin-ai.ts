@@ -1,4 +1,4 @@
-import { estimateCostMicroEuros } from '@oikos/ai';
+import { isCapped } from '@oikos/ai';
 import { AI_USAGES, aiMonthlyCapMicroEuros, type AiUsage, type GameConfig } from '@oikos/config';
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
@@ -18,8 +18,7 @@ export interface AiUsageFigures {
 
 /**
  * Coût estimé du jour et du mois (UTC, comme le plafond de la passerelle), plafond, sorties rejetées et
- * coupure de chaque usage. Un usage est dit plafonné quand sa sortie la plus chère ne tient plus sous ce
- * qui reste du plafond, la règle même de la passerelle.
+ * coupure de chaque usage, selon la règle même de la passerelle (`isCapped`).
  */
 export async function readAiUsage(
   db: Db,
@@ -35,6 +34,8 @@ export async function readAiUsage(
   }>`
     with bounds as (
       select date_trunc('month', ${now}::timestamptz at time zone 'UTC') at time zone 'UTC' as month_start,
+             (date_trunc('month', ${now}::timestamptz at time zone 'UTC') + interval '1 month')
+               at time zone 'UTC' as month_end,
              date_trunc('day', ${now}::timestamptz at time zone 'UTC') at time zone 'UTC' as day_start)
     select c.usage,
            coalesce(sum(c.cost_micro_euros), 0)::text as month,
@@ -42,22 +43,21 @@ export async function readAiUsage(
            count(*) filter (where c.outcome in ('ok', 'invalid'))::text as answered,
            count(*) filter (where c.outcome = 'invalid')::text as rejected
     from telemetry.ai_calls c, bounds b
-    where c.called_at >= b.month_start and c.called_at < b.month_start + interval '1 month'
+    -- Le mois s'ajoute avant le retour en UTC, comme dans la passerelle : sinon Postgres l'ajouterait
+    -- dans le fuseau de la session.
+    where c.called_at >= b.month_start and c.called_at < b.month_end
     group by c.usage`.execute(db);
   return AI_USAGES.map((usage) => {
     const row = rows.find((candidate) => candidate.usage === usage);
-    const settings = ai.usages[usage];
-    const capMicroEuros = aiMonthlyCapMicroEuros(ai, usage);
     const spentMonthMicroEuros = Number(row?.month ?? 0);
-    const reserve = estimateCostMicroEuros(settings, 0, settings.maxOutputTokens);
     return {
       usage,
-      cut: !settings.enabled
+      cut: !ai.usages[usage].enabled
         ? 'disabled'
-        : spentMonthMicroEuros + reserve > capMicroEuros
+        : isCapped(ai, usage, spentMonthMicroEuros)
           ? 'capped'
           : null,
-      capMicroEuros,
+      capMicroEuros: aiMonthlyCapMicroEuros(ai, usage),
       spentTodayMicroEuros: Number(row?.today ?? 0),
       spentMonthMicroEuros,
       answeredMonth: Number(row?.answered ?? 0),

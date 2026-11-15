@@ -173,7 +173,8 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           <h2 id="ai-gateway" className="text-xl">
             {t('vigie.ai.title')}
           </h2>
-          <div className="overflow-x-auto">
+          {/* Région focalisable : à 360 px, le tableau défile aussi au clavier. */}
+          <div className="overflow-x-auto" role="region" aria-labelledby="ai-gateway" tabIndex={0}>
             <table aria-labelledby="ai-gateway" className={TABLE}>
               <thead>
                 <tr>
@@ -219,7 +220,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           {data.recentTicks.length === 0 ? (
             <p className="text-muted-foreground">{t('vigie.noTicks')}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              className="overflow-x-auto"
+              role="region"
+              aria-labelledby="recent-ticks"
+              tabIndex={0}
+            >
               <table aria-labelledby="recent-ticks" className={TABLE}>
                 <thead>
                   <tr>
