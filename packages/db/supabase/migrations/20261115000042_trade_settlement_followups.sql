@@ -89,14 +89,13 @@ end;
 $$;
 revoke execute on function game.check_trade_settlement(uuid) from public, anon, authenticated, oikos_service;
 
--- 3. Une ligne écrite avant son échange, dans la même transaction, n'est plus contrôlée pour lui : le
--- contrôle de l'échange (`trades_settled`) s'exécute après l'insertion de l'échange, donc après elle, et
--- lit toutes les lignes de l'écriture. Le règlement coûte ainsi un contrôle par échange, plus un par ligne
--- ajoutée après lui, même si l'appelant force ses contrôles différés entre-temps.
--- « Avant », c'est la même transaction (`xmin`, et la date de l'échange, posée par la base) et une commande
--- antérieure ou la même (`cmin`). `cmin` n'est le rang de la commande d'insertion que parce que lignes et
--- échanges ne sont ni modifiés ni supprimés (gardes `*_immutable`). Une ligne et un échange de
--- sous-transactions différentes ne se reconnaissent pas : le contrôle est alors refait, jamais omis.
+-- 3. Chaque ligne de l'écriture d'un échange refait le contrôle complet de l'échange, comme en migration
+-- 35 : un contrôle à l'insertion de l'échange, plus un par ligne, soit au plus cinq par échange (quatre
+-- lignes). Décision du ticket 205 : ne pas l'éviter. Sauter la ligne écrite « avant » l'échange dans la
+-- même transaction suppose de savoir qu'elle l'a été : ni le rang de commande (`cmin`, plus petit pour
+-- une instruction qui insère ses lignes après avoir appelé une fonction qui insère l'échange) ni la date
+-- ne le disent, et le contournement laissait un séquestre payer une autre maison. Un contrôle par ligne
+-- borné, mais certain. Avec l'index unique, l'écriture n'a qu'un échange : plus de boucle.
 create or replace function game.check_trade_settled() returns trigger
 language plpgsql
 security definer
@@ -108,11 +107,7 @@ begin
   if tg_relid = 'game.trades'::regclass then
     perform game.check_trade_settlement(new.id);
   elsif tg_relid = 'game.ledger_lines'::regclass then
-    select t.id into settled from game.trades t
-      where t.ledger_entry_id = new.entry_id
-        and not exists (select 1 from game.ledger_lines l
-                        where l.id = new.id and l.xmin = t.xmin and l.cmin::text::bigint <= t.cmin::text::bigint
-                          and t.created_at = now());
+    select t.id into settled from game.trades t where t.ledger_entry_id = new.entry_id;
     if settled is not null then
       perform game.check_trade_settlement(settled);
     end if;

@@ -1,5 +1,5 @@
 begin;
-select plan(37);
+select plan(36);
 
 -- Règlement des échanges et séquestre, tenus par la base (migrations 35 et 36 ; ticket 100). Chaque écriture
 -- est jouée sous le rôle de service, comme le jeu, puis les contrôles différés sont validés : un refus
@@ -167,27 +167,6 @@ select lives_ok(format($$select pg_temp.as_service(%L)$$,
     || pg_temp.trade('420', '307', null, 1, 1, '517')),
   'net nul : le vendeur n''a pas de ligne');
 
--- Coût du règlement (migration 42) : un contrôle par échange, plus un par ligne écrite après lui. Les
--- appels sont comptés dans la transaction ; un contrôle qui échoue n'est pas compté.
-set local track_functions = 'pl';
-create function pg_temp.checks_during(statements text) returns bigint language plpgsql as $$
-declare
-  calls bigint := coalesce(pg_stat_get_xact_function_calls('game.check_trade_settlement(uuid)'::regprocedure), 0);
-begin
-  perform pg_temp.as_service(statements);
-  return coalesce(pg_stat_get_xact_function_calls('game.check_trade_settlement(uuid)'::regprocedure), 0) - calls;
-end $$;
-select is(pg_temp.checks_during(
-    pg_temp.entry('518', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax'), pg_temp.sys('101')]::uuid[], array[-16, 14, 1, 1])
-    || pg_temp.trade('421', '303', null, 8, 2, '518')),
-  1::bigint, 'quatre lignes écrites avant l''échange : un seul contrôle, celui de l''échange');
-select is(pg_temp.checks_during(
-    pg_temp.entry('519', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-16, 15])
-    || pg_temp.trade('422', '303', null, 8, 2, '519')
-    || $s$insert into game.ledger_lines (entry_id, account_id, amount)
-         select '00000000-0000-7000-8000-000000000519', id, 1 from game.accounts where system_key = 'sink_market_tax'
-           and world_id = '01900000-0000-7000-8000-000000000001';$s$),
-  2::bigint, 'une ligne écrite après l''échange : contrôlé de nouveau');
 -- Contrôle forcé entre l'échange et une ligne ajoutée après lui : la ligne reste contrôlée.
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('526', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-8, 8])
@@ -209,6 +188,28 @@ select lives_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('525', 'market.trade', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax'), pg_temp.sys('101')]::uuid[], array[-80, 76, 2, 2])
     || pg_temp.trade('416', '302', '301', 8, 10, '525')),
   'payé par son séquestre, taxe comprise');
+-- Une instruction qui insère ses lignes après avoir appelé une fonction qui insère l'échange : ses lignes
+-- ont un rang de commande plus petit que l'échange, mais sont écrites après son contrôle, forcé. Elles
+-- sont contrôlées : le séquestre d'Alice ne paie pas 100 oboles à Chloé dans l'écriture d'un échange de
+-- 1 × 8 (relecture du ticket 205). Une mise sous séquestre de 100 garde le séquestre égal aux restes.
+create function pg_temp.settle_once() returns boolean language plpgsql as $$
+begin
+  if not exists (select 1 from game.trades where id = '00000000-0000-7000-8000-000000000499') then
+    execute pg_temp.trade('499', '302', '301', 8, 1, '599');
+  end if;
+  return true;
+end $$;
+grant execute on function pg_temp.settle_once(), pg_temp.trade(text, text, text, bigint, bigint, text) to oikos_service;
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('598', 'market.escrow_hold', array['00000000-0000-7000-8000-0000000000aa', '00000000-0000-7000-8000-0000000000ae']::uuid[], array[-100, 100])
+    || pg_temp.entry('599', 'market.trade', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-8, 8])
+    || $s$set constraints game.trades_settled immediate;
+       insert into game.ledger_lines (entry_id, account_id, amount)
+         select '00000000-0000-7000-8000-000000000599', v.a, v.m
+         from (values ('00000000-0000-7000-8000-0000000000ae'::uuid, -100::bigint), ('00000000-0000-7000-8000-0000000000cc'::uuid, 100::bigint)) v (a, m)
+         where pg_temp.settle_once();$s$),
+  '23514', 'trade 00000000-0000-7000-8000-000000000499 must be paid 8 oboles in a single debit of the buyer''s escrow',
+  'des lignes écrites par une instruction qui a inséré l''échange en cours de route sont contrôlées');
 
 -- La fonction de déclencheur du règlement ne s'attache pas à une autre table que les siennes.
 create table pg_temp.owner_trades (id uuid, ledger_entry_id uuid);
@@ -280,6 +281,6 @@ select is(pg_temp.verdict(pg_temp.hold_then_pay_bob(), 'all'),
 
 select is((select string_agg(kind || ':' || balance, ' ' order by id) from game.accounts
             where house_id in ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000b1', '00000000-0000-7000-8000-0000000000c1')),
-  'house:720 escrow:160 house:193 house:100', 'trésorerie et séquestre d''Alice, trésoreries de Bob et de Chloé : chaque oboles où le jeu l''a mise');
+  'house:720 escrow:160 house:164 house:100', 'trésorerie et séquestre d''Alice, trésoreries de Bob et de Chloé : chaque oboles où le jeu l''a mise');
 select * from finish();
 rollback;
