@@ -292,6 +292,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Par échéance, seule la dernière version programmée l'emporte (15.4) : l'API rend les
   // programmations de la plus récente à la plus ancienne, la première vue pour une échéance gagne.
   // Une programmation annulée reste dans la lecture, marquée : elle n'entrera pas en vigueur.
+  const already = listing.data?.versions.find(
+    (version) => version.id === listing.data?.activeVersionId,
+  )?.alreadyRetiredInUse;
   const winners = new Map<string, Listing['activations'][number]>();
   for (const entry of listing.data?.activations ?? [])
     if (!entry.cancelledAt && !winners.has(entry.activateAt)) winners.set(entry.activateAt, entry);
@@ -306,6 +309,14 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
       <h2 className="text-xl">{t('config.versions')}</h2>
+      {/* Déjà absentes de la version en vigueur, encore en usage : dites une fois, en tête, rien à
+          confirmer (#234). Sous la version en vigueur, la lecture les donne toutes. */}
+      {already && already.recipes.length + already.npcClasses.length > 0 && (
+        <div className="text-sm wrap-break-word">
+          <p className="font-semibold">{t('config.alreadyRetired')}</p>
+          <UsageList {...already} />
+        </div>
+      )}
       <ul
         className="flex flex-col gap-3"
         onKeyDown={ignoreHeldEnter}
@@ -327,19 +338,12 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
           const npcClasses = version.retiredInUse?.npcClasses ?? [];
           const unconfirmedId = `config-unconfirmed-${version.id}`;
           const toConfirm = recipes.length + npcClasses.length > 0;
-          const already = version.alreadyRetiredInUse;
-          const alreadyId = `config-already-retired-${version.id}`;
-          const hasAlready = !!already && already.recipes.length + already.npcClasses.length > 0;
           const signature = JSON.stringify([
             recipes.map((recipe) => recipe.recipeId),
             npcClasses.map((npcClass) => npcClass.classId),
           ]);
           const isConfirmed = toConfirm && confirmed[version.id] === signature;
-          const described = [
-            retired.length > 0 && retiredId,
-            toConfirm && unconfirmedId,
-            hasAlready && alreadyId,
-          ]
+          const described = [retired.length > 0 && retiredId, toConfirm && unconfirmedId]
             .filter(Boolean)
             .join(' ');
           return (
@@ -449,13 +453,6 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                       {t('config.confirmRetired', { number: version.number })}
                     </label>
                   )}
-                </div>
-              )}
-              {/* Déjà absentes de la version en vigueur : rien à confirmer, l'écran les dit (#234). */}
-              {hasAlready && (
-                <div id={alreadyId} className="text-sm wrap-break-word">
-                  <p className="font-semibold">{t('config.alreadyRetired')}</p>
-                  <UsageList {...already} />
                 </div>
               )}
               <div className="mt-2 flex flex-wrap gap-2">

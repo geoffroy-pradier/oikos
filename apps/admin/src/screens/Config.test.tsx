@@ -862,7 +862,7 @@ it('recette retirée en usage : l’observateur lit l’avertissement, sans case
   expect(screen.queryByRole('checkbox')).toBeNull();
 });
 
-it('déjà retirée par la version en vigueur : dite à titre d’information, sans case ; seule la retirée par cette version se confirme (#234)', async () => {
+it('déjà retirée par la version en vigueur : dite une fois, en tête, sans case ; seule la retirée par cette version se confirme (#234)', async () => {
   const [v3, v2, v1] = LISTING.versions;
   const kept = { recipes: [], npcClasses: [{ classId: 'metoikoi', cities: 2, population: 0 }] };
   const retiredInUse = {
@@ -879,7 +879,7 @@ it('déjà retirée par la version en vigueur : dite à titre d’information, s
               ...LISTING,
               versions: [
                 { ...v3, retiredInUse, alreadyRetiredInUse: kept },
-                { ...v2, retiredInUse: { goods: [], recipes: [], npcClasses: [] } },
+                { ...v2, alreadyRetiredInUse: kept },
                 { ...v1, alreadyRetiredInUse: kept },
               ],
             }
@@ -891,30 +891,26 @@ it('déjà retirée par la version en vigueur : dite à titre d’information, s
   const schedule3 = await screen.findByRole('button', {
     name: 'Programmer la version 3 à la prochaine clôture',
   });
-  // Version 3 : la recette qu'elle retire se confirme ; la classe déjà retirée est une information.
+  // La classe déjà retirée est dite une seule fois, avant la liste, d'après la version en vigueur.
+  const [info, ...repeated] = screen.getAllByText(/metoikoi/).map((line) => line.closest('div'));
+  expect(repeated).toEqual([]);
+  expect(info?.closest('li')).toBeNull();
+  expect(info?.textContent?.replace(/\s/g, ' ')).toBe(
+    'Recettes et classes de PNJ que la version en vigueur a déjà retirées et que le monde porte ' +
+      "encore : une version qui ne les contient pas ne les retire pas, il n'y a rien à confirmer." +
+      'Classe metoikoi — cités : 2 ; habitants gardés : 0',
+  );
+  // Version 3 : la recette qu'elle retire se confirme, seule.
   const notice = within(item(3))
     .getByText(/grow_wheat/)
     .closest('div');
-  const info = within(item(3))
-    .getByText(/metoikoi/)
-    .closest('div');
-  expect(notice?.textContent).not.toContain('metoikoi');
-  expect(info?.textContent?.replace(/\s/g, ' ')).toBe(
-    'Recettes et classes de PNJ encore en usage que la version en vigueur a déjà retirées : cette ' +
-      "version ne les rend pas, il n'y a rien à confirmer.Classe metoikoi — cités : 2 ; habitants gardés : 0",
-  );
-  expect(schedule3.getAttribute('aria-describedby')).toBe(`${notice?.id} ${info?.id}`);
+  expect(schedule3.getAttribute('aria-describedby')).toBe(notice?.id);
   expect(within(item(3)).getAllByRole('checkbox')).toHaveLength(1);
   expect(schedule3).toHaveProperty('disabled', true);
-  // Version 1 : seulement ce qui est déjà retiré, lu avec le bouton, qui n'attend rien.
+  // Version 1 : rien qu'elle retire ; le bouton n'attend rien et n'envoie pas de confirmation.
   const rollback = button('Revenir à la version 1 à la prochaine clôture');
   expect(within(item(1)).queryByRole('checkbox')).toBeNull();
-  expect(
-    within(item(1))
-      .getByText(/metoikoi/)
-      .closest('div')?.id,
-  ).toBe(rollback.getAttribute('aria-describedby'));
-  expect(item(1).textContent).not.toContain('Je confirme');
+  expect(rollback.getAttribute('aria-describedby')).toBeNull();
   fireEvent.click(rollback);
   await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(1));
   expect(api.adminCommand.mock.calls[0]?.[1]).toEqual({ versionId: 'v1' });

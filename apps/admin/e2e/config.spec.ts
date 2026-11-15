@@ -17,10 +17,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expect(page.getByRole('heading', { name: 'Paramètres', level: 1 })).toBeVisible();
 
   // La version en vigueur est signalée ; on l'ouvre : aucune différence avec elle-même.
-  // Le signe exact : « en vigueur » figure aussi dans ce qui est dit des éléments déjà retirés (#234).
-  const inForce = page
-    .getByRole('listitem')
-    .filter({ has: page.getByText('En vigueur', { exact: true }) });
+  const inForce = page.getByRole('listitem').filter({ hasText: 'En vigueur' });
   await expect(inForce).toHaveCount(1);
   const number = /Version (\d+)/.exec(await inForce.getByRole('heading').innerText())?.[1] ?? '';
   await inForce.getByRole('button', { name: `Ouvrir la version ${number}` }).click();
@@ -145,7 +142,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     await page.waitForTimeout(untilClose + 2_000);
   }
   // La version en vigueur ne retire rien par rapport à elle-même : ce que d'autres essais ont laissé en
-  // usage hors d'elle est dit à titre d'information, sans rien à confirmer (#234).
+  // usage hors d'elle est dit une fois, en tête, sans rien à confirmer (#234).
   await expect(inForce.getByRole('checkbox')).toHaveCount(0);
   await inForce
     .getByRole('button', { name: `Programmer la version ${number} à la prochaine clôture` })
@@ -239,36 +236,40 @@ test('paramètres : retiré par cette version (case requise) ou déjà retiré (
   await signIn(page, email);
   await grantSuperAdmin(email);
   await enroll(page);
-  // Ajoutés à la lecture de l'API, sous la dernière version : une recette qu'elle retire, une classe que
-  // la version en vigueur a déjà retirée. Noms longs : rien ne déborde à 360 px. Rien n'est programmé.
+  // Ajoutés à la lecture de l'API : une recette que la dernière version retire, une classe que la
+  // version en vigueur a déjà retirée. Noms longs : rien ne déborde à 360 px. Rien n'est programmé.
   const [recipe, npcClass] = [`rite_${'tres_long'.repeat(3)}`, `cls_${'tres_long'.repeat(3)}`];
   await page.route('**/api/admin/config/versions', async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as {
-      data: { versions: { retiredInUse: { recipes: unknown[] }; alreadyRetiredInUse?: unknown }[] };
-    };
-    const [latest] = body.data.versions;
-    latest?.retiredInUse.recipes.push({ recipeId: recipe, sites: 3, houses: 2 });
-    if (latest)
-      latest.alreadyRetiredInUse = {
-        recipes: [],
-        npcClasses: [{ classId: npcClass, cities: 4, population: 0 }],
+      data: {
+        activeVersionId: string;
+        versions: {
+          id: string;
+          retiredInUse: { recipes: unknown[] };
+          alreadyRetiredInUse: { npcClasses: unknown[] };
+        }[];
       };
+    };
+    body.data.versions[0]?.retiredInUse.recipes.push({ recipeId: recipe, sites: 3, houses: 2 });
+    body.data.versions
+      .find((version) => version.id === body.data.activeVersionId)
+      ?.alreadyRetiredInUse.npcClasses.push({ classId: npcClass, cities: 4, population: 0 });
     await route.fulfill({ response, json: body });
   });
   await page
     .getByRole('navigation', { name: 'Modules' })
     .getByRole('button', { name: 'Paramètres' })
     .click();
-  const confirm = page.getByRole('checkbox', { name: /^Je confirme : programmer la version/ });
-  const card = page.getByRole('listitem').filter({ has: confirm }).filter({ hasText: npcClass });
+  // La classe est dite une fois, avant la liste des versions ; la recette, sous la version qui la retire.
+  const info = page.getByText(`Classe ${npcClass} — cités : 4 ; habitants gardés : 0`);
+  await expect(info).toHaveCount(1);
+  const versionCards = page.getByRole('listitem').filter({ has: page.getByRole('heading') });
+  await expect(versionCards.filter({ hasText: npcClass })).toHaveCount(0);
+  const card = page
+    .getByRole('listitem')
+    .filter({ hasText: `Recette ${recipe}`, has: page.getByRole('checkbox') });
   await expect(card.getByText(`Recette ${recipe} — sites : 3 ; maisons : 2`)).toBeVisible();
-  await expect(
-    card.getByText(/^Recettes et classes de PNJ encore en usage que la version/),
-  ).toBeVisible();
-  await expect(
-    card.getByText(`Classe ${npcClass} — cités : 4 ; habitants gardés : 0`),
-  ).toBeVisible();
   // Une seule case, pour la recette ; le bouton l'attend, puis se programme au clavier.
   await expect(card.getByRole('checkbox')).toHaveCount(1);
   const schedule = card.getByRole('button', { name: /^Programmer la version/ });
