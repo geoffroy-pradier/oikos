@@ -239,6 +239,17 @@
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
+    "goodsForm": {
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Un bien s'y ajoute ou s'y retire.",
+      "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « goods » est une liste d'objets.",
+      "choose": "— choisir —",
+      "tiers": {
+        "raw": "Matière",
+        "intermediate": "Intermédiaire",
+        "finished": "Fini",
+        "service": "Service"
+      }
+    },
     "schemaPath": {
       "root": "Configuration entière",
       "position": "élément {{rank}}",
