@@ -9,6 +9,8 @@ interface VigieData {
   activeAccounts24h: number;
   commands24h: { ok: number; rejected: number; failed: number };
   ticks24h: { failed: number; maxDurationMs: number | null };
+  /** Absent d'une API antérieure à ce champ : rien n'est affiché à sa place. */
+  closes24h?: { failed: number; lastError: string | null };
   recentTicks: {
     worldId: string;
     tickIndex: number;
@@ -55,6 +57,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
         [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
         [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
+        ...(data.closes24h
+          ? ([
+              [t('vigie.closesFailed'), number.format(data.closes24h.failed)],
+              [t('vigie.closeLastError'), data.closes24h.lastError ?? t('vigie.none')],
+            ] as [string, string][])
+          : []),
         [
           t('vigie.queue'),
           data.queuePending === null ? t('vigie.queueUnknown') : number.format(data.queuePending),

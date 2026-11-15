@@ -233,6 +233,18 @@ describe('Vigie', () => {
         .values({ world_id: worldId, ...run })
         .execute();
     }
+    // Une clôture en échec sur une maison : comptée, et sa dernière erreur affichée telle quelle.
+    const closeError = `Close step siteUpkeep failed on house ${randomUUID()}: boom`;
+    await db
+      .insertInto('telemetry.close_runs')
+      .values({
+        world_id: worldId,
+        game_day: 20_771,
+        status: 'failed',
+        duration_ms: 5,
+        error: closeError,
+      })
+      .execute();
     // Une commande refusée d'un compte encore jamais vu : un compte actif et un refus de plus.
     await command(await newUser(), 'admin.scheduleConfig', { versionId: randomUUID() });
 
@@ -241,6 +253,9 @@ describe('Vigie', () => {
     expect(after.activeAccounts24h).toBeGreaterThanOrEqual(before.activeAccounts24h + 1);
     expect(after.ticks24h.failed).toBeGreaterThanOrEqual(before.ticks24h.failed + 1);
     expect(after.ticks24h.maxDurationMs).toBeGreaterThanOrEqual(9999);
+    expect(after.closes24h.failed).toBeGreaterThanOrEqual(before.closes24h.failed + 1);
+    // La plus récente, la nôtre sauf si une autre suite en écrit une au même moment.
+    expect(after.closes24h.lastError).toEqual(expect.stringMatching(/^Close step \S+ failed/));
     expect(after.houses).toBe(
       Number(
         (await sql<{ n: string }>`select count(*) as n from game.houses`.execute(db)).rows[0]?.n,

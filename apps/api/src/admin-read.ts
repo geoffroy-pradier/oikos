@@ -111,7 +111,7 @@ export function registerAdminReads(
     });
   });
 
-  // Vigie : joueurs, commandes et ticks des dernières 24 heures.
+  // Vigie : joueurs, commandes, ticks et clôtures des dernières 24 heures.
   app.get('/api/admin/vigie', async (c) => {
     const totals = await sql<{
       houses: string;
@@ -121,6 +121,8 @@ export function registerAdminReads(
       commands_failed: string;
       ticks_failed: string;
       tick_max_ms: number | null;
+      closes_failed: string;
+      close_last_error: string | null;
     }>`
       select (select count(*) from game.houses) as houses,
              count(distinct l.user_id) as active_accounts,
@@ -130,7 +132,12 @@ export function registerAdminReads(
              (select count(*) from telemetry.tick_runs
                where status = 'failed' and created_at > now() - interval '24 hours') as ticks_failed,
              (select max(duration_ms) from telemetry.tick_runs
-               where created_at > now() - interval '24 hours') as tick_max_ms
+               where created_at > now() - interval '24 hours') as tick_max_ms,
+             (select count(*) from telemetry.close_runs
+               where status = 'failed' and created_at > now() - interval '24 hours') as closes_failed,
+             (select error from telemetry.close_runs
+               where status = 'failed' and created_at > now() - interval '24 hours'
+               order by created_at desc, id desc limit 1) as close_last_error
       from game.command_log l where l.created_at > now() - interval '24 hours'`.execute(db);
     const ticks = await db
       .selectFrom('telemetry.tick_runs')
@@ -177,6 +184,12 @@ export function registerAdminReads(
         ticks24h: {
           failed: Number(total?.ticks_failed),
           maxDurationMs: total?.tick_max_ms ?? null,
+        },
+        // Une clôture en échec (une maison en erreur annule celle de tout son monde) : comptée, et la
+        // dernière erreur, qui nomme l'étape et la maison, affichée.
+        closes24h: {
+          failed: Number(total?.closes_failed),
+          lastError: total?.close_last_error ?? null,
         },
         recentTicks: ticks.map((tick) => ({
           worldId: tick.world_id,

@@ -228,6 +228,17 @@ export interface GameDatabase {
     summary: ColumnType<unknown, string, never>;
     finished_at: Generated<Date>;
   };
+  /** Tentatives de clôture quotidienne d'un monde, réussies ou non (Vigie). */
+  'telemetry.close_runs': {
+    id: Generated<string>;
+    world_id: string;
+    game_day: number;
+    status: 'done' | 'skipped' | 'failed';
+    duration_ms: number;
+    error: string | null;
+    created_at: Generated<Date>;
+  };
+
   'telemetry.tick_runs': {
     id: Generated<string>;
     world_id: string;

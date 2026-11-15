@@ -66,6 +66,8 @@
     "commandsRejected": "Commandes refusées (24 h)",
     "commandsFailed": "Commandes en panne (24 h)",
     "ticksFailed": "Ticks en échec (24 h)",
+    "closesFailed": "Clôtures en échec (24 h)",
+    "closeLastError": "Dernier échec de clôture",
     "tickMax": "Tick le plus long (24 h)",
     "review": "Double validation des paramètres",
     "reviewRequired": "Exigée",

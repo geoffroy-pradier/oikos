@@ -66,6 +66,8 @@
     "commandsRejected": "Rejected commands (24 h)",
     "commandsFailed": "Failed commands (24 h)",
     "ticksFailed": "Failed ticks (24 h)",
+    "closesFailed": "Failed daily closes (24 h)",
+    "closeLastError": "Last failed daily close",
     "tickMax": "Longest tick (24 h)",
     "review": "Second-person review of settings",
     "reviewRequired": "Required",
