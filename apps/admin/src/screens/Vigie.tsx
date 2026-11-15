@@ -41,6 +41,21 @@ interface VigieData {
   } | null;
   /** Absent d'une API antérieure à ce champ : l'écran affiche alors un état inconnu, pas « Exigée ». */
   selfReviewAllowed?: boolean | null;
+  /**
+   * Passerelle IA (ADR 0005), un élément par usage, montants en millionièmes d'euro. `null` sans
+   * configuration en vigueur lisible ; absent d'une API antérieure : rien n'est affiché.
+   */
+  ai?:
+    | {
+        usage: 'oracle' | 'chronicle' | 'steward';
+        cut: 'disabled' | 'capped' | null;
+        capMicroEuros: number;
+        spentTodayMicroEuros: number;
+        spentMonthMicroEuros: number;
+        answeredMonth: number;
+        rejectedMonth: number;
+      }[]
+    | null;
 }
 
 /** Seul un booléen rendu par l'API dit si la double validation est exigée ou levée. */
@@ -57,6 +72,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
   const { data, error, reload } = useAdmin<VigieData>('vigie', accessToken);
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'medium' });
+  const euros = new Intl.NumberFormat(i18n.language, {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 4,
+  });
+  const cost = (microEuros: number) => euros.format(microEuros / 1_000_000);
   const duration = (ms: number | null) =>
     ms === null ? t('vigie.none') : t('vigie.duration', { ms: number.format(ms) });
 
@@ -147,6 +168,50 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           ))}
         </dl>
       )}
+      {data?.ai && (
+        <>
+          <h2 id="ai-gateway" className="text-xl">
+            {t('vigie.ai.title')}
+          </h2>
+          {/* Région focalisable : à 360 px, le tableau défile aussi au clavier. */}
+          <div className="overflow-x-auto" role="region" aria-labelledby="ai-gateway" tabIndex={0}>
+            <table aria-labelledby="ai-gateway" className={TABLE}>
+              <thead>
+                <tr>
+                  <th scope="col">{t('vigie.ai.usage')}</th>
+                  <th scope="col">{t('vigie.ai.state')}</th>
+                  <th scope="col">{t('vigie.ai.today')}</th>
+                  <th scope="col">{t('vigie.ai.month')}</th>
+                  <th scope="col">{t('vigie.ai.rejected')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.ai.map((row) => (
+                  <tr key={row.usage}>
+                    <th scope="row">{t(`vigie.ai.usages.${row.usage}`)}</th>
+                    <td className={row.cut === 'capped' ? 'font-semibold text-danger' : undefined}>
+                      {t(`vigie.ai.cut.${row.cut ?? 'open'}`)}
+                    </td>
+                    <td>{cost(row.spentTodayMicroEuros)}</td>
+                    <td>
+                      {t('vigie.ai.ofCap', {
+                        spent: cost(row.spentMonthMicroEuros),
+                        cap: cost(row.capMicroEuros),
+                      })}
+                    </td>
+                    <td>
+                      {t('vigie.ai.rejectedOf', {
+                        rejected: number.format(row.rejectedMonth),
+                        answered: number.format(row.answeredMonth),
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
       {data && (
         <>
           <h2 id="recent-ticks" className="text-xl">
@@ -155,7 +220,12 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           {data.recentTicks.length === 0 ? (
             <p className="text-muted-foreground">{t('vigie.noTicks')}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              className="overflow-x-auto"
+              role="region"
+              aria-labelledby="recent-ticks"
+              tabIndex={0}
+            >
               <table aria-labelledby="recent-ticks" className={TABLE}>
                 <thead>
                   <tr>

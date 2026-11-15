@@ -367,7 +367,12 @@ describe('Vigie', () => {
           expect(loaded).toBeInstanceOf(ConfigError);
           expect((loaded as Error).message).toMatch(/is invalid: /);
           expect(reply.status).toBe(200);
-          throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
+          const { data } = (await reply.json()) as NonNullable<Reply['body']> & {
+            data: { clock: unknown; ai: unknown };
+          };
+          // Sans configuration lisible, pas de chiffres de la passerelle IA : ni plafond ni coupure inventés.
+          expect(data.ai).toBeNull();
+          throw new Rollback(JSON.stringify(data.clock));
         })
         .then(
           () => expect.unreachable(),
@@ -405,6 +410,117 @@ describe('Vigie', () => {
         invalidConfig: true,
       });
     }
+  });
+
+  it('passerelle IA : coût du jour et du mois (UTC), plafond, rejets et coupure de chaque usage', async () => {
+    const usage = (patch: object) => ({
+      enabled: true,
+      model: 'small',
+      timeoutMs: 1_000,
+      maxOutputTokens: 100,
+      capShareBps: 5_000,
+      inputMicroEurosPerThousandTokens: 0,
+      outputMicroEurosPerThousandTokens: 1_000,
+      ...patch,
+    });
+    // Plafonds : la chronique a un plafond immense, l'intendant un plafond déjà dépassé, l'oracle est coupé.
+    const ai = {
+      ...TEST_CONFIG.config.ai,
+      budgetMicroEurosPerActivePlayerMonth: 100_000,
+      expectedActivePlayers: 1_000_000,
+      usages: {
+        oracle: usage({ enabled: false }),
+        chronicle: usage({}),
+        steward: usage({ capShareBps: 0 }),
+      },
+    };
+    let current = ai;
+    const withAi = createApp({
+      db,
+      telemetry,
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: async () => ({ ...TEST_CONFIG, config: { ...TEST_CONFIG.config, ai: current } }),
+    });
+    const read = async () => {
+      const res = await withAi.request('/api/admin/vigie', {
+        headers: { authorization: `Bearer aal2:${users.observer}` },
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Reply['body'];
+      return body.data.ai as {
+        usage: string;
+        cut: string | null;
+        capMicroEuros: number;
+        spentTodayMicroEuros: number;
+        spentMonthMicroEuros: number;
+        answeredMonth: number;
+        rejectedMonth: number;
+      }[];
+    };
+    // Le journal est partagé et en ajout seul : on compte par différence.
+    const before = await read();
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const lastMonth = new Date(monthStart.getTime() - 1);
+    const earlierToday = new Date(
+      Math.max(
+        now.getTime() - 60_000,
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      ),
+    );
+    // Plus tôt dans le mois, hors du jour (sauf le 1er du mois, où ce serait aujourd'hui).
+    const earlierThisMonth = now.getUTCDate() > 1;
+    const calls: [string, string, number, Date][] = [
+      ...(earlierThisMonth
+        ? [['chronicle', 'ok', 1_000, monthStart] as [string, string, number, Date]]
+        : []),
+      ['chronicle', 'ok', 500, earlierToday],
+      ['chronicle', 'invalid', 70, earlierToday],
+      ['chronicle', 'capped', 0, earlierToday],
+      ['chronicle', 'ok', 9_000, lastMonth],
+    ];
+    for (const [name, outcome, cost, at] of calls)
+      await sql`insert into telemetry.ai_calls
+          (usage, model, input_tokens, output_tokens, cost_micro_euros, outcome, duration_ms, called_at)
+        values (${name}, 'small', 0, 0, ${cost}, ${outcome}, 0, ${at})`.execute(owner);
+    const after = await read();
+    expect(after.map((row) => [row.usage, row.cut])).toEqual([
+      ['oracle', 'disabled'],
+      ['chronicle', null],
+      ['steward', 'capped'],
+    ]);
+    const chronicle = (rows: typeof after) => rows.find((row) => row.usage === 'chronicle');
+    expect(chronicle(after)?.capMicroEuros).toBe(50_000_000_000);
+    const delta = (
+      key: 'spentTodayMicroEuros' | 'spentMonthMicroEuros' | 'answeredMonth' | 'rejectedMonth',
+    ) => (chronicle(after)?.[key] ?? 0) - (chronicle(before)?.[key] ?? 0);
+    // L'appel du mois précédent n'entre ni dans le jour ni dans le mois ; l'appel plafonné ne compte pas
+    // comme une réponse.
+    expect([delta('spentMonthMicroEuros'), delta('answeredMonth'), delta('rejectedMonth')]).toEqual(
+      earlierThisMonth ? [1_570, 3, 1] : [570, 2, 1],
+    );
+    expect(delta('spentTodayMicroEuros')).toBe(570);
+
+    // Coupure par la dépense : plafond de l'intendant = sa dépense du mois + la réserve d'un appel
+    // (100 jetons × 1 000 µ€ le millier = 100 µ€). Il reste ouvert, puis un micro-euro de plus le coupe.
+    const steward = (rows: typeof after) => rows.find((row) => row.usage === 'steward');
+    const spent = steward(after)?.spentMonthMicroEuros ?? 0;
+    current = {
+      ...ai,
+      budgetMicroEurosPerActivePlayerMonth: spent + 100,
+      expectedActivePlayers: 1,
+      usages: {
+        ...ai.usages,
+        chronicle: usage({ enabled: false }),
+        steward: usage({ capShareBps: 10_000 }),
+      },
+    };
+    expect(steward(await read())?.cut).toBeNull();
+    await sql`insert into telemetry.ai_calls
+        (usage, model, input_tokens, output_tokens, cost_micro_euros, outcome, duration_ms, called_at)
+      values ('steward', 'small', 0, 0, 1, 'ok', 0, ${now})`.execute(owner);
+    expect(steward(await read())?.cut).toBe('capped');
   });
 
   it('compte les commandes et montre les ticks récents, échecs compris', async () => {

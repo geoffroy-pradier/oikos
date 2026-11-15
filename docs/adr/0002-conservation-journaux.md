@@ -42,9 +42,9 @@ fin, ni être purgé au hasard.
   partitionnés par mois (spécification 12) ; purger, c'est détacher puis supprimer une partition entière
   échue, par une migration ou une tâche du moteur exécutée au nom du propriétaire. Les déclencheurs qui
   interdisent `delete` et `truncate` restent en place : aucune ligne isolée ne peut disparaître.
-- **D'ici le partitionnement, rien n'est purgé.** Les volumes du prototype ne le justifient pas, et une
-  purge improvisée affaiblirait les garanties d'immuabilité. Le partitionnement et la tâche de purge sont
-  à livrer avant l'ouverture à des joueurs réels (alpha fermée).
+- **D'ici le partitionnement, rien n'est purgé, sauf la télémétrie** (passages de tick et de clôture depuis la migration 41, appels de la passerelle IA depuis la migration 50), supprimée par les fonctions du propriétaire à la rétention de la configuration.
+  Pour le reste, les volumes du prototype ne le justifient pas, et une purge improvisée affaiblirait les garanties d'immuabilité.
+  Le partitionnement et la tâche de purge sont à livrer avant l'ouverture à des joueurs réels (alpha fermée).
 - **Données personnelles.** Les journaux ne contiennent que des identifiants de comptes, jamais d'adresse
   ni de contenu saisi hors des entrées de commande. Ces durées sont à porter au registre des traitements
   (spécification 18) ; l'effacement d'un compte se traite par dissociation de l'identifiant dans le

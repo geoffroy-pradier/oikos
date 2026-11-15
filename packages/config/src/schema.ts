@@ -403,7 +403,17 @@ export const aiSchema = z
   .refine(
     (ai) => AI_USAGES.reduce((sum, usage) => sum + ai.usages[usage].capShareBps, 0) <= 10_000,
     { message: 'the usages may not share more than the whole budget', path: ['usages'] },
-  );
+  )
+  // Un usage ouvert à sortie gratuite n'aurait jamais de coût estimé, donc jamais de plafond atteint.
+  .superRefine((ai, ctx) => {
+    for (const usage of AI_USAGES)
+      if (ai.usages[usage].enabled && ai.usages[usage].outputMicroEurosPerThousandTokens === 0)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['usages', usage, 'outputMicroEurosPerThousandTokens'],
+          message: 'an enabled usage must have a price, or its cap would never be reached',
+        });
+  });
 
 /** Plafond mensuel d'un usage, en millionièmes d'euro, arrondi à l'unité inférieure. */
 export function aiMonthlyCapMicroEuros(ai: z.infer<typeof aiSchema>, usage: AiUsage): number {

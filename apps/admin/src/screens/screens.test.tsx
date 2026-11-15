@@ -277,6 +277,71 @@ describe('Vigie', () => {
   });
 });
 
+describe('Vigie : passerelle IA', () => {
+  const AI = [
+    {
+      usage: 'oracle',
+      cut: 'disabled',
+      capMicroEuros: 0,
+      spentTodayMicroEuros: 0,
+      spentMonthMicroEuros: 0,
+      answeredMonth: 0,
+      rejectedMonth: 0,
+    },
+    {
+      usage: 'chronicle',
+      cut: null,
+      capMicroEuros: 2_000_000,
+      spentTodayMicroEuros: 1_250,
+      spentMonthMicroEuros: 432_100,
+      answeredMonth: 40,
+      rejectedMonth: 3,
+    },
+    {
+      usage: 'steward',
+      cut: 'capped',
+      capMicroEuros: 500_000,
+      spentTodayMicroEuros: 0,
+      spentMonthMicroEuros: 499_900,
+      answeredMonth: 12,
+      rejectedMonth: 0,
+    },
+  ];
+
+  it('une ligne par usage : état, coût du jour, coût du mois sur le plafond, sorties rejetées', async () => {
+    adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, ai: AI } });
+    render(<Vigie accessToken="token" />);
+    const table = await screen.findByRole('table', { name: 'Passerelle IA (estimation)' });
+    const rows = within(table)
+      .getAllByRole('row')
+      .map((row) =>
+        Array.from(row.querySelectorAll('th, td'), (cell) => cell.textContent?.replace(/\s/g, ' ')),
+      );
+    expect(rows).toEqual([
+      ['Usage', 'État', 'Coût du jour (UTC)', 'Coût du mois / plafond', 'Sorties rejetées (mois)'],
+      ['Oracles de la Pythie', 'Coupé (configuration)', '0,00 €', '0,00 € sur 0,00 €', '0 sur 0'],
+      ['Chronique des cités', 'Ouvert', '0,0013 €', '0,4321 € sur 2,00 €', '3 sur 40'],
+      [
+        'Consignes d’intendant'.replace('’', "'"),
+        'Coupé (plafond du mois atteint ou trop proche)',
+        '0,00 €',
+        '0,4999 € sur 0,50 €',
+        '0 sur 12',
+      ],
+    ]);
+  });
+
+  it('sans configuration lisible, ou avec une API antérieure, pas de tableau', async () => {
+    for (const ai of [null, undefined]) {
+      cleanup();
+      adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, ai } });
+      render(<Vigie accessToken="token" />);
+      expect(await screen.findByText('Maisons fondées')).toBeTruthy();
+      expect(screen.queryByRole('table', { name: 'Passerelle IA (estimation)' })).toBeNull();
+    }
+  });
+});
+
 describe("journal d'audit", () => {
   const entry = (index: number, extra: object = {}) => ({
     id: `id-${String(index).padStart(3, '0')}`,

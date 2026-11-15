@@ -20,6 +20,10 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 | Conformité | Export et suppression des données d'un joueur, registre des demandes |
 | Accès et audit | Rôles, double authentification, journal d'audit consultable et non modifiable |
 
+Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son état (ouvert, coupé par la configuration, coupé au plafond du mois), son coût estimé du jour et du mois (UTC), son plafond et ses sorties rejetées sur les réponses du mois.
+Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.
+Le module IA (prompts, jeux d'essai) attend une phase suivante.
+
 ## 15.2 Cycle de vie d'un changement d'équilibrage
 
 1. **Brouillon** : un concepteur modifie des valeurs ; le schéma refuse les valeurs hors bornes.

@@ -723,6 +723,13 @@ describe('passerelle IA', () => {
         },
       }),
     ).toEqual([expect.stringMatching(/^ai\.usages\.steward\.inputMicroEurosPerThousandTokens: /)]);
+    expect(
+      errors({
+        usages: { ...usages, oracle: { ...usages.oracle, outputMicroEurosPerThousandTokens: 0 } },
+      }),
+    ).toEqual([
+      'ai.usages.oracle.outputMicroEurosPerThousandTokens: an enabled usage must have a price, or its cap would never be reached',
+    ]);
     expect(errors({ usages: { oracle: usages.oracle, chronicle: usages.chronicle } })).toEqual([
       expect.stringMatching(/^ai\.usages\.steward: /),
     ]);
