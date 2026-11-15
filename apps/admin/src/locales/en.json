@@ -100,10 +100,15 @@
   "economy": {
     "title": "Economy",
     "intro": "Amounts in obols, read from the ledger. A faucet creates money, a sink destroys it; a negative amount is a reverse net (a repayment to a faucet, for instance).",
+    "stale": "The figures shown come from the previous read: they may be out of date.",
     "world": "World “{{slug}}”",
-    "indexCurrent": "Price index, last {{days}} days (reference: 100)",
-    "indexPrevious": "Price index, previous {{days}} days",
-    "inflation": "Inflation over {{days}} days",
+    "ofWorld": ", world “{{slug}}”",
+    "indexCurrent_one": "Price index, last day (reference: 100)",
+    "indexCurrent_other": "Price index, last {{count}} days (reference: 100)",
+    "indexPrevious_one": "Price index, previous day",
+    "indexPrevious_other": "Price index, previous {{count}} days",
+    "inflation_one": "Inflation over 1 day",
+    "inflation_other": "Inflation over {{count}} days",
     "statusLabel": "Inflation status",
     "status": {
       "in_target": "On target ({{min}} to {{max}})",
@@ -111,8 +116,25 @@
       "above": "Above target ({{min}} to {{max}})",
       "unknown": "No measure"
     },
-    "alert": "Alert: inflation of {{inflation}} over {{days}} days. {{status}}.",
-    "unpriced": "Incomplete measure: no trade in one of the two periods for {{goods}} (identifiers of reference basket goods).",
+    "alert_one": "Alert: inflation of {{inflation}} over 1 day. {{status}}.",
+    "alert_other": "Alert: inflation of {{inflation}} over {{count}} days. {{status}}.",
+    "alerts_one": "Inflation off target in 1 world",
+    "alerts_other": "Inflation off target in {{count}} worlds",
+    "alertItem": ": inflation of {{inflation}}. {{status}}.",
+    "partial": {
+      "current_one": "The current window covers only part of its day: this world's price history starts inside it.",
+      "current_other": "The current window covers only part of the {{count}} days: this world's price history starts inside it.",
+      "previous_one": "The previous window covers only part of its day: this world's price history starts inside it.",
+      "previous_other": "The previous window covers only part of the {{count}} days: this world's price history starts inside it."
+    },
+    "unpriced": "Incomplete measure. Reference basket goods without trade (identifiers), with the windows concerned:",
+    "unpricedGood": "{{good}}: {{windows}}",
+    "window": {
+      "current_one": "last day",
+      "current_other": "last {{count}} days",
+      "previous_one": "previous day",
+      "previous_other": "previous {{count}} days"
+    },
     "noBasket": "No measure possible: the active configuration has no reference basket.",
     "supply": {
       "title": "Money supply",
@@ -140,7 +162,8 @@
       "sink_public_works": "Public works and wonders",
       "sink_site_acquisition": "Site acquisition"
     },
-    "byDay": "Faucets and sinks: net per game day (days read: {{count}})",
+    "byDay_one": "Faucets and sinks: net per game day (day read: 1)",
+    "byDay_other": "Faucets and sinks: net per game day (days read: {{count}})",
     "noDays": "No movement over the period."
   },
   "access": {

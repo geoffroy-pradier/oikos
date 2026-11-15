@@ -100,10 +100,15 @@
   "economy": {
     "title": "Économie",
     "intro": "Montants en oboles, lus dans le grand livre. Un robinet crée de la monnaie, un puits en détruit ; un montant négatif est un net inverse (un remboursement à un robinet, par exemple).",
+    "stale": "Les chiffres affichés sont ceux de la lecture précédente : ils peuvent être anciens.",
     "world": "Monde « {{slug}} »",
-    "indexCurrent": "Indice des prix, {{days}} derniers jours (référence : 100)",
-    "indexPrevious": "Indice des prix, {{days}} jours précédents",
-    "inflation": "Inflation sur {{days}} jours",
+    "ofWorld": ", monde « {{slug}} »",
+    "indexCurrent_one": "Indice des prix, dernier jour (référence : 100)",
+    "indexCurrent_other": "Indice des prix, {{count}} derniers jours (référence : 100)",
+    "indexPrevious_one": "Indice des prix, jour précédent",
+    "indexPrevious_other": "Indice des prix, {{count}} jours précédents",
+    "inflation_one": "Inflation sur 1 jour",
+    "inflation_other": "Inflation sur {{count}} jours",
     "statusLabel": "Situation de l'inflation",
     "status": {
       "in_target": "Dans la cible ({{min}} à {{max}})",
@@ -111,8 +116,25 @@
       "above": "Au-dessus de la cible ({{min}} à {{max}})",
       "unknown": "Sans mesure"
     },
-    "alert": "Alerte : inflation de {{inflation}} sur {{days}} jours. {{status}}.",
-    "unpriced": "Mesure incomplète : aucun échange sur l'une des deux périodes pour {{goods}} (identifiants des biens du panier de référence).",
+    "alert_one": "Alerte : inflation de {{inflation}} sur 1 jour. {{status}}.",
+    "alert_other": "Alerte : inflation de {{inflation}} sur {{count}} jours. {{status}}.",
+    "alerts_one": "Inflation hors de la cible dans 1 monde",
+    "alerts_other": "Inflation hors de la cible dans {{count}} mondes",
+    "alertItem": " : inflation de {{inflation}}. {{status}}.",
+    "partial": {
+      "current_one": "La fenêtre courante ne couvre qu'une partie de son jour : l'historique des prix de ce monde commence à l'intérieur.",
+      "current_other": "La fenêtre courante ne couvre qu'une partie des {{count}} jours : l'historique des prix de ce monde commence à l'intérieur.",
+      "previous_one": "La fenêtre précédente ne couvre qu'une partie de son jour : l'historique des prix de ce monde commence à l'intérieur.",
+      "previous_other": "La fenêtre précédente ne couvre qu'une partie des {{count}} jours : l'historique des prix de ce monde commence à l'intérieur."
+    },
+    "unpriced": "Mesure incomplète. Biens du panier de référence sans échange (identifiants), avec les fenêtres en cause :",
+    "unpricedGood": "{{good}} : {{windows}}",
+    "window": {
+      "current_one": "dernier jour",
+      "current_other": "{{count}} derniers jours",
+      "previous_one": "jour précédent",
+      "previous_other": "{{count}} jours précédents"
+    },
     "noBasket": "Mesure impossible : la configuration en vigueur n'a pas de panier de référence.",
     "supply": {
       "title": "Masse monétaire",
@@ -140,7 +162,8 @@
       "sink_public_works": "Grands travaux et merveilles",
       "sink_site_acquisition": "Acquisition de sites"
     },
-    "byDay": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",
+    "byDay_one": "Robinets et puits : net par jour de jeu (jour lu : 1)",
+    "byDay_other": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",
     "noDays": "Aucun mouvement sur la période."
   },
   "access": {
