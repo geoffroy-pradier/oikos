@@ -1,7 +1,8 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 3 h du matin (heure de Paris) : tickets #72 à #76 et #98 fermés pendant la
-session, #77 bien avancé. Ce fichier décrit ce qui tourne réellement sur `main` ; les
+Point d'étape au 15 novembre 2026, vers 13 h (heure de Paris). Pendant la session, dix tickets ont été fermés :
+#77, #161, #97, #100, #136, #123, #130, #145, #155 et #158. #78 (équilibrage) a reçu son banc de mesure ;
+ses décisions de calibrage attendent un humain. Ce fichier décrit ce qui tourne réellement sur `main` ; les
 spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -9,12 +10,11 @@ spécifications (`docs/specs/`) décrivent la cible.
 - **Phase 0 (fondations)** : terminée, sauf le ticket #33 (serveur de préproduction), marqué
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
-- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #76 et #98. En cours : #77 (Olympe :
-  reste le critère 4, paramètres par formulaire) et #161 (suivis du tableau de bord : restent le
-  `try/finally` des commandes, la vérification périodique du service worker, des e2e d'alertes et un
-  format unique des montants).
-  Ouverts, pas commencés : #78 (équilibrage, désormais débloqué), #97, #100, et les tickets de suivi
-  #123, #130, #136, #145, #155, #158, #176, #181, #184.
+- **Phase 1 (prototype « une cité »)** : en cours.
+  - Fermés : #64 à #77, #97, #98, #100, #123, #130, #136, #145, #155, #158 et #161.
+  - Ouvert, partiellement livré : #78 (équilibrage). Le banc de mesure est fusionné (#215, #223, puis #224 pour les mesures) ; le calibrage attend les décisions humaines décrites plus bas.
+  - Suivis des relectures, ouverts et pas commencés : #176, #181, #184, #191, #200, #205, #208, #213, #218 et #222.
+    Tous sont `sensible`, sauf #213.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -34,7 +34,11 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   (04 h 00, heure de Paris), à l'heure de la base, une seule fois même avec plusieurs moteurs ; une
   clôture manquée est rattrapée une fois. Chaque clôture fait évoluer la population des PNJ, puis
   prélève un jour d'entretien par site (30 à 60 oboles). Un site impayé s'arrête ; sa fiche le dit, et
-  « Relancer » le repart en payant un jour, au prix affiché.
+  « Relancer » le repart en payant un jour, au prix affiché. Ce prix est envoyé avec la commande : si le
+  tarif a changé entre-temps, l'API refuse sans rien prélever (`PRICE_CHANGED`), et l'acquisition d'un site
+  fonctionne de même. La carte des sites se relit chaque minute et au retour sur l'onglet, et annonce un
+  arrêt prononcé pendant que la page est ouverte. Une clôture en échec est notée avec l'étape et la maison
+  en cause, puis reprise au passage suivant.
 - **Population des PNJ : en jeu.** Chaque classe de chaque cité croît ou émigre à la clôture selon la
   couverture de ses besoins vitaux la veille ; la demande des PNJ suit la population courante. L'onglet
   Cité montre la population par classe et la couverture retenue.
@@ -62,8 +66,8 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   et en anglais. Onglets Maison, Agora et Cité ; Carte et Messages sont des coquilles vides. Une nouvelle
   version est proposée, jamais imposée pendant une saisie. Une acquisition restée sans réponse garde sa
   clé d'idempotence, même onglet quitté : la renvoyer rejoue l'achat au lieu de le payer deux fois.
-- **Back-office Olympe.** Connexion avec second facteur, Vigie (compteurs de refus de l'API ; elle montre
-  si la double validation est levée), Paramètres (versions de configuration : consulter, comparer,
+- **Back-office Olympe.** Connexion avec second facteur, Vigie (compteurs de refus de l'API, ticks et
+  clôtures en échec sur 24 heures avec la dernière erreur ; elle montre si la double validation est levée), Paramètres (versions de configuration : consulter, comparer,
   enregistrer, programmer à la prochaine clôture, annuler une programmation à venir ; un refus du
   schéma désigne la table, la ligne et le champ ; un texte modifié n'est jamais remplacé sans
   confirmation), journal d'audit, Accès (liste des rôles, accorder par identifiant de compte, retirer
@@ -73,14 +77,15 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   jeu, indice des prix sur un panier de six biens et inflation sur 30 jours, avec une alerte écrite
   quand elle sort de la cible de 0 à 3 % (la mesure est dite inconnue tant qu'un bien du panier n'a
   aucun échange dans l'une des deux fenêtres ; elle peut donc être annoncée dès le 31e jour, sur une
-  fenêtre précédente partielle, #181). Paramètres : formulaire des biens existants, replié sous le texte JSON. Le premier
+  fenêtre précédente partielle, #181). Paramètres : formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
+  du texte JSON (#77). Une version qui change l'horloge du monde (durée du tick, heure ou fuseau de clôture)
+  est refusée, et une programmation ne peut viser une clôture à moins d'une minute. Le premier
   super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
   sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : les paramètres par formulaire (#77 :
-restent l'ajout et le retrait d'un bien, puis les recettes et les classes) et l'équilibrage (#78). Avec l'entretien
-et l'émigration en jeu, l'économie a enfin des puits réguliers, mais aucun montant n'a été mesuré :
-entretien, taxe, seuil de couverture et taux de croissance attendent #78.
+Ce qui manque encore pour le critère de sortie de la phase 1 : l'équilibrage (#78). Le banc de mesure existe
+(voir « Points en suspens »), mais la configuration initiale n'a pas été ajustée. Il faut d'abord trancher
+la taille de la cité prototype, la consommation par habitant et le taux de croissance.
 
 ## Décisions prises en cours de route
 
@@ -185,6 +190,39 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   l'horloge du navigateur est gardée quand l'en-tête lui donne raison. Une première version la
   corrigeait toujours d'une demi-seconde et a rendu `main` rouge un moment (cycles à la
   seconde près dans les tests de bout en bout) : réparé par #182.
+- **Horloge du monde figée** (3, 15, ticket #123) : une version qui change la durée du tick, l'heure ou le
+  fuseau de clôture est refusée à la publication comme à la programmation (`CONFIG_CLOCK_CHANGED`) ; la
+  durée des saisons reste réglable. Le tick qui porte la clôture est le premier qui commence à la clôture
+  ou après, calculé comme la clôture elle-même (`dailyCloseAt`), y compris aux changements d'heure et dans
+  les fuseaux décalés d'une demi-heure. Un monde dont l'horloge recule ne joue rien, et chaque passage
+  inscrit un échec que la Vigie compte.
+- **Activations de configuration** (13, 15, ticket #130) : la base pose elle-même leur date de création et
+  refuse une échéance passée, quel que soit le rôle. Elle refuse aussi une programmation à moins d'une
+  minute de son échéance, et contrôle de nouveau l'échéance à la validation par des déclencheurs différés.
+  Un refus au COMMIT devient une erreur métier du registre (`CONFIG_ACTIVATION_TOO_LATE`), rejouable sous
+  la même clé. Limite connue : `SET CONSTRAINTS ALL IMMEDIATE` contourne ce contrôle (#208).
+- **Session de base fermée** (14.3, ticket #136) : une connexion coupée en cours de commande, de tick ou de
+  clôture ne fait échouer que ce passage. La trace d'audit est écrite par une autre connexion, la clé
+  d'idempotence reste utilisable et le passage suivant rejoue une seule fois.
+- **Règlement d'un échange** (5.3, ticket #100) : la base contrôle qu'un échange est réglé par sa propre
+  écriture, du brut exact, réparti entre net et taxe, et qu'un séquestre ne paie que les échanges de sa
+  maison ou rend à sa trésorerie. Suivis : #205.
+- **Recette retirée** (4.2, ticket #97) : un site dont la recette a disparu de la configuration est à l'arrêt
+  faute de production, sans erreur interne ; sa maison peut en changer. L'avertissement avant programmation
+  est suivi dans #200.
+- **Entretien et prix vu par le joueur** (4.2, 5.5, ticket #145) : le client envoie le prix qu'il affiche,
+  et une clé en attente repart toujours avec son entrée d'origine. Le joueur ne paie jamais deux fois, et
+  jamais un autre prix que celui qu'il a vu. La clôture fixe elle-même son isolation (READ COMMITTED) et
+  inscrit chaque tentative dans `telemetry.close_runs`, en ajout seul.
+- **Lectures de comptes rapides** (12, ticket #155) : `jit = off` pour les rôles `anon` et `authenticated`
+  plutôt qu'une réécriture des règles par ligne ; la migration fait recharger PostgREST. La vérification
+  après déploiement passe par `/rest/v1/rpc/client_jit`, et la mesure est reproductible par
+  `pnpm --filter @oikos/db bench:cash-flows`.
+- **Migrations rejouables** (règle 9, ticket #158) : toutes se rejouent sur une base déjà migrée sans changer
+  l'état final, ce que `pnpm test:db:replay` vérifie en `ci` par une empreinte du schéma. Pendant un
+  rejeu, un fichier peut remettre brièvement une définition ou un droit antérieurs : #218 doit faire
+  appliquer seulement les migrations nouvelles. La saison est bornée à 366 jours. Un fuseau inconnu de la
+  base n'est refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais.
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.
@@ -192,6 +230,9 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Demandes de fusion de plus de 400 lignes** : plusieurs ont dépassé la limite du `CLAUDE.md` jusqu'au
   ticket #69, presque toujours par leurs tests d'intégration. Depuis, deux seulement : #141 (481 lignes)
   et #160 (468), acceptées en relecture ; les autres tickets sont découpés en tranches.
+- **Tranches et rebases** : les tickets de la session ont été livrés en tranches de moins de 400 lignes,
+  dans l'ordre des numéros de migration (36 à 40). Chaque tranche `sensible` a été relue par
+  `relecteur-sensible` avant sa fusion et porte le label `a-relire-fable`.
 - **Répartition entre modèles** (#143) : le code des tickets `sensible` est écrit par le sous-agent
   `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
   distincte. Les commits des sous-agents portent leur propre ligne `Co-Authored-By`.
@@ -205,39 +246,52 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   quand les tickets seront fermés ; il demande des joueurs réels.
 - **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les
   supprimer. À nettoyer à la main.
-- **Ticket #77** : restent l'ajout et le retrait d'un bien par le formulaire, puis les formulaires des
-  recettes et des classes (listes imbriquées). Le schéma ne plafonne pas le prix de référence d'un bien.
+- **Équilibrage (#78)** : le banc d'intégration (`apps/api/src/balance/`, `balance.integration.test.ts`)
+  joue 7 jours de mise en route puis 30 jours mesurés avec des maisons scriptées. Il publie la masse
+  monétaire, le coût du panier, la couverture et la part de chaque puits, et rapproche chaque compte
+  système de flux comptés à part. Avec la configuration initiale telle quelle, les mesures ne tiennent
+  pas la cible :
+  - les 23 maisons scriptées ne couvrent qu'une petite part des besoins vitaux de 10 000 habitants, et la
+    population émigre (environ −39 % sur le mois) ;
+  - les prix montent tant que tout se vend : le coût du panier des dix derniers jours dépasse de 20 % celui des
+    dix premiers, surtout parce que la règle de prix du banc relève de 1 % par jour un prix dont tout s'est vendu ;
+  - l'entretien fait 46 % des puits, la taxe 32 % et l'acquisition de sites 22 %.
+
+  Avant d'ajuster la configuration, un humain doit décider :
+  - la taille de la cité prototype au regard du nombre de joueurs attendu ;
+  - la consommation par habitant face à la production d'un site ;
+  - le taux de croissance et le seuil de couverture ;
+  - la composition du panier et la cible d'inflation (#181).
+
+  Les bornes du test (inflation de 0 à 3 %, besoins couverts) ne seront écrites qu'ensuite.
 - **Indice des prix** (#181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
 
 Défauts connus, déjà en tickets :
 
-- **#97** : une recette retirée de la configuration alors qu'un site l'utilise fait échouer la récolte de
-  ce site en erreur interne.
-- **#100** : la base ne relie pas le montant d'une écriture à l'échange qu'elle règle, ni ne contrôle la
-  destination d'un débit de séquestre ; seul le code des commandes le garantit aujourd'hui.
-- **#123** : changer la durée de tick en configuration bloque les ticks du monde (plus de demande des
-  PNJ ni de chandeliers) ; la clôture quotidienne, elle, n'en dépend plus. La programmation d'une version
-  et la clôture ne calculent pas non plus l'instant de clôture de la même façon.
-- **#130** : la base n'empêche pas d'antidater une activation de configuration ; une programmation ou une
-  annulation validée à cheval sur l'échéance n'est écartée que par une marge, pas par une garantie.
-- **#155** : la lecture des flux de trésorerie (`my_cash_flows`) prend environ 950 ms sous règles par
-  ligne, à cause de la compilation à la volée.
-- **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (trois tranches de #161 fusionnées, dont #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
-  Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
-  étroits de double paiement et le `try/finally` des commandes de la carte des sites.
+- **#176, #181, #184** : suivis des relectures du rejeu d'acquisition, de l'indice des prix et de l'écran
+  Économie (dont sa garde de bout en bout à 360 px). #176 porte les derniers cas étroits de double
+  paiement à l'acquisition.
+- **#191, #200** : un bien, une recette ou une classe retirés de la configuration alors que le monde les
+  utilise encore ; Olympe devrait avertir avant la programmation.
+- **#205, #208** : suivis du règlement des échanges et du contrôle à la validation des activations,
+  contournable par `SET CONSTRAINTS`.
+- **#213** : pas de rétention pour `telemetry.tick_runs` et `close_runs` ; une activation à l'horloge
+  différente, programmée avant #123, serait encore appliquée.
+- **#222** : un monde dont le fuseau quitte tzdata peut encore publier, mais ses comptes perdent jour
+  de jeu et saison, et la Vigie ne le signale pas.
+- **#218** : `deploy.sh` rejoue toutes les migrations ; à remplacer par l'application des seules nouvelles,
+  avant d'activer le déploiement.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
   traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
-- **#136** : une session de base fermée en cours de commande (redémarrage, bascule) arrête l'API et le
-  moteur au lieu de faire échouer la seule commande en cours. À traiter avant toute préproduction.
 
 Limites assumées pour l'instant :
 
 - Une seule cité, pas de transport : tout stock est dans la cité de la maison (l'affichage par cité de
   l'entrepôt est prêt, sans être encore atteignable).
 - Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
-  des sites relit ses sites et l'heure au retour sur l'onglet.
+  des sites relit ses sites, ses règles et l'heure chaque minute et au retour sur l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
