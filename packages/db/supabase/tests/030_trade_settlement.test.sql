@@ -1,7 +1,7 @@
 begin;
-select plan(21);
+select plan(27);
 
--- Règlement des échanges, tenu par la base (migration 35 ; ticket 100). Chaque écriture
+-- Règlement des échanges et séquestre, tenus par la base (migrations 35 et 36 ; ticket 100). Chaque écriture
 -- est jouée sous le rôle de service, comme le jeu, puis les contrôles différés sont validés : un refus
 -- annule l'essai entier, le jeu d'essai reste intact pour le suivant.
 -- Alice (a1) achète, Bob (b1) vend, Chloé (c1) est une tierce maison. Kallistè (101) et Thalassa (199).
@@ -73,12 +73,13 @@ select lives_ok(format($$select pg_temp.as_service(%L)$$,
   || pg_temp.order_sql('302', 'b1', 'sell', 8, 20) || pg_temp.order_sql('303', 'b1', 'sell', 8, 20)),
   'jeu d''essai valide sous le service');
 
--- Le contrôle s'exécute au nom du propriétaire, et le service ne peut pas l'appeler lui-même.
+-- Les contrôles s'exécutent au nom du propriétaire, et le service ne peut pas les appeler lui-même.
 select ok((select bool_and(prosecdef) from pg_proc where pronamespace = 'game'::regnamespace
-           and proname in ('check_trade_settlement', 'check_trade_settled')),
-  'contrôle du règlement en SECURITY DEFINER');
-select ok(not has_function_privilege('oikos_service', 'game.check_trade_settlement(uuid)', 'execute'),
-  'le service n''exécute pas le contrôle');
+           and proname in ('check_trade_settlement', 'check_trade_settled', 'check_escrow_debit', 'check_escrow_matches_orders')),
+  'contrôles du règlement et du séquestre en SECURITY DEFINER');
+select ok(not has_function_privilege('oikos_service', 'game.check_trade_settlement(uuid)', 'execute')
+          and not has_function_privilege('oikos_service', 'game.check_escrow_debit()', 'execute'),
+  'le service n''exécute pas les contrôles');
 
 -- 1. Un échange entre joueurs : un achat d'Alice arrive (304 : 5 à 9) et sert la vente 303 à son prix (brut 40),
 -- payé par sa trésorerie.
@@ -162,6 +163,41 @@ create table pg_temp.owner_trades (id uuid, ledger_entry_id uuid);
 create trigger t after insert on pg_temp.owner_trades for each row execute function game.check_trade_settled();
 select throws_ok($$insert into pg_temp.owner_trades values (null, null)$$, '42501',
   't only runs on game.trades and game.ledger_lines', 'check_trade_settled ne s''exécute que sur les échanges et les lignes');
+
+-- 2. Le séquestre d'Alice (160, pour le reste de 301) ne paie qu'elle : son échange, ou sa trésorerie.
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('521', 'market.escrow_release', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-5, 5])),
+  '23514', 'escrow of house 00000000-0000-7000-8000-0000000000a1 pays only for its own trades or back to its own treasury',
+  'un séquestre ne crédite pas une autre maison hors d''un échange');
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('521', 'market.escrow_release', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000aa', pg_temp.sys('sink_market_tax')]::uuid[], array[-5, 4, 1])),
+  '23514', 'escrow of house 00000000-0000-7000-8000-0000000000a1 pays only for its own trades or back to its own treasury',
+  'ni un puits, hors d''un échange');
+-- Chloé achète 5 à 8 (305), servie aussitôt par une vente de Bob (306) : rien n'est retenu pour elle.
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.order_sql('305', 'c1', 'buy', 8, 5) || pg_temp.order_sql('306', 'b1', 'sell', 8, 5)
+    || pg_temp.entry('523', 'market.trade', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-40, 40])
+    || pg_temp.trade('415', '306', '305', 8, 5, '523')),
+  '23514', 'escrow of house 00000000-0000-7000-8000-0000000000a1 pays only for its own trades or back to its own treasury',
+  'ni l''échange d''une autre maison');
+select lives_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('520', 'market.escrow_hold', array['00000000-0000-7000-8000-0000000000aa', '00000000-0000-7000-8000-0000000000ae']::uuid[], array[-5, 5])
+    || pg_temp.entry('521', 'market.escrow_release', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000aa']::uuid[], array[-5, 5])),
+  'il rend à la trésorerie de sa maison ce qu''il retiendrait de trop');
+
+-- 3. Séquestre = restes à payer, quoi que le rôle appelant puisse lire : le service ne voit plus les
+-- ordres d'Alice, et rend à sa trésorerie le prix de son achat en attente sans l'annuler.
+create policy hide_alice_orders on game.orders as restrictive for select to oikos_service
+  using (house_id <> '00000000-0000-7000-8000-0000000000a1');
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('524', 'market.escrow_release', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000aa']::uuid[], array[-160, 160])),
+  '23514', 'escrow of house 00000000-0000-7000-8000-0000000000a1 holds 0 for 160 owed by its open buy orders',
+  'un rôle qui ne voit pas les achats en attente ne vide pas le séquestre en silence');
+drop policy hide_alice_orders on game.orders;
+create table pg_temp.owner_lines (entry_id uuid, account_id uuid, amount bigint);
+create trigger t after insert on pg_temp.owner_lines for each row execute function game.check_escrow_debit();
+select throws_ok($$insert into pg_temp.owner_lines values (null, null, -1)$$, '42501',
+  't only runs on game.ledger_lines', 'check_escrow_debit ne s''exécute que sur les lignes du grand livre');
 
 select is((select string_agg(kind || ':' || balance, ' ' order by id) from game.accounts
             where house_id in ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000b1', '00000000-0000-7000-8000-0000000000c1')),
