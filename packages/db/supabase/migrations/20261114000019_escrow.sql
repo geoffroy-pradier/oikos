@@ -4,13 +4,21 @@
 -- garantit : séquestre d'une maison = somme des restes à payer de ses achats ouverts.
 
 -- Compte de séquestre : un par maison, jamais débiteur, ouvert à la première mise en attente.
-alter table game.accounts drop constraint if exists accounts_kind_check;
-alter table game.accounts add constraint accounts_kind_check check (kind in ('house', 'system', 'escrow'));
-alter table game.accounts drop constraint if exists accounts_owner;
-alter table game.accounts add constraint accounts_owner check (
-  (kind in ('house', 'escrow') and house_id is not null and system_key is null and not allow_negative)
-  or (kind = 'system' and house_id is null and system_key is not null)
-);
+-- Rejouée après la migration 20, qui élargit encore ces deux contraintes (trésor des cités), elle ne
+-- les rétrécit pas : elle ne les pose que si le séquestre n'est pas déjà admis.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'accounts_kind_check' and conrelid = 'game.accounts'::regclass
+                   and pg_get_constraintdef(oid) like '%''escrow''%') then
+    alter table game.accounts drop constraint if exists accounts_kind_check;
+    alter table game.accounts add constraint accounts_kind_check check (kind in ('house', 'system', 'escrow'));
+    alter table game.accounts drop constraint if exists accounts_owner;
+    alter table game.accounts add constraint accounts_owner check (
+      (kind in ('house', 'escrow') and house_id is not null and system_key is null and not allow_negative)
+      or (kind = 'system' and house_id is null and system_key is not null)
+    );
+  end if;
+end $$;
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'accounts_one_per_house_kind' and conrelid = 'game.accounts'::regclass) then

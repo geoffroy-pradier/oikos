@@ -212,7 +212,10 @@ $$;
 -- Ni DELETE ni TRUNCATE nulle part ; aucun droit de création dans les schémas du jeu.
 grant usage on schema game, config, telemetry, admin to oikos_service;
 grant select on all tables in schema game, config, telemetry, admin to oikos_service;
-grant usage on all sequences in schema game, config to oikos_service;
+-- Séquences nommées, celles qui existent ici : rejouée plus tard (déploiement), la migration n'accorde
+-- rien sur une séquence créée depuis.
+grant usage on sequence config.versions_number_seq, config.activations_seq_seq, game.domain_events_seq_seq,
+  game.orders_seq_seq to oikos_service;
 -- Fonctions : seulement celles que le service appelle (identifiants par défaut, version de configuration
 -- en vigueur, contrôle fait par les gardes). Aucune fonction de déclencheur : le droit de l'exécuter
 -- suffirait à l'attacher à une table qu'on possède.

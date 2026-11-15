@@ -1,5 +1,5 @@
 begin;
-select plan(41);
+select plan(42);
 
 -- Jeu d'essai : deux maisons avec un compte chacune, un robinet et un puits.
 insert into auth.users (id, email) values
@@ -116,16 +116,27 @@ select results_eq(
 -- Droits clients sur la monnaie. Aucun droit à l'échelle d'une table, lecture comprise ; aucune écriture
 -- ni référence à l'échelle d'une colonne ; aucune colonne lisible par un visiteur, ni de la vue de
 -- contrôle par un joueur. Restent à un joueur les colonnes figées dans 002, sous les règles par ligne
--- que prouvent 009 et 027.
+-- que prouvent 009 et 027. Une table partitionnée un jour (`relkind 'p'`) reste couverte, partitions
+-- comprises, sans aucune colonne lisible sur une partition (lue directement, elle échappe aux règles de
+-- sa table) ; une relation renommée ou disparue fait échouer le test au lieu de le vider.
+create temporary table money_relations on commit drop as
+select c.oid, c.relname, c.relkind, c.oid = r.root as is_root
+from unnest(array['accounts', 'ledger_entries', 'ledger_lines', 'account_balance_check']) n
+cross join lateral (select to_regclass('game.' || n) as root) r
+cross join lateral (select r.root union select p.relid from pg_partition_tree(r.root) p) t(oid)
+join pg_class c on c.oid = t.oid;
 select is(
-  (select count(*) from pg_class c, unnest(array['anon', 'authenticated']) r,
+  (select string_agg(relname, ' ' order by relname) from money_relations
+   where relname in ('accounts', 'ledger_entries', 'ledger_lines', 'account_balance_check') and relkind in ('r', 'p', 'v')),
+  'account_balance_check accounts ledger_entries ledger_lines', 'monnaie : les quatre relations contrôlées sont toutes trouvées (table, table partitionnée ou vue)');
+select is(
+  (select count(*) from money_relations c, unnest(array['anon', 'authenticated']) r,
           unnest(array['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger']) p
-   where c.relnamespace = 'game'::regnamespace and c.relkind in ('r', 'v')
-     and c.relname in ('accounts', 'ledger_entries', 'ledger_lines', 'account_balance_check')
+   where c.relkind in ('r', 'p', 'v')
      and (has_table_privilege(r, c.oid, p)
           or (p in ('insert', 'update', 'references') and has_any_column_privilege(r, c.oid, p))
-          or (p = 'select' and (r = 'anon' or c.relname = 'account_balance_check') and has_any_column_privilege(r, c.oid, p)))),
-  0::bigint, 'monnaie : aucune écriture cliente, de table ou de colonne ; aucune table lisible en entier ; rien pour un visiteur');
+          or (p = 'select' and (r = 'anon' or c.relname = 'account_balance_check' or not c.is_root) and has_any_column_privilege(r, c.oid, p)))),
+  0::bigint, 'monnaie : aucune écriture cliente, de table ou de colonne ; aucune table lisible en entier ; rien pour un visiteur ni sur une partition');
 
 select * from finish();
 rollback;
