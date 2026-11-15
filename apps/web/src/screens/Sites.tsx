@@ -14,7 +14,13 @@ import {
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
 import { formatList } from '../lists';
-import { acquireIntent, acquireIntentBelow, outcomeKnown, pendingKeys } from '../pending-keys';
+import {
+  acquireIntent,
+  acquireIntentBelow,
+  pendingKeys,
+  restartIntent,
+  sendUnderKey,
+} from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { serverClock, syncServerClock } from '../server-clock';
 
@@ -220,42 +226,49 @@ export function SitesCard({
   }
 
   /** Relance un site à l'arrêt : la maison paie l'entretien d'un jour, le site repart (5.5). */
-  async function restart(site: Site) {
-    // L'arrêt fait partie de l'intention : relancer un site arrêté de nouveau est une autre demande, qui
-    // ne doit pas rejouer la réponse d'une relance précédente restée sans réponse.
-    const intent = `restart:${site.id}:${site.halted_at}`;
-    const key = pending.keyFor(intent, () => crypto.randomUUID());
-    const result = await run(
+  async function restart(site: Site, upkeep: number) {
+    // Un refus reste attaché à sa clé (« le site vient de changer », prix changé) : le prochain essai en
+    // prend une neuve. Sans réponse de l'API, la même clé rejoue la relance, au prix alors envoyé.
+    const intent = restartIntent(site.id, site.halted_at ?? '');
+    await run(
       site.id,
-      () => restartSite(site.id, house.accessToken, key),
+      () =>
+        sendUnderKey(
+          pending,
+          intent,
+          () => crypto.randomUUID(),
+          upkeep,
+          (key, sent) => restartSite(site.id, sent, house.accessToken, key),
+        ),
       (data, replayed) =>
         t(replayed ? 'home.alreadyRestarted' : 'home.restarted', {
           site: siteName(site),
           cost: money(data.upkeepOboles),
         }),
     );
-    // Un refus reste attaché à sa clé (« le site vient de changer », trésorerie insuffisante) : le
-    // prochain essai en prend une neuve. Sans réponse de l'API, la même clé rejoue la relance.
-    if (result && outcomeKnown(result)) pending.settle(intent);
   }
 
   async function acquire(event: FormEvent) {
     event.preventDefault();
     if (!offer) return;
-    const recipeId = offer.recipe.id;
+    const { recipe, costOboles } = offer;
+    const recipeId = recipe.id;
     // Un achat abouti sans réponse a ajouté un site, vu à la relecture : vouloir de nouveau la même
     // production est alors un nouvel achat. Sans site de plus, l'issue reste inconnue : même clé.
     const intent = acquireIntent(recipeId, sites.rows?.length ?? null);
     // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
     if (intent === null) return;
-    const key = pending.keyFor(intent, () => crypto.randomUUID());
-    const send = async () => {
-      const answer = await acquireSite(recipeId, house.accessToken, key);
-      // Issue connue : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée
-      // avant son registre, elle reste en attente.
-      if (outcomeKnown(answer)) pending.settle(intent);
-      return answer;
-    };
+    // Issue connue : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée
+    // avant son registre, elle reste en attente, avec le prix envoyé : un nouvel essai renvoie ce prix
+    // sous la même clé, même si le tarif affiché a changé entre-temps.
+    const send = () =>
+      sendUnderKey(
+        pending,
+        intent,
+        () => crypto.randomUUID(),
+        costOboles,
+        (key, sent) => acquireSite(recipeId, sent, house.accessToken, key),
+      );
     await run(
       ACQUIRE,
       async () => {
@@ -466,7 +479,7 @@ export function SitesCard({
                         site: name,
                         cost: money(upkeep),
                       })}
-                      onClick={() => void restart(site)}
+                      onClick={() => void restart(site, upkeep)}
                     >
                       {t('home.restart', { cost: money(upkeep) })}
                     </Button>

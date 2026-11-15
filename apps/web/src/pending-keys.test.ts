@@ -5,6 +5,8 @@ import {
   acquireIntentBelow,
   outcomeKnown,
   pendingKeys,
+  restartIntent,
+  sendUnderKey,
   type KeyStorage,
 } from './pending-keys';
 
@@ -111,5 +113,81 @@ describe('clés des commandes restées sans réponse', () => {
     memoryOnly.keyFor(early, fresh);
     memoryOnly.settleWhere(acquireIntentBelow(2));
     expect(memoryOnly.keyFor(early, fresh)).toBe('key-7');
+  });
+
+  type Reply = { ok: true } | { ok: false; error: { code: string } };
+  const LOST: Reply = { ok: false, error: { code: 'INTERNAL' } };
+  /** Envois enregistrés : clé et prix de chacun ; `answers` dit la réponse de chaque envoi. */
+  function recorder(...answers: Reply[]) {
+    const sent: { key: string; price: number | undefined }[] = [];
+    const send = async (key: string, price: number | undefined) => {
+      sent.push({ key, price });
+      return answers[sent.length - 1] ?? LOST;
+    };
+    return { sent, send };
+  }
+
+  it('sans réponse, la clé repart avec le prix envoyé alors, même relu différent ; un refus ou un succès règle l’intention', async () => {
+    const storage = memoryStorage();
+    const fresh = counter();
+    const keys = pendingKeys('house-r', () => storage);
+    const intent = restartIntent('site-1', '2026-11-15T03:00:00Z');
+    const { sent, send } = recorder(LOST, LOST, LOST, {
+      ok: false,
+      error: { code: 'PRICE_CHANGED' },
+    });
+    // Envoyé à 30, resté sans réponse ; le tarif relu passe à 35 : la même clé repart à 30, y compris
+    // après un remontage de l'écran (stockage de session). Une clé neuve à 35 pourrait payer deux fois.
+    await sendUnderKey(keys, intent, fresh, 30, send);
+    await sendUnderKey(keys, intent, fresh, 35, send);
+    await sendUnderKey(
+      pendingKeys('house-r', () => storage),
+      intent,
+      fresh,
+      35,
+      send,
+    );
+    // L'API refuse ce prix (« le prix a changé ») : l'intention est réglée, le joueur confirme 35.
+    await sendUnderKey(keys, intent, fresh, 35, send);
+    await sendUnderKey(keys, intent, fresh, 35, send);
+    expect(sent).toEqual([
+      { key: 'key-1', price: 30 },
+      { key: 'key-1', price: 30 },
+      { key: 'key-1', price: 30 },
+      { key: 'key-1', price: 30 },
+      { key: 'key-2', price: 35 },
+    ]);
+    // La dernière, restée sans réponse, attend avec son prix.
+    expect([...storage.store.values()]).toEqual([JSON.stringify({ key: 'key-2', input: 35 })]);
+  });
+
+  it('un succès règle l’intention ; un nouvel arrêt est une autre intention', async () => {
+    const keys = pendingKeys('house-s', () => memoryStorage());
+    const fresh = counter();
+    const intent = restartIntent('site-1', '2026-11-15T03:00:00Z');
+    const { sent, send } = recorder({ ok: true }, LOST);
+    await sendUnderKey(keys, intent, fresh, 30, send);
+    await sendUnderKey(keys, intent, fresh, 30, send);
+    expect(sent.map((entry) => entry.key)).toEqual(['key-1', 'key-2']);
+    expect(restartIntent('site-1', '2026-11-16T03:00:00Z')).not.toBe(intent);
+    expect(restartIntent('site-2', '2026-11-15T03:00:00Z')).not.toBe(intent);
+  });
+
+  it('clé rangée seule par une version antérieure de l’écran : renvoyée telle quelle, sans prix', async () => {
+    const storage = memoryStorage();
+    const intent = acquireIntent('grow_wheat', 1);
+    if (!intent) throw new Error('intention attendue');
+    storage.setItem(`oikos.pending.house-l.${intent}`, 'old-key');
+    const { sent, send } = recorder(LOST);
+    await sendUnderKey(
+      pendingKeys('house-l', () => storage),
+      intent,
+      counter(),
+      600,
+      send,
+    );
+    expect(sent).toEqual([{ key: 'old-key', price: undefined }]);
+    // `keyFor` lit l'une et l'autre formes.
+    expect(pendingKeys('house-l', () => storage).keyFor(intent, counter())).toBe('old-key');
   });
 });
