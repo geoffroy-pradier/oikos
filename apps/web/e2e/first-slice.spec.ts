@@ -175,6 +175,8 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await retry.click();
   await expect(page.locator('[data-first]')).toHaveCount(0);
   await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
+  // L'échec ne déplace pas le foyer : il reste sur « Réessayer ».
+  await expect(retry).toBeFocused();
   await page.unroute('**/rest/v1/site_rules*');
   // « Réessayer », au clavier, relit les règles sans recharger la page : l'alerte disparaît, le bouton
   // revient, et le foyer va au titre de la carte au lieu de retomber sur la page.

@@ -31,6 +31,11 @@ export function LoadProblem({
       if (retried.current && target && document.activeElement === document.body) target.focus();
     };
   }, [heading]);
+  // Un essai qui a échoué n'est plus en cours : si le message disparaît plus tard par un autre chemin
+  // (une action qui relit tout), le foyer n'est pas déplacé.
+  useEffect(() => {
+    retried.current = false;
+  }, [attempt]);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <p key={attempt} role="alert">
