@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { stockByCity } from '../site-rules';
 import { SitesCard } from './Sites';
 import { useMoney } from '../money';
 import { LoadProblem, Loading } from './LoadProblem';
@@ -44,6 +45,8 @@ export function HomeScreen() {
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
   const failed = treasury.failed || stock.failed || orders.failed;
+  const groups = stockByCity(stock.rows ?? [], house.cityId);
+  const titled = groups.some(({ cityId }) => cityId !== house.cityId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,22 +107,32 @@ export function HomeScreen() {
         {stock.rows?.length === 0 && (
           <p className="text-muted-foreground">{t('home.stockEmpty')}</p>
         )}
-        <ul>
-          {stock.rows?.map((line) => (
-            <li key={line.id}>
-              {t('home.stockLine', {
-                good: goodName(line.good_id),
-                quantity: number.format(line.quantity),
-              })}
-              {line.reserved > 0 && (
-                <span className="text-muted-foreground">
-                  {' '}
-                  ({t('home.stockReserved', { reserved: number.format(line.reserved) })})
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        {/* Une seule cité, celle de la maison : pas de titre. Sinon chaque cité a le sien. */}
+        {groups.map(({ cityId, lines }) => (
+          <section key={cityId} aria-labelledby={titled ? `stock-${cityId}` : undefined}>
+            {titled && (
+              <h3 id={`stock-${cityId}`} className="mt-2 font-semibold">
+                {t('home.stockCity', { city: house.cityNames[cityId] ?? cityId })}
+              </h3>
+            )}
+            <ul>
+              {lines.map((line) => (
+                <li key={line.id}>
+                  {t('home.stockLine', {
+                    good: goodName(line.good_id),
+                    quantity: number.format(line.quantity),
+                  })}
+                  {line.reserved > 0 && (
+                    <span className="text-muted-foreground">
+                      {' '}
+                      ({t('home.stockReserved', { reserved: number.format(line.reserved) })})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </Card>
 
       <SitesCard

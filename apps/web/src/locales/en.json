@@ -43,6 +43,7 @@
     "balance": "{{amount}}",
     "stock": "Storehouse",
     "stockEmpty": "Nothing in stock yet.",
+    "stockCity": "Stock in {{city}}",
     "stockLine": "{{good}}: {{quantity}}",
     "stockReserved": "of which {{reserved}} for sale",
     "sites": "Sites",

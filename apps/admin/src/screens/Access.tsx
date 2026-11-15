@@ -1,8 +1,9 @@
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
 import { Button, Field } from '@oikos/ui';
-import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
+import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
 import { useAdmin } from '../useAdmin';
@@ -17,10 +18,6 @@ export interface RoleRow {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
-/** Entrée tenue : la répétition du clavier n'ouvre, ne confirme ni n'annule rien. */
-const ignoreHeldEnter = (event: KeyboardEvent) => {
-  if (event.repeat && event.key === 'Enter') event.preventDefault();
-};
 
 /**
  * Module Accès : comptes qui portent un rôle (15.3) ; accorder, remplacer et retirer un rôle. Les

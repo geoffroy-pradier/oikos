@@ -12,6 +12,7 @@ import { LoadProblem, Loading } from './LoadProblem';
 
 interface Site {
   id: string;
+  city_id: string;
   recipe_id: string;
   cycle_started_at: string;
   /** Instant de l'arrêt d'un site dont l'entretien n'a pas été payé ; `null` s'il tourne (5.5). */
@@ -40,7 +41,11 @@ export function SitesCard({
   const { t, i18n } = useTranslation();
   const house = useHouse();
   // Par identifiant (ordre de création) : une récolte ne réordonne pas la liste.
-  const sites = useRows<Site>('my_sites', 'id, recipe_id, cycle_started_at, halted_at', 'id');
+  const sites = useRows<Site>(
+    'my_sites',
+    'id, city_id, recipe_id, cycle_started_at, halted_at',
+    'id',
+  );
   const { rules, failed: rulesFailed, reload: reloadRules } = useSiteRules();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -79,8 +84,9 @@ export function SitesCard({
       quantity: number.format(stack.quantity),
       good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
     });
-  // Les sites de la maison sont dans sa cité : c'est ce stock-là, et lui seul, qu'un atelier consomme.
-  const freeStock = (goodId: string) => freeStockIn(stock ?? [], house.cityId, goodId);
+  // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
+  const freeStockOf = (site: Site) => (goodId: string) =>
+    freeStockIn(stock ?? [], site.city_id, goodId);
   // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -104,7 +110,13 @@ export function SitesCard({
     // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
     if (!recipe || !stock)
       return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
-    const harvest = previewHarvest(recipe, new Date(site.cycle_started_at), now, freeStock, halted);
+    const harvest = previewHarvest(
+      recipe,
+      new Date(site.cycle_started_at),
+      now,
+      freeStockOf(site),
+      halted,
+    );
     return { halted, harvest, alerts: siteAlerts(recipe, harvest, halted !== null) };
   };
   const watched = rows
@@ -391,7 +403,7 @@ export function SitesCard({
                         {t('home.inputLine', {
                           quantity: number.format(stack.quantity),
                           good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
-                          free: number.format(freeStock(stack.goodId)),
+                          free: number.format(freeStockOf(site)(stack.goodId)),
                         })}
                       </li>
                     ))}
