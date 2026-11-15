@@ -250,6 +250,7 @@ describe('lectures du back-office', () => {
 it('le gabarit d’une route remplace les identifiants et ne recopie pas un chemin inattendu', () => {
   expect(adminRouteTemplate('/api/admin/config/versions')).toBe('/api/admin/config/versions');
   expect(adminRouteTemplate('/api/admin/roles')).toBe('/api/admin/roles');
+  expect(adminRouteTemplate('/api/admin/economy')).toBe('/api/admin/economy');
   expect(
     adminRouteTemplate('/api/admin/config/versions/01900000-0000-7000-8000-000000000001'),
   ).toBe('/api/admin/config/versions/:id');
