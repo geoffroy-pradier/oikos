@@ -8,7 +8,7 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), acquisitions (`acquisitions`), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), acquisitions (`acquisitions` : un site, un navire), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Chaque ligne du grand livre y est comptée une fois et en entier : la somme des flux d'un compte sur une période est la variation de son solde, et un flux de somme nulle n'est pas affiché.
   Un achat en attente quitte la trésorerie le jour où son prix est retenu (nature séquestre) ;
   servi plus tard, c'est un achat du compte de séquestre, pas de la trésorerie.
@@ -19,7 +19,7 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   il n'y a ni variation de stock ni amortissement, les stocks sont au bilan.
   La monnaie de la maison y est sa trésorerie plus son séquestre : retenir ou rendre le prix d'un achat en attente est un mouvement entre ses deux comptes, sans effet sur le résultat, et l'achat est une charge le jour où il est servi (au flux de la seule trésorerie, un achat payé par le séquestre ne serait jamais une charge).
   Exploitation : ventes au brut, achats, taxes, entretien ; leur somme est le résultat (`operating_result`).
-  Hors exploitation (`non_operating`) : acquisitions de sites, dotation de départ, et `other` pour tout le reste.
+  Hors exploitation (`non_operating`) : acquisitions de sites et de navires, dotation de départ, et `other` pour tout le reste.
   Résultat plus hors exploitation font la variation de la monnaie de la maison sur la période (`cash_change`), dont `escrow_change` est la part du séquestre : la variation de la trésorerie seule est leur différence.
   La saison d'un jour de jeu est celle du moteur (`seasonIndexAt`) : des saisons de `seasonDays` jours de jeu (au plus 366) comptés depuis le lundi 5 janvier 1970, lues comme le jour avec l'horloge en vigueur à la lecture ;
   la vue par saison donne le premier et le dernier jour de jeu de chacune.
@@ -30,7 +30,8 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Ce prix moyen est préféré au prix du dernier échange : un échange isolé à un prix aberrant ne déplace pas le bilan.
   Un bien qui n'a jamais eu de prix observé dans la cité n'a ni prix ni valeur ;
   aucun prix n'est inventé à sa place.
-  Bilan (`my_balance_sheet`) : trésorerie, séquestre (nul tant que la maison n'a pas eu d'achat en attente), valeur des stocks qui ont un prix, et nombre de stocks sans prix, que cette valeur ignore. Les sites n'y figurent pas : leur prix d'acquisition est détruit.
+  Bilan (`my_balance_sheet`) : trésorerie, séquestre (nul tant que la maison n'a pas eu d'achat en attente), valeur des stocks qui ont un prix, et nombre de stocks sans prix, que cette valeur ignore.
+  Les sites et les navires n'y figurent pas : leur prix d'acquisition est détruit.
 - **Famille** : conjoint, héritiers, parents, chacun avec 2 ou 3 traits. Un membre peut être placé à la tête d'un site ou envoyé en ambassade. Les mariages entre maisons de joueurs créent une alliance formelle (accès croisé aux entrepôts, clause d'entraide).
 - **Timè** : monte avec les contrats honorés, les liturgies et les mandats bien tenus ; baisse avec les défauts de paiement et les sanctions. Elle conditionne le crédit, l'éligibilité et les prix obtenus des PNJ.
 
@@ -132,7 +133,26 @@ Héritage direct des jeux de référence, relié au reste de l'économie.
 
 ## 4.6 La flotte et les caravanes
 
-Les prix diffèrent d'une cité à l'autre ; le transport est le métier qui les rapproche. Un trajet a une durée (2 à 20 heures réelles), un coût, une capacité et un risque (tempête, piraterie), réduit par la saison, l'escorte et la faveur de Poséidon. Trois classes de navires au lancement : caboteur, navire rond de commerce, galère d'escorte. Le fret peut être vendu à d'autres joueurs.
+Les prix diffèrent d'une cité à l'autre ; le transport est le métier qui les rapproche.
+Un trajet a une durée (2 à 20 heures réelles), un coût, une capacité et un risque (tempête, piraterie), réduit par la saison, l'escorte et la faveur de Poséidon.
+Trois classes de navires au lancement : caboteur, navire rond de commerce, galère d'escorte.
+La phase 2 n'en a que deux, le caboteur et le navire rond : la galère d'escorte et l'escorte attendent les conflits de la phase 3 (décision du ticket #251).
+Le fret peut être vendu à d'autres joueurs.
+
+Navires, dans la phase 2 (#251) :
+
+- Une classe de navire (`ships.classes`) a une capacité en unités de biens, tous biens confondus, une vitesse en points de base (10 000 tient la durée de référence d'une route), un prix d'achat et un entretien par jour de jeu, en oboles.
+  L'entretien entre à zéro dans la configuration initiale (paramètres neutres) ; la clôture le prélèvera avec #252.
+  Une version de configuration publiée avant le transport se lit sans aucune classe : aucun navire ne s'y achète.
+- La commande `ship.acquire` (classe, prix vu) achète un navire neuf : il naît armé, à quai dans la cité de la maison, et son prix est détruit (puits `sink_ship_purchase`, 5.5) par une écriture `ship.acquire`, annoncée par un événement de domaine `ShipAcquired`.
+  Elle est refusée sans rien payer si la classe n'est pas dans la configuration en vigueur, si la cité de la maison n'a pas de port (6.1), si la trésorerie ne couvre pas le prix, ou si le prix en vigueur n'est pas celui que le joueur a vu (« le prix a changé », comme pour `site.acquire`).
+  La monnaie sous séquestre à l'agora ne paie pas un navire.
+  Le prix vu est obligatoire, à la différence de `site.acquire` : aucun client antérieur ne l'omet.
+  Il n'y a pas de limite de flotte : seul le prix borne le nombre de navires d'une maison.
+- Un navire ne change jamais de maison ni de classe, et il n'y a pas de revente.
+  À quai, il est dans une cité de son monde ; il n'en part qu'avec un voyage (#252).
+- Les classes et leurs tarifs sont des règles publiques (vue `ship_rules`, la section `ships` de la configuration en vigueur).
+  Chaque joueur lit ses propres navires, leur cité de mouillage et leur désarmement (vue `my_ships`).
 
 ## 4.7 Le savoir
 

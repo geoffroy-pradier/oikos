@@ -246,6 +246,56 @@ describe('ship.acquire', () => {
     expect(await balanceOf(player.houseId)).toBe(0);
   });
 
+  it('achats simultanés avec de quoi en payer un seul : un seul passe, solde jamais négatif', async () => {
+    const players = await Promise.all(Array.from({ length: 6 }, () => newPlayer()));
+    await Promise.all(
+      players.map(async (player) => {
+        const outcomes = await Promise.all(
+          Array.from({ length: 3 }, () => buy(player.user, 'coaster', COASTER)),
+        );
+        expect(outcomes.map((outcome) => outcome.status).sort()).toEqual([200, 409, 409]);
+        expect(
+          outcomes.filter((outcome) => outcome.body.error?.code === 'INSUFFICIENT_FUNDS'),
+        ).toHaveLength(2);
+        expect(await shipsOf(player.houseId)).toHaveLength(1);
+        expect(await balanceOf(player.houseId)).toBe(GRANT - COASTER);
+      }),
+    );
+  });
+
+  it('achat de navire, acquisition de site et achat à l’agora simultanés : aucun interblocage', async () => {
+    // L'achat d'un navire verrouille le compte puis touche la maison (clé étrangère du navire), comme un
+    // achat à l'agora ; l'acquisition d'un site verrouille la maison puis le compte. Navire et champ
+    // prennent toute la dotation : l'achat à l'agora, d'une obole retenue, en est refusé ou les précède.
+    expect(COASTER + FIELD).toBe(GRANT);
+    const players = await Promise.all(Array.from({ length: 12 }, () => newPlayer()));
+    const outcomes = await Promise.all(
+      players.flatMap((player) => [
+        buy(player.user, 'coaster', COASTER),
+        send(player.user, 'site.acquire', { recipeId: 'grow_wheat' }),
+        send(player.user, 'market.placeOrder', {
+          cityId: KALLISTE,
+          goodId: 'amphorae',
+          side: 'buy',
+          price: 1,
+          quantity: 1,
+        }),
+      ]),
+    );
+    // Aucune erreur interne : chaque refus est une trésorerie insuffisante.
+    for (const outcome of outcomes)
+      if (outcome.status !== 200) expect(outcome.body.error?.code).toBe('INSUFFICIENT_FUNDS');
+    // Conservation : dotation = trésorerie + séquestre + ce que les puits ont détruit, sans solde négatif.
+    for (const player of players) {
+      const [balance, held] = [await balanceOf(player.houseId), await escrowOf(player.houseId)];
+      expect(balance).toBeGreaterThanOrEqual(0);
+      const ships = (await shipsOf(player.houseId)).length;
+      const sites = await sitesBought(player.houseId);
+      expect([ships, sites]).not.toEqual([0, 0]);
+      expect(balance + held).toBe(GRANT - ships * COASTER - sites * FIELD);
+    }
+  });
+
   it('classe inconnue, version publiée avant le transport, compte sans maison : refus sans effet', async () => {
     const player = await newPlayer();
     expect(await buy(player.user, 'trireme', 1)).toMatchObject({
@@ -264,4 +314,47 @@ describe('ship.acquire', () => {
     });
     await untouched(player.houseId);
   });
+
+  it('une cité sans port, ou inconnue de la configuration, ne lance aucun navire', async () => {
+    const player = await newPlayer();
+    const landlocked = appWithConfig((config) => ({
+      ...config,
+      cities: config.cities.map((city) =>
+        city.id === 'kalliste' ? { ...city, hasPort: false } : city,
+      ),
+    }));
+    expect(await buy(player.user, 'coaster', COASTER, undefined, landlocked)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'NO_PORT' } },
+    });
+    const unknown = appWithConfig((config) => ({
+      ...config,
+      cities: config.cities.filter((city) => city.id !== 'kalliste'),
+    }));
+    expect((await buy(player.user, 'coaster', COASTER, undefined, unknown)).body.error?.code).toBe(
+      'NO_PORT',
+    );
+    await untouched(player.houseId);
+  });
 });
+
+/** Sites acquis par la maison au-delà de son site de départ. */
+async function sitesBought(houseId: string) {
+  const { n } = await db
+    .selectFrom('game.sites')
+    .select((expression) => expression.fn.countAll<string>().as('n'))
+    .where('house_id', '=', houseId)
+    .executeTakeFirstOrThrow();
+  return Number(n) - 1;
+}
+
+/** Monnaie retenue par les achats en attente de la maison à l'agora (0 sans séquestre). */
+async function escrowOf(houseId: string) {
+  const escrow = await db
+    .selectFrom('game.accounts')
+    .select('balance')
+    .where('house_id', '=', houseId)
+    .where('kind', '=', 'escrow')
+    .executeTakeFirst();
+  return Number(escrow?.balance ?? 0);
+}

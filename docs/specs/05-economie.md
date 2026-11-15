@@ -201,10 +201,14 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Dotation de départ | Offrandes, fêtes et liturgies |
 |  | Intérêts payés au Trésor du temple |
 |  | Grands travaux et merveilles |
-| Rachat du stock d'un bien à retirer (Olympe, 5.1) | Acquisition de sites |
+| Rachat du stock d'un bien à retirer (Olympe, 5.1) | Acquisition de sites et achat de navires |
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.
+
+Achat de navires (`sink_ship_purchase`, #251) : le prix d'un navire neuf, fixé par la configuration pour sa classe, est détruit par une écriture `ship.acquire` (4.6).
+Il n'y a pas de revente, donc aucun robinet en face.
+L'entretien des navires, nul au départ, aura son propre puits avec #252.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
