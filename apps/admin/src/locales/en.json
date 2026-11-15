@@ -240,6 +240,7 @@
     },
     "diffPending": "Differences from the version in force: loading…",
     "tableForm": {
+      "none": "None.",
       "choose": "— choose —"
     },
     "goodsForm": {
@@ -256,7 +257,10 @@
       }
     },
     "recipesForm": {
-      "hint": "Each entry rewrites the JSON text above. Recipes, inputs and outputs are still added or removed there.",
+      "hint": "Each entry rewrites the JSON text above, as does each recipe added or removed. Inputs and outputs are still added or removed there. A removed recipe still named by the starting grant is refused on saving.",
+      "add": "Add a recipe",
+      "remove": "Remove {{name}}",
+      "removed": "{{name}} removed from the text, not saved yet.",
       "empty": "None.",
       "unavailable": "Form unavailable: the text must be a JSON object whose “recipes” is a list of objects, whose “inputs” and “outputs” are lists of objects.",
       "siteTypes": {
@@ -270,7 +274,10 @@
       }
     },
     "npcClassesForm": {
-      "hint": "Each entry rewrites the JSON text above. Classes and basket lines are still added or removed there.",
+      "hint": "Each entry rewrites the JSON text above, as does each class added or removed. Basket lines are still added or removed there. A class added or removed must also be in or out of every city's population, or saving is refused.",
+      "add": "Add a class",
+      "remove": "Remove {{name}}",
+      "removed": "{{name}} removed from the text, not saved yet.",
       "empty": "No line.",
       "unavailable": "Form unavailable: the text must be a JSON object whose “npcClasses” is a list of objects, whose “basket” is a list of objects.",
       "needs": {

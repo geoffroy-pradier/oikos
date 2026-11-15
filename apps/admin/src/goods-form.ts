@@ -10,7 +10,7 @@ export interface TableField {
 export interface NestedTable {
   /** Clé de la table dans la configuration, et de ses libellés (`config.schemaPath`). */
   table: string;
-  /** Textes du formulaire : `config.<texts>.hint`, `unavailable`, `empty`. */
+  /** Textes du formulaire : `config.<texts>.hint`, `unavailable`, `empty`, `add`, `remove`, `removed`. */
   texts: string;
   fields: readonly TableField[];
   lists: readonly { key: string; fields: readonly TableField[] }[];
@@ -116,11 +116,11 @@ export const composeTable = (config: unknown, key: string, rows: Row[]): string 
 export const composeGoods = (config: unknown, goods: Row[]) => composeTable(config, 'goods', goods);
 
 /**
- * Biens après un ajout : un objet vide en fin de liste, sans aucune valeur, pas même un niveau. Le
- * formulaire n'invente aucun paramètre : l'API refuse ce bien, champ par champ, tant qu'il n'est pas rempli.
+ * Lignes après un ajout : un objet vide en fin de liste, sans aucune valeur. Un formulaire n'invente aucun
+ * paramètre : l'API refuse cette ligne, champ par champ, tant qu'elle n'est pas remplie.
  */
-export const addGood = (goods: Row[]): Row[] => [...goods, {}];
+export const addRow = (rows: Row[]): Row[] => [...rows, {}];
 
-/** Biens après le retrait d'un bien, désigné par son rang : les autres sont gardés, dans leur ordre. */
-export const removeGood = (goods: Row[], row: number): Row[] =>
-  goods.filter((_, index) => index !== row);
+/** Lignes après le retrait d'une ligne, désignée par son rang : les autres sont gardées, dans leur ordre. */
+export const removeRow = (rows: Row[], row: number): Row[] =>
+  rows.filter((_, index) => index !== row);

@@ -1,22 +1,26 @@
+import { Button } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import {
+  addRow,
   composeTable,
   editNested,
   editRow,
   goodIds,
   readNested,
   readRows,
+  removeRow,
   type NestedTable,
   type Row,
 } from '../goods-form';
 import { FieldControl } from './FieldControl';
+import { useReshape } from './useReshape';
 
 const GROUP = 'grid min-w-0 gap-2 rounded-md border border-border p-3 wrap-anywhere';
 
 /**
  * Formulaire d'une table dont les lignes portent des listes imbriquées (15.4) : recettes et leurs intrants
  * et extrants, classes de PNJ et leur panier. Comme celui des biens, sans état propre : il montre les lignes
- * du texte JSON et chaque saisie réécrit ce texte (`onChange`). L'API fait foi.
+ * du texte JSON et chaque saisie, chaque ajout ou retrait réécrit ce texte (`onChange`). L'API fait foi.
  */
 export function NestedTableForm(props: {
   spec: NestedTable;
@@ -32,6 +36,7 @@ export function NestedTableForm(props: {
     lists.map((list) => list.key),
   );
   const compose = (next: Row[]) => composeTable(props.config, table, next);
+  const { guard, reshape, announcement } = useReshape(props.onChange);
   const label = (key: string) => t(`config.schemaPath.fields.${table}.${key}`);
   // Par identifiant, sinon par rang : un identifiant peut manquer, se répéter ou être en cours de frappe.
   const nameOf = (id: unknown, index: number) =>
@@ -46,8 +51,11 @@ export function NestedTableForm(props: {
   );
   const suggestions = `${table}-good-ids`;
   return (
-    <details className="space-y-3">
-      <summary className="min-h-11 text-lg">{t(`config.schemaPath.tables.${table}`)}</summary>
+    // Nommé par son résumé : deux lignes de même nom (« élément 2 ») dans deux formulaires se distinguent.
+    <details className="space-y-3" aria-labelledby={`${table}-form`}>
+      <summary id={`${table}-form`} className="min-h-11 text-lg">
+        {t(`config.schemaPath.tables.${table}`)}
+      </summary>
       {(!rows || !props.readOnly) && (
         <p className="text-sm text-muted-foreground">
           {t(`config.${texts}.${rows ? 'hint' : 'unavailable'}`)}
@@ -59,10 +67,16 @@ export function NestedTableForm(props: {
           <option key={id} value={id} />
         ))}
       </datalist>
+      {rows?.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t('config.tableForm.none')}</p>
+      )}
       {rows?.map((entry, row) => {
+        const name = nameOf(entry['id'], row);
+        // Foyer après le retrait : la ligne suivante, sinon la précédente, sinon le bouton d'ajout.
+        const after = row + 1 < rows.length ? row : row - 1;
         return (
           <fieldset key={row} className={`${GROUP} sm:grid-cols-2 lg:grid-cols-3`}>
-            <legend className="px-1 font-medium">{nameOf(entry['id'], row)}</legend>
+            <legend className="px-1 font-medium">{name}</legend>
             {fields.map((field) => (
               <FieldControl
                 key={field.key}
@@ -108,9 +122,37 @@ export function NestedTableForm(props: {
                 </fieldset>
               );
             })}
+            {!props.readOnly && (
+              <Button
+                variant="secondary"
+                className="col-span-full justify-self-start"
+                {...guard}
+                onClick={(event) =>
+                  reshape(
+                    event,
+                    compose(removeRow(rows, row)),
+                    after < 0 ? `${table}-add` : `${table}-${after}-id`,
+                    t(`config.${texts}.removed`, { name }),
+                  )
+                }
+              >
+                {t(`config.${texts}.remove`, { name })}
+              </Button>
+            )}
           </fieldset>
         );
       })}
+      {rows && !props.readOnly && (
+        <Button
+          id={`${table}-add`}
+          variant="secondary"
+          {...guard}
+          onClick={(event) => reshape(event, compose(addRow(rows)), `${table}-${rows.length}-id`)}
+        >
+          {t(`config.${texts}.add`)}
+        </Button>
+      )}
+      {announcement(props.config, `${table}-announce`)}
     </details>
   );
 }

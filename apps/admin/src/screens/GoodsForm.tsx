@@ -1,17 +1,16 @@
 import { Button } from '@oikos/ui';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  addGood,
+  addRow,
   composeGoods,
   editRow,
   GOOD_FIELDS,
   GOOD_TIERS,
   readGoods,
-  removeGood,
+  removeRow,
 } from '../goods-form';
-import { ignoreHeldEnter, SHIFT_GUARD_MS } from '../keyboard';
 import { FieldControl } from './FieldControl';
+import { useReshape } from './useReshape';
 
 /**
  * Formulaire des biens (15.4), sans état propre : il montre les biens du texte JSON, et chaque saisie
@@ -28,50 +27,13 @@ export function GoodsForm(props: {
     value: tier,
     label: t(`config.goodsForm.tiers.${tier}`),
   }));
-  /**
-   * Bien retiré, annoncé tant que le texte reste celui que ce retrait a écrit. `count` numérote les
-   * retraits : deux retraits de suite au même nom donnent deux annonces, pas un texte inchangé.
-   */
-  const [removed, setRemoved] = useState<{ name: string; text: string; count: number } | null>(
-    null,
-  );
-  /** Élément qui prend le foyer quand le texte réécrit par un ajout ou un retrait est affiché. */
-  const focusNext = useRef<string | null>(null);
-  useEffect(() => {
-    if (focusNext.current) document.getElementById(focusNext.current)?.focus();
-    focusNext.current = null;
-  });
-  const movedAt = useRef(-Infinity);
-  /**
-   * Ajout ou retrait : comme une saisie, il réécrit le texte entier. Les biens viennent de bouger sous le
-   * pointeur : le second clic d'un double clic (`detail`), ou un toucher juste après, n'agit pas. Le foyer
-   * va dans un champ, jamais sur un autre bouton : une touche Entrée tenue ne retire pas bien après bien.
-   * Sur le bouton d'ajout, où le foyer va après le retrait du seul bien, sa répétition n'agit pas.
-   * Le délai ne vaut pas pour la souris, dont le compte de clics distingue déjà un double clic : un clic
-   * voulu sur un autre bouton, même aussitôt après, agit. Type de pointeur inconnu : délai, par prudence.
-   */
-  const stray = ({ detail, nativeEvent }: MouseEvent) =>
-    detail > 1 ||
-    (detail === 1 &&
-      (nativeEvent as Partial<PointerEvent>).pointerType !== 'mouse' &&
-      performance.now() - movedAt.current < SHIFT_GUARD_MS);
-  /** Un appui ignoré ne prend pas non plus le foyer, laissé dans le champ choisi après le geste. */
-  const keepFocus = (event: MouseEvent) => {
-    if (stray(event)) event.preventDefault();
-  };
-  const reshape = (event: MouseEvent, next: Record<string, unknown>[], focus: string) => {
-    if (stray(event)) return;
-    // Un clic né du clavier (`detail` nul) ne déplace rien sous le pointeur : il n'arme pas le délai.
-    if (event.detail > 0) movedAt.current = performance.now();
-    focusNext.current = focus;
-    const text = composeGoods(props.config, next);
-    props.onChange(text);
-    return text;
-  };
-  const announced = removed && removed.text === JSON.stringify(props.config, null, 2);
+  const { guard, reshape, announcement } = useReshape(props.onChange);
   return (
-    <details className="space-y-3">
-      <summary className="min-h-11 text-lg">{t('config.schemaPath.tables.goods')}</summary>
+    // Nommé par son résumé, comme les autres formulaires de table.
+    <details className="space-y-3" aria-labelledby="goods-form">
+      <summary id="goods-form" className="min-h-11 text-lg">
+        {t('config.schemaPath.tables.goods')}
+      </summary>
       {(!goods || !props.readOnly) && (
         <p className="text-sm text-muted-foreground">
           {t(goods ? 'config.goodsForm.hint' : 'config.goodsForm.unavailable')}
@@ -108,16 +70,15 @@ export function GoodsForm(props: {
               <Button
                 variant="secondary"
                 className="col-span-full justify-self-start"
-                onMouseDown={keepFocus}
-                onKeyDown={ignoreHeldEnter}
-                onClick={(event) => {
-                  const text = reshape(
+                {...guard}
+                onClick={(event) =>
+                  reshape(
                     event,
-                    removeGood(goods, row),
+                    composeGoods(props.config, removeRow(goods, row)),
                     after < 0 ? 'goods-add' : `goods-${after}-id`,
-                  );
-                  if (text) setRemoved((last) => ({ name, text, count: (last?.count ?? 0) + 1 }));
-                }}
+                    t('config.goodsForm.removed', { name }),
+                  )
+                }
               >
                 {t('config.goodsForm.remove', { name })}
               </Button>
@@ -129,21 +90,15 @@ export function GoodsForm(props: {
         <Button
           id="goods-add"
           variant="secondary"
-          onMouseDown={keepFocus}
-          onKeyDown={ignoreHeldEnter}
-          onClick={(event) => reshape(event, addGood(goods), `goods-${goods.length}-id`)}
+          {...guard}
+          onClick={(event) =>
+            reshape(event, composeGoods(props.config, addRow(goods)), `goods-${goods.length}-id`)
+          }
         >
           {t('config.goodsForm.add')}
         </Button>
       )}
-      {/* Toujours présente : le retrait est annoncé dès qu'il est fait. Sans rôle `status` : celui de
-          l'écran reste le seul, qui annonce l'issue des commandes. */}
-      <p id="goods-announce" aria-live="polite" className="text-sm">
-        {/* Un nœud neuf à chaque retrait (`key`) : le lecteur d'écran lit l'annonce même inchangée. */}
-        {announced && (
-          <span key={removed.count}>{t('config.goodsForm.removed', { name: removed.name })}</span>
-        )}
-      </p>
+      {announcement(props.config, 'goods-announce')}
     </details>
   );
 }
