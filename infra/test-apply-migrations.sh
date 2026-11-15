@@ -143,6 +143,16 @@ expect "trois exécutions simultanées : enregistrements uniques" "$(recorded)" 
 printf '%s\n' 20260101000099_absent.sql > "$work/adopt"
 apply --adopt "$work/adopt" "$mig"
 expect "liste --adopt ignorée hors adoption" "$(recorded)" 9
+# Ligne écrite par la CLI (`supabase db push`) : statements découpé, sans empreinte, texte différent du fichier.
+add 20260101000010_cli.sql m10
+q "insert into supabase_migrations.schema_migrations (version, name, statements)
+   values ('20260101000010', 'cli', array['insert into public.migration_log values (''m10'')'])"
+apply "$mig"
+expect "ligne de la CLI à un seul élément : acceptée, non rejouée" "$(times_applied m10)" 0
+expect "empreinte enregistrée par le script" \
+  "$(q "select oikos_md5 from supabase_migrations.schema_migrations where version = '20260101000002'")" \
+  "$(md5sum < "$mig/20260101000002_two.sql" | cut -d' ' -f1)"
+rm "$mig/20260101000010_cli.sql"
 
 echo "# Base déjà déployée sans table des migrations"
 fresh_db

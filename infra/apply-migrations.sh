@@ -8,8 +8,8 @@
 # La commande psql vise la base avec le propriétaire du schéma ; le script lui passe ses requêtes sur
 # l'entrée standard (sur le serveur : `docker compose … exec -T db psql -U postgres -d postgres`).
 #
-# Une migration publiée est immuable : si le texte enregistré par ce script (un seul élément dans
-# `statements`) diffère du fichier, le script s'arrête avant d'appliquer quoi que ce soit.
+# Une migration publiée est immuable : si l'empreinte md5 que ce script a enregistrée (colonne `oikos_md5`,
+# que la CLI laisse vide) diffère de celle du fichier, le script s'arrête avant d'appliquer quoi que ce soit.
 #
 # Base déjà déployée sans cette table (migrations rejouées par l'ancien `deploy.sh`) : elle est reconnue à
 # ce qu'aucune migration n'y est enregistrée alors que le schéma `game` existe. Les migrations nommées une
@@ -78,8 +78,8 @@ record() {
     [ "$found" -eq 1 ] || { echo "migration illisible : $1" >&2; exit 1; }
     break
   done
-  printf "insert into %s (version, name, statements) values ('%s', '%s', array[\$%s\$" \
-    "$table" "$(version_of "$1")" "$(name_of "$1")" "$tag"
+  printf "insert into %s (version, name, oikos_md5, statements) values ('%s', '%s', '%s', array[\$%s\$" \
+    "$table" "$(version_of "$1")" "$(name_of "$1")" "${md5[$(version_of "$1")]}" "$tag"
   cat "$1"
   printf '$%s$]);\n' "$tag"
 }
@@ -108,6 +108,8 @@ fi
   echo "create table if not exists $table (version text not null primary key);"
   echo "alter table $table add column if not exists statements text[];"
   echo "alter table $table add column if not exists name text;"
+  # Propre à ce script : la CLI n'insère que version, name et statements, qu'elle découpe en instructions.
+  echo "alter table $table add column if not exists oikos_md5 text;"
   if [ "$adopting" = t ]; then
     echo "select not exists (select 1 from $table) and $game_exists as oikos_adopt \\gset"
     echo "\\if :oikos_adopt"
@@ -128,9 +130,9 @@ if ! send; then
   exit 1
 fi
 
-# 3. Migrations enregistrées : le texte écrit par ce script doit être celui du fichier.
+# 3. Migrations enregistrées par ce script : l'empreinte enregistrée doit être celle du fichier.
 "${psql_cmd[@]}" -At -F ' ' -f - > "$work/recorded" << SQL
-select version, coalesce(case when cardinality(statements) = 1 then md5(statements[1]) end, '-') from $table;
+select version, coalesce(oikos_md5, '-') from $table;
 SQL
 declare -A recorded
 while read -r version sum; do recorded[$version]="$sum"; done < "$work/recorded"

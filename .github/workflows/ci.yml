@@ -26,12 +26,20 @@ jobs:
       # modification sur place ne serait donc jamais déployée. On corrige par une migration nouvelle.
       - name: Published migrations are immutable
         if: hashFiles('packages/db/supabase/migrations/*.sql') != ''
-        # Comparaison au premier parent : la branche de base pour le commit de fusion d'une demande de
-        # fusion, le commit précédent pour une fusion en squash sur `main`.
+        # Base de comparaison : le premier parent du commit de fusion d'une demande de fusion (la branche de
+        # base), ou l'état de `main` avant l'envoi (tous ses commits sont contrôlés).
+        env:
+          BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
         run: |
-          git fetch --quiet --depth=2 origin "$GITHUB_SHA"
-          git rev-parse --quiet --verify HEAD^1 > /dev/null || exit 0
-          changed="$(git diff --diff-filter=MDR --name-only HEAD^1 HEAD -- packages/db/supabase/migrations)"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            git fetch --quiet --depth=1 origin "$BEFORE"
+            base="$BEFORE"
+          else
+            git fetch --quiet --depth=2 origin "$GITHUB_SHA"
+            git rev-parse --quiet --verify HEAD^1 > /dev/null || exit 0
+            base=HEAD^1
+          fi
+          changed="$(git diff --diff-filter=MDR --name-only "$base" HEAD -- packages/db/supabase/migrations)"
           if [ -n "$changed" ]; then
             echo "::error::Migrations publiées modifiées, supprimées ou renommées : $changed"
             exit 1
