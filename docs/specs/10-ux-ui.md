@@ -32,7 +32,7 @@ Inspiration de la céramique grecque à figures noires et rouges : aplats terre 
 ## Exigences
 
 - Premier affichage en moins de 2,5 s sur réseau mobile 4G ; application installable, consultation hors ligne des dernières données.
-- Une nouvelle version du client est proposée par un bandeau (« Mettre à jour » ou « Plus tard ») et ne s'installe qu'à la demande du joueur : rien ne recharge la page pendant une saisie.
+- Une nouvelle version du client est proposée par un bandeau (« Mettre à jour » ou « Plus tard ») et ne s'installe qu'à la demande du joueur : rien ne recharge la page pendant une saisie. Un onglet resté ouvert vérifie lui-même qu'une version est parue, à intervalle régulier (`updateCheckMinutes`, réglage du client dans `packages/config`, une heure au départ), tant qu'il est visible et en ligne.
 - Notifications push web paramétrables par type (ordre exécuté, navire arrivé, vote ouvert).
 - Français et anglais dès la structure du code, aucun texte en dur.
 - Accessibilité : contrastes AA, navigation clavier, tailles de police réglables, aucune information portée par la couleur seule. Un graphique est une image décrite, doublée d'un tableau des mêmes valeurs accessible au clavier ; sur les chandeliers de l'agora, hausse et baisse se distinguent par la forme (corps vide ou plein). Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ; si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
