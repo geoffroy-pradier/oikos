@@ -35,7 +35,12 @@ describe('heure du serveur', () => {
           clock.observe(header, sentAt, receivedAt);
           const offset = clock.now().getTime() - receivedAt;
           if (real === 0) expect(offset).toBe(0);
-          expect(Math.abs(offset - real)).toBeLessThanOrEqual(1000 + rtt);
+          // Dans l'intervalle permis, et au milieu (une milliseconde de tolérance : `Date` tronque).
+          const lowest = Date.parse(header) - receivedAt;
+          const highest = Date.parse(header) + 999 - sentAt;
+          expect(offset).toBeGreaterThanOrEqual(lowest - 1);
+          expect(offset).toBeLessThanOrEqual(highest);
+          expect(Math.abs(offset - real)).toBeLessThanOrEqual((999 + rtt) / 2 + 1);
         }
   });
 
