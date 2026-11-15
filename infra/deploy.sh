@@ -65,14 +65,17 @@ git -C "$root/oikos" fetch --quiet origin
 git -C "$root/oikos" checkout --quiet --detach "$version"
 # Les migrations passent avant le basculement : elles restent compatibles avec la version précédente du code.
 # Seules celles qu'aucun déploiement n'a enregistrées sont appliquées, chacune en une transaction avec son
-# enregistrement. Base migrée par l'ancien script : on enregistre sans les rejouer celles de la version
-# précédente (infra/README.md).
+# enregistrement. Base migrée par l'ancien script : celles de la version précédente, inchangées depuis, sont
+# enregistrées sans être rejouées ; une migration modifiée entre-temps est appliquée (infra/README.md).
+migrations=packages/db/supabase/migrations
 adopt=()
-if [ -n "$previous" ] && git -C "$root/oikos" ls-tree --name-only "$previous" -- packages/db/supabase/migrations/ \
-  | sed -n 's#.*/\([^/]*\.sql\)$#\1#p' > "$work/previous-migrations"; then
-  adopt=(--adopt "$work/previous-migrations")
+if [ -n "$previous" ] && git -C "$root/oikos" ls-tree --name-only "$previous" -- "$migrations/" > "$work/previous"; then
+  sed -n 's#.*/\([^/]*\.sql\)$#\1#p' "$work/previous" | while IFS= read -r file; do
+    if git -C "$root/oikos" diff --quiet "$previous" "$version" -- "$migrations/$file"; then echo "$file"; fi
+  done > "$work/adopt"
+  adopt=(--adopt "$work/adopt")
 fi
-bash "$work/apply-migrations.sh" "${adopt[@]}" "$root/oikos/packages/db/supabase/migrations" \
+bash "$work/apply-migrations.sh" "${adopt[@]}" "$root/oikos/$migrations" \
   -- "${compose[@]}" exec -T db psql -U postgres -d postgres
 
 echo "== Basculement des conteneurs (${previous:-aucune} -> $version)"

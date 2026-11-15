@@ -99,6 +99,31 @@ expect "version en double : refusée" "$code" 2
 expect "version en double : rien n'est appliqué" "$(times_applied twin)" 0
 rm "$mig/20260101000005_twin.sql"
 
+echo "# Migration illisible"
+add 20260101000011_next.sql m11
+mkdir "$mig/20260101000010_dir.sql"
+ln -s absent.sql "$mig/20260101000012_link.sql"
+for bad in 20260101000010_dir.sql 20260101000012_link.sql; do
+  code=0
+  run "$mig" || code=$?
+  expect "illisible ($bad) : refusée" "$code" 2
+  expect "illisible ($bad) : rien n'est appliqué ni enregistré" "$(times_applied m11)$(recorded)" 05
+  rm -r "${mig:?}/$bad"
+done
+rm "$mig/20260101000011_next.sql"
+
+echo "# Migration modifiée après son application"
+cp "$mig/20260101000002_two.sql" "$work/two.sql"
+echo "-- corrigée sur place" >> "$mig/20260101000002_two.sql"
+add 20260101000010_ten.sql m10
+code=0
+run "$mig" || code=$?
+expect "migration modifiée : le déploiement échoue" "$code" 1
+grep -q '20260101000002_two.sql a changé' "$work/out" || fail "la migration modifiée n'est pas nommée"
+expect "migration modifiée : rien n'est appliqué" "$(times_applied m10)$(times_applied m2)" 01
+mv "$work/two.sql" "$mig/20260101000002_two.sql"
+rm "$mig/20260101000010_ten.sql"
+
 echo "# Exécutions simultanées"
 # Une migration enregistrée par une autre exécution après le calcul des migrations à appliquer est sautée.
 add 20260101000006_six.sql m6 "insert into supabase_migrations.schema_migrations (version) values ('20260101000007');"
@@ -115,6 +140,9 @@ done
 for i in 1 2 3; do wait "${pids[$((i - 1))]}" || { cp "$work/out$i" "$work/out"; fail "exécution simultanée $i en échec"; }; done
 expect "trois exécutions simultanées : chaque migration appliquée une fois" "$(times_applied m8)$(times_applied m9)" 11
 expect "trois exécutions simultanées : enregistrements uniques" "$(recorded)" 9
+printf '%s\n' 20260101000099_absent.sql > "$work/adopt"
+apply --adopt "$work/adopt" "$mig"
+expect "liste --adopt ignorée hors adoption" "$(recorded)" 9
 
 echo "# Base déjà déployée sans table des migrations"
 fresh_db
@@ -137,13 +165,17 @@ expect "adoption : toutes enregistrées" "$(recorded)" 9
 apply --adopt "$work/adopt" "$mig"
 expect "adoption : un second déploiement ne rejoue rien" "$(q "select count(*) from public.migration_log")" 8
 
-echo "# Migrations du dépôt, sur une base déjà déployée"
+echo "# Migrations du dépôt, sur une base neuve"
 fresh_db
-q "create schema game"
-ls "$real_migrations" > "$work/adopt"
-apply --adopt "$work/adopt" "$real_migrations"
-expect "migrations du dépôt : toutes enregistrées" "$(recorded)" "$(wc -l < "$work/adopt")"
-expect "migrations du dépôt : aucune rejouée" "$(q "select count(*) from pg_namespace where nspname = 'config'")" 0
+# Substitut minimal de ce que fournit Supabase Auth.
+q "create schema auth; create table auth.users (id uuid primary key, email text);
+   create function auth.uid() returns uuid language sql stable
+     as \$\$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid \$\$"
+apply "$real_migrations"
+expect "migrations du dépôt : toutes appliquées et enregistrées" "$(recorded)" "$(ls "$real_migrations" | wc -l)"
 expect "migrations du dépôt : texte exact enregistré" \
   "$(q "select string_agg(md5(statements[1]), ' ' order by version) from supabase_migrations.schema_migrations")" \
   "$(for f in "$real_migrations"/*.sql; do md5sum < "$f" | cut -d' ' -f1; done | paste -sd' ')"
+apply "$real_migrations"
+grep -q '0 migrations nouvelles' "$work/out" || fail "migrations du dépôt rejouées au second déploiement"
+echo "ok - migrations du dépôt : un second déploiement ne rejoue rien"
