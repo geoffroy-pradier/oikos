@@ -46,7 +46,7 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   const houseName = await foundHouse(page);
 
   // Dotation de départ et premier site, lus par les vues du joueur.
-  await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^500 drachmes$/)).toBeVisible();
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
   await expect(page.getByText("Plafond d'accumulation : 18 cycles, soit 720 × Blé")).toBeVisible();
@@ -72,7 +72,7 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await page.getByLabel('Langue').selectOption('en');
   await expect(page.getByText('Wheat: 80')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Wheat field' })).toBeVisible();
-  await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
+  await expect(page.getByText(/^500 drachmas$/)).toBeVisible();
 });
 
 test('à récolter : calé sur l’heure du serveur, même quand le navigateur retarde de quatre heures', async ({
@@ -137,7 +137,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   page,
 }) => {
   const houseName = await foundHouse(page);
-  await expect(page.getByText('Entretien : 30 oboles par jour', { exact: false })).toBeVisible();
+  await expect(page.getByText('Entretien : 5 drachmes par jour', { exact: false })).toBeVisible();
   await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
 
   // Douze heures de champ (trois cycles), dont les six dernières à l'arrêt faute d'entretien payé.
@@ -188,14 +188,14 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeFocused();
 
   // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
-  const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 30 oboles' });
-  await expect(restart).toHaveText('Relancer (30 oboles)');
+  const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' });
+  await expect(restart).toHaveText('Relancer (5 drachmes)');
   await restart.focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
-    "Site relancé : Champ de blé, pour 30 oboles d'entretien.",
+    "Site relancé : Champ de blé, pour 5 drachmes d'entretien.",
   );
-  await expect(page.getByText(/^2\s970 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^495 drachmes$/)).toBeVisible();
   await expect(restart).toHaveCount(0);
   // Le bouton a disparu avec l'arrêt : le foyer est sur le message, pas perdu sur la page.
   await expect(said(page, 'status').locator('p')).toBeFocused();
@@ -204,7 +204,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
   await expectNoHorizontalScroll(page);
   await page.getByLabel('Langue').selectOption('en');
-  await expect(page.getByText('Upkeep: 30 obols a day', { exact: false })).toBeVisible();
+  await expect(page.getByText('Upkeep: 5 drachmas a day', { exact: false })).toBeVisible();
 });
 
 test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
@@ -248,8 +248,20 @@ function alone<T>(section: () => Promise<T>): Promise<T> {
   });
 }
 const french = new Intl.NumberFormat('fr-FR');
-/** Un montant comme l'écrit l'interface : « 0 obole », « 1 obole », « 2 oboles » (singulier jusqu'à 1). */
-const oboles = (amount: number) => `${french.format(amount)} ${amount < 2 ? 'obole' : 'oboles'}`;
+/**
+ * Un montant comme l'écrit l'interface, en drachmes et oboles (6 oboles pour 1 drachme) : « 0 obole »,
+ * « 1 drachme 1 obole », « 2 drachmes » (singulier jusqu'à 1, part nulle tue). Calculé ici, à la main,
+ * et non par le code testé.
+ */
+const money = (amount: number) => {
+  const [drachmas, obols] = [Math.floor(amount / 6), amount % 6];
+  const unit = (count: number, word: string) =>
+    `${french.format(count)} ${word}${count < 2 ? '' : 's'}`;
+  return [
+    ...(drachmas > 0 ? [unit(drachmas, 'drachme')] : []),
+    ...(obols > 0 || drachmas === 0 ? [unit(obols, 'obole')] : []),
+  ].join(' ');
+};
 
 /** Le moteur joue une étape du tick (par défaut la demande des PNJ) sur le monde de test. */
 async function npcsBuy(step: TickStep = npcDemand) {
@@ -301,7 +313,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     // Le blé en vente est réservé ; la trésorerie n'a pas encore bougé.
     await nav.getByRole('link', { name: 'Maison' }).click();
     await expect(page.getByText('Blé : 80 (dont 80 en vente)')).toBeVisible();
-    await expect(page.getByText(/^3\s000 oboles$/)).toBeVisible();
+    await expect(page.getByText(/^500 drachmes$/)).toBeVisible();
 
     // Les PNJ achètent au tick, des ventes les moins chères aux plus chères : la vente finit servie, et
     // la maison touche le net de chaque échange (la taxe de marché s'arrondit échange par échange).
@@ -319,7 +331,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
       0,
     );
     expect(sales.rows.reduce((sum, sale) => sum + Number(sale.gross), 0)).toBe(160);
-    await expect(page.getByText(`${oboles(3000 + net)}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`${money(3000 + net)}`, { exact: true })).toBeVisible();
 
     // Le tick résume les échanges en chandeliers : l'agora montre le dernier prix du blé, le graphique
     // décrit, et les mêmes valeurs dans un tableau ouvert au clavier.
@@ -422,9 +434,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     const [gross, net] = [30 * price, netOf(30 * price)];
     expect(net).toBeLessThan(gross);
     // La description accessible ramène les espaces insécables des nombres à des espaces simples.
-    const plain = (value: number) => french.format(value).replace(/\s/g, ' ');
+    const plain = (text: string) => text.replace(/\s/g, ' ');
     const expected = new RegExp(
-      `^Net attendu : ${plain(net)} oboles \\(${plain(gross)} moins ${gross - net} de taxe de marché\\)`,
+      `^Net attendu : ${plain(money(net))} \\(${plain(money(gross))} moins ${plain(money(gross - net))} de taxe de marché\\)`,
     );
     // Lue en arrivant sur chacun des deux champs et sur le bouton, sans être annoncée à chaque frappe.
     for (const control of [
@@ -443,9 +455,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
     await page.unroute('**/api/commands/market.placeOrder');
     await page.keyboard.press('Enter');
-    await expect(said(page, 'status')).toContainText(`Vente déposée : 30 × Blé à ${price} oboles.`);
+    await expect(said(page, 'status')).toContainText(`Vente déposée : 30 × Blé à ${money(price)}.`);
     // Un seul ordre : la même clé d'idempotence a rejoué le premier dépôt.
-    await expect(page.getByText(`30 sur 30 à ${price} oboles`)).toHaveCount(1);
+    await expect(page.getByText(`30 sur 30 à ${money(price)}`)).toHaveCount(1);
     await expect(page.getByRole('row', { name: `${price} 30` })).toBeVisible();
 
     // Une autre maison achète toute la vente, au prix du vendeur même avec une limite plus haute.
@@ -458,19 +470,18 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(price + 1));
     await other.getByLabel('Quantité', { exact: true }).fill('30');
     await other.keyboard.press('Enter');
-    const cost = french.format(30 * price);
     await expect(said(other, 'status')).toContainText(
-      `Achat conclu : 30 × Blé pour ${cost} oboles.`,
+      `Achat conclu : 30 × Blé pour ${money(30 * price)}.`,
     );
     await expect(other.getByRole('row', { name: `${price} 30` })).toHaveCount(0);
     // Plus rien à ce prix : un second achat attend dans le carnet, son prix retenu hors de la trésorerie.
     await other.keyboard.press('Enter');
     const bid = price + 1;
     await expect(said(other, 'status')).toContainText(
-      `Achat en attente : 30 × Blé à ${bid} oboles. Le séquestre retient ${oboles(30 * bid)}`,
+      `Achat en attente : 30 × Blé à ${money(bid)}. Le séquestre retient ${money(30 * bid)}`,
     );
     await expect(
-      other.getByText(`Blé : 30 sur 30 à ${bid} oboles (séquestre : ${oboles(30 * bid)})`),
+      other.getByText(`Blé : 30 sur 30 à ${money(bid)} (séquestre : ${money(30 * bid)})`),
     ).toBeVisible();
     // Le carnet public montre l'achat de l'autre côté ; le vendeur le voit, sans savoir de qui il vient.
     await page.reload();
@@ -482,7 +493,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Quantité', { exact: true }).fill('4');
     await page.keyboard.press('Enter');
     await expect(said(page, 'status')).toContainText(
-      `Vente conclue : 4 × Blé pour ${oboles(netOf(4 * bid))}.`,
+      `Vente conclue : 4 × Blé pour ${money(netOf(4 * bid))}.`,
     );
     await expect(bids.getByRole('row', { name: `${bid} 26` })).toBeVisible();
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
@@ -490,15 +501,15 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByText('Blé : 34')).toBeVisible();
     await expect(other.getByText(/Ordres ouverts à l'agora : 1 achat, /)).toBeVisible();
     await expect(
-      other.getByText(`${oboles(3000 - 30 * price - 30 * bid)}`, { exact: true }),
+      other.getByText(`${money(3000 - 30 * price - 30 * bid)}`, { exact: true }),
     ).toBeVisible();
     await expect(
-      other.getByText(`plus ${oboles(26 * bid)} au séquestre pour vos achats en attente`),
+      other.getByText(`plus ${money(26 * bid)} au séquestre pour vos achats en attente`),
     ).toBeVisible();
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await other.getByRole('button', { name: /^Annuler l'achat de 26 × Blé/ }).click();
     await expect(said(other, 'status')).toContainText(
-      `Achat annulé : 26 × Blé ; votre trésorerie récupère ${oboles(26 * bid)}.`,
+      `Achat annulé : 26 × Blé ; votre trésorerie récupère ${money(26 * bid)}.`,
     );
     await expect(other.getByText('Aucun ordre en attente.')).toBeVisible();
 
@@ -509,7 +520,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await page.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
     await page.getByLabel('Quantité', { exact: true }).fill('6');
     await page.keyboard.press('Enter');
-    await expect(said(page, 'status')).toContainText(`Vente déposée : 6 × Blé à ${oboles(dear)}.`);
+    await expect(said(page, 'status')).toContainText(`Vente déposée : 6 × Blé à ${money(dear)}.`);
     await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
     await other.getByLabel('Quantité', { exact: true }).fill('6');
@@ -517,10 +528,10 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(other.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription('');
     await other.keyboard.press('Enter');
     await expect(said(other, 'status')).toContainText(
-      `Achat partiel : 3 × Blé sur 6 pour ${oboles(3 * dear)}. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
+      `Achat partiel : 3 × Blé sur 6 pour ${money(3 * dear)}. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
     );
     await otherNav.getByRole('link', { name: 'Maison' }).click();
-    await expect(other.getByText(`${oboles(left - 3 * dear)}`, { exact: true })).toBeVisible();
+    await expect(other.getByText(`${money(left - 3 * dear)}`, { exact: true })).toBeVisible();
     await expect(other.getByText('Blé : 37')).toBeVisible();
     await context.close();
     // Trois échanges, taxés un par un : le vendeur touche le net de chacun.
@@ -536,7 +547,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
   // Le vendeur est payé, son blé est parti, sa vente a quitté la liste.
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.reload();
-  await expect(page.getByText(`${oboles(3000 + paid)}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${money(3000 + paid)}`, { exact: true })).toBeVisible();
   await expect(page.getByText('Blé : 3', { exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Mes ordres en attente' })).toBeVisible();
@@ -578,8 +589,8 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await page.getByLabel('Prix limite par unité (oboles)').fill('900');
   await page.getByLabel('Quantité', { exact: true }).fill('30');
   await page.keyboard.press('Enter');
-  await expect(said(page, 'status')).toContainText('Vente déposée : 30 × Blé à 900 oboles.');
-  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toBeVisible();
+  await expect(said(page, 'status')).toContainText('Vente déposée : 30 × Blé à 150 drachmes.');
+  await expect(page.getByText('Blé : 30 sur 30 à 150 drachmes')).toBeVisible();
   // Une réponse tardive du carnet du blé ne s'affiche pas sous le titre d'un autre bien.
   await page.route('**/rest/v1/order_book*', async (route) => {
     if (route.request().url().includes('good_id=eq.wheat'))
@@ -594,7 +605,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await expect(page.getByRole('row', { name: /^900 \d+$/ })).toHaveCount(0);
   await page.unroute('**/rest/v1/order_book*');
   // La liste de mes ventes, elle, ne dépend pas du bien affiché.
-  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toBeVisible();
+  await expect(page.getByText('Blé : 30 sur 30 à 150 drachmes')).toBeVisible();
   await good.selectOption({ label: 'Blé' });
   await expect(page.getByRole('row', { name: /^900 \d+$/ })).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -615,17 +626,21 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   loseReply = false;
 
   // Annulation au clavier : le stock réservé redevient disponible.
-  await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 900 oboles' }).focus();
+  await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 150 drachmes' }).focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
     'Vente annulée : 30 × Blé en stock libre de nouveau.',
   );
-  await expect(page.getByText('Blé : 30 sur 30 à 900 oboles')).toHaveCount(0);
+  await expect(page.getByText('Blé : 30 sur 30 à 150 drachmes')).toHaveCount(0);
 
   await page.getByRole('button', { name: "Déposer l'ordre" }).click();
-  await expect(said(page, 'status')).toContainText('Vente déposée : 10 × Blé à 901 oboles.');
-  await expect(page.getByText('Blé : 10 sur 10 à 901 oboles')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Annuler la vente de 10 × Blé à 901 oboles' }).click();
+  await expect(said(page, 'status')).toContainText(
+    'Vente déposée : 10 × Blé à 150 drachmes 1 obole.',
+  );
+  await expect(page.getByText('Blé : 10 sur 10 à 150 drachmes 1 obole')).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Annuler la vente de 10 × Blé à 150 drachmes 1 obole' })
+    .click();
   await expect(said(page, 'status')).toContainText(
     'Vente annulée : 10 × Blé en stock libre de nouveau.',
   );
@@ -647,12 +662,12 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   const region = page.getByRole('form', { name: 'Acquérir un site' }).getByRole('status');
   await expect(region).toHaveCount(1);
   await expect(region).toBeEmpty();
-  await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
+  await offer.selectOption({ label: 'Oliveraie (Verger) : 150 drachmes' });
   await offer.focus();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  await expect(region).toContainText('Site acquis : Oliveraie, pour 900 oboles.');
-  await expect(page.getByText(/^2\s100 oboles$/)).toBeVisible();
+  await expect(region).toContainText('Site acquis : Oliveraie, pour 150 drachmes.');
+  await expect(page.getByText(/^350 drachmes$/)).toBeVisible();
   await expect(page.getByText('2 sur 4')).toBeVisible();
   await expect(page.getByText('Type : Verger')).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -672,13 +687,13 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
 
   // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
-  await offer.selectOption({ label: 'Champ de blé (Champ) : 600 oboles' });
+  await offer.selectOption({ label: 'Champ de blé (Champ) : 100 drachmes' });
   await page.getByRole('button', { name: 'Acquérir' }).click();
-  await expect(page.getByText(/^1\s500 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^250 drachmes$/)).toBeVisible();
   // La dernière au clavier : le bouton disparaît à la limite, le foyer va au message.
   await page.getByRole('button', { name: 'Acquérir' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText(/^900 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^150 drachmes$/)).toBeVisible();
   await expect(page.getByText('4 sur 4')).toBeVisible();
   await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
@@ -731,7 +746,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   // Le rejeu dit l'issue : acquis une fois, payé une fois.
   await expect(said(page, 'status')).toContainText('Ce site était déjà acquis : Champ de blé');
   await expect(page.getByText('2 sur 4')).toBeVisible();
-  await expect(page.getByText(/^2\s400 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^400 drachmes$/)).toBeVisible();
 
   // Le rejeu reste lui aussi sans réponse : l'écran dit qu'un site de plus est là, et qu'un nouvel
   // essai serait un nouvel achat, au lieu d'inviter à réessayer.
@@ -739,7 +754,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   await acquire.click();
   await expect(said(page, 'alert')).toContainText('un nouvel essai serait un nouvel achat');
   await expect(page.getByText('3 sur 4')).toBeVisible();
-  await expect(page.getByText(/^1\s800 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^300 drachmes$/)).toBeVisible();
 
   // Prévenu, le joueur veut encore un champ de blé : nouvel achat, clé neuve. Un double clic n'envoie
   // qu'une commande, et le prix payé s'affiche dans la fenêtre bien que le site ait poussé le formulaire.
@@ -752,10 +767,12 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
     await route.continue();
   });
   await acquire.dblclick();
-  await expect(said(page, 'status')).toContainText('Site acquis : Champ de blé, pour 600');
+  await expect(said(page, 'status')).toContainText(
+    'Site acquis : Champ de blé, pour 100 drachmes.',
+  );
   await expect(said(page, 'status')).toBeInViewport();
   await expect(page.getByText('4 sur 4')).toBeVisible();
-  await expect(page.getByText(/^1\s200 oboles$/)).toBeVisible();
+  await expect(page.getByText(/^200 drachmes$/)).toBeVisible();
   expect(sent).toBe(1);
   // Trois achats : la clé du premier est partie trois fois, celle du deuxième deux, la dernière une.
   expect(keys.map((key) => keys.indexOf(key))).toEqual([0, 0, 0, 3, 3, 5]);
@@ -766,7 +783,7 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
 }) => {
   const houseName = await foundHouse(page);
   const offer = page.getByLabel('Site à acquérir');
-  await offer.selectOption({ label: 'Oliveraie (Verger) : 900 oboles' });
+  await offer.selectOption({ label: 'Oliveraie (Verger) : 150 drachmes' });
   for (const count of ['2 sur 4', '3 sur 4']) {
     await page.getByRole('button', { name: 'Acquérir' }).click();
     await expect(page.getByText(count)).toBeVisible();
@@ -850,7 +867,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   ).toBeVisible();
   // La vente annulée, le blé redevient libre : le cycle en attente est récoltable.
   await nav.getByRole('link', { name: 'Agora' }).click();
-  await page.getByRole('button', { name: 'Annuler la vente de 55 × Blé à 900 oboles' }).click();
+  await page.getByRole('button', { name: 'Annuler la vente de 55 × Blé à 150 drachmes' }).click();
   await expect(said(page, 'status')).toContainText('Vente annulée');
   await nav.getByRole('link', { name: 'Maison' }).click();
   await expect(mill.getByText('À récolter : 8 × Farine.')).toBeVisible();

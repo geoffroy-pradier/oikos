@@ -271,8 +271,8 @@ export function AgoraScreen() {
             {preview &&
               t('agora.expectedNet', {
                 net: money(preview.net),
-                gross: number.format(preview.gross),
-                tax: number.format(preview.tax),
+                gross: money(preview.gross),
+                tax: money(preview.tax),
               })}
           </p>
           <Button type="submit" disabled={busy} aria-describedby="expected-net">
