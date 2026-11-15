@@ -1,4 +1,5 @@
 import { Card } from '@oikos/ui';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { LoadProblem, Loading } from './LoadProblem';
@@ -20,6 +21,8 @@ const [WIDTH, HEIGHT, MARGIN] = [320, 128, 6];
 export function PriceHistory(props: { cityId: string; goodId: string; periodSeconds: number }) {
   const { cityId, goodId, periodSeconds } = props;
   const { t, i18n } = useTranslation();
+  // Titre de la carte : le foyer y va après une relecture réussie.
+  const title = useRef<HTMLHeadingElement>(null);
   const market = { city_id: cityId, good_id: goodId };
   const candles = useRows<unknown>(
     'price_candles',
@@ -59,9 +62,14 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
 
   return (
     <Card>
-      <h2 className="text-xl">{t('agora.priceTitle', { good })}</h2>
+      <h2 ref={title} tabIndex={-1} className="text-xl">
+        {t('agora.priceTitle', { good })}
+      </h2>
       {(candles.failed || observed.failed || average === null || (candles.rows && !series)) && (
-        <LoadProblem onRetry={() => Promise.all([candles.reload(), observed.reload()])} />
+        <LoadProblem
+          heading={title}
+          onRetry={() => Promise.all([candles.reload(), observed.reload()])}
+        />
       )}
       {candles.rows === null && !candles.failed && <Loading />}
       {series?.length === 0 && <p className="text-muted-foreground">{t('agora.priceEmpty')}</p>}

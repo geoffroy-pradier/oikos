@@ -77,6 +77,8 @@ export function AgoraScreen() {
   // réutilise la sienne, pour que l'API rejoue l'ordre déjà déposé au lieu d'en déposer un second.
   // Une autre action entre-temps (une annulation, un autre ordre) ne la fait pas oublier.
   const pending = useRef(new Map<string, string>());
+  // Titre du carnet : le foyer y va après une relecture réussie.
+  const bookTitle = useRef<HTMLHeadingElement>(null);
   const keyFor = (intent: string) => {
     const known = pending.current.get(intent);
     if (known) return known;
@@ -179,7 +181,10 @@ export function AgoraScreen() {
         </select>
       </Card>
       {(book.failed || mine.failed || rules.failed || (rules.rows && !(tax && candleSeconds))) && (
-        <LoadProblem onRetry={() => Promise.all([book.reload(), mine.reload(), rules.reload()])} />
+        <LoadProblem
+          heading={bookTitle}
+          onRetry={() => Promise.all([book.reload(), mine.reload(), rules.reload()])}
+        />
       )}
 
       {candleSeconds && (
@@ -187,7 +192,9 @@ export function AgoraScreen() {
       )}
 
       <Card>
-        <h2 className="text-xl">{t('agora.book', { good })}</h2>
+        <h2 ref={bookTitle} tabIndex={-1} className="text-xl">
+          {t('agora.book', { good })}
+        </h2>
         {book.rows === null && !book.failed && <Loading />}
         {book.rows !== null &&
           (

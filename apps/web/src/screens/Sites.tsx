@@ -69,6 +69,8 @@ export function SitesCard({
   }, [pending, sites.rows, busy]);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
+  // Titre de la carte : le foyer y va après une relecture réussie.
+  const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
@@ -313,7 +315,9 @@ export function SitesCard({
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl">{t('home.sites')}</h2>
+        <h2 ref={title} tabIndex={-1} className="text-xl">
+          {t('home.sites')}
+        </h2>
         {rules && sites.rows && (
           <p className="text-sm text-muted-foreground">
             {t('home.sitesCount', {
@@ -338,7 +342,7 @@ export function SitesCard({
       )}
       {announce(ALL)}
       {(sites.failed || rulesFailed) && (
-        <LoadProblem onRetry={() => Promise.all([sites.reload(), reloadRules()])} />
+        <LoadProblem heading={title} onRetry={() => Promise.all([sites.reload(), reloadRules()])} />
       )}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
