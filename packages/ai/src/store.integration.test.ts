@@ -68,6 +68,7 @@ describe('journal des appels en base (telemetry.ai_calls)', () => {
           enabled: true,
           model: 'small',
           timeoutMs: 1_000,
+          maxOutputTokens: 100,
           capShareBps: 10_000,
           inputMicroEurosPerThousandTokens: 600,
           outputMicroEurosPerThousandTokens: 0,
