@@ -261,6 +261,7 @@
     "RECIPE_RETIRED": "Cette production n'existe plus : ce site ne se récolte plus. Choisissez-lui une autre production.",
     "PRICE_CHANGED": "Le prix a changé depuis l'affichage : rien n'a été payé. Vérifiez le nouveau prix puis réessayez.",
     "RECIPE_NOT_COMPATIBLE": "Ce site ne peut pas accueillir cette production.",
+    "RECIPE_NOT_IN_TERROIR": "Cette production ne pousse pas sur le terroir de votre cité. Les ateliers sont admis partout.",
     "RECIPE_UNCHANGED": "Ce site a déjà cette production.",
     "SITE_LIMIT_REACHED": "Votre maison exploite déjà autant de sites que son siège le permet.",
     "COLLECT_FIRST": "Récoltez ce site avant de changer sa production.",

@@ -261,6 +261,7 @@
     "RECIPE_RETIRED": "This production no longer exists: this site can no longer be collected. Choose another production for it.",
     "PRICE_CHANGED": "The price changed since it was shown: nothing was paid. Check the new price and try again.",
     "RECIPE_NOT_COMPATIBLE": "This site cannot host this production.",
+    "RECIPE_NOT_IN_TERROIR": "This production does not grow in your city's land. Workshops are allowed everywhere.",
     "RECIPE_UNCHANGED": "This site already has this production.",
     "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
     "COLLECT_FIRST": "Collect this site before changing its production.",

@@ -69,6 +69,8 @@ export type SiteAcquireOutput = z.infer<typeof siteAcquireOutputSchema>;
 export const SITE_ACQUIRE_ERROR_CODES = [
   'HOUSE_NOT_FOUND',
   'RECIPE_NOT_FOUND',
+  /** Production primaire absente du terroir de la cité de la maison (4.2) : rien n'est payé. */
+  'RECIPE_NOT_IN_TERROIR',
   'SITE_LIMIT_REACHED',
   'INSUFFICIENT_FUNDS',
   /** Le prix en vigueur n'est pas celui que le client a envoyé : rien n'est payé, réessayer au nouveau prix. */
@@ -98,6 +100,8 @@ export const SITE_SET_RECIPE_ERROR_CODES = [
   'SITE_NOT_FOUND',
   'RECIPE_NOT_FOUND',
   'RECIPE_NOT_COMPATIBLE',
+  /** Production primaire absente du terroir de la cité du site (4.2) : le site garde sa recette. */
+  'RECIPE_NOT_IN_TERROIR',
   'RECIPE_UNCHANGED',
   'COLLECT_FIRST',
   /** Le site est à l'arrêt, entretien impayé : il ne change pas de recette avant d'être relancé. */
