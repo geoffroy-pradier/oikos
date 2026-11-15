@@ -131,3 +131,21 @@ it('conservation : un ajout ou un retrait ne touche que ce bien, le reste du tex
     }),
   );
 });
+
+it('une autre table et une liste imbriquée se lisent et s’écrivent de même, à leur place, ordre des clés gardé', () => {
+  const bake = { id: 'bake', inputs: [{ goodId: 'wheat' }], z: 2 };
+  const config = { a: 1, recipes: [bake], b: 2 };
+  expect(form.readRows(config, 'recipes')).toEqual([bake]);
+  expect([form.readRows(bake, 'inputs'), form.readRows(bake, 'outputs')]).toEqual([
+    [bake.inputs[0]],
+    [],
+  ]);
+  for (const inputs of [{}, [1], null]) expect(form.readRows({ inputs }, 'inputs')).toBeNull();
+  // Une liste présente reste à sa place ; une liste absente est ajoutée en dernier.
+  const flour = [{ goodId: 'flour' }];
+  expect(Object.keys(form.withRows(bake, 'inputs', flour))).toEqual(['id', 'inputs', 'z']);
+  expect(Object.keys(form.withRows(bake, 'outputs', []))).toEqual(['id', 'inputs', 'z', 'outputs']);
+  expect(form.composeTable(config, 'recipes', [form.withRows(bake, 'inputs', flour)])).toBe(
+    JSON.stringify({ a: 1, recipes: [{ ...bake, inputs: flour }], b: 2 }, null, 2),
+  );
+});

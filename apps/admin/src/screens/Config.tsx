@@ -6,11 +6,12 @@ import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
 import { ignoreHeldEnter, SHIFT_GUARD_MS } from '../keyboard';
 import { LoadError } from '../LoadError';
+import { NPC_CLASSES_TABLE } from '../npc-classes-form';
+import { RECIPES_TABLE } from '../recipes-form';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
 import { GoodsForm } from './GoodsForm';
-import { NpcClassesForm } from './NpcClassesForm';
-import { RecipesForm } from './RecipesForm';
+import { NestedTableForm } from './NestedTableForm';
 
 interface Listing {
   activeVersionId: string | null;
@@ -394,8 +395,15 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             {invalid && t('config.invalidJson')}
           </p>
           <GoodsForm config={parsed} readOnly={!canEdit} onChange={edit} />
-          <RecipesForm config={parsed} readOnly={!canEdit} onChange={edit} />
-          <NpcClassesForm config={parsed} readOnly={!canEdit} onChange={edit} />
+          {[RECIPES_TABLE, NPC_CLASSES_TABLE].map((spec) => (
+            <NestedTableForm
+              key={spec.table}
+              spec={spec}
+              config={parsed}
+              readOnly={!canEdit}
+              onChange={edit}
+            />
+          ))}
           <h3 className="text-lg">
             {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
           </h3>

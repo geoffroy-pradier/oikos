@@ -6,6 +6,17 @@ export interface TableField {
   key: string;
   kind: 'text' | 'choice' | 'integer' | 'decimal';
 }
+/** Une table dont chaque ligne porte des listes imbriquées, telle que son formulaire la montre. */
+export interface NestedTable {
+  /** Clé de la table dans la configuration, et de ses libellés (`config.schemaPath`). */
+  table: string;
+  /** Textes du formulaire : `config.<texts>.hint`, `unavailable`, `empty`. */
+  texts: string;
+  fields: readonly TableField[];
+  lists: readonly { key: string; fields: readonly TableField[] }[];
+  /** Choix proposés, par clé de champ : valeurs, et préfixe de leurs libellés. */
+  choices: Record<string, { values: readonly string[]; labels: string }>;
+}
 const isRecord = (value: unknown): value is Row =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
