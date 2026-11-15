@@ -13,7 +13,7 @@ import {
 } from '@oikos/contracts';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
-import { readWorldUsage, retiredUsage } from '../config-usage';
+import { configIds, readWorldUsage } from '../config-usage';
 import { defineCommand } from '../registry';
 
 const TIMEZONE_UNKNOWN_MESSAGE = 'The clock time zone is unknown to the database.';
@@ -163,9 +163,7 @@ export const adminScheduleConfig = defineCommand({
     if (changed.length > 0) return clockChanged(changed);
     // Un bien retiré alors qu'une maison le détient ou qu'un ordre ouvert le porte ne se vendrait plus
     // (#191) : refusé. Ce qui est acquis entre la programmation et la clôture relève du repli (05, 5.1).
-    const retired = retiredUsage(await readWorldUsage(trx), {
-      goods: stored.config.goods.map((good) => good.id),
-    });
+    const retired = await readWorldUsage(trx, configIds(stored.config));
     if (retired.goods.length > 0) {
       return {
         ok: false,
@@ -176,10 +174,32 @@ export const adminScheduleConfig = defineCommand({
         },
       };
     }
+    // Une recette retirée arrête les sites qui l'exploitent, une classe retirée fige sa population, sans
+    // rien prendre aux joueurs (04, 4.2 ; 05, 5.2) : pas de refus, mais une confirmation explicite (#200).
+    // L'API ne compare pas cette liste à celle que l'écran a montrée : la confirmation vaut pour ce qui
+    // est en usage à la programmation, et l'événement garde la liste confirmée pour l'audit.
+    const inUse = [
+      ...retired.recipes.map((recipe) => `recipes.${recipe.recipeId}`),
+      ...retired.npcClasses.map((npcClass) => `npcClasses.${npcClass.classId}`),
+    ];
+    if (inUse.length > 0 && !input.confirmRetiredInUse) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_RETIRED_UNCONFIRMED',
+          message:
+            'The version retires recipes run by sites or NPC classes with a population: confirm to schedule it.',
+          fields: inUse,
+        },
+      };
+    }
     const activateAt = nextDailyClose(now, config.clock);
     await scheduleActivation(trx, version.id, activateAt, userId);
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };
-    emit({ type: 'ConfigActivationScheduled', payload: { ...payload, scheduledBy: userId } });
+    emit({
+      type: 'ConfigActivationScheduled',
+      payload: { ...payload, scheduledBy: userId, confirmedRetired: inUse },
+    });
     return { ok: true, data: payload };
   },
 });

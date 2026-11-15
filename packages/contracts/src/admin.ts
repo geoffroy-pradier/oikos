@@ -45,8 +45,15 @@ export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = [
  * Revue par une seconde personne (15.2, étape 3) : l'auteur d'une version ne la programme pas lui-même,
  * sauf si un autre compte l'a déjà programmée une fois (retour arrière vers une version déjà revue).
  */
-export const adminScheduleConfigInputSchema = z.strictObject({ versionId: z.uuid() });
-export type AdminScheduleConfigInput = z.infer<typeof adminScheduleConfigInputSchema>;
+export const adminScheduleConfigInputSchema = z.strictObject({
+  versionId: z.uuid(),
+  /**
+   * Confirmation explicite (#200) : la version retire des recettes encore exploitées par des sites, ou
+   * des classes de PNJ qui ont encore un état de population, et on la programme quand même.
+   */
+  confirmRetiredInUse: z.boolean().default(false),
+});
+export type AdminScheduleConfigInput = z.input<typeof adminScheduleConfigInputSchema>;
 export const adminScheduleConfigOutputSchema = z.object({
   versionId: z.uuid(),
   /** Instant de la clôture à laquelle la version entrera en vigueur (ISO 8601). */
@@ -67,27 +74,48 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
    * nomme chaque bien (`goods.wheat`).
    */
   'CONFIG_GOOD_IN_USE',
+  /**
+   * La version retire une recette encore exploitée par un site ou une classe de PNJ qui a encore un état
+   * de population (#200), sans `confirmRetiredInUse` : `fields` nomme chacune (`recipes.grow_wheat`,
+   * `npcClasses.thetes`). Programmable après confirmation, contrairement à `CONFIG_GOOD_IN_USE`.
+   */
+  'CONFIG_RETIRED_UNCONFIRMED',
 ] as const;
 
+const count = z.number().int().nonnegative();
 /**
  * Ce que l'état du monde, tous mondes confondus, porte encore d'un bien (#191) : maisons qui en
  * détiennent ou qui ont un ordre ouvert dessus, unités en stock (réservées comprises), ordres ouverts
  * des deux côtés, oboles sous séquestre pour les achats ouverts.
  */
-export interface GoodUsage {
-  goodId: string;
-  houses: number;
-  quantity: number;
-  openOrders: number;
-  escrowOboles: number;
-}
+export const goodUsageSchema = z.object({
+  goodId: z.string(),
+  houses: count,
+  quantity: count,
+  openOrders: count,
+  escrowOboles: count,
+});
+export type GoodUsage = z.infer<typeof goodUsageSchema>;
+/** Sites qui exploitent encore une recette (#200), et maisons qui les possèdent. */
+export const recipeUsageSchema = z.object({ recipeId: z.string(), sites: count, houses: count });
+export type RecipeUsage = z.infer<typeof recipeUsageSchema>;
+/** État de population d'une classe de PNJ (#200) : cités où elle en a un, habitants gardés. */
+export const npcClassUsageSchema = z.object({
+  classId: z.string(),
+  cities: count,
+  population: count,
+});
+export type NpcClassUsage = z.infer<typeof npcClassUsageSchema>;
 /**
- * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore.
- * Étendu par #200 aux recettes et aux classes de PNJ.
+ * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore : un bien
+ * en usage refuse la programmation, une recette ou une classe en usage demande sa confirmation.
  */
-export interface RetiredUsage {
-  goods: GoodUsage[];
-}
+export const retiredUsageSchema = z.object({
+  goods: z.array(goodUsageSchema),
+  recipes: z.array(recipeUsageSchema),
+  npcClasses: z.array(npcClassUsageSchema),
+});
+export type RetiredUsage = z.infer<typeof retiredUsageSchema>;
 
 /**
  * Commande `admin.cancelActivation` : annule une programmation à venir, et avec elle celles encore en
@@ -200,6 +228,12 @@ export const configActivationScheduledSchema = z.strictObject({
     versionId: z.uuid(),
     activateAt: z.iso.datetime(),
     scheduledBy: z.uuid(),
+    /**
+     * Recettes et classes en usage que la version retire et dont la programmation a été confirmée (#200),
+     * nommées comme dans `CONFIG_RETIRED_UNCONFIRMED` ; vide si elle n'en retire aucune. Absent des
+     * événements écrits avant #200.
+     */
+    confirmedRetired: z.array(z.string()).optional(),
   }),
 });
 
