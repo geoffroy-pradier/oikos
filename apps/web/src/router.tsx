@@ -7,15 +7,7 @@ import { NotFound } from './screens/NotFound';
 import { Placeholder } from './screens/Placeholder';
 import { Shell } from './Shell';
 
-/** Les cinq onglets de la spécification 10 (Maison, Carte, Agora, Cité, Messages). */
-export const TABS = [
-  { id: 'house', to: '/' },
-  { id: 'map', to: '/carte' },
-  { id: 'agora', to: '/agora' },
-  { id: 'city', to: '/cite' },
-  { id: 'messages', to: '/messages' },
-] as const;
-export type TabId = (typeof TABS)[number]['id'];
+export { TABS, tabOf, type TabId } from './tabs';
 
 const rootRoute = createRootRoute({ component: Shell });
 const route = <P extends string>(path: P, component: () => React.JSX.Element) =>
