@@ -150,6 +150,8 @@ const SUMMARY_KEYS = [
   'halted',
   'resumed',
 ];
+/** Résumé de l'entretien des navires : oboles payées, navires payés, impayés, désarmés, réarmés. */
+const SHIP_KEYS = ['shipUpkeepOboles', 'shipsPaid', 'shipsUnpaid', 'laidUp', 'rearmed'];
 /** Résumé de l'étape enregistré avec chaque clôture du monde, dans l'ordre des jours de jeu. */
 const summariesOf = async (worldId: string) =>
   (
@@ -158,7 +160,9 @@ const summariesOf = async (worldId: string) =>
     }>`select summary from game.daily_closes
       where world_id = ${worldId} order by game_day`)
   ).map(({ summary }) => {
-    expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS].sort());
+    expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS, ...SHIP_KEYS].sort());
+    // Ces maisons n'ont pas de navire (#252) : rien à leur titre.
+    expect(SHIP_KEYS.map((key) => summary.siteUpkeep[key])).toEqual(SHIP_KEYS.map(() => 0));
     return SUMMARY_KEYS.map((key) => summary.siteUpkeep[key]);
   });
 
