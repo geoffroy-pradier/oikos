@@ -17,11 +17,11 @@ insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inve
   ('01900000-0000-7000-8000-000000000001', 'wheat', 100, 'production', '00000000-0000-7000-8000-0000000001b1', 'site.collect');
 
 -- Une écriture équilibrée entre deux comptes ; rend son identifiant.
-create function pg_temp.post(debited uuid, credited uuid, amount bigint) returns uuid language plpgsql as $$
+create function pg_temp.post(debited uuid, credited uuid, amount bigint, kind text default 'test') returns uuid language plpgsql as $$
 declare
   entry uuid;
 begin
-  insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', 'test') returning id into entry;
+  insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', kind) returning id into entry;
   insert into game.ledger_lines (entry_id, account_id, amount) values (entry, debited, -amount), (entry, credited, amount);
   return entry;
 end $$;
@@ -35,8 +35,15 @@ create function pg_temp.trade(sell text, buy text, price bigint, quantity bigint
   insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity, ledger_entry_id)
   values ('01900000-0000-7000-8000-000000000001', ('00000000-0000-7000-8000-0000000003' || sell)::uuid,
           ('00000000-0000-7000-8000-0000000003' || buy)::uuid, price, quantity,
-          pg_temp.post(payer, '00000000-0000-7000-8000-0000000000bb', price * quantity))
+          pg_temp.post(payer, '00000000-0000-7000-8000-0000000000bb', price * quantity, 'market.trade'))
 $$;
+-- Exécute une instruction puis valide les contrôles différés ; un refus annule l'instruction avec lui.
+create function pg_temp.settled(statement text) returns void language plpgsql as $$
+begin
+  execute statement;
+  set constraints all immediate;
+  set constraints all deferred;
+end $$;
 create function pg_temp.cancel(order_id text) returns void language sql as
   $$update game.orders set status = 'cancelled' where id = ('00000000-0000-7000-8000-0000000003' || order_id)::uuid$$;
 create function pg_temp.balances() returns text language sql as
@@ -97,13 +104,12 @@ select throws_ok($$select pg_temp.trade('02', '01', 7, 12, '00000000-0000-7000-8
 select throws_ok($$select pg_temp.trade('02', '01', 9, 12, '00000000-0000-7000-8000-0000000000ae')$$, '23514',
   'trade does not match its buy order', 'ni au-dessus du prix limite de l''acheteur');
 
--- Exécution payée par la trésorerie au lieu du séquestre : le séquestre retient trop.
-select pg_temp.trade('02', '01', 8, 12, '00000000-0000-7000-8000-0000000000aa');
-select throws_ok('set constraints all immediate', '23514', null, 'un achat en attente servi sans débiter son séquestre est refusé');
-set constraints all deferred;
-select pg_temp.post('00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000aa', 96);
-select lives_ok('set constraints all immediate', 'payé par le séquestre : valide');
-set constraints all deferred;
+-- Exécution payée par la trésorerie au lieu du séquestre : refusée par le contrôle du règlement des
+-- échanges (migration 35), avant même celui du séquestre qui retiendrait trop.
+select throws_like($$select pg_temp.settled($s$select pg_temp.trade('02', '01', 8, 12, '00000000-0000-7000-8000-0000000000aa')$s$)$$,
+  'trade % must be paid 96 oboles in a single debit of the buyer''s escrow', 'un achat en attente servi sans débiter son séquestre est refusé');
+select lives_ok($$select pg_temp.settled($s$select pg_temp.trade('02', '01', 8, 12, '00000000-0000-7000-8000-0000000000ae')$s$)$$,
+  'payé par le séquestre : valide');
 select is(pg_temp.balances(), 'house:760 house:96 escrow:144 escrow:0', 'le vendeur est payé, le séquestre ne retient plus que le reste');
 
 -- Contrôle par maison : l'excédent de l'une ne couvre pas le manque de l'autre.
