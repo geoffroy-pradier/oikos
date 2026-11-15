@@ -54,6 +54,9 @@ comme pour la relance (5.5), ce prix est facultatif pour un client antérieur, s
 Le nombre de sites d'une maison est borné par le niveau de son siège (toute maison est au premier niveau).
 Un site peut changer de recette parmi celles de son type : ce qu'il a déjà produit doit d'abord être récolté, le cycle entamé est perdu et le nouveau commence à l'instant du changement.
 Il n'y a encore ni carte des parcelles, ni fertilité, ni marché foncier.
+Le terroir de la cité (6.1) restreint les productions primaires : un site reste dans la cité de sa maison, et n'y lance qu'une production de son terroir ; un atelier est admis partout.
+Une acquisition ou un changement de recette hors terroir est refusé (« hors du terroir de la cité »), sans rien payer ni changer : le refus passe avant le prix et avant la relance gratuite d'un site sans recette.
+Un site qui exploite une production sortie du terroir (version de configuration qui le resserre) continue de produire, se récolte et se relance comme avant ; une fois qu'il l'a quittée, il n'y revient plus.
 Un site à l'arrêt faute d'entretien payé (5.5) se récolte pour ce qu'il avait accumulé avant son arrêt, et pas davantage (un atelier, lui, ne se récolte pas à l'arrêt : voir 4.3) : pour lui, le temps s'est arrêté à cet instant, le cycle entamé reste gelé et reprend à la relance.
 Il ne change pas de recette tant qu'il est à l'arrêt (refus « site à l'arrêt ») : il faut le relancer d'abord.
 
@@ -62,7 +65,7 @@ Ni la publication ni l'activation ne le refusent (Olympe le dit avant la program
 Le repli est dans les commandes. Un tel site n'a plus de type, donc ni tarif ni entretien (5.5), ni production : il est à l'arrêt faute de recette.
 Il ne se récolte plus (refus « production retirée »), à l'arrêt ou non, et un atelier n'y consomme aucun intrant.
 Il peut changer de recette sans récolte préalable : ce qu'il avait accumulé est perdu avec le cycle entamé, et le nouveau cycle commence à l'instant du changement.
-Faute de type, il peut adopter n'importe quelle recette de la configuration, et prend le type de celle-ci ;
+Faute de type, il peut adopter n'importe quelle recette de la configuration que le terroir de sa cité admet, et prend le type de celle-ci ;
 chercher son ancien type dans l'historique des versions demanderait à l'écran comme à l'API de relire des versions qui ne sont plus en vigueur, pour un cas que le back-office provoque.
 Limite : ce changement de type est gratuit, alors que le prix d'acquisition dépend du type ;
 retirer une recette offre donc à chaque site qui l'exploitait le type de son choix, et c'est au concepteur de jeu d'en tenir compte.

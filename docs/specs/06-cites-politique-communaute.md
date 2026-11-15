@@ -6,6 +6,28 @@ La cité est l'unité sociale du jeu : 12 cités au lancement, 100 à 400 joueur
 
 Chaque cité a un terroir (ressources abondantes et absentes), un port ou non, un dieu protecteur, un trésor, des bâtiments publics et des lois. Aucune n'est autosuffisante : la carte des ressources impose le commerce.
 
+Dans la première version (ticket 250), l'Archipel compte quatre cités, décrites par la configuration sous leur identifiant court.
+Chacune y porte son terroir, son port, son dieu protecteur et, si elle le veut, sa propre recette de départ (3, progression) ; à défaut, c'est la recette de départ commune.
+Le terroir est la liste des productions de matière première qu'un site de la cité peut lancer ; les ateliers sont admis partout (4.2).
+Les dieux sont une liste `gods` de la configuration, réduite pour l'instant à leurs identifiants, que la Charis complétera (7.1).
+Le schéma refuse un dieu, une recette ou une classe de PNJ inconnus, un atelier cité dans un terroir, et une cité dont la recette de départ n'est pas dans son terroir.
+Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce terroir.
+
+| Cité | Dieu protecteur | Terroir | Premier site |
+| --- | --- | --- | --- |
+| Kallistè | Déméter | Toutes les matières premières de la phase 1 | Champ de blé |
+| Elaia | Athéna | Olives, blé, sel, bois | Champ de blé |
+| Ampelos | Dionysos | Raisin, poisson, laine, argile | Vigne |
+| Halos | Poséidon | Poisson, sel, argile, bois, laine | Pêcherie |
+
+Aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
+Kallistè, cité fondatrice, les garde toutes, pour que le banc d'équilibrage de la phase 1 et ses tests restent tels quels ; resserrer son terroir revient à une version de configuration éprouvée par le banc à quatre cités (#283).
+Décision (ambiguïté de cette section) : les quatre cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte.
+Chaque cité a la population de la cité prototype (5.5), et la demande des PNJ y est jouée comme à Kallistè.
+Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les quatre cités, et l'onglet Cité celle de la maison.
+Une version de configuration publiée avant les quatre cités se lit sans terroir (toute production admise), avec un port et sans dieu protecteur.
+Une cité du monde absente de la configuration n'a pas de terroir, donc admet toute production, mais n'a pas de port : on n'y crée rien de plus qu'avant les quatre cités, et aucun navire ne doit pouvoir y accoster tant qu'elle n'est pas décrite.
+
 ## 6.2 Institutions
 
 | Institution | Désignation | Pouvoirs réels |
