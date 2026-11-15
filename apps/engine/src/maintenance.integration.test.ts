@@ -64,8 +64,13 @@ describe('rétention de la télémétrie', () => {
     expect(purged.tickRuns).toBeGreaterThanOrEqual(1);
     expect(purged.closeRuns).toBeGreaterThanOrEqual(1);
     expect(await count(worldId)).toEqual([1, 1]);
-    // Rétention de la configuration réelle : 90 jours, les passages de 29 jours restent.
+    // Rétention de la configuration réelle, lue par le chargeur : 90 jours. Ceux de 89 jours restent,
+    // ceux de 91 jours partent.
+    const real = randomUUID();
+    await runs(real, 89);
+    await runs(real, 91);
     await purgeTelemetry(db, { now: new Date(), config: createConfigLoader(db) });
+    expect(await count(real)).toEqual([1, 1]);
     expect(await count(worldId)).toEqual([1, 1]);
   });
 
