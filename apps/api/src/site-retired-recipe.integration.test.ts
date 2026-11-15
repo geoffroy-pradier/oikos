@@ -29,8 +29,9 @@ afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 const { config } = TEST_CONFIG;
 const RETIRED = config.starting.siteRecipeId;
 const field = config.recipes.find((recipe) => recipe.id === RETIRED);
-if (!field) throw new Error('starting recipe missing from the test configuration');
+if (!field?.outputs[0]) throw new Error('starting recipe missing from the test configuration');
 const CYCLE_MS = field.durationMinutes * 60_000;
+const WHEAT = field.outputs[0];
 /** La même production sous un autre identifiant : le cas d'une recette renommée par le back-office. */
 const REPLACEMENT = { ...field, id: `${RETIRED}_v2` };
 let retired: LoadedConfig;
@@ -184,6 +185,100 @@ describe('site dont la recette a quitté la configuration', () => {
     expect(await stateOf(player)).toMatchObject({ halted: true, stock: [], entries: [] });
   });
 
+  it('change de recette sans récolte préalable : la production accumulée est perdue, le nouveau cycle commence maintenant et se récolte', async () => {
+    const player = await siteOfRetiredRecipe(3);
+    const key = randomUUID();
+    const changed = await setRecipe(player.user, player.siteId, REPLACEMENT.id, key);
+    expect(changed).toMatchObject({
+      status: 200,
+      replayed: 'false',
+      body: { data: { siteId: player.siteId, recipeId: REPLACEMENT.id } },
+    });
+    const after = await stateOf(player);
+    expect(after).toMatchObject({ recipeId: REPLACEMENT.id, halted: false, stock: [] });
+    expect(after.ageSeconds).toBeLessThan(60);
+    // Rejouée avec sa clé, la commande rend la même réponse sans second changement.
+    expect(await setRecipe(player.user, player.siteId, REPLACEMENT.id, key)).toMatchObject({
+      status: 200,
+      replayed: 'true',
+      body: changed.body,
+    });
+    expect(await eventsOf(player)).toEqual([
+      {
+        type: 'SiteRecipeChanged',
+        payload: {
+          siteId: player.siteId,
+          houseId: player.houseId,
+          previousRecipeId: RETIRED,
+          recipeId: REPLACEMENT.id,
+        },
+      },
+    ]);
+
+    // La nouvelle recette produit normalement : deux cycles plus tard, deux cycles se récoltent.
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await sql`update game.sites set cycle_started_at = cycle_started_at - ${`${2 * CYCLE_MS} milliseconds`}::interval
+        where id = ${player.siteId}`.execute(trx);
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+    });
+    expect(await collect(player.user, player.siteId)).toMatchObject({
+      status: 200,
+      body: {
+        data: { cycles: 2, outputs: [{ goodId: WHEAT.goodId, quantity: 2 * WHEAT.quantity }] },
+      },
+    });
+  });
+
+  it('n’a plus de type : peut adopter une recette de n’importe quel type, mais pas la recette retirée', async () => {
+    const player = await siteOfRetiredRecipe(1);
+    expect(await setRecipe(player.user, player.siteId, RETIRED)).toMatchObject({
+      status: 404,
+      body: { error: { code: 'RECIPE_NOT_FOUND' } },
+    });
+    expect(await setRecipe(player.user, player.siteId, 'mill_flour')).toMatchObject({
+      status: 200,
+      body: { data: { recipeId: 'mill_flour' } },
+    });
+    // Le site a de nouveau un type : celui de l'atelier, avec ses règles ordinaires.
+    expect(await setRecipe(player.user, player.siteId, REPLACEMENT.id)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'RECIPE_NOT_COMPATIBLE' } },
+    });
+  });
+
+  it('à l’arrêt : change de recette et repart sans rien payer, comme le ferait une relance', async () => {
+    const player = await siteOfRetiredRecipe(5, 2);
+    expect(await setRecipe(player.user, player.siteId, REPLACEMENT.id)).toMatchObject({
+      status: 200,
+      body: { data: { recipeId: REPLACEMENT.id } },
+    });
+    const after = await stateOf(player);
+    expect(after).toMatchObject({
+      recipeId: REPLACEMENT.id,
+      halted: false,
+      balance: GRANT,
+      entries: [],
+    });
+    expect(after.ageSeconds).toBeLessThan(60);
+    expect((await eventsOf(player)).map((event) => event.type)).toEqual([
+      'SiteRestarted',
+      'SiteRecipeChanged',
+    ]);
+    expect((await eventsOf(player))[0]?.payload).toMatchObject({ upkeepOboles: 0 });
+  });
+
+  it('arrêté par une clôture commencée après la commande : conflit à rejouer, pas une erreur interne', async () => {
+    // L'arrêt est postérieur à l'instant de la commande (ici, dans un cycle) : le lever ferait reculer
+    // le cycle, ce que la garde de la base refuse.
+    const player = await siteOfRetiredRecipe(3, -1);
+    expect(await setRecipe(player.user, player.siteId, REPLACEMENT.id)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'SITE_CHANGED' } },
+    });
+    expect(await stateOf(player)).toMatchObject({ recipeId: RETIRED, halted: true });
+  });
+
   it('refuse le site d’un autre joueur comme un site inconnu, et l’acquisition de la recette retirée', async () => {
     const [player, other] = [await siteOfRetiredRecipe(1), await siteOfRetiredRecipe(1)];
     for (const reply of [
@@ -196,5 +291,27 @@ describe('site dont la recette a quitté la configuration', () => {
       body: { error: { code: 'RECIPE_NOT_FOUND' } },
     });
     expect(await stateOf(player)).toMatchObject({ recipeId: RETIRED, balance: GRANT });
+  });
+
+  it('commandes simultanées sur le même site : un seul changement, aucun refus en erreur interne', async () => {
+    const player = await siteOfRetiredRecipe(3, 1);
+    const replies = await Promise.all([
+      setRecipe(player.user, player.siteId, REPLACEMENT.id),
+      setRecipe(player.user, player.siteId, REPLACEMENT.id),
+      collect(player.user, player.siteId),
+      send(player.user, 'site.restart', { siteId: player.siteId }),
+    ]);
+    for (const reply of replies) expect([200, 409]).toContain(reply.status);
+    const [first, second] = replies;
+    expect([first?.status, second?.status].filter((status) => status === 200)).toHaveLength(1);
+    // Le perdant constate le changement (`SITE_CHANGED`) ou la recette déjà adoptée.
+    expect(
+      [first, second].filter((reply) => reply?.status === 409).map((r) => r?.body.error?.code),
+    ).toEqual([expect.stringMatching(/^(SITE_CHANGED|RECIPE_UNCHANGED)$/)]);
+    const after = await stateOf(player);
+    expect(after).toMatchObject({ recipeId: REPLACEMENT.id, halted: false, balance: GRANT });
+    expect(after.entries).toEqual([]);
+    const changes = (await eventsOf(player)).filter((event) => event.type === 'SiteRecipeChanged');
+    expect(changes).toHaveLength(1);
   });
 });
