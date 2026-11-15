@@ -64,14 +64,27 @@ grant select (id, house_id, city_id, recipe_id, cycle_started_at) on game.sites 
 grant select (house_id, kind, balance) on game.accounts to authenticated;
 grant select (id, house_id, city_id, good_id, quantity) on game.inventories to authenticated;
 
-create or replace view public.my_sites with (security_invoker = true) as
-  select id, house_id, city_id, recipe_id, cycle_started_at from game.sites;
+-- `my_sites` (migration 31) et `my_inventories` (migration 10) gagnent ensuite des colonnes : rejouée
+-- sur une base déjà migrée, cette migration ne les recrée pas (`create or replace` ne retire pas de
+-- colonne), elle garde la version en place.
+do $$
+begin
+  if to_regclass('public.my_sites') is null then
+    create view public.my_sites with (security_invoker = true) as
+      select id, house_id, city_id, recipe_id, cycle_started_at from game.sites;
+  end if;
+end $$;
 
 -- Trésorerie de la maison, en oboles.
 create or replace view public.my_treasury with (security_invoker = true) as
   select house_id, balance from game.accounts where kind = 'house';
 
-create or replace view public.my_inventories with (security_invoker = true) as
-  select id, house_id, city_id, good_id, quantity from game.inventories;
+do $$
+begin
+  if to_regclass('public.my_inventories') is null then
+    create view public.my_inventories with (security_invoker = true) as
+      select id, house_id, city_id, good_id, quantity from game.inventories;
+  end if;
+end $$;
 
 grant select on public.my_sites, public.my_treasury, public.my_inventories to authenticated;
