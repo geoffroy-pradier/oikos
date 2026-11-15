@@ -325,9 +325,13 @@ describe('Vigie', () => {
 
   it('une version en vigueur hors du schéma est dite telle, avec son fuseau tel qu’enregistré', async () => {
     class Rollback extends Error {}
+    class Displaced extends Error {}
     // Version écrite hors de `publishVersion` et activée dans une transaction annulée : la base partagée
     // n'en garde rien. La Vigie y lit par le vrai chargeur, qui la refuse (`ConfigError`).
-    const clockWhenInForce = (payload: unknown) =>
+    // La base est partagée entre fichiers de tests : une activation immédiate validée par un autre test
+    // après le début de cette transaction porte une heure plus tardive et passe devant celle-ci. Le test
+    // vérifie donc, après la lecture, que sa version était toujours en vigueur, et sinon recommence.
+    const attempt = (payload: unknown) =>
       db
         .transaction()
         .execute(async (trx: Db) => {
@@ -338,7 +342,11 @@ describe('Vigie', () => {
             .executeTakeFirstOrThrow();
           await scheduleActivation(trx, version.id);
           const loader = createConfigLoader(trx);
-          await expect(loader.at(new Date())).rejects.toThrow(/is invalid: /);
+          const instant = new Date();
+          const loaded = await loader.at(instant).then(
+            () => null,
+            (error: unknown) => error,
+          );
           const reply = await createApp({
             db: trx,
             telemetry,
@@ -348,16 +356,36 @@ describe('Vigie', () => {
           }).request('/api/admin/vigie', {
             headers: { authorization: `Bearer aal2:${users.observer}` },
           });
+          const { rows } = await sql<{ displaced: boolean }>`
+            select exists (
+              select 1 from config.activations other, config.activations own
+              where own.version_id = ${version.id} and other.version_id <> ${version.id}
+                and (other.activate_at, other.seq) > (own.activate_at, own.seq)
+                and other.activate_at <= greatest(clock_timestamp(), ${instant})
+            ) as displaced`.execute(trx);
+          if (rows[0]?.displaced) throw new Displaced();
+          expect(loaded).toBeInstanceOf(ConfigError);
+          expect((loaded as Error).message).toMatch(/is invalid: /);
           expect(reply.status).toBe(200);
           throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
         })
         .then(
           () => expect.unreachable(),
           (error: unknown) => {
+            if (error instanceof Displaced) return 'displaced' as const;
             if (!(error instanceof Rollback)) throw error;
             return JSON.parse(error.message) as Record<string, unknown>;
           },
         );
+    const clockWhenInForce = async (payload: unknown) => {
+      for (let tries = 0; tries < 5; tries++) {
+        const clock = await attempt(payload);
+        if (clock !== 'displaced') return clock;
+      }
+      throw new Error(
+        'une activation concurrente a pris la place de la version cinq fois de suite',
+      );
+    };
     // Fuseau inconnu de la base dans une version illisible : les deux sont signalés.
     expect(await clockWhenInForce({ clock: { timezone: 'US/Pacific-New' } })).toMatchObject({
       timezone: 'US/Pacific-New',
