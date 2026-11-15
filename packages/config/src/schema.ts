@@ -100,7 +100,11 @@ export const clockSchema = z.strictObject({
   dailyCloseHour: z.number().int().min(0).max(23),
   /** Identifiant IANA, par exemple `Europe/Paris`. */
   timezone: z.string().refine(isTimezone, { message: 'unknown IANA time zone' }),
-  seasonDays: positiveInt,
+  /**
+   * Durée d'une saison, en jours de jeu : au plus une année. Sans borne, une durée au-delà des entiers de
+   * la base ferait échouer pour tous les joueurs les vues de comptes, qui la lisent (`game.clock_rules()`).
+   */
+  seasonDays: positiveInt.max(366),
 });
 
 function duplicates(ids: string[]): string[] {

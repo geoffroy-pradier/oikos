@@ -13,18 +13,56 @@ export interface LoadedConfig extends ConfigVersionRef {
 }
 
 export type PublishResult =
-  { ok: true; version: ConfigVersionRef } | { ok: false; errors: string[] };
+  | { ok: true; version: ConfigVersionRef }
+  | { ok: false; code: 'CONFIG_INVALID' | 'CONFIG_TIMEZONE_UNKNOWN'; errors: string[] };
 
 export class ConfigError extends Error {}
 
-/** Enregistre une nouvelle version immuable. Une configuration invalide n'atteint jamais la base. */
+export const TIMEZONE_UNKNOWN_ERROR = 'clock.timezone: unknown to the database';
+
+/**
+ * La base connaît-elle ce fuseau ? Le schéma le valide avec `Intl`, dont la liste n'est pas celle de
+ * PostgreSQL (`Asia/Calcutta`, `Europe/Kiev`… manquent à certaines versions). Un fuseau inconnu de la base
+ * ôterait sans bruit le jour et la saison des comptes de tous les joueurs (`game.clock_rules()`).
+ * La casse est ignorée, comme le font la base (`at time zone`) et `Intl` : `europe/paris` est connu.
+ */
+export async function databaseKnowsTimezone(db: Db, timezone: string): Promise<boolean> {
+  const result = await sql<{ known: boolean }>`
+    select exists (
+      select 1 from pg_catalog.pg_timezone_names where lower(name) = lower(${timezone})
+    ) as known
+  `.execute(db);
+  return result.rows[0]?.known === true;
+}
+
+/**
+ * Le fuseau est-il refusé comme inconnu de la base (spécification 03) ? Jamais s'il est celui de la
+ * version en vigueur : l'horloge ne changeant pas (#123), un monde dont le fuseau sortirait de la base
+ * des fuseaux (mise à jour de tzdata) ne pourrait sinon plus rien publier ni programmer. Sans version en
+ * vigueur (`inForce` omis), tout fuseau inconnu est refusé.
+ */
+export async function timezoneRefused(
+  db: Db,
+  timezone: string,
+  inForce: string | null = null,
+): Promise<boolean> {
+  return timezone !== inForce && !(await databaseKnowsTimezone(db, timezone));
+}
+
+/**
+ * Enregistre une nouvelle version immuable. Une configuration invalide, ou dont le fuseau est refusé
+ * comme inconnu de la base (`timezoneRefused`), n'y entre jamais.
+ */
 export async function publishVersion(
   db: Db,
   candidate: unknown,
-  meta: { note?: string; createdBy?: string | null } = {},
+  meta: { note?: string; createdBy?: string | null; timezoneInForce?: string | null } = {},
 ): Promise<PublishResult> {
   const validation = validateConfig(candidate);
-  if (!validation.ok) return validation;
+  if (!validation.ok) return { ok: false, code: 'CONFIG_INVALID', errors: validation.errors };
+  if (await timezoneRefused(db, validation.config.clock.timezone, meta.timezoneInForce)) {
+    return { ok: false, code: 'CONFIG_TIMEZONE_UNKNOWN', errors: [TIMEZONE_UNKNOWN_ERROR] };
+  }
   const version = await db
     .insertInto('config.versions')
     .values({

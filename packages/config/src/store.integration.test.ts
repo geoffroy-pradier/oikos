@@ -5,9 +5,11 @@ import { INITIAL_CONFIG, type GameConfig } from './index';
 import {
   ConfigError,
   createConfigLoader,
+  databaseKnowsTimezone,
   ensureInitialConfig,
   publishVersion,
   scheduleActivation,
+  timezoneRefused,
 } from './store';
 
 // Tests d'intégration contre Supabase local. Les tables étant en ajout seul, chaque test s'exécute dans
@@ -52,6 +54,7 @@ describe('stockage versionné de la configuration', () => {
       const result = await publishVersion(trx, variant(7));
       expect(result).toEqual({
         ok: false,
+        code: 'CONFIG_INVALID',
         errors: [
           'clock.tickMinutes: must divide the 1440 minutes of a day',
           'clock.tickMinutes: must divide the 60 minutes of an hour',
@@ -97,6 +100,67 @@ describe('stockage versionné de la configuration', () => {
       const [a, b] = [await loader.at(day(1)), await loader.at(day(1, 23))];
       expect(a).toBe(b);
       expect(loader.cachedVersions()).toBe(1);
+    }));
+
+  it('un fuseau valide pour Intl mais inconnu de la base est refusé, sans rien enregistrer', () =>
+    inRolledBackTransaction(async (trx) => {
+      // Retiré de la base des fuseaux en 2020, toujours accepté par `Intl` : un cas réel d'écart.
+      expect(new Intl.DateTimeFormat('en', { timeZone: 'US/Pacific-New' })).toBeDefined();
+      expect(await databaseKnowsTimezone(trx, 'US/Pacific-New')).toBe(false);
+      // La casse est ignorée, comme par la base et par `Intl`.
+      for (const known of ['Europe/Paris', 'UTC', 'Asia/Kolkata', 'europe/paris', 'EUROPE/PARIS']) {
+        expect([known, await databaseKnowsTimezone(trx, known)]).toEqual([known, true]);
+      }
+      expect(
+        await trx.selectNoFrom(sql<Date>`now() at time zone 'europe/paris'`.as('t')).execute(),
+      ).toHaveLength(1);
+      const before = await trx.selectFrom('config.versions').select('id').execute();
+      const config = variant(10);
+      config.clock.timezone = 'US/Pacific-New';
+      // Sans version en vigueur, ou avec un autre fuseau en vigueur : refusé.
+      // Comparé exactement à celui en vigueur, comme pour `CONFIG_CLOCK_CHANGED` : la casse compte.
+      const metas = [null, 'Europe/Paris', 'us/pacific-new'].map((timezoneInForce) => ({
+        timezoneInForce,
+      }));
+      for (const meta of [{}, ...metas]) {
+        expect(await publishVersion(trx, config, meta)).toEqual({
+          ok: false,
+          code: 'CONFIG_TIMEZONE_UNKNOWN',
+          errors: ['clock.timezone: unknown to the database'],
+        });
+      }
+      expect(await trx.selectFrom('config.versions').select('id').execute()).toEqual(before);
+      // Le schéma passe avant la base : un fuseau inconnu des deux est une erreur de schéma.
+      config.clock.timezone = 'Mars/Olympus';
+      expect(await publishVersion(trx, config)).toMatchObject({
+        ok: false,
+        code: 'CONFIG_INVALID',
+      });
+      // Un fuseau connu à la casse près est accepté, quelle que soit la version en vigueur.
+      config.clock.timezone = 'europe/paris';
+      expect(await publishVersion(trx, config, { timezoneInForce: 'UTC' })).toMatchObject({
+        ok: true,
+      });
+    }));
+
+  it('le fuseau de la version en vigueur n’est jamais refusé comme inconnu de la base', () =>
+    inRolledBackTransaction(async (trx) => {
+      // Monde dont le fuseau est sorti de la base des fuseaux (mise à jour de tzdata) : l'horloge ne
+      // changeant pas, le refuser empêcherait toute nouvelle version.
+      expect(await timezoneRefused(trx, 'US/Pacific-New', 'US/Pacific-New')).toBe(false);
+      expect(await timezoneRefused(trx, 'US/Pacific-New', 'Europe/Paris')).toBe(true);
+      expect(await timezoneRefused(trx, 'US/Pacific-New')).toBe(true);
+      const config = variant(10);
+      config.clock.timezone = 'US/Pacific-New';
+      const published = await publishVersion(trx, config, { timezoneInForce: 'US/Pacific-New' });
+      expect(published).toMatchObject({ ok: true });
+      if (!published.ok) return;
+      const stored = await trx
+        .selectFrom('config.versions')
+        .select(sql<string>`payload -> 'clock' ->> 'timezone'`.as('timezone'))
+        .where('id', '=', published.version.id)
+        .executeTakeFirstOrThrow();
+      expect(stored.timezone).toBe('US/Pacific-New');
     }));
 
   it('échoue clairement sans version active, ou si une version stockée est invalide', () =>
