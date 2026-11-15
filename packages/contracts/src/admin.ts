@@ -163,3 +163,40 @@ export const configActivationScheduledSchema = z.strictObject({
     scheduledBy: z.uuid(),
   }),
 });
+
+const oboles = z.number().int();
+/**
+ * Lecture `GET /api/admin/economy` (docs/specs/05-economie.md, 5.5) : un bloc par monde, montants en
+ * oboles entières, tirés du grand livre.
+ */
+export const adminEconomySchema = z.object({
+  /** Nombre de jours de jeu détaillés dans `days`, jour en cours compris. */
+  windowDays: z.number().int().positive(),
+  worlds: z.array(
+    z.object({
+      worldId: z.uuid(),
+      slug: z.string(),
+      /** Masse monétaire : trésoreries des maisons, séquestres, trésors des cités, autres comptes. */
+      moneySupply: z.object({
+        total: oboles,
+        houses: oboles,
+        escrow: oboles,
+        cityTreasuries: oboles,
+        other: oboles,
+      }),
+      /**
+       * Robinets et puits. `total` : monnaie créée (robinet) ou détruite (puits) depuis l'origine, en net ;
+       * `days` : la même mesure par jour de jeu sur la fenêtre, jours sans mouvement omis.
+       */
+      systemAccounts: z.array(
+        z.object({
+          key: z.string(),
+          kind: z.enum(['faucet', 'sink']),
+          total: oboles,
+          days: z.array(z.object({ gameDay: z.number().int(), amount: oboles })),
+        }),
+      ),
+    }),
+  ),
+});
+export type AdminEconomy = z.infer<typeof adminEconomySchema>;

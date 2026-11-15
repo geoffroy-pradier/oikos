@@ -2,9 +2,10 @@ import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/co
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
+import { readEconomy } from './admin-economy';
 import type { Identity, TokenVerifier } from './auth';
 import type { RateLimiter } from './rate-limit';
-import { DEFAULT_SETTINGS, type ApiSettings } from './registry';
+import { DEFAULT_SETTINGS, type ApiSettings, type ConfigSource } from './registry';
 
 type AdminEnv = { Variables: { identity: Identity; adminRole: AdminRole } };
 
@@ -13,6 +14,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RECENT_TICKS = 20;
 const DEFAULT_AUDIT_PAGE = 50;
 const MAX_AUDIT_PAGE = 100;
+const DEFAULT_ECONOMY_DAYS = 30;
+const MAX_ECONOMY_DAYS = 90;
 
 /**
  * Lectures du back-office (docs/specs/15-back-office-olympe.md) : le back-office n'accède jamais aux
@@ -25,11 +28,12 @@ export function registerAdminReads(
     db: Db;
     verifyToken: TokenVerifier;
     rateLimiter: RateLimiter;
+    loadConfig: ConfigSource;
     settings?: ApiSettings | undefined;
   },
   fail: (error: CommandError) => Response,
 ) {
-  const { db, verifyToken, rateLimiter, settings = DEFAULT_SETTINGS } = deps;
+  const { db, verifyToken, rateLimiter, loadConfig, settings = DEFAULT_SETTINGS } = deps;
   const forbidden = () =>
     fail({ code: 'FORBIDDEN', message: 'Administrator role and two-factor session required.' });
 
@@ -59,6 +63,7 @@ export function registerAdminReads(
   // (`ADMIN_MODULE_ROLES`) : une route ajoutée sans module n'est ouverte à personne.
   for (const [path, module] of [
     ['/api/admin/vigie', 'vigie'],
+    ['/api/admin/economy', 'economy'],
     ['/api/admin/config/*', 'config'],
     ['/api/admin/audit', 'audit'],
     ['/api/admin/roles', 'access'],
@@ -70,7 +75,9 @@ export function registerAdminReads(
     });
   }
   // Tout autre chemin que ceux déclarés ici et `/me` est refusé, quel que soit le rôle.
-  const OPEN_PATHS = ['/api/admin/me', '/api/admin/vigie', '/api/admin/audit', '/api/admin/roles'];
+  const OPEN_PATHS = ['me', 'vigie', 'economy', 'audit', 'roles'].map(
+    (name) => `/api/admin/${name}`,
+  );
   app.use('/api/admin/*', async (c, next) => {
     const known = OPEN_PATHS.includes(c.req.path) || c.req.path.startsWith('/api/admin/config/');
     if (!known) return forbidden();
@@ -191,6 +198,16 @@ export function registerAdminReads(
         selfReviewAllowed: settings.allowSelfReview,
       },
     });
+  });
+
+  // Économie : masse monétaire, robinets et puits (5.5). `days` : jours de jeu détaillés, jour en cours
+  // compris (tout entier positif, borné au maximum), comptés avec l'horloge de la configuration en vigueur.
+  app.get('/api/admin/economy', async (c) => {
+    const rawDays = c.req.query('days');
+    if (rawDays !== undefined && !/^[1-9]\d*$/.test(rawDays)) return invalid('days');
+    const days = Math.min(Number(rawDays ?? DEFAULT_ECONOMY_DAYS), MAX_ECONOMY_DAYS);
+    const { clock } = (await loadConfig(new Date())).config;
+    return c.json({ ok: true, data: await readEconomy(db, clock, days) });
   });
 
   // Paramètres : versions de configuration, activations programmées, version en vigueur.
