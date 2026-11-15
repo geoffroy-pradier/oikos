@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { GameConfig } from '@oikos/config';
+import { siteUpkeep } from '@oikos/engine';
 import { sql } from 'kysely';
+import { TEST_CONFIG } from './test-config';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   appWithConfig,
@@ -14,6 +16,7 @@ import {
   owner,
   pricedConfig,
   send,
+  shipOf,
   stockOf,
   untouched,
   voyagesOf,
@@ -171,5 +174,36 @@ describe('voyage.depart : coût, refus et concurrence', () => {
     expect(await sell(player, 1)).toMatchObject({
       body: { error: { code: 'INSUFFICIENT_STOCK' } },
     });
+  });
+
+  it('départ et clôture simultanés : aucun interblocage ; un navire désarmé ne part pas, un navire parti l’est en mer', async () => {
+    // Entretien des navires impayable : la clôture désarme le caboteur, avant ou après son départ.
+    const classes = TEST_CONFIG.config.ships.classes.map((row) => ({
+      ...row,
+      dailyUpkeepOboles: 1e9,
+    }));
+    const config = { ...TEST_CONFIG.config, ships: { ...TEST_CONFIG.config.ships, classes } };
+    for (let round = 0; round < 4; round += 1) {
+      // Un monde à part : l'étape d'entretien prélève toutes les maisons du monde où elle tourne.
+      const [worldId, kalliste, elaia] = [randomUUID(), randomUUID(), randomUUID()];
+      await sql`with world as (insert into game.worlds (id, slug, name) values (${worldId}, ${`v-${worldId.slice(0, 12)}`}, 'Test'))
+        insert into game.cities (id, world_id, slug, name)
+        values (${kalliste}, ${worldId}, 'kalliste', 'Kallistè'), (${elaia}, ${worldId}, 'elaia', 'Elaia')`.execute(
+        owner,
+      );
+      const player = await newShipowner(kalliste);
+      const closeAt = new Date();
+      const [sailed] = await Promise.all([
+        depart(player, { fromCityId: kalliste, toCityId: elaia }),
+        db
+          .transaction()
+          .execute((trx) => siteUpkeep.run({ worldId, gameDay: 20_771, closeAt, config, trx })),
+      ]);
+      const ship = await shipOf(player.shipId);
+      expect(ship.laid_up_at).not.toBeNull();
+      if (sailed.status === 200) expect(ship.docked_city_id).toBeNull();
+      else
+        expect([sailed.body.error?.code, ship.docked_city_id]).toEqual(['SHIP_LAID_UP', kalliste]);
+    }
   });
 });

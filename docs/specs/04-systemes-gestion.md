@@ -8,9 +8,10 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
   Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
+  L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6).
   Un ticket qui ajoute une écriture de maison lui donne sa nature ici.
   Chaque ligne du grand livre y est comptée une fois et en entier : la somme des flux d'un compte sur une période est la variation de son solde, et un flux de somme nulle n'est pas affiché.
   Un achat en attente quitte la trésorerie le jour où son prix est retenu (nature séquestre) ;
@@ -21,8 +22,9 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Un produit ou une charge est compté le jour où la monnaie change de mains, avec le signe du flux (une charge est négative) ;
   il n'y a ni variation de stock ni amortissement, les stocks sont au bilan.
   La monnaie de la maison y est sa trésorerie plus son séquestre : retenir ou rendre le prix d'un achat en attente est un mouvement entre ses deux comptes, sans effet sur le résultat, et l'achat est une charge le jour où il est servi (au flux de la seule trésorerie, un achat payé par le séquestre ne serait jamais une charge).
-  Exploitation : ventes au brut, achats, taxes, entretien ; leur somme est le résultat (`operating_result`).
-  La colonne de l'entretien (`upkeep`) y porte le dû quotidien des sites, entretien et salaires, dont `my_cash_flows` donne le détail par nature.
+  Exploitation : ventes au brut, achats, taxes, charges courantes ; leur somme est le résultat (`operating_result`).
+  La colonne de l'entretien (`upkeep`) y porte les charges courantes : entretien des sites et des navires, salaires et transport, dont `my_cash_flows` donne le détail par nature.
+  Décision (#252, ADR 0006) : le transport y entre plutôt que dans une vue nouvelle, comme les salaires avant lui ; l'écran Comptes la libelle « Entretien, salaires et transport ».
   Les colonnes du compte de résultat sont figées : la migration qui l'a créé le recrée tel quel quand la suite des migrations est rejouée, ce qu'une colonne de plus rendrait impossible.
   Une nature nouvelle y entre dans une colonne existante, ou dans une vue nouvelle.
   Hors exploitation (`non_operating`) : acquisitions de sites et de navires, dotation de départ, et `other` pour tout le reste.
@@ -155,7 +157,7 @@ Le fret peut être vendu à d'autres joueurs.
 Navires, dans la phase 2 (#251) :
 
 - Une classe de navire (`ships.classes`) a une capacité en unités de biens, tous biens confondus, une vitesse en points de base (10 000 tient la durée de référence d'une route), un prix d'achat et un entretien par jour de jeu, en oboles.
-  L'entretien entre à zéro dans la configuration initiale (paramètres neutres) ; la clôture le prélèvera avec #252.
+  L'entretien entre à zéro dans la configuration initiale (paramètres neutres) ; la clôture le prélève (voyages, ci-dessous).
   Une version de configuration publiée avant le transport se lit sans aucune classe : aucun navire ne s'y achète.
 - La commande `ship.acquire` (classe, prix vu) achète un navire neuf : il naît armé, à quai dans la cité de la maison, et son prix est détruit (puits `sink_ship_purchase`, 5.5) par une écriture `ship.acquire`, annoncée par un événement de domaine `ShipAcquired`.
   Elle est refusée sans rien payer si la classe n'est pas dans la configuration en vigueur, si la cité de la maison n'a pas de port (6.1), si la trésorerie ne couvre pas le prix, ou si le prix en vigueur n'est pas celui que le joueur a vu (« le prix a changé », comme pour `site.acquire`).
@@ -163,9 +165,35 @@ Navires, dans la phase 2 (#251) :
   Le prix vu est obligatoire, à la différence de `site.acquire` : aucun client antérieur ne l'omet.
   Il n'y a pas de limite de flotte : seul le prix borne le nombre de navires d'une maison.
 - Un navire ne change jamais de maison ni de classe, et il n'y a pas de revente.
-  À quai, il est dans une cité de son monde ; il n'en part qu'avec un voyage (#252).
-- Les classes et leurs tarifs sont des règles publiques (vue `ship_rules`, la section `ships` de la configuration en vigueur).
+  À quai, il est dans une cité de son monde ; il n'en part qu'avec un voyage, et n'accoste qu'au terme de celui-ci, dans la cité d'arrivée.
+- Les classes et leurs tarifs sont des règles publiques (vue `ship_rules`, la section `ships` de la configuration en vigueur, routes et droit de port compris).
   Chaque joueur lit ses propres navires, leur cité de mouillage et leur désarmement (vue `my_ships`).
+
+Voyages, dans la phase 2 (#252) :
+
+- Une route (`ships.routes`) relie deux cités à port, dans les deux sens, en 2 à 20 heures pour un navire de vitesse 10 000.
+  Un trajet dure ⌈heures × 3 600 × 10 000 ÷ vitesse⌉ secondes : un navire plus lent met plus longtemps, jamais moins que la durée exacte.
+  Chaque route porte les provisions d'un voyage par classe de navire, en oboles, détruites au départ (puits `sink_voyage_provisions`).
+- Le droit de port de la cité d'arrivée (`ships.portDues`, 5.6) est un forfait par classe, multiplié par le coefficient de la cité (10 000 = ×1 ; une cité sans coefficient est à ×1), arrondi à l'obole supérieure, et payé au départ.
+  Sa part détruite (`burnShareBps`, arrondie à l'obole supérieure) va au puits `sink_port_dues`, le reste au trésor de la cité d'arrivée, comme la taxe de marché.
+  Provisions et droit de port entrent à zéro dans la configuration initiale (paramètres neutres).
+  Une version publiée avant les voyages se lit sans route ni droit de port : aucun départ n'y est possible.
+- La commande `voyage.depart` (navire, cité de départ vue, cité d'arrivée, cargaison, coût vu) fait partir un navire armé de la maison, à quai dans la cité de départ, vers une cité reliée par une route.
+  La cargaison est une liste de biens et de quantités prise dans le stock libre de la maison dans la cité de départ (quantité moins ce que réservent ses ventes en attente), dans la capacité de la classe, tous biens confondus.
+  Décision : une cargaison vide est admise, le navire part sur lest (pour aller acheter ailleurs).
+  Elle est refusée sans rien payer ni charger si le navire est en mer, à quai ailleurs, désarmé, d'une classe retirée de la configuration, sans route vers la destination, si un bien est inconnu, si la cargaison dépasse sa capacité ou le stock libre, si la trésorerie ne couvre pas le coût, ou si le coût en vigueur n'est pas celui que le joueur a vu (« le prix a changé »).
+  Dans une seule transaction, le voyage part (arrivée prévue : le départ plus la durée du trajet), la cargaison sort du stock vers l'extrémité système `in_transit` du journal des stocks, rattachée au voyage, le navire quitte le quai, et provisions et droit de port sont payés par une écriture `voyage.departure` (nature `transport`, 4.1) ; un montant nul n'a pas de ligne, et un départ qui ne coûte rien n'a pas d'écriture.
+  Un événement de domaine `VoyageDeparted` l'annonce.
+  La commande prend le verrou d'agora du monde, puis la trésorerie, le navire et les stocks dans l'ordre des biens : elle ne s'intercale pas dans l'entretien d'une clôture, qui prend le même verrou d'abord.
+- Le stock en mer n'est dans aucun stock de la maison : aucun ordre ne le réserve, aucun PNJ ne l'achète, et la demande des PNJ, qui ne lit pas les stocks, n'en dépend pas.
+  L'arrivée et le déchargement dans la cité d'arrivée sont joués par le moteur (#253).
+- L'entretien d'un navire est celui de sa classe, par jour de jeu, sans coefficient (décision : le coefficient d'entretien des sites, 5.5, ne s'y applique pas).
+  La clôture examine les navires d'une maison après ses sites, avec ce qui reste de la trésorerie, par date de création puis identifiant, chacun payé en entier ou pas du tout, dans l'écriture `upkeep.daily` de la maison, par une ligne marquée `upkeep` vers le puits `sink_ship_upkeep`.
+  Un navire impayé est désarmé jusqu'à une clôture qui le paie ; il n'a pas de commande de relance, et ne part pas tant qu'il est désarmé.
+  Un navire désarmé en mer poursuit son voyage.
+  Comme un site, un navire acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, et une classe retirée de la configuration ne doit rien (désarmé, son navire est réarmé sans payer).
+  `UpkeepSettled` dit, pour une maison qui a des navires, leur entretien payé et impayé, et les navires désarmés et réarmés.
+- Chaque joueur lit ses voyages et leur cargaison (vue `my_voyages`).
 
 ## 4.7 Le savoir
 

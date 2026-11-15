@@ -208,7 +208,8 @@ Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (1
 
 Achat de navires (`sink_ship_purchase`, #251) : le prix d'un navire neuf, fixé par la configuration pour sa classe, est détruit par une écriture `ship.acquire` (4.6).
 Il n'y a pas de revente, donc aucun robinet en face.
-L'entretien des navires, nul au départ, aura son propre puits avec #252.
+Voyages (#252, 4.6) : les provisions d'un voyage sont détruites par le puits `sink_voyage_provisions`, la part détruite du droit de port par `sink_port_dues`, l'entretien quotidien des navires par `sink_ship_upkeep`.
+Tous trois entrent à zéro dans la configuration initiale.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
@@ -254,7 +255,7 @@ impayé, il est à l'arrêt jusqu'à la clôture suivante ou jusqu'à une relanc
 Il n'y a pas d'arriéré : un jour passé à l'arrêt ne crée aucune dette.
 Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, même si la clôture est jouée en retard ;
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
-Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature ;
+Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6) ;
 elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
 une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 
@@ -278,6 +279,7 @@ Le prix envoyé est retenu avec la clé d'une relance restée sans réponse, et 
 Si le premier envoi avait abouti, l'API rejoue sa réponse ; sinon elle refuse ce prix, et le joueur confirme le nouveau d'un nouvel essai, sous une clé neuve ;
 son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), avec une ligne marquée par nature comme à la clôture, annoncée par un événement de domaine `SiteRestarted` qui distingue entretien et salaires.
 Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires), puis la trésorerie, puis le site.
+La clôture verrouille en plus, après ces deux puits, celui de l'entretien des navires, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6).
 Un site dont la recette n'est plus dans la configuration, qui n'a pas de tarif, est relancé sans rien payer.
 La monnaie sous séquestre ne paie pas non plus une relance. Les relances d'un monde se font l'une après l'autre et, quand une clôture a commencé à prélever l'entretien, attendent qu'elle soit validée tout entière (l'entretien est donc la dernière étape d'une clôture, pour que cette attente soit la plus courte) ;
 si la clôture vient d'arrêter le site pendant cette attente, la relance est refusée (« le site vient de changer ») et se rejoue.
@@ -306,6 +308,11 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
 
 ## 5.6 Fiscalité
 
-Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port (défaut 2 %), taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques. Les recettes alimentent le trésor de la cité, dépensé par les magistrats. La concurrence fiscale entre cités est un ressort de jeu assumé.
+Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port, taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques.
+Les recettes alimentent le trésor de la cité, dépensé par les magistrats.
+La concurrence fiscale entre cités est un ressort de jeu assumé.
+
+Droit de port, décision du ticket #252 : un forfait par arrivée et par classe de navire, payé au départ, que la cité module par son coefficient, et non 2 % de la valeur de la cargaison, qui n'a pas de valeur publique sûre (4.6).
+Une part est détruite, le reste va au trésor de la cité d'arrivée, comme la taxe de marché ; le coefficient de chaque cité est un paramètre de configuration, à 10 000 (×1) au départ, que les décrets régleront (#262).
 
 Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité. Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux, et les joueurs ne le lisent pas encore.

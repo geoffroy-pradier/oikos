@@ -20,7 +20,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Stocks | `inventories`, `stock_ledger`, `warehouses` |
 | Monnaie | `accounts`, `ledger_entries`, `ledger_lines` |
 | Marchés | `orders`, `trades`, `price_candles`, `contracts`, `auctions`, `bids`, `tenders` |
-| Logistique | `ships`, `voyages`, `cargo`, `freight_offers` |
+| Logistique | `ships`, `voyages`, `voyage_cargo`, `freight_offers` |
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
 | Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `city_budget`, `public_works`, `leagues` |
@@ -58,7 +58,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 - Règles de sécurité par ligne activées sur toutes les tables exposées, testées en pgTAP : un joueur lit ses données privées et les données publiques, rien d'autre.
 - L'API et le moteur se connectent sous un rôle de service (`oikos_service`) qui ne possède aucune table du jeu : il lit, insère dans les journaux et les tables de jeu, mais ne peut ni supprimer ni vider, ni modifier un solde, un stock ou une réservation autrement que par les journaux.
   Les gardes de la base n'acceptent ces modifications que d'un déclencheur exécuté au nom du propriétaire des tables.
-  Le service ne modifie que quelques colonnes (nom d'une maison, cycle et arrêt d'un site, annulation d'un ordre, report de la demande, valeurs d'un chandelier de prix ou d'un prix observé), n'exécute aucune fonction de déclencheur du jeu et ne possède que le schéma de sa file de tâches.
+  Le service ne modifie que quelques colonnes (nom d'une maison, cycle et arrêt d'un site, quai et désarmement d'un navire, arrivée d'un voyage, annulation d'un ordre, report de la demande, valeurs d'un chandelier de prix ou d'un prix observé), n'exécute aucune fonction de déclencheur du jeu et ne possède que le schéma de sa file de tâches.
   Il garde le droit, accordé à tous par Postgres, de créer des tables temporaires : elles sont sans effet sur le jeu.
 - Les données privées d'un concurrent (stocks, trésorerie, règles d'intendant) ne quittent jamais le serveur.
 - Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant, nature de la ligne), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
@@ -112,7 +112,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   la seconde n'est pas exposée.
 - Navires (4.6, #251) : `ships` porte la maison, la classe (identifiant de la configuration), la cité où le navire est à quai (nulle en mer) et l'instant de son désarmement (nul s'il est armé).
   La base garantit qu'un navire naît à l'instant de sa création, à quai dans une cité de son monde (clé étrangère) et armé, puis qu'il ne change ni d'identifiant, ni de monde, ni de maison, ni de classe, ni de date de naissance.
-  Le service crée un navire sans choisir son identifiant, sa date ni son désarmement, et ne le modifie ni ne le supprime ; les voyages et l'entretien (#252) lui ouvriront le quai et le désarmement.
+  Le service crée un navire sans choisir son identifiant, sa date ni son désarmement, ne le supprime pas, et n'en modifie que le quai et le désarmement (#252).
+  La base garantit qu'un navire ne quitte le quai que par un voyage qui part dans la même transaction, de la cité où il est à quai, qu'il n'accoste qu'une fois son voyage arrivé, dans la cité d'arrivée, et qu'il ne passe jamais d'un quai à un autre ; son désarmement est daté de la transaction qui l'écrit et ne change plus, et se lève sans que la base le relie à un paiement (la clôture le garantit).
   Un joueur lit ses propres navires par `my_ships`, sous règle par ligne, et les classes et tarifs par `ship_rules`, extrait public de la configuration en vigueur rendu par `game.ship_rules()`, exécutée au nom du propriétaire comme `site_rules`.
 - Citoyenneté (3, 6.2, #260) : `citizenships` porte la maison, sa cité, son statut (métèque ou citoyen) et la date de ce statut.
   La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
@@ -128,4 +129,11 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Les joueurs connectés lisent le calendrier de chaque cité (`public.elections`), les candidatures et leurs retraits (`election_candidates`), les charges, mandats passés compris (`offices`, avec `in_office`), et les règles en vigueur (`politics_rules`, extrait public de la section `politics`, rendu par `game.politics_rules()`).
   Les résultats (`election_results` : bulletins par candidature maintenue, et l'élu) ne sont rendus qu'après le dépouillement, par `game.election_results()`, exécutée au nom du propriétaire et seule à compter les bulletins pour eux.
   D'un bulletin, un joueur ne lit que celui de sa maison, et seulement son élection et sa date (`my_ballots`, « j'ai voté ») : jamais la candidature choisie, la sienne comprise, ni le bulletin d'une autre maison.
+- Voyages (4.6, #252) : `voyages` porte le navire, sa maison, les cités de départ et d'arrivée, le départ, l'arrivée prévue et l'arrivée ; `voyage_cargo` une ligne par bien et sa quantité.
+  La base garantit qu'un voyage part à l'instant de sa transaction, en mer, de la cité où son navire armé est à quai, qu'un navire n'a qu'un voyage en mer à la fois (index unique), que seule l'arrivée s'écrit ensuite, une fois, ni avant l'arrivée prévue ni dans le futur, et que la cargaison s'écrit dans la transaction du départ puis ne change plus.
+  Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).
+  Un voyage charge au départ, depuis le stock de sa maison dans la cité de départ, exactement sa cargaison, et ne décharge qu'une fois arrivé, vers le stock de sa maison dans la cité d'arrivée, exactement ce qu'il a chargé ; chaque bien est chargé une fois et déchargé une fois (index uniques).
+  À la validation (contrôle différé), un voyage en mer a toute sa cargaison chargée et son navire n'est à quai nulle part, et un voyage arrivé a tout déchargé et son navire est à quai dans la cité d'arrivée (ou en est reparti).
+  Ces gardes s'exécutent au nom du propriétaire de la base.
+  Le service fait partir un voyage sans en choisir l'identifiant ni la date de départ, et n'en écrit ensuite que l'arrivée ; un joueur lit ses voyages et leur cargaison par `my_voyages`, sous règle par ligne.
 - Migrations SQL versionnées dans le dépôt, jamais de modification manuelle en production. Chaque migration appliquée est enregistrée dans `supabase_migrations.schema_migrations` et n'est plus rejouée au déploiement (14.4). Une migration publiée sur `main` est donc immuable (ni modifiée, ni supprimée, ni renommée) : on corrige par une migration nouvelle, ce que vérifie `ci`.
