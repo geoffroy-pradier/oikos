@@ -77,8 +77,9 @@ export function Shell() {
                 // garde marqué, ce que la correspondance de route seule ne ferait pas.
                 className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-center text-xs leading-tight wrap-anywhere lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-left lg:text-base ${tab.id === active ? 'font-bold text-primary underline underline-offset-4' : ''}`}
                 aria-current={tab.id === active ? 'page' : undefined}
+                // Garde-fou : le routeur force `aria-current` sur un lien qui correspond ; en
+                // correspondance exacte, c'est toujours l'onglet que `tabOf` a choisi.
                 activeOptions={{ exact: true, includeSearch: false }}
-                activeProps={{ 'aria-current': tab.id === active ? 'page' : undefined }}
               >
                 <TabIcon tab={tab.id} />
                 <span>{t(`tabs.${tab.id}.label`)}</span>

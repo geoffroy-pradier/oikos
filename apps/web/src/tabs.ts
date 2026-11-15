@@ -11,8 +11,16 @@ export type TabId = (typeof TABS)[number]['id'];
 /** Écrans ouverts depuis un onglet sans en être la racine : l'onglet reste marqué actif. */
 const TAB_SCREENS: Readonly<Record<string, TabId>> = { '/comptes': 'house' };
 
-/** Onglet actif pour un chemin : la racine d'un onglet, un de ses écrans, sinon aucun. */
+/**
+ * Onglet actif pour un chemin : la racine d'un onglet ou une page sous elle (`/agora/…`), un écran
+ * rattaché (`TAB_SCREENS`), sinon aucun.
+ */
 export function tabOf(pathname: string): TabId | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  return TAB_SCREENS[path] ?? TABS.find((tab) => tab.to === path)?.id ?? null;
+  const screen = Object.entries(TAB_SCREENS).find(
+    ([root]) => path === root || path.startsWith(`${root}/`),
+  );
+  if (screen) return screen[1];
+  const under = (to: string) => path === to || (to !== '/' && path.startsWith(`${to}/`));
+  return TABS.find((tab) => under(tab.to))?.id ?? null;
 }

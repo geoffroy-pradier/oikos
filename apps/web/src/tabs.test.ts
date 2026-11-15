@@ -17,6 +17,8 @@ describe('onglet actif', () => {
     expect(tabOf('/comptes')).toBe('house');
     expect(tabOf('/comptes/')).toBe('house');
     expect(tabOf('/agora/')).toBe('agora');
+    expect(tabOf('/agora/ordres')).toBe('agora');
+    expect(tabOf('/comptes/2026')).toBe('house');
   });
 
   it('ne marque aucun onglet pour une page inconnue', () => {
