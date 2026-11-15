@@ -30,12 +30,14 @@ const CONSUMPTION = 'npc_consumption';
  *
  * Demande et budget suivent la population courante de la cité (`game.npc_population`) : une classe sans
  * état y naît à la population de la configuration, qui ne sert plus ensuite que de référence aux bornes.
- * Chaque tick ajoute à la mesure du jour de jeu ce que chaque classe demandait de ses biens vitaux et ce
- * qui lui a été servi, marché vide compris : la clôture suivante en tire la couverture.
+ * Chaque tick joué pendant son intervalle ajoute à la mesure du jour de jeu ce que chaque classe demandait
+ * de ses biens vitaux et ce qui lui a été servi, marché vide compris : la clôture suivante en tire la
+ * couverture. Un tick rattrapé achète mais ne mesure rien : après une panne, les ticks rejoués d'affilée
+ * vident un carnet que personne n'a pu regarnir, et compteraient comme une pénurie.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
-  async run({ trx, worldId, scheduledAt, config }) {
+  async run({ trx, worldId, scheduledAt, config, catchUp }) {
     const goods = new Map(config.goods.map((good) => [good.id, good]));
     const referencePrice = (goodId: string) => goods.get(goodId)?.referencePriceOboles ?? 0;
     const basketGoods = [
@@ -241,25 +243,26 @@ export const npcDemand: TickStep = {
           markets.push({ city: city.slug, goodId, units, spent: purchase.spent });
         }
       }
-      await trx
-        .insertInto('game.npc_vital_coverage')
-        .values(
-          vitalMeasure(classes, bought).map(({ classId, served, demanded }) => ({
-            world_id: worldId,
-            city_id: city.id,
-            class_id: classId,
-            game_day: gameDayAt(scheduledAt, config.clock),
-            served,
-            demanded,
-          })),
-        )
-        .onConflict((conflict) =>
-          conflict.columns(['city_id', 'class_id', 'game_day']).doUpdateSet({
-            served: sql<number>`npc_vital_coverage.served + excluded.served`,
-            demanded: sql<number>`npc_vital_coverage.demanded + excluded.demanded`,
-          }),
-        )
-        .execute();
+      if (!catchUp)
+        await trx
+          .insertInto('game.npc_vital_coverage')
+          .values(
+            vitalMeasure(classes, bought).map(({ classId, served, demanded }) => ({
+              world_id: worldId,
+              city_id: city.id,
+              class_id: classId,
+              game_day: gameDayAt(scheduledAt, config.clock),
+              served,
+              demanded,
+            })),
+          )
+          .onConflict((conflict) =>
+            conflict.columns(['city_id', 'class_id', 'game_day']).doUpdateSet({
+              served: sql<number>`npc_vital_coverage.served + excluded.served`,
+              demanded: sql<number>`npc_vital_coverage.demanded + excluded.demanded`,
+            }),
+          )
+          .execute();
     }
     return {
       units: markets.reduce((sum, market) => sum + market.units, 0),

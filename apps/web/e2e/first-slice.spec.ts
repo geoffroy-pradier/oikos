@@ -208,6 +208,7 @@ async function npcsBuy(step: TickStep = npcDemand) {
       rng: createRng('e2e'),
       dailyClose: false,
       seasonSwitch: false,
+      catchUp: false,
     }),
   );
 }

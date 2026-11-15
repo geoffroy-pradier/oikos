@@ -76,6 +76,7 @@ const npcTick = () =>
       rng: createRng('test'),
       dailyClose: false,
       seasonSwitch: false,
+      catchUp: false,
     }),
   );
 
@@ -921,6 +922,7 @@ describe('market.cancelOrder', () => {
         rng: createRng('test'),
         dailyClose: false,
         seasonSwitch: false,
+        catchUp: false,
       });
       // Le tick a servi l'ordre mais n'a pas encore validé : l'annulation arrive maintenant.
       cancelling = cancel(seller, orderId);

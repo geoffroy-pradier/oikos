@@ -283,6 +283,28 @@ describe('exécution d’un tick', () => {
     ]);
   });
 
+  it('signale un rattrapage : un tick joué après la fin de son intervalle, borne comprise', async () => {
+    const worldId = await newWorld();
+    const late: TickStep = { name: 'late', run: async ({ catchUp }) => ({ catchUp }) };
+    const minutes = active.config.clock.tickMinutes;
+    // Dernière milliseconde de l'intervalle : à l'heure ; premier instant du tick suivant : rattrapé.
+    const played = [];
+    for (const [tick, delay] of [
+      [index, minutes * 60_000 - 1],
+      [index + 1, minutes * 60_000],
+      [index + 2, 0],
+    ] as const) {
+      const due = request(worldId, [late], { index: tick });
+      const now = () => new Date(due.scheduledAt.getTime() + delay);
+      played.push((await runTick(db, { ...due, now })).summary);
+    }
+    expect(played).toEqual([
+      { late: { catchUp: false } },
+      { late: { catchUp: true } },
+      { late: { catchUp: false } },
+    ]);
+  });
+
   it('refuse un tick avant son heure, un instant mal aligné, un indice invalide, deux étapes de même nom', async () => {
     const worldId = await newWorld();
     const tick = request(worldId, []);

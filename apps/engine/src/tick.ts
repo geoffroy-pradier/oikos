@@ -17,6 +17,12 @@ export interface TickContext {
   rng: Rng;
   dailyClose: boolean;
   seasonSwitch: boolean;
+  /**
+   * Rattrapage : le tick est joué après la fin de son intervalle (moteur arrêté ou en retard). Ses
+   * effets restent dus, mais il n'observe pas le jeu : entre deux ticks rattrapés d'affilée, personne
+   * n'a pu agir. Une étape qui mesure ce que les joueurs ont fait d'un intervalle l'ignore.
+   */
+  catchUp: boolean;
 }
 
 /** Une étape du tick. Elle rend un résumé déterministe de ses effets, enregistré avec le tick. */
@@ -82,6 +88,7 @@ async function applySteps(trx: Db, request: TickRequest, loaded: LoadedConfig, s
     rng: createRng(seed),
     dailyClose: isDailyClose(index, clock),
     seasonSwitch: isSeasonSwitch(index, clock),
+    catchUp: request.now().getTime() >= tickStart(index + 1, clock.tickMinutes).getTime(),
   };
   const summary: Record<string, unknown> = {};
   for (const step of request.steps) summary[step.name] = await step.run(context);
