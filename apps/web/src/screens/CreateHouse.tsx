@@ -43,7 +43,8 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
   );
   const identities = read.rows === null ? null : parseCityIdentities(read.rows);
   const [name, setName] = useState('');
-  const [cityId, setCityId] = useState(cities[0]?.id ?? '');
+  // Aucune cité n'est choisie d'avance : le joueur choisit lui-même, d'après dieu et terroir.
+  const [cityId, setCityId] = useState('');
   const [blazon, setBlazon] = useState<Blazon>({
     shape: BLAZON_SHAPES[0],
     tincture: BLAZON_TINCTURES[0],
@@ -56,6 +57,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     event.preventDefault();
     const trimmed = normalizeHouseName(name);
     if (!HOUSE_NAME_PATTERN.test(trimmed)) return setErrorCode('VALIDATION_FAILED');
+    if (!cityId) return setErrorCode('CITY_REQUIRED');
     setErrorCode(null);
     setBusy(true);
     const result = await createHouse({ cityId, name: trimmed, blazon }, accessToken);
@@ -63,6 +65,8 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     if (!result.ok) setErrorCode(result.error.code);
     setBusy(false);
   }
+
+  const cityMissing = errorCode === 'CITY_REQUIRED';
 
   const select = <K extends keyof Blazon>(part: K, options: readonly Blazon[K][]) => (
     <>
@@ -112,6 +116,8 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
           const identity = identities?.get(city.id);
           const lines = identity ? describeCity(identity, t, i18n.language) : null;
           return (
+            // Toute la carte se clique ; le nom vient du seul nom de la cité, la description n'est lue
+            // qu'une fois, par `aria-describedby`.
             <label
               key={city.id}
               className="flex gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
@@ -119,24 +125,23 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
               <input
                 type="radio"
                 name="city"
+                required
                 className="mt-1 size-5 shrink-0"
                 value={city.id}
                 checked={cityId === city.id}
                 onChange={() => setCityId(city.id)}
-                aria-describedby={lines ? `city-${city.id}` : undefined}
+                aria-labelledby={`city-name-${city.id}`}
+                aria-describedby={`city-${city.id}${cityMissing ? ' form-error' : ''}`}
+                aria-invalid={cityMissing}
               />
               <span className="flex min-w-0 flex-col">
-                <span className="font-semibold">
+                <span id={`city-name-${city.id}`} className="font-semibold">
                   {t(`cities.${city.slug}`, { defaultValue: city.name })}
                 </span>
-                {lines && (
-                  <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
-                    {[lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
-                  </span>
-                )}
-                {identities && !identity && (
-                  <span className="text-sm text-muted-foreground">{t('cityIdentity.missing')}</span>
-                )}
+                <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
+                  {lines && [lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
+                  {identities && !identity && t('cityIdentity.missing')}
+                </span>
               </span>
             </label>
           );
@@ -151,7 +156,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
       <p id="form-error" role="alert" className="font-semibold text-danger">
         {errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL'])}
       </p>
-      <Button type="submit" disabled={busy || !cityId}>
+      <Button type="submit" disabled={busy}>
         {t('createHouse.submit')}
       </Button>
     </form>

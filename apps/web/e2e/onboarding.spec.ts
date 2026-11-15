@@ -50,13 +50,20 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   // l'Âge servi par ce client sont proposées, chacune avec son dieu protecteur et son terroir (6.1).
   const cities = page.getByRole('group', { name: "Cité d'accueil" }).getByRole('radio');
   await expect(cities).toHaveCount(4);
-  const city = (name: string) => page.getByRole('radio', { name: new RegExp(`^${name}`) });
+  // Le nom est celui de la cité seule ; dieu, port, terroir et premier site en sont la description.
+  const city = (name: string) => page.getByRole('radio', { name, exact: true });
   await expect(city('Halos')).toHaveAccessibleDescription(
     "Protégée par Poséidon · Cité portuaire · Terroir : Pêcherie, Saline, Carrière d'argile, Coupe de bois et Pâturage à moutons · Premier site : Pêcherie",
   );
   await expect(city('Ampelos')).toHaveAccessibleDescription(/^Protégée par Dionysos .* Vigne$/);
-  // Choix au clavier : les flèches parcourent le groupe, de la première cité à la dernière.
+  // Aucune cité choisie d'avance : fonder sans choisir est refusé, sans rien envoyer.
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+  await page.getByLabel('Nom de la maison').press('Enter');
+  await expect(page.getByRole('alert')).toHaveText("Choisissez votre cité d'accueil.");
+  await expect(city('Halos')).toHaveAttribute('aria-invalid', 'true');
+  // Choix au clavier : espace sur la première cité, puis les flèches parcourent le groupe.
   await city('Ampelos').focus();
+  await page.keyboard.press('Space');
   await expect(city('Ampelos')).toBeChecked();
   await page.keyboard.press('ArrowUp');
   await expect(page.locator(`input[value="${KALLISTE_ID}"]`)).toBeChecked();
