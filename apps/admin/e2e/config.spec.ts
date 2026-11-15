@@ -31,6 +31,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     starting: { grantOboles: number };
     market: { npcMaxPriceFactor: number };
     goods: [{ id: string; elasticity: number }];
+    recipes: [{ id: string; outputs: [{ goodId: string; quantity: number }] }];
   };
   const grant = config.starting.grantOboles;
   // Formulaire des biens, replié : déplié, une saisie y réécrit le texte, la comparaison la montre.
@@ -52,6 +53,24 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   expect((JSON.parse(await editor.inputValue()) as typeof config).goods).toHaveLength(
     config.goods.length,
   );
+  await expectNoHorizontalScroll(page);
+  // Formulaire des recettes : une saisie dans une ligne d'extrant réécrit le texte, la comparaison la montre.
+  await page.getByText('Recettes', { exact: true }).click();
+  const [recipe] = config.recipes;
+  const [output] = recipe.outputs;
+  const recipes = page
+    .locator('details')
+    .filter({ has: page.getByText('Recettes', { exact: true }) });
+  await recipes
+    .getByRole('group', { name: recipe.id, exact: true })
+    .getByRole('group', { name: 'extrants', exact: true })
+    .getByRole('group', { name: output.goodId, exact: true })
+    .getByLabel('quantité')
+    .fill(String(output.quantity + 1));
+  const quantity = `recipes[${recipe.id}].outputs[${output.goodId}].quantity`;
+  await expect(
+    page.getByText(`${quantity} : ${output.quantity} → ${output.quantity + 1}`),
+  ).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // Un texte qui n'est pas du JSON est signalé à la sortie du champ, pas pendant la frappe.

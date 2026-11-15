@@ -253,6 +253,20 @@
         "service": "Service"
       }
     },
+    "recipesForm": {
+      "hint": "Each entry rewrites the JSON text above. Recipes, inputs and outputs are still added or removed there.",
+      "empty": "None.",
+      "unavailable": "Form unavailable: the text must be a JSON object whose “recipes” is a list of objects, whose “inputs” and “outputs” are lists of objects.",
+      "siteTypes": {
+        "field": "Field",
+        "orchard": "Orchard",
+        "pasture": "Pasture",
+        "forest": "Forest",
+        "quarry": "Quarry",
+        "fishery": "Fishery",
+        "workshop": "Workshop"
+      }
+    },
     "schemaPath": {
       "root": "Whole configuration",
       "position": "item {{rank}}",

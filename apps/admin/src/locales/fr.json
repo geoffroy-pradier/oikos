@@ -253,6 +253,20 @@
         "service": "Service"
       }
     },
+    "recipesForm": {
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Une recette, un intrant ou un extrant s'y ajoute ou s'y retire encore.",
+      "empty": "Aucun.",
+      "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « recipes » est une liste d'objets, dont « inputs » et « outputs » sont des listes d'objets.",
+      "siteTypes": {
+        "field": "Champ",
+        "orchard": "Verger",
+        "pasture": "Pâture",
+        "forest": "Forêt",
+        "quarry": "Carrière",
+        "fishery": "Pêcherie",
+        "workshop": "Atelier"
+      }
+    },
     "schemaPath": {
       "root": "Configuration entière",
       "position": "élément {{rank}}",

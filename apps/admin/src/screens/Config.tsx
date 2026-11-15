@@ -9,6 +9,7 @@ import { LoadError } from '../LoadError';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
 import { GoodsForm } from './GoodsForm';
+import { RecipesForm } from './RecipesForm';
 
 interface Listing {
   activeVersionId: string | null;
@@ -392,6 +393,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             {invalid && t('config.invalidJson')}
           </p>
           <GoodsForm config={parsed} readOnly={!canEdit} onChange={edit} />
+          <RecipesForm config={parsed} readOnly={!canEdit} onChange={edit} />
           <h3 className="text-lg">
             {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
           </h3>
