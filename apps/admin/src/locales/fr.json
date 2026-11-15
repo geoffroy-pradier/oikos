@@ -234,6 +234,10 @@
     "scheduled": "Programmée pour le {{date}}",
     "retiredInUse": "Biens retirés par cette version et encore détenus : sa programmation sera refusée tant qu'ils le sont.",
     "goodInUse": "{{good}} — maisons : {{houses}} ; unités en stock : {{quantity}} ; ordres ouverts : {{orders}} ; séquestre : {{escrow}} oboles",
+    "retiredUnconfirmed": "Recettes et classes de PNJ retirées par cette version et encore en usage. Une fois activée, elle mettra à l'arrêt faute de recette les sites qui les exploitent (leurs maisons pourront en changer gratuitement) ; une classe retirée garde sa population, qu'elle reprendra si une version la rend.",
+    "recipeInUse": "Recette {{recipe}} — sites : {{sites}} ; maisons : {{houses}}",
+    "classInUse": "Classe {{npcClass}} — cités : {{cities}} ; habitants gardés : {{population}}",
+    "confirmRetired": "Je confirme : programmer la version {{number}} malgré ces recettes et ces classes en usage",
     "noNote": "Sans note",
     "by": "par {{account}}, le {{date}}",
     "open": "Ouvrir la version {{number}}",
@@ -274,7 +278,8 @@
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé.",
-      "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent."
+      "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent.",
+      "CONFIG_RETIRED_UNCONFIRMED": "Cette version retire des recettes ou des classes de PNJ encore en usage (détail sous la version) : cochez la confirmation sous la version, puis programmez de nouveau."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
     "tableForm": {

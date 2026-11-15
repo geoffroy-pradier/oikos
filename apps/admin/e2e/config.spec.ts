@@ -141,6 +141,14 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     test.setTimeout(test.info().timeout + untilClose + 5_000);
     await page.waitForTimeout(untilClose + 2_000);
   }
+  // Une base où d'autres essais ont laissé des sites sur des recettes absentes de cette version, ou des
+  // classes de PNJ retirées, fait confirmer la programmation (#200) : la case se coche au clavier.
+  const confirm = inForce.getByRole('checkbox', { name: /^Je confirme : programmer la version/ });
+  if ((await confirm.count()) > 0) {
+    await confirm.focus();
+    await page.keyboard.press('Space');
+    await expect(confirm).toBeChecked();
+  }
   await inForce
     .getByRole('button', { name: `Programmer la version ${number} à la prochaine clôture` })
     .click();

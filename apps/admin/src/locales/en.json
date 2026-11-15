@@ -234,6 +234,10 @@
     "scheduled": "Scheduled for {{date}}",
     "retiredInUse": "Goods retired by this version and still held: scheduling it will be refused while they are.",
     "goodInUse": "{{good}} — houses: {{houses}}; units in stock: {{quantity}}; open orders: {{orders}}; escrow: {{escrow}} obols",
+    "retiredUnconfirmed": "Recipes and NPC classes retired by this version and still in use. Once activated, sites running these recipes will be halted for lack of a recipe (their houses may switch for free); a retired class keeps its population, which it resumes if a version brings it back.",
+    "recipeInUse": "Recipe {{recipe}} — sites: {{sites}}; houses: {{houses}}",
+    "classInUse": "Class {{npcClass}} — cities: {{cities}}; inhabitants kept: {{population}}",
+    "confirmRetired": "I confirm: schedule version {{number}} despite these recipes and classes in use",
     "noNote": "No note",
     "by": "by {{account}}, on {{date}}",
     "open": "Open version {{number}}",
@@ -274,7 +278,8 @@
       "INTERNAL": "The action did not complete. Try again: it will not run twice.",
       "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
       "VALIDATION_FAILED": "Request rejected: content too large or malformed.",
-      "CONFIG_GOOD_IN_USE": "This version retires goods still held in stock or carried by open orders (details under the version). Keep them in the configuration while houses hold them."
+      "CONFIG_GOOD_IN_USE": "This version retires goods still held in stock or carried by open orders (details under the version). Keep them in the configuration while houses hold them.",
+      "CONFIG_RETIRED_UNCONFIRMED": "This version retires recipes or NPC classes still in use (details under the version): tick the confirmation under the version, then schedule again."
     },
     "diffPending": "Differences from the version in force: loading…",
     "tableForm": {
