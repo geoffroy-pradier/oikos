@@ -52,10 +52,9 @@ select is(
   (select string_agg(column_name || ':' || privilege_type, ' ' order by column_name, privilege_type)
    from information_schema.column_privileges
    where table_schema = 'game' and table_name = 'ships' and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
-  'class_id:INSERT docked_city_id:INSERT house_id:INSERT world_id:INSERT',
-  'le service crée un navire sans en choisir ni l''identifiant, ni la date, ni le désarmement : liste figée');
-select ok(not has_any_column_privilege('oikos_service', 'game.ships', 'update')
-  and not has_table_privilege('oikos_service', 'game.ships', 'delete'), 'le service ne modifie ni ne supprime un navire');
+  'class_id:INSERT docked_city_id:INSERT docked_city_id:UPDATE house_id:INSERT laid_up_at:UPDATE world_id:INSERT',
+  'le service crée un navire sans en choisir ni l''identifiant, ni la date, ni le désarmement, puis ne change que son quai (voyages) et son désarmement (entretien, #252) : liste figée');
+select ok(not has_table_privilege('oikos_service', 'game.ships', 'delete'), 'le service ne supprime pas un navire');
 select is(
   (select string_agg(r.rolname, ' ' order by r.rolname) from pg_roles r
    where has_function_privilege(r.oid, 'game.ship_rules()', 'execute') and not r.rolsuper
