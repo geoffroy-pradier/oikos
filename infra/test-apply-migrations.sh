@@ -91,6 +91,14 @@ add 20260101000004_broken.sql m4
 apply "$mig"
 expect "migration corrigée : appliquée une fois, puis la suivante" "$(times_applied m4)$(times_applied m5)" 11
 
+echo "# Deux fichiers de même version"
+add 20260101000005_twin.sql twin
+code=0
+run "$mig" || code=$?
+expect "version en double : refusée" "$code" 2
+expect "version en double : rien n'est appliqué" "$(times_applied twin)" 0
+rm "$mig/20260101000005_twin.sql"
+
 echo "# Exécutions simultanées"
 # Une migration enregistrée par une autre exécution après le calcul des migrations à appliquer est sautée.
 add 20260101000006_six.sql m6 "insert into supabase_migrations.schema_migrations (version) values ('20260101000007');"

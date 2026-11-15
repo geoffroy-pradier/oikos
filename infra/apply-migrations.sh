@@ -44,6 +44,12 @@ for file in "$dir"/*.sql; do
     echo "nom de migration invalide : $(basename "$file")" >&2
     exit 2
   }
+  # Deux fichiers de même version : le second serait pris pour déjà appliqué.
+  [[ " ${versions:-} " != *" ${BASH_REMATCH[1]} "* ]] || {
+    echo "version de migration en double : ${BASH_REMATCH[1]}" >&2
+    exit 2
+  }
+  versions="${versions:-} ${BASH_REMATCH[1]}"
   files+=("$file")
 done
 [ ${#files[@]} -gt 0 ] || { echo "aucune migration dans $dir" >&2; exit 2; }
