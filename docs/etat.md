@@ -273,6 +273,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   l'après-midi #226 (401), #228 (415), #231 (484), #236 (422), #237 (471) et #239 (507). Le plus souvent, ce sont
   les tests ou les reprises demandés en relecture qui ont fait passer la limite ; #231 dépassait dès sa
   première version. Les autres tickets sont découpés en tranches.
+- **Règle 9 et mise en page des documents** : `CLAUDE.md` dit maintenant qu'une migration publiée ne se modifie plus, et que les documents de `docs/` s'écrivent une phrase par ligne.
+  Les lignes de plus de 400 caractères des spécifications ont été coupées ainsi, sans changer leur rendu : elles provoquaient des conflits à chaque demande de fusion qui touchait le même paragraphe.
 - **Après-midi du 15 novembre** : plusieurs tickets ont avancé en parallèle, chacun dans son arbre de travail
   (`git worktree`), sur une seule base Supabase locale partagée. La base est donc salie par les tests
   d'intégration : en local, beaucoup de fichiers pgTAP y échouent pour cette seule raison, et la `ci`, qui
@@ -328,11 +330,6 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
   Le serveur devra aussi garder `max_prepared_transactions = 0` (ADR 0003), ce que rien ne vérifie.
 - **#229, stock d'un bien à retirer** : rachat, conversion ou correction tracée par Olympe, à décider.
-- **Règle 9 du `CLAUDE.md`** : depuis #218, une migration publiée ne se modifie plus (la `ci` le refuse).
-  La règle pourrait le dire ; le fichier n'a pas été modifié sans humain.
-- **Spécification 15** : son paragraphe sur les commandes et lectures d'Olympe tient sur une seule ligne
-  très longue. Chaque demande de fusion qui la touche entre en conflit avec les autres, et il a fallu le
-  résoudre à la main plusieurs fois cet après-midi. Le scinder en phrases sur plusieurs lignes l'éviterait.
 
 Défauts connus :
 

@@ -4,7 +4,9 @@ L'univers est une Grèce mythique intemporelle, l'Archipel, où les dieux existe
 
 ## Le récit
 
-Après la guerre contre les Titans, Zeus a interdit aux dieux d'intervenir directement chez les mortels. Depuis, les Olympiens rivalisent par procuration : chacun parraine des maisons et des cités, et la gloire d'un dieu se mesure à la prospérité de ses protégés. Le joueur arrive comme chef d'une maison modeste, débarqué dans une cité qui l'accueille comme métèque avant de lui offrir la citoyenneté.
+Après la guerre contre les Titans, Zeus a interdit aux dieux d'intervenir directement chez les mortels.
+Depuis, les Olympiens rivalisent par procuration : chacun parraine des maisons et des cités, et la gloire d'un dieu se mesure à la prospérité de ses protégés.
+Le joueur arrive comme chef d'une maison modeste, débarqué dans une cité qui l'accueille comme métèque avant de lui offrir la citoyenneté.
 
 ## Lexique de jeu
 
