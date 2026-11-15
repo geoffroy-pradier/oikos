@@ -5,6 +5,7 @@ import {
   DEFAULT_POPULATION_DYNAMICS,
   DEFAULT_PRICE_INDEX,
   DEFAULT_SITES,
+  DEFAULT_TELEMETRY,
   DEFAULT_UPKEEP,
   validateConfig,
   type GameConfig,
@@ -40,6 +41,7 @@ const FIXTURE: GameConfig = {
     inflationTargetBps: { min: -50, max: 250 },
     basket: [{ goodId: 'bread', quantity: 2 }],
   },
+  telemetry: { retentionDays: 30 },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -579,6 +581,25 @@ describe('dynamique de population', () => {
     expect(errorsOf(config)).toEqual([]);
     at(config.cities, 0).population[classId] = 100_000_001;
     expect(errorsOf(config)).toEqual([expect.stringMatching(/^cities\[0\]\.population\./)]);
+  });
+});
+
+describe('rétention de la télémétrie', () => {
+  it('une version publiée avant elle reste lisible : 90 jours', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.telemetry;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.telemetry).toEqual({ retentionDays: 90 });
+    expect(Object.isFrozen(DEFAULT_TELEMETRY)).toBe(true);
+  });
+
+  it('au moins deux jours, la Vigie lisant les dernières 24 heures ; au plus dix ans, en jours entiers', () => {
+    const errors = (retentionDays: number) =>
+      errorsOf({ ...clone(), telemetry: { retentionDays } });
+    expect([errors(2), errors(3650)]).toEqual([[], []]);
+    for (const wrong of [1, 3651, 7.5])
+      expect(errors(wrong)).toEqual([expect.stringMatching(/^telemetry\.retentionDays: /)]);
   });
 });
 

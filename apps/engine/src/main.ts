@@ -2,6 +2,7 @@ import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
 import { CLOSE_STEPS } from './close-steps';
+import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { npcDemand } from './steps/npc-demand';
 import { observedPricesStep } from './steps/observed-prices';
@@ -17,6 +18,8 @@ if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
 
 const db = createDb(databaseUrl);
 await ensureInitialConfig(db, INITIAL_CONFIG);
+// Une activation programmée avant le refus des changements d'horloge (#123) n'est pas appliquée (#213).
+await cancelClockChangingActivations(db);
 const loader = createConfigLoader(db);
 
 // File de tâches dans Postgres (pg-boss) : pas de Redis. L'horloge passe chaque minute ; le moteur joue
@@ -38,6 +41,10 @@ await boss.work(QUEUE, async () => {
     if (played.length > 0) console.log(`World ${worldId}: played ticks ${played.join(', ')}`);
   for (const { worldId, played } of closes)
     if (played.length > 0) console.log(`World ${worldId}: closed game days ${played.join(', ')}`);
+  // Rétention de la télémétrie (#213) : un échec est signalé, il n'arrête ni ticks ni clôtures.
+  await purgeTelemetry(db, { now, config: loader }).catch((error: unknown) =>
+    console.error('Telemetry purge failed', error),
+  );
   for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
 });
