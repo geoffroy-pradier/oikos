@@ -43,11 +43,18 @@ describe('parseSiteRules', () => {
       .map((recipe) => recipe.id);
     expect(rules?.alternatives('mill_flour').map((recipe) => recipe.id)).toEqual(workshops);
     expect(rules?.recipe('mill_flour')?.inputs).toEqual([{ goodId: 'wheat', quantity: 10 }]);
-    expect(rules?.recipe('inconnue')).toBeNull();
-    expect(rules?.alternatives('inconnue')).toEqual([]);
     expect(rules?.siteTypeOf('rake_salt')).toBe('fishery');
     expect(rules?.siteTypeOf('mill_flour')).toBe('workshop');
+  });
+
+  it('recette retirée de la configuration : pas de type, toutes les recettes sont proposées (4.2)', () => {
+    const rules = parseSiteRules(raw());
+    expect(rules?.recipe('inconnue')).toBeNull();
     expect(rules?.siteTypeOf('inconnue')).toBeNull();
+    expect(rules?.upkeepOf('inconnue')).toBe(0);
+    expect(rules?.alternatives('inconnue').map((recipe) => recipe.id)).toEqual(
+      config.recipes.map((recipe) => recipe.id),
+    );
   });
 
   it('applique les valeurs par défaut du schéma partagé à une version sans section des sites', () => {

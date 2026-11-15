@@ -78,6 +78,9 @@
     "harvestWaiting_other": "{{count}} cycles attendent des intrants.",
     "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture quotidienne",
     "halted": "À l'arrêt depuis le {{date}} : entretien impayé. Ce site ne produit plus.",
+    "retired": "À l'arrêt : sa production n'existe plus. Ce site ne produit plus rien ; choisissez-lui une autre production.",
+    "retiredOption": "{{site}} (production retirée)",
+    "productionTyped": "{{site}} ({{type}})",
     "restart": "Relancer ({{cost}})",
     "restartSite": "Relancer : {{site}}, pour {{cost}}",
     "restarted": "Site relancé : {{site}}, pour {{cost}} d'entretien.",
@@ -86,6 +89,7 @@
     "watch": "À surveiller",
     "watchLine": "{{site}} — {{alerts}}",
     "alert": {
+      "retired": "à l'arrêt, production retirée",
       "halted": "arrêté, entretien non payé",
       "short": "à court d'intrants",
       "full": "plafond de production atteint"

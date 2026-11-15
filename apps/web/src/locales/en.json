@@ -78,6 +78,9 @@
     "harvestWaiting_other": "{{count}} cycles are waiting for inputs.",
     "upkeep": "Upkeep: {{cost}} a day, charged at the daily close",
     "halted": "Halted since {{date}}: upkeep unpaid. This site no longer produces.",
+    "retired": "Stopped: its production no longer exists. This site produces nothing; choose another production for it.",
+    "retiredOption": "{{site}} (production withdrawn)",
+    "productionTyped": "{{site}} ({{type}})",
     "restart": "Restart ({{cost}})",
     "restartSite": "Restart: {{site}}, for {{cost}}",
     "restarted": "Site restarted: {{site}}, for {{cost}} of upkeep.",
@@ -86,6 +89,7 @@
     "watch": "Needs attention",
     "watchLine": "{{site}} — {{alerts}}",
     "alert": {
+      "retired": "stopped, production withdrawn",
       "halted": "stopped, upkeep not paid",
       "short": "short of inputs",
       "full": "production cap reached"
