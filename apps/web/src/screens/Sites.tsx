@@ -163,20 +163,35 @@ export function SitesCard({
     running.current = true;
     setBusy(true);
     setNotice(null);
-    const result = await send();
-    // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
-    // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
+    try {
+      const result = await send();
+      // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
+      // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
+      await refresh();
+      // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
+      setNotice(
+        result.ok
+          ? { target, kind: 'status', text: done(result.data, result.replayed) }
+          : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
+      );
+      return result;
+    } catch {
+      // Un appel qui a levé (envoi, relecture, message) : l'issue est tenue pour inconnue, même si la
+      // commande a pu aboutir. La clé éventuelle reste en attente (la renvoyer rejoue la réponse), ce
+      // qui a pu changer est relu une fois, l'erreur est annoncée et l'écran redevient utilisable.
+      await refresh().catch(() => undefined);
+      setNotice({ target, kind: 'alert', text: t('errors.INTERNAL') });
+      return null;
+    } finally {
+      setBusy(false);
+      running.current = false;
+    }
+  }
+
+  /** Relit ce qu'une commande a pu changer, puis l'heure. */
+  async function refresh() {
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
     setNow(serverClock.now());
-    // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
-    setNotice(
-      result.ok
-        ? { target, kind: 'status', text: done(result.data, result.replayed) }
-        : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
-    );
-    setBusy(false);
-    running.current = false;
-    return result;
   }
 
   const collect = (site: Site) =>
@@ -262,35 +277,41 @@ export function SitesCard({
     setBusy(true);
     setNotice(null);
     const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
-    const outcome = await collectAll(
-      harvestable.map((site) => site.id),
-      (siteId) => collectSite(siteId, house.accessToken),
-    );
-    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(serverClock.now());
-    const parts: string[] = [];
-    if (outcome.succeeded.length > 0)
-      parts.push(
-        t('home.collectedAll', {
-          count: outcome.succeeded.length,
-          number: number.format(outcome.succeeded.length),
-          list: list(outcome.collected.map(stackText)),
-        }),
+    try {
+      const outcome = await collectAll(
+        harvestable.map((site) => site.id),
+        (siteId) => collectSite(siteId, house.accessToken),
       );
-    for (const failure of outcome.failed)
-      parts.push(
-        t('home.collectAllFailed', {
-          site: names.get(failure.siteId) ?? failure.siteId,
-          reason: t([`errors.${failure.code}`, 'errors.INTERNAL']),
-        }),
-      );
-    setNotice({
-      target: ALL,
-      kind: outcome.succeeded.length === 0 ? 'alert' : 'status',
-      text: parts.join(' '),
-    });
-    setBusy(false);
-    running.current = false;
+      await refresh();
+      const parts: string[] = [];
+      if (outcome.succeeded.length > 0)
+        parts.push(
+          t('home.collectedAll', {
+            count: outcome.succeeded.length,
+            number: number.format(outcome.succeeded.length),
+            list: list(outcome.collected.map(stackText)),
+          }),
+        );
+      for (const failure of outcome.failed)
+        parts.push(
+          t('home.collectAllFailed', {
+            site: names.get(failure.siteId) ?? failure.siteId,
+            reason: t([`errors.${failure.code}`, 'errors.INTERNAL']),
+          }),
+        );
+      setNotice({
+        target: ALL,
+        kind: outcome.succeeded.length === 0 ? 'alert' : 'status',
+        text: parts.join(' '),
+      });
+    } catch {
+      // Des récoltes ont pu aboutir avant l'appel qui a levé : ce qui a changé est relu une fois.
+      await refresh().catch(() => undefined);
+      setNotice({ target: ALL, kind: 'alert', text: t('errors.INTERNAL') });
+    } finally {
+      setBusy(false);
+      running.current = false;
+    }
   }
 
   // Chaque cible a ses deux régions vivantes, présentes avant le message : un lecteur d'écran n'annonce
