@@ -147,6 +147,27 @@ jobs:
         env:
           FILTER: ${{ matrix.filter }}
         run: pnpm exec turbo run test:integration --concurrency=1 "--filter=$FILTER"
+      # Un déploiement arrête l'API et le moteur avant de migrer. De même, aucune connexion laissée par les
+      # tests (une requête encore en cours quand vitest s'arrête) ne doit croiser le rejeu : elle peut tenir
+      # un verrou que le rejeu attend, et attendre une ligne que le rejeu tient (interblocage vu sur #308,
+      # cause non établie). Toutes les connexions de la base sont listées dans le journal du job ; seules
+      # celles des tests (rôle postgres) sont fermées.
+      - name: Close test connections
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -q -v ON_ERROR_STOP=1 <<'SQL'
+          select pid, usename, backend_type, state, wait_event_type, wait_event, left(query, 120) as query,
+                 case when usename = 'postgres' and backend_type = 'client backend'
+                      then pg_terminate_backend(pid, 5000) end as closed
+            from pg_stat_activity
+           where datname = current_database() and pid <> pg_backend_pid();
+          do $check$ begin
+            if exists (select from pg_stat_activity
+                        where datname = current_database() and usename = 'postgres'
+                          and backend_type = 'client backend' and pid <> pg_backend_pid()) then
+              raise exception 'des connexions des tests restent ouvertes';
+            end if;
+          end $check$;
+          SQL
       # Filet de la règle 9 : la suite des migrations se rejoue aussi sur une base remplie de données.
       - name: Replay migrations on data
         env:

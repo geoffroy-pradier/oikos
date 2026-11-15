@@ -342,7 +342,10 @@ describe('Vigie', () => {
             .executeTakeFirstOrThrow();
           await scheduleActivation(trx, version.id);
           const loader = createConfigLoader(trx);
-          const instant = new Date();
+          // L'activation porte l'heure de la base à la microseconde, une `Date` est tronquée à la
+          // milliseconde : lue dans la même milliseconde, l'activation serait encore future et la
+          // version précédente, valide, serait en vigueur. Une milliseconde de plus l'évite.
+          const instant = new Date(Date.now() + 1);
           const loaded = await loader.at(instant).then(
             () => null,
             (error: unknown) => error,
