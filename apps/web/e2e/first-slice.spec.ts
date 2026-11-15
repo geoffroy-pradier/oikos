@@ -854,6 +854,10 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
   await page.keyboard.press('Enter');
   const title = page.getByRole('heading', { name: `Comptes de la maison ${houseName}` });
   await expect(title).toBeFocused();
+  // Un écran de l'onglet Maison : l'onglet reste marqué actif, et lui seul.
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await expect(nav.getByRole('link', { name: 'Maison' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
   await expect(said(page, 'alert')).toContainText('Impossible de lire vos données');
   await expect(page.getByRole('heading', { name: 'Bilan' })).toHaveCount(0);
   await page.unroute('**/rest/v1/my_balance_sheet*');

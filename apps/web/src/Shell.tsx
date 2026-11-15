@@ -1,10 +1,10 @@
 import { Button } from '@oikos/ui';
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelect } from './LanguageSelect';
 import { applyTheme, initialTheme, type Theme } from './preferences';
-import { router, TABS, type TabId } from './router';
+import { router, TABS, tabOf, type TabId } from './router';
 import { supabase } from './supabase';
 
 /** Icônes au trait (direction artistique). Décoratives : le libellé de l'onglet porte l'information. */
@@ -33,6 +33,7 @@ function TabIcon({ tab }: { tab: TabId }) {
 
 export function Shell() {
   const { t } = useTranslation();
+  const active = tabOf(useRouterState({ select: (state) => state.location.pathname }));
   const [theme, setTheme] = useState<Theme>(() =>
     initialTheme(window.matchMedia('(prefers-color-scheme: dark)').matches),
   );
@@ -72,9 +73,12 @@ export function Shell() {
             <li key={tab.id} className="min-w-0">
               <Link
                 to={tab.to}
-                className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-center text-xs leading-tight wrap-anywhere lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-left lg:text-base"
-                activeProps={{ className: 'font-bold text-primary underline underline-offset-4' }}
-                activeOptions={{ exact: tab.to === '/', includeSearch: false }}
+                // L'onglet actif se déduit du chemin : un écran de l'onglet Maison (`/comptes`) le
+                // garde marqué, ce que la correspondance de route seule ne ferait pas.
+                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-center text-xs leading-tight wrap-anywhere lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-left lg:text-base ${tab.id === active ? 'font-bold text-primary underline underline-offset-4' : ''}`}
+                aria-current={tab.id === active ? 'page' : undefined}
+                activeOptions={{ exact: true, includeSearch: false }}
+                activeProps={{ 'aria-current': tab.id === active ? 'page' : undefined }}
               >
                 <TabIcon tab={tab.id} />
                 <span>{t(`tabs.${tab.id}.label`)}</span>
