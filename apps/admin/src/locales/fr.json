@@ -53,6 +53,7 @@
   },
   "tabs": {
     "vigie": "Vigie",
+    "economy": "Économie",
     "config": "Paramètres",
     "audit": "Journal d'audit",
     "access": "Accès"
@@ -93,6 +94,52 @@
     "refusedTooLarge": "Requêtes trop volumineuses (24 h)",
     "refusedForbidden": "Lectures du back-office refusées (24 h)",
     "adminReads": "Lectures du back-office (24 h)"
+  },
+  "economy": {
+    "title": "Économie",
+    "intro": "Montants en oboles, lus dans le grand livre. Un robinet crée de la monnaie, un puits en détruit ; un montant négatif est un net inverse (un remboursement à un robinet, par exemple).",
+    "world": "Monde « {{slug}} »",
+    "indexCurrent": "Indice des prix, {{days}} derniers jours (référence : 100)",
+    "indexPrevious": "Indice des prix, {{days}} jours précédents",
+    "inflation": "Inflation sur {{days}} jours",
+    "statusLabel": "Situation de l'inflation",
+    "status": {
+      "in_target": "Dans la cible ({{min}} à {{max}})",
+      "below": "Sous la cible ({{min}} à {{max}})",
+      "above": "Au-dessus de la cible ({{min}} à {{max}})",
+      "unknown": "Sans mesure"
+    },
+    "alert": "Alerte : inflation de {{inflation}} sur {{days}} jours. {{status}}.",
+    "unpriced": "Mesure incomplète : aucun échange sur l'une des deux périodes pour {{goods}} (identifiants des biens du panier de référence).",
+    "noBasket": "Mesure impossible : la configuration en vigueur n'a pas de panier de référence.",
+    "supply": {
+      "title": "Masse monétaire",
+      "houses": "Trésoreries des maisons",
+      "escrow": "Séquestres de l'agora",
+      "cityTreasuries": "Trésors des cités",
+      "other": "Autres comptes",
+      "total": "Total"
+    },
+    "totals": "Robinets et puits : net depuis l'origine",
+    "kind": {
+      "faucet": "{{name}} (robinet)",
+      "sink": "{{name}} (puits)"
+    },
+    "accounts": {
+      "faucet_npc_purchases": "Achats des PNJ",
+      "faucet_temple_loans": "Prêts du Trésor du temple",
+      "faucet_rewards": "Récompenses de quêtes et de Jeux",
+      "faucet_starting_grant": "Dotation de départ",
+      "sink_npc_wages": "Salaires des travailleurs PNJ",
+      "sink_upkeep": "Entretien des sites",
+      "sink_market_tax": "Taxe de marché, part détruite",
+      "sink_offerings": "Offrandes, fêtes et liturgies",
+      "sink_temple_interest": "Intérêts du Trésor du temple",
+      "sink_public_works": "Grands travaux et merveilles",
+      "sink_site_acquisition": "Acquisition de sites"
+    },
+    "byDay": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",
+    "noDays": "Aucun mouvement sur la période."
   },
   "access": {
     "title": "Accès",
@@ -192,6 +239,17 @@
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
+    "goodsForm": {
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Un bien s'y ajoute ou s'y retire.",
+      "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « goods » est une liste d'objets.",
+      "choose": "— choisir —",
+      "tiers": {
+        "raw": "Matière",
+        "intermediate": "Intermédiaire",
+        "finished": "Fini",
+        "service": "Service"
+      }
+    },
     "schemaPath": {
       "root": "Configuration entière",
       "position": "élément {{rank}}",
@@ -203,6 +261,7 @@
         "marketTax": "Taxe de marché",
         "priceHistory": "Historique des prix",
         "populationDynamics": "Dynamique de population",
+        "priceIndex": "Indice des prix",
         "goods": "Biens",
         "recipes": "Recettes",
         "npcClasses": "Classes de PNJ",

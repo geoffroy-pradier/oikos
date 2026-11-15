@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { AdminReply } from './api';
 import { App } from './App';
 import { initI18n } from './i18n';
-import { auth, held, jwt, resetAuth, sessionOf, setSession, VIGIE } from './test/fakes';
+import { auth, ECONOMY, held, jwt, resetAuth, sessionOf, setSession, VIGIE } from './test/fakes';
 
 const adminGet = vi.hoisted(() => vi.fn());
 vi.mock('./api', () => ({ adminGet }));
@@ -15,6 +15,7 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
   adminGet.mockImplementation((path: string) => {
     if (path === 'me') return Promise.resolve(me);
     if (path === 'vigie') return Promise.resolve({ ok: true, data: VIGIE });
+    if (path === 'economy') return Promise.resolve({ ok: true, data: ECONOMY });
     if (path.startsWith('config')) return Promise.resolve({ ok: false, code: 'INTERNAL' });
     if (path === 'roles') return Promise.resolve({ ok: true, data: { roles: [] } });
     return Promise.resolve({ ok: true, data: { entries: [] } });
@@ -90,15 +91,24 @@ describe('accès au back-office', () => {
   });
 
   it.each([
-    ['super_admin', ['Vigie', 'Paramètres', "Journal d'audit", 'Accès']],
-    ['observer', ['Vigie', 'Paramètres', "Journal d'audit"]],
-    ['game_designer', ['Vigie', 'Paramètres']],
+    ['super_admin', ['Vigie', 'Économie', 'Paramètres', "Journal d'audit", 'Accès']],
+    ['observer', ['Vigie', 'Économie', 'Paramètres', "Journal d'audit"]],
+    ['game_designer', ['Vigie', 'Économie', 'Paramètres']],
   ])('le rôle %s voit les onglets prévus', async (role, expected) => {
     api({ ok: true, data: { role } });
     signedIn();
     render(<App />);
     await screen.findByRole('heading', { name: 'Vigie', level: 1 });
     expect(tabs()).toEqual(expected);
+  });
+
+  it('l’onglet Économie lit sa route et devient la page courante', async () => {
+    api({ ok: true, data: { role: 'game_designer' } });
+    signedIn();
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Économie' }));
+    expect(await screen.findByRole('heading', { name: 'Monde « archipel »' })).toBeTruthy();
+    expect(adminGet).toHaveBeenCalledWith('economy', A2);
   });
 
   it("un rôle sans module (modérateur) n'a ni onglet ni lecture", async () => {
@@ -218,7 +228,7 @@ describe('changement de session', () => {
     await waitFor(() => expect(adminGet).toHaveBeenCalledWith('vigie', renewed));
     expect(adminGet.mock.calls.every((call) => call[1] === renewed)).toBe(true);
     expect(screen.getByText('Rôle : Observateur')).toBeTruthy();
-    expect(tabs()).toEqual(['Vigie', 'Paramètres', "Journal d'audit"]);
+    expect(tabs()).toEqual(['Vigie', 'Économie', 'Paramètres', "Journal d'audit"]);
     expect(screen.queryByText('Lecture impossible pour le moment.')).toBeNull();
   });
 
