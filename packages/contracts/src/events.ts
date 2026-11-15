@@ -8,6 +8,7 @@ import {
   goodBoughtBackSchema,
 } from './admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
+import { shipAcquiredSchema } from './ship';
 import {
   siteAcquiredSchema,
   siteCollectedSchema,
@@ -40,6 +41,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteRecipeChangedSchema,
   siteRestartedSchema,
   upkeepSettledSchema,
+  shipAcquiredSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

@@ -137,6 +137,14 @@ describe('jeu de valeurs initial', () => {
     expect(upkeep.coefficientBps).toBeGreaterThan(0);
   });
 
+  it('deux classes de navires, sans entretien au départ (#251, paramètres neutres)', () => {
+    expect(config.ships.classes.map((shipClass) => shipClass.id)).toEqual([
+      'coaster',
+      'round_ship',
+    ]);
+    for (const shipClass of config.ships.classes) expect(shipClass.dailyUpkeepOboles).toBe(0);
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {

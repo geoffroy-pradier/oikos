@@ -82,6 +82,24 @@
       }
     }
   },
+  "ships": {
+    "classes": [
+      {
+        "id": "coaster",
+        "capacityUnits": 300,
+        "speedBps": 10000,
+        "purchaseCostOboles": 2400,
+        "dailyUpkeepOboles": 0
+      },
+      {
+        "id": "round_ship",
+        "capacityUnits": 900,
+        "speedBps": 7500,
+        "purchaseCostOboles": 6000,
+        "dailyUpkeepOboles": 0
+      }
+    ]
+  },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },

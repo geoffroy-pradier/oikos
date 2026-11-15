@@ -224,6 +224,36 @@ export const sitesSchema = z.strictObject({
 });
 
 /**
+ * Une classe de navire (docs/specs/04-systemes-gestion.md, 4.6). Lue par les joueurs (vue
+ * `public.ship_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ */
+export const shipClassSchema = z.strictObject({
+  id,
+  /** Cargaison au plus, en unités de biens, tous biens confondus. */
+  capacityUnits: z.number().int().positive().max(1_000_000),
+  /** Vitesse en points de base : 10 000 tient la durée de référence d'une route, 20 000 la divise par deux. */
+  speedBps: z.number().int().min(1_000).max(100_000),
+  /** Prix d'achat d'un navire neuf, en oboles. La monnaie est détruite (puits `sink_ship_purchase`). */
+  purchaseCostOboles: z.number().int().positive().max(1_000_000_000),
+  /** Entretien par jour de jeu, en oboles, prélevé à la clôture (#252). Nul : pas d'entretien. */
+  dailyUpkeepOboles: upkeepDailyObolesSchema,
+});
+
+/**
+ * Valeurs lues pour les versions publiées avant le transport : aucune classe, donc aucun navire à
+ * acheter. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_SHIPS = deepFreeze({ classes: [] as z.infer<typeof shipClassSchema>[] });
+
+/**
+ * Navires des maisons (4.6). Lue par les joueurs (vue `public.ship_rules`) : n'y ranger aucun paramètre
+ * qui doive rester caché.
+ */
+export const shipsSchema = z.strictObject({
+  classes: z.array(shipClassSchema).max(20),
+});
+
+/**
  * Valeurs lues pour les versions publiées avant la taxe de marché : elles ne taxaient rien. FIGÉES, pour
  * la même raison que `DEFAULT_SITES`.
  */
@@ -469,6 +499,8 @@ export const gameConfigSchema = z
      * valeurs de départ ci-dessus. Toute version publiée depuis le porte explicitement.
      */
     sites: sitesSchema.default(DEFAULT_SITES),
+    /** Absent des versions publiées avant le transport : elles restent lisibles, sans navire. */
+    ships: shipsSchema.default(DEFAULT_SHIPS),
     /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
@@ -507,6 +539,9 @@ export const gameConfigSchema = z
       for (const duplicate of duplicates(config[key].map((row) => row.id))) {
         issue([key], `duplicate id "${duplicate}"`);
       }
+    }
+    for (const duplicate of duplicates(config.ships.classes.map((row) => row.id))) {
+      issue(['ships', 'classes'], `duplicate id "${duplicate}"`);
     }
     config.recipes.forEach((recipe, index) => {
       const consumed = new Set(recipe.inputs.map((entry) => entry.goodId));
@@ -614,4 +649,5 @@ export type GameConfig = z.infer<typeof gameConfigSchema>;
 export type CityConfig = z.infer<typeof cityConfigSchema>;
 export type Good = z.infer<typeof goodSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
+export type ShipClass = z.infer<typeof shipClassSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;
