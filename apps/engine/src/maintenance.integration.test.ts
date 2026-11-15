@@ -74,6 +74,21 @@ describe('rétention de la télémétrie', () => {
     expect(await count(worldId)).toEqual([1, 1]);
   });
 
+  it('le journal des appels d’IA garde au moins 32 jours, même sous une rétention de 30 jours', async () => {
+    const model = `purge-${randomUUID()}`;
+    for (const ageDays of [40, 31])
+      await sql`insert into telemetry.ai_calls
+          (usage, model, input_tokens, output_tokens, cost_micro_euros, outcome, duration_ms, called_at)
+        values ('oracle', ${model}, 0, 0, 0, 'ok', 0, ${new Date(Date.now() - ageDays * DAY_MS)})`.execute(
+        owner,
+      );
+    const purged = await purgeTelemetry(db, { now: new Date(), config: retention(30) });
+    expect(purged.aiCalls).toBeGreaterThanOrEqual(1);
+    const { rows } = await sql<{ n: string }>`
+      select count(*) as n from telemetry.ai_calls where model = ${model}`.execute(owner);
+    expect(Number(rows[0]?.n)).toBe(1);
+  });
+
   it('close_runs reste en ajout seul : ni le service ni le propriétaire ne suppriment hors purge', async () => {
     const worldId = randomUUID();
     await runs(worldId, 40);

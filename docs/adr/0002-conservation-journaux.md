@@ -26,6 +26,7 @@ fin, ni être purgé au hasard.
 | Lectures du back-office | 1 an | Trace d'accès aux outils d'administration |
 | Refus avant exécution | 1 an | Compteurs horaires, sans identité |
 | Fenêtres de limite de débit | 1 heure | Données éphémères, sans valeur d'audit ; purge par l'API |
+| Appels de la passerelle IA (`telemetry.ai_calls`) | Rétention de la télémétrie, au moins 32 jours | Le plafond mensuel s'y lit ; sans texte de joueur (ADR 0005) ; purge par la fonction du propriétaire, comme les passages de tick et de clôture (migrations 41 et 50) |
 
 - **Idempotence.** Un client ne renvoie une clé que tant qu'il attend une réponse (quelques minutes au
   plus) ; 90 jours couvrent très largement ce besoin. Aujourd'hui la clé vit dans sa ligne du journal

@@ -36,7 +36,8 @@ export interface AiCallRecord {
   inputTokens: number;
   outputTokens: number;
   costMicroEuros: number;
-  outcome: AiOutcome;
+  /** Un usage coupé n'appelle rien et n'est pas journalisé. */
+  outcome: Exclude<AiOutcome, 'disabled'>;
   durationMs: number;
   at: Date;
 }
