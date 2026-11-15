@@ -1,6 +1,6 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 2 h du matin : tickets #72 à #76 et #98 fermés pendant la
+Point d'étape au 15 novembre 2026, vers 3 h du matin (heure de Paris) : tickets #72 à #76 et #98 fermés pendant la
 session, #77 bien avancé. Ce fichier décrit ce qui tourne réellement sur `main` ; les
 spécifications (`docs/specs/`) décrivent la cible.
 
@@ -69,9 +69,10 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   autre compte que son auteur. Procédure écrite d'accès : `docs/exploitation/` (premier enrôlement,
   appareil perdu, retrait). Économie : masse monétaire par nature de compte, robinets et puits par jour de
   jeu, indice des prix sur un panier de six biens et inflation sur 30 jours, avec une alerte écrite
-  quand elle sort de la cible de 0 à 3 % (tant que deux fenêtres d'échanges n'existent pas, la mesure
-  est dite inconnue). Paramètres : formulaire des biens existants, replié sous le texte JSON. Le premier super-administrateur s'inscrit à
-  la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
+  quand elle sort de la cible de 0 à 3 % (la mesure est dite inconnue tant qu'un bien du panier n'a
+  aucun échange dans l'une des deux fenêtres ; elle peut donc être annoncée dès le 31e jour, sur une
+  fenêtre précédente partielle, #181). Paramètres : formulaire des biens existants, replié sous le texte JSON. Le premier
+  super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
   sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
 Ce qui manque encore pour le critère de sortie de la phase 1 : les paramètres par formulaire (#77 :
@@ -169,7 +170,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Comptes de la maison** (4.1, ticket #73) : montants affichés en drachmes et oboles (6 oboles pour 1
   drachme), stocks valorisés au prix moyen observé, ceux sans prix comptés à part ; un compte dont les
   totaux ne tombent pas juste n'est pas affiché.
-- **Carte des sites** (ticket #98) : l'intention d'une acquisition est la production voulue et le nombre
+- **Carte des sites de l'onglet Maison** (ticket #98) : l'intention d'une acquisition est la production voulue et le nombre
   de sites lus ; sans réponse, l'écran rejoue une fois la même clé, puis prévient le joueur avant
   d'abandonner la clé (suivis : #176). Les résultats sont annoncés dans des régions vivantes
   permanentes ; ce qui est récoltable est calculé à l'heure du serveur.
@@ -219,8 +220,12 @@ Défauts connus, déjà en tickets :
   et la clôture ne calculent pas non plus l'instant de clôture de la même façon.
 - **#130** : la base n'empêche pas d'antidater une activation de configuration ; une programmation ou une
   annulation validée à cheval sur l'échéance n'est écartée que par une marge, pas par une garantie.
-- **#145, #155, #158, #161, #176, #181, #184** : suivis des relectures de l'entretien, des comptes, de l'horloge et
-  des migrations, du tableau de bord, du rejeu d'acquisition, de l'indice des prix et de l'écran
+- **#155** : la lecture des flux de trésorerie (`my_cash_flows`) prend environ 950 ms sous règles par
+  ligne, à cause de la compilation à la volée.
+- **#158** : les migrations 09, 19 et 21 ne sont pas rejouables, contrairement à la règle 9 du
+  `CLAUDE.md` ; à corriger, avec le bornage de `seasonDays` et le refus d'un fuseau inconnu de la base.
+- **#145, #161, #176, #181, #184** : suivis des relectures de l'entretien, du tableau de bord (la
+  tranche 3 de #161 est en relecture, #179), du rejeu d'acquisition, de l'indice des prix et de l'écran
   Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
   étroits de double paiement et le `try/finally` des commandes de la carte des sites.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
@@ -230,14 +235,18 @@ Défauts connus, déjà en tickets :
 
 Limites assumées pour l'instant :
 
-- Une seule cité, pas de transport : tout stock est dans la cité de la maison.
-- Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement.
+- Une seule cité, pas de transport : tout stock est dans la cité de la maison (l'affichage par cité de
+  l'entrepôt est prêt, sans être encore atteignable).
+- Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
+  des sites relit ses sites et l'heure au retour sur l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
   décalée fausse ce choix, et la fenêtre annoncée se terminait au calcul, pas à l'instant de lecture.
-- La fiche d'un site calcule « à récolter » avec l'horloge du navigateur ; l'API reste seule à décider.
-- Une base déjà initialisée ne taxe pas tant qu'une version de configuration qui porte cette section n'a
-  pas été publiée dans Olympe, programmée par un second compte et activée à une clôture ; il en ira de
-  même pour l'entretien une fois #140 fusionnée.
+- La fiche d'un site estime « à récolter » à l'heure du serveur (en-tête `Date`, à la seconde près) ;
+  l'API reste seule à décider.
+- Une base déjà initialisée ne taxe pas, ne prélève aucun entretien, garde sa population constante et a
+  un indice des prix inconnu tant qu'une version de configuration qui porte `marketTax`,
+  `sites.upkeep`, `populationDynamics` et `priceIndex` n'a pas été publiée dans Olympe, programmée par un
+  second compte et activée à une clôture. « En jeu » vaut pour une base neuve.
 - Aucun usage d'IA en jeu à ce stade.
