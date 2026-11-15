@@ -228,6 +228,12 @@ export const configActivationScheduledSchema = z.strictObject({
     versionId: z.uuid(),
     activateAt: z.iso.datetime(),
     scheduledBy: z.uuid(),
+    /**
+     * Recettes et classes en usage que la version retire et dont la programmation a été confirmée (#200),
+     * nommées comme dans `CONFIG_RETIRED_UNCONFIRMED` ; vide si elle n'en retire aucune. Absent des
+     * événements écrits avant #200.
+     */
+    confirmedRetired: z.array(z.string()).optional(),
   }),
 });
 
