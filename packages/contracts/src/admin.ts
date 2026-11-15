@@ -69,25 +69,40 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'CONFIG_GOOD_IN_USE',
 ] as const;
 
+const count = z.number().int().nonnegative();
 /**
  * Ce que l'état du monde, tous mondes confondus, porte encore d'un bien (#191) : maisons qui en
  * détiennent ou qui ont un ordre ouvert dessus, unités en stock (réservées comprises), ordres ouverts
  * des deux côtés, oboles sous séquestre pour les achats ouverts.
  */
-export interface GoodUsage {
-  goodId: string;
-  houses: number;
-  quantity: number;
-  openOrders: number;
-  escrowOboles: number;
-}
+export const goodUsageSchema = z.object({
+  goodId: z.string(),
+  houses: count,
+  quantity: count,
+  openOrders: count,
+  escrowOboles: count,
+});
+export type GoodUsage = z.infer<typeof goodUsageSchema>;
+/** Sites qui exploitent encore une recette (#200), et maisons qui les possèdent. */
+export const recipeUsageSchema = z.object({ recipeId: z.string(), sites: count, houses: count });
+export type RecipeUsage = z.infer<typeof recipeUsageSchema>;
+/** État de population d'une classe de PNJ (#200) : cités où elle en a un, habitants gardés. */
+export const npcClassUsageSchema = z.object({
+  classId: z.string(),
+  cities: count,
+  population: count,
+});
+export type NpcClassUsage = z.infer<typeof npcClassUsageSchema>;
 /**
- * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore.
- * Étendu par #200 aux recettes et aux classes de PNJ.
+ * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore : un bien
+ * en usage refuse la programmation (#191) ; une recette ou une classe en usage ne la refuse pas (#200).
  */
-export interface RetiredUsage {
-  goods: GoodUsage[];
-}
+export const retiredUsageSchema = z.object({
+  goods: z.array(goodUsageSchema),
+  recipes: z.array(recipeUsageSchema),
+  npcClasses: z.array(npcClassUsageSchema),
+});
+export type RetiredUsage = z.infer<typeof retiredUsageSchema>;
 
 /**
  * Commande `admin.cancelActivation` : annule une programmation à venir, et avec elle celles encore en

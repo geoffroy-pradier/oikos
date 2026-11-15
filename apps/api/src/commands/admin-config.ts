@@ -13,7 +13,7 @@ import {
 } from '@oikos/contracts';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
-import { readWorldUsage, retiredUsage } from '../config-usage';
+import { configIds, readWorldUsage } from '../config-usage';
 import { defineCommand } from '../registry';
 
 const TIMEZONE_UNKNOWN_MESSAGE = 'The clock time zone is unknown to the database.';
@@ -163,9 +163,7 @@ export const adminScheduleConfig = defineCommand({
     if (changed.length > 0) return clockChanged(changed);
     // Un bien retiré alors qu'une maison le détient ou qu'un ordre ouvert le porte ne se vendrait plus
     // (#191) : refusé. Ce qui est acquis entre la programmation et la clôture relève du repli (05, 5.1).
-    const retired = retiredUsage(await readWorldUsage(trx), {
-      goods: stored.config.goods.map((good) => good.id),
-    });
+    const retired = await readWorldUsage(trx, configIds(stored.config));
     if (retired.goods.length > 0) {
       return {
         ok: false,
