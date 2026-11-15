@@ -9,6 +9,7 @@ export const SYSTEM_ACCOUNT_KEYS = [
   'faucet_temple_loans',
   'faucet_rewards',
   'faucet_starting_grant',
+  'faucet_good_buyback',
   'sink_npc_wages',
   'sink_upkeep',
   'sink_market_tax',

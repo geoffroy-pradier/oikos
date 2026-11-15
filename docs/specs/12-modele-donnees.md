@@ -51,6 +51,9 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   aucun robinet n'est lié en base à sa mécanique, et les jeux d'essai de la base se servent de celui-ci comme d'un robinet ordinaire.
   Aucun de ces débits ne crée ni ne détruit de monnaie hors des comptes système, et chacun reste dans le grand livre, avec sa nature, pour le tableau de bord (5.5) et la détection des transferts (13).
   Lier chaque compte système aux natures d'écriture qui le mouvementent serait le durcissement suivant, pour tous les robinets et puits à la fois.
+- Rachat du stock d'un bien à retirer (#229, 5.1) : le robinet `faucet_good_buyback` paie, par une écriture `admin.good_buyback` par maison, le stock qui part vers l'extrémité système `good_buyback` du journal des stocks, chaque mouvement rattaché à l'écriture de sa maison.
+  Cette extrémité est à sens unique : la base refuse tout mouvement qui en part (contrainte `stock_ledger_buyback_one_way`), si bien qu'un stock racheté ne revient jamais en circulation.
+  Comme pour les autres robinets (décision du ticket 205 ci-dessus), la base ne lie pas ce robinet au rachat ni ne contrôle son prix, qu'elle ne lit pas : seule la commande d'Olympe l'écrit.
 - Règles de sécurité par ligne activées sur toutes les tables exposées, testées en pgTAP : un joueur lit ses données privées et les données publiques, rien d'autre.
 - L'API et le moteur se connectent sous un rôle de service (`oikos_service`) qui ne possède aucune table du jeu : il lit, insère dans les journaux et les tables de jeu, mais ne peut ni supprimer ni vider, ni modifier un solde, un stock ou une réservation autrement que par les journaux.
   Les gardes de la base n'acceptent ces modifications que d'un déclencheur exécuté au nom du propriétaire des tables.
