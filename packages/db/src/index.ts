@@ -30,12 +30,16 @@ export interface GameDatabase {
     blazon: ColumnType<Blazon, string, string>;
     created_at: Generated<Date>;
   };
+  /**
+   * Citoyenneté d'une maison : elle naît métèque, maintenant, et la clôture la fait citoyenne (garde de
+   * la base). Le service n'écrit à la fondation que la maison et la cité.
+   */
   'game.citizenships': {
-    id: Generated<string>;
-    house_id: string;
-    city_id: string;
-    status: Generated<'metic' | 'citizen'>;
-    since: Generated<Date>;
+    id: ColumnType<string, never, never>;
+    house_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    status: ColumnType<'metic' | 'citizen', never, 'citizen'>;
+    since: ColumnType<Date, never, Date>;
   };
 
   'game.command_log': {
