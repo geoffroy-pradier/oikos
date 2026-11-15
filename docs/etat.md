@@ -1,6 +1,6 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 20 h (heure de Paris).
+Point d'étape au 15 novembre 2026, vers 21 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus le suivi #291).
 Trois sont fermés : #250 (quatre cités), #268 (passerelle IA) et #291 (écran Sites filtré par terroir).
@@ -13,7 +13,9 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
-- **Phase 2 (alpha fermée)** : en cours. Fermés : #250, #268, #291. En cours : #251 (navires) et #255 (salaires).
+- **Phase 2 (alpha fermée)** : en cours.
+  Fermés : #250, #268, #291.
+  En cours, dans des branches pas encore publiées : #251 (navires) et #255 (salaires).
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -23,7 +25,7 @@ En local (procédure dans le `README.md`), dans quatre cités : Kallistè, Elaia
 Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour recevoir les trois nouvelles cités et la configuration qui les décrit.
 
 - **Compte et maison.** Connexion par lien magique (courriel). Création d'une maison : nom, blason, cité.
-  La maison reçoit 3 000 oboles et un champ de blé. La commande de renommage existe dans l'API, sans écran.
+  La maison reçoit 3 000 oboles et le premier site de sa cité (champ de blé, vigne ou pêcherie). La commande de renommage existe dans l'API, sans écran.
 - **Sites.** Jusqu'à quatre sites par maison. Acquisition contre monnaie (de 600 à 1 200 oboles selon le
   type), changement de production d'un site. Quinze productions pour quinze biens : huit matières
   premières (blé, olives, raisin, bois, argile, laine, poisson, sel) et sept transformations en atelier
@@ -100,13 +102,14 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
 Ajouts de la phase 2 :
 
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
+  La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
   Kallistè garde toutes ses matières premières jusqu'au calibrage à quatre cités (#283).
 - **Passerelle IA** (#268, ADR 0005) : `packages/ai` rend toujours un résultat, la sortie du modèle si elle est conforme à son schéma, sinon le repli.
   Plafond mensuel par usage, journal `telemetry.ai_calls` sans texte, tableau dans la Vigie.
   Aucun usage n'est encore branché, et tous sont coupés dans la configuration initiale ; le fournisseur réel attend #269 (`needs-human`).
 - **Contrôle `ci` en parallèle** (#298) : statique, base, intégration (deux jobs), bout en bout et images tournent en même temps, en 4 minutes environ au lieu de 10.
-  Un changement de documents seuls ne lance que les contrôles statiques, en 2 minutes environ.
+  Un changement de documents seuls ne lance que les contrôles statiques, en moins d'une minute.
   Le job final `ci` reste le seul contrôle à attendre ; il n'apparaît qu'à la fin de l'exécution.
 
 Ajouts de la fin de la phase 1 :
