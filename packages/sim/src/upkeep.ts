@@ -1,8 +1,9 @@
 import { shareRoundedUp } from './tax';
 
 /**
- * Entretien quotidien des sites (docs/specs/05-economie.md, 5.5) : calcul pur, en oboles entières.
- * La clôture quotidienne s'en sert pour savoir ce qu'une maison doit et ce qu'elle peut payer.
+ * Dû quotidien des sites (docs/specs/05-economie.md, 5.5) : entretien et salaires (4.4), calcul pur, en
+ * oboles entières. La clôture quotidienne et la relance d'un site s'en servent pour savoir ce qu'une
+ * maison doit et ce qu'elle peut payer.
  */
 /**
  * Entretien dû par un site pour un jour de jeu : ⌈base × coefficient ÷ 10 000⌉. Arrondi à l'obole
@@ -19,16 +20,71 @@ export function dailyUpkeep(baseOboles: number, coefficientBps: number): number 
   return shareRoundedUp(baseOboles, coefficientBps);
 }
 
+/**
+ * Salaires d'un jour d'un site : travailleurs de sa recette × salaire du jour de sa cité, exact (deux
+ * entiers, sans arrondi). Aucun travailleur ou un salaire nul ne doivent rien.
+ */
+export function dailyWages(workers: number, wageOboles: number): number {
+  if (!Number.isSafeInteger(workers) || workers < 0)
+    throw new RangeError('workers must be a non-negative integer');
+  if (!Number.isSafeInteger(wageOboles) || wageOboles < 0)
+    throw new RangeError('wageOboles must be a non-negative integer');
+  const wages = workers * wageOboles;
+  if (!Number.isSafeInteger(wages)) throw new RangeError('workers × wage is too large');
+  return wages;
+}
+
+/** Ce qu'un site doit pour un jour, par nature : chaque part a sa ligne au grand livre (4.1). */
+export interface SiteDailyDue {
+  upkeepOboles: number;
+  wagesOboles: number;
+  /** Le tout, payé en entier ou pas du tout : entretien plus salaires. */
+  oboles: number;
+}
+
+/**
+ * Dû d'un site pour un jour de jeu : son entretien (`dailyUpkeep`) et les salaires de ses travailleurs
+ * (`dailyWages`), calculés chacun à part puis additionnés, si bien que les parts font toujours le tout.
+ */
+export function siteDailyDue(site: {
+  upkeepBaseOboles: number;
+  coefficientBps: number;
+  workers: number;
+  wageOboles: number;
+}): SiteDailyDue {
+  const upkeepOboles = dailyUpkeep(site.upkeepBaseOboles, site.coefficientBps);
+  const wagesOboles = dailyWages(site.workers, site.wageOboles);
+  const oboles = upkeepOboles + wagesOboles;
+  if (!Number.isSafeInteger(oboles)) throw new RangeError('upkeep + wages is too large');
+  return { upkeepOboles, wagesOboles, oboles };
+}
+
+/** Somme, par nature, de ce que doivent des sites : les montants des lignes d'une écriture. */
+export function sumDailyDues(dues: readonly Omit<SiteDailyDue, 'oboles'>[]): SiteDailyDue {
+  const total = { upkeepOboles: 0, wagesOboles: 0, oboles: 0 };
+  for (const due of dues) {
+    for (const part of [due.upkeepOboles, due.wagesOboles])
+      if (!Number.isSafeInteger(part) || part < 0)
+        throw new RangeError('each part must be a non-negative integer');
+    total.upkeepOboles += due.upkeepOboles;
+    total.wagesOboles += due.wagesOboles;
+  }
+  total.oboles = total.upkeepOboles + total.wagesOboles;
+  if (!Number.isSafeInteger(total.oboles)) throw new RangeError('total due is too large');
+  return total;
+}
+
 export interface UpkeepDue {
   siteId: string;
   oboles: number;
 }
 
-export interface UpkeepSettlement {
+/** `T` : le dû de chaque site tel que reçu, rendu tel quel (ses parts par nature comprises). */
+export interface UpkeepSettlement<T extends UpkeepDue = UpkeepDue> {
   /** Sites dont l'entretien est payé, dans l'ordre reçu. */
-  paid: UpkeepDue[];
+  paid: T[];
   /** Sites que la trésorerie ne pouvait pas payer en entier : ils sont à l'arrêt. */
-  unpaid: UpkeepDue[];
+  unpaid: T[];
   /** Somme prélevée : celle des sites payés, jamais plus que la trésorerie. */
   total: number;
 }
@@ -39,13 +95,16 @@ export interface UpkeepSettlement {
  * n'est pas payé du tout et l'examen continue, si bien qu'un site moins cher peut encore l'être. La
  * trésorerie ne passe jamais sous zéro et aucun entretien n'est payé en partie.
  */
-export function settleUpkeep(balance: number, dues: readonly UpkeepDue[]): UpkeepSettlement {
+export function settleUpkeep<T extends UpkeepDue>(
+  balance: number,
+  dues: readonly T[],
+): UpkeepSettlement<T> {
   if (!Number.isSafeInteger(balance) || balance < 0)
     throw new RangeError('balance must be a non-negative integer');
   // Un site en double serait prélevé deux fois : c'est une erreur de l'appelant, pas un cas à régler.
   if (new Set(dues.map((due) => due.siteId)).size !== dues.length)
     throw new RangeError('each site is settled once');
-  const settlement: UpkeepSettlement = { paid: [], unpaid: [], total: 0 };
+  const settlement: UpkeepSettlement<T> = { paid: [], unpaid: [], total: 0 };
   for (const due of dues) {
     if (!Number.isSafeInteger(due.oboles) || due.oboles < 0)
       throw new RangeError('oboles must be a non-negative integer');

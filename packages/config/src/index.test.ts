@@ -4,6 +4,7 @@ import {
   DEFAULT_AI,
   cityHasPort,
   cityStartingRecipeId,
+  cityDailyWageOboles,
   cityTerroirAdmits,
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
@@ -11,6 +12,7 @@ import {
   DEFAULT_PRICE_INDEX,
   DEFAULT_SHIPS,
   DEFAULT_SITES,
+  DEFAULT_STAFF,
   DEFAULT_TELEMETRY,
   DEFAULT_UPKEEP,
   validateConfig,
@@ -105,6 +107,7 @@ const FIXTURE: GameConfig = {
       },
     ],
   },
+  staff: { dailyWageOboles: { kalliste: 3 } },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
     { id: 'flour', tier: 'intermediate', referencePriceOboles: 10, elasticity: 0.4 },
@@ -745,6 +748,74 @@ describe('passerelle IA', () => {
     expect(errors({ usages: { oracle: usages.oracle, chronicle: usages.chronicle } })).toEqual([
       expect.stringMatching(/^ai\.usages\.steward: /),
     ]);
+  });
+});
+
+describe('personnel (4.4)', () => {
+  const withWages = (dailyWageOboles: Record<string, unknown>) => ({
+    ...clone(),
+    staff: { dailyWageOboles },
+  });
+
+  it('une version publiée avant le personnel reste lisible : aucun salaire, dans aucune cité', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.staff;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.staff).toEqual(DEFAULT_STAFF);
+    expect(cityDailyWageOboles(result.config, 'kalliste')).toBe(0);
+    expect(Object.isFrozen(DEFAULT_STAFF)).toBe(true);
+    // Une section explicitement vide se lit de même.
+    expect(errorsOf(withWages({}))).toEqual([]);
+  });
+
+  it('salaire du jour d’une cité : le sien ; nul pour une cité inconnue, même nommée comme une propriété d’objet', () => {
+    const { staff } = clone();
+    expect(cityDailyWageOboles({ staff }, 'kalliste')).toBe(3);
+    expect(cityDailyWageOboles({ staff }, 'elaia')).toBe(0);
+    expect(cityDailyWageOboles({ staff }, 'constructor')).toBe(0);
+    expect(cityDailyWageOboles({ staff }, 'toString')).toBe(0);
+  });
+
+  it('salaire : entier, de 0 à un milliard, pour chaque cité connue et pour elles seules', () => {
+    expect(errorsOf(withWages({ kalliste: 0 }))).toEqual([]);
+    expect(errorsOf(withWages({ kalliste: 1_000_000_000 }))).toEqual([]);
+    for (const bad of [-1, 1.5, 1_000_000_001, '3', null])
+      expect(errorsOf(withWages({ kalliste: bad }))).toEqual([
+        expect.stringMatching(/^staff\.dailyWageOboles\.kalliste: /),
+      ]);
+    expect(errorsOf(withWages({ kalliste: 3, elaia: 2 }))).toEqual([
+      'staff.dailyWageOboles.elaia: unknown city "elaia"',
+    ]);
+    const twoCities = {
+      ...withWages({ kalliste: 3 }),
+      cities: [...clone().cities, { id: 'elaia', population: { thetes: 1, hippeis: 1 } }],
+    };
+    expect(errorsOf(twoCities)).toEqual(['staff.dailyWageOboles: missing city "elaia"']);
+    expect(
+      errorsOf({ ...clone(), staff: { dailyWageOboles: { kalliste: 3 }, perDay: 1 } }),
+    ).toEqual([expect.stringMatching(/^staff: /)]);
+  });
+});
+
+describe('personnel : dû d’un jour dans les entiers sûrs', () => {
+  // Champ de blé du jeu d'essai : entretien ⌈20 × 1,25⌉ = 25. Salaire d'un milliard à Kallistè.
+  const withWorkers = (workers: number) => {
+    const config = clone();
+    at(config.recipes, 0).workers = workers;
+    return { ...config, staff: { dailyWageOboles: { kalliste: 1_000_000_000 } } };
+  };
+  // Le plus grand nombre de travailleurs dont le dû tient : (2^53 − 1 − 25) ÷ 10^9, arrondi en dessous.
+  const most = Math.floor((Number.MAX_SAFE_INTEGER - 25) / 1_000_000_000);
+
+  it('refuse une recette dont le dû d’un jour dépasserait les entiers sûrs dans une cité, à l’unité près', () => {
+    expect(errorsOf(withWorkers(most))).toEqual([]);
+    expect(errorsOf(withWorkers(most + 1))).toEqual([
+      'recipes[0].workers: a day of upkeep and wages in "kalliste" exceeds the safe integer range',
+    ]);
+    // Sans salaire, aucun travailleur ne coûte : la borne ne s'applique pas.
+    const unpaid = { ...withWorkers(most + 1), staff: { dailyWageOboles: { kalliste: 0 } } };
+    expect(errorsOf(unpaid)).toEqual([]);
   });
 });
 

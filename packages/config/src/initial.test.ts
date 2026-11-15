@@ -119,6 +119,13 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
+  it('le salaire entre neutre : nul dans chaque cité, en attendant le calibrage (#283)', () => {
+    expect(Object.keys(config.staff.dailyWageOboles).sort()).toEqual(
+      config.cities.map((city) => city.id).sort(),
+    );
+    expect(Object.values(config.staff.dailyWageOboles).every((wage) => wage === 0)).toBe(true);
+  });
+
   it('chaque recette a une capacité d’accumulation d’un à sept jours', () => {
     for (const recipe of config.recipes) {
       expect(recipe.maxAccruedCycles * recipe.durationMinutes).toBeGreaterThanOrEqual(24 * 60);
