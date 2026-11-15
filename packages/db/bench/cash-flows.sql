@@ -14,11 +14,13 @@
 -- jour en place le nombre de lignes estimé des tables.
 --
 -- La lecture est faite comme par PostgREST : rôle `authenticated`, jeton d'Alice, puis les réglages
--- propres à ce rôle (`alter role authenticated set …`), que PostgREST applique à chaque requête. Chaque
+-- propres à ce rôle (`alter role authenticated set …`, pour toutes les bases). PostgREST les lit à son
+-- démarrage ou à un rechargement (cache de schéma ou configuration), puis les applique à ses requêtes ;
+-- il ignore les réglages propres à une base (`alter role … in database …`), le script aussi. Chaque
 -- mesure est la médiane de sept lectures complètes, avec `jit` actif puis avec les réglages du rôle. La
 -- lecture est planifiée une fois puis son plan réutilisé (PL/pgSQL) : la mesure porte sur l'exécution,
--- compilation à la volée comprise, pas sur la planification. Le script échoue si `jit` reste actif avec
--- les réglages du rôle ou si la médiane atteint 50 ms. `pg_jit_available()` faux : la grappe n'embarque
+-- compilation à la volée comprise, pas sur la planification. Le script échoue si Alice ne lit pas
+-- exactement ses flux, si `jit` reste actif avec les réglages du rôle ou si la médiane atteint 50 ms. `pg_jit_available()` faux : la grappe n'embarque
 -- pas la compilation, et les deux mesures sont alors égales.
 \set ON_ERROR_STOP on
 \set world '01900000-0000-7000-8000-000000000001'
@@ -87,15 +89,28 @@ grant execute on function pg_temp.median_read_ms() to authenticated;
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-000000000001", "role": "authenticated"}', true);
-select count(*) as flux_lus_par_alice from public.my_cash_flows;
+-- Alice (maison 1) a une ligne dans une écriture sur quarante : 1 000 lignes de trésorerie, 333 ventes aux
+-- PNJ de 3 oboles et 667 dotations de 2. La vue les agrège par compte, jour de jeu et nature : le nombre
+-- de flux dépend du jour où le script tourne, pas leurs totaux, seuls vérifiés.
+select count(*) as flux_lus_par_alice, sum(amount) as oboles_lues_par_alice from public.my_cash_flows;
+do $$
+declare
+  lu text := (select string_agg(account || '/' || nature || ':' || total, ' ' order by account, nature)
+                from (select account, nature, sum(amount) as total from public.my_cash_flows group by account, nature) t);
+begin
+  if lu is distinct from 'treasury/grant:1334 treasury/sales:999'
+     or exists (select from public.my_cash_flows where house_id <> '00000000-0000-7000-8000-000000000001') then
+    raise exception 'Alice ne lit pas exactement ses flux (lu : %), attendu : treasury/grant:1334 treasury/sales:999', lu;
+  end if;
+end $$;
 
 set local jit = on;
 select round(pg_temp.median_read_ms(), 1) as jit_actif_ms;
 
--- Réglages du rôle, appliqués comme le fait PostgREST.
+-- Réglages du rôle pour toutes les bases, appliqués comme le fait PostgREST.
 select set_config(split_part(s, '=', 1), substr(s, strpos(s, '=') + 1), true) as reglage_du_role
 from pg_db_role_setting d, unnest(d.setconfig) s
-where d.setrole = 'authenticated'::regrole and d.setdatabase in (0, (select oid from pg_database where datname = current_database()));
+where d.setrole = 'authenticated'::regrole and d.setdatabase = 0;
 select current_setting('jit') as jit, round(pg_temp.median_read_ms(), 1) as reglages_du_role_ms \gset
 \echo 'jit :' :jit ', médiane avec les réglages du rôle :' :reglages_du_role_ms 'ms'
 do $$

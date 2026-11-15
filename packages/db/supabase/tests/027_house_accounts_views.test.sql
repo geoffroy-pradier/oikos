@@ -85,9 +85,9 @@ select is(
 -- `client_jit()` : vérification par PostgREST lui-même. Droits de l'appelant, exécutable par les seuls clients.
 select is(
   (select string_agg(r || ':' || has_function_privilege(r, 'public.client_jit()', 'execute'), ' ' order by r)
-   from unnest(array['anon', 'authenticated', 'oikos_service', 'public']) r)
+   from unnest(array['anon', 'authenticated', 'oikos_service', 'public', 'service_role']) r)
   || ' definer:' || (select prosecdef from pg_proc where oid = 'public.client_jit()'::regprocedure),
-  'anon:true authenticated:true oikos_service:false public:false definer:false',
+  'anon:true authenticated:true oikos_service:false public:false service_role:false definer:false',
   'client_jit : exécutable par anon et authenticated seulement, avec les droits de l''appelant');
 set local role authenticated;
 set local jit = on;
