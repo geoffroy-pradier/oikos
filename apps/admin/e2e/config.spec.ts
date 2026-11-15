@@ -41,6 +41,18 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expect(
     page.getByText(`goods[${good.id}].elasticity : ${good.elasticity} → ${good.elasticity + 1}`),
   ).toBeVisible();
+  // Un bien ajouté est vide, foyer sur son identifiant ; retiré, le texte revient à la liste d'avant.
+  const added = `élément ${config.goods.length + 1}`;
+  await page.getByRole('button', { name: 'Ajouter un bien' }).click();
+  await expect(
+    page.getByRole('group', { name: added, exact: true }).getByLabel('identifiant'),
+  ).toBeFocused();
+  await page.getByRole('button', { name: `Retirer ${added}`, exact: true }).click();
+  await expect(page.getByText(`${added} retiré du texte`)).toBeVisible();
+  expect((JSON.parse(await editor.inputValue()) as typeof config).goods).toHaveLength(
+    config.goods.length,
+  );
+  await expectNoHorizontalScroll(page);
 
   // Un texte qui n'est pas du JSON est signalé à la sortie du champ, pas pendant la frappe.
   await editor.fill('{ "starting": ');

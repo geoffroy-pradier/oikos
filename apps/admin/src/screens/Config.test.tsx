@@ -787,4 +787,78 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
     expect(cell('bread', label).readOnly).toBe(true);
   expect(cell('bread', 'niveau').disabled).toBe(true);
   expect(screen.queryByText(/^Chaque saisie réécrit/)).toBeNull();
+  expect(screen.queryAllByRole('button', { name: /^(Ajouter un bien|Retirer )/ })).toEqual([]);
+});
+
+const REMOVED = (name: string) => `${name} retiré du texte, pas encore enregistré.`;
+const announced = () => document.getElementById('goods-announce')?.textContent;
+
+it('formulaire des biens : un ajout écrit un bien vide en fin de liste, foyer sur son identifiant ; c’est un texte modifié', async () => {
+  const editor = await openVersion(1);
+  fireEvent.click(button('Ajouter un bien'));
+  // Aucune valeur inventée : un objet vide, que l'API refusera champ par champ tant qu'il n'est pas rempli.
+  expect(JSON.parse(editor.value)).toEqual({ clock: {}, goods: [...GOODS, {}] });
+  expect(document.activeElement).toBe(cell('élément 3', 'identifiant'));
+  type(cell('élément 3', 'identifiant'), 'fish');
+  expect(goodsOf(editor)[2]).toEqual({ id: 'fish' });
+  expect(cell('fish', 'niveau').value).toBe('');
+  // Même chemin qu'une frappe dans le texte : ouvrir une autre version demande confirmation.
+  fireEvent.click(button('Ouvrir la version 2'));
+  expect(document.activeElement).toBe(button('Garder le texte modifié'));
+});
+
+it('formulaire des biens : un retrait garde le reste du texte, est annoncé, et le foyer va au bien suivant, au précédent, puis à l’ajout', async () => {
+  const editor = await openVersion(1);
+  // Dernier de la liste : le foyer va au bien précédent.
+  fireEvent.click(button('Retirer bread'));
+  expect(editor.value).toBe(JSON.stringify({ clock: {}, goods: [GOODS[0]] }, null, 2));
+  expect(document.activeElement).toBe(cell('wheat', 'identifiant'));
+  expect(announced()).toBe(REMOVED('bread'));
+  // Un autre texte retire l'annonce : elle ne vaut que pour le texte que le retrait a écrit.
+  fireEvent.click(button('Ajouter un bien'));
+  expect(announced()).toBe('');
+  // Le bien suivant prend le rang du bien retiré, et le foyer ; sans identifiant, il est nommé par ce rang.
+  fireEvent.click(button('Retirer wheat'));
+  expect(JSON.parse(editor.value)).toEqual({ clock: {}, goods: [{}] });
+  expect(document.activeElement).toBe(cell('élément 1', 'identifiant'));
+  expect(announced()).toBe(REMOVED('wheat'));
+  // Seul bien : le foyer va au bouton d'ajout. La liste vide part telle quelle, l'API la refusera.
+  fireEvent.click(button('Retirer élément 1'));
+  expect(JSON.parse(editor.value)).toEqual({ clock: {}, goods: [] });
+  expect(document.activeElement).toBe(button('Ajouter un bien'));
+  expect(announced()).toBe(REMOVED('élément 1'));
+});
+
+it('formulaire des biens : ni Entrée tenue, ni double clic, ni toucher juste après ne retirent un second bien', async () => {
+  const now = vi.spyOn(performance, 'now').mockReturnValue(10_000);
+  const editor = await openVersion(1);
+  // Au clavier : le foyer passe dans un champ, où la répétition de la touche ne fait rien.
+  button('Retirer wheat').focus();
+  enter();
+  enter(true);
+  enter(true);
+  expect(goodsOf(editor)).toEqual([GOODS[1]]);
+  type(editor, JSON.stringify({ goods: GOODS }));
+  // Double clic : le bien suivant remonte sous le pointeur, le second clic n'agit pas, et son appui ne
+  // prend pas le foyer, resté dans le champ du bien suivant.
+  fireEvent.click(button('Retirer wheat'), { detail: 1 });
+  expect(fireEvent.mouseDown(button('Retirer bread'), { detail: 2 })).toBe(false);
+  fireEvent.click(button('Retirer bread'), { detail: 2 });
+  expect(goodsOf(editor)).toEqual([GOODS[1]]);
+  expect(document.activeElement).toBe(cell('bread', 'identifiant'));
+  // Toucher (compte de clics toujours à 1) : ignoré juste après, pris en compte passé le délai.
+  now.mockReturnValue(10_300);
+  fireEvent.click(button('Retirer bread'), { detail: 1 });
+  expect(goodsOf(editor)).toEqual([GOODS[1]]);
+  now.mockReturnValue(11_000);
+  fireEvent.click(button('Ajouter un bien'), { detail: 1 });
+  fireEvent.click(button('Ajouter un bien'), { detail: 2 });
+  expect(goodsOf(editor)).toEqual([GOODS[1], {}]);
+  // Souris : le compte de clics suffit, un clic simple voulu aussitôt après agit (ajouter puis retirer).
+  const mouseClick = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 });
+  Object.defineProperty(mouseClick, 'pointerType', { value: 'mouse' });
+  fireEvent(button('Retirer élément 2'), mouseClick);
+  expect(goodsOf(editor)).toEqual([GOODS[1]]);
+  expect(announced()).toBe(REMOVED('élément 2'));
+  now.mockRestore();
 });
