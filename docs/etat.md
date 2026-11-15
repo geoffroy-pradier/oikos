@@ -277,7 +277,7 @@ Défauts connus, déjà en tickets :
   utilise encore ; Olympe devrait avertir avant la programmation.
 - **#205, #208** : suivis du règlement des échanges et du contrôle à la validation des activations,
   contournable par `SET CONSTRAINTS`.
-- **#213** : pas de rétention pour `telemetry.tick_runs` (ni pour `close_runs`, à ajouter au ticket) ; une activation à l'horloge
+- **#213** : pas de rétention pour `telemetry.tick_runs` ni pour `close_runs` ; une activation à l'horloge
   différente, programmée avant #123, serait encore appliquée.
 - **#222** : un monde dont le fuseau quitte tzdata peut encore publier, mais ses comptes perdent jour
   de jeu et saison, et la Vigie ne le signale pas.
