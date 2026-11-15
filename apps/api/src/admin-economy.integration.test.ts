@@ -343,6 +343,42 @@ it('indice du panier et inflation d’une fenêtre à la précédente, situés p
   });
 });
 
+it('l’indice d’un monde compte les échanges de ses quatre cités (#250)', async () => {
+  const world = randomUUID();
+  const cities = ['kalliste', 'elaia', 'ampelos', 'halos'].map((slug) => [slug, randomUUID()]);
+  await sql`insert into game.worlds (id, slug, name) values (${world}, ${`quatre-${world.slice(0, 8)}`}, 'Quatre')`.execute(
+    owner,
+  );
+  for (const [slug, city] of cities)
+    await sql`insert into game.cities (id, world_id, slug, name) values (${city}, ${world}, ${slug}, ${slug})`.execute(
+      owner,
+    );
+  const [kalliste, elaia, ampelos, halos] = cities.map(([, city]): [string, string] => [
+    world,
+    city ?? '',
+  ]);
+  // Chaque chandelier dans une autre cité : en oublier une laisserait un bien sans prix ou en changerait un.
+  // Fenêtre courante : blé (18 + 24) ÷ 6 = 7, pain (30 + 34) ÷ 4 = 16. Précédente : blé 6, pain 15.
+  await candle('wheat', 2, 18, 3, 3600, kalliste);
+  await candle('wheat', 3, 24, 3, 3600, elaia);
+  await candle('bread', 4, 30, 2, 3600, ampelos);
+  await candle('bread', 5, 34, 2, 3600, halos);
+  await candle('wheat', 40, 36, 6, 3600, halos);
+  await candle('bread', 40, 30, 2, 3600, kalliste);
+  // Hors panier et hors fenêtres : l'historique commence avant elles, aucune n'est partielle.
+  await candle('fish', 61, 12, 1, 3600, ampelos);
+  // Référence 3 × 6 + 15 = 33 ; courant 3 × 7 + 16 = 37 ; précédent 3 × 6 + 15 = 33.
+  expect((await read(world)).world.priceIndex).toEqual({
+    currentBps: 11_212,
+    previousBps: 10_000,
+    inflationBps: 1_212,
+    status: 'above',
+    unpricedGoods: [],
+    unpricedByWindow: { current: [], previous: [] },
+    partialWindow: null,
+  });
+});
+
 it('bords des fenêtres : début compris, fin exclue, à l’instant près', async () => {
   // Monde propre au test : ni ses chandeliers ni son historique ne dépendent des autres tests.
   const place = await newWorld();
