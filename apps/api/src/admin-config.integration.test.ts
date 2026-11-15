@@ -87,13 +87,21 @@ beforeAll(async () => {
   designer = await newUser('game_designer', root);
 });
 
-/** Envoie une commande ; `aal2` ouvre une session à double authentification. */
+/**
+ * Envoie une commande ; `aal2` ouvre une session à double authentification. Une programmation est
+ * confirmée (#200) sauf si le corps dit le contraire : les versions de ce fichier retirent les recettes
+ * et les classes que d'autres suites laissent en usage dans la base partagée.
+ */
 const send = async (
   user: string,
   command: string,
   body: unknown,
   { aal2 = true, key = randomUUID() as string, via = app } = {},
 ) => {
+  const confirmed =
+    command === 'admin.scheduleConfig' && typeof body === 'object' && body !== null
+      ? { confirmRetiredInUse: true, ...body }
+      : body;
   const res = await via.request(`/api/commands/${command}`, {
     method: 'POST',
     headers: {
@@ -101,7 +109,7 @@ const send = async (
       authorization: `Bearer ${aal2 ? 'aal2:' : ''}${user}`,
       'Idempotency-Key': key,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(confirmed),
   });
   const versionId = (body as { versionId?: unknown } | null)?.versionId;
   if (command === 'admin.scheduleConfig' && res.status === 200 && typeof versionId === 'string')
@@ -503,7 +511,7 @@ describe('admin.scheduleConfig', () => {
         authorization: `Bearer aal2:${author}`,
         'Idempotency-Key': randomUUID(),
       },
-      body: JSON.stringify({ versionId }),
+      body: JSON.stringify({ versionId, confirmRetiredInUse: true }),
     });
     expect(selfScheduled.status).toBe(200);
     expect(((await selfScheduled.json()) as { data: { activateAt: string } }).data.activateAt).toBe(
@@ -1170,5 +1178,60 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
     expect(usage.get(without)).toEqual({ goods: [], recipes, npcClasses });
     expect(usage.get(withRecipe)).toEqual({ goods: [], recipes: [], npcClasses });
     expect(usage.get(withBoth)).toEqual({ goods: [], recipes: [], npcClasses: [] });
+  });
+
+  const activations = (versionId: string) =>
+    db.selectFrom('config.activations').select('id').where('version_id', '=', versionId).execute();
+  const schedule = (user: string, versionId: string, confirmRetiredInUse: boolean) =>
+    send(user, 'admin.scheduleConfig', { versionId, confirmRetiredInUse });
+
+  it('sans confirmation, la programmation est refusée et nomme chaque élément ; confirmée, elle passe', async () => {
+    const [without, withBoth] = [await publish(SAME_CLOCK), await publish(WITH_BOTH)];
+    const reviewer = await newUser('game_designer', root);
+    const refused = await schedule(reviewer, without, false);
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_RETIRED_UNCONFIRMED' } },
+    });
+    expect(refused.body.error?.fields).toEqual(
+      expect.arrayContaining([`recipes.${RECIPE}`, `npcClasses.${CLASS}`]),
+    );
+    expect(await activations(without)).toEqual([]);
+    expect(await logOf(reviewer)).toEqual([
+      {
+        command: 'admin.scheduleConfig',
+        status: 'rejected',
+        error_code: 'CONFIG_RETIRED_UNCONFIRMED',
+      },
+    ]);
+    // Une version qui garde la recette et la classe ne les nomme pas (la base partagée peut porter
+    // d'autres éléments en usage, laissés par d'autres suites : elle est alors refusée pour eux).
+    const kept = await schedule(reviewer, withBoth, false);
+    expect(kept.body.error?.fields ?? []).not.toContain(`recipes.${RECIPE}`);
+    expect(kept.body.error?.fields ?? []).not.toContain(`npcClasses.${CLASS}`);
+
+    // Confirmée, elle est programmée ; rien n'est changé aux sites ni à la population.
+    expect((await schedule(reviewer, without, true)).status).toBe(200);
+    expect(await activations(without)).toHaveLength(1);
+    expect((await retiredInUse()).get(without)).toEqual({ goods: [], recipes, npcClasses });
+  });
+
+  it('la confirmation ne lève pas le refus d’un bien encore détenu', async () => {
+    // La version retire à la fois un bien détenu et une recette exploitée, et elle est confirmée.
+    const versionId = await publish(SAME_CLOCK);
+    const holder = await house();
+    const inventory = await db
+      .insertInto('game.inventories')
+      .values({ world_id: WORLD, house_id: holder, city_id: CITY, good_id: GOOD })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await moveToken(inventory.id, 2);
+    const refused = await schedule(root, versionId, true);
+    expect(refused).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_GOOD_IN_USE' } } });
+    expect(refused.body.error?.fields).toContain(`goods.${GOOD}`);
+    expect(await activations(versionId)).toEqual([]);
+    // Le stock rendu, la même version se programme, confirmée.
+    await moveToken(inventory.id, 2, true);
+    expect((await schedule(root, versionId, true)).status).toBe(200);
   });
 });

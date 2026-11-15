@@ -174,6 +174,23 @@ export const adminScheduleConfig = defineCommand({
         },
       };
     }
+    // Une recette retirée arrête les sites qui l'exploitent, une classe retirée fige sa population, sans
+    // rien prendre aux joueurs (04, 4.2 ; 05, 5.2) : pas de refus, mais une confirmation explicite (#200).
+    const unconfirmed = [
+      ...retired.recipes.map((recipe) => `recipes.${recipe.recipeId}`),
+      ...retired.npcClasses.map((npcClass) => `npcClasses.${npcClass.classId}`),
+    ];
+    if (unconfirmed.length > 0 && !input.confirmRetiredInUse) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_RETIRED_UNCONFIRMED',
+          message:
+            'The version retires recipes run by sites or NPC classes with a population: confirm to schedule it.',
+          fields: unconfirmed,
+        },
+      };
+    }
     const activateAt = nextDailyClose(now, config.clock);
     await scheduleActivation(trx, version.id, activateAt, userId);
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };

@@ -21,7 +21,10 @@ interface Listing {
     note: string;
     createdBy: string | null;
     createdAt: string;
-    /** Biens que la version retire et que le monde porte encore : sa programmation est refusée (#191). */
+    /**
+     * Ce que la version retire et que le monde porte encore : un bien refuse sa programmation (#191),
+     * une recette ou une classe la soumet à confirmation (#200).
+     */
     retiredInUse?: RetiredUsage;
   }[];
   activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
@@ -68,6 +71,11 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
    * ou version (par l'identifiant de son bouton) dont la confirmation vient de se refermer : ce bouton reprend le foyer.
    */
   const [cancelling, setCancelling] = useState<string | null>(null);
+  /**
+   * Confirmations cochées : par version, les recettes et classes en usage qu'elles visaient. Si la
+   * liste relue en nomme d'autres, la case se décoche : on ne confirme que ce qu'on a lu.
+   */
+  const [confirmed, setConfirmed] = useState<Record<string, string>>({});
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const openedTitle = useRef<HTMLHeadingElement>(null);
@@ -195,12 +203,16 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     );
     if (published) setSaved(sent);
   }
-  const schedule = (version: { id: string; number: number }) =>
-    run<{ activateAt: string }>('admin.scheduleConfig', { versionId: version.id }, (data) =>
-      t('config.scheduledDone', {
-        number: version.number,
-        date: date.format(new Date(data.activateAt)),
-      }),
+  const schedule = (version: { id: string; number: number }, confirm: boolean) =>
+    run<{ activateAt: string }>(
+      'admin.scheduleConfig',
+      // La confirmation n'est envoyée que cochée : sans elle, l'API refuse (`CONFIG_RETIRED_UNCONFIRMED`).
+      confirm ? { versionId: version.id, confirmRetiredInUse: true } : { versionId: version.id },
+      (data) =>
+        t('config.scheduledDone', {
+          number: version.number,
+          date: date.format(new Date(data.activateAt)),
+        }),
     );
 
   /** Ouvre la confirmation. Le foyer à rendre d'une confirmation précédente n'a plus cours. */
@@ -271,6 +283,18 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
           const upcoming = next?.activateAt;
           const retired = version.retiredInUse?.goods ?? [];
           const retiredId = `config-retired-${version.id}`;
+          const recipes = version.retiredInUse?.recipes ?? [];
+          const npcClasses = version.retiredInUse?.npcClasses ?? [];
+          const unconfirmedId = `config-unconfirmed-${version.id}`;
+          const toConfirm = recipes.length + npcClasses.length > 0;
+          const signature = JSON.stringify([
+            recipes.map((recipe) => recipe.recipeId),
+            npcClasses.map((npcClass) => npcClass.classId),
+          ]);
+          const isConfirmed = toConfirm && confirmed[version.id] === signature;
+          const described = [retired.length > 0 && retiredId, toConfirm && unconfirmedId]
+            .filter(Boolean)
+            .join(' ');
           return (
             <li key={version.id} className="rounded-md border border-border p-3">
               <h3 className="text-lg">
@@ -306,6 +330,50 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   </ul>
                 </div>
               )}
+              {toConfirm && (
+                <div className="text-sm wrap-break-word">
+                  <div id={unconfirmedId}>
+                    <p className="font-semibold text-danger">{t('config.retiredUnconfirmed')}</p>
+                    <ul>
+                      {recipes.map((recipe) => (
+                        <li key={recipe.recipeId}>
+                          {t('config.recipeInUse', {
+                            recipe: recipe.recipeId,
+                            sites: count.format(recipe.sites),
+                            houses: count.format(recipe.houses),
+                          })}
+                        </li>
+                      ))}
+                      {npcClasses.map((npcClass) => (
+                        <li key={npcClass.classId}>
+                          {t('config.classInUse', {
+                            npcClass: npcClass.classId,
+                            cities: count.format(npcClass.cities),
+                            population: count.format(npcClass.population),
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {canEdit && (
+                    <label className="mt-1 flex min-h-11 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0"
+                        checked={isConfirmed}
+                        aria-describedby={unconfirmedId}
+                        onChange={(event) =>
+                          setConfirmed((all) => ({
+                            ...all,
+                            [version.id]: event.target.checked ? signature : '',
+                          }))
+                        }
+                      />
+                      {t('config.confirmRetired', { number: version.number })}
+                    </label>
+                  )}
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {/* Reste affiché pendant sa confirmation, qui s'ouvre sous la rangée sans la déplacer. */}
                 <Button
@@ -318,9 +386,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 {canEdit && (
                   <Button
                     variant="secondary"
-                    disabled={busy}
-                    aria-describedby={retired.length > 0 ? retiredId : undefined}
-                    onClick={() => void schedule(version)}
+                    disabled={busy || (toConfirm && !isConfirmed)}
+                    aria-describedby={described || undefined}
+                    onClick={() => void schedule(version, isConfirmed)}
                   >
                     {t(version.number < activeNumber ? 'config.rollback' : 'config.schedule', {
                       number: version.number,

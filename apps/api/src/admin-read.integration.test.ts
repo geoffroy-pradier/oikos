@@ -286,8 +286,10 @@ describe('paramètres et journal d’audit', () => {
       config: TEST_CONFIG.config,
     });
     // Programmée par un autre compte que son auteur : la revue par une seconde personne (15.2).
+    // Confirmée : d'autres suites laissent en usage des recettes et des classes qu'elle retire (#200).
     const scheduled = await command(users.root, 'admin.scheduleConfig', {
       versionId: harmless?.versionId,
+      confirmRetiredInUse: true,
     });
 
     const listing = (await get(users.observer, 'config/versions')).body.data;
