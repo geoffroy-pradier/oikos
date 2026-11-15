@@ -13,7 +13,14 @@ la publication, elle, l'accepte, pour qu'on prépare le retrait.
 Les chandeliers et le prix observé d'un bien (5.3) ne bloquent pas son retrait : ce sont des historiques, qui ne portent ni monnaie ni stock ;
 ils restent en base et lisibles. Un retour arrière vers une version sans ce bien est refusé de même.
 C'est le contraire du choix fait pour les recettes (4.2) : une recette retirée arrête un site sans rien prendre au joueur, alors qu'un bien retiré figerait son stock et sa monnaie.
-Pour retirer un bien, on attend qu'il ne soit plus détenu ; une maison inactive qui en garde une unité bloque son retrait, et aucune commande ne la dédommage ni ne lui reprend son stock (hors périmètre).
+Pour retirer un bien, on attend qu'il ne soit plus détenu, ou on le rachète (décision de #229).
+Rachat : la commande d'Olympe `admin.buyBackGood`, réservée au super-administrateur et tracée, vaut pour un bien que la configuration en vigueur connaît encore.
+En une transaction, tous mondes confondus, elle annule chaque ordre ouvert du bien comme son joueur l'aurait fait (séquestre rendu à la trésorerie, réservation levée), puis rachète tout son stock, de toutes les maisons et dans toutes les cités, au prix de référence de la configuration en vigueur.
+Chaque maison est payée par une écriture du grand livre (`admin.good_buyback`), depuis le robinet du rachat de son monde (5.5) ; son stock part, par le journal des stocks, vers l'extrémité système `good_buyback`, dont rien ne ressort.
+Chaque maison concernée reçoit un événement de domaine `GoodBoughtBack` (bien, unités, oboles, prix, ordres annulés), même sans unité quand seul un ordre d'achat la concernait ; chaque ordre annulé produit aussi son `OrderCancelled`.
+La commande porte les totaux qu'Olympe a montrés (maisons, unités, ordres annulés, oboles) : si l'état du monde n'est plus celui-là (ordre placé, récolte, rachat déjà fait), elle est refusée sans rien faire (`BUYBACK_CHANGED`), comme un prix changé.
+Dans les comptes de la maison (4.1), son paiement tombe parmi les autres flux, hors exploitation : ce n'est ni une vente à l'agora ni une dotation.
+Le rachat ne convertit le bien en aucun autre, et n'est pas annoncé dans la chronique.
 Le contrôle porte sur l'état du monde au moment de la programmation : ce qui est acquis entre elle et la clôture (production, achat) n'est pas rattrapé.
 Repli pour ce cas, ou pour un bien retiré avant ce contrôle : le stock reste au journal des stocks et le séquestre au grand livre, rien n'est créé ni détruit ;
 aucun nouvel ordre n'est accepté (`GOOD_NOT_FOUND`), les PNJ n'achètent plus le bien, mais un ordre ouvert s'annule toujours, sans lire la configuration (le séquestre d'un achat revient à la trésorerie, la réservation d'une vente est levée) ;
@@ -193,7 +200,10 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Dotation de départ | Offrandes, fêtes et liturgies |
 |  | Intérêts payés au Trésor du temple |
 |  | Grands travaux et merveilles |
-|  | Acquisition de sites |
+| Rachat du stock d'un bien à retirer (Olympe, 5.1) | Acquisition de sites |
+
+Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
+Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
