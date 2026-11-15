@@ -12,7 +12,7 @@ test('une maison d’Ampelos ne se voit proposer que les sites de son terroir', 
   await page.getByRole('radio', { name: 'Ampelos', exact: true }).check();
   await page.getByLabel('Nom de la maison').press('Enter');
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vigne', exact: true })).toBeVisible();
 
   const offers = page.getByLabel('Site à acquérir').locator('option');
   await expect(offers.first()).toHaveAttribute('value', 'grow_grapes');
@@ -22,5 +22,10 @@ test('une maison d’Ampelos ne se voit proposer que les sites de son terroir', 
   expect(values).toEqual(expect.arrayContaining(['grow_grapes', 'catch_fish', 'mill_flour']));
   expect(values).not.toContain('grow_wheat');
   expect(values).not.toContain('grow_olives');
+  // Au clavier : le menu se parcourt aux flèches, sans jamais tomber sur une production hors terroir.
+  const menu = page.getByLabel('Site à acquérir');
+  await menu.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(menu).toHaveValue(values[1] ?? '');
   await expectNoHorizontalScroll(page);
 });

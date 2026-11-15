@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
+import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 // Lectures simulées : les règles de la configuration initiale, et pour chaque vue les lignes du test.
@@ -41,12 +42,12 @@ const site = (id: string, cityId: string, recipeId: string) => ({
   halted_at: null,
 });
 
-async function render(sites: object[], identities: unknown) {
+async function render(sites: object[], identities: unknown, lng: 'fr' | 'en' = 'fr') {
   Object.assign(read, { sites, identities });
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
-    resources: { fr: { translation: fr } },
-    lng: 'fr',
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng,
     interpolation: { escapeValue: false },
   });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Ampelos' };
@@ -106,6 +107,10 @@ describe('écran Sites : seules les productions du terroir sont proposées (6.1,
       [identity('c1', AMPELOS)],
     );
     expect(html.split(OUT_OF_TERROIR)).toHaveLength(2);
+    // En anglais, le terroir se dit « land », comme partout ailleurs dans l'interface.
+    const english = await render([site('s1', 'c1', 'grow_wheat')], [identity('c1', AMPELOS)], 'en');
+    expect(english).toContain(en.home.outOfTerroir.replaceAll("'", '&#x27;'));
+    expect(english).toContain(`<span>${en.home.acquireRecipe}</span>`);
   });
 
   it('identité illisible, absente ou terroir ouvert : tout est proposé, l’API tranche', async () => {

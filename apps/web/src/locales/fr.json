@@ -115,7 +115,7 @@
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
-    "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : elle continue de tourner, mais après un changement, le site ne pourra plus y revenir."
+    "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir."
   },
   "agora": {
     "title": "Agora de {{city}}",

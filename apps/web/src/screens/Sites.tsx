@@ -73,7 +73,11 @@ export function SitesCard({
     'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
     'city_id',
   );
-  const identities = identityRows.rows === null ? null : parseCityIdentities(identityRows.rows);
+  const identities = useMemo(
+    () => (identityRows.rows === null ? null : parseCityIdentities(identityRows.rows)),
+    [identityRows.rows],
+  );
+  const reloadIdentities = identityRows.reload;
   const admits = (cityId: string) => (recipe: { id: string; siteType: string }) => {
     const identity = identities?.get(cityId);
     return cityTerroirAdmits(
@@ -156,6 +160,8 @@ export function SitesCard({
       if (running.current) return;
       void reloadSites();
       void reloadRules();
+      // Une version activée entre-temps a pu resserrer ou élargir le terroir, comme changer les règles.
+      void reloadIdentities();
     };
     const timer = setInterval(() => {
       setNow(serverClock.now());
@@ -172,7 +178,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [reloadSites, reloadRules]);
+  }, [reloadSites, reloadRules, reloadIdentities]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -267,7 +273,7 @@ export function SitesCard({
 
   /** Relit ce qu'une commande a pu changer, puis l'heure. */
   async function refresh() {
-    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    await Promise.all([sites.reload(), reloadRules(), reloadIdentities(), onChanged()]);
     setNow(serverClock.now());
   }
 
@@ -453,7 +459,10 @@ export function SitesCard({
       )}
       {announce(ALL)}
       {(sites.failed || rulesFailed) && (
-        <LoadProblem heading={title} onRetry={() => Promise.all([sites.reload(), reloadRules()])} />
+        <LoadProblem
+          heading={title}
+          onRetry={() => Promise.all([sites.reload(), reloadRules(), reloadIdentities()])}
+        />
       )}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
@@ -481,7 +490,12 @@ export function SitesCard({
           const alternatives = (rules?.alternatives(site.recipe_id) ?? []).filter(
             admits(site.city_id),
           );
-          const choice = chosen[site.id] ?? site.recipe_id;
+          // Un choix fait avant la lecture du terroir, et que le filtre a retiré depuis, n'est pas envoyé.
+          const picked = chosen[site.id];
+          const choice =
+            picked !== undefined && alternatives.some((recipe) => recipe.id === picked)
+              ? picked
+              : site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
           const { halted, harvest, alerts } = stateOf(site);
           // Sans recette, ni récolte ni relance : seul le changement de production est proposé.

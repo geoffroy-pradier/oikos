@@ -115,7 +115,7 @@
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",
-    "outOfTerroir": "This production is no longer in the city's terroir: it keeps running, but after a change the site cannot go back to it."
+    "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it."
   },
   "agora": {
     "title": "Agora of {{city}}",
