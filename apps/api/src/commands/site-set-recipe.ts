@@ -86,7 +86,7 @@ export const siteSetRecipe = defineCommand({
         .execute();
       emit({
         type: 'SiteRestarted',
-        payload: { siteId: site.id, houseId: site.house_id, upkeepOboles: 0 },
+        payload: { siteId: site.id, houseId: site.house_id, upkeepOboles: 0, wagesOboles: 0 },
       });
     }
 

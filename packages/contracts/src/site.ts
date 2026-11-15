@@ -136,15 +136,20 @@ export const siteRecipeChangedSchema = z.strictObject({
 /** Commande `site.restart` : relance un site à l'arrêt en payant l'entretien d'un jour (5.5). */
 export const siteRestartInputSchema = z.strictObject({
   siteId: z.uuid(),
-  /** Entretien que le joueur a vu, en oboles : comme pour `site.acquire`, facultatif (5.5). */
+  /**
+   * Prix de la relance que le joueur a vu, en oboles : le dû d'un jour du site, entretien et salaires
+   * compris (5.5). Comme pour `site.acquire`, facultatif.
+   */
   expectedUpkeepOboles: z.number().int().nonnegative().optional(),
 });
 export type SiteRestartInput = z.infer<typeof siteRestartInputSchema>;
 
 export const siteRestartOutputSchema = z.object({
   siteId: z.uuid(),
-  /** Entretien payé, en oboles, détruit par le puits. */
+  /** Entretien payé, en oboles, détruit par le puits `sink_upkeep`. */
   upkeepOboles: z.number().int().nonnegative(),
+  /** Salaires payés, en oboles, détruits par le puits `sink_npc_wages` (4.4). */
+  wagesOboles: z.number().int().nonnegative(),
   /** Début du cycle repris : celui d'avant l'arrêt, décalé de la durée de l'arrêt (ISO 8601). */
   cycleStartedAt: z.iso.datetime(),
 });
@@ -156,7 +161,7 @@ export const SITE_RESTART_ERROR_CODES = [
   'INSUFFICIENT_FUNDS',
   /** Le site vient d'être arrêté par une clôture pendant la commande : réessayer avec une clé neuve. */
   'SITE_CHANGED',
-  /** L'entretien en vigueur n'est pas celui que le client a envoyé : rien n'est payé. */
+  /** Le prix en vigueur (entretien et salaires) n'est pas celui que le client a envoyé : rien n'est payé. */
   'PRICE_CHANGED',
 ] as const;
 export type SiteRestartErrorCode = (typeof SITE_RESTART_ERROR_CODES)[number];
@@ -167,6 +172,7 @@ export const siteRestartedSchema = z.strictObject({
     siteId: z.uuid(),
     houseId: z.uuid(),
     upkeepOboles: z.number().int().nonnegative(),
+    wagesOboles: z.number().int().nonnegative(),
   }),
 });
 

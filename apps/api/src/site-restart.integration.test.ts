@@ -30,8 +30,31 @@ const HOUR = 3_600_000;
 const UPKEEP = sites.upkeep.dailyOboles[recipe.siteType];
 const GRANT = starting.grantOboles;
 
-const send = async (user: string, command: string, body: unknown, key: string = randomUUID()) => {
-  const res = await app.request(`/api/commands/${command}`, {
+/** Salaire du jour de 5 oboles dans chaque cité : le champ de départ (4 travailleurs) doit 30 + 20. */
+const WAGES = 4 * 5;
+const staffed = {
+  ...TEST_CONFIG,
+  config: {
+    ...TEST_CONFIG.config,
+    staff: { dailyWageOboles: { kalliste: 5, elaia: 5, ampelos: 5, halos: 5 } },
+  },
+};
+const staffedApp = createApp({
+  db,
+  telemetry: createTelemetry(db),
+  verifyToken: testVerifier,
+  rateLimiter: unlimited,
+  loadConfig: async () => staffed,
+});
+
+const send = async (
+  user: string,
+  command: string,
+  body: unknown,
+  key: string = randomUUID(),
+  via = app,
+) => {
+  const res = await via.request(`/api/commands/${command}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -113,6 +136,20 @@ const drain = ({ houseId }: Player, oboles: number) =>
     owner,
   );
 
+/** Lignes des écritures de relance de la maison : compte (puits ou trésorerie), montant, nature. */
+const restartLinesOf = async ({ houseId }: Player) =>
+  (
+    await sql<{
+      account: string;
+      amount: string;
+      nature: string | null;
+    }>`select coalesce(a.system_key, 'treasury') as account, l.amount, l.nature
+      from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+      where e.kind = 'upkeep.restart' and e.meta->>'houseId' = ${houseId} order by e.created_at, l.nature, a.system_key`.execute(
+      db,
+    )
+  ).rows;
+
 describe('site.restart', () => {
   it('paie un jour d’entretien au puits et relance le site, son cycle gelé repris ; rejouée, la commande ne prélève rien de plus', async () => {
     // Champ de 10 heures, à l'arrêt depuis 7 : 3 heures de cycle avant l'arrêt.
@@ -137,7 +174,14 @@ describe('site.restart', () => {
     const events = await sql<{ payload: unknown }>`select payload from game.domain_events
       where type = 'SiteRestarted' and payload->>'siteId' = ${player.siteId}`.execute(db);
     expect(events.rows).toEqual([
-      { payload: { siteId: player.siteId, houseId: player.houseId, upkeepOboles: 30 } },
+      {
+        payload: {
+          siteId: player.siteId,
+          houseId: player.houseId,
+          upkeepOboles: 30,
+          wagesOboles: 0,
+        },
+      },
     ]);
     // Avec une clé neuve : le site tourne déjà, rien n'est prélevé.
     expect(await restart(player.user, player.siteId)).toMatchObject({
@@ -273,15 +317,79 @@ describe('site.restart', () => {
     expect(escrow.rows).toEqual([{ balance: '200' }]);
   });
 
+  it('avec des salaires : le prix vu est l’entretien plus les salaires, payés en entier ou pas du tout, une ligne par nature', async () => {
+    const player = await newPlayer(10, 7);
+    const relaunch = (expectedUpkeepOboles?: number) =>
+      send(
+        player.user,
+        'site.restart',
+        { siteId: player.siteId, expectedUpkeepOboles },
+        undefined,
+        staffedApp,
+      );
+    // Un client qui n'annonce que l'entretien n'a pas vu les salaires : refus, rien n'est payé.
+    for (const seen of [UPKEEP, UPKEEP + WAGES - 1, UPKEEP + WAGES + 1])
+      expect(await relaunch(seen)).toMatchObject({
+        status: 409,
+        body: { error: { code: 'PRICE_CHANGED', message: 'Restarting now costs 50 oboles.' } },
+      });
+    // 49 oboles couvriraient l'entretien seul, pas le tout : refus, sans paiement partiel.
+    await drain(player, GRANT - (UPKEEP + WAGES - 1));
+    expect(await relaunch(UPKEEP + WAGES)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'INSUFFICIENT_FUNDS' } },
+    });
+    expect([await stateOf(player), await restartLinesOf(player)]).toEqual([
+      { balance: UPKEEP + WAGES - 1, halted: true, hours: 3, paid: [] },
+      [],
+    ]);
+    await drain(player, -1);
+    expect(await relaunch(UPKEEP + WAGES)).toMatchObject({
+      status: 200,
+      body: { data: { siteId: player.siteId, upkeepOboles: UPKEEP, wagesOboles: WAGES } },
+    });
+    expect(await stateOf(player)).toEqual({ balance: 0, halted: false, hours: 3, paid: ['30'] });
+    expect(await restartLinesOf(player)).toEqual([
+      { account: 'treasury', amount: '-30', nature: 'upkeep' },
+      { account: 'treasury', amount: '-20', nature: 'wages' },
+      { account: 'sink_npc_wages', amount: '20', nature: null },
+      { account: 'sink_upkeep', amount: '30', nature: null },
+    ]);
+    const events = await sql<{ payload: unknown }>`select payload from game.domain_events
+      where type = 'SiteRestarted' and payload->>'siteId' = ${player.siteId}`.execute(db);
+    expect(events.rows).toEqual([
+      {
+        payload: {
+          siteId: player.siteId,
+          houseId: player.houseId,
+          upkeepOboles: UPKEEP,
+          wagesOboles: WAGES,
+        },
+      },
+    ]);
+  });
+
+  it('salaire nul : aucune ligne de salaires, l’entretien seul marqué', async () => {
+    const player = await newPlayer(10, 7);
+    expect(await restart(player.user, player.siteId)).toMatchObject({
+      status: 200,
+      body: { data: { upkeepOboles: UPKEEP, wagesOboles: 0 } },
+    });
+    expect(await restartLinesOf(player)).toEqual([
+      { account: 'treasury', amount: '-30', nature: 'upkeep' },
+      { account: 'sink_upkeep', amount: '30', nature: null },
+    ]);
+  });
+
   describe('relance et clôture quotidienne', () => {
     /** Un monde à part : l'étape d'entretien prélève toutes les maisons du monde où elle tourne. */
-    async function newWorld() {
+    async function newWorld(config = TEST_CONFIG.config) {
       const [worldId, cityId] = [randomUUID(), randomUUID()];
       await sql`with world as (insert into game.worlds (id, slug, name) values (${worldId}, ${`r-${worldId.slice(0, 12)}`}, 'Test'))
         insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Agora')`.execute(
         owner,
       );
-      const context = { worldId, gameDay: 20_771, closeAt: new Date(), config: TEST_CONFIG.config };
+      const context = { worldId, gameDay: 20_771, closeAt: new Date(), config };
       return {
         cityId,
         upkeep: (trx: typeof db) => siteUpkeep.run({ ...context, trx, closeAt: new Date() }),
@@ -368,6 +476,41 @@ describe('site.restart', () => {
       // Un seul paiement, celui de la clôture : 3 000 − 30.
       expect(await stateOf(player)).toMatchObject({ balance: GRANT - 30, halted: false, paid: [] });
       expect(await dailyOf(player)).toEqual(['30']);
+    });
+
+    it('avec des salaires, relances et clôture simultanées : sans interblocage, un seul paiement du dû entier', async () => {
+      const world = await newWorld(staffed.config);
+      const player = await newPlayer(10, 7, world.cityId);
+      const relaunch = () =>
+        send(
+          player.user,
+          'site.restart',
+          { siteId: player.siteId, expectedUpkeepOboles: UPKEEP + WAGES },
+          undefined,
+          staffedApp,
+        );
+      // Deux relances et la clôture partent ensemble : la première à prendre le puits de l'entretien
+      // paie ; les autres voient ensuite un site qui tourne (la clôture le fait payer de nouveau, comme
+      // pour une relance juste avant elle, si elle passe après).
+      const [first, second, summary] = await Promise.all([
+        relaunch(),
+        relaunch(),
+        db.transaction().execute(world.upkeep),
+      ]);
+      const restarted = [first, second].filter((result) => result.status === 200).length;
+      expect([first.status, second.status].sort()).toEqual(
+        restarted === 1 ? [200, 409] : [409, 409],
+      );
+      const lines = await restartLinesOf(player);
+      expect(lines).toHaveLength(restarted * 4);
+      const paidAtClose = summary.paidOboles;
+      expect(paidAtClose).toBe(UPKEEP + WAGES);
+      expect(summary.wagesOboles).toBe(WAGES);
+      // Conservation : la trésorerie a perdu exactement ce que les deux puits ont reçu de cette maison.
+      expect(await stateOf(player)).toMatchObject({
+        balance: GRANT - (restarted + 1) * (UPKEEP + WAGES),
+        halted: false,
+      });
     });
   });
 });
