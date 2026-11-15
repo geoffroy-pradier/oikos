@@ -19,3 +19,6 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Vigie (Watch) | Module d'Olympe qui surveille joueurs, commandes, ticks et file de tâches |
 | Caboteur (coaster) | Petit navire de commerce, rapide, qui longe les côtes d'une cité à l'autre (`coaster`) |
 | Navire rond (round ship) | Grand navire de commerce, plus lent que le caboteur, qui porte plus de fret (`round_ship`) |
+| Métèque (metic) | Maison accueillie dans une cité sans en être citoyenne : elle y travaille et commerce, mais n'y vote pas (`metic`) |
+| Citoyen (citizen) | Maison citoyenne de sa cité, après quelques jours de jeu comme métèque : elle vote et peut être élue (`citizen`) |
+| Archonte (archon) | Magistrat élu par les citoyens d'une cité pour une année de jeu (4 semaines) ; seul magistrat de la phase 2 (`archon`) |

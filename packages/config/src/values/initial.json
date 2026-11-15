@@ -82,6 +82,10 @@
       }
     }
   },
+  "politics": {
+    "meticDays": 3,
+    "archon": { "termDays": 28, "candidacyDays": 4, "votingDays": 3, "maxConsecutiveTerms": 2 }
+  },
   "ships": {
     "classes": [
       {

@@ -152,6 +152,13 @@ describe('jeu de valeurs initial', () => {
     for (const shipClass of config.ships.classes) expect(shipClass.dailyUpkeepOboles).toBe(0);
   });
 
+  it('métèque trois jours, archonte élu pour 28 jours, au plus deux mandats de suite (3, 6.2 ; #260)', () => {
+    expect(config.politics).toEqual({
+      meticDays: 3,
+      archon: { termDays: 28, candidacyDays: 4, votingDays: 3, maxConsecutiveTerms: 2 },
+    });
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {
