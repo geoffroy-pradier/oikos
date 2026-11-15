@@ -2,7 +2,7 @@
 
 Point d'étape au 15 novembre 2026, vers 16 h (heure de Paris). L'après-midi, dix tickets ont été fermés : les
 suivis de relecture #176, #181, #184, #191, #200, #205, #208, #213, #218 et #222 (demandes de fusion #226 à
-#239). Deux suivis en sont nés : #229 (`needs-human`) et #234. #78 (équilibrage) attend toujours les
+#239, hors #229 et #234). Deux suivis en sont nés : #229 (`needs-human`) et #234. #78 (équilibrage) attend toujours les
 décisions humaines décrites plus bas. Ce fichier décrit ce qui tourne réellement sur `main` ; les
 spécifications (`docs/specs/`) décrivent la cible.
 
@@ -44,6 +44,8 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   fonctionne de même. La carte des sites se relit chaque minute et au retour sur l'onglet, et annonce un
   arrêt prononcé pendant que la page est ouverte. Une clôture en échec est notée avec l'étape et la maison
   en cause, puis reprise au passage suivant.
+- **Télémétrie du moteur.** Le moteur garde 90 jours de passages de tick et de clôture
+  (`telemetry.retentionDays`) et purge le reste à chaque passage (#213).
 - **Population des PNJ : en jeu.** Chaque classe de chaque cité croît ou émigre à la clôture selon la
   couverture de ses besoins vitaux la veille ; la demande des PNJ suit la population courante. L'onglet
   Cité montre la population par classe et la couverture retenue.
@@ -95,11 +97,10 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   `CONFIG_RETIRED_UNCONFIRMED`, #200). Formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
   du texte JSON (#77). Une version qui change l'horloge du monde (durée du tick, heure ou fuseau de clôture)
   est refusée, et une programmation ne peut viser une clôture à moins d'une minute. Le premier
-  super-administrateur s'inscrit à la main en base. Le moteur garde 90 jours de passages de tick et de
-  clôture (`telemetry.retentionDays`) et purge le reste à chaque passage (#213). Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
+  super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
   sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : l'équilibrage (#78). Le banc de mesure existe
+Ce qui manque encore pour fermer la phase 1 : #229 (décision humaine), #234, et l'équilibrage (#78). Le banc de mesure existe
 (voir « Points en suspens »), mais la configuration initiale n'a pas été ajustée. Il faut d'abord trancher
 la taille de la cité prototype, la consommation par habitant et le taux de croissance.
 
@@ -195,7 +196,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   totaux ne tombent pas juste n'est pas affiché.
 - **Carte des sites de l'onglet Maison** (ticket #98) : l'intention d'une acquisition est la production voulue et le nombre
   de sites lus ; sans réponse, l'écran rejoue une fois la même clé, puis prévient le joueur avant
-  d'abandonner la clé (suivis : #176). Les résultats sont annoncés dans des régions vivantes
+  d'abandonner la clé (réglé par #176). Les résultats sont annoncés dans des régions vivantes
   permanentes ; ce qui est récoltable est calculé à l'heure du serveur.
 - **Économie d'Olympe** (5.5, ticket #76 ; panier et cible à confirmer par un humain) : la masse
   monétaire compte tous les comptes non système, trésor de la cité compris ; robinets et puits sont des
@@ -240,8 +241,9 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   d'une telle version demande une confirmation explicite. Une classe retirée puis réintroduite reprend sa
   population gardée (5.2).
 - **Bien retiré encore détenu** (5.1, ticket #191) : refus à la programmation, pas à l'activation.
-  - Un bien acquis entre la programmation et la clôture reste dans les journaux, invendable mais
-    annulable, jusqu'à ce qu'une version le remette.
+  - Un bien acquis entre la programmation et la clôture reste dans les journaux. Aucun nouvel ordre ne
+    l'accepte (`GOOD_NOT_FOUND`) et les PNJ ne l'achètent plus, mais ses ordres ouverts restent
+    annulables, jusqu'à ce qu'une version le remette.
   - Une seule unité détenue bloque le retrait : #229.
 - **Entretien et prix vu par le joueur** (4.2, 5.5, ticket #145) : le client envoie le prix qu'il affiche,
   et une clé en attente repart toujours avec son entrée d'origine. À la relance, le joueur ne paie ni deux
@@ -259,16 +261,18 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   enregistrement, et refuse une migration enregistrée dont le fichier a changé (`oikos_md5`). Une base déjà
   déployée sans cette table adopte, sans les rejouer, les migrations de la version précédente restées
   identiques (ADR 0004). Une migration publiée est immuable, et la `ci` refuse qu'on la modifie : on
-  corrige par une migration nouvelle. La saison est bornée à 366 jours. Un fuseau inconnu de la
-  base n'est refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais.
+  corrige par une migration nouvelle. Les migrations enregistrées par la CLI (`supabase db push`) n'ont pas
+  d'empreinte : seule la `ci` les protège. La saison est bornée à 366 jours. Un fuseau inconnu de la
+  base n'est refusé qu'à la configuration initiale ; le fuseau en vigueur ne l'est jamais (#158).
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.
 - **Limitation de débit tenue en base**, partagée entre les répliques de l'API.
 - **Demandes de fusion de plus de 400 lignes** : plusieurs ont dépassé la limite du `CLAUDE.md` jusqu'au
   ticket #69, presque toujours par leurs tests d'intégration. Depuis, #141 (481 lignes) et #160 (468), puis
-  l'après-midi #226 (401), #228 (415), #231 (479), #236 (422), #237 (471) et #239 (507). Chaque fois, le dépassement
-  vient de tests ajoutés à la demande de la relecture ; les autres tickets sont découpés en tranches.
+  l'après-midi #226 (401), #228 (415), #231 (484), #236 (422), #237 (471) et #239 (507). Le plus souvent, ce sont
+  les tests ou les reprises demandés en relecture qui ont fait passer la limite ; #231 dépassait dès sa
+  première version. Les autres tickets sont découpés en tranches.
 - **Après-midi du 15 novembre** : plusieurs tickets ont avancé en parallèle, chacun dans son arbre de travail
   (`git worktree`), sur une seule base Supabase locale partagée. La base est donc salie par les tests
   d'intégration : en local, beaucoup de fichiers pgTAP y échouent pour cette seule raison, et la `ci`, qui
@@ -277,13 +281,16 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Rétention et horloge** (3, 15, ticket #213) :
   - la purge de la télémétrie passe par une fonction du propriétaire, qui garde toujours le dernier jour ;
   - une activation programmée avant #123 qui changerait l'horloge est annulée au déploiement et au
-    démarrage du moteur ;
+    démarrage du moteur ; à moins d'une minute de son échéance, elle ne peut plus l'être, et le journal du
+    moteur dit qu'elle s'appliquera ;
   - le tick de clôture se reconnaît sans hypothèse sur l'ampleur d'un saut d'heure.
 - **Vigie et fuseau** (3, 15, ticket #222) : la configuration est globale, donc le fuseau en vigueur est dit une
   fois pour tous les mondes. S'il quitte la base des fuseaux de PostgreSQL, un humain doit le remettre sur
   le serveur (`needs-human`) : changer de fuseau serait un changement d'horloge, refusé.
 - **Tranches et rebases** : les tickets du matin ont été livrés en tranches de moins de 400 lignes,
-  dans l'ordre des numéros de migration (35 à 40). Chaque tranche `sensible` a été relue par
+  dans l'ordre des numéros de migration (35 à 40). L'après-midi aussi, chaque demande `sensible` a été relue
+  par `relecteur-sensible` et porte `a-relire-fable` ; #231 (#213), non `sensible`, a été relue par une
+  session distincte. Chaque tranche `sensible` a été relue par
   `relecteur-sensible` avant sa fusion et porte le label `a-relire-fable`.
 - **Répartition entre modèles** (#143) : le code des tickets `sensible` est écrit par le sous-agent
   `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
@@ -313,10 +320,10 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   - la taille de la cité prototype au regard du nombre de joueurs attendu ;
   - la consommation par habitant face à la production d'un site ;
   - le taux de croissance et le seuil de couverture ;
-  - la composition du panier et la cible d'inflation (#181).
+  - la composition du panier et la cible d'inflation (décision humaine, sans ticket depuis la fermeture de #181).
 
   Les bornes du test (inflation de 0 à 3 %, besoins couverts) ne seront écrites qu'ensuite.
-- **Indice des prix** (#181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
+- **Indice des prix** (décision humaine, sans ticket ; relevé par #181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
   Le serveur devra aussi garder `max_prepared_transactions = 0` (ADR 0003), ce que rien ne vérifie.
@@ -325,9 +332,9 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   La règle pourrait le dire ; le fichier n'a pas été modifié sans humain.
 - **Spécification 15** : son paragraphe sur les commandes et lectures d'Olympe tient sur une seule ligne
   très longue. Chaque demande de fusion qui la touche entre en conflit avec les autres, et il a fallu le
-  résoudre à la main quatre fois cet après-midi. Le scinder en phrases sur plusieurs lignes l'éviterait.
+  résoudre à la main plusieurs fois cet après-midi. Le scinder en phrases sur plusieurs lignes l'éviterait.
 
-Défauts connus, déjà en tickets :
+Défauts connus :
 
 - **#234** : une classe retirée garde son état de population, et un site oublié garde sa recette. Toute
   version future redemande donc la confirmation, alors qu'elle ne devrait porter que sur ce que la version
