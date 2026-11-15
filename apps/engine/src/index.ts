@@ -7,6 +7,8 @@ export {
   type TickRequest,
   type TickStep,
 } from './tick';
+export { CLOSE_STEPS } from './close-steps';
+export { runDailyClose, type CloseRequest } from './close';
 export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './scheduler';
 export { npcDemand } from './steps/npc-demand';
 export { npcPopulation } from './steps/npc-population';
