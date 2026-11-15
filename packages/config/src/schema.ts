@@ -327,6 +327,11 @@ export const aiUsageSchema = z.strictObject({
   model: z.string().min(1).max(100),
   /** Délai au-delà duquel l'appel est abandonné au profit du repli. */
   timeoutMs: z.number().int().min(100).max(120_000),
+  /**
+   * Jetons de sortie au plus par appel : borne le coût d'un appel, que la passerelle réserve sur le
+   * plafond avant de partir.
+   */
+  maxOutputTokens: z.number().int().min(1).max(100_000),
   /** Part du plafond mensuel de tous les usages réservée à celui-ci. */
   capShareBps: z.number().int().min(0).max(10_000),
   inputMicroEurosPerThousandTokens: z.number().int().min(0).max(1_000_000),
@@ -337,6 +342,7 @@ const disabledUsage = {
   enabled: false,
   model: 'none',
   timeoutMs: 10_000,
+  maxOutputTokens: 1,
   capShareBps: 0,
   inputMicroEurosPerThousandTokens: 0,
   outputMicroEurosPerThousandTokens: 0,
@@ -362,7 +368,7 @@ export const aiSchema = z
   .strictObject({
     budgetMicroEurosPerActivePlayerMonth: z.number().int().min(0).max(100_000),
     expectedActivePlayers: z.number().int().min(0).max(1_000_000),
-    /** Consignes d'intendant en langage naturel par maison et par jour de jeu (8.4). */
+    /** Consignes d'intendant en langage naturel par maison et par jour de jeu (8.4) ; 0 : aucune. */
     stewardDailyQuotaPerHouse: z.number().int().min(0).max(1_000),
     usages: z.strictObject({
       oracle: aiUsageSchema,

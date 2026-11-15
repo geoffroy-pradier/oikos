@@ -19,6 +19,7 @@ function usage() {
     enabled: false,
     model: 'small',
     timeoutMs: 5_000,
+    maxOutputTokens: 300,
     capShareBps: 0,
     inputMicroEurosPerThousandTokens: 150,
     outputMicroEurosPerThousandTokens: 600,
@@ -696,6 +697,9 @@ describe('passerelle IA', () => {
     expect(
       errors({ usages: { ...usages, chronicle: { ...usages.chronicle, capShareBps: 5_001 } } }),
     ).toEqual(['ai.usages: the usages may not share more than the whole budget']);
+    expect(
+      errors({ usages: { ...usages, oracle: { ...usages.oracle, maxOutputTokens: 0 } } }),
+    ).toEqual([expect.stringMatching(/^ai\.usages\.oracle\.maxOutputTokens: /)]);
     expect(errors({ usages: { ...usages, oracle: { ...usages.oracle, timeoutMs: 99 } } })).toEqual([
       expect.stringMatching(/^ai\.usages\.oracle\.timeoutMs: /),
     ]);

@@ -32,6 +32,7 @@
         "enabled": false,
         "model": "none",
         "timeoutMs": 20000,
+        "maxOutputTokens": 400,
         "capShareBps": 4000,
         "inputMicroEurosPerThousandTokens": 0,
         "outputMicroEurosPerThousandTokens": 0
@@ -40,6 +41,7 @@
         "enabled": false,
         "model": "none",
         "timeoutMs": 60000,
+        "maxOutputTokens": 1500,
         "capShareBps": 4000,
         "inputMicroEurosPerThousandTokens": 0,
         "outputMicroEurosPerThousandTokens": 0
@@ -48,6 +50,7 @@
         "enabled": false,
         "model": "none",
         "timeoutMs": 10000,
+        "maxOutputTokens": 600,
         "capShareBps": 2000,
         "inputMicroEurosPerThousandTokens": 0,
         "outputMicroEurosPerThousandTokens": 0
