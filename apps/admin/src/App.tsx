@@ -23,7 +23,7 @@ export function App() {
     role: AdminRole | null;
     failed: boolean;
   } | null>(null);
-  const [module, setModule] = useState<AdminModule>('vigie');
+  const [module, setModule] = useState<Exclude<AdminModule, 'economy'>>('vigie');
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -77,7 +77,8 @@ export function App() {
   const answered = token && mine ? mine : null;
   const granted = answered && !answered.failed ? answered.role : undefined;
   // Navigation composée d'après la liste des rôles par module partagée avec l'API, qui fait foi.
-  const modules = granted ? adminModulesFor(granted) : [];
+  // L'écran du module Économie vient dans la tranche suivante du ticket 76 : pas d'onglet d'ici là.
+  const modules = (granted ? adminModulesFor(granted) : []).filter((id) => id !== 'economy');
   const current = modules.includes(module) ? module : modules[0];
 
   let screen = <p>{t('app.loading')}</p>;

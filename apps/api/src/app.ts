@@ -117,7 +117,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.get('/api/health', (c) => c.json({ ok: true }));
-  registerAdminReads(app, { db, verifyToken, rateLimiter, settings }, fail);
+  registerAdminReads(app, { db, verifyToken, rateLimiter, loadConfig, settings }, fail);
 
   // Une commande est un petit objet JSON : au-delà, la requête est refusée avant lecture.
   const limit = (maxSize: number) =>

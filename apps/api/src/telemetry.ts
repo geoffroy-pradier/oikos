@@ -69,6 +69,7 @@ export function createTelemetry(db: Db, now: () => Date = () => new Date()): Tel
 const ADMIN_ROUTES = [
   '/api/admin/me',
   '/api/admin/vigie',
+  '/api/admin/economy',
   '/api/admin/audit',
   '/api/admin/roles',
   '/api/admin/config/versions',

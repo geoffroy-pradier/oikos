@@ -76,6 +76,7 @@ const ROUTES = [
   'me',
   'vigie',
   'config/versions',
+  'economy',
   `config/versions/${TEST_CONFIG.id}`,
   'audit',
   'roles',

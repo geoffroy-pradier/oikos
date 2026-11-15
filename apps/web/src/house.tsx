@@ -7,6 +7,8 @@ export interface HouseSummary {
   /** Jeton de session, pour envoyer des commandes à l'API de jeu. */
   accessToken: string;
   cityName: string;
+  /** Noms des cités du monde, par identifiant : un stock ou un site peut être ailleurs que la maison. */
+  cityNames: Readonly<Record<string, string>>;
   citizenshipStatus: 'metic' | 'citizen';
 }
 

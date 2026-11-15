@@ -7,7 +7,8 @@ import { supabase } from './supabase';
  * `rows` vaut `null` tant que rien n'a été lu ; `failed` signale un échec, jamais pris pour « rien ».
  * Quand la vue ou le filtre change, les lignes de l'ancien filtre disparaissent aussitôt, et seule la
  * réponse de la lecture la plus récente est retenue : une réponse tardive ne s'affiche jamais sous un
- * autre filtre.
+ * autre filtre. `reload` rend les lignes qu'elle vient de lire, `null` en cas d'échec ou si une lecture
+ * plus récente l'a remplacée.
  */
 export function useRows<T>(
   view: string,
@@ -33,10 +34,11 @@ export function useRows<T>(
       (response) => response,
       () => null,
     );
-    if (request !== latest.current) return;
-    if (!result || result.error) return setFailed(true);
-    setFailed(false);
-    setRows((result.data as T[] | null) ?? []);
+    if (request !== latest.current) return null;
+    const read = result && !result.error ? ((result.data as T[] | null) ?? []) : null;
+    setFailed(read === null);
+    if (read) setRows(read);
+    return read;
   }, [view, columns, order, filterKey, limit]);
   useEffect(() => {
     setRows(null);
