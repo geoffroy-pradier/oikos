@@ -89,7 +89,13 @@ afterEach(cleanup);
 async function openVersion(number: number, role: 'super_admin' | 'observer' = 'super_admin') {
   render(<Config accessToken="token" role={role} />);
   fireEvent.click(await screen.findByRole('button', { name: `Ouvrir la version ${number}` }));
-  return (await screen.findByLabelText('Configuration (JSON)')) as HTMLTextAreaElement;
+  const editor = (await screen.findByLabelText('Configuration (JSON)')) as HTMLTextAreaElement;
+  // L'ouverture pose le foyer sur le titre de la version par un effet : on l'attend, sinon un geste
+  // du test fait dans la foulée (sous charge, avant l'effet) se verrait reprendre le foyer.
+  await waitFor(() =>
+    expect(document.activeElement?.textContent).toBe(`Contenu de la version ${number}`),
+  );
+  return editor;
 }
 
 it('liste les versions : en vigueur, programmation à venir seulement, retour arrière', async () => {
@@ -763,7 +769,11 @@ it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisibl
 
 it('formulaire des biens : une saisie est un texte modifié et l’emporte sur une ouverture en route ; indisponible sans liste lisible ; lecture seule', async () => {
   const editor = await openVersion(1);
-  expect(screen.getByText(/^Chaque saisie réécrit le texte JSON ci-dessus, comme/)).toBeTruthy();
+  expect(
+    screen.getByText(
+      /^Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait\./,
+    ),
+  ).toBeTruthy();
   // Version 2 lente à s'ouvrir : la saisie faite entre-temps reste, sa réponse est ignorée.
   const slow = held<unknown>();
   api.adminGet.mockImplementationOnce(() => slow.promise);
@@ -974,6 +984,7 @@ it('formulaire des recettes : indisponible sans listes lisibles, sans toucher au
   expect(cell('bake', 'type de site').disabled).toBe(true);
   expect(stackCell('bake', 'intrants', 'wheat', 'quantité').readOnly).toBe(true);
   expect(screen.queryAllByText(/^Chaque saisie réécrit/)).toEqual([]);
+  expect(screen.queryAllByRole('button', { name: /^(Ajouter|Retirer) / })).toEqual([]);
 });
 
 const PLEBS = {
@@ -1051,4 +1062,60 @@ it('formulaire des classes : indisponible sans panier lisible ; lecture seule po
   expect(cell('plebs', 'sensibilité à la qualité').readOnly).toBe(true);
   expect((basketCell('plebs', 'bread', 'bien') as HTMLInputElement).readOnly).toBe(true);
   expect(basketCell('plebs', 'bread', 'besoin').disabled).toBe(true);
+  expect(screen.queryAllByRole('button', { name: /^(Ajouter|Retirer) / })).toEqual([]);
+});
+
+it.each([
+  [
+    'recipes',
+    'Ajouter une recette',
+    BAKE,
+    { id: 'gather', siteType: 'field', outputs: [] },
+    'Recette',
+  ],
+  ['npcClasses', 'Ajouter une classe', PLEBS, { id: 'rich', incomePerThousand: 900 }, 'Classe'],
+])(
+  'formulaire %s : un ajout écrit une ligne vide ; un retrait est annoncé, le foyer suit ; Entrée tenue ne répète rien',
+  async (table, add, first, second, noun) => {
+    const editor = await openVersion(1);
+    const text = JSON.stringify({ [table]: [first, second], goods: GOODS }, null, 2);
+    type(editor, text);
+    const rows = () => (JSON.parse(editor.value) as Record<string, unknown[]>)[table];
+    const announce = () => document.getElementById(`${table}-announce`)?.textContent;
+    fireEvent.click(button(add));
+    expect(rows()).toEqual([first, second, {}]);
+    expect(document.activeElement).toBe(cell('élément 3', 'identifiant'));
+    // Retrait de la dernière : le texte revient à l'identique, le foyer va à la précédente.
+    fireEvent.click(button('Retirer élément 3'));
+    expect([editor.value, announce()]).toEqual([
+      text,
+      `${noun} élément 3 retirée du texte, pas encore enregistrée.`,
+    ]);
+    expect(document.activeElement).toBe(cell(second.id, 'identifiant'));
+    // Au clavier, Entrée tenue : une seule ligne retirée, le foyer va à la suivante.
+    button(`Retirer ${first.id}`).focus();
+    enter();
+    enter(true);
+    expect(rows()).toEqual([second]);
+    expect(document.activeElement).toBe(cell(second.id, 'identifiant'));
+    // La seule retirée : le foyer va au bouton d'ajout, où la répétition n'ajoute rien.
+    button(`Retirer ${second.id}`).focus();
+    enter();
+    expect([rows(), document.activeElement]).toEqual([[], button(add)]);
+    enter(true);
+    expect(rows()).toEqual([]);
+  },
+);
+
+it('chaque formulaire est un groupe nommé : deux lignes « élément 2 » se distinguent ; une table vide est dite telle', async () => {
+  const editor = await openVersion(1);
+  type(editor, JSON.stringify({ goods: [{}, {}], recipes: [{}, {}], npcClasses: [] }));
+  expect(screen.getAllByRole('group', { name: 'élément 2' })).toHaveLength(2);
+  for (const form of ['Biens', 'Recettes']) {
+    const group = within(screen.getByRole('group', { name: form }));
+    expect(group.getAllByRole('group', { name: 'élément 2' })).toHaveLength(1);
+  }
+  const classes = screen.getByRole('group', { name: 'Classes de PNJ' });
+  expect(within(classes).getByText('Aucune.')).toBeTruthy();
+  expect(within(screen.getByRole('group', { name: 'Recettes' })).queryByText('Aucune.')).toBeNull();
 });

@@ -1,9 +1,16 @@
-import { GOOD_TIERS as SCHEMA_TIERS, goodSchema } from '@oikos/config/schema';
+import {
+  goodSchema,
+  npcClassSchema,
+  recipeSchema,
+  GOOD_TIERS as SCHEMA_TIERS,
+} from '@oikos/config/schema';
 import fc from 'fast-check';
 import { expect, it } from 'vitest';
 import * as form from './goods-form';
+import { BASKET_FIELDS, NPC_CLASS_FIELDS } from './npc-classes-form';
+import { RECIPE_FIELDS, STACK_FIELDS } from './recipes-form';
 
-const { addGood, composeGoods, editRow, GOOD_FIELDS, readGoods, removeGood, shown, typed } = form;
+const { addRow, composeGoods, editRow, GOOD_FIELDS, readGoods, removeRow, shown, typed } = form;
 type Kind = form.TableField['kind'];
 
 it('les champs et les niveaux du formulaire sont ceux du schéma, dans son ordre', () => {
@@ -96,14 +103,14 @@ it('conservation : une saisie ne change que sa valeur, tout le reste de la confi
 });
 
 it('ajout : un bien vide en fin de liste, sans valeur inventée ; sans `goods`, la liste est créée en dernier', () => {
-  expect(composeGoods({ a: 1, goods: [{ id: 'wheat' }], b: 2 }, addGood([{ id: 'wheat' }]))).toBe(
+  expect(composeGoods({ a: 1, goods: [{ id: 'wheat' }], b: 2 }, addRow([{ id: 'wheat' }]))).toBe(
     JSON.stringify({ a: 1, goods: [{ id: 'wheat' }, {}], b: 2 }, null, 2),
   );
-  expect(composeGoods({ recipes: [] }, addGood(readGoods({ recipes: [] }) ?? []))).toBe(
+  expect(composeGoods({ recipes: [] }, addRow(readGoods({ recipes: [] }) ?? []))).toBe(
     JSON.stringify({ recipes: [], goods: [{}] }, null, 2),
   );
   // Le dernier bien retiré : liste vide, que l'API refuse (au moins un bien).
-  expect(composeGoods({ goods: [{ id: 'wheat' }] }, removeGood([{ id: 'wheat' }], 0))).toBe(
+  expect(composeGoods({ goods: [{ id: 'wheat' }] }, removeRow([{ id: 'wheat' }], 0))).toBe(
     JSON.stringify({ goods: [] }, null, 2),
   );
 });
@@ -121,7 +128,7 @@ it('conservation : un ajout ou un retrait ne touche que ce bien, le reste du tex
       const before = JSON.stringify({ ...rest, goods });
       const config = JSON.parse(before) as { goods: Record<string, unknown>[] };
       const row = pick % Math.max(config.goods.length, 1);
-      const next = adding ? addGood(config.goods) : removeGood(config.goods, row);
+      const next = adding ? addRow(config.goods) : removeRow(config.goods, row);
       const expected = JSON.parse(before) as typeof config;
       if (adding) expected.goods.push({});
       else expected.goods.splice(row, 1);
@@ -149,3 +156,26 @@ it('une autre table et une liste imbriquée se lisent et s’écrivent de même,
     JSON.stringify({ a: 1, recipes: [{ ...bake, inputs: flour }], b: 2 }, null, 2),
   );
 });
+
+/** Sorte qu'un champ doit avoir d'après son schéma : un « 1e3 » n'écrit un nombre que dans un décimal. */
+const kindOf = (schema: unknown) => {
+  const { def, isInt } = schema as { def: { type: string }; isInt?: boolean };
+  if (def.type === 'number') return isInt ? 'integer' : 'decimal';
+  return def.type === 'enum' ? 'choice' : 'text';
+};
+it.each([
+  ['biens', GOOD_FIELDS, goodSchema.shape],
+  ['recettes', RECIPE_FIELDS, recipeSchema.shape],
+  ['intrants et extrants', STACK_FIELDS, recipeSchema.shape.inputs.element.shape],
+  ['classes de PNJ', NPC_CLASS_FIELDS, npcClassSchema.shape],
+  ['paniers', BASKET_FIELDS, npcClassSchema.shape.basket.element.shape],
+] as const)(
+  '%s : chaque champ a la sorte de son schéma (entier, décimal, choix, texte)',
+  (_, fields, shape) => {
+    for (const field of fields)
+      expect([field.key, field.kind]).toEqual([
+        field.key,
+        kindOf(shape[field.key as keyof typeof shape]),
+      ]);
+  },
+);
