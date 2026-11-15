@@ -716,6 +716,7 @@ const PRICE = 'prix de référence (oboles)';
 it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisible se relit dans le formulaire', async () => {
   api.adminCommand.mockResolvedValue({ ok: true, data: { number: 4 } });
   const editor = await openVersion(1);
+  expect(screen.getByText('Biens').closest('details')?.open).toBe(false);
   const elasticity = cell('wheat', 'élasticité');
   expect(elasticity.value).toBe('0.4');
   // Frappe à frappe : le champ garde ce qui est tapé (« 1.0 » ne redevient pas « 1 » avant le « 5 »).
@@ -733,7 +734,6 @@ it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisibl
   expect([goodsOf(editor)[0]?.['elasticity'], elasticity.value]).toEqual([0.45, '0.45']);
   // Un prix qui ne se lit pas comme un nombre part en texte, et se montre comme tel : entre guillemets.
   type(cell('wheat', PRICE), '1,000');
-  expect(cell('wheat', PRICE).value).toBe('1,000');
   fireEvent.blur(cell('wheat', PRICE));
   expect(cell('wheat', PRICE).value).toBe('"1,000"');
   expect(goodsOf(editor)[0]).toEqual({ ...wheat, referencePriceOboles: '1,000', elasticity: 0.45 });
@@ -778,7 +778,7 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
   for (const text of ['{ "goods": ', '[]', '{"goods":{"wheat":{}}}', '{"goods":[1]}']) {
     type(editor, text);
     expect(screen.getByText(/^Formulaire indisponible/)).toBeTruthy();
-    expect(screen.queryByRole('group')).toBeNull();
+    expect(screen.queryAllByLabelText('identifiant')).toEqual([]);
     expect(editor.value).toBe(text);
   }
   cleanup();

@@ -33,7 +33,8 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     goods: [{ id: string; elasticity: number }];
   };
   const grant = config.starting.grantOboles;
-  // Formulaire des biens : une saisie y réécrit le texte, la comparaison la montre aussitôt.
+  // Formulaire des biens, replié : déplié, une saisie y réécrit le texte, la comparaison la montre.
+  await page.getByText('Biens', { exact: true }).click();
   const [good] = config.goods;
   const fields = page.getByRole('group', { name: good.id, exact: true });
   await fields.getByLabel('élasticité').fill(String(good.elasticity + 1));

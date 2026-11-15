@@ -20,8 +20,8 @@ export function GoodsForm(props: {
   /** Frappe en cours dans un champ : affichée telle quelle (« 1.0 » ne redevient pas « 1 » avant « 1.05 »). */
   const [draft, setDraft] = useState<{ cell: string; text: string } | null>(null);
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-lg">{t('config.schemaPath.tables.goods')}</h3>
+    <details className="space-y-3">
+      <summary className="min-h-11 text-lg">{t('config.schemaPath.tables.goods')}</summary>
       {(!goods || !props.readOnly) && (
         <p className="text-sm text-muted-foreground">
           {t(goods ? 'config.goodsForm.hint' : 'config.goodsForm.unavailable')}
@@ -94,6 +94,6 @@ export function GoodsForm(props: {
           </fieldset>
         );
       })}
-    </section>
+    </details>
   );
 }
