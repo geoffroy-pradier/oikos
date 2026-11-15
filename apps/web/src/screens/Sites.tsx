@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
-import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site-rules';
+import {
+  freeStockIn,
+  previewHarvest,
+  siteAlerts,
+  type SiteAlert,
+  type StockLine,
+} from '../site-rules';
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
 import { formatList } from '../lists';
@@ -134,6 +140,8 @@ export function SitesCard({
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
+    // Recette retirée de la configuration (4.2) : le site ne produit plus, quel que soit son arrêt.
+    if (rules && !recipe) return { halted, harvest: null, alerts: ['retired'] as SiteAlert[] };
     // Tant que le stock ou l'heure ne sont pas lus, rien n'est annoncé : on ne dit pas « à court » à tort.
     if (!recipe || !stock || !now)
       return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
@@ -392,6 +400,8 @@ export function SitesCard({
           const choice = chosen[site.id] ?? site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
           const { halted, harvest, alerts } = stateOf(site);
+          // Sans recette, ni récolte ni relance : seul le changement de production est proposé.
+          const retired = alerts.includes('retired');
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
           const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
           return (
@@ -401,9 +411,13 @@ export function SitesCard({
                   <h3 className="text-lg">{name}</h3>
                   <div className="text-sm text-muted-foreground">
                     {type && <p>{t('home.siteType', { type: typeName(type) })}</p>}
-                    <p>
-                      {t('home.siteSince', { date: date.format(new Date(site.cycle_started_at)) })}
-                    </p>
+                    {!retired && (
+                      <p>
+                        {t('home.siteSince', {
+                          date: date.format(new Date(site.cycle_started_at)),
+                        })}
+                      </p>
+                    )}
                     {upkeep !== null && upkeep > 0 && (
                       <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
                     )}
@@ -425,16 +439,19 @@ export function SitesCard({
                     )}
                   </div>
                 </div>
-                <Button
-                  className={WAITING}
-                  aria-disabled={busy}
-                  aria-label={t('home.collectSite', { site: name })}
-                  onClick={() => void collect(site)}
-                >
-                  {t('home.collect')}
-                </Button>
+                {!retired && (
+                  <Button
+                    className={WAITING}
+                    aria-disabled={busy}
+                    aria-label={t('home.collectSite', { site: name })}
+                    onClick={() => void collect(site)}
+                  >
+                    {t('home.collect')}
+                  </Button>
+                )}
               </div>
-              {halted && (
+              {retired && <p className="font-semibold text-danger">{t('home.retired')}</p>}
+              {halted && !retired && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="min-w-0 flex-1 font-semibold text-danger">
                     {t('home.halted', { date: date.format(halted) })}
@@ -499,10 +516,20 @@ export function SitesCard({
                         setChosen((all) => ({ ...all, [site.id]: event.target.value }))
                       }
                     >
-                      <option value={site.recipe_id}>{recipeName(site.recipe_id)}</option>
+                      <option value={site.recipe_id}>
+                        {retired
+                          ? t('home.retiredOption', { site: recipeName(site.recipe_id) })
+                          : recipeName(site.recipe_id)}
+                      </option>
                       {alternatives.map((recipe) => (
                         <option key={recipe.id} value={recipe.id}>
-                          {recipeName(recipe.id)}
+                          {/* Toutes les productions sont proposées : leur type est précisé. */}
+                          {retired
+                            ? t('home.productionTyped', {
+                                site: recipeName(recipe.id),
+                                type: typeName(recipe.siteType),
+                              })
+                            : recipeName(recipe.id)}
                         </option>
                       ))}
                     </select>

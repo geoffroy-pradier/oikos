@@ -207,6 +207,64 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByText('Upkeep: 5 drachmas a day', { exact: false })).toBeVisible();
 });
 
+test('production retirée de la configuration : site à l’arrêt sans récolte ni relance, nouvelle production au clavier', async ({
+  page,
+}) => {
+  const houseName = await foundHouse(page);
+  // Le champ exploite une recette que la configuration ne connaît pas (retirée par le back-office), et
+  // il était à l'arrêt : l'API et l'écran lisent la même configuration, sans cette recette.
+  await elapse(houseName, 720);
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set recipe_id = 'retired_recipe', halted_at = now() - interval '1 hour'
+      where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+  await page.reload();
+  await expect(page.getByText(/^À l'arrêt : sa production n'existe plus\./)).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'À surveiller' })
+      .getByText("retired_recipe — à l'arrêt, production retirée"),
+  ).toBeVisible();
+  // Aucun bouton qui échouerait : ni récolte, ni « Tout récolter », ni relance ; pas d'entretien.
+  await expect(page.getByRole('button', { name: /Récolter|Relancer/ })).toHaveCount(0);
+  await expect(page.getByText('entretien impayé', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Entretien :', { exact: false })).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+
+  // Toutes les productions sont proposées, avec leur type ; le site repart sous la nouvelle.
+  const production = page.getByLabel('Production : retired_recipe', { exact: true });
+  await expect(production).toHaveValue('retired_recipe');
+  await expect(production.locator('option').first()).toHaveText(
+    'retired_recipe (production retirée)',
+  );
+  const change = page.getByRole('button', { name: 'Changer la production : retired_recipe' });
+  await expect(change).toBeDisabled();
+  await production.selectOption({ label: 'Champ de blé (Champ)' });
+  await change.focus();
+  await page.keyboard.press('Enter');
+  await expect(said(page, 'status')).toContainText('Production changée : Champ de blé.');
+  await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Récolter : Champ de blé' })).toBeVisible();
+  await expect(page.getByText("Rien à récolter pour l'instant.")).toBeVisible();
+  // Rien n'a été payé : la trésorerie est la dotation de départ.
+  await expect(page.getByText(/^500 drachmes$/)).toBeVisible();
+
+  // En anglais, le même état est annoncé pour un autre site sans recette.
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set recipe_id = 'retired_recipe'
+      where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+  await page.reload();
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByText(/^Stopped: its production no longer exists\./)).toBeVisible();
+  await expect(page.getByText('retired_recipe — stopped, production withdrawn')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Collect/ })).toHaveCount(0);
+});
+
 test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 240);

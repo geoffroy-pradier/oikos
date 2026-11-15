@@ -48,7 +48,10 @@ export interface SiteRules {
   offers: { recipe: SiteRecipe; costOboles: number }[];
   /** Type de site d'une recette, connue ou non du client. */
   siteTypeOf(recipeId: string): string | null;
-  /** Autres recettes qu'un site peut adopter : celles de son type. */
+  /**
+   * Autres recettes qu'un site peut adopter : celles de son type. Une recette que la configuration ne
+   * connaît plus (recette retirée, 4.2) n'a pas de type : toutes les recettes sont alors proposées.
+   */
   alternatives(recipeId: string): SiteRecipe[];
   /** Recette d'un site, si la configuration en vigueur la connaît. */
   recipe(recipeId: string): SiteRecipe | null;
@@ -77,6 +80,7 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
     siteTypeOf: typeOf,
     alternatives: (recipeId) => {
       const type = typeOf(recipeId);
+      if (type === null) return recipes;
       return recipes.filter((recipe) => recipe.siteType === type && recipe.id !== recipeId);
     },
     recipe: (recipeId) => recipes.find((recipe) => recipe.id === recipeId) ?? null,
@@ -173,8 +177,11 @@ export function freeStockIn(stock: readonly StockLine[], cityId: string, goodId:
   return line ? line.quantity - line.reserved : 0;
 }
 
-/** Ce qui demande l'attention du joueur sur un site, dans l'ordre où il faut y répondre. */
-export type SiteAlert = 'halted' | 'short' | 'full';
+/**
+ * Ce qui demande l'attention du joueur sur un site, dans l'ordre où il faut y répondre. `retired` : la
+ * recette du site a quitté la configuration, il ne produit plus tant qu'il n'en a pas changé (4.2).
+ */
+export type SiteAlert = 'retired' | 'halted' | 'short' | 'full';
 
 /**
  * Alertes d'un site, déduites de ce qu'une récolte donnerait maintenant (`previewHarvest`) :
