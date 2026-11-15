@@ -5,10 +5,11 @@ import {
   INITIAL_CONFIG,
   type GameConfig,
 } from '@oikos/config';
-import { createDb, serviceRoleUrl } from '@oikos/db';
+import { createDb, serviceRoleUrl, type Db } from '@oikos/db';
 import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { runDailyClose } from '../close';
 import { closeWorld } from '../scheduler';
 import { npcPopulation } from './npc-population';
 
@@ -39,6 +40,23 @@ const close = (worldId: string, day = TODAY) =>
     config: { at: async () => ({ ...loaded, config }) },
     steps: [npcPopulation],
   });
+/** La même clôture sans le raccourci de `closeWorld` : `runDailyClose` décide seul, sous son verrou. */
+const replay = (worldId: string, gameDay: number) =>
+  runDailyClose(db, {
+    worldId,
+    gameDay,
+    closeAt: dailyCloseAt(gameDay, clock),
+    config: { at: async () => ({ ...loaded, config }) },
+    steps: [npcPopulation],
+    now: new Date(),
+  });
+/** L'étape seule, sous le rôle de service, hors de `runDailyClose` : rien n'enregistre la clôture. */
+const stepAlone = (worldId: string, gameDay: number) =>
+  db
+    .transaction()
+    .execute((trx) =>
+      npcPopulation.run({ trx, worldId, gameDay, closeAt: dailyCloseAt(gameDay, clock), config }),
+    );
 
 beforeAll(async () => {
   await ensureInitialConfig(db, INITIAL_CONFIG);
@@ -139,13 +157,47 @@ describe('population des PNJ à la clôture quotidienne', () => {
         ],
       },
     });
-    // Rejouée, ou demandée pour la veille par un moteur en retard : plus rien ne bouge.
+    // Rejouée, ou demandée pour la veille par un moteur en retard : `runDailyClose` relit sous verrou
+    // la dernière clôture du monde et ne joue rien.
     expect(await close(city.worldId)).toEqual([]);
-    expect(await close(city.worldId, TODAY - 1)).toEqual([]);
+    for (const day of [TODAY, TODAY - 1])
+      expect(await replay(city.worldId, day)).toMatchObject({ status: 'skipped' });
+    // L'étape rejouée sans cette protection : la base refuse une seconde évolution pour le même jour,
+    // et, pour un jour dont aucune transaction n'enregistre la clôture, refuse à la validation.
+    await expect(stepAlone(city.worldId, TODAY)).rejects.toThrow(/once per game day/);
+    await expect(stepAlone(city.worldId, TODAY + 1)).rejects.toMatchObject({
+      constraint: 'npc_population_played_close',
+    });
     expect(await stateOf(city)).toEqual(after);
     expect(await close(elsewhere.worldId)).toEqual([TODAY]);
     expect(await stateOf(elsewhere)).toEqual({ thetes: [6_000, null, null] });
     expect(await summaryOf(elsewhere, TODAY)).toEqual({ npcPopulation: { classes: [] } });
+  });
+
+  it('hors de la clôture, rien ne fait évoluer une population, même pendant qu’une clôture se joue', async () => {
+    const city = await newCity(START);
+    const forge = (trx: Db) =>
+      trx
+        .updateTable('game.npc_population')
+        .set({ population: 48_000, closed_day: TODAY, coverage_bps: 10_000 })
+        .where('city_id', '=', city.cityId)
+        .where('class_id', '=', 'thetes')
+        .execute();
+    // Écriture forgée sous le rôle de service, pour le jour dont la clôture va se jouer : la garde de
+    // la base tient le verrou des clôtures du monde, la clôture attend donc la fin de la transaction,
+    // qui échoue à sa validation faute d'avoir enregistré la clôture elle-même.
+    let closing: Promise<number[]> | undefined;
+    const forged = db.transaction().execute(async (trx) => {
+      await forge(trx);
+      closing = close(city.worldId);
+      const waiting = new Promise((resolve) => setTimeout(resolve, 300, 'waiting'));
+      expect(await Promise.race([closing, waiting])).toBe('waiting');
+    });
+    await expect(forged).rejects.toMatchObject({ constraint: 'npc_population_played_close' });
+    expect(await closing).toEqual([TODAY]);
+    // Clôture enregistrée : la même écriture est refusée d'emblée, la classe n'a pas bougé.
+    await expect(forge(db)).rejects.toThrow(/before its close is recorded/);
+    expect((await stateOf(city))['thetes']).toEqual([6_000, null, null]);
   });
 
   it('jour après jour : arrondi à l’habitant vers zéro, bornes, besoin nul, jour sans mesure', async () => {
