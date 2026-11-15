@@ -103,7 +103,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
+        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
       - name: Test database
         run: pnpm db:reset && pnpm test:db
       - name: Replay migrations
@@ -142,7 +142,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
+        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
       - name: Integration tests
         env:
           FILTER: ${{ matrix.filter }}
@@ -190,7 +190,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start)
+        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
       - name: End-to-end tests
         run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
       # Traces des tests rejoués (échec puis nouvel essai), à ouvrir avec `playwright show-trace`.
