@@ -9,6 +9,7 @@ import {
   DEFAULT_PRICE_HISTORY,
   DEFAULT_POPULATION_DYNAMICS,
   DEFAULT_PRICE_INDEX,
+  DEFAULT_SHIPS,
   DEFAULT_SITES,
   DEFAULT_TELEMETRY,
   DEFAULT_UPKEEP,
@@ -92,6 +93,17 @@ const FIXTURE: GameConfig = {
         workshop: 26,
       },
     },
+  },
+  ships: {
+    classes: [
+      {
+        id: 'coaster',
+        capacityUnits: 200,
+        speedBps: 12_000,
+        purchaseCostOboles: 1_800,
+        dailyUpkeepOboles: 15,
+      },
+    ],
   },
   goods: [
     { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
@@ -856,5 +868,60 @@ describe('dieux et identité des cités (6.1)', () => {
     const config = withOlives({ terroir: ['grow_olives'], startingRecipeId: 'grow_olives' });
     expect(cityStartingRecipeId(config, 'kalliste')).toBe('grow_olives');
     expect(cityStartingRecipeId(config, 'delos')).toBe('grow_wheat');
+  });
+});
+
+describe('navires (4.6)', () => {
+  const coaster = () => at(clone().ships.classes, 0);
+  const withClass = (patch: Record<string, unknown>) => ({
+    ...clone(),
+    ships: { classes: [{ ...coaster(), ...patch }] },
+  });
+
+  it('une version publiée avant le transport reste lisible, sans aucune classe de navire', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.ships;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.ships).toEqual({ classes: [] });
+    expect(Object.isFrozen(DEFAULT_SHIPS.classes)).toBe(true);
+  });
+
+  it('une classe : capacité, vitesse et prix entiers positifs bornés, entretien entier positif ou nul', () => {
+    const field = (patch: Record<string, unknown>) =>
+      errorsOf(withClass(patch)).map((error) => error.split(':')[0]);
+    expect(field({ dailyUpkeepOboles: 0 })).toEqual([]);
+    expect(field({ speedBps: 1_000, capacityUnits: 1_000_000, purchaseCostOboles: 1 })).toEqual([]);
+    for (const [key, values] of [
+      ['capacityUnits', [0, 1.5, 1_000_001]],
+      ['speedBps', [999, 100_001, 10_000.5]],
+      ['purchaseCostOboles', [0, -1, 2.5, 1_000_000_001]],
+      ['dailyUpkeepOboles', [-1, 0.5]],
+    ] as const)
+      for (const value of values)
+        expect([key, value, field({ [key]: value })]).toEqual([
+          key,
+          value,
+          [`ships.classes[0].${key}`],
+        ]);
+    expect(field({ escort: true })).toEqual(['ships.classes[0]']);
+    const withoutPrice: Partial<ReturnType<typeof coaster>> = coaster();
+    delete withoutPrice.purchaseCostOboles;
+    expect(
+      errorsOf({ ...clone(), ships: { classes: [withoutPrice] } }).map((e) => e.split(':')[0]),
+    ).toEqual(['ships.classes[0].purchaseCostOboles']);
+  });
+
+  it('identifiant sans doublon, section sans autre clé, au plus vingt classes', () => {
+    expect(errorsOf({ ...clone(), ships: { classes: [coaster(), coaster()] } })).toEqual([
+      'ships.classes: duplicate id "coaster"',
+    ]);
+    expect(
+      errorsOf({ ...clone(), ships: { classes: [], routes: [] } }).map((e) => e.split(':')[0]),
+    ).toEqual(['ships']);
+    const many = Array.from({ length: 21 }, (_, n) => ({ ...coaster(), id: `ship_${n}` }));
+    expect(errorsOf({ ...clone(), ships: { classes: many } }).map((e) => e.split(':')[0])).toEqual([
+      'ships.classes',
+    ]);
   });
 });
