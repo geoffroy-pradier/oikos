@@ -29,7 +29,10 @@ describe('heure du serveur', () => {
 
   it('lit l’heure par la route de santé ; une panne ne change rien', async () => {
     const date = new Date(Date.now() + 3 * 3_600_000).toUTCString();
-    await syncServerClock(async () => new Response('{}', { headers: { Date: date } }));
+    const health = vi.fn<typeof fetch>(async () => new Response('{}', { headers: { Date: date } }));
+    await syncServerClock(health);
+    // Jamais servie par un cache : l'heure lue est celle de la réponse.
+    expect(health).toHaveBeenCalledWith('/api/health', { cache: 'no-store' });
     const ahead = serverClock.now().getTime() - Date.now();
     expect(ahead).toBeGreaterThan(3 * 3_600_000 - 2_000);
     expect(ahead).toBeLessThan(3 * 3_600_000 + 2_000);

@@ -85,9 +85,10 @@ export function SitesCard({
   // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute, à l'heure
   // du serveur. Au retour sur un onglet resté en arrière-plan (minuterie ralentie, clôture passée
   // entre-temps), l'heure et les sites sont relus, puis tout est recompté.
-  const [now, setNow] = useState(() => serverClock.now());
-  const reloadSites = useRef(sites.reload);
-  reloadSites.current = sites.reload;
+  // Tant que la première lecture de l'heure n'a pas abouti (ou échoué), rien n'est annoncé : l'heure
+  // du navigateur peut être fausse de plusieurs heures. Deux lectures simultanées : la dernière gagne.
+  const [now, setNow] = useState<Date | null>(null);
+  const reloadSites = sites.reload;
   useEffect(() => {
     let live = true;
     const sync = () => void syncServerClock().then(() => live && setNow(serverClock.now()));
@@ -95,7 +96,7 @@ export function SitesCard({
     const timer = setInterval(() => setNow(serverClock.now()), 60_000);
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      void reloadSites.current();
+      void reloadSites();
       sync();
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -104,7 +105,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [reloadSites]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -119,8 +120,8 @@ export function SitesCard({
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
-    // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
-    if (!recipe || !stock)
+    // Tant que le stock ou l'heure ne sont pas lus, rien n'est annoncé : on ne dit pas « à court » à tort.
+    if (!recipe || !stock || !now)
       return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
     const harvest = previewHarvest(
       recipe,
