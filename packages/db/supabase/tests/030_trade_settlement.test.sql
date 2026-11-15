@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(37);
 
 -- Règlement des échanges et séquestre, tenus par la base (migrations 35 et 36 ; ticket 100). Chaque écriture
 -- est jouée sous le rôle de service, comme le jeu, puis les contrôles différés sont validés : un refus
@@ -122,11 +122,12 @@ select throws_ok(format($$select pg_temp.as_service(%L)$$,
          ('00000000-0000-7000-8000-000000000511', '00000000-0000-7000-8000-0000000000cc', 10);$s$),
   '23514', 'trade 00000000-0000-7000-8000-000000000411 must be paid 40 oboles in a single debit of the buyer''s treasury',
   'une ligne ajoutée à l''écriture d''un échange ne détourne pas son montant');
--- Une écriture ne règle qu'un échange : deux échanges de 5 à 8 ne sont pas payés par une écriture de 40.
+-- Une écriture ne règle qu'un échange (index unique, migration 43) : deux échanges de 5 à 8 ne sont pas
+-- payés par une écriture de 40. Le refus vient de l'index, sans attendre la validation.
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('512', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-40, 40])
     || pg_temp.trade('412', '303', null, 8, 5, '512') || pg_temp.trade('413', '303', null, 8, 5, '512')),
-  '23514', 'ledger entry 00000000-0000-7000-8000-000000000512 settles more than one trade', 'une écriture ne règle qu''un échange');
+  '23505', 'duplicate key value violates unique constraint "trades_ledger_entry_unique"', 'une écriture ne règle qu''un échange');
 -- Règlement exact, taxe comprise : 36 au vendeur, 2 détruites, 2 au trésor de Kallistè.
 select lives_ok(pg_temp.arriving(array['00000000-0000-7000-8000-0000000000aa', '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax'), pg_temp.sys('101')]::uuid[], array[-40, 36, 2, 2]),
   'brut = net + part détruite + part du trésor : accepté');
@@ -146,6 +147,57 @@ select lives_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('513', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax'), pg_temp.sys('101')]::uuid[], array[-16, 14, 1, 1])
     || pg_temp.trade('414', '303', null, 8, 2, '513')),
   'achat des PNJ réglé, taxe comprise');
+-- Une part nulle n'a pas de ligne : taxe nulle, taxe tout entière détruite ou versée au trésor, net nul
+-- (vente 307 d'une obole, que la taxe prend entière : le vendeur n'a pas de ligne).
+select lives_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('514', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-8, 8])
+    || pg_temp.trade('417', '303', null, 8, 1, '514')),
+  'taxe nulle : le brut va entier au vendeur');
+select lives_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('515', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax')]::uuid[], array[-16, 15, 1])
+    || pg_temp.trade('418', '303', null, 8, 2, '515')),
+  'une seule ligne de taxe : tout détruit');
+select lives_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('516', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('101')]::uuid[], array[-16, 15, 1])
+    || pg_temp.trade('419', '303', null, 8, 2, '516')),
+  'une seule ligne de taxe : tout au trésor de la cité');
+select lives_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.order_sql('307', 'b1', 'sell', 1, 1)
+    || pg_temp.entry('517', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), pg_temp.sys('sink_market_tax')]::uuid[], array[-1, 1])
+    || pg_temp.trade('420', '307', null, 1, 1, '517')),
+  'net nul : le vendeur n''a pas de ligne');
+
+-- Coût du règlement (migration 43) : un contrôle par échange, plus un par ligne écrite après lui. Les
+-- appels sont comptés dans la transaction ; un contrôle qui échoue n'est pas compté.
+set local track_functions = 'pl';
+create function pg_temp.checks_during(statements text) returns bigint language plpgsql as $$
+declare
+  calls bigint := coalesce(pg_stat_get_xact_function_calls('game.check_trade_settlement(uuid)'::regprocedure), 0);
+begin
+  perform pg_temp.as_service(statements);
+  return coalesce(pg_stat_get_xact_function_calls('game.check_trade_settlement(uuid)'::regprocedure), 0) - calls;
+end $$;
+select is(pg_temp.checks_during(
+    pg_temp.entry('518', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb', pg_temp.sys('sink_market_tax'), pg_temp.sys('101')]::uuid[], array[-16, 14, 1, 1])
+    || pg_temp.trade('421', '303', null, 8, 2, '518')),
+  1::bigint, 'quatre lignes écrites avant l''échange : un seul contrôle, celui de l''échange');
+select is(pg_temp.checks_during(
+    pg_temp.entry('519', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-16, 15])
+    || pg_temp.trade('422', '303', null, 8, 2, '519')
+    || $s$insert into game.ledger_lines (entry_id, account_id, amount)
+         select '00000000-0000-7000-8000-000000000519', id, 1 from game.accounts where system_key = 'sink_market_tax'
+           and world_id = '01900000-0000-7000-8000-000000000001';$s$),
+  2::bigint, 'une ligne écrite après l''échange : contrôlé de nouveau');
+-- Contrôle forcé entre l'échange et une ligne ajoutée après lui : la ligne reste contrôlée.
+select throws_ok(format($$select pg_temp.as_service(%L)$$,
+    pg_temp.entry('526', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-8, 8])
+    || pg_temp.trade('423', '303', null, 8, 1, '526')
+    || $s$set constraints all immediate; set constraints all deferred;
+       insert into game.ledger_lines (entry_id, account_id, amount) values
+         ('00000000-0000-7000-8000-000000000526', '00000000-0000-7000-8000-0000000000bb', -8),
+         ('00000000-0000-7000-8000-000000000526', '00000000-0000-7000-8000-0000000000cc', 8);$s$),
+  '23514', 'trade 00000000-0000-7000-8000-000000000423 must be paid 8 oboles in a single debit of the NPC purchases faucet',
+  'forcer le contrôle de l''échange avant d''ajouter une ligne ne la soustrait pas au contrôle');
 
 -- Achat qui attendait (301) servi par une vente arrivée après lui (302, 10 à 8 : brut 80) : payé par le séquestre.
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
@@ -198,9 +250,36 @@ create table pg_temp.owner_lines (entry_id uuid, account_id uuid, amount bigint)
 create trigger t after insert on pg_temp.owner_lines for each row execute function game.check_escrow_debit();
 select throws_ok($$insert into pg_temp.owner_lines values (null, null, -1)$$, '42501',
   't only runs on game.ledger_lines', 'check_escrow_debit ne s''exécute que sur les lignes du grand livre');
+create table pg_temp.owner_orders (house_id uuid, account_id uuid);
+create trigger t after insert on pg_temp.owner_orders for each row execute function game.check_escrow_matches_orders();
+select throws_ok($$insert into pg_temp.owner_orders values (null, null)$$, '42501',
+  't only runs on game.orders and game.ledger_lines', 'check_escrow_matches_orders ne s''exécute que sur les ordres et les lignes');
+
+-- 4. Ce que seule la garde des débits du séquestre refuse : dans une même transaction, Alice met 5 sous
+-- séquestre puis son séquestre les verse à Bob. Il retient toujours ses restes à payer (160).
+-- `verdict` valide les contrôles nommés, puis annule tout : il rend « accepted » ou le message du refus.
+create function pg_temp.verdict(statements text, checks text) returns text language plpgsql as $$
+begin
+  perform set_config('role', 'oikos_service', true);
+  execute statements;
+  perform set_config('role', 'none', true);
+  execute format('set constraints %s immediate', checks);
+  raise exception 'accepted';
+exception when others then
+  return sqlerrm;
+end $$;
+create function pg_temp.hold_then_pay_bob() returns text language sql as $$
+  select pg_temp.entry('527', 'market.escrow_hold', array['00000000-0000-7000-8000-0000000000aa', '00000000-0000-7000-8000-0000000000ae']::uuid[], array[-5, 5])
+    || pg_temp.entry('528', 'market.escrow_release', array['00000000-0000-7000-8000-0000000000ae', '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-5, 5])
+$$;
+select is(pg_temp.verdict(pg_temp.hold_then_pay_bob(), 'game.ledger_lines_escrow_matches, game.ledger_lines_balanced'), 'accepted',
+  'le séquestre retient ses restes à payer : le contrôle du montant retenu laisse passer');
+select is(pg_temp.verdict(pg_temp.hold_then_pay_bob(), 'all'),
+  'escrow of house 00000000-0000-7000-8000-0000000000a1 pays only for its own trades or back to its own treasury',
+  'la garde des débits du séquestre refuse qu''il paie une autre maison');
 
 select is((select string_agg(kind || ':' || balance, ' ' order by id) from game.accounts
             where house_id in ('00000000-0000-7000-8000-0000000000a1', '00000000-0000-7000-8000-0000000000b1', '00000000-0000-7000-8000-0000000000c1')),
-  'house:720 escrow:160 house:126 house:100', 'trésorerie et séquestre d''Alice, trésoreries de Bob et de Chloé : chaque oboles où le jeu l''a mise');
+  'house:720 escrow:160 house:193 house:100', 'trésorerie et séquestre d''Alice, trésoreries de Bob et de Chloé : chaque oboles où le jeu l''a mise');
 select * from finish();
 rollback;
