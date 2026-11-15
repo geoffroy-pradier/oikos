@@ -64,6 +64,14 @@ jobs:
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm db:reset && pnpm test:db
 
+      # Rejeu de toutes les migrations sur la base migrée, comme `infra/deploy.sh` à chaque déploiement :
+      # chacune passe, et le schéma en sort inchangé (CLAUDE.md, règle 9).
+      - name: Replay migrations
+        if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
+        env:
+          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: pnpm test:db:replay
+
       - name: Integration tests
         if: steps.ws.outputs.present == 'true' && hashFiles('packages/db/supabase/config.toml') != ''
         run: pnpm test:integration
