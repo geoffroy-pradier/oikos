@@ -74,6 +74,9 @@ export const siteRestart = defineCommand({
     const type = config.recipes.find((recipe) => recipe.id === site.recipe_id)?.siteType;
     const { coefficientBps, dailyOboles } = config.sites.upkeep;
     const upkeepOboles = type ? dailyUpkeep(dailyOboles[type], coefficientBps) : 0;
+    // Le prix affiché fait foi : un autre tarif (configuration activée entre-temps) n'est pas prélevé.
+    if (input.expectedUpkeepOboles !== undefined && input.expectedUpkeepOboles !== upkeepOboles)
+      return refuse('PRICE_CHANGED', `The upkeep is now ${upkeepOboles} oboles.`);
     if (Number(account.balance) < upkeepOboles)
       return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
     if (upkeepOboles > 0) {

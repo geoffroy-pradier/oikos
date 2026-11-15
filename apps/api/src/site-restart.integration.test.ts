@@ -174,6 +174,25 @@ describe('site.restart', () => {
     expect(await stateOf(player)).toEqual({ balance: GRANT, halted: true, hours: 3, paid: [] });
   });
 
+  it('entretien attendu : payé s’il est le tarif en vigueur, refusé sans effet sinon', async () => {
+    const player = await newPlayer(10, 7);
+    for (const expectedUpkeepOboles of [UPKEEP - 1, UPKEEP + 1, 0])
+      expect(
+        await send(player.user, 'site.restart', { siteId: player.siteId, expectedUpkeepOboles }),
+      ).toMatchObject({ status: 409, body: { error: { code: 'PRICE_CHANGED' } } });
+    expect(await stateOf(player)).toEqual({ balance: GRANT, halted: true, hours: 3, paid: [] });
+    expect(
+      await send(player.user, 'site.restart', {
+        siteId: player.siteId,
+        expectedUpkeepOboles: UPKEEP,
+      }),
+    ).toMatchObject({ status: 200, body: { data: { upkeepOboles: UPKEEP } } });
+    expect(await stateOf(player)).toMatchObject({ balance: GRANT - UPKEEP, halted: false });
+    expect(
+      await send(player.user, 'site.restart', { siteId: player.siteId, expectedUpkeepOboles: -1 }),
+    ).toMatchObject({ status: 400, body: { error: { code: 'VALIDATION_FAILED' } } });
+  });
+
   it('deux relances simultanées du même site : une seule paie, l’autre constate qu’il tourne', async () => {
     const player = await newPlayer(10, 7);
     const results = await Promise.all([
@@ -268,6 +287,20 @@ describe('site.restart', () => {
         upkeep: (trx: typeof db) => siteUpkeep.run({ ...context, trx, closeAt: new Date() }),
       };
     }
+    /** Vrai dès qu'une connexion attend un verrou tenu par `pid` ; faux si rien n'attend en cinq secondes. */
+    async function blockedBy(pid: number) {
+      for (const deadline = Date.now() + 5_000; Date.now() < deadline;) {
+        const { rows } = await sql<{
+          waiting: string;
+        }>`select count(*) as waiting from pg_stat_activity
+          where wait_event_type = 'Lock' and ${pid}::int = any(pg_blocking_pids(pid))`.execute(
+          owner,
+        );
+        if (Number(rows[0]?.waiting) > 0) return true;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return false;
+    }
     const dailyOf = async ({ houseId }: Player) =>
       (
         await sql<{
@@ -317,9 +350,13 @@ describe('site.restart', () => {
       try {
         // La clôture a prélevé et relancé le site, mais n'a pas encore validé : elle tient le puits.
         await world.upkeep(closing);
+        const { rows } = await sql<{ pid: number }>`select pg_backend_pid() as pid`.execute(
+          closing,
+        );
         // La relance n'est demandée qu'une fois l'étape terminée : elle ne peut qu'attendre la validation.
         pending = restart(player.user, player.siteId).finally(() => (settled = true));
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // L'attente est constatée par la base : une connexion attend un verrou que tient la clôture.
+        expect(await blockedBy(rows[0]?.pid ?? 0)).toBe(true);
         expect(settled).toBe(false);
       } finally {
         await closing.commit().execute();

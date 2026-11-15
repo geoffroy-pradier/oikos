@@ -209,6 +209,30 @@ describe('site.acquire', () => {
     expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.quarry - COST.field);
   });
 
+  it('prix attendu : payé s’il est le tarif en vigueur, refusé sans effet sinon ; sans lui, tarif en vigueur', async () => {
+    const player = await newPlayer();
+    for (const expectedCostOboles of [COST.field - 1, COST.field + 1])
+      expect(
+        await send(player.user, 'site.acquire', { recipeId: 'grow_wheat', expectedCostOboles }),
+      ).toMatchObject({ status: 409, body: { error: { code: 'PRICE_CHANGED' } } });
+    expect(await sitesOf(player.houseId)).toEqual(['grow_wheat']);
+    expect(await balanceOf(player.houseId)).toBe(GRANT);
+    expect(await eventsOf(player.houseId, 'SiteAcquired')).toEqual([]);
+    expect(
+      await send(player.user, 'site.acquire', {
+        recipeId: 'grow_wheat',
+        expectedCostOboles: COST.field,
+      }),
+    ).toMatchObject({ status: 200, body: { data: { costOboles: COST.field } } });
+    // Client antérieur, sans prix : servi au tarif en vigueur, comme avant.
+    expect((await acquire(player.user, 'grow_wheat')).status).toBe(200);
+    expect(await balanceOf(player.houseId)).toBe(GRANT - 2 * COST.field);
+    // Un prix mal formé n'est pas un prix : refus de validation.
+    expect(
+      await send(player.user, 'site.acquire', { recipeId: 'grow_wheat', expectedCostOboles: 0 }),
+    ).toMatchObject({ status: 400, body: { error: { code: 'VALIDATION_FAILED' } } });
+  });
+
   it('recette inconnue, compte sans maison : refus sans effet', async () => {
     const player = await newPlayer();
     expect(await acquire(player.user, 'grow_gold')).toMatchObject({

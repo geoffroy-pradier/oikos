@@ -48,6 +48,11 @@ export const siteCollectedSchema = z.strictObject({
 /** Commande `site.acquire` : la maison acquiert un site dans sa cité et y lance une recette. */
 export const siteAcquireInputSchema = z.strictObject({
   recipeId: z.string().regex(/^[a-z][a-z0-9_]{1,31}$/),
+  /**
+   * Prix que le joueur a vu, en oboles : un autre tarif en vigueur est refusé (`PRICE_CHANGED`), pas
+   * prélevé. Facultatif pour un client antérieur, servi au tarif en vigueur comme avant (4.2).
+   */
+  expectedCostOboles: z.number().int().positive().optional(),
 });
 export type SiteAcquireInput = z.infer<typeof siteAcquireInputSchema>;
 
@@ -66,6 +71,8 @@ export const SITE_ACQUIRE_ERROR_CODES = [
   'RECIPE_NOT_FOUND',
   'SITE_LIMIT_REACHED',
   'INSUFFICIENT_FUNDS',
+  /** Le prix en vigueur n'est pas celui que le client a envoyé : rien n'est payé, réessayer au nouveau prix. */
+  'PRICE_CHANGED',
 ] as const;
 export type SiteAcquireErrorCode = (typeof SITE_ACQUIRE_ERROR_CODES)[number];
 
@@ -123,7 +130,11 @@ export const siteRecipeChangedSchema = z.strictObject({
 });
 
 /** Commande `site.restart` : relance un site à l'arrêt en payant l'entretien d'un jour (5.5). */
-export const siteRestartInputSchema = z.strictObject({ siteId: z.uuid() });
+export const siteRestartInputSchema = z.strictObject({
+  siteId: z.uuid(),
+  /** Entretien que le joueur a vu, en oboles : comme pour `site.acquire`, facultatif (5.5). */
+  expectedUpkeepOboles: z.number().int().nonnegative().optional(),
+});
 export type SiteRestartInput = z.infer<typeof siteRestartInputSchema>;
 
 export const siteRestartOutputSchema = z.object({
@@ -141,6 +152,8 @@ export const SITE_RESTART_ERROR_CODES = [
   'INSUFFICIENT_FUNDS',
   /** Le site vient d'être arrêté par une clôture pendant la commande : réessayer avec une clé neuve. */
   'SITE_CHANGED',
+  /** L'entretien en vigueur n'est pas celui que le client a envoyé : rien n'est payé. */
+  'PRICE_CHANGED',
 ] as const;
 export type SiteRestartErrorCode = (typeof SITE_RESTART_ERROR_CODES)[number];
 

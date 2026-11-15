@@ -7,6 +7,7 @@ import {
   MARKET_PLACE_ORDER_ERROR_CODES,
   SITE_ACQUIRE_ERROR_CODES,
   SITE_COLLECT_ERROR_CODES,
+  SITE_RESTART_ERROR_CODES,
   SITE_SET_RECIPE_ERROR_CODES,
 } from '@oikos/contracts';
 import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
@@ -39,6 +40,7 @@ describe('traductions', () => {
         ...MARKET_PLACE_ORDER_ERROR_CODES,
         ...SITE_ACQUIRE_ERROR_CODES,
         ...SITE_COLLECT_ERROR_CODES,
+        ...SITE_RESTART_ERROR_CODES,
         ...SITE_SET_RECIPE_ERROR_CODES,
       ].map((code) => `errors.${code}`),
       ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),

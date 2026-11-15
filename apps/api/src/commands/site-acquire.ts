@@ -50,6 +50,9 @@ export const siteAcquire = defineCommand({
       return refuse('SITE_LIMIT_REACHED', 'This house already runs as many sites as it may.');
 
     const costOboles = config.sites.acquisitionCostOboles[recipe.siteType];
+    // Le prix affiché fait foi : un autre tarif (configuration activée entre-temps) n'est pas prélevé.
+    if (input.expectedCostOboles !== undefined && input.expectedCostOboles !== costOboles)
+      return refuse('PRICE_CHANGED', `This site now costs ${costOboles} oboles.`);
     const account = await trx
       .selectFrom('game.accounts')
       .select(['id', 'balance'])
