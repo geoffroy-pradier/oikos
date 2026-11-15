@@ -16,6 +16,7 @@ import {
   adminPublishConfig,
   adminScheduleConfig,
 } from './commands/admin-config';
+import { adminBuyBackGood } from './commands/admin-buyback';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
@@ -61,6 +62,7 @@ export const COMMANDS = [
   adminCancelActivation,
   adminGrantRole,
   adminRevokeRole,
+  adminBuyBackGood,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {

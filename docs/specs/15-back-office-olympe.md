@@ -130,8 +130,12 @@ l'avertissement est lu avec le bouton de programmation, que l'API refusera), pui
 l'observateur consulte et compare sans pouvoir modifier. Une action renvoyée après une panne réutilise sa clé d'idempotence : elle n'est pas exécutée deux fois.
 
 Rachat du stock d'un bien à retirer (5.1, décision de #229).
+`admin.buyBackGood`, ouverte au seul super-administrateur, prend le bien et les totaux qu'Olympe a montrés (maisons, unités, ordres à annuler, oboles), et refuse sans rien faire si l'état du monde n'est plus celui-là (`BUYBACK_CHANGED`), ou si la configuration en vigueur ne connaît pas le bien (`GOOD_NOT_FOUND`).
+C'est un crédit de monnaie sans double validation par un second compte, par décision de #229, et une exception à la règle ci-dessus : il ne paie qu'au prix de référence en vigueur et contre le stock retiré, la commande est réservée au super-administrateur, et le journal d'audit en garde le résultat, qui nomme chaque maison (monde, unités, oboles, ordres annulés, séquestre rendu).
 `GET /api/admin/config/versions` rend les totaux de chaque rachat possible (`buybacks` : bien, prix de référence en vigueur, totaux), que la commande recompte avec les mêmes règles.
 Sans configuration en vigueur lisible, ou si unités × prix dépasse les entiers sûrs, la liste est vide plutôt qu'en erreur : la commande n'en ferait aucun.
+Un rachat prend d'abord le verrou d'agora de chaque monde concerné, comme un ordre : deux rachats simultanés du même bien n'en laissent passer qu'un, l'autre trouvant l'état changé.
+Rejouer la commande sous la même clé rend la même réponse, sans rien racheter de plus.
 
 Saisie dans le module Paramètres. Ouvrir une version porte le foyer sur le titre de son contenu.
 Tant que le texte ouvert a été modifié sans être enregistré comme nouvelle version, ouvrir une version (la même comprise) demande confirmation avant de le remplacer : la confirmation nomme les deux versions et pose le foyer sur « Garder le texte modifié », le bouton d'ouverture reste affiché, et y renoncer lui rend le foyer.
