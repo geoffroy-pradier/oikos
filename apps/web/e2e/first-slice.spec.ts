@@ -75,6 +75,27 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^3,000 obols$/)).toBeVisible();
 });
 
+test('à récolter : calé sur l’heure du serveur, même quand le navigateur retarde de quatre heures', async ({
+  page,
+}) => {
+  // L'horloge du navigateur retarde ; le temps y passe ensuite normalement.
+  await page.clock.install({ time: new Date(Date.now() - 4 * 3_600_000) });
+  const houseName = await foundHouse(page);
+  // Huit heures de jeu, soit deux cycles de quatre heures. À l'heure du navigateur, il n'y en aurait
+  // qu'un.
+  await elapse(houseName, 480);
+  await page.reload();
+  await expect(page.getByText('À récolter : 80 × Blé.')).toBeVisible();
+
+  // Onglet resté en arrière-plan : à son retour, l'heure est relue et tout est recompté.
+  await elapse(houseName, 240);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByText('À récolter : 120 × Blé.')).toBeVisible();
+});
+
 test('tout récolter : une action au clavier, une commande par site, le résultat dit ce qui est engrangé', async ({
   page,
 }) => {

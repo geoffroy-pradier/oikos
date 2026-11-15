@@ -8,6 +8,7 @@ import { freeStockIn, previewHarvest, siteAlerts, type StockLine } from '../site
 import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
 import { LoadProblem, Loading } from './LoadProblem';
+import { serverClock, syncServerClock } from '../server-clock';
 
 interface Site {
   id: string;
@@ -81,11 +82,28 @@ export function SitesCard({
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
     freeStockIn(stock ?? [], site.city_id, goodId);
-  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
-  const [now, setNow] = useState(() => new Date());
+  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute, à l'heure
+  // du serveur. Au retour sur un onglet resté en arrière-plan (minuterie ralentie, clôture passée
+  // entre-temps), l'heure et les sites sont relus, puis tout est recompté.
+  const [now, setNow] = useState(() => serverClock.now());
+  const reloadSites = useRef(sites.reload);
+  reloadSites.current = sites.reload;
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
+    let live = true;
+    const sync = () => void syncServerClock().then(() => live && setNow(serverClock.now()));
+    sync();
+    const timer = setInterval(() => setNow(serverClock.now()), 60_000);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void reloadSites.current();
+      sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
@@ -134,7 +152,7 @@ export function SitesCard({
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(new Date());
+    setNow(serverClock.now());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
@@ -219,7 +237,7 @@ export function SitesCard({
       (siteId) => collectSite(siteId, house.accessToken),
     );
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(new Date());
+    setNow(serverClock.now());
     const parts: string[] = [];
     if (outcome.succeeded.length > 0)
       parts.push(
