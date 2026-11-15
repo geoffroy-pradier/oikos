@@ -89,6 +89,8 @@ export interface GameDatabase {
     entry_id: string;
     account_id: string;
     amount: ColumnType<string, number, never>;
+    /** Nature de la ligne (4.1), écrite à l'insertion seulement ; nulle : celle de son écriture. */
+    nature: ColumnType<'upkeep' | 'wages' | null, 'upkeep' | 'wages' | null | undefined, never>;
   };
   /** Stocks : la quantité ne change que par `game.stock_ledger`, la réservation que par les ordres. */
   'game.inventories': {
