@@ -13,3 +13,20 @@ export const citizenshipGrantedSchema = z.strictObject({
     gameDay: z.number().int().nonnegative(),
   }),
 });
+
+/**
+ * Dépouillement d'une élection qui a un élu : la candidature maintenue qui a le plus de bulletins, la plus
+ * ancienne en cas d'égalité. Une élection sans candidat ne produit pas d'événement : la charge reste vacante.
+ */
+export const archonElectedSchema = z.strictObject({
+  type: z.literal('ArchonElected'),
+  payload: z.strictObject({
+    electionId: z.uuid(),
+    cityId: z.uuid(),
+    houseId: z.uuid(),
+    /** Bulletins reçus par l'élu. */
+    votes: z.number().int().nonnegative(),
+    termStartsAt: z.iso.datetime(),
+    termEndsAt: z.iso.datetime(),
+  }),
+});
