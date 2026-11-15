@@ -14,8 +14,17 @@ insert into config.activations (id, version_id, activate_at) values
   ('00000000-0000-7000-8000-0000000000a4', '00000000-0000-7000-8000-0000000000c3', '2999-01-02 04:00+00');
 
 -- Deux programmations de la version 1 proches de leur échéance : dans trente secondes (a5), dans cinq minutes (a6).
+-- La base ne programme plus à moins d'une minute (migration 38) : le propriétaire lève sa garde, le temps
+-- de poser a5.
+-- (Les contrôles différés en attente sont joués d'abord : une table qui en attend ne se modifie pas.)
+set constraints all immediate;
+alter table config.activations disable trigger activations_guard;
 insert into config.activations (id, version_id, activate_at) values
-  ('00000000-0000-7000-8000-0000000000a5', '00000000-0000-7000-8000-0000000000c1', now() + interval '30 seconds'),
+  ('00000000-0000-7000-8000-0000000000a5', '00000000-0000-7000-8000-0000000000c1', now() + interval '30 seconds');
+set constraints all immediate;
+alter table config.activations enable trigger activations_guard;
+set constraints all deferred;
+insert into config.activations (id, version_id, activate_at) values
   ('00000000-0000-7000-8000-0000000000a6', '00000000-0000-7000-8000-0000000000c1', now() + interval '5 minutes');
 
 -- Annulation tentée sous le rôle de service, comme le fait l'API (la garde lit `config.activations` avec
@@ -65,6 +74,10 @@ select is(config.active_version_at('2999-01-01 04:00+00'), '00000000-0000-7000-8
 
 select throws_ok($$update config.activation_cancellations set cancelled_by = null$$, '23001', null, 'annulation non modifiable');
 select throws_ok('delete from config.activation_cancellations', '23001', null, 'annulation non supprimable : on reprogramme');
+-- Contrôles différés de la validation (migration 38) joués maintenant : une table qui en attend ne se
+-- vide ni ne se modifie, ce qui masquerait le refus testé ici.
+set constraints all immediate;
+set constraints all deferred;
 select throws_ok('truncate config.activation_cancellations', '23001', null, 'annulations non vidables');
 
 -- Contrôle d'accès, lu dans le catalogue.

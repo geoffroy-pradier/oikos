@@ -90,7 +90,22 @@ export const adminScheduleConfig = defineCommand({
   input: adminScheduleConfigInputSchema,
   output: adminScheduleConfigOutputSchema,
   errors: ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
+  // Refus de la base, à l'inscription ou à la validation : la clôture visée est trop proche, ou passée.
+  errorByConstraint: {
+    activations_scheduled_ahead: {
+      code: 'CONFIG_ACTIVATION_TOO_LATE',
+      message:
+        'The next close is less than a minute away, or passed before the scheduling was committed.',
+    },
+    activations_not_backdated: {
+      code: 'CONFIG_ACTIVATION_TOO_LATE',
+      message: 'The next close has already passed.',
+    },
+  },
   async handler({ trx, userId, emit, config, now, settings }, input) {
+    // Même borne que l'annulation : après l'inscription (journal, événements, validation), la transaction
+    // reste bien en deçà de la marge d'une minute. La base contrôle de toute façon l'échéance à la validation.
+    await sql`set local statement_timeout = '10s'`.execute(trx);
     const version = await trx
       .selectFrom('config.versions')
       .select(['id', 'payload'])
@@ -169,12 +184,10 @@ export const adminCancelActivation = defineCommand({
     },
   },
   async handler({ trx, userId, emit }, { activationId }) {
-    // La marge d'une minute de la base, mesurée à l'inscription de l'annulation, suppose une fin de
-    // commande courte. Protection en profondeur, pas garantie : chaque instruction est bornée à dix
-    // secondes (trois à partir de l'inscription : annulations, journal, événements, soit trente
-    // secondes), mais ni le temps entre deux instructions ni la validation finale ne sont comptés. Une
-    // instruction trop longue est abandonnée par Postgres, la connexion reste ouverte : la commande
-    // échoue comme toute autre panne, tracée.
+    // La base refuse l'annulation à moins d'une minute de l'échéance, puis la contrôle de nouveau à la
+    // validation : une annulation validée après l'entrée en vigueur est refusée (CONFIG_ACTIVATION_PAST).
+    // Chaque instruction est en plus bornée à dix secondes : une instruction trop longue est abandonnée
+    // par Postgres, la connexion reste ouverte, la commande échoue comme toute autre panne, tracée.
     await sql`set local statement_timeout = '10s'`.execute(trx);
     const activation = await trx
       .selectFrom('config.activations')

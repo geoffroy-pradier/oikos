@@ -54,6 +54,8 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   'CONFIG_REVIEW_REQUIRED',
   'CONFIG_INVALID',
   'CONFIG_CLOCK_CHANGED',
+  /** La prochaine clôture tombe dans moins d'une minute, ou elle est passée avant la validation. */
+  'CONFIG_ACTIVATION_TOO_LATE',
 ] as const;
 
 /**
