@@ -271,6 +271,21 @@ Impayé volontaire : il est admis et ne coûte que l'arrêt du site (une mise en
 
 Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %. Trois leviers l'ajustent sans patch : taux directeur, coefficient d'entretien, revenu des classes PNJ.
 
+Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprouvé par le banc d'équilibrage (`apps/api/src/balance.integration.test.ts`) :
+
+- **Taille.** Kallistè garde ses 10 000 habitants, mais leur consommation de référence (Q0) et le revenu de leurs classes sont divisés par 15 par rapport aux premières valeurs.
+  La cité est ainsi approvisionnée par une trentaine de maisons de quatre sites, la communauté attendue pour le prototype et l'alpha, et non par plus de 300.
+  Une cité plus peuplée de joueurs se recalibre par une version de configuration, sans patch.
+- **Blé.** Chaque maison commence par un champ de blé (40 blés par cycle de quatre heures).
+  Pour que ces champs trouvent preneur sans faire chuter le prix, les thètes et les zeugites mangent plus de blé que de pain (Q0 de 4,2 et 2,1 pour mille par tick).
+  Leur revenu suit, à 1,25 fois leur dépense de référence comme pour les autres classes.
+- **Population.** Le seuil de couverture est de 100 % : une classe ne croît que si ses besoins vitaux sont entièrement couverts, et émigre dès qu'ils ne le sont plus.
+  À ce seuil, la population se règle sur l'offre au prix de référence, au lieu de s'installer sur une pénurie qui ferait monter les prix.
+  Croissance de 0,2 % par jour au plus, émigration de 1 % par jour au plus, bornes de 50 % à 200 % de la population initiale : la cité suit l'offre lentement, sans à-coup de prix.
+- **Mesure.** Avec 28 maisons scriptées, dont l'offre couvre d'environ 100 à 110 % de la demande de référence de chaque bien vital (un peu moins pour le pain, que la farine limite), le banc tient sur 30 jours une hausse du coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours, et des besoins vitaux couverts à 98 % au moins pour chaque classe.
+- **Limite connue.** La masse monétaire croît d'environ 60 000 oboles par jour : les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
+  Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
+
 ## 5.6 Fiscalité
 
 Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port (défaut 2 %), taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques. Les recettes alimentent le trésor de la cité, dépensé par les magistrats. La concurrence fiscale entre cités est un ressort de jeu assumé.
