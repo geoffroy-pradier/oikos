@@ -16,6 +16,14 @@ insert into game.accounts (id, world_id, kind, house_id) values
   ('00000000-0000-7000-8000-0000000000aa', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000a1'),
   ('00000000-0000-7000-8000-0000000000bb', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000000b1');
 
+-- Une instruction jouée sous le rôle du service ; pgTAP reste appelé sous le rôle du test.
+create function pg_temp.as_service(statement text) returns void language plpgsql as $$
+begin
+  perform set_config('role', 'oikos_service', true);
+  execute statement;
+  perform set_config('role', 'none', true);
+end $$;
+
 create function pg_temp.sys(key text) returns uuid language sql as $$
   select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001' and system_key = key
 $$;
@@ -67,9 +75,8 @@ select ok(not has_column_privilege('oikos_service', 'game.ledger_lines', 'nature
 select throws_ok($$update game.ledger_lines set nature = 'upkeep' where nature = 'wages'$$, '23001', null,
   'même le propriétaire ne requalifie pas une ligne : le grand livre est en ajout seul');
 select throws_ok($$update game.ledger_lines set nature = null where nature is not null$$, '23001', null, 'ni ne lui retire son marqueur');
-set local role oikos_service;
-select throws_ok($$update game.ledger_lines set nature = 'upkeep' where nature = 'wages'$$, '42501', null, 'le service est refusé avant même la garde');
-reset role;
+select throws_ok($$select pg_temp.as_service($s$update game.ledger_lines set nature = 'upkeep' where nature = 'wages'$s$)$$,
+  '42501', null, 'le service est refusé avant même la garde');
 
 -- Joueurs : lecture de la nature de leurs seules lignes, aucune écriture.
 select is(
