@@ -66,6 +66,7 @@ export function nextPopulation(
     delta = -Math.floor((current * emigrationBps * (threshold - coverageBps)) / (FULL * threshold));
   }
   const min = Math.floor((initial * dynamics.minShareBps) / FULL);
-  const max = Math.floor((initial * dynamics.maxShareBps) / FULL);
+  // Le plafond en part de la population initiale ne dépasse jamais la limite technique d'une classe.
+  const max = Math.min(MAX_CLASS_POPULATION, Math.floor((initial * dynamics.maxShareBps) / FULL));
   return Math.min(max, Math.max(min, current + delta));
 }

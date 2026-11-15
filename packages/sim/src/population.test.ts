@@ -61,6 +61,11 @@ describe('population d’une classe après un jour', () => {
     expect(nextPopulation(20_000, 10_000, 10_000, dynamics)).toBe(20_000);
     // Hors bornes (configuration changée) : ramenée dans les bornes.
     expect(nextPopulation(1_000, 10_000, 9_000, dynamics)).toBe(5_000);
+    // Le double de la population initiale dépasserait la limite d'une classe : la limite l'emporte,
+    // et le résultat reste une entrée valide du calcul du lendemain.
+    const full = nextPopulation(99_500_000, 60_000_000, 10_000, dynamics);
+    expect(full).toBe(MAX_CLASS_POPULATION);
+    expect(nextPopulation(full, 60_000_000, 10_000, dynamics)).toBe(MAX_CLASS_POPULATION);
   });
 
   it('seuil à 100 % : seule une couverture complète fait croître, au taux plein', () => {
@@ -78,6 +83,7 @@ describe('population d’une classe après un jour', () => {
         expect(Number.isSafeInteger(next)).toBe(true);
         expect(next).toBeGreaterThanOrEqual(Math.floor((initial * d.minShareBps) / 10_000));
         expect(next).toBeLessThanOrEqual(Math.floor((initial * d.maxShareBps) / 10_000));
+        expect(next).toBeLessThanOrEqual(MAX_CLASS_POPULATION);
       }),
     );
   });
