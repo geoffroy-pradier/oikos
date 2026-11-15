@@ -107,6 +107,11 @@ describe('jeu de valeurs initial', () => {
     expect(Math.round(share * 100)).toBe(97);
   });
 
+  it('tous les usages d’IA sont coupés au départ : le jeu se joue sans IA (règle 6, paramètres neutres)', () => {
+    expect(Object.values(config.ai.usages).every((usage) => !usage.enabled)).toBe(true);
+    expect(config.ai.budgetMicroEurosPerActivePlayerMonth).toBe(0);
+  });
+
   it('chaque bien fini est demandé par au moins une classe de PNJ', () => {
     const wanted = new Set(config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)));
     const unsold = config.goods.filter((good) => good.tier === 'finished' && !wanted.has(good.id));

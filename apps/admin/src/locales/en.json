@@ -354,6 +354,7 @@
         "populationDynamics": "Population dynamics",
         "priceIndex": "Price index",
         "telemetry": "Telemetry",
+        "ai": "AI gateway",
         "goods": "Goods",
         "recipes": "Recipes",
         "npcClasses": "NPC classes",

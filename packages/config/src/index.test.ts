@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aiMonthlyCapMicroEuros,
+  DEFAULT_AI,
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
   DEFAULT_POPULATION_DYNAMICS,
@@ -12,6 +14,17 @@ import {
 } from './index';
 
 const clone = () => structuredClone(FIXTURE);
+function usage() {
+  return {
+    enabled: false,
+    model: 'small',
+    timeoutMs: 5_000,
+    maxOutputTokens: 300,
+    capShareBps: 0,
+    inputMicroEurosPerThousandTokens: 150,
+    outputMicroEurosPerThousandTokens: 600,
+  };
+}
 /** Accès indexé strict : échoue clairement si le jeu d'essai n'a pas la ligne attendue. */
 function at<T>(rows: T[], index: number): T {
   const row = rows[index];
@@ -42,6 +55,16 @@ const FIXTURE: GameConfig = {
     basket: [{ goodId: 'bread', quantity: 2 }],
   },
   telemetry: { retentionDays: 30 },
+  ai: {
+    budgetMicroEurosPerActivePlayerMonth: 80_000,
+    expectedActivePlayers: 200,
+    stewardDailyQuotaPerHouse: 3,
+    usages: {
+      oracle: { ...usage(), enabled: true, capShareBps: 2_500 },
+      chronicle: { ...usage(), capShareBps: 5_000 },
+      steward: { ...usage(), capShareBps: 2_500 },
+    },
+  },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
     limitByHeadquartersLevel: [2, 5],
@@ -634,6 +657,62 @@ describe('indice des prix', () => {
     ]);
     expect(errors({ basket: [{ goodId: 'bread', quantity: 1.5 }] })).toEqual([
       expect.stringMatching(/^priceIndex\.basket\[0\]\.quantity: /),
+    ]);
+  });
+});
+
+describe('passerelle IA', () => {
+  it('une version publiée avant elle reste lisible : tous les usages coupés, budget nul', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.ai;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.ai).toEqual(DEFAULT_AI);
+    expect(Object.values(result.config.ai.usages).map((entry) => entry.enabled)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    expect(Object.isFrozen(DEFAULT_AI)).toBe(true);
+  });
+
+  it('plafond mensuel : budget par joueur × joueurs attendus × part de l’usage, à l’unité inférieure', () => {
+    const { ai } = clone();
+    // 80 000 µ€ (0,08 €) × 200 joueurs = 16 €, dont un quart pour l'oracle.
+    expect(aiMonthlyCapMicroEuros(ai, 'oracle')).toBe(4_000_000);
+    expect(aiMonthlyCapMicroEuros(ai, 'chronicle')).toBe(8_000_000);
+    const odd = { ...ai, budgetMicroEurosPerActivePlayerMonth: 7, expectedActivePlayers: 3 };
+    expect(aiMonthlyCapMicroEuros(odd, 'steward')).toBe(5); // 21 × 0,25 = 5,25
+    expect(aiMonthlyCapMicroEuros(DEFAULT_AI, 'oracle')).toBe(0);
+  });
+
+  it('budget d’au plus 0,10 € par joueur, parts qui ne dépassent pas le tout, prix et délais entiers', () => {
+    const errors = (patch: Record<string, unknown>) =>
+      errorsOf({ ...clone(), ai: { ...clone().ai, ...patch } });
+    expect(errors({ budgetMicroEurosPerActivePlayerMonth: 100_000 })).toEqual([]);
+    expect(errors({ budgetMicroEurosPerActivePlayerMonth: 100_001 })).toEqual([
+      expect.stringMatching(/^ai\.budgetMicroEurosPerActivePlayerMonth: /),
+    ]);
+    const { usages } = clone().ai;
+    expect(
+      errors({ usages: { ...usages, chronicle: { ...usages.chronicle, capShareBps: 5_001 } } }),
+    ).toEqual(['ai.usages: the usages may not share more than the whole budget']);
+    expect(
+      errors({ usages: { ...usages, oracle: { ...usages.oracle, maxOutputTokens: 0 } } }),
+    ).toEqual([expect.stringMatching(/^ai\.usages\.oracle\.maxOutputTokens: /)]);
+    expect(errors({ usages: { ...usages, oracle: { ...usages.oracle, timeoutMs: 99 } } })).toEqual([
+      expect.stringMatching(/^ai\.usages\.oracle\.timeoutMs: /),
+    ]);
+    expect(
+      errors({
+        usages: {
+          ...usages,
+          steward: { ...usages.steward, inputMicroEurosPerThousandTokens: 1.5 },
+        },
+      }),
+    ).toEqual([expect.stringMatching(/^ai\.usages\.steward\.inputMicroEurosPerThousandTokens: /)]);
+    expect(errors({ usages: { oracle: usages.oracle, chronicle: usages.chronicle } })).toEqual([
+      expect.stringMatching(/^ai\.usages\.steward: /),
     ]);
   });
 });

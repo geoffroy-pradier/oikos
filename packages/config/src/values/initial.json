@@ -23,6 +23,40 @@
     ]
   },
   "telemetry": { "retentionDays": 90 },
+  "ai": {
+    "budgetMicroEurosPerActivePlayerMonth": 0,
+    "expectedActivePlayers": 0,
+    "stewardDailyQuotaPerHouse": 0,
+    "usages": {
+      "oracle": {
+        "enabled": false,
+        "model": "none",
+        "timeoutMs": 20000,
+        "maxOutputTokens": 400,
+        "capShareBps": 4000,
+        "inputMicroEurosPerThousandTokens": 0,
+        "outputMicroEurosPerThousandTokens": 0
+      },
+      "chronicle": {
+        "enabled": false,
+        "model": "none",
+        "timeoutMs": 60000,
+        "maxOutputTokens": 1500,
+        "capShareBps": 4000,
+        "inputMicroEurosPerThousandTokens": 0,
+        "outputMicroEurosPerThousandTokens": 0
+      },
+      "steward": {
+        "enabled": false,
+        "model": "none",
+        "timeoutMs": 10000,
+        "maxOutputTokens": 600,
+        "capShareBps": 2000,
+        "inputMicroEurosPerThousandTokens": 0,
+        "outputMicroEurosPerThousandTokens": 0
+      }
+    }
+  },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
   "sites": {
     "limitByHeadquartersLevel": [4],
