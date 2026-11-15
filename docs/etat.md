@@ -89,7 +89,7 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   sous chaque version, ce qu'elle retire et que le monde porte encore. Un bien détenu en stock, en carnet ou
   sous séquestre interdit sa programmation (`CONFIG_GOOD_IN_USE`, #191). Une recette encore exploitée ou une
   classe qui a encore une population demande une confirmation explicite (case à cocher,
-  `CONFIG_RETIRED_UNCONFIRMED`, #200). Formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
+  `CONFIG_RETIRED_UNCONFIRMED`, #200), si la version en vigueur la contient encore (#234). Formulaires des biens (ajout et retrait compris), des recettes et des classes de PNJ, à côté
   du texte JSON (#77). Une version qui change l'horloge du monde (durée du tick, heure ou fuseau de clôture)
   est refusée, et une programmation ne peut viser une clôture à moins d'une minute. Le premier
   super-administrateur s'inscrit à la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
@@ -270,6 +270,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   l'après-midi #226 (401), #228 (415), #231 (484), #236 (422), #237 (471) et #239 (507). Le plus souvent, ce sont
   les tests ou les reprises demandés en relecture qui ont fait passer la limite ; #231 dépassait dès sa
   première version. Les autres tickets sont découpés en tranches.
+  En fin de phase 1, #243 (403 lignes) et #246 (637 lignes, dont 415 de tests d'intégration gardés avec la commande de rachat) ont aussi dépassé la limite, avec une justification dans la demande de fusion.
 - **Règle 9 et mise en page des documents** : `CLAUDE.md` dit maintenant qu'une migration publiée ne se modifie plus, et que les documents de `docs/` s'écrivent une phrase par ligne.
   Les lignes de plus de 400 caractères des spécifications ont été coupées ainsi, sans changer leur rendu : elles provoquaient des conflits à chaque demande de fusion qui touchait le même paragraphe.
 - **Après-midi du 15 novembre** : plusieurs tickets ont avancé en parallèle, chacun dans son arbre de travail
@@ -306,7 +307,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   Le propriétaire peut supprimer toutes les branches sauf `main` : aucune ne porte de travail non fusionné.
 - **Équilibrage (#78)** : décidé par délégation du propriétaire et décrit en 5.5 (demande de fusion #242).
   Le banc joue 10 jours de mise en route puis 30 jours mesurés avec 28 maisons scriptées, et ses bornes sont écrites : coût du panier de 0 à 2 % sur vingt jours, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
-  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; à traiter en phase 2.
+  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; la phase 2 la borne (#283).
 - **Indice des prix** (relevé par #181) : panier d'un jour de consommation de référence et cible de 0 à 3 %, retenus par délégation avec le calibrage de #78 ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).

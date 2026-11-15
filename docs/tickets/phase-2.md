@@ -30,7 +30,7 @@ Les indicateurs de 18 qui demandent des joueurs réels (rétention, part des jou
 Ils ne sont pas une porte de sortie de la phase tant que le serveur est reporté (exception décidée par le propriétaire en 17).
 
 **État de la phase 1.**
-La phase 1 se ferme avec son dernier suivi, #234 ; aucun ticket ci-dessous n'en dépend.
+La phase 1 est terminée : son dernier suivi, #234, est fermé (#249).
 Le serveur de préproduction (#33, `needs-human`) reste reporté : aucun ticket ci-dessous ne demande de serveur, de domaine, de secret ni de compte tiers, sauf #269, marqué `needs-human`.
 
 **Numérotation.**
