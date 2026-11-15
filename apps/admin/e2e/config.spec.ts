@@ -185,3 +185,51 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     page.getByRole('row', { name: /admin\.publishConfig Refusée \(CONFIG_INVALID\)/ }).first(),
   ).toBeVisible();
 });
+
+test('paramètres : rachat d’un bien retiré encore détenu, au clavier, à 360 px, refusé par l’API pour un bien inconnu', async ({
+  page,
+}) => {
+  const email = `olympe-${randomUUID()}@example.test`;
+  await signIn(page, email);
+  await grantSuperAdmin(email);
+  await enroll(page);
+  // Un bien au nom long, retiré par la première version et encore détenu, ajouté à la lecture de
+  // l'API ; la configuration en vigueur ne le connaît pas : l'API refusera le rachat, sans rien faire.
+  const good = `relic_${'tres_long'.repeat(3)}`.slice(0, 32);
+  const totals = { houses: 12, units: 1234567, cancelledOrders: 3, oboles: 49382680 };
+  await page.route('**/api/admin/config/versions', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      data: { versions: { retiredInUse: { goods: unknown[] } }[]; buybacks?: unknown[] };
+    };
+    const held = { goodId: good, houses: 12, quantity: 1234567, openOrders: 3, escrowOboles: 45 };
+    body.data.versions[0]?.retiredInUse.goods.push(held);
+    body.data.buybacks = [
+      ...(body.data.buybacks ?? []),
+      { goodId: good, unitPriceOboles: 40, totals },
+    ];
+    await route.fulfill({ response, json: body });
+  });
+  await page
+    .getByRole('navigation', { name: 'Modules' })
+    .getByRole('button', { name: 'Paramètres' })
+    .click();
+  const buyback = page.getByRole('button', { name: `Racheter le stock de ${good}` });
+  await buyback.focus();
+  await page.keyboard.press('Enter');
+  const keep = page.getByRole('button', { name: 'Ne pas racheter' });
+  await expect(keep).toBeFocused();
+  await expect(page.getByText(/^Racheter 1.234.567 unités de relic_/)).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  // Renoncer rend le foyer au bouton ; rien n'est envoyé.
+  await page.keyboard.press('Enter');
+  await expect(buyback).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('button', { name: 'Confirmer le rachat' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText(
+    'La configuration en vigueur ne connaît plus ce bien',
+  );
+  await expectNoHorizontalScroll(page);
+});

@@ -1,4 +1,11 @@
-import { CONFIG_EDITOR_ROLES, type AdminRole, type RetiredUsage } from '@oikos/contracts';
+import {
+  BUYBACK_ROLES,
+  CONFIG_EDITOR_ROLES,
+  type AdminRole,
+  type BuybackPreview,
+  type BuybackTotals,
+  type RetiredUsage,
+} from '@oikos/contracts';
 import { Button, cn } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +35,8 @@ interface Listing {
     retiredInUse?: RetiredUsage;
   }[];
   activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
+  /** Rachats possibles (#229) : biens retirés encore détenus que la configuration en vigueur connaît. */
+  buybacks?: BuybackPreview[];
 }
 interface Detail {
   id: string;
@@ -76,6 +85,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
    * liste relue en nomme d'autres, la case se décoche : on ne confirme que ce qu'on a lu.
    */
   const [confirmed, setConfirmed] = useState<Record<string, string>>({});
+  /** Rachat dont la confirmation est ouverte, désigné par `version:bien` (un bien sous plusieurs versions). */
+  const [buying, setBuying] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const openedTitle = useRef<HTMLHeadingElement>(null);
@@ -87,9 +98,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const closedAt = useRef(-Infinity);
   useLayoutEffect(
     () => () => {
-      if (replacing ?? cancelling) closedAt.current = performance.now();
+      if (replacing ?? cancelling ?? buying) closedAt.current = performance.now();
     },
-    [replacing, cancelling],
+    [replacing, cancelling, buying],
   );
   const strayClick = ({ detail }: MouseEvent) =>
     detail > 1 || (detail === 1 && performance.now() - closedAt.current < SHIFT_GUARD_MS);
@@ -99,6 +110,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Intention en attente de réponse : la même action renvoyée après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
+  const canBuyBack = BUYBACK_ROLES.some((allowed) => allowed === role);
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   const count = new Intl.NumberFormat(i18n.language);
   // Rendu JSON : un changement de type reste visible (`"600" → 600`).
@@ -245,6 +257,31 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     closeCancel(activation.id);
   }
 
+  /** Rachat (#229) : même confirmation que l'annulation, foyer rendu à son bouton ou au titre. */
+  const confirmBuyBack = (key: string) => {
+    setReturnTo(null);
+    setBuying(key);
+  };
+  const closeBuyBack = (key: string) => {
+    setBuying(null);
+    setReturnTo(`config-buyback-${key}`);
+  };
+  async function buyBack(key: string, { goodId, totals }: BuybackPreview) {
+    // Les totaux montrés partent avec la commande : s'ils ne valent plus, l'API refuse sans rien faire.
+    await run<{ totals: BuybackTotals }>(
+      'admin.buyBackGood',
+      { goodId, expected: totals },
+      ({ totals: done }) =>
+        t('config.boughtBack', {
+          good: goodId,
+          units: count.format(done.units),
+          houses: count.format(done.houses),
+          oboles: count.format(done.oboles),
+        }),
+    );
+    closeBuyBack(key);
+  }
+
   const activeNumber =
     listing.data?.versions.find((version) => version.id === listing.data?.activeVersionId)
       ?.number ?? 0;
@@ -330,6 +367,55 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   </ul>
                 </div>
               )}
+              {canBuyBack &&
+                retired.map(({ goodId }) => {
+                  const preview = listing.data?.buybacks?.find((entry) => entry.goodId === goodId);
+                  if (!preview) return null;
+                  const key = `${version.id}-${goodId}`;
+                  const warningId = `config-buyback-warning-${key}`;
+                  return buying === key ? (
+                    <div key={key} className="mt-2 flex flex-wrap items-center gap-2">
+                      <p id={warningId} className="text-sm wrap-break-word">
+                        {t('config.buybackWarning', {
+                          good: goodId,
+                          units: count.format(preview.totals.units),
+                          price: count.format(preview.unitPriceOboles),
+                          houses: count.format(preview.totals.houses),
+                          oboles: count.format(preview.totals.oboles),
+                          orders: count.format(preview.totals.cancelledOrders),
+                        })}
+                      </p>
+                      <Button
+                        disabled={busy}
+                        aria-describedby={warningId}
+                        onClick={() => void buyBack(key, preview)}
+                      >
+                        {t('config.buybackConfirm')}
+                      </Button>
+                      {/* Foyer initial sur le geste sans effet : Entrée tenue ne rachète jamais. */}
+                      <Button
+                        autoFocus
+                        variant="secondary"
+                        disabled={busy}
+                        aria-describedby={warningId}
+                        onClick={() => closeBuyBack(key)}
+                      >
+                        {t('config.buybackKeep')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      key={key}
+                      id={`config-buyback-${key}`}
+                      variant="secondary"
+                      className="mt-2 max-w-full wrap-break-word"
+                      disabled={busy}
+                      onClick={() => confirmBuyBack(key)}
+                    >
+                      {t('config.buyback', { good: goodId })}
+                    </Button>
+                  );
+                })}
               {toConfirm && (
                 <div className="text-sm wrap-break-word">
                   <div id={unconfirmedId}>

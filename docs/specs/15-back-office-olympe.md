@@ -34,7 +34,12 @@ l'API, elle, refuse une programmation non confirmée (`CONFIG_RETIRED_UNCONFIRME
 drapeau `confirmRetiredInUse` de `admin.scheduleConfig`). La case vaut pour la liste lue à l'écran, et pour elle seule : si la liste relue nomme d'autres recettes ou classes, elle se décoche.
 L'API, elle, ne compare pas la liste confirmée à celle que l'écran a montrée : le drapeau confirme tout ce qui est en usage au moment où elle contrôle, et l'événement `ConfigActivationScheduled` garde cette liste (`confirmedRetired`, vide si la version ne retire rien en usage) pour l'audit.
 La confirmation ne lève jamais le refus d'un bien. Le contrôle se fait à la programmation, sur l'état du monde de cet instant, pas à l'activation : un site qui adopte la recette, ou une classe dont l'état naît, entre la programmation et la clôture n'est ni signalé ni confirmé.
-Rien n'est migré ni dédommagé.
+Rien n'est migré ni dédommagé (recettes et classes).
+Un bien retiré encore détenu se reprend par un rachat (5.1, décision de #229).
+Sous l'avertissement d'un tel bien, si la configuration en vigueur le connaît encore, le super-administrateur, et lui seul, voit un bouton « Racheter le stock de … ».
+Sa confirmation dit les totaux lus (unités, prix de référence, maisons de tous les mondes, oboles créées, ordres ouverts annulés), pose le foyer sur « Ne pas racheter », et une touche Entrée tenue ne rachète rien.
+Les totaux confirmés partent avec la commande : si l'état du monde a changé depuis la lecture, rien n'est racheté et l'écran le dit ; on relit les totaux, puis on confirme de nouveau.
+Après le rachat, la version qui retire le bien se programme, si rien n'a été acquis entre-temps.
 
 Quand le schéma refuse une configuration, l'écran désigne chaque valeur fautive en clair, dans la langue de l'écran : la table, la ligne et le champ (« Biens › wheat › élasticité »), suivis du chemin rendu par l'API, qui situe la valeur dans le texte JSON, et de son diagnostic (en anglais).
 Une ligne est désignée par son identifiant tel qu'il figure dans la configuration envoyée (pas dans le texte du moment, qui a pu changer depuis le refus), sinon par sa position comptée à partir de 1 : identifiant absent ou illisible, ou programmation refusée d'une version enregistrée, que l'écran n'a pas.
@@ -136,6 +141,7 @@ C'est un crédit de monnaie sans double validation par un second compte, par dé
 Sans configuration en vigueur lisible, ou si unités × prix dépasse les entiers sûrs, la liste est vide plutôt qu'en erreur : la commande n'en ferait aucun.
 Un rachat prend d'abord le verrou d'agora de chaque monde concerné, comme un ordre : deux rachats simultanés du même bien n'en laissent passer qu'un, l'autre trouvant l'état changé.
 Rejouer la commande sous la même clé rend la même réponse, sans rien racheter de plus.
+Dans le module Paramètres, le bouton de rachat et sa confirmation suivent 15.2 ; une action renvoyée après une panne y réutilise sa clé, comme les autres.
 
 Saisie dans le module Paramètres. Ouvrir une version porte le foyer sur le titre de son contenu.
 Tant que le texte ouvert a été modifié sans être enregistré comme nouvelle version, ouvrir une version (la même comprise) demande confirmation avant de le remplacer : la confirmation nomme les deux versions et pose le foyer sur « Garder le texte modifié », le bouton d'ouverture reste affiché, et y renoncer lui rend le foyer.
