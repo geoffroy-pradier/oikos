@@ -105,3 +105,32 @@ export const voyageDepartedSchema = z.strictObject({
       message: 'a voyage links two different cities',
     }),
 });
+
+/**
+ * Arrivée d'un voyage, jouée par le moteur (4.6, #253) : au premier tick qui commence à son échéance ou
+ * après, la cargaison passe de l'extrémité `in_transit` au stock de la maison dans la cité d'arrivée et
+ * le navire y est à quai. `arrivedAt` est l'instant de ce tick, jamais avant l'arrivée prévue.
+ */
+export const voyageArrivedSchema = z.strictObject({
+  type: z.literal('VoyageArrived'),
+  payload: z
+    .strictObject({
+      voyageId: z.uuid(),
+      shipId: z.uuid(),
+      houseId: z.uuid(),
+      fromCityId: z.uuid(),
+      toCityId: z.uuid(),
+      /** Arrivée prévue au départ. */
+      arrivesAt: z.iso.datetime(),
+      /** Instant du tick qui a déchargé le voyage. */
+      arrivedAt: z.iso.datetime(),
+      /** Ce qui a été déchargé : exactement ce qui avait été chargé. Vide pour un navire sur lest. */
+      cargo: z.array(cargoLineSchema),
+    })
+    .refine((payload) => payload.fromCityId !== payload.toCityId, {
+      message: 'a voyage links two different cities',
+    })
+    .refine((payload) => Date.parse(payload.arrivedAt) >= Date.parse(payload.arrivesAt), {
+      message: 'a voyage does not arrive before it is due',
+    }),
+});

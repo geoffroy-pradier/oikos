@@ -135,6 +135,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).
   Un voyage charge au départ, depuis le stock de sa maison dans la cité de départ, exactement sa cargaison, et ne décharge qu'une fois arrivé, vers le stock de sa maison dans la cité d'arrivée, exactement ce qu'il a chargé ; chaque bien est chargé une fois et déchargé une fois (index uniques).
   À la validation (contrôle différé), un voyage en mer a toute sa cargaison chargée et son navire n'est à quai nulle part, et un voyage arrivé a tout déchargé et son navire est à quai dans la cité d'arrivée (ou en est reparti).
+  Un index partiel porte les voyages en mer par monde et par échéance (`voyages_due_idx`, #253) : l'arrivée jouée à chaque tick et la Vigie ne parcourent qu'eux.
   Ces gardes s'exécutent au nom du propriétaire de la base.
   Le service fait partir un voyage sans en choisir l'identifiant ni la date de départ, et n'en écrit ensuite que l'arrivée ; un joueur lit ses voyages et leur cargaison par `my_voyages`, sous règle par ligne.
 - Discussion (6.6, #273) : `channels` (le canal d'une cité, ou la conversation privée de deux maisons d'un même monde), `channel_members` (les deux maisons d'une conversation privée) et `messages` (canal, maison, texte, date, masquage).
