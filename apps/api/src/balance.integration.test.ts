@@ -23,8 +23,8 @@ import { morning, ROLES, seller } from './balance/strategy';
 /*
  * Équilibrage de la cité prototype (ticket #78, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à
  * part : récolte, demande des PNJ et clôtures, joués à leur heure de jeu (`balance/city.ts`). D'abord
- * trois jours où des maisons vendent leur blé au prix de référence ; puis une semaine de mise en route
- * et 30 jours mesurés, avec la configuration initiale. Les maisons scriptées acquièrent leurs sites,
+ * trois jours où des maisons vendent leur blé au prix de référence ; puis dix jours de mise en route
+ * et 30 jours mesurés, avec la configuration initiale, bornés : inflation et besoins vitaux. Les maisons scriptées acquièrent leurs sites,
  * achètent leurs intrants et vendent leur production par les vraies commandes (`balance/strategy.ts`) ;
  * la demande des PNJ et la clôture quotidienne (population, entretien) sont celles du moteur. Les prix
  * sont relevés jour par jour, d'après le rang des échanges.
@@ -74,7 +74,7 @@ it('3 jours : tous les ticks du jour, grand livre rapproché', { timeout: 120_00
 
 const MONTH = 30;
 /** Mise en route, non mesurée : les maisons acquièrent leurs sites et les prix trouvent leur niveau. */
-const WARMUP = 7;
+const WARMUP = 10;
 
 it(
   '30 jours, 15 biens, maisons scriptées : grand livre rapproché ; mesures publiées',
@@ -212,7 +212,18 @@ it(
     expect(ledger.expected['sink_market_tax']).toBeGreaterThan(0);
     expect(upkeep).toBeGreaterThan(0);
     expect(acquisitions).toBeGreaterThan(0);
-    // Les bornes d'équilibrage (inflation mensuelle de 0 à 3 %, besoins vitaux couverts) attendent la
-    // recalibration de la cité prototype (#78) : les mesures ci-dessus sont publiées, pas encore bornées.
+    // Bornes d'équilibrage de la cité prototype (#78), écrites à la main. Le coût du panier des dix
+    // derniers jours ne dépasse celui des dix premiers que de 0 à 2 % : vingt jours d'écart, soit au plus 3 %
+    // sur un mois, la cible de l'indice (5.5).
+    expect(basketLast10VsFirst10Bps).not.toBeNull();
+    expect(basketLast10VsFirst10Bps).toBeGreaterThanOrEqual(0);
+    expect(basketLast10VsFirst10Bps).toBeLessThanOrEqual(200);
+    // Besoins vitaux couverts : chaque classe, chaque jour mesuré, à 98 % au moins.
+    const lowest = Math.min(
+      ...daily.flatMap((entry) => Object.values(entry.coverage).map((coverage) => coverage ?? 0)),
+    );
+    expect(lowest).toBeGreaterThanOrEqual(9_800);
+    // La cité ne se vide pas : la population de fin n'est pas sous celle du début de la mesure.
+    expect(daily.at(-1)?.population ?? 0).toBeGreaterThanOrEqual(daily[0]?.population ?? Infinity);
   },
 );

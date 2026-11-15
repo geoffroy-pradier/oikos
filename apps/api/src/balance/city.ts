@@ -264,7 +264,10 @@ export async function harvest(city: City, house: House, now: Date) {
     .where('house_id', '=', house.houseId)
     .where('halted_at', 'is not', null)
     .executeTakeFirst();
-  if (halted) throw new Error(`Site ${halted.id} is halted: its upkeep was not paid`);
+  if (halted)
+    throw new Error(
+      `Site ${halted.id} of ${house.role.name} is halted on ${now.toISOString()}: its upkeep was not paid`,
+    );
   for (const site of house.sites) {
     const recipe = recipeOf(site.recipeId);
     const inputs = [];

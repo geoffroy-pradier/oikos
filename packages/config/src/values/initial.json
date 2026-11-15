@@ -4,9 +4,9 @@
   "marketTax": { "rateBps": 500, "burnShareBps": 5000 },
   "priceHistory": { "candleMinutes": 60, "referenceWindowHours": 24 },
   "populationDynamics": {
-    "vitalCoverageThresholdBps": 9000,
-    "growthBps": 100,
-    "emigrationBps": 200,
+    "vitalCoverageThresholdBps": 10000,
+    "growthBps": 20,
+    "emigrationBps": 100,
     "minShareBps": 5000,
     "maxShareBps": 20000
   },
@@ -14,12 +14,12 @@
     "windowDays": 30,
     "inflationTargetBps": { "min": 0, "max": 300 },
     "basket": [
-      { "goodId": "wheat", "quantity": 174 },
-      { "goodId": "bread", "quantity": 216 },
-      { "goodId": "fish", "quantity": 72 },
-      { "goodId": "salt", "quantity": 23 },
-      { "goodId": "olive_oil", "quantity": 25 },
-      { "goodId": "wine", "quantity": 24 }
+      { "goodId": "wheat", "quantity": 4385 },
+      { "goodId": "bread", "quantity": 2072 },
+      { "goodId": "fish", "quantity": 687 },
+      { "goodId": "salt", "quantity": 218 },
+      { "goodId": "olive_oil", "quantity": 239 },
+      { "goodId": "wine", "quantity": 234 }
     ]
   },
   "telemetry": { "retentionDays": 90 },
@@ -215,56 +215,56 @@
     {
       "id": "thetes",
       "qualitySensitivity": 0.1,
-      "incomePerThousand": 764,
+      "incomePerThousand": 70,
       "basket": [
-        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 24 },
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 20 },
-        { "goodId": "fish", "need": "vital", "quantityPerThousand": 6 },
-        { "goodId": "salt", "need": "vital", "quantityPerThousand": 2 },
-        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 1.5 },
-        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 1 }
+        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 4.2 },
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.333 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.4 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 0.133 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.1 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 0.067 }
       ]
     },
     {
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
-      "incomePerThousand": 942,
+      "incomePerThousand": 73,
       "basket": [
-        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 12 },
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 23 },
-        { "goodId": "fish", "need": "vital", "quantityPerThousand": 8 },
-        { "goodId": "salt", "need": "vital", "quantityPerThousand": 2.5 },
-        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 3 },
-        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 3 },
-        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.6 }
+        { "goodId": "wheat", "need": "vital", "quantityPerThousand": 2.1 },
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.533 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.533 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 0.167 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.2 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 0.2 },
+        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.04 }
       ]
     },
     {
       "id": "hippeis",
       "qualitySensitivity": 0.6,
-      "incomePerThousand": 1224,
+      "incomePerThousand": 82,
       "basket": [
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 26 },
-        { "goodId": "fish", "need": "vital", "quantityPerThousand": 10 },
-        { "goodId": "salt", "need": "vital", "quantityPerThousand": 3 },
-        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 5 },
-        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 6 },
-        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 1.5 },
-        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.8 }
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.733 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.667 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 0.2 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.333 },
+        { "goodId": "wine", "need": "comfort", "quantityPerThousand": 0.4 },
+        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.1 },
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.053 }
       ]
     },
     {
       "id": "pentakosiomedimnoi",
       "qualitySensitivity": 0.9,
-      "incomePerThousand": 1796,
+      "incomePerThousand": 120,
       "basket": [
-        { "goodId": "bread", "need": "vital", "quantityPerThousand": 24 },
-        { "goodId": "fish", "need": "vital", "quantityPerThousand": 12 },
-        { "goodId": "salt", "need": "vital", "quantityPerThousand": 3 },
-        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 8 },
-        { "goodId": "wine", "need": "luxury", "quantityPerThousand": 12 },
-        { "goodId": "cloth", "need": "luxury", "quantityPerThousand": 4 },
-        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 3 }
+        { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.6 },
+        { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.8 },
+        { "goodId": "salt", "need": "vital", "quantityPerThousand": 0.2 },
+        { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.533 },
+        { "goodId": "wine", "need": "luxury", "quantityPerThousand": 0.8 },
+        { "goodId": "cloth", "need": "luxury", "quantityPerThousand": 0.267 },
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.2 }
       ]
     }
   ],
