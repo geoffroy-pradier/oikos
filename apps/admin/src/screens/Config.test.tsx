@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
@@ -45,8 +45,12 @@ const LISTING = {
     activation('a1', 'v1', '2020-01-01T00:00:00Z'),
   ],
 };
+const GOODS = [
+  { id: 'wheat', tier: 'raw', referencePriceOboles: 6, elasticity: 0.4 },
+  { id: 'bread', tier: 'finished', referencePriceOboles: 30, elasticity: 1 },
+];
 const CONFIGS: Record<string, unknown> = {
-  v1: {},
+  v1: { clock: {}, goods: GOODS },
   v2: { starting: { grantOboles: 600 } },
   v3: { starting: { grantOboles: 700 } },
 };
@@ -279,7 +283,7 @@ it('texte enregistré comme nouvelle version : plus rien à perdre ; issue incon
   fireEvent.click(button('Ouvrir la version 1'));
   expect(screen.queryByRole('button', { name: 'Remplacer le texte' })).toBeNull();
   await screen.findByRole('heading', { name: 'Contenu de la version 1' });
-  expect(editor.value).toBe('{}');
+  expect(editor.value).toBe(JSON.stringify(CONFIGS['v1'], null, 2));
 });
 
 it('enregistre le contenu saisi et la note, puis relit la liste', async () => {
@@ -700,4 +704,85 @@ it('un refus du schéma désigne table, ligne et champ d’après la configurati
   await i18next.changeLanguage('en');
   await waitFor(() => expect(lines()[0]).toContain('Goods › item 2 › elasticity (goods[1]'));
   await i18next.changeLanguage('fr');
+});
+
+/** Champ d'un bien, désigné par le nom de son groupe (identifiant ou rang) et par son libellé. */
+const cell = (good: string, label: string) =>
+  within(screen.getByRole('group', { name: good })).getByLabelText<HTMLInputElement>(label);
+const goodsOf = (editor: HTMLTextAreaElement) =>
+  (JSON.parse(editor.value) as { goods: Record<string, unknown>[] }).goods;
+const PRICE = 'prix de référence (oboles)';
+
+it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisible se relit dans le formulaire', async () => {
+  api.adminCommand.mockResolvedValue({ ok: true, data: { number: 4 } });
+  const editor = await openVersion(1);
+  const elasticity = cell('wheat', 'élasticité');
+  expect(elasticity.value).toBe('0.4');
+  // Frappe à frappe : le champ garde ce qui est tapé (« 1.0 » ne redevient pas « 1 » avant le « 5 »).
+  for (const typed of ['1', '1.', '1.0', '1.05']) {
+    type(elasticity, typed);
+    expect(elasticity.value).toBe(typed);
+  }
+  type(cell('wheat', 'niveau'), 'intermediate');
+  const wheat = { ...GOODS[0], tier: 'intermediate', elasticity: 1.05 };
+  expect(JSON.parse(editor.value)).toEqual({ clock: {}, goods: [wheat, GOODS[1]] });
+  // Virgule décimale ; à la sortie du champ, la valeur du JSON est affichée.
+  type(elasticity, '0,45');
+  fireEvent.blur(elasticity);
+  expect([goodsOf(editor)[0]?.['elasticity'], elasticity.value]).toEqual([0.45, '0.45']);
+  // Un prix qui ne se lit pas comme un nombre part en texte, et se montre comme tel : entre guillemets.
+  type(cell('wheat', PRICE), '1,000');
+  expect(cell('wheat', PRICE).value).toBe('1,000');
+  fireEvent.blur(cell('wheat', PRICE));
+  expect(cell('wheat', PRICE).value).toBe('"1,000"');
+  expect(goodsOf(editor)[0]).toEqual({ ...wheat, referencePriceOboles: '1,000', elasticity: 0.45 });
+  // Champ vidé : la clé est retirée, l'autre bien ne bouge pas.
+  type(cell('wheat', PRICE), '');
+  expect(goodsOf(editor)).toEqual([
+    { id: 'wheat', tier: 'intermediate', elasticity: 0.45 },
+    GOODS[1],
+  ]);
+  // Le client compose, l'API contrôle : ce qui part est le texte, tel que le formulaire l'a écrit.
+  fireEvent.click(button('Enregistrer comme nouvelle version'));
+  await screen.findByText(/^Version 4 enregistrée/);
+  expect(api.adminCommand.mock.calls[0]?.[1]).toEqual({
+    config: JSON.parse(editor.value),
+    note: '',
+  });
+  // Dans l'autre sens. Un niveau inconnu reste affiché, rien n'est remplacé ; une valeur d'un autre
+  // type que le champ est montrée en JSON ; sans identifiant, un bien est désigné par son rang.
+  const typed = '{"goods":[{"id":"fish","tier":"legendary","elasticity":"2"},{}]}';
+  type(editor, typed);
+  expect([cell('fish', 'élasticité').value, cell('fish', PRICE).value]).toEqual(['"2"', '']);
+  const options = (good: string) => cell(good, 'niveau').textContent;
+  expect(options('fish')).toBe('legendaryMatièreIntermédiaireFiniService');
+  expect(options('élément 2')).toBe('— choisir —MatièreIntermédiaireFiniService');
+  expect([cell('fish', 'niveau').value, editor.value]).toEqual(['', typed]);
+});
+
+it('formulaire des biens : une saisie est un texte modifié et l’emporte sur une ouverture en route ; indisponible sans liste lisible ; lecture seule', async () => {
+  const editor = await openVersion(1);
+  expect(screen.getByText(/^Chaque saisie réécrit le texte JSON/)).toBeTruthy();
+  // Version 2 lente à s'ouvrir : la saisie faite entre-temps reste, sa réponse est ignorée.
+  const slow = held<unknown>();
+  api.adminGet.mockImplementationOnce(() => slow.promise);
+  fireEvent.click(button('Ouvrir la version 2'));
+  type(cell('bread', PRICE), '31');
+  slow.release({ ok: true, data: { id: 'v2', number: 2, config: CONFIGS['v2'] } });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(cell('bread', PRICE).value).toBe('31');
+  fireEvent.click(button('Ouvrir la version 2'));
+  expect(document.activeElement).toBe(button('Garder le texte modifié'));
+  // Sans liste de biens lisible : plus de champs, la raison est dite ; le texte n'est pas touché.
+  for (const text of ['{ "goods": ', '[]', '{"goods":{"wheat":{}}}', '{"goods":[1]}']) {
+    type(editor, text);
+    expect(screen.getByText(/^Formulaire indisponible/)).toBeTruthy();
+    expect(screen.queryByRole('group')).toBeNull();
+    expect(editor.value).toBe(text);
+  }
+  cleanup();
+  await openVersion(1, 'observer');
+  expect(cell('wheat', 'identifiant').readOnly).toBe(true);
+  expect(cell('wheat', 'niveau').disabled).toBe(true);
+  expect(screen.queryByText(/^Chaque saisie réécrit/)).toBeNull();
 });
