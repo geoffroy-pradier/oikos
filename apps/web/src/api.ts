@@ -12,6 +12,7 @@ import {
   type SiteRestartOutput,
   type SiteSetRecipeOutput,
 } from '@oikos/contracts';
+import { serverClock } from './server-clock';
 
 /** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
 export type CommandResponse<T> =
@@ -29,6 +30,7 @@ export async function sendCommand<T>(
   fetchImpl: typeof fetch = fetch,
 ): Promise<CommandResponse<T>> {
   try {
+    const sentAt = Date.now();
     const response = await fetchImpl(`/api/commands/${name}`, {
       method: 'POST',
       headers: {
@@ -38,6 +40,8 @@ export async function sendCommand<T>(
       },
       body: JSON.stringify(input),
     });
+    // Toute réponse de l'API donne l'heure du serveur, même un refus.
+    serverClock.observe(response.headers.get('Date'), sentAt);
     const body = (await response.json()) as {
       ok?: unknown;
       data?: unknown;
