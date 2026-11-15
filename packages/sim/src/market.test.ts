@@ -392,6 +392,56 @@ describe('sort d’un ordre à son arrivée : attente, séquestre, annulation', 
     ).toMatchObject({ remaining: 0, rests: false, escrow: 0, shortOfFunds: false });
   });
 
+  it('un achat sans budget est refusé, qu’il puisse attendre ou non : rien ne bornerait son séquestre', () => {
+    const asks: HouseOrder[] = [
+      { orderId: 'v', houseId: 'b', price: 7, quantity: 10, sequence: 1 },
+    ];
+    for (const quantity of [5, 30])
+      expect(() => planLimitOrder({ houseId: 'a', side: 'buy', price: 8, quantity }, asks)).toThrow(
+        RangeError,
+      );
+    expect(() =>
+      planLimitOrder({ houseId: 'a', side: 'buy', price: 6, quantity: 5 }, asks),
+    ).toThrow(RangeError);
+    // Une vente, elle, n'a pas de budget.
+    expect(planLimitOrder({ houseId: 'a', side: 'sell', price: 9, quantity: 1 }, [])).toMatchObject(
+      { rests: true, escrow: 0 },
+    );
+  });
+
+  it('propriété : un achat ne dépense jamais plus que son budget, et attend dès que le budget restant couvre prix × reste', () => {
+    const ask = fc.record({
+      houseId: fc.constantFrom('a', 'b', 'c'),
+      price: fc.integer({ min: 1, max: 12 }),
+      quantity: fc.integer({ min: 1, max: 20 }),
+    });
+    fc.assert(
+      fc.property(
+        fc.array(ask, { maxLength: 6 }),
+        fc.integer({ min: 1, max: 12 }),
+        fc.integer({ min: 1, max: 40 }),
+        fc.integer({ min: 0, max: 400 }),
+        (asks, price, quantity, budget) => {
+          const book = asks.map((entry, index) => ({
+            ...entry,
+            orderId: String(index),
+            sequence: index,
+          }));
+          const plan = planLimitOrder({ houseId: 'a', side: 'buy', price, quantity, budget }, book);
+          const spent = plan.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+          // Échanges payés et séquestre retenu ne dépassent jamais le budget.
+          expect(spent + plan.escrow).toBeLessThanOrEqual(budget);
+          // Le reste attend si et seulement si le budget, échanges payés, retient prix × reste.
+          expect(plan.rests).toBe(plan.remaining > 0 && budget - spent >= plan.remaining * price);
+          expect(plan.escrow).toBe(plan.rests ? plan.remaining * price : 0);
+          // Un reste qui n'attend pas est un manque de fonds, signalé.
+          if (plan.remaining > 0 && !plan.rests) expect(plan.shortOfFunds).toBe(true);
+        },
+      ),
+      { numRuns: 1000 },
+    );
+  });
+
   it('propriété : monnaie et biens conservés, séquestre et réservation exacts, aucune auto-transaction, priorité prix puis temps', () => {
     interface Open extends HouseOrder {
       side: Side;
