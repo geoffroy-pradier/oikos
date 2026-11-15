@@ -241,7 +241,55 @@ export async function executeCommand(
         )
         .execute();
     }
-    await trx.commit().execute();
+    try {
+      await trx.commit().execute();
+    } catch (error) {
+      // Contrôle de la base à la validation (déclencheur différé) : tout est annulé, journal compris. Un
+      // refus que la commande connaît reste une erreur métier, avec sa ligne « rejected » écrite à part,
+      // sous la même clé et le même verrou : le rejeu rend le même refus.
+      const mapped = command.errorByConstraint?.[violatedConstraint(error) ?? ''];
+      if (!mapped) throw error;
+      await trx.rollback().execute();
+      const rejected: CommandResult<unknown> = { ok: false, error: mapped };
+      return await db.transaction().execute(async (log): Promise<CommandOutcome> => {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${`${userId}:${idempotencyKey}`}, 0))`.execute(
+          log,
+        );
+        const written = await log
+          .insertInto('game.command_log')
+          .values({
+            user_id: userId,
+            command: command.name,
+            idempotency_key: idempotencyKey,
+            input: authorized ? loggedInput : redactedInput,
+            status: 'rejected',
+            error_code: mapped.code,
+            response: JSON.stringify(rejected),
+            duration_ms: duration(),
+            ...context,
+          })
+          .onConflict((conflict) => conflict.columns(['user_id', 'idempotency_key']).doNothing())
+          .returning('id')
+          .executeTakeFirst();
+        if (written) return { response: rejected, replayed: false };
+        // Une requête de même clé attendait le verrou, que l'échec a libéré : elle s'est exécutée et sa
+        // ligne fait foi, comme pour tout rejeu (son effet est validé, notre refus ne l'est pas).
+        const stored = await log
+          .selectFrom('game.command_log')
+          .select(['command', 'input', 'response'])
+          .where('user_id', '=', userId)
+          .where('idempotency_key', '=', idempotencyKey)
+          .executeTakeFirstOrThrow();
+        const sameInput = [loggedInput, redactedInput].some((text) =>
+          sameJson(stored.input, JSON.parse(text)),
+        );
+        if (stored.command !== command.name || !sameInput) {
+          const message = 'This idempotency key was already used for another command or input.';
+          return { response: failure('IDEMPOTENCY_KEY_REUSED', message), replayed: false };
+        }
+        return { response: stored.response as CommandResult<unknown>, replayed: true };
+      });
+    }
     return { response, replayed: false };
   } catch (error) {
     // Sur une connexion morte (session fermée par la base), l'annulation échoue à son tour : la base a

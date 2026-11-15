@@ -4,7 +4,13 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { defineCommand, executeCommand, type CommandContext, type CommandResult } from './registry';
+import {
+  defineCommand,
+  executeCommand,
+  type CommandContext,
+  type CommandOutcome,
+  type CommandResult,
+} from './registry';
 import { TEST_CONFIG, testConfig } from './test-config';
 
 // Tests d'intégration du registre contre Supabase local, avec des commandes d'essai qui renomment une maison.
@@ -214,6 +220,103 @@ describe('executeCommand', () => {
       { status: 'rejected', error_code: 'PROBE_REFUSED' },
       { status: 'rejected', error_code: 'HOUSE_NAME_TAKEN' },
     ]);
+  });
+
+  it('contrôle de la base à la validation : erreur métier, effets annulés, ligne « rejected » sous la clé, même réponse au rejeu', async () => {
+    const [house, key] = [await newHouse(), randomUUID()];
+    // Renomme la maison, puis viole une contrainte que seule la validation contrôle (comme les
+    // déclencheurs différés des activations) : l'échec vient du COMMIT, pas d'une instruction.
+    const lateCheck = (name: string, constraint: string) => {
+      const rename = probe(name);
+      return defineCommand({
+        ...rename,
+        errorByConstraint: { [constraint]: { code: 'PROBE_TOO_LATE', message: 'late' } },
+        async handler(context, input) {
+          const result = await rename.handler(context, input);
+          await sql`create temporary table probe_late (x int, constraint probe_checked_at_commit
+            unique (x) deferrable initially deferred) on commit drop`.execute(context.trx);
+          await sql`insert into probe_late values (1), (1)`.execute(context.trx);
+          return result;
+        },
+      });
+    };
+    const command = lateCheck('probe.lateCheck', 'probe_checked_at_commit');
+    const first = await executeCommand(
+      db,
+      command,
+      { userId: house.userId, idempotencyKey: key, input: { name: `Tardive ${letters()}` } },
+      testConfig,
+    );
+    expect(first).toEqual({
+      replayed: false,
+      response: { ok: false, error: { code: 'PROBE_TOO_LATE', message: 'late' } },
+    });
+    const input = (await logOf(house.userId))[0]?.input;
+    const replay = await executeCommand(
+      db,
+      command,
+      { userId: house.userId, idempotencyKey: key, input },
+      testConfig,
+    );
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect([await nameOf(house.houseId), await eventsOf(house.houseId)]).toEqual([house.name, 0]);
+    expect(await logOf(house.userId)).toMatchObject([
+      { status: 'rejected', error_code: 'PROBE_TOO_LATE', idempotency_key: key },
+    ]);
+    // Une contrainte que la commande ne connaît pas reste une panne : trace sans clé.
+    const unknown = lateCheck('probe.lateUnknown', 'another_constraint');
+    const failed = await executeCommand(
+      db,
+      unknown,
+      { userId: house.userId, idempotencyKey: randomUUID(), input: { name: `Autre ${letters()}` } },
+      testConfig,
+    );
+    expect(failed.response).toMatchObject({ ok: false, error: { code: 'INTERNAL' } });
+    expect((await logOf(house.userId)).at(-1)).toMatchObject({
+      status: 'failed',
+      idempotency_key: null,
+    });
+  });
+
+  it('validation refusée pendant qu’une requête de même clé attend : elle s’exécute, et sa réponse vaut pour les deux', async () => {
+    const [house, key, name] = [await newHouse(), randomUUID(), `Croisée ${letters()}`];
+    const rename = probe('probe.crossed');
+    let second: Promise<CommandOutcome> | undefined;
+    const request = { userId: house.userId, idempotencyKey: key, input: { name } };
+    const command = defineCommand({
+      ...rename,
+      errorByConstraint: { probe_checked_at_commit: { code: 'PROBE_TOO_LATE', message: 'late' } },
+      async handler(context, input) {
+        const result = await rename.handler(context, input);
+        if (second) return result;
+        // Première exécution : la requête de même clé part et attend le verrou de la clé ; puis une
+        // contrainte que seule la validation contrôle fera échouer le COMMIT, qui libère ce verrou.
+        second = executeCommand(db, command, request, testConfig);
+        for (let tries = 0; tries < 100; tries++) {
+          const waiting = await sql<{ n: number }>`select count(*)::int as n from pg_locks
+            where locktype = 'advisory' and not granted
+              and objid = (hashtextextended(${`${house.userId}:${key}`}, 0) & 4294967295)::oid`.execute(
+            owner,
+          );
+          if ((waiting.rows[0]?.n ?? 0) > 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        await sql`create temporary table probe_crossed (x int, constraint probe_checked_at_commit
+          unique (x) deferrable initially deferred) on commit drop`.execute(context.trx);
+        await sql`insert into probe_crossed values (1), (1)`.execute(context.trx);
+        return result;
+      },
+    });
+    const first = await executeCommand(db, command, request, testConfig);
+    const other = await second;
+    // La seconde s'est exécutée et a validé son effet : la première rend sa réponse, en rejeu.
+    expect(other).toEqual({
+      replayed: false,
+      response: { ok: true, data: { houseId: house.houseId, name } },
+    });
+    expect(first).toEqual({ ...other, replayed: true });
+    expect([await nameOf(house.houseId), rename.runs()]).toEqual([name, 2]);
+    expect(await logOf(house.userId)).toMatchObject([{ status: 'ok', idempotency_key: key }]);
   });
 
   it('entrée invalide ou non stockable : refus journalisé, jamais d’erreur 500 ni de trou dans le journal', async () => {
