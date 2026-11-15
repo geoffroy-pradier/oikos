@@ -1,9 +1,11 @@
+import { cityTerroirAdmits } from '@oikos/config/schema';
 import { Button, Card } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
+import { parseCityIdentities } from '../city-identity';
 import {
   freeStockIn,
   previewHarvest,
@@ -64,6 +66,25 @@ export function SitesCard({
     'id',
   );
   const { rules, failed: rulesFailed, reload: reloadRules } = useSiteRules();
+  // Terroir de chaque cité (6.1) : seules ses productions sont proposées, l'API restant seule juge. Tant
+  // que l'identité n'est pas lue, ou si elle est illisible, tout est proposé et l'API tranche.
+  const identityRows = useRows<unknown>(
+    'city_identity',
+    'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
+    'city_id',
+  );
+  const identities = useMemo(
+    () => (identityRows.rows === null ? null : parseCityIdentities(identityRows.rows)),
+    [identityRows.rows],
+  );
+  const reloadIdentities = identityRows.reload;
+  const admits = (cityId: string) => (recipe: { id: string; siteType: string }) => {
+    const identity = identities?.get(cityId);
+    return cityTerroirAdmits(
+      identity ? { terroir: identity.terroir ?? undefined } : undefined,
+      recipe,
+    );
+  };
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   // Production choisie pour chaque site (tant que le joueur n'a pas validé) et site à acquérir.
@@ -139,6 +160,8 @@ export function SitesCard({
       if (running.current) return;
       void reloadSites();
       void reloadRules();
+      // Une version activée entre-temps a pu resserrer ou élargir le terroir, comme changer les règles.
+      void reloadIdentities();
     };
     const timer = setInterval(() => {
       setNow(serverClock.now());
@@ -155,7 +178,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [reloadSites, reloadRules]);
+  }, [reloadSites, reloadRules, reloadIdentities]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -209,7 +232,7 @@ export function SitesCard({
   const watched = rows
     .map((site) => ({ site, alerts: stateOf(site).alerts }))
     .filter(({ alerts }) => alerts.length > 0);
-  const offers = rules?.offers ?? [];
+  const offers = (rules?.offers ?? []).filter(({ recipe }) => admits(house.cityId)(recipe));
   const offer = offers.find((candidate) => candidate.recipe.id === wanted) ?? offers[0];
   const full = rules !== null && sites.rows !== null && sites.rows.length >= rules.limit;
 
@@ -250,7 +273,7 @@ export function SitesCard({
 
   /** Relit ce qu'une commande a pu changer, puis l'heure. */
   async function refresh() {
-    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
+    await Promise.all([sites.reload(), reloadRules(), reloadIdentities(), onChanged()]);
     setNow(serverClock.now());
   }
 
@@ -436,7 +459,10 @@ export function SitesCard({
       )}
       {announce(ALL)}
       {(sites.failed || rulesFailed) && (
-        <LoadProblem heading={title} onRetry={() => Promise.all([sites.reload(), reloadRules()])} />
+        <LoadProblem
+          heading={title}
+          onRetry={() => Promise.all([sites.reload(), reloadRules(), reloadIdentities()])}
+        />
       )}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
@@ -461,8 +487,15 @@ export function SitesCard({
         {rows.map((site) => {
           const name = siteName(site);
           const type = rules?.siteTypeOf(site.recipe_id);
-          const alternatives = rules?.alternatives(site.recipe_id) ?? [];
-          const choice = chosen[site.id] ?? site.recipe_id;
+          const alternatives = (rules?.alternatives(site.recipe_id) ?? []).filter(
+            admits(site.city_id),
+          );
+          // Un choix fait avant la lecture du terroir, et que le filtre a retiré depuis, n'est pas envoyé.
+          const picked = chosen[site.id];
+          const choice =
+            picked !== undefined && alternatives.some((recipe) => recipe.id === picked)
+              ? picked
+              : site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
           const { halted, harvest, alerts } = stateOf(site);
           // Sans recette, ni récolte ni relance : seul le changement de production est proposé.
@@ -516,6 +549,10 @@ export function SitesCard({
                 )}
               </div>
               {retired && <p className="font-semibold text-danger">{t('home.retired')}</p>}
+              {/* Production gardée d'avant un resserrement du terroir : elle tourne, mais on n'y revient pas. */}
+              {recipe && !admits(site.city_id)(recipe) && (
+                <p className="text-muted-foreground">{t('home.outOfTerroir')}</p>
+              )}
               {halted && !retired && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="min-w-0 flex-1 font-semibold text-danger">
