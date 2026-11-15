@@ -16,7 +16,7 @@ begin
   if to_regclass('game.trades_ledger_entry_unique') is null then
     select t.ledger_entry_id into shared from game.trades t group by t.ledger_entry_id having count(*) > 1 limit 1;
     if shared is not null then
-      raise exception 'ledger entry % settles more than one trade: review the history before migration 43', shared
+      raise exception 'ledger entry % settles more than one trade: review the history before migration 42', shared
         using errcode = 'unique_violation';
     end if;
   end if;

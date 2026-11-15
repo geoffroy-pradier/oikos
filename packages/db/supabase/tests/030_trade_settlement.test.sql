@@ -122,7 +122,7 @@ select throws_ok(format($$select pg_temp.as_service(%L)$$,
          ('00000000-0000-7000-8000-000000000511', '00000000-0000-7000-8000-0000000000cc', 10);$s$),
   '23514', 'trade 00000000-0000-7000-8000-000000000411 must be paid 40 oboles in a single debit of the buyer''s treasury',
   'une ligne ajoutée à l''écriture d''un échange ne détourne pas son montant');
--- Une écriture ne règle qu'un échange (index unique, migration 43) : deux échanges de 5 à 8 ne sont pas
+-- Une écriture ne règle qu'un échange (index unique, migration 42) : deux échanges de 5 à 8 ne sont pas
 -- payés par une écriture de 40. Le refus vient de l'index, sans attendre la validation.
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('512', 'npc.purchase', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-40, 40])
@@ -167,7 +167,7 @@ select lives_ok(format($$select pg_temp.as_service(%L)$$,
     || pg_temp.trade('420', '307', null, 1, 1, '517')),
   'net nul : le vendeur n''a pas de ligne');
 
--- Coût du règlement (migration 43) : un contrôle par échange, plus un par ligne écrite après lui. Les
+-- Coût du règlement (migration 42) : un contrôle par échange, plus un par ligne écrite après lui. Les
 -- appels sont comptés dans la transaction ; un contrôle qui échoue n'est pas compté.
 set local track_functions = 'pl';
 create function pg_temp.checks_during(statements text) returns bigint language plpgsql as $$
