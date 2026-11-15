@@ -65,16 +65,43 @@ export const createHouse = (input: HouseCreateInput, accessToken: string) =>
 export const collectSite = (siteId: string, accessToken: string) =>
   sendCommand<SiteCollectOutput>('site.collect', { siteId }, accessToken);
 
-/** `idempotencyKey` : la même clé tant que cette acquisition n'a pas reçu de réponse. */
-export const acquireSite = (recipeId: string, accessToken: string, idempotencyKey: string) =>
-  sendCommand<SiteAcquireOutput>('site.acquire', { recipeId }, accessToken, idempotencyKey);
+/**
+ * `idempotencyKey` : la même clé tant que cette acquisition n'a pas reçu de réponse. `expectedCostOboles` :
+ * le prix envoyé sous cette clé ; l'API refuse (`PRICE_CHANGED`) plutôt que de prélever un autre tarif.
+ * Absent (clé rangée par une version antérieure de l'écran) : la commande part sans prix, comme alors.
+ */
+export const acquireSite = (
+  recipeId: string,
+  expectedCostOboles: number | undefined,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<SiteAcquireOutput>(
+    'site.acquire',
+    { recipeId, expectedCostOboles },
+    accessToken,
+    idempotencyKey,
+  );
 
 export const setSiteRecipe = (siteId: string, recipeId: string, accessToken: string) =>
   sendCommand<SiteSetRecipeOutput>('site.setRecipe', { siteId, recipeId }, accessToken);
 
-/** `idempotencyKey` : la même clé tant que cette relance n'a pas reçu de réponse ; une clé neuve après un refus. */
-export const restartSite = (siteId: string, accessToken: string, idempotencyKey: string) =>
-  sendCommand<SiteRestartOutput>('site.restart', { siteId }, accessToken, idempotencyKey);
+/**
+ * `idempotencyKey` : la même clé tant que cette relance n'a pas reçu de réponse ; une clé neuve après un
+ * refus. `expectedUpkeepOboles` : l'entretien affiché, que l'API refuse de dépasser comme de baisser.
+ */
+export const restartSite = (
+  siteId: string,
+  expectedUpkeepOboles: number | undefined,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<SiteRestartOutput>(
+    'site.restart',
+    { siteId, expectedUpkeepOboles },
+    accessToken,
+    idempotencyKey,
+  );
 
 /** `idempotencyKey` : la même clé tant que la même intention n'a pas reçu de réponse (voir `Agora.tsx`). */
 export const placeOrder = (
