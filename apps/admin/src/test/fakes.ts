@@ -131,6 +131,7 @@ export const VIGIE = {
   refusals24h: { unauthenticated: 91, payloadTooLarge: 4, rateLimited: 17, forbidden: 6 },
   adminReads24h: 58,
   selfReviewAllowed: false,
+  clock: { timezone: 'Europe/Paris', knownToDatabase: true, worlds: 2 },
 };
 
 const index = { currentBps: 11_212, previousBps: 10_909, inflationBps: 278 };

@@ -615,4 +615,83 @@ describe('demande des PNJ au tick', () => {
       where a.world_id = ${world.worldId}`.execute(db);
     expect(check.rows).toEqual([{ total: '0', broken: '0' }]);
   });
+
+  it('une écriture ne règle qu’un échange, même pour deux transactions qui valident leurs contrôles en même temps', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 10, [
+      [5, 8],
+      [5, 8],
+    ]);
+    // Une écriture d'achat des PNJ de 40 oboles, validée sans échange (5.3, débits hors échange).
+    const accounts = await db
+      .selectFrom('game.accounts')
+      .select('id')
+      .where((eb) =>
+        eb.or([
+          eb('house_id', '=', seller.houseId),
+          eb.and([
+            eb('world_id', '=', world.worldId),
+            eb('system_key', '=', 'faucet_npc_purchases'),
+          ]),
+        ]),
+      )
+      .orderBy('kind')
+      .execute();
+    const entry = await db.transaction().execute(async (trx) => {
+      const posted = await trx
+        .insertInto('game.ledger_entries')
+        .values({ world_id: world.worldId, kind: 'npc.purchase' })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      // Trésorerie du vendeur (`house`) créditée, robinet (`system`) débité.
+      await trx
+        .insertInto('game.ledger_lines')
+        .values(
+          accounts.map((account, i) => ({
+            entry_id: posted.id,
+            account_id: account.id,
+            amount: i ? -40 : 40,
+          })),
+        )
+        .execute();
+      return posted;
+    });
+    // Deux transactions rattachent chacune un échange de 5 à 8 à cette écriture, sur deux ventes distinctes
+    // (aucun verrou d'ordre commun), et forcent leurs contrôles avant de valider : chacune ne voit que le
+    // sien. L'index unique fait attendre la seconde, puis la refuse.
+    const settle = (trx: typeof db, sellOrderId = '') =>
+      trx
+        .insertInto('game.trades')
+        .values({
+          world_id: world.worldId,
+          sell_order_id: sellOrderId,
+          buy_order_id: null,
+          price: 8,
+          quantity: 5,
+          ledger_entry_id: entry.id,
+        })
+        .execute()
+        .then(() => sql`set constraints all immediate`.execute(trx));
+    const first = await db.startTransaction().execute();
+    const second = await db.startTransaction().execute();
+    await settle(first, seller.orderIds[0]);
+    // Le refus est capté dès qu'il arrive : il peut précéder la fin de la validation de la première.
+    const racing = settle(second, seller.orderIds[1]).then(
+      () => 'accepted',
+      (error: unknown) => error,
+    );
+    await first.commit().execute();
+    expect(await racing).toMatchObject({
+      code: '23505',
+      constraint: 'trades_ledger_entry_unique',
+    });
+    await second.rollback().execute();
+    expect((await tradesOf(world.worldId)).map((trade) => trade.ledger_entry_id)).toEqual([
+      entry.id,
+    ]);
+    expect(await ordersOf(world.worldId)).toEqual([
+      [0, 'filled'],
+      [5, 'open'],
+    ]);
+  });
 });

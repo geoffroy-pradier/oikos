@@ -14,16 +14,28 @@ export interface RestingOrder {
   sequence: number;
 }
 
-export interface IncomingOrder {
-  side: Side;
+interface OrderTerms {
+  /** Prix limite, en oboles par unité. */
   price: number;
   quantity: number;
-  /**
-   * Achat seulement : somme disponible, en oboles. L'ordre s'exécute pour ce qu'elle permet de payer,
-   * du moins cher au plus cher ; sans elle, l'achat n'est borné que par son prix limite.
-   */
-  budget?: number;
 }
+
+/**
+ * Ordre entrant, pour l'appariement seul. `budget` (achat seulement) : somme disponible, en oboles ;
+ * l'achat s'exécute pour ce qu'elle permet de payer, du moins cher au plus cher. Sans elle, l'appariement
+ * n'est borné que par le prix limite : c'est l'appariement « à fonds illimités », que les tests comparent
+ * à l'achat borné. Un ordre de joueur passe par `planLimitOrder`, qui exige le budget d'un achat.
+ */
+export type IncomingOrder =
+  (OrderTerms & { side: 'buy'; budget?: number }) | (OrderTerms & { side: 'sell'; budget?: never });
+
+/**
+ * Ordre d'une maison à son arrivée (`planLimitOrder`) : un achat dit toujours son budget, la trésorerie
+ * de la maison ; une vente n'en a pas.
+ */
+export type PlacedOrder = { houseId: string } & (
+  (OrderTerms & { side: 'buy'; budget: number }) | (OrderTerms & { side: 'sell'; budget?: never })
+);
 
 export interface Trade {
   restingOrderId: string;
@@ -96,14 +108,12 @@ export interface OrderPlan extends MatchResult {
  * Décide du sort d'un ordre à son arrivée (5.3). Une maison n'échange pas avec elle-même : ses propres
  * ordres sont ignorés. Le reste d'une vente attend toujours (son stock est réservé par l'appelant). Le
  * reste d'un achat n'attend que si le budget, une fois les échanges payés, couvre prix × reste ; sinon
- * il est annulé et le manque de fonds signalé. Un achat dit donc toujours son budget : sans lui, rien ne
- * bornerait ce qu'il dépense ni ce qu'il met sous séquestre.
+ * il est annulé et le manque de fonds signalé. Un achat dit donc toujours son budget (le type l'exige,
+ * l'exécution le vérifie encore pour un appelant non typé) : sans lui, rien ne bornerait ce qu'il dépense
+ * ni ce qu'il met sous séquestre.
  */
-export function planLimitOrder(
-  incoming: IncomingOrder & { houseId: string },
-  opposite: readonly HouseOrder[],
-): OrderPlan {
-  if (incoming.side === 'buy' && incoming.budget === undefined)
+export function planLimitOrder(incoming: PlacedOrder, opposite: readonly HouseOrder[]): OrderPlan {
+  if (incoming.side === 'buy' && (incoming.budget as number | undefined) === undefined)
     throw new RangeError('a buy order needs a budget');
   const match = matchLimitOrder(
     incoming,
@@ -113,7 +123,7 @@ export function planLimitOrder(
   if (incoming.side === 'sell') return { ...match, rests: true, escrow: 0 };
   const spent = match.trades.reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
   const escrow = match.remaining * incoming.price;
-  if (!match.shortOfFunds && (incoming.budget ?? 0) - spent >= escrow)
+  if (!match.shortOfFunds && incoming.budget - spent >= escrow)
     return { ...match, rests: true, escrow };
   return { ...match, shortOfFunds: true, rests: false, escrow: 0 };
 }

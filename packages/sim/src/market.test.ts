@@ -338,6 +338,7 @@ describe('appariement d’un ordre à cours limité', () => {
     const order = { price: 5, quantity: 1 };
     expect(() => matchLimitOrder({ side: 'buy', ...order, budget: -1 }, [])).toThrow(RangeError);
     expect(() => matchLimitOrder({ side: 'buy', ...order, budget: 1.5 }, [])).toThrow(RangeError);
+    // @ts-expect-error -- une vente n'a pas de budget ; le contrôle d'exécution reste pour un appelant non typé.
     expect(() => matchLimitOrder({ side: 'sell', ...order, budget: 10 }, [])).toThrow(RangeError);
   });
 
@@ -396,11 +397,14 @@ describe('sort d’un ordre à son arrivée : attente, séquestre, annulation', 
     const asks: HouseOrder[] = [
       { orderId: 'v', houseId: 'b', price: 7, quantity: 10, sequence: 1 },
     ];
+    // Le type l'exige ; l'exécution le vérifie encore pour un appelant non typé.
     for (const quantity of [5, 30])
+      // @ts-expect-error -- un achat sans budget
       expect(() => planLimitOrder({ houseId: 'a', side: 'buy', price: 8, quantity }, asks)).toThrow(
         RangeError,
       );
     expect(() =>
+      // @ts-expect-error -- un achat sans budget
       planLimitOrder({ houseId: 'a', side: 'buy', price: 6, quantity: 5 }, asks),
     ).toThrow(RangeError);
     // Une vente, elle, n'a pas de budget.
@@ -485,14 +489,11 @@ describe('sort d’un ordre à son arrivée : attente, séquestre, annulation', 
           // Comme la commande : pas de vente au-delà du stock libre.
           if (step.side === 'sell' && mine.stock - mine.reserved < step.quantity) continue;
           const opposite = book.filter((entry) => entry.side !== step.side);
+          const terms = { houseId: step.house, price: step.price, quantity: step.quantity };
           const plan = planLimitOrder(
-            {
-              houseId: step.house,
-              side: step.side,
-              price: step.price,
-              quantity: step.quantity,
-              ...(step.side === 'buy' ? { budget: mine.balance } : {}),
-            },
+            step.side === 'buy'
+              ? { ...terms, side: 'buy', budget: mine.balance }
+              : { ...terms, side: 'sell' },
             opposite,
           );
           // Priorité : le premier ordre servi est le mieux placé des autres maisons, prix puis ancienneté.
