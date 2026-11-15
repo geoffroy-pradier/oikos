@@ -9,6 +9,7 @@ import { useMoney } from '../money';
 import { collectAll } from '../collect-all';
 import { acquireIntent, acquireIntentBelow, outcomeKnown, pendingKeys } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
+import { serverClock, syncServerClock } from '../server-clock';
 
 interface Site {
   id: string;
@@ -87,12 +88,30 @@ export function SitesCard({
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
     freeStockIn(stock ?? [], site.city_id, goodId);
-  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute.
-  const [now, setNow] = useState(() => new Date());
+  // L'heure avance sans action du joueur : ce qui est récoltable est recompté chaque minute, à l'heure
+  // du serveur. Au retour sur un onglet resté en arrière-plan (minuterie ralentie, clôture passée
+  // entre-temps), l'heure et les sites sont relus, puis tout est recompté.
+  // Tant que la première lecture de l'heure n'a pas abouti (ou échoué), rien n'est annoncé : l'heure
+  // du navigateur peut être fausse de plusieurs heures. Deux lectures simultanées : la dernière gagne.
+  const [now, setNow] = useState<Date | null>(null);
+  const reloadSites = sites.reload;
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
+    let live = true;
+    const sync = () => void syncServerClock().then(() => live && setNow(serverClock.now()));
+    sync();
+    const timer = setInterval(() => setNow(serverClock.now()), 60_000);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void reloadSites();
+      sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [reloadSites]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -107,8 +126,8 @@ export function SitesCard({
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
-    // Tant que le stock n'est pas lu, rien n'est annoncé : on ne dit pas « à court » à tort.
-    if (!recipe || !stock)
+    // Tant que le stock ou l'heure ne sont pas lus, rien n'est annoncé : on ne dit pas « à court » à tort.
+    if (!recipe || !stock || !now)
       return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
     const harvest = previewHarvest(
       recipe,
@@ -143,7 +162,7 @@ export function SitesCard({
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
     const [read] = await Promise.all([sites.reload(), reloadRules(), onChanged()]);
     const lost = !result.ok && result.error.code === 'INTERNAL' && unanswered?.(read);
-    setNow(new Date());
+    setNow(serverClock.now());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
@@ -246,7 +265,7 @@ export function SitesCard({
       (siteId) => collectSite(siteId, house.accessToken),
     );
     await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    setNow(new Date());
+    setNow(serverClock.now());
     const parts: string[] = [];
     if (outcome.succeeded.length > 0)
       parts.push(
