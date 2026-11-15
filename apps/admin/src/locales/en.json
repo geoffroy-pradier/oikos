@@ -188,7 +188,8 @@
       "sink_offerings": "Offerings, festivals and liturgies",
       "sink_temple_interest": "Temple Treasury interest",
       "sink_public_works": "Public works and wonders",
-      "sink_site_acquisition": "Site acquisition"
+      "sink_site_acquisition": "Site acquisition",
+      "sink_ship_purchase": "Ship purchase"
     },
     "byDay_one": "Faucets and sinks: net per game day (day read: 1)",
     "byDay_other": "Faucets and sinks: net per game day (days read: {{count}})",

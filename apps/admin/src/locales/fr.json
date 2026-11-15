@@ -188,7 +188,8 @@
       "sink_offerings": "Offrandes, fêtes et liturgies",
       "sink_temple_interest": "Intérêts du Trésor du temple",
       "sink_public_works": "Grands travaux et merveilles",
-      "sink_site_acquisition": "Acquisition de sites"
+      "sink_site_acquisition": "Acquisition de sites",
+      "sink_ship_purchase": "Achat de navires"
     },
     "byDay_one": "Robinets et puits : net par jour de jeu (jour lu : 1)",
     "byDay_other": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",
