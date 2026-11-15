@@ -79,31 +79,37 @@ export const send = async (
 };
 
 /** Pose `quantity` unités produites dans l'entrepôt de la maison dans la cité. */
-export async function give(houseId: string, goodId: string, quantity: number, cityId = KALLISTE) {
+export async function give(
+  houseId: string,
+  goodId: string,
+  quantity: number,
+  cityId: string = KALLISTE,
+) {
   await sql`insert into game.inventories (world_id, house_id, city_id, good_id)
-    values (${WORLD}, ${houseId}, ${cityId}, ${goodId}) on conflict do nothing`.execute(owner);
+    select world_id, ${houseId}, id, ${goodId} from game.cities where id = ${cityId}
+    on conflict do nothing`.execute(owner);
   await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
     select world_id, good_id, ${quantity}, 'production', id, 'test' from game.inventories
     where house_id = ${houseId} and city_id = ${cityId} and good_id = ${goodId}`.execute(owner);
 }
 
-/** Une maison de Kallistè fondée par la commande, son caboteur à quai, 100 blés et 50 huiles. */
-export async function newShipowner() {
+/** Une maison de la cité (Kallistè) fondée par la commande, son caboteur à quai, 100 blés et 50 huiles. */
+export async function newShipowner(cityId: string = KALLISTE) {
   const user = randomUUID();
   await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
     owner,
   );
   const name = `Armateurs ${[...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
   const blazon = { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' };
-  const founded = await send(user, 'house.create', { cityId: KALLISTE, name, blazon });
+  const founded = await send(user, 'house.create', { cityId, name, blazon });
   const houseId = founded.body.data.houseId as string;
   const price = TEST_CONFIG.config.ships.classes.find((row) => row.id === 'coaster');
   const bought = await send(user, 'ship.acquire', {
     classId: 'coaster',
     expectedCostOboles: price?.purchaseCostOboles,
   });
-  await give(houseId, 'wheat', 100);
-  await give(houseId, 'olive_oil', 50);
+  await give(houseId, 'wheat', 100, cityId);
+  await give(houseId, 'olive_oil', 50, cityId);
   return { user, houseId, shipId: bought.body.data.shipId as string };
 }
 export type Shipowner = Awaited<ReturnType<typeof newShipowner>>;
@@ -131,7 +137,7 @@ export const depart = (
   );
 
 /** Quantité d'un bien dans l'entrepôt de la maison dans la cité ; réservée par des ventes, à part. */
-export const stockOf = async (houseId: string, goodId: string, cityId = KALLISTE) => {
+export const stockOf = async (houseId: string, goodId: string, cityId: string = KALLISTE) => {
   const { rows } = await sql<{ quantity: string; reserved: string }>`
     select quantity, reserved from game.inventories
     where house_id = ${houseId} and city_id = ${cityId} and good_id = ${goodId}`.execute(owner);
