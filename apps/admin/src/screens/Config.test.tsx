@@ -854,5 +854,11 @@ it('formulaire des biens : ni Entrée tenue, ni double clic, ni toucher juste ap
   fireEvent.click(button('Ajouter un bien'), { detail: 1 });
   fireEvent.click(button('Ajouter un bien'), { detail: 2 });
   expect(goodsOf(editor)).toEqual([GOODS[1], {}]);
+  // Souris : le compte de clics suffit, un clic simple voulu aussitôt après agit (ajouter puis retirer).
+  const mouseClick = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 });
+  Object.defineProperty(mouseClick, 'pointerType', { value: 'mouse' });
+  fireEvent(button('Retirer élément 2'), mouseClick);
+  expect(goodsOf(editor)).toEqual([GOODS[1]]);
+  expect(announced()).toBe(REMOVED('élément 2'));
   now.mockRestore();
 });

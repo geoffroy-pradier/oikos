@@ -42,9 +42,14 @@ export function GoodsForm(props: {
    * Ajout ou retrait : comme une saisie, il réécrit le texte entier. Les biens viennent de bouger sous le
    * pointeur : le second clic d'un double clic (`detail`), ou un toucher juste après, n'agit pas. Le foyer
    * va dans un champ, jamais sur un autre bouton : une touche Entrée tenue ne retire pas bien après bien.
+   * Le délai ne vaut pas pour la souris, dont le compte de clics distingue déjà un double clic : un clic
+   * voulu sur un autre bouton, même aussitôt après, agit. Type de pointeur inconnu : délai, par prudence.
    */
-  const stray = ({ detail }: MouseEvent) =>
-    detail > 1 || (detail === 1 && performance.now() - movedAt.current < SHIFT_GUARD_MS);
+  const stray = ({ detail, nativeEvent }: MouseEvent) =>
+    detail > 1 ||
+    (detail === 1 &&
+      (nativeEvent as Partial<PointerEvent>).pointerType !== 'mouse' &&
+      performance.now() - movedAt.current < SHIFT_GUARD_MS);
   /** Un appui ignoré ne prend pas non plus le foyer, laissé dans le champ choisi après le geste. */
   const keepFocus = (event: MouseEvent) => {
     if (stray(event)) event.preventDefault();
