@@ -97,7 +97,7 @@ test('onglet Cité : la population de la cité et la couverture de ses besoins, 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Cité de Kallistè', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Population', level: 2 })).toBeVisible();
-  // Selon l'ordre des tests, les habitants de Kallistè ont déjà fait leurs premiers achats ou non.
+  // Selon l'ordre des tests, un tick de demande a déjà créé la population de Kallistè ou non.
   await expect(
     page.getByText(/habitants? au total|La population de la cité n'est pas encore connue/),
   ).toBeVisible();

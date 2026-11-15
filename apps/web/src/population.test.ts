@@ -21,6 +21,10 @@ describe('population de la cité', () => {
   it('couverture : fraction pour l’affichage, nulle tant qu’aucune clôture ne l’a mesurée', () => {
     expect(coverageShare({ class_id: 'thetes', population: 1, coverage_bps: 8_700 })).toBe(0.87);
     expect(coverageShare({ class_id: 'thetes', population: 1, coverage_bps: null })).toBeNull();
+    // Arrondi vers le bas : 89,95 % (sous le seuil de 90 %) ne s'affiche pas « 90 % ».
+    expect(coverageShare({ class_id: 'thetes', population: 1, coverage_bps: 8_995 })).toBe(0.89);
+    expect(coverageShare({ class_id: 'thetes', population: 1, coverage_bps: 9_999 })).toBe(0.99);
+    expect(coverageShare({ class_id: 'thetes', population: 1, coverage_bps: 10_000 })).toBe(1);
   });
 
   it('cité sans état encore : liste vide, total nul', () => {

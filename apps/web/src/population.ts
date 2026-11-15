@@ -29,6 +29,10 @@ export function parseCityPopulation(raw: unknown): CityPopulation | null {
   return Number.isSafeInteger(total) ? { classes, total } : null;
 }
 
-/** Couverture en fraction (0 à 1) pour `Intl.NumberFormat` en pourcentage, ou `null` si non mesurée. */
+/**
+ * Couverture en fraction (0 à 1) pour `Intl.NumberFormat` en pourcentage, arrondie au point de
+ * pourcentage inférieur comme la règle (5.2) : une classe sous le seuil n'est jamais affichée au seuil.
+ * `null` si non mesurée.
+ */
 export const coverageShare = (row: ClassPopulation) =>
-  row.coverage_bps === null ? null : row.coverage_bps / 10_000;
+  row.coverage_bps === null ? null : Math.floor(row.coverage_bps / 100) / 100;

@@ -346,9 +346,9 @@
   },
   "city": {
     "title": "City of {{city}}",
-    "intro": "The city's inhabitants buy at the agora. When their vital needs are covered the population grows; otherwise some of them emigrate, at each daily close.",
+    "intro": "The city's inhabitants buy at the agora. At each daily close, the population grows if its vital needs were well enough covered the day before; otherwise some of them emigrate.",
     "population": "Population",
-    "empty": "The city's population is not known yet: it is as soon as the inhabitants have made their first purchases.",
+    "empty": "The city's population is not known yet: it will be from the city's first market day.",
     "total_one": "{{number}} inhabitant in all",
     "total_other": "{{number}} inhabitants in all",
     "inhabitants_one": "{{number}} inhabitant",

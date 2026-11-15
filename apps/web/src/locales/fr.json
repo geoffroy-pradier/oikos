@@ -346,9 +346,9 @@
   },
   "city": {
     "title": "Cité de {{city}}",
-    "intro": "Les habitants de la cité achètent à l'agora. Leurs besoins vitaux couverts, la population croît ; sinon une partie émigre, à chaque clôture quotidienne.",
+    "intro": "Les habitants de la cité achètent à l'agora. À chaque clôture quotidienne, la population croît si ses besoins vitaux ont été suffisamment couverts la veille ; sinon une partie émigre.",
     "population": "Population",
-    "empty": "La population de la cité n'est pas encore connue : elle l'est dès que les habitants ont fait leurs premiers achats.",
+    "empty": "La population de la cité n'est pas encore connue : elle le sera dès la première journée de marché de la cité.",
     "total_one": "{{number}} habitant au total",
     "total_other": "{{number}} habitants au total",
     "inhabitants_one": "{{number}} habitant",
