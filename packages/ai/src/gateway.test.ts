@@ -30,6 +30,7 @@ function settings(patch: Partial<AiSettings['usages']['oracle']> = {}): AiSettin
         enabled: true,
         model: 'small',
         timeoutMs: 1_000,
+        maxOutputTokens: 300,
         capShareBps: 2_500,
         inputMicroEurosPerThousandTokens: 150,
         outputMicroEurosPerThousandTokens: 600,
@@ -120,6 +121,68 @@ describe('passerelle IA', () => {
       fallback: FALLBACK,
     };
     expect(await run(request)).toEqual({ value: { text: 'oracle' }, source: 'ai', outcome: 'ok' });
+  });
+
+  it('réglages, réponse ou schéma qui lèvent : repli, jamais d’exception rendue au jeu (règle 6)', async () => {
+    const request = {
+      usage: 'oracle' as const,
+      instructions: 'x',
+      data: null,
+      schema: oracleSchema,
+      fallback: FALLBACK,
+    };
+    const store = memoryStore();
+    const throwingSettings = createGateway({
+      provider: fakeProvider([reply({ text: 'x' })]),
+      store,
+      settings: () => {
+        throw new Error('config unreadable');
+      },
+    });
+    expect(await throwingSettings(request)).toEqual({
+      value: FALLBACK,
+      source: 'fallback',
+      outcome: 'error',
+    });
+
+    const nullReply = createGateway({
+      provider: { complete: () => Promise.resolve(null as never) },
+      store,
+      settings: () => settings(),
+    });
+    expect((await nullReply(request)).outcome).toBe('error');
+
+    const throwingSchema = z.strictObject({ text: z.string() }).refine(() => {
+      throw new Error('boom');
+    });
+    const run = createGateway({
+      provider: fakeProvider([reply({ text: 'x' })]),
+      store,
+      settings: () => settings(),
+    });
+    expect((await run({ ...request, schema: throwingSchema })).outcome).toBe('error');
+  });
+
+  it('des jetons illisibles comptent le coût de sortie le plus cher : le plafond n’est jamais désarmé', async () => {
+    for (const inputTokens of [Number.NaN, Number.POSITIVE_INFINITY, -1]) {
+      const { store, ask } = setup([{ text: '{"text":"x"}', inputTokens, outputTokens: 10 }]);
+      expect((await ask()).outcome).toBe('error');
+      // 300 jetons de sortie au plus × 600 µ€ le millier.
+      expect(store.calls).toEqual([
+        expect.objectContaining({
+          outcome: 'error',
+          inputTokens: 0,
+          outputTokens: 300,
+          costMicroEuros: 180,
+        }),
+      ]);
+    }
+  });
+
+  it('la passerelle demande au plus les jetons de sortie de l’usage', async () => {
+    const { provider, ask } = setup([reply({ text: 'x' })]);
+    await ask();
+    expect(provider.requests[0]?.maxOutputTokens).toBe(300);
   });
 
   it('un coût s’arrondit à l’unité supérieure', () => {

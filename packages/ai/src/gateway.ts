@@ -11,6 +11,8 @@ export interface ProviderRequest {
   system: string;
   /** Données (faits du jeu, texte de joueur), encodées et délimitées par `dataBlock`. */
   data: string;
+  /** Jetons de sortie au plus, à demander au fournisseur (borne le coût d'un appel). */
+  maxOutputTokens: number;
 }
 
 export interface ProviderResponse {
@@ -99,7 +101,8 @@ class Timeout extends Error {}
 
 /**
  * Passerelle IA unique (8.4) : elle ne rend jamais d'erreur. Usage coupé, délai dépassé, sortie qui n'est
- * pas du JSON conforme au schéma, erreur du fournisseur : elle rend le repli. Seul le moteur l'appelle (11).
+ * pas du JSON conforme au schéma, erreur du fournisseur, réglages ou réponse illisibles, schéma qui lève :
+ * elle rend le repli. Seul le moteur l'appelle (11).
  */
 export function createGateway(options: {
   provider: AiProvider;
@@ -109,7 +112,16 @@ export function createGateway(options: {
 }) {
   const now = options.now ?? (() => new Date());
 
-  return async function run<T>(request: AiRequest<T>): Promise<AiResult<T>> {
+  async function run<T>(request: AiRequest<T>): Promise<AiResult<T>> {
+    try {
+      return await attempt(request);
+    } catch {
+      // Dernier filet de la règle 6 : quoi qu'il arrive, le jeu reçoit son repli.
+      return { value: request.fallback, source: 'fallback', outcome: 'error' };
+    }
+  }
+
+  async function attempt<T>(request: AiRequest<T>): Promise<AiResult<T>> {
     const settings = options.settings();
     const usage = settings.usages[request.usage];
     const startedAt = now();
@@ -145,6 +157,7 @@ export function createGateway(options: {
             model: usage.model,
             system: `${request.instructions}\n\n${DATA_PREAMBLE}`,
             data: dataBlock(request.data),
+            maxOutputTokens: usage.maxOutputTokens,
           },
           controller.signal,
         ),
@@ -164,9 +177,22 @@ export function createGateway(options: {
       clearTimeout(timer);
     }
 
+    const counted = [response.inputTokens, response.outputTokens];
+    if (typeof response.text !== 'string' || !counted.every((n) => Number.isFinite(n) && n >= 0)) {
+      // Réponse illisible : le coût réel est inconnu, on compte le plus cher que l'appel pouvait coûter
+      // en sortie, pour que le plafond ne s'en trouve jamais désarmé.
+      const outputTokens = usage.maxOutputTokens;
+      await record({
+        inputTokens: 0,
+        outputTokens,
+        costMicroEuros: estimateCostMicroEuros(usage, 0, outputTokens),
+        outcome: 'error',
+      });
+      return fallback('error');
+    }
     const tokens = {
-      inputTokens: Math.max(0, Math.round(response.inputTokens)),
-      outputTokens: Math.max(0, Math.round(response.outputTokens)),
+      inputTokens: Math.round(response.inputTokens),
+      outputTokens: Math.round(response.outputTokens),
     };
     const costMicroEuros = estimateCostMicroEuros(usage, tokens.inputTokens, tokens.outputTokens);
     let parsed: unknown;
@@ -183,7 +209,9 @@ export function createGateway(options: {
     }
     await record({ ...tokens, costMicroEuros, outcome: 'ok' });
     return { value: checked.data, source: 'ai', outcome: 'ok' };
-  };
+  }
+
+  return run;
 }
 
 export type AiGateway = ReturnType<typeof createGateway>;
