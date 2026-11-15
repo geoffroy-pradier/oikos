@@ -1,9 +1,10 @@
 import { CONFIG_EDITOR_ROLES, type AdminRole } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
-import { useEffect, useRef, useState } from 'react';
+import { Button, cn } from '@oikos/ui';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { diffConfigs } from '../diff';
+import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { useAdmin } from '../useAdmin';
@@ -35,6 +36,8 @@ type Notice = {
   refused?: unknown;
 } | null;
 const CONTROL = 'w-full rounded-md border border-border bg-surface px-3';
+/** Après la disparition d'une confirmation, durée pendant laquelle la liste ignore un clic au pointeur. */
+const SHIFT_GUARD_MS = 500;
 
 /**
  * Module Paramètres (15.1, 15.2) : versions de configuration, comparaison avec la version en vigueur,
@@ -47,16 +50,40 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   const [opened, setOpened] = useState<Detail | null>(null);
   const [active, setActive] = useState<Detail | null>(null);
   const [text, setText] = useState('');
+  /** Texte tel qu'ouvert ou tel qu'enregistré en dernier : s'en écarter, c'est avoir une saisie à perdre. */
+  const [saved, setSaved] = useState('');
+  /** Texte refusé au dernier contrôle (sortie du champ, envoi) : jamais contrôlé à la frappe. */
+  const [invalid, setInvalid] = useState(false);
+  /** Version dont l'ouverture attend sa confirmation : elle remplacerait un texte modifié. */
+  const [replacing, setReplacing] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   /**
    * `cancelling` : programmation dont l'annulation attend sa confirmation. `returnTo` : programmation
-   * dont la confirmation vient de se refermer, à qui rendre le foyer. Jamais les deux à la fois.
+   * ou version (par l'identifiant de son bouton) dont la confirmation vient de se refermer : ce bouton reprend le foyer.
    */
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
+  const openedTitle = useRef<HTMLHeadingElement>(null);
+  const editor = useRef<HTMLTextAreaElement>(null);
+  // Une confirmation qui disparaît fait remonter les fiches suivantes : un bouton qui programme peut
+  // venir sous le pointeur. Dans la liste, le second clic d'un double clic n'agit pas et ne prend pas le
+  // foyer : compte de clics (`detail`) à la souris ; où il reste à 1 (toucher), le délai. Un clic né du
+  // clavier (`detail` nul) passe toujours. L'instant est pris au retrait d'une confirmation affichée.
+  const closedAt = useRef(-Infinity);
+  useLayoutEffect(
+    () => () => {
+      if (replacing ?? cancelling) closedAt.current = performance.now();
+    },
+    [replacing, cancelling],
+  );
+  const strayClick = ({ detail }: MouseEvent) =>
+    detail > 1 || (detail === 1 && performance.now() - closedAt.current < SHIFT_GUARD_MS);
+  // Entrée tenue sur « Enregistrer », envoi refusé : le foyer arrive dans le champ, où la répétition de
+  // la touche ne doit rien écrire. Armée par `publish`, levée à la première touche enfoncée dans le champ.
+  const heldSubmit = useRef(false);
   // Intention en attente de réponse : la même action renvoyée après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
   const canEdit = CONFIG_EDITOR_ROLES.some((editor) => editor === role);
@@ -72,6 +99,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   }
   const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
   const changes = isObject && active ? diffConfigs(active.config, parsed) : null;
+  // Corrigé en cours de frappe, le message s'efface ; il ne revient qu'au contrôle suivant.
+  if (invalid && isObject) setInvalid(false);
 
   // Dernière ouverture demandée : la réponse d'une ouverture plus ancienne est ignorée, elle
   // remplacerait sans prévenir la version affichée et la saisie en cours.
@@ -79,13 +108,31 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   async function open(id: string) {
     const request = ++opening.current;
     setNotice(null);
+    setReplacing(null);
     const detail = await adminGet<Detail>(`config/versions/${id}`, accessToken);
     if (request !== opening.current) return;
     if (!detail.ok) return setNotice({ kind: 'alert', text: t('app.loadFailed') });
     setOpened(detail.data);
     setText(JSON.stringify(detail.data.config, null, 2));
+    setSaved(JSON.stringify(detail.data.config, null, 2));
     setNote('');
   }
+  // Le foyer suit l'ouverture : le contenu s'affiche loin sous la liste, son titre le reçoit.
+  useEffect(() => {
+    if (opened) openedTitle.current?.focus();
+  }, [opened]);
+  /** Ouvre, ou demande confirmation si l'ouverture remplacerait un texte modifié et non enregistré. */
+  const askOpen = (id: string) => {
+    if (!opened || text === saved) return void open(id);
+    setReturnTo(null);
+    setReplacing(id);
+  };
+  /** Referme la confirmation et rend le foyer au bouton d'ouverture ; `replace` : ouvre la version. */
+  const closeReplace = (id: string, replace: boolean) => {
+    setReplacing(null);
+    setReturnTo(`config-open-${id}`);
+    if (replace) void open(id);
+  };
 
   // La comparaison porte toujours sur la version en vigueur du moment : elle est relue dès que la
   // liste en désigne une autre (après une clôture, par exemple).
@@ -122,12 +169,22 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     return reply.ok;
   }
 
-  const publish = () =>
-    isObject
-      ? run<{ number: number }>('admin.publishConfig', { config: parsed, note }, (data) =>
-          t('config.published', { number: data.number }),
-        )
-      : setNotice({ kind: 'alert', text: t('config.invalidJson') });
+  async function publish() {
+    // Contrôlé à l'envoi : le message est annoncé par la seule zone du champ, qui reprend le foyer.
+    setInvalid(!isObject);
+    if (!isObject) {
+      setNotice(null);
+      heldSubmit.current = true;
+      return editor.current?.focus();
+    }
+    const sent = text;
+    const published = await run<{ number: number }>(
+      'admin.publishConfig',
+      { config: parsed, note },
+      (data) => t('config.published', { number: data.number }),
+    );
+    if (published) setSaved(sent);
+  }
   const schedule = (version: { id: string; number: number }) =>
     run<{ activateAt: string }>('admin.scheduleConfig', { versionId: version.id }, (data) =>
       t('config.scheduledDone', {
@@ -144,13 +201,13 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   /** Referme la confirmation : renoncement, annulation refusée ou annulation faite. */
   const closeCancel = (activationId: string) => {
     setCancelling(null);
-    setReturnTo(activationId);
+    setReturnTo(`config-cancel-${activationId}`);
   };
   // Seul endroit qui rend le foyer après une confirmation : au bouton de la programmation s'il est
   // encore offert, sinon au titre (programmation annulée, par cette commande ou par un autre compte,
   // ou échéance passée) plutôt que de le laisser se perdre.
   useEffect(() => {
-    if (returnTo) (document.getElementById(`config-cancel-${returnTo}`) ?? title.current)?.focus();
+    if (returnTo) (document.getElementById(returnTo) ?? title.current)?.focus();
   }, [returnTo]);
   async function cancel(activation: { id: string; activateAt: string }, number: number) {
     await run<{ cancelled: unknown[] }>(
@@ -187,7 +244,16 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
       <h2 className="text-xl">{t('config.versions')}</h2>
-      <ul className="flex flex-col gap-3">
+      <ul
+        className="flex flex-col gap-3"
+        onKeyDown={ignoreHeldEnter}
+        onMouseDownCapture={(event) => {
+          if (strayClick(event)) event.preventDefault();
+        }}
+        onClickCapture={(event) => {
+          if (strayClick(event)) event.stopPropagation();
+        }}
+      >
         {listing.data?.versions.map((version) => {
           const next = [...winners.values()]
             .filter((entry) => entry.versionId === version.id && Date.parse(entry.activateAt) > now)
@@ -211,7 +277,12 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   ` · ${t('config.scheduled', { date: date.format(new Date(upcoming)) })}`}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => void open(version.id)}>
+                {/* Reste affiché pendant sa confirmation, qui s'ouvre sous la rangée sans la déplacer. */}
+                <Button
+                  id={`config-open-${version.id}`}
+                  variant="secondary"
+                  onClick={() => askOpen(version.id)}
+                >
                   {t('config.open', { number: version.number })}
                 </Button>
                 {canEdit && (
@@ -236,6 +307,28 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   </Button>
                 )}
               </div>
+              {replacing === version.id && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p id="config-replace-warning">
+                    {t('config.replaceWarning', { opened: opened?.number, number: version.number })}
+                  </p>
+                  <Button
+                    aria-describedby="config-replace-warning"
+                    onClick={() => closeReplace(version.id, true)}
+                  >
+                    {t('config.replaceConfirm')}
+                  </Button>
+                  {/* Foyer initial sur le geste sans effet, comme pour l'annulation ci-dessous. */}
+                  <Button
+                    autoFocus
+                    variant="secondary"
+                    aria-describedby="config-replace-warning"
+                    onClick={() => closeReplace(version.id, false)}
+                  >
+                    {t('config.replaceKeep')}
+                  </Button>
+                </div>
+              )}
               {canEdit && next && cancelling === next.id && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <p id="config-cancel-warning">{t('config.cancelWarning')}</p>
@@ -266,21 +359,41 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
 
       {opened && (
         <>
-          <h2 className="text-xl">{t('config.editing', { number: opened.number })}</h2>
+          <h2 ref={openedTitle} tabIndex={-1} className="text-xl">
+            {t('config.editing', { number: opened.number })}
+          </h2>
           <label htmlFor="config-json">{t('config.content')}</label>
           <textarea
+            ref={editor}
             id="config-json"
-            className={`${CONTROL} min-h-80 py-2 font-mono text-sm`}
+            className={cn(CONTROL, 'min-h-80 py-2 font-mono text-sm', invalid && 'border-danger')}
             spellCheck={false}
             readOnly={!canEdit}
-            aria-invalid={!isObject}
+            aria-invalid={invalid}
+            aria-describedby={invalid ? 'config-json-error' : undefined}
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => {
+              // Une saisie l'emporte sur une ouverture encore en route : sa réponse est ignorée.
+              opening.current += 1;
+              setText(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (!event.repeat) heldSubmit.current = false;
+              else if (heldSubmit.current && event.key === 'Enter') event.preventDefault();
+            }}
+            onBlur={() => setInvalid(!isObject)}
           />
+          {/* Seule zone qui annonce un texte invalide ; hauteur réservée : rien ne bouge sous un clic. */}
+          <p
+            id="config-json-error"
+            role="alert"
+            className="min-h-5 text-sm font-semibold text-danger"
+          >
+            {invalid && t('config.invalidJson')}
+          </p>
           <h3 className="text-lg">
             {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
           </h3>
-          {!isObject && <p role="alert">{t('config.invalidJson')}</p>}
           {changes?.length === 0 && (
             <p className="text-muted-foreground">
               {t('config.noDiff', { number: active?.number })}
