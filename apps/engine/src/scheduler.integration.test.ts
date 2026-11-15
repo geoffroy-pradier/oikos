@@ -74,6 +74,27 @@ describe('avance d’un monde', () => {
     expect(skipped).toEqual([]);
   });
 
+  it('horloge qui recule derrière le dernier tick joué : rien n’est joué, l’échec est inscrit pour la Vigie (#123)', async () => {
+    const worldId = await newWorld();
+    const steps: TickStep[] = [{ name: 'noop', run: async () => ({}) }];
+    const advance = (now: Date) => advanceWorld(db, { worldId, now, config: loader, steps });
+    expect(await advance(at(first + 2))).toEqual([first + 2]);
+    expect(await advance(at(first))).toEqual([]);
+    const failed = await db
+      .selectFrom('telemetry.tick_runs')
+      .select(['tick_index', 'error'])
+      .where('world_id', '=', worldId)
+      .where('status', '=', 'failed')
+      .execute();
+    expect(failed).toEqual([
+      {
+        tick_index: String(first),
+        error: `current tick ${first} is behind last played ${first + 2}`,
+      },
+    ]);
+    expect(await playedOf(worldId)).toEqual([first + 2]);
+  });
+
   it('monde neuf sans configuration en vigueur au début du tick en cours : commence au tick suivant', async () => {
     const worldId = await newWorld();
     const before = {

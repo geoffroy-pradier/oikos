@@ -59,8 +59,18 @@ export async function advanceWorld(db: Db, request: AdvanceRequest): Promise<num
     .executeTakeFirst();
   const current = tickIndexAt(now, tickMinutes);
   if (last && current < Number(last.index)) {
-    // Horloge qui recule, ou durée de tick modifiée : rien à jouer, mais cela ne doit pas passer inaperçu.
-    console.warn(`World ${worldId}: current tick ${current} is behind last played ${last.index}`);
+    // Horloge qui recule (la durée de tick, elle, ne change plus : #123) : rien à jouer, mais le monde
+    // est bloqué. L'échec est inscrit à la télémétrie des ticks, que la Vigie compte, à chaque passage.
+    const error = `current tick ${current} is behind last played ${last.index}`;
+    console.warn(`World ${worldId}: ${error}`);
+    await db
+      .insertInto('telemetry.tick_runs')
+      .values({ world_id: worldId, tick_index: current, status: 'failed', duration_ms: 0, error })
+      .execute()
+      .catch((telemetryError: unknown) =>
+        console.error('Tick telemetry write failed', telemetryError),
+      );
+    return [];
   }
   if (!last) {
     // Monde neuf : si la configuration n'était pas encore en vigueur au début du tick en cours

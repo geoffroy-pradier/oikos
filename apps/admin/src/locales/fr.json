@@ -231,6 +231,7 @@
       "FORBIDDEN": "Votre rôle ne permet pas cette action.",
       "CONFIG_VERSION_NOT_FOUND": "Cette version n'existe plus.",
       "CONFIG_REVIEW_REQUIRED": "L'auteur d'une version ne la programme pas lui-même : un autre compte doit la relire et la programmer.",
+      "CONFIG_CLOCK_CHANGED": "L'horloge du monde ne peut pas changer : gardez la durée du tick, l'heure et le fuseau de clôture de la version en vigueur.",
       "CONFIG_ACTIVATION_NOT_FOUND": "Cette programmation n'existe plus.",
       "CONFIG_ACTIVATION_CANCELLED": "Cette programmation est déjà annulée.",
       "CONFIG_ACTIVATION_PAST": "Trop tard pour annuler : l'échéance est passée ou tombe dans moins d'une minute. Programmez un retour arrière.",

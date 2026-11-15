@@ -86,7 +86,11 @@ export const cityConfigSchema = z.strictObject({
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
 export const clockSchema = z.strictObject({
-  /** Durée du tick : un diviseur de l'heure (donc de la journée), pour que la clôture tombe toujours sur un tick. */
+  /**
+   * Durée du tick : un diviseur de l'heure (donc de la journée). Le tick de clôture est le premier qui
+   * commence à la clôture ou après (`isDailyClose`) : dans un fuseau décalé d'une demi-heure ou d'un quart
+   * d'heure, il peut commencer un peu après elle. Ne change pas d'une version à l'autre (#123).
+   */
   tickMinutes: positiveInt
     .refine((minutes) => MINUTES_PER_DAY % minutes === 0, {
       message: 'must divide the 1440 minutes of a day',

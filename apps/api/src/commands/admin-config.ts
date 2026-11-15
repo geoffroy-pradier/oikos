@@ -1,4 +1,4 @@
-import { publishVersion, scheduleActivation, validateConfig } from '@oikos/config';
+import { publishVersion, scheduleActivation, validateConfig, type GameConfig } from '@oikos/config';
 import {
   ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
   ADMIN_PUBLISH_CONFIG_ERROR_CODES,
@@ -16,6 +16,26 @@ import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
 /**
+ * L'horloge d'un monde ne change pas (#123). L'indice d'un tick se compte en durées de tick depuis
+ * l'origine : changer la durée changerait l'échelle des indices déjà joués et bloquerait le monde. Changer
+ * l'heure ou le fuseau de clôture déplacerait le jour de jeu d'une version programmée « à la prochaine
+ * clôture » : elle entrerait en vigueur à l'ancienne heure, et la clôture de ce jour la lirait ou non selon
+ * le sens du changement. Rend les champs d'horloge qui diffèrent de la version en vigueur.
+ */
+const clockChanges = (next: GameConfig['clock'], current: GameConfig['clock']) =>
+  (['tickMinutes', 'dailyCloseHour', 'timezone'] as const).filter(
+    (key) => next[key] !== current[key],
+  );
+const clockChanged = (fields: readonly string[]) => ({
+  ok: false as const,
+  error: {
+    code: 'CONFIG_CLOCK_CHANGED',
+    message: 'The world clock (tick duration, close hour, timezone) cannot change.',
+    fields: fields.map((key) => `clock.${key}`),
+  },
+});
+
+/**
  * Enregistre une nouvelle version de configuration (docs/specs/15-back-office-olympe.md, 15.2).
  * La version est immuable et n'est pas active : il faut la programmer par `admin.scheduleConfig`.
  */
@@ -25,7 +45,11 @@ export const adminPublishConfig = defineCommand({
   input: adminPublishConfigInputSchema,
   output: adminPublishConfigOutputSchema,
   errors: ADMIN_PUBLISH_CONFIG_ERROR_CODES,
-  async handler({ trx, userId, emit }, input) {
+  async handler({ trx, userId, emit, config }, input) {
+    // L'horloge ne change pas (#123) : refusé à la publication comme à la programmation.
+    const parsed = validateConfig(input.config);
+    const changed = parsed.ok ? clockChanges(parsed.config.clock, config.clock) : [];
+    if (changed.length > 0) return clockChanged(changed);
     const published = await publishVersion(trx, input.config, {
       note: input.note,
       createdBy: userId,
@@ -112,6 +136,8 @@ export const adminScheduleConfig = defineCommand({
         },
       };
     }
+    const changed = clockChanges(stored.config.clock, config.clock);
+    if (changed.length > 0) return clockChanged(changed);
     const activateAt = nextDailyClose(now, config.clock);
     await scheduleActivation(trx, version.id, activateAt, userId);
     const payload = { versionId: version.id, activateAt: activateAt.toISOString() };

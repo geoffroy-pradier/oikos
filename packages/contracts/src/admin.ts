@@ -26,7 +26,12 @@ export const adminPublishConfigOutputSchema = z.object({
   number: z.number().int().positive(),
 });
 export type AdminPublishConfigOutput = z.infer<typeof adminPublishConfigOutputSchema>;
-export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = ['FORBIDDEN', 'CONFIG_INVALID'] as const;
+export const ADMIN_PUBLISH_CONFIG_ERROR_CODES = [
+  'FORBIDDEN',
+  'CONFIG_INVALID',
+  /** La version change l'horloge (durée du tick, heure ou fuseau de clôture) : refusé (#123). */
+  'CONFIG_CLOCK_CHANGED',
+] as const;
 
 /**
  * Commande `admin.scheduleConfig` : programme l'activation d'une version à la prochaine clôture
@@ -48,6 +53,7 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
   /** La version attend sa revue : un autre compte que son auteur doit la programmer. */
   'CONFIG_REVIEW_REQUIRED',
   'CONFIG_INVALID',
+  'CONFIG_CLOCK_CHANGED',
 ] as const;
 
 /**
