@@ -5,6 +5,8 @@ import { z } from 'zod';
 /** Ligne de la vue publique `city_identity` (docs/specs/06-cites-politique-communaute.md, 6.1). */
 const rowSchema = z.object({
   city_id: z.string().min(1),
+  // Identifiant de la cité dans la configuration ; absent quand l'écran ne le demande pas.
+  slug: z.string().min(1).optional(),
   // Champs nuls : version de configuration antérieure aux quatre cités (valeurs par défaut partagées).
   terroir: z.array(z.string().min(1)).nullable(),
   has_port: z.boolean().nullable(),
@@ -13,6 +15,8 @@ const rowSchema = z.object({
 });
 
 export interface CityIdentity {
+  /** Identifiant de la cité dans la configuration (salaire du jour, 4.4) ; `null` s'il n'a pas été lu. */
+  slug: string | null;
   /** Recettes de production primaire admises ; `null` : toutes (les ateliers le sont partout). */
   terroir: string[] | null;
   hasPort: boolean;
@@ -31,6 +35,7 @@ export function parseCityIdentities(raw: unknown): Map<string, CityIdentity> | n
     parsed.data.map((row) => [
       row.city_id,
       {
+        slug: row.slug ?? null,
         terroir: row.terroir,
         hasPort: cityHasPort({ hasPort: row.has_port ?? undefined }),
         patronGodId: row.patron_god_id,

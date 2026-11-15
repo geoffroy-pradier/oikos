@@ -1,10 +1,11 @@
 import {
   DEFAULT_SITES,
   DEFAULT_UPKEEP,
+  staffDailyWageObolesSchema,
   upkeepCoefficientBpsSchema,
   upkeepDailyObolesSchema,
 } from '@oikos/config/schema';
-import { accrueWorkshop, dailyUpkeep } from '@oikos/sim';
+import { accrueWorkshop, dailyUpkeep, dailyWages } from '@oikos/sim';
 import { z } from 'zod';
 
 const name = z.string().min(1);
@@ -25,6 +26,8 @@ const siteRulesSchema = z.object({
       outputs: z.array(stack).min(1),
       durationMinutes: positiveInt,
       maxAccruedCycles: positiveInt,
+      /** Travailleurs du site, payés chaque jour (4.4). Toute version publiée les porte. */
+      workers: z.number().int().nonnegative().default(0),
     }),
   ),
   // Version publiée avant la section : valeurs par défaut du schéma partagé, comme pour l'API.
@@ -40,6 +43,9 @@ const siteRulesSchema = z.object({
           dailyOboles: z.record(name, upkeepDailyObolesSchema),
         })
         .default(DEFAULT_UPKEEP),
+      // Salaire du jour par cité (section `staff` de la configuration, rendue ici par la vue) ; absent
+      // d'une version publiée avant le personnel : aucun salaire, comme pour l'API.
+      staff: z.object({ dailyWageOboles: z.record(name, staffDailyWageObolesSchema) }).optional(),
     })
     .nullable()
     .transform((sites) => sites ?? DEFAULT_SITES),
@@ -66,6 +72,12 @@ export interface SiteRules {
    * clôture, et ce que coûte une relance. Nul pour une recette inconnue, qui n'a pas de tarif.
    */
   upkeepOf(recipeId: string): number;
+  /**
+   * Prix d'une relance du site (5.5) : son entretien d'un jour plus les salaires de ses travailleurs au
+   * salaire du jour de sa cité (`citySlug`, identifiant de la configuration ; `null` : inconnue, aucun
+   * salaire). `null` si le calcul dépasse les entiers sûrs : aucun prix n'est annoncé.
+   */
+  restartCostOf(recipeId: string, citySlug: string | null): number | null;
 }
 
 /** Rend `null` si la réponse n'a pas la forme attendue : l'écran annonce alors un échec de lecture. */
@@ -73,10 +85,15 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
   const parsed = siteRulesSchema.safeParse(raw);
   if (!parsed.success) return null;
   const { recipes, sites } = parsed.data;
+  const staff = 'staff' in sites ? sites.staff : undefined;
   // `Map` : un type de site nommé comme une propriété d'objet (« constructor ») n'a pas de prix.
   const costs = new Map(Object.entries(sites.acquisitionCostOboles));
   const typeOf = (recipeId: string) =>
     recipes.find((recipe) => recipe.id === recipeId)?.siteType ?? null;
+  const upkeepOf = (recipeId: string) => {
+    const base = new Map(Object.entries(sites.upkeep.dailyOboles)).get(typeOf(recipeId) ?? '');
+    return base === undefined ? 0 : dailyUpkeep(base, sites.upkeep.coefficientBps);
+  };
   return {
     limit: sites.limitByHeadquartersLevel[0] ?? 0,
     offers: recipes.flatMap((recipe) => {
@@ -90,9 +107,18 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
       return recipes.filter((recipe) => recipe.siteType === type && recipe.id !== recipeId);
     },
     recipe: (recipeId) => recipes.find((recipe) => recipe.id === recipeId) ?? null,
-    upkeepOf: (recipeId) => {
-      const base = new Map(Object.entries(sites.upkeep.dailyOboles)).get(typeOf(recipeId) ?? '');
-      return base === undefined ? 0 : dailyUpkeep(base, sites.upkeep.coefficientBps);
+    upkeepOf,
+    restartCostOf: (recipeId, citySlug) => {
+      const recipe = recipes.find((candidate) => candidate.id === recipeId);
+      if (!recipe) return 0;
+      const wages = new Map(Object.entries(staff?.dailyWageOboles ?? {}));
+      try {
+        const cost =
+          upkeepOf(recipeId) + dailyWages(recipe.workers, wages.get(citySlug ?? '') ?? 0);
+        return Number.isSafeInteger(cost) ? cost : null;
+      } catch {
+        return null;
+      }
     },
   };
 }

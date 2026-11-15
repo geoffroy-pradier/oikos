@@ -246,18 +246,20 @@ Deux paramètres du back-office : un montant de base par jour de jeu et par type
 Dû par site = ⌈base × coefficient ÷ 10 000⌉, arrondi à l'obole supérieure : l'arrondi ne joue jamais en faveur de la monnaie en circulation.
 Un montant nul ne prélève rien ; une version de configuration publiée avant l'entretien se lit sans entretien.
 Ces paramètres sont des règles publiques, lues par les joueurs avec le reste de la section `sites` (vue `site_rules`).
+Chaque site doit aussi, chaque jour, les salaires de ses travailleurs (4.4) : son dû d'un jour est son entretien plus ses salaires, chacun calculé à part puis additionné (`siteDailyDue`).
 
-Ce qui est dû : chaque clôture demande à chaque site, à l'arrêt ou non, l'entretien d'un jour, au tarif de la configuration en vigueur après l'activation éventuelle d'une version programmée à cette clôture (activation d'abord, entretien ensuite).
+Ce qui est dû : chaque clôture demande à chaque site, à l'arrêt ou non, l'entretien et les salaires d'un jour, au tarif de la configuration en vigueur après l'activation éventuelle d'une version programmée à cette clôture (activation d'abord, entretien ensuite).
 Payé à la clôture, le site tourne, ou repart s'il était à l'arrêt ;
 impayé, il est à l'arrêt jusqu'à la clôture suivante ou jusqu'à une relance.
 Il n'y a pas d'arriéré : un jour passé à l'arrêt ne crée aucune dette.
 Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, même si la clôture est jouée en retard ;
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
-Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`, trésorerie vers le puits) qui porte la maison, le jour de jeu et les sites payés ;
-une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
+Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature ;
+elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
+une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 
 Maison qui ne peut pas tout payer : ses sites sont examinés par date de création, puis par identifiant.
-Chacun est payé en entier si ce qui reste de la trésorerie le couvre ;
+Chacun est payé en entier, entretien et salaires, si ce qui reste de la trésorerie le couvre ;
 sinon il n'est pas payé du tout, et l'examen continue (un site moins cher peut encore être payé).
 Il n'y a ni paiement partiel, ni solde négatif. La monnaie sous séquestre à l'agora n'est pas comptée dans la trésorerie disponible : c'est un choix, elle est déjà engagée.
 
@@ -266,19 +268,20 @@ Ce qu'il avait accumulé avant l'arrêt reste récoltable. Cela vaut pour une pr
 un atelier, lui, ne se récolte pas à l'arrêt, puisqu'il ne consomme rien : ses cycles écoulés avant l'arrêt restent dus et tournent après la relance (4.3).
 Un site à l'arrêt, quel qu'il soit, compte toujours dans la limite de sites de la maison.
 
-Relance : la maison peut relancer un site à l'arrêt sans attendre la clôture, par une commande qui paie l'entretien d'un jour (au puits, au tarif de la configuration en vigueur) ;
-le site repart à cet instant, et la clôture suivante lui demande l'entretien normalement.
-La commande (`site.restart`) est refusée si le site tourne déjà ou si la trésorerie ne couvre pas l'entretien ;
-elle porte l'entretien que le joueur a vu, et l'API refuse (« le prix a changé », rien n'est payé) plutôt que de prélever un autre tarif, plus haut comme plus bas, par exemple après l'activation d'une version entre l'affichage et le clic.
+Relance : la maison peut relancer un site à l'arrêt sans attendre la clôture, par une commande qui paie l'entretien et les salaires d'un jour (aux puits, au tarif de la configuration en vigueur), en entier ou pas du tout ;
+le site repart à cet instant, et la clôture suivante lui demande son dû (entretien et salaires) normalement.
+La commande (`site.restart`) est refusée si le site tourne déjà ou si la trésorerie ne couvre pas le dû du site (entretien et salaires) ;
+elle porte le prix que le joueur a vu (`expectedUpkeepOboles` : entretien et salaires d'un jour ; un client qui n'annonce que l'entretien voit son prix refusé dès qu'il y a des salaires), et l'API refuse (« le prix a changé », rien n'est payé) plutôt que de prélever un autre tarif, plus haut comme plus bas, par exemple après l'activation d'une version entre l'affichage et le clic.
 Ce prix attendu est facultatif : un client antérieur, qui ne l'envoie pas, est servi au tarif en vigueur comme avant ;
 le refuser casserait les clients restés en cache (application installée) jusqu'à leur mise à jour, et le champ deviendra obligatoire quand plus aucun client ne l'omettra.
 Le prix envoyé est retenu avec la clé d'une relance restée sans réponse, et un nouvel essai renvoie ce prix sous cette clé, même si le tarif affiché a changé entre-temps : une clé neuve au nouveau prix pourrait payer une seconde fois une commande déjà aboutie, et la même clé avec un autre prix serait refusée.
 Si le premier envoi avait abouti, l'API rejoue sa réponse ; sinon elle refuse ce prix, et le joueur confirme le nouveau d'un nouvel essai, sous une clé neuve ;
-son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), annoncée par un événement de domaine `SiteRestarted`.
+son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), avec une ligne marquée par nature comme à la clôture, annoncée par un événement de domaine `SiteRestarted` qui distingue entretien et salaires.
+Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires), puis la trésorerie, puis le site.
 Un site dont la recette n'est plus dans la configuration, qui n'a pas de tarif, est relancé sans rien payer.
 La monnaie sous séquestre ne paie pas non plus une relance. Les relances d'un monde se font l'une après l'autre et, quand une clôture a commencé à prélever l'entretien, attendent qu'elle soit validée tout entière (l'entretien est donc la dernière étape d'une clôture, pour que cette attente soit la plus courte) ;
 si la clôture vient d'arrêter le site pendant cette attente, la relance est refusée (« le site vient de changer ») et se rejoue.
-Une relance validée alors qu'une clôture est déjà commencée n'en dispense pas : si la trésorerie ne couvre plus l'entretien, le site est arrêté de nouveau par cette clôture, à l'instant où elle a commencé — le cycle repris y perd au plus la durée de la clôture.
+Une relance validée alors qu'une clôture est déjà commencée n'en dispense pas : si la trésorerie ne couvre plus le dû du site (entretien et salaires), le site est arrêté de nouveau par cette clôture, à l'instant où elle a commencé — le cycle repris y perd au plus la durée de la clôture.
 
 À l'écran : la fiche de chaque site annonce son entretien quotidien (lu dans les règles publiques des sites), et, s'il est à l'arrêt, depuis quand et pourquoi, avec un bouton de relance qui en dit le prix. Ce qu'elle annonce « à récolter » s'arrête à l'instant de l'arrêt, et un atelier à l'arrêt n'annonce rien ; l'API reste seule à décider. Un essai de relance refusé repart d'une demande neuve.
 

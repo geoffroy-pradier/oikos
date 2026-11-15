@@ -88,7 +88,8 @@ export const setSiteRecipe = (siteId: string, recipeId: string, accessToken: str
 
 /**
  * `idempotencyKey` : la même clé tant que cette relance n'a pas reçu de réponse ; une clé neuve après un
- * refus. `expectedUpkeepOboles` : l'entretien affiché, que l'API refuse de dépasser comme de baisser.
+ * refus. `expectedUpkeepOboles` : le prix affiché de la relance (entretien et salaires d'un jour), que
+ * l'API refuse de dépasser comme de baisser.
  */
 export const restartSite = (
   siteId: string,

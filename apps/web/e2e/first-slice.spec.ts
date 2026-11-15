@@ -202,7 +202,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await restart.focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
-    "Site relancé : Champ de blé, pour 5 drachmes d'entretien.",
+    "Site relancé : Champ de blé, pour 5 drachmes d'entretien et de salaires.",
   );
   await expect(page.getByText(/^495 drachmes$/)).toBeVisible();
   await expect(restart).toHaveCount(0);
@@ -300,7 +300,7 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
   // Relancé au prix affiché : l'API reçoit ce prix et le prélève.
   await page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' }).click();
   await expect(said(page, 'status')).toContainText(
-    "Site relancé : Champ de blé, pour 5 drachmes d'entretien.",
+    "Site relancé : Champ de blé, pour 5 drachmes d'entretien et de salaires.",
   );
   await expectNoHorizontalScroll(page);
 });
