@@ -343,5 +343,23 @@
       "cash_change": "Change in money",
       "escrow_change": "of which escrow"
     }
+  },
+  "city": {
+    "title": "City of {{city}}",
+    "intro": "The city's inhabitants buy at the agora. When their vital needs are covered the population grows; otherwise some of them emigrate, at each daily close.",
+    "population": "Population",
+    "empty": "The city's population is not known yet: it is as soon as the inhabitants have made their first purchases.",
+    "total_one": "{{number}} inhabitant in all",
+    "total_other": "{{number}} inhabitants in all",
+    "inhabitants_one": "{{number}} inhabitant",
+    "inhabitants_other": "{{number}} inhabitants",
+    "coverage": "Vital needs {{percent}} covered at the last close",
+    "coverageUnknown": "Vital needs coverage not measured yet"
+  },
+  "npcClasses": {
+    "thetes": "Thetes",
+    "zeugitai": "Zeugitai",
+    "hippeis": "Hippeis",
+    "pentakosiomedimnoi": "Pentakosiomedimnoi"
   }
 }

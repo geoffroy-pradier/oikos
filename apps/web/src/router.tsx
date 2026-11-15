@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { AccountsScreen } from './screens/Accounts';
 import { AgoraScreen } from './screens/Agora';
+import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
 import { NotFound } from './screens/NotFound';
 import { Placeholder } from './screens/Placeholder';
@@ -26,7 +27,7 @@ const routeTree = rootRoute.addChildren([
   route('/comptes', AccountsScreen),
   route('/carte', () => <Placeholder tab="map" />),
   route('/agora', AgoraScreen),
-  route('/cite', () => <Placeholder tab="city" />),
+  route('/cite', CityScreen),
   route('/messages', () => <Placeholder tab="messages" />),
 ]);
 
