@@ -17,7 +17,12 @@ const DATABASE_URL =
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
 // Clôture à plus d'une heure : le jour de jeu ne change pas pendant le test.
-const config = { ...TEST_CONFIG.config, clock: farCloseClock(new Date()) };
+const basket = [
+  { goodId: 'wheat', quantity: 3 },
+  { goodId: 'bread', quantity: 1 },
+];
+const priceIndex = { windowDays: 30, inflationTargetBps: { min: 0, max: 300 }, basket };
+const config = { ...TEST_CONFIG.config, clock: farCloseClock(new Date()), priceIndex };
 const app = createApp({
   db,
   telemetry: createTelemetry(db),
@@ -73,6 +78,22 @@ async function entry(kind: string, day: number, ms: number, lines: Record<string
     }
   });
 }
+
+/** Chandelier du monde de test, commencé il y a `ageDays` jours : `turnover` oboles pour `volume` unités. */
+const candle = (
+  goodId: string,
+  ageDays: number,
+  turnover: number,
+  volume: number,
+  seconds = 3600,
+) =>
+  sql`insert into game.price_candles
+        (world_id, city_id, good_id, period_seconds, period_start, open, high, low, close, volume, turnover)
+      select ${WORLD}, ${CITY}, ${goodId}, ${seconds}, date_trunc('hour', now() - make_interval(days => ${ageDays})),
+             p.low, p.high, p.low, p.high, ${volume}, ${turnover}
+      from (select floor(${turnover}::numeric / ${volume}) as low, ceil(${turnover}::numeric / ${volume}) as high) p`.execute(
+    owner,
+  );
 
 let observer = '';
 const blazon = { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' };
@@ -205,6 +226,45 @@ it('dans chaque monde, la masse affichée est la somme des soldes et le net des 
   }
 });
 
+it('indice du panier et inflation d’une fenêtre à la précédente, situés par rapport à la cible', async () => {
+  // Fenêtre courante : blé (20 + 22) ÷ 6 = 7, pain 32 ÷ 2 = 16. Précédente : blé 6,5, pain 16,5.
+  await candle('wheat', 10, 20, 3);
+  await candle('wheat', 2, 22, 3);
+  await candle('bread', 5, 32, 2);
+  await candle('wheat', 40, 13, 2);
+  await candle('bread', 40, 33, 2);
+  // Ignorés : trop ancien, autre série de chandeliers, bien hors panier.
+  await candle('wheat', 61, 900, 1);
+  await candle('bread', 3, 900, 1, 900);
+  await candle('fish', 3, 900, 1);
+  // Panier de référence : 3 × 6 + 15 = 33. Courant : 3 × 7 + 16 = 37. Précédent : 3 × 6,5 + 16,5 = 36.
+  const index = { currentBps: 11_212, previousBps: 10_909, inflationBps: 278 };
+  const { data, world } = await read(WORLD);
+  expect([data.priceWindowDays, data.inflationTargetBps]).toEqual([30, { min: 0, max: 300 }]);
+  expect(world.priceIndex).toEqual({ ...index, status: 'in_target', unpricedGoods: [] });
+  const unknown = { currentBps: null, previousBps: null, inflationBps: null, status: 'unknown' };
+  expect((await read(EMPTY)).world.priceIndex).toEqual({
+    ...unknown,
+    unpricedGoods: ['wheat', 'bread'],
+  });
+  const withIndex = async (patch: Partial<typeof priceIndex>) => {
+    const patched = { ...config, priceIndex: { ...priceIndex, ...patch } };
+    return (await readEconomy(db, patched, 1)).worlds.find((w) => w.worldId === WORLD)?.priceIndex;
+  };
+  expect((await withIndex({ inflationTargetBps: { min: 0, max: 277 } }))?.status).toBe('above');
+  expect((await withIndex({ inflationTargetBps: { min: 279, max: 300 } }))?.status).toBe('below');
+  expect(await withIndex({ basket: [] })).toEqual({ ...unknown, unpricedGoods: [] });
+  // Un bien du panier sans échange : inconnu, jamais un prix inventé.
+  const salted = [...basket, { goodId: 'salt', quantity: 1 }];
+  expect(await withIndex({ basket: salted })).toEqual({ ...unknown, unpricedGoods: ['salt'] });
+  // Fenêtres comptées depuis l'horloge de la base. De 45 jours : la courante prend aussi les chandeliers
+  // de 40 jours (blé 55 ÷ 8, pain 65 ÷ 4, panier à 36,875) ; la précédente n'a que du blé, à 61 jours.
+  // De 19 jours : les chandeliers de 40 jours sont trop anciens pour la précédente, qui est vide.
+  const [wide, narrow] = [await withIndex({ windowDays: 45 }), await withIndex({ windowDays: 19 })];
+  expect(wide).toEqual({ ...unknown, currentBps: 11_174, unpricedGoods: ['bread'] });
+  expect(narrow).toEqual({ ...unknown, currentBps: 11_212, unpricedGoods: ['wheat', 'bread'] });
+});
+
 it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même instantané', async () => {
   // Course rendue certaine : une fondation est validée entre la lecture des soldes (deuxième requête de
   // la route, après l'horloge) et celle des mouvements par jour.
@@ -217,10 +277,8 @@ it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même inst
       return result;
     },
   });
-  const seen = (await readEconomy(racing, config.clock, 30)).worlds.find(
-    (w) => w.worldId === WORLD,
-  );
-  expect(queries).toBe(3);
+  const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
+  expect(queries).toBe(4);
   expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
   const { world } = await read(WORLD);
   expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);

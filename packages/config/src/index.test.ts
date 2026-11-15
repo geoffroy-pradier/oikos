@@ -3,6 +3,7 @@ import {
   DEFAULT_MARKET_TAX,
   DEFAULT_PRICE_HISTORY,
   DEFAULT_POPULATION_DYNAMICS,
+  DEFAULT_PRICE_INDEX,
   DEFAULT_SITES,
   DEFAULT_UPKEEP,
   validateConfig,
@@ -33,6 +34,11 @@ const FIXTURE: GameConfig = {
     emigrationBps: 150,
     minShareBps: 4_000,
     maxShareBps: 30_000,
+  },
+  priceIndex: {
+    windowDays: 14,
+    inflationTargetBps: { min: -50, max: 250 },
+    basket: [{ goodId: 'bread', quantity: 2 }],
   },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
   sites: {
@@ -560,5 +566,40 @@ describe('dynamique de population', () => {
     expect(errorsOf(config)).toEqual([]);
     at(config.cities, 0).population[classId] = 100_000_001;
     expect(errorsOf(config)).toEqual([expect.stringMatching(/^cities\[0\]\.population\./)]);
+  });
+});
+
+describe('indice des prix', () => {
+  it('une version publiée avant l’indice reste lisible : cible de la spécification, panier vide', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.priceIndex;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.priceIndex).toEqual({
+      windowDays: 30,
+      inflationTargetBps: { min: 0, max: 300 },
+      basket: [],
+    });
+    expect(Object.isFrozen(DEFAULT_PRICE_INDEX)).toBe(true);
+  });
+
+  it('fenêtre et cible bornées, panier de biens connus, entiers et sans doublon', () => {
+    const errors = (patch: Partial<GameConfig['priceIndex']>) =>
+      errorsOf({ ...clone(), priceIndex: { ...clone().priceIndex, ...patch } });
+    const bread = { goodId: 'bread', quantity: 2 };
+    expect(errors({ windowDays: 365, inflationTargetBps: { min: 300, max: 300 } })).toEqual([]);
+    expect(errors({ windowDays: 0 })).toEqual([expect.stringMatching(/^priceIndex\.windowDays: /)]);
+    expect(errors({ inflationTargetBps: { min: 301, max: 300 } })).toEqual([
+      'priceIndex.inflationTargetBps: min must not exceed max',
+    ]);
+    expect(errors({ basket: [bread, { goodId: 'nectar', quantity: 1 }] })).toEqual([
+      'priceIndex.basket[1].goodId: unknown good "nectar"',
+    ]);
+    expect(errors({ basket: [bread, bread] })).toEqual([
+      'priceIndex.basket: duplicate good "bread"',
+    ]);
+    expect(errors({ basket: [{ goodId: 'bread', quantity: 1.5 }] })).toEqual([
+      expect.stringMatching(/^priceIndex\.basket\[0\]\.quantity: /),
+    ]);
   });
 });

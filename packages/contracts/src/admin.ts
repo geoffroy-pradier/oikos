@@ -165,13 +165,17 @@ export const configActivationScheduledSchema = z.strictObject({
 });
 
 const oboles = z.number().int();
+const bps = z.number().int();
 /**
  * Lecture `GET /api/admin/economy` (docs/specs/05-economie.md, 5.5) : un bloc par monde, montants en
- * oboles entières, tirés du grand livre.
+ * oboles entières, tirés du grand livre ; indice des prix tiré des chandeliers.
  */
 export const adminEconomySchema = z.object({
   /** Nombre de jours de jeu détaillés dans `days`, jour en cours compris. */
   windowDays: z.number().int().positive(),
+  /** Mesure de l'inflation : durée d'une fenêtre de prix en jours, cible en points de base (bornes comprises). */
+  priceWindowDays: z.number().int().positive(),
+  inflationTargetBps: z.object({ min: bps, max: bps }),
   worlds: z.array(
     z.object({
       worldId: z.uuid(),
@@ -196,6 +200,18 @@ export const adminEconomySchema = z.object({
           days: z.array(z.object({ gameDay: z.number().int(), amount: oboles })),
         }),
       ),
+      /**
+       * Indice du panier de référence (10 000 : prix de référence) sur la fenêtre courante et sur la
+       * précédente, et inflation de l'une à l'autre. `null` : inconnu, faute d'échanges ou de panier.
+       */
+      priceIndex: z.object({
+        currentBps: bps.nullable(),
+        previousBps: bps.nullable(),
+        inflationBps: bps.nullable(),
+        status: z.enum(['in_target', 'below', 'above', 'unknown']),
+        /** Biens du panier sans échange sur l'une des deux fenêtres. */
+        unpricedGoods: z.array(z.string()),
+      }),
     }),
   ),
 });
