@@ -649,7 +649,7 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await expect(page.getByText('4 sur 4')).toBeVisible();
   await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
-  // Toujours la même région, et le foyer sur son message.
+  // Le message paraît dans la région du formulaire, et le foyer est sur lui.
   await expect(region).toContainText('Site acquis : Champ de blé');
   await expect(region.locator('p')).toBeFocused();
   await expectNoHorizontalScroll(page);
