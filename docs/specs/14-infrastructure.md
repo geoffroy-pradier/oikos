@@ -42,7 +42,7 @@ Pour le prototype, un projet Supabase Cloud gratuit reste une option pour avance
 
 ## 14.4 Déploiement
 
-GitHub Actions construit les images, les publie sur le registre GitHub et déploie par SSH : préproduction à chaque fusion, production sur étiquette de version, après validation humaine. Les migrations sont appliquées avant le basculement des conteneurs et doivent rester compatibles avec la version précédente du code.
+GitHub Actions construit les images, les publie sur le registre GitHub et déploie par SSH : préproduction à chaque fusion, production sur étiquette de version, après validation humaine. Les migrations sont appliquées avant le basculement des conteneurs et doivent rester compatibles avec la version précédente du code. Seules les migrations absentes de `supabase_migrations.schema_migrations` (la table de la CLI Supabase) sont appliquées, chacune en une transaction avec son enregistrement ; une migration en échec arrête le déploiement sans être enregistrée. Une base déployée avant cette table est reconnue à ce qu'aucune migration n'y est enregistrée alors que le schéma `game` existe : les migrations de la version précédente y sont enregistrées sans être rejouées (`infra/README.md`). La suite entière reste rejouable, vérifiée en `ci`.
 
 ## 14.5 Trajectoire de montée en charge
 

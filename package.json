@@ -19,6 +19,7 @@
     "db:reset": "supabase db reset --workdir packages/db",
     "test:db": "supabase test db --workdir packages/db",
     "test:db:replay": "bash packages/db/scripts/replay-migrations.sh",
+    "test:db:deploy": "bash infra/test-apply-migrations.sh",
     "test:integration": "turbo run test:integration --concurrency=1",
     "test:e2e": "pnpm --filter @oikos/web --filter @oikos/admin --workspace-concurrency=1 test:e2e"
   },

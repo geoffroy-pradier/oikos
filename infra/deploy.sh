@@ -23,6 +23,12 @@ flock -n 9 || { echo "un autre déploiement est en cours" >&2; exit 3; }
 previous="$(grep -E '^OIKOS_VERSION=' "$env_file" | cut -d= -f2- || true)"
 services=(api)
 
+# Le script des migrations accompagne ce fichier (copiés ensemble par le flux `deploy`). Il est lu avant
+# le changement de version du clone, qui peut remplacer ou retirer celui du dépôt.
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+cp "$(dirname "${BASH_SOURCE[0]}")/apply-migrations.sh" "$work/apply-migrations.sh"
+
 rollback() {
   echo "!! Échec du déploiement de $version : retour à la version ${previous:-(aucune)}" >&2
   if [ -n "$previous" ]; then
@@ -58,11 +64,19 @@ echo "== Code et migrations"
 git -C "$root/oikos" fetch --quiet origin
 git -C "$root/oikos" checkout --quiet --detach "$version"
 # Les migrations passent avant le basculement : elles restent compatibles avec la version précédente du code.
-# Chaque fichier s'applique en une transaction : un échec ne laisse pas de migration à moitié passée.
-for file in "$root/oikos"/packages/db/supabase/migrations/*.sql; do
-  "${compose[@]}" exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction -q -f - < "$file"
-  echo "   $(basename "$file")"
-done
+# Seules celles qu'aucun déploiement n'a enregistrées sont appliquées, chacune en une transaction avec son
+# enregistrement. Base migrée par l'ancien script : celles de la version précédente, inchangées depuis, sont
+# enregistrées sans être rejouées ; une migration modifiée entre-temps est appliquée (infra/README.md).
+migrations=packages/db/supabase/migrations
+adopt=()
+if [ -n "$previous" ] && git -C "$root/oikos" ls-tree --name-only "$previous" -- "$migrations/" > "$work/previous"; then
+  sed -n 's#.*/\([^/]*\.sql\)$#\1#p' "$work/previous" | while IFS= read -r file; do
+    if git -C "$root/oikos" diff --quiet "$previous" "$version" -- "$migrations/$file"; then echo "$file"; fi
+  done > "$work/adopt"
+  adopt=(--adopt "$work/adopt")
+fi
+bash "$work/apply-migrations.sh" "${adopt[@]}" "$root/oikos/$migrations" \
+  -- "${compose[@]}" exec -T db psql -U postgres -d postgres
 
 echo "== Basculement des conteneurs (${previous:-aucune} -> $version)"
 OIKOS_VERSION="$version" "${compose[@]}" up -d "${services[@]}" < /dev/null
