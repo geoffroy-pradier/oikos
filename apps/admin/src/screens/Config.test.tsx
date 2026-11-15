@@ -870,8 +870,9 @@ it('formulaire des biens : deux retraits de suite au même nom font deux annonce
   fireEvent.click(button('Retirer élément 1'));
   const first = region?.firstChild;
   expect(announced()).toBe(REMOVED('élément 1'));
-  // Même texte, nœud neuf : le lecteur d'écran lit la seconde annonce.
-  fireEvent.click(button('Retirer élément 1'));
+  // Même texte, nœud neuf : le lecteur d'écran lit la seconde annonce. Second retrait au clavier.
+  button('Retirer élément 1').focus();
+  enter();
   expect([announced(), region?.firstChild === first]).toEqual([REMOVED('élément 1'), false]);
   // Le seul bien retiré, le foyer est sur l'ajout : la répétition de la touche n'y ajoute rien.
   expect(document.activeElement).toBe(button('Ajouter un bien'));

@@ -1,0 +1,116 @@
+import { useTranslation } from 'react-i18next';
+import {
+  composeTable,
+  editNested,
+  editRow,
+  goodIds,
+  readNested,
+  readRows,
+  type NestedTable,
+  type Row,
+} from '../goods-form';
+import { FieldControl } from './FieldControl';
+
+const GROUP = 'grid min-w-0 gap-2 rounded-md border border-border p-3 wrap-anywhere';
+
+/**
+ * Formulaire d'une table dont les lignes portent des listes imbriquées (15.4) : recettes et leurs intrants
+ * et extrants, classes de PNJ et leur panier. Comme celui des biens, sans état propre : il montre les lignes
+ * du texte JSON et chaque saisie réécrit ce texte (`onChange`). L'API fait foi.
+ */
+export function NestedTableForm(props: {
+  spec: NestedTable;
+  config: unknown;
+  readOnly: boolean;
+  onChange: (text: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { table, texts, fields, lists } = props.spec;
+  const rows = readNested(
+    props.config,
+    table,
+    lists.map((list) => list.key),
+  );
+  const compose = (next: Row[]) => composeTable(props.config, table, next);
+  const label = (key: string) => t(`config.schemaPath.fields.${table}.${key}`);
+  // Par identifiant, sinon par rang : un identifiant peut manquer, se répéter ou être en cours de frappe.
+  const nameOf = (id: unknown, index: number) =>
+    typeof id === 'string' && id.trim() !== ''
+      ? id
+      : t('config.schemaPath.position', { rank: index + 1 });
+  const choices = Object.fromEntries(
+    Object.entries(props.spec.choices).map(([key, { values, labels }]) => [
+      key,
+      values.map((value) => ({ value, label: t(`${labels}.${value}`) })),
+    ]),
+  );
+  const suggestions = `${table}-good-ids`;
+  return (
+    <details className="space-y-3">
+      <summary className="min-h-11 text-lg">{t(`config.schemaPath.tables.${table}`)}</summary>
+      {(!rows || !props.readOnly) && (
+        <p className="text-sm text-muted-foreground">
+          {t(`config.${texts}.${rows ? 'hint' : 'unavailable'}`)}
+        </p>
+      )}
+      {/* Suggestions pour le champ « bien » : les biens du texte. La saisie reste libre, l'API fait foi. */}
+      <datalist id={suggestions}>
+        {goodIds(props.config).map((id) => (
+          <option key={id} value={id} />
+        ))}
+      </datalist>
+      {rows?.map((entry, row) => {
+        return (
+          <fieldset key={row} className={`${GROUP} sm:grid-cols-2 lg:grid-cols-3`}>
+            <legend className="px-1 font-medium">{nameOf(entry['id'], row)}</legend>
+            {fields.map((field) => (
+              <FieldControl
+                key={field.key}
+                id={`${table}-${row}-${field.key}`}
+                label={label(field.key)}
+                field={field}
+                value={entry[field.key]}
+                readOnly={props.readOnly}
+                choices={choices[field.key]}
+                onInput={(input) => props.onChange(compose(editRow(rows, row, field, input)))}
+              />
+            ))}
+            {lists.map((list) => {
+              const lines = readRows(entry, list.key) ?? [];
+              return (
+                <fieldset key={list.key} className="col-span-full min-w-0 space-y-2">
+                  <legend className="first-letter:uppercase">{label(list.key)}</legend>
+                  {lines.length === 0 && (
+                    <p className="text-sm text-muted-foreground">{t(`config.${texts}.empty`)}</p>
+                  )}
+                  {lines.map((item, line) => (
+                    <fieldset key={line} className={`${GROUP} sm:grid-cols-3`}>
+                      <legend className="px-1">{nameOf(item['goodId'], line)}</legend>
+                      {list.fields.map((field) => (
+                        <FieldControl
+                          key={field.key}
+                          id={`${table}-${row}-${list.key}-${line}-${field.key}`}
+                          label={label(field.key)}
+                          field={field}
+                          value={item[field.key]}
+                          readOnly={props.readOnly}
+                          choices={choices[field.key]}
+                          list={field.key === 'goodId' ? suggestions : undefined}
+                          onInput={(input) =>
+                            props.onChange(
+                              compose(editNested(rows, row, list.key, line, field, input)),
+                            )
+                          }
+                        />
+                      ))}
+                    </fieldset>
+                  ))}
+                </fieldset>
+              );
+            })}
+          </fieldset>
+        );
+      })}
+    </details>
+  );
+}

@@ -17,7 +17,7 @@ export function FieldControl(props: {
   value: unknown;
   readOnly: boolean;
   /** Choix proposés (`kind: 'choice'`), avec leur libellé. */
-  choices?: { value: string; label: string }[];
+  choices?: { value: string; label: string }[] | undefined;
   /** Suggestions d'une liste `<datalist>` : la saisie reste libre. */
   list?: string | undefined;
   onInput: (input: string) => void;
@@ -43,7 +43,7 @@ export function FieldControl(props: {
         >
           {!known && (
             <option value="">
-              {value === undefined ? t('config.goodsForm.choose') : shown('text', value)}
+              {value === undefined ? t('config.tableForm.choose') : shown('text', value)}
             </option>
           )}
           {props.choices?.map((choice) => (
