@@ -69,7 +69,7 @@
     "siteNumbered": "{{site}} {{number}}",
     "acquireOptionPlain": "{{site}}: {{cost}}",
     "alreadyAcquired": "This site was already acquired: {{site}}, for {{cost}}. Nothing more was paid.",
-    "acquireUnanswered": "The response was lost, but one more site now appears in the list. Check it before trying again: another attempt would be a new purchase.",
+    "acquireUnanswered": "The response to an acquisition was lost, and one more site now appears in the list. Check it before trying again: another attempt would be a new purchase.",
     "inputs": "Inputs per cycle:",
     "inputLine": "{{quantity}} × {{good}} (free stock: {{free}})",
     "harvestable": "Ready to collect: {{list}}.",

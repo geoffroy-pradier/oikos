@@ -97,7 +97,7 @@ describe('clés des commandes restées sans réponse', () => {
     other.keyFor(early, fresh);
     // Clé rangée avant un remontage : connue du stockage seul, rendue elle aussi.
     storage.setItem('oikos.pending.house-1.acquire:a:b:0', 'stored');
-    pendingKeys('house-1', () => storage).settleWhere(acquireIntentBelow(2));
+    expect(pendingKeys('house-1', () => storage).settleWhere(acquireIntentBelow(2))).toBe(2);
     expect([...storage.store.keys()].sort()).toEqual([
       'oikos.pending.house-1.acquire:grow_wheat:2',
       'oikos.pending.house-1.restart:acquire:0',
@@ -105,7 +105,7 @@ describe('clés des commandes restées sans réponse', () => {
       'oikos.pending.house-2.acquire:grow_wheat:1',
     ]);
     // Solde nul et nombre égal : rien n'est rendu. Sans stockage, la mémoire est réglée de même.
-    keys.settleWhere(acquireIntentBelow(0));
+    expect(keys.settleWhere(acquireIntentBelow(0))).toBe(0);
     expect(keys.keyFor(current, fresh)).toBe('key-2');
     const memoryOnly = pendingKeys('house-1', () => undefined);
     memoryOnly.keyFor(early, fresh);

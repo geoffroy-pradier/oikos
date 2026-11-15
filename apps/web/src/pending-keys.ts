@@ -41,15 +41,16 @@ export function pendingKeys(scope: string, storage: () => KeyStorage | undefined
       return key;
     },
     settle,
-    /** Rend les clés des intentions de cette maison que `obsolete` désigne, et d'elles seules. */
-    settleWhere(obsolete: (intent: string) => boolean): void {
+    /** Rend les clés des intentions de cette maison que `obsolete` désigne, et les compte. */
+    settleWhere(obsolete: (intent: string) => boolean): number {
       const names =
         safe((store) => Array.from({ length: store.length }, (_, index) => store.key(index))) ?? [];
       const stored = names.flatMap((name) =>
         name?.startsWith(prefix) ? [name.slice(prefix.length)] : [],
       );
-      for (const intent of new Set([...memory.keys(), ...stored]))
-        if (obsolete(intent)) settle(intent);
+      const settled = [...new Set([...memory.keys(), ...stored])].filter(obsolete);
+      settled.forEach(settle);
+      return settled.length;
     },
   };
 }

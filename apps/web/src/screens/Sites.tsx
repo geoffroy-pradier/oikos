@@ -1,5 +1,5 @@
 import { Button, Card } from '@oikos/ui';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
@@ -56,12 +56,16 @@ export function SitesCard({
   // Une commande sans réponse garde sa clé, même onglet quitté : la renvoyer rejoue la commande au lieu
   // de la payer une seconde fois.
   const pending = useMemo(() => pendingKeys(house.id, () => window.sessionStorage), [house.id]);
-  // Sites lus : les achats demandés avec moins de sites ne seront plus rejoués, leurs clés sont rendues.
-  useEffect(() => {
-    if (sites.rows) pending.settleWhere(acquireIntentBelow(sites.rows.length));
-  }, [pending, sites.rows]);
   // Une commande à la fois, même pour deux activations que le rendu n'a pas eu le temps de séparer.
   const running = useRef(false);
+  // Sites lus, hors commande (à sa fin, écran rouvert, retour sur l'onglet) : une acquisition demandée
+  // avec moins de sites et restée sans réponse ne sera plus rejouée. Sa clé n'est rendue qu'ici, et le
+  // joueur est prévenu avant l'affichage : réessayer serait un nouvel achat.
+  useLayoutEffect(() => {
+    if (running.current || !sites.rows) return;
+    if (pending.settleWhere(acquireIntentBelow(sites.rows.length)) > 0)
+      setNotice({ target: ACQUIRE, kind: 'alert', text: t('home.acquireUnanswered') });
+  }, [pending, sites.rows, busy]);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
@@ -150,8 +154,6 @@ export function SitesCard({
     target: string,
     send: () => Promise<CommandResponse<T>>,
     done: (data: T, replayed: boolean) => string,
-    /** Texte d'une commande restée sans réponse, d'après les sites relus ; `false` : l'erreur ordinaire. */
-    unanswered?: (read: Site[] | null) => string | false,
   ) {
     if (running.current) return null;
     running.current = true;
@@ -160,18 +162,13 @@ export function SitesCard({
     const result = await send();
     // Relu même après un échec : la commande a pu aboutir sans que sa réponse nous parvienne. Les
     // règles aussi : une configuration activée entre-temps a pu changer les prix annoncés.
-    const [read] = await Promise.all([sites.reload(), reloadRules(), onChanged()]);
-    const lost = !result.ok && result.error.code === 'INTERNAL' && unanswered?.(read);
+    await Promise.all([sites.reload(), reloadRules(), onChanged()]);
     setNow(serverClock.now());
     // Quand le message paraît, les chiffres sont à jour et les contrôles de nouveau prêts.
     setNotice(
       result.ok
         ? { target, kind: 'status', text: done(result.data, result.replayed) }
-        : {
-            target,
-            kind: 'alert',
-            text: lost || t([`errors.${result.error.code}`, 'errors.INTERNAL']),
-          },
+        : { target, kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
     );
     setBusy(false);
     running.current = false;
@@ -225,17 +222,22 @@ export function SitesCard({
     // Sites non lus (retour sur l'onglet, lecture en échec) : rien ne part, quel que soit l'affichage.
     if (intent === null) return;
     const key = pending.keyFor(intent, () => crypto.randomUUID());
-    const send = () => acquireSite(recipeId, house.accessToken, key);
-    // Un site de plus qu'à l'envoi : l'achat a sans doute abouti, et la lecture rend sa clé.
-    const more = (read: Site[] | null) => read !== null && read.length > rows.length;
-    const result = await run(
+    const send = async () => {
+      const answer = await acquireSite(recipeId, house.accessToken, key);
+      // Issue connue : l'intention est réglée avant toute relecture. Sans réponse de l'API, ou écartée
+      // avant son registre, elle reste en attente.
+      if (outcomeKnown(answer)) pending.settle(intent);
+      return answer;
+    };
+    await run(
       ACQUIRE,
       async () => {
         const first = await send();
-        if (first.ok || first.error.code !== 'INTERNAL' || !more(await sites.reload()))
-          return first;
-        // Sans réponse, mais un site de plus : la même clé repart une fois, pour connaître l'issue.
-        return send();
+        if (first.ok || first.error.code !== 'INTERNAL') return first;
+        // Sans réponse, mais un site de plus qu'à l'envoi : l'achat a sans doute abouti. La même clé
+        // repart une fois, pour connaître l'issue.
+        const read = await sites.reload();
+        return read !== null && read.length > rows.length ? send() : first;
       },
       // Rejeu : cet achat avait abouti lors d'un essai resté sans réponse. Rien n'est payé cette fois.
       (data, replayed) =>
@@ -243,11 +245,7 @@ export function SitesCard({
           site: recipeName(data.recipeId),
           cost: money(data.costOboles),
         }),
-      // Toujours sans réponse : le joueur est prévenu que réessayer serait un nouvel achat.
-      (read) => more(read) && t('home.acquireUnanswered'),
     );
-    // Sans réponse de l'API, ou écartée avant son registre : l'intention reste en attente.
-    if (result && outcomeKnown(result)) pending.settle(intent);
   }
 
   /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */
