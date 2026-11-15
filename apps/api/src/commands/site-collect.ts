@@ -41,8 +41,9 @@ export const siteCollect = defineCommand({
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!site) return { ok: false, error: { code: 'SITE_NOT_FOUND', message: 'Unknown site.' } };
 
-    // Une recette retirée de la configuration ne se calcule plus : le site ne produit plus rien, à
-    // l'arrêt ou non, et ce qu'il avait accumulé est perdu. Il lui reste à changer de recette (4.2).
+    // Une recette retirée de la configuration ne se calcule plus : le site ne se récolte plus, à
+    // l'arrêt ou non. Ce qu'il avait accumulé est gelé tant que la recette manque : changer de recette
+    // le perd, une version qui rend la recette le rend (4.2).
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     if (!recipe) {
       const message = 'This site runs a recipe the configuration no longer has.';
