@@ -1,11 +1,16 @@
+import { basketCost, costRatioBps, type Traded } from '@oikos/sim';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import {
+  accounts,
+  cash,
   closeDay,
   closeOf,
   config,
   createCity,
   foundHouses,
   harvest,
+  lastSeq,
   MINUTE,
   openBench,
   reconcile,
@@ -21,7 +26,8 @@ import { morning, ROLES, seller } from './balance/strategy';
  * trois jours où des maisons vendent leur blé au prix de référence ; puis une semaine de mise en route
  * et 30 jours mesurés, avec la configuration initiale. Les maisons scriptées acquièrent leurs sites,
  * achètent leurs intrants et vendent leur production par les vraies commandes (`balance/strategy.ts`) ;
- * la demande des PNJ et la clôture quotidienne (population, entretien) sont celles du moteur.
+ * la demande des PNJ et la clôture quotidienne (population, entretien) sont celles du moteur. Les prix
+ * sont relevés jour par jour, d'après le rang des échanges.
  */
 const bench = openBench();
 beforeAll(() => bench.start());
@@ -71,12 +77,21 @@ const MONTH = 30;
 const WARMUP = 7;
 
 it(
-  '30 jours, 15 biens, maisons scriptées : sites acquis, grand livre rapproché',
+  '30 jours, 15 biens, maisons scriptées : grand livre rapproché ; mesures publiées',
   { timeout: 600_000 },
   async () => {
     const city = await createCity(bench, WARMUP + MONTH);
     const houses = (await foundHouses(city, ROLES)).map(seller);
-    let [upkeep, acquisitions] = [0, 0];
+
+    const daily: {
+      day: number;
+      supply: number;
+      cost: ReturnType<typeof basketCost>;
+      traded: Map<string, Traded>;
+      coverage: Record<string, number | null>;
+      population: number;
+    }[] = [];
+    let [seq, upkeep, acquisitions] = [await lastSeq(city), 0, 0];
     for (let day = 0; day < WARMUP + MONTH; day++) {
       upkeep += upkeepDue(city, houses, day);
       await closeDay(city, day);
@@ -86,6 +101,32 @@ it(
       const hours =
         (closeOf(city, day + 1).getTime() - closeOf(city, day).getTime()) / (60 * MINUTE);
       expect(await tickDay(city, day)).toBe(hours);
+      // Prix du jour : tous les échanges validés depuis la veille, PNJ compris.
+      const trades = await sql<{ good_id: string; turnover: string; volume: string }>`
+        select o.good_id, sum(t.price * t.quantity) as turnover, sum(t.quantity) as volume
+        from game.trades t join game.orders o on o.id = t.sell_order_id
+        where t.world_id = ${city.worldId} and t.seq > ${seq} group by o.good_id`.execute(city.db);
+      seq = await lastSeq(city);
+      const traded = new Map<string, Traded>(
+        trades.rows.map((row) => [
+          row.good_id,
+          { turnover: BigInt(row.turnover), volume: BigInt(row.volume) },
+        ]),
+      );
+      const population = await city.db
+        .selectFrom('game.npc_population')
+        .select(['class_id', 'population', 'coverage_bps'])
+        .where('city_id', '=', city.cityId)
+        .execute();
+      if (day >= WARMUP)
+        daily.push({
+          day,
+          supply: (await accounts(city)).supply,
+          cost: basketCost(config.priceIndex.basket, traded),
+          traded,
+          coverage: Object.fromEntries(population.map((row) => [row.class_id, row.coverage_bps])),
+          population: population.reduce((sum, row) => sum + row.population, 0),
+        });
     }
 
     // Robinets, puits et trésor de la cité rapprochés des flux comptés ; puis la masse en circulation.
@@ -96,12 +137,82 @@ it(
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
 
+    // Mesures publiées par le test.
+    const { system } = await accounts(city);
+    const sinks = [...system].filter(([key, value]) => key.startsWith('sink_') && value !== 0);
+    const destroyed = sinks.reduce((sum, [, value]) => sum + value, 0);
+    // Coût du panier sur une fenêtre de jours : tous ses échanges réunis, comme l'indice d'Olympe.
+    const level = (from: number, to: number) => {
+      const traded = new Map<string, Traded>();
+      for (const entry of daily.slice(from, to))
+        for (const [goodId, good] of entry.traded) {
+          const sum = traded.get(goodId) ?? { turnover: 0n, volume: 0n };
+          traded.set(goodId, {
+            turnover: sum.turnover + good.turnover,
+            volume: sum.volume + good.volume,
+          });
+        }
+      return basketCost(config.priceIndex.basket, traded);
+    };
+    // Écart du coût du panier des jours mesurés 20 à 30 sur celui des jours 0 à 10, moins 1 : pas
+    // l'inflation d'un mois, dont les deux fenêtres seraient distantes de 30 jours.
+    const ratio = costRatioBps(level(MONTH - 10, MONTH), level(0, 10));
+    const basketLast10VsFirst10Bps = ratio === null ? null : ratio - 10_000;
+    console.table(
+      daily.map((entry) => ({
+        day: entry.day,
+        supply: entry.supply,
+        basket: entry.cost ? Number(entry.cost[0] / entry.cost[1]) : null,
+        population: entry.population,
+        ...entry.coverage,
+      })),
+    );
+    // Prix moyen et volume par bien, sur les dix premiers et les dix derniers jours mesurés.
+    const window = (from: number, to: number, goodId: string) => {
+      const [turnover, volume] = daily
+        .slice(from, to)
+        .map((entry) => entry.traded.get(goodId))
+        .reduce<[bigint, bigint]>(
+          (sum, good) => [sum[0] + (good?.turnover ?? 0n), sum[1] + (good?.volume ?? 0n)],
+          [0n, 0n],
+        );
+      return volume === 0n ? '—' : `${(Number(turnover) / Number(volume)).toFixed(1)} × ${volume}`;
+    };
+    console.table(
+      Object.fromEntries(
+        config.goods.map((good) => [
+          good.id,
+          {
+            reference: good.referencePriceOboles,
+            first: window(0, 10, good.id),
+            last: window(MONTH - 10, MONTH, good.id),
+          },
+        ]),
+      ),
+    );
+    const summary = [];
+    for (const house of houses)
+      summary.push({
+        role: house.role.name,
+        sites: house.sites.length,
+        cash: await cash(city, house.houseId),
+      });
+    console.table(summary);
+    console.log({
+      basketLast10VsFirst10Bps,
+      supply: ledger.supply,
+      destroyed,
+      sinks: Object.fromEntries(
+        sinks.map(([key, value]) => [key, Math.round((1000 * value) / destroyed) / 10]),
+      ),
+    });
+
     // Le marché a réellement tourné : des achats de PNJ, la taxe, l'entretien, des sites acquis.
     expect(ledger.expected['faucet_npc_purchases']).toBeLessThan(0);
     expect(ledger.expected['sink_market_tax']).toBeGreaterThan(0);
     expect(upkeep).toBeGreaterThan(0);
     expect(acquisitions).toBeGreaterThan(0);
     // Les bornes d'équilibrage (inflation mensuelle de 0 à 3 %, besoins vitaux couverts) attendent la
-    // recalibration de la cité prototype (#78) et les mesures du banc.
+    // recalibration de la cité prototype (#78) : les mesures ci-dessus sont publiées, pas encore bornées.
   },
 );
