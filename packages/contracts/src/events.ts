@@ -7,6 +7,7 @@ import {
   configVersionPublishedSchema,
   goodBoughtBackSchema,
 } from './admin';
+import { directChannelOpenedSchema } from './chat';
 import {
   archonElectedSchema,
   ballotCastSchema,
@@ -56,6 +57,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   candidacyWithdrawnSchema,
   ballotCastSchema,
   voyageDepartedSchema,
+  directChannelOpenedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

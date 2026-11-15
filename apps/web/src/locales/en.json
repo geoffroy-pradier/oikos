@@ -279,7 +279,9 @@
     "TERM_LIMIT_REACHED": "Your house has already served the maximum number of consecutive terms.",
     "CANDIDACY_NOT_FOUND": "This candidacy does not exist or was withdrawn.",
     "VOTING_CLOSED": "The vote is not open.",
-    "ALREADY_VOTED": "Your house has already voted in this election."
+    "ALREADY_VOTED": "Your house has already voted in this election.",
+    "RECIPIENT_NOT_FOUND": "This house cannot be found.",
+    "SELF_CONVERSATION": "Your house cannot hold a conversation with itself."
   },
   "shell": {
     "skipToContent": "Skip to content",

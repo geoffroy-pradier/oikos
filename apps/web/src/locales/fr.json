@@ -279,7 +279,9 @@
     "TERM_LIMIT_REACHED": "Votre maison a déjà exercé le nombre maximal de mandats consécutifs.",
     "CANDIDACY_NOT_FOUND": "Cette candidature n'existe pas ou a été retirée.",
     "VOTING_CLOSED": "Le vote n'est pas ouvert.",
-    "ALREADY_VOTED": "Votre maison a déjà voté à cette élection."
+    "ALREADY_VOTED": "Votre maison a déjà voté à cette élection.",
+    "RECIPIENT_NOT_FOUND": "Cette maison est introuvable.",
+    "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
