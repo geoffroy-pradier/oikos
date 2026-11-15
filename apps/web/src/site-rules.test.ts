@@ -1,7 +1,7 @@
 import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { freeStockIn, parseSiteRules, previewHarvest, siteAlerts } from './site-rules';
+import { freeStockIn, parseSiteRules, previewHarvest, siteAlerts, stockByCity } from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
@@ -259,5 +259,31 @@ describe('siteAlerts', () => {
 
   it('site à l’arrêt : seule l’alerte d’arrêt, même au plafond', () => {
     expect(siteAlerts(field, at(field, field.maxAccruedCycles, 0), true)).toEqual(['halted']);
+  });
+});
+
+describe('stockByCity', () => {
+  const line = (id: string, city_id: string) => ({ id, city_id });
+
+  it('met la cité de la maison d’abord, garde l’ordre des lignes dans chaque cité', () => {
+    const lines = [
+      line('a', 'loin'),
+      line('b', 'ici'),
+      line('c', 'autre'),
+      line('d', 'loin'),
+      line('e', 'ici'),
+    ];
+    expect(stockByCity(lines, 'ici')).toEqual([
+      { cityId: 'ici', lines: [line('b', 'ici'), line('e', 'ici')] },
+      { cityId: 'loin', lines: [line('a', 'loin'), line('d', 'loin')] },
+      { cityId: 'autre', lines: [line('c', 'autre')] },
+    ]);
+  });
+
+  it('sans stock dans la cité de la maison, elle n’apparaît pas ; sans stock, rien', () => {
+    expect(stockByCity([line('a', 'loin')], 'ici')).toEqual([
+      { cityId: 'loin', lines: [line('a', 'loin')] },
+    ]);
+    expect(stockByCity([], 'ici')).toEqual([]);
   });
 });
