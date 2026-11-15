@@ -53,6 +53,7 @@
   },
   "tabs": {
     "vigie": "Watch",
+    "economy": "Economy",
     "config": "Parameters",
     "audit": "Audit log",
     "access": "Access"
@@ -93,6 +94,52 @@
     "refusedTooLarge": "Oversized requests (24 h)",
     "refusedForbidden": "Refused back-office reads (24 h)",
     "adminReads": "Back-office reads (24 h)"
+  },
+  "economy": {
+    "title": "Economy",
+    "intro": "Amounts in obols, read from the ledger. A faucet creates money, a sink destroys it; a negative amount is a reverse net (a repayment to a faucet, for instance).",
+    "world": "World “{{slug}}”",
+    "indexCurrent": "Price index, last {{days}} days (reference: 100)",
+    "indexPrevious": "Price index, previous {{days}} days",
+    "inflation": "Inflation over {{days}} days",
+    "statusLabel": "Inflation status",
+    "status": {
+      "in_target": "On target ({{min}} to {{max}})",
+      "below": "Below target ({{min}} to {{max}})",
+      "above": "Above target ({{min}} to {{max}})",
+      "unknown": "No measure"
+    },
+    "alert": "Alert: inflation of {{inflation}} over {{days}} days. {{status}}.",
+    "unpriced": "Incomplete measure: no trade in one of the two periods for {{goods}} (identifiers of reference basket goods).",
+    "noBasket": "No measure possible: the active configuration has no reference basket.",
+    "supply": {
+      "title": "Money supply",
+      "houses": "House treasuries",
+      "escrow": "Agora escrow",
+      "cityTreasuries": "City treasuries",
+      "other": "Other accounts",
+      "total": "Total"
+    },
+    "totals": "Faucets and sinks: net since the beginning",
+    "kind": {
+      "faucet": "{{name}} (faucet)",
+      "sink": "{{name}} (sink)"
+    },
+    "accounts": {
+      "faucet_npc_purchases": "NPC purchases",
+      "faucet_temple_loans": "Temple Treasury loans",
+      "faucet_rewards": "Quest and Games rewards",
+      "faucet_starting_grant": "Starting grant",
+      "sink_npc_wages": "NPC worker wages",
+      "sink_upkeep": "Site upkeep",
+      "sink_market_tax": "Market tax, burned share",
+      "sink_offerings": "Offerings, festivals and liturgies",
+      "sink_temple_interest": "Temple Treasury interest",
+      "sink_public_works": "Public works and wonders",
+      "sink_site_acquisition": "Site acquisition"
+    },
+    "byDay": "Faucets and sinks: net per game day (days read: {{count}})",
+    "noDays": "No movement over the period."
   },
   "access": {
     "title": "Access",

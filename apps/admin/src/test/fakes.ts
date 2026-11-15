@@ -1,3 +1,4 @@
+import type { AdminEconomy } from '@oikos/contracts';
 import { AuthApiError, type AuthError } from '@supabase/supabase-js';
 import type { AdminReply } from '../api';
 
@@ -129,4 +130,32 @@ export const VIGIE = {
   refusals24h: { unauthenticated: 91, payloadTooLarge: 4, rateLimited: 17, forbidden: 6 },
   adminReads24h: 58,
   selfReviewAllowed: false,
+};
+
+const index = { currentBps: 11_212, previousBps: 10_909, inflationBps: 278 };
+const account = (key: string, total: number, ...days: [gameDay: number, amount: number][]) => ({
+  key,
+  kind: key.startsWith('faucet_') ? ('faucet' as const) : ('sink' as const),
+  total,
+  days: days.map(([gameDay, amount]) => ({ gameDay, amount })),
+});
+/** Un monde dans la cible : un prêt remboursé (net négatif) et un compte système que l'écran ne connaît pas. */
+export const ECONOMY: AdminEconomy = {
+  windowDays: 30,
+  priceWindowDays: 30,
+  inflationTargetBps: { min: 0, max: 300 },
+  worlds: [
+    {
+      worldId: '01900000-0000-7000-8000-000000000001',
+      slug: 'archipel',
+      moneySupply: { total: 5615, houses: 5543, escrow: 70, cityTreasuries: 2, other: 0 },
+      systemAccounts: [
+        account('faucet_starting_grant', 6000, [20772, 6000]),
+        account('faucet_temple_loans', -200, [20771, -200]),
+        account('sink_upkeep', 185, [20771, 30], [20772, 155]),
+        account('sink_future', 0),
+      ],
+      priceIndex: { ...index, status: 'in_target', unpricedGoods: [] },
+    },
+  ],
 };
