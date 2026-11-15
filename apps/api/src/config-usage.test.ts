@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commonIds, NO_IDS, retiredUsage } from './config-usage';
+import { commonIds, NO_IDS, retiredUsage, splitByInForce } from './config-usage';
 
 const ids = (goods: string[], recipes: string[], npcClasses: string[]) => ({
   goods,
@@ -34,5 +34,27 @@ describe('lecture des usages retirés (#191, #200)', () => {
       npcClasses: usage.npcClasses,
     });
     expect(retiredUsage(usage, NO_IDS)).toEqual(usage);
+  });
+
+  it('sépare ce que la version retire de ce que la version en vigueur avait déjà retiré (#234)', () => {
+    const usage = {
+      goods: [{ goodId: 'bread', houses: 1, quantity: 3, openOrders: 0, escrowOboles: 0 }],
+      recipes: [
+        { recipeId: 'bake', sites: 2, houses: 1 },
+        { recipeId: 'mill', sites: 1, houses: 1 },
+      ],
+      npcClasses: [{ classId: 'hippeis', cities: 2, population: 0 }],
+    };
+    // En vigueur : `bake`, pas `mill` ni `hippeis`. Le bien reste dans ce que la version retire, même
+    // inconnu de la version en vigueur : il est toujours refusé (#191).
+    expect(splitByInForce(usage, ids([], ['bake'], []))).toEqual({
+      retiredInUse: { goods: usage.goods, recipes: [usage.recipes[0]], npcClasses: [] },
+      alreadyRetiredInUse: { recipes: [usage.recipes[1]], npcClasses: usage.npcClasses },
+    });
+    // Sans version en vigueur lisible, tout est tenu pour retiré par la version.
+    expect(splitByInForce(usage, null)).toEqual({
+      retiredInUse: usage,
+      alreadyRetiredInUse: { recipes: [], npcClasses: [] },
+    });
   });
 });

@@ -1,5 +1,11 @@
 import type { GameConfig } from '@oikos/config';
-import type { GoodUsage, NpcClassUsage, RecipeUsage, RetiredUsage } from '@oikos/contracts';
+import type {
+  AlreadyRetiredUsage,
+  GoodUsage,
+  NpcClassUsage,
+  RecipeUsage,
+  RetiredUsage,
+} from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 
@@ -101,6 +107,32 @@ export function retiredUsage(usage: RetiredUsage, version: ConfigIds): RetiredUs
     goods: usage.goods.filter((entry) => good(entry.goodId)),
     recipes: usage.recipes.filter((entry) => recipe(entry.recipeId)),
     npcClasses: usage.npcClasses.filter((entry) => npcClass(entry.classId)),
+  };
+}
+
+/**
+ * Sépare ce qu'une version ne connaît pas et que le monde porte encore (#234) : `retiredInUse` garde
+ * tous les biens (toujours refusés : #191) et les recettes et classes que la version en vigueur
+ * (`inForce`) connaît, que la version retire donc et dont la programmation se confirme (#200) ;
+ * `alreadyRetiredInUse`, celles que la version en vigueur ne connaît déjà plus : rien à confirmer.
+ * Sans version en vigueur lisible (`inForce` nul), tout est tenu pour retiré par la version.
+ */
+export function splitByInForce(
+  usage: RetiredUsage,
+  inForce: ConfigIds | null,
+): { retiredInUse: RetiredUsage; alreadyRetiredInUse: AlreadyRetiredUsage } {
+  const known = (ids: readonly string[] | undefined) => (id: string) => !ids || ids.includes(id);
+  const [recipe, npcClass] = [known(inForce?.recipes), known(inForce?.npcClasses)];
+  return {
+    retiredInUse: {
+      goods: usage.goods,
+      recipes: usage.recipes.filter((entry) => recipe(entry.recipeId)),
+      npcClasses: usage.npcClasses.filter((entry) => npcClass(entry.classId)),
+    },
+    alreadyRetiredInUse: {
+      recipes: usage.recipes.filter((entry) => !recipe(entry.recipeId)),
+      npcClasses: usage.npcClasses.filter((entry) => !npcClass(entry.classId)),
+    },
   };
 }
 

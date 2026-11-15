@@ -23,6 +23,12 @@ export interface CommandContext {
   config: GameConfig;
   /** Instant de la commande, lu sur l'horloge de la base (début de la transaction). */
   now: Date;
+  /**
+   * Configuration active à un instant, lue dans la transaction de la commande (aucune autre connexion) :
+   * `configAt(now)` est la version en vigueur à l'instant de la base, même si une clôture est passée
+   * depuis le chargement de `config`, fait avant la transaction à l'horloge de l'API (#234).
+   */
+  configAt(at: Date): Promise<GameConfig>;
   /** Rôle d'administration du compte, pour une commande d'administration ; `null` sinon. */
   adminRole: AdminRole | null;
   /** Réglages de l'API, tirés de son environnement au démarrage. */
@@ -36,8 +42,11 @@ export interface ApiSettings {
 /** Réglages par défaut : ceux de la production. */
 export const DEFAULT_SETTINGS: ApiSettings = { allowSelfReview: false };
 
-/** Charge la configuration active à un instant (`createConfigLoader(db).at`). */
-export type ConfigSource = (at: Date) => Promise<LoadedConfig>;
+/**
+ * Charge la configuration active à un instant (`createConfigLoader(db).at`), sur la connexion donnée
+ * (la transaction d'une commande), sinon sur le pool.
+ */
+export type ConfigSource = (at: Date, executor?: Db) => Promise<LoadedConfig>;
 
 export interface CommandDefinition<I = unknown, O = unknown> {
   name: string;
@@ -199,6 +208,7 @@ export async function executeCommand(
             emit: (event) => events.push(domainEventSchema.parse(event)),
             config,
             now,
+            configAt: async (at) => (await loadConfig(at, effects)).config,
             adminRole,
             settings,
           },

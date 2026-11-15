@@ -49,7 +49,8 @@ export const adminScheduleConfigInputSchema = z.strictObject({
   versionId: z.uuid(),
   /**
    * Confirmation explicite (#200) : la version retire des recettes encore exploitées par des sites, ou
-   * des classes de PNJ qui ont encore un état de population, et on la programme quand même.
+   * des classes de PNJ qui ont encore un état de population, et on la programme quand même. Ne vaut que
+   * pour celles que la version en vigueur connaît (#234).
    */
   confirmRetiredInUse: z.boolean().default(false),
 });
@@ -78,6 +79,7 @@ export const ADMIN_SCHEDULE_CONFIG_ERROR_CODES = [
    * La version retire une recette encore exploitée par un site ou une classe de PNJ qui a encore un état
    * de population (#200), sans `confirmRetiredInUse` : `fields` nomme chacune (`recipes.grow_wheat`,
    * `npcClasses.thetes`). Programmable après confirmation, contrairement à `CONFIG_GOOD_IN_USE`.
+   * Seules comptent celles que la version en vigueur connaît encore (#234).
    */
   'CONFIG_RETIRED_UNCONFIRMED',
 ] as const;
@@ -108,7 +110,8 @@ export const npcClassUsageSchema = z.object({
 export type NpcClassUsage = z.infer<typeof npcClassUsageSchema>;
 /**
  * Éléments qu'une version de configuration retire alors que l'état du monde les porte encore : un bien
- * en usage refuse la programmation, une recette ou une classe en usage demande sa confirmation.
+ * en usage refuse la programmation ; une recette ou une classe en usage que la version en vigueur
+ * connaît demande sa confirmation (#200, #234).
  */
 export const retiredUsageSchema = z.object({
   goods: z.array(goodUsageSchema),
@@ -116,6 +119,16 @@ export const retiredUsageSchema = z.object({
   npcClasses: z.array(npcClassUsageSchema),
 });
 export type RetiredUsage = z.infer<typeof retiredUsageSchema>;
+/**
+ * Recettes et classes encore en usage que la version ne connaît pas, mais que la version en vigueur ne
+ * connaît déjà plus (#234) : la version ne les retire pas, rien à confirmer ; Olympe les montre à titre
+ * d'information.
+ */
+export const alreadyRetiredUsageSchema = retiredUsageSchema.pick({
+  recipes: true,
+  npcClasses: true,
+});
+export type AlreadyRetiredUsage = z.infer<typeof alreadyRetiredUsageSchema>;
 
 /** Rôles qui rachètent le stock d'un bien à retirer (#229) : le super-administrateur seul. */
 export const BUYBACK_ROLES = ['super_admin'] as const satisfies AdminRole[];
@@ -305,7 +318,7 @@ export const configActivationScheduledSchema = z.strictObject({
     /**
      * Recettes et classes en usage que la version retire et dont la programmation a été confirmée (#200),
      * nommées comme dans `CONFIG_RETIRED_UNCONFIRMED` ; vide si elle n'en retire aucune. Absent des
-     * événements écrits avant #200.
+     * événements écrits avant #200. Depuis #234, seulement celles que la version en vigueur connaissait.
      */
     confirmedRetired: z.array(z.string()).optional(),
   }),

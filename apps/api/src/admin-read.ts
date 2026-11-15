@@ -4,7 +4,15 @@ import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
 import { readEconomy } from './admin-economy';
-import { commonIds, NO_IDS, readWorldUsage, retiredUsage, versionConfigIds } from './config-usage';
+import {
+  commonIds,
+  configIds,
+  NO_IDS,
+  readWorldUsage,
+  retiredUsage,
+  splitByInForce,
+  versionConfigIds,
+} from './config-usage';
 import type { Identity, TokenVerifier } from './auth';
 import type { RateLimiter } from './rate-limit';
 import { DEFAULT_SETTINGS, type ApiSettings, type ConfigSource } from './registry';
@@ -282,8 +290,9 @@ export function registerAdminReads(
       .orderBy('a.activate_at', 'desc')
       .orderBy('a.seq', 'desc')
       .execute();
-    const active = await sql<{ id: string | null }>`
-      select config.active_version_at(now()) as id`.execute(db);
+    // Un seul instant, celui de la base, pour la version signalée en vigueur et pour celle chargée plus bas.
+    const active = await sql<{ id: string | null; now: Date }>`
+      select config.active_version_at(now()) as id, now() as now`.execute(db);
     // Ce que chaque version retirerait de ce que le monde porte encore : dit avant la programmation (#191,
     // #200). La base ne lit que ce qu'une version au moins retire, réparti ensuite version par version.
     const ids = await versionConfigIds(db);
@@ -292,13 +301,17 @@ export function registerAdminReads(
     // prix de référence en vigueur. Mêmes totaux que ceux que `admin.buyBackGood` recompte et compare.
     // Sans configuration en vigueur lisible (`ConfigError`), aucun rachat n'est proposé : la commande, qui
     // la charge aussi, n'en ferait aucun. Au-delà des entiers sûrs non plus : elle refuserait d'arrondir.
-    const goods = await loadConfig(new Date()).then(
-      (loaded) => loaded.config.goods,
+    // Même configuration en vigueur que celle que la commande charge : une recette ou une classe qu'elle
+    // ne connaît déjà plus n'est pas à confirmer (#234). Illisible, tout est tenu pour retiré.
+    const inForce = await loadConfig(active.rows[0]?.now ?? new Date()).then(
+      (loaded) => loaded.config,
       (error: unknown) => {
-        if (error instanceof ConfigError) return [];
+        if (error instanceof ConfigError) return null;
         throw error;
       },
     );
+    const goods = inForce?.goods ?? [];
+    const inForceIds = inForce && configIds(inForce);
     const buybacks = usage.goods.flatMap(({ goodId, houses, quantity: units, openOrders }) => {
       const unitPriceOboles = goods.find((good) => good.id === goodId)?.referencePriceOboles;
       if (unitPriceOboles === undefined) return [];
@@ -319,7 +332,7 @@ export function registerAdminReads(
           note: version.note,
           createdBy: version.created_by,
           createdAt: version.created_at.toISOString(),
-          retiredInUse: retiredUsage(usage, ids.get(version.id) ?? NO_IDS),
+          ...splitByInForce(retiredUsage(usage, ids.get(version.id) ?? NO_IDS), inForceIds),
         })),
         activations: activations.map((activation) => ({
           id: activation.id,

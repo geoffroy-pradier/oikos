@@ -100,28 +100,29 @@ export async function scheduleActivation(
  * Charge la configuration active à un instant donné. Les versions étant immuables, elles sont mises en
  * cache sans expiration ; seul l'identifiant de la version active est relu à chaque appel.
  * Un tick appelle `at(instant du tick)` une seule fois et travaille sur l'objet figé rendu.
+ * `executor` : connexion où lire, la transaction de l'appelant s'il en tient une (sinon le pool).
  */
 export type ConfigLoader = ReturnType<typeof createConfigLoader>;
 
 export function createConfigLoader(db: Db) {
   const cache = new Map<string, LoadedConfig>();
 
-  async function at(instant: Date): Promise<LoadedConfig> {
+  async function at(instant: Date, executor: Db = db): Promise<LoadedConfig> {
     const active = await sql<{ id: string | null }>`
       select config.active_version_at(${instant}) as id
-    `.execute(db);
+    `.execute(executor);
     const id = active.rows[0]?.id;
     if (!id) throw new ConfigError(`No active configuration at ${instant.toISOString()}`);
 
-    return byId(id);
+    return byId(id, executor);
   }
 
   /** Charge une version précise, active ou non : sert à rejouer un tick avec la version qu'il a enregistrée. */
-  async function byId(id: string): Promise<LoadedConfig> {
+  async function byId(id: string, executor: Db = db): Promise<LoadedConfig> {
     const cached = cache.get(id);
     if (cached) return cached;
 
-    const row = await db
+    const row = await executor
       .selectFrom('config.versions')
       .select(['id', 'number', 'payload'])
       .where('id', '=', id)
@@ -135,7 +136,9 @@ export function createConfigLoader(db: Db) {
       );
     }
     const loaded = Object.freeze({ id: row.id, number: row.number, config: validation.config });
-    cache.set(id, loaded);
+    // Seule une lecture par le pool, donc validée, entre au cache : une version lue dans la transaction
+    // de l'appelant peut n'avoir jamais été validée (transaction annulée) et ne doit pas y rester.
+    if (executor === db) cache.set(id, loaded);
     return loaded;
   }
 

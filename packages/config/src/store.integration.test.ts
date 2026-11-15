@@ -119,6 +119,23 @@ describe('stockage versionné de la configuration', () => {
       expect((await loader.at(day(3, 12))).id).toBe(v1.id);
     }));
 
+  it('lit sur la connexion donnée : une commande charge la version en vigueur dans sa transaction', () =>
+    inRolledBackTransaction(async (trx) => {
+      const v1 = await publish(trx, 10);
+      await scheduleActivation(trx, v1.id, day(1));
+      // Chargeur du pool : il ne voit pas ce que la transaction n'a pas validé ; elle, si.
+      const loader = createConfigLoader(db);
+      expect((await loader.at(day(1, 12), trx)).id).toBe(v1.id);
+      // Sur une base neuve, rien n'est en vigueur en 2031 pour le pool : `ConfigError`, tenu pour nul.
+      const onPool = await loader.at(day(1, 12)).then(
+        (loaded) => loaded.id,
+        () => null,
+      );
+      expect(onPool).not.toBe(v1.id);
+      // Lue dans la transaction, la version n'entre pas au cache : elle pourrait n'être jamais validée.
+      expect(loader.cachedVersions()).toBe(onPool === null ? 0 : 1);
+    }));
+
   it('met les versions en cache : un tick relit la même instance figée', () =>
     inRolledBackTransaction(async (trx) => {
       const v1 = await publish(trx, 10);
