@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench:cash-flows": "psql \"${BENCH_DATABASE_URL:?BENCH_DATABASE_URL : base neuve dédiée à la mesure, voir bench/cash-flows.sql}\" -X -f bench/cash-flows.sql"
   },
   "dependencies": {
     "@oikos/contracts": "workspace:*",

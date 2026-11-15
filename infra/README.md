@@ -79,6 +79,24 @@ Retour arrière manuel : relancer, depuis l'interface de GitHub, l'exécution du
 
 Limites : le script n'a encore tourné sur aucun serveur réel ; le contrôle de santé ne porte que sur l'API (une réplique suffit à le valider, le moteur n'est pas contrôlé) ; un retour arrière automatique ne concerne que les conteneurs (les clients statiques, remplacés en dernier, ne le sont qu'après un contrôle de santé réussi) ; la production (étiquette de version, validation humaine) aura son propre flux.
 
+## Réglages de la base
+
+- **Pas de compilation à la volée pour les clients** (ticket 155, migration 40) : `alter role authenticated set jit = off` et de même pour `anon`. Les règles par ligne du grand livre donnent à la lecture des flux de trésorerie un coût estimé qui déclencherait la compilation, pour un surcoût de plusieurs fois la lecture (mesure : `BENCH_DATABASE_URL=… pnpm --filter @oikos/db bench:cash-flows`, dans une base neuve dédiée, migrations et seed appliqués ; jamais la base de développement partagée). Le rôle de service (API, moteur) garde le réglage de la base. L'image Postgres de Supabase n'embarque pas toujours la compilation à la volée (`select pg_jit_available()`) : le réglage est alors sans effet, et reste le bon si l'on change d'image ou d'hébergeur.
+- **PostgREST ne lit pas ces réglages à chaque requête** : il lit les réglages des rôles à son démarrage, puis à chaque rechargement de son cache de schéma ou de sa configuration selon sa version, et les applique aux requêtes. Le déclencheur d'événements de Supabase qui provoque ce rechargement ne réagit pas à `alter role`, et `deploy.sh` ne redémarre pas le conteneur `rest` : la migration 40 se termine donc par `notify pgrst, 'reload schema'` et `notify pgrst, 'reload config'`. Toute migration future qui change un réglage de rôle doit faire de même.
+- **Vérification, par PostgREST lui-même** (le catalogue, `select rolname, rolconfig from pg_roles where rolname in ('anon', 'authenticated')`, ne dit que ce que PostgREST appliquera après rechargement) : la fonction `public.client_jit()`, exécutable par `anon` et `authenticated` seulement (ni `service_role` ni `oikos_service`), rend le réglage de la requête en cours. Après chaque déploiement qui touche aux réglages des rôles :
+
+  ```sh
+  curl -s "$SUPABASE_URL/rest/v1/rpc/client_jit" -H "apikey: $ANON_KEY" -H 'Content-Type: application/json' -d '{}'
+  # attendu : "off" (même vérification avec le jeton d'un joueur dans Authorization: Bearer)
+  ```
+
+  Si la réponse est `"on"`, sur le serveur, avec les fichiers compose de `deploy.sh` (ou redémarrer le conteneur `rest`), puis vérifier à nouveau :
+
+  ```sh
+  docker compose -f /opt/oikos/supabase/docker/docker-compose.yml -f /opt/oikos/oikos/infra/docker-compose.oikos.yml \
+    exec db psql -U postgres -c "notify pgrst, 'reload schema'" -c "notify pgrst, 'reload config'"
+  ```
+
 ## État et limites
 
 - La surcouche est validée par `docker compose config` contre le compose officiel de Supabase, mais n'a pas encore tourné sur un serveur réel : la première installation en préproduction fait foi et corrigera ce document.
