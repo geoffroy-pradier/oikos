@@ -7,8 +7,8 @@ import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { COMMANDS, createApp } from './app';
 import { createTelemetry } from './telemetry';
-import { adminPublishConfig } from './commands/admin-config';
-import { executeCommand } from './registry';
+import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
+import { defineCommand, executeCommand } from './registry';
 import { unlimited } from './rate-limit';
 import {
   farCloseClock,
@@ -544,6 +544,45 @@ describe('admin.scheduleConfig', () => {
         body: { error: { code: 'CONFIG_VERSION_NOT_FOUND' } },
       },
     );
+  });
+
+  it('à moins d’une minute de l’échéance, la base refuse : CONFIG_ACTIVATION_TOO_LATE, journalisé sous la clé', async () => {
+    // La prochaine clôture réelle est rarement si proche : la commande est jouée avec une échéance à
+    // trente secondes, posée dans sa transaction comme le ferait une clôture imminente.
+    const published = await send(designer, 'admin.publishConfig', { config: SAME_CLOCK });
+    const versionId = published.body.data?.versionId ?? '';
+    const imminent = defineCommand({
+      ...adminScheduleConfig,
+      async handler({ trx }) {
+        await sql`insert into config.activations (version_id, activate_at)
+          values (${versionId}, clock_timestamp() + interval '30 seconds')`.execute(trx);
+        return { ok: true, data: { versionId, activateAt: new Date().toISOString() } };
+      },
+    });
+    const key = randomUUID();
+    const outcome = await executeCommand(
+      db,
+      imminent,
+      { userId: root, aal: 'aal2', idempotencyKey: key, input: { versionId } },
+      loadConfig,
+    );
+    expect(outcome).toMatchObject({
+      replayed: false,
+      response: { ok: false, error: { code: 'CONFIG_ACTIVATION_TOO_LATE' } },
+    });
+    const logged = await db
+      .selectFrom('game.command_log')
+      .select(['status', 'error_code'])
+      .where('user_id', '=', root)
+      .where('idempotency_key', '=', key)
+      .execute();
+    expect(logged).toEqual([{ status: 'rejected', error_code: 'CONFIG_ACTIVATION_TOO_LATE' }]);
+    const activations = await db
+      .selectFrom('config.activations')
+      .select('id')
+      .where('version_id', '=', versionId)
+      .execute();
+    expect(activations).toEqual([]);
   });
 });
 

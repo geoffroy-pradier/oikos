@@ -234,6 +234,7 @@
       "CONFIG_CLOCK_CHANGED": "L'horloge du monde ne peut pas changer : gardez la durée du tick, l'heure et le fuseau de clôture de la version en vigueur.",
       "CONFIG_ACTIVATION_NOT_FOUND": "Cette programmation n'existe plus.",
       "CONFIG_ACTIVATION_CANCELLED": "Cette programmation est déjà annulée.",
+      "CONFIG_ACTIVATION_TOO_LATE": "Trop tard pour programmer à cette clôture : elle tombe dans moins d'une minute. Réessayez après la clôture.",
       "CONFIG_ACTIVATION_PAST": "Trop tard pour annuler : l'échéance est passée ou tombe dans moins d'une minute. Programmez un retour arrière.",
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",

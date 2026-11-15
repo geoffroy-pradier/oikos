@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { nextDailyClose, type ClockSettings } from '@oikos/sim';
 import { expect, test } from '@playwright/test';
 import { enroll, expectNoHorizontalScroll, grantSuperAdmin, signIn } from './helpers';
 
@@ -33,6 +34,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
     goods: [{ id: string; elasticity: number }];
     recipes: [{ id: string; outputs: [{ goodId: string; quantity: number }] }];
     npcClasses: [{ id: string; basket: [{ goodId: string; quantityPerThousand: number }] }];
+    clock: ClockSettings;
   };
   const grant = config.starting.grantOboles;
   // Formulaire des biens, replié : déplié, une saisie y réécrit le texte, la comparaison la montre.
@@ -132,6 +134,13 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await expectNoHorizontalScroll(page);
 
   // Programmation à la prochaine clôture. On programme la version déjà en vigueur : sans effet sur le jeu.
+  // La base refuse de programmer à moins d'une minute de la clôture réelle (celle de la version en
+  // vigueur, ouverte ici) : si elle est si proche, on la laisse passer avant de programmer.
+  const untilClose = nextDailyClose(new Date(), config.clock).getTime() - Date.now();
+  if (untilClose < 90_000) {
+    test.setTimeout(test.info().timeout + untilClose + 5_000);
+    await page.waitForTimeout(untilClose + 2_000);
+  }
   await inForce
     .getByRole('button', { name: `Programmer la version ${number} à la prochaine clôture` })
     .click();
