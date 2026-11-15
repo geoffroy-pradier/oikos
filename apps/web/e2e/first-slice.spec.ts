@@ -88,6 +88,22 @@ test('tout récolter : une action au clavier, une commande par site, le résulta
   await expectNoHorizontalScroll(page);
 });
 
+test('onglet Cité : la population de la cité et la couverture de ses besoins, au clavier', async ({
+  page,
+}) => {
+  await foundHouse(page);
+  const nav = page.getByRole('navigation');
+  await nav.getByRole('link', { name: 'Cité' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Cité de Kallistè', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Population', level: 2 })).toBeVisible();
+  // Selon l'ordre des tests, un tick de demande a déjà créé la population de Kallistè ou non.
+  await expect(
+    page.getByText(/habitants? au total|La population de la cité n'est pas encore connue/),
+  ).toBeVisible();
+  await expectNoHorizontalScroll(page);
+});
+
 test('site à l’arrêt : annoncé avec son entretien, « à récolter » borné à l’arrêt, relancé au clavier', async ({
   page,
 }) => {

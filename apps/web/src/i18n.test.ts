@@ -53,6 +53,7 @@ describe('traductions', () => {
     const expected = [
       ...config.goods.map((good) => `goods.${good.id}`),
       ...config.recipes.map((recipe) => `recipes.${recipe.id}`),
+      ...config.npcClasses.map((npcClass) => `npcClasses.${npcClass.id}`),
       ...SITE_TYPES.map((type) => `siteTypes.${type}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
