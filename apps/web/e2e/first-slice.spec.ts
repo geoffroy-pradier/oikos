@@ -867,6 +867,61 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   expect(keys.map((key) => keys.indexOf(key))).toEqual([0, 0, 0, 3, 3, 5]);
 });
 
+test('acquisition abandonnée : avertie au retour sur l’onglet et à la réouverture, rappelée jusqu’à vérification', async ({
+  page,
+}) => {
+  await foundHouse(page);
+  await expect(page.getByText('1 sur 4')).toBeVisible();
+  const nav = page.getByRole('navigation');
+  const reopen = async () => {
+    await nav.getByRole('link', { name: 'Agora' }).click();
+    await nav.getByRole('link', { name: 'Maison' }).click();
+  };
+  const warning = page.getByText(/un nouvel essai serait un nouvel achat/);
+  // Le serveur achète, la réponse se perd, et les sites ne se relisent plus : l'écran ne voit rien.
+  await page.route('**/api/commands/site.acquire', async (route) => {
+    await route.fetch();
+    await route.abort();
+  });
+  const mySites = '**/rest/v1/my_sites*';
+  const cut = () =>
+    page.route(mySites, (route) => route.fulfill({ status: 500, json: { message: 'coupé' } }));
+  await cut();
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(said(page, 'alert').filter({ hasText: 'Une erreur est survenue' })).toBeVisible();
+  await expect(warning).toHaveCount(0);
+
+  // Retour sur l'onglet, lectures rétablies : un site de plus, l'écran prévient.
+  await page.unroute(mySites);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(warning).toBeVisible();
+  // Changement d'écran : l'avertissement est rappelé, jusqu'à ce que le joueur dise avoir vérifié.
+  await reopen();
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(warning).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.getByRole('button', { name: "J'ai vérifié la liste" }).focus();
+  await page.keyboard.press('Enter');
+  await expect(warning).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeFocused();
+  await reopen();
+  await expect(page.getByText('2 sur 4')).toBeVisible();
+  await expect(warning).toHaveCount(0);
+
+  // Même perte, écran quitté lectures coupées, rouvert lectures rétablies : l'écran prévient.
+  await cut();
+  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await expect(said(page, 'alert').filter({ hasText: 'Une erreur est survenue' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Agora' }).click();
+  await page.unroute(mySites);
+  await nav.getByRole('link', { name: 'Maison' }).click();
+  await expect(page.getByText('3 sur 4')).toBeVisible();
+  await expect(warning).toBeVisible();
+  // Deux achats, payés une fois chacun.
+  await expect(page.getByText(/^300 drachmes$/)).toBeVisible();
+});
+
 test('plusieurs sites : noms distincts, résultat affiché près de l’action, choix gardé après un refus', async ({
   page,
 }) => {

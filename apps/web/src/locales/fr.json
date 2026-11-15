@@ -70,6 +70,7 @@
     "acquireOptionPlain": "{{site}} : {{cost}}",
     "alreadyAcquired": "Ce site était déjà acquis : {{site}}, pour {{cost}}. Rien de plus n'a été payé.",
     "acquireUnanswered": "La réponse d'une acquisition s'est perdue, et un site de plus apparaît dans la liste. Vérifiez-la avant de réessayer : un nouvel essai serait un nouvel achat.",
+    "acquireChecked": "J'ai vérifié la liste",
     "inputs": "Intrants par cycle :",
     "inputLine": "{{quantity}} × {{good}} (stock libre : {{free}})",
     "harvestable": "À récolter : {{list}}.",
