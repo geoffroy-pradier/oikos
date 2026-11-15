@@ -102,7 +102,44 @@
         "purchaseCostOboles": 6000,
         "dailyUpkeepOboles": 0
       }
-    ]
+    ],
+    "routes": [
+      {
+        "cities": ["kalliste", "elaia"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      },
+      {
+        "cities": ["kalliste", "ampelos"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      },
+      {
+        "cities": ["kalliste", "halos"],
+        "hours": 6,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      },
+      {
+        "cities": ["elaia", "ampelos"],
+        "hours": 6,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      },
+      {
+        "cities": ["elaia", "halos"],
+        "hours": 8,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      },
+      {
+        "cities": ["ampelos", "halos"],
+        "hours": 5,
+        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+      }
+    ],
+    "portDues": {
+      "byClassOboles": { "coaster": 0, "round_ship": 0 },
+      "burnShareBps": 5000,
+      "cityCoefficientBps": { "kalliste": 10000, "elaia": 10000, "ampelos": 10000, "halos": 10000 }
+    }
   },
   "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
   "goods": [

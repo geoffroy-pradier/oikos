@@ -190,6 +190,7 @@ describe('ship.acquire', () => {
     const after = appWithConfig((config) => ({
       ...config,
       ships: {
+        ...config.ships,
         classes: config.ships.classes.map((shipClass) =>
           shipClass.id === 'coaster' ? { ...shipClass, purchaseCostOboles: cheaper } : shipClass,
         ),
@@ -303,7 +304,10 @@ describe('ship.acquire', () => {
       body: { error: { code: 'SHIP_CLASS_NOT_FOUND' } },
     });
     expect((await buy(player.user, 'Galère', 1)).status).toBe(400);
-    const beforeTransport = appWithConfig((config) => ({ ...config, ships: { classes: [] } }));
+    const beforeTransport = appWithConfig((config) => ({
+      ...config,
+      ships: { ...config.ships, classes: [], routes: [] },
+    }));
     expect(await buy(player.user, 'coaster', COASTER, undefined, beforeTransport)).toMatchObject({
       status: 404,
       body: { error: { code: 'SHIP_CLASS_NOT_FOUND' } },

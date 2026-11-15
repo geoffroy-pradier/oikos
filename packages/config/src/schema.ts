@@ -239,18 +239,72 @@ export const shipClassSchema = z.strictObject({
   dailyUpkeepOboles: upkeepDailyObolesSchema,
 });
 
-/**
- * Valeurs lues pour les versions publiées avant le transport : aucune classe, donc aucun navire à
- * acheter. FIGÉES, pour la même raison que `DEFAULT_SITES`.
- */
-export const DEFAULT_SHIPS = deepFreeze({ classes: [] as z.infer<typeof shipClassSchema>[] });
+/** Montant d'un tarif du transport, en oboles. Nul : rien à payer. */
+const shipFeeObolesSchema = z.number().int().min(0).max(1_000_000_000);
 
 /**
- * Navires des maisons (4.6). Lue par les joueurs (vue `public.ship_rules`) : n'y ranger aucun paramètre
- * qui doive rester caché.
+ * Une route maritime entre deux cités (4.6, #252), parcourue dans les deux sens. Lue par les joueurs
+ * (vue `public.ship_rules`).
+ */
+export const shipRouteSchema = z.strictObject({
+  /** Les deux cités reliées (identifiants de `cities`), chacune avec un port. */
+  cities: z.tuple([id, id]),
+  /** Durée du trajet pour un navire de vitesse 10 000, en heures réelles. */
+  hours: z.number().int().min(2).max(20),
+  /**
+   * Provisions d'un voyage par classe de navire (identifiant de `ships.classes`), en oboles, détruites au
+   * départ (puits `sink_voyage_provisions`). Vide : aucune provision ; sinon, chaque classe a les siennes.
+   */
+  provisionsOboles: z.record(id, shipFeeObolesSchema),
+});
+
+/**
+ * Valeurs lues pour les versions publiées avant le droit de port : rien à payer. FIGÉES, pour la même
+ * raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_PORT_DUES = deepFreeze({
+  byClassOboles: {} as Record<string, number>,
+  // Inerte : sans forfait, le droit est nul et sa part détruite aussi. 10 000 plutôt que 0 pour qu'une
+  // version qui ajouterait un forfait sans dire la part ne verse rien au trésor par défaut.
+  burnShareBps: 10_000,
+  cityCoefficientBps: {} as Record<string, number>,
+});
+
+/**
+ * Droit de port de la cité d'arrivée (5.6, #252) : un forfait par classe de navire, payé au départ,
+ * modulé par la cité. Dû : ⌈byClassOboles[classe] × coefficient de la cité ÷ 10 000⌉ ; sa part détruite
+ * (puits `sink_port_dues`) est ⌈dû × burnShareBps ÷ 10 000⌉, le reste va au trésor de la cité d'arrivée.
+ * Lue par les joueurs (vue `public.ship_rules`).
+ */
+export const portDuesSchema = z.strictObject({
+  /** Forfait par classe de navire, en oboles. Vide : aucun droit ; sinon, chaque classe a le sien. */
+  byClassOboles: z.record(id, shipFeeObolesSchema),
+  /** Part du droit détruite, en points de base ; le reste va au trésor de la cité d'arrivée. */
+  burnShareBps: z.number().int().min(0).max(10_000),
+  /** Coefficient de chaque cité (identifiant de `cities`), en points de base, de ×0 à ×10. Absent : ×1. */
+  cityCoefficientBps: z.record(id, z.number().int().min(0).max(100_000)),
+});
+
+/**
+ * Valeurs lues pour les versions publiées avant le transport : aucune classe, donc aucun navire à
+ * acheter, ni route, ni droit de port. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_SHIPS = deepFreeze({
+  classes: [] as z.infer<typeof shipClassSchema>[],
+  routes: [] as z.infer<typeof shipRouteSchema>[],
+  portDues: DEFAULT_PORT_DUES,
+});
+
+/**
+ * Navires des maisons et leurs voyages (4.6). Lue par les joueurs (vue `public.ship_rules`) : n'y ranger
+ * aucun paramètre qui doive rester caché.
  */
 export const shipsSchema = z.strictObject({
   classes: z.array(shipClassSchema).max(20),
+  /** Absentes d'une version publiée avant les voyages : aucune route, aucun départ possible. */
+  routes: z.array(shipRouteSchema).max(100).default([]),
+  /** Absent d'une version publiée avant les voyages : aucun droit de port. */
+  portDues: portDuesSchema.default(DEFAULT_PORT_DUES),
 });
 
 /**
@@ -545,6 +599,41 @@ export function cityDailyWageOboles(config: Pick<GameConfig, 'staff'>, cityId: s
   return Object.hasOwn(wages, cityId) ? (wages[cityId] ?? 0) : 0;
 }
 
+/** Route entre deux cités (identifiants de `cities`), dans un sens ou dans l'autre ; `undefined` sans route. */
+export function shipRoute(
+  config: Pick<GameConfig, 'ships'>,
+  fromCityId: string,
+  toCityId: string,
+): ShipRoute | undefined {
+  return config.ships.routes.find(
+    ({ cities: [a, b] }) =>
+      (a === fromCityId && b === toCityId) || (a === toCityId && b === fromCityId),
+  );
+}
+
+/** Une table de tarifs par identifiant : vide, rien à payer ; un identifiant absent ne paie rien non plus. */
+const feeOf = (fees: Record<string, number>, key: string) =>
+  Object.hasOwn(fees, key) ? (fees[key] ?? 0) : 0;
+
+/** Provisions d'un voyage sur la route pour la classe de navire, en oboles (nulles sans tarif). */
+export function routeProvisionsOboles(route: ShipRoute, classId: string): number {
+  return feeOf(route.provisionsOboles, classId);
+}
+
+/** Forfait du droit de port de la classe, en oboles, avant le coefficient de la cité (nul sans tarif). */
+export function portDuesBaseOboles(config: Pick<GameConfig, 'ships'>, classId: string): number {
+  return feeOf(config.ships.portDues.byClassOboles, classId);
+}
+
+/** Coefficient du droit de port de la cité, en points de base : 10 000 (×1) quand elle n'en a pas. */
+export function cityPortDuesCoefficientBps(
+  config: Pick<GameConfig, 'ships'>,
+  cityId: string,
+): number {
+  const coefficients = config.ships.portDues.cityCoefficientBps;
+  return Object.hasOwn(coefficients, cityId) ? (coefficients[cityId] ?? 10_000) : 10_000;
+}
+
 /** Recette du premier site d'une maison fondée dans la cité : la sienne, sinon la commune. */
 export function cityStartingRecipeId(
   config: Pick<GameConfig, 'cities' | 'starting'>,
@@ -615,6 +704,41 @@ export const gameConfigSchema = z
     for (const duplicate of duplicates(config.ships.classes.map((row) => row.id))) {
       issue(['ships', 'classes'], `duplicate id "${duplicate}"`);
     }
+    // Tarifs du transport : des classes connues, et toutes dès qu'une l'est (une classe oubliée
+    // voyagerait gratuitement) ; des routes entre deux cités à port, sans doublon dans un sens ou l'autre.
+    const shipClassIds = config.ships.classes.map((row) => row.id);
+    const portCities = new Map(config.cities.map((city) => [city.id, cityHasPort(city)]));
+    const byClass = (fees: Record<string, number>, path: (string | number)[]) => {
+      for (const classId of Object.keys(fees))
+        if (!shipClassIds.includes(classId)) issue(path, `unknown ship class "${classId}"`);
+      if (Object.keys(fees).length > 0)
+        for (const classId of shipClassIds)
+          if (!Object.hasOwn(fees, classId)) issue(path, `missing ship class "${classId}"`);
+    };
+    byClass(config.ships.portDues.byClassOboles, ['ships', 'portDues', 'byClassOboles']);
+    // Le coefficient module le droit de port d'une arrivée : seule une cité à port en a un.
+    for (const cityId of Object.keys(config.ships.portDues.cityCoefficientBps)) {
+      const hasPort = portCities.get(cityId);
+      if (hasPort === undefined)
+        issue(['ships', 'portDues', 'cityCoefficientBps', cityId], `unknown city "${cityId}"`);
+      else if (!hasPort)
+        issue(['ships', 'portDues', 'cityCoefficientBps', cityId], `city "${cityId}" has no port`);
+    }
+    const routeKeys = config.ships.routes.map(({ cities }) => [...cities].sort().join(' '));
+    for (const duplicate of duplicates(routeKeys))
+      issue(['ships', 'routes'], `duplicate route "${duplicate}"`);
+    config.ships.routes.forEach((route, index) => {
+      if (route.cities[0] === route.cities[1])
+        issue(['ships', 'routes', index, 'cities'], 'a route links two different cities');
+      route.cities.forEach((cityId, position) => {
+        const hasPort = portCities.get(cityId);
+        if (hasPort === undefined)
+          issue(['ships', 'routes', index, 'cities', position], `unknown city "${cityId}"`);
+        else if (!hasPort)
+          issue(['ships', 'routes', index, 'cities', position], `city "${cityId}" has no port`);
+      });
+      byClass(route.provisionsOboles, ['ships', 'routes', index, 'provisionsOboles']);
+    });
     config.recipes.forEach((recipe, index) => {
       const consumed = new Set(recipe.inputs.map((entry) => entry.goodId));
       recipe.outputs.forEach((entry, position) => {
@@ -757,4 +881,5 @@ export type Good = z.infer<typeof goodSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type ShipClass = z.infer<typeof shipClassSchema>;
 export type Politics = z.infer<typeof politicsSchema>;
+export type ShipRoute = z.infer<typeof shipRouteSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;

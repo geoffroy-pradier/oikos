@@ -159,6 +159,21 @@ describe('jeu de valeurs initial', () => {
     });
   });
 
+  it('une route entre chaque paire de cités, sans provisions ni droit de port au départ (#252)', () => {
+    const cities = config.cities.map((city) => city.id);
+    const pairs = cities.flatMap((a, i) => cities.slice(i + 1).map((b) => [a, b].sort().join(' ')));
+    expect(
+      config.ships.routes.map(({ cities: pair }) => [...pair].sort().join(' ')).sort(),
+    ).toEqual(pairs.sort());
+    for (const route of config.ships.routes)
+      expect(Object.values(route.provisionsOboles).every((oboles) => oboles === 0)).toBe(true);
+    expect(Object.values(config.ships.portDues.byClassOboles).every((oboles) => oboles === 0)).toBe(
+      true,
+    );
+    for (const city of config.cities)
+      expect(config.ships.portDues.cityCoefficientBps[city.id]).toBe(10_000);
+  });
+
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {
     const city = config.cities[0];
     const wheatPerTick = config.npcClasses.reduce((total, npcClass) => {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   aiMonthlyCapMicroEuros,
+  cityPortDuesCoefficientBps,
+  portDuesBaseOboles,
+  routeProvisionsOboles,
+  shipRoute,
   DEFAULT_AI,
   cityHasPort,
   cityStartingRecipeId,
@@ -106,6 +110,8 @@ const FIXTURE: GameConfig = {
         dailyUpkeepOboles: 15,
       },
     ],
+    routes: [],
+    portDues: { byClassOboles: { coaster: 4 }, burnShareBps: 5_000, cityCoefficientBps: {} },
   },
   staff: { dailyWageOboles: { kalliste: 3 } },
   politics: {
@@ -950,7 +956,7 @@ describe('navires (4.6)', () => {
   const coaster = () => at(clone().ships.classes, 0);
   const withClass = (patch: Record<string, unknown>) => ({
     ...clone(),
-    ships: { classes: [{ ...coaster(), ...patch }] },
+    ships: { ...clone().ships, classes: [{ ...coaster(), ...patch }] },
   });
 
   it('une version publiée avant le transport reste lisible, sans aucune classe de navire', () => {
@@ -958,8 +964,13 @@ describe('navires (4.6)', () => {
     delete older.ships;
     const result = validateConfig(older);
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(result.config.ships).toEqual({ classes: [] });
+    expect(result.config.ships).toEqual({
+      classes: [],
+      routes: [],
+      portDues: { byClassOboles: {}, burnShareBps: 10_000, cityCoefficientBps: {} },
+    });
     expect(Object.isFrozen(DEFAULT_SHIPS.classes)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SHIPS.portDues.byClassOboles)).toBe(true);
   });
 
   it('une classe : capacité, vitesse et prix entiers positifs bornés, entretien entier positif ou nul', () => {
@@ -983,16 +994,18 @@ describe('navires (4.6)', () => {
     const withoutPrice: Partial<ReturnType<typeof coaster>> = coaster();
     delete withoutPrice.purchaseCostOboles;
     expect(
-      errorsOf({ ...clone(), ships: { classes: [withoutPrice] } }).map((e) => e.split(':')[0]),
+      errorsOf({ ...clone(), ships: { ...clone().ships, classes: [withoutPrice] } }).map(
+        (e) => e.split(':')[0],
+      ),
     ).toEqual(['ships.classes[0].purchaseCostOboles']);
   });
 
   it('identifiant sans doublon, section sans autre clé, au plus vingt classes', () => {
-    expect(errorsOf({ ...clone(), ships: { classes: [coaster(), coaster()] } })).toEqual([
-      'ships.classes: duplicate id "coaster"',
-    ]);
     expect(
-      errorsOf({ ...clone(), ships: { classes: [], routes: [] } }).map((e) => e.split(':')[0]),
+      errorsOf({ ...clone(), ships: { ...clone().ships, classes: [coaster(), coaster()] } }),
+    ).toEqual(['ships.classes: duplicate id "coaster"']);
+    expect(
+      errorsOf({ ...clone(), ships: { classes: [], escorts: [] } }).map((e) => e.split(':')[0]),
     ).toEqual(['ships']);
     const many = Array.from({ length: 21 }, (_, n) => ({ ...coaster(), id: `ship_${n}` }));
     expect(errorsOf({ ...clone(), ships: { classes: many } }).map((e) => e.split(':')[0])).toEqual([
@@ -1053,5 +1066,144 @@ describe('citoyenneté et archonte (3, 6.2)', () => {
     const missing: Record<string, unknown> = politics();
     delete missing['archon'];
     expect(fieldsOf(missing)).toEqual(['politics.archon']);
+  });
+});
+
+describe('routes et droit de port (4.6, 5.6)', () => {
+  /** Deux classes, trois cités à port et une sans port. */
+  const archipelago = (ships: Partial<GameConfig['ships']>): unknown => {
+    const config = clone();
+    const city = (id: string, hasPort = true) => ({ ...at(config.cities, 0), id, hasPort });
+    const round = { ...at(config.ships.classes, 0), id: 'round_ship' };
+    return {
+      ...config,
+      staff: { dailyWageOboles: {} },
+      cities: [...config.cities, city('elaia'), city('halos'), city('oros', false)],
+      ships: {
+        ...config.ships,
+        classes: [...config.ships.classes, round],
+        portDues: dues({}),
+        ...ships,
+      },
+    };
+  };
+  const route = (cities: [string, string], hours = 4, provisionsOboles = {}) => ({
+    cities,
+    hours,
+    provisionsOboles,
+  });
+  const dues = (patch: Record<string, unknown>) => ({
+    byClassOboles: {},
+    burnShareBps: 5_000,
+    cityCoefficientBps: {},
+    ...patch,
+  });
+
+  it('une version publiée avec les navires mais avant les voyages se lit sans route ni droit de port', () => {
+    const result = validateConfig({ ...clone(), ships: { classes: clone().ships.classes } });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.ships.routes).toEqual([]);
+    expect(portDuesBaseOboles(result.config, 'coaster')).toBe(0);
+    expect(cityPortDuesCoefficientBps(result.config, 'kalliste')).toBe(10_000);
+  });
+
+  it('une route relie deux cités à port, dans les deux sens, en 2 à 20 heures entières', () => {
+    const valid = archipelago({
+      routes: [route(['kalliste', 'elaia'], 2), route(['halos', 'kalliste'], 20)],
+    });
+    const result = validateConfig(valid);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(shipRoute(result.config, 'elaia', 'kalliste')?.hours).toBe(2);
+    expect(shipRoute(result.config, 'kalliste', 'halos')?.hours).toBe(20);
+    expect(shipRoute(result.config, 'elaia', 'halos')).toBeUndefined();
+    for (const hours of [1, 21, 4.5])
+      expect(
+        errorsOf(archipelago({ routes: [route(['kalliste', 'elaia'], hours)] })).map(
+          (e) => e.split(':')[0],
+        ),
+      ).toEqual(['ships.routes[0].hours']);
+    expect(errorsOf(archipelago({ routes: [route(['kalliste', 'kalliste'])] }))).toEqual([
+      'ships.routes[0].cities: a route links two different cities',
+    ]);
+    expect(errorsOf(archipelago({ routes: [route(['kalliste', 'delos'])] }))).toEqual([
+      'ships.routes[0].cities[1]: unknown city "delos"',
+    ]);
+    expect(errorsOf(archipelago({ routes: [route(['oros', 'kalliste'])] }))).toEqual([
+      'ships.routes[0].cities[0]: city "oros" has no port',
+    ]);
+    expect(
+      errorsOf(
+        archipelago({ routes: [route(['kalliste', 'elaia']), route(['elaia', 'kalliste'])] }),
+      ),
+    ).toEqual(['ships.routes: duplicate route "elaia kalliste"']);
+  });
+
+  it('provisions : aucune, ou un montant entier positif ou nul pour chaque classe connue', () => {
+    const withProvisions = (provisionsOboles: Record<string, number>) =>
+      errorsOf(archipelago({ routes: [route(['kalliste', 'elaia'], 4, provisionsOboles)] }));
+    expect(withProvisions({})).toEqual([]);
+    expect(withProvisions({ coaster: 0, round_ship: 12 })).toEqual([]);
+    expect(withProvisions({ coaster: 3 })).toEqual([
+      'ships.routes[0].provisionsOboles: missing ship class "round_ship"',
+    ]);
+    expect(withProvisions({ coaster: 3, round_ship: 4, trireme: 1 })).toEqual([
+      'ships.routes[0].provisionsOboles: unknown ship class "trireme"',
+    ]);
+    // Une classe nommée comme une propriété héritée des objets n'est pas « déjà là ».
+    expect(withProvisions({ coaster: 3, constructor: 4 })).toEqual([
+      'ships.routes[0].provisionsOboles: unknown ship class "constructor"',
+      'ships.routes[0].provisionsOboles: missing ship class "round_ship"',
+    ]);
+    for (const value of [-1, 0.5, 1_000_000_001])
+      expect(withProvisions({ coaster: value, round_ship: 0 }).map((e) => e.split(':')[0])).toEqual(
+        ['ships.routes[0].provisionsOboles.coaster'],
+      );
+    const result = validateConfig(
+      archipelago({ routes: [route(['kalliste', 'elaia'], 4, { coaster: 7, round_ship: 9 })] }),
+    );
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    const kallisteElaia = shipRoute(result.config, 'kalliste', 'elaia');
+    if (!kallisteElaia) throw new Error('route missing');
+    expect(routeProvisionsOboles(kallisteElaia, 'round_ship')).toBe(9);
+    expect(routeProvisionsOboles(kallisteElaia, 'trireme')).toBe(0);
+  });
+
+  it('droit de port : forfait de chaque classe connue, part détruite et coefficient bornés', () => {
+    const withDues = (patch: Record<string, unknown>) =>
+      errorsOf(archipelago({ portDues: dues(patch) }));
+    expect(withDues({ byClassOboles: { coaster: 0, round_ship: 40 } })).toEqual([]);
+    expect(withDues({ byClassOboles: { round_ship: 40 } })).toEqual([
+      'ships.portDues.byClassOboles: missing ship class "coaster"',
+    ]);
+    expect(withDues({ cityCoefficientBps: { kalliste: 0, elaia: 100_000 } })).toEqual([]);
+    expect(withDues({ cityCoefficientBps: { delos: 10_000 } })).toEqual([
+      'ships.portDues.cityCoefficientBps.delos: unknown city "delos"',
+    ]);
+    expect(withDues({ cityCoefficientBps: { oros: 10_000 } })).toEqual([
+      'ships.portDues.cityCoefficientBps.oros: city "oros" has no port',
+    ]);
+    for (const patch of [
+      { burnShareBps: -1 },
+      { burnShareBps: 10_001 },
+      { cityCoefficientBps: { kalliste: 100_001 } },
+      { cityCoefficientBps: { kalliste: 1.5 } },
+      { byClassOboles: { coaster: -1, round_ship: 0 } },
+    ])
+      expect(withDues(patch)).toHaveLength(1);
+    expect(withDues({ perArrival: true }).map((e) => e.split(':')[0])).toEqual(['ships.portDues']);
+    const result = validateConfig(
+      archipelago({
+        portDues: dues({
+          byClassOboles: { coaster: 40, round_ship: 90 },
+          cityCoefficientBps: { elaia: 12_500 },
+        }),
+      }),
+    );
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(portDuesBaseOboles(result.config, 'round_ship')).toBe(90);
+    expect(cityPortDuesCoefficientBps(result.config, 'elaia')).toBe(12_500);
+    // Cité sans coefficient : ×1.
+    expect(cityPortDuesCoefficientBps(result.config, 'halos')).toBe(10_000);
+    expect(cityPortDuesCoefficientBps(result.config, 'constructor')).toBe(10_000);
   });
 });
