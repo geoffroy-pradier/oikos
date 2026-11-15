@@ -342,7 +342,8 @@ describe('Vigie', () => {
             .executeTakeFirstOrThrow();
           await scheduleActivation(trx, version.id);
           const loader = createConfigLoader(trx);
-          const loaded = await loader.at(new Date()).then(
+          const instant = new Date();
+          const loaded = await loader.at(instant).then(
             () => null,
             (error: unknown) => error,
           );
@@ -359,10 +360,11 @@ describe('Vigie', () => {
             select exists (
               select 1 from config.activations other, config.activations own
               where own.version_id = ${version.id} and other.version_id <> ${version.id}
-                and other.activate_at > own.activate_at and other.activate_at <= clock_timestamp()
+                and (other.activate_at, other.seq) > (own.activate_at, own.seq)
+                and other.activate_at <= greatest(clock_timestamp(), ${instant})
             ) as displaced`.execute(trx);
           if (rows[0]?.displaced) throw new Displaced();
-          expect(loaded).toBeInstanceOf(Error);
+          expect(loaded).toBeInstanceOf(ConfigError);
           expect((loaded as Error).message).toMatch(/is invalid: /);
           expect(reply.status).toBe(200);
           throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
@@ -370,7 +372,7 @@ describe('Vigie', () => {
         .then(
           () => expect.unreachable(),
           (error: unknown) => {
-            if (error instanceof Displaced) return null;
+            if (error instanceof Displaced) return 'displaced' as const;
             if (!(error instanceof Rollback)) throw error;
             return JSON.parse(error.message) as Record<string, unknown>;
           },
@@ -378,7 +380,7 @@ describe('Vigie', () => {
     const clockWhenInForce = async (payload: unknown) => {
       for (let tries = 0; tries < 5; tries++) {
         const clock = await attempt(payload);
-        if (clock) return clock;
+        if (clock !== 'displaced') return clock;
       }
       throw new Error(
         'une activation concurrente a pris la place de la version cinq fois de suite',
