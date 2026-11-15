@@ -31,6 +31,7 @@ export function UpdateBanner({ onUpdate, onLater }: { onUpdate: () => void; onLa
 export function UpdatePrompt() {
   const controller = useRef<ReturnType<typeof createUpdateController> | null>(null);
   const stopChecks = useRef<(() => void) | null>(null);
+  const unmounted = useRef(false);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -39,11 +40,18 @@ export function UpdatePrompt() {
     // Un onglet resté ouvert longtemps apprend aussi qu'une version est parue, sans rechargement.
     onRegisteredSW: (_url, registration) => {
       stopChecks.current?.();
-      if (registration)
+      // Un enregistrement qui aboutit après le démontage ne lance rien que personne n'arrêterait.
+      if (registration && !unmounted.current)
         stopChecks.current = scheduleUpdateChecks(registration, CLIENT_SETTINGS.updateCheckMinutes);
     },
   });
-  useEffect(() => () => stopChecks.current?.(), []);
+  useEffect(() => {
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+      stopChecks.current?.();
+    };
+  }, []);
   controller.current ??= createUpdateController({
     reload: () => window.location.reload(),
     offer: () => setNeedRefresh(true),
