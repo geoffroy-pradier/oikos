@@ -34,13 +34,18 @@ l'API, elle, refuse une programmation non confirmée (`CONFIG_RETIRED_UNCONFIRME
 drapeau `confirmRetiredInUse` de `admin.scheduleConfig`). La case vaut pour la liste lue à l'écran, et pour elle seule : si la liste relue nomme d'autres recettes ou classes, elle se décoche.
 L'API, elle, ne compare pas la liste confirmée à celle que l'écran a montrée : le drapeau confirme tout ce que la version retire et qui est en usage au moment où elle contrôle, et l'événement `ConfigActivationScheduled` garde cette liste (`confirmedRetired`, vide si la version ne retire rien en usage) pour l'audit.
 Seule la version qui retire une recette ou une classe en fait confirmer l'usage (décision de #234) : la confirmation n'est exigée que pour celles que la version en vigueur connaît encore.
-Celles que la version en vigueur ne connaît déjà plus et que l'état du monde porte encore (une classe garde son état, même à zéro habitant, et un site oublié sa recette : 5.2, 4.2) sont dites à part sous la version, à titre d'information, sans case à cocher : la version ne les retire pas, elle ne les rend pas.
-La comparaison se fait avec la version en vigueur au moment de la programmation, celle que l'API charge pour la commande et que la lecture des paramètres charge de même.
+Celles que la version en vigueur ne connaît déjà plus et que l'état du monde porte encore (une classe garde son état, même à zéro habitant, et un site oublié sa recette : 5.2, 4.2) ne sont à confirmer pour aucune version qui les laisse absentes : elle ne les retire pas, elle ne les rend pas.
+Olympe les dit une seule fois, à titre d'information et sans case à cocher, en tête de la liste des versions.
+La comparaison se fait avec la version en vigueur à l'instant de la base où la commande s'exécute, lue dans sa transaction, et pas à l'instant où l'API a reçu la commande : une clôture passée entre les deux compte.
+La lecture des paramètres la charge de même, à l'instant de la base où elle désigne la version en vigueur.
 C'est elle que la clôture visée remplacera : on ne programme que la prochaine clôture, et la dernière version programmée pour une clôture l'emporte sur les précédentes.
 Une version programmée plus tôt pour la même clôture n'entre donc pas en compte : elle n'entrera pas en vigueur si celle-ci tient, et une annulation les annule toutes deux (15.4).
 Sans version en vigueur lisible, la lecture tient pour retiré par la version tout ce qui est en usage, à confirmer ; l'API, elle, ne programme rien sans configuration chargée.
 `confirmedRetired` ne garde que ce qui a été confirmé, jamais ce qui était déjà retiré.
 La confirmation ne lève jamais le refus d'un bien. Le contrôle se fait à la programmation, sur l'état du monde de cet instant, pas à l'activation : un site qui adopte la recette, ou une classe dont l'état naît, entre la programmation et la clôture n'est ni signalé ni confirmé.
+Une fois la version en vigueur, un tel élément est rangé avec ce qu'elle a déjà retiré : aucune version suivante ne le fait confirmer.
+De même, une version entrée en vigueur sans confirmation (la configuration initiale, activée immédiatement, ou une version programmée avant #200) ne fait plus confirmer ce qu'elle a retiré.
+À l'inverse, une recette ou une classe réintroduite par une version entrée en vigueur se fait confirmer de nouveau par la version qui la retire ensuite.
 Rien n'est migré ni dédommagé (recettes et classes).
 Un bien retiré encore détenu se reprend par un rachat (5.1, décision de #229).
 Sous l'avertissement d'un tel bien, si la configuration en vigueur le connaît encore, le super-administrateur, et lui seul, voit un bouton « Racheter le stock de … ».
@@ -138,7 +143,7 @@ avec plusieurs mondes, ceux qui sont hors de la cible sont rappelés en tête de
 un net négatif est affiché avec son signe. Un « Actualiser » en échec laisse les chiffres précédents à l'écran et dit qu'ils sont anciens.
 L'écran se lit à 360 px, même avec une clé de compte inconnue et longue.
 Le module Paramètres liste les versions de configuration, signale celle en vigueur et les programmations à venir, dit sous chaque version les biens qu'elle retire et que le monde porte encore (par bien, tous mondes confondus : nombre de maisons, unités en stock, ordres ouverts, oboles sous séquestre ;
-l'avertissement est lu avec le bouton de programmation, que l'API refusera), puis les recettes et les classes de PNJ qu'elle retire et que le monde porte encore, dont la programmation se confirme par une case à cocher, et à part, sans case, celles que la version en vigueur a déjà retirées (15.2), ouvre une version sous forme de texte JSON, affiche ses différences avec la version en vigueur (listes comparées par identifiant), enregistre le texte modifié comme nouvelle version, programme une version à la prochaine clôture et annule, après confirmation, une programmation à venir (l'écran prévient que toutes celles de la même clôture le seront) ;
+l'avertissement est lu avec le bouton de programmation, que l'API refusera), puis les recettes et les classes de PNJ qu'elle retire et que le monde porte encore, dont la programmation se confirme par une case à cocher, et une seule fois, en tête de la liste, sans case, celles que la version en vigueur a déjà retirées (15.2), ouvre une version sous forme de texte JSON, affiche ses différences avec la version en vigueur (listes comparées par identifiant), enregistre le texte modifié comme nouvelle version, programme une version à la prochaine clôture et annule, après confirmation, une programmation à venir (l'écran prévient que toutes celles de la même clôture le seront) ;
 l'observateur consulte et compare sans pouvoir modifier. Une action renvoyée après une panne réutilise sa clé d'idempotence : elle n'est pas exécutée deux fois.
 
 Rachat du stock d'un bien à retirer (5.1, décision de #229).

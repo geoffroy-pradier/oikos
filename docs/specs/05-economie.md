@@ -72,7 +72,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Ensuite la configuration ne fixe plus la population, elle ne donne que la référence de ses bornes ;
   la demande et le budget des PNJ se calculent sur la population courante.
   Une classe retirée de la configuration garde son état, que plus rien ne lit ni ne fait évoluer ;
-  Olympe le dit avant la programmation et la fait confirmer, une fois, par la version qui la retire (15.2).
+  Olympe le dit avant la programmation et la fait confirmer par la version qui la retire alors que la version en vigueur la contient encore, pas par les suivantes, qui la laissent absente ;
+  réintroduite puis retirée de nouveau, elle se fait confirmer de nouveau (15.2).
   Réintroduite par une version ultérieure (décision de #200), elle reprend cet état : la demande et le budget de ses PNJ se calculent dès le premier tick sur la population gardée, et la première clôture qui suit un jour mesuré la ramène dans les bornes de la nouvelle configuration.
   Repartir de la population initiale demanderait d'effacer un état du monde, ce que le service de jeu ne peut pas faire, ou de relire l'historique des versions pour savoir que la classe a été retirée ;
   une cité absente de la configuration n'a pas d'état. La population n'évolue qu'à la clôture : la base refuse une évolution hors de la transaction qui enregistre la clôture de son jour (`daily_closes`), donc sur une clôture déjà enregistrée comme sur un jour sans clôture, une seconde évolution pour le même jour de jeu et tout retour en arrière ;
