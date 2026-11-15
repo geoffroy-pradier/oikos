@@ -74,9 +74,10 @@ it(
     }
 
     // Bornes de la création de monnaie pour le blé de Kallistè, calculées à la main à partir de la
-    // configuration initiale et non par le code testé. Budget par tick : thètes 6 × 764 × 144/611
-    // = 1 080,4 ; zeugites 2,5 × 942 × 72/753,7 = 224,97 ; soit 1 305 oboles. Prix de réserve : 3 × 6.
-    const [budget, reserve] = [1305, 18];
+    // configuration initiale (#78) et non par le code testé. Budget par tick, revenu × population ×
+    // part du blé dans la dépense de référence : thètes 6 × 70 × 25,2/56,338 = 187,87 ; zeugites
+    // 2,5 × 73 × 12,6/58,04 = 39,62 ; soit 227 oboles. Prix de réserve : 3 × 6.
+    const [budget, reserve] = [227, 18];
 
     const rng = createRng('simulation-30-jours');
     // Indices pris dans l'espace des ticks de la configuration active (et non d'une heure) : le monde
@@ -134,8 +135,11 @@ it(
     }
     // La simulation a réellement fait tourner l'économie, jusqu'à buter sur le budget.
     expect(units).toBeGreaterThan(DAYS * 500);
-    // Le budget est atteint exactement au moins une fois : la borne est réellement mise à l'épreuve.
-    expect(busiest).toBe(budget);
+    // Un tick au moins dépense à moins d'une unité au prix de réserve près du budget (227 est premier :
+    // l'égalité exacte n'est pas atteignable). Ce n'est pas la preuve que le budget plafonne : une demande
+    // non plafonnée peut aussi tomber dans cet intervalle. La borne elle-même est `spent <= budget`, à
+    // chaque tick, ci-dessus.
+    expect(busiest).toBeGreaterThan(budget - reserve);
 
     const accounts = await db
       .selectFrom('game.accounts')

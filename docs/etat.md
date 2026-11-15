@@ -303,33 +303,18 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 À décider ou à faire par un humain :
 
 - **#33, préproduction** : serveur, nom de domaine, secrets. Bloque tout déploiement.
-- **Critère de sortie de la phase 1** (`docs/specs/17-feuille-de-route.md`) : à confirmer par un humain
-  quand les tickets seront fermés ; il demande des joueurs réels.
+- **Critère de sortie de la phase 1** : retenu et vérifié par le code (`docs/specs/17-feuille-de-route.md`), par délégation du propriétaire ;
+  il reste à l'éprouver avec des joueurs réels, une fois le serveur en place.
 - **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les
   supprimer. À nettoyer à la main.
-- **Équilibrage (#78)** : le banc d'intégration (`apps/api/src/balance/`, `balance.integration.test.ts`)
-  joue 7 jours de mise en route puis 30 jours mesurés avec des maisons scriptées. Il publie la masse
-  monétaire, le coût du panier, la couverture et la part de chaque puits, et rapproche chaque compte
-  système de flux comptés à part. Avec la configuration initiale telle quelle, les mesures ne tiennent
-  pas la cible :
-  - les 23 maisons scriptées ne couvrent qu'une petite part des besoins vitaux, et la population émigre :
-    de 8 794 à 5 375 habitants sur les 30 jours mesurés (10 000 au départ) ;
-  - les prix montent tant que tout se vend : le coût du panier des dix derniers jours dépasse de 20 % celui des
-    dix premiers, vraisemblablement parce que la règle de prix du banc relève de 1 % par jour un prix dont tout s'est vendu ;
-  - l'entretien fait 46 % des puits, la part détruite de la taxe 32 % et l'acquisition de sites 22 %.
-
-  Avant d'ajuster la configuration, un humain doit décider :
-  - la taille de la cité prototype au regard du nombre de joueurs attendu ;
-  - la consommation par habitant face à la production d'un site ;
-  - le taux de croissance et le seuil de couverture ;
-  - la composition du panier et la cible d'inflation (décision humaine, sans ticket depuis la fermeture de #181).
-
-  Les bornes du test (inflation de 0 à 3 %, besoins couverts) ne seront écrites qu'ensuite.
-- **Indice des prix** (décision humaine, sans ticket ; relevé par #181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
+- **Équilibrage (#78)** : décidé par délégation du propriétaire et décrit en 5.5 (demande de fusion #242).
+  Le banc joue 10 jours de mise en route puis 30 jours mesurés avec 28 maisons scriptées, et ses bornes sont écrites : coût du panier de 0 à 2 % sur vingt jours, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
+  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; à traiter en phase 2.
+- **Indice des prix** (relevé par #181) : panier d'un jour de consommation de référence et cible de 0 à 3 %, retenus par délégation avec le calibrage de #78 ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
   Le serveur devra aussi garder `max_prepared_transactions = 0` (ADR 0003), ce que rien ne vérifie.
-- **#229, stock d'un bien à retirer** : rachat, conversion ou correction tracée par Olympe, à décider.
+- **#229, stock d'un bien à retirer** : décidé (rachat au prix de référence par un robinet dédié), en cours.
 
 Défauts connus :
 

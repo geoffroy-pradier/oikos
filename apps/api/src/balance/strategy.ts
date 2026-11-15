@@ -33,7 +33,9 @@ const SOLD_SHARE_RESOLD = 0.5;
 /** Jours d'intrants gardés en stock, hors vente. */
 const INPUT_DAYS_KEPT = 2;
 /** Jours d'entretien de tous ses sites qu'une maison garde après l'acquisition d'un site. */
-const UPKEEP_DAYS_KEPT = 7;
+const UPKEEP_DAYS_KEPT = 3;
+/** Jours d'entretien de tous ses sites qu'une maison garde hors séquestre quand elle achète ses intrants. */
+const UPKEEP_DAYS_BEFORE_BUYING = 2;
 
 /** Entretien quotidien d'un site, en oboles. */
 const upkeepOf = (recipeId: string) =>
@@ -43,33 +45,58 @@ const upkeepOf = (recipeId: string) =>
  * Maisons scriptées : un portefeuille de sites, acquis dans l'ordre dès que la trésorerie couvre le
  * site et `UPKEEP_DAYS_KEPT` jours d'entretien de tous ses sites. Le premier site est le champ de blé
  * de la fondation (un site ne change pas de type). Le négociant ne produit que son champ et revend ce
- * qu'il achète bon marché. Nombres de maisons choisis à la main, en première approche : ils ne couvrent
- * pas la demande de la cité, dont les besoins restent couverts bien en deçà du plein (mesures du banc).
+ * qu'il achète bon marché. Nombres de maisons choisis à la main pour que leur production couvre, à peu
+ * près et un peu au-dessus, la demande de référence de la cité (#78) : une communauté plausible de 28
+ * maisons, pas une stratégie optimale.
  */
 export const ROLES: Role[] = [
   { name: 'meunier', count: 2, sites: ['grow_wheat', 'mill_flour', 'mill_flour', 'mill_flour'] },
   {
-    name: 'boulanger',
-    count: 4,
-    sites: ['grow_wheat', 'burn_charcoal', 'bake_bread', 'bake_bread'],
+    name: 'meunier-boulanger',
+    count: 1,
+    sites: ['grow_wheat', 'mill_flour', 'mill_flour', 'bake_bread'],
   },
-  { name: 'bûcheron', count: 2, sites: ['grow_wheat', 'fell_wood', 'fell_wood', 'fell_wood'] },
-  { name: 'pêcheur', count: 1, sites: ['grow_wheat', 'catch_fish', 'catch_fish', 'catch_fish'] },
-  { name: 'saunier', count: 1, sites: ['grow_wheat', 'catch_fish', 'catch_fish', 'rake_salt'] },
+  { name: 'boulanger', count: 3, sites: ['grow_wheat', 'bake_bread', 'bake_bread', 'bake_bread'] },
+  {
+    name: 'boulanger-presseur',
+    count: 1,
+    sites: ['grow_wheat', 'bake_bread', 'press_oil', 'grow_olives'],
+  },
+  {
+    name: 'charbonnier',
+    count: 1,
+    sites: ['grow_wheat', 'burn_charcoal', 'burn_charcoal', 'burn_charcoal'],
+  },
+  {
+    name: 'charbonnier-bûcheron',
+    count: 1,
+    sites: ['grow_wheat', 'burn_charcoal', 'burn_charcoal', 'fell_wood'],
+  },
+  { name: 'bûcheron', count: 1, sites: ['grow_wheat', 'fell_wood', 'fell_wood', 'fell_wood'] },
+  { name: 'pêcheur', count: 2, sites: ['grow_wheat', 'catch_fish', 'catch_fish', 'catch_fish'] },
+  { name: 'saunier', count: 1, sites: ['grow_wheat', 'catch_fish', 'rake_salt', 'rake_salt'] },
   {
     name: 'oléiculteur',
-    count: 3,
+    count: 4,
     sites: ['grow_wheat', 'grow_olives', 'grow_olives', 'press_oil'],
   },
-  { name: 'pressoir', count: 1, sites: ['grow_wheat', 'grow_olives', 'press_oil'] },
   {
     name: 'vigneron',
-    count: 5,
+    count: 6,
     sites: ['grow_wheat', 'grow_grapes', 'ferment_wine', 'ferment_wine'],
   },
-  { name: 'vigneron modeste', count: 1, sites: ['grow_wheat', 'grow_grapes', 'ferment_wine'] },
-  { name: 'potier', count: 1, sites: ['grow_wheat', 'dig_clay', 'throw_amphorae'] },
-  { name: 'tisserand', count: 1, sites: ['grow_wheat', 'shear_wool', 'weave_cloth', 'rake_salt'] },
+  {
+    name: 'caviste',
+    count: 1,
+    sites: ['grow_wheat', 'ferment_wine', 'ferment_wine', 'ferment_wine'],
+  },
+  {
+    name: 'potier',
+    count: 1,
+    sites: ['grow_wheat', 'throw_amphorae', 'dig_clay', 'throw_amphorae'],
+  },
+  { name: 'tisserand', count: 1, sites: ['grow_wheat', 'shear_wool', 'shear_wool', 'weave_cloth'] },
+  { name: 'tisserand-caviste', count: 1, sites: ['grow_wheat', 'weave_cloth', 'ferment_wine'] },
   { name: 'négociant', count: 1, sites: ['grow_wheat'], trader: true },
 ];
 
@@ -133,12 +160,44 @@ function assertAdmitted(reply: Reply, shortOfFundsAllowed: boolean, command: str
 }
 
 /**
- * Matinée d'une maison : récolte, ordres de la veille repris, prix ajustés, achats, ventes, sites. Rend
- * le coût, d'après la configuration, du site acquis ce matin (0 sans acquisition).
+ * Site suivant du portefeuille, s'il laisse `UPKEEP_DAYS_KEPT` jours d'entretien de tous les sites. Rend le
+ * coût, d'après la configuration, du site acquis (0 sans acquisition).
+ */
+async function acquireNext(city: City, house: Seller, now: Date) {
+  const next = house.role.sites[house.sites.length];
+  if (next) {
+    const type = recipeOf(next).siteType;
+    const cost = config.sites.acquisitionCostOboles[type] ?? 0;
+    const reserve =
+      UPKEEP_DAYS_KEPT *
+      [...house.sites.map((site) => site.recipeId), next].reduce(
+        (sum, id) => sum + upkeepOf(id),
+        0,
+      );
+    if ((await cash(city, house.houseId)) >= cost + reserve) {
+      const acquired = await city.send(house.user, 'site.acquire', { recipeId: next });
+      assertAdmitted(acquired, true, 'site.acquire');
+      if (acquired.ok) {
+        // Daté par la base de l'instant réel, le site est ramené à son instant de jeu : l'entretien est
+        // dû dès la clôture suivante.
+        await backdate(city, acquired.data.siteId, now);
+        house.sites.push({ id: acquired.data.siteId, recipeId: next, createdAt: now, since: now });
+        return cost;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Matinée d'une maison : récolte, ordres de la veille repris, site suivant, achats, prix ajustés, ventes.
+ * Rend le coût, d'après la configuration, du site acquis ce matin (0 sans acquisition).
  */
 export async function morning(city: City, house: Seller, now: Date) {
   await harvest(city, house, now);
   const { listed, sold } = await cancelOpen(city, house);
+  // Acquisition d'abord : un achat d'intrants mettrait sous séquestre la monnaie du site suivant.
+  const acquired = await acquireNext(city, house, now);
   // Intrants : une journée de production, achetée au plus à `INPUT_BID` fois le prix de référence.
   const needs = new Map<string, number>();
   for (const site of house.sites) {
@@ -149,9 +208,15 @@ export async function morning(city: City, house: Seller, now: Date) {
         (needs.get(stack.goodId) ?? 0) + stack.quantity * Math.floor(1440 / recipe.durationMinutes),
       );
   }
+  // La monnaie sous séquestre ne paie pas l'entretien : une maison en garde `UPKEEP_DAYS_BEFORE_BUYING`
+  // jours hors de ses achats.
+  const reserve =
+    UPKEEP_DAYS_BEFORE_BUYING * house.sites.reduce((sum, site) => sum + upkeepOf(site.recipeId), 0);
   for (const [goodId, need] of needs) {
     const missing = need - (await free(city, house.houseId, goodId));
-    await place(city, house, goodId, 'buy', referenceOf(goodId) * INPUT_BID, missing);
+    const price = Math.max(1, Math.round(referenceOf(goodId) * INPUT_BID));
+    const affordable = Math.floor(((await cash(city, house.houseId)) - reserve) / price);
+    await place(city, house, goodId, 'buy', price, Math.min(missing, affordable));
   }
   if (house.role.trader)
     // Le négociant achète ce qui se vend sous `TRADER_BID` du prix de référence, dans la limite de sa
@@ -161,6 +226,7 @@ export async function morning(city: City, house: Seller, now: Date) {
       const price = Math.floor(good.referencePriceOboles * TRADER_BID);
       if (price > 0) await place(city, house, good.id, 'buy', price, Math.floor(budget / price));
     }
+  const distressed = (await cash(city, house.houseId)) < reserve;
   // Ventes : tout le stock libre, moins `INPUT_DAYS_KEPT` jours d'intrants, au prix demandé du jour.
   const stocks = await city.db
     .selectFrom('game.inventories')
@@ -186,7 +252,8 @@ export async function morning(city: City, house: Seller, now: Date) {
           : sales < expected
             ? previous * (1 - ASK_STEP)
             : previous;
-    const price = Math.max(reference * ASK_FLOOR, ask);
+    // À court de trésorerie, une maison vend au plancher pour payer son entretien.
+    const price = distressed ? reference * ASK_FLOOR : Math.max(reference * ASK_FLOOR, ask);
     house.asks.set(stock.good_id, price);
     const quantity =
       Number(stock.quantity) -
@@ -195,28 +262,5 @@ export async function morning(city: City, house: Seller, now: Date) {
     if (await place(city, house, stock.good_id, 'sell', price, quantity))
       house.listed.set(stock.good_id, quantity);
   }
-  // Site suivant du portefeuille, s'il laisse `UPKEEP_DAYS_KEPT` jours d'entretien de tous les sites.
-  const next = house.role.sites[house.sites.length];
-  if (next) {
-    const type = recipeOf(next).siteType;
-    const cost = config.sites.acquisitionCostOboles[type] ?? 0;
-    const reserve =
-      UPKEEP_DAYS_KEPT *
-      [...house.sites.map((site) => site.recipeId), next].reduce(
-        (sum, id) => sum + upkeepOf(id),
-        0,
-      );
-    if ((await cash(city, house.houseId)) >= cost + reserve) {
-      const acquired = await city.send(house.user, 'site.acquire', { recipeId: next });
-      assertAdmitted(acquired, true, 'site.acquire');
-      if (acquired.ok) {
-        // Daté par la base de l'instant réel, le site est ramené à son instant de jeu : l'entretien est
-        // dû dès la clôture suivante.
-        await backdate(city, acquired.data.siteId, now);
-        house.sites.push({ id: acquired.data.siteId, recipeId: next, createdAt: now, since: now });
-        return cost;
-      }
-    }
-  }
-  return 0;
+  return acquired;
 }

@@ -78,7 +78,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Un seul rapport par classe, lisible par le joueur et vérifiable à la main ;
   un minimum ou une moyenne des rapports par bien demanderait une mesure par bien et par classe, et ferait émigrer une classe pour un seul bien manquant, si mineur soit-il dans son panier.
   Conséquences assumées : un bien vital acheté au-delà du besoin (prix sous la référence) compense en partie un autre qui manque, et un bien pèse à proportion de ses unités, pas de sa valeur.
-  À l'inverse, un bien vendu cher est moins acheté, donc moins servi : avec les valeurs initiales (élasticités de 0,3 à 0,5, seuil à 90 %), des biens vitaux vendus durablement de 25 à 40 % au-dessus de leur prix de référence font passer la couverture sous le seuil.
+  À l'inverse, un bien vendu cher est moins acheté, donc moins servi : avec les valeurs initiales (élasticités de 0,3 à 0,5, seuil à 100 % depuis le calibrage de #78, 5.5), un bien vital vendu durablement au-dessus de son prix de référence fait passer la couverture sous le seuil, à moins qu'un autre bien vital, vendu sous le sien et acheté au-delà du besoin, ne compense.
   La cherté fait émigrer comme la pénurie ; c'est un réglage de l'équilibrage.
   Chaque tick de demande ajoute ces deux quantités, en unités réelles, à la mesure du jour de jeu de son instant de jeu (table `npc_vital_coverage` : une ligne par cité, classe et jour de jeu, non exposée aux clients).
   La clôture qui ouvre un jour lit la mesure de la veille et ne remet rien à zéro : ni un tick ni une clôture rejoués ne comptent deux fois.
@@ -209,7 +209,7 @@ une écriture datée après la fin de ce jour ne compte que dans les cumuls.
 La lecture se fait dans un seul instantané du grand livre, sans agrégat intermédiaire : masse, cumuls et jours se recoupent toujours.
 
 Indice des prix et inflation, dans la première version : l'indice suit le coût d'un panier de référence, quantités fixes de biens (paramètre du back-office `priceIndex.basket` ;
-au départ, la consommation de référence par tick de la population initiale de Kallistè pour ses six biens principaux, soit 97 % de sa dépense de référence).
+au départ, la consommation de référence d'un jour de la population initiale de Kallistè pour ses six biens principaux, soit 97 % de sa dépense de référence).
 Le prix d'un bien sur une fenêtre est le prix moyen de ses échanges dans toutes les cités du monde, pondéré par les volumes (somme des montants ÷ somme des unités des chandeliers de la série en cours dont la période commence dans la fenêtre : à son début ou après, strictement avant sa fin ;
 un chandelier daté au-delà de l'horloge de la base n'est jamais compté), sans arrondi intermédiaire.
 L'indice est le coût du panier rapporté à son coût aux prix de référence de la configuration en vigueur, en points de base (10 000 : prix de référence).
@@ -270,6 +270,21 @@ Une relance validée alors qu'une clôture est déjà commencée n'en dispense p
 Impayé volontaire : il est admis et ne coûte que l'arrêt du site (une mise en sommeil). Éviter le prélèvement de la clôture puis relancer coûte le même entretien : il n'y a aucun gain à l'esquiver.
 
 Règle de conception : l'inflation mensuelle cible est comprise entre 0 % et 3 %. Trois leviers l'ajustent sans patch : taux directeur, coefficient d'entretien, revenu des classes PNJ.
+
+Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprouvé par le banc d'équilibrage (`apps/api/src/balance.integration.test.ts`) :
+
+- **Taille.** Kallistè garde ses 10 000 habitants, mais leur consommation de référence (Q0) et le revenu de leurs classes sont divisés par 15 par rapport aux premières valeurs.
+  La cité est ainsi approvisionnée par une trentaine de maisons de quatre sites, la communauté attendue pour le prototype et l'alpha, et non par plus de 300.
+  Une cité plus peuplée de joueurs se recalibre par une version de configuration, sans patch.
+- **Blé.** Chaque maison commence par un champ de blé (40 blés par cycle de quatre heures).
+  Pour que ces champs trouvent preneur sans faire chuter le prix, les thètes et les zeugites mangent plus de blé que de pain (Q0 de 4,2 et 2,1 pour mille par tick).
+  Leur revenu suit, à 1,25 fois leur dépense de référence comme pour les autres classes.
+- **Population.** Le seuil de couverture est de 100 % : une classe ne croît que si ses besoins vitaux sont entièrement couverts, et émigre dès qu'ils ne le sont plus.
+  À ce seuil, la population se règle sur l'offre au prix de référence, au lieu de s'installer sur une pénurie qui ferait monter les prix.
+  Croissance de 0,2 % par jour au plus, émigration de 1 % par jour au plus, bornes de 50 % à 200 % de la population initiale : la cité suit l'offre lentement, sans à-coup de prix.
+- **Mesure.** Avec 28 maisons scriptées, dont l'offre couvre d'environ 100 à 110 % de la demande de référence de chaque bien vital (un peu moins pour le pain, que la farine limite), le banc tient sur 30 jours une hausse du coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours, et des besoins vitaux couverts à 98 % au moins pour chaque classe.
+- **Limite connue.** La masse monétaire croît d'environ 60 000 oboles par jour : les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
+  Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
 
 ## 5.6 Fiscalité
 

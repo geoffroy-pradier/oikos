@@ -74,14 +74,17 @@ describe('jeu de valeurs initial', () => {
   });
 
   it('le panier de l’indice des prix est la consommation de référence de Kallistè (5.5)', () => {
-    // Six biens principaux, à la consommation par tick de la population initiale arrondie à l'unité,
+    // Six biens principaux, à la consommation d'un jour de la population initiale arrondie à l'unité
+    // (#78 : par tick, elle n'est plus que d'une dizaine d'unités, trop peu pour pondérer le panier),
     // soit 97 % de la dépense de référence de la cité. Garde-fou : un panier vide rendrait l'indice inconnu.
     const city = config.cities.find((candidate) => candidate.id === 'kalliste');
     if (!city) throw new Error('kalliste missing');
     const consumed = new Map<string, number>();
     for (const npcClass of config.npcClasses) {
       for (const { goodId, quantityPerThousand } of npcClass.basket) {
-        const eaten = (quantityPerThousand * (city.population[npcClass.id] ?? 0)) / 1000;
+        const ticksPerDay = 1440 / config.clock.tickMinutes;
+        const eaten =
+          (quantityPerThousand * (city.population[npcClass.id] ?? 0) * ticksPerDay) / 1000;
         consumed.set(goodId, (consumed.get(goodId) ?? 0) + eaten);
       }
     }
