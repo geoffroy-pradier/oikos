@@ -8,7 +8,7 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
 - **Ticks globaux** pour ce qui dépend de tous : demande des PNJ, prix de référence, population, météo, Hybris.
 - **Appariement des ordres** à l'insertion, dans la transaction, avec un verrou par couple cité et bien.
 - **Aléa déterministe** : chaque tick tire d'une graine enregistrée, ce qui permet de rejouer et d'auditer un résultat contesté.
-- **Configuration figée par tick** : un tick lit une version de configuration et une seule.
+- **Configuration figée par tick** : un tick lit une version de configuration et une seule. Une activation de configuration ne s'antidate pas : sa date de création est l'heure de la base, posée par une garde quel que soit l'appelant, et la base refuse une échéance antérieure (`activations_not_backdated`) ; la version vue par un tick ou une clôture déjà joués ne change donc jamais.
 
 ## Budgets de performance
 
