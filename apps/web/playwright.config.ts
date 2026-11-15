@@ -28,7 +28,9 @@ export default defineConfig({
   // laisse actif (`onboarding.spec.ts`).
   use: {
     baseURL: 'http://127.0.0.1:5173',
-    trace: 'off',
+    // Une trace n'est enregistrée qu'au nouvel essai d'un test qui a échoué en `ci` : un test instable
+    // laisse ainsi de quoi établir sa cause, sans payer l'enregistrement sur chaque test.
+    trace: 'on-first-retry',
     locale: 'fr-FR',
     serviceWorkers: 'block',
   },
