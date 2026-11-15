@@ -240,6 +240,9 @@
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
     "tableForm": {
+      "addLine": "Ajouter une ligne ({{list}} de {{row}})",
+      "removeLine": "Retirer {{name}} ({{list}} de {{row}})",
+      "lineRemoved": "{{name}} retiré ({{list}} de {{row}}), pas encore enregistré.",
       "none": "Aucune.",
       "choose": "— choisir —"
     },
@@ -257,7 +260,7 @@
       }
     },
     "recipesForm": {
-      "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une recette. Un intrant ou un extrant s'y ajoute ou s'y retire encore. Une recette retirée que la dotation de départ désigne encore est refusée à l'enregistrement.",
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une recette, d'un intrant ou d'un extrant. Une recette retirée que la dotation de départ désigne encore est refusée à l'enregistrement.",
       "add": "Ajouter une recette",
       "remove": "Retirer {{name}}",
       "removed": "Recette {{name}} retirée du texte, pas encore enregistrée.",
@@ -274,7 +277,7 @@
       }
     },
     "npcClassesForm": {
-      "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une classe. Une ligne de panier s'y ajoute ou s'y retire encore. Une classe ajoutée ou retirée doit l'être aussi dans la population de chaque cité, sinon l'enregistrement est refusé.",
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une classe ou d'une ligne de panier. Une classe ajoutée ou retirée doit l'être aussi dans la population de chaque cité, sinon l'enregistrement est refusé.",
       "add": "Ajouter une classe",
       "remove": "Retirer {{name}}",
       "removed": "Classe {{name}} retirée du texte, pas encore enregistrée.",

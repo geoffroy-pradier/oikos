@@ -179,3 +179,12 @@ it.each([
       ]);
   },
 );
+
+it('ajout et retrait dans une liste imbriquée : une liste absente est créée en dernier, les autres lignes ne bougent pas', () => {
+  const bake = { id: 'bake', inputs: [{ goodId: 'wheat' }], z: 2 };
+  const next = form.updateLines([bake, { id: 'gather' }], 1, 'inputs', addRow);
+  expect(next).toEqual([bake, { id: 'gather', inputs: [{}] }]);
+  const emptied = form.updateLines(next, 0, 'inputs', (lines) => removeRow(lines, 0));
+  expect(JSON.stringify(emptied[0])).toBe(JSON.stringify({ id: 'bake', inputs: [], z: 2 }));
+  expect(emptied[1]).toBe(next[1]);
+});

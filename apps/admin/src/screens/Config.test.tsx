@@ -4,6 +4,7 @@ import i18next from 'i18next';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initI18n } from '../i18n';
 import { held } from '../test/fakes';
+import type { Row } from '../goods-form';
 import { Config } from './Config';
 
 const api = vi.hoisted(() => ({ adminGet: vi.fn(), adminCommand: vi.fn() }));
@@ -950,7 +951,8 @@ it('formulaire des recettes : champs et lignes d’intrants et d’extrants se l
   expect([types.value, types.textContent?.startsWith('mine')]).toEqual(['', true]);
   for (const side of ['intrants', 'extrants']) {
     const group = within(screen.getByRole('group', { name: 'élément 2' }));
-    expect(group.getByRole('group', { name: side }).textContent).toBe(`${side}Aucun.`);
+    const list = within(group.getByRole('group', { name: side }));
+    expect([list.getByText('Aucun.').tagName, list.queryAllByRole('group')]).toEqual(['P', []]);
   }
   type(types, 'field');
   expect(recipesOf(editor)[1]).toEqual({ siteType: 'field', outputs: [] });
@@ -1033,7 +1035,11 @@ it('formulaire des classes : champs et panier se lisent du texte et le réécriv
   expect([...options].map((option) => option.value)).toEqual(['wheat', 'bread']);
   // Sans identifiant : nommée par son rang ; sans panier, la liste est dite vide.
   const second = within(screen.getByRole('group', { name: 'élément 2' }));
-  expect(second.getByRole('group', { name: 'panier' }).textContent).toBe('panierAucune ligne.');
+  const lines = within(second.getByRole('group', { name: 'panier' }));
+  expect([lines.getByText('Aucune ligne.').tagName, lines.queryAllByRole('group')]).toEqual([
+    'P',
+    [],
+  ]);
   type(cell('élément 2', 'identifiant'), 'rich');
   expect(classesOf(editor)[1]).toEqual({ need: 'x', id: 'rich' });
   fireEvent.click(button('Ouvrir la version 2'));
@@ -1119,3 +1125,47 @@ it('chaque formulaire est un groupe nommé : deux lignes « élément 2 » se di
   expect(within(classes).getByText('Aucune.')).toBeTruthy();
   expect(within(screen.getByRole('group', { name: 'Recettes' })).queryByText('Aucune.')).toBeNull();
 });
+
+it.each([
+  ['recipes', BAKE, 'bake', 'extrants', 'outputs', 'bread', 'extrants de bake'],
+  ['npcClasses', PLEBS, 'plebs', 'panier', 'basket', 'bread', 'panier de plebs'],
+])(
+  'formulaire %s : une ligne imbriquée s’ajoute vide et se retire, annoncée, foyer comme pour les lignes',
+  async (table, first, name, side, key, good, where) => {
+    const editor = await openVersion(1);
+    const text = JSON.stringify({ [table]: [first, { id: 'other' }], goods: GOODS }, null, 2);
+    type(editor, text);
+    const lines = (row: number) =>
+      (JSON.parse(editor.value) as Record<string, Record<string, unknown>[]>)[table]?.[row]?.[key];
+    const list = () =>
+      within(within(screen.getByRole('group', { name })).getByRole('group', { name: side }));
+    fireEvent.click(button(`Ajouter une ligne (${where})`));
+    expect(lines(0)).toEqual([...((first as unknown as Record<string, unknown[]>)[key] ?? []), {}]);
+    const added = within(list().getByRole('group', { name: 'élément 2' }));
+    expect(document.activeElement).toBe(added.getByLabelText('bien'));
+    // Retrait au clavier, Entrée tenue : une seule ligne, le foyer va à la précédente.
+    button(`Retirer élément 2 (${where})`).focus();
+    enter();
+    enter(true);
+    expect(editor.value).toBe(text);
+    const announce = document.getElementById(`${table}-announce`)?.textContent;
+    expect(announce).toBe(`élément 2 retiré (${where}), pas encore enregistré.`);
+    expect(document.activeElement).toBe(
+      within(list().getByRole('group', { name: good })).getByLabelText('bien'),
+    );
+    // La seule ligne retirée : le foyer va à l'ajout de ligne ; la liste vide reste écrite, l'API jugera.
+    fireEvent.click(button(`Retirer ${good} (${where})`));
+    expect([lines(0), document.activeElement]).toEqual([
+      [],
+      button(`Ajouter une ligne (${where})`),
+    ]);
+    // Une ligne ajoutée à une recette ou une classe sans liste la crée, en dernier.
+    fireEvent.click(button(`Ajouter une ligne (${side} de other)`));
+    expect(
+      Object.entries((JSON.parse(editor.value) as Record<string, Row[]>)[table]?.[1] ?? {}),
+    ).toEqual([
+      ['id', 'other'],
+      [key, [{}]],
+    ]);
+  },
+);

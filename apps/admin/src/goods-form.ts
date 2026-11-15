@@ -124,3 +124,14 @@ export const addRow = (rows: Row[]): Row[] => [...rows, {}];
 /** Lignes après le retrait d'une ligne, désignée par son rang : les autres sont gardées, dans leur ordre. */
 export const removeRow = (rows: Row[], row: number): Row[] =>
   rows.filter((_, index) => index !== row);
+
+/** Lignes après un changement de la liste `list` de l'une d'elles ; une liste absente est créée en dernier. */
+export const updateLines = (
+  rows: Row[],
+  row: number,
+  list: string,
+  change: (lines: Row[]) => Row[],
+) =>
+  rows.map((entry, index) =>
+    index === row ? withRows(entry, list, change(readRows(entry, list) ?? [])) : entry,
+  );
