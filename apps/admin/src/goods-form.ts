@@ -21,21 +21,21 @@ export function readGoods(config: unknown): Row[] | null {
   return isRecord(config) && Array.isArray(goods) && goods.every(isRecord) ? goods : null;
 }
 
-// Écriture décimale, exposant compris : tout nombre que `shown` affiche se relit tel quel.
-const NUMBER = /^-?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i;
+// Entier : des chiffres seuls, sans zéro en tête. Décimal : exposant compris, comme `shown` l'affiche.
+const NUMBER = { integer: /^-?(0|[1-9]\d*)$/, decimal: /^-?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i };
 
 /**
  * Valeur JSON d'une saisie, sans contrôle : l'API fait foi. `undefined` : champ vidé, la clé est retirée.
  * Ce qui ne se lit pas comme un nombre reste un texte, que l'API refusera en nommant le champ : jamais de
- * valeur devinée. La virgule décimale ne vaut que pour un champ décimal (dans un prix entier, « 1,000 »
- * ne devient ni 1 ni 1 000). Un entier au-delà de 2^53 ou un nombre infini reste aussi un texte : JSON
- * en ferait un autre nombre, ou `null`.
+ * valeur devinée. Un champ entier n'admet que des chiffres : dans un prix, « 1.000 », « 1,000 », « 1e3 »,
+ * « 5. » et « 007 » restent des textes, aucun ne devient 1, 1 000, 5 ou 7. La virgule décimale ne vaut que
+ * pour un champ décimal. Au-delà de 2^53 ou infini, JSON écrirait un autre nombre ou `null` : texte aussi.
  */
 export function typed(kind: GoodField['kind'], input: string): unknown {
   if (input === '') return undefined;
   if (kind === 'text' || kind === 'choice') return input;
   const literal = (kind === 'decimal' ? input.replace(',', '.') : input).trim();
-  const value = NUMBER.test(literal) ? Number(literal) : NaN;
+  const value = NUMBER[kind].test(literal) ? Number(literal) : NaN;
   const exact = Number.isInteger(value) ? Number.isSafeInteger(value) : Number.isFinite(value);
   return exact ? value : input;
 }

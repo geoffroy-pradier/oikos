@@ -12,16 +12,9 @@ it('les champs et les niveaux du formulaire sont ceux du schéma, dans son ordre
 });
 
 it.each<[Kind, string, unknown]>([
-  ['integer', ' 12 ', 12],
-  // Composé sans contrôle : un prix à virgule part tel quel, l'API le refuse (entier attendu).
-  ['integer', '1.5', 1.5],
+  ['integer', ' -12 ', -12],
   ['decimal', '0,45', 0.45],
-  ['decimal', '1.', 1],
-  // Jamais de valeur devinée : ce qui ne se lit pas comme un nombre reste un texte.
-  ['integer', '1,000', '1,000'],
-  ['integer', '1 200', '1 200'],
-  ['integer', '0x10', '0x10'],
-  ['integer', ' ', ' '],
+  ['decimal', '1.000', 1],
   // Ni un autre nombre (2^53 + 1 s'arrondirait), ni `null` (ce que JSON écrit pour l'infini).
   ['integer', '9007199254740993', '9007199254740993'],
   ['decimal', '1e999', '1e999'],
@@ -33,19 +26,27 @@ it.each<[Kind, string, unknown]>([
   expect(typed(kind, input)).toBe(expected);
 });
 
+// Prix en oboles, jamais deviné : milliers, décimales, exposant, point final ou zéro en tête, c'est un texte.
+const KEPT = ['1.000', '1,000', '1 200', '1e3', '5.', '007', '1.5', '.5', '0x10', '+5', ' ', '१२'];
+it.each(KEPT)('dans un champ entier, « %s » reste un texte, que l’API refusera', (input) => {
+  expect(typed('integer', input)).toBe(input);
+});
+
 it('une valeur d’un autre type que celui du champ est montrée en JSON, une valeur absente est vide', () => {
   const all = (kind: Kind, ...values: unknown[]) => values.map((value) => shown(kind, value));
   expect(all('integer', 12, -0.5, '12', null)).toEqual(['12', '-0.5', '"12"', 'null']);
   expect(all('text', 'wheat', 7, undefined)).toEqual(['wheat', '7', '']);
 });
 
-it('tout nombre affiché se relit tel quel ; un entier que JSON ne porte pas exactement reste un texte', () => {
+it('un nombre affiché se relit tel quel, sauf un entier que JSON ne porte pas exactement et, dans un champ entier, tout ce qui n’est pas un entier', () => {
   const number = fc.oneof(fc.maxSafeInteger(), fc.double({ noNaN: true, noDefaultInfinity: true }));
   fc.assert(
-    fc.property(number, fc.constantFrom<Kind>('integer', 'decimal'), (value, kind) => {
+    fc.property(number, (value) => {
       fc.pre(!Object.is(value, -0));
       const exact = !Number.isInteger(value) || Number.isSafeInteger(value);
-      expect(typed(kind, shown(kind, value))).toBe(exact ? value : String(value));
+      expect(typed('decimal', shown('decimal', value))).toBe(exact ? value : String(value));
+      const kept = Number.isSafeInteger(value) ? value : String(value);
+      expect(typed('integer', shown('integer', value))).toBe(kept);
     }),
   );
 });
@@ -85,8 +86,8 @@ it('conservation : une saisie ne change que sa valeur, tout le reste de la confi
       const value = typed(field.kind, text);
       if (value === undefined) Reflect.deleteProperty(expected.goods[row] ?? {}, field.key);
       else Object.assign(expected.goods[row] ?? {}, { [field.key]: value });
-      expect(JSON.parse(after)).toEqual(JSON.parse(JSON.stringify(expected)));
-      expect(Object.keys(JSON.parse(after) as object)).toEqual(Object.keys(config));
+      // Texte entier comparé : valeurs, et ordre des clés à la racine comme dans chaque bien.
+      expect(after).toBe(JSON.stringify(expected, null, 2));
       // Rien n'est modifié en place, et relire puis recomposer rend le même texte.
       expect(JSON.stringify(config)).toBe(before);
       expect(composeGoods(JSON.parse(after), readGoods(JSON.parse(after)) ?? [])).toBe(after);

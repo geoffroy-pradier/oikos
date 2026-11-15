@@ -723,6 +723,7 @@ it('formulaire des biens : chaque saisie réécrit le texte, chaque texte lisibl
     type(elasticity, typed);
     expect(elasticity.value).toBe(typed);
   }
+  expect(cell('bread', 'élasticité').value).toBe('1');
   type(cell('wheat', 'niveau'), 'intermediate');
   const wheat = { ...GOODS[0], tier: 'intermediate', elasticity: 1.05 };
   expect(JSON.parse(editor.value)).toEqual({ clock: {}, goods: [wheat, GOODS[1]] });
@@ -770,7 +771,7 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
   type(cell('bread', PRICE), '31');
   slow.release({ ok: true, data: { id: 'v2', number: 2, config: CONFIGS['v2'] } });
   await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(cell('bread', PRICE).value).toBe('31');
+  expect(goodsOf(editor)).toEqual([GOODS[0], { ...GOODS[1], referencePriceOboles: 31 }]);
   fireEvent.click(button('Ouvrir la version 2'));
   expect(document.activeElement).toBe(button('Garder le texte modifié'));
   // Sans liste de biens lisible : plus de champs, la raison est dite ; le texte n'est pas touché.
@@ -782,7 +783,8 @@ it('formulaire des biens : une saisie est un texte modifié et l’emporte sur u
   }
   cleanup();
   await openVersion(1, 'observer');
-  expect(cell('wheat', 'identifiant').readOnly).toBe(true);
-  expect(cell('wheat', 'niveau').disabled).toBe(true);
+  for (const label of ['identifiant', PRICE, 'élasticité'])
+    expect(cell('bread', label).readOnly).toBe(true);
+  expect(cell('bread', 'niveau').disabled).toBe(true);
   expect(screen.queryByText(/^Chaque saisie réécrit/)).toBeNull();
 });
