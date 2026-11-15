@@ -50,7 +50,8 @@ select is(
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'ships(class_id,docked_city_id,house_id,id,laid_up_at) sites(city_id,cycle_started_at,halted_at,house_id,id,recipe_id) '
-    || 'trades(ledger_entry_id,price,quantity,sell_order_id) worlds(created_at,id,name,slug)',
+    || 'trades(ledger_entry_id,price,quantity,sell_order_id) voyage_cargo(good_id,quantity,voyage_id) '
+    || 'voyages(arrived_at,arrives_at,departed_at,from_city_id,house_id,id,ship_id,to_city_id) worlds(created_at,id,name,slug)',
   'colonnes de game lisibles par authenticated : liste figée');
 select is(
   (select count(*) from information_schema.column_privileges
