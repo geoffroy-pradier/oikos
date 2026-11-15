@@ -28,6 +28,8 @@ export const SITE_COLLECT_ERROR_CODES = [
   'MISSING_INPUTS',
   /** Atelier à l'arrêt, entretien impayé : il ne consomme aucun intrant avant d'être relancé. */
   'SITE_HALTED',
+  /** La recette du site n'est plus dans la configuration : il ne produit plus, il doit en changer. */
+  'RECIPE_RETIRED',
 ] as const;
 export type SiteCollectErrorCode = (typeof SITE_COLLECT_ERROR_CODES)[number];
 

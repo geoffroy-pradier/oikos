@@ -252,6 +252,7 @@
     "ORDER_NOT_FOUND": "Cet ordre est introuvable.",
     "ORDER_NOT_OPEN": "Cet ordre est déjà servi ou annulé.",
     "RECIPE_NOT_FOUND": "Cette production n'existe plus. Rechargez la page.",
+    "RECIPE_RETIRED": "Cette production n'existe plus : ce site ne se récolte plus. Choisissez-lui une autre production.",
     "RECIPE_NOT_COMPATIBLE": "Ce site ne peut pas accueillir cette production.",
     "RECIPE_UNCHANGED": "Ce site a déjà cette production.",
     "SITE_LIMIT_REACHED": "Votre maison exploite déjà autant de sites que son siège le permet.",

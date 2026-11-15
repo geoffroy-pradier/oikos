@@ -12,7 +12,7 @@ import { defineCommand } from '../registry';
  * (évaluation paresseuse). Un atelier consomme ses intrants dans le stock libre de la maison ; à court
  * d'intrants, les cycles en attente restent dus (docs/specs/04-systemes-gestion.md, 4.3). Tout passe
  * par le journal des stocks. Un site à l'arrêt, faute d'entretien payé, ne compte le temps que jusqu'à
- * son arrêt.
+ * son arrêt. Un site dont la recette a quitté la configuration ne se récolte plus.
  */
 export const siteCollect = defineCommand({
   name: 'site.collect',
@@ -41,8 +41,14 @@ export const siteCollect = defineCommand({
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!site) return { ok: false, error: { code: 'SITE_NOT_FOUND', message: 'Unknown site.' } };
 
+    // Une recette retirée de la configuration ne se calcule plus : le site ne se récolte plus, à
+    // l'arrêt ou non. Ce qu'il avait accumulé est gelé tant que la recette manque : changer de recette
+    // le perd, une version qui rend la recette le rend (4.2).
     const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
-    if (!recipe) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
+    if (!recipe) {
+      const message = 'This site runs a recipe the configuration no longer has.';
+      return { ok: false, error: { code: 'RECIPE_RETIRED', message } };
+    }
 
     // Un site à l'arrêt ne consomme aucun intrant (4.3) : un atelier à l'arrêt ne se récolte pas. Ses
     // cycles écoulés avant l'arrêt restent dus et tourneront après la relance.
