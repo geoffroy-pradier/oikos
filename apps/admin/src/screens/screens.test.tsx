@@ -138,6 +138,10 @@ describe('Vigie', () => {
     expect(await figure('Commandes en panne (24 h)')).toBe('7');
     expect(await figure('Ticks en échec (24 h)')).toBe('2');
     expect(await figure('Tick le plus long (24 h)')).toBe('850 ms');
+    expect(await figure('Clôtures en échec (24 h)')).toBe('1');
+    expect(await figure('Dernier échec de clôture')).toBe(
+      'Close step siteUpkeep failed on house h1: boom',
+    );
     expect(await figure('Tâches en attente')).toBe('3');
     expect(await figure('Requêtes sans jeton valide (24 h)')).toBe('91');
     expect(await figure('Requêtes au-delà du débit (24 h)')).toBe('17');

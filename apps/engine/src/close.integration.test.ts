@@ -64,6 +64,14 @@ const effectsOf = async (worldId: string) =>
     await sql<{ day: number }>`select (payload->>'gameDay')::int as day from game.domain_events
       where type = 'CloseProbe' and payload->>'worldId' = ${worldId} order by seq`.execute(db)
   ).rows.map((row) => row.day);
+/** Tentatives de clôture du monde notées pour la Vigie, dans l'ordre. */
+const runsOf = (worldId: string) =>
+  db
+    .selectFrom('telemetry.close_runs')
+    .select(['game_day', 'status', 'error'])
+    .where('world_id', '=', worldId)
+    .orderBy('id')
+    .execute();
 const closesOf = (worldId: string) =>
   db
     .selectFrom('game.daily_closes')
@@ -146,17 +154,67 @@ describe('clôtures quotidiennes d’un monde', () => {
     };
     const results = await closeAllWorlds(db, { now: during(D), config, steps: [probe, flaky] });
     const byWorld = new Map(results.map((result) => [result.worldId, result]));
-    expect(byWorld.get(worldId)).toEqual({ worldId, played: [], error: 'panne simulée' });
+    expect(byWorld.get(worldId)).toEqual({
+      worldId,
+      played: [],
+      error: 'Close step flaky failed: panne simulée',
+    });
     expect(byWorld.get(other)).toEqual({ worldId: other, played: [D] });
     expect([await effectsOf(worldId), await closesOf(worldId)]).toEqual([[], []]);
     const retry = await closeWorld(db, { worldId, now: during(D), config, steps: [probe, flaky] });
     expect(retry).toEqual([D]);
     expect(await effectsOf(worldId)).toEqual([D]);
+    // Chaque tentative est comptée : l'échec avec son erreur, puis la reprise.
+    expect(await runsOf(worldId)).toEqual([
+      { game_day: D, status: 'failed', error: 'Close step flaky failed: panne simulée' },
+      { game_day: D, status: 'done', error: null },
+    ]);
     const closeAt = dailyCloseAt(D + 1, clock);
     const early = { worldId, gameDay: D + 1, closeAt, config, steps: [] };
     await expect(
       runDailyClose(db, { ...early, now: new Date(closeAt.getTime() - 1) }),
     ).rejects.toThrow('is not due before');
+  });
+
+  it('une maison en erreur : la clôture du monde échoue en la nommant, l’échec est compté, puis rejouée elle est ignorée', async () => {
+    const worldId = await newWorld();
+    let failures = 1;
+    const perHouse: CloseStep = {
+      name: 'perHouse',
+      async run({ at }) {
+        for (const house of ['a1', 'b1']) {
+          at?.(`house ${house}`);
+          if (house === 'b1' && failures-- > 0) throw new Error('contrainte violée');
+        }
+        return { houses: 2 };
+      },
+    };
+    const request = {
+      worldId,
+      gameDay: D,
+      closeAt: dailyCloseAt(D, clock),
+      config,
+      now: during(D),
+    };
+    await expect(runDailyClose(db, { ...request, steps: [probe, perHouse] })).rejects.toThrow(
+      'Close step perHouse failed on house b1: contrainte violée',
+    );
+    expect([await effectsOf(worldId), await closesOf(worldId)]).toEqual([[], []]);
+    expect(await runDailyClose(db, { ...request, steps: [probe, perHouse] })).toMatchObject({
+      status: 'done',
+    });
+    expect(await runDailyClose(db, { ...request, steps: [probe, perHouse] })).toMatchObject({
+      status: 'skipped',
+    });
+    expect(await runsOf(worldId)).toEqual([
+      {
+        game_day: D,
+        status: 'failed',
+        error: 'Close step perHouse failed on house b1: contrainte violée',
+      },
+      { game_day: D, status: 'done', error: null },
+      { game_day: D, status: 'skipped', error: null },
+    ]);
   });
 
   it('jamais en arrière, même pour un moteur en retard : après la clôture de D + 1, celle de D n’est plus jouée', async () => {

@@ -16,7 +16,7 @@ const SINK: SystemAccountKey = 'sink_upkeep';
  */
 export const siteUpkeep: CloseStep = {
   name: 'siteUpkeep',
-  async run({ trx, worldId, gameDay, closeAt, config }) {
+  async run({ trx, worldId, gameDay, closeAt, config, at }) {
     const { coefficientBps, dailyOboles } = config.sites.upkeep;
     const typeOf = new Map(config.recipes.map((recipe) => [recipe.id, recipe.siteType]));
     // Ordre des verrous : d'abord les appariements du monde (ils touchent plusieurs trésoreries à la
@@ -50,6 +50,8 @@ export const siteUpkeep: CloseStep = {
     };
 
     for (const { house_id: houseId } of houses) {
+      // Une maison en erreur fait échouer la clôture du monde : l'erreur la nomme.
+      at?.(`house ${houseId}`);
       const account = await trx
         .selectFrom('game.accounts')
         .select(['id', 'balance'])
