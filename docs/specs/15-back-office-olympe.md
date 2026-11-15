@@ -34,7 +34,7 @@ l'API, elle, refuse une programmation non confirmée (`CONFIG_RETIRED_UNCONFIRME
 drapeau `confirmRetiredInUse` de `admin.scheduleConfig`). La case vaut pour la liste lue à l'écran, et pour elle seule : si la liste relue nomme d'autres recettes ou classes, elle se décoche.
 L'API, elle, ne compare pas la liste confirmée à celle que l'écran a montrée : le drapeau confirme tout ce qui est en usage au moment où elle contrôle, et l'événement `ConfigActivationScheduled` garde cette liste (`confirmedRetired`, vide si la version ne retire rien en usage) pour l'audit.
 La confirmation ne lève jamais le refus d'un bien. Le contrôle se fait à la programmation, sur l'état du monde de cet instant, pas à l'activation : un site qui adopte la recette, ou une classe dont l'état naît, entre la programmation et la clôture n'est ni signalé ni confirmé.
-Rien n'est migré ni dédommagé.
+Rien n'est migré ni dédommagé (recettes et classes).
 Un bien retiré encore détenu se reprend par un rachat (5.1, décision de #229).
 Sous l'avertissement d'un tel bien, si la configuration en vigueur le connaît encore, le super-administrateur, et lui seul, voit un bouton « Racheter le stock de … ».
 Sa confirmation dit les totaux lus (unités, prix de référence, maisons de tous les mondes, oboles créées, ordres ouverts annulés), pose le foyer sur « Ne pas racheter », et une touche Entrée tenue ne rachète rien.
