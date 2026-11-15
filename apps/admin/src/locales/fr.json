@@ -235,6 +235,11 @@
     "scheduled": "Programmée pour le {{date}}",
     "retiredInUse": "Biens retirés par cette version et encore détenus : sa programmation sera refusée tant qu'ils le sont.",
     "goodInUse": "{{good}} — maisons : {{houses}} ; unités en stock : {{quantity}} ; ordres ouverts : {{orders}} ; séquestre : {{escrow}} oboles",
+    "buyback": "Racheter le stock de {{good}}",
+    "buybackWarning": "Racheter {{units}} unités de {{good}} à {{price}} oboles l'unité, auprès de {{houses}} maisons de tous les mondes : {{oboles}} oboles créées par le robinet du rachat, {{orders}} ordres ouverts annulés (séquestre rendu, réservation levée). Le stock racheté quitte le jeu.",
+    "buybackConfirm": "Confirmer le rachat",
+    "buybackKeep": "Ne pas racheter",
+    "boughtBack": "Stock de {{good}} racheté : {{units}} unités auprès de {{houses}} maisons, pour {{oboles}} oboles.",
     "retiredUnconfirmed": "Recettes et classes de PNJ retirées par cette version et encore en usage. Une fois activée, elle mettra à l'arrêt faute de recette les sites qui les exploitent (leurs maisons pourront en changer gratuitement) ; une classe retirée garde sa population, qu'elle reprendra si une version la rend.",
     "recipeInUse": "Recette {{recipe}} — sites : {{sites}} ; maisons : {{houses}}",
     "classInUse": "Classe {{npcClass}} — cités : {{cities}} ; habitants gardés : {{population}}",
@@ -279,8 +284,10 @@
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : contenu trop volumineux ou mal formé.",
-      "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent.",
-      "CONFIG_RETIRED_UNCONFIRMED": "Cette version retire des recettes ou des classes de PNJ encore en usage (détail sous la version) : cochez la confirmation sous la version, puis programmez de nouveau."
+      "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent, ou rachetez leur stock sous la version (super-administrateur).",
+      "CONFIG_RETIRED_UNCONFIRMED": "Cette version retire des recettes ou des classes de PNJ encore en usage (détail sous la version) : cochez la confirmation sous la version, puis programmez de nouveau.",
+      "BUYBACK_CHANGED": "Les avoirs ont changé depuis l'affichage (ordre, récolte ou rachat déjà fait) : rien n'a été racheté. Relisez les totaux sous la version, puis confirmez de nouveau.",
+      "GOOD_NOT_FOUND": "La configuration en vigueur ne connaît plus ce bien : sans prix de référence, il ne se rachète pas."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",
     "tableForm": {

@@ -707,6 +707,70 @@ it('bien retiré encore détenu : dit sous la version avant la programmation, et
   );
 });
 
+it('bien retiré encore détenu : le super-administrateur seul le rachète, après une confirmation qui dit les totaux', async () => {
+  const retiredInUse = {
+    goods: [{ goodId: 'wheat', houses: 3, quantity: 1200, openOrders: 2, escrowOboles: 45 }],
+  };
+  const totals = { houses: 3, units: 1200, cancelledOrders: 2, oboles: 7200 };
+  const [v3, ...rest] = LISTING.versions;
+  const withGood = {
+    ...LISTING,
+    versions: [{ ...v3, retiredInUse }, ...rest],
+    buybacks: [{ goodId: 'wheat', unitPriceOboles: 6, totals }],
+  };
+  api.adminGet.mockResolvedValue({ ok: true, data: withGood });
+  for (const role of ['game_designer', 'observer'] as const) {
+    render(<Config accessToken="token" role={role} />);
+    await within(await screen.findByRole('list')).findByText(/wheat/);
+    expect(screen.queryByRole('button', { name: 'Racheter le stock de wheat' })).toBeNull();
+    cleanup();
+  }
+
+  render(<Config accessToken="token" role="super_admin" />);
+  const name = 'Racheter le stock de wheat';
+  fireEvent.click(await screen.findByRole('button', { name }));
+  // Foyer sur le geste sans effet ; les deux choix lisent les totaux montrés.
+  const keep = screen.getByRole('button', { name: 'Ne pas racheter' });
+  expect(document.activeElement).toBe(keep);
+  const warning = document.getElementById(keep.getAttribute('aria-describedby') ?? '');
+  expect(warning?.textContent?.replace(/\s/g, ' ')).toBe(
+    "Racheter 1 200 unités de wheat à 6 oboles l'unité, auprès de 3 maisons de tous les mondes : " +
+      '7 200 oboles créées par le robinet du rachat, 2 ordres ouverts annulés (séquestre rendu, ' +
+      'réservation levée). Le stock racheté quitte le jeu.',
+  );
+  // Entrée tenue : la première frappe referme la confirmation, les répétitions ne rouvrent rien.
+  for (let repeat = 0; repeat < 4; repeat++) enter(repeat > 0);
+  expect(screen.queryByRole('button', { name: 'Ne pas racheter' })).toBeNull();
+  expect(api.adminCommand).not.toHaveBeenCalled();
+  await waitFor(() => expect(document.activeElement).toBe(button(name)));
+
+  // Refus : l'état a changé, rien n'est racheté, la raison est dite.
+  api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'BUYBACK_CHANGED' });
+  fireEvent.click(button(name));
+  fireEvent.click(button('Confirmer le rachat'));
+  expect((await screen.findByRole('alert')).textContent).toMatch(/^Les avoirs ont changé/);
+  expect(api.adminCommand.mock.calls[0]?.slice(0, 3)).toEqual([
+    'admin.buyBackGood',
+    { goodId: 'wheat', expected: totals },
+    'token',
+  ]);
+
+  // Rachat fait : la lecture ne nomme plus le bien, le foyer va au titre.
+  api.adminCommand.mockResolvedValueOnce({
+    ok: true,
+    data: { goodId: 'wheat', unitPriceOboles: 6, totals, houses: [] },
+  });
+  api.adminGet.mockResolvedValue({ ok: true, data: { ...LISTING, buybacks: [] } });
+  fireEvent.click(button(name));
+  fireEvent.click(button('Confirmer le rachat'));
+  expect((await screen.findByRole('status')).textContent?.replace(/\s/g, ' ')).toBe(
+    'Stock de wheat racheté : 1 200 unités auprès de 3 maisons, pour 7 200 oboles.',
+  );
+  expect(screen.queryByRole('button', { name })).toBeNull();
+  const title = screen.getByRole('heading', { name: 'Paramètres' });
+  await waitFor(() => expect(document.activeElement).toBe(title));
+});
+
 it('recette ou classe retirée encore en usage : avertie sous la version, programmée après confirmation cochée', async () => {
   const [v3, ...rest] = LISTING.versions;
   const withUsage = (npcClasses: { classId: string; cities: number; population: number }[]) => ({
