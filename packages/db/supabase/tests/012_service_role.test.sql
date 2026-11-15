@@ -45,7 +45,8 @@ select is(
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
     || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
-    || 'price_candles.turnover price_candles.volume rate_windows.count sites.cycle_started_at sites.halted_at sites.recipe_id',
+    || 'price_candles.turnover price_candles.volume rate_windows.count ships.docked_city_id ships.laid_up_at '
+    || 'sites.cycle_started_at sites.halted_at sites.recipe_id voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
@@ -71,7 +72,9 @@ select is(
     and p.prosecdef),
   'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_trade_settled game.check_trade_settlement '
-    || 'game.city_identity game.clock_rules game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.election_results game.market_rules game.order_book '
+    || 'game.check_voyage_settled '
+    || 'game.city_identity game.clock_rules game.create_city_treasury game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
+    || 'game.election_results game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
     || 'game.politics_rules game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
