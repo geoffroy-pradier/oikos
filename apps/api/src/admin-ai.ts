@@ -6,7 +6,10 @@ import { sql } from 'kysely';
 /** Une ligne de la Vigie par usage de l'IA (8.5, ADR 0005). Montants en millionièmes d'euro. */
 export interface AiUsageFigures {
   usage: AiUsage;
-  /** `disabled` : coupé par la configuration ; `capped` : plafond du mois atteint ; `null` : ouvert. */
+  /**
+   * `disabled` : coupé par la configuration ; `capped` : plafond du mois atteint ou trop proche pour la
+   * sortie la plus chère d'un appel (`isCapped`) ; `null` : ouvert.
+   */
   cut: 'disabled' | 'capped' | null;
   capMicroEuros: number;
   spentTodayMicroEuros: number;
