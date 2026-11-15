@@ -69,7 +69,10 @@ export const SITE_ACQUIRE_ERROR_CODES = [
 ] as const;
 export type SiteAcquireErrorCode = (typeof SITE_ACQUIRE_ERROR_CODES)[number];
 
-/** Commande `site.setRecipe` : le site change de recette, parmi celles de son type. */
+/**
+ * Commande `site.setRecipe` : le site change de recette, parmi celles de son type. Un site dont la
+ * recette n'est plus dans la configuration n'a plus de type : il peut adopter n'importe quelle recette.
+ */
 export const siteSetRecipeInputSchema = z.strictObject({
   siteId: z.uuid(),
   recipeId: z.string().regex(/^[a-z][a-z0-9_]{1,31}$/),

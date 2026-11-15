@@ -4,6 +4,8 @@ import {
   siteSetRecipeOutputSchema,
 } from '@oikos/contracts';
 import { accrueWorkshop } from '@oikos/sim';
+import type { Recipe } from '@oikos/config';
+import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 
@@ -15,6 +17,8 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
 /**
  * Change la recette d'un site, parmi celles de son type. Ce qui est déjà produit doit d'abord être
  * récolté ; le cycle entamé est perdu, et le nouveau commence à l'instant présent (la base l'exige).
+ * Un site dont la recette a quitté la configuration n'a plus de type ni de production : il adopte
+ * n'importe quelle recette, sans récolte préalable, et repart sans rien payer s'il était à l'arrêt.
  */
 export const siteSetRecipe = defineCommand({
   name: 'site.setRecipe',
@@ -27,6 +31,7 @@ export const siteSetRecipe = defineCommand({
       .selectFrom('game.sites')
       .select(['id', 'house_id', 'city_id', 'recipe_id', 'cycle_started_at', 'halted_at'])
       .select(sql<boolean>`cycle_started_at > now()`.as('moved'))
+      .select(sql<boolean>`coalesce(halted_at > now(), false)`.as('haltMoved'))
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
         houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
@@ -38,47 +43,40 @@ export const siteSetRecipe = defineCommand({
     // Une collecte commencée après cette commande a validé avant elle et a avancé le cycle au-delà de
     // notre instant : la garde refuserait d'y revenir. Conflit à rejouer, pas une erreur interne.
     if (site.moved) return refuse('SITE_CHANGED', 'The site just changed. Try again.');
+    // `undefined` : la recette du site a quitté la configuration (recette retirée).
+    const current = config.recipes.find((candidate) => candidate.id === site.recipe_id);
     // Un site à l'arrêt garde sa recette et son cycle gelé : il faut le relancer d'abord. La base le
     // refuserait de toute façon (le cycle d'un site à l'arrêt ne dépasse pas l'instant de l'arrêt).
-    if (site.halted_at)
+    if (site.halted_at && current)
       return refuse('SITE_HALTED', 'This site is halted until its upkeep is paid.');
-    const current = config.recipes.find((candidate) => candidate.id === site.recipe_id);
-    if (!current) throw new Error(`Site ${site.id} runs unknown recipe ${site.recipe_id}`);
+    // Sans recette, l'arrêt ne coûte rien à lever (5.5) : il est levé ici. Mais un arrêt postérieur à
+    // notre instant (clôture commencée après la commande) ferait reculer le cycle : conflit à rejouer.
+    if (site.haltMoved) return refuse('SITE_CHANGED', 'The site just changed. Try again.');
     const next = config.recipes.find((candidate) => candidate.id === input.recipeId);
     if (!next) return refuse('RECIPE_NOT_FOUND', 'Unknown recipe.');
-    if (next.id === current.id) return refuse('RECIPE_UNCHANGED', 'The site already runs it.');
-    if (next.siteType !== current.siteType)
-      return refuse('RECIPE_NOT_COMPATIBLE', 'This recipe needs another type of site.');
-
-    // « Déjà produit » : ce qu'une récolte livrerait maintenant. Un atelier à court d'intrants n'a rien
-    // produit : il peut changer de recette, et ses cycles en attente sont perdus avec le cycle entamé.
-    // Sans cela, il serait renvoyé d'un refus à l'autre (rien à moudre, mais « récoltez d'abord »).
-    // Stocks d'intrants verrouillés dans l'ordre des biens, comme à la récolte.
-    const inputGoods = current.inputs.map((stack) => stack.goodId);
-    const stocks =
-      inputGoods.length === 0
-        ? []
-        : await trx
-            .selectFrom('game.inventories')
-            .select(['good_id', 'quantity', 'reserved'])
-            .where('house_id', '=', site.house_id)
-            .where('city_id', '=', site.city_id)
-            .where('good_id', 'in', inputGoods)
-            .orderBy(sql`good_id collate "C"`)
-            .forUpdate()
-            .execute();
-    const { cycles } = accrueWorkshop({
-      since: site.cycle_started_at,
-      now,
-      cycleMinutes: current.durationMinutes,
-      maxCycles: current.maxAccruedCycles,
-      inputs: current.inputs.map((stack) => {
-        const stock = stocks.find((candidate) => candidate.good_id === stack.goodId);
-        const free = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
-        return { perCycle: stack.quantity, available: free };
-      }),
-    });
-    if (cycles > 0) return refuse('COLLECT_FIRST', 'Collect what the site has produced first.');
+    if (current) {
+      if (next.id === current.id) return refuse('RECIPE_UNCHANGED', 'The site already runs it.');
+      if (next.siteType !== current.siteType)
+        return refuse('RECIPE_NOT_COMPATIBLE', 'This recipe needs another type of site.');
+      if (await producedSomething(trx, site, current, now))
+        return refuse('COLLECT_FIRST', 'Collect what the site has produced first.');
+    } else if (site.halted_at) {
+      // Relance sans frais, comme `site.restart` pour un site sans tarif, puis changement de recette :
+      // deux écritures, chacune conforme à la garde de la base (reprise décalée de l'arrêt, puis cycle
+      // neuf à l'instant présent, qui ne recule jamais puisque l'arrêt n'est pas postérieur à lui).
+      await trx
+        .updateTable('game.sites')
+        .set({
+          cycle_started_at: sql<Date>`cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second'`,
+          halted_at: null,
+        })
+        .where('id', '=', site.id)
+        .execute();
+      emit({
+        type: 'SiteRestarted',
+        payload: { siteId: site.id, houseId: site.house_id, upkeepOboles: 0 },
+      });
+    }
 
     // L'heure de la base, à la microseconde : la garde exige un cycle qui commence exactement maintenant.
     const changed = await trx
@@ -92,7 +90,7 @@ export const siteSetRecipe = defineCommand({
       payload: {
         siteId: site.id,
         houseId: site.house_id,
-        previousRecipeId: current.id,
+        previousRecipeId: site.recipe_id,
         recipeId: next.id,
       },
     });
@@ -106,3 +104,42 @@ export const siteSetRecipe = defineCommand({
     };
   },
 });
+
+/**
+ * « Déjà produit » : ce qu'une récolte livrerait maintenant. Un atelier à court d'intrants n'a rien
+ * produit : il peut changer de recette, et ses cycles en attente sont perdus avec le cycle entamé.
+ * Sans cela, il serait renvoyé d'un refus à l'autre (rien à moudre, mais « récoltez d'abord »).
+ * Stocks d'intrants verrouillés dans l'ordre des biens, comme à la récolte.
+ */
+async function producedSomething(
+  trx: Db,
+  site: { house_id: string; city_id: string; cycle_started_at: Date },
+  current: Recipe,
+  now: Date,
+): Promise<boolean> {
+  const inputGoods = current.inputs.map((stack) => stack.goodId);
+  const stocks =
+    inputGoods.length === 0
+      ? []
+      : await trx
+          .selectFrom('game.inventories')
+          .select(['good_id', 'quantity', 'reserved'])
+          .where('house_id', '=', site.house_id)
+          .where('city_id', '=', site.city_id)
+          .where('good_id', 'in', inputGoods)
+          .orderBy(sql`good_id collate "C"`)
+          .forUpdate()
+          .execute();
+  const { cycles } = accrueWorkshop({
+    since: site.cycle_started_at,
+    now,
+    cycleMinutes: current.durationMinutes,
+    maxCycles: current.maxAccruedCycles,
+    inputs: current.inputs.map((stack) => {
+      const stock = stocks.find((candidate) => candidate.good_id === stack.goodId);
+      const free = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
+      return { perCycle: stack.quantity, available: free };
+    }),
+  });
+  return cycles > 0;
+}
