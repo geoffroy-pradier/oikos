@@ -252,6 +252,7 @@
     "ORDER_NOT_FOUND": "This order cannot be found.",
     "ORDER_NOT_OPEN": "This order is already filled or cancelled.",
     "RECIPE_NOT_FOUND": "This production no longer exists. Reload the page.",
+    "RECIPE_RETIRED": "This production no longer exists: this site can no longer be collected. Choose another production for it.",
     "RECIPE_NOT_COMPATIBLE": "This site cannot host this production.",
     "RECIPE_UNCHANGED": "This site already has this production.",
     "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
