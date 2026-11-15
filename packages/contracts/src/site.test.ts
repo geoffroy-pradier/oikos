@@ -9,16 +9,20 @@ const [FIELD, QUARRY] = [
 ];
 
 describe('UpkeepSettled', () => {
-  // Une clôture : le champ est payé (38), la carrière reste impayée (75) et s'arrête ; un site sans
-  // tarif à l'arrêt repart sans payer.
+  // Une clôture : le champ est payé (38 d'entretien, 28 de salaires), la carrière reste impayée (75
+  // d'entretien, sans salaire) et s'arrête ; un site sans tarif à l'arrêt repart sans payer.
+  const field = { siteId: FIELD, oboles: 66, upkeepOboles: 38, wagesOboles: 28 };
+  const quarry = { siteId: QUARRY, oboles: 75, upkeepOboles: 75, wagesOboles: 0 };
   const settled = {
     type: 'UpkeepSettled' as const,
     payload: {
       houseId: HOUSE,
       gameDay: 20_771,
-      paidOboles: 38,
-      paid: [{ siteId: FIELD, oboles: 38 }],
-      unpaid: [{ siteId: QUARRY, oboles: 75 }],
+      paidOboles: 66,
+      upkeepOboles: 38,
+      wagesOboles: 28,
+      paid: [field],
+      unpaid: [quarry],
       halted: [QUARRY],
       resumed: ['01900000-0000-7000-8000-0000000003f3'],
     },
@@ -31,7 +35,15 @@ describe('UpkeepSettled', () => {
     // Une maison dont rien n'a été payé, ni arrêté : listes vides, montant nul.
     const nothing = {
       ...settled,
-      payload: { ...settled.payload, paidOboles: 0, paid: [], halted: [], resumed: [] },
+      payload: {
+        ...settled.payload,
+        paidOboles: 0,
+        upkeepOboles: 0,
+        wagesOboles: 0,
+        paid: [],
+        halted: [],
+        resumed: [],
+      },
     };
     expect(domainEventSchema.parse(nothing)).toEqual(nothing);
   });
@@ -42,12 +54,19 @@ describe('UpkeepSettled', () => {
       { ...payload, paidOboles: -1 },
       { ...payload, paidOboles: 1.5 },
       { ...payload, gameDay: -1 },
-      { ...payload, paid: [{ siteId: FIELD, oboles: -38 }] },
-      { ...payload, unpaid: [{ siteId: 'champ', oboles: 75 }] },
+      { ...payload, paid: [{ ...field, oboles: -66 }] },
+      { ...payload, unpaid: [{ ...quarry, siteId: 'champ' }] },
+      // Des parts qui ne font pas le tout : par site, par nature, ou pour la maison.
+      { ...payload, unpaid: [{ ...quarry, wagesOboles: 1 }] },
+      { ...payload, paid: [{ ...field, wagesOboles: 27, oboles: 65 }] },
+      { ...payload, paidOboles: 67, wagesOboles: 29 },
+      { ...payload, upkeepOboles: 28, wagesOboles: 38 },
+      (({ wagesOboles: _wages, ...rest }) => rest)(payload),
+      { ...payload, paid: [{ siteId: FIELD, oboles: 66 }] },
       { ...payload, halted: ['carrière'] },
       { ...payload, houseId: 'maison' },
       { ...payload, userId: HOUSE },
-      { ...payload, paid: [{ siteId: FIELD, oboles: 38, note: 'en retard' }] },
+      { ...payload, paid: [{ ...field, note: 'en retard' }] },
       (({ resumed: _resumed, ...rest }) => rest)(payload),
     ];
     for (const candidate of broken) {
