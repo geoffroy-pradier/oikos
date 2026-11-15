@@ -1,7 +1,7 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 2 h du matin : tickets #72 à #75 et #98 fermés pendant la
-session, #76 et #77 bien avancés. Ce fichier décrit ce qui tourne réellement sur `main` ; les
+Point d'étape au 15 novembre 2026, vers 2 h du matin : tickets #72 à #76 et #98 fermés pendant la
+session, #77 bien avancé. Ce fichier décrit ce qui tourne réellement sur `main` ; les
 spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -9,11 +9,10 @@ spécifications (`docs/specs/`) décrivent la cible.
 - **Phase 0 (fondations)** : terminée, sauf le ticket #33 (serveur de préproduction), marqué
   `needs-human` : il demande de commander un serveur, un nom de domaine et de saisir des secrets.
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
-- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #75 et #98. En cours : #76 (tableau
-  de bord économique : la route est fusionnée, restent l'indice des prix et l'écran) et #77 (Olympe :
-  reste le critère 4, paramètres par formulaire). Ouverts, pas commencés : #78 (équilibrage, qui dépend
-  de #76), #97, #100, et les tickets de suivi #123, #130, #136, #145, #155, #158, #161 (en partie fait),
-  #176.
+- **Phase 1 (prototype « une cité »)** : en cours. Fermés : #64 à #76 et #98. En cours : #77 (Olympe :
+  reste le critère 4, paramètres par formulaire) et #161 (suivis du tableau de bord, en partie faits).
+  Ouverts, pas commencés : #78 (équilibrage, désormais débloqué), #97, #100, et les tickets de suivi
+  #123, #130, #136, #145, #155, #158, #176, #181, #184.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -68,15 +67,15 @@ En local (procédure dans le `README.md`), dans une seule cité, Kallistè :
   confirmation), journal d'audit, Accès (liste des rôles, accorder par identifiant de compte, retirer
   après confirmation ; réservé au super-administrateur). Une version n'est programmable que par un
   autre compte que son auteur. Procédure écrite d'accès : `docs/exploitation/` (premier enrôlement,
-  appareil perdu, retrait). Par l'API seulement, sans écran : `GET /api/admin/economy` (masse monétaire
-  par nature de compte, robinets et puits par jour de jeu). Le premier super-administrateur s'inscrit à
+  appareil perdu, retrait). Économie : masse monétaire par nature de compte, robinets et puits par jour de
+  jeu, indice des prix sur un panier de six biens et inflation sur 30 jours, avec une alerte écrite
+  quand elle sort de la cible de 0 à 3 % (tant que deux fenêtres d'échanges n'existent pas, la mesure
+  est dite inconnue). Paramètres : formulaire des biens existants, replié sous le texte JSON. Le premier super-administrateur s'inscrit à
   la main en base. Le `Caddyfile` du futur serveur pose une politique de contenu et des en-têtes de
   sécurité sur les deux clients, vérifiés en `ci` ; en local, servis par Vite, ils ne les portent pas.
 
-Ce qui manque encore pour le critère de sortie de la phase 1 : le tableau de bord économique (#76 :
-indice des prix et inflation, prêts sur une branche ; écran « Économie » et alerte d'inflation), les
-paramètres par formulaire (#77 : le formulaire des biens existants est en relecture, #177 ; restent
-l'ajout et le retrait d'un bien, puis les recettes et les classes), l'équilibrage (#78). Avec l'entretien
+Ce qui manque encore pour le critère de sortie de la phase 1 : les paramètres par formulaire (#77 :
+restent l'ajout et le retrait d'un bien, puis les recettes et les classes) et l'équilibrage (#78). Avec l'entretien
 et l'émigration en jeu, l'économie a enfin des puits réguliers, mais aucun montant n'a été mesuré :
 entretien, taxe, seuil de couverture et taux de croissance attendent #78.
 
@@ -174,9 +173,15 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   de sites lus ; sans réponse, l'écran rejoue une fois la même clé, puis prévient le joueur avant
   d'abandonner la clé (suivis : #176). Les résultats sont annoncés dans des régions vivantes
   permanentes ; ce qui est récoltable est calculé à l'heure du serveur.
-- **Économie d'Olympe** (5.5, ticket #76) : la masse monétaire compte tous les comptes non système,
-  trésor de la cité compris ; robinets et puits sont des nets par jour de jeu ; la lecture est un
-  instantané unique, à l'heure de la base.
+- **Économie d'Olympe** (5.5, ticket #76 ; panier et cible à confirmer par un humain) : la masse
+  monétaire compte tous les comptes non système, trésor de la cité compris ; robinets et puits sont des
+  nets par jour de jeu ; la lecture est un instantané unique, à l'heure de la base. L'indice pondère les
+  prix par les volumes, en fractions exactes ; un bien du panier sans échange rend la mesure inconnue,
+  jamais estimée. Panier initial : blé, pain, poisson, sel, huile, vin (97 % de la dépense de référence).
+- **Heure du serveur dans le client** (#173, #182) : lue dans l'en-tête `Date`, à la seconde près ;
+  l'horloge du navigateur est gardée quand l'en-tête lui donne raison. Une première version la
+  corrigeait toujours d'une demi-seconde et a rendu `main` rouge un moment (cycles à la
+  seconde près dans les tests de bout en bout) : réparé par #182.
 - **Appariements d'un monde exécutés l'un après l'autre** (verrou consultatif par monde) : au plus simple,
   à revoir si la charge le demande.
 - **Demande des PNJ** : ils n'achètent qu'aux ventes en attente et ne déposent pas d'ordre.
@@ -197,11 +202,10 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   quand les tickets seront fermés ; il demande des joueurs réels.
 - **Branches fusionnées** : les branches `claude/*` restent sur GitHub, la session n'a pas le droit de les
   supprimer. À nettoyer à la main.
-- **Ticket #76** : la partie 2 (indice des prix sur un panier de six biens, inflation sur 30 jours, cible
-  de 0 à 3 %) est prête sur `claude/76-2-indice-prix`, à relire ; puis l'écran « Économie ». Le panier
-  initial (blé, pain, poisson, sel, huile, vin) est un choix à confirmer.
-- **Ticket #77** : le formulaire des biens existants est en relecture (#177) ; restent l'ajout et le
-  retrait d'un bien par le formulaire, puis les recettes et les classes.
+- **Ticket #77** : restent l'ajout et le retrait d'un bien par le formulaire, puis les formulaires des
+  recettes et des classes (listes imbriquées). Le schéma ne plafonne pas le prix de référence d'un bien.
+- **Indice des prix** (#181) : la composition du panier et la cible de 0 à 3 % sont à confirmer ;
+  l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
 
 Défauts connus, déjà en tickets :
@@ -215,8 +219,9 @@ Défauts connus, déjà en tickets :
   et la clôture ne calculent pas non plus l'instant de clôture de la même façon.
 - **#130** : la base n'empêche pas d'antidater une activation de configuration ; une programmation ou une
   annulation validée à cheval sur l'échéance n'est écartée que par une marge, pas par une garantie.
-- **#145, #155, #158, #161, #176** : suivis des relectures de l'entretien, des comptes, de l'horloge et
-  des migrations, du tableau de bord et du rejeu d'acquisition. #176 et #161 portent les derniers cas
+- **#145, #155, #158, #161, #176, #181, #184** : suivis des relectures de l'entretien, des comptes, de l'horloge et
+  des migrations, du tableau de bord, du rejeu d'acquisition, de l'indice des prix et de l'écran
+  Économie (dont sa garde de bout en bout à 360 px). #176 et #161 portent les derniers cas
   étroits de double paiement et le `try/finally` des commandes de la carte des sites.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
   traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
