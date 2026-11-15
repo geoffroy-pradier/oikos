@@ -58,7 +58,7 @@ Un site à l'arrêt faute d'entretien payé (5.5) se récolte pour ce qu'il avai
 Il ne change pas de recette tant qu'il est à l'arrêt (refus « site à l'arrêt ») : il faut le relancer d'abord.
 
 Recette retirée : une version de configuration peut retirer une recette qu'un site exploite encore.
-Ni la publication ni l'activation ne le refusent (Olympe le dit avant la programmation, nombre de sites et de maisons, et la fait confirmer : 15.2) : un refus lierait l'équilibrage aux choix passés des joueurs (pilier « Tout est réglable », section 1), et la configuration resterait bloquée tant qu'un seul site exploiterait la recette.
+Ni la publication ni l'activation ne le refusent (Olympe le dit avant la programmation, nombre de sites et de maisons, et la fait confirmer si la version en vigueur la contient encore : 15.2) : un refus lierait l'équilibrage aux choix passés des joueurs (pilier « Tout est réglable », section 1), et la configuration resterait bloquée tant qu'un seul site exploiterait la recette.
 Le repli est dans les commandes. Un tel site n'a plus de type, donc ni tarif ni entretien (5.5), ni production : il est à l'arrêt faute de recette.
 Il ne se récolte plus (refus « production retirée »), à l'arrêt ou non, et un atelier n'y consomme aucun intrant.
 Il peut changer de recette sans récolte préalable : ce qu'il avait accumulé est perdu avec le cycle entamé, et le nouveau cycle commence à l'instant du changement.

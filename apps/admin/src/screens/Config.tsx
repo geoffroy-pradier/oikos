@@ -2,6 +2,7 @@ import {
   BUYBACK_ROLES,
   CONFIG_EDITOR_ROLES,
   type AdminRole,
+  type AlreadyRetiredUsage,
   type BuybackPreview,
   type BuybackTotals,
   type RetiredUsage,
@@ -30,9 +31,11 @@ interface Listing {
     createdAt: string;
     /**
      * Ce que la version retire et que le monde porte encore : un bien refuse sa programmation (#191),
-     * une recette ou une classe la soumet à confirmation (#200).
+     * une recette ou une classe que la version en vigueur connaît la soumet à confirmation (#200, #234).
      */
     retiredInUse?: RetiredUsage;
+    /** Recettes et classes encore en usage que la version en vigueur ne connaît déjà plus (#234). */
+    alreadyRetiredInUse?: AlreadyRetiredUsage;
   }[];
   activations: { id: string; versionId: string; activateAt: string; cancelledAt?: string | null }[];
   /** Rachats possibles (#229) : biens retirés encore détenus que la configuration en vigueur connaît. */
@@ -289,6 +292,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Par échéance, seule la dernière version programmée l'emporte (15.4) : l'API rend les
   // programmations de la plus récente à la plus ancienne, la première vue pour une échéance gagne.
   // Une programmation annulée reste dans la lecture, marquée : elle n'entrera pas en vigueur.
+  const already = listing.data?.versions.find(
+    (version) => version.id === listing.data?.activeVersionId,
+  )?.alreadyRetiredInUse;
   const winners = new Map<string, Listing['activations'][number]>();
   for (const entry of listing.data?.activations ?? [])
     if (!entry.cancelledAt && !winners.has(entry.activateAt)) winners.set(entry.activateAt, entry);
@@ -303,6 +309,14 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
       <h2 className="text-xl">{t('config.versions')}</h2>
+      {/* Déjà absentes de la version en vigueur, encore en usage : dites une fois, en tête, rien à
+          confirmer (#234). Sous la version en vigueur, la lecture les donne toutes. */}
+      {already && already.recipes.length + already.npcClasses.length > 0 && (
+        <div className="text-sm wrap-break-word">
+          <p className="font-semibold">{t('config.alreadyRetired')}</p>
+          <UsageList {...already} />
+        </div>
+      )}
       <ul
         className="flex flex-col gap-3"
         onKeyDown={ignoreHeldEnter}
@@ -420,26 +434,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 <div className="text-sm wrap-break-word">
                   <div id={unconfirmedId}>
                     <p className="font-semibold text-danger">{t('config.retiredUnconfirmed')}</p>
-                    <ul>
-                      {recipes.map((recipe) => (
-                        <li key={recipe.recipeId}>
-                          {t('config.recipeInUse', {
-                            recipe: recipe.recipeId,
-                            sites: count.format(recipe.sites),
-                            houses: count.format(recipe.houses),
-                          })}
-                        </li>
-                      ))}
-                      {npcClasses.map((npcClass) => (
-                        <li key={npcClass.classId}>
-                          {t('config.classInUse', {
-                            npcClass: npcClass.classId,
-                            cities: count.format(npcClass.cities),
-                            population: count.format(npcClass.population),
-                          })}
-                        </li>
-                      ))}
-                    </ul>
+                    <UsageList recipes={recipes} npcClasses={npcClasses} />
                   </div>
                   {canEdit && (
                     <label className="mt-1 flex min-h-11 items-center gap-2">
@@ -643,5 +638,33 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
         )}
       </div>
     </>
+  );
+}
+
+/** Recettes et classes de PNJ en usage, une ligne chacune (#200, #234). */
+function UsageList({ recipes, npcClasses }: AlreadyRetiredUsage) {
+  const { t, i18n } = useTranslation();
+  const count = new Intl.NumberFormat(i18n.language);
+  return (
+    <ul>
+      {recipes.map((recipe) => (
+        <li key={recipe.recipeId}>
+          {t('config.recipeInUse', {
+            recipe: recipe.recipeId,
+            sites: count.format(recipe.sites),
+            houses: count.format(recipe.houses),
+          })}
+        </li>
+      ))}
+      {npcClasses.map((npcClass) => (
+        <li key={npcClass.classId}>
+          {t('config.classInUse', {
+            npcClass: npcClass.classId,
+            cities: count.format(npcClass.cities),
+            population: count.format(npcClass.population),
+          })}
+        </li>
+      ))}
+    </ul>
   );
 }

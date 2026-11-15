@@ -862,6 +862,69 @@ it('recette retirée en usage : l’observateur lit l’avertissement, sans case
   expect(screen.queryByRole('checkbox')).toBeNull();
 });
 
+it('déjà retirée par la version en vigueur : dite une fois, en tête, sans case ; seule la retirée par cette version se confirme (#234)', async () => {
+  const [v3, v2, v1] = LISTING.versions;
+  const kept = { recipes: [], npcClasses: [{ classId: 'metoikoi', cities: 2, population: 0 }] };
+  const retiredInUse = {
+    goods: [],
+    recipes: [{ recipeId: 'grow_wheat', sites: 2, houses: 1 }],
+    npcClasses: [],
+  };
+  api.adminGet.mockImplementation((path: string) =>
+    Promise.resolve({
+      ok: true,
+      data:
+        path === 'config/versions'
+          ? {
+              ...LISTING,
+              versions: [
+                { ...v3, retiredInUse, alreadyRetiredInUse: kept },
+                { ...v2, alreadyRetiredInUse: kept },
+                { ...v1, alreadyRetiredInUse: kept },
+              ],
+            }
+          : { id: 'v1', number: 1, config: CONFIGS['v1'] },
+    }),
+  );
+  api.adminCommand.mockResolvedValue({ ok: true, data: { activateAt: '2999-01-01T03:00:00Z' } });
+  render(<Config accessToken="token" role="game_designer" />);
+  const schedule3 = await screen.findByRole('button', {
+    name: 'Programmer la version 3 à la prochaine clôture',
+  });
+  // La classe déjà retirée est dite une seule fois, avant la liste, d'après la version en vigueur.
+  const [info, ...repeated] = screen.getAllByText(/metoikoi/).map((line) => line.closest('div'));
+  expect(repeated).toEqual([]);
+  expect(info?.closest('li')).toBeNull();
+  expect(info?.textContent?.replace(/\s/g, ' ')).toBe(
+    'Recettes et classes de PNJ que la version en vigueur a déjà retirées et que le monde porte ' +
+      "encore : une version qui ne les contient pas ne les retire pas, il n'y a rien à confirmer." +
+      'Classe metoikoi — cités : 2 ; habitants gardés : 0',
+  );
+  // Version 3 : la recette qu'elle retire se confirme, seule.
+  const notice = within(item(3))
+    .getByText(/grow_wheat/)
+    .closest('div');
+  expect(schedule3.getAttribute('aria-describedby')).toBe(notice?.id);
+  expect(within(item(3)).getAllByRole('checkbox')).toHaveLength(1);
+  expect(schedule3).toHaveProperty('disabled', true);
+  // Version 1 : rien qu'elle retire ; le bouton n'attend rien et n'envoie pas de confirmation.
+  const rollback = button('Revenir à la version 1 à la prochaine clôture');
+  expect(within(item(1)).queryByRole('checkbox')).toBeNull();
+  expect(rollback.getAttribute('aria-describedby')).toBeNull();
+  fireEvent.click(rollback);
+  await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(1));
+  expect(api.adminCommand.mock.calls[0]?.[1]).toEqual({ versionId: 'v1' });
+  // La case de la version 3 ne couvre que la recette : cochée, la programmation est confirmée.
+  fireEvent.click(within(item(3)).getByRole('checkbox'));
+  await waitFor(() => expect(schedule3).toHaveProperty('disabled', false));
+  fireEvent.click(schedule3);
+  await waitFor(() => expect(api.adminCommand).toHaveBeenCalledTimes(2));
+  expect(api.adminCommand.mock.calls[1]?.[1]).toEqual({
+    versionId: 'v3',
+    confirmRetiredInUse: true,
+  });
+});
+
 it('un refus du schéma désigne table, ligne et champ d’après la configuration envoyée', async () => {
   const fields = [
     'goods[1].elasticity: Too big',
