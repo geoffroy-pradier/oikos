@@ -37,7 +37,27 @@ const app = createApp({
   rateLimiter: unlimited,
   loadConfig,
 });
-afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
+/** Versions programmées par ce fichier : leurs activations encore à venir sont annulées à la fin. */
+const scheduledVersions = new Set<string>();
+afterAll(async () => {
+  // Ces versions ont l'horloge de test : activées, elles feraient clore la base locale à une autre heure,
+  // et le changement d'horloge étant refusé, rien ne permettrait d'y revenir (#123).
+  // Une annulation retire toutes les programmations en attente pour la même clôture.
+  const pending = () =>
+    db
+      .selectFrom('config.activations as a')
+      .leftJoin('config.activation_cancellations as c', 'c.activation_id', 'a.id')
+      .select('a.id')
+      .where('a.version_id', 'in', [...scheduledVersions, randomUUID()])
+      .where('a.activate_at', '>', new Date())
+      .where('c.activation_id', 'is', null)
+      .executeTakeFirst();
+  for (let next = await pending(); next; next = await pending())
+    expect((await send(root, 'admin.cancelActivation', { activationId: next.id })).status).toBe(
+      200,
+    );
+  await Promise.all([db.destroy(), owner.destroy()]);
+});
 
 async function newUser(role?: AdminRole, grantedBy: string | null = null): Promise<string> {
   const id = randomUUID();
@@ -78,6 +98,9 @@ const send = async (
     },
     body: JSON.stringify(body),
   });
+  const versionId = (body as { versionId?: unknown } | null)?.versionId;
+  if (command === 'admin.scheduleConfig' && res.status === 200 && typeof versionId === 'string')
+    scheduledVersions.add(versionId);
   return {
     status: res.status,
     body: (await res.json()) as {
@@ -327,7 +350,7 @@ describe('admin.publishConfig', () => {
 
   it('refuse une version qui change l’horloge (durée du tick, heure ou fuseau de clôture), sans rien enregistrer (#123)', async () => {
     const author = await newUser('super_admin');
-    const base = candidate(3000) as { clock: Record<string, unknown> };
+    const base = candidate(3000) as unknown as { clock: Record<string, unknown> };
     for (const [change, fields] of [
       [{ tickMinutes: 5 }, ['clock.tickMinutes']],
       [{ tickMinutes: 20 }, ['clock.tickMinutes']],
@@ -354,7 +377,7 @@ describe('admin.publishConfig', () => {
 describe('admin.scheduleConfig', () => {
   it('programme l’activation à la prochaine clôture quotidienne, pas avant', async () => {
     const author = await newUser('game_designer', root);
-    // Même contenu que la configuration de test : l'activation ne change rien pour les autres suites.
+    // Même contenu que la configuration de test, et annulée à la fin du fichier : rien ne change ailleurs.
     const published = await send(author, 'admin.publishConfig', { config: SAME_CLOCK });
     const versionId = published.body.data?.versionId ?? '';
     const before = new Date();
