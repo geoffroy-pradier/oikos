@@ -114,4 +114,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La base garantit qu'un navire naît à l'instant de sa création, à quai dans une cité de son monde (clé étrangère) et armé, puis qu'il ne change ni d'identifiant, ni de monde, ni de maison, ni de classe, ni de date de naissance.
   Le service crée un navire sans choisir son identifiant, sa date ni son désarmement, et ne le modifie ni ne le supprime ; les voyages et l'entretien (#252) lui ouvriront le quai et le désarmement.
   Un joueur lit ses propres navires par `my_ships`, sous règle par ligne, et les classes et tarifs par `ship_rules`, extrait public de la configuration en vigueur rendu par `game.ship_rules()`, exécutée au nom du propriétaire comme `site_rules`.
+- Citoyenneté (3, 6.2, #260) : `citizenships` porte la maison, sa cité, son statut (métèque ou citoyen) et la date de ce statut.
+  La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
+  Le service n'écrit à la fondation que la maison et la cité, et à la promotion que le statut et la date ; c'est la clôture qui promeut.
+  Les joueurs connectés lisent le statut de toute maison (`houses.citizenship_status`).
 - Migrations SQL versionnées dans le dépôt, jamais de modification manuelle en production. Chaque migration appliquée est enregistrée dans `supabase_migrations.schema_migrations` et n'est plus rejouée au déploiement (14.4). Une migration publiée sur `main` est donc immuable (ni modifiée, ni supprimée, ni renommée) : on corrige par une migration nouvelle, ce que vérifie `ci`.

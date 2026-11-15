@@ -75,6 +75,10 @@ Chaque voie a son arbre de compétences du chef de maison (30 nœuds par arbre, 
    Le joueur choisit à la fondation sa cité d'accueil parmi les quatre de l'Archipel, présentées avec leur dieu protecteur, leur port et leur terroir (6.1).
    Le premier site lance la recette de départ de cette cité, sinon la recette commune : un champ de blé à Kallistè et à Elaia, une vigne à Ampelos, une pêcherie à Halos.
 2. **Citoyen (semaine 1).** Citoyenneté, droit de vote, choix du dieu protecteur, premier intendant.
+   La citoyenneté vient d'elle-même, sans démarche ni coût (décision du ticket 260, ambiguïté de 3 et 6) : une maison fondée un jour de jeu devient citoyenne à la clôture qui ouvre le jour situé `politics.meticDays` jours plus loin.
+   Au départ, ce nombre vaut 3 : métèque les jours 1 à 3, la maison est citoyenne au quatrième.
+   Elle le reste, dans la cité qu'elle a choisie à sa fondation ; un citoyen vote et se porte candidat dans cette cité (6.2).
+   Une version de configuration publiée avant la citoyenneté (sans section `politics`) laisse les maisons métèques.
 3. **Notable (mois 1).** Plusieurs sites, un navire, accès au crédit, première magistrature mineure.
 4. **Grande maison (mois 2 à 4).** Filière intégrée ou banque, présence dans plusieurs cités, liturgies.
 5. **Légende (au-delà).** Titres d'Olympiade, merveilles, hégémonie, héritiers. Le but de fin de partie est le prestige, pas l'accumulation.
