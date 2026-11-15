@@ -61,12 +61,12 @@ it('session terminée en cours de commande : INTERNAL, trace écrite, clé réut
     replayed: false,
   });
   // Rien n'est validé : le renommage a été annulé avec la session.
-  const before = await db
+  const after = await db
     .selectFrom('game.houses')
     .select('name')
     .where('user_id', '=', userId)
     .executeTakeFirstOrThrow();
-  expect(before.name).toBe(`Coupure ${letters}`);
+  expect(after.name).toBe(`Coupure ${letters}`);
   // La trace d'audit est écrite, sans clé : la commande pourra être rejouée avec la même.
   const log = await db
     .selectFrom('game.command_log')
