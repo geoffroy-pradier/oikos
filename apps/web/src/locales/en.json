@@ -256,6 +256,7 @@
     "ORDER_NOT_FOUND": "This order cannot be found.",
     "ORDER_NOT_OPEN": "This order is already filled or cancelled.",
     "RECIPE_NOT_FOUND": "This production no longer exists. Reload the page.",
+    "PRICE_CHANGED": "The price changed since it was shown: nothing was paid. Check the new price and try again.",
     "RECIPE_RETIRED": "This production no longer exists: this site can no longer be collected. Choose another production for it.",
     "RECIPE_NOT_COMPATIBLE": "This site cannot host this production.",
     "RECIPE_UNCHANGED": "This site already has this production.",
