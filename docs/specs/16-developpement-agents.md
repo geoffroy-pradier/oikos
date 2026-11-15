@@ -10,7 +10,7 @@ Le projet est organisé pour que des agents de code travaillent en parallèle su
 | `docs/specs/` | Une spécification par système, dérivée de ce document, avec critères d'acceptation |
 | `docs/adr/` | Décisions d'architecture datées et motivées |
 | `packages/contracts/` | Schémas des commandes et événements : le contrat entre client, API et moteur |
-| `packages/config/` | Schémas et valeurs d'équilibrage |
+| `packages/config/` | Schémas et valeurs d'équilibrage ; réglages du client qui ne relèvent pas de l'équilibrage (`client.ts`, non versionnés en base) |
 | `packages/db/supabase/migrations/` | État de la base (arborescence imposée par la CLI Supabase) |
 | `docs/glossary.md` | Lexique du jeu, pour que tous les agents nomment les choses de la même façon |
 

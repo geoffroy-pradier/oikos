@@ -69,6 +69,11 @@ const alerts = () =>
     .queryAllByRole('alert')
     .map((region) => region.textContent)
     .join(' ');
+const statuses = () =>
+  screen
+    .queryAllByRole('status')
+    .map((region) => region.textContent)
+    .join(' ');
 const collected = {
   ok: true,
   replayed: false,
@@ -91,6 +96,8 @@ describe('une commande qui lève ne bloque pas la carte des sites', () => {
     expect(button.getAttribute('aria-disabled')).toBe('false');
     fireEvent.click(button);
     await waitFor(() => expect(api.collectSite).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(alerts()).not.toContain(fr.errors.INTERNAL));
+    // Le second envoi aboutit : sa réussite est annoncée et l'erreur effacée.
+    await waitFor(() => expect(statuses()).toMatch(/Récolte engrangée/));
+    expect(alerts()).not.toContain(fr.errors.INTERNAL);
   });
 });

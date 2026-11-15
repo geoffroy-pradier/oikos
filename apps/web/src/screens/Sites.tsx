@@ -176,8 +176,10 @@ export function SitesCard({
       );
       return result;
     } catch {
-      // Un appel qui lève (relecture, message) n'a pas d'issue connue : la clé éventuelle reste en
-      // attente, l'erreur est annoncée et l'écran redevient utilisable.
+      // Un appel qui a levé (envoi, relecture, message) : l'issue est tenue pour inconnue, même si la
+      // commande a pu aboutir. La clé éventuelle reste en attente (la renvoyer rejoue la réponse), ce
+      // qui a pu changer est relu une fois, l'erreur est annoncée et l'écran redevient utilisable.
+      await refresh().catch(() => undefined);
       setNotice({ target, kind: 'alert', text: t('errors.INTERNAL') });
       return null;
     } finally {
@@ -303,6 +305,8 @@ export function SitesCard({
         text: parts.join(' '),
       });
     } catch {
+      // Des récoltes ont pu aboutir avant l'appel qui a levé : ce qui a changé est relu une fois.
+      await refresh().catch(() => undefined);
       setNotice({ target: ALL, kind: 'alert', text: t('errors.INTERNAL') });
     } finally {
       setBusy(false);
