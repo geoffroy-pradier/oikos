@@ -126,7 +126,14 @@ describe('stockage versionné de la configuration', () => {
       // Chargeur du pool : il ne voit pas ce que la transaction n'a pas validé ; elle, si.
       const loader = createConfigLoader(db);
       expect((await loader.at(day(1, 12), trx)).id).toBe(v1.id);
-      expect((await loader.at(day(1, 12))).id).not.toBe(v1.id);
+      // Sur une base neuve, rien n'est en vigueur en 2031 pour le pool : `ConfigError`, tenu pour nul.
+      const onPool = await loader.at(day(1, 12)).then(
+        (loaded) => loaded.id,
+        () => null,
+      );
+      expect(onPool).not.toBe(v1.id);
+      // Lue dans la transaction, la version n'entre pas au cache : elle pourrait n'être jamais validée.
+      expect(loader.cachedVersions()).toBe(onPool === null ? 0 : 1);
     }));
 
   it('met les versions en cache : un tick relit la même instance figée', () =>

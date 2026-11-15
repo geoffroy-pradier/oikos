@@ -136,7 +136,9 @@ export function createConfigLoader(db: Db) {
       );
     }
     const loaded = Object.freeze({ id: row.id, number: row.number, config: validation.config });
-    cache.set(id, loaded);
+    // Seule une lecture par le pool, donc validée, entre au cache : une version lue dans la transaction
+    // de l'appelant peut n'avoir jamais été validée (transaction annulée) et ne doit pas y rester.
+    if (executor === db) cache.set(id, loaded);
     return loaded;
   }
 
