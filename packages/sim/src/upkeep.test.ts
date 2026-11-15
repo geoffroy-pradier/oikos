@@ -1,6 +1,13 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { dailyUpkeep, dailyWages, settleUpkeep, siteDailyDue, sumDailyDues } from './upkeep';
+import {
+  dailyUpkeep,
+  dailyWages,
+  settleShipUpkeep,
+  settleUpkeep,
+  siteDailyDue,
+  sumDailyDues,
+} from './upkeep';
 
 const base = fc.oneof(fc.integer({ min: 0, max: 200 }), fc.integer({ min: 0, max: 1_000_000_000 }));
 const coefficient = fc.oneof(
@@ -124,7 +131,7 @@ describe('règlement de l’entretien d’une maison', () => {
         expect(settleUpkeep(all + extra, sites)).toEqual({ paid: sites, unpaid: [], total: all });
       }),
     );
-    expect(() => settleUpkeep(1_000, [a, b, { ...a }])).toThrow('each site is settled once');
+    expect(() => settleUpkeep(1_000, [a, b, { ...a }])).toThrow('each due is settled once');
     for (const bad of [-1, 0.5, Number.NaN]) {
       expect(() => settleUpkeep(bad, [])).toThrow(RangeError);
       expect(() => settleUpkeep(10, [{ siteId: 'a', oboles: bad }])).toThrow(RangeError);
@@ -221,5 +228,43 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
     expect(sumDailyDues([])).toEqual({ upkeepOboles: 0, wagesOboles: 0, oboles: 0 });
     for (const bad of [-1, 0.5, Number.NaN])
       expect(() => sumDailyDues([{ upkeepOboles: 1, wagesOboles: bad }])).toThrow(RangeError);
+  });
+});
+
+describe('entretien des navires (#252)', () => {
+  it('après les sites, avec ce qui reste : chaque navire en entier ou pas du tout, dans l’ordre reçu', () => {
+    const ships = [
+      { shipId: 'a', oboles: 40 },
+      { shipId: 'b', oboles: 70 },
+      { shipId: 'c', oboles: 0 },
+      { shipId: 'd', oboles: 25 },
+    ];
+    const sites = settleUpkeep(100, [{ siteId: 's', oboles: 30 }]);
+    expect(settleShipUpkeep(100 - sites.total, ships)).toEqual({
+      paid: [ships[0], ships[2], ships[3]],
+      unpaid: [ships[1]],
+      total: 65,
+    });
+    expect(settleShipUpkeep(0, ships).paid).toEqual([ships[2]]);
+    expect(() => settleShipUpkeep(10, [ships[0], { ...ships[0] }] as never)).toThrow(
+      'each due is settled once',
+    );
+  });
+
+  it('conservation : prélevé = somme des navires payés, jamais plus que la trésorerie', () => {
+    const shipDues = fc.uniqueArray(
+      fc.record({ shipId: fc.uuid(), oboles: fc.integer({ min: 0, max: 500 }) }),
+      { maxLength: 8, selector: (due) => due.shipId },
+    );
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 2_000 }), shipDues, (treasury, listed) => {
+        const { paid, unpaid, total } = settleShipUpkeep(treasury, listed);
+        expect(total).toBe(paid.reduce((sum, due) => sum + due.oboles, 0));
+        expect(total).toBeLessThanOrEqual(treasury);
+        expect(paid.length + unpaid.length).toBe(listed.length);
+        // Un navire impayé coûtait plus que ce qui restait quand il a été examiné.
+        for (const due of unpaid) expect(due.oboles).toBeGreaterThan(treasury - total);
+      }),
+    );
   });
 });

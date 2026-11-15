@@ -79,31 +79,38 @@ export interface UpkeepDue {
   oboles: number;
 }
 
-/** `T` : le dû de chaque site tel que reçu, rendu tel quel (ses parts par nature comprises). */
-export interface UpkeepSettlement<T extends UpkeepDue = UpkeepDue> {
-  /** Sites dont l'entretien est payé, dans l'ordre reçu. */
+/** Entretien d'un jour d'un navire (#252) : celui de sa classe, payé en entier ou pas du tout. */
+export interface ShipUpkeepDue {
+  shipId: string;
+  oboles: number;
+}
+
+/** `T` : le dû de chaque site ou navire tel que reçu, rendu tel quel (ses parts par nature comprises). */
+export interface UpkeepSettlement<T extends { oboles: number } = UpkeepDue> {
+  /** Dus payés, dans l'ordre reçu. */
   paid: T[];
-  /** Sites que la trésorerie ne pouvait pas payer en entier : ils sont à l'arrêt. */
+  /** Dus que la trésorerie ne pouvait pas payer en entier : leur site est à l'arrêt, leur navire désarmé. */
   unpaid: T[];
-  /** Somme prélevée : celle des sites payés, jamais plus que la trésorerie. */
+  /** Somme prélevée : celle des dus payés, jamais plus que la trésorerie. */
   total: number;
 }
 
 /**
- * Règle d'une maison qui ne peut pas tout payer. Les sites sont examinés dans l'ordre reçu (date de
- * création puis identifiant) : chacun est payé en entier si ce qui reste de la trésorerie le permet, sinon il
- * n'est pas payé du tout et l'examen continue, si bien qu'un site moins cher peut encore l'être. La
- * trésorerie ne passe jamais sous zéro et aucun entretien n'est payé en partie.
+ * Règle d'une maison qui ne peut pas tout payer. Les dus sont examinés dans l'ordre reçu (date de
+ * création puis identifiant) : chacun est payé en entier si ce qui reste de la trésorerie le permet, sinon
+ * il n'est pas payé du tout et l'examen continue, si bien qu'un dû moins cher peut encore l'être. La
+ * trésorerie ne passe jamais sous zéro et aucun dû n'est payé en partie.
  */
-export function settleUpkeep<T extends UpkeepDue>(
+function settleInOrder<T extends { oboles: number }>(
   balance: number,
   dues: readonly T[],
+  idOf: (due: T) => string,
 ): UpkeepSettlement<T> {
   if (!Number.isSafeInteger(balance) || balance < 0)
     throw new RangeError('balance must be a non-negative integer');
-  // Un site en double serait prélevé deux fois : c'est une erreur de l'appelant, pas un cas à régler.
-  if (new Set(dues.map((due) => due.siteId)).size !== dues.length)
-    throw new RangeError('each site is settled once');
+  // Un dû en double serait prélevé deux fois : c'est une erreur de l'appelant, pas un cas à régler.
+  if (new Set(dues.map(idOf)).size !== dues.length)
+    throw new RangeError('each due is settled once');
   const settlement: UpkeepSettlement<T> = { paid: [], unpaid: [], total: 0 };
   for (const due of dues) {
     if (!Number.isSafeInteger(due.oboles) || due.oboles < 0)
@@ -114,4 +121,23 @@ export function settleUpkeep<T extends UpkeepDue>(
     } else settlement.unpaid.push(due);
   }
   return settlement;
+}
+
+/** Les sites d'une maison à une clôture, examinés dans l'ordre reçu (`settleInOrder`). */
+export function settleUpkeep<T extends UpkeepDue>(
+  balance: number,
+  dues: readonly T[],
+): UpkeepSettlement<T> {
+  return settleInOrder(balance, dues, (due) => due.siteId);
+}
+
+/**
+ * Les navires d'une maison à une clôture (#252), examinés après ses sites, avec ce qui reste de la
+ * trésorerie, dans l'ordre reçu (`settleInOrder`).
+ */
+export function settleShipUpkeep<T extends ShipUpkeepDue>(
+  balance: number,
+  dues: readonly T[],
+): UpkeepSettlement<T> {
+  return settleInOrder(balance, dues, (due) => due.shipId);
 }

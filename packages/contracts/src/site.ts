@@ -183,9 +183,27 @@ const upkeepDue = z
   .refine((due) => due.oboles === due.upkeepOboles + due.wagesOboles, {
     message: 'oboles must be upkeep plus wages',
   });
+/** L'entretien d'un jour d'un navire, payé en entier ou pas du tout (#252). */
+const shipUpkeepDue = z.strictObject({ shipId: z.uuid(), oboles });
+/**
+ * Entretien des navires d'une maison réglé à une clôture, après ses sites (#252) : ce qui a été payé, ce
+ * qui ne l'a pas été, les navires que cette clôture a désarmés et ceux qu'elle a réarmés.
+ */
+const shipsSettled = z
+  .strictObject({
+    upkeepOboles: oboles,
+    paid: z.array(shipUpkeepDue),
+    unpaid: z.array(shipUpkeepDue),
+    laidUp: z.array(z.uuid()),
+    rearmed: z.array(z.uuid()),
+  })
+  .refine((ships) => ships.upkeepOboles === ships.paid.reduce((sum, due) => sum + due.oboles, 0), {
+    message: 'ship upkeep must add up',
+  });
 /**
  * Entretien et salaires d'une maison réglés à une clôture quotidienne (5.5) : ce qui a été payé, au total
  * et par nature, ce qui ne l'a pas été, les sites que cette clôture a arrêtés et ceux qu'elle a relancés.
+ * Une maison qui a des navires y trouve aussi leur entretien (`ships`), compté dans le total.
  * Émis par le moteur, sans commande.
  */
 export const upkeepSettledSchema = z.strictObject({
@@ -201,11 +219,13 @@ export const upkeepSettledSchema = z.strictObject({
       unpaid: z.array(upkeepDue),
       halted: z.array(z.uuid()),
       resumed: z.array(z.uuid()),
+      ships: shipsSettled.optional(),
     })
-    // Les parts font le tout, et le tout est ce que les sites payés ont coûté.
+    // Les parts font le tout, et le tout est ce que les sites et les navires payés ont coûté.
     .refine(
       (payload) =>
-        payload.paidOboles === payload.upkeepOboles + payload.wagesOboles &&
+        payload.paidOboles ===
+          payload.upkeepOboles + payload.wagesOboles + (payload.ships?.upkeepOboles ?? 0) &&
         payload.upkeepOboles === payload.paid.reduce((sum, due) => sum + due.upkeepOboles, 0) &&
         payload.wagesOboles === payload.paid.reduce((sum, due) => sum + due.wagesOboles, 0),
       { message: 'paid amounts must add up' },
