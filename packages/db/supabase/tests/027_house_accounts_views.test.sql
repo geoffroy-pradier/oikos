@@ -1,5 +1,5 @@
 begin;
-select plan(41);
+select plan(42);
 
 -- Jeu d'essai : clôture à 4 h, heure de Paris. Alice et Bob ont chacun une maison, Chloé n'en a pas.
 insert into config.versions (id, payload) values
@@ -75,6 +75,13 @@ insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity,
 select lives_ok('set constraints all immediate', 'jeu d''essai valide : écritures équilibrées, séquestre égal au reste à payer');
 set constraints all deferred;
 
+-- Lectures des clients sans compilation à la volée (ticket 155) : réglage des rôles, que PostgREST applique à
+-- chaque requête. Mesure : `pnpm --filter @oikos/db bench:cash-flows`.
+select is(
+  (select string_agg(r.rolname || ':' || s, ' ' order by r.rolname)
+   from pg_db_role_setting d join pg_roles r on r.oid = d.setrole, unnest(d.setconfig) s
+   where d.setdatabase = 0 and r.rolname in ('anon', 'authenticated', 'oikos_service') and s like 'jit=%'),
+  'anon:jit=off authenticated:jit=off', 'pas de compilation à la volée pour les clients ; le service garde le réglage de la base');
 -- Catalogue : vues en lecture seule, exécutées avec les droits de l'appelant ; règles par ligne figées.
 select is(
   (select string_agg(table_name || '(' || cols || ')', ' ' order by table_name)

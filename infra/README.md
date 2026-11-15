@@ -79,6 +79,10 @@ Retour arrière manuel : relancer, depuis l'interface de GitHub, l'exécution du
 
 Limites : le script n'a encore tourné sur aucun serveur réel ; le contrôle de santé ne porte que sur l'API (une réplique suffit à le valider, le moteur n'est pas contrôlé) ; un retour arrière automatique ne concerne que les conteneurs (les clients statiques, remplacés en dernier, ne le sont qu'après un contrôle de santé réussi) ; la production (étiquette de version, validation humaine) aura son propre flux.
 
+## Réglages de la base
+
+- **Pas de compilation à la volée pour les clients** (ticket 155, migration 40) : `alter role authenticated set jit = off` et de même pour `anon`. PostgREST applique à chaque requête les réglages du rôle qu'il endosse, comme le `statement_timeout` que Supabase pose sur ces rôles. Les règles par ligne du grand livre donnent à la lecture des flux de trésorerie un coût estimé qui déclencherait la compilation, pour un surcoût de plusieurs fois la lecture (mesure : `pnpm --filter @oikos/db bench:cash-flows`, à jouer dans une base neuve, migrations et seed appliqués). Le rôle de service (API, moteur) garde le réglage de la base. L'image Postgres de Supabase n'embarque pas toujours la compilation à la volée (`select pg_jit_available()`) : le réglage est alors sans effet, et reste le bon si l'on change d'image ou d'hébergeur. Vérification : `select rolname, rolconfig from pg_roles where rolname in ('anon', 'authenticated')`.
+
 ## État et limites
 
 - La surcouche est validée par `docker compose config` contre le compose officiel de Supabase, mais n'a pas encore tourné sur un serveur réel : la première installation en préproduction fait foi et corrigera ce document.
