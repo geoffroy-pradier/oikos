@@ -271,7 +271,12 @@
     "SITE_HALTED": "Ce site est à l'arrêt : son entretien n'est pas payé. Relancez-le d'abord.",
     "SITE_NOT_HALTED": "Ce site tourne déjà.",
     "MISSING_INPUTS": "Il manque des intrants en stock libre pour faire tourner cet atelier.",
-    "CITY_REQUIRED": "Choisissez votre cité d'accueil."
+    "CITY_REQUIRED": "Choisissez votre cité d'accueil.",
+    "ELECTION_NOT_FOUND": "Cette élection n'existe pas.",
+    "NOT_CITIZEN": "Seuls les citoyens de la cité prennent part à son élection.",
+    "FILING_CLOSED": "Le dépôt des candidatures n'est pas ouvert.",
+    "ALREADY_CANDIDATE": "Votre maison est déjà candidate à cette élection, ou s'en est retirée.",
+    "TERM_LIMIT_REACHED": "Votre maison a déjà exercé le nombre maximal de mandats consécutifs."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

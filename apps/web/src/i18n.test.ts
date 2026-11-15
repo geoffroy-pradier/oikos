@@ -1,4 +1,5 @@
 import {
+  CITY_STAND_FOR_ELECTION_ERROR_CODES,
   COMMON_ERROR_CODES,
   FRAMEWORK_ERROR_CODES,
   HOUSE_CREATE_ERROR_CODES,
@@ -33,6 +34,7 @@ describe('traductions', () => {
     const expected = [
       ...[
         ...COMMON_ERROR_CODES,
+        ...CITY_STAND_FOR_ELECTION_ERROR_CODES,
         ...FRAMEWORK_ERROR_CODES,
         ...HOUSE_CREATE_ERROR_CODES,
         ...HOUSE_RENAME_ERROR_CODES,
