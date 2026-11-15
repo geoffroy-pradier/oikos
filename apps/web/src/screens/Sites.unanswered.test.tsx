@@ -103,7 +103,8 @@ describe('acquisition sans réponse, d’un écran à l’autre', () => {
     expect(warned()).toBeNull();
   });
 
-  it('clic pendant une récolte : rien ne part, aucune clé n’est rangée', async () => {
+  it('clic pendant une récolte : rien ne part, aucune clé n’est rangée, l’avertissement reste', async () => {
+    window.sessionStorage.setItem('oikos.unanswered.h1', '1');
     let harvested: (value: unknown) => void = () => undefined;
     api.collectSite.mockReturnValueOnce(new Promise((resolve) => (harvested = resolve)));
     await show();
@@ -111,6 +112,8 @@ describe('acquisition sans réponse, d’un écran à l’autre', () => {
     submit();
     expect(api.acquireSite).not.toHaveBeenCalled();
     expect(stored()).toEqual([]);
+    // Sans la garde, `acquire` irait jusqu'à lever l'avertissement avant que `run` ne refuse.
+    expect(window.sessionStorage.getItem('oikos.unanswered.h1')).toBe('1');
     harvested({ ok: true, replayed: false, data: { outputs: [] } });
     await waitFor(() =>
       expect(
