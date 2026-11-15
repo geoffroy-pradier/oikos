@@ -215,6 +215,11 @@ export const adminEconomySchema = z.object({
   /** Mesure de l'inflation : durée d'une fenêtre de prix en jours, cible en points de base (bornes comprises). */
   priceWindowDays: z.number().int().positive(),
   inflationTargetBps: z.object({ min: bps, max: bps }),
+  /**
+   * Panier de référence vide (version de configuration publiée avant l'indice) : l'indice est inconnu
+   * dans tous les mondes, faute de panier, et non faute d'échanges.
+   */
+  basketEmpty: z.boolean(),
   worlds: z.array(
     z.object({
       worldId: z.uuid(),

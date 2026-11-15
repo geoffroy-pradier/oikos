@@ -109,6 +109,9 @@ describe('accès au back-office', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Économie' }));
     expect(await screen.findByRole('heading', { name: 'Monde « archipel »' })).toBeTruthy();
     expect(adminGet).toHaveBeenCalledWith('economy', A2);
+    const current = () =>
+      screen.getAllByRole('button').filter((tab) => tab.getAttribute('aria-current') === 'page');
+    expect(current().map((tab) => tab.textContent)).toEqual(['Économie']);
   });
 
   it("un rôle sans module (modérateur) n'a ni onglet ni lecture", async () => {

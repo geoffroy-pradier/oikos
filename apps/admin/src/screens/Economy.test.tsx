@@ -26,18 +26,24 @@ const rows = (name: string | RegExp) =>
   within(screen.getByRole('table', { name }))
     .getAllByRole('row')
     .map((row) => Array.from(row.children, text));
-type Index = (typeof ECONOMY)['worlds'][number]['priceIndex'];
-/** Affiche le monde de démonstration, avec l'indice ou la masse donnés. */
-async function show(priceIndex: Partial<Index> = {}, other = 0) {
+type World = (typeof ECONOMY)['worlds'][number];
+type Index = World['priceIndex'];
+const WORLD = ECONOMY.worlds[0] as World;
+/** Monde de démonstration, avec l'indice ou la masse donnés. */
+const world = (priceIndex: Partial<Index> = {}, other = 0): World => ({
+  ...WORLD,
+  moneySupply: { ...WORLD.moneySupply, other },
+  priceIndex: { ...WORLD.priceIndex, ...priceIndex },
+});
+/** Affiche la réponse de démonstration, avec les mondes et les champs donnés. */
+async function showAll(worlds: World[], patch: Partial<typeof ECONOMY> = {}) {
   cleanup();
-  const world = ECONOMY.worlds[0];
-  if (!world) throw new Error('fixture without a world');
-  const moneySupply = { ...world.moneySupply, other };
-  const shown = { ...world, moneySupply, priceIndex: { ...world.priceIndex, ...priceIndex } };
-  adminGet.mockResolvedValue({ ok: true, data: { ...ECONOMY, worlds: [shown] } });
+  adminGet.mockResolvedValue({ ok: true, data: { ...ECONOMY, ...patch, worlds } });
   render(<Economy accessToken="token" />);
-  await screen.findByRole('heading', { name: 'Monde « archipel »' });
+  await screen.findByRole('heading', { name: `Monde « ${worlds[0]?.slug ?? ''} »` });
 }
+/** Affiche le monde de démonstration, avec l'indice ou la masse donnés. */
+const show = (priceIndex: Partial<Index> = {}, other = 0) => showAll([world(priceIndex, other)]);
 
 it('une lecture sans réponse le dit, et « Réessayer » la relance', async () => {
   adminGet.mockResolvedValueOnce({ ok: false, code: 'NETWORK' });
@@ -74,7 +80,8 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
     ['Entretien des sites (puits)', '185'],
     ['sink_future (puits)', '0'],
   ]);
-  expect(screen.getByRole('heading', { name: /jours lus : 30\)$/ })).toBeTruthy();
+  // Jours détaillés (14) et fenêtre de prix (30) se lisent chacun à sa place.
+  expect(screen.getByRole('heading', { name: /jours lus : 14\)$/ })).toBeTruthy();
   const cards = screen.getAllByRole('heading', { level: 4 }).map((day) => text(day.parentElement));
   expect(cards).toEqual([
     '15 nov. 2026Dotation de départ (robinet)6 000Entretien des sites (puits)155',
@@ -82,6 +89,42 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
   ]);
   await show({}, -4);
   expect(rows('Masse monétaire')[3]).toEqual(['Autres comptes', '-4']);
+});
+
+it('les jours de jeu se lisent en temps universel, même sous un fuseau à l’ouest de Greenwich', async () => {
+  const zone = process.env['TZ'];
+  process.env['TZ'] = 'America/Los_Angeles';
+  try {
+    // Minuit UTC du 15 novembre est encore le 14 à Los Angeles : le fuseau du poste ne compte pas.
+    expect(new Date(20_772 * 86_400_000).getDate()).toBe(14);
+    await show();
+    const cards = screen.getAllByRole('heading', { level: 4 }).map((day) => day.textContent);
+    expect(cards).toEqual(['15 nov. 2026', '14 nov. 2026']);
+  } finally {
+    if (zone === undefined) delete process.env['TZ'];
+    else process.env['TZ'] = zone;
+  }
+});
+
+it('sans mouvement sur la période : dit tel, sans liste vide', async () => {
+  await showAll([{ ...world(), systemAccounts: [] }]);
+  expect(screen.getByText('Aucun mouvement sur la période.')).toBeTruthy();
+  expect(screen.queryByRole('list')).toBeNull();
+});
+
+it('une clé de compte inconnue et longue peut passer à la ligne n’importe où', async () => {
+  const key = `sink_${'inconnu'.repeat(10)}`;
+  const long: World['systemAccounts'][number] = {
+    key,
+    kind: 'sink',
+    total: 3,
+    days: [{ gameDay: 20_772, amount: 3 }],
+  };
+  await showAll([{ ...world(), systemAccounts: [...WORLD.systemAccounts, long] }]);
+  // Rangée du cumul (th) et fiche du jour (dt) ; la mise en page elle-même est vérifiée à 360 px (e2e).
+  const labels = screen.getAllByText(`${key} (puits)`);
+  expect(labels.map((label) => label.tagName)).toEqual(['TH', 'DT']);
+  for (const label of labels) expect(label.classList).toContain('wrap-anywhere');
 });
 
 it('hors de la cible : une alerte écrite dit l’inflation, le sens de l’écart et la cible', async () => {
@@ -107,6 +150,14 @@ it('mesure inconnue : dite telle, sans alerte, avec les biens du panier sans éc
   expect(figures('dd')).toEqual(['112,12', 'Sans mesure', 'Sans mesure', 'Sans mesure']);
   expect(screen.getByText(/^Mesure incomplète : .* pour wheat et bread /)).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
-  await show({ ...unknown, currentBps: null });
+});
+
+it('« pas de panier » est lu dans la réponse, jamais déduit d’une liste de biens vide', async () => {
+  const unknown = { currentBps: null, previousBps: null, inflationBps: null } as const;
+  const none: Partial<Index> = { ...unknown, status: 'unknown', unpricedGoods: [] };
+  await show(none);
+  expect(screen.queryByText(/pas de panier de référence/)).toBeNull();
+  expect(screen.queryByText(/^Mesure incomplète/)).toBeNull();
+  await showAll([world(none)], { basketEmpty: true });
   expect(screen.getByText(/^Mesure impossible : .* pas de panier de référence\.$/)).toBeTruthy();
 });

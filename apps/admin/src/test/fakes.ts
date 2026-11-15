@@ -142,9 +142,11 @@ const account = (key: string, total: number, ...days: [gameDay: number, amount: 
 });
 /** Un monde dans la cible : un prêt remboursé (net négatif) et un compte système que l'écran ne connaît pas. */
 export const ECONOMY: AdminEconomy = {
-  windowDays: 30,
+  // Deux fenêtres distinctes : intervertir jours détaillés et fenêtre de prix fait échouer les tests.
+  windowDays: 14,
   priceWindowDays: 30,
   inflationTargetBps: { min: 0, max: 300 },
+  basketEmpty: false,
   worlds: [
     {
       worldId: '01900000-0000-7000-8000-000000000001',
