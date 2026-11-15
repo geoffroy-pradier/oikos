@@ -6,6 +6,7 @@ import {
   routeProvisionsOboles,
   shipRoute,
   DEFAULT_AI,
+  DEFAULT_CHAT,
   cityHasPort,
   cityStartingRecipeId,
   cityDailyWageOboles,
@@ -65,6 +66,7 @@ const FIXTURE: GameConfig = {
     basket: [{ goodId: 'bread', quantity: 2 }],
   },
   telemetry: { retentionDays: 30 },
+  chat: { maxMessageLength: 280, retentionDays: 14, rateLimit: { messages: 5, windowSeconds: 30 } },
   ai: {
     budgetMicroEurosPerActivePlayerMonth: 80_000,
     expectedActivePlayers: 200,
@@ -660,6 +662,52 @@ describe('rétention de la télémétrie', () => {
     expect([errors(2), errors(3650)]).toEqual([[], []]);
     for (const wrong of [1, 3651, 7.5])
       expect(errors(wrong)).toEqual([expect.stringMatching(/^telemetry\.retentionDays: /)]);
+  });
+});
+
+describe('discussion', () => {
+  it('une version publiée avant elle reste lisible : 500 caractères, 30 jours, 10 messages par minute', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.chat;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.chat).toEqual({
+      maxMessageLength: 500,
+      retentionDays: 30,
+      rateLimit: { messages: 10, windowSeconds: 60 },
+    });
+    expect(Object.isFrozen(DEFAULT_CHAT.rateLimit)).toBe(true);
+  });
+
+  it('longueur de 1 à 2 000 caractères, plafond de la base ; conservation d’un jour au moins', () => {
+    const errors = (chat: Partial<GameConfig['chat']>) =>
+      errorsOf({ ...clone(), chat: { ...clone().chat, ...chat } });
+    expect([errors({ maxMessageLength: 1 }), errors({ maxMessageLength: 2_000 })]).toEqual([
+      [],
+      [],
+    ]);
+    for (const wrong of [0, 2_001, 12.5])
+      expect(errors({ maxMessageLength: wrong })).toEqual([
+        expect.stringMatching(/^chat\.maxMessageLength: /),
+      ]);
+    expect([errors({ retentionDays: 1 }), errors({ retentionDays: 3650 })]).toEqual([[], []]);
+    for (const wrong of [0, 3651, 1.5])
+      expect(errors({ retentionDays: wrong })).toEqual([
+        expect.stringMatching(/^chat\.retentionDays: /),
+      ]);
+  });
+
+  it('débit : au moins un message par fenêtre d’au moins une seconde, au plus un jour', () => {
+    const errors = (rateLimit: { messages: number; windowSeconds: number }) =>
+      errorsOf({ ...clone(), chat: { ...clone().chat, rateLimit } });
+    expect(errors({ messages: 1, windowSeconds: 86_400 })).toEqual([]);
+    expect(errors({ messages: 0, windowSeconds: 60 })).toEqual([
+      expect.stringMatching(/^chat\.rateLimit\.messages: /),
+    ]);
+    expect(errors({ messages: 5, windowSeconds: 86_401 })).toEqual([
+      expect.stringMatching(/^chat\.rateLimit\.windowSeconds: /),
+    ]);
+    expect(errorsOf({ ...clone(), chat: { ...clone().chat, extra: 1 } })).not.toEqual([]);
   });
 });
 

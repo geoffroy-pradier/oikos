@@ -75,7 +75,7 @@ select is(
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_identity game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
     || 'game.election_results game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
-    || 'game.politics_rules game.readable_channel_ids game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
+    || 'game.politics_rules game.purge_messages game.readable_channel_ids game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
 select is(
@@ -98,7 +98,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.uuid_v7 '
+  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.purge_messages game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');

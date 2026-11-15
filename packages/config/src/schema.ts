@@ -443,6 +443,33 @@ export const telemetrySchema = z.strictObject({
 });
 
 /**
+ * Valeurs lues pour les versions publiées avant la discussion : 500 caractères, 30 jours de conservation,
+ * 10 messages par minute. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_CHAT = deepFreeze({
+  maxMessageLength: 500,
+  retentionDays: 30,
+  rateLimit: { messages: 10, windowSeconds: 60 },
+});
+
+/**
+ * Discussion (docs/specs/06-cites-politique-communaute.md, 6.6) : canal de la cité et conversations
+ * privées. La longueur a un plafond technique de 2 000 caractères, que la base vérifie aussi
+ * (`messages_body_length`) : une commande tient alors dans la taille maximale d'un corps de requête.
+ */
+export const chatSchema = z.strictObject({
+  /** Longueur maximale d'un message, en caractères (points de code Unicode). */
+  maxMessageLength: z.number().int().min(1).max(2_000),
+  /** Au-delà, le moteur supprime le message (conservation limitée, 18). Au moins un jour. */
+  retentionDays: z.number().int().min(1).max(3650),
+  /** Débit propre à la discussion : messages d'une maison, tous canaux confondus, par fenêtre glissante. */
+  rateLimit: z.strictObject({
+    messages: z.number().int().min(1).max(1_000),
+    windowSeconds: z.number().int().min(1).max(86_400),
+  }),
+});
+
+/**
  * Magistrature de l'archonte (docs/specs/06-cites-politique-communaute.md, 6.2), en jours de jeu.
  * Une élection ouvre le dépôt des candidatures `candidacyDays + votingDays` jours avant le début du
  * mandat qu'elle pourvoit, puis le vote `votingDays` jours avant ; elle est dépouillée à la clôture qui
@@ -667,6 +694,8 @@ export const gameConfigSchema = z
     priceIndex: priceIndexSchema.default(DEFAULT_PRICE_INDEX),
     /** Absent des versions publiées avant la rétention de la télémétrie : 90 jours. */
     telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
+    /** Absent des versions publiées avant la discussion : valeurs de `DEFAULT_CHAT`. */
+    chat: chatSchema.default(DEFAULT_CHAT),
     /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
     ai: aiSchema.default(DEFAULT_AI),
     /**
