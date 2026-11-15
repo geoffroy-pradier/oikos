@@ -254,6 +254,28 @@ export const shipsSchema = z.strictObject({
 });
 
 /**
+ * Valeurs lues pour les versions publiées avant le personnel : aucun salaire, dans aucune cité. FIGÉES,
+ * pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_STAFF = deepFreeze({ dailyWageOboles: {} as Record<string, number> });
+
+/** Salaire quotidien de base d'un travailleur, en oboles. Nul : pas de salaire. Partagé avec le client. */
+export const staffDailyWageObolesSchema = z.number().int().min(0).max(1_000_000_000);
+
+/**
+ * Personnel des sites (docs/specs/04-systemes-gestion.md, 4.4) : chaque site emploie les travailleurs
+ * de sa recette (`workers`), que sa maison paie à la clôture avec son entretien (puits `sink_npc_wages`,
+ * 5.5). Lue par les joueurs (vue `public.site_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ */
+export const staffSchema = z.strictObject({
+  /**
+   * Salaire du jour d'un travailleur, par cité (identifiant de `cities`). Vide : aucun salaire nulle
+   * part, comme une version publiée avant le personnel ; sinon, chaque cité a le sien.
+   */
+  dailyWageOboles: z.record(id, staffDailyWageObolesSchema),
+});
+
+/**
  * Valeurs lues pour les versions publiées avant la taxe de marché : elles ne taxaient rien. FIGÉES, pour
  * la même raison que `DEFAULT_SITES`.
  */
@@ -480,6 +502,15 @@ export function cityHasPort(city: { hasPort?: boolean | undefined } | undefined)
   return city ? (city.hasPort ?? true) : false;
 }
 
+/**
+ * Salaire du jour d'un travailleur dans la cité (4.4), en oboles : nul pour une version publiée avant le
+ * personnel et pour une cité inconnue de la configuration, qui ne paient aucun salaire.
+ */
+export function cityDailyWageOboles(config: Pick<GameConfig, 'staff'>, cityId: string): number {
+  const wages = config.staff.dailyWageOboles;
+  return Object.hasOwn(wages, cityId) ? (wages[cityId] ?? 0) : 0;
+}
+
 /** Recette du premier site d'une maison fondée dans la cité : la sienne, sinon la commune. */
 export function cityStartingRecipeId(
   config: Pick<GameConfig, 'cities' | 'starting'>,
@@ -501,6 +532,8 @@ export const gameConfigSchema = z
     sites: sitesSchema.default(DEFAULT_SITES),
     /** Absent des versions publiées avant le transport : elles restent lisibles, sans navire. */
     ships: shipsSchema.default(DEFAULT_SHIPS),
+    /** Absent des versions publiées avant le personnel : aucun salaire. */
+    staff: staffSchema.default(DEFAULT_STAFF),
     /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
@@ -595,6 +628,40 @@ export const gameConfigSchema = z
     });
     const gods = new Set(config.gods.map((god) => god.id));
     const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
+    // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
+    // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».
+    const wages = config.staff.dailyWageOboles;
+    const cityIds = new Set(config.cities.map((city) => city.id));
+    for (const cityId of Object.keys(wages)) {
+      if (!cityIds.has(cityId))
+        issue(['staff', 'dailyWageOboles', cityId], `unknown city "${cityId}"`);
+    }
+    if (Object.keys(wages).length > 0) {
+      for (const city of config.cities) {
+        if (!Object.hasOwn(wages, city.id))
+          issue(['staff', 'dailyWageOboles'], `missing city "${city.id}"`);
+      }
+    }
+    // Dû d'un jour d'un site (5.5) : travailleurs × salaire + ⌈entretien × coefficient⌉. Au-delà des
+    // entiers sûrs, le calcul est refusé (`siteDailyDue`) et la clôture échouerait pour tout le monde :
+    // la version est refusée avant. Calcul exact en entiers longs.
+    const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    const highestWage = Object.entries(wages).reduce<[string, number] | null>(
+      (top, entry) => (top === null || entry[1] > top[1] ? entry : top),
+      null,
+    );
+    if (highestWage !== null) {
+      config.recipes.forEach((recipe, index) => {
+        const upkeep =
+          (BigInt(dailyOboles[recipe.siteType]) * BigInt(coefficientBps) + 9_999n) / 10_000n;
+        const due = BigInt(recipe.workers) * BigInt(highestWage[1]) + upkeep;
+        if (due > BigInt(Number.MAX_SAFE_INTEGER))
+          issue(
+            ['recipes', index, 'workers'],
+            `a day of upkeep and wages in "${highestWage[0]}" exceeds the safe integer range`,
+          );
+      });
+    }
     config.cities.forEach((city, index) => {
       if (city.patronGodId !== undefined && !gods.has(city.patronGodId)) {
         issue(['cities', index, 'patronGodId'], `unknown god "${city.patronGodId}"`);

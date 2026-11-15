@@ -377,6 +377,7 @@
         "priceIndex": "Price index",
         "telemetry": "Telemetry",
         "ai": "AI gateway",
+        "staff": "Staff",
         "goods": "Goods",
         "recipes": "Recipes",
         "npcClasses": "NPC classes",

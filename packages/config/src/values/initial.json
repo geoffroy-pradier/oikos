@@ -100,6 +100,7 @@
       }
     ]
   },
+  "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },
