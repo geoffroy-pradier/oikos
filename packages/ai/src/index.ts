@@ -1,2 +1,3 @@
-/** Passerelle IA, prompts versionnés. */
-export const WORKSPACE_NAME = '@oikos/ai';
+/** Passerelle IA (8.4, ADR 0005) : fournisseur interchangeable, sorties validées, repli, journal, plafonds. */
+export * from './gateway';
+export * from './fake';
