@@ -1,4 +1,4 @@
-import type { AiUsage, GameConfig } from '@oikos/config/schema';
+import { aiMonthlyCapMicroEuros, type AiUsage, type GameConfig } from '@oikos/config/schema';
 import type { z } from 'zod';
 
 /** Réglages de la passerelle : la section `ai` de la configuration en vigueur. */
@@ -26,7 +26,7 @@ export interface AiProvider {
   complete(request: ProviderRequest, signal: AbortSignal): Promise<ProviderResponse>;
 }
 
-export const AI_OUTCOMES = ['ok', 'disabled', 'timeout', 'invalid', 'error'] as const;
+export const AI_OUTCOMES = ['ok', 'disabled', 'capped', 'timeout', 'invalid', 'error'] as const;
 export type AiOutcome = (typeof AI_OUTCOMES)[number];
 
 /** Une ligne du journal des appels : jamais de texte, ni de consigne, ni de réponse. */
@@ -41,8 +41,10 @@ export interface AiCallRecord {
   at: Date;
 }
 
-/** Journal des appels : `telemetry.ai_calls` en production, mémoire en test. */
+/** Journal des appels et dépense du mois : `telemetry.ai_calls` en production, mémoire en test. */
 export interface AiCallStore {
+  /** Coût estimé des appels de l'usage depuis le début du mois (UTC) qui contient `at`. */
+  spentThisMonth(usage: AiUsage, at: Date): Promise<number>;
   record(call: AiCallRecord): Promise<void>;
 }
 
@@ -97,10 +99,22 @@ export function estimateCostMicroEuros(
   );
 }
 
+/**
+ * Règle de coupure au plafond, la même pour la passerelle et la Vigie : un plafond nul coupe toujours ;
+ * sinon l'usage est coupé quand la dépense du mois plus le coût de la sortie la plus chère d'un appel
+ * (`maxOutputTokens`) dépasse le plafond. Le coût d'entrée n'est pas réservé (ADR 0005).
+ */
+export function isCapped(settings: AiSettings, usage: AiUsage, spentMicroEuros: number): boolean {
+  const cap = aiMonthlyCapMicroEuros(settings, usage);
+  const { maxOutputTokens } = settings.usages[usage];
+  const reserved = estimateCostMicroEuros(settings.usages[usage], 0, maxOutputTokens);
+  return cap === 0 || spentMicroEuros + reserved > cap;
+}
+
 class Timeout extends Error {}
 
 /**
- * Passerelle IA unique (8.4) : elle ne rend jamais d'erreur. Usage coupé, délai dépassé, sortie qui n'est
+ * Passerelle IA unique (8.4) : elle ne rend jamais d'erreur. Usage coupé, plafond du mois atteint, délai dépassé, sortie qui n'est
  * pas du JSON conforme au schéma, erreur du fournisseur, réglages ou réponse illisibles, schéma qui lève :
  * elle rend le repli. Seul le moteur l'appelle (11).
  */
@@ -146,6 +160,19 @@ export function createGateway(options: {
     const none = { inputTokens: 0, outputTokens: 0, costMicroEuros: 0 };
 
     if (!usage.enabled) return fallback('disabled');
+    let spent: number;
+    try {
+      spent = await options.store.spentThisMonth(request.usage, startedAt);
+    } catch {
+      return fallback('error');
+    }
+    // L'appel ne part que si son coût de sortie le plus cher (maxOutputTokens) tient encore sous le
+    // plafond. Le coût d'entrée, inconnu avant l'appel, n'est pas réservé : un appel peut dépasser le
+    // plafond de son coût d'entrée, et des appels simultanés le dépasser ensemble (ADR 0005).
+    if (isCapped(settings, request.usage, spent)) {
+      await record({ ...none, outcome: 'capped' });
+      return fallback('capped');
+    }
 
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;

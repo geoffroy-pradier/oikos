@@ -1,3 +1,4 @@
+import type { AiUsage } from '@oikos/config/schema';
 import type {
   AiCallRecord,
   AiCallStore,
@@ -33,11 +34,19 @@ export function fakeProvider(replies: FakeReply[]): AiProvider & { requests: Pro
   };
 }
 
-/** Journal en mémoire. */
+/** Journal en mémoire : même règle de mois (UTC) que `telemetry.ai_calls`. */
 export function memoryStore(): AiCallStore & { calls: AiCallRecord[] } {
   const calls: AiCallRecord[] = [];
+  const monthOf = (at: Date) => `${at.getUTCFullYear()}-${at.getUTCMonth()}`;
   return {
     calls,
+    spentThisMonth(usage: AiUsage, at: Date) {
+      return Promise.resolve(
+        calls
+          .filter((call) => call.usage === usage && monthOf(call.at) === monthOf(at))
+          .reduce((sum, call) => sum + call.costMicroEuros, 0),
+      );
+    },
     record(call) {
       calls.push(call);
       return Promise.resolve();
