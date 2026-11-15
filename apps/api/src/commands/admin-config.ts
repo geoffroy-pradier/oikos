@@ -13,7 +13,7 @@ import {
 } from '@oikos/contracts';
 import { nextDailyClose } from '@oikos/sim';
 import { sql } from 'kysely';
-import { configIds, readWorldUsage } from '../config-usage';
+import { configIds, readWorldUsage, splitByInForce } from '../config-usage';
 import { defineCommand } from '../registry';
 
 const TIMEZONE_UNKNOWN_MESSAGE = 'The clock time zone is unknown to the database.';
@@ -163,7 +163,13 @@ export const adminScheduleConfig = defineCommand({
     if (changed.length > 0) return clockChanged(changed);
     // Un bien retiré alors qu'une maison le détient ou qu'un ordre ouvert le porte ne se vendrait plus
     // (#191) : refusé. Ce qui est acquis entre la programmation et la clôture relève du repli (05, 5.1).
-    const retired = await readWorldUsage(trx, configIds(stored.config));
+    // Recettes et classes : seules comptent celles que la version en vigueur connaît encore (#234). Elle
+    // est aussi celle que la clôture visée remplacera : on ne programme que la prochaine clôture, et la
+    // dernière programmée pour une clôture l'emporte sur les précédentes, qu'elle rend sans effet.
+    const { retiredInUse: retired } = splitByInForce(
+      await readWorldUsage(trx, configIds(stored.config)),
+      configIds(config),
+    );
     if (retired.goods.length > 0) {
       return {
         ok: false,
@@ -177,7 +183,9 @@ export const adminScheduleConfig = defineCommand({
     // Une recette retirée arrête les sites qui l'exploitent, une classe retirée fige sa population, sans
     // rien prendre aux joueurs (04, 4.2 ; 05, 5.2) : pas de refus, mais une confirmation explicite (#200).
     // L'API ne compare pas cette liste à celle que l'écran a montrée : la confirmation vaut pour ce qui
-    // est en usage à la programmation, et l'événement garde la liste confirmée pour l'audit.
+    // est en usage à la programmation, et l'événement garde la liste confirmée pour l'audit. Ce que la
+    // version en vigueur ne connaît déjà plus n'y figure pas : elle l'a retiré, la version ne fait que
+    // ne pas le rendre.
     const inUse = [
       ...retired.recipes.map((recipe) => `recipes.${recipe.recipeId}`),
       ...retired.npcClasses.map((npcClass) => `npcClasses.${npcClass.classId}`),

@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
+import { ConfigError, ensureInitialConfig, INITIAL_CONFIG, validateConfig } from '@oikos/config';
 import {
   ADMIN_ROLES,
+  alreadyRetiredUsageSchema,
   CONFIG_EDITOR_ROLES,
   retiredUsageSchema,
   type AdminRole,
+  type RetiredUsage,
 } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { nextDailyClose } from '@oikos/sim';
@@ -1150,28 +1152,46 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
   });
   const publish = async (config: unknown) =>
     (await send(designer, 'admin.publishConfig', { config })).body.data?.versionId ?? '';
+  /** API dont la version en vigueur est `config` (#234) ; `null` : aucune version en vigueur lisible. */
+  const inForce = (config: unknown) => {
+    const valid = config === null ? null : validateConfig(config);
+    if (valid && !valid.ok) throw new Error(valid.errors.join('\n'));
+    return createApp({
+      db,
+      telemetry,
+      verifyToken: testVerifier,
+      rateLimiter: unlimited,
+      loadConfig: async () => {
+        if (!valid) throw new ConfigError('No active configuration');
+        return { ...TEST_CONFIG, config: valid.config };
+      },
+    });
+  };
+  // Sauf mention contraire, la version en vigueur connaît la recette et la classe : les retirer se confirme.
+  const withBoth = inForce(WITH_BOTH);
   /** Ce qu'Olympe montre de chaque version avant sa programmation, réduit aux éléments de ce test. */
-  const retiredInUse = async () => {
-    const res = await app.request('/api/admin/config/versions', {
+  const readUsage = async (via: typeof app) => {
+    const res = await via.request('/api/admin/config/versions', {
       headers: { authorization: `Bearer aal2:${root}` },
     });
     const { data } = (await res.json()) as {
-      data: { versions: { id: string; retiredInUse: unknown }[] };
+      data: { versions: { id: string; retiredInUse: unknown; alreadyRetiredInUse: unknown }[] };
     };
+    const ours = (usage: Omit<RetiredUsage, 'goods'>) => ({
+      recipes: usage.recipes.filter((entry) => entry.recipeId === RECIPE),
+      npcClasses: usage.npcClasses.filter((entry) => entry.classId === CLASS),
+    });
     return new Map(
       data.versions.map((version) => {
         const usage = retiredUsageSchema.parse(version.retiredInUse);
-        return [
-          version.id,
-          {
-            goods: usage.goods.filter((entry) => entry.goodId === GOOD),
-            recipes: usage.recipes.filter((entry) => entry.recipeId === RECIPE),
-            npcClasses: usage.npcClasses.filter((entry) => entry.classId === CLASS),
-          },
-        ];
+        const already = alreadyRetiredUsageSchema.parse(version.alreadyRetiredInUse);
+        const goods = usage.goods.filter((entry) => entry.goodId === GOOD);
+        return [version.id, { retired: { goods, ...ours(usage) }, already: ours(already) }];
       }),
     );
   };
+  const retiredInUse = async () =>
+    new Map([...(await readUsage(withBoth))].map(([id, usage]) => [id, usage.retired]));
   const recipes = [{ recipeId: RECIPE, sites: 3, houses: 2 }];
   // Une classe vide garde un état : la cité compte, à zéro habitant.
   const npcClasses = [{ classId: CLASS, cities: 2, population: 25 }];
@@ -1190,15 +1210,18 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
 
   const activations = (versionId: string) =>
     db.selectFrom('config.activations').select('id').where('version_id', '=', versionId).execute();
-  const schedule = (user: string, versionId: string, confirmRetiredInUse: boolean) =>
-    send(user, 'admin.scheduleConfig', { versionId, confirmRetiredInUse });
+  const schedule = (
+    user: string,
+    versionId: string,
+    confirmRetiredInUse: boolean,
+    via = withBoth,
+  ) => send(user, 'admin.scheduleConfig', { versionId, confirmRetiredInUse }, { via });
   /** Liste confirmée gardée par l'événement de la programmation. */
   const confirmedRetired = async (versionId: string) => {
     const events = await sql<{ confirmed: unknown }>`
       select payload->'confirmedRetired' as confirmed from game.domain_events
-      where type = 'ConfigActivationScheduled' and payload->>'versionId' = ${versionId}`.execute(
-      db,
-    );
+      where type = 'ConfigActivationScheduled' and payload->>'versionId' = ${versionId}
+      order by seq`.execute(db);
     return events.rows.map((row) => row.confirmed);
   };
   const ids = async (query: string) =>
@@ -1278,7 +1301,7 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
   it('un client qui n’envoie pas le champ (antérieur à #200) est refusé comme sans confirmation', async () => {
     const versionId = await publish(SAME_CLOCK);
     // Corps tel quel : `send` ajouterait la confirmation.
-    const res = await app.request('/api/commands/admin.scheduleConfig', {
+    const res = await withBoth.request('/api/commands/admin.scheduleConfig', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -1305,6 +1328,43 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
     });
     expect(await schedule(root, versionId, false)).toMatchObject({ status: 200 });
     expect(await confirmedRetired(versionId)).toEqual([[]]);
+  });
+
+  it('une classe que la version en vigueur a retirée, encore en base, n’impose pas de confirmation à la suivante ; l’événement ne garde que ce qui est confirmé (#234)', async () => {
+    // Version suivante : sans la recette ni la classe, mais avec tout bien en usage (aucun refus #191).
+    const next = await publish({
+      ...(await keepingAll()),
+      recipes: SAME_CLOCK.recipes,
+      npcClasses: SAME_CLOCK.npcClasses,
+      cities: SAME_CLOCK.cities,
+    });
+    const reviewer = await newUser('game_designer', root);
+    // En vigueur : la recette, pas la classe. Seule la recette est retirée par `next`, et se confirme.
+    const withRecipe = inForce(WITH_RECIPE);
+    expect((await readUsage(withRecipe)).get(next)).toEqual({
+      retired: { goods: [], recipes, npcClasses: [] },
+      already: { recipes: [], npcClasses },
+    });
+    const refused = await schedule(reviewer, next, false, withRecipe);
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_RETIRED_UNCONFIRMED', fields: [`recipes.${RECIPE}`] } },
+    });
+    expect(await activations(next)).toEqual([]);
+    expect((await schedule(reviewer, next, true, withRecipe)).status).toBe(200);
+    // En vigueur : ni l'une ni l'autre. Rien à confirmer, la programmation passe telle quelle.
+    const withNeither = inForce(SAME_CLOCK);
+    expect((await readUsage(withNeither)).get(next)).toEqual({
+      retired: { goods: [], recipes: [], npcClasses: [] },
+      already: { recipes, npcClasses },
+    });
+    expect((await schedule(reviewer, next, false, withNeither)).status).toBe(200);
+    expect(await confirmedRetired(next)).toEqual([[`recipes.${RECIPE}`], []]);
+    // Sans version en vigueur lisible, la lecture tient tout pour retiré par la version : à confirmer.
+    expect((await readUsage(inForce(null))).get(next)).toEqual({
+      retired: { goods: [], recipes, npcClasses },
+      already: { recipes: [], npcClasses: [] },
+    });
   });
 
   it('la confirmation ne lève pas le refus d’un bien encore détenu', async () => {

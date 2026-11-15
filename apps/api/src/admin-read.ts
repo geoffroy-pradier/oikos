@@ -4,7 +4,15 @@ import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
 import { readEconomy } from './admin-economy';
-import { commonIds, NO_IDS, readWorldUsage, retiredUsage, versionConfigIds } from './config-usage';
+import {
+  commonIds,
+  configIds,
+  NO_IDS,
+  readWorldUsage,
+  retiredUsage,
+  splitByInForce,
+  versionConfigIds,
+} from './config-usage';
 import type { Identity, TokenVerifier } from './auth';
 import type { RateLimiter } from './rate-limit';
 import { DEFAULT_SETTINGS, type ApiSettings, type ConfigSource } from './registry';
@@ -292,13 +300,17 @@ export function registerAdminReads(
     // prix de référence en vigueur. Mêmes totaux que ceux que `admin.buyBackGood` recompte et compare.
     // Sans configuration en vigueur lisible (`ConfigError`), aucun rachat n'est proposé : la commande, qui
     // la charge aussi, n'en ferait aucun. Au-delà des entiers sûrs non plus : elle refuserait d'arrondir.
-    const goods = await loadConfig(new Date()).then(
-      (loaded) => loaded.config.goods,
+    // Même configuration en vigueur que celle que la commande charge : une recette ou une classe qu'elle
+    // ne connaît déjà plus n'est pas à confirmer (#234). Illisible, tout est tenu pour retiré.
+    const inForce = await loadConfig(new Date()).then(
+      (loaded) => loaded.config,
       (error: unknown) => {
-        if (error instanceof ConfigError) return [];
+        if (error instanceof ConfigError) return null;
         throw error;
       },
     );
+    const goods = inForce?.goods ?? [];
+    const inForceIds = inForce && configIds(inForce);
     const buybacks = usage.goods.flatMap(({ goodId, houses, quantity: units, openOrders }) => {
       const unitPriceOboles = goods.find((good) => good.id === goodId)?.referencePriceOboles;
       if (unitPriceOboles === undefined) return [];
@@ -319,7 +331,7 @@ export function registerAdminReads(
           note: version.note,
           createdBy: version.created_by,
           createdAt: version.created_at.toISOString(),
-          retiredInUse: retiredUsage(usage, ids.get(version.id) ?? NO_IDS),
+          ...splitByInForce(retiredUsage(usage, ids.get(version.id) ?? NO_IDS), inForceIds),
         })),
         activations: activations.map((activation) => ({
           id: activation.id,
