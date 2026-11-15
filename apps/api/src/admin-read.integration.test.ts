@@ -1,8 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { ConfigError, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
+import {
+  ConfigError,
+  createConfigLoader,
+  ensureInitialConfig,
+  INITIAL_CONFIG,
+  scheduleActivation,
+} from '@oikos/config';
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
-import { createDb, serviceRoleUrl } from '@oikos/db';
-import { sql } from 'kysely';
+import { createDb, type Db, serviceRoleUrl } from '@oikos/db';
+import {
+  IdentifierNode,
+  OperationNodeTransformer,
+  sql,
+  type SchemableIdentifierNode,
+} from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { createTelemetry } from './telemetry';
@@ -248,6 +259,7 @@ describe('Vigie', () => {
       timezone: clock.timezone,
       knownToDatabase: true,
       worlds: expect.any(Number) as number,
+      invalidConfig: false,
     });
     expect(known.worlds).toBeGreaterThanOrEqual(fewest);
     expect(known.worlds).toBeLessThanOrEqual(await worlds());
@@ -264,9 +276,107 @@ describe('Vigie', () => {
     await expect(sql`select now() at time zone 'US/Pacific-New'`.execute(db)).rejects.toThrow(
       /time zone "US\/Pacific-New" not recognized/,
     );
-    // Sans configuration en vigueur lisible : rien à vérifier, et la Vigie reste lisible.
-    const none: ConfigSource = () => Promise.reject(new ConfigError('No active configuration'));
-    expect(await vigieWith(none)).toBeNull();
+  });
+
+  it('sans version en vigueur, la Vigie le dit et reste lisible', async () => {
+    class Rollback extends Error {}
+    /** Lit et écrit `to` au lieu du schéma `config` : une base sans version, sans toucher à la vraie. */
+    class SchemaSwap extends OperationNodeTransformer {
+      constructor(private readonly to: string) {
+        super();
+      }
+      protected override transformSchemableIdentifier(
+        node: SchemableIdentifierNode,
+      ): SchemableIdentifierNode {
+        const swapped = super.transformSchemableIdentifier(node);
+        return swapped.schema?.name === 'config'
+          ? { ...swapped, schema: IdentifierNode.create(this.to) }
+          : swapped;
+      }
+    }
+    const clock = await owner
+      .transaction()
+      .execute(async (trx: Db) => {
+        const schema = `config_empty_${randomUUID().replaceAll('-', '')}`;
+        await sql`create schema ${sql.id(schema)}`.execute(trx);
+        await sql`create table ${sql.id(schema, 'versions')} (id uuid, payload jsonb)`.execute(trx);
+        const none: ConfigSource = () => Promise.reject(new ConfigError('No active configuration'));
+        const reply = await createApp({
+          db: trx.withPlugin({
+            transformQuery: ({ node }) => new SchemaSwap(schema).transformNode(node),
+            transformResult: ({ result }) => Promise.resolve(result),
+          }),
+          telemetry,
+          verifyToken: testVerifier,
+          rateLimiter: unlimited,
+          loadConfig: none,
+        }).request('/api/admin/vigie', {
+          headers: { authorization: `Bearer aal2:${users.observer}` },
+        });
+        expect(reply.status).toBe(200);
+        throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof Rollback)) throw error;
+        return JSON.parse(error.message) as unknown;
+      });
+    expect(clock).toBeNull();
+  });
+
+  it('une version en vigueur hors du schéma est dite telle, avec son fuseau tel qu’enregistré', async () => {
+    class Rollback extends Error {}
+    // Version écrite hors de `publishVersion` et activée dans une transaction annulée : la base partagée
+    // n'en garde rien. La Vigie y lit par le vrai chargeur, qui la refuse (`ConfigError`).
+    const clockWhenInForce = (payload: unknown) =>
+      db
+        .transaction()
+        .execute(async (trx: Db) => {
+          const version = await trx
+            .insertInto('config.versions')
+            .values({ payload: JSON.stringify(payload), note: 'hors schéma' })
+            .returning('id')
+            .executeTakeFirstOrThrow();
+          await scheduleActivation(trx, version.id);
+          const loader = createConfigLoader(trx);
+          await expect(loader.at(new Date())).rejects.toThrow(/is invalid: /);
+          const reply = await createApp({
+            db: trx,
+            telemetry,
+            verifyToken: testVerifier,
+            rateLimiter: unlimited,
+            loadConfig: loader.at,
+          }).request('/api/admin/vigie', {
+            headers: { authorization: `Bearer aal2:${users.observer}` },
+          });
+          expect(reply.status).toBe(200);
+          throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
+        })
+        .then(
+          () => expect.unreachable(),
+          (error: unknown) => {
+            if (!(error instanceof Rollback)) throw error;
+            return JSON.parse(error.message) as Record<string, unknown>;
+          },
+        );
+    // Fuseau inconnu de la base dans une version illisible : les deux sont signalés.
+    expect(await clockWhenInForce({ clock: { timezone: 'US/Pacific-New' } })).toMatchObject({
+      timezone: 'US/Pacific-New',
+      knownToDatabase: false,
+      invalidConfig: true,
+    });
+    expect(await clockWhenInForce({ clock: { timezone: 'Europe/Paris' } })).toMatchObject({
+      timezone: 'Europe/Paris',
+      knownToDatabase: true,
+      invalidConfig: true,
+    });
+    // Fuseau absent, ou qui n'est pas une chaîne : nul, jamais « aucune configuration en vigueur ».
+    for (const payload of [{ goods: [] }, { clock: { timezone: 7 } }, { clock: 'Europe/Paris' }]) {
+      expect(await clockWhenInForce(payload)).toMatchObject({
+        timezone: null,
+        knownToDatabase: null,
+        invalidConfig: true,
+      });
+    }
   });
 
   it('compte les commandes et montre les ticks récents, échecs compris', async () => {

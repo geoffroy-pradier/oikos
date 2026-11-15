@@ -29,9 +29,16 @@ interface VigieData {
   adminReads24h: number;
   /**
    * Fuseau de la configuration en vigueur, le même pour tous les mondes (`worlds` : leur nombre).
-   * `null` sans configuration en vigueur lisible ; absent d'une API antérieure : rien n'est affiché.
+   * `null` sans configuration en vigueur ; absent d'une API antérieure : rien n'est affiché.
+   * `invalidConfig` : version en vigueur hors du schéma, dont le fuseau est lu tel qu'enregistré
+   * (`timezone` et `knownToDatabase` nuls s'il n'est pas une chaîne).
    */
-  clock?: { timezone: string; knownToDatabase: boolean; worlds: number } | null;
+  clock?: {
+    timezone: string | null;
+    knownToDatabase: boolean | null;
+    worlds: number;
+    invalidConfig?: boolean;
+  } | null;
   /** Absent d'une API antérieure à ce champ : l'écran affiche alors un état inconnu, pas « Exigée ». */
   selfReviewAllowed?: boolean | null;
 }
@@ -55,9 +62,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
 
   const clock = data?.clock;
   const timezone = (value: NonNullable<typeof clock>) =>
-    value.knownToDatabase
-      ? value.timezone
-      : t('vigie.timezoneUnknownValue', { timezone: value.timezone });
+    value.timezone === null
+      ? t('vigie.timezoneMissing')
+      : value.knownToDatabase === false
+        ? t('vigie.timezoneUnknownValue', { timezone: value.timezone })
+        : value.timezone;
 
   const figures: [string, string][] = data
     ? [
@@ -108,13 +117,24 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           {t('vigie.reviewLiftedWarning')}
         </p>
       )}
+      {/* Version en vigueur hors du schéma : l'API et le moteur ne la chargent pas. */}
+      {clock?.invalidConfig === true && (
+        <p role="alert" className="rounded-md border border-danger p-3 font-semibold text-danger">
+          {t('vigie.configInvalidWarning')}
+        </p>
+      )}
       {/* Fuseau sorti de la base des fuseaux : les comptes de tous les mondes perdent jour et saison (3). */}
       {clock?.knownToDatabase === false && (
-        <p className="rounded-md border border-danger p-3 font-semibold wrap-anywhere text-danger">
-          {t('vigie.timezoneUnknownWarning', {
-            timezone: clock.timezone,
-            worlds: number.format(clock.worlds),
-          })}
+        <p
+          role="alert"
+          className="rounded-md border border-danger p-3 font-semibold wrap-anywhere text-danger"
+        >
+          {clock.worlds > 0
+            ? t('vigie.timezoneUnknownWarning', {
+                timezone: clock.timezone,
+                worlds: number.format(clock.worlds),
+              })
+            : t('vigie.timezoneUnknownWarningNoWorld', { timezone: clock.timezone })}
         </p>
       )}
       {data && (

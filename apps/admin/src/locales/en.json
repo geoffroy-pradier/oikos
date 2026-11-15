@@ -99,7 +99,10 @@
     "timezone": "Time zone in force (all worlds)",
     "timezoneNone": "No configuration in force",
     "timezoneUnknownValue": "{{timezone}} (unknown to the database)",
-    "timezoneUnknownWarning": "Time zone in force unknown to the database: {{timezone}}. It applies to every world ({{worlds}}): house accounts there no longer have a game day or season. This time zone must be given back to PostgreSQL, on the server (specification 03)."
+    "timezoneUnknownWarning": "Time zone in force unknown to the database: {{timezone}}. It applies to every world ({{worlds}}): house accounts there no longer have a game day or season. This time zone must be given back to PostgreSQL, on the server (specification 03).",
+    "timezoneMissing": "Missing from the configuration in force",
+    "timezoneUnknownWarningNoWorld": "Time zone in force unknown to the database: {{timezone}}. No world exists yet, but house accounts in any world created would have no game day or season. This time zone must be given back to PostgreSQL, on the server (specification 03).",
+    "configInvalidWarning": "The configuration in force no longer matches the schema: the API and the engine cannot load it. Its time zone is read as stored."
   },
   "economy": {
     "title": "Economy",

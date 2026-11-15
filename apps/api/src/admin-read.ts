@@ -177,12 +177,25 @@ export function registerAdminReads(
     // Horloge (3) : la configuration est globale, son fuseau en vigueur vaut pour tous les mondes. Un
     // fuseau sorti de la base des fuseaux n'est pas refusé à la publication (version en vigueur), mais
     // `game.clock_rules()` le rend nul : les comptes de tous les mondes perdent jour de jeu et saison.
-    // Sans configuration en vigueur lisible, rien à vérifier : `null`, sans faire tomber la Vigie.
-    const timezone = await loadConfig(new Date()).then(
-      (loaded) => loaded.config.clock.timezone,
-      (error: unknown) => {
-        if (error instanceof ConfigError) return null;
-        throw error;
+    // Le chargeur refuse (`ConfigError`) une base sans version en vigueur (`clock: null`) comme une version
+    // en vigueur hors du schéma : celle-ci est dite telle, et son fuseau lu brut, comme le fait
+    // `game.clock_rules()` (nul s'il n'est pas une chaîne). La Vigie ne tombe dans aucun des deux cas.
+    const inForce = await loadConfig(new Date()).then(
+      (loaded) => ({
+        timezone: loaded.config.clock.timezone as string | null,
+        invalidConfig: false,
+      }),
+      async (error: unknown) => {
+        if (!(error instanceof ConfigError)) throw error;
+        const row = await db
+          .selectFrom('config.versions as v')
+          .select(
+            sql<string | null>`case when jsonb_typeof(v.payload #> '{clock,timezone}') = 'string'
+              then v.payload #>> '{clock,timezone}' end`.as('timezone'),
+          )
+          .where('v.id', '=', sql<string>`config.active_version_at(now())`)
+          .executeTakeFirst();
+        return row ? { timezone: row.timezone, invalidConfig: true } : null;
       },
     );
     const total = totals.rows[0];
@@ -224,13 +237,19 @@ export function registerAdminReads(
         adminReads24h: Number(reads.rows[0]?.n),
         // Même fuseau pour tous les mondes (`worlds` : leur nombre) ; `knownToDatabase` comme à la
         // publication (`pg_timezone_names`, casse ignorée).
+        // `invalidConfig` : version en vigueur hors du schéma, que l'API et le moteur ne chargent pas ;
+        // `timezone` et `knownToDatabase` sont alors nuls si son fuseau n'est pas une chaîne.
         clock:
-          timezone === null
+          inForce === null
             ? null
             : {
-                timezone,
-                knownToDatabase: await databaseKnowsTimezone(db, timezone),
+                timezone: inForce.timezone,
+                knownToDatabase:
+                  inForce.timezone === null
+                    ? null
+                    : await databaseKnowsTimezone(db, inForce.timezone),
                 worlds: Number(total?.worlds),
+                invalidConfig: inForce.invalidConfig,
               },
         // Réglage de l'API pour un monde de test (15.4) : visible, pour qu'il ne reste pas actif par oubli.
         selfReviewAllowed: settings.allowSelfReview,

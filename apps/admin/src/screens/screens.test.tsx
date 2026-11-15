@@ -187,50 +187,79 @@ describe('Vigie', () => {
     };
     const figure = (label: string) =>
       screen.getByText(label).parentElement?.querySelector('dd')?.textContent;
-    const warning = () =>
-      screen.queryByText(/^(Fuseau en vigueur inconnu|Time zone in force unknown)/);
+    // Les alertes de la Vigie sont annoncées (`role="alert"`) : lues par leur rôle, dans l'ordre.
+    const alerts = () => screen.queryAllByRole('alert').map((alert) => alert.textContent);
+    const tile = 'Fuseau en vigueur (tous les mondes)';
+    const unknownFr =
+      'Fuseau en vigueur inconnu de la base : US/Pacific-New. Il vaut pour tous les mondes (1\u202f234) : ' +
+      "les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à " +
+      'PostgreSQL, sur le serveur (spécification 03).';
+    const invalidFr =
+      "La configuration en vigueur ne respecte plus le schéma : l'API et le moteur ne peuvent pas la " +
+      "charger. Son fuseau est lu tel qu'enregistré.";
 
     // Fuseau connu : nommé, sans alerte.
     await show(VIGIE.clock);
-    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe('Europe/Paris');
-    expect(warning()).toBeNull();
+    expect(figure(tile)).toBe('Europe/Paris');
+    expect(alerts()).toEqual([]);
     // Fuseau sorti de la base : la tuile le nomme, l'alerte dit sa portée et ce qu'il faut faire.
     const unknown = { timezone: 'US/Pacific-New', knownToDatabase: false, worlds: 1234 };
     await show(unknown);
-    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe(
-      'US/Pacific-New (inconnu de la base)',
-    );
-    expect(warning()?.textContent).toBe(
-      'Fuseau en vigueur inconnu de la base : US/Pacific-New. Il vaut pour tous les mondes (1\u202f234) : ' +
-        "les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à " +
-        'PostgreSQL, sur le serveur (spécification 03).',
-    );
+    expect(figure(tile)).toBe('US/Pacific-New (inconnu de la base)');
+    expect(alerts()).toEqual([unknownFr]);
     // Un nom long ne déborde pas de sa tuile ni de l'alerte.
-    expect(warning()?.classList).toContain('wrap-anywhere');
+    expect(screen.getByRole('alert').classList).toContain('wrap-anywhere');
     expect(screen.getByText(/\(inconnu de la base\)$/).classList).toContain('wrap-anywhere');
-    // Sans configuration en vigueur lisible ; API antérieure au champ : rien à sa place.
+    // Aucun monde : jamais « tous les mondes (0) ».
+    await show({ ...unknown, worlds: 0 });
+    expect(alerts()).toEqual([
+      "Fuseau en vigueur inconnu de la base : US/Pacific-New. Aucun monde n'existe encore, mais les " +
+        "comptes des maisons de tout monde créé n'auraient ni jour de jeu ni saison. Il faut rendre ce " +
+        'fuseau à PostgreSQL, sur le serveur (spécification 03).',
+    ]);
+    // Version en vigueur hors du schéma : dite telle, fuseau lu tel qu'enregistré, ou absent.
+    await show({ ...unknown, invalidConfig: true });
+    expect(alerts()).toEqual([invalidFr, unknownFr]);
+    await show({ ...VIGIE.clock, invalidConfig: true });
+    expect(figure(tile)).toBe('Europe/Paris');
+    expect(alerts()).toEqual([invalidFr]);
+    await show({ timezone: null, knownToDatabase: null, worlds: 2, invalidConfig: true });
+    expect(figure(tile)).toBe('Absent de la configuration en vigueur');
+    expect(alerts()).toEqual([invalidFr]);
+    // Sans configuration en vigueur ; API antérieure au champ : rien à sa place.
     await show(null);
-    expect(figure('Fuseau en vigueur (tous les mondes)')).toBe('Aucune configuration en vigueur');
-    expect(warning()).toBeNull();
+    expect(figure(tile)).toBe('Aucune configuration en vigueur');
+    expect(alerts()).toEqual([]);
     await show(undefined);
-    expect(screen.queryByText('Fuseau en vigueur (tous les mondes)')).toBeNull();
+    expect(screen.queryByText(tile)).toBeNull();
 
     await i18n.changeLanguage('en');
     try {
+      const tileEn = 'Time zone in force (all worlds)';
       await show(VIGIE.clock);
-      expect(figure('Time zone in force (all worlds)')).toBe('Europe/Paris');
-      expect(warning()).toBeNull();
+      expect(figure(tileEn)).toBe('Europe/Paris');
+      expect(alerts()).toEqual([]);
       await show(unknown);
-      expect(figure('Time zone in force (all worlds)')).toBe(
-        'US/Pacific-New (unknown to the database)',
-      );
-      expect(warning()?.textContent).toBe(
+      expect(figure(tileEn)).toBe('US/Pacific-New (unknown to the database)');
+      expect(alerts()).toEqual([
         'Time zone in force unknown to the database: US/Pacific-New. It applies to every world ' +
           '(1,234): house accounts there no longer have a game day or season. This time zone must ' +
           'be given back to PostgreSQL, on the server (specification 03).',
-      );
+      ]);
+      await show({ ...unknown, worlds: 0 });
+      expect(alerts()).toEqual([
+        'Time zone in force unknown to the database: US/Pacific-New. No world exists yet, but house ' +
+          'accounts in any world created would have no game day or season. This time zone must be ' +
+          'given back to PostgreSQL, on the server (specification 03).',
+      ]);
+      await show({ timezone: null, knownToDatabase: null, worlds: 2, invalidConfig: true });
+      expect(figure(tileEn)).toBe('Missing from the configuration in force');
+      expect(alerts()).toEqual([
+        'The configuration in force no longer matches the schema: the API and the engine cannot ' +
+          'load it. Its time zone is read as stored.',
+      ]);
       await show(null);
-      expect(figure('Time zone in force (all worlds)')).toBe('No configuration in force');
+      expect(figure(tileEn)).toBe('No configuration in force');
     } finally {
       await i18n.changeLanguage('fr');
     }

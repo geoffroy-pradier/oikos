@@ -99,7 +99,10 @@
     "timezone": "Fuseau en vigueur (tous les mondes)",
     "timezoneNone": "Aucune configuration en vigueur",
     "timezoneUnknownValue": "{{timezone}} (inconnu de la base)",
-    "timezoneUnknownWarning": "Fuseau en vigueur inconnu de la base : {{timezone}}. Il vaut pour tous les mondes ({{worlds}}) : les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03)."
+    "timezoneUnknownWarning": "Fuseau en vigueur inconnu de la base : {{timezone}}. Il vaut pour tous les mondes ({{worlds}}) : les comptes des maisons n'y ont plus ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03).",
+    "timezoneMissing": "Absent de la configuration en vigueur",
+    "timezoneUnknownWarningNoWorld": "Fuseau en vigueur inconnu de la base : {{timezone}}. Aucun monde n'existe encore, mais les comptes des maisons de tout monde créé n'auraient ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03).",
+    "configInvalidWarning": "La configuration en vigueur ne respecte plus le schéma : l'API et le moteur ne peuvent pas la charger. Son fuseau est lu tel qu'enregistré."
   },
   "economy": {
     "title": "Économie",
