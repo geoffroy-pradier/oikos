@@ -1,5 +1,5 @@
 begin;
-select plan(11);
+select plan(12);
 
 -- Rachat du stock d'un bien à retirer (migration 43, ticket 229) : un robinet dédié, une extrémité
 -- système du journal des stocks dont rien ne ressort.
@@ -10,6 +10,10 @@ select is(
   (select count(*) from game.worlds w where not exists (
      select 1 from game.accounts a where a.world_id = w.id and a.kind = 'system' and a.system_key = 'faucet_good_buyback')),
   0::bigint, 'chaque monde existant a son robinet du rachat');
+select is(
+  (select pg_get_indexdef(indexrelid) from pg_index where indexrelid = 'game.inventories_held_by_good_idx'::regclass),
+  'CREATE INDEX inventories_held_by_good_idx ON game.inventories USING btree (good_id) WHERE (quantity > 0)',
+  'les stocks non vides d''un bien se lisent par un index partiel (le rachat les parcourt sous verrou)');
 insert into game.worlds (id, slug, name) values ('00000000-0000-7000-8000-00000000e229', 'essai-rachat', 'Essai');
 select is(
   (select balance from game.accounts where world_id = '00000000-0000-7000-8000-00000000e229' and system_key = 'faucet_good_buyback'),

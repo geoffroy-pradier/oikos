@@ -20,3 +20,7 @@ begin
       check (from_system is distinct from 'good_buyback') not valid;
   end if;
 end $$;
+
+-- Le rachat lit deux fois les stocks non vides d'un bien, tous mondes confondus, sous le verrou d'agora de
+-- chaque monde concerné : un index partiel évite de parcourir tous les stocks pendant ce temps.
+create index if not exists inventories_held_by_good_idx on game.inventories (good_id) where quantity > 0;
