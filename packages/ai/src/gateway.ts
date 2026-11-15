@@ -155,8 +155,8 @@ export function createGateway(options: {
       return fallback('error');
     }
     // L'appel ne part que si son coût de sortie le plus cher (maxOutputTokens) tient encore sous le
-    // plafond : un appel ne dépasse jamais le plafond à lui seul. Des appels simultanés peuvent encore le
-    // dépasser ensemble (ADR 0005).
+    // plafond. Le coût d'entrée, inconnu avant l'appel, n'est pas réservé : un appel peut dépasser le
+    // plafond de son coût d'entrée, et des appels simultanés le dépasser ensemble (ADR 0005).
     const reserved = estimateCostMicroEuros(usage, 0, usage.maxOutputTokens);
     if (spent + reserved > aiMonthlyCapMicroEuros(settings, request.usage)) {
       await record({ ...none, outcome: 'capped' });

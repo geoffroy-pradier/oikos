@@ -24,7 +24,8 @@ Aucun fournisseur n'est encore choisi ni payé : le propriétaire a reporté tou
 - **Plafond mensuel par usage**, calculé depuis la configuration (`ai`) : budget par joueur actif et par mois (au plus 0,10 €), nombre de joueurs actifs attendu, part de chaque usage.
   Le mois est le mois civil UTC.
   Un usage qui atteint son plafond est coupé jusqu'au mois suivant.
-  Un appel ne part que si son coût de sortie le plus cher (`maxOutputTokens`, demandé au fournisseur) tient sous ce qui reste du plafond : un appel seul ne le dépasse jamais.
+  Un appel ne part que si son coût de sortie le plus cher (`maxOutputTokens`, demandé au fournisseur) tient sous ce qui reste du plafond.
+  Le coût d'entrée n'est connu qu'après l'appel et n'est pas réservé : un appel peut dépasser le plafond de son coût d'entrée, que les consignes constantes et des données bornées par chaque usage gardent petit.
   Des appels simultanés d'un même usage peuvent le dépasser ensemble, d'au plus un appel chacun : la dépense est lue avant l'appel et écrite après.
 - **Coût estimé** à partir des jetons et des prix par millier de jetons de la configuration, en millionièmes d'euro entiers, arrondi à l'unité supérieure.
   Une réponse rejetée coûte ses jetons ; une réponse aux jetons illisibles coûte sa sortie la plus chère ; une erreur ou un délai ne coûte rien.

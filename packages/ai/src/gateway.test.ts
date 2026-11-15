@@ -171,6 +171,16 @@ describe('passerelle IA', () => {
     expect(provider.requests).toHaveLength(1);
   });
 
+  it('le coût d’entrée n’est pas réservé : un appel qui part peut dépasser le plafond de ce coût', async () => {
+    // 10 000 jetons d'entrée × 150 µ€ le millier = 1 500 µ€, inconnus avant l'appel.
+    const { store, ask } = setup([reply({ text: 'x' }, 10_000, 0)]);
+    await store.record({ ...SPENT, costMicroEuros: 2_000_000 - 180 });
+    expect((await ask()).outcome).toBe('ok');
+    const spent = await store.spentThisMonth('oracle', new Date('2026-12-15T10:00:00Z'));
+    expect(spent).toBe(2_000_000 - 180 + 1_500); // au-delà du plafond de 2 000 000
+    expect((await ask()).outcome).toBe('capped');
+  });
+
   it('un plafond nul (budget ou part à zéro) coupe l’usage même ouvert', async () => {
     const { provider, ask } = setup([reply({ text: 'x' })], settings({ capShareBps: 0 }));
     expect((await ask()).outcome).toBe('capped');
