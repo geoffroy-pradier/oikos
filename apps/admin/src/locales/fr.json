@@ -260,7 +260,7 @@
       "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une recette. Un intrant ou un extrant s'y ajoute ou s'y retire encore. Une recette retirée que la dotation de départ désigne encore est refusée à l'enregistrement.",
       "add": "Ajouter une recette",
       "remove": "Retirer {{name}}",
-      "removed": "{{name}} retirée du texte, pas encore enregistrée.",
+      "removed": "Recette {{name}} retirée du texte, pas encore enregistrée.",
       "empty": "Aucun.",
       "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « recipes » est une liste d'objets, dont « inputs » et « outputs » sont des listes d'objets.",
       "siteTypes": {
@@ -277,7 +277,7 @@
       "hint": "Chaque saisie réécrit le texte JSON ci-dessus, comme chaque ajout ou retrait d'une classe. Une ligne de panier s'y ajoute ou s'y retire encore. Une classe ajoutée ou retirée doit l'être aussi dans la population de chaque cité, sinon l'enregistrement est refusé.",
       "add": "Ajouter une classe",
       "remove": "Retirer {{name}}",
-      "removed": "{{name}} retirée du texte, pas encore enregistrée.",
+      "removed": "Classe {{name}} retirée du texte, pas encore enregistrée.",
       "empty": "Aucune ligne.",
       "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « npcClasses » est une liste d'objets, dont « basket » est une liste d'objets.",
       "needs": {

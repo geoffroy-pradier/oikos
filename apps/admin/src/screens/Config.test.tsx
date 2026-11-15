@@ -1060,11 +1060,17 @@ it('formulaire des classes : indisponible sans panier lisible ; lecture seule po
 });
 
 it.each([
-  ['recipes', 'Ajouter une recette', BAKE, { id: 'gather', siteType: 'field', outputs: [] }],
-  ['npcClasses', 'Ajouter une classe', PLEBS, { id: 'rich', incomePerThousand: 900 }],
+  [
+    'recipes',
+    'Ajouter une recette',
+    BAKE,
+    { id: 'gather', siteType: 'field', outputs: [] },
+    'Recette',
+  ],
+  ['npcClasses', 'Ajouter une classe', PLEBS, { id: 'rich', incomePerThousand: 900 }, 'Classe'],
 ])(
   'formulaire %s : un ajout écrit une ligne vide ; un retrait est annoncé, le foyer suit ; Entrée tenue ne répète rien',
-  async (table, add, first, second) => {
+  async (table, add, first, second, noun) => {
     const editor = await openVersion(1);
     const text = JSON.stringify({ [table]: [first, second], goods: GOODS }, null, 2);
     type(editor, text);
@@ -1077,7 +1083,7 @@ it.each([
     fireEvent.click(button('Retirer élément 3'));
     expect([editor.value, announce()]).toEqual([
       text,
-      'élément 3 retirée du texte, pas encore enregistrée.',
+      `${noun} élément 3 retirée du texte, pas encore enregistrée.`,
     ]);
     expect(document.activeElement).toBe(cell(second.id, 'identifiant'));
     // Au clavier, Entrée tenue : une seule ligne retirée, le foyer va à la suivante.
