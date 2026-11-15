@@ -82,8 +82,9 @@ test('à récolter : calé sur l’heure du serveur, même quand le navigateur r
   await page.clock.install({ time: new Date(Date.now() - 4 * 3_600_000) });
   const houseName = await foundHouse(page);
   // Huit heures de jeu, soit deux cycles de quatre heures. À l'heure du navigateur, il n'y en aurait
-  // qu'un.
-  await elapse(houseName, 480);
+  // qu'un. Une minute de plus : l'heure du serveur n'est connue qu'à la seconde près (en-tête `Date`),
+  // le test ne se tient pas sur le bord d'un cycle.
+  await elapse(houseName, 481);
   await page.reload();
   await expect(page.getByText('À récolter : 80 × Blé.')).toBeVisible();
 

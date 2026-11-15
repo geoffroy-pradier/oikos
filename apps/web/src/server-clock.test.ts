@@ -8,14 +8,26 @@ describe('heure du serveur', () => {
     expect(clock.now().getTime()).toBe(1_000_000);
   });
 
-  it('se cale sur l’en-tête Date, au milieu de la seconde et de l’aller-retour', () => {
+  it('se cale sur l’en-tête Date par la plus petite correction compatible', () => {
     let local = Date.parse('2026-11-15T10:00:00.000Z');
     const clock = createServerClock(() => local);
-    // Le navigateur retarde de quatre heures ; la requête a mis 200 ms.
+    // Le navigateur retarde de quatre heures ; la requête a mis 200 ms. À la réception, le serveur est
+    // au moins à 14:00:00.000 : c'est la correction retenue.
     clock.observe('Sun, 15 Nov 2026 14:00:00 GMT', local - 200, local);
-    expect(clock.now().toISOString()).toBe('2026-11-15T14:00:00.600Z');
+    expect(clock.now().toISOString()).toBe('2026-11-15T14:00:00.000Z');
     local += 60_000;
-    expect(clock.now().toISOString()).toBe('2026-11-15T14:01:00.600Z');
+    expect(clock.now().toISOString()).toBe('2026-11-15T14:01:00.000Z');
+    // Navigateur en avance : la correction s'arrête à la borne haute (fin de la seconde annoncée).
+    clock.observe('Sun, 15 Nov 2026 09:00:00 GMT', local - 200, local);
+    expect(clock.now().getTime()).toBe(Date.parse('2026-11-15T09:00:01.000Z') + 200);
+  });
+
+  it('garde l’horloge du navigateur quand l’en-tête lui donne raison, même à la seconde tronquée', () => {
+    // Même machine : l'en-tête annonce la seconde entamée, le navigateur est à 0,9 s dedans.
+    const local = Date.parse('2026-11-15T10:00:00.900Z');
+    const clock = createServerClock(() => local);
+    clock.observe('Sun, 15 Nov 2026 10:00:00 GMT', local - 30, local);
+    expect(clock.now().getTime()).toBe(local);
   });
 
   it('ignore un en-tête absent ou illisible, et une mesure incohérente', () => {
