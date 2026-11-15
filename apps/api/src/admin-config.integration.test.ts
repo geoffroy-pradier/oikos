@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { COMMANDS, createApp } from './app';
 import { createTelemetry } from './telemetry';
 import { adminPublishConfig, adminScheduleConfig } from './commands/admin-config';
-import { defineCommand, executeCommand } from './registry';
+import { defineCommand, executeCommand, type ConfigSource } from './registry';
 import { unlimited } from './rate-limit';
 import {
   farCloseClock,
@@ -1153,18 +1153,18 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
   const publish = async (config: unknown) =>
     (await send(designer, 'admin.publishConfig', { config })).body.data?.versionId ?? '';
   /** API dont la version en vigueur est `config` (#234) ; `null` : aucune version en vigueur lisible. */
+  const loaded = (config: unknown) => {
+    const valid = validateConfig(config);
+    if (!valid.ok) throw new Error(valid.errors.join('\n'));
+    return { ...TEST_CONFIG, config: valid.config };
+  };
+  const appWith = (loadConfig: ConfigSource) =>
+    createApp({ db, telemetry, verifyToken: testVerifier, rateLimiter: unlimited, loadConfig });
   const inForce = (config: unknown) => {
-    const valid = config === null ? null : validateConfig(config);
-    if (valid && !valid.ok) throw new Error(valid.errors.join('\n'));
-    return createApp({
-      db,
-      telemetry,
-      verifyToken: testVerifier,
-      rateLimiter: unlimited,
-      loadConfig: async () => {
-        if (!valid) throw new ConfigError('No active configuration');
-        return { ...TEST_CONFIG, config: valid.config };
-      },
+    const active = config === null ? null : loaded(config);
+    return appWith(async () => {
+      if (!active) throw new ConfigError('No active configuration');
+      return active;
     });
   };
   // Sauf mention contraire, la version en vigueur connaît la recette et la classe : les retirer se confirme.
@@ -1365,6 +1365,38 @@ describe('recette ou classe retirée encore en usage (#200)', () => {
       retired: { goods: [], recipes, npcClasses },
       already: { recipes: [], npcClasses: [] },
     });
+  });
+
+  it('la référence est la version en vigueur à l’instant de la transaction, lue dans celle-ci : une clôture passée depuis le chargement compte (#234)', async () => {
+    const next = await publish({
+      ...(await keepingAll()),
+      recipes: SAME_CLOCK.recipes,
+      npcClasses: SAME_CLOCK.npcClasses,
+      cities: SAME_CLOCK.cities,
+    });
+    // Avant la transaction, la recette est déjà retirée ; dans la transaction, une clôture a mis en
+    // vigueur une version qui la connaît : `next` la retire bel et bien, et doit le faire confirmer.
+    const [before, after] = [loaded(SAME_CLOCK), loaded(WITH_RECIPE)];
+    const calls: { at: Date; inTransaction: boolean }[] = [];
+    const racing = appWith(async (at, executor) => {
+      calls.push({ at, inTransaction: executor !== undefined });
+      return executor ? after : before;
+    });
+    const reviewer = await newUser('game_designer', root);
+    expect(await schedule(reviewer, next, false, racing)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFIG_RETIRED_UNCONFIRMED', fields: [`recipes.${RECIPE}`] } },
+    });
+    // Le second chargement est fait à l'instant de la transaction, celui que le journal enregistre.
+    const [logged] = await db
+      .selectFrom('game.command_log')
+      .select('created_at')
+      .where('user_id', '=', reviewer)
+      .execute();
+    expect(calls).toEqual([
+      { at: expect.any(Date), inTransaction: false },
+      { at: logged?.created_at, inTransaction: true },
+    ]);
   });
 
   it('la confirmation ne lève pas le refus d’un bien encore détenu', async () => {

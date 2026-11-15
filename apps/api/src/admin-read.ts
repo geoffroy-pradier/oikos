@@ -290,8 +290,9 @@ export function registerAdminReads(
       .orderBy('a.activate_at', 'desc')
       .orderBy('a.seq', 'desc')
       .execute();
-    const active = await sql<{ id: string | null }>`
-      select config.active_version_at(now()) as id`.execute(db);
+    // Un seul instant, celui de la base, pour la version signalée en vigueur et pour celle chargée plus bas.
+    const active = await sql<{ id: string | null; now: Date }>`
+      select config.active_version_at(now()) as id, now() as now`.execute(db);
     // Ce que chaque version retirerait de ce que le monde porte encore : dit avant la programmation (#191,
     // #200). La base ne lit que ce qu'une version au moins retire, réparti ensuite version par version.
     const ids = await versionConfigIds(db);
@@ -302,7 +303,7 @@ export function registerAdminReads(
     // la charge aussi, n'en ferait aucun. Au-delà des entiers sûrs non plus : elle refuserait d'arrondir.
     // Même configuration en vigueur que celle que la commande charge : une recette ou une classe qu'elle
     // ne connaît déjà plus n'est pas à confirmer (#234). Illisible, tout est tenu pour retiré.
-    const inForce = await loadConfig(new Date()).then(
+    const inForce = await loadConfig(active.rows[0]?.now ?? new Date()).then(
       (loaded) => loaded.config,
       (error: unknown) => {
         if (error instanceof ConfigError) return null;

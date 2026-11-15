@@ -110,7 +110,7 @@ export const adminScheduleConfig = defineCommand({
       message: 'The next close has already passed.',
     },
   },
-  async handler({ trx, userId, emit, config, now, settings }, input) {
+  async handler({ trx, userId, emit, config, now, configAt, settings }, input) {
     // Même borne que l'annulation : après l'inscription (journal, événements, validation), la transaction
     // reste bien en deçà de la marge d'une minute. La base contrôle de toute façon l'échéance à la validation.
     await sql`set local statement_timeout = '10s'`.execute(trx);
@@ -166,9 +166,11 @@ export const adminScheduleConfig = defineCommand({
     // Recettes et classes : seules comptent celles que la version en vigueur connaît encore (#234). Elle
     // est aussi celle que la clôture visée remplacera : on ne programme que la prochaine clôture, et la
     // dernière programmée pour une clôture l'emporte sur les précédentes, qu'elle rend sans effet.
+    // Lue à l'instant de la transaction, d'où se compte l'échéance, et pas à celui du chargement de
+    // `config` : une clôture passée entre les deux a pu changer la version en vigueur.
     const { retiredInUse: retired } = splitByInForce(
       await readWorldUsage(trx, configIds(stored.config)),
-      configIds(config),
+      configIds(await configAt(now)),
     );
     if (retired.goods.length > 0) {
       return {
