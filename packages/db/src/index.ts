@@ -118,6 +118,8 @@ export interface GameDatabase {
     to_system?: string | null;
     kind: string;
     ledger_entry_id?: string | null;
+    /** Voyage d'un mouvement vers ou depuis l'extrémité `in_transit` (4.6) ; nul pour tout autre. */
+    voyage_id?: string | null;
     created_at: Generated<Date>;
   };
   /** Ordres de l'agora : le reste ne change que par un échange, l'état que par une annulation. */
@@ -190,10 +192,16 @@ export interface GameDatabase {
     world_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     class_id: ColumnType<string, string, never>;
-    /** Cité où le navire est à quai ; nulle en mer. Un navire naît à quai (garde de la base). */
-    docked_city_id: ColumnType<string | null, string, never>;
-    /** Instant du désarmement, entretien impayé ; nul pour un navire armé. Un navire naît armé. */
-    laid_up_at: ColumnType<Date | null, never, never>;
+    /**
+     * Cité où le navire est à quai ; nulle en mer. Un navire naît à quai, ne prend la mer que par un voyage
+     * qui part et n'accoste qu'à son arrivée (garde de la base).
+     */
+    docked_city_id: ColumnType<string | null, string, string | null>;
+    /**
+     * Instant du désarmement, entretien impayé ; nul pour un navire armé. Un navire naît armé ; le
+     * désarmement est daté de la transaction qui l'écrit (garde de la base).
+     */
+    laid_up_at: ColumnType<Date | null, never, Date | null>;
     created_at: ColumnType<Date, never, never>;
   };
   /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
@@ -237,6 +245,28 @@ export interface GameDatabase {
     election_id: ColumnType<string, string, never>;
     starts_at: ColumnType<Date, Date, never>;
     ends_at: ColumnType<Date, Date, never>;
+  };
+  /**
+   * Voyages (4.6). Le service fait partir un voyage sans en choisir ni l'identifiant ni la date de
+   * départ, puis n'écrit que son arrivée.
+   */
+  'game.voyages': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    ship_id: ColumnType<string, string, never>;
+    from_city_id: ColumnType<string, string, never>;
+    to_city_id: ColumnType<string, string, never>;
+    departed_at: ColumnType<Date, never, never>;
+    arrives_at: ColumnType<Date, Date, never>;
+    arrived_at: ColumnType<Date | null, never, Date>;
+  };
+  /** Cargaison d'un voyage, écrite à son départ et jamais modifiée. */
+  'game.voyage_cargo': {
+    voyage_id: ColumnType<string, string, never>;
+    world_id: ColumnType<string, string, never>;
+    good_id: ColumnType<string, string, never>;
+    quantity: ColumnType<string, number, never>;
   };
   /** Clôtures quotidiennes jouées : une ligne par monde et par jour de jeu, en ajout seul. */
   'game.daily_closes': {

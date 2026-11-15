@@ -9,3 +9,4 @@ export * from './house';
 export * from './market';
 export * from './ship';
 export * from './site';
+export * from './voyage';
