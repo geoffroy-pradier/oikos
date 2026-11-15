@@ -113,16 +113,26 @@ export function SitesCard({
   // entre-temps), l'heure et les sites sont relus, puis tout est recompté.
   // Tant que la première lecture de l'heure n'a pas abouti (ou échoué), rien n'est annoncé : l'heure
   // du navigateur peut être fausse de plusieurs heures. Deux lectures simultanées : la dernière gagne.
+  // Les sites et les règles sont aussi relus à chaque minute, onglet visible et hors commande : un
+  // arrêt prononcé par la clôture, une version activée, paraissent sans rechargement.
   const [now, setNow] = useState<Date | null>(null);
   const reloadSites = sites.reload;
   useEffect(() => {
     let live = true;
     const sync = () => void syncServerClock().then(() => live && setNow(serverClock.now()));
     sync();
-    const timer = setInterval(() => setNow(serverClock.now()), 60_000);
+    const reread = () => {
+      if (running.current) return;
+      void reloadSites();
+      void reloadRules();
+    };
+    const timer = setInterval(() => {
+      setNow(serverClock.now());
+      if (document.visibilityState === 'visible') reread();
+    }, 60_000);
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      void reloadSites();
+      reread();
       sync();
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -131,7 +141,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [reloadSites]);
+  }, [reloadSites, reloadRules]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -142,6 +152,28 @@ export function SitesCard({
       ? name
       : t('home.siteNumbered', { site: name, number: number.format(alike.indexOf(site) + 1) });
   };
+  // Arrêt prononcé pendant que la fiche est ouverte (clôture impayée), vu à une relecture : annoncé, pas
+  // seulement affiché. La première lecture n'annonce rien : l'arrêt est alors dit sur la fiche.
+  const haltsSeen = useRef<Map<string, string | null> | null>(null);
+  // Pendant une commande, la relecture n'est pas retenue : l'issue de la commande s'annonce à sa place,
+  // et un arrêt découvert alors l'est à la relecture suivante (minute, retour sur l'onglet).
+  useEffect(() => {
+    if (!sites.rows || (haltsSeen.current && running.current)) return;
+    const before = haltsSeen.current;
+    haltsSeen.current = new Map(sites.rows.map((site) => [site.id, site.halted_at]));
+    if (!before) return;
+    // Un arrêt nouveau : site déjà lu, à l'arrêt depuis un autre instant que celui retenu (ou aucun).
+    const halted = sites.rows.filter(
+      (site) => site.halted_at && before.has(site.id) && before.get(site.id) !== site.halted_at,
+    );
+    const [first] = halted;
+    if (first)
+      setNotice({
+        target: first.id,
+        kind: 'alert',
+        text: t('home.haltedNow', { list: list(halted.map(siteName)) }),
+      });
+  }, [sites.rows]);
   /** Ce qu'une récolte donnerait maintenant (`harvest`, `null` sans règles ni stock) et les alertes du site. */
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);

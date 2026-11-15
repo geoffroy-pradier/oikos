@@ -135,6 +135,17 @@ describe('entretien d’un site', () => {
     const bad = { coefficientBps: 10_000, dailyOboles: { field: -1 } };
     expect(parseSiteRules(raw({ sites: { ...config.sites, upkeep: bad } }))).toBeNull();
   });
+
+  it('bornes du serveur : ×10 et un milliard d’oboles au plus ; au-delà, lecture refusée', () => {
+    const upkeepOf = (upkeep: { coefficientBps: number; dailyOboles: Record<string, number> }) =>
+      parseSiteRules(raw({ sites: { ...config.sites, upkeep } }))?.upkeepOf('grow_wheat') ?? null;
+    expect(upkeepOf({ coefficientBps: 100_000, dailyOboles: { field: 1_000_000_000 } })).toBe(
+      10_000_000_000,
+    );
+    expect(upkeepOf({ coefficientBps: 100_001, dailyOboles: { field: 30 } })).toBeNull();
+    expect(upkeepOf({ coefficientBps: 10_000, dailyOboles: { field: 1_000_000_001 } })).toBeNull();
+    expect(upkeepOf({ coefficientBps: 10_000, dailyOboles: { field: 1.5 } })).toBeNull();
+  });
 });
 
 describe('previewHarvest', () => {

@@ -1,4 +1,9 @@
-import { DEFAULT_SITES, DEFAULT_UPKEEP } from '@oikos/config/schema';
+import {
+  DEFAULT_SITES,
+  DEFAULT_UPKEEP,
+  upkeepCoefficientBpsSchema,
+  upkeepDailyObolesSchema,
+} from '@oikos/config/schema';
 import { accrueWorkshop, dailyUpkeep } from '@oikos/sim';
 import { z } from 'zod';
 
@@ -27,11 +32,12 @@ const siteRulesSchema = z.object({
     .object({
       limitByHeadquartersLevel: z.array(positiveInt).min(1),
       acquisitionCostOboles: z.record(name, positiveInt),
-      // Version publiée avant l'entretien : rien n'est dû, comme pour l'API.
+      // Version publiée avant l'entretien : rien n'est dû, comme pour l'API. Montants bornés comme le
+      // serveur les borne : un entretien hors de ces bornes ne peut pas être en vigueur.
       upkeep: z
         .object({
-          coefficientBps: z.number().int().nonnegative(),
-          dailyOboles: z.record(name, z.number().int().nonnegative()),
+          coefficientBps: upkeepCoefficientBpsSchema,
+          dailyOboles: z.record(name, upkeepDailyObolesSchema),
         })
         .default(DEFAULT_UPKEEP),
     })
