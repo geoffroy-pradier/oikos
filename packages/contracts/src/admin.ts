@@ -223,8 +223,16 @@ export const adminEconomySchema = z.object({
         previousBps: bps.nullable(),
         inflationBps: bps.nullable(),
         status: z.enum(['in_target', 'below', 'above', 'unknown']),
-        /** Biens du panier sans échange sur l'une des deux fenêtres. */
+        /** Biens du panier sans échange sur l'une des deux fenêtres (réunion des deux listes ci-dessous). */
         unpricedGoods: z.array(z.string()),
+        /** Biens du panier sans échange, fenêtre par fenêtre, dans l'ordre du panier. */
+        unpricedByWindow: z.object({ current: z.array(z.string()), previous: z.array(z.string()) }),
+        /**
+         * Fenêtre mesurée en partie : l'historique des prix du monde (premier chandelier de la série)
+         * commence à l'intérieur, et son prix ne couvre que sa fin. L'indice et l'inflation restent
+         * calculés tels quels, sans estimation. `null` : aucune fenêtre partielle.
+         */
+        partialWindow: z.enum(['current', 'previous']).nullable(),
       }),
     }),
   ),
