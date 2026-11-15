@@ -312,6 +312,79 @@ export const telemetrySchema = z.strictObject({
   retentionDays: z.number().int().min(2).max(3650),
 });
 
+/** Usages de l'IA de la phase 2 (8.1) : oracles de la Pythie, chronique des cités, consignes d'intendant. */
+export const AI_USAGES = ['oracle', 'chronicle', 'steward'] as const;
+export type AiUsage = (typeof AI_USAGES)[number];
+
+/**
+ * Réglage d'un usage de l'IA (8.4, 8.5). Les prix sont en millionièmes d'euro par millier de jetons, en
+ * entiers ; la part du plafond mensuel en points de base du budget de tous les usages.
+ */
+export const aiUsageSchema = z.strictObject({
+  /** Interrupteur de l'usage : coupé, la passerelle rend le repli sans appeler le fournisseur. */
+  enabled: z.boolean(),
+  /** Modèle demandé au fournisseur (petit modèle rapide par défaut, 8.4). */
+  model: z.string().min(1).max(100),
+  /** Délai au-delà duquel l'appel est abandonné au profit du repli. */
+  timeoutMs: z.number().int().min(100).max(120_000),
+  /** Part du plafond mensuel de tous les usages réservée à celui-ci. */
+  capShareBps: z.number().int().min(0).max(10_000),
+  inputMicroEurosPerThousandTokens: z.number().int().min(0).max(1_000_000),
+  outputMicroEurosPerThousandTokens: z.number().int().min(0).max(1_000_000),
+});
+
+const disabledUsage = {
+  enabled: false,
+  model: 'none',
+  timeoutMs: 10_000,
+  capShareBps: 0,
+  inputMicroEurosPerThousandTokens: 0,
+  outputMicroEurosPerThousandTokens: 0,
+};
+
+/**
+ * Valeurs lues pour les versions publiées avant la passerelle IA : tous les usages coupés, budget nul.
+ * FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_AI = deepFreeze({
+  budgetMicroEurosPerActivePlayerMonth: 0,
+  expectedActivePlayers: 0,
+  stewardDailyQuotaPerHouse: 0,
+  usages: { oracle: disabledUsage, chronicle: disabledUsage, steward: disabledUsage },
+});
+
+/**
+ * Passerelle IA (8.4, 8.5). Le plafond mensuel de tous les usages vaut le budget par joueur actif et par
+ * mois (au plus 0,10 €, cible de 8.5) multiplié par le nombre de joueurs actifs attendu ; chaque usage en
+ * reçoit sa part, et la somme des parts ne dépasse pas le tout.
+ */
+export const aiSchema = z
+  .strictObject({
+    budgetMicroEurosPerActivePlayerMonth: z.number().int().min(0).max(100_000),
+    expectedActivePlayers: z.number().int().min(0).max(1_000_000),
+    /** Consignes d'intendant en langage naturel par maison et par jour de jeu (8.4). */
+    stewardDailyQuotaPerHouse: z.number().int().min(0).max(1_000),
+    usages: z.strictObject({
+      oracle: aiUsageSchema,
+      chronicle: aiUsageSchema,
+      steward: aiUsageSchema,
+    }),
+  })
+  .refine(
+    (ai) => AI_USAGES.reduce((sum, usage) => sum + ai.usages[usage].capShareBps, 0) <= 10_000,
+    { message: 'the usages may not share more than the whole budget', path: ['usages'] },
+  );
+
+/** Plafond mensuel d'un usage, en millionièmes d'euro, arrondi à l'unité inférieure. */
+export function aiMonthlyCapMicroEuros(ai: z.infer<typeof aiSchema>, usage: AiUsage): number {
+  return Math.floor(
+    (ai.budgetMicroEurosPerActivePlayerMonth *
+      ai.expectedActivePlayers *
+      ai.usages[usage].capShareBps) /
+      10_000,
+  );
+}
+
 export const gameConfigSchema = z
   .strictObject({
     clock: clockSchema,
@@ -332,6 +405,8 @@ export const gameConfigSchema = z
     priceIndex: priceIndexSchema.default(DEFAULT_PRICE_INDEX),
     /** Absent des versions publiées avant la rétention de la télémétrie : 90 jours. */
     telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
+    /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
+    ai: aiSchema.default(DEFAULT_AI),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
