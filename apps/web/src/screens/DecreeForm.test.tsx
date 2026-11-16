@@ -5,6 +5,7 @@ import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
+import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 // Proposition d'un décret par l'archonte (#264) : lectures simulées, commande espionnée.
@@ -46,11 +47,11 @@ const archon = {
   ends_at: '2099-01-01T00:00:00Z',
   in_office: true,
 };
-async function show() {
+async function show(lng: 'fr' | 'en' = 'fr') {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
-    resources: { fr: { translation: fr } },
-    lng: 'fr',
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng,
     interpolation: { escapeValue: false },
   });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
@@ -283,5 +284,98 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     fireEvent.change(rate, { target: { value: '12' } });
     expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
     expect(screen.queryByText(fr.decreeForm.unreadable)).toBeNull();
+  });
+
+  it('montant entier : « 30,000 » ou « 30.000 » refusé comme ambigu, même quand 30 tiendrait dans les bornes (#463)', async () => {
+    // Bornes où N et N × 1 000 tiennent toutes deux : lu 30, le montant partirait mille fois trop petit.
+    const wide = rules.map((rule) =>
+      rule.model === 'public_works'
+        ? { ...rule, bounds: { minOboles: 1, maxOboles: 60_000 } }
+        : rule,
+    );
+    state.views = { decree_rules: wide, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.public_works }));
+    const amount = screen.getByLabelText(fr.decreeForm.amount);
+    for (const typed of ['30,000', '30.000', '1 234,500']) {
+      fireEvent.change(amount, { target: { value: typed } });
+      expect(screen.getByText(fr.decreeForm.ambiguous)).toBeTruthy();
+      expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
+      expect(amount.getAttribute('aria-invalid')).toBe('true');
+      expect(screen.queryByText(/^Soit /)).toBeNull();
+      expect(submit().getAttribute('aria-disabled')).toBe('true');
+      fireEvent.click(submit());
+    }
+    expect(api.cityCommand).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '30 000' } });
+    expect(screen.queryByText(fr.decreeForm.ambiguous)).toBeNull();
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'public_works',
+      params: { amountOboles: 30_000 },
+    });
+  });
+
+  it('montant et durée entiers : une saisie décimale dit « nombre entier attendu », pas « Hors des bornes » (#463)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    const amount = screen.getByLabelText(fr.decreeForm.amount);
+    const days = screen.getByLabelText(fr.decreeForm.days);
+    fireEvent.change(amount, { target: { value: '300,5' } });
+    fireEvent.change(days, { target: { value: '2.5' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pain' }));
+    expect(screen.getAllByText(fr.decreeForm.notInteger)).toHaveLength(2);
+    expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(days.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.click(submit());
+    expect(api.cityCommand).not.toHaveBeenCalled();
+    // Au-delà des bornes, un nombre entier reste « Hors des bornes ».
+    fireEvent.change(days, { target: { value: '30' } });
+    expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
+    fireEvent.change(amount, { target: { value: '300' } });
+    fireEvent.change(days, { target: { value: '2' } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'festival',
+      params: { amountOboles: 300, days: 2, goodIds: ['bread'] },
+    });
+  });
+
+  it('champs décimaux inchangés : un taux « 7,500 » se lit 7,5 % (#463)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    fireEvent.change(screen.getByLabelText(fr.decreeForm.rate), { target: { value: '7,500' } });
+    expect(screen.queryByText(fr.decreeForm.ambiguous)).toBeNull();
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'market_tax_rate',
+      params: { rateBps: 750 },
+    });
+  });
+
+  it('en anglais : « 30.000 » ambigu, « 30,000 » lu comme trente mille ; messages en anglais (#463)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show('en');
+    fireEvent.click(screen.getByRole('radio', { name: en.decreeForm.models.public_works }));
+    const amount = screen.getByLabelText(en.decreeForm.amount);
+    fireEvent.change(amount, { target: { value: '30.000' } });
+    expect(screen.getByText(en.decreeForm.ambiguous)).toBeTruthy();
+    fireEvent.change(amount, { target: { value: '600.5' } });
+    expect(screen.getByText(en.decreeForm.notInteger)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: en.decreeForm.submit }));
+    expect(api.cityCommand).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '30,000' } });
+    fireEvent.click(screen.getByRole('button', { name: en.decreeForm.submit }));
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'public_works',
+      params: { amountOboles: 30_000 },
+    });
   });
 });

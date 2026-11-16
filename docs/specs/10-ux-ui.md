@@ -68,6 +68,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).
    Une saisie s'écrit comme les bornes s'affichent (« 30 000 », ou « 30,000 » en anglais) ; une saisie illisible a son propre message, distinct de « Hors des bornes ».
+   Sur un champ entier (montant en oboles, durée en jours), une partie décimale d'exactement trois chiffres (« 30,000 » ou « 30.000 » en français) est refusée comme ambiguë, avec son propre message : lue comme des décimales, elle rendrait mille fois plus petit un montant écrit avec des milliers à l'anglaise ou à l'allemande.
+   Une autre saisie décimale sur un champ entier (« 300,5 ») dit « Nombre entier attendu », pas « Hors des bornes » ; les champs décimaux (taux, coefficient) ne changent pas.
    Une fête sans bien coché ou avec trop de biens le dit dans une région toujours présente, reliée au groupe de cases ; une proposition réussie remet le formulaire à zéro, biens compris.
    Une lecture en échec ou illisible (charges ou règles) se dit et se relit ; après un « Réessayer » réussi, le foyer va au titre « Proposer un décret ».
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.

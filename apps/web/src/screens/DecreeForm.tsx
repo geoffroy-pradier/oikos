@@ -4,7 +4,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
 import { useRows } from '../data';
-import { checkDecreeParams, parseDecreeRules, readTypedNumber } from '../decrees';
+import {
+  checkDecreeParams,
+  parseDecreeRules,
+  readTypedNumber,
+  typedIntegerProblem,
+} from '../decrees';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { parseOffices } from '../politics';
@@ -15,6 +20,8 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 const BPS = 10_000;
 /** Paramètre du décret que porte chaque champ saisi. */
 const PARAMS = { rate: 'rateBps', factor: 'coefficientBps', amount: 'amountOboles', days: 'days' };
+/** Champs qui portent un nombre entier : montant en oboles, durée en jours. */
+const INTEGERS = new Set<keyof typeof PARAMS>(['amount', 'days']);
 
 /**
  * Proposition d'un décret par l'archonte en charge (6.3), d'après le catalogue fermé en vigueur
@@ -84,28 +91,36 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const field = (name: string) => fields[name] ?? '';
   const set = (name: string) => (event: { target: { value: string } }) =>
     setFields({ ...fields, [name]: event.target.value });
+  /** Problème d'une saisie sur un champ entier (`typedIntegerProblem`) ; `null` sur un champ décimal. */
+  const problem = (name: keyof typeof PARAMS) =>
+    INTEGERS.has(name) ? typedIntegerProblem(field(name), i18n.language) : null;
+  /** Nombre saisi dans un champ ; refusé sur un champ entier : `NaN`, et rien ne part. */
+  const value = (name: keyof typeof PARAMS) => (problem(name) ? NaN : read(field(name)));
   const picked = goods ?? [];
   const candidate: unknown =
     chosen === 'market_tax_rate'
-      ? { rateBps: Math.round(read(field('rate')) * 100) }
+      ? { rateBps: Math.round(value('rate') * 100) }
       : chosen === 'port_dues'
-        ? { coefficientBps: Math.round(read(field('factor')) * BPS) }
+        ? { coefficientBps: Math.round(value('factor') * BPS) }
         : chosen === 'public_works'
-          ? { amountOboles: read(field('amount')) }
-          : { amountOboles: read(field('amount')), days: read(field('days')), goodIds: picked };
+          ? { amountOboles: value('amount') }
+          : { amountOboles: value('amount'), days: value('days'), goodIds: picked };
   // Le schéma de l'API juge tout ; chaque champ se juge seul : le message tombe sous le champ fautif.
   const { proposal, faulty } = checkDecreeParams(bounds, chosen, candidate);
   const spending = chosen === 'festival' ? bounds.festival : bounds.public_works;
   const fits = (name: keyof typeof PARAMS) => field(name) !== '' && !faulty.has(PARAMS[name]);
-  // Une saisie illisible a son propre message : ce n'est pas un nombre hors des bornes.
+  // Une saisie illisible, ambiguë ou décimale sur un champ entier a son propre message : ce n'est pas un
+  // nombre hors des bornes.
   const invalid = (name: keyof typeof PARAMS) =>
     field(name) === ''
       ? undefined
-      : Number.isNaN(read(field(name)))
-        ? t('decreeForm.unreadable')
-        : faulty.has(PARAMS[name])
-          ? t('decreeForm.outOfBounds')
-          : undefined;
+      : problem(name)
+        ? t(`decreeForm.${problem(name)}`)
+        : Number.isNaN(read(field(name)))
+          ? t('decreeForm.unreadable')
+          : faulty.has(PARAMS[name])
+            ? t('decreeForm.outOfBounds')
+            : undefined;
   // Aucun bien coché n'est dit qu'une fois la fête entamée, comme un champ n'est jugé qu'une fois rempli.
   const started = goods !== null || field('amount') !== '' || field('days') !== '';
   const goodsInvalid = !faulty.has('goodIds')
@@ -207,7 +222,7 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
               minMoney: money(spending.minOboles),
               maxMoney: money(spending.maxOboles),
             }),
-            fits('amount') && t('decreeForm.amountIs', { amount: money(read(field('amount'))) }),
+            fits('amount') && t('decreeForm.amountIs', { amount: money(value('amount')) }),
           ]
             .filter(Boolean)
             .join(' ')}

@@ -6,6 +6,7 @@ import {
   parseDecrees,
   ratesInForce,
   readTypedNumber,
+  typedIntegerProblem,
 } from './decrees';
 
 const config = INITIAL_CONFIG as GameConfig;
@@ -146,5 +147,32 @@ describe('nombre saisi dans un formulaire de décret (#444, #456)', () => {
       ['1e3', 'fr'],
     ] as const)
       expect(readTypedNumber(typed, language)).toBeNaN();
+  });
+
+  it('champ entier : trois décimales exactement, ambiguës ; autre partie décimale, pas un entier (#463)', () => {
+    for (const [typed, language] of [
+      ['30,000', 'fr'],
+      ['30.000', 'fr'],
+      ['1 234,500', 'fr'],
+      ['30.000', 'en'],
+    ] as const)
+      expect(typedIntegerProblem(typed, language)).toBe('ambiguous');
+    for (const [typed, language] of [
+      ['300,5', 'fr'],
+      ['300.25', 'fr'],
+      ['300,5000', 'fr'],
+      ['600.5', 'en'],
+    ] as const)
+      expect(typedIntegerProblem(typed, language)).toBe('notInteger');
+    // Rien à redire : entier, milliers tels que la langue les écrit, rien de saisi, saisie illisible.
+    for (const [typed, language] of [
+      ['30 000', 'fr'],
+      ['30000', 'fr'],
+      ['300,0', 'fr'],
+      ['30,000', 'en'],
+      ['', 'fr'],
+      ['douze', 'fr'],
+    ] as const)
+      expect(typedIntegerProblem(typed, language)).toBeNull();
   });
 });
