@@ -21,6 +21,7 @@ import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
 import { cityCastVote } from './commands/city-cast-vote';
+import { cityProposeDecree } from './commands/city-decree';
 import { cityStandForElection, cityWithdrawCandidacy } from './commands/city-election';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
@@ -69,6 +70,7 @@ export const COMMANDS = [
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,
+  cityProposeDecree,
   voyageDepart,
   chatOpenDirect,
   chatPost,
