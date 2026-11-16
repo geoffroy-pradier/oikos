@@ -1,3 +1,4 @@
+import { decreeApplication } from '@oikos/engine';
 import { marketTax, portDues } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -21,15 +22,21 @@ const BURN = TEST_CONFIG.config.marketTax.burnShareBps;
 const RATE = TEST_CONFIG.config.marketTax.rateBps;
 const BOUNDS = TEST_CONFIG.config.decrees?.models.market_tax_rate;
 
-/** Un décret de taux appliqué dans la cité, posé garde levée comme par la clôture. */
-async function enact(cityId: string, model: 'market_tax_rate' | 'port_dues', value: number) {
+/** Un décret de taux appliqué dans la cité, posé garde levée comme par la clôture ; ou seulement adopté. */
+async function enact(
+  cityId: string,
+  model: 'market_tax_rate' | 'port_dues',
+  value: number,
+  status: 'applied' | 'adopted' = 'applied',
+) {
   const params = model === 'market_tax_rate' ? { rateBps: value } : { coefficientBps: value };
   await owner.transaction().execute(async (trx) => {
     await sql`alter table game.decrees disable trigger decrees_guard`.execute(trx);
     await sql`insert into game.decrees (world_id, city_id, model, params, office_id, proposed_by, status, proposed_at,
         voting_closes_at, quorum_bps, tallied_at, electorate, votes_for, votes_against, applied_at)
-      select c.world_id, c.id, ${model}, ${JSON.stringify(params)}::jsonb, o.id, o.house_id, 'applied',
-        now() - interval '3 days', now() - interval '1 hour', 0, now() - interval '1 hour', 1, 1, 0, now()
+      select c.world_id, c.id, ${model}, ${JSON.stringify(params)}::jsonb, o.id, o.house_id, ${status},
+        now() - interval '3 days', now() - interval '1 hour', 0, now() - interval '1 hour', 1, 1, 0,
+        case when ${status} = 'applied' then now() end
       from game.cities c join game.offices o on o.world_id = c.world_id where c.id = ${cityId} limit 1`.execute(
       trx,
     );
@@ -49,6 +56,23 @@ const balance = async (where: { houseId: string } | { cityId: string } | { sinkO
       }`.execute(owner)
     ).rows[0]?.balance,
   );
+/**
+ * Attend qu'une autre transaction soit bloquée sur le verrou consultatif de l'agora du monde, lu dans
+ * `pg_locks` (clé de 64 bits : `classid` en porte la moitié haute, `objid` la basse).
+ */
+async function waitingOnAgora(worldId: string) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const { rows } = await sql<{ waiting: string }>`select count(*) as waiting
+      from pg_locks l cross join (select hashtextextended(${`market:${worldId}`}, 0) as k) lock
+      where l.locktype = 'advisory' and not l.granted
+        and l.classid::bigint = ((lock.k >> 32) & 4294967295) and l.objid::bigint = (lock.k & 4294967295)`.execute(
+      owner,
+    );
+    if (Number(rows[0]?.waiting) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`No transaction waits on the agora lock of world ${worldId}`);
+}
 
 describe('taxe de marché de la cité', () => {
   it('market.placeOrder : le taux du décret vaut dès l’échange suivant, dans sa cité seulement, borné par le monde', async () => {
@@ -124,6 +148,37 @@ describe('taxe de marché de la cité', () => {
       },
     }));
     expect(await trade(zero)).toEqual({ net: 210, treasury: 0, burned: 0 });
+  });
+
+  it('un échange qui attend la clôture appliquant un décret paie le taux nouveau', async () => {
+    const world = await newWorld();
+    const [seller, buyer] = [await world.player(), await world.player()];
+    await give(seller.houseId, 'wheat', 10, world.kalliste);
+    const order = (user: string, side: string) =>
+      send(user, 'market.placeOrder', {
+        cityId: world.kalliste,
+        goodId: 'wheat',
+        side,
+        price: 21,
+        quantity: 10,
+      });
+    expect((await order(seller.user, 'sell')).status).toBe(200);
+    const before = await balance({ houseId: seller.houseId });
+    await enact(world.kalliste, 'market_tax_rate', 800, 'adopted');
+    // La clôture applique le décret sous le verrou de l'agora ; l'achat arrive avant qu'elle soit validée, et
+    // la base montre qu'il attend ce verrou avant que la clôture ne le relâche.
+    const close = await db.startTransaction().execute();
+    const step = { trx: close, worldId: world.worldId, gameDay: 0, closeAt: new Date() };
+    const applied = await decreeApplication.run({ ...step, config: TEST_CONFIG.config });
+    expect(applied).toEqual({ applied: 1, bounded: 0, unreadable: 0 });
+    let settled = false;
+    const pending = order(buyer.user, 'buy').then((reply) => ((settled = true), reply));
+    await waitingOnAgora(world.worldId);
+    expect(settled).toBe(false);
+    await close.commit().execute();
+    expect((await pending).body.data.status).toBe('filled');
+    const net = marketTax(210, { rateBps: 800, burnShareBps: BURN }).net;
+    expect((await balance({ houseId: seller.houseId })) - before).toBe(net);
   });
 
   it('property.buyListed : la revente d’un bien est taxée au taux de la cité du bien', async () => {
