@@ -285,7 +285,16 @@
     "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même.",
     "CHANNEL_NOT_FOUND": "Vous ne pouvez pas écrire dans ce canal.",
     "MESSAGE_TOO_LONG": "Ce message est trop long. Raccourcissez-le.",
-    "TOO_MANY_MESSAGES": "Vous écrivez trop vite. Patientez un instant avant le prochain message."
+    "TOO_MANY_MESSAGES": "Vous écrivez trop vite. Patientez un instant avant le prochain message.",
+    "SHIP_CLASS_NOT_FOUND": "Cette classe de navire n'est plus à vendre.",
+    "NO_PORT": "Votre cité n'a pas de port : aucun navire n'y naît.",
+    "SHIP_NOT_FOUND": "Navire introuvable.",
+    "SHIP_AT_SEA": "Ce navire est en mer.",
+    "SHIP_NOT_IN_CITY": "Ce navire n'est plus à quai dans cette cité : relisez la carte.",
+    "SHIP_LAID_UP": "Ce navire est désarmé : il ne part qu'après une clôture qui paie son entretien.",
+    "SHIP_CLASS_RETIRED": "Cette classe de navire a été retirée : il ne peut plus partir.",
+    "NO_ROUTE": "Aucune route ne mène à cette cité.",
+    "CARGO_OVER_CAPACITY": "La cargaison dépasse la capacité du navire."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -413,5 +422,34 @@
     "elaia": "Elaia",
     "ampelos": "Ampelos",
     "halos": "Halos"
+  },
+  "map": {
+    "title": "Carte de l'archipel",
+    "intro": "Les cités, les routes maritimes et vos navires. La durée d'une route est celle d'un navire de vitesse ordinaire ; un navire plus lent met plus longtemps.",
+    "drawing": "Carte de l'archipel : {{cities}} cités, {{routes}} routes ; la liste qui suit en donne le détail.",
+    "hours_one": "{{number}} h",
+    "hours_other": "{{number}} h",
+    "routes": "Routes maritimes",
+    "noRoutes": "Aucune route ouverte pour l'instant.",
+    "route": "{{from}} – {{to}} : {{duration}}",
+    "fleet": "Flotte",
+    "noShips": "Votre maison n'a pas encore de navire.",
+    "shipNumbered": "{{ship}} n° {{number}}",
+    "docked": "à quai à {{city}}",
+    "atSea": "en mer vers {{city}}, arrivée prévue le {{time}}",
+    "atSeaUnknown": "en mer",
+    "laidUp": "(désarmé : entretien impayé)",
+    "shipyard": "Chantier naval",
+    "shipyardIntro": "Un navire neuf naît à quai à {{city}}. Son prix est payé une fois, son entretien chaque jour.",
+    "noClasses": "Aucun navire n'est à vendre pour l'instant.",
+    "classLine": "— {{capacity}} unités de cargaison, entretien {{upkeep}} par jour",
+    "buy": "Acheter — {{cost}}",
+    "bought": "{{ship}} acheté pour {{cost}}.",
+    "alreadyBought": "Cet achat avait déjà abouti : {{ship}} acheté pour {{cost}}. Rien n'a été payé de nouveau.",
+    "buyUnanswered": "Un achat de navire est resté sans réponse. Vérifiez votre flotte avant de racheter : il a pu aboutir."
+  },
+  "shipClasses": {
+    "coaster": "Caboteur",
+    "round_ship": "Navire rond"
   }
 }

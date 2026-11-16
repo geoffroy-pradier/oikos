@@ -9,6 +9,8 @@ export interface HouseSummary {
   cityName: string;
   /** Noms des cités du monde, par identifiant : un stock ou un site peut être ailleurs que la maison. */
   cityNames: Readonly<Record<string, string>>;
+  /** Identifiant de configuration (routes, droit de port) des cités du monde, par identifiant de cité. */
+  citySlugs?: Readonly<Record<string, string>>;
   citizenshipStatus: 'metic' | 'citizen';
 }
 
