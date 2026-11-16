@@ -112,7 +112,8 @@ Ajouts de la phase 2 :
 - **Immobilier** (#256, 4.5) : chaque cité a un parc fini de logements en deux tailles, maison de ville et immeuble de rapport, créé par le moteur au premier tick qui la connaît.
   Une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde ; le prix est détruit par un puits.
   Elle le rénove en payant en oboles et en consommant des biens de son stock dans la cité du bien ; le bien redevient neuf.
-  À la clôture, chaque bien perd sa vétusté du jour, puis son entretien est payé après les sites et les navires, chacun en entier ou pas du tout ; un bien impayé ne loge personne.
+  À la clôture, chaque bien perd sa vétusté du jour, puis son entretien est payé après les sites et les navires, chacun en entier ou pas du tout.
+  Un bien impayé est marqué ; la simulation lui compte alors zéro logement, mais rien n'utilise encore cette capacité (#257, #258).
   La base garantit qu'un bien ne change de propriétaire que par une écriture d'achat, et que son état ne remonte que par une rénovation.
   Vues : règles et parc publics, sans nom de propriétaire, et biens de sa maison.
   Entretien et vétusté sont à zéro dans la configuration initiale ; ni location, ni revente (#257), ni écran (#259) pour l'instant.
@@ -371,8 +372,9 @@ Défauts connus :
   - la lecture des usages (#191, #200) parcourt sites, stocks et ordres de tous les mondes à chaque
     affichage des Paramètres ;
   - `deploy.sh` lui-même n'a jamais tourné, faute de serveur.
-- **Tests d'intégration partageant une base** : ils programment des versions de configuration ; ceux qui le font les annulent désormais à la fin (#354), mais deux suites lancées en même temps sur la même base peuvent encore se gêner.
-  Les scripts ne le font pas : en local, les suites passent l'une après l'autre, et en `ci` l'api et le reste ont chacun leur base.
+- **Tests d'intégration partageant une base** : certains programment des versions de configuration et les annulent à la fin (#354), sauf à moins d'une minute de l'échéance, ce que la base refuse.
+  Deux suites lancées en même temps sur la même base peuvent encore se gêner.
+  Les scripts lancent une suite à la fois en local, et en `ci` l'api et le reste ont chacun leur base.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
   traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
 
