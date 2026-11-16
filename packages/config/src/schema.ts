@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { decreesIssues, decreesSchema } from './decrees';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
 const id = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
@@ -755,6 +756,8 @@ export const gameConfigSchema = z
      * ne s'ouvre ; une élection déjà ouverte est dépouillée à ses dates.
      */
     politics: politicsSchema.optional(),
+    /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
+    decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
     goods: z.array(goodSchema).min(1),
@@ -766,6 +769,9 @@ export const gameConfigSchema = z
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: 'custom', path, message });
     const goods = new Set(config.goods.map((good) => good.id));
+    if (config.decrees)
+      for (const { path, message } of decreesIssues(config.decrees, goods))
+        issue(['decrees', ...path], message);
     const classes = new Set(config.npcClasses.map((npcClass) => npcClass.id));
 
     // Une fenêtre plus courte qu'un chandelier n'en retiendrait aucun une partie du temps, sans erreur.

@@ -171,6 +171,24 @@ describe('jeu de valeurs initial', () => {
     });
   });
 
+  it('décrets : quatre modèles ouverts, taux et coefficient autour de ceux du monde (6.3 ; #261)', () => {
+    const decrees = config.decrees;
+    expect(decrees && Object.keys(decrees.models).sort()).toEqual([
+      'festival',
+      'market_tax_rate',
+      'port_dues',
+      'public_works',
+    ]);
+    const rate = decrees?.models.market_tax_rate;
+    expect(rate && rate.minRateBps <= config.marketTax.rateBps).toBe(true);
+    expect(rate && config.marketTax.rateBps <= rate.maxRateBps).toBe(true);
+    const port = decrees?.models.port_dues;
+    for (const coefficient of Object.values(config.ships.portDues.cityCoefficientBps))
+      expect(
+        port && port.minCoefficientBps <= coefficient && coefficient <= port.maxCoefficientBps,
+      ).toBe(true);
+  });
+
   it('une route entre chaque paire de cités, sans provisions ni droit de port au départ (#252)', () => {
     const cities = config.cities.map((city) => city.id);
     const pairs = cities.flatMap((a, i) => cities.slice(i + 1).map((b) => [a, b].sort().join(' ')));
