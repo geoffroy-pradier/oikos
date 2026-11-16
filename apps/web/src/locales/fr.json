@@ -719,6 +719,8 @@
     "between": "Entre {{min}} et {{max}}",
     "outOfBounds": "Hors des bornes du décret.",
     "unreadable": "Nombre illisible : écrivez un nombre sans unité, par exemple 7,5 ou 30 000.",
+    "ambiguous": "Nombre ambigu : ce champ attend un nombre entier ; écrivez les milliers avec une espace, par exemple 30 000.",
+    "notInteger": "Nombre entier attendu.",
     "submit": "Proposer au vote",
     "done": "Décret proposé : il est au vote.",
     "betweenOboles": "Entre {{min}} et {{max}} oboles ({{minMoney}} à {{maxMoney}}).",

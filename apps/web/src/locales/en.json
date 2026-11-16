@@ -719,6 +719,8 @@
     "between": "Between {{min}} and {{max}}",
     "outOfBounds": "Outside the decree's bounds.",
     "unreadable": "Unreadable number: type a number without a unit, for example 7.5 or 30,000.",
+    "ambiguous": "Ambiguous number: this field takes a whole number; write thousands as 30,000 or 30 000.",
+    "notInteger": "Whole number expected.",
     "submit": "Put to the vote",
     "done": "Decree proposed: it is under vote.",
     "betweenOboles": "Between {{min}} and {{max}} obols ({{minMoney}} to {{maxMoney}}).",
