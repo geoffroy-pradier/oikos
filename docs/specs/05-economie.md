@@ -138,6 +138,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Un taux nul ne prélève rien ; une version de configuration publiée avant la taxe se lit avec un taux nul.
   La revente d'un bien immobilier entre maisons (#257, 4.5) paie la même taxe, à la cité du bien, par le même calcul et la même répartition, dans son écriture `property.sale`.
   Le taux et la part détruite sont des règles du jeu publiques : les joueurs connectés les lisent (vue `market_rules`), rien d'autre de la configuration du marché ne l'est.
+  Le taux en vigueur de chaque cité (5.6) se lit dans la vue `city_rates`, une ligne par cité, et le formulaire de vente annonce le net au taux de la cité du marché, avec la part détruite du monde ; sans taux de la cité lisible, il n'annonce rien plutôt que le taux du monde.
+  Décision (ticket 262, qui demandait ce taux dans `market_rules`) : une vue à part, parce que les taux sont une ligne par cité quand `market_rules` est une ligne pour tout le jeu, et que sa colonne `market_tax` rend la section de la configuration telle quelle, sans valeur calculée en base (pgTAP 019).
   Historique des prix : les échanges d'un bien dans une cité, entre joueurs comme avec les PNJ, sont résumés par période en chandeliers (table `price_candles`) : ouverture (prix du premier échange de la période), plus haut, plus bas, clôture (prix du dernier), volume (unités échangées) et montant (somme des prix × quantités, brut, avant taxe de marché).
   Une période est l'intervalle [début, début + durée), son début étant un multiple de la durée depuis l'époque Unix, en temps universel ;
   une période sans échange n'a pas de chandelier. La durée est un paramètre du back-office (`priceHistory.candleMinutes`, d'une minute à une journée ;

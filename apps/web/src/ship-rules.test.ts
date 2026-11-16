@@ -1,6 +1,11 @@
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { destinationsFrom, parseShipRules, quoteDeparture } from './ship-rules';
+import {
+  destinationsFrom,
+  parseShipRules,
+  quoteDeparture,
+  withCityCoefficients,
+} from './ship-rules';
 
 const SHIPS = (INITIAL_CONFIG as GameConfig).ships;
 const initial = () => {
@@ -71,5 +76,37 @@ describe('règles du transport lues par le client', () => {
     });
     expect(quoteDeparture(priced, 'galley', 'kalliste', 'elaia')).toBeNull();
     expect(quoteDeparture(priced, 'coaster', 'kalliste', 'kalliste')).toBeNull();
+  });
+
+  it('droit de port en vigueur : le coefficient de chaque cité du monde, lu dans `city_rates` (#262)', () => {
+    const priced = {
+      ...initial(),
+      portDues: { byClassOboles: { coaster: 10 }, burnShareBps: 5000, cityCoefficientBps: {} },
+    };
+    const slugs = new Map([
+      ['e1', 'elaia'],
+      ['k1', 'kalliste'],
+    ]);
+    // Elaia a décrété ×1,5 ; la cité homonyme d'un autre monde (e2) ne compte pas.
+    const inForce = withCityCoefficients(
+      priced,
+      [
+        { city_id: 'e1', port_dues_coefficient_bps: 15_000 },
+        { city_id: 'e2', port_dues_coefficient_bps: 50_000 },
+      ],
+      slugs,
+    );
+    expect(inForce?.portDues.cityCoefficientBps).toEqual({ elaia: 15_000 });
+    expect(inForce && quoteDeparture(inForce, 'coaster', 'kalliste', 'elaia')?.portDuesOboles).toBe(
+      15,
+    );
+    // Sans ligne, la configuration ; une ligne illisible : inconnu, jamais le coefficient ×1 supposé.
+    expect(withCityCoefficients(priced, [], slugs)).toEqual(priced);
+    for (const bad of [
+      null,
+      [{ city_id: 'e1' }],
+      [{ city_id: 'e1', port_dues_coefficient_bps: 1.5 }],
+    ])
+      expect(withCityCoefficients(priced, bad, slugs)).toBeNull();
   });
 });

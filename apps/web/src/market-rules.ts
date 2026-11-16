@@ -20,6 +20,18 @@ export function parseMarketTax(raw: unknown): MarketTaxRule | null {
   return parsed.success ? parsed.data.market_tax : null;
 }
 
+const cityRateSchema = z.object({ market_tax_rate_bps: bps });
+/**
+ * Taxe de la cité du marché (5.6) : son taux en vigueur (vue `public.city_rates`, une ligne par cité : dernier
+ * décret appliqué, sinon le taux du monde) et la part détruite du monde. `null` si l'un est inconnu : une
+ * ligne de cité absente ou illisible ne laisse jamais supposer le taux du monde.
+ */
+export function cityMarketTax(world: MarketTaxRule | null, row: unknown): MarketTaxRule | null {
+  const parsed = cityRateSchema.safeParse(row);
+  if (!world || !parsed.success) return null;
+  return { rateBps: parsed.data.market_tax_rate_bps, burnShareBps: world.burnShareBps };
+}
+
 /**
  * Ce qu'une vente rapporte au vendeur, taxe déduite échange par échange (5.3), calculé comme le font
  * l'API et le moteur. Indicatif : le grand livre fait foi.

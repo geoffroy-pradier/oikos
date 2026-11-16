@@ -7,13 +7,16 @@ import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
 // Lectures simulées, par vue ; chaque rendu relit l'état courant du test.
-const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]>, rules: null as unknown }));
+const views = vi.hoisted(() => ({
+  rows: {} as Record<string, object[]>,
+  rules: null as unknown,
+  filters: {} as Record<string, unknown>,
+}));
 vi.mock('../data', () => ({
-  useRows: (view: string) => ({
-    rows: views.rows[view] ?? [],
-    failed: false,
-    reload: () => Promise.resolve(null),
-  }),
+  useRows: (view: string, _columns: string, _order: string, filters?: unknown) => {
+    views.filters[view] = filters;
+    return { rows: views.rows[view] ?? [], failed: false, reload: () => Promise.resolve(null) };
+  },
   useShipRules: () => ({ rules: views.rules, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('../server-clock', () => ({
@@ -79,7 +82,12 @@ async function screenOf() {
   const tree = () => (
     <I18nextProvider i18n={instance}>
       <HouseProvider
-        value={{ ...house, cityNames: { k: 'Kallistè', e: 'Elaia' }, citizenshipStatus: 'metic' }}
+        value={{
+          ...house,
+          cityNames: { k: 'Kallistè', e: 'Elaia' },
+          citySlugs: { k: 'kalliste', e: 'elaia' },
+          citizenshipStatus: 'metic',
+        }}
       >
         <ShipScreen />
       </HouseProvider>
@@ -98,6 +106,8 @@ describe('fiche d’un navire', () => {
     expect(screen.getByText(fr.ship.arrivesAt)).toBeTruthy();
     expect(screen.getByText('30 × Blé')).toBeTruthy();
     expect(screen.queryByRole('status')).toBeNull();
+    // Droit de port en vigueur : lu pour les seules cités du monde de la maison.
+    expect(views.filters['city_rates']).toEqual({ city_id: ['e', 'k'] });
   });
 
   it('un voyage arrivé entre deux lectures est annoncé à la relecture', async () => {

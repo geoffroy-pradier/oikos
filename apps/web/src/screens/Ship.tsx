@@ -93,13 +93,13 @@ export function ShipScreen() {
           </Button>
         </Card>
       )}
-      {ship?.docked_city_id && !ship.laid_up_at && fleet.rules && (
+      {ship?.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
         <Card>
           <h2 className="text-xl">{t('departure.title')}</h2>
           <Departure
             ship={{ ...ship, docked_city_id: ship.docked_city_id }}
             shipName={shipName(ship)}
-            rules={fleet.rules}
+            rules={fleet.departureRules}
             slugs={fleet.slugs}
             voyageCounts={voyageCounts}
             onDone={(next) => {

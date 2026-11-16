@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { netProceeds, parseMarketTax, previewSale } from './market-rules';
+import { cityMarketTax, netProceeds, parseMarketTax, previewSale } from './market-rules';
 
 describe('taxe de marché lue par le client', () => {
   it('lit la taxe en vigueur ; une version publiée avant elle ne taxe rien', () => {
@@ -19,6 +19,22 @@ describe('taxe de marché lue par le client', () => {
     { market_tax: { rateBps: 500, burnShareBps: -1 } },
   ])('ligne absente ou valeur intenable (%j) : taxe inconnue, jamais supposée nulle', (raw) => {
     expect(parseMarketTax(raw)).toBeNull();
+  });
+
+  it('taxe de la cité du marché : son taux en vigueur, la part détruite du monde (#262)', () => {
+    const world = { rateBps: 500, burnShareBps: 5000 };
+    expect(cityMarketTax(world, { market_tax_rate_bps: 800 })).toEqual({
+      rateBps: 800,
+      burnShareBps: 5000,
+    });
+    expect(cityMarketTax(world, { market_tax_rate_bps: 0 })).toEqual({
+      rateBps: 0,
+      burnShareBps: 5000,
+    });
+    // Taux de la cité ou du monde inconnu : la taxe l'est aussi, le taux du monde n'est pas supposé.
+    for (const row of [null, {}, { market_tax_rate_bps: '800' }, { market_tax_rate_bps: 10_001 }])
+      expect(cityMarketTax(world, row)).toBeNull();
+    expect(cityMarketTax(null, { market_tax_rate_bps: 800 })).toBeNull();
   });
 
   it('net d’une vente : la taxe s’arrondit à l’obole supérieure, échange par échange', () => {
