@@ -62,6 +62,8 @@ export const CHAT_POST_ERROR_CODES = [
   'CHANNEL_NOT_FOUND',
   /** Plus long que `chat.maxMessageLength` caractères. */
   'MESSAGE_TOO_LONG',
+  /** La maison a déjà écrit `chat.rateLimit.messages` messages dans la fenêtre `chat.rateLimit.windowSeconds`. */
+  'TOO_MANY_MESSAGES',
 ] as const;
 export const CHAT_OPEN_DIRECT_ERROR_CODES = [
   'HOUSE_NOT_FOUND',

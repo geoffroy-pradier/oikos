@@ -15,10 +15,10 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 export const db = createDb(serviceRoleUrl(DATABASE_URL));
 export const owner = createDb(DATABASE_URL);
-export const appWith = (loadConfig: ConfigSource) =>
+export const appWith = (loadConfig: ConfigSource, telemetry = createTelemetry(db)) =>
   createApp({
     db,
-    telemetry: createTelemetry(db),
+    telemetry,
     verifyToken: testVerifier,
     rateLimiter: unlimited,
     loadConfig,

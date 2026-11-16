@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import {
+  appWith,
   codeOf,
   db,
   newWorld,
@@ -11,11 +12,21 @@ import {
   send,
   type SendOptions,
 } from './chat-test-world';
+import type { Telemetry } from './telemetry';
 import { TEST_CONFIG } from './test-config';
 
 // Messages (6.6), contre Supabase local.
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 const MAX_LENGTH = TEST_CONFIG.config.chat.maxMessageLength;
+/** Débit resserré : 3 messages par minute. */
+const RATE = { messages: 3, windowSeconds: 60 };
+const limitedConfig = async () => ({
+  ...TEST_CONFIG,
+  config: { ...TEST_CONFIG.config, chat: { ...TEST_CONFIG.config.chat, rateLimit: RATE } },
+});
+const limited = appWith(limitedConfig);
+const countOf = async (houseId: string) =>
+  rows(sql`select count(*)::int as n from game.messages where house_id = ${houseId}`);
 const post = (user: string, channelId: string, body: string, options?: SendOptions) =>
   send(user, 'chat.post', { channelId, body }, options);
 
@@ -130,6 +141,23 @@ describe('chat.post', () => {
     ).toEqual([{ n: 1 }]);
   });
 
+  it('même entrée, clés dans un autre ordre, même clé : la même réponse, rejouée', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const key = randomUUID();
+    const [channelId, body] = [world.kallisteChannel, 'Ordre des clés'];
+    const first = await send(alice.user, 'chat.post', { channelId, body }, { key });
+    expect(first.status).toBe(200);
+    expect(await send(alice.user, 'chat.post', { body, channelId }, { key })).toMatchObject({
+      replayed: 'true',
+      body: first.body,
+    });
+    expect(
+      await rows(sql`select count(*)::int as n from game.messages where body = ${body}
+      and house_id = ${alice.houseId}`),
+    ).toEqual([{ n: 1 }]);
+  });
+
   it('un compte qui a une maison dans deux mondes écrit depuis celle du monde du canal', async () => {
     const [first, second] = [await newWorld(), await newWorld()];
     const alice = await first.player();
@@ -150,5 +178,85 @@ describe('chat.post', () => {
       404,
       'CHANNEL_NOT_FOUND',
     ]);
+  });
+
+  it('débit dépassé, tous canaux confondus, pour cette maison seulement', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    const direct = (await openDirect(alice.user, bob.houseId)).body.data.channelId as string;
+    for (const channelId of [world.kallisteChannel, direct, world.kallisteChannel])
+      expect((await post(alice.user, channelId, 'Encore', { via: limited })).status).toBe(200);
+    expect(codeOf(await post(alice.user, direct, 'De trop', { via: limited }))).toEqual([
+      409,
+      'TOO_MANY_MESSAGES',
+    ]);
+    expect((await post(bob.user, direct, 'Moi, je peux', { via: limited })).status).toBe(200);
+    expect(await countOf(alice.houseId)).toEqual([{ n: RATE.messages }]);
+  });
+
+  it('débit tenu sous exécutions concurrentes', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const replies = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        post(alice.user, world.kallisteChannel, `Rafale ${i}`, { via: limited }),
+      ),
+    );
+    expect(replies.filter((reply) => reply.status === 200)).toHaveLength(RATE.messages);
+    expect(replies.filter((reply) => reply.body.error?.code === 'TOO_MANY_MESSAGES')).toHaveLength(
+      8 - RATE.messages,
+    );
+    expect(await countOf(alice.houseId)).toEqual([{ n: RATE.messages }]);
+  });
+
+  it('la fenêtre glisse : un message sorti de la fenêtre ne compte plus', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    for (let i = 0; i < RATE.messages; i += 1)
+      expect((await post(alice.user, world.kallisteChannel, 'Hier', { via: limited })).status).toBe(
+        200,
+      );
+    // Le plus ancien sort de la fenêtre (garde levée le temps de l'antidater).
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.messages disable trigger messages_guard`.execute(trx);
+      await sql`update game.messages set created_at = now() - make_interval(secs => ${RATE.windowSeconds + 1})
+        where id = (select id from game.messages where house_id = ${alice.houseId} order by created_at limit 1)`.execute(
+        trx,
+      );
+      await sql`alter table game.messages enable trigger messages_guard`.execute(trx);
+    });
+    expect((await post(alice.user, world.kallisteChannel, 'Libre', { via: limited })).status).toBe(
+      200,
+    );
+    expect(
+      codeOf(await post(alice.user, world.kallisteChannel, 'Plein', { via: limited })),
+    ).toEqual([409, 'TOO_MANY_MESSAGES']);
+  });
+
+  it('un refus de débit est un refus métier journalisé : il n’est pas compté parmi les refus avant exécution', async () => {
+    const refusal = vi.fn<Telemetry['refusal']>();
+    const spied = appWith(limitedConfig, {
+      refusal,
+      adminRead: async () => undefined,
+      flush: async () => undefined,
+    });
+    const world = await newWorld();
+    const alice = await world.player();
+    for (let i = 0; i < RATE.messages; i += 1)
+      expect((await post(alice.user, world.kallisteChannel, 'Vite', { via: spied })).status).toBe(
+        200,
+      );
+    expect(codeOf(await post(alice.user, world.kallisteChannel, 'Trop', { via: spied }))).toEqual([
+      409,
+      'TOO_MANY_MESSAGES',
+    ]);
+    expect(refusal).not.toHaveBeenCalled();
+    expect(
+      await rows(sql`select error_code from game.command_log where user_id = ${alice.user}
+        and command = 'chat.post' and status = 'rejected'`),
+    ).toEqual([{ error_code: 'TOO_MANY_MESSAGES' }]);
+    // Le compteur est bien branché : une requête sans jeton y est comptée.
+    expect((await post('', world.kallisteChannel, 'Anonyme', { via: spied })).status).toBe(401);
+    expect(refusal).toHaveBeenCalledWith('command', 'unauthenticated');
   });
 });

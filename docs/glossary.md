@@ -24,3 +24,5 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Archonte (archon) | Magistrat élu par les citoyens d'une cité pour une année de jeu (4 semaines) ; seul magistrat de la phase 2 (`archon`) |
 | Droit de port (port dues) | Forfait par classe de navire que la cité d'arrivée perçoit d'un voyage, payé au départ ; une part est détruite, le reste va au trésor de la cité (`port dues`) |
 | Désarmé (laid up) | Se dit d'un navire dont l'entretien n'a pas été payé à la clôture : il ne part plus jusqu'à une clôture qui le paie (`laid_up_at`) |
+| Canal de la cité (city channel) | Discussion commune d'une cité, où écrit toute maison de la cité, citoyenne ou métèque (`channel`, de type `city`) |
+| Conversation privée (direct conversation) | Discussion entre deux maisons d'un même monde (`channel`, de type `direct`) |
