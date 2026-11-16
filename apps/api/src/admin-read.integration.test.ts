@@ -36,7 +36,21 @@ const app = createApp({
   rateLimiter: unlimited,
   loadConfig: testConfig,
 });
-afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
+/** Versions programmées par ce fichier : leurs activations encore à venir sont annulées à la fin. */
+const scheduledVersions: string[] = [];
+afterAll(async () => {
+  // Même contenu que la configuration de test, mais un autre identifiant : laissée en attente, elle entrerait
+  // en vigueur à la clôture et changerait la version qu'enregistrent les ticks des autres suites (#354).
+  // La base refuse d'annuler à moins d'une minute de l'échéance : l'activation reste alors, sans autre effet.
+  await sql`insert into config.activation_cancellations (activation_id, cancelled_by)
+    select a.id, ${randomUUID()} from config.activations a
+    where a.version_id = any(${scheduledVersions}::uuid[])
+      and a.activate_at > now() + interval '1 minute'
+      and not exists (select 1 from config.activation_cancellations c where c.activation_id = a.id)`.execute(
+    owner,
+  );
+  await Promise.all([db.destroy(), owner.destroy()]);
+});
 
 async function newUser(role?: AdminRole, grantedBy: string | null = null): Promise<string> {
   const id = randomUUID();
@@ -587,10 +601,11 @@ describe('paramètres et journal d’audit', () => {
       config,
       note: 'essai de lecture',
     });
-    // Même contenu que la configuration de test : l'activation ne change rien pour les autres suites.
+    // Même contenu que la configuration de test ; son activation est annulée à la fin du fichier.
     const harmless = await command(users.designer, 'admin.publishConfig', {
       config: TEST_CONFIG.config,
     });
+    if (harmless?.versionId) scheduledVersions.push(harmless.versionId);
     // Programmée par un autre compte que son auteur : la revue par une seconde personne (15.2).
     // Confirmée : d'autres suites laissent en usage des recettes et des classes qu'elle retire (#200).
     const scheduled = await command(users.root, 'admin.scheduleConfig', {
