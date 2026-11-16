@@ -281,7 +281,9 @@
     "VOTING_CLOSED": "The vote is not open.",
     "ALREADY_VOTED": "Your house has already voted in this election.",
     "RECIPIENT_NOT_FOUND": "This house cannot be found.",
-    "SELF_CONVERSATION": "Your house cannot hold a conversation with itself."
+    "SELF_CONVERSATION": "Your house cannot hold a conversation with itself.",
+    "CHANNEL_NOT_FOUND": "You cannot write in this channel.",
+    "MESSAGE_TOO_LONG": "This message is too long. Please shorten it."
   },
   "shell": {
     "skipToContent": "Skip to content",

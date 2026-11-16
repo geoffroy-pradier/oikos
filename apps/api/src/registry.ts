@@ -59,6 +59,12 @@ export interface CommandDefinition<I = unknown, O = unknown> {
    * sa session avoir passé la double authentification, sinon `FORBIDDEN` (refus journalisé).
    */
   admin?: readonly AdminRole[];
+  /**
+   * Le journal ne garde de l'entrée que sa taille et son empreinte, comme pour une commande d'administration
+   * refusée : le texte d'un joueur (message, 6.6) n'y est pas écrit. Une empreinte n'est pas un secret : celle
+   * d'un texte court se devine par essais (ADR 0002). Le rejeu d'une clé compare l'entrée par cette empreinte.
+   */
+  redactInput?: boolean;
   /** Erreurs métier déduites d'une contrainte de la base, qui fait foi sous concurrence. */
   errorByConstraint?: Record<string, CommandError>;
   handler(context: CommandContext, input: I): Promise<CommandResult<O>>;
@@ -230,7 +236,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: idempotencyKey,
-        input: authorized ? loggedInput : redactedInput,
+        input: authorized && !command.redactInput ? loggedInput : redactedInput,
         status: response.ok ? 'ok' : 'rejected',
         error_code: response.ok ? null : response.error.code,
         response: JSON.stringify(response),
@@ -271,7 +277,7 @@ export async function executeCommand(
             user_id: userId,
             command: command.name,
             idempotency_key: idempotencyKey,
-            input: authorized ? loggedInput : redactedInput,
+            input: authorized && !command.redactInput ? loggedInput : redactedInput,
             status: 'rejected',
             error_code: mapped.code,
             response: JSON.stringify(rejected),
@@ -320,7 +326,7 @@ export async function executeCommand(
         user_id: userId,
         command: command.name,
         idempotency_key: null,
-        input: authorized ? loggedInput : redactedInput,
+        input: authorized && !command.redactInput ? loggedInput : redactedInput,
         status: 'failed',
         error_code: 'INTERNAL',
         response: JSON.stringify(response),

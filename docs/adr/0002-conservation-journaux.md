@@ -52,6 +52,9 @@ fin, ni être purgé au hasard.
   ni de contenu saisi hors des entrées de commande. Ces durées sont à porter au registre des traitements
   (spécification 18) ; l'effacement d'un compte se traite par dissociation de l'identifiant dans le
   service d'authentification, pas par réécriture des journaux.
+  Le texte d'un message n'entre pas au journal des commandes : `chat.post` n'y laisse de son entrée que la taille et l'empreinte (`redactInput`, comme une commande d'administration refusée).
+  Il ne vit que dans `game.messages`, à la conservation de la discussion, et ni la réponse ni l'événement `MessagePosted` ne le portent.
+  Une empreinte de texte très court se devine par essais : seule l'administration lit ce journal.
 
 ## Conséquences
 
