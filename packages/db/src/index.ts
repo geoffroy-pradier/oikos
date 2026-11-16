@@ -123,7 +123,21 @@ export interface GameDatabase {
     ledger_entry_id?: string | null;
     /** Voyage d'un mouvement vers ou depuis l'extrémité `in_transit` (4.6) ; nul pour tout autre. */
     voyage_id?: string | null;
+    /** Offrande d'un mouvement vers l'extrémité `offering` (7.1) ; nul pour tout autre. */
+    offering_id?: string | null;
     created_at: Generated<Date>;
+  };
+  /** Offrandes (7.1, #265) : écrites une fois par `temple.makeOffering`, immuables (garde de la base). */
+  'game.offerings': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    god_id: ColumnType<string, string, never>;
+    oboles: ColumnType<string, number, never>;
+    charis: ColumnType<string, number, never>;
+    ledger_entry_id: ColumnType<string | null, string | null, never>;
+    created_at: ColumnType<Date, never, never>;
   };
   /** Charis d'une maison envers un dieu : le cumul de `game.favor_ledger`, jamais écrite à la main. */
   'game.favor': {
@@ -133,14 +147,16 @@ export interface GameDatabase {
     /** `update` ne sert qu'à verrouiller la ligne (`for update`) : la garde refuse toute modification. */
     charis: ColumnType<string, never, never>;
   };
-  /** Journal de la Charis, en ajout seul : le déclin d'une clôture (`decay`). */
+  /** Journal de la Charis, en ajout seul : une offrande (`offering`) ou le déclin d'une clôture (`decay`). */
   'game.favor_ledger': {
     id: ColumnType<string, never, never>;
     world_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     god_id: ColumnType<string, string, never>;
     amount: ColumnType<string, number, never>;
-    kind: ColumnType<'decay', 'decay', never>;
+    kind: ColumnType<'offering' | 'decay', 'offering' | 'decay', never>;
+    /** Offrande d'une ligne `offering` ; nulle pour toute autre. */
+    offering_id: ColumnType<string | null, string | null | undefined, never>;
     game_day: ColumnType<number | null, number | null | undefined, never>;
     created_at: ColumnType<Date, never, never>;
   };
