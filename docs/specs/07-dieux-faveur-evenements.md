@@ -57,6 +57,8 @@ Un événement commence à la clôture qui ouvre son premier jour et finit à ce
 Les joueurs ne lisent un événement qu'une fois commencé (`public.world_events`) ; Olympe montre aussi ceux à venir (15).
 Rejouer une clôture ne planifie rien deux fois : un seul événement d'un modèle commence un jour donné.
 Une clôture manquée (panne) ne planifie pas son jour : ce jour n'a pas d'événement, ce qui ne coûte rien aux joueurs.
+Une clôture jouée en retard ne planifie pas non plus un jour dont le début est déjà atteint selon l'heure de la base (`now()` de sa transaction), par exemple avec un délai d'un jour quand elle est rattrapée après l'heure de la clôture suivante.
+Ce jour n'a pas d'événement, et le reste de la clôture (loyers, entretien) se joue normalement.
 
 ## 7.4 Événements
 
@@ -82,8 +84,9 @@ Chaque jour planifié, chaque modèle tire de son propre générateur (graine du
 Changer les règles d'un modèle ne change donc pas les tirages des autres ; au plus un événement par modèle et par jour de début.
 La cité est tirée parmi celles du monde connues de la configuration, la route parmi les routes entre elles, le bien d'une caravane parmi `goodIds`, des biens achetés par au moins une classe de PNJ.
 Décision (paramètres neutres) : toutes les probabilités sont nulles dans la configuration initiale, si bien que le banc de #78 ne joue aucun événement.
-Limite connue : le banc de #78 clôt des jours passés, et la base refuse un événement qui commencerait avant l'instant de sa planification.
-Avec une probabilité non nulle, ses clôtures échoueraient : pour calibrer les événements (#283), il faudra que le banc joue ses jours à venir, ou les planifie autrement.
+Limite connue : le banc de #78 clôt des jours passés, et une clôture ne planifie pas un jour dont le début est déjà atteint (7.3).
+Avec une probabilité non nulle, ses clôtures réussiraient, mais ne planifieraient que des événements qui commencent après l'heure de la base, donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
+Pour calibrer les événements (#283), il faudra que le banc joue ses jours à venir, ou les planifie autrement.
 Décision : une tempête retarde, elle ne fait rien perdre.
 Hors périmètre : déclenchement manuel et création depuis Olympe, maître du jeu par IA, événements mythiques, divins et personnels.
 
