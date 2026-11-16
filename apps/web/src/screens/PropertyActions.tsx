@@ -15,6 +15,41 @@ const oboles = (typed: string) => {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 };
 
+/** Contrôles proposés pour un bien de la maison : le rendu et les intentions offertes en dépendent. */
+function controls(
+  property: MyProperty,
+  size: PropertySize | undefined,
+  offer?: Offer,
+  leased = false,
+) {
+  const renovation = size?.renovation;
+  return {
+    renovation: renovation && property.condition < 10_000 ? renovation : undefined,
+    withdraw: offer !== undefined,
+    list: !offer && !leased,
+  };
+}
+const renovateIntent = (propertyId: string, renovation: PropertySize['renovation']) =>
+  `renovate:${propertyId}:${JSON.stringify(renovation)}`;
+
+/**
+ * Intentions que proposent les contrôles d'un bien de la maison ; une intention finie par `:` vaut pour
+ * tout prix saisi. Voir `PropertyScreen` : une intention qui n'est plus proposée est rendue.
+ */
+export function ownerIntents(
+  property: MyProperty,
+  size: PropertySize | undefined,
+  offer: Offer | undefined,
+  leased: boolean,
+): string[] {
+  const shown = controls(property, size, offer, leased);
+  return [
+    ...(shown.renovation ? [renovateIntent(property.id, shown.renovation)] : []),
+    ...(shown.withdraw ? [`withdraw:${property.id}`] : []),
+    ...(shown.list ? [`listForSale:${property.id}:`, `offerLease:${property.id}:`] : []),
+  ];
+}
+
 /**
  * Commandes du propriétaire sur un de ses biens (4.5) : rénovation au coût en vigueur, mise en vente ou
  * en location au prix saisi, retrait de l'offre ouverte. Un bien loué ne s'offre pas avant la fin du bail.
@@ -61,7 +96,8 @@ export function PropertyActions({
       gross: money(preview.gross),
       tax: money(preview.tax),
     });
-  const renovation = size?.renovation;
+  const shown = controls(property, size, offer, leased);
+  const renovation = shown.renovation;
   const renovateText =
     renovation &&
     t('property.renovate', {
@@ -79,14 +115,14 @@ export function PropertyActions({
     offer && t(`property.withdraw.${offer.kind}`, { cost: money(offer.priceOboles) });
   return (
     <div className="flex flex-col gap-2">
-      {renovation && property.condition < 10_000 && (
+      {renovation && (
         <Button
           variant="secondary"
           className={WAITING}
           aria-disabled={busy}
           aria-label={`${renovateText} — ${name}`}
           onClick={() =>
-            void run(`renovate:${property.id}:${JSON.stringify(renovation)}`, 'property.renovate', {
+            void run(renovateIntent(property.id, renovation), 'property.renovate', {
               propertyId: property.id,
               expectedCostOboles: renovation.oboles,
               expectedGoods: renovation.goods,
@@ -111,8 +147,7 @@ export function PropertyActions({
           {withdrawText}
         </Button>
       )}
-      {!offer &&
-        !leased &&
+      {shown.list &&
         (['listForSale', 'offerLease'] as const).map((action) => {
           const sale = action === 'listForSale';
           const [typed, setTyped] = sale ? [salePrice, setSalePrice] : [rent, setRent];

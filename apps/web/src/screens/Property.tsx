@@ -17,7 +17,7 @@ import {
 } from '../property';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
-import { PropertyActions } from './PropertyActions';
+import { ownerIntents, PropertyActions } from './PropertyActions';
 
 type Command = Parameters<typeof propertyCommand>[0];
 /** Carte où s'annonce le résultat d'une commande : celle de l'action qui l'a lancée. */
@@ -35,6 +35,9 @@ const PLACE: Record<Command, Place> = {
 };
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 const ROW = 'flex flex-col gap-2 border-t border-border pt-3 first:border-t-0 first:pt-0';
+/** L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve. */
+const offerIntent = (offer: Offer) => `${offer.kind}:${offer.propertyId}:${offer.priceOboles}`;
+const endIntent = (leaseId: string) => `end:${leaseId}`;
 
 /**
  * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
@@ -183,12 +186,42 @@ export function PropertyScreen() {
       (lease) => !lease.asTenant && lease.endedAt === null && lease.propertyId === propertyId,
     );
 
+  // Intentions que l'écran propose encore, d'après la dernière lecture complète. Chaque contrôle disparaît
+  // dès que l'effet de sa commande est lu (offre prise ou retirée, bien mis en vente, rénové, bail qui
+  // finit) : une intention qu'il ne propose plus a donc son effet visible, ou ne peut plus être demandée.
+  // Sa clé est rendue, et la même demande, proposée de nouveau plus tard, part sous une clé neuve au lieu
+  // de rejouer l'ancienne réponse. Tant qu'elle est proposée, son effet n'est pas lu : la clé reste.
+  const offered =
+    loading || failed || !offers || !mine || !leases
+      ? null
+      : [
+          ...offers.filter((offer) => !mineIds.has(offer.propertyId)).map(offerIntent),
+          ...mine.flatMap((property) =>
+            ownerIntents(
+              property,
+              sizes?.get(property.sizeId),
+              openOffer(property.id),
+              leasedOut(property.id) !== undefined,
+            ),
+          ),
+          ...leases.filter((lease) => !lease.endedAt && !lease.ending).map((l) => endIntent(l.id)),
+        ];
+  const offeredKey = offered && JSON.stringify(offered);
+  useEffect(() => {
+    // Pendant une commande, la relecture qui suit sa réponse n'est pas encore faite.
+    if (busy || offeredKey === null) return;
+    const still = JSON.parse(offeredKey) as string[];
+    pending.settleWhere(
+      (intent) =>
+        !still.some((open) => (open.endsWith(':') ? intent.startsWith(open) : intent === open)),
+    );
+  }, [busy, pending, offeredKey]);
+
   const offerAction = (offer: Offer) => {
     if (mineIds.has(offer.propertyId)) return null;
     const label = t(`property.take.${offer.kind}`, { cost: money(offer.priceOboles) });
     const { propertyId, priceOboles } = offer;
-    // L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve.
-    const intent = `${offer.kind}:${propertyId}:${priceOboles}`;
+    const intent = offerIntent(offer);
     const send = () =>
       offer.kind === 'lease'
         ? run(intent, 'property.lease', { propertyId, expectedRentOboles: priceOboles })
@@ -305,7 +338,7 @@ export function PropertyScreen() {
                       aria-disabled={busy}
                       aria-label={`${t('property.endLease')} — ${describe(lease)}`}
                       onClick={() =>
-                        void run(`end:${lease.id}`, 'property.endLease', { leaseId: lease.id })
+                        void run(endIntent(lease.id), 'property.endLease', { leaseId: lease.id })
                       }
                     >
                       {t('property.endLease')}

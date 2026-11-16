@@ -33,7 +33,8 @@ const mine = {
   condition: 6000,
   upkeep_unpaid_since: null,
 };
-async function showProperty() {
+/** `screen` : modules relus après `vi.resetModules()`, comme après un rechargement de la page. */
+async function showProperty(modules = { PropertyScreen, HouseProvider }) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
     resources: { fr: { translation: fr } },
@@ -43,15 +44,15 @@ async function showProperty() {
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
   return render(
     <I18nextProvider i18n={instance}>
-      <HouseProvider
+      <modules.HouseProvider
         value={{
           ...house,
           cityNames: { c1: 'Kallistè', c2: 'Thalassa' },
           citizenshipStatus: 'metic',
         }}
       >
-        <PropertyScreen />
-      </HouseProvider>
+        <modules.PropertyScreen />
+      </modules.HouseProvider>
     </I18nextProvider>,
   );
 }
@@ -152,9 +153,9 @@ describe('commandes du propriétaire (#259)', () => {
     );
     // Kallistè, 10 % : taxe de 60,1 oboles arrondie à 61, comme `marketTax` côté API.
     const kalliste =
-      'Net attendu : 90 drachmes (100 drachmes 1 obole moins 10 drachmes 1 obole de taxe de marché de la cité).';
+      "Net attendu au taux en vigueur aujourd'hui : 90 drachmes (100 drachmes 1 obole moins 10 drachmes 1 obole de taxe de marché de la cité).";
     const thalassa =
-      'Net attendu : 95 drachmes (100 drachmes moins 5 drachmes de taxe de marché de la cité).';
+      "Net attendu au taux en vigueur aujourd'hui : 95 drachmes (100 drachmes moins 5 drachmes de taxe de marché de la cité).";
     expect(screen.getByText(kalliste)).toBeTruthy();
     expect(screen.getByText(thalassa)).toBeTruthy();
     // Le net décrit la saisie et le bouton de mise en vente de son bien.
@@ -194,8 +195,8 @@ describe('commandes du propriétaire (#259)', () => {
       ok: false,
       error: { code: 'INTERNAL', message: 'lost' },
     });
-    const sell = async () => {
-      await showProperty();
+    const sell = async (modules?: Parameters<typeof showProperty>[0]) => {
+      await showProperty(modules);
       fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
         target: { value: '500' },
       });
@@ -211,7 +212,9 @@ describe('commandes du propriétaire (#259)', () => {
     expect(stored).toHaveLength(1);
     expect(window.sessionStorage.getItem(stored[0] as string)).toContain(String(first));
     cleanup();
-    await sell();
+    // Rechargement : la mémoire des modules est perdue, seule la session garde la clé.
+    vi.resetModules();
+    await sell({ ...(await import('./Property')), ...(await import('../house')) });
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     expect(sent()[1]).toEqual([
       'property.listForSale',
@@ -220,5 +223,41 @@ describe('commandes du propriétaire (#259)', () => {
     ]);
     // Réponse reçue : la clé est rendue, le prochain essai en prendra une neuve.
     await waitFor(() => expect(window.sessionStorage.length).toBe(0));
+  });
+
+  it('commande aboutie sans réponse : la relecture qui montre l’effet rend la clé, la même demande repart sous une clé neuve', async () => {
+    const listed = { ...mine, property_id: 'p9', kind: 'sale', price_oboles: 500 };
+    const lost = { ok: false, error: { code: 'INTERNAL', message: 'lost' } };
+    api.propertyCommand
+      .mockImplementationOnce(() => {
+        // La mise en vente a abouti, sa réponse s'est perdue : la relecture montre l'offre ouverte.
+        state.views['property_offers'] = [listed];
+        return Promise.resolve(lost);
+      })
+      .mockImplementationOnce(() => {
+        state.views['property_offers'] = [];
+        return Promise.resolve({ ok: true, data: {}, replayed: false });
+      });
+    state.views['property_offers'] = [];
+    await showProperty();
+    const list = () => {
+      fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
+        target: { value: '500' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+    };
+    list();
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(fr.errors.INTERNAL)).toBeTruthy();
+    // L'effet est lu : la mise en vente n'est plus proposée, sa clé est rendue.
+    await waitFor(() => expect(window.sessionStorage.length).toBe(0));
+    fireEvent.click(await screen.findByRole('button', { name: /^Retirer l'offre/ }));
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
+    await screen.findByRole('textbox', { name: /^Prix de vente, en oboles — / });
+    list();
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(3));
+    const [first, , again] = sent();
+    expect(again?.slice(0, 2)).toEqual(first?.slice(0, 2));
+    expect(again?.[2]).not.toBe(first?.[2]);
   });
 });

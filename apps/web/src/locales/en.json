@@ -570,7 +570,7 @@
     "goodLine": "{{quantity}} {{good}}",
     "salePriceLabel": "Sale price, in obols",
     "rentLabel": "Daily rent, in obols",
-    "expectedNet": "Expected net: {{net}} ({{gross}} less {{tax}} in the city's market tax).",
+    "expectedNet": "Expected net at today's rate: {{net}} ({{gross}} less {{tax}} in the city's market tax).",
     "priceInvalid": "Enter a whole number of obols, greater than zero.",
     "listForSale": "Put up for sale",
     "offerLease": "Offer for lease",
