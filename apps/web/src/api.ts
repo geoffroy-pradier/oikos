@@ -7,6 +7,14 @@ import {
   type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
+  type PropertyBuyInput,
+  type PropertyBuyListedInput,
+  type PropertyEndLeaseInput,
+  type PropertyLeaseInput,
+  type PropertyListForSaleInput,
+  type PropertyOfferLeaseInput,
+  type PropertyRenovateInput,
+  type PropertyWithdrawOfferInput,
   type SiteAcquireOutput,
   type SiteCollectOutput,
   type SiteRestartOutput,
@@ -147,22 +155,26 @@ export const departVoyage = (
   idempotencyKey: string,
 ) => sendCommand<VoyageDepartOutput>('voyage.depart', input, accessToken, idempotencyKey);
 
+/** Entrée de chaque commande de l'immobilier (4.5), d'après les contrats. */
+export interface PropertyCommandInputs {
+  'property.buy': PropertyBuyInput;
+  'property.buyListed': PropertyBuyListedInput;
+  'property.lease': PropertyLeaseInput;
+  'property.renovate': PropertyRenovateInput;
+  'property.listForSale': PropertyListForSaleInput;
+  'property.offerLease': PropertyOfferLeaseInput;
+  'property.withdrawOffer': PropertyWithdrawOfferInput;
+  'property.endLease': PropertyEndLeaseInput;
+}
+
 /**
  * Commandes de l'immobilier (4.5). Chaque prix envoyé est celui que le joueur a vu : un autre prix en
  * vigueur est refusé (`PRICE_CHANGED`), rien n'est payé. `idempotencyKey` : la même clé tant que la
  * commande n'a pas reçu de réponse.
  */
-export const propertyCommand = (
-  name:
-    | 'property.buy'
-    | 'property.buyListed'
-    | 'property.lease'
-    | 'property.renovate'
-    | 'property.listForSale'
-    | 'property.offerLease'
-    | 'property.withdrawOffer'
-    | 'property.endLease',
-  input: Record<string, unknown>,
+export const propertyCommand = <N extends keyof PropertyCommandInputs>(
+  name: N,
+  input: PropertyCommandInputs[N],
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);

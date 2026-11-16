@@ -131,7 +131,10 @@ export function parseOffers(
     kind: row.kind,
     priceOboles: row.price_oboles,
   }));
-  return [...byCity, ...byHouses];
+  // Par cité, taille puis lot : le bien d'une cité se retrouve à la même place d'une lecture à l'autre.
+  return [...byCity, ...byHouses].sort(
+    (a, b) => a.cityId.localeCompare(b.cityId) || a.sizeId.localeCompare(b.sizeId) || a.lot - b.lot,
+  );
 }
 
 /** Un bien de la maison (vue `my_properties`). */
@@ -185,6 +188,8 @@ export interface Lease {
   /** Bail terminé : `requested` (demandé) ou `unpaid` (loyer impayé). */
   endReason: 'requested' | 'unpaid' | null;
   endedAt: string | null;
+  /** Jour de jeu de la clôture qui a terminé le bail. */
+  endedDay: number | null;
 }
 
 const leaseRow = z.object({
@@ -197,6 +202,7 @@ const leaseRow = z.object({
   rent_oboles: oboles,
   end_requested_at: z.string().nullable(),
   ended_at: z.string().nullable(),
+  ended_day: z.number().int().nullable(),
   end_reason: z.enum(['requested', 'unpaid']).nullable(),
 });
 
@@ -216,8 +222,15 @@ export function parseLeases(rows: unknown, houseId: string): Lease[] | null {
       ending: row.end_requested_at !== null && row.ended_at === null,
       endReason: row.end_reason,
       endedAt: row.ended_at,
+      endedDay: row.ended_day,
     }))
-    .sort((a, b) => Number(a.endedAt !== null) - Number(b.endedAt !== null) || a.lot - b.lot);
+    .sort(
+      // En cours d'abord, par lot ; puis les baux terminés, du plus récent au plus ancien.
+      (a, b) =>
+        Number(a.endedAt !== null) - Number(b.endedAt !== null) ||
+        (b.endedAt ?? '').localeCompare(a.endedAt ?? '') ||
+        a.lot - b.lot,
+    );
 }
 
 /** État d'un bien en fraction (0 à 1), pour `Intl.NumberFormat` en pourcentage, arrondi vers le bas. */
