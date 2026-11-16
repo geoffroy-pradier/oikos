@@ -285,7 +285,16 @@
     "SELF_CONVERSATION": "Your house cannot hold a conversation with itself.",
     "CHANNEL_NOT_FOUND": "You cannot write in this channel.",
     "MESSAGE_TOO_LONG": "This message is too long. Please shorten it.",
-    "TOO_MANY_MESSAGES": "You are writing too fast. Wait a moment before your next message."
+    "TOO_MANY_MESSAGES": "You are writing too fast. Wait a moment before your next message.",
+    "SHIP_CLASS_NOT_FOUND": "This ship class is no longer for sale.",
+    "NO_PORT": "Your city has no port: no ship can be launched there.",
+    "SHIP_NOT_FOUND": "Ship not found.",
+    "SHIP_AT_SEA": "This ship is at sea.",
+    "SHIP_NOT_IN_CITY": "This ship is no longer docked in that city: reload the map.",
+    "SHIP_LAID_UP": "This ship is laid up: it can only sail after a daily close that pays its upkeep.",
+    "SHIP_CLASS_RETIRED": "This ship class was withdrawn: it can no longer sail.",
+    "NO_ROUTE": "No route leads to that city.",
+    "CARGO_OVER_CAPACITY": "The cargo exceeds the ship's capacity."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -413,5 +422,34 @@
     "elaia": "Elaia",
     "ampelos": "Ampelos",
     "halos": "Halos"
+  },
+  "map": {
+    "title": "Map of the archipelago",
+    "intro": "The cities, the sea routes and your ships. A route's duration is that of a ship of ordinary speed; a slower ship takes longer.",
+    "drawing": "Map of the archipelago: {{cities}} cities, {{routes}} routes; the list below gives the details.",
+    "hours_one": "{{number}} h",
+    "hours_other": "{{number}} h",
+    "routes": "Sea routes",
+    "noRoutes": "No route is open yet.",
+    "route": "{{from}} – {{to}}: {{duration}}",
+    "fleet": "Fleet",
+    "noShips": "Your house has no ship yet.",
+    "shipNumbered": "{{ship}} no. {{number}}",
+    "docked": "docked at {{city}}",
+    "atSea": "at sea bound for {{city}}, due {{time}}",
+    "atSeaUnknown": "at sea",
+    "laidUp": "(laid up: upkeep unpaid)",
+    "shipyard": "Shipyard",
+    "shipyardIntro": "A new ship is launched docked at {{city}}. Its price is paid once, its upkeep every day.",
+    "noClasses": "No ship is for sale yet.",
+    "classLine": "— {{capacity}} units of cargo, upkeep {{upkeep}} a day",
+    "buy": "Buy — {{cost}}",
+    "bought": "{{ship}} bought for {{cost}}.",
+    "alreadyBought": "This purchase had already gone through: {{ship}} bought for {{cost}}. Nothing was paid again.",
+    "buyUnanswered": "A ship purchase got no answer. Check your fleet before buying again: it may have gone through."
+  },
+  "shipClasses": {
+    "coaster": "Coaster",
+    "round_ship": "Round ship"
   }
 }

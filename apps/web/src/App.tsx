@@ -87,6 +87,7 @@ export function App() {
           cityId: house.city_id,
           cityName,
           cityNames: Object.fromEntries(cities.map((city) => [city.id, nameOf(city)])),
+          citySlugs: Object.fromEntries(cities.map((city) => [city.id, city.slug])),
           citizenshipStatus: house.citizenship_status,
           accessToken: session.access_token,
         }}
