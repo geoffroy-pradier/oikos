@@ -77,6 +77,15 @@ describe('décrets (6.3)', () => {
     expect(with_({ festival: { ...festival, maxGoods: 0 } })).toEqual([
       'decrees.models.festival.maxGoods',
     ]);
+    // Hausse de la demande d'une fête (#263) : de 0 à ×2, facultative (sans effet sur la demande).
+    for (const demandBoostBps of [-1, 10_001, 0.5])
+      expect(with_({ festival: { ...festival, demandBoostBps } })).toEqual([
+        'decrees.models.festival.demandBoostBps',
+      ]);
+    const older = { ...festival };
+    delete older.demandBoostBps;
+    expect(with_({ festival: older })).toEqual([]);
+    expect(with_({ festival: { ...festival, demandBoostBps: 0 } })).toEqual([]);
   });
 
   it('biens d’une fête : connus de la configuration, chacun une fois, au moins un', () => {

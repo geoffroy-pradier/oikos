@@ -106,7 +106,8 @@
         "minDays": 1,
         "maxDays": 7,
         "goodIds": ["bread", "wine", "olive_oil", "fish"],
-        "maxGoods": 3
+        "maxGoods": 3,
+        "demandBoostBps": 2500
       }
     }
   },

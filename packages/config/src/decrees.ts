@@ -50,6 +50,12 @@ export const decreesSchema = z.strictObject({
         goodIds: z.array(id).min(1).max(60),
         /** Biens d'une même fête, au plus. */
         maxGoods: z.number().int().min(1).max(20),
+        /**
+         * Hausse de la demande des PNJ de la cité pour chaque bien d'une fête (#263), en points de base :
+         * celle d'une fête de `maxOboles` en un jour ; une fête en donne la part de sa dépense par jour, et
+         * les fêtes d'un même bien ne la dépassent pas ensemble. Absente : une fête ne change pas la demande.
+         */
+        demandBoostBps: z.number().int().min(0).max(10_000).optional(),
       })
       .optional(),
   }),

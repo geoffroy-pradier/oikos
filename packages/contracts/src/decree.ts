@@ -192,7 +192,8 @@ const isRateModel = (model: DecreeModel) => model === 'market_tax_rate' || model
  * Application d'un décret à la clôture : le décret tel que voté, et, pour un décret de taux (#262), le taux ou
  * le coefficient qu'il met en vigueur dans sa cité, borné par le monde, en points de base. Ils diffèrent
  * quand la configuration a resserré les bornes depuis le vote, ou ne borne plus le modèle (valeur du monde).
- * Un décret de dépense (#263) n'a pas de valeur en vigueur : `inForceBps` est absent, et seulement pour lui.
+ * Pour un décret de dépense (#263), le montant payé par le trésor à son puits : le montant voté, ramené au
+ * plus au maximum du modèle en vigueur. Chacun n'a que le sien.
  */
 export const decreeAppliedSchema = z.strictObject({
   type: z.literal('DecreeApplied'),
@@ -202,9 +203,45 @@ export const decreeAppliedSchema = z.strictObject({
       cityId: z.uuid(),
       decree: decreeProposalSchema,
       inForceBps: z.number().int().min(0).max(100_000).optional(),
+      spentOboles: oboles.optional(),
     })
     .refine((payload) => isRateModel(payload.decree.model) === (payload.inForceBps !== undefined), {
       message: 'a rate decree, and only a rate decree, has a value in force',
       path: ['inForceBps'],
+    })
+    .refine(
+      (payload) => isRateModel(payload.decree.model) === (payload.spentOboles === undefined),
+      {
+        message: 'a spending decree, and only a spending decree, has an amount spent',
+        path: ['spentOboles'],
+      },
+    ),
+});
+/**
+ * Raison de la caducité d'un décret de dépense à la clôture : le trésor ne le couvre plus (la dépense passe
+ * la part `spendingCapShareBps` du trésor, lue sous son verrou), ou la configuration en vigueur ne l'ouvre plus.
+ */
+export const DECREE_LAPSE_REASONS = ['uncovered', 'model_closed'] as const;
+/**
+ * Un décret de dépense adopté n'est pas appliqué, et ne le sera jamais (#263) : rien n'est payé. Non couvert,
+ * l'événement dit ce que le trésor permettait alors (`capOboles`), et lui seul le dit.
+ */
+export const decreeLapsedSchema = z.strictObject({
+  type: z.literal('DecreeLapsed'),
+  payload: z
+    .strictObject({
+      decreeId: z.uuid(),
+      cityId: z.uuid(),
+      decree: decreeProposalSchema,
+      reason: z.enum(DECREE_LAPSE_REASONS),
+      capOboles: z.number().int().nonnegative().optional(),
+    })
+    .refine((payload) => !isRateModel(payload.decree.model), {
+      message: 'only a spending decree lapses',
+      path: ['decree'],
+    })
+    .refine((payload) => (payload.reason === 'uncovered') === (payload.capOboles !== undefined), {
+      message: 'an uncovered decree, and only it, says what the treasury allowed',
+      path: ['capOboles'],
     }),
 });

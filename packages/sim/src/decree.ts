@@ -47,3 +47,33 @@ export function decreeSpendingCapOboles(treasury: bigint, shareBps: number): big
     throw new RangeError(`Invalid share ${shareBps}`);
   return treasury <= 0n ? 0n : (treasury * BigInt(shareBps)) / 10_000n;
 }
+
+/** Règlement d'un décret de dépense à la clôture (#263), décidé sous le verrou du trésor de sa cité. */
+export type DecreeSpendingDecision =
+  | { applied: true; spentOboles: number; bounded: boolean }
+  | { applied: false; reason: 'uncovered'; capOboles: number }
+  | { applied: false; reason: 'model_closed' };
+
+/**
+ * Le montant voté, ramené au plus au maximum du modèle en vigueur (jamais relevé au minimum : la cité ne paie
+ * jamais plus qu'elle n'a voté), est payé s'il ne dépasse pas le plafond calculé sur le trésor du moment
+ * (`decreeSpendingCapOboles`) : le trésor n'est donc jamais débiteur. Sinon le décret est caduc et dit ce
+ * que le trésor permettait. Sans bornes du modèle ou sans plafond (configuration qui ne l'ouvre plus), caduc.
+ */
+export function decreeSpendingDecision(input: {
+  treasury: bigint;
+  amountOboles: number;
+  maxOboles: number | undefined;
+  spendingCapShareBps: number | undefined;
+}): DecreeSpendingDecision {
+  const { treasury, amountOboles, maxOboles, spendingCapShareBps } = input;
+  if (!Number.isSafeInteger(amountOboles) || amountOboles < 1)
+    throw new RangeError(`Invalid amount ${amountOboles}`);
+  if (maxOboles === undefined || spendingCapShareBps === undefined)
+    return { applied: false, reason: 'model_closed' };
+  const spentOboles = Math.min(amountOboles, maxOboles);
+  const cap = decreeSpendingCapOboles(treasury, spendingCapShareBps);
+  if (BigInt(spentOboles) > cap)
+    return { applied: false, reason: 'uncovered', capOboles: Number(cap) };
+  return { applied: true, spentOboles, bounded: spentOboles !== amountOboles };
+}
