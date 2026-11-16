@@ -247,6 +247,36 @@ export interface GameDatabase {
     ends_at: ColumnType<Date, Date, never>;
   };
   /**
+   * Canaux de discussion (6.6) : celui d'une cité, né avec elle, ou la conversation privée de deux maisons
+   * rangées dans l'ordre (`house_low` < `house_high`). Le service n'ouvre que des conversations privées.
+   */
+  'game.channels': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    kind: ColumnType<'city' | 'direct', never, never>;
+    city_id: ColumnType<string | null, never, never>;
+    house_low: ColumnType<string | null, string, never>;
+    house_high: ColumnType<string | null, string, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Membres d'une conversation privée : ses deux maisons, inscrites par la base. */
+  'game.channel_members': {
+    channel_id: ColumnType<string, never, never>;
+    house_id: ColumnType<string, never, never>;
+    joined_at: ColumnType<Date, never, never>;
+  };
+  /** Messages : datés par la base, immuables sauf leur masquage (modération), purgés par le moteur. */
+  'game.messages': {
+    id: ColumnType<string, never, never>;
+    channel_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    body: ColumnType<string, string, never>;
+    /** Le texte tant que le message n'est pas masqué, nul ensuite (colonne générée). */
+    visible_body: ColumnType<string | null, never, never>;
+    created_at: ColumnType<Date, never, never>;
+    hidden_at: ColumnType<Date | null, never, never>;
+  };
+  /**
    * Voyages (4.6). Le service fait partir un voyage sans en choisir ni l'identifiant ni la date de
    * départ, puis n'écrit que son arrivée.
    */
