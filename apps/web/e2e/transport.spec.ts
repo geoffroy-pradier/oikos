@@ -82,7 +82,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await page.getByRole('radio', { name: /^Elaia — 4 h de mer/ }).check();
   await page.getByLabel(/Blé \(80 libres\)/).fill('30');
   await page.getByRole('button', { name: /^Partir vers Elaia/ }).click();
-  await expect(page.getByRole('status')).toContainText('Caboteur est parti vers Elaia');
+  // La fiche porte aussi la région, vide, qui annonce la lecture des tempêtes : on vise l'issue du départ.
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Caboteur est parti vers Elaia' }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kallistè → Elaia' })).toBeVisible();
   await expect(page.getByText('30 × Blé')).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -98,7 +101,7 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(page.getByText('Arrivée prévue')).toBeVisible();
   await arrive(houseName);
   await page.getByRole('button', { name: 'Relire la flotte' }).click();
-  await expect(page.getByRole('status')).toHaveText(
+  await expect(page.getByRole('status').filter({ hasText: 'Navire arrivé à Elaia' })).toHaveText(
     'Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.',
   );
   await expect(page.getByText('à quai à Elaia')).toBeVisible();
