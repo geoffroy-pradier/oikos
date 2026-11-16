@@ -531,6 +531,7 @@
     "title": "Faire partir le navire",
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h de mer, coût {{cost}}",
+    "optionStorm": "{{city}} — {{hours}} h de mer par tempête ({{calm}} h par temps calme), coût {{cost}}",
     "cargo": "Cargaison : {{loaded}} unités sur {{capacity}} (facultative : sans cargaison, le navire part sur lest)",
     "noStock": "Aucun bien libre dans cette cité : le navire peut partir sur lest.",
     "good": "{{good}} ({{free}} libres)",
@@ -540,6 +541,7 @@
     "sailed": "{{ship}} est parti vers {{city}} pour {{cost}} : arrivée prévue le {{time}}.",
     "alreadySailed": "Ce départ avait déjà eu lieu : {{ship}} est en route vers {{city}}, arrivée prévue le {{time}}. Rien n'a été payé de nouveau.",
     "noDestination": "Aucune route ne part de cette cité pour l'instant.",
+    "stormsUnknown": "Les tempêtes en cours n'ont pas pu être lues : les durées annoncées sont celles par temps calme.",
     "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite)."
   },
   "staff": {

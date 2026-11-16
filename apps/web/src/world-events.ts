@@ -116,6 +116,22 @@ export function useWorldEvents(filters: Record<string, string | readonly string[
 }
 
 /**
+ * Tempête qui allonge un départ entre deux cités parmi `events` (7.4, comme `voyage.depart`) : la plus forte
+ * de la route, dans un sens ou dans l'autre ; à égalité, le plus petit identifiant (la plus ancienne).
+ */
+export function stormOn(events: readonly WorldEvent[], from: string, to: string) {
+  let best: WorldEvent | undefined;
+  for (const event of events) {
+    const ends = [event.cityId, event.otherCityId];
+    if (event.model !== 'storm' || !ends.includes(from) || !ends.includes(to) || from === to)
+      continue;
+    const [mine, theirs] = [event.magnitudeBps, best?.magnitudeBps ?? -1];
+    if (mine > theirs || (mine === theirs && best && event.id < best.id)) best = event;
+  }
+  return best;
+}
+
+/**
  * Un événement en une phrase traduite : sa portée, sa fin et son effet, l'ampleur en pourcentage. Une cité
  * ou un bien sans nom connu s'affichent par leur identifiant.
  */

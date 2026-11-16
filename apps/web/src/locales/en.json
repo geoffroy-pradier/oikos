@@ -531,6 +531,7 @@
     "title": "Send the ship out",
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h at sea, cost {{cost}}",
+    "optionStorm": "{{city}} — {{hours}} h at sea in a storm ({{calm}} h in calm weather), cost {{cost}}",
     "cargo": "Cargo: {{loaded}} units out of {{capacity}} (optional: without cargo, the ship sails in ballast)",
     "noStock": "No free goods in this city: the ship can sail in ballast.",
     "good": "{{good}} ({{free}} free)",
@@ -540,6 +541,7 @@
     "sailed": "{{ship}} sailed for {{city}} for {{cost}}: due {{time}}.",
     "alreadySailed": "This departure had already taken place: {{ship}} is bound for {{city}}, due {{time}}. Nothing was paid again.",
     "noDestination": "No route leaves this city yet.",
+    "stormsUnknown": "Current storms could not be read: the durations shown are those in calm weather.",
     "overStock": "The cargo exceeds the city's free stock (goods on sale excluded)."
   },
   "staff": {
