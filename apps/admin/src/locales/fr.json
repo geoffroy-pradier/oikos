@@ -56,7 +56,8 @@
     "economy": "Économie",
     "config": "Paramètres",
     "audit": "Journal d'audit",
-    "access": "Accès"
+    "access": "Accès",
+    "animation": "Animation"
   },
   "vigie": {
     "title": "Vigie",
@@ -257,6 +258,37 @@
       "failed": "En panne"
     },
     "rejectedNoCode": "Refusée"
+  },
+  "events": {
+    "title": "Calendrier des événements",
+    "caption": "Événements du monde planifiés par le moteur, des plus tardifs aux plus anciens : à venir, en cours ou finis depuis {{days}} jours, à l'heure du serveur ({{now}}). Les joueurs ne voient un événement qu'à son début.",
+    "empty": "Aucun événement planifié.",
+    "status": "État",
+    "model": "Événement",
+    "scope": "Portée",
+    "starts": "Début",
+    "ends": "Fin",
+    "magnitude": "Ampleur",
+    "world": "Monde",
+    "route": "route {{from}} – {{to}}",
+    "cityGood": "{{city}}, {{good}}",
+    "statuses": {
+      "upcoming": "À venir",
+      "ongoing": "En cours",
+      "past": "Passé"
+    },
+    "models": {
+      "drought": "Sécheresse",
+      "good_year": "Bonne année",
+      "storm": "Tempête",
+      "caravan": "Caravane étrangère"
+    },
+    "effects": {
+      "drought": "rendement des champs −{{value}}",
+      "good_year": "rendement des vergers +{{value}}",
+      "storm": "trajets +{{value}}",
+      "caravan": "demande des PNJ +{{value}}"
+    }
   },
   "config": {
     "title": "Paramètres",

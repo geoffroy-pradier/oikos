@@ -24,6 +24,11 @@ Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son ét
 Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.
 Le module IA (prompts, jeux d'essai) attend une phase suivante.
 
+Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
+`GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, jamais ceux à venir), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
+L'écran dit l'état de chacun (à venir, en cours, passé) à l'heure de l'API, pas du navigateur.
+Déclenchement manuel, création d'événements et propositions du maître du jeu attendent une phase suivante.
+
 ## 15.2 Cycle de vie d'un changement d'équilibrage
 
 1. **Brouillon** : un concepteur modifie des valeurs ; le schéma refuse les valeurs hors bornes.

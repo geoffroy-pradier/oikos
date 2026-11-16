@@ -18,6 +18,11 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
     if (path === 'economy') return Promise.resolve({ ok: true, data: ECONOMY });
     if (path.startsWith('config')) return Promise.resolve({ ok: false, code: 'INTERNAL' });
     if (path === 'roles') return Promise.resolve({ ok: true, data: { roles: [] } });
+    if (path === 'events')
+      return Promise.resolve({
+        ok: true,
+        data: { now: '2026-11-16T12:00:00.000Z', pastDays: 30, events: [] },
+      });
     return Promise.resolve({ ok: true, data: { entries: [] } });
   });
 }
@@ -91,15 +96,25 @@ describe('accès au back-office', () => {
   });
 
   it.each([
-    ['super_admin', ['Vigie', 'Économie', 'Paramètres', "Journal d'audit", 'Accès']],
-    ['observer', ['Vigie', 'Économie', 'Paramètres', "Journal d'audit"]],
-    ['game_designer', ['Vigie', 'Économie', 'Paramètres']],
+    ['super_admin', ['Vigie', 'Économie', 'Paramètres', 'Animation', "Journal d'audit", 'Accès']],
+    ['observer', ['Vigie', 'Économie', 'Paramètres', 'Animation', "Journal d'audit"]],
+    ['game_designer', ['Vigie', 'Économie', 'Paramètres', 'Animation']],
   ])('le rôle %s voit les onglets prévus', async (role, expected) => {
     api({ ok: true, data: { role } });
     signedIn();
     render(<App />);
     await screen.findByRole('heading', { name: 'Vigie', level: 1 });
     expect(tabs()).toEqual(expected);
+  });
+
+  it('le responsable communauté n’a que l’Animation, qui s’ouvre sur le calendrier des événements', async () => {
+    api({ ok: true, data: { role: 'community_manager' } });
+    signedIn();
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Calendrier des événements' })).toBeTruthy();
+    expect(await screen.findByText('Aucun événement planifié.')).toBeTruthy();
+    expect(tabs()).toEqual(['Animation']);
+    expect(adminGet).toHaveBeenCalledWith('events', A2);
   });
 
   it('l’onglet Économie lit sa route et devient la page courante', async () => {
@@ -231,7 +246,7 @@ describe('changement de session', () => {
     await waitFor(() => expect(adminGet).toHaveBeenCalledWith('vigie', renewed));
     expect(adminGet.mock.calls.every((call) => call[1] === renewed)).toBe(true);
     expect(screen.getByText('Rôle : Observateur')).toBeTruthy();
-    expect(tabs()).toEqual(['Vigie', 'Économie', 'Paramètres', "Journal d'audit"]);
+    expect(tabs()).toEqual(['Vigie', 'Économie', 'Paramètres', 'Animation', "Journal d'audit"]);
     expect(screen.queryByText('Lecture impossible pour le moment.')).toBeNull();
   });
 
