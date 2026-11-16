@@ -20,6 +20,17 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
 4. Carte de la cité avec parcelles et quartiers.
+   Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.
+   Les cités y sont placées sur une ellipse, dans l'ordre de leurs identifiants de configuration : un schéma stable, qui ne prétend à aucune distance, la durée d'une route venant de la configuration.
+   Le dessin montre les routes et leur durée de référence, les navires de la maison à quai près de leur cité et ceux en mer sur leur route, à la part du trajet faite à l'heure du serveur.
+   Il est doublé d'une liste au clavier qui porte les mêmes informations : les routes, puis chaque navire et son état (à quai, en mer vers sa destination avec l'arrivée prévue, désarmé).
+   Le chantier naval propose chaque classe à son prix, en drachmes et oboles ; l'achat suit l'acquisition d'un site (4.2) : un achat resté sans réponse garde sa clé jusqu'à la relecture qui montre un navire de plus.
+   Sans réponse mais un navire de plus à la relecture, la même clé repart une fois pour connaître l'issue ; un navire de plus après une issue inconnue prévient le joueur, rappelé à chaque ouverture de l'écran tant qu'il n'a pas dit avoir vérifié sa flotte.
+   La fiche d'un navire liste ses voyages (départ, arrivée prévue ou faite, cargaison) ; un voyage en mer à une lecture et arrivé à la suivante est annoncé, la flotte étant relue chaque minute ou à la demande.
+   Le départ se fait depuis la fiche en deux touches : la destination, qui dit la durée pour la classe du navire et le coût, puis « Partir ».
+   La cargaison est facultative, prise dans le stock libre de la cité, et bornée par la cale et par ce stock ; le coût est annoncé avant l'envoi, et « le prix a changé » rend la main à une demande neuve au coût relu.
+   La même saisie restée sans réponse repart sous la même clé ; une autre saisie (destination, cargaison ou coût) est une autre demande, sous une clé neuve : si l'essai précédent avait abouti, le navire est en mer et la demande est refusée, sans second départ.
+   L'entrepôt de l'onglet Maison montre aussi les cargaisons en mer, sous leur cité d'arrivée.
 5. Séance de l'assemblée : décrets en cours, vote, débats.
 6. Comptes : résultat, bilan, flux, par période.
    Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ;
