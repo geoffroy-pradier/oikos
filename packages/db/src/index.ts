@@ -324,7 +324,7 @@ export interface GameDatabase {
     status: ColumnType<
       'proposed' | 'adopted' | 'rejected' | 'applied',
       never,
-      'adopted' | 'rejected'
+      'adopted' | 'rejected' | 'applied'
     >;
     proposed_at: ColumnType<Date, never, never>;
     voting_closes_at: ColumnType<Date, Date, never>;
@@ -333,6 +333,8 @@ export interface GameDatabase {
     electorate: ColumnType<number | null, never, number>;
     votes_for: ColumnType<number | null, never, number>;
     votes_against: ColumnType<number | null, never, number>;
+    /** Application d'un décret de taux, datée par la base (`now()`), une fois. */
+    applied_at: ColumnType<Date | null, never, Date>;
   };
   /** Votes sur un décret : un par maison, datés par la base, définitifs. */
   'game.decree_votes': {

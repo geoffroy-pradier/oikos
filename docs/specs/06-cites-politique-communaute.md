@@ -79,6 +79,10 @@ La clôture qui suit la fin du vote dépouille le décret, avant l'entretien, un
 Il est adopté si les votes exprimés, pour et contre, atteignent le quorum, `quorumBps` des citoyens de la cité devenus citoyens avant la fin du vote, et si les votes pour sont strictement plus nombreux que les votes contre ; il est rejeté sinon, égalité comprise.
 Une cité sans citoyen atteint donc le quorum sans vote, mais n'adopte rien.
 Les effets d'un décret adopté viennent avec les tickets 262 (taux) et 263 (dépenses) : le ticket 261 ne fait bouger aucune monnaie.
+Application d'un décret de taux (ticket 262) : la clôture qui le trouve adopté, celle de son dépouillement d'ordinaire, l'applique, après la population des PNJ et avant tout ce qui taxe ou paie.
+Il passe à l'état `applied`, une seule fois même rejouée, et l'événement `DecreeApplied` donne sa valeur votée et la valeur qu'il met en vigueur.
+Ses paramètres sont revalidés à ce moment contre les bornes de la configuration en vigueur : hors des bornes, il s'applique quand même et vaut la borne la plus proche ; si la configuration ne borne plus son modèle, il est sans effet tant qu'elle ne le rouvre pas (5.6).
+Le taux de la cité est désormais celui de son dernier décret appliqué de ce modèle (5.6) ; un décret de dépense reste adopté jusqu'au ticket 263.
 Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décrets de chaque cité et leur décompte après le dépouillement (12).
 
 ## 6.4 Mécaniques civiques

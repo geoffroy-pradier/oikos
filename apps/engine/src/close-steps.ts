@@ -2,6 +2,7 @@ import type { CloseStep } from './close';
 import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
 import { citizenship } from './steps/citizenship';
+import { decreeApplication } from './steps/decree-application';
 import { decreeTally } from './steps/decree-tally';
 import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
@@ -11,8 +12,10 @@ import { siteUpkeep } from './steps/site-upkeep';
 /**
  * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement puis
  * l'ouverture des élections de l'archonte (6.2), le dépouillement des décrets (6.3), la population des PNJ,
- * qui ne retient que ses propres lignes, les loyers des baux (4.5, #257), la vétusté des biens immobiliers
- * (4.5), puis l'entretien.
+ * qui ne retient que ses propres lignes, l'application des décrets de taux (5.6, #262), les loyers des baux
+ * (4.5, #257), la vétusté des biens immobiliers (4.5), puis l'entretien.
+ * Les décrets de taux s'appliquent avant tout ce qui taxe ou paie, sous le verrou de l'agora, qu'ils ne
+ * prennent qu'avec un décret à appliquer : placés juste avant les loyers, qui le prennent de toute façon.
  * Les loyers sont les premiers à toucher la monnaie : avant l'entretien, qui se paie avec ce qu'il reste,
  * et avant ce qui lira les baux du jour (logement des travailleurs, #258). Les étapes d'avant ne touchent
  * ni monnaie ni bien : placées après elles, les loyers ne leur font pas tenir le verrou de l'agora.
@@ -27,6 +30,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   archonOpening,
   decreeTally,
   npcPopulation,
+  decreeApplication,
   leaseRent,
   propertyWear,
   siteUpkeep,
