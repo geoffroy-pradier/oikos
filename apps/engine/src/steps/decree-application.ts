@@ -3,7 +3,7 @@ import { cityRatesOf } from '@oikos/db';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 
-/** Modèles que cette étape applique : les taux. Les dépenses (grands travaux, fête) attendent #263. */
+/** Modèles que cette étape applique : les taux. Les dépenses (grands travaux, fête) : `decreeSpending`. */
 const RATE_MODELS = ['market_tax_rate', 'port_dues'] as const;
 
 /**

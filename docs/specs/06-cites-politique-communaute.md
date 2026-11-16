@@ -42,6 +42,7 @@ Une cité du monde absente de la configuration n'a pas de terroir, donc admet to
 | Grand prêtre | Désigné par la Charis | Calendrier des fêtes, offrandes publiques |
 
 Garde-fous : mandats limités à deux consécutifs, comptes publics visibles de tous, motion de destitution à la majorité des deux tiers, plafonds de dépense par décision.
+Dans la phase 2 (ticket 263), les comptes publics sont le solde et les flux du trésor de chaque cité, lisibles de tous les joueurs connectés (5.6), et le plafond de dépense d'un décret est une part du trésor, contrôlée à la proposition puis au règlement (6.3).
 
 Dans la phase 2 (ticket 260), l'archonte est le seul magistrat ; les autres charges, le conseil, la destitution et l'ostracisme viennent ensuite.
 Seuls les citoyens votent et se présentent, dans leur cité ; une maison y devient citoyenne d'elle-même après `politics.meticDays` jours de jeu comme métèque (3, progression).
@@ -82,7 +83,10 @@ Les effets d'un décret adopté viennent avec les tickets 262 (taux) et 263 (dé
 Application d'un décret de taux (ticket 262) : la clôture qui le trouve adopté, celle de son dépouillement d'ordinaire, l'applique, après la population des PNJ et avant tout ce qui taxe ou paie.
 Il passe à l'état `applied`, une seule fois même rejouée, et l'événement `DecreeApplied` donne sa valeur votée et la valeur qu'il met en vigueur.
 Ses paramètres sont revalidés à ce moment contre les bornes de la configuration en vigueur : hors des bornes, il s'applique quand même et vaut la borne la plus proche ; si la configuration ne borne plus son modèle, il est sans effet tant qu'elle ne le rouvre pas (5.6).
-Le taux de la cité est désormais celui de son dernier décret appliqué de ce modèle (5.6) ; un décret de dépense reste adopté jusqu'au ticket 263.
+Le taux de la cité est désormais celui de son dernier décret appliqué de ce modèle (5.6).
+Règlement d'un décret de dépense (ticket 263) : la clôture qui le trouve adopté le règle juste après les décrets de taux, une seule fois même rejouée.
+Couvert par le trésor de sa cité à cet instant (au plus la part `spendingCapShareBps`, contrôlée de nouveau sous le verrou du trésor), il est payé, passe à `applied` et `DecreeApplied` dit le montant payé ; sinon, ou si son modèle n'est plus ouvert, il devient caduc (`lapsed`) et `DecreeLapsed` dit pourquoi (5.6).
+Une fête relève ensuite la demande des PNJ de sa cité pour ses biens, pendant ses jours (5.2, 7.5).
 Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décrets de chaque cité et leur décompte après le dépouillement (12).
 
 ## 6.4 Mécaniques civiques
