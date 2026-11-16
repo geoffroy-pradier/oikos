@@ -1,3 +1,4 @@
+import { stormDurationSeconds } from '@oikos/sim';
 import { Button } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +9,8 @@ import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { countedIntent, countedIntentBelow, pendingKeys, sendUnderKey } from '../pending-keys';
 import { destinationsFrom, quoteDeparture, type ShipRules } from '../ship-rules';
+import { describeWorldEvent, stormOn, useWorldEvents } from '../world-events';
+import { LoadProblem } from './LoadProblem';
 
 interface Inventory {
   city_id: string;
@@ -48,11 +51,18 @@ export function Departure(props: {
     .filter((line) => line.free > 0);
   const idOf = new Map([...slugs].map(([id, slug]) => [slug, id]));
   const fromSlug = slugs.get(ship.docked_city_id) ?? '';
+  // Tempêtes en cours dans le monde de la maison, à l'heure du serveur (7.4, #417) : un départ sur leur route
+  // dure plus longtemps, comme l'API le comptera. Tant qu'elles ne sont pas lues, la durée est celle du calme.
+  const storms = useWorldEvents({ model: 'storm', city_id: [...slugs.keys()].sort() });
   const destinations = destinationsFrom(rules, fromSlug).flatMap(({ slug }) => {
     const cityId = idOf.get(slug);
     const quote = cityId && quoteDeparture(rules, ship.class_id, fromSlug, slug);
-    return cityId && quote ? [{ cityId, quote }] : [];
+    if (!cityId || !quote) return [];
+    const storm = stormOn(storms.events ?? [], ship.docked_city_id, cityId);
+    const seconds = storm && stormDurationSeconds(quote.durationSeconds, storm.magnitudeBps);
+    return [{ cityId, quote, storm, seconds: seconds ?? quote.durationSeconds }];
   });
+  const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
   const capacity = rules.classes.find((row) => row.id === ship.class_id)?.capacityUnits ?? 0;
   const [to, setTo] = useState('');
   const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -138,7 +148,7 @@ export function Departure(props: {
     <form onSubmit={(event) => void depart(event)} className="flex flex-col gap-3">
       <fieldset>
         <legend className="font-semibold">{t('departure.destination')}</legend>
-        {destinations.map(({ cityId, quote }) => (
+        {destinations.map(({ cityId, quote, storm, seconds }) => (
           <label key={cityId} className="flex min-h-11 items-center gap-2">
             <input
               type="radio"
@@ -147,9 +157,10 @@ export function Departure(props: {
               checked={to === cityId}
               onChange={() => setTo(cityId)}
             />
-            {t('departure.option', {
+            {t(storm ? 'departure.optionStorm' : 'departure.option', {
               city: house.cityNames[cityId] ?? cityId,
-              hours: number.format(Math.round((quote.durationSeconds / 3600) * 10) / 10),
+              hours: hours(seconds),
+              calm: hours(quote.durationSeconds),
               cost: money(quote.totalOboles),
             })}
           </label>
@@ -186,6 +197,11 @@ export function Departure(props: {
       </fieldset>
       {loaded > capacity && <p role="alert">{t('errors.CARGO_OVER_CAPACITY')}</p>}
       {overStock && <p role="alert">{t('departure.overStock')}</p>}
+      {storms.failed && <p>{t('departure.stormsUnknown')}</p>}
+      {storms.failed && <LoadProblem onRetry={storms.reload} />}
+      {chosen?.storm && (
+        <p>{describeWorldEvent(chosen.storm, t, i18n.language, house.cityNames)}</p>
+      )}
       {chosen && (
         <p>
           {t('departure.cost', {
