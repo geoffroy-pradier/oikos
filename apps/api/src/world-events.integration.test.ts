@@ -160,4 +160,43 @@ describe('sécheresse et récolte (#267)', () => {
       String(-PER_CYCLE),
     ]);
   });
+
+  it('arrêt puis relance après sa fin : le cycle se date dans le temps du site, et y échappe', async () => {
+    const { worldId, city } = await newWorld(['kalliste']);
+    const kalliste = city['kalliste'] ?? '';
+    const [early, late] = [await newShipowner(kalliste), await newShipowner(kalliste)];
+    const drought = await planEvent(owner, {
+      worldId,
+      model: 'drought',
+      cityId: kalliste,
+      magnitudeBps: 10_000,
+      inMs: 1_000,
+      lastsMs: 1_500,
+    });
+    // Un cycle de chaque champ se termine pendant la sécheresse ; tous deux s'arrêtent 0,1 s après.
+    const ends = new Date(drought.startsAt.getTime() + 300);
+    const sites = await Promise.all([early, late].map((p) => siteEndingAt(p.houseId, 1, ends)));
+    const halted = new Date(ends.getTime() + 100);
+    await waitUntil(db, halted);
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await trx
+        .updateTable('game.sites')
+        .set({ halted_at: halted })
+        .where('id', 'in', sites)
+        .execute();
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+    });
+    // Récolté pendant l'arrêt, le cycle finit pendant la sécheresse : il ne rend rien.
+    const during = await send(early.user, 'site.collect', { siteId: sites[0] });
+    expect(during.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: 0 }] } });
+    // Relancé après la sécheresse, temps du site décalé de l'arrêt (plus de 1,4 s) : le cycle produit en entier.
+    await waitUntil(db, new Date(drought.startsAt.getTime() + 1_800));
+    await sql`update game.sites set halted_at = null,
+      cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second'
+      where id = ${sites[1]}`.execute(owner);
+    const after = await send(late.user, 'site.collect', { siteId: sites[1] });
+    expect(after.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: PER_CYCLE }] } });
+    expect((await effectsOf(drought.eventId)).map((effect) => effect.site_id)).toEqual([sites[0]]);
+  });
 });

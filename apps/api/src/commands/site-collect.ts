@@ -21,8 +21,10 @@ import { defineCommand } from '../registry';
  * son arrêt. Un site dont la recette a quitté la configuration ne se récolte plus.
  *
  * Un cycle terminé pendant un événement de rendement de sa cité (sécheresse des champs, bonne année des vergers ;
- * 7.4, #267) produit selon `cycleYield` ; l'écart de chaque événement est expliqué dans `event_effects`. Les
- * événements sont lus sans verrou : ils ne changent jamais, et commencent après leur planification.
+ * 7.4, #267) produit selon `cycleYield` ; l'écart de chaque événement est expliqué dans `event_effects`. Les fins
+ * de cycle se lisent dans le temps du site, gelé pendant un arrêt : la relance le décale, y compris pour les cycles
+ * finis avant l'arrêt et non récoltés (limite assumée, 4.3). Les événements sont lus sans verrou : ils ne changent
+ * jamais et commencent au moins un jour de jeu après leur planification (`planningLeadDays` ≥ 1), jamais en cours.
  */
 export const siteCollect = defineCommand({
   name: 'site.collect',
@@ -136,23 +138,24 @@ export const siteCollect = defineCommand({
         .sort((a, b) => (a.goodId < b.goodId ? -1 : 1));
     // Les cycles récoltés sont les premiers après `cycle_started_at`, terminés au plus tard à `until`.
     const model = yieldModelOf(recipe.siteType);
-    const events =
+    const effects =
       model === undefined
         ? []
-        : await trx
-            .selectFrom('game.world_events')
-            .select(['id', 'starts_at', 'ends_at', 'magnitude_bps'])
-            .where('city_id', '=', site.city_id)
-            .where('model', '=', model)
-            .where('ends_at', '>', site.cycle_started_at)
-            .where('starts_at', '<=', until)
-            .execute();
-    const effects = events.map((event) => ({
-      eventId: event.id,
-      startsAt: event.starts_at,
-      endsAt: event.ends_at,
-      deltaBps: model === undefined ? 0 : yieldDeltaBps(model, event.magnitude_bps),
-    }));
+        : (
+            await trx
+              .selectFrom('game.world_events')
+              .select(['id', 'starts_at', 'ends_at', 'magnitude_bps'])
+              .where('city_id', '=', site.city_id)
+              .where('model', '=', model)
+              .where('ends_at', '>', site.cycle_started_at)
+              .where('starts_at', '<=', until)
+              .execute()
+          ).map((event) => ({
+            eventId: event.id,
+            startsAt: event.starts_at,
+            endsAt: event.ends_at,
+            deltaBps: yieldDeltaBps(model, event.magnitude_bps),
+          }));
     const gaps: { eventId: string; goodId: string; quantity: number }[] = [];
     const inputs = scaled(recipe.inputs);
     const outputs = scaled(recipe.outputs).map(({ goodId }) => {
