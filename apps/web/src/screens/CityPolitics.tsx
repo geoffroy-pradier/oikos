@@ -1,6 +1,7 @@
 import { Card } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCitedHouses } from '../cited-houses';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import {
@@ -8,10 +9,8 @@ import {
   electionPhase,
   parseCandidates,
   parseElections,
-  parseHouseNames,
   parseOffices,
   parseResults,
-  statusOf,
 } from '../politics';
 import { serverClock } from '../server-clock';
 import { ElectionActions } from './ElectionActions';
@@ -27,7 +26,6 @@ export function CityPolitics() {
   const house = useHouse();
   const title = useRef<HTMLHeadingElement>(null);
   const city = { city_id: house.cityId };
-  const houseRows = useRows<unknown>('houses', 'id, name, citizenship_status', 'name', city);
   const officeRows = useRows<unknown>(
     'offices',
     'house_id, office, ends_at, in_office',
@@ -55,32 +53,38 @@ export function CityPolitics() {
     'votes',
     byElection,
   );
-  const reads = [houseRows, officeRows, electionRows, candidateRows, resultRows];
-  const names = houseRows.rows === null ? null : parseHouseNames(houseRows.rows);
   const offices = officeRows.rows === null ? null : parseOffices(officeRows.rows);
   const candidates = candidateRows.rows === null ? null : parseCandidates(candidateRows.rows);
   const results = resultRows.rows === null ? null : parseResults(resultRows.rows);
-  const loading = reads.some((read) => read.rows === null && !read.failed);
+  const archon = offices?.find((office) => office.office === 'archon' && office.inOffice);
+  const election = elections ? currentElection(elections) : null;
+  const running = candidates?.filter((c) => c.electionId === election?.id && !c.withdrawn) ?? [];
+  const last = elections?.find((e) => e.talliedAt !== null);
+  const lastResults = results?.filter((result) => result.electionId === last?.id) ?? [];
+  // Seules les maisons citées sont lues, une fois connues (#441).
+  const houses = useCitedHouses(
+    offices && elections && candidates && results
+      ? [archon?.houseId, ...lastResults.map((r) => r.houseId), ...running.map((c) => c.houseId)]
+      : null,
+  );
+  const reads = [officeRows, electionRows, candidateRows, resultRows];
+  const names = houses.names;
+  const loading = houses.loading || reads.some((read) => read.rows === null && !read.failed);
   const failed =
+    houses.failed ||
     reads.some((read) => read.failed) ||
     (!loading && [names, offices, elections, candidates, results].includes(null));
   const [now, setNow] = useState(() => serverClock.now().getTime());
   const reload = async () => {
-    await Promise.all(reads.map((read) => read.reload()));
+    await Promise.all([...reads, houses].map((read) => read.reload()));
     setNow(serverClock.now().getTime());
   };
 
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const number = new Intl.NumberFormat(i18n.language);
   const nameOf = (id: string) => names?.get(id) ?? t('cityPolitics.unknownHouse');
-  const status = names && houseRows.rows ? statusOf(houseRows.rows, house.id) : null;
-  const citizen = (status ?? house.citizenshipStatus) === 'citizen';
-  const archon = offices?.find((office) => office.office === 'archon' && office.inOffice);
-  const election = elections ? currentElection(elections) : null;
+  const citizen = (houses.status ?? house.citizenshipStatus) === 'citizen';
   const phase = election ? electionPhase(election, now) : null;
-  const running = candidates?.filter((c) => c.electionId === election?.id && !c.withdrawn) ?? [];
-  const last = elections?.find((e) => e.talliedAt !== null);
-  const lastResults = results?.filter((result) => result.electionId === last?.id) ?? [];
   const office = (id: string) => t(`cityPolitics.offices.${id}`, { defaultValue: id });
 
   return (

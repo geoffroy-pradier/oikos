@@ -58,12 +58,14 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    La même saisie restée sans réponse repart sous la même clé ; une autre saisie (destination, cargaison ou coût) est une autre demande, sous une clé neuve : si l'essai précédent avait abouti, le navire est en mer et la demande est refusée, sans second départ.
    L'entrepôt de l'onglet Maison montre aussi les cargaisons en mer, sous leur cité d'arrivée.
 5. Séance de l'assemblée : décrets en cours, vote, débats.
-   Première version (#264), dans l'onglet Cité : la vie politique (statut de la maison relu dans la vue `houses`, archonte en charge, élection en cours avec sa phase, son calendrier et ses candidats, résultats de la dernière élection dépouillée), l'assemblée et le trésor public ; les débats attendent la discussion de la cité (#274).
+   Première version (#264), dans l'onglet Cité : la vie politique (statut de la maison relu dans sa ligne de la vue `houses`, archonte en charge, élection en cours avec sa phase, son calendrier et ses candidats, résultats de la dernière élection dépouillée), l'assemblée et le trésor public ; les débats attendent la discussion de la cité (#274).
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.
    Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.
+   Ces écrans ne lisent dans la vue `houses` que les maisons qu'ils nomment (archonte en charge, candidats de l'élection en cours, résultats de la dernière élection, auteurs des décrets au vote) et la ligne de la maison du joueur, d'où vient son statut (#441) : la vue rend au plus 1 000 lignes par lecture.
+   Une lecture porte sur 100 maisons au plus, la maison du joueur et l'archonte d'abord ; au-delà, une maison s'affiche « Maison inconnue ».
    La date depuis laquelle la maison est métèque ou citoyenne n'est pas encore affichée : il faut d'abord l'exposer dans une vue publique (#420).
    Un retrait de candidature est définitif : l'écran en avertit avant, et ne propose plus de se présenter après.
    Un décret de taux appliqué est dit « en vigueur » seulement s'il est le dernier appliqué de son modèle ; les autres décrets appliqués disent leur date d'application.

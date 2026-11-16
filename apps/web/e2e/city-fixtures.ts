@@ -6,8 +6,8 @@ import { KALLISTE_ID } from './helpers';
 /**
  * Jeu d'essai de l'onglet Cité (#264), dans le monde du seed : une élection d'archonte de Kallistè en dépôt
  * des candidatures, et un décret au vote proposé par la maison Acropole, posée en base, qui tient la charge
- * d'archonte. Son nom passe en tête de l'ordre alphabétique : l'écran ne lit les noms que des 1 000 premières
- * maisons de la cité (#441), et une base locale en accumule davantage. Les deux formats tournent en même temps
+ * d'archonte. L'écran ne lit que les maisons qu'il cite (#441) : son nom n'a plus à passer en tête de l'ordre
+ * alphabétique, même dans une base locale de plus de 1 000 maisons. Les deux formats tournent en même temps
  * sur une base gardée d'un passage à l'autre : la mise en place est sérialisée par un verrou et réutilise ce
  * qui existe. Les fenêtres durent un an, pour qu'un passage suivant les trouve encore ouvertes.
  */

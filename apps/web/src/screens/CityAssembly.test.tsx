@@ -7,12 +7,25 @@ import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
 // Assemblée de l'onglet Cité (#264) : lectures simulées vue par vue, commandes espionnées.
-const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
+// La vue `houses` rend au plus 1 000 lignes par lecture, par ordre de nom, comme PostgREST (`max_rows`).
+const state = vi.hoisted(() => ({
+  views: {} as Record<string, unknown[] | null>,
+  houseFilter: undefined as unknown,
+}));
 const api = vi.hoisted(() => ({ cityCommand: vi.fn() }));
 vi.mock('../api', () => ({ cityCommand: api.cityCommand }));
 vi.mock('../data', () => ({
-  useRows: (view: string) => {
-    const rows = view in state.views ? (state.views[view] ?? null) : [];
+  useRows: (view: string, _columns: string, _order: string, filters: unknown = {}) => {
+    if (view === 'houses') state.houseFilter = filters;
+    if (view === 'houses' && filters === null)
+      return { rows: null, failed: false, reload: () => Promise.resolve(null) };
+    let rows = view in state.views ? (state.views[view] ?? null) : [];
+    const ids = (filters as { id?: string[] }).id;
+    if (view === 'houses' && rows)
+      rows = (rows as { id: string; name: string }[])
+        .filter((row) => !ids || ids.includes(row.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 1000);
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
@@ -64,6 +77,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   state.views = {};
+  state.houseFilter = undefined;
 });
 
 describe('assemblée de la cité (#264)', () => {
@@ -191,5 +205,30 @@ describe('assemblée de la cité (#264)', () => {
     const keys = api.cityCommand.mock.calls.map((call) => call[3] as string);
     expect(keys[1]).toBe(keys[0]);
     expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('auteur au-delà de la millième maison : seuls les auteurs des décrets au vote sont lus (#441)', async () => {
+    const crowd = Array.from({ length: 1_200 }, (_, i) => ({
+      id: `x${String(i)}`,
+      name: `Maison A${String(i).padStart(4, '0')}`,
+      citizenship_status: 'citizen',
+    }));
+    state.views = {
+      houses: [
+        ...crowd,
+        { id: 'h1', name: 'Maison Zénon', citizenship_status: 'citizen' },
+        { id: 'h2', name: 'Maison Zeus', citizenship_status: 'citizen' },
+      ],
+      decrees: [
+        decree('d1', 'proposed', 'public_works', { amountOboles: 600 }),
+        decree('d2', 'rejected', 'public_works', { amountOboles: 600 }, { proposed_by: 'x5' }),
+      ],
+    };
+    // La coquille croit la maison métèque ; sa propre ligne, relue, la dit citoyenne.
+    await show();
+    expect(state.houseFilter).toEqual({ id: ['h1', 'h2'] });
+    expect(screen.getByText(/^Proposé par Maison Zeus ; vote clos le /)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Voter pour : Grands travaux/ })).toBeTruthy();
+    expect(screen.queryByText(fr.assembly.meticNotice)).toBeNull();
   });
 });
