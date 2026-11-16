@@ -113,6 +113,10 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Avec la configuration initiale (Kallistè, 144 ticks par jour), la dépense de référence d'un jour vaut environ 31 000 oboles pour le pain, 8 400 pour le vin, 8 200 pour le poisson et 7 200 pour l'huile : la fête la plus favorable (pain, vin, poisson) en mobilise environ 47 700, soit 1,6 fois `maxOboles` (30 000).
   À 5 000 points, le robinet induit vaudrait donc jusqu'à 0,8 fois le montant de la fête, qui ne serait presque plus un puits ; la valeur initiale est de 2 500 points, soit au plus 0,4 fois le montant environ.
   Ce réglage, comme les bornes des fêtes, se fait dans Olympe par une version de configuration.
+- **Caravanes étrangères** (#267, 7.4). Pendant les jours de jeu d'une caravane de sa cité, la demande des PNJ du bien de la caravane est relevée de son ampleur, comme pour une fête, budget du tick compris.
+  Plusieurs caravanes du même bien ne s'ajoutent pas : seule la plus forte compte.
+  Décision : la hausse d'une caravane s'ajoute à celle des fêtes du même bien (fêtes bornées ensemble par `demandBoostBps`, caravane par son ampleur, au plus 10 000) ; la demande peut donc dépasser le double du besoin quand les deux se cumulent.
+  Comme pour une fête, le besoin mesuré ne change pas, et le jour est celui du tick ; une caravane est une demande de plus, que le robinet des PNJ paie si l'offre suit.
 - **Événements.** Chaque achat des PNJ émet un événement de domaine `TradeExecuted`, le même qu'un échange entre joueurs, sans ordre d'achat (`buyOrderId` nul) et sans commande : il est écrit dans la transaction du tick, donc jamais pour un tick annulé ou simulé à blanc.
 
 **Prix de réserve des PNJ.** Les PNJ n'achètent pas un bien au-delà d'un multiple de son prix de référence (paramètre du back-office, 3 au départ).

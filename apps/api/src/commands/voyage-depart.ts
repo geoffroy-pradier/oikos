@@ -5,7 +5,7 @@ import {
   voyageDepartOutputSchema,
 } from '@oikos/contracts';
 import { cityRatesOf } from '@oikos/db';
-import { cargoUnits, departureCost, voyageDurationSeconds } from '@oikos/sim';
+import { cargoUnits, departureCost, stormDurationSeconds, voyageDurationSeconds } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 
@@ -20,6 +20,9 @@ const NO_STOCK = { code: 'INSUFFICIENT_STOCK', message: 'Not enough free stock t
  * l'extrémité `in_transit`, rattachée au voyage ; la maison paie les provisions (puits) et le droit de port
  * de la cité d'arrivée (5.6 : coefficient de cette cité, part détruite, reste au trésor de la cité) dans une écriture
  * `voyage.departure`. L'arrivée est jouée par le moteur (#253). Un autre coût que le coût vu est refusé.
+ * Un départ pendant une tempête de sa route (7.4, #267) allonge le trajet de l'ampleur de la plus forte (à égalité,
+ * la plus ancienne), sans rien faire perdre ; le retard est expliqué dans `event_effects`. Les événements sont lus
+ * sans verrou : ils ne changent jamais, et commencent après leur planification.
  */
 export const voyageDepart = defineCommand({
   name: 'voyage.depart',
@@ -127,7 +130,24 @@ export const voyageDepart = defineCommand({
       return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
 
     // L'arrivée prévue est comptée sur l'horloge de la base, celle du départ (`now()`).
-    const seconds = voyageDurationSeconds(route.hours, shipClass.speedBps);
+    const storm = await trx
+      .selectFrom('game.world_events')
+      .select(['id', 'magnitude_bps'])
+      .where('model', '=', 'storm')
+      .where((eb) =>
+        eb.or([
+          eb.and([eb('city_id', '=', input.fromCityId), eb('other_city_id', '=', input.toCityId)]),
+          eb.and([eb('city_id', '=', input.toCityId), eb('other_city_id', '=', input.fromCityId)]),
+        ]),
+      )
+      .where('starts_at', '<=', sql<Date>`now()`)
+      .where('ends_at', '>', sql<Date>`now()`)
+      .orderBy('magnitude_bps', 'desc')
+      .orderBy('id')
+      .limit(1)
+      .executeTakeFirst();
+    const calm = voyageDurationSeconds(route.hours, shipClass.speedBps);
+    const seconds = storm ? stormDurationSeconds(calm, storm.magnitude_bps) : calm;
     const voyage = await trx
       .insertInto('game.voyages')
       .values({
@@ -172,6 +192,18 @@ export const voyageDepart = defineCommand({
       .set({ docked_city_id: null })
       .where('id', '=', owned.id)
       .execute();
+    const delaySeconds = seconds - calm;
+    if (storm && delaySeconds > 0)
+      await trx
+        .insertInto('game.event_effects')
+        .values({
+          world_id: owned.world_id,
+          event_id: storm.id,
+          kind: 'voyage_delay',
+          voyage_id: voyage.id,
+          delay_seconds: delaySeconds,
+        })
+        .execute();
 
     const dues = cost.portDues;
     if (cost.totalOboles > 0) {
@@ -234,7 +266,12 @@ export const voyageDepart = defineCommand({
     };
     emit({
       type: 'VoyageDeparted',
-      payload: { ...departure, houseId: owned.house_id, portDues: dues },
+      payload: {
+        ...departure,
+        houseId: owned.house_id,
+        portDues: dues,
+        ...(storm && delaySeconds > 0 && { storm: { eventId: storm.id, delaySeconds } }),
+      },
     });
     return {
       ok: true,

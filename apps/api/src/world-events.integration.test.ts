@@ -200,3 +200,85 @@ describe('sécheresse et récolte (#267)', () => {
     expect((await effectsOf(drought.eventId)).map((effect) => effect.site_id)).toEqual([sites[0]]);
   });
 });
+
+describe('tempête et départ (#267)', () => {
+  it('allonge le trajet d’un navire qui part pendant la tempête de sa route, et seulement lui', async () => {
+    const { worldId, city } = await newWorld(['kalliste', 'elaia', 'halos']);
+    const [kalliste, elaia, halos] = [
+      city['kalliste'] ?? '',
+      city['elaia'] ?? '',
+      city['halos'] ?? '',
+    ];
+    const [before, during, elsewhere] = [
+      await newShipowner(kalliste),
+      await newShipowner(kalliste),
+      await newShipowner(kalliste),
+    ];
+    const leave = (player: typeof before, toCityId = elaia) =>
+      send(player.user, 'voyage.depart', {
+        shipId: player.shipId,
+        fromCityId: kalliste,
+        toCityId,
+        cargo: [{ goodId: 'wheat', quantity: 10 }],
+        expectedCostOboles: 0,
+      });
+    const hours = (from: string, to: string) =>
+      TEST_CONFIG.config.ships.routes.find(
+        (route) => route.cities.includes(from) && route.cities.includes(to),
+      )?.hours ?? 0;
+    // Tempête de 25 % sur la route de Kallistè à Elaia, planifiée dans l'autre sens, dans 3 s : le départ
+    // calme part avant elle, même sur une machine lente.
+    const storm = await planEvent(owner, {
+      worldId,
+      model: 'storm',
+      cityId: elaia,
+      otherCityId: kalliste,
+      magnitudeBps: 2_500,
+      inMs: 3_000,
+      lastsMs: 86_400_000,
+    });
+    const duration = (reply: Awaited<ReturnType<typeof leave>>) =>
+      (Date.parse(reply.body.data.arrivesAt) - Date.parse(reply.body.data.departedAt)) / 1000;
+    const calm = await leave(before);
+    expect(duration(calm)).toBe(hours('kalliste', 'elaia') * 3_600);
+    await waitUntil(db, storm.startsAt);
+    const stormy = await leave(during);
+    const longer = await leave(elsewhere, halos);
+    // Le caboteur (vitesse 10 000) met 25 % de plus ; rien n'est perdu : la cargaison est chargée en entier.
+    expect(duration(stormy)).toBe(hours('kalliste', 'elaia') * 3_600 * 1.25);
+    expect(duration(longer)).toBe(hours('kalliste', 'halos') * 3_600);
+    expect(await effectsOf(storm.eventId)).toEqual([
+      {
+        kind: 'voyage_delay',
+        site_id: null,
+        voyage_id: stormy.body.data.voyageId,
+        good_id: null,
+        quantity: null,
+        delay_seconds: hours('kalliste', 'elaia') * 900,
+      },
+    ]);
+    const departed = await db
+      .selectFrom('game.domain_events')
+      .select('payload')
+      .where('type', '=', 'VoyageDeparted')
+      .where(
+        sql<boolean>`payload ->> 'voyageId' in (${calm.body.data.voyageId}, ${stormy.body.data.voyageId})`,
+      )
+      .execute();
+    const stormOf = (voyageId: string) =>
+      departed
+        .map((row) => row.payload as { voyageId: string; storm?: unknown })
+        .find((payload) => payload.voyageId === voyageId)?.storm;
+    expect(stormOf(stormy.body.data.voyageId)).toEqual({
+      eventId: storm.eventId,
+      delaySeconds: hours('kalliste', 'elaia') * 900,
+    });
+    expect(stormOf(calm.body.data.voyageId)).toBeUndefined();
+    const cargo = await db
+      .selectFrom('game.voyage_cargo')
+      .select(['good_id', 'quantity'])
+      .where('voyage_id', '=', stormy.body.data.voyageId)
+      .execute();
+    expect(cargo).toEqual([{ good_id: 'wheat', quantity: '10' }]);
+  });
+});

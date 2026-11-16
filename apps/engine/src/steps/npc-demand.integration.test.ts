@@ -463,6 +463,71 @@ describe('demande des PNJ au tick', () => {
     expect(await balanceOf(seller.houseId)).toBe(70 * 6);
   });
 
+  it('caravane étrangère (#267) : sa hausse s’ajoute à celle d’une fête, pendant ses seuls jours', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const decrees = (INITIAL_CONFIG as GameConfig).decrees;
+    if (!decrees?.models.festival)
+      throw new Error('festival expected in the initial configuration');
+    const rules = { ...decrees.models.festival, goodIds: ['wheat'], demandBoostBps: 5_000 };
+    const config = { ...economy(), decrees: { ...decrees, models: { festival: rules } } };
+    const clock = active.config.clock;
+    const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+    // Fête de deux jours à partir du jour du tick : +25 %. Caravane de blé à +50 % les deux jours suivants ;
+    // une plus faible (+30 %) le second, qui ne s'y ajoute pas ; une caravane de pain ensuite, sans effet sur le blé.
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 2, goodIds: ['wheat'] },
+      day,
+    );
+    const caravan = (start: number, end: number, goodId: string, magnitudeBps: number) => ({
+      world_id: world.worldId,
+      model: 'caravan',
+      city_id: world.cityId,
+      other_city_id: null,
+      good_id: goodId,
+      planned_day: day,
+      start_day: start,
+      end_day: end,
+      starts_at: dailyCloseAt(start, clock),
+      ends_at: dailyCloseAt(end, clock),
+      magnitude_bps: magnitudeBps,
+      seed: '0'.repeat(64),
+    });
+    // Planifiées comme par la clôture du jour, enregistrée après elles dans la même transaction.
+    await owner.transaction().execute(async (trx) => {
+      await trx
+        .insertInto('game.world_events')
+        .values([
+          caravan(day + 1, day + 3, 'wheat', 5_000),
+          caravan(day + 2, day + 3, 'wheat', 3_000),
+          caravan(day + 3, day + 4, 'bread', 9_000),
+        ])
+        .execute();
+      await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+        values (${world.worldId}, ${day}, now(), ${active.id})`.execute(trx);
+    });
+    const ticks = [
+      index,
+      ...[1, 2, 3].map(
+        (later) => tickIndexAt(dailyCloseAt(day + later, clock), clock.tickMinutes) + 1,
+      ),
+    ];
+    const units = [];
+    for (const tick of ticks)
+      units.push((await runTick(db, request(world.worldId, config, tick))).summary['npcDemand']);
+    expect(units).toMatchObject([{ units: 25 }, { units: 35 }, { units: 30 }, { units: 20 }]);
+    // Le besoin mesuré ne change pas : la caravane achète en plus, elle ne nourrit pas la cité.
+    expect(await measureOf(world.cityId)).toEqual([
+      [25, 20],
+      [35, 20],
+      [30, 20],
+      [20, 20],
+    ]);
+    expect(await balanceOf(seller.houseId)).toBe(110 * 6);
+  });
+
   it('deux cités, deux biens : chaque marché est servi à part, dans l’ordre d’ancienneté à prix égal', async () => {
     // Blé : 15 unités pour 1 000 habitants, prix de réserve 15 (6 × 2,6). Poisson : 5 unités, réserve 31.
     const config: GameConfig = {
