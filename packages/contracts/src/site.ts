@@ -15,7 +15,10 @@ export const siteCollectOutputSchema = z.object({
   cycles: z.number().int().positive(),
   /** Intrants consommés dans le stock de la maison (vide pour une production primaire). */
   inputs: z.array(collectedStack),
-  outputs: z.array(collectedStack).min(1),
+  /** Extrants entrés au stock, un par extrant de la recette : nul pour un rendement nul (sécheresse, 7.4). */
+  outputs: z
+    .array(z.strictObject({ goodId: z.string(), quantity: z.number().int().nonnegative() }))
+    .min(1),
   /** Début du cycle désormais en cours (ISO 8601). */
   cycleStartedAt: z.iso.datetime(),
 });
@@ -41,7 +44,15 @@ export const siteCollectedSchema = z.strictObject({
     cycles: z.number().int().positive(),
     // Absent des événements enregistrés avant les ateliers : lu comme « aucun intrant ».
     inputs: z.array(collectedStack).default([]),
-    outputs: z.array(collectedStack).min(1),
+    /** Extrants entrés au stock, un par extrant de la recette : nul pour un rendement nul (sécheresse, 7.4). */
+    outputs: z
+      .array(z.strictObject({ goodId: z.string(), quantity: z.number().int().nonnegative() }))
+      .min(1),
+    /** Écart de rendement dû à chaque événement du monde (7.4, #267), en unités, signé ; absent sans écart. */
+    eventEffects: z
+      .array(z.strictObject({ eventId: z.uuid(), goodId: z.string(), quantity: z.number().int() }))
+      .min(1)
+      .optional(),
   }),
 });
 

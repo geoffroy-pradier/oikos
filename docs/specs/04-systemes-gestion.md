@@ -74,6 +74,9 @@ Le terroir de la cité (6.1) restreint les productions primaires : un site reste
 Une acquisition ou un changement de recette hors terroir est refusé (« hors du terroir de la cité »), sans rien payer ni changer : le refus passe avant le prix et avant la relance gratuite d'un site sans recette.
 Un site qui exploite une production sortie du terroir (version de configuration qui le resserre) continue de produire, se récolte et se relance comme avant ; une fois qu'il l'a quittée, il n'y revient plus.
 Un site à l'arrêt faute d'entretien payé (5.5) se récolte pour ce qu'il avait accumulé avant son arrêt, et pas davantage (un atelier, lui, ne se récolte pas à l'arrêt : voir 4.3) : pour lui, le temps s'est arrêté à cet instant, le cycle entamé reste gelé et reprend à la relance.
+Événements de rendement (7.4, #267) : un cycle d'un champ qui se termine pendant une sécheresse de sa cité, ou d'un verger pendant une bonne année, produit ⌊extrant × (10 000 ∓ ampleur) ÷ 10 000⌋, avec la plus forte des sécheresses (ou bonnes années) en cours à cet instant ; les autres cycles produisent normalement.
+L'arrondi se fait cycle par cycle, à l'unité inférieure : récolter en une ou plusieurs fois rend la même quantité, et une sécheresse au plus fort rend zéro, le cycle avançant quand même.
+La quantité récoltée passe par le journal des stocks ; l'écart dû à chaque événement est expliqué dans `event_effects` et dans l'événement de domaine `SiteCollected` (`eventEffects`).
 Il ne change pas de recette tant qu'il est à l'arrêt (refus « site à l'arrêt ») : il faut le relancer d'abord.
 
 Recette retirée : une version de configuration peut retirer une recette qu'un site exploite encore.
