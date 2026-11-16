@@ -3,6 +3,7 @@ import type { Blazon, DecreeModel } from '@oikos/contracts';
 import {
   Kysely,
   PostgresDialect,
+  sql,
   type ColumnType,
   type Generated,
   type GeneratedAlways,
@@ -595,4 +596,52 @@ export function violatedConstraint(error: unknown): string | null {
   const { code, constraint } = error as { code?: unknown; constraint?: unknown };
   const isViolation = code === '23505' || code === '23514';
   return isViolation && typeof constraint === 'string' ? constraint : null;
+}
+
+/** Un bien immobilier qui loge les travailleurs d'une maison, dans sa cité (4.5, #258). */
+export interface HousingRow {
+  houseId: string;
+  cityId: string;
+  sizeId: string;
+  condition: number;
+  upkeepUnpaid: boolean;
+}
+
+/**
+ * Biens qui logent les travailleurs des maisons (4.5, #258) : ceux qu'une maison possède sans les avoir
+ * loués, et ceux qu'elle loue par un bail en cours ; un bien loué loge son locataire, pas son propriétaire.
+ * Un bien de la cité ne loge personne. Pour tout un monde, ou pour une seule maison. Les logements utiles
+ * de chaque bien se comptent ensuite avec la configuration (`holdingUnits`, packages/sim).
+ */
+export async function readHousing(
+  db: Db,
+  scope: { worldId: string } | { houseId: string },
+): Promise<HousingRow[]> {
+  const rows = await db
+    .selectFrom('game.properties as p')
+    .leftJoin('game.leases as l', (join) =>
+      join.onRef('l.property_id', '=', 'p.id').on('l.ended_at', 'is', null),
+    )
+    .select([
+      sql<string>`coalesce(l.tenant_house_id, p.owner_house_id)`.as('house_id'),
+      'p.city_id',
+      'p.size_id',
+      'p.condition',
+      sql<boolean>`p.upkeep_unpaid_since is not null`.as('upkeep_unpaid'),
+    ])
+    .where('p.owner_house_id', 'is not', null)
+    .where((where) =>
+      'worldId' in scope
+        ? where('p.world_id', '=', scope.worldId)
+        : where(sql`coalesce(l.tenant_house_id, p.owner_house_id)`, '=', scope.houseId),
+    )
+    .orderBy('p.id')
+    .execute();
+  return rows.map((row) => ({
+    houseId: row.house_id,
+    cityId: row.city_id,
+    sizeId: row.size_id,
+    condition: row.condition,
+    upkeepUnpaid: row.upkeep_unpaid,
+  }));
 }
