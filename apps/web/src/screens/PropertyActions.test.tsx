@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
-// Écran Immobilier, commandes du propriétaire (#259) : lectures et commandes simulées.
+// Écran Immobilier, commandes du propriétaire (#259, #404) : lectures et commandes simulées.
 const config = INITIAL_CONFIG as GameConfig;
 const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
 const api = vi.hoisted(() => ({ propertyCommand: vi.fn() }));
@@ -33,7 +33,8 @@ const mine = {
   condition: 6000,
   upkeep_unpaid_since: null,
 };
-async function showProperty() {
+/** `screen` : modules relus après `vi.resetModules()`, comme après un rechargement de la page. */
+async function showProperty(modules = { PropertyScreen, HouseProvider }) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
     resources: { fr: { translation: fr } },
@@ -43,15 +44,20 @@ async function showProperty() {
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
   return render(
     <I18nextProvider i18n={instance}>
-      <HouseProvider
-        value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'metic' }}
+      <modules.HouseProvider
+        value={{
+          ...house,
+          cityNames: { c1: 'Kallistè', c2: 'Thalassa' },
+          citizenshipStatus: 'metic',
+        }}
       >
-        <PropertyScreen />
-      </HouseProvider>
+        <modules.PropertyScreen />
+      </modules.HouseProvider>
     </I18nextProvider>,
   );
 }
 beforeEach(() => {
+  window.sessionStorage.clear();
   api.propertyCommand.mockReset();
   api.propertyCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
   state.views = {
@@ -93,7 +99,7 @@ describe('commandes du propriétaire (#259)', () => {
     await showProperty();
     const sale = screen.getByRole('button', { name: /^Mettre en vente — Maison de ville n° 9/ });
     fireEvent.click(sale);
-    const field = screen.getByRole('textbox', { name: /^Prix de vente ou loyer/ });
+    const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
     fireEvent.change(field, { target: { value: '-3' } });
     fireEvent.click(sale);
     expect(api.propertyCommand).not.toHaveBeenCalled();
@@ -101,11 +107,17 @@ describe('commandes du propriétaire (#259)', () => {
     fireEvent.change(field, { target: { value: '500' } });
     fireEvent.click(sale);
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
-    fireEvent.click(await screen.findByRole('button', { name: /^Mettre en location — / }));
+    const lease = await screen.findByRole('button', { name: /^Mettre en location — / });
+    // Le loyer a sa propre saisie : le prix de vente ne le remplit pas.
+    fireEvent.click(lease);
+    expect(api.propertyCommand).toHaveBeenCalledTimes(1);
+    const rent = screen.getByRole('textbox', { name: /^Loyer par jour, en oboles — / });
+    fireEvent.change(rent, { target: { value: '12' } });
+    fireEvent.click(lease);
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     expect(sent().map(([name, input]) => [name, input])).toEqual([
       ['property.listForSale', { propertyId: 'p9', priceOboles: 500 }],
-      ['property.offerLease', { propertyId: 'p9', rentOboles: 500 }],
+      ['property.offerLease', { propertyId: 'p9', rentOboles: 12 }],
     ]);
   });
   it('une offre ouverte se retire ; un bien loué ne s’offre pas ; un bien neuf ne se rénove pas', async () => {
@@ -124,5 +136,128 @@ describe('commandes du propriétaire (#259)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Retirer l'offre de location/ }));
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual(['property.withdrawOffer', { propertyId: 'p2' }]);
+  });
+
+  it('mise en vente : net du vendeur annoncé au taux de la cité du bien, arrondi comme l’API', async () => {
+    state.views['market_rules'] = [{ market_tax: { rateBps: 300, burnShareBps: 5000 } }];
+    state.views['city_rates'] = [
+      { city_id: 'c1', market_tax_rate_bps: 1000 },
+      { city_id: 'c2', market_tax_rate_bps: 500 },
+    ];
+    state.views['my_properties'] = [mine, { ...mine, id: 'p4', city_id: 'c2', lot: 4 }];
+    await showProperty();
+    const fields = screen.getAllByRole('textbox', { name: /^Prix de vente, en oboles — / });
+    expect(screen.queryByText(/^Net attendu/)).toBeNull();
+    fields.forEach((field, index) =>
+      fireEvent.change(field, { target: { value: index === 0 ? '601' : '600' } }),
+    );
+    // Kallistè, 10 % : taxe de 60,1 oboles arrondie à 61, comme `marketTax` côté API.
+    const kalliste =
+      "Net attendu au taux en vigueur aujourd'hui : 90 drachmes (100 drachmes 1 obole moins 10 drachmes 1 obole de taxe de marché de la cité).";
+    const thalassa =
+      "Net attendu au taux en vigueur aujourd'hui : 95 drachmes (100 drachmes moins 5 drachmes de taxe de marché de la cité).";
+    expect(screen.getByText(kalliste)).toBeTruthy();
+    expect(screen.getByText(thalassa)).toBeTruthy();
+    // Le net décrit la saisie et le bouton de mise en vente de son bien.
+    const described = (element: HTMLElement) =>
+      (element.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(' ');
+    expect(described(fields[0] as HTMLElement)).toContain(kalliste);
+    const sell = screen.getByRole('button', { name: /^Mettre en vente — .* n° 4, Thalassa$/ });
+    expect(described(sell)).toBe(thalassa);
+    // Le loyer n'est pas une vente : aucun net sous sa saisie.
+    const rents = screen.getAllByRole('textbox', { name: /^Loyer par jour/ });
+    fireEvent.change(rents[0] as HTMLElement, { target: { value: '600' } });
+    expect(rents[0]?.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('taux de la cité non lu (ligne absente ou lecture en échec) : aucun net annoncé', async () => {
+    state.views['market_rules'] = [{ market_tax: { rateBps: 300, burnShareBps: 5000 } }];
+    for (const rates of [[{ city_id: 'c2', market_tax_rate_bps: 500 }], null]) {
+      state.views['city_rates'] = rates;
+      await showProperty();
+      const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
+      fireEvent.change(field, { target: { value: '600' } });
+      expect(screen.queryByText(/^Net attendu/)).toBeNull();
+      expect(
+        screen
+          .getByRole('button', { name: /^Mettre en vente — / })
+          .getAttribute('aria-describedby'),
+      ).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('mise en vente sans réponse : la clé, gardée en session, repart après réouverture de l’écran', async () => {
+    api.propertyCommand.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'INTERNAL', message: 'lost' },
+    });
+    const sell = async (modules?: Parameters<typeof showProperty>[0]) => {
+      await showProperty(modules);
+      fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
+        target: { value: '500' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+    };
+    await sell();
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(fr.errors.INTERNAL)).toBeTruthy();
+    const first = sent()[0]?.[2];
+    const stored = Object.keys(window.sessionStorage).filter((name) =>
+      name.startsWith('oikos.pending.property.h1.'),
+    );
+    expect(stored).toHaveLength(1);
+    expect(window.sessionStorage.getItem(stored[0] as string)).toContain(String(first));
+    cleanup();
+    // Rechargement : la mémoire des modules est perdue, seule la session garde la clé.
+    vi.resetModules();
+    await sell({ ...(await import('./Property')), ...(await import('../house')) });
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
+    expect(sent()[1]).toEqual([
+      'property.listForSale',
+      { propertyId: 'p9', priceOboles: 500 },
+      first,
+    ]);
+    // Réponse reçue : la clé est rendue, le prochain essai en prendra une neuve.
+    await waitFor(() => expect(window.sessionStorage.length).toBe(0));
+  });
+
+  it('commande aboutie sans réponse : la relecture qui montre l’effet rend la clé, la même demande repart sous une clé neuve', async () => {
+    const listed = { ...mine, property_id: 'p9', kind: 'sale', price_oboles: 500 };
+    const lost = { ok: false, error: { code: 'INTERNAL', message: 'lost' } };
+    api.propertyCommand
+      .mockImplementationOnce(() => {
+        // La mise en vente a abouti, sa réponse s'est perdue : la relecture montre l'offre ouverte.
+        state.views['property_offers'] = [listed];
+        return Promise.resolve(lost);
+      })
+      .mockImplementationOnce(() => {
+        state.views['property_offers'] = [];
+        return Promise.resolve({ ok: true, data: {}, replayed: false });
+      });
+    state.views['property_offers'] = [];
+    await showProperty();
+    const list = () => {
+      fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
+        target: { value: '500' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+    };
+    list();
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(fr.errors.INTERNAL)).toBeTruthy();
+    // L'effet est lu : la mise en vente n'est plus proposée, sa clé est rendue.
+    await waitFor(() => expect(window.sessionStorage.length).toBe(0));
+    fireEvent.click(await screen.findByRole('button', { name: /^Retirer l'offre/ }));
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
+    await screen.findByRole('textbox', { name: /^Prix de vente, en oboles — / });
+    list();
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(3));
+    const [first, , again] = sent();
+    expect(again?.slice(0, 2)).toEqual(first?.slice(0, 2));
+    expect(again?.[2]).not.toBe(first?.[2]);
   });
 });

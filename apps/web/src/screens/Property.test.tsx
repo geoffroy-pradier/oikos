@@ -64,6 +64,7 @@ const lease = {
   end_reason: null,
 };
 beforeEach(() => {
+  window.sessionStorage.clear();
   api.propertyCommand.mockReset();
   api.propertyCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
   state.views = {
