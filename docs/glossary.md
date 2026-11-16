@@ -30,3 +30,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Maison de ville (townhouse) | Petit logement, la plus petite des deux tailles de bien immobilier (`townhouse`) ; à ne pas confondre avec la maison du joueur (oikos) |
 | Immeuble de rapport (tenement) | Grand logement de plusieurs foyers, la plus grande des deux tailles de bien immobilier (`tenement`) |
 | État, vétusté (condition, wear) | État d'un bien immobilier, de 0 à 10 000 (neuf) ; la vétusté lui en retire chaque jour, la rénovation le rend neuf (`condition`, `dailyWear`) |
+| Offre (listing) | Mise en vente à prix affiché ou en location d'un bien immobilier par la maison qui le possède ; une seule ouverte par bien (`property_listings`) |
+| Bail, loyer (lease, rent) | Location d'un bien immobilier d'une maison à une autre, sans durée ; le locataire paie au propriétaire un loyer quotidien à chaque clôture (`leases`, `lease.rent`) |
+| Propriétaire, locataire (landlord, tenant) | Les deux parties d'un bail (`landlord`, `tenant`) ; à ne pas confondre avec le propriétaire de la base de données |
+| Revente (resale) | Achat d'un bien immobilier mis en vente par une autre maison, taxé comme un échange de l'agora (`property.sale`) |

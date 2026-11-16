@@ -135,6 +135,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   L'arrondi ne joue donc jamais en faveur de la monnaie en circulation, et découper une vente en petits ordres ne fait jamais payer moins (arrondie vers le bas, la taxe d'un échange de moins de 1 ÷ taux oboles serait nulle).
   En contrepartie, un échange paie au plus une obole de plus que le taux exact : une vente servie en plusieurs échanges peut rapporter quelques oboles de moins que le net annoncé pour un échange unique.
   Un taux nul ne prélève rien ; une version de configuration publiée avant la taxe se lit avec un taux nul.
+  La revente d'un bien immobilier entre maisons (#257, 4.5) paie la même taxe, à la cité du bien, par le même calcul et la même répartition, dans son écriture `property.sale`.
   Le taux et la part détruite sont des règles du jeu publiques : les joueurs connectés les lisent (vue `market_rules`), rien d'autre de la configuration du marché ne l'est.
   Historique des prix : les échanges d'un bien dans une cité, entre joueurs comme avec les PNJ, sont résumés par période en chandeliers (table `price_candles`) : ouverture (prix du premier échange de la période), plus haut, plus bas, clôture (prix du dernier), volume (unités échangées) et montant (somme des prix × quantités, brut, avant taxe de marché).
   Une période est l'intervalle [début, début + durée), son début étant un multiple de la durée depuis l'époque Unix, en temps universel ;
@@ -212,7 +213,8 @@ Voyages (#252, 4.6) : les provisions d'un voyage sont détruites par le puits `s
 Tous trois entrent à zéro dans la configuration initiale.
 
 Immobilier (#256, 4.5) : le prix d'achat d'un bien à la cité est détruit par le puits `sink_property_purchase` (écriture `property.buy`), son entretien quotidien par `sink_property_upkeep` (dans l'écriture `upkeep.daily` de la clôture) et le prix d'une rénovation par `sink_property_works` (écriture `property.renovate`).
-Il n'y a pas encore de revente (#257), donc aucun robinet en face.
+Les biens se louent et se revendent entre maisons (#257, 4.5) : le loyer (`lease.rent`) et le prix d'une revente (`property.sale`) passent d'une maison à une autre sans création de monnaie, donc sans robinet en face.
+La revente paie la taxe de marché de la cité du bien, comme un échange de l'agora : sa part détruite va au puits `sink_market_tax`, le reste au trésor de la cité.
 Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix d'achat et la rénovation sont les deux premiers puits de l'immobilier en jeu.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
@@ -285,6 +287,7 @@ son paiement est une écriture du grand livre d'une nature à part (`upkeep.rest
 Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires), puis la trésorerie, puis le site.
 La clôture verrouille en plus, après ces deux puits, ceux de l'entretien des navires et des biens immobiliers, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6) puis ses biens (4.5).
 Elle prend avant tout le verrou de l'agora du monde, et la vétusté des biens le prend juste avant l'entretien : l'achat et la rénovation d'un bien le prennent aussi d'abord, si bien qu'aucun d'eux ne verrouille un bien que la clôture attendrait.
+Les loyers des baux (#257), avant la vétusté, prennent le verrou de l'agora, puis les quatre puits de l'entretien dans le même ordre, sans les mouvementer, puis les trésoreries des parties par identifiant : la relance d'un site, qui verrouille ses puits avant sa trésorerie sans prendre l'agora, ne peut donc pas attendre une trésorerie que la clôture tient pendant que la clôture attend ses puits.
 Un site dont la recette n'est plus dans la configuration, qui n'a pas de tarif, est relancé sans rien payer.
 La monnaie sous séquestre ne paie pas non plus une relance. Les relances d'un monde se font l'une après l'autre et, quand une clôture a commencé à prélever l'entretien, attendent qu'elle soit validée tout entière (l'entretien est donc la dernière étape d'une clôture, pour que cette attente soit la plus courte) ;
 si la clôture vient d'arrêter le site pendant cette attente, la relance est refusée (« le site vient de changer ») et se rejoue.
