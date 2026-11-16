@@ -120,6 +120,11 @@
     "collectedAll_one": "Harvest stored from {{number}} site: {{list}}.",
     "collectedAll_other": "Harvest stored from {{number}} sites: {{list}}.",
     "collectAllFailed": "Failed for {{site}}. {{reason}}",
+    "eventGap": {
+      "drought": "The drought takes away {{list}}.",
+      "good_year": "The good year adds {{list}}."
+    },
+    "eventGapZero": "The drought reduces this harvest to nothing: collecting still moves the cycles on.",
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",

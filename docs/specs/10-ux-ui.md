@@ -29,6 +29,11 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Ce net est calculé au taux en vigueur à l'affichage, et le texte le dit : un décret peut changer le taux avant la vente.
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
+   Un champ ou un verger dit la sécheresse ou la bonne année en cours dans sa cité (#417, vue `world_events`), avec sa fin et son ampleur.
+   Sa récolte est estimée comme l'API la calculera (`cycleYield`, 4.3 et 7.4), à l'heure du serveur, sous les événements qui finissent après le début de son cycle en cours, et l'écart dû à l'événement est dit.
+   L'arrondi se fait cycle par cycle, à l'unité inférieure : la baisse réelle peut dépasser le pourcentage annoncé ; deux événements d'un même modèle ne s'additionnent pas, le plus fort en cours compte.
+   Une récolte estimée à zéro par une sécheresse est expliquée : récolter fait quand même avancer les cycles.
+   Tant que ces événements ne sont pas lus, la récolte d'un champ ou d'un verger n'est pas estimée ; une lecture en échec est annoncée et se relit.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
    L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
