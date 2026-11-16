@@ -606,5 +606,34 @@
     "leaseTerminated": "Bail résilié pour loyer impayé : {{property}}.",
     "toStaff": "Voir le personnel",
     "toProperty": "Voir l'immobilier"
+  },
+  "cityPolitics": {
+    "title": "Vie politique",
+    "meticNotice": "Métèque, votre maison voit la vie de la cité mais n'y vote pas et ne s'y présente pas : elle le pourra une fois citoyenne.",
+    "archon": "Archonte en charge : {{house}}, jusqu'au {{until}}",
+    "noArchon": "Aucun archonte en charge.",
+    "election": "Élection en cours",
+    "noElection": "Aucune élection en cours.",
+    "phase": {
+      "upcoming": "Élection {{office}} : le dépôt des candidatures n'est pas encore ouvert.",
+      "filing": "Élection {{office}} : dépôt des candidatures ouvert.",
+      "voting": "Élection {{office}} : vote ouvert.",
+      "counting": "Élection {{office}} : vote clos, dépouillement à la prochaine clôture.",
+      "tallied": "Élection {{office}} : dépouillée."
+    },
+    "offices": {
+      "archon": "de l'archonte"
+    },
+    "filing": "Candidatures à partir du {{at}}",
+    "voting": "Vote à partir du {{at}}",
+    "closing": "Fin du vote le {{at}}",
+    "noCandidate": "Aucun candidat pour l'instant.",
+    "lastResults": "Dernière élection dépouillée",
+    "noResults": "Aucune élection dépouillée pour l'instant.",
+    "result_one": "{{house}} : {{votes}} voix",
+    "result_other": "{{house}} : {{votes}} voix",
+    "elected_one": "{{house}} : {{votes}} voix, élue",
+    "elected_other": "{{house}} : {{votes}} voix, élue",
+    "unknownHouse": "Maison inconnue"
   }
 }
