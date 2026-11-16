@@ -222,6 +222,48 @@ export interface GameDatabase {
     upkeep_unpaid_since: ColumnType<Date | null, never, Date | null>;
     created_at: ColumnType<Date, never, never>;
   };
+  /**
+   * Offres d'un bien par sa maison (4.5, #257) : vente à prix affiché ou location au loyer quotidien. Une
+   * offre ouverte par bien ; elle se ferme une fois, datée par la base (garde).
+   */
+  'game.property_listings': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    property_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    kind: ColumnType<'sale' | 'lease', 'sale' | 'lease', never>;
+    /** `bigint` : lu en texte. */
+    price_oboles: ColumnType<string, number, never>;
+    created_at: ColumnType<Date, never, never>;
+    closed_at: ColumnType<Date | null, never, never>;
+    outcome: ColumnType<
+      'withdrawn' | 'sold' | 'leased' | null,
+      never,
+      'withdrawn' | 'sold' | 'leased'
+    >;
+    /** Écriture `property.sale` d'une offre vendue. */
+    ledger_entry_id: ColumnType<string | null, never, string>;
+  };
+  /**
+   * Baux (4.5, #257) : termes immuables ; la fin se demande une fois, puis prend effet dans la transaction
+   * de la clôture de son jour, datée par la base (garde).
+   */
+  'game.leases': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    property_id: ColumnType<string, string, never>;
+    listing_id: ColumnType<string, string, never>;
+    landlord_house_id: ColumnType<string, string, never>;
+    tenant_house_id: ColumnType<string, string, never>;
+    /** `bigint` : lu en texte. */
+    rent_oboles: ColumnType<string, number, never>;
+    started_at: ColumnType<Date, never, never>;
+    end_requested_at: ColumnType<Date | null, never, never>;
+    end_requested_by: ColumnType<'landlord' | 'tenant' | null, never, 'landlord' | 'tenant'>;
+    ended_at: ColumnType<Date | null, never, never>;
+    ended_day: ColumnType<number | null, never, number>;
+    end_reason: ColumnType<'requested' | 'unpaid' | null, never, 'requested' | 'unpaid'>;
+  };
   /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
   'game.elections': {
     id: ColumnType<string, never, never>;
