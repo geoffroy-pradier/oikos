@@ -700,5 +700,22 @@
     "outOfBounds": "Hors des bornes du décret.",
     "submit": "Proposer au vote",
     "done": "Décret proposé : il est au vote."
+  },
+  "treasury": {
+    "title": "Trésor public",
+    "balance": "Solde : {{amount}}",
+    "marketTax": "Taxe de marché en vigueur : {{rate}}",
+    "portDues": "Droit de port en vigueur : coefficient {{factor}}",
+    "flows": "Recettes et dépenses des derniers jours où le trésor a bougé",
+    "noFlows": "Aucun mouvement du trésor pour l'instant.",
+    "day": "{{date}} : net {{net}}",
+    "noDay": "Jour inconnu",
+    "natures": {
+      "market_tax": "Taxe de marché : {{amount}}",
+      "port_dues": "Droit de port : {{amount}}",
+      "public_works": "Grands travaux : {{amount}}",
+      "festival": "Fêtes : {{amount}}",
+      "other": "Autres mouvements : {{amount}}"
+    }
   }
 }
