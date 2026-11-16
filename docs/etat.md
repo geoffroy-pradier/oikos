@@ -1,9 +1,10 @@
 # État du projet
 
-Point d'étape au 16 novembre 2026, vers 4 h (heure de Paris).
+Point d'étape au 16 novembre 2026, vers 8 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Dix sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 (salaires), #260 (citoyenneté et élection de l'archonte), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
+Onze sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 (salaires), #256 (immobilier, 1/2), #260 (citoyenneté et élection de l'archonte), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
+Le suivi #354 (test instable du moteur près de la clôture) est fermé lui aussi.
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -14,8 +15,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250, #251, #252, #253, #254, #255, #260, #268, #273, #291.
-  En cours : #256 (immobilier, 1/2), relu et en cours de rebase.
+  Fermés : #250, #251, #252, #253, #254, #255, #256, #260, #268, #273, #291.
+  En cours : #257 (baux et revente des biens) et #261 (décrets, 1/3), menés en parallèle.
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -108,6 +109,14 @@ Ajouts de la phase 2 :
   L'onglet Carte montre l'archipel, ses routes et la flotte, doublés d'une liste au clavier, avec le chantier naval, la fiche de chaque navire et le départ en deux touches.
   La Vigie compte les voyages en retard de déchargement.
   Provisions, droit de port et entretien des navires sont à zéro dans la configuration initiale (paramètres neutres) jusqu'au calibrage (#283).
+- **Immobilier** (#256, 4.5) : chaque cité a un parc fini de logements en deux tailles, maison de ville et immeuble de rapport, créé par le moteur au premier tick qui la connaît.
+  Une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde ; le prix est détruit par un puits.
+  Elle le rénove en payant en oboles et en consommant des biens de son stock dans la cité du bien ; le bien redevient neuf.
+  À la clôture, chaque bien perd sa vétusté du jour, puis son entretien est payé après les sites et les navires, chacun en entier ou pas du tout.
+  Un bien impayé est marqué ; la simulation lui compte alors zéro logement, mais rien n'utilise encore cette capacité (#257, #258).
+  La base garantit qu'un bien ne change de propriétaire que par une écriture d'achat, et que son état ne remonte que par une rénovation.
+  Vues : règles et parc publics, sans nom de propriétaire, et biens de sa maison.
+  Entretien et vétusté sont à zéro dans la configuration initiale ; ni location, ni revente (#257), ni écran (#259) pour l'instant.
 - **Salaires** (#255, 4.4) : chaque site paie chaque jour ses travailleurs à la clôture, avec son entretien, à un puits ; à zéro dans la configuration initiale.
 - **Citoyenneté et élection de l'archonte** (#260, ADR 0007) : une maison devient citoyenne de sa cité selon les règles de la configuration ; l'archonte est élu à date fixe, au vote secret entre joueurs.
 - **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
@@ -363,6 +372,9 @@ Défauts connus :
   - la lecture des usages (#191, #200) parcourt sites, stocks et ordres de tous les mondes à chaque
     affichage des Paramètres ;
   - `deploy.sh` lui-même n'a jamais tourné, faute de serveur.
+- **Tests d'intégration partageant une base** : certains programment des versions de configuration et les annulent à la fin (#354), sauf à moins d'une minute de l'échéance, ce que la base refuse.
+  Deux suites lancées en même temps sur la même base peuvent encore se gêner.
+  Les scripts lancent une suite à la fois en local, et en `ci` l'api et le reste ont chacun leur base.
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
   traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
 
