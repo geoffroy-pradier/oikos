@@ -145,3 +145,12 @@ export const eventsAbout = async (type: string, id: string) =>
       where type = ${type} and (payload->>'leaseId' = ${id} or payload->>'propertyId' = ${id})
       order by seq`.execute(db)
   ).rows.map((event) => event.payload);
+
+/** Verse `oboles` à la trésorerie de la maison, par le robinet de la dotation (jeu d'essai). */
+export const fund = (houseId: string, oboles: number) =>
+  sql`with entry as (insert into game.ledger_entries (world_id, kind)
+      select world_id, 'test.fund' from game.houses where id = ${houseId} returning id, world_id)
+    insert into game.ledger_lines (entry_id, account_id, amount)
+    select entry.id, a.id, case when a.kind = 'house' then ${oboles}::bigint else -${oboles}::bigint end
+    from entry join game.accounts a on a.world_id = entry.world_id
+    where a.house_id = ${houseId} or a.system_key = 'faucet_starting_grant'`.execute(owner);
