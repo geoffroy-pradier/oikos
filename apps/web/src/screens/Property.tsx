@@ -52,7 +52,7 @@ export function PropertyScreen() {
   );
   const leaseRows = useRows<unknown>(
     'my_leases',
-    'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, end_reason',
+    'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, ended_day, end_reason',
     'started_at',
   );
   const reads = [rulesRows, cityRows, offerRows, mineRows, leaseRows];

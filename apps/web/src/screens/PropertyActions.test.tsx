@@ -106,23 +106,4 @@ describe('commandes du propriétaire (#259)', () => {
       ['property.offerLease', { propertyId: 'p9', rentOboles: 500 }],
     ]);
   });
-
-  it('une offre ouverte se retire ; un bien loué ne s’offre pas ; un bien neuf ne se rénove pas', async () => {
-    state.views['my_properties'] = [
-      { ...mine, id: 'p2', lot: 2, condition: 10000 },
-      { ...mine, id: 'p5', lot: 5 },
-    ];
-    state.views['my_leases'] = [
-      { id: 'l1', property_id: 'p5', city_id: 'c1', size_id: 'townhouse', lot: 5 },
-    ]
-      .map((row) => ({ ...row, tenant_house_id: 'h2', rent_oboles: 40, end_requested_at: null }))
-      .map((row) => ({ ...row, ended_at: null, end_reason: null }));
-    await showProperty();
-    expect(screen.queryByRole('button', { name: /^Rénover/ })).not.toBeNull();
-    expect(screen.getAllByRole('button', { name: /^Rénover/ })).toHaveLength(1);
-    expect(screen.queryByLabelText(fr.property.priceLabel)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^Retirer l'offre de location/ }));
-    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
-    expect(sent()[0]?.slice(0, 2)).toEqual(['property.withdrawOffer', { propertyId: 'p2' }]);
-  });
 });

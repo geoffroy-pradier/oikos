@@ -60,6 +60,7 @@ const lease = {
   rent_oboles: 40,
   end_requested_at: null,
   ended_at: null,
+  ended_day: null,
   end_reason: null,
 };
 beforeEach(() => {
@@ -128,7 +129,14 @@ describe('écran Immobilier (#259)', () => {
     state.views['my_leases'] = [
       lease,
       { ...lease, id: 'l2', lot: 6, end_requested_at: '2026-11-16T10:00:00Z' },
-      { ...lease, id: 'l3', lot: 7, ended_at: '2026-11-15T03:00:00Z', end_reason: 'unpaid' },
+      {
+        ...lease,
+        id: 'l3',
+        lot: 7,
+        ended_at: '2026-11-15T03:00:00Z',
+        ended_day: 1,
+        end_reason: 'unpaid',
+      },
     ];
     await showProperty();
     expect(screen.getByText(fr.property.ending)).toBeTruthy();

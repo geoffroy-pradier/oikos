@@ -1,11 +1,11 @@
 import { Button, Field } from '@oikos/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { propertyCommand } from '../api';
+import type { PropertyCommandInputs } from '../api';
 import { useMoney } from '../money';
 import type { MyProperty, Offer, PropertySize } from '../property';
 
-type Command = Parameters<typeof propertyCommand>[0];
+type Command = keyof PropertyCommandInputs;
 
 /**
  * Commandes du propriétaire sur un de ses biens (4.5) : rénovation au coût en vigueur, mise en vente ou
@@ -24,7 +24,11 @@ export function PropertyActions({
   offer: Offer | undefined;
   leased: boolean;
   busy: boolean;
-  run: (intent: string, name: Command, input: Record<string, unknown>) => Promise<void>;
+  run: <N extends Command>(
+    intent: string,
+    name: N,
+    input: PropertyCommandInputs[N],
+  ) => Promise<void>;
 }) {
   const { t, i18n } = useTranslation();
   const money = useMoney();
@@ -41,7 +45,7 @@ export function PropertyActions({
           variant="secondary"
           aria-disabled={busy}
           onClick={() =>
-            void run(`renovate:${property.id}`, 'property.renovate', {
+            void run(`renovate:${property.id}:${JSON.stringify(renovation)}`, 'property.renovate', {
               propertyId: property.id,
               expectedCostOboles: renovation.oboles,
               expectedGoods: renovation.goods,
@@ -88,13 +92,14 @@ export function PropertyActions({
                 key={action}
                 variant="secondary"
                 aria-disabled={busy || price === null}
-                onClick={() =>
-                  price !== null &&
-                  void run(`${action}:${property.id}`, `property.${action}`, {
-                    propertyId: property.id,
-                    [action === 'listForSale' ? 'priceOboles' : 'rentOboles']: price,
-                  })
-                }
+                onClick={() => {
+                  if (price === null) return;
+                  const intent = `${action}:${property.id}:${price}`;
+                  const propertyId = property.id;
+                  void (action === 'listForSale'
+                    ? run(intent, 'property.listForSale', { propertyId, priceOboles: price })
+                    : run(intent, 'property.offerLease', { propertyId, rentOboles: price }));
+                }}
               >
                 {t(`property.${action}`)}
               </Button>
