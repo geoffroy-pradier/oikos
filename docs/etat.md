@@ -1,9 +1,9 @@
 # État du projet
 
-Point d'étape au 16 novembre 2026, vers 8 h (heure de Paris).
+Point d'étape au 16 novembre 2026, vers 11 h 30 (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Onze sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 (salaires), #256 (immobilier, 1/2), #260 (citoyenneté et élection de l'archonte), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
+Treize sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 (salaires), #256 et #257 (immobilier : parc, baux et revente), #260 (citoyenneté et élection de l'archonte), #261 (décrets, proposition et vote), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
 Le suivi #354 (test instable du moteur près de la clôture) est fermé lui aussi.
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
@@ -15,8 +15,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250, #251, #252, #253, #254, #255, #256, #260, #268, #273, #291.
-  En cours : #257 (baux et revente des biens) et #261 (décrets, 1/3), menés en parallèle.
+  Fermés : #250, #251, #252, #253, #254, #255, #256, #257, #260, #261, #268, #273, #291.
+  En cours : #258 (marché du travail et logement) et #262 (décrets de taux), menés en parallèle.
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -113,12 +113,20 @@ Ajouts de la phase 2 :
   Une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde ; le prix est détruit par un puits.
   Elle le rénove en payant en oboles et en consommant des biens de son stock dans la cité du bien ; le bien redevient neuf.
   À la clôture, chaque bien perd sa vétusté du jour, puis son entretien est payé après les sites et les navires, chacun en entier ou pas du tout.
-  Un bien impayé est marqué ; la simulation lui compte alors zéro logement, mais rien n'utilise encore cette capacité (#257, #258).
+  Un bien impayé est marqué ; la simulation lui compte alors zéro logement, mais rien n'utilise encore cette capacité (#258).
   La base garantit qu'un bien ne change de propriétaire que par une écriture d'achat, et que son état ne remonte que par une rénovation.
   Vues : règles et parc publics, sans nom de propriétaire, et biens de sa maison.
-  Entretien et vétusté sont à zéro dans la configuration initiale ; ni location, ni revente (#257), ni écran (#259) pour l'instant.
+  Entretien et vétusté sont à zéro dans la configuration initiale ; pas encore d'écran (#259).
+- **Baux et revente entre maisons** (#257, 4.5) : une maison offre un bien qu'elle possède à la vente ou à la location, à un prix qu'elle fixe.
+  Une autre maison l'achète au prix affiché, taxé comme à l'agora, ou le prend à bail, sans durée ni paiement à la signature.
+  À la clôture, avant la vétusté et l'entretien, chaque bail paie le loyer d'un jour en entier ; sinon il prend fin, impayé.
+  Une fin de bail demandée par l'une des parties prend effet à la clôture suivante, sans loyer.
+  Loyers et reventes entrent dans les comptes de la maison ; les offres ouvertes sont publiques, sans le nom de la maison qui offre.
 - **Salaires** (#255, 4.4) : chaque site paie chaque jour ses travailleurs à la clôture, avec son entretien, à un puits ; à zéro dans la configuration initiale.
 - **Citoyenneté et élection de l'archonte** (#260, ADR 0007) : une maison devient citoyenne de sa cité selon les règles de la configuration ; l'archonte est élu à date fixe, au vote secret entre joueurs.
+- **Décrets, proposition et vote** (#261, 6.3) : l'archonte propose un décret pris dans un catalogue fermé de quatre modèles aux paramètres bornés ; les citoyens votent, une voix par maison.
+  La clôture dépouille les votes clos : le décret est adopté si le quorum est atteint et si les votes pour l'emportent strictement.
+  Un décret adopté n'a encore aucun effet (#262, #263), et il n'y a pas d'écran (#264).
 - **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
   Commandes `chat.openDirect` et `chat.post`, limite de débit propre à la discussion, messages purgés après 30 jours (configuration).
   Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
