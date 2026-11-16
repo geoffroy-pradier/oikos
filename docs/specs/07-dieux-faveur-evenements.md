@@ -27,6 +27,10 @@ Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et 
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
 Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues avec les grâces (#266).
 Une version publiée avant la Charis se lit sans taux : aucun dieu n'y accepte d'offrande, rien ne décline, et la Charis de cité est nulle.
+La Charis de cité d'une cité est la Charis de ses citoyennes envers son dieu protecteur, sommée, fois le poids de ce dieu (10 000 = ×1), arrondie vers zéro : les métèques n'y comptent pas.
+Décision (ambiguïté de cette section) : elle suit la Charis courante, déclin compris, plutôt que le cumul des offrandes, et rien ne la consomme encore (miracles : phase 3).
+Lectures : `temple_rules` (publique : la section `gods` de la configuration en vigueur), `my_favor` (privée : la Charis de sa maison par dieu) et `city_charis` (publique : la Charis de chaque cité envers son dieu protecteur).
+Une cité dont on est la seule citoyenne révèle donc sa Charis envers le dieu protecteur, au poids près.
 
 ## 7.2 Hybris et Némésis
 
