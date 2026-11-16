@@ -411,8 +411,10 @@
       "title": "Labour market",
       "none": "Not set yet: it will be at the next daily close.",
       "wage": "Wage of the day: {{cost}} per worker",
-      "employment": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
-      "unlimited": "{{employed}} employed; unlimited labour",
+      "employment_one": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
+      "employment_other": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
+      "unlimited_one": "{{employed}} employed; unlimited labour",
+      "unlimited_other": "{{employed}} employed; unlimited labour",
       "lodging": "Lodging with the inhabitants: {{cost}} a night",
       "unhoused": "Unhoused workers in the city: {{number}}"
     },

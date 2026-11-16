@@ -105,8 +105,12 @@ export function CityScreen() {
             <li>{t('city.labor.wage', { cost: money(labor.wageOboles) })}</li>
             <li>
               {employment === null
-                ? t('city.labor.unlimited', { employed: number.format(labor.employed) })
+                ? t('city.labor.unlimited', {
+                    count: labor.employed,
+                    employed: number.format(labor.employed),
+                  })
                 : t('city.labor.employment', {
+                    count: labor.employed,
                     percent: percent.format(employment),
                     employed: number.format(labor.employed),
                     supply: number.format(labor.supply),

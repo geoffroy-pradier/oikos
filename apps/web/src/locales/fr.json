@@ -411,8 +411,10 @@
       "title": "Marché du travail",
       "none": "Pas encore fixé : il le sera à la prochaine clôture quotidienne.",
       "wage": "Salaire du jour : {{cost}} par travailleur",
-      "employment": "Taux d'emploi : {{percent}} ({{employed}} employés pour {{supply}} travailleurs disponibles)",
-      "unlimited": "{{employed}} employés ; main-d’œuvre sans limite",
+      "employment_one": "Taux d'emploi : {{percent}} ({{employed}} employé pour {{supply}} travailleurs disponibles)",
+      "employment_other": "Taux d'emploi : {{percent}} ({{employed}} employés pour {{supply}} travailleurs disponibles)",
+      "unlimited_one": "{{employed}} employé ; main-d’œuvre sans limite",
+      "unlimited_other": "{{employed}} employés ; main-d’œuvre sans limite",
       "lodging": "Hébergement chez les habitants : {{cost}} la nuit",
       "unhoused": "Travailleurs sans logement dans la cité : {{number}}"
     },

@@ -78,5 +78,9 @@ describe('onglet Cité : marché du travail et parc (#259)', () => {
     state.views = { labor_market: [{ ...day, supply: 0 }] };
     await show(<CityScreen />);
     expect(screen.getByText('30 employés ; main-d’œuvre sans limite')).toBeTruthy();
+    cleanup();
+    state.views = { labor_market: [{ ...day, supply: 0, employed: 1 }] };
+    await show(<CityScreen />);
+    expect(screen.getByText('1 employé ; main-d’œuvre sans limite')).toBeTruthy();
   });
 });
