@@ -1,4 +1,5 @@
 import { tradeExecutedSchema } from '@oikos/contracts';
+import { cityRates } from '@oikos/db';
 import {
   classDemand,
   gameDayAt,
@@ -25,7 +26,7 @@ const CONSUMPTION = 'npc_consumption';
  * limite de leur demande à ce prix, de leur budget du tick et de leur prix de réserve. Chaque achat est
  * payé par le robinet au grand livre, enregistré comme échange sans ordre d'achat, annoncé par un événement
  * de domaine `TradeExecuted`, puis consommé par le
- * journal des stocks. La même écriture prélève la taxe de marché sur le vendeur, comme entre joueurs : le
+ * journal des stocks. La même écriture prélève la taxe de marché de la cité sur le vendeur, comme entre joueurs : le
  * budget des PNJ se compte en brut, le vendeur reçoit le net. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
  *
  * Demande et budget suivent la population courante de la cité (`game.npc_population`) : une classe sans
@@ -55,6 +56,8 @@ export const npcDemand: TickStep = {
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
+    // Taxe de chaque cité (5.6), lue sous ce verrou : celui que prend la clôture qui applique un décret.
+    const rates = await cityRates(trx, worldId, config);
     // Comptes du monde lus au premier besoin : le robinet, le puits de la taxe, le trésor de chaque cité.
     const accountIds = new Map<string, string>();
     const accountOf = async (column: 'system_key' | 'city_id', value: string) => {
@@ -72,6 +75,9 @@ export const npcDemand: TickStep = {
     for (const city of cities) {
       const initial = config.cities.find((entry) => entry.id === city.slug)?.population;
       if (!initial) continue;
+      const rateBps = rates.get(city.id)?.marketTaxRateBps;
+      if (rateBps === undefined) throw new Error(`No market tax rate for city ${city.id}`);
+      const rule = { rateBps, burnShareBps: config.marketTax.burnShareBps };
       const state = await trx
         .selectFrom('game.npc_population')
         .select(['class_id', 'population'])
@@ -168,7 +174,7 @@ export const npcDemand: TickStep = {
             .where('good_id', '=', goodId)
             .executeTakeFirstOrThrow();
           const amount = fill.price * fill.quantity;
-          const tax = marketTax(amount, config.marketTax);
+          const tax = marketTax(amount, rule);
           // Une ligne nulle n'est pas une ligne : part nulle, ou vente d'une obole que la taxe prend entière.
           const lines = [{ account_id: faucet, amount: -amount }];
           if (tax.net > 0) lines.push({ account_id: account.id, amount: tax.net });

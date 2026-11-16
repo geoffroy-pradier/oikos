@@ -14,6 +14,8 @@ Les lectures et le temps réel passent par Supabase, toute action de jeu par l'A
 - **Configuration versionnée** : les versions sont immuables et leurs activations, programmées, sont tenues en ajout seul (`config.activations`).
   Un tick ou une clôture lit la version en vigueur à son instant avant d'ouvrir sa transaction, sans verrou sur les activations, et l'enregistre : c'est elle qui fait foi pour le rejouer.
   Garanties de la base sur les activations et limite assumée : 13 (ticket 208).
+- **Règle calculée depuis l'état du jeu** : quand le service et les joueurs lisent la même valeur dérivée de la base et de la configuration, son calcul est une fonction SQL plutôt que `packages/sim`, ainsi le taux d'une cité (`game.city_rates`, ticket 262).
+  Raison : la vue des joueurs ne peut appeler que du SQL, et une seule définition évite que l'écran annonce une valeur que l'API ne prélève pas ; `packages/sim` garde les calculs purs qui ne lisent pas la base (la taxe d'un échange à un taux donné).
 
 ## 11.2 Choix techniques
 

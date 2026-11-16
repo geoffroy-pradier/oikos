@@ -9,6 +9,8 @@ import {
 } from 'kysely';
 import pg from 'pg';
 
+export * from './city-rates';
+
 /** Tables du schéma `game`. À remplacer par les types générés quand le schéma grossira. */
 export interface GameDatabase {
   'game.worlds': { id: Generated<string>; slug: string; name: string; created_at: Generated<Date> };
