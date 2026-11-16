@@ -37,3 +37,9 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Offrande (offering) | Don d'oboles, détruites, et de biens, retirés de la circulation, qu'une maison fait à un dieu pour gagner de la Charis (`offerings`, `temple.makeOffering`) |
 | Déclin (decay) | Part de sa Charis qu'une maison perd envers chaque dieu à chaque clôture, arrondie vers zéro (`dailyDecayBps`) |
 | Charis de cité (city Charis) | Charis des citoyens d'une cité envers son dieu protecteur, sommée et pondérée par le dieu (`city_charis`) |
+| Événement du monde (world event) | Événement planifié par le moteur quelques jours à l'avance, tiré de la graine du monde ; les joueurs ne le voient qu'à son début (`world_events`) |
+| Graine du monde (world seed) | Valeur secrète tirée à la création d'un monde, jamais modifiée, dont se dérive l'aléa des événements de chaque jour (`worlds.seed`) |
+| Sécheresse (drought) | Événement du monde qui réduit, pendant ses jours, le rendement des champs d'une cité (`drought`) |
+| Bonne année (good year) | Événement du monde qui accroît, pendant ses jours, le rendement des vergers d'une cité (`good_year`) |
+| Tempête (storm) | Événement du monde qui allonge les trajets partis sur une route pendant ses jours, sans rien faire perdre (`storm`) |
+| Caravane étrangère (foreign caravan) | Événement du monde qui accroît, pendant ses jours, la demande des PNJ d'une cité pour un bien (`caravan`) |
