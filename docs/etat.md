@@ -1,9 +1,9 @@
 # État du projet
 
-Point d'étape au 15 novembre 2026, vers 21 h (heure de Paris).
+Point d'étape au 16 novembre 2026, vers 4 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
-Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus le suivi #291).
-Trois sont fermés : #250 (quatre cités), #268 (passerelle IA) et #291 (écran Sites filtré par terroir).
+Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
+Dix sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 (salaires), #260 (citoyenneté et élection de l'archonte), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -14,8 +14,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250, #268, #291.
-  En cours, dans des branches pas encore publiées : #251 (navires) et #255 (salaires).
+  Fermés : #250, #251, #252, #253, #254, #255, #260, #268, #273, #291.
+  En cours : #256 (immobilier, 1/2), relu et en cours de rebase.
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -69,7 +69,7 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
   en drachmes et oboles, les stocks valorisés au prix moyen observé et le compte de résultat par jour ou
   par saison.
 - **Client.** Application web installable (PWA), utilisable à 360 px de large et au clavier, en français
-  et en anglais. Onglets Maison, Agora et Cité ; Carte et Messages sont des coquilles vides. Une nouvelle
+  et en anglais. Onglets Maison, Carte, Agora et Cité ; Messages est une coquille vide (l'écran de la discussion attend #274). Une nouvelle
   version est proposée, jamais imposée pendant une saisie. Une acquisition restée sans réponse garde sa
   clé d'idempotence, même onglet quitté : la renvoyer rejoue l'achat au lieu de le payer deux fois. Même
   aboutie, la clé n'est rendue qu'à la relecture qui montre le site acheté (#176). L'avertissement d'une
@@ -101,6 +101,18 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
 
 Ajouts de la phase 2 :
 
+- **Transport** (#251 à #254, 4.6) : une maison achète des navires et les fait partir d'une cité vers une autre reliée par une route, chargés d'une cargaison prise dans son stock libre.
+  Le départ paie les provisions de la route et le droit de port de la cité d'arrivée ; une part du droit est détruite, le reste va au trésor de la cité.
+  La cargaison est en transit au journal des stocks pendant le trajet ; à chaque tick, le moteur décharge les voyages échus dans la cité d'arrivée, et le navire y est à quai.
+  L'entretien des navires est prélevé à la clôture, après celui des sites ; un navire impayé est désarmé jusqu'à la clôture qui le paie.
+  L'onglet Carte montre l'archipel, ses routes et la flotte, doublés d'une liste au clavier, avec le chantier naval, la fiche de chaque navire et le départ en deux touches.
+  La Vigie compte les voyages en retard de déchargement.
+  Provisions, droit de port et entretien des navires sont à zéro dans la configuration initiale (paramètres neutres) jusqu'au calibrage (#283).
+- **Salaires** (#255, 4.4) : chaque site paie chaque jour ses travailleurs à la clôture, avec son entretien, à un puits ; à zéro dans la configuration initiale.
+- **Citoyenneté et élection de l'archonte** (#260, ADR 0007) : une maison devient citoyenne de sa cité selon les règles de la configuration ; l'archonte est élu à date fixe, au vote secret entre joueurs.
+- **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
+  Commandes `chat.openDirect` et `chat.post`, limite de débit propre à la discussion, messages purgés après 30 jours (configuration).
+  Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
   La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
@@ -313,6 +325,15 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   `dev-sensible` et relu par `relecteur-sensible` ; les autres demandes sont relues par une session
   distincte. Les commits des sous-agents portent leur propre ligne `Co-Authored-By`.
 
+- **Phase 2, décisions de conception** (prises ticket par ticket, écrites dans les spécifications citées) :
+  - les vues et fonctions recréées sans condition par d'anciennes migrations ne gagnent pas de colonnes (ADR 0006) : salaires et transport comptent dans la colonne d'entretien du compte de résultat (« Entretien, salaires et transport »), routes et tarifs passent par le jsonb `ships` de `ship_rules` ;
+  - le droit de port est un forfait par classe de navire, modulé par la cité d'arrivée et payé au départ ;
+  - l'arrivée est une étape du tick qui ne traite que les voyages échus, écart assumé avec l'évaluation paresseuse des trajets (13) ;
+  - l'écran Carte place les cités sur un schéma sans distance : la configuration ne donne pas de coordonnées.
+- **Lancement en local** (#320) : `pnpm local:api`, `local:engine`, `local:web` et `local:admin` lancent chaque application depuis la racine, sous Windows comme ailleurs ; Supabase Studio est ouvert en local sur le port 54323.
+- **Relectures de la phase 2** : chaque demande `sensible` a été relue par `relecteur-sensible`, et relue à nouveau après la correction d'un point bloquant ; elles portent toutes `a-relire-fable`.
+  Les tickets ordinaires (#254, #291) ont été relus par une session distincte.
+
 ## Points en suspens
 
 À décider ou à faire par un humain :
@@ -332,6 +353,10 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 
 Défauts connus :
 
+- **Interblocage récolte et tick** (#333) : depuis l'arrivée des voyages, une récolte et le tick peuvent s'interbloquer quand une maison reçoit dans une cité un bien qu'elle y vend aux PNJ.
+  Postgres annule l'une des deux transactions en entier, sans double effet : le tick est repris au passage suivant, mais le joueur dont la récolte est annulée reçoit une erreur interne ; #333 fera rejouer automatiquement la commande.
+- **Étape d'arrivée d'un seul tenant** : tous les voyages échus d'un monde sont déchargés dans la transaction de son tick ; une erreur sur l'un d'eux ferait échouer tout le tick du monde.
+
 - **Non suivis en ticket, relevés en relecture** :
   - le rapprochement d'audit de #208 n'est exécuté par aucune vue ni tâche ;
   - la Vigie n'envoie aucune alerte : il faut l'ouvrir ;
@@ -343,7 +368,7 @@ Défauts connus :
 
 Limites assumées pour l'instant :
 
-- Pas encore de transport : tout stock est dans la cité de la maison, et chaque cité vit de sa propre agora.
+- Le transport est en jeu, mais à paramètres neutres : il ne coûte rien tant que le calibrage (#283) n'a pas fixé provisions, droit de port et entretien des navires.
 - Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
   des sites relit ses sites et ses règles chaque minute (onglet visible), et l'heure du serveur au retour sur
   l'onglet.
