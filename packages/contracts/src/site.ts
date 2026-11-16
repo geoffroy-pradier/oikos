@@ -75,6 +75,8 @@ export const SITE_ACQUIRE_ERROR_CODES = [
   'INSUFFICIENT_FUNDS',
   /** Le prix en vigueur n'est pas celui que le client a envoyé : rien n'est payé, réessayer au nouveau prix. */
   'PRICE_CHANGED',
+  /** La cité n'offre plus les travailleurs de cette recette (4.4, #258) : rien n'est payé. */
+  'NO_WORKERS_AVAILABLE',
 ] as const;
 export type SiteAcquireErrorCode = (typeof SITE_ACQUIRE_ERROR_CODES)[number];
 
@@ -108,6 +110,8 @@ export const SITE_SET_RECIPE_ERROR_CODES = [
   'SITE_HALTED',
   /** Le site a bougé pendant la commande. Comme tout refus, il est lié à sa clé : réessayer avec une clé neuve. */
   'SITE_CHANGED',
+  /** La nouvelle recette demande plus de travailleurs que la cité n'en offre encore (#258) : rien ne change. */
+  'NO_WORKERS_AVAILABLE',
 ] as const;
 export type SiteSetRecipeErrorCode = (typeof SITE_SET_RECIPE_ERROR_CODES)[number];
 

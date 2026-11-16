@@ -4,12 +4,14 @@ import {
   houseCreateOutputSchema,
 } from '@oikos/contracts';
 import { cityStartingRecipeId } from '@oikos/config';
+import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand } from '../registry';
 
 /**
  * Fonde la maison du joueur, l'inscrit comme métèque dans sa cité d'accueil, ouvre son compte, lui verse
  * la dotation de départ (robinet `faucet_starting_grant`) et lui confie son premier site, qui lance la
- * recette de départ de cette cité (6.1), sinon la recette de départ commune.
+ * recette de départ de cette cité (6.1), sinon la recette de départ commune. Si la cité n'offre plus les
+ * travailleurs de ce site (4.4, #258), la maison n'est pas fondée : le joueur choisit une autre cité.
  */
 export const houseCreate = defineCommand({
   name: 'house.create',
@@ -37,6 +39,30 @@ export const houseCreate = defineCommand({
       .where('id', '=', input.cityId)
       .executeTakeFirst();
     if (!city) return { ok: false, error: { code: 'CITY_NOT_FOUND', message: 'Unknown city.' } };
+    // Un compte qui a déjà sa maison dans ce monde l'apprend avant tout contrôle des travailleurs (la
+    // contrainte de la base reste le garde-fou sous concurrence).
+    const existing = await trx
+      .selectFrom('game.houses')
+      .select('id')
+      .where('user_id', '=', userId)
+      .where('world_id', '=', city.world_id)
+      .executeTakeFirst();
+    if (existing)
+      return {
+        ok: false,
+        error: { code: 'HOUSE_ALREADY_EXISTS', message: 'This account already has a house.' },
+      };
+    // Le schéma garantit qu'elle est connue, sans intrant, et dans le terroir de la cité.
+    const siteRecipeId = cityStartingRecipeId(config, city.slug);
+    const workers = config.recipes.find((recipe) => recipe.id === siteRecipeId)?.workers ?? 0;
+    if (laborIsLimited(config) && workers > 0) {
+      await lockCityLabor(trx, city.id);
+      if (!(await workersAvailable(trx, config, city, workers)))
+        return {
+          ok: false,
+          error: { code: 'NO_WORKERS_AVAILABLE', message: 'This city has no workers left.' },
+        };
+    }
 
     const house = await trx
       .insertInto('game.houses')
@@ -76,8 +102,6 @@ export const houseCreate = defineCommand({
       .returning('id')
       .executeTakeFirstOrThrow();
     const { grantOboles } = config.starting;
-    // Le schéma garantit qu'elle est connue, sans intrant, et dans le terroir de la cité.
-    const siteRecipeId = cityStartingRecipeId(config, city.slug);
     await trx
       .insertInto('game.ledger_lines')
       .values([

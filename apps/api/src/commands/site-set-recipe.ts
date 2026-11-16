@@ -7,6 +7,7 @@ import { accrueWorkshop } from '@oikos/sim';
 import { cityTerroirAdmits, type Recipe } from '@oikos/config';
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
+import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand, type CommandResult } from '../registry';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
@@ -20,6 +21,8 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
  * Ce qui est déjà produit doit d'abord être récolté ; le cycle entamé est perdu, et le nouveau commence à l'instant présent (la base l'exige).
  * Un site dont la recette a quitté la configuration n'a plus de type ni de production : il adopte
  * n'importe quelle recette, sans récolte préalable, et repart sans rien payer s'il était à l'arrêt.
+ * Une recette qui demande plus de travailleurs que l'actuelle les demande à la cité (4.4, #258) : s'ils
+ * n'y sont pas, refus, sans rien changer.
  */
 export const siteSetRecipe = defineCommand({
   name: 'site.setRecipe',
@@ -27,6 +30,20 @@ export const siteSetRecipe = defineCommand({
   output: siteSetRecipeOutputSchema,
   errors: SITE_SET_RECIPE_ERROR_CODES,
   async handler({ trx, userId, emit, config, now }, input) {
+    // Le verrou du marché du travail de la cité, avant celui du site, que la clôture peut tenir : la cité
+    // d'un site ne change jamais, elle se lit sans verrou.
+    const target = config.recipes.find((candidate) => candidate.id === input.recipeId);
+    if (target && target.workers > 0 && laborIsLimited(config)) {
+      const located = await trx
+        .selectFrom('game.sites')
+        .select('city_id')
+        .where('id', '=', input.siteId)
+        .where('house_id', 'in', (houses) =>
+          houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
+        )
+        .executeTakeFirst();
+      if (located) await lockCityLabor(trx, located.city_id);
+    }
     // Verrouille le site : une collecte simultanée passe avant ou après, jamais pendant.
     const site = await trx
       .selectFrom('game.sites')
@@ -69,6 +86,9 @@ export const siteSetRecipe = defineCommand({
     const city = config.cities.find((candidate) => candidate.id === slug);
     if (!cityTerroirAdmits(city, next))
       return refuse('RECIPE_NOT_IN_TERROIR', 'This production does not grow in this city.');
+    const extraWorkers = next.workers - (current?.workers ?? 0);
+    if (!(await workersAvailable(trx, config, { id: site.city_id, slug }, extraWorkers)))
+      return refuse('NO_WORKERS_AVAILABLE', 'This city has no workers left for this production.');
     if (current) {
       if (await producedSomething(trx, site, current, now))
         return refuse('COLLECT_FIRST', 'Collect what the site has produced first.');
