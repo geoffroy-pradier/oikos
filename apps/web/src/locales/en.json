@@ -694,12 +694,15 @@
     "factor": "Port dues coefficient",
     "amount": "Amount, in obols",
     "days": "Duration, in game days",
-    "goods_one": "Festival goods (at most {{count}})",
-    "goods_other": "Festival goods (at most {{count}})",
+    "goods_one": "Festival goods (1 to {{count}})",
+    "goods_other": "Festival goods (1 to {{count}})",
     "between": "Between {{min}} and {{max}}",
     "outOfBounds": "Outside the decree's bounds.",
     "submit": "Put to the vote",
-    "done": "Decree proposed: it is under vote."
+    "done": "Decree proposed: it is under vote.",
+    "betweenOboles": "Between {{min}} and {{max}} obols ({{minMoney}} to {{maxMoney}}).",
+    "amountIs": "That is {{amount}}.",
+    "tooManyGoods": "Too many goods for this festival."
   },
   "treasury": {
     "title": "Public treasury",

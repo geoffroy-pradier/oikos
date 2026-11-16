@@ -120,4 +120,36 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     });
     expect(await screen.findByText(fr.errors.SPENDING_CAP_EXCEEDED)).toBeTruthy();
   });
+  it('chaque champ jugé seul : un montant de fête hors bornes est dit sous le montant, pas sous la durée', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    expect(
+      screen.getByText(/^Entre 300 et 30000 oboles \(50 drachmes à 5\s?000 drachmes\)\.$/),
+    ).toBeTruthy();
+    const amount = screen.getByLabelText(fr.decreeForm.amount);
+    const days = screen.getByLabelText(fr.decreeForm.days);
+    fireEvent.change(amount, { target: { value: '99999999' } });
+    fireEvent.change(days, { target: { value: '2' } });
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(days.getAttribute('aria-invalid')).toBeNull();
+    fireEvent.change(amount, { target: { value: '600' } });
+    expect(amount.getAttribute('aria-invalid')).toBeNull();
+    expect(screen.getByText(/Soit 100 drachmes\.$/)).toBeTruthy();
+    for (const good of ['Pain', 'Vin', 'Poisson', "Huile d'olive"])
+      fireEvent.click(screen.getByRole('checkbox', { name: good }));
+    expect(screen.getByText(fr.decreeForm.tooManyGoods)).toBeTruthy();
+    expect(submit().getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('lecture des charges ou des règles en échec : annoncée, sans formulaire', async () => {
+    state.views = { decree_rules: rules, offices: null };
+    await show();
+    expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+    cleanup();
+    state.views = { decree_rules: null, offices: [archon] };
+    await show();
+    expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+    expect(screen.queryByText(fr.decreeForm.title)).toBeNull();
+  });
 });

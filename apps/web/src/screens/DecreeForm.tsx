@@ -12,6 +12,7 @@ import { parseDecreeRules } from '../decrees';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { parseOffices } from '../politics';
+import { LoadProblem } from './LoadProblem';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
@@ -64,6 +65,11 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
     if (notice && (active === document.body || active?.getAttribute('aria-disabled') === 'true'))
       noticeElement.current?.focus();
   }, [notice]);
+  // Une lecture en échec est dite : l'archonte ne perd pas son formulaire sans savoir pourquoi.
+  const officesFailed = officeRows.failed || (officeRows.rows !== null && !offices);
+  const rulesFailed = ruleRows.failed || (ruleRows.rows !== null && !rules);
+  if (officesFailed || (archon && rulesFailed))
+    return <LoadProblem onRetry={() => Promise.all([officeRows.reload(), ruleRows.reload()])} />;
   if (!archon || !rules || rules.models.length === 0) return null;
 
   const chosen = model && rules.models.includes(model) ? model : rules.models[0];
@@ -84,8 +90,34 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
     const parsed = boundedDecreeParamsSchemas(bounds)[chosen]?.safeParse(candidate);
     return parsed?.success ? ({ model: chosen, params: parsed.data } as DecreeProposal) : null;
   })();
+  // Chaque champ se juge seul contre ses bornes : le message tombe sous le champ fautif.
+  const inRange = (value: number, min: number, max: number) =>
+    Number.isFinite(value) && min <= value && value <= max;
+  const spending = chosen === 'festival' ? bounds.festival : bounds.public_works;
+  const fits: Record<string, (typed: string) => boolean> = {
+    rate: (typed) =>
+      inRange(
+        Math.round(read(typed) * 100),
+        bounds.market_tax_rate?.minRateBps ?? 1,
+        bounds.market_tax_rate?.maxRateBps ?? 0,
+      ),
+    factor: (typed) =>
+      inRange(
+        Math.round(read(typed) * BPS),
+        bounds.port_dues?.minCoefficientBps ?? 1,
+        bounds.port_dues?.maxCoefficientBps ?? 0,
+      ),
+    amount: (typed) =>
+      Number.isSafeInteger(read(typed)) &&
+      inRange(read(typed), spending?.minOboles ?? 1, spending?.maxOboles ?? 0),
+    days: (typed) =>
+      Number.isSafeInteger(read(typed)) &&
+      inRange(read(typed), bounds.festival?.minDays ?? 1, bounds.festival?.maxDays ?? 0),
+  };
   const invalid = (name: string) =>
-    field(name) !== '' && proposal === null ? t('decreeForm.outOfBounds') : undefined;
+    field(name) !== '' && !fits[name]?.(field(name)) ? t('decreeForm.outOfBounds') : undefined;
+  const goodsInvalid =
+    goods.length > (bounds.festival?.maxGoods ?? 0) ? t('decreeForm.tooManyGoods') : undefined;
 
   async function propose() {
     if (busy || !proposal) return;
@@ -97,7 +129,10 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
     try {
       const result = await cityCommand('city.proposeDecree', proposal, house.accessToken, key);
       if (result.ok || result.error.code !== 'INTERNAL') keys.current.delete(intent);
-      if (result.ok) setFields({});
+      if (result.ok) {
+        setFields({});
+        setGoods([]);
+      }
       setNotice(
         result.ok
           ? { kind: 'status', text: t('decreeForm.done') }
@@ -111,7 +146,6 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
 
   const tax = bounds.market_tax_rate;
   const port = bounds.port_dues;
-  const spend = chosen === 'festival' ? bounds.festival : bounds.public_works;
   const festival = bounds.festival;
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
@@ -164,14 +198,22 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
           onChange={set('factor')}
         />
       )}
-      {(chosen === 'public_works' || chosen === 'festival') && spend && (
+      {(chosen === 'public_works' || chosen === 'festival') && spending && (
         <Field
           label={t('decreeForm.amount')}
-          hint={t('decreeForm.between', {
-            min: money(spend.minOboles),
-            max: money(spend.maxOboles),
-          })}
-          error={chosen === 'public_works' ? invalid('amount') : undefined}
+          hint={[
+            t('decreeForm.betweenOboles', {
+              min: spending.minOboles,
+              max: spending.maxOboles,
+              minMoney: money(spending.minOboles),
+              maxMoney: money(spending.maxOboles),
+            }),
+            fits.amount?.(field('amount')) &&
+              t('decreeForm.amountIs', { amount: money(read(field('amount'))) }),
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          error={invalid('amount')}
           inputMode="numeric"
           value={field('amount')}
           onChange={set('amount')}
@@ -205,6 +247,11 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
                 {t(`goods.${good}`, { defaultValue: good })}
               </label>
             ))}
+            {goodsInvalid && (
+              <p role="alert" className="text-sm font-semibold text-danger">
+                {goodsInvalid}
+              </p>
+            )}
           </fieldset>
         </>
       )}

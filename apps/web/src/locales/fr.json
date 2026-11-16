@@ -694,12 +694,15 @@
     "factor": "Coefficient du droit de port",
     "amount": "Montant, en oboles",
     "days": "Durée, en jours de jeu",
-    "goods_one": "Biens de la fête ({{count}} au plus)",
-    "goods_other": "Biens de la fête ({{count}} au plus)",
+    "goods_one": "Biens de la fête (de 1 à {{count}})",
+    "goods_other": "Biens de la fête (de 1 à {{count}})",
     "between": "Entre {{min}} et {{max}}",
     "outOfBounds": "Hors des bornes du décret.",
     "submit": "Proposer au vote",
-    "done": "Décret proposé : il est au vote."
+    "done": "Décret proposé : il est au vote.",
+    "betweenOboles": "Entre {{min}} et {{max}} oboles ({{minMoney}} à {{maxMoney}}).",
+    "amountIs": "Soit {{amount}}.",
+    "tooManyGoods": "Trop de biens pour cette fête."
   },
   "treasury": {
     "title": "Trésor public",
