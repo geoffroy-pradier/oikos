@@ -116,3 +116,32 @@ export const listingsOf = async (propertyId: string) =>
       select house_id, kind, price_oboles as price, outcome from game.property_listings
       where property_id = ${propertyId} order by created_at, id`.execute(db)
   ).rows.map((row) => ({ ...row, price: Number(row.price) }));
+
+export const offerLease = (user: string, propertyId: string, rentOboles: number) =>
+  send(user, 'property.offerLease', { propertyId, rentOboles });
+export const lease = (user: string, propertyId: string, rent: number, key?: string) =>
+  send(user, 'property.lease', { propertyId, expectedRentOboles: rent }, key);
+
+/** Les baux du bien, des plus anciens aux plus récents. */
+export const leasesOf = async (propertyId: string) =>
+  (
+    await sql<{
+      id: string;
+      landlord: string;
+      tenant: string;
+      rent: string;
+      requested_by: string | null;
+      ended_day: number | null;
+      end_reason: string | null;
+    }>`select id, landlord_house_id as landlord, tenant_house_id as tenant, rent_oboles as rent,
+        end_requested_by as requested_by, ended_day, end_reason
+      from game.leases where property_id = ${propertyId} order by started_at, id`.execute(db)
+  ).rows.map((row) => ({ ...row, rent: Number(row.rent) }));
+
+/** Les événements `type` d'un bail ou d'un bien (`leaseId` ou `propertyId` de leur détail). */
+export const eventsAbout = async (type: string, id: string) =>
+  (
+    await sql<{ payload: Record<string, unknown> }>`select payload from game.domain_events
+      where type = ${type} and (payload->>'leaseId' = ${id} or payload->>'propertyId' = ${id})
+      order by seq`.execute(db)
+  ).rows.map((event) => event.payload);
