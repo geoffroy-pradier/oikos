@@ -75,9 +75,56 @@ export interface SiteRules {
   /**
    * Prix d'une relance du site (5.5) : son entretien d'un jour plus les salaires de ses travailleurs au
    * salaire du jour de sa cité (`citySlug`, identifiant de la configuration ; `null` : inconnue, aucun
-   * salaire). `null` si le calcul dépasse les entiers sûrs : aucun prix n'est annoncé.
+   * salaire). Avec le marché du travail du jour de la cité (`day`, #258), son salaire remplace celui des
+   * règles, et chaque travailleur sans logement du site (`unhoused`) paie une nuit d'hébergement ; si
+   * l'hébergement coûte et que ces travailleurs ne sont pas lus, aucun prix n'est annoncé. `null` aussi si
+   * le calcul dépasse les entiers sûrs.
    */
-  restartCostOf(recipeId: string, citySlug: string | null): number | null;
+  restartCostOf(
+    recipeId: string,
+    citySlug: string | null,
+    day?: DayLabor,
+    unhoused?: number,
+  ): number | null;
+}
+
+/** Salaire et hébergement du jour d'une cité (vue `labor_market`, #258). */
+export interface DayLabor {
+  wageOboles: number;
+  lodgingOboles: number;
+}
+
+const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+/**
+ * Marché du travail du jour de chaque cité, par identifiant de cité. Une ligne illisible est ignorée : la
+ * cité garde alors le salaire des règles des sites, et l'API refuse un prix qui ne serait plus le bon.
+ */
+export function parseLaborMarket(rows: readonly unknown[] | null): Map<string, DayLabor> {
+  const row = z.object({ city_id: name, wage_oboles: count, lodging_oboles: count });
+  return new Map(
+    (rows ?? []).flatMap((raw) => {
+      const parsed = row.safeParse(raw);
+      return parsed.success
+        ? [
+            [
+              parsed.data.city_id,
+              { wageOboles: parsed.data.wage_oboles, lodgingOboles: parsed.data.lodging_oboles },
+            ] as const,
+          ]
+        : [];
+    }),
+  );
+}
+
+/** Travailleurs sans logement de chaque site de la maison (vue `my_workforce`, #258). */
+export function parseWorkforce(rows: readonly unknown[] | null): Map<string, number> {
+  const row = z.object({ site_id: name, unhoused: count });
+  return new Map(
+    (rows ?? []).flatMap((raw) => {
+      const parsed = row.safeParse(raw);
+      return parsed.success ? [[parsed.data.site_id, parsed.data.unhoused] as const] : [];
+    }),
+  );
 }
 
 /** Rend `null` si la réponse n'a pas la forme attendue : l'écran annonce alors un échec de lecture. */
@@ -108,13 +155,18 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
     },
     recipe: (recipeId) => recipes.find((recipe) => recipe.id === recipeId) ?? null,
     upkeepOf,
-    restartCostOf: (recipeId, citySlug) => {
+    restartCostOf: (recipeId, citySlug, day, unhoused) => {
       const recipe = recipes.find((candidate) => candidate.id === recipeId);
       if (!recipe) return 0;
       const wages = new Map(Object.entries(staff?.dailyWageOboles ?? {}));
+      const wage = day ? day.wageOboles : (wages.get(citySlug ?? '') ?? 0);
+      const lodging = day && recipe.workers > 0 ? day.lodgingOboles : 0;
+      if (lodging > 0 && unhoused === undefined) return null;
       try {
         const cost =
-          upkeepOf(recipeId) + dailyWages(recipe.workers, wages.get(citySlug ?? '') ?? 0);
+          upkeepOf(recipeId) +
+          dailyWages(recipe.workers, wage) +
+          dailyWages(Math.min(unhoused ?? 0, recipe.workers), lodging);
         return Number.isSafeInteger(cost) ? cost : null;
       } catch {
         return null;

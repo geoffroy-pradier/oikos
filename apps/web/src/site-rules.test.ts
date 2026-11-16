@@ -1,7 +1,15 @@
 import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { freeStockIn, parseSiteRules, previewHarvest, siteAlerts, stockByCity } from './site-rules';
+import {
+  freeStockIn,
+  parseLaborMarket,
+  parseSiteRules,
+  parseWorkforce,
+  previewHarvest,
+  siteAlerts,
+  stockByCity,
+} from './site-rules';
 
 const config = gameConfigSchema.parse(INITIAL_CONFIG);
 const raw = (overrides: Record<string, unknown> = {}) => ({
@@ -85,6 +93,35 @@ describe('parseSiteRules', () => {
         raw({ recipes: many, sites: { ...config.sites, staff: huge } }),
       )?.restartCostOf('grow_wheat', 'kalliste'),
     ).toBeNull();
+  });
+
+  it('prix d’une relance au marché du travail du jour (#258) : son salaire, et l’hébergement des non logés', () => {
+    const staff = { dailyWageOboles: { kalliste: 5 } };
+    const rules = parseSiteRules(raw({ sites: { ...config.sites, staff } }));
+    const upkeep = rules?.upkeepOf('grow_wheat') ?? -1;
+    const day = { wageOboles: 7, lodgingOboles: 3 };
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste', day, 2)).toBe(upkeep + 28 + 6);
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste', day, 0)).toBe(upkeep + 28);
+    // Plus de non logés que de travailleurs (lecture décalée) : jamais plus que les travailleurs.
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste', day, 9)).toBe(upkeep + 28 + 12);
+    // Hébergement payant, non logés inconnus : aucun prix ; hébergement nul, inutile de les connaître.
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste', day)).toBeNull();
+    expect(rules?.restartCostOf('grow_wheat', 'kalliste', { ...day, lodgingOboles: 0 })).toBe(
+      upkeep + 28,
+    );
+    expect(
+      parseLaborMarket([
+        { city_id: 'c1', wage_oboles: 7, lodging_oboles: 3 },
+        { city_id: 'c2', wage_oboles: -1, lodging_oboles: 3 },
+        { id: 's1' },
+      ]),
+    ).toEqual(new Map([['c1', day]]));
+    expect(
+      parseWorkforce([
+        { site_id: 's1', unhoused: 2 },
+        { site_id: 's2', unhoused: 1.5 },
+      ]),
+    ).toEqual(new Map([['s1', 2]]));
   });
 
   it('applique les valeurs par défaut du schéma partagé à une version sans section des sites', () => {
