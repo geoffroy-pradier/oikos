@@ -28,6 +28,7 @@
     "retentionDays": 30,
     "rateLimit": { "messages": 10, "windowSeconds": 60 }
   },
+  "chronicle": { "maxGoods": 3, "settleSeconds": 60, "maxTextLength": 2000 },
   "ai": {
     "budgetMicroEurosPerActivePlayerMonth": 0,
     "expectedActivePlayers": 0,

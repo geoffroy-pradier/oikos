@@ -591,6 +591,33 @@ export const chatSchema = z.strictObject({
 });
 
 /**
+ * Valeurs lues pour les versions publiées avant la chronique (#271) : trois biens détaillés, une minute
+ * d'attente après la clôture, 2 000 caractères par texte réécrit. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_CHRONICLE = deepFreeze({
+  maxGoods: 3,
+  settleSeconds: 60,
+  maxTextLength: 2_000,
+});
+
+/**
+ * Chronique des cités (docs/specs/06-cites-politique-communaute.md, 6.6 ; 08-ia.md, 8.1) : une par cité et par
+ * clôture, composée par gabarits à partir des faits du jour, puis réécrite par la passerelle IA (usage
+ * `chronicle`). La longueur a un plafond technique de 4 000 caractères, que la base vérifie aussi.
+ */
+export const chronicleSchema = z.strictObject({
+  /** Biens dont les échanges sont détaillés, les plus échangés d'abord ; les suivants sont seulement comptés. */
+  maxGoods: z.number().int().min(0).max(20),
+  /**
+   * Attente après la clôture avant d'écrire sa chronique, en secondes : une commande commencée juste avant la
+   * clôture a le temps d'être validée et d'entrer dans les faits. Au plus une heure.
+   */
+  settleSeconds: z.number().int().min(0).max(3_600),
+  /** Longueur maximale de chaque texte réécrit (`fr`, `en`), en caractères ; au-delà, le repli est gardé. */
+  maxTextLength: z.number().int().min(200).max(4_000),
+});
+
+/**
  * Magistrature de l'archonte (docs/specs/06-cites-politique-communaute.md, 6.2), en jours de jeu.
  * Une élection ouvre le dépôt des candidatures `candidacyDays + votingDays` jours avant le début du
  * mandat qu'elle pourvoit, puis le vote `votingDays` jours avant ; elle est dépouillée à la clôture qui
@@ -823,6 +850,8 @@ export const gameConfigSchema = z
     chat: chatSchema.default(DEFAULT_CHAT),
     /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
     ai: aiSchema.default(DEFAULT_AI),
+    /** Absent des versions publiées avant la chronique : valeurs de `DEFAULT_CHRONICLE`. */
+    chronicle: chronicleSchema.default(DEFAULT_CHRONICLE),
     /**
      * Absent des versions publiées avant la citoyenneté : une maison y reste métèque et aucune élection
      * ne s'ouvre ; une élection déjà ouverte est dépouillée à ses dates.
