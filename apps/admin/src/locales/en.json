@@ -69,6 +69,8 @@
     "closesFailed": "Failed daily closes (24 h)",
     "closeLastError": "Last failed daily close",
     "tickMax": "Longest tick (24 h)",
+    "voyagesOverdue": "Voyages overdue for unloading (over one tick)",
+    "voyagesOverdueUnknown": "Unknown (no readable configuration in force)",
     "review": "Second-person review of settings",
     "reviewRequired": "Required",
     "reviewLifted": "Lifted (test setting)",

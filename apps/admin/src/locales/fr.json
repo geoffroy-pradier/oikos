@@ -69,6 +69,8 @@
     "closesFailed": "Clôtures en échec (24 h)",
     "closeLastError": "Dernier échec de clôture",
     "tickMax": "Tick le plus long (24 h)",
+    "voyagesOverdue": "Voyages en retard de déchargement (plus d'un tick)",
+    "voyagesOverdueUnknown": "Inconnu (aucune configuration en vigueur lisible)",
     "review": "Double validation des paramètres",
     "reviewRequired": "Exigée",
     "reviewLifted": "Levée (réglage de test)",
