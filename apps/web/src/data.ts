@@ -29,12 +29,14 @@ export function useRows<T>(
     const request = ++latest.current;
     let query = supabase.from(view).select(columns);
     const parsed = JSON.parse(filterKey) as Record<string, string | string[] | { gt: string }>;
-    for (const [column, value] of Object.entries(parsed))
+    for (const [column, value] of Object.entries(parsed)) {
+      if (value === null) throw new TypeError(`Null filter on ${column}`);
       query = Array.isArray(value)
         ? query.in(column, value)
         : typeof value === 'object'
           ? query.gt(column, value.gt)
           : query.eq(column, value);
+    }
     let ordered = query.order(order, { ascending: limit === undefined });
     if (limit !== undefined) ordered = ordered.limit(limit);
     const result = await ordered.then(
