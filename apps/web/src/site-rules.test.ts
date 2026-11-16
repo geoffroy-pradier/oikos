@@ -5,6 +5,7 @@ import {
   freeStockIn,
   parseLaborMarket,
   parseSiteRules,
+  parseSiteStaff,
   parseWorkforce,
   previewHarvest,
   siteAlerts,
@@ -122,6 +123,18 @@ describe('parseSiteRules', () => {
         { site_id: 's2', unhoused: 1.5 },
       ]),
     ).toEqual(new Map([['s1', 2]]));
+  });
+
+  it('personnel de chaque site (#259) : requis, logés, sans logement ; une ligne illisible est tue', () => {
+    expect(
+      parseSiteStaff([
+        { site_id: 's1', workers: 4, housed: 1, unhoused: 3 },
+        { site_id: 's2', workers: 4, housed: -1, unhoused: 5 },
+        { site_id: 's3', unhoused: 2 },
+        null,
+      ]),
+    ).toEqual(new Map([['s1', { workers: 4, housed: 1, unhoused: 3 }]]));
+    expect(parseSiteStaff(null)).toEqual(new Map());
   });
 
   it('applique les valeurs par défaut du schéma partagé à une version sans section des sites', () => {

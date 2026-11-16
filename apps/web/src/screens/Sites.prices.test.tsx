@@ -145,6 +145,17 @@ describe('prix envoyés par la carte des sites', () => {
     expect(sends(api.restartSite).map((sent) => sent.price)).toEqual([64]);
   });
 
+  it('fiche du site (#259) : personnel logé ou non, salaire du jour et coût d’un jour', async () => {
+    state.rules = withPrices(600, 30, { kalliste: 5 });
+    state.labor = [{ city_id: 'c1', wage_oboles: 7, lodging_oboles: 3 }];
+    state.workforce = [{ site_id: 's1', workers: 4, housed: 2, unhoused: 2 }];
+    await show();
+    expect(await screen.findByText('4 travailleurs : 2 logés, 2 sans logement')).toBeTruthy();
+    expect(screen.getByText('Salaire du jour : 1 drachme 1 obole par travailleur')).toBeTruthy();
+    // 30 + 4 × 7 + 2 × 3 = 64 oboles : le prix de la relance.
+    expect(screen.getByText(/^Coût d'un jour : 10 drachmes 4 oboles/)).toBeTruthy();
+  });
+
   it('hébergement payant mais travailleurs du site non lus : aucun prix annoncé, rien à envoyer', async () => {
     state.labor = [{ city_id: 'c1', wage_oboles: 7, lodging_oboles: 3 }];
     await show();

@@ -9,6 +9,7 @@ import { parseCityIdentities } from '../city-identity';
 import {
   freeStockIn,
   parseLaborMarket,
+  parseSiteStaff,
   parseWorkforce,
   previewHarvest,
   siteAlerts,
@@ -87,7 +88,11 @@ export function SitesCard({
     'city_id, wage_oboles, lodging_oboles',
     'city_id',
   );
-  const workforceRows = useRows<unknown>('my_workforce', 'site_id, unhoused', 'site_id');
+  const workforceRows = useRows<unknown>(
+    'my_workforce',
+    'site_id, workers, housed, unhoused',
+    'site_id',
+  );
   // `null` tant que le marché du travail n'est pas lu (ou que sa lecture échoue) : aucun prix de relance
   // n'est annoncé, plutôt qu'un prix au salaire de base que l'API refuserait.
   const laborDays = useMemo(
@@ -98,6 +103,7 @@ export function SitesCard({
     () => (workforceRows.rows === null ? null : parseWorkforce(workforceRows.rows)),
     [workforceRows.rows],
   );
+  const staffOf = useMemo(() => parseSiteStaff(workforceRows.rows), [workforceRows.rows]);
   const { reload: reloadLaborDays } = laborRows;
   const { reload: reloadWorkforce } = workforceRows;
   const admits = (cityId: string) => (recipe: { id: string; siteType: string }) => {
@@ -539,14 +545,11 @@ export function SitesCard({
           // jour de sa cité s'il est lu. Sans l'identité de la cité ni son marché du travail, aucun salaire
           // n'est compté ; l'API refuse alors un prix faux plutôt que d'en prélever un autre.
           const slug = identities?.get(site.city_id)?.slug ?? null;
+          const day = laborDays?.get(site.city_id);
+          const staff = staffOf.get(site.id);
           const restartCost =
             rules && laborDays
-              ? rules.restartCostOf(
-                  site.recipe_id,
-                  slug,
-                  laborDays.get(site.city_id),
-                  unhousedOf?.get(site.id),
-                )
+              ? rules.restartCostOf(site.recipe_id, slug, day, unhousedOf?.get(site.id))
               : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
@@ -564,6 +567,23 @@ export function SitesCard({
                     )}
                     {upkeep !== null && upkeep > 0 && (
                       <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
+                    )}
+                    {staff && staff.workers > 0 && (
+                      <p>
+                        {t('home.staff', {
+                          count: staff.workers,
+                          workers: number.format(staff.workers),
+                          housed: number.format(staff.housed),
+                          unhoused: number.format(staff.unhoused),
+                        })}
+                      </p>
+                    )}
+                    {day && recipe && recipe.workers > 0 && (
+                      <p>{t('home.wageOfDay', { cost: money(day.wageOboles) })}</p>
+                    )}
+                    {/* Le dû d'un jour est le prix d'une relance : entretien, salaires et hébergement. */}
+                    {!retired && restartCost !== null && restartCost > 0 && (
+                      <p>{t('home.dailyCost', { cost: money(restartCost) })}</p>
                     )}
                     {recipe && (
                       <p>
