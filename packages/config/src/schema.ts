@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
+import { worldEventsIssues, worldEventsSchema } from './world-events';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
 const id = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
@@ -829,6 +830,8 @@ export const gameConfigSchema = z
     politics: politicsSchema.optional(),
     /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
     decrees: decreesSchema.optional(),
+    /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */
+    worldEvents: worldEventsSchema.optional(),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
     goods: z.array(goodSchema).min(1),
@@ -844,6 +847,13 @@ export const gameConfigSchema = z
       for (const { path, message } of decreesIssues(config.decrees, goods))
         issue(['decrees', ...path], message);
     const classes = new Set(config.npcClasses.map((npcClass) => npcClass.id));
+    if (config.worldEvents) {
+      const bought = new Set(
+        config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
+      );
+      for (const { path, message } of worldEventsIssues(config.worldEvents, bought))
+        issue(['worldEvents', ...path], message);
+    }
 
     // Une fenêtre plus courte qu'un chandelier n'en retiendrait aucun une partie du temps, sans erreur.
     // Une fenêtre déjà hors bornes a son propre message : pas de second reproche.

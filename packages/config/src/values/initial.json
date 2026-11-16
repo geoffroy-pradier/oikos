@@ -111,6 +111,40 @@
       }
     }
   },
+  "worldEvents": {
+    "planningLeadDays": 3,
+    "models": {
+      "drought": {
+        "probabilityBps": 0,
+        "minDays": 1,
+        "maxDays": 3,
+        "minMagnitudeBps": 2000,
+        "maxMagnitudeBps": 4000
+      },
+      "good_year": {
+        "probabilityBps": 0,
+        "minDays": 2,
+        "maxDays": 4,
+        "minMagnitudeBps": 1000,
+        "maxMagnitudeBps": 3000
+      },
+      "storm": {
+        "probabilityBps": 0,
+        "minDays": 1,
+        "maxDays": 1,
+        "minMagnitudeBps": 2500,
+        "maxMagnitudeBps": 5000
+      },
+      "caravan": {
+        "probabilityBps": 0,
+        "minDays": 1,
+        "maxDays": 3,
+        "minMagnitudeBps": 2000,
+        "maxMagnitudeBps": 5000,
+        "goodIds": ["olive_oil", "wine", "cloth", "amphorae"]
+      }
+    }
+  },
   "ships": {
     "classes": [
       {
