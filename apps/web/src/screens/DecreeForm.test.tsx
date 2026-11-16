@@ -1,0 +1,123 @@
+// @vitest-environment jsdom
+import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18next from 'i18next';
+import { I18nextProvider, initReactI18next } from 'react-i18next';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HouseProvider } from '../house';
+import fr from '../locales/fr.json';
+
+// Proposition d'un décret par l'archonte (#264) : lectures simulées, commande espionnée.
+const config = INITIAL_CONFIG as GameConfig;
+const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
+const api = vi.hoisted(() => ({ cityCommand: vi.fn() }));
+vi.mock('../api', () => ({ cityCommand: api.cityCommand }));
+vi.mock('../data', () => ({
+  useRows: (view: string) => {
+    const rows = view in state.views ? (state.views[view] ?? null) : [];
+    return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
+  },
+}));
+const { DecreeForm } = await import('./DecreeForm');
+
+const rules = Object.entries(config.decrees?.models ?? {}).map(([model, bounds]) => ({
+  model,
+  bounds,
+  voting_days: 2,
+  quorum_bps: 2000,
+  max_open_per_city: 3,
+  spending_cap_share_bps: 2500,
+}));
+const archon = {
+  house_id: 'h1',
+  office: 'archon',
+  ends_at: '2099-01-01T00:00:00Z',
+  in_office: true,
+};
+async function show() {
+  const instance = i18next.createInstance();
+  await instance.use(initReactI18next).init({
+    resources: { fr: { translation: fr } },
+    lng: 'fr',
+    interpolation: { escapeValue: false },
+  });
+  const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
+  const done = vi.fn(() => Promise.resolve());
+  render(
+    <I18nextProvider i18n={instance}>
+      <HouseProvider
+        value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'citizen' }}
+      >
+        <DecreeForm onDone={done} />
+      </HouseProvider>
+    </I18nextProvider>,
+  );
+  return done;
+}
+const submit = () => screen.getByRole('button', { name: fr.decreeForm.submit });
+beforeEach(() => {
+  api.cityCommand.mockReset();
+  api.cityCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
+});
+afterEach(() => {
+  cleanup();
+  state.views = {};
+});
+
+describe('proposition d’un décret par l’archonte (#264)', () => {
+  it('rien pour une maison qui n’est pas l’archonte en charge, ni sans modèle ouvert', async () => {
+    state.views = { decree_rules: rules, offices: [{ ...archon, house_id: 'h2' }] };
+    await show();
+    expect(screen.queryByText(fr.decreeForm.title)).toBeNull();
+    cleanup();
+    state.views = { decree_rules: [], offices: [archon] };
+    await show();
+    expect(screen.queryByText(fr.decreeForm.title)).toBeNull();
+  });
+
+  it('taux de la taxe : bornes annoncées, saisie hors bornes refusée, puis proposée en points de base', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    const done = await show();
+    expect(screen.getByText(/^Vote de 2 jours ; quorum de 20\s?% des citoyens/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    expect(screen.getByText(/^Entre 2\s?% et 10\s?%$/)).toBeTruthy();
+    const rate = screen.getByLabelText(fr.decreeForm.rate);
+    fireEvent.change(rate, { target: { value: '12' } });
+    expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
+    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(submit());
+    expect(api.cityCommand).not.toHaveBeenCalled();
+    fireEvent.change(rate, { target: { value: '7,5' } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.slice(0, 3)).toEqual([
+      'city.proposeDecree',
+      { model: 'market_tax_rate', params: { rateBps: 750 } },
+      't',
+    ]);
+    await waitFor(() => expect(document.activeElement?.textContent).toBe(fr.decreeForm.done));
+    expect(done).toHaveBeenCalled();
+  });
+
+  it('fête : montant, durée et biens dans leurs bornes ; un refus de l’API est dit', async () => {
+    api.cityCommand.mockResolvedValue({
+      ok: false,
+      error: { code: 'SPENDING_CAP_EXCEEDED', message: '' },
+    });
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    fireEvent.change(screen.getByLabelText(fr.decreeForm.amount), { target: { value: '600' } });
+    fireEvent.change(screen.getByLabelText(fr.decreeForm.days), { target: { value: '2' } });
+    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pain' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Vin' }));
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'festival',
+      params: { amountOboles: 600, days: 2, goodIds: ['bread', 'wine'] },
+    });
+    expect(await screen.findByText(fr.errors.SPENDING_CAP_EXCEEDED)).toBeTruthy();
+  });
+});

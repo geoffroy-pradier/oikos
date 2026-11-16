@@ -678,5 +678,27 @@
       "festival_other": "Fête de {{count}} jours : {{amount}}, pour {{goods}}"
     },
     "unreadable": "Décret illisible ({{model}})"
+  },
+  "decreeForm": {
+    "title": "Proposer un décret",
+    "rules_one": "Vote d'{{count}} jour ; quorum de {{quorum}} des citoyens ; au plus {{open}} décrets au vote à la fois ; une dépense engage au plus {{cap}} du trésor.",
+    "rules_other": "Vote de {{count}} jours ; quorum de {{quorum}} des citoyens ; au plus {{open}} décrets au vote à la fois ; une dépense engage au plus {{cap}} du trésor.",
+    "model": "Modèle",
+    "models": {
+      "market_tax_rate": "Taux de la taxe de marché",
+      "port_dues": "Droit de port",
+      "public_works": "Grands travaux",
+      "festival": "Fête"
+    },
+    "rate": "Taux, en pour cent",
+    "factor": "Coefficient du droit de port",
+    "amount": "Montant, en oboles",
+    "days": "Durée, en jours de jeu",
+    "goods_one": "Biens de la fête ({{count}} au plus)",
+    "goods_other": "Biens de la fête ({{count}} au plus)",
+    "between": "Entre {{min}} et {{max}}",
+    "outOfBounds": "Hors des bornes du décret.",
+    "submit": "Proposer au vote",
+    "done": "Décret proposé : il est au vote."
   }
 }

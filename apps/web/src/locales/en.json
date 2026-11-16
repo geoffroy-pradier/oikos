@@ -678,5 +678,27 @@
       "festival_other": "Festival of {{count}} days: {{amount}}, for {{goods}}"
     },
     "unreadable": "Unreadable decree ({{model}})"
+  },
+  "decreeForm": {
+    "title": "Propose a decree",
+    "rules_one": "Voting lasts {{count}} day; quorum of {{quorum}} of citizens; at most {{open}} decrees under vote at once; spending may commit at most {{cap}} of the treasury.",
+    "rules_other": "Voting lasts {{count}} days; quorum of {{quorum}} of citizens; at most {{open}} decrees under vote at once; spending may commit at most {{cap}} of the treasury.",
+    "model": "Model",
+    "models": {
+      "market_tax_rate": "Market tax rate",
+      "port_dues": "Port dues",
+      "public_works": "Public works",
+      "festival": "Festival"
+    },
+    "rate": "Rate, in percent",
+    "factor": "Port dues coefficient",
+    "amount": "Amount, in obols",
+    "days": "Duration, in game days",
+    "goods_one": "Festival goods (at most {{count}})",
+    "goods_other": "Festival goods (at most {{count}})",
+    "between": "Between {{min}} and {{max}}",
+    "outOfBounds": "Outside the decree's bounds.",
+    "submit": "Put to the vote",
+    "done": "Decree proposed: it is under vote."
   }
 }

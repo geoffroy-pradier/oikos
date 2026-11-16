@@ -8,6 +8,7 @@ import { groupDecrees, parseDecrees, ratesInForce, type Decree } from '../decree
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { parseHouseNames, parseVoted, statusOf } from '../politics';
+import { DecreeForm } from './DecreeForm';
 import { LoadProblem, Loading } from './LoadProblem';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
@@ -183,6 +184,7 @@ export function CityAssembly() {
           >
             {notice?.text ?? ''}
           </p>
+          <DecreeForm onDone={reload} />
           <h3 className="font-semibold">{t('assembly.passed')}</h3>
           {groups.passed.length === 0 && (
             <p className="text-muted-foreground">{t('assembly.noPassed')}</p>
