@@ -147,5 +147,7 @@ describe('arrivée d’un voyage, de bout en bout', () => {
     for (const player of [...late, ...onTime])
       expect(await shipOf(player.shipId)).toMatchObject({ docked_city_id: ELAIA });
     expect(await overdue()).toBe(before);
-  });
+    // `currentTick(10_000)` peut attendre jusqu'à 10 s le tick suivant avant de commencer : le délai par
+    // défaut de vitest (5 s) n'y suffit pas (échec vu en `ci` sur `main`, à 10 s d'un tick).
+  }, 30_000);
 });
