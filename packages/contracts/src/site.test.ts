@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
 import {
   siteAcquireInputSchema,
+  siteCollectedSchema,
   siteRestartedSchema,
   siteRestartInputSchema,
   upkeepSettledSchema,
@@ -190,5 +191,35 @@ describe('SiteRestarted', () => {
       { ...payload, wagesOboles: 0.5 },
     ])
       expect(siteRestartedSchema.safeParse({ ...event, payload: candidate }).success).toBe(false);
+  });
+});
+
+describe('SiteCollected (#267)', () => {
+  const EVENT = '01900000-0000-7000-8000-0000000003e1';
+  const collected = {
+    type: 'SiteCollected' as const,
+    payload: {
+      siteId: FIELD,
+      houseId: HOUSE,
+      cycles: 3,
+      inputs: [],
+      outputs: [{ goodId: 'wheat', quantity: 108 }],
+      eventEffects: [{ eventId: EVENT, goodId: 'wheat', quantity: -12 }],
+    },
+  };
+
+  it('porte l’écart dû à chaque événement, et peut récolter zéro ; sans écart, pas de liste', () => {
+    expect(domainEventSchema.parse(collected)).toEqual(collected);
+    const { siteId, houseId, cycles, inputs, outputs } = collected.payload;
+    const plain = { siteId, houseId, cycles, inputs, outputs };
+    const parched = { ...plain, outputs: [{ goodId: 'wheat', quantity: 0 }] };
+    expect(siteCollectedSchema.parse({ ...collected, payload: parched }).payload).toEqual(parched);
+    for (const payload of [
+      { ...plain, eventEffects: [] },
+      { ...plain, eventEffects: [{ eventId: 'x', goodId: 'wheat', quantity: -1 }] },
+      { ...plain, eventEffects: [{ eventId: EVENT, goodId: 'wheat', quantity: 0.5 }] },
+      { ...plain, outputs: [{ goodId: 'wheat', quantity: -1 }] },
+    ])
+      expect(siteCollectedSchema.safeParse({ ...collected, payload }).success).toBe(false);
   });
 });

@@ -3,7 +3,13 @@ import {
   siteCollectInputSchema,
   siteCollectOutputSchema,
 } from '@oikos/contracts';
-import { accrueProduction, accrueWorkshop } from '@oikos/sim';
+import {
+  accrueProduction,
+  accrueWorkshop,
+  cycleYield,
+  yieldDeltaBps,
+  yieldModelOf,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 
@@ -13,6 +19,12 @@ import { defineCommand } from '../registry';
  * d'intrants, les cycles en attente restent dus (docs/specs/04-systemes-gestion.md, 4.3). Tout passe
  * par le journal des stocks. Un site à l'arrêt, faute d'entretien payé, ne compte le temps que jusqu'à
  * son arrêt. Un site dont la recette a quitté la configuration ne se récolte plus.
+ *
+ * Un cycle terminé pendant un événement de rendement de sa cité (sécheresse des champs, bonne année des vergers ;
+ * 7.4, #267) produit selon `cycleYield` ; l'écart de chaque événement est expliqué dans `event_effects`. Les fins
+ * de cycle se lisent dans le temps du site, gelé pendant un arrêt : la relance le décale, y compris pour les cycles
+ * finis avant l'arrêt et non récoltés (limite assumée, 4.3). Les événements sont lus sans verrou : ils ne changent
+ * jamais et commencent au moins un jour de jeu après leur planification (`planningLeadDays` ≥ 1), jamais en cours.
  */
 export const siteCollect = defineCommand({
   name: 'site.collect',
@@ -124,7 +136,40 @@ export const siteCollect = defineCommand({
       stacks
         .map((stack) => ({ goodId: stack.goodId, quantity: cycles * stack.quantity }))
         .sort((a, b) => (a.goodId < b.goodId ? -1 : 1));
-    const [inputs, outputs] = [scaled(recipe.inputs), scaled(recipe.outputs)];
+    // Les cycles récoltés sont les premiers après `cycle_started_at`, terminés au plus tard à `until`.
+    const model = yieldModelOf(recipe.siteType);
+    const effects =
+      model === undefined
+        ? []
+        : (
+            await trx
+              .selectFrom('game.world_events')
+              .select(['id', 'starts_at', 'ends_at', 'magnitude_bps'])
+              .where('city_id', '=', site.city_id)
+              .where('model', '=', model)
+              .where('ends_at', '>', site.cycle_started_at)
+              .where('starts_at', '<=', until)
+              .execute()
+          ).map((event) => ({
+            eventId: event.id,
+            startsAt: event.starts_at,
+            endsAt: event.ends_at,
+            deltaBps: yieldDeltaBps(model, event.magnitude_bps),
+          }));
+    const gaps: { eventId: string; goodId: string; quantity: number }[] = [];
+    const inputs = scaled(recipe.inputs);
+    const outputs = scaled(recipe.outputs).map(({ goodId }) => {
+      const perCycle = recipe.outputs.find((stack) => stack.goodId === goodId)?.quantity ?? 0;
+      const { quantity, byEvent } = cycleYield({
+        since: site.cycle_started_at,
+        cycleMinutes: recipe.durationMinutes,
+        cycles,
+        outputPerCycle: perCycle,
+        effects,
+      });
+      for (const [eventId, gap] of byEvent) gaps.push({ eventId, goodId, quantity: gap });
+      return { goodId, quantity };
+    });
     const movement = { world_id: site.world_id, kind: 'site.collect' };
     // Intrants sortis puis extrants entrés, dans la même transaction, par le journal des stocks.
     for (const { goodId, quantity } of inputs) {
@@ -141,7 +186,8 @@ export const siteCollect = defineCommand({
         })
         .execute();
     }
-    for (const { goodId, quantity } of outputs) {
+    // Un rendement nul (sécheresse au plus fort) n'a pas de mouvement.
+    for (const { goodId, quantity } of outputs.filter((stack) => stack.quantity > 0)) {
       const inventory = inventoryOf(goodId);
       if (!inventory) throw new Error(`Output ${goodId} has no inventory`);
       await trx
@@ -161,9 +207,31 @@ export const siteCollect = defineCommand({
       .where('id', '=', site.id)
       .execute();
 
+    if (gaps.length > 0)
+      await trx
+        .insertInto('game.event_effects')
+        .values(
+          gaps.map((gap) => ({
+            world_id: site.world_id,
+            event_id: gap.eventId,
+            kind: 'site_yield',
+            site_id: site.id,
+            good_id: gap.goodId,
+            quantity: gap.quantity,
+          })),
+        )
+        .execute();
+
     emit({
       type: 'SiteCollected',
-      payload: { siteId: site.id, houseId: site.house_id, cycles, inputs, outputs },
+      payload: {
+        siteId: site.id,
+        houseId: site.house_id,
+        cycles,
+        inputs,
+        outputs,
+        ...(gaps.length > 0 && { eventEffects: gaps }),
+      },
     });
     return {
       ok: true,
