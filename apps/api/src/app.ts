@@ -26,6 +26,7 @@ import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
+import { propertyBuy } from './commands/property-buy';
 import { shipAcquire } from './commands/ship-acquire';
 import { siteAcquire } from './commands/site-acquire';
 import { siteRestart } from './commands/site-restart';
@@ -62,6 +63,7 @@ export const COMMANDS = [
   siteSetRecipe,
   siteRestart,
   shipAcquire,
+  propertyBuy,
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,
