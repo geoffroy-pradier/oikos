@@ -161,6 +161,9 @@ Phase 2, première version (#256) :
   Le prix de la taille est détruit (puits `sink_property_purchase`), comme l'acquisition d'un site, plutôt que versé au trésor de la cité ; un autre prix que celui vu est refusé (`PRICE_CHANGED`).
   Refus sans effet : bien déjà vendu (`PROPERTY_NOT_FOR_SALE`), taille retirée de la configuration, trésorerie qui ne couvre pas le prix.
   L'achat prend le verrou de l'agora du monde, puis la trésorerie, puis le bien : deux achats du même bien se suivent, et le second le trouve vendu.
+- **Rénovation** (`property.renovate`, bien et coût vu en oboles et en biens) : la maison propriétaire rend le bien neuf (état 10 000), à tout moment, même entretien impayé.
+  Le coût en oboles est détruit (puits `sink_property_works`) par une écriture `property.renovate` dont le débit est marqué `upkeep` ; les biens sortent du stock libre de la maison dans la cité du bien (hors réservations des ventes en attente) vers l'extrémité `consumption` du journal des stocks, rattachés à cette écriture, dans la même transaction.
+  Refus sans effet : bien d'une autre maison ou de la cité (`PROPERTY_NOT_OWNED`), bien déjà neuf (`NOTHING_TO_RENOVATE`), taille retirée, coût changé (oboles ou biens, `PRICE_CHANGED`), stock ou trésorerie insuffisants.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes
