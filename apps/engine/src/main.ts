@@ -5,14 +5,9 @@ import { purgeMessages } from './chat-retention';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
-import { npcDemand } from './steps/npc-demand';
-import { observedPricesStep } from './steps/observed-prices';
-import { priceCandlesStep } from './steps/price-candles';
-import type { TickStep } from './tick';
+import { TICK_STEPS } from './tick-steps';
 
 const QUEUE = 'world-clock';
-/** Étapes du tick, dans l'ordre : les chandeliers résument aussi les achats que les PNJ viennent de faire. */
-const STEPS: readonly TickStep[] = [npcDemand, priceCandlesStep, observedPricesStep];
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -35,7 +30,7 @@ await boss.schedule(QUEUE, '* * * * *');
 await boss.work(QUEUE, async () => {
   // Un seul instant présent pour tout le passage, lu à l'horloge de la base, pas à celle de ce processus.
   const now = await databaseNow(db);
-  const ticks = await advanceAllWorlds(db, { now, config: loader, steps: STEPS });
+  const ticks = await advanceAllWorlds(db, { now, config: loader, steps: TICK_STEPS });
   // Les clôtures quotidiennes ont leur propre échéancier, par jour de jeu : un tick en échec ne les retient pas.
   const closes = await closeAllWorlds(db, { now, config: loader, steps: CLOSE_STEPS });
   for (const { worldId, played } of ticks)

@@ -4,8 +4,12 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
 
 ## Modèle de calcul
 
-- **Évaluation paresseuse** pour la production, les trajets et les intérêts : l'état est recalculé à partir de l'horodatage lors d'une lecture ou d'une action. Le coût serveur dépend de l'activité, pas du nombre de comptes.
-- **Ticks globaux** pour ce qui dépend de tous : demande des PNJ, prix de référence, population, météo, Hybris.
+- **Évaluation paresseuse** pour la production et les intérêts : l'état est recalculé à partir de l'horodatage lors d'une lecture ou d'une action. Le coût serveur dépend de l'activité, pas du nombre de comptes.
+  Écart assumé pour les trajets (#253) : l'arrivée d'un voyage est une étape du tick, et non un calcul fait à la lecture.
+  Elle déplace du stock d'une extrémité à une autre du journal des stocks et met un navire à quai ; une écriture faite à la lecture devrait l'être par chaque lecteur, dont le client qui ne lit que par Supabase et n'écrit rien.
+  Le coût suit toujours l'activité : l'étape ne lit que les voyages échus, par un index partiel des voyages en mer (`voyages_due_idx`), et un tick sans arrivée ne fait qu'une recherche vide.
+  Un voyage arrive au premier tick qui commence à son échéance ou après, rattrapé ou non, daté de l'instant de ce tick : jamais plus tard qu'un tick, sauf panne du moteur, que la Vigie montre (voyages en retard de déchargement).
+- **Ticks globaux** pour ce qui dépend de tous : demande des PNJ, prix de référence, population, météo, Hybris, et l'arrivée des voyages échus.
 - **Appariement des ordres** à l'insertion, dans la transaction, avec un verrou par couple cité et bien.
 - **Aléa déterministe** : chaque tick tire d'une graine enregistrée, ce qui permet de rejouer et d'auditer un résultat contesté.
 - **Configuration figée par tick** : un tick lit une version de configuration et une seule.
