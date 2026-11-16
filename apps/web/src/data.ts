@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseSiteRules, type SiteRules } from './site-rules';
+import { parseShipRules } from './ship-rules';
+import { parseSiteRules } from './site-rules';
 import { supabase } from './supabase';
 
 /**
@@ -49,29 +50,35 @@ export function useRows<T>(
 }
 
 /**
- * Règles des sites de la configuration en vigueur (vue `site_rules`, une ligne). `rules` vaut `null`
- * tant que rien n'a été lu ; seule la réponse de la lecture la plus récente est retenue.
+ * Une ligne de règles de la configuration en vigueur (vue `site_rules` ou `ship_rules`), lue par `parse`.
+ * `rules` vaut `null` tant que rien n'a été lu ; seule la réponse de la lecture la plus récente est
+ * retenue. Aucune ligne (aucune configuration en vigueur) se lit comme une ligne vide : rien à proposer.
  */
-export function useSiteRules() {
-  const [rules, setRules] = useState<SiteRules | null>(null);
+function useRulesRow<T>(view: string, columns: string, parse: (row: unknown) => T | null) {
+  const [rules, setRules] = useState<T | null>(null);
   const [failed, setFailed] = useState(false);
   const latest = useRef(0);
   const reload = useCallback(async () => {
     const request = ++latest.current;
     const result = await supabase
-      .from('site_rules')
-      .select('recipes, sites')
+      .from(view)
+      .select(columns)
       .limit(1)
       .then(
         (response) => response,
         () => null,
       );
     if (request !== latest.current) return;
-    // Aucune ligne : aucune configuration en vigueur, donc rien à proposer.
-    const next = result && !result.error ? parseSiteRules(result.data?.[0] ?? null) : null;
+    const next = result && !result.error ? parse(result.data?.[0] ?? null) : null;
     setFailed(next === null);
     if (next) setRules(next);
-  }, []);
+  }, [view, columns, parse]);
   useEffect(() => void reload(), [reload]);
   return { rules, failed, reload };
 }
+
+/** Règles des sites de la configuration en vigueur (vue `site_rules`, une ligne). */
+export const useSiteRules = () => useRulesRow('site_rules', 'recipes, sites', parseSiteRules);
+
+/** Règles du transport de la configuration en vigueur (vue `ship_rules`, une ligne). */
+export const useShipRules = () => useRulesRow('ship_rules', 'ships', parseShipRules);

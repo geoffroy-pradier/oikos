@@ -11,6 +11,9 @@ import {
   type SiteCollectOutput,
   type SiteRestartOutput,
   type SiteSetRecipeOutput,
+  type ShipAcquireOutput,
+  type VoyageDepartInput,
+  type VoyageDepartOutput,
 } from '@oikos/contracts';
 import { serverClock } from './server-clock';
 
@@ -119,3 +122,27 @@ export const cancelOrder = (orderId: string, accessToken: string, idempotencyKey
     accessToken,
     idempotencyKey,
   );
+
+/**
+ * `idempotencyKey` : la même clé tant que cet achat n'a pas reçu de réponse. `expectedCostOboles` : le prix
+ * affiché, que l'API refuse (`PRICE_CHANGED`) plutôt que de prélever un autre tarif.
+ */
+export const acquireShip = (
+  classId: string,
+  expectedCostOboles: number,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<ShipAcquireOutput>(
+    'ship.acquire',
+    { classId, expectedCostOboles },
+    accessToken,
+    idempotencyKey,
+  );
+
+/** `idempotencyKey` : la même clé tant que ce départ n'a pas reçu de réponse ; coût vu dans `input`. */
+export const departVoyage = (
+  input: VoyageDepartInput,
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<VoyageDepartOutput>('voyage.depart', input, accessToken, idempotencyKey);

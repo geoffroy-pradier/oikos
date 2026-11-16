@@ -11,6 +11,13 @@ import { LoadProblem, Loading } from './LoadProblem';
 interface Treasury {
   balance: number;
 }
+/** Un voyage de la maison (vue `my_voyages`) : ce qui est en mer n'est dans aucun stock (4.6). */
+interface Voyage {
+  id: string;
+  to_city_id: string;
+  arrived_at: string | null;
+  cargo: { goodId: string; quantity: number }[];
+}
 interface Inventory {
   id: string;
   city_id: string;
@@ -39,14 +46,18 @@ export function HomeScreen() {
     'id, city_id, good_id, quantity, reserved',
     'good_id',
   );
+  const voyages = useRows<Voyage>('my_voyages', 'id, to_city_id, arrived_at, cargo', 'departed_at');
+  const atSea = (voyages.rows ?? []).filter(
+    (voyage) => voyage.arrived_at === null && voyage.cargo.length > 0,
+  );
 
   const number = new Intl.NumberFormat(i18n.language);
   const money = useMoney();
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
-  const failed = treasury.failed || stock.failed || orders.failed;
+  const failed = treasury.failed || stock.failed || orders.failed || voyages.failed;
   const groups = stockByCity(stock.rows ?? [], house.cityId);
-  const titled = groups.some(({ cityId }) => cityId !== house.cityId);
+  const titled = atSea.length > 0 || groups.some(({ cityId }) => cityId !== house.cityId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,7 +69,9 @@ export function HomeScreen() {
       </Card>
       {failed && (
         <LoadProblem
-          onRetry={() => Promise.all([treasury.reload(), stock.reload(), orders.reload()])}
+          onRetry={() =>
+            Promise.all([treasury.reload(), stock.reload(), orders.reload(), voyages.reload()])
+          }
         />
       )}
 
@@ -104,7 +117,7 @@ export function HomeScreen() {
       <Card>
         <h2 className="text-xl">{t('home.stock')}</h2>
         {stock.rows === null && !stock.failed && <Loading />}
-        {stock.rows?.length === 0 && (
+        {stock.rows?.length === 0 && atSea.length === 0 && (
           <p className="text-muted-foreground">{t('home.stockEmpty')}</p>
         )}
         {/* Une seule cité, celle de la maison : pas de titre. Sinon chaque cité a le sien. */}
@@ -128,6 +141,24 @@ export function HomeScreen() {
                       ({t('home.stockReserved', { reserved: number.format(line.reserved) })})
                     </span>
                   )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {/* Cargaisons en mer, par voyage : elles entreront dans le stock de la cité d'arrivée. */}
+        {atSea.map((voyage) => (
+          <section key={voyage.id} aria-labelledby={`sea-${voyage.id}`}>
+            <h3 id={`sea-${voyage.id}`} className="mt-2 font-semibold">
+              {t('home.atSea', { city: house.cityNames[voyage.to_city_id] ?? voyage.to_city_id })}
+            </h3>
+            <ul>
+              {voyage.cargo.map((line) => (
+                <li key={line.goodId}>
+                  {t('home.stockLine', {
+                    good: goodName(line.goodId),
+                    quantity: number.format(line.quantity),
+                  })}
                 </li>
               ))}
             </ul>
