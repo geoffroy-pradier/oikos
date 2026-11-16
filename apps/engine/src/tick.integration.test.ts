@@ -26,10 +26,16 @@ let index: number;
 
 beforeAll(async () => {
   await ensureInitialConfig(db, INITIAL_CONFIG);
-  active = await loader.at(new Date());
-  // Le prochain tick : sur une base neuve, la configuration vient d'être activée et n'était pas encore en
+  const now = new Date();
+  const { tickMinutes } = (await loader.at(now)).config.clock;
+  // Un tick à venir : sur une base neuve, la configuration vient d'être activée et n'était pas encore en
   // vigueur au début du tick en cours. L'horloge injectée (`now`) fait comme si son heure était venue.
-  index = tickIndexAt(new Date(), active.config.clock.tickMinutes) + 1;
+  // Deux ticks plus loin plutôt qu'un : l'activation d'essai du rejeu s'annule alors avant son échéance,
+  // ce que la base n'accepte qu'à plus d'une minute de celle-ci.
+  index = tickIndexAt(now, tickMinutes) + 2;
+  // La version attendue est celle du tick joué, pas celle de maintenant : une version programmée pour la
+  // clôture par un autre fichier de tests (`admin.scheduleConfig`) peut entrer en vigueur entre les deux (#354).
+  active = await loader.at(tickStart(index, tickMinutes));
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
@@ -159,18 +165,24 @@ describe('exécution d’un tick', () => {
     expect(played.summary).toEqual(first);
 
     // Une autre version devient active pour cet instant : le rejeu avec la version enregistrée ne bouge pas.
+    // Programmée à l'instant du tick, elle l'emporte sur toute activation antérieure ou de même échéance ;
+    // annulée ensuite, elle ne laisse aucune version en vigueur que d'autres tests n'attendraient pas.
     const variant = structuredClone(INITIAL_CONFIG) as GameConfig;
     variant.clock.seasonDays = 14;
     const published = await publishVersion(db, variant, { note: 'après le tick' });
     if (!published.ok) throw new Error(published.errors.join('; '));
-    await scheduleActivation(db, published.version.id);
+    await scheduleActivation(db, published.version.id, tick.scheduledAt);
     try {
       const replay = { seed: played.seed, configVersionId: played.configVersionId };
       expect(await dryRunTick(db, tick, replay)).toEqual(played.summary);
       expect(await dryRunTick(db, tick, { seed: played.seed })).not.toEqual(played.summary);
     } finally {
-      await scheduleActivation(db, active.id);
+      await sql`insert into config.activation_cancellations (activation_id, cancelled_by)
+        select id, ${randomUUID()} from config.activations where version_id = ${published.version.id}`.execute(
+        db,
+      );
     }
+    expect((await loader.at(tick.scheduledAt)).id).toBe(active.id);
   });
 
   it('les étapes partagent un seul aléa : chacune poursuit la suite de la précédente', async () => {
