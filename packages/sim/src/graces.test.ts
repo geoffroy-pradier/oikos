@@ -45,6 +45,10 @@ describe('récolte bénie, atelier inspiré (#266)', () => {
     expect(() => graceSurplus([{ goodId: 'wheat', quantity: 2 ** 53 }], 10_000)).toThrow(
       RangeError,
     );
+    // Dépassement réel : la quantité est un entier sûr, la récolte augmentée n'en est plus un.
+    expect(() => graceSurplus([{ goodId: 'wheat', quantity: Number.MAX_SAFE_INTEGER }], 1)).toThrow(
+      RangeError,
+    );
   });
 
   it('propriété : ne retire jamais rien, au plus double, ⌊q × ampleur ÷ 10 000⌋ exactement', () => {
@@ -81,6 +85,9 @@ describe('vent favorable (#266)', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 2 ** 40 }), wind, bps, (seconds, magnitude, storm) => {
         const shortened = fairWindSeconds(seconds, magnitude);
+        // Formule exacte, en entiers longs : ⌈secondes × (10 000 − ampleur) ÷ 10 000⌉.
+        const scaled = BigInt(seconds) * BigInt(10_000 - magnitude);
+        expect(BigInt(shortened)).toBe((scaled + 9_999n) / 10_000n);
         expect(shortened).toBeLessThanOrEqual(seconds);
         expect(shortened).toBeGreaterThanOrEqual(Math.max(1, Math.ceil(seconds / 2)));
         // Tempête d'abord, vent ensuite : le vent ne rallonge jamais ce que la tempête a fixé.

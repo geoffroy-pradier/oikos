@@ -79,6 +79,7 @@ Il ne change pas de recette tant qu'il est à l'arrêt (refus « site à l'arrê
 Décision : la fin d'un cycle se lit dans le temps du site, celui de son horodatage de cycle et de la durée de sa recette, gelé pendant un arrêt ; pour un site jamais arrêté, c'est le temps réel.
 Limite connue : la relance décale ce temps de la durée de l'arrêt, y compris pour les cycles terminés avant l'arrêt et non récoltés ; un événement peut alors les toucher ou les épargner, si bien que les récolter avant ou après la relance peut différer.
 L'arrondi se fait cycle par cycle, à l'unité inférieure : sans arrêt entre elles, récolter en une ou plusieurs fois rend la même quantité, et une sécheresse au plus fort rend zéro, le cycle avançant quand même.
+Une grâce (7.1, #266) s'applique après les événements, sur la quantité de toute la récolte qui la consomme : son surplus fait exception à cette règle.
 La quantité récoltée passe par le journal des stocks ; l'écart dû à chaque événement est expliqué dans `event_effects` et dans l'événement de domaine `SiteCollected` (`eventEffects`).
 
 Recette retirée : une version de configuration peut retirer une recette qu'un site exploite encore.
@@ -262,6 +263,7 @@ Voyages, dans la phase 2 (#252) :
   Un trajet dure ⌈heures × 3 600 × 10 000 ÷ vitesse⌉ secondes : un navire plus lent met plus longtemps, jamais moins que la durée exacte.
   Un navire qui part pendant une tempête de sa route (7.4, #267) met ⌈durée × (10 000 + ampleur) ÷ 10 000⌉ secondes, avec la plus forte tempête en cours au départ (à égalité, la plus ancienne) ; une tempête qui commence en cours de trajet ne le change pas.
   Décision : une tempête retarde, elle ne fait rien perdre ; le retard est expliqué dans `event_effects` et porté par `VoyageDeparted` (`storm`).
+  Un vent favorable (7.1, #266) s'applique après la tempête, sur la durée qu'elle a allongée.
   Chaque route porte les provisions d'un voyage par classe de navire, en oboles, détruites au départ (puits `sink_voyage_provisions`).
 - Le droit de port de la cité d'arrivée (`ships.portDues`, 5.6) est un forfait par classe, multiplié par le coefficient de la cité (10 000 = ×1 ; une cité sans coefficient est à ×1), arrondi à l'obole supérieure, et payé au départ.
   Ce coefficient est celui du dernier décret appliqué de la cité, sinon celui de la configuration (#262) ; l'écran de départ le lit dans la vue `city_rates` et n'annonce aucun coût avant de l'avoir lu.

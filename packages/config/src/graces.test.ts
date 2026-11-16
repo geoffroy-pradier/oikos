@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { INITIAL_CONFIG, validateConfig, type Grace } from './index';
 
-const base = () => structuredClone(INITIAL_CONFIG) as Record<string, unknown> & { graces: Grace[] };
+const base = () =>
+  structuredClone(INITIAL_CONFIG) as Record<string, unknown> & { gods: { id: string }[] };
+/** Grâces d'essai : la configuration initiale n'en offre aucune (#283). */
+const GRACES: Grace[] = [
+  {
+    id: 'demeter_harvest',
+    godId: 'demeter',
+    effect: 'blessed_harvest',
+    magnitudeBps: 2_000,
+    charisRequired: 300,
+    charisSpent: 150,
+    cooldownDays: 3,
+  },
+  {
+    id: 'apollo_wind',
+    godId: 'apollo',
+    effect: 'fair_wind',
+    magnitudeBps: 2_500,
+    charisRequired: 300,
+    charisSpent: 150,
+    cooldownDays: 3,
+  },
+];
 const errorsOf = (graces: unknown) => {
   const result = validateConfig({ ...base(), graces });
   return result.ok ? [] : result.errors;
@@ -9,17 +31,14 @@ const errorsOf = (graces: unknown) => {
 const fieldsOf = (graces: unknown) => [
   ...new Set(errorsOf(graces).map((error) => error.split(':')[0])),
 ];
-const grace = (patch: Partial<Record<keyof Grace, unknown>>) => [{ ...base().graces[0], ...patch }];
+const grace = (patch: Partial<Record<keyof Grace, unknown>>) => [{ ...GRACES[0], ...patch }];
 
 describe('grâces (7.1, #266)', () => {
-  it('la configuration initiale : un effet par dieu de son domaine, bornés', () => {
+  it('la configuration initiale n’offre aucune grâce, jusqu’au calibrage (#283) ; des grâces d’essai sont admises', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(result.config.graces.map((row) => [row.id, row.godId, row.effect])).toEqual([
-      ['demeter_harvest', 'demeter', 'blessed_harvest'],
-      ['athena_inspiration', 'athena', 'inspired_workshop'],
-      ['poseidon_wind', 'poseidon', 'fair_wind'],
-    ]);
+    expect(result.config.graces).toEqual([]);
+    expect(errorsOf(GRACES)).toEqual([]);
   });
 
   it('une version publiée avant les grâces reste lisible, sans grâce', () => {
@@ -66,11 +85,16 @@ describe('grâces (7.1, #266)', () => {
       'graces[0].charisSpent: above the Charis required',
     ]);
     expect(errorsOf(grace({ godId: 'zeus' }))).toEqual(['graces[0].godId: unknown god "zeus"']);
-    const graces = base().graces;
-    expect(errorsOf([...graces, { ...graces[2], effect: 'blessed_harvest' }])).toEqual([
-      'graces: duplicate id "poseidon_wind"',
+    expect(errorsOf([...GRACES, { ...GRACES[1], effect: 'blessed_harvest' }])).toEqual([
+      'graces: duplicate id "apollo_wind"',
     ]);
-    // Un dieu retiré de la configuration doit l'être aussi de ses grâces.
-    expect(validateConfig({ ...base(), gods: [] }).ok).toBe(false);
+    // Un dieu retiré de la configuration doit l'être aussi de ses grâces (Apollon ne protège aucune cité).
+    const godless = {
+      ...base(),
+      gods: base().gods.filter((god) => god.id !== 'apollo'),
+      graces: GRACES,
+    };
+    const result = validateConfig(godless);
+    expect(result.ok ? [] : result.errors).toEqual(['graces[1].godId: unknown god "apollo"']);
   });
 });
