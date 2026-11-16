@@ -128,7 +128,7 @@ select throws_ok(pg_temp.entry('property.buy', upper(pg_temp.lot('townhouse1')),
 select throws_ok('drop index game.ledger_entries_property_bought_once; '
   || pg_temp.entry('property.buy', pg_temp.lot('townhouse1'), '00000000-0000-7000-8000-0000000090b1', 'sink_property_purchase',
   format('update game.properties set owner_house_id = %L where id = %L', '00000000-0000-7000-8000-0000000090b1', pg_temp.lot('townhouse1'))),
-  '23001', 'a property is bought only from its city', 'un bien ne passe pas d''une maison à une autre par un achat');
+  '23001', 'a property passes between houses only by a sale entry of the same transaction', 'un bien ne passe pas d''une maison à une autre par un achat');
 select is((select (owner_house_id::text, acquired_at = now()) from game.properties where id = pg_temp.lot('townhouse1')::uuid),
   ('00000000-0000-7000-8000-0000000090a1'::text, true), 'le bien est à l''acheteur, acquis maintenant (date posée par la base)');
 select lives_ok(format($$update game.properties set acquired_at = now() - interval '1 day' where id = %L$$, pg_temp.lot('townhouse1')),

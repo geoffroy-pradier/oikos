@@ -73,7 +73,7 @@ select is(
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
   'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
-    || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_trade_settled game.check_trade_settlement '
+    || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_property_listing_settled game.check_trade_settled game.check_trade_settlement '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_identity game.city_properties game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
     || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
