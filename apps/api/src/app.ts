@@ -29,6 +29,7 @@ import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
 import { propertyBuy } from './commands/property-buy';
+import { propertyBuyListed } from './commands/property-buy-listed';
 import { propertyEndLease, propertyLease } from './commands/property-lease';
 import {
   propertyListForSale,
@@ -79,6 +80,7 @@ export const COMMANDS = [
   propertyWithdrawOffer,
   propertyLease,
   propertyEndLease,
+  propertyBuyListed,
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,
