@@ -311,10 +311,17 @@
     "SHIP_CLASS_RETIRED": "Cette classe de navire a été retirée : il ne peut plus partir.",
     "NO_ROUTE": "Aucune route ne mène à cette cité.",
     "CARGO_OVER_CAPACITY": "La cargaison dépasse la capacité du navire.",
+    "LEASE_ENDING": "La fin de ce bail est déjà demandée.",
+    "LEASE_NOT_FOUND": "Ce bail n'existe plus ou est terminé.",
+    "NOTHING_TO_RENOVATE": "Ce bien est déjà neuf.",
     "OWN_PROPERTY": "C'est votre propre bien.",
+    "PROPERTY_ALREADY_LISTED": "Une offre de ce bien est déjà ouverte : retirez-la d'abord.",
+    "PROPERTY_LEASED": "Ce bien est loué : il ne s'offre pas avant la fin du bail.",
     "PROPERTY_NOT_FOR_LEASE": "Ce bien n'est plus à louer.",
     "PROPERTY_NOT_FOR_SALE": "Ce bien n'est plus à vendre.",
     "PROPERTY_NOT_FOUND": "Ce bien n'existe plus.",
+    "PROPERTY_NOT_LISTED": "Ce bien n'a plus d'offre ouverte.",
+    "PROPERTY_NOT_OWNED": "Ce bien n'est pas à vous.",
     "PROPERTY_SIZE_RETIRED": "Cette taille de bien a été retirée."
   },
   "shell": {
@@ -558,10 +565,35 @@
     "noneMine": "Vous n'avez aucun bien.",
     "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture",
     "unpaid": "Entretien impayé depuis le {{date}} : ce bien ne loge personne jusqu'au paiement.",
+    "leasedOut": "Loué : {{cost}} par jour",
+    "renovate": "Rénover ({{cost}})",
+    "goodLine": "{{quantity}} {{good}}",
+    "priceLabel": "Prix de vente ou loyer par jour, en oboles",
+    "listForSale": "Mettre en vente",
+    "offerLease": "Mettre en location",
+    "withdraw": {
+      "sale": "Retirer l'offre de vente ({{cost}})",
+      "lease": "Retirer l'offre de location ({{cost}} par jour)"
+    },
+    "leases": "Mes baux",
+    "noLeases": "Aucun bail.",
+    "asTenant": "Vous louez ce bien : {{cost}} par jour",
+    "asLandlord": "Vous louez ce bien à une maison : {{cost}} par jour",
+    "ending": "Fin demandée : le bail prend fin à la prochaine clôture.",
+    "ended": {
+      "requested": "Bail terminé à la demande d’une partie.",
+      "unpaid": "Bail résilié : loyer impayé."
+    },
+    "endLease": "Mettre fin au bail",
     "done": {
       "buy": "Bien acheté.",
       "buyListed": "Bien acheté.",
-      "lease": "Bail signé."
+      "lease": "Bail signé.",
+      "renovate": "Bien rénové.",
+      "listForSale": "Bien mis en vente.",
+      "offerLease": "Bien mis en location.",
+      "withdrawOffer": "Offre retirée.",
+      "endLease": "Fin du bail demandée."
     }
   }
 }

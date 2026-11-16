@@ -311,10 +311,17 @@
     "SHIP_CLASS_RETIRED": "This ship class was withdrawn: it can no longer sail.",
     "NO_ROUTE": "No route leads to that city.",
     "CARGO_OVER_CAPACITY": "The cargo exceeds the ship's capacity.",
+    "LEASE_ENDING": "The end of this lease has already been requested.",
+    "LEASE_NOT_FOUND": "This lease no longer exists or has ended.",
+    "NOTHING_TO_RENOVATE": "This property is already new.",
     "OWN_PROPERTY": "This is your own property.",
+    "PROPERTY_ALREADY_LISTED": "An offer for this property is already open: withdraw it first.",
+    "PROPERTY_LEASED": "This property is leased: it cannot be offered before the lease ends.",
     "PROPERTY_NOT_FOR_LEASE": "This property is no longer for lease.",
     "PROPERTY_NOT_FOR_SALE": "This property is no longer for sale.",
     "PROPERTY_NOT_FOUND": "This property no longer exists.",
+    "PROPERTY_NOT_LISTED": "This property no longer has an open offer.",
+    "PROPERTY_NOT_OWNED": "This property is not yours.",
     "PROPERTY_SIZE_RETIRED": "This property size has been retired."
   },
   "shell": {
@@ -558,10 +565,35 @@
     "noneMine": "You own no property.",
     "upkeep": "Upkeep: {{cost}} a day, charged at the close",
     "unpaid": "Upkeep unpaid since {{date}}: this property houses no one until it is paid.",
+    "leasedOut": "Leased out: {{cost}} a day",
+    "renovate": "Renovate ({{cost}})",
+    "goodLine": "{{quantity}} {{good}}",
+    "priceLabel": "Sale price or daily rent, in obols",
+    "listForSale": "Put up for sale",
+    "offerLease": "Offer for lease",
+    "withdraw": {
+      "sale": "Withdraw the sale offer ({{cost}})",
+      "lease": "Withdraw the lease offer ({{cost}} a day)"
+    },
+    "leases": "My leases",
+    "noLeases": "No lease.",
+    "asTenant": "You lease this property: {{cost}} a day",
+    "asLandlord": "You lease this property to a house: {{cost}} a day",
+    "ending": "End requested: the lease ends at the next close.",
+    "ended": {
+      "requested": "Lease ended at the request of a party.",
+      "unpaid": "Lease terminated: rent unpaid."
+    },
+    "endLease": "End the lease",
     "done": {
       "buy": "Property bought.",
       "buyListed": "Property bought.",
-      "lease": "Lease signed."
+      "lease": "Lease signed.",
+      "renovate": "Property renovated.",
+      "listForSale": "Property put up for sale.",
+      "offerLease": "Property offered for lease.",
+      "withdrawOffer": "Offer withdrawn.",
+      "endLease": "End of lease requested."
     }
   }
 }
