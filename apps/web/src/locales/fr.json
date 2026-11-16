@@ -595,5 +595,15 @@
       "withdrawOffer": "Offre retirée.",
       "endLease": "Fin du bail demandée."
     }
+  },
+  "alerts": {
+    "title": "À surveiller",
+    "unhoused_one": "{{number}} travailleur sans logement : il est hébergé chez les habitants, à vos frais.",
+    "unhoused_other": "{{number}} travailleurs sans logement : ils sont hébergés chez les habitants, à vos frais.",
+    "renovate": "{{property}} est à rénover : ce bien ne loge plus personne.",
+    "unpaid": "{{property}} : entretien impayé, ce bien ne loge personne.",
+    "leaseTerminated": "Bail résilié pour loyer impayé : {{property}}.",
+    "toStaff": "Voir le personnel",
+    "toProperty": "Voir l'immobilier"
   }
 }

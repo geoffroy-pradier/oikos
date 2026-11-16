@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { stockByCity } from '../site-rules';
+import { HouseAlerts } from './HouseAlerts';
 import { SitesCard } from './Sites';
 import { useMoney } from '../money';
 import { LoadProblem, Loading } from './LoadProblem';
@@ -74,6 +75,8 @@ export function HomeScreen() {
           }
         />
       )}
+
+      <HouseAlerts />
 
       <Card>
         <h2 className="text-xl">{t('home.treasury')}</h2>
