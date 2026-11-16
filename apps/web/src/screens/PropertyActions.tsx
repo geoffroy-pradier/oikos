@@ -6,6 +6,7 @@ import { useMoney } from '../money';
 import type { MyProperty, Offer, PropertySize } from '../property';
 
 type Command = keyof PropertyCommandInputs;
+const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
 /**
  * Commandes du propriétaire sur un de ses biens (4.5) : rénovation au coût en vigueur, mise en vente ou
@@ -16,6 +17,7 @@ export function PropertyActions({
   size,
   offer,
   leased,
+  name,
   busy,
   run,
 }: {
@@ -23,6 +25,8 @@ export function PropertyActions({
   size: PropertySize | undefined;
   offer: Offer | undefined;
   leased: boolean;
+  /** Nom du bien (taille, lot, cité) : chaque contrôle répété par bien le porte pour un lecteur d'écran. */
+  name: string;
   busy: boolean;
   run: <N extends Command>(
     intent: string,
@@ -38,12 +42,29 @@ export function PropertyActions({
   const value = Number(typed);
   const price = Number.isSafeInteger(value) && value > 0 ? value : null;
   const renovation = size?.renovation;
+  const renovateText =
+    renovation &&
+    t('property.renovate', {
+      cost: [
+        money(renovation.oboles),
+        ...renovation.goods.map((stack) =>
+          t('property.goodLine', {
+            quantity: number.format(stack.quantity),
+            good: goodName(stack.goodId),
+          }),
+        ),
+      ].join(', '),
+    });
+  const withdrawText =
+    offer && t(`property.withdraw.${offer.kind}`, { cost: money(offer.priceOboles) });
   return (
     <div className="flex flex-col gap-2">
       {renovation && property.condition < 10_000 && (
         <Button
           variant="secondary"
+          className={WAITING}
           aria-disabled={busy}
+          aria-label={`${renovateText} — ${name}`}
           onClick={() =>
             void run(`renovate:${property.id}:${JSON.stringify(renovation)}`, 'property.renovate', {
               propertyId: property.id,
@@ -52,36 +73,30 @@ export function PropertyActions({
             })
           }
         >
-          {t('property.renovate', {
-            cost: [
-              money(renovation.oboles),
-              ...renovation.goods.map((stack) =>
-                t('property.goodLine', {
-                  quantity: number.format(stack.quantity),
-                  good: goodName(stack.goodId),
-                }),
-              ),
-            ].join(', '),
-          })}
+          {renovateText}
         </Button>
       )}
       {offer && (
         <Button
           variant="secondary"
+          className={WAITING}
           aria-disabled={busy}
+          aria-label={`${withdrawText} — ${name}`}
           onClick={() =>
             void run(`withdraw:${property.id}`, 'property.withdrawOffer', {
               propertyId: property.id,
             })
           }
         >
-          {t(`property.withdraw.${offer.kind}`, { cost: money(offer.priceOboles) })}
+          {withdrawText}
         </Button>
       )}
       {!offer && !leased && (
         <div className="flex flex-col gap-2">
           <Field
             label={t('property.priceLabel')}
+            aria-label={`${t('property.priceLabel')} — ${name}`}
+            error={typed !== '' && price === null ? t('property.priceInvalid') : undefined}
             inputMode="numeric"
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
@@ -91,6 +106,8 @@ export function PropertyActions({
               <Button
                 key={action}
                 variant="secondary"
+                className={WAITING}
+                aria-label={`${t(`property.${action}`)} — ${name}`}
                 aria-disabled={busy || price === null}
                 onClick={() => {
                   if (price === null) return;

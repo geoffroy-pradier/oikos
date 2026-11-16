@@ -569,6 +569,7 @@
     "renovate": "Rénover ({{cost}})",
     "goodLine": "{{quantity}} {{good}}",
     "priceLabel": "Prix de vente ou loyer par jour, en oboles",
+    "priceInvalid": "Saisissez un nombre entier d'oboles, plus grand que zéro.",
     "listForSale": "Mettre en vente",
     "offerLease": "Mettre en location",
     "withdraw": {

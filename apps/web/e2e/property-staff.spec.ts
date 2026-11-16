@@ -56,7 +56,8 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   });
   await (testInfo.project.name === 'mobile-360' ? buy.first() : buy.last()).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toHaveText('Bien acheté.');
+  // Le résultat s'annonce dans la carte des offres et prend le foyer si le bouton a disparu.
+  await expect(page.getByRole('status').filter({ hasText: 'Bien acheté.' })).toBeVisible();
   const mine = page.getByRole('heading', { name: 'Mes biens' }).locator('..');
   await expect(mine.getByText('État : 100 %')).toBeVisible();
   await expectNoHorizontalScroll(page);

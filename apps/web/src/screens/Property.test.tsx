@@ -93,6 +93,9 @@ describe('écran Immobilier (#259)', () => {
       ['property.lease', { propertyId: 'p2', expectedRentOboles: 30 }],
     ]);
     expect(await screen.findByText(fr.property.done.lease)).toBeTruthy();
+    // Le bouton cliqué n'a pas le foyer : le résultat, annoncé dans la carte des offres, le prend.
+    await waitFor(() => expect(document.activeElement?.textContent).toBe(fr.property.done.lease));
+    expect(document.activeElement?.getAttribute('role')).toBe('status');
   });
 
   it('sans réponse : le nouvel essai rejoue la même clé ; un refus est dit, la clé suivante est neuve', async () => {
