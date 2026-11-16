@@ -1,5 +1,6 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
-import { yieldModelOf } from '@oikos/sim';
+import type { SiteCollectOutput } from '@oikos/contracts';
+import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
 import { Button, Card } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +8,7 @@ import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandRespo
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { parseCityIdentities } from '../city-identity';
-import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf } from '../harvest-events';
+import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf, yieldGaps } from '../harvest-events';
 import {
   freeStockIn,
   parseLaborMarket,
@@ -196,6 +197,13 @@ export function SitesCard({
     const lost = gaps.map((gap) => stackText({ ...gap, quantity: Math.abs(gap.quantity) }));
     return t(`home.${tense}.${model}`, { list: list(lost) });
   };
+  /** Écart d'une récolte faite à son rendement sans événement : celui d'un champ ou d'un verger (#417). */
+  const collectedGaps = (site: Site, data: SiteCollectOutput) => {
+    const recipe = rules?.recipe(site.recipe_id);
+    return recipe && Number.isSafeInteger(data.cycles)
+      ? yieldGaps(recipe, data.cycles, data.outputs)
+      : [];
+  };
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
     freeStockIn(stock ?? [], site.city_id, goodId);
@@ -365,7 +373,12 @@ export function SitesCard({
     run(
       site.id,
       () => collectSite(site.id, house.accessToken),
-      (data) => t('home.collected', { list: list(data.outputs.map(stackText)) }),
+      (data) => {
+        const done = t('home.collected', { list: list(data.outputs.map(stackText)) });
+        // Rendement touché par un événement : l'écart à `cycles` × extrant est expliqué (7.4, #417).
+        const why = gapText(site, data.outputs, collectedGaps(site, data), 'collectedGap');
+        return why ? `${done} ${why}` : done;
+      },
     );
 
   async function change(site: Site, recipeId: string) {
@@ -458,10 +471,19 @@ export function SitesCard({
     setBusy(true);
     setNotice(null);
     const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
+    // Sites dont la récolte faite a été touchée par un événement de rendement, par modèle (7.4, #417).
+    const touched = new Map<WorldEventKind, string[]>();
     try {
       const outcome = await collectAll(
         harvestable.map((site) => site.id),
-        (siteId) => collectSite(siteId, house.accessToken),
+        async (siteId) => {
+          const result = await collectSite(siteId, house.accessToken);
+          const site = harvestable.find((candidate) => candidate.id === siteId);
+          const model = yieldModelOf(rules?.siteTypeOf(site?.recipe_id ?? '') ?? '');
+          if (result.ok && site && model && collectedGaps(site, result.data).length > 0)
+            touched.set(model, [...(touched.get(model) ?? []), siteName(site)]);
+          return result;
+        },
       );
       await refresh();
       const parts: string[] = [];
@@ -473,6 +495,8 @@ export function SitesCard({
             list: list(outcome.collected.map(stackText)),
           }),
         );
+      for (const [model, touchedSites] of touched)
+        parts.push(t(`home.collectedAllGap.${model}`, { list: list(touchedSites) }));
       for (const failure of outcome.failed)
         parts.push(
           t('home.collectAllFailed', {

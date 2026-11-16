@@ -34,6 +34,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    L'arrondi se fait cycle par cycle, à l'unité inférieure : la baisse réelle peut dépasser le pourcentage annoncé ; deux événements d'un même modèle ne s'additionnent pas, le plus fort en cours compte.
    Une récolte estimée à zéro par une sécheresse est expliquée : récolter fait quand même avancer les cycles.
    Tant que ces événements ne sont pas lus, la récolte d'un champ ou d'un verger n'est pas estimée ; une lecture en échec est annoncée et se relit.
+   L'issue d'une récolte faite explique l'écart de la quantité rendue par l'API à `cycles` × extrant : réduite à zéro ou de combien par une sécheresse, accrue par une bonne année ; « Tout récolter » nomme les sites touchés.
+   Cette explication se déduit de la réponse de la récolte et du type du site, sans dépendre de la lecture des événements.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
    L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.

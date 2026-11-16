@@ -125,6 +125,15 @@
       "good_year": "The good year adds {{list}}."
     },
     "eventGapZero": "The drought reduces this harvest to nothing: collecting still moves the cycles on.",
+    "collectedGap": {
+      "drought": "The drought took away {{list}}.",
+      "good_year": "The good year added {{list}}."
+    },
+    "collectedGapZero": "The drought reduced this harvest to nothing: the cycles are counted, producing nothing.",
+    "collectedAllGap": {
+      "drought": "The drought reduced the harvest of: {{list}}.",
+      "good_year": "The good year increased the harvest of: {{list}}."
+    },
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",
