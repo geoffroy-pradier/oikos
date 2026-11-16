@@ -180,3 +180,96 @@ describe('travailleurs offerts par la cité (#258)', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('relance d’un site : salaire et hébergement du jour (#258)', () => {
+  /**
+   * Une maison fondée dans une cité neuve, son champ à l'arrêt depuis une heure, et le marché du travail
+   * de la dernière clôture de la cité : salaire 7, hébergement 3. Avec `townhouse`, la maison possède une
+   * maison de ville (4 logements) dans la cité.
+   */
+  async function haltedField(townhouse: boolean) {
+    const cityId = await newCity(1_000);
+    const { user, founded } = await found(cityId);
+    const houseId = (founded.body['data'] as { houseId: string }).houseId;
+    const { id: siteId, world_id: worldId } = await db
+      .selectFrom('game.sites')
+      .select(['id', 'world_id'])
+      .where('house_id', '=', houseId)
+      .executeTakeFirstOrThrow();
+    const day = 1_000;
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await sql`update game.sites set created_at = now() - interval '2 hours',
+        cycle_started_at = now() - interval '2 hours', halted_at = now() - interval '1 hour'
+        where id = ${siteId}`.execute(trx);
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+      await sql`insert into game.labor_market (world_id, city_id, game_day, supply, employed, unhoused, wage_oboles, lodging_oboles)
+        values (${worldId}, ${cityId}, ${day}, null, 4, 4, 7, 3)`.execute(trx);
+      await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+        select ${worldId}, ${day}, now() - interval '1 day', id from config.versions limit 1`.execute(
+        trx,
+      );
+    });
+    if (townhouse) {
+      const { rows } = await sql<{
+        id: string;
+      }>`insert into game.properties (world_id, city_id, size_id, lot)
+        values (${worldId}, ${cityId}, 'townhouse', 1) returning id`.execute(owner);
+      await owner.transaction().execute(async (trx) => {
+        await sql`alter table game.properties disable trigger properties_guard`.execute(trx);
+        await sql`update game.properties set owner_house_id = ${houseId}, acquired_at = now()
+          where id = ${rows[0]?.id}`.execute(trx);
+        await sql`alter table game.properties enable trigger properties_guard`.execute(trx);
+      });
+    }
+    return { user, houseId, siteId };
+  }
+  const UPKEEP = TEST_CONFIG.config.sites.upkeep.dailyOboles['field'] ?? 0;
+  /** Écritures de relance de la maison : nature, montant de la trésorerie, puits. */
+  const entriesOf = async (houseId: string) =>
+    (
+      await sql<{
+        kind: string;
+        amount: string;
+        sink: string;
+      }>`select e.kind, l.amount, s.system_key as sink
+        from game.ledger_entries e
+        join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+        join game.ledger_lines ls on ls.entry_id = e.id join game.accounts s on s.id = ls.account_id
+        where e.kind in ('upkeep.restart', 'lodging.restart') and e.meta->>'houseId' = ${houseId}
+          and a.kind = 'house' and s.kind = 'system' and ls.amount = -l.amount
+        order by e.kind, l.amount`.execute(db)
+    ).rows.map((row) => [row.kind, Number(row.amount), row.sink]);
+
+  it('sans logement : quatre nuits au prix du jour en plus ; un prix vu sans elles est refusé', async () => {
+    const { user, houseId, siteId } = await haltedField(false);
+    const due = UPKEEP + 4 * 7 + 4 * 3;
+    expect(
+      await send(user, 'site.restart', { siteId, expectedUpkeepOboles: UPKEEP + 4 * 7 }),
+    ).toMatchObject(refused('PRICE_CHANGED'));
+    expect(await entriesOf(houseId)).toEqual([]);
+    expect(await send(user, 'site.restart', { siteId, expectedUpkeepOboles: due })).toMatchObject({
+      status: 200,
+      body: { data: { upkeepOboles: UPKEEP, wagesOboles: 28, lodgingOboles: 12 } },
+    });
+    expect(await entriesOf(houseId)).toEqual([
+      ['lodging.restart', -12, 'sink_npc_lodging'],
+      ['upkeep.restart', -UPKEEP, 'sink_upkeep'],
+      ['upkeep.restart', -28, 'sink_npc_wages'],
+    ]);
+    const { rows } = await sql<{ payload: unknown }>`select payload from game.domain_events
+      where type = 'SiteRestarted' and payload->>'siteId' = ${siteId}`.execute(db);
+    expect(rows[0]?.payload).toMatchObject({ wagesOboles: 28, lodgingOboles: 12 });
+  });
+
+  it('logée par ses biens : salaire du jour, aucun hébergement', async () => {
+    const { user, houseId, siteId } = await haltedField(true);
+    expect(
+      await send(user, 'site.restart', { siteId, expectedUpkeepOboles: UPKEEP + 28 }),
+    ).toMatchObject({ status: 200, body: { data: { lodgingOboles: 0 } } });
+    expect(await entriesOf(houseId)).toEqual([
+      ['upkeep.restart', -UPKEEP, 'sink_upkeep'],
+      ['upkeep.restart', -28, 'sink_npc_wages'],
+    ]);
+  });
+});

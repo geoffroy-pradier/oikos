@@ -52,6 +52,9 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
   });
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Cités qui ont refusé un premier site faute de travailleurs (4.4, #258) : l'écran propose les autres.
+  const [fullCityIds, setFullCityIds] = useState<string[]>([]);
+  const cityName = (city: City) => t(`cities.${city.slug}`, { defaultValue: city.name });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -63,10 +66,21 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     const result = await createHouse({ cityId, name: trimmed, blazon }, accessToken);
     if (result.ok || result.error.code === 'HOUSE_ALREADY_EXISTS') await onCreated();
     if (!result.ok) setErrorCode(result.error.code);
+    if (!result.ok && result.error.code === 'NO_WORKERS_AVAILABLE') {
+      setFullCityIds((full) => [...new Set([...full, cityId])]);
+      setCityId('');
+    }
     setBusy(false);
   }
 
-  const cityMissing = errorCode === 'CITY_REQUIRED';
+  const cityMissing = errorCode === 'CITY_REQUIRED' || errorCode === 'NO_WORKERS_AVAILABLE';
+  const others = cities.filter((city) => !fullCityIds.includes(city.id)).map(cityName);
+  const errorText =
+    errorCode === 'NO_WORKERS_AVAILABLE'
+      ? others.length > 0
+        ? t('createHouse.noWorkers', { cities: others.join(', ') })
+        : t('createHouse.noWorkersAnywhere')
+      : errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL']);
 
   const select = <K extends keyof Blazon>(part: K, options: readonly Blazon[K][]) => (
     <>
@@ -136,11 +150,12 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
               />
               <span className="flex min-w-0 flex-col">
                 <span id={`city-name-${city.id}`} className="font-semibold">
-                  {t(`cities.${city.slug}`, { defaultValue: city.name })}
+                  {cityName(city)}
                 </span>
                 <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
                   {lines && [lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
                   {identities && !identity && t('cityIdentity.missing')}
+                  {fullCityIds.includes(city.id) && ` · ${t('createHouse.cityFull')}`}
                 </span>
               </span>
             </label>
@@ -154,7 +169,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
         {select('emblem', BLAZON_EMBLEMS)}
       </fieldset>
       <p id="form-error" role="alert" className="font-semibold text-danger">
-        {errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL'])}
+        {errorText}
       </p>
       <Button type="submit" disabled={busy}>
         {t('createHouse.submit')}
