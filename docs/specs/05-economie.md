@@ -355,4 +355,10 @@ Le dernier décret appliqué est le plus récemment appliqué ; deux décrets d'
 Un seul calcul, celui de la base (`game.city_rates`), donne ces taux à toutes les commandes et étapes qui taxent : l'agora (`market.placeOrder`), les achats des PNJ, la revente d'un bien (`property.buyListed`) et le départ d'un navire (`voyage.depart`).
 Chacune le lit sous le verrou de l'agora du monde, que prend aussi la clôture qui applique un décret : un échange ou un départ validé après elle paie le taux nouveau.
 
-Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité. Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux, et les joueurs ne le lisent pas encore.
+Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité.
+Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), et le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux.
+
+Comptes publics du trésor, décision du ticket #263 (6.2 : « comptes publics visibles de tous ») : tout joueur connecté lit, pour chaque cité, le solde de son trésor (vue `city_treasury`) et ses flux par jour de jeu et par nature (vue `city_treasury_flows`), un visiteur anonyme rien.
+Les natures sont la part de la taxe de marché que garde la cité (échanges de l'agora, achats des PNJ, revente d'un bien), celle du droit de port, les grands travaux et les fêtes ; `other` recueille toute nature d'écriture que la vue ne connaît pas encore, pour que la somme des flux reste le solde.
+Le jour de jeu se compte comme dans les comptes de la maison (4.1), avec l'horloge en vigueur à la lecture ; un jour dont le net d'une nature est nul n'a pas de ligne.
+Les joueurs ne lisent ni le compte lui-même ni ses lignes : seulement ces agrégats.
