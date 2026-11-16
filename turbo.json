@@ -5,7 +5,7 @@
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "typecheck": { "dependsOn": ["^typecheck"] },
     "test": { "dependsOn": ["^typecheck"] },
-    "test:integration": { "cache": false },
+    "test:integration": { "cache": false, "passThroughEnv": ["DATABASE_URL"] },
     "dev": { "cache": false, "persistent": true }
   }
 }
