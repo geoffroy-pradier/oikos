@@ -54,9 +54,9 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
   réserve son stock, un achat met son prix sous séquestre. Exécution à l'arrivée, au prix de l'ordre qui
   attendait ; annulation d'un ordre ouvert. Le carnet public montre les deux côtés par niveau de prix,
   sans identité.
-- **Taxe de marché.** Chaque échange de l'agora, entre joueurs comme avec les PNJ, prélève 5 % sur le
-  vendeur, arrondis à l'obole supérieure : la moitié est détruite, l'autre va au trésor de la cité, que
-  rien ne dépense encore. Le formulaire de vente annonce le net attendu.
+- **Taxe de marché.** Chaque échange de l'agora, entre joueurs comme avec les PNJ, prélève sur le vendeur 5 % dans la configuration initiale, ou le taux qu'un décret de la cité a fixé (#262), arrondis à l'obole supérieure.
+  La moitié est détruite, l'autre va au trésor de la cité, que les décrets de dépense peuvent dépenser (#263).
+  Le formulaire de vente annonce le net attendu.
 - **Demande des PNJ.** Toutes les dix minutes, le moteur fait acheter les habitants de la cité aux ventes
   en attente, des moins chères aux plus chères, jusqu'à trois fois le prix de référence du bien. C'est la
   seule création de monnaie en jeu, avec la dotation de départ ; le vendeur en reçoit le net de taxe.
