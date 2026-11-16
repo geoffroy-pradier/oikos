@@ -18,4 +18,5 @@ export * from './rng';
 export * from './tax';
 export * from './upkeep';
 export * from './voyage';
+export * from './world-event-effects';
 export * from './world-events';
