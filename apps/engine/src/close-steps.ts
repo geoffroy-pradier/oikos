@@ -11,12 +11,14 @@ import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
 import { propertyWear } from './steps/property-wear';
 import { siteUpkeep } from './steps/site-upkeep';
+import { worldEventPlanning } from './steps/world-event-planning';
 
 /**
  * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement puis
  * l'ouverture des élections de l'archonte (6.2), le dépouillement des décrets (6.3), la population des PNJ,
- * qui ne retient que ses propres lignes, le déclin de la Charis (7.1, #265), l'application des décrets de
- * taux (5.6, #262), le règlement des
+ * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
+ * les siens, sans autre verrou que celui de la clôture du monde, le déclin de la Charis (7.1, #265),
+ * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), la vétusté des biens immobiliers (4.5),
  * le marché du travail du jour (4.4, #258), puis l'entretien.
  * Les décrets de taux s'appliquent avant tout ce qui taxe ou paie, sous le verrou de l'agora, qu'ils ne
@@ -41,6 +43,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   archonOpening,
   decreeTally,
   npcPopulation,
+  worldEventPlanning,
   favorDecay,
   decreeApplication,
   decreeSpending,
