@@ -1,0 +1,63 @@
+{
+  "quiet": "Journée calme à {{city}} : ni échange sur l'agora, ni navire au port, ni décision de l'assemblée.",
+  "configChange": "Par décision de l'Olympe, de nouvelles lois régissent le monde à compter de cette clôture.",
+  "worldEvents": {
+    "drought": "Une sécheresse s'abat sur les champs de {{city}}.",
+    "good_year": "Les vergers de {{city}} connaissent une bonne année.",
+    "storm": "Une tempête se lève sur la route entre {{city}} et {{other}}.",
+    "caravan": "Une caravane étrangère arrive à {{city}} et demande : {{good}}."
+  },
+  "election": "La maison {{house}} est élue archonte avec {{votes}}.",
+  "electionUnnamed": "Une maison est élue archonte avec {{votes}}.",
+  "votes_one": "{{count}} voix",
+  "votes_other": "{{count}} voix",
+  "decree": {
+    "adopted": "L'assemblée adopte {{decree}} : {{for}} pour, {{against}} contre.",
+    "rejected": "L'assemblée rejette {{decree}} : {{for}} pour, {{against}} contre.",
+    "applied": "Entrée en vigueur : {{decree}}.",
+    "lapsed": "Sans effet : {{decree}}."
+  },
+  "decrees": {
+    "market_tax_rate": "le décret sur la taxe de marché",
+    "port_dues": "le décret sur les droits de port",
+    "public_works": "le décret de grands travaux",
+    "festival": "le décret de fête"
+  },
+  "market": "Sur l'agora :",
+  "good": "{{good}}, {{traded}} à {{average}} en moyenne (de {{low}} à {{high}}).",
+  "goodOnePrice": "{{good}}, {{traded}} à {{average}}.",
+  "traded_one": "{{count}} unité échangée",
+  "traded_other": "{{count}} unités échangées",
+  "oboles_one": "{{count}} obole",
+  "oboles_other": "{{count}} oboles",
+  "otherGoods_one": "Échanges aussi sur {{count}} autre bien.",
+  "otherGoods_other": "Échanges aussi sur {{count}} autres biens.",
+  "arrivals": "Au port, {{ships}} depuis {{city}}.",
+  "ships_one": "{{count}} navire arrivé",
+  "ships_other": "{{count}} navires arrivés",
+  "population": {
+    "up": "La cité compte {{population}}, {{change}} de plus qu'à la clôture précédente.",
+    "down": "La cité compte {{population}}, {{change}} de moins qu'à la clôture précédente.",
+    "same": "La population de la cité reste de {{population}}."
+  },
+  "inhabitants_one": "{{count}} habitant",
+  "inhabitants_other": "{{count}} habitants",
+  "goods": {
+    "wheat": "Blé",
+    "olives": "Olives",
+    "grapes": "Raisin",
+    "wood": "Bois",
+    "clay": "Argile",
+    "wool": "Laine",
+    "fish": "Poisson",
+    "salt": "Sel",
+    "flour": "Farine",
+    "olive_oil": "Huile d'olive",
+    "charcoal": "Charbon de bois",
+    "cloth": "Tissu",
+    "bread": "Pain",
+    "wine": "Vin",
+    "amphorae": "Amphores"
+  },
+  "cities": { "kalliste": "Kallistè", "elaia": "Elaia", "ampelos": "Ampelos", "halos": "Halos" }
+}
