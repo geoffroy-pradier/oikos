@@ -1,6 +1,11 @@
 import {
   commandErrorSchema,
   IDEMPOTENCY_HEADER,
+  type CityCastVoteInput,
+  type CityProposeDecreeInput,
+  type CityStandForElectionInput,
+  type CityVoteDecreeInput,
+  type CityWithdrawCandidacyInput,
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
@@ -175,6 +180,26 @@ export interface PropertyCommandInputs {
 export const propertyCommand = <N extends keyof PropertyCommandInputs>(
   name: N,
   input: PropertyCommandInputs[N],
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
+
+/** Entrée de chaque commande de la cité (6.2, 6.3), d'après les contrats. */
+export interface CityCommandInputs {
+  'city.standForElection': CityStandForElectionInput;
+  'city.withdrawCandidacy': CityWithdrawCandidacyInput;
+  'city.castVote': CityCastVoteInput;
+  'city.proposeDecree': CityProposeDecreeInput;
+  'city.voteDecree': CityVoteDecreeInput;
+}
+
+/**
+ * Commandes de la cité : candidature, vote, proposition et vote d'un décret. `idempotencyKey` : la même clé
+ * tant que la commande n'a pas reçu de réponse.
+ */
+export const cityCommand = <N extends keyof CityCommandInputs>(
+  name: N,
+  input: CityCommandInputs[N],
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
