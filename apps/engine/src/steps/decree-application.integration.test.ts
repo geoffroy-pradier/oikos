@@ -6,7 +6,7 @@ import {
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
-import { createDb, serviceRoleUrl } from '@oikos/db';
+import { cityRatesOf, createDb, serviceRoleUrl } from '@oikos/db';
 import { dailyCloseAt, gameDayAt, marketTax, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql, type RawBuilder } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -221,5 +221,38 @@ describe('application des décrets de taux à la clôture', () => {
       },
     ]);
     expect((await appliedEvents(port)).map((event) => event['inForceBps'])).toEqual([10_000]);
+  });
+
+  it('deux décrets de taux d’une cité appliqués à la même clôture : le dernier appliqué fait le taux', async () => {
+    const world = await newWorld();
+    // Même fin de vote : l'étape les applique dans l'ordre des identifiants, le plus grand l'emporte.
+    const decrees = [
+      { id: await world.decree('market_tax_rate', { rateBps: 300 }, 'adopted'), rateBps: 300 },
+      { id: await world.decree('market_tax_rate', { rateBps: 700 }, 'adopted'), rateBps: 700 },
+    ].sort((a, b) => a.id.localeCompare(b.id));
+    expect(await apply(world.worldId)).toEqual({ applied: 2, bounded: 0, unreadable: 0 });
+    for (const decree of decrees)
+      expect((await appliedEvents(decree.id)).map((event) => event['inForceBps'])).toEqual([
+        decree.rateBps,
+      ]);
+    const rates = await cityRatesOf(db, world.worldId, world.cityId, config);
+    expect(rates.marketTaxRateBps).toBe(decrees.at(-1)?.rateBps);
+  });
+
+  it('un décret illisible reste adopté et compté, sans arrêter la clôture du monde', async () => {
+    const world = await newWorld();
+    const unreadable = await world.decree('market_tax_rate', { rateBps: 'huit cents' }, 'adopted');
+    const valid = await world.decree('port_dues', { coefficientBps: 15_000 }, 'adopted');
+    const steps = [decreeApplication];
+    expect(
+      await closeWorld(db, { worldId: world.worldId, now: closeAt, config: loads(), steps }),
+    ).toEqual([TODAY]);
+    expect([await stateOf(unreadable), await stateOf(valid)]).toEqual([
+      'adopted:-',
+      'applied:false',
+    ]);
+    expect(await appliedEvents(unreadable)).toEqual([]);
+    // Rejouée, l'étape le retrouve et le compte encore, toujours sans échec.
+    expect(await apply(world.worldId)).toEqual({ applied: 0, bounded: 0, unreadable: 1 });
   });
 });
