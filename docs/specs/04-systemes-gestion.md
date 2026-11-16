@@ -156,6 +156,10 @@ Phase 2, première version (#256) :
   Entretien et vétusté entrent à zéro dans la configuration initiale (paramètres neutres) ; une version publiée avant l'immobilier n'a aucun bien.
 - **Parc** : chaque cité a un parc fini, d'abord détenu par elle, que le moteur crée au premier tick qui la connaît (comme sa population, 5.2) et complète jusqu'au nombre de la configuration ;
   baisser ce nombre ne retire aucun bien.
+- **Achat** (`property.buy`, bien et prix vu) : une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde (investir ailleurs comme métèque, 6).
+  Le prix de la taille est détruit (puits `sink_property_purchase`), comme l'acquisition d'un site, plutôt que versé au trésor de la cité ; un autre prix que celui vu est refusé (`PRICE_CHANGED`).
+  Refus sans effet : bien déjà vendu (`PROPERTY_NOT_FOR_SALE`), taille retirée de la configuration, trésorerie qui ne couvre pas le prix.
+  L'achat prend le verrou de l'agora du monde, puis la trésorerie, puis le bien : deux achats du même bien se suivent, et le second le trouve vendu.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes

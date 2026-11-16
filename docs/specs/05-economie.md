@@ -211,6 +211,10 @@ Il n'y a pas de revente, donc aucun robinet en face.
 Voyages (#252, 4.6) : les provisions d'un voyage sont détruites par le puits `sink_voyage_provisions`, la part détruite du droit de port par `sink_port_dues`, l'entretien quotidien des navires par `sink_ship_upkeep`.
 Tous trois entrent à zéro dans la configuration initiale.
 
+Immobilier (#256, 4.5) : le prix d'achat d'un bien à la cité est détruit par le puits `sink_property_purchase` (écriture `property.buy`), son entretien quotidien par `sink_property_upkeep` (dans l'écriture `upkeep.daily` de la clôture) et le prix d'une rénovation par `sink_property_works` (écriture `property.renovate`).
+Il n'y a pas encore de revente (#257), donc aucun robinet en face.
+Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix d'achat et la rénovation sont les deux premiers puits de l'immobilier en jeu.
+
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
