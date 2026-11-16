@@ -16,10 +16,12 @@ export function HouseAlerts() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const staffRows = useRows<unknown>('my_workforce', 'site_id, city_id, unhoused', 'site_id');
+  // Les cités du monde de la maison seulement : la dernière clôture est celle de son monde.
   const laborRows = useRows<unknown>(
     'labor_market',
     'city_id, game_day, supply, employed, unhoused, wage_oboles, lodging_oboles',
     'city_id',
+    { city_id: Object.keys(house.cityNames) },
   );
   const rulesRows = useRows<unknown>('property_rules', 'properties', 'properties');
   const mineRows = useRows<unknown>(

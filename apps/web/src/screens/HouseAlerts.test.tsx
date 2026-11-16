@@ -13,7 +13,14 @@ import { parseLeases, parsePropertyRules } from '../property';
 const config = INITIAL_CONFIG as GameConfig;
 const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]> }));
 vi.mock('../data', () => ({
-  useRows: (view: string) => ({ rows: views.rows[view] ?? [], failed: false, reload: () => null }),
+  // Le filtre par cité est appliqué comme par la base : seules les lignes des cités demandées.
+  useRows: (view: string, _columns: string, _order: string, filters?: { city_id?: string[] }) => ({
+    rows: (views.rows[view] ?? []).filter(
+      (row) => !filters?.city_id || filters.city_id.includes((row as { city_id: string }).city_id),
+    ),
+    failed: false,
+    reload: () => null,
+  }),
 }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
@@ -73,7 +80,8 @@ describe('alertes du tableau de bord (#259)', () => {
   it('travailleurs sans logement, bien à rénover, entretien impayé, bail résilié', async () => {
     views.rows = {
       property_rules: [{ properties: config.properties }],
-      labor_market: [day('k', 20000, 3)],
+      // Une cité d'un autre monde a déjà clos un jour plus récent : sans effet sur cette maison.
+      labor_market: [day('k', 20000, 3), day('x', 20001, 3)],
       my_workforce: [{ site_id: 's1', city_id: 'k', unhoused: 3 }],
       my_properties: [
         { ...property, condition: 0 },
