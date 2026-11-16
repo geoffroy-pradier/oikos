@@ -119,6 +119,44 @@ describe('UpkeepSettled, navires compris (#252)', () => {
   });
 });
 
+describe('UpkeepSettled, biens immobiliers compris (#256)', () => {
+  const property = (n: number) => `01900000-0000-7000-8000-0000000005f${n}`;
+  const settled = {
+    type: 'UpkeepSettled' as const,
+    payload: {
+      houseId: HOUSE,
+      gameDay: 20_771,
+      paidOboles: 12,
+      upkeepOboles: 0,
+      wagesOboles: 0,
+      paid: [],
+      unpaid: [],
+      halted: [],
+      resumed: [],
+      properties: {
+        upkeepOboles: 12,
+        paid: [{ propertyId: property(1), oboles: 12 }],
+        unpaid: [{ propertyId: property(2), oboles: 30 }],
+        lapsed: [property(2)],
+        restored: [property(1)],
+      },
+    },
+  };
+
+  it('se relit tel qu’il est écrit ; l’entretien des biens payés entre dans le total', () => {
+    const written = JSON.parse(JSON.stringify(settled)) as unknown;
+    expect(domainEventSchema.parse(written)).toEqual(settled);
+    const payload = settled.payload;
+    for (const changed of [
+      { ...payload, paidOboles: 0 },
+      { ...payload, properties: { ...payload.properties, upkeepOboles: 11 } },
+      { ...payload, properties: { ...payload.properties, lapsed: ['maison'] } },
+      { ...payload, properties: { ...payload.properties, seized: [] } },
+    ])
+      expect(upkeepSettledSchema.safeParse({ ...settled, payload: changed }).success).toBe(false);
+  });
+});
+
 describe('prix attendu des commandes de site', () => {
   it('facultatif pour un client antérieur ; entier, positif pour une acquisition, nul permis pour une relance', () => {
     const recipeId = 'grow_wheat';

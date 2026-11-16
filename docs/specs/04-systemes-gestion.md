@@ -164,6 +164,9 @@ Phase 2, première version (#256) :
 - **Rénovation** (`property.renovate`, bien et coût vu en oboles et en biens) : la maison propriétaire rend le bien neuf (état 10 000), à tout moment, même entretien impayé.
   Le coût en oboles est détruit (puits `sink_property_works`) par une écriture `property.renovate` dont le débit est marqué `upkeep` ; les biens sortent du stock libre de la maison dans la cité du bien (hors réservations des ventes en attente) vers l'extrémité `consumption` du journal des stocks, rattachés à cette écriture, dans la même transaction.
   Refus sans effet : bien d'une autre maison ou de la cité (`PROPERTY_NOT_OWNED`), bien déjà neuf (`NOTHING_TO_RENOVATE`), taille retirée, coût changé (oboles ou biens, `PRICE_CHANGED`), stock ou trésorerie insuffisants.
+- **Vétusté** : à chaque clôture, juste avant l'entretien (étape `propertyWear`), chaque bien, à la cité comme à une maison, perd la vétusté du jour de sa taille, sans passer sous zéro, une seule fois par jour de jeu (garde de la base, 12) ;
+  sous le seuil de sa taille, il ne loge plus personne jusqu'à sa rénovation.
+  Une clôture manquée n'use pas : comme pour l'entretien, seul le jour joué compte.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes
