@@ -1,7 +1,8 @@
 import { Card } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
+import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { useHouse } from '../house';
 import {
   along,
@@ -24,6 +25,7 @@ export function MapScreen() {
   const ships = fleet.ships.rows;
   const voyages = fleet.voyages.rows ?? [];
   const shipName = useShipName(ships ?? []);
+  const arrivals = useArrivals(fleet.voyages.rows);
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   const cityName = (cityId: string) => house.cityNames[cityId] ?? cityId;
@@ -168,10 +170,22 @@ export function MapScreen() {
       <Card>
         <h2 className="text-xl">{t('map.fleet')}</h2>
         {ships?.length === 0 && <p className="text-muted-foreground">{t('map.noShips')}</p>}
+        {/* Arrivées vues à la relecture (chaque minute) : annoncées. */}
+        {arrivals.map((voyage) => (
+          <p key={voyage.id} role="status" className="font-semibold">
+            {t('map.arrived', { city: cityName(voyage.to_city_id) })}
+          </p>
+        ))}
         <ul>
           {(ships ?? []).map((ship) => (
             <li key={ship.id}>
-              <span className="font-semibold">{shipName(ship)}</span>
+              <Link
+                to="/carte/navire/$shipId"
+                params={{ shipId: ship.id }}
+                className="font-semibold text-primary underline underline-offset-4"
+              >
+                {shipName(ship)}
+              </Link>
               {t('map.afterName', { state: stateOf(ship) })}
             </li>
           ))}

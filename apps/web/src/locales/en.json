@@ -449,10 +449,24 @@
     "afterName": ": {{state}}",
     "withLaidUp": "{{state}} (laid up: upkeep unpaid)",
     "buyChecked": "I have checked my fleet",
-    "noRouteFor": "No route: {{cities}}."
+    "noRouteFor": "No route: {{cities}}.",
+    "arrived": "A ship arrived at {{city}}: its cargo is in your stock."
   },
   "shipClasses": {
     "coaster": "Coaster",
     "round_ship": "Round ship"
+  },
+  "ship": {
+    "back": "← Map of the archipelago",
+    "ballast": "in ballast, no cargo",
+    "arrived": "Ship arrived at {{city}}: {{cargo}}, unloaded into your stock.",
+    "reload": "Reload the fleet",
+    "voyages": "Voyages",
+    "noVoyages": "This ship has not sailed yet.",
+    "voyage": "{{from}} → {{to}}",
+    "departedAt": "Departure",
+    "arrivesAt": "Due",
+    "arrivedAt": "Arrived",
+    "cargo": "Cargo"
   }
 }

@@ -23,6 +23,10 @@ vi.mock('../data', async () => {
     useShipRules: () => ({ rules: views.rules ?? rules, failed: false, reload }),
   };
 });
+// Liens sans routeur : de simples ancres.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+}));
 const { MapScreen } = await import('./Map');
 const { formatMoney } = await import('../money');
 const { parseShipRules } = await import('../ship-rules');
@@ -85,9 +89,9 @@ describe('carte de l’archipel', () => {
         },
       ],
     );
-    expect(html).toContain('Caboteur n° 1</span> : à quai à Kallistè');
-    expect(html).toContain('Caboteur n° 2</span> : en mer vers Halos, arrivée prévue le');
-    expect(html).toContain('Navire rond</span> : à quai à Elaia (désarmé');
+    expect(html).toContain('Caboteur n° 1</a> : à quai à Kallistè');
+    expect(html).toContain('Caboteur n° 2</a> : en mer vers Halos, arrivée prévue le');
+    expect(html).toContain('Navire rond</a> : à quai à Elaia (désarmé');
     // Un navire en mer est dessiné sur sa route, en plus des quatre cités.
     expect(html.match(/<circle /g)).toHaveLength(5);
   });

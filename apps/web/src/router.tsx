@@ -4,6 +4,7 @@ import { AgoraScreen } from './screens/Agora';
 import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
 import { MapScreen } from './screens/Map';
+import { ShipScreen } from './screens/Ship';
 import { NotFound } from './screens/NotFound';
 import { Placeholder } from './screens/Placeholder';
 import { Shell } from './Shell';
@@ -19,6 +20,7 @@ const routeTree = rootRoute.addChildren([
   // Écrans de l'onglet Maison, ouverts depuis le tableau de bord.
   route('/comptes', AccountsScreen),
   route('/carte', MapScreen),
+  route('/carte/navire/$shipId', ShipScreen),
   route('/agora', AgoraScreen),
   route('/cite', CityScreen),
   route('/messages', () => <Placeholder tab="messages" />),
