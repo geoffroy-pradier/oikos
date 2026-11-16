@@ -75,7 +75,7 @@ select is(
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_identity game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
     || 'game.election_results game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
-    || 'game.politics_rules game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
+    || 'game.politics_rules game.readable_channel_ids game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
 select is(
