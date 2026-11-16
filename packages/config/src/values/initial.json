@@ -433,11 +433,41 @@
     }
   ],
   "gods": [
-    { "id": "demeter" },
-    { "id": "athena" },
-    { "id": "dionysos" },
-    { "id": "poseidon" },
-    { "id": "apollo" }
+    {
+      "id": "demeter",
+      "charisPerObole": 1,
+      "charisPerUnit": { "wheat": 6, "flour": 10, "bread": 15 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "athena",
+      "charisPerObole": 1,
+      "charisPerUnit": { "olives": 9, "olive_oil": 30, "cloth": 42 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "dionysos",
+      "charisPerObole": 1,
+      "charisPerUnit": { "grapes": 10, "wine": 36 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "poseidon",
+      "charisPerObole": 1,
+      "charisPerUnit": { "fish": 12, "salt": 7 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "apollo",
+      "charisPerObole": 1,
+      "charisPerUnit": {},
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    }
   ],
   "cities": [
     {

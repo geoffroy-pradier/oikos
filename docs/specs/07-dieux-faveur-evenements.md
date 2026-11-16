@@ -15,6 +15,19 @@ La Charis se gagne par dieu : offrandes de biens (chaque dieu a ses préférence
 
 La Charis de cité est la somme pondérée des offrandes de ses citoyens envers son dieu protecteur. Elle débloque les miracles collectifs (année sans tempête, filon révélé).
 
+Dans la phase 2 (ticket 265), la Charis ne se gagne que par offrandes de biens ou de monnaie.
+Temples, fêtes privées, actes, paliers passifs, présages et rang sacerdotal attendent la phase 3.
+Le catalogue des dieux est la liste `gods` de la configuration (6.1) : les dieux protecteurs des quatre cités et Apollon (la Pythie, 7.3).
+Chaque dieu y porte sa Charis : par obole offerte (nulle, il refuse la monnaie), par unité de chaque bien qu'il accepte (un bien absent est refusé), son déclin quotidien en points de base et le poids de sa Charis de cité.
+Ajouter un dieu ne demande aucun code.
+Une offrande rapporte la somme de ses dons au taux du dieu, en entiers et sans arrondi ; un seul don refusé fait refuser toute l'offrande (`offeringCharis`, `packages/sim`).
+À chaque clôture, la Charis d'une maison envers un dieu perd ⌊Charis × déclin ÷ 10 000⌋, arrondi vers zéro (`charisDecay`).
+Conséquence de cet arrondi : une Charis trop petite pour perdre une unité ne décline plus (sous 100 avec un déclin de 1 %).
+Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
+Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
+Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues avec les grâces (#266).
+Une version publiée avant la Charis se lit sans taux : aucun dieu n'y accepte d'offrande, rien ne décline, et la Charis de cité est nulle.
+
 ## 7.2 Hybris et Némésis
 
 Chaque maison a une jauge d'Hybris cachée, dont seul le niveau approximatif est visible. Elle monte avec la part de marché excessive sur un bien (au-delà de 35 % d'une cité), l'écart de fortune avec la médiane, le refus des liturgies et les ententes sur les prix. Elle baisse avec le mécénat et les offrandes.
