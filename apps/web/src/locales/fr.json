@@ -653,15 +653,22 @@
     "noOpen": "Aucun décret au vote.",
     "meticNotice": "Métèque, votre maison ne vote pas les décrets de la cité.",
     "proposed": "Proposé par {{house}} ; vote clos le {{closes}}",
+    "approve": "Pour",
+    "reject": "Contre",
+    "approveFor": "Voter pour : {{decree}}",
+    "rejectFor": "Voter contre : {{decree}}",
+    "alreadyVoted": "Votre maison a voté ce décret. Le vote est secret.",
+    "voted": "Vote enregistré.",
     "passed": "Décrets adoptés",
     "noPassed": "Aucun décret adopté.",
     "other": "Décrets rejetés ou caducs",
     "tally": "Pour : {{for}} ; contre : {{against}} ; citoyens : {{electorate}}",
     "status": {
       "adopted": "Adopté : il s'applique à la prochaine clôture quotidienne.",
-      "applied": "En vigueur depuis le {{at}}",
+      "applied": "Appliqué le {{at}}",
       "rejected": "Rejeté.",
-      "lapsed": "Caduc : le trésor ne le couvrait plus à la clôture."
+      "lapsed": "Caduc : la clôture ne l'a pas appliqué.",
+      "inForce": "Appliqué le {{at}} ; en vigueur"
     },
     "models": {
       "market_tax_rate": "Taxe de marché de la cité à {{rate}}",
