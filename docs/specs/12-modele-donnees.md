@@ -150,6 +150,9 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Un vote est déposé par un citoyen de la cité pendant le vote, un seul par maison et par décret, et il ne change plus ; il prend un verrou partagé sur le décret, que le dépouillement verrouille avant de compter.
   Le passage à `applied` attend les effets des décrets (#262, #263) : la garde le refuse encore.
   Le service n'écrit ni identifiant, ni date, ni état à la proposition, et ne supprime rien.
+  Les joueurs connectés lisent les décrets de toutes les cités (`public.decrees` : paramètres, auteur, état, calendrier, quorum, et le décompte, nul avant le dépouillement) et les règles en vigueur (`decree_rules` : une ligne par modèle ouvert, avec les bornes de ses paramètres et les règles du vote, rendue par `game.decree_rules()`).
+  D'un vote, un joueur ne lit que celui de sa maison, et seulement son décret et sa date (`my_decree_votes`, « j'ai voté ») : jamais son choix, ni le vote d'une autre maison.
+  Les vues des décrets sont créées sous condition, pour que les tickets suivants puissent les étendre (ADR 0006).
 - Voyages (4.6, #252) : `voyages` porte le navire, sa maison, les cités de départ et d'arrivée, le départ, l'arrivée prévue et l'arrivée ; `voyage_cargo` une ligne par bien et sa quantité.
   La base garantit qu'un voyage part à l'instant de sa transaction, en mer, de la cité où son navire armé est à quai, qu'un navire n'a qu'un voyage en mer à la fois (index unique), que seule l'arrivée s'écrit ensuite, une fois, ni avant l'arrivée prévue ni dans le futur, et que la cargaison s'écrit dans la transaction du départ puis ne change plus.
   Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).

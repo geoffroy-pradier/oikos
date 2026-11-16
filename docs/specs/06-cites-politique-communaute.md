@@ -62,6 +62,25 @@ Les joueurs connectés lisent le calendrier de chaque cité, les candidatures, l
 
 Un décret est un type de loi pris dans un catalogue de 40 modèles paramétrés (taux, durées, cibles) : taxe, subvention d'une filière, embargo, grands travaux, fête, pacte commercial. Le joueur rédige son intention en langage naturel ; l'IA la convertit en décret paramétré qu'il valide avant dépôt. Le moteur n'applique que des paramètres bornés.
 
+Dans la phase 2 (tickets 261 à 263), l'archonte en charge propose seul, sans conseil, et le catalogue n'a que quatre modèles, saisis par formulaire, sans IA : taux de la taxe de marché de la cité, coefficient de son droit de port, grands travaux et fête.
+La conversion d'une intention en langage naturel attend une phase suivante.
+Les bornes de chaque paramètre et les règles du vote viennent de la configuration (`decrees`) ; un modèle qu'elle ne borne pas ne se propose pas (`DECREE_MODEL_CLOSED`).
+Taux de la taxe et coefficient du droit de port sont bornés par le monde.
+Une dépense (grands travaux, fête) a un montant borné, et ne dépasse pas à la proposition la part `spendingCapShareBps` du trésor de la cité, arrondie à l'obole inférieure ; elle sera contrôlée de nouveau à son application (ticket 263).
+Une fête a aussi une durée en jours de jeu et des biens, chacun une fois, pris dans la liste de la configuration, au plus `maxGoods`.
+Une cité a au plus `maxOpenPerCity` décrets au vote ; ses propositions se suivent, si bien que des propositions simultanées ne dépassent jamais ce nombre.
+Le vote dure au moins `votingDays` jours de jeu pleins : il se clôt à la clôture qui ouvre le jour `g + votingDays + 1`, g étant le jour de jeu de la proposition.
+Le quorum est fixé à la proposition, comme le calendrier d'une élection à son ouverture : une version de configuration publiée ensuite ne vaut que pour les décrets suivants.
+Un décret proposé reste au vote même si le mandat de son auteur prend fin entre-temps.
+Commandes : `city.proposeDecree` (l'archonte en charge) et `city.voteDecree` (un citoyen de la cité, pour ou contre, une fois par maison, pendant le vote).
+Décision (ambiguïté de cette section, ticket 261) : comme pour l'élection, le vote est secret ; un joueur lit que sa maison a voté, jamais son choix, et le décompte n'est public qu'après le dépouillement.
+Comme pour l'élection de l'archonte (ADR 0007), ce secret vaut envers les joueurs, pas envers l'exploitant : le choix reste lié à la maison dans `decree_votes`, et en clair dans le journal des commandes (entrée de `city.voteDecree`).
+La clôture qui suit la fin du vote dépouille le décret, avant l'entretien, une seule fois même rejouée.
+Il est adopté si les votes exprimés, pour et contre, atteignent le quorum, `quorumBps` des citoyens de la cité devenus citoyens avant la fin du vote, et si les votes pour sont strictement plus nombreux que les votes contre ; il est rejeté sinon, égalité comprise.
+Une cité sans citoyen atteint donc le quorum sans vote, mais n'adopte rien.
+Les effets d'un décret adopté viennent avec les tickets 262 (taux) et 263 (dépenses) : le ticket 261 ne fait bouger aucune monnaie.
+Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décrets de chaque cité et leur décompte après le dépouillement (12).
+
 ## 6.4 Mécaniques civiques
 
 - **Liturgies** : chaque saison, les maisons les plus riches se voient confier une dépense publique (fête, navire d'escorte, chœur). L'assumer avec faste rapporte Timè et Charis ; s'y dérober coûte cher en réputation. C'est le principal frein à l'effet boule de neige.
