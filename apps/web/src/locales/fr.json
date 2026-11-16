@@ -281,7 +281,9 @@
     "VOTING_CLOSED": "Le vote n'est pas ouvert.",
     "ALREADY_VOTED": "Votre maison a déjà voté à cette élection.",
     "RECIPIENT_NOT_FOUND": "Cette maison est introuvable.",
-    "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même."
+    "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même.",
+    "CHANNEL_NOT_FOUND": "Vous ne pouvez pas écrire dans ce canal.",
+    "MESSAGE_TOO_LONG": "Ce message est trop long. Raccourcissez-le."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

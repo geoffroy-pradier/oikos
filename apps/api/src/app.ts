@@ -19,6 +19,7 @@ import {
 import { adminBuyBackGood } from './commands/admin-buyback';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { chatOpenDirect } from './commands/chat-open-direct';
+import { chatPost } from './commands/chat-post';
 import { cityCastVote } from './commands/city-cast-vote';
 import { cityStandForElection, cityWithdrawCandidacy } from './commands/city-election';
 import { houseCreate } from './commands/house-create';
@@ -66,6 +67,7 @@ export const COMMANDS = [
   cityCastVote,
   voyageDepart,
   chatOpenDirect,
+  chatPost,
   marketPlaceOrder,
   marketCancelOrder,
   adminPublishConfig,
