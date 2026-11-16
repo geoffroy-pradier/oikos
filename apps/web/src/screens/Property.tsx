@@ -2,7 +2,7 @@ import { Button, Card } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { propertyCommand } from '../api';
+import { propertyCommand, type PropertyCommandInputs } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
@@ -62,7 +62,7 @@ export function PropertyScreen() {
   const keys = useRef(new Map<string, string>());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  async function run(intent: string, name: Command, input: Record<string, unknown>) {
+  async function run<N extends Command>(intent: string, name: N, input: PropertyCommandInputs[N]) {
     if (busy) return;
     setBusy(true);
     setNotice(null);
@@ -103,21 +103,21 @@ export function PropertyScreen() {
   const offerAction = (offer: Offer) => {
     if (mineIds.has(offer.propertyId)) return null;
     const label = t(`property.take.${offer.kind}`, { cost: money(offer.priceOboles) });
-    const [name, input]: [Command, Record<string, unknown>] =
+    const { propertyId, priceOboles } = offer;
+    // L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve.
+    const intent = `${offer.kind}:${propertyId}:${priceOboles}`;
+    const send = () =>
       offer.kind === 'lease'
-        ? [
-            'property.lease',
-            { propertyId: offer.propertyId, expectedRentOboles: offer.priceOboles },
-          ]
-        : [
-            offer.kind === 'citySale' ? 'property.buy' : 'property.buyListed',
-            { propertyId: offer.propertyId, expectedPriceOboles: offer.priceOboles },
-          ];
+        ? run(intent, 'property.lease', { propertyId, expectedRentOboles: priceOboles })
+        : run(intent, offer.kind === 'citySale' ? 'property.buy' : 'property.buyListed', {
+            propertyId,
+            expectedPriceOboles: priceOboles,
+          });
     return (
       <Button
         aria-disabled={busy}
         aria-label={`${label} — ${describe(offer)}`}
-        onClick={() => void run(`${name}:${offer.propertyId}`, name, input)}
+        onClick={() => void send()}
       >
         {label}
       </Button>
