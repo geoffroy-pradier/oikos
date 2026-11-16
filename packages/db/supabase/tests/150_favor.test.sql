@@ -49,7 +49,9 @@ select is(
     || 'favor_ledger.house_id:INSERT favor_ledger.kind:INSERT favor_ledger.offering_id:INSERT favor_ledger.world_id:INSERT',
   'le service écrit au journal sans en choisir ni l''identifiant ni la date : liste figée');
 select ok(not exists (select 1 from unnest(array['game.favor', 'game.favor_ledger']) t, unnest(array['anon', 'authenticated']) r
-  where has_any_column_privilege(r, t, 'select, insert, update')), 'aucun accès client direct');
+  where has_any_column_privilege(r, t, 'insert, update')
+     or ((r = 'anon' or t = 'game.favor_ledger') and has_any_column_privilege(r, t, 'select'))),
+  'aucune écriture client, ni lecture du journal ; la Charis se lit par une vue (migration 182)');
 select ok(not exists (select 1 from pg_roles r,
     unnest(array['game.guard_favor_movement()', 'game.apply_favor_movement()', 'game.guard_favor()']) f
   where has_function_privilege(r.oid, f, 'execute') and r.rolname in ('anon', 'authenticated', 'oikos_service', 'service_role')),

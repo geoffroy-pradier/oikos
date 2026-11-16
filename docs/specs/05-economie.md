@@ -240,6 +240,11 @@ Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par u
 Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
 Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des offrandes et des liturgies.
 
+Offrandes (#265, 7.1) : les oboles qu'une maison offre à un dieu sont détruites par le puits `sink_offerings` (écriture `temple.offering`).
+Les biens offerts sortent de la circulation vers l'extrémité système `offering` du journal des stocks, d'où rien ne revient : c'est aussi un puits de biens.
+Rien n'est créé en face : une offrande ne rapporte que de la Charis, qui n'est pas de la monnaie et ne s'échange pas.
+Offrir n'est jamais obligatoire : ce puits ne pèse sur la masse monétaire qu'autant que les joueurs le choisissent.
+
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
