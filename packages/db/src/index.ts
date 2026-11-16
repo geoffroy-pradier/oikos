@@ -339,9 +339,9 @@ export interface GameDatabase {
     office_id: ColumnType<string, string, never>;
     proposed_by: ColumnType<string, string, never>;
     status: ColumnType<
-      'proposed' | 'adopted' | 'rejected' | 'applied',
+      'proposed' | 'adopted' | 'rejected' | 'applied' | 'lapsed',
       never,
-      'adopted' | 'rejected' | 'applied'
+      'adopted' | 'rejected' | 'applied' | 'lapsed'
     >;
     proposed_at: ColumnType<Date, never, never>;
     voting_closes_at: ColumnType<Date, Date, never>;
@@ -350,8 +350,13 @@ export interface GameDatabase {
     electorate: ColumnType<number | null, never, number>;
     votes_for: ColumnType<number | null, never, number>;
     votes_against: ColumnType<number | null, never, number>;
-    /** Application d'un décret de taux, datée par la base (`now()`), une fois. */
+    /** Application d'un décret (taux ou dépense), datée par la base (`now()`), une fois. */
     applied_at: ColumnType<Date | null, never, Date>;
+    /**
+     * Jour de jeu de la clôture qui a réglé un décret de dépense (#263), appliqué ou caduc (`lapsed`) : la
+     * base exige que la transaction enregistre la clôture de ce jour. Nul pour un décret de taux.
+     */
+    settled_day: ColumnType<number | null, never, number>;
   };
   /** Votes sur un décret : un par maison, datés par la base, définitifs. */
   'game.decree_votes': {

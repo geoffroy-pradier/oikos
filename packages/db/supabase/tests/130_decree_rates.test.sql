@@ -68,7 +68,7 @@ select is(
   (select string_agg(column_name || ':' || privilege_type, ' ' order by column_name, privilege_type)
    from information_schema.column_privileges
    where table_schema = 'game' and table_name = 'decrees' and grantee = 'oikos_service' and privilege_type = 'UPDATE'),
-  'applied_at:UPDATE electorate:UPDATE status:UPDATE tallied_at:UPDATE votes_against:UPDATE votes_for:UPDATE',
+  'applied_at:UPDATE electorate:UPDATE settled_day:UPDATE status:UPDATE tallied_at:UPDATE votes_against:UPDATE votes_for:UPDATE',
   'le service ne modifie d''un décret que son dépouillement et son application : liste figée');
 select is(
   (select string_agg(r.rolname, ' ' order by r.rolname) from pg_roles r
@@ -93,7 +93,8 @@ select throws_ok(pg_temp.apply('1', 'status = ''applied'', applied_at = now(), v
   'ni en changeant son dépouillement');
 select throws_ok(pg_temp.apply('1', 'status = ''applied'', applied_at = now(), params = ''{"rateBps": 800}'''), '42501', null,
   'ni ses paramètres');
-select throws_ok(pg_temp.apply('3'), '23001', 'only a rate decree is applied', 'un décret de dépense n''est pas appliqué ici (#263)');
+select throws_ok(pg_temp.apply('3'), '23001', 'a spending decree is settled once, now, on its close',
+  'un décret de dépense ne s''applique pas comme un taux (#263)');
 select throws_ok(pg_temp.apply('4'), '23001', null, 'un décret rejeté ne s''applique pas');
 select throws_ok(pg_temp.apply('1', 'applied_at = now()'), '23001', null, 'un décret adopté n''a pas de date d''application');
 select lives_ok(pg_temp.apply('1'), 'le décret adopté de taux de la taxe est appliqué');
