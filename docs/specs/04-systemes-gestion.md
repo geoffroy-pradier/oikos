@@ -8,10 +8,11 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
   Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
-  L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6).
+  L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6) ; celui des biens immobiliers aussi (4.5).
+  La rénovation d'un bien marque elle aussi son débit `upkeep`.
   Un ticket qui ajoute une écriture de maison lui donne sa nature ici.
   Chaque ligne du grand livre y est comptée une fois et en entier : la somme des flux d'un compte sur une période est la variation de son solde, et un flux de somme nulle n'est pas affiché.
   Un achat en attente quitte la trésorerie le jour où son prix est retenu (nature séquestre) ;
@@ -23,11 +24,11 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   il n'y a ni variation de stock ni amortissement, les stocks sont au bilan.
   La monnaie de la maison y est sa trésorerie plus son séquestre : retenir ou rendre le prix d'un achat en attente est un mouvement entre ses deux comptes, sans effet sur le résultat, et l'achat est une charge le jour où il est servi (au flux de la seule trésorerie, un achat payé par le séquestre ne serait jamais une charge).
   Exploitation : ventes au brut, achats, taxes, charges courantes ; leur somme est le résultat (`operating_result`).
-  La colonne de l'entretien (`upkeep`) y porte les charges courantes : entretien des sites et des navires, salaires et transport, dont `my_cash_flows` donne le détail par nature.
+  La colonne de l'entretien (`upkeep`) y porte les charges courantes : entretien des sites, des navires et des biens immobiliers, rénovation des biens, salaires et transport, dont `my_cash_flows` donne le détail par nature.
   Décision (#252, ADR 0006) : le transport y entre plutôt que dans une vue nouvelle, comme les salaires avant lui ; l'écran Comptes la libelle « Entretien, salaires et transport ».
   Les colonnes du compte de résultat sont figées : la migration qui l'a créé le recrée tel quel quand la suite des migrations est rejouée, ce qu'une colonne de plus rendrait impossible.
   Une nature nouvelle y entre dans une colonne existante, ou dans une vue nouvelle.
-  Hors exploitation (`non_operating`) : acquisitions de sites et de navires, dotation de départ, et `other` pour tout le reste.
+  Hors exploitation (`non_operating`) : acquisitions de sites, de navires et de biens immobiliers, dotation de départ, et `other` pour tout le reste.
   Résultat plus hors exploitation font la variation de la monnaie de la maison sur la période (`cash_change`), dont `escrow_change` est la part du séquestre : la variation de la trésorerie seule est leur différence.
   La saison d'un jour de jeu est celle du moteur (`seasonIndexAt`) : des saisons de `seasonDays` jours de jeu (au plus 366) comptés depuis le lundi 5 janvier 1970, lues comme le jour avec l'horloge en vigueur à la lecture ;
   la vue par saison donne le premier et le dernier jour de jeu de chacune.
@@ -39,7 +40,7 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Un bien qui n'a jamais eu de prix observé dans la cité n'a ni prix ni valeur ;
   aucun prix n'est inventé à sa place.
   Bilan (`my_balance_sheet`) : trésorerie, séquestre (nul tant que la maison n'a pas eu d'achat en attente), valeur des stocks qui ont un prix, et nombre de stocks sans prix, que cette valeur ignore.
-  Les sites et les navires n'y figurent pas : leur prix d'acquisition est détruit.
+  Les sites, les navires et les biens immobiliers n'y figurent pas : leur prix d'acquisition est détruit.
 - **Famille** : conjoint, héritiers, parents, chacun avec 2 ou 3 traits. Un membre peut être placé à la tête d'un site ou envoyé en ambassade. Les mariages entre maisons de joueurs créent une alliance formelle (accès croisé aux entrepôts, clause d'entraide).
 - **Timè** : monte avec les contrats honorés, les liturgies et les mandats bien tenus ; baisse avec les défauts de paiement et les sanctions. Elle conditionne le crédit, l'éligibilité et les prix obtenus des PNJ.
 
