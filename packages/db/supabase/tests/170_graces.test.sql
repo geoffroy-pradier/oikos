@@ -1,10 +1,11 @@
 begin;
-select plan(25);
+select plan(31);
 
--- Jeu d'essai : un monde à lui, deux cités, Alice et Bob citoyens de la première, chacun un champ (Alice deux) et
--- un caboteur ; Alice a 500 de Charis envers Déméter, posée garde levée. Chaque écriture passe sous le rôle de
--- service, comme par l'API, puis les contrôles différés sont joués aussitôt (`set constraints`). Tout le test est
--- une transaction : `now()` n'y change pas, si bien qu'une recharge échue est posée par le propriétaire.
+-- Jeu d'essai : un monde à lui, deux cités, Alice et Bob citoyens de la première, chacun un champ (Alice deux),
+-- un caboteur et du blé (Alice dans les deux cités) ; Alice a 500 de Charis envers Déméter, posée garde levée.
+-- Chaque écriture passe sous le rôle de service, comme par l'API, puis les contrôles différés sont joués aussitôt
+-- (`set constraints`). Tout le test est une transaction : `now()` n'y change pas, si bien qu'une recharge échue
+-- est posée par le propriétaire.
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c170', '{}');
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000170f0', 'graces', 'Grâces');
 insert into game.cities (id, world_id, slug, name) values
@@ -32,6 +33,11 @@ insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
 insert into game.ships (id, world_id, house_id, class_id, docked_city_id) values
   ('00000000-0000-7000-8000-0000000170a6', '01900000-0000-7000-8000-0000000170f0', '00000000-0000-7000-8000-0000000170a1', 'coaster', '01900000-0000-7000-8000-0000000170f1'),
   ('00000000-0000-7000-8000-0000000170b6', '01900000-0000-7000-8000-0000000170f0', '00000000-0000-7000-8000-0000000170b1', 'coaster', '01900000-0000-7000-8000-0000000170f1');
+insert into game.inventories (id, world_id, house_id, city_id, good_id) values
+  ('00000000-0000-7000-8000-0000000170a3', '01900000-0000-7000-8000-0000000170f0', '00000000-0000-7000-8000-0000000170a1', '01900000-0000-7000-8000-0000000170f1', 'wheat'),
+  ('00000000-0000-7000-8000-0000000170a4', '01900000-0000-7000-8000-0000000170f0', '00000000-0000-7000-8000-0000000170a1', '01900000-0000-7000-8000-0000000170f2', 'wheat'),
+  ('00000000-0000-7000-8000-0000000170b3', '01900000-0000-7000-8000-0000000170f0', '00000000-0000-7000-8000-0000000170b1', '01900000-0000-7000-8000-0000000170f1', 'wheat');
+
 create function pg_temp.as_service(statement text) returns void language plpgsql as $$
 begin
   perform set_config('role', 'oikos_service', true);
@@ -69,6 +75,13 @@ create function pg_temp.sail(house text default 'a') returns text language sql a
     update game.ships set docked_city_id = null where id = '00000000-0000-7000-8000-0000000170%1$s6';
     update game.graces_used set consumed_at = now(), voyage_id = v, saved_seconds = 600 where id = g;$s$, house)
 $$;
+-- Surplus de `quantity` blés de l'extrémité `production` vers un stock (a3, a4 ou b3), rattaché à `g`.
+create function pg_temp.surplus(quantity integer, inventory text default 'a3', kind text default 'grace.surplus')
+returns text language sql as $$
+  select format($s$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind, grace_use_id)
+    values ('01900000-0000-7000-8000-0000000170f0', 'wheat', %s, 'production', '00000000-0000-7000-8000-0000000170%s', %L, g);$s$,
+    quantity, inventory, kind)
+$$;
 create function pg_temp.charis() returns bigint language sql as $$
   select charis from game.favor where house_id = '00000000-0000-7000-8000-0000000170a1' and god_id = 'demeter'
 $$;
@@ -83,11 +96,12 @@ select is(
   'favor_ledger.grace_use_id:INSERT graces_used.charis_spent:INSERT graces_used.consumed_at:UPDATE graces_used.effect:INSERT '
     || 'graces_used.god_id:INSERT graces_used.grace_id:INSERT graces_used.house_id:INSERT graces_used.magnitude_bps:INSERT '
     || 'graces_used.ready_at:INSERT graces_used.saved_seconds:UPDATE graces_used.site_id:UPDATE graces_used.voyage_id:UPDATE '
-    || 'graces_used.world_id:INSERT',
+    || 'graces_used.world_id:INSERT stock_ledger.grace_use_id:INSERT',
   'le service invoque sans choisir ni l''identifiant ni l''instant, puis ne fait que consommer : liste figée');
 select ok(not exists (select 1 from unnest(array['anon', 'authenticated']) r
   where has_any_column_privilege(r, 'game.graces_used', 'select, insert, update')), 'aucun accès client direct');
-select ok(not exists (select 1 from pg_roles r, unnest(array['game.guard_grace_use()', 'game.check_grace_settled()']) f
+select ok(not exists (select 1 from pg_roles r, unnest(array['game.guard_grace_use()', 'game.check_grace_settled()',
+    'game.check_grace_stock_movement()']) f
   where has_function_privilege(r.oid, f, 'execute') and r.rolname in ('anon', 'authenticated', 'oikos_service', 'service_role')),
   'personne n''exécute les gardes des grâces');
 
@@ -111,17 +125,31 @@ select throws_ok(pg_temp.svc(replace(replace(pg_temp.invoke(0, grace => 'other')
     'interval ''1 day'')', 'interval ''1 day'', now() - interval ''1 hour'')')),
   '42501', null, 'ni antidatée : le service ne choisit pas l''instant');
 
--- Consommation : une récolte d'un site de la maison.
+-- Consommation : une récolte d'un site de la maison, avec son surplus venu de `production`.
 select lives_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''demeter_harvest'';'
-  || pg_temp.collect()), 'la récolte du champ d''Alice consomme la grâce');
+  || pg_temp.collect() || pg_temp.surplus(8)), 'la récolte du champ d''Alice consomme la grâce, 8 blés de plus');
+select is((select quantity from game.inventories where id = '00000000-0000-7000-8000-0000000170a3'), 8::bigint,
+  'le surplus entre au stock par le journal');
 select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''demeter_harvest'';'
-  || pg_temp.collect()), '23001', 'a grace is consumed once, now', 'une grâce ne se consomme qu''une fois');
+  || pg_temp.collect() || pg_temp.surplus(8)), '23001', 'a grace is consumed once, now', 'une grâce ne se consomme qu''une fois');
 select throws_ok(pg_temp.svc(pg_temp.invoke(0)), '23001', 'this grace is recharging', 'consommée, elle se recharge');
 select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
-  || pg_temp.collect('b')), '23001', 'a grace is consumed by an action of its house',
+  || pg_temp.collect('b') || pg_temp.surplus(1, 'b3')), '23001', 'a grace is consumed by an action of its house',
   'pas par une récolte de Bob');
+select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';' || pg_temp.collect('c')),
+  '23001', 'a blessed collect yields its surplus', 'une récolte qui n''ajoute rien ne la consomme pas');
 select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
-  || pg_temp.collect()), '23505', null, 'une récolte ne consomme qu''une grâce');
+  || pg_temp.collect('c') || pg_temp.surplus(1, 'b3')), '23001',
+  'a grace surplus enters its house stock in the site city, when consumed', 'un surplus versé à Bob');
+select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
+  || pg_temp.collect('c') || pg_temp.surplus(1, 'a4')), '23001',
+  'a grace surplus enters its house stock in the site city, when consumed', 'ou dans une autre cité que celle du site');
+select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';' || pg_temp.surplus(1)),
+  '23001', 'a grace surplus enters its house stock in the site city, when consumed', 'ni sans consommer la grâce');
+select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
+  || pg_temp.collect('c') || pg_temp.surplus(1, kind => 'site.collect')), '23514', null, 'un surplus porte sa propre nature');
+select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
+  || pg_temp.collect() || pg_temp.surplus(1)), '23505', null, 'une récolte ne consomme qu''une grâce');
 select throws_ok(pg_temp.svc('select id into g from game.graces_used where grace_id = ''free_grace'';'
   || 'update game.graces_used set consumed_at = now(), site_id = ''00000000-0000-7000-8000-0000000170a5'', magnitude_bps = 10000 where id = g;'),
   '42501', null, 'son ampleur ne change pas à la consommation');
