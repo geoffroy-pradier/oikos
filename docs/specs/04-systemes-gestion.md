@@ -167,6 +167,10 @@ Phase 2, première version (#256) :
 - **Vétusté** : à chaque clôture, juste avant l'entretien (étape `propertyWear`), chaque bien, à la cité comme à une maison, perd la vétusté du jour de sa taille, sans passer sous zéro, une seule fois par jour de jeu (garde de la base, 12) ;
   sous le seuil de sa taille, il ne loge plus personne jusqu'à sa rénovation.
   Une clôture manquée n'use pas : comme pour l'entretien, seul le jour joué compte.
+- **Entretien** : chaque clôture demande à chaque bien d'une maison, acheté avant l'instant de la clôture, l'entretien d'un jour de sa taille, dans l'écriture `upkeep.daily` de la maison, par une ligne marquée `upkeep` vers le puits `sink_property_upkeep`, après ses sites et ses navires et avec ce qui reste de la trésorerie, dans l'ordre des achats, chaque bien en entier ou pas du tout (5.5).
+  Impayé, le bien ne loge personne jusqu'à la clôture qui le paie (`upkeep_unpaid_since`) ; il n'y a ni relance ni arriéré.
+  Une taille retirée de la configuration ne doit rien ; un bien de la cité ne doit rien.
+  L'événement `UpkeepSettled` en porte le détail (`properties` : payés, impayés, impayés constatés et levés par cette clôture).
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes

@@ -1,6 +1,7 @@
 import { cityDailyWageOboles } from '@oikos/config';
 import { upkeepSettledSchema } from '@oikos/contracts';
 import {
+  settlePropertyUpkeep,
   settleShipUpkeep,
   settleUpkeep,
   siteDailyDue,
@@ -13,12 +14,13 @@ import type { CloseStep } from '../close';
 /**
  * Puits du dû quotidien des sites (docs/specs/05-economie.md, 5.5), dans l'ordre où ils sont verrouillés,
  * le même que la relance d'un site : l'entretien, puis les salaires (4.4), puis l'entretien des navires
- * (4.6), que seule la clôture prélève.
+ * (4.6) et celui des biens immobiliers (4.5), que seule la clôture prélève.
  */
 const SINKS = [
   'sink_upkeep',
   'sink_npc_wages',
   'sink_ship_upkeep',
+  'sink_property_upkeep',
 ] as const satisfies readonly SystemAccountKey[];
 
 /**
@@ -34,6 +36,10 @@ const SINKS = [
  * l'entretien d'un jour de sa classe, payé en entier ou pas du tout, par une ligne `upkeep` vers le puits
  * `sink_ship_upkeep` de la même écriture. Un navire impayé est désarmé, un navire désarmé payé est réarmé ;
  * une classe retirée de la configuration ne doit rien.
+ * Ses biens immobiliers (4.5, #256) ensuite, achetés avant l'instant de la clôture, dans l'ordre de leur
+ * achat : chacun doit l'entretien d'un jour de sa taille, par une ligne `upkeep` vers le puits
+ * `sink_property_upkeep`. Un bien impayé ne loge plus personne jusqu'à la clôture qui le paie ; une taille
+ * retirée ne doit rien. L'étape parcourt aussi les maisons qui n'ont que des biens.
  * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
  */
 export const siteUpkeep: CloseStep = {
@@ -60,6 +66,10 @@ export const siteUpkeep: CloseStep = {
     const upkeepSink = await lockSink(SINKS[0]);
     const wagesSink = await lockSink(SINKS[1]);
     const shipSink = await lockSink(SINKS[2]);
+    const propertySink = await lockSink(SINKS[3]);
+    const propertyUpkeepOf = new Map(
+      config.properties.sizes.map((size) => [size.id, size.dailyUpkeepOboles]),
+    );
     const shipUpkeepOf = new Map(
       config.ships.classes.map((shipClass) => [shipClass.id, shipClass.dailyUpkeepOboles]),
     );
@@ -73,7 +83,7 @@ export const siteUpkeep: CloseStep = {
           .execute()
       ).map((city) => [city.id, cityDailyWageOboles(config, city.slug)]),
     );
-    // Les maisons qui avaient un site ou un navire à l'instant de la clôture.
+    // Les maisons qui avaient un site, un navire ou un bien immobilier à l'instant de la clôture.
     const houses = await trx
       .selectFrom('game.sites')
       .select('house_id')
@@ -85,6 +95,13 @@ export const siteUpkeep: CloseStep = {
           .select('house_id')
           .where('world_id', '=', worldId)
           .where('created_at', '<', closeAt),
+      )
+      .union((estates) =>
+        estates
+          .selectFrom('game.properties')
+          .select(sql<string>`owner_house_id`.as('house_id'))
+          .where('world_id', '=', worldId)
+          .where('acquired_at', '<', closeAt),
       )
       .orderBy('house_id')
       .execute();
@@ -101,6 +118,11 @@ export const siteUpkeep: CloseStep = {
       shipsUnpaid: 0,
       laidUp: 0,
       rearmed: 0,
+      propertyUpkeepOboles: 0,
+      propertiesPaid: 0,
+      propertiesUnpaid: 0,
+      lapsed: 0,
+      restored: 0,
     };
 
     for (const { house_id: houseId } of houses) {
@@ -157,7 +179,34 @@ export const siteUpkeep: CloseStep = {
       const laidUpBefore = new Set(ships.filter((ship) => ship.laid_up_at).map((ship) => ship.id));
       const laidUp = fleet.unpaid.map((due) => due.shipId).filter((id) => !laidUpBefore.has(id));
       const rearmed = fleet.paid.map((due) => due.shipId).filter((id) => laidUpBefore.has(id));
-      const total = sitesTotal + fleet.total;
+      // Les biens immobiliers enfin, dans l'ordre de leur achat, avec ce qui reste encore.
+      const estates = await trx
+        .selectFrom('game.properties')
+        .select(['id', 'size_id', 'upkeep_unpaid_since'])
+        .where('owner_house_id', '=', houseId)
+        .where('acquired_at', '<', closeAt)
+        .orderBy('acquired_at')
+        .orderBy('id')
+        .forUpdate()
+        .execute();
+      const estate = settlePropertyUpkeep(
+        Number(account.balance) - sitesTotal - fleet.total,
+        estates.map((row) => ({
+          propertyId: row.id,
+          oboles: propertyUpkeepOf.get(row.size_id) ?? 0,
+        })),
+      );
+      const paidEstates = estate.paid.filter((due) => due.oboles > 0);
+      const unpaidBefore = new Set(
+        estates.filter((row) => row.upkeep_unpaid_since).map((row) => row.id),
+      );
+      const lapsed = estate.unpaid
+        .map((due) => due.propertyId)
+        .filter((id) => !unpaidBefore.has(id));
+      const restored = estate.paid
+        .map((due) => due.propertyId)
+        .filter((id) => unpaidBefore.has(id));
+      const total = sitesTotal + fleet.total + estate.total;
       // Un site au dû nul (recette retirée, ou ni entretien ni salaire) est réglé sans rien payer : il ne
       // figure ni dans l'écriture, ni dans l'événement, ni dans le compte des sites payés.
       const paid = settled.filter((due) => due.oboles > 0);
@@ -167,7 +216,13 @@ export const siteUpkeep: CloseStep = {
       const halted = unpaid.map((due) => due.siteId).filter((id) => !haltedBefore.has(id));
       const resumed = settled.map((due) => due.siteId).filter((id) => haltedBefore.has(id));
       // Rien de dû (configuration sans entretien) et rien à relancer : la maison n'est pas concernée.
-      const touched = unpaid.length + resumed.length + fleet.unpaid.length + rearmed.length;
+      const touched =
+        unpaid.length +
+        resumed.length +
+        fleet.unpaid.length +
+        rearmed.length +
+        estate.unpaid.length +
+        restored.length;
       if (total === 0 && touched === 0) continue;
 
       if (total > 0) {
@@ -181,6 +236,7 @@ export const siteUpkeep: CloseStep = {
               gameDay,
               sites: paid,
               ...(paidShips.length > 0 && { ships: paidShips }),
+              ...(paidEstates.length > 0 && { properties: paidEstates }),
             }),
           })
           .returning('id')
@@ -189,6 +245,7 @@ export const siteUpkeep: CloseStep = {
           { nature: 'upkeep', sink: upkeepSink, oboles: lines.upkeepOboles },
           { nature: 'wages', sink: wagesSink, oboles: lines.wagesOboles },
           { nature: 'upkeep', sink: shipSink, oboles: fleet.total },
+          { nature: 'upkeep', sink: propertySink, oboles: estate.total },
         ] as const;
         await trx
           .insertInto('game.ledger_lines')
@@ -239,6 +296,19 @@ export const siteUpkeep: CloseStep = {
           .set({ laid_up_at: null })
           .where('id', 'in', rearmed)
           .execute();
+      // L'impayé est daté par la base, de la transaction qui l'écrit (garde des biens).
+      if (lapsed.length > 0)
+        await trx
+          .updateTable('game.properties')
+          .set({ upkeep_unpaid_since: sql<Date>`now()` })
+          .where('id', 'in', lapsed)
+          .execute();
+      if (restored.length > 0)
+        await trx
+          .updateTable('game.properties')
+          .set({ upkeep_unpaid_since: null })
+          .where('id', 'in', restored)
+          .execute();
       const event = upkeepSettledSchema.parse({
         type: 'UpkeepSettled',
         payload: {
@@ -260,6 +330,15 @@ export const siteUpkeep: CloseStep = {
               rearmed,
             },
           }),
+          ...(estates.length > 0 && {
+            properties: {
+              upkeepOboles: estate.total,
+              paid: paidEstates,
+              unpaid: estate.unpaid,
+              lapsed,
+              restored,
+            },
+          }),
         },
       });
       await trx
@@ -278,6 +357,11 @@ export const siteUpkeep: CloseStep = {
       totals.shipsUnpaid += fleet.unpaid.length;
       totals.laidUp += laidUp.length;
       totals.rearmed += rearmed.length;
+      totals.propertyUpkeepOboles += estate.total;
+      totals.propertiesPaid += paidEstates.length;
+      totals.propertiesUnpaid += estate.unpaid.length;
+      totals.lapsed += lapsed.length;
+      totals.restored += restored.length;
     }
     return totals;
   },

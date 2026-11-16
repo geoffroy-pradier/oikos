@@ -12,8 +12,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runDailyClose } from '../close';
 import { closeWorld } from '../scheduler';
 import { propertyWear } from './property-wear';
+import { siteUpkeep } from './site-upkeep';
 
-// Vétusté des biens immobiliers à la clôture (#256), contre Supabase local. Chaque test a son
+// Vétusté et entretien des biens immobiliers à la clôture (#256), contre Supabase local. Chaque test a son
 // monde, sa maison et ses biens, achetés il y a dix jours (gardes levées le temps d'antidater l'achat).
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
@@ -43,7 +44,7 @@ let loaded: Awaited<ReturnType<ReturnType<typeof createConfigLoader>['at']>>;
 const config = (patch: Partial<GameConfig> = {}) => ({
   at: async () => ({ ...loaded, config: { ...initial, clock, sites, properties, ...patch } }),
 });
-const STEPS = [propertyWear];
+const STEPS = [propertyWear, siteUpkeep];
 const TODAY = gameDayAt(new Date(), clock);
 const close = (worldId: string, day = TODAY, settings = config()) =>
   closeWorld(db, { worldId, now: dailyCloseAt(day, clock), config: settings, steps: STEPS });
@@ -116,13 +117,87 @@ async function fund(worldId: string, houseId: string, oboles: number) {
 }
 const rows = async <T>(query: RawBuilder<T>) => (await query.execute(db)).rows;
 /** Trésorerie de la maison, puis puits d'entretien des sites et des biens. */
+const balances = async ({ worldId, houseId }: House) =>
+  (
+    await rows(sql<{
+      balance: string;
+    }>`select balance from game.accounts where world_id = ${worldId}
+      and ((kind = 'house' and house_id = ${houseId}) or system_key in ('sink_upkeep', 'sink_property_upkeep'))
+      order by kind, system_key`)
+  ).map((row) => Number(row.balance));
+/** État de chaque bien de la maison puis de celui de la cité, et s'il est impayé. */
 const estate = async ({ propertyIds, cityHeld }: House) =>
   (
     await rows(sql<{ condition: number; worn_day: number | null; unpaid: boolean }>`
       select condition, worn_day, upkeep_unpaid_since is not null as unpaid from game.properties
       where id = any(${[...propertyIds, cityHeld]}::uuid[]) order by array_position(${[...propertyIds, cityHeld]}::uuid[], id)`)
   ).map((row) => [row.condition, row.worn_day, row.unpaid]);
-describe('vétusté des biens immobiliers à la clôture quotidienne', () => {
+const settledOf = async ({ houseId }: House) =>
+  (
+    await rows(sql<{ payload: Record<string, unknown> }>`select payload from game.domain_events
+      where type = 'UpkeepSettled' and payload->>'houseId' = ${houseId} order by seq`)
+  ).map((row) => [row.payload['paidOboles'], row.payload['properties']]);
+const linesOf = ({ houseId }: House, day = TODAY) =>
+  rows(sql`select coalesce(a.system_key, 'treasury') as account, l.amount, l.nature
+    from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+    where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId} and (e.meta->>'gameDay')::int = ${day}
+    order by l.amount, a.system_key`);
+
+describe('biens immobiliers à la clôture quotidienne', () => {
+  it('une maison qui n’a que des biens paie leur entretien ; impayé, un bien est constaté, puis levé par la clôture qui le paie', async () => {
+    const house = await newHouse(20, ['townhouse', 'tenement']);
+    const [townhouse, tenement] = house.propertyIds;
+    // 20 : la maison de ville (12) est payée, l'immeuble (30) ne l'est pas.
+    expect(await close(house.worldId, TODAY - 1)).toEqual([TODAY - 1]);
+    expect(await balances(house)).toEqual([8, 12, 0]);
+    expect(await linesOf(house, TODAY - 1)).toEqual([
+      { account: 'treasury', amount: '-12', nature: 'upkeep' },
+      { account: 'sink_property_upkeep', amount: '12', nature: null },
+    ]);
+    expect((await estate(house)).map(([, , unpaid]) => unpaid)).toEqual([false, true, false]);
+    await fund(house.worldId, house.houseId, 34);
+    await close(house.worldId);
+    expect(await balances(house)).toEqual([0, 54, 0]);
+    expect((await estate(house)).map(([, , unpaid]) => unpaid)).toEqual([false, false, false]);
+    const due = (id: string | undefined, oboles: number) => ({ propertyId: id, oboles });
+    expect(await settledOf(house)).toEqual([
+      [
+        12,
+        {
+          upkeepOboles: 12,
+          paid: [due(townhouse, 12)],
+          unpaid: [due(tenement, 30)],
+          lapsed: [tenement],
+          restored: [],
+        },
+      ],
+      [
+        42,
+        {
+          upkeepOboles: 42,
+          paid: [due(townhouse, 12), due(tenement, 30)],
+          unpaid: [],
+          lapsed: [],
+          restored: [tenement],
+        },
+      ],
+    ]);
+  });
+
+  it('après les sites, avec ce qui reste : le site d’abord, puis les biens dans l’ordre de leur achat', async () => {
+    // 45 : le champ (30), puis la maison de ville (12) ; l'immeuble (30) ne tient plus dans 3.
+    const house = await newHouse(45, ['townhouse', 'tenement'], ['grow_wheat']);
+    await close(house.worldId);
+    expect(await balances(house)).toEqual([3, 12, 30]);
+    expect(await linesOf(house)).toEqual([
+      { account: 'treasury', amount: '-30', nature: 'upkeep' },
+      { account: 'treasury', amount: '-12', nature: 'upkeep' },
+      { account: 'sink_property_upkeep', amount: '12', nature: null },
+      { account: 'sink_upkeep', amount: '30', nature: null },
+    ]);
+    expect((await estate(house)).map(([, , unpaid]) => unpaid)).toEqual([false, true, false]);
+  });
+
   it('vétusté rejouée : chaque bien s’use une fois par jour de jeu, à la cité comme à une maison, sans passer sous zéro', async () => {
     const house = await newHouse(1_000, ['townhouse', 'tenement']);
     await close(house.worldId, TODAY - 2);
@@ -175,13 +250,23 @@ describe('vétusté des biens immobiliers à la clôture quotidienne', () => {
     ]);
   });
 
-  it('paramètres neutres ou taille retirée : rien ne s’use', async () => {
-    const house = await newHouse(0, ['townhouse']);
+  it('paramètres neutres, taille retirée, bien acheté après la clôture : rien à payer ni à user', async () => {
+    const house = await newHouse(100, ['townhouse']);
     await close(house.worldId, TODAY - 1, config({ properties: initial.properties }));
     await close(house.worldId, TODAY, config({ properties: { sizes: [], countsByCity: {} } }));
-    expect(await estate(house)).toEqual([
-      [10_000, null, false],
-      [10_000, null, false],
-    ]);
+    expect(await balances(house)).toEqual([100, 0, 0]);
+    expect(await settledOf(house)).toEqual([]);
+    expect((await estate(house)).map(([condition]) => condition)).toEqual([10_000, 10_000]);
+    // Acheté après l'instant de la clôture (jouée en retard) : il ne doit rien ce jour-là.
+    const late = await newHouse(100, ['townhouse']);
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.properties disable trigger properties_guard`.execute(trx);
+      await sql`update game.properties set acquired_at = now() where id = ${late.propertyIds[0] ?? ''}`.execute(
+        trx,
+      );
+      await sql`alter table game.properties enable trigger properties_guard`.execute(trx);
+    });
+    await close(late.worldId);
+    expect(await balances(late)).toEqual([100, 0, 0]);
   });
 });
