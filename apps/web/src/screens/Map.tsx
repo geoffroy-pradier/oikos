@@ -13,6 +13,7 @@ import {
 } from '../map-layout';
 import { formatList } from '../lists';
 import { LoadProblem, Loading } from './LoadProblem';
+import { Shipyard } from './Shipyard';
 
 /** Onglet Carte : l'archipel, ses routes et les navires de la maison, la liste qui les dit, le chantier. */
 export function MapScreen() {
@@ -176,6 +177,13 @@ export function MapScreen() {
           ))}
         </ul>
       </Card>
+
+      <Shipyard
+        ships={ships}
+        rules={rules}
+        reloadShips={fleet.ships.reload}
+        reloadFleet={fleet.reload}
+      />
     </div>
   );
 }

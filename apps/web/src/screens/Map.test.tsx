@@ -24,6 +24,7 @@ vi.mock('../data', async () => {
   };
 });
 const { MapScreen } = await import('./Map');
+const { formatMoney } = await import('../money');
 const { parseShipRules } = await import('../ship-rules');
 
 async function render(ships: object[] | null, voyages: object[] = []) {
@@ -89,6 +90,18 @@ describe('carte de l’archipel', () => {
     expect(html).toContain('Navire rond</span> : à quai à Elaia (désarmé');
     // Un navire en mer est dessiné sur sa route, en plus des quatre cités.
     expect(html.match(/<circle /g)).toHaveLength(5);
+  });
+
+  it('chantier : chaque classe à son prix de la configuration, en drachmes ; rien avant la flotte', async () => {
+    const instance = i18next.createInstance();
+    await instance.init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+    const html = await render([]);
+    for (const shipClass of (INITIAL_CONFIG as GameConfig).ships.classes)
+      expect(html).toContain(
+        `Acheter — ${formatMoney(shipClass.purchaseCostOboles, instance.t, 'fr')}</button>`,
+      );
+    const before = await render(null);
+    expect(before).toMatch(/<button[^>]*disabled=""[^>]*>Acheter — /);
   });
 
   it('une cité qu’aucune route ne relie est nommée dans la liste', async () => {
