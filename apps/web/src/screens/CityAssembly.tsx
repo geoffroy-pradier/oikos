@@ -3,11 +3,12 @@ import { Button, Card } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
+import { useCitedHouses } from '../cited-houses';
 import { useRows } from '../data';
 import { groupDecrees, parseDecrees, ratesInForce, type Decree } from '../decrees';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
-import { parseHouseNames, parseVoted, statusOf } from '../politics';
+import { parseVoted } from '../politics';
 import { DecreeForm } from './DecreeForm';
 import { LoadProblem, Loading } from './LoadProblem';
 
@@ -67,15 +68,19 @@ export function CityAssembly() {
     city,
   );
   const voteRows = useRows<unknown>('my_decree_votes', 'decree_id', 'cast_at');
-  const houseRows = useRows<unknown>('houses', 'id, name, citizenship_status', 'name', city);
-  const reads = [decreeRows, voteRows, houseRows];
   const decrees = decreeRows.rows === null ? null : parseDecrees(decreeRows.rows);
+  const groups = decrees ? groupDecrees(decrees) : null;
+  // Seuls les auteurs des décrets au vote sont nommés : seules leurs maisons sont lues (#441).
+  const houses = useCitedHouses(groups && groups.open.map((decree) => decree.proposedBy));
+  const reads = [decreeRows, voteRows];
   const voted = voteRows.rows === null ? null : parseVoted(voteRows.rows, 'decree_id');
-  const names = houseRows.rows === null ? null : parseHouseNames(houseRows.rows);
-  const loading = reads.some((read) => read.rows === null && !read.failed);
+  const names = houses.names;
+  const loading = houses.loading || reads.some((read) => read.rows === null && !read.failed);
   const failed =
-    reads.some((read) => read.failed) || (!loading && [decrees, voted, names].includes(null));
-  const reload = () => Promise.all(reads.map((read) => read.reload()));
+    houses.failed ||
+    reads.some((read) => read.failed) ||
+    (!loading && [decrees, voted, names].includes(null));
+  const reload = () => Promise.all([...reads, houses].map((read) => read.reload()));
 
   const keys = useRef(new Map<string, string>());
   const noticeElement = useRef<HTMLParagraphElement>(null);
@@ -115,10 +120,8 @@ export function CityAssembly() {
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const number = new Intl.NumberFormat(i18n.language);
   const nameOf = (id: string) => names?.get(id) ?? t('cityPolitics.unknownHouse');
-  const groups = decrees ? groupDecrees(decrees) : null;
   const inForce = decrees ? ratesInForce(decrees) : new Set<string>();
-  const status = houseRows.rows ? statusOf(houseRows.rows, house.id) : null;
-  const citizen = (status ?? house.citizenshipStatus) === 'citizen';
+  const citizen = (houses.status ?? house.citizenshipStatus) === 'citizen';
   const tally = (decree: Decree) =>
     decree.talliedAt === null
       ? null

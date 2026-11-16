@@ -21,10 +21,14 @@ export function useRows<T>(
   /** Les `limit` dernières lignes selon `order`, rendues de la plus récente à la plus ancienne. */
   latestOnly?: { limit: number },
 ) {
-  const [rows, setRows] = useState<T[] | null>(null);
-  const [failed, setFailed] = useState(false);
   const filterKey = JSON.stringify(filters);
   const limit = latestOnly?.limit;
+  // Lignes et échec sont rangés sous la lecture qui les a produits : dès le rendu où le filtre change, ceux
+  // de l'ancien filtre ne sont plus rendus, et un écran ne lance pas une lecture d'après eux (#441).
+  const key = JSON.stringify([view, columns, order, filterKey, limit]);
+  const [read, setRead] = useState<{ key: string; rows: T[] | null; failed: boolean } | null>(null);
+  const rows = read?.key === key ? read.rows : null;
+  const failed = read?.key === key && read.failed;
   const latest = useRef(0);
   const reload = useCallback(async () => {
     const request = ++latest.current;
@@ -49,16 +53,16 @@ export function useRows<T>(
       () => null,
     );
     if (request !== latest.current) return null;
-    const read = result && !result.error ? ((result.data as T[] | null) ?? []) : null;
-    setFailed(read === null);
-    if (read) setRows(read);
-    return read;
-  }, [view, columns, order, filterKey, limit]);
-  useEffect(() => {
-    setRows(null);
-    setFailed(false);
-    void reload();
-  }, [reload]);
+    const fresh = result && !result.error ? ((result.data as T[] | null) ?? []) : null;
+    // Un échec garde les lignes déjà lues sous ce filtre.
+    setRead((before) => ({
+      key,
+      rows: fresh ?? (before?.key === key ? before.rows : null),
+      failed: fresh === null,
+    }));
+    return fresh;
+  }, [key, view, columns, order, filterKey, limit]);
+  useEffect(() => void reload(), [reload]);
   return { rows, failed, reload };
 }
 

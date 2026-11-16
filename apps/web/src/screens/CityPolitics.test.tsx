@@ -7,10 +7,23 @@ import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
 // Vie politique de l'onglet Cité (#264) : lectures simulées vue par vue.
-const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
+// La vue `houses` rend au plus 1 000 lignes par lecture, par ordre de nom, comme PostgREST (`max_rows`).
+const state = vi.hoisted(() => ({
+  views: {} as Record<string, unknown[] | null>,
+  houseFilter: undefined as unknown,
+}));
 vi.mock('../data', () => ({
-  useRows: (view: string) => {
-    const rows = view in state.views ? (state.views[view] ?? null) : [];
+  useRows: (view: string, _columns: string, _order: string, filters: unknown = {}) => {
+    if (view === 'houses') state.houseFilter = filters;
+    if (view === 'houses' && filters === null)
+      return { rows: null, failed: false, reload: () => Promise.resolve(null) };
+    let rows = view in state.views ? (state.views[view] ?? null) : [];
+    const ids = (filters as { id?: string[] }).id;
+    if (view === 'houses' && rows)
+      rows = (rows as { id: string; name: string }[])
+        .filter((row) => !ids || ids.includes(row.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 1000);
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
@@ -48,9 +61,16 @@ async function show(status: 'metic' | 'citizen' = 'citizen') {
     </I18nextProvider>,
   );
 }
+// Une cité de 1 500 maisons dont les noms passent avant ceux des maisons citées (#441).
+const crowd = Array.from({ length: 1_500 }, (_, i) => ({
+  id: `x${String(i).padStart(4, '0')}`,
+  name: `Maison A${String(i).padStart(4, '0')}`,
+  citizenship_status: 'citizen',
+}));
 afterEach(() => {
   cleanup();
   state.views = {};
+  state.houseFilter = undefined;
 });
 
 describe('vie politique de la cité (#264)', () => {
@@ -107,5 +127,55 @@ describe('vie politique de la cité (#264)', () => {
     state.views = { elections: null };
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('au-delà de la millième maison : archonte, candidats, résultats et statut lus par identifiant (#441)', async () => {
+    state.views = {
+      houses: [
+        ...crowd,
+        { id: 'h1', name: 'Maison Zénon', citizenship_status: 'citizen' },
+        { id: 'h2', name: 'Maison Zeus', citizenship_status: 'citizen' },
+        { id: 'h3', name: 'Maison Zoé', citizenship_status: 'citizen' },
+        { id: 'h4', name: 'Maison Zyx', citizenship_status: 'citizen' },
+      ],
+      offices: [{ house_id: 'h2', office: 'archon', ends_at: iso(3), in_office: true }],
+      elections: [
+        election(),
+        { ...election('e0'), candidacy_opens_at: iso(-40), tallied_at: iso(-30) },
+      ],
+      election_candidates: [
+        { id: 'k3', election_id: 'e1', house_id: 'h3', withdrawn_at: null },
+        { id: 'k0', election_id: 'e1', house_id: 'x0001', withdrawn_at: iso(-3) },
+      ],
+      election_results: [{ election_id: 'e0', house_id: 'h4', votes: 2, elected: true }],
+    };
+    // La coquille croit la maison métèque ; sa propre ligne, relue, la dit citoyenne.
+    await show('metic');
+    expect(state.houseFilter).toEqual({ id: ['h1', 'h2', 'h3', 'h4'] });
+    expect(screen.getByText('Citoyen à Kallistè')).toBeTruthy();
+    expect(screen.getByText(/^Archonte en charge : Maison Zeus, jusqu'au /)).toBeTruthy();
+    expect(screen.getByText('Maison Zoé')).toBeTruthy();
+    expect(screen.getByText('Maison Zyx : 2 voix, élue')).toBeTruthy();
+    expect(screen.queryByText(fr.cityPolitics.unknownHouse, { exact: false })).toBeNull();
+  });
+
+  it('beaucoup de candidats : une lecture bornée à 100 maisons, la sienne et l’archonte compris (#441)', async () => {
+    state.views = {
+      houses: crowd,
+      offices: [{ house_id: 'x1499', office: 'archon', ends_at: iso(3), in_office: true }],
+      elections: [election()],
+      election_candidates: crowd.slice(0, 300).map((row, i) => ({
+        id: `k${String(i)}`,
+        election_id: 'e1',
+        house_id: row.id,
+        withdrawn_at: null,
+      })),
+    };
+    await show();
+    const { id } = state.houseFilter as { id: string[] };
+    expect(id).toHaveLength(100);
+    expect(id).toEqual([...id].sort());
+    expect(id).toEqual(expect.arrayContaining(['h1', 'x1499', 'x0000']));
+    expect(screen.getByText(/^Archonte en charge : Maison A1499, jusqu'au /)).toBeTruthy();
   });
 });
