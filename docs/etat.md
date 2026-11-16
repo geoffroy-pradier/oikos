@@ -1,10 +1,13 @@
 # État du projet
 
-Point d'étape au 16 novembre 2026, vers 16 h 15 (heure de Paris).
+Point d'étape au 16 novembre 2026, vers 18 h 45 (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Dix-sept sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #263 (décrets : vote, taux, dépenses et trésor public), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
-Deux suivis de #259 sont ouverts : #403 (entretien impayé visible sur les offres) et #404 (net du vendeur après taxe).
+Vingt sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #267 (événements du monde), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
+Des suivis sont ouverts :
+- #403 et #404, de #259 (entretien impayé visible sur les offres, net du vendeur après taxe) ;
+- #420, #441 et #444, de #264 (« depuis quand » du statut, plafond de lecture des maisons, finitions du formulaire de décret) ;
+- #417 et #446, de #267 (montrer les événements au joueur, tests complémentaires).
 Le suivi #354 (test instable du moteur près de la clôture) est fermé lui aussi.
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
@@ -16,8 +19,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250 à #263, #268, #273, #291.
-  En cours : #264 (écran Cité), #265 (Charis : dieux, offrandes et déclin) et #267 (événements du monde planifiés), menés en parallèle.
+  Fermés : #250 à #265, #267, #268, #273, #291.
+  En cours : #266 (grâces).
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -132,11 +135,20 @@ Ajouts de la phase 2 :
 - **Citoyenneté et élection de l'archonte** (#260, ADR 0007) : une maison devient citoyenne de sa cité selon les règles de la configuration ; l'archonte est élu à date fixe, au vote secret entre joueurs.
 - **Décrets, proposition et vote** (#261, 6.3) : l'archonte propose un décret pris dans un catalogue fermé de quatre modèles aux paramètres bornés ; les citoyens votent, une voix par maison.
   La clôture dépouille les votes clos : le décret est adopté si le quorum est atteint et si les votes pour l'emportent strictement.
-  Il n'y a pas encore d'écran (#264).
 - **Décrets de taux** (#262, 5.3, 5.6) : la clôture applique les décrets adoptés de taxe de marché et de droit de port, ramenés dans les bornes en vigueur ; chaque cité a son taux, calculé en base par une seule fonction et lu par les commandes, les PNJ et les écrans (vue `city_rates`).
 - **Décrets de dépense et trésor public** (#263, 5.5, 5.6, 7.5) : la clôture paie du trésor de la cité les grands travaux et les fêtes, détruits dans un puits, ou rend le décret caduc s'il dépasse la part permise du trésor.
   Une fête relève, pendant ses jours, la demande des PNJ de la cité pour ses biens.
   Le trésor de chaque cité est public : solde et flux par jour et par nature (vues `city_treasury` et `city_treasury_flows`).
+- **Écran Cité** (#264, 10) : l'onglet Cité montre le statut de la maison, la vie politique (archonte, élection en cours avec candidature et vote, derniers résultats), l'assemblée (décrets au vote, vote en deux touches, décrets adoptés et en vigueur, formulaire de proposition de l'archonte aux bornes annoncées) et le trésor public (solde, flux par jour, taxes en vigueur).
+  Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
+  La date du statut attend #420.
+- **Charis** (#265, 7.1) : une maison fait des offrandes de monnaie ou de biens à un dieu du catalogue de la configuration et gagne sa Charis envers lui ; les oboles sont détruites par un puits, les biens quittent le stock par le journal des stocks.
+  La Charis décline chaque jour à la clôture, une fois par jour même si la clôture est rejouée ; la Charis de cité somme celle des citoyennes envers le dieu protecteur.
+  Lectures : règles du temple et Charis de cité publiques, Charis de sa maison privée ; pas encore d'écran (#272).
+- **Événements du monde** (#267, 7.3, 7.4) : chaque monde a une graine secrète ; la clôture planifie, quelques jours à l'avance et de façon reproductible, sécheresses, bonnes années, tempêtes et caravanes étrangères.
+  Une sécheresse réduit et une bonne année accroît la récolte des cycles qui se terminent pendant elle (dans le temps du site, gelé pendant un arrêt) ; une tempête allonge le trajet d'un navire qui part pendant elle ; une caravane relève la demande des PNJ pour son bien.
+  Chaque écart est expliqué dans `event_effects` ; les joueurs ne lisent un événement qu'une fois commencé, et Olympe montre aussi ceux à venir (module Animation).
+  Toutes les probabilités sont nulles dans la configuration initiale : rien ne change tant qu'une version ne les active pas, et rien ne les montre encore au joueur (#417).
 - **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
   Commandes `chat.openDirect` et `chat.post`, limite de débit propre à la discussion, messages purgés après 30 jours (configuration).
   Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
