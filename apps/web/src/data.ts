@@ -15,8 +15,8 @@ export function useRows<T>(
   view: string,
   columns: string,
   order: string,
-  /** Égalité par colonne ; une liste : une valeur parmi celles-ci. */
-  filters: Record<string, string | readonly string[]> = {},
+  /** Égalité par colonne ; une liste : une valeur parmi celles-ci ; `{ gt }` : strictement après. */
+  filters: Record<string, string | readonly string[] | { gt: string }> = {},
   /** Les `limit` dernières lignes selon `order`, rendues de la plus récente à la plus ancienne. */
   latestOnly?: { limit: number },
 ) {
@@ -28,9 +28,15 @@ export function useRows<T>(
   const reload = useCallback(async () => {
     const request = ++latest.current;
     let query = supabase.from(view).select(columns);
-    const parsed = JSON.parse(filterKey) as Record<string, string | string[]>;
-    for (const [column, value] of Object.entries(parsed))
-      query = Array.isArray(value) ? query.in(column, value) : query.eq(column, value);
+    const parsed = JSON.parse(filterKey) as Record<string, string | string[] | { gt: string }>;
+    for (const [column, value] of Object.entries(parsed)) {
+      if (value === null) throw new TypeError(`Null filter on ${column}`);
+      query = Array.isArray(value)
+        ? query.in(column, value)
+        : typeof value === 'object'
+          ? query.gt(column, value.gt)
+          : query.eq(column, value);
+    }
     let ordered = query.order(order, { ascending: limit === undefined });
     if (limit !== undefined) ordered = ordered.limit(limit);
     const result = await ordered.then(

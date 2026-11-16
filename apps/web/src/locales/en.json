@@ -722,5 +722,14 @@
       "festival": "Festivals: {{amount}}",
       "other": "Other movements: {{amount}}"
     }
+  },
+  "worldEvents": {
+    "title": "Current events",
+    "intro": "World events affect harvests, voyages and what the inhabitants buy for as long as they last.",
+    "none": "No event under way in the city.",
+    "drought": "Drought in {{city}} until {{date}}: each field cycle yields {{percent}} less.",
+    "good_year": "Good year in {{city}} until {{date}}: each orchard cycle yields {{percent}} more.",
+    "storm": "Storm between {{city}} and {{other}} until {{date}}: voyages that set sail take {{percent}} longer.",
+    "caravan": "Foreign caravan in {{city}} until {{date}}: the inhabitants buy {{percent}} more of {{good}}."
   }
 }

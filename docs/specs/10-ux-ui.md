@@ -30,6 +30,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
+   L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
+   « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.

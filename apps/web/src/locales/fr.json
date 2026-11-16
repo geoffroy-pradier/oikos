@@ -722,5 +722,14 @@
       "festival": "Fêtes : {{amount}}",
       "other": "Autres mouvements : {{amount}}"
     }
+  },
+  "worldEvents": {
+    "title": "Événements en cours",
+    "intro": "Les événements du monde touchent les récoltes, les trajets et la demande des habitants le temps qu'ils durent.",
+    "none": "Aucun événement en cours dans la cité.",
+    "drought": "Sécheresse à {{city}} jusqu'au {{date}} : chaque cycle de champ rend {{percent}} de moins.",
+    "good_year": "Bonne année à {{city}} jusqu'au {{date}} : chaque cycle de verger rend {{percent}} de plus.",
+    "storm": "Tempête entre {{city}} et {{other}} jusqu'au {{date}} : les trajets qui partent durent {{percent}} de plus.",
+    "caravan": "Caravane étrangère à {{city}} jusqu'au {{date}} : les habitants achètent {{percent}} de plus du bien « {{good}} »."
   }
 }
