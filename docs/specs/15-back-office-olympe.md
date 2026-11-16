@@ -96,6 +96,8 @@ Ce qui est refusé avant d'atteindre ce journal (jeton absent ou invalide, corps
 chaque lecture du back-office par un compte admis est tracée (compte, rôle, route sans ses paramètres, issue).
 La Vigie affiche ces compteurs sur 24 heures, ainsi que les clôtures quotidiennes en échec (nombre, et dernière erreur, qui nomme l'étape et la maison en cause : 3), et le fuseau de la configuration en vigueur, qui vaut pour tous les mondes : s'il est inconnu de la base, elle le nomme et alerte, avec le nombre de mondes concernés et ce qu'il faut faire ;
 elle alerte aussi quand la version en vigueur ne respecte plus le schéma (3).
+Elle compte aussi les voyages en retard de déchargement de plus d'un tick (4.6, #253), tous mondes confondus : ceux encore en mer alors que le tick qui devait les décharger, le premier qui commence à leur échéance ou après, est terminé.
+Ce compte n'est pas nul quand le moteur est arrêté ou ses ticks en échec ; il est inconnu sans configuration en vigueur lisible, qui donne la durée du tick.
 Les passages de tick et de clôture sont gardés `telemetry.retentionDays` jours, puis supprimés par le moteur (3).
 Pour la configuration, deux commandes : `admin.publishConfig` enregistre une version de configuration sans l'activer, `admin.scheduleConfig` programme son activation à la prochaine clôture quotidienne (un retour arrière est la programmation d'une version antérieure ;
 si plusieurs versions sont programmées pour la même clôture, la dernière programmée l'emporte ;

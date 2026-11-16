@@ -216,6 +216,24 @@ export function registerAdminReads(
         throw error;
       },
     );
+    // Voyages en retard de déchargement (4.6, #253) : encore en mer alors que le tick qui devait les
+    // décharger, le premier qui commence à leur échéance ou après, est terminé. Tous mondes confondus ;
+    // nul sans configuration en vigueur lisible, comme l'horloge.
+    const voyagesOverdue = await loadConfig(now).then(
+      async (loaded) => {
+        const tick = loaded.config.clock.tickMinutes * 60;
+        const { rows } = await sql<{ n: string }>`
+          select count(*)::text as n from game.voyages
+          where arrived_at is null and arrives_at <= now() - ${tick}::int * interval '1 second'
+            and ceil(extract(epoch from arrives_at) / ${tick}::int) * ${tick}::int + ${tick}::int
+              <= extract(epoch from now())`.execute(db);
+        return Number(rows[0]?.n);
+      },
+      (error: unknown) => {
+        if (error instanceof ConfigError) return null;
+        throw error;
+      },
+    );
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -231,6 +249,7 @@ export function registerAdminReads(
           failed: Number(total?.ticks_failed),
           maxDurationMs: total?.tick_max_ms ?? null,
         },
+        voyagesOverdue,
         // Une clôture en échec (une maison en erreur annule celle de tout son monde) : comptée, et la
         // dernière erreur, qui nomme l'étape et la maison, affichée.
         closes24h: {

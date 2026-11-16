@@ -139,6 +139,7 @@ describe('Vigie', () => {
     expect(await figure('Commandes en panne (24 h)')).toBe('7');
     expect(await figure('Ticks en échec (24 h)')).toBe('2');
     expect(await figure('Tick le plus long (24 h)')).toBe('850 ms');
+    expect(await figure("Voyages en retard de déchargement (plus d'un tick)")).toBe('4');
     expect(await figure('Clôtures en échec (24 h)')).toBe('1');
     expect(await figure('Dernier échec de clôture')).toBe(
       'Close step siteUpkeep failed on house h1: boom',
@@ -151,6 +152,21 @@ describe('Vigie', () => {
     expect(await figure('Lectures du back-office (24 h)')).toBe('58');
     expect(await figure('Double validation des paramètres')).toBe('Exigée');
     expect(screen.queryByText(/^Double validation levée/)).toBeNull();
+    // Sans configuration en vigueur lisible, le compte des voyages est inconnu ; API antérieure : absent.
+    for (const [voyagesOverdue, shown] of [
+      [null, 'Inconnu (aucune configuration en vigueur lisible)'],
+      [undefined, undefined],
+    ] as const) {
+      cleanup();
+      adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, voyagesOverdue } });
+      render(<Vigie accessToken="token" />);
+      await screen.findByText('Maisons fondées');
+      expect(
+        screen
+          .queryByText("Voyages en retard de déchargement (plus d'un tick)")
+          ?.parentElement?.querySelector('dd')?.textContent,
+      ).toBe(shown);
+    }
     // Réglage d'un monde de test actif sur l'API : la Vigie le montre.
     cleanup();
     adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, selfReviewAllowed: true } });

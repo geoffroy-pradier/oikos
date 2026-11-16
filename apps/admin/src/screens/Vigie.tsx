@@ -9,6 +9,11 @@ interface VigieData {
   activeAccounts24h: number;
   commands24h: { ok: number; rejected: number; failed: number };
   ticks24h: { failed: number; maxDurationMs: number | null };
+  /**
+   * Voyages encore en mer alors que le tick qui devait les décharger est terminé (4.6), tous mondes
+   * confondus. `null` sans configuration en vigueur lisible ; absent d'une API antérieure : rien n'est affiché.
+   */
+  voyagesOverdue?: number | null;
   /** Absent d'une API antérieure à ce champ : rien n'est affiché à sa place. */
   closes24h?: { failed: number; lastError: string | null };
   recentTicks: {
@@ -98,6 +103,16 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
         [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
         [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
+        ...(data.voyagesOverdue === undefined
+          ? []
+          : ([
+              [
+                t('vigie.voyagesOverdue'),
+                data.voyagesOverdue === null
+                  ? t('vigie.voyagesOverdueUnknown')
+                  : number.format(data.voyagesOverdue),
+              ],
+            ] as [string, string][])),
         ...(data.closes24h
           ? ([
               [t('vigie.closesFailed'), number.format(data.closes24h.failed)],
