@@ -1,6 +1,6 @@
 import { Button, Card } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { propertyCommand, type PropertyCommandInputs } from '../api';
 import { useRows } from '../data';
@@ -18,7 +18,20 @@ import { LoadProblem, Loading } from './LoadProblem';
 import { PropertyActions } from './PropertyActions';
 
 type Command = Parameters<typeof propertyCommand>[0];
-type Notice = { kind: 'status' | 'alert'; text: string } | null;
+/** Carte où s'annonce le résultat d'une commande : celle de l'action qui l'a lancée. */
+type Place = 'offers' | 'mine' | 'leases';
+type Notice = { kind: 'status' | 'alert'; text: string; place: Place } | null;
+const PLACE: Record<Command, Place> = {
+  'property.buy': 'offers',
+  'property.buyListed': 'offers',
+  'property.lease': 'offers',
+  'property.renovate': 'mine',
+  'property.listForSale': 'mine',
+  'property.offerLease': 'mine',
+  'property.withdrawOffer': 'mine',
+  'property.endLease': 'leases',
+};
+const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 const ROW = 'flex flex-col gap-2 border-t border-border pt-3 first:border-t-0 first:pt-0';
 
 /**
@@ -69,6 +82,9 @@ export function PropertyScreen() {
   const reload = () => Promise.all(reads.map((read) => read.reload()));
 
   const keys = useRef(new Map<string, string>());
+  // Le contrôle qui a lancé la commande a pu disparaître (offre achetée, bail fini) ou devenir inactif :
+  // le foyer, retombé sur la page, va au résultat, annoncé près de l'action.
+  const noticeElement = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   async function run<N extends Command>(intent: string, name: N, input: PropertyCommandInputs[N]) {
@@ -82,14 +98,41 @@ export function PropertyScreen() {
       if (result.ok || result.error.code !== 'INTERNAL') keys.current.delete(intent);
       setNotice(
         result.ok
-          ? { kind: 'status', text: t(`property.done.${name.slice('property.'.length)}`) }
-          : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
+          ? {
+              kind: 'status',
+              text: t(`property.done.${name.slice('property.'.length)}`),
+              place: PLACE[name],
+            }
+          : {
+              kind: 'alert',
+              text: t([`errors.${result.error.code}`, 'errors.INTERNAL']),
+              place: PLACE[name],
+            },
       );
       await reload();
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    const active = document.activeElement;
+    if (notice && (active === document.body || active?.getAttribute('aria-disabled') === 'true'))
+      noticeElement.current?.focus();
+  }, [notice]);
+  // Toujours présente dans chaque carte : une région vivante annonce le résultat dès qu'il paraît.
+  const said = (place: Place) => (
+    <p
+      ref={notice?.place === place ? noticeElement : undefined}
+      tabIndex={-1}
+      role={notice?.place === place ? notice.kind : 'status'}
+      className={
+        notice?.place === place && notice.kind === 'alert' ? 'font-semibold text-danger' : ''
+      }
+    >
+      {notice?.place === place ? notice.text : ''}
+    </p>
+  );
 
   const number = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
@@ -130,6 +173,7 @@ export function PropertyScreen() {
           });
     return (
       <Button
+        className={WAITING}
         aria-disabled={busy}
         aria-label={`${label} — ${describe(offer)}`}
         onClick={() => void send()}
@@ -149,14 +193,6 @@ export function PropertyScreen() {
         <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">
           {t('staff.back')}
         </Link>
-        {notice && (
-          <p
-            role={notice.kind}
-            className={notice.kind === 'alert' ? 'font-semibold text-danger' : ''}
-          >
-            {notice.text}
-          </p>
-        )}
       </Card>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
@@ -164,6 +200,7 @@ export function PropertyScreen() {
         <>
           <Card className="flex flex-col gap-3">
             <h2 className="text-xl">{t('property.offers')}</h2>
+            {said('offers')}
             {offers?.length === 0 && (
               <p className="text-muted-foreground">{t('property.noOffers')}</p>
             )}
@@ -183,6 +220,7 @@ export function PropertyScreen() {
           </Card>
           <Card className="flex flex-col gap-3">
             <h2 className="text-xl">{t('property.mine')}</h2>
+            {said('mine')}
             {mine?.length === 0 && (
               <p className="text-muted-foreground">{t('property.noneMine')}</p>
             )}
@@ -208,6 +246,7 @@ export function PropertyScreen() {
                       size={size}
                       offer={openOffer(property.id)}
                       leased={lease !== undefined}
+                      name={describe(property)}
                       busy={busy}
                       run={run}
                     />
@@ -218,6 +257,7 @@ export function PropertyScreen() {
           </Card>
           <Card className="flex flex-col gap-3">
             <h2 className="text-xl">{t('property.leases')}</h2>
+            {said('leases')}
             {leases?.length === 0 && (
               <p className="text-muted-foreground">{t('property.noLeases')}</p>
             )}
@@ -235,6 +275,7 @@ export function PropertyScreen() {
                   {!lease.endedAt && !lease.ending && (
                     <Button
                       variant="secondary"
+                      className={WAITING}
                       aria-disabled={busy}
                       aria-label={`${t('property.endLease')} — ${describe(lease)}`}
                       onClick={() =>

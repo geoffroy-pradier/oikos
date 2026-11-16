@@ -91,19 +91,38 @@ describe('commandes du propriétaire (#259)', () => {
 
   it('mise en vente et en location au prix saisi ; sans prix valable, rien ne part', async () => {
     await showProperty();
-    const sale = screen.getByRole('button', { name: fr.property.listForSale });
+    const sale = screen.getByRole('button', { name: /^Mettre en vente — Maison de ville n° 9/ });
     fireEvent.click(sale);
-    fireEvent.change(screen.getByLabelText(fr.property.priceLabel), { target: { value: '-3' } });
+    const field = screen.getByRole('textbox', { name: /^Prix de vente ou loyer/ });
+    fireEvent.change(field, { target: { value: '-3' } });
     fireEvent.click(sale);
     expect(api.propertyCommand).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText(fr.property.priceLabel), { target: { value: '500' } });
+    expect(screen.getByText(fr.property.priceInvalid)).toBeTruthy();
+    fireEvent.change(field, { target: { value: '500' } });
     fireEvent.click(sale);
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
-    fireEvent.click(await screen.findByRole('button', { name: fr.property.offerLease }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mettre en location — / }));
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     expect(sent().map(([name, input]) => [name, input])).toEqual([
       ['property.listForSale', { propertyId: 'p9', priceOboles: 500 }],
       ['property.offerLease', { propertyId: 'p9', rentOboles: 500 }],
     ]);
+  });
+  it('une offre ouverte se retire ; un bien loué ne s’offre pas ; un bien neuf ne se rénove pas', async () => {
+    state.views['my_properties'] = [
+      { ...mine, id: 'p2', lot: 2, condition: 10000 },
+      { ...mine, id: 'p5', lot: 5 },
+    ];
+    state.views['my_leases'] = [
+      { id: 'l1', property_id: 'p5', city_id: 'c1', size_id: 'townhouse', lot: 5 },
+    ]
+      .map((row) => ({ ...row, tenant_house_id: 'h2', rent_oboles: 40, end_requested_at: null }))
+      .map((row) => ({ ...row, ended_at: null, ended_day: null, end_reason: null }));
+    await showProperty();
+    expect(screen.getAllByRole('button', { name: /^Rénover/ })).toHaveLength(1);
+    expect(screen.queryByRole('textbox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Retirer l'offre de location/ }));
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
+    expect(sent()[0]?.slice(0, 2)).toEqual(['property.withdrawOffer', { propertyId: 'p2' }]);
   });
 });

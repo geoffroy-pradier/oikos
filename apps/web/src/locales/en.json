@@ -569,6 +569,7 @@
     "renovate": "Renovate ({{cost}})",
     "goodLine": "{{quantity}} {{good}}",
     "priceLabel": "Sale price or daily rent, in obols",
+    "priceInvalid": "Enter a whole number of obols, greater than zero.",
     "listForSale": "Put up for sale",
     "offerLease": "Offer for lease",
     "withdraw": {
