@@ -2,6 +2,8 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   allocateHousing,
+  allocateWorkforce,
+  holdingUnits,
   curveBps,
   employmentRateBps,
   equilibriumWage,
@@ -185,5 +187,51 @@ describe('logements attribués aux sites (#258)', () => {
         );
       }),
     );
+  });
+});
+
+describe('logement des travailleurs d’un monde (#258)', () => {
+  it('par maison et par cité : ses biens de la cité logent ses sites de la cité, les plus anciens d’abord', () => {
+    const site = (siteId: string, houseId: string, cityId: string, workers: number) => ({
+      siteId,
+      houseId,
+      cityId,
+      workers,
+    });
+    const housed = allocateWorkforce(
+      [
+        site('a1', 'alice', 'kalliste', 4),
+        site('b1', 'bob', 'kalliste', 4),
+        site('a2', 'alice', 'kalliste', 4),
+        site('a3', 'alice', 'elaia', 4),
+      ],
+      [
+        { houseId: 'alice', cityId: 'kalliste', units: 3 },
+        { houseId: 'alice', cityId: 'kalliste', units: 3 },
+        // Un bien d'Alice à Halos, où elle n'a pas de site, ne loge personne ailleurs.
+        { houseId: 'alice', cityId: 'halos', units: 50 },
+      ],
+    );
+    expect([...housed.values()].map((s) => [s.siteId, s.housed, s.unhoused])).toEqual([
+      ['a1', 4, 0],
+      ['a2', 2, 2],
+      ['b1', 0, 4],
+      ['a3', 0, 4],
+    ]);
+    expect(housed.get('b1')).toMatchObject({ houseId: 'bob', cityId: 'kalliste' });
+    expect(() => allocateWorkforce([], [{ houseId: 'a', cityId: 'k', units: -1 }])).toThrow(
+      RangeError,
+    );
+  });
+
+  it('logements utiles d’un bien d’après sa taille ; une taille retirée ne loge personne', () => {
+    const sizes = [{ id: 'townhouse', housingUnits: 6, minHabitableCondition: 4_000 }];
+    const unit = (sizeId: string, condition: number, upkeepUnpaid = false) =>
+      holdingUnits({ sizeId, condition, upkeepUnpaid }, sizes);
+    expect(unit('townhouse', 10_000)).toBe(6);
+    expect(unit('townhouse', 4_000)).toBe(6);
+    expect(unit('townhouse', 3_999)).toBe(0);
+    expect(unit('townhouse', 10_000, true)).toBe(0);
+    expect(unit('palace', 10_000)).toBe(0);
   });
 });

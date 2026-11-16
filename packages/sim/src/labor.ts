@@ -1,3 +1,4 @@
+import { usableHousingUnits } from './property';
 import { shareRoundedUp } from './tax';
 
 /**
@@ -138,7 +139,10 @@ export interface HousedSite extends SiteWorkforce {
  * anciens d'abord (ordre reçu : date de création, puis identifiant) : chaque site prend ce qui reste,
  * jusqu'à ses travailleurs. Le reste n'est pas logé. Les parts font toujours les travailleurs.
  */
-export function allocateHousing(units: number, sites: readonly SiteWorkforce[]): HousedSite[] {
+export function allocateHousing<T extends SiteWorkforce>(
+  units: number,
+  sites: readonly T[],
+): (T & { housed: number; unhoused: number })[] {
   checkCount(units, 'units');
   if (new Set(sites.map((site) => site.siteId)).size !== sites.length)
     throw new RangeError('each site is housed once');
@@ -149,4 +153,67 @@ export function allocateHousing(units: number, sites: readonly SiteWorkforce[]):
     left -= housed;
     return { ...site, housed, unhoused: site.workers - housed };
   });
+}
+
+/** Un site d'une maison dans une cité, avec les travailleurs de sa recette. */
+export interface WorkforceSite extends SiteWorkforce {
+  houseId: string;
+  cityId: string;
+}
+
+/** Logements utiles d'un bien qui loge les travailleurs d'une maison, dans sa cité. */
+export interface HousingHolding {
+  houseId: string;
+  cityId: string;
+  units: number;
+}
+
+/**
+ * Logement des travailleurs d'un monde ou d'une maison : les logements de chaque maison dans chaque cité
+ * (somme de ses biens) logent les travailleurs de ses sites de cette cité, les plus anciens d'abord
+ * (`allocateHousing`, dans l'ordre reçu). Un bien dans une cité où la maison n'a pas de site ne loge
+ * personne ailleurs.
+ */
+export function allocateWorkforce(
+  sites: readonly WorkforceSite[],
+  holdings: readonly HousingHolding[],
+): Map<string, WorkforceSite & HousedSite> {
+  const key = (houseId: string, cityId: string) => `${houseId} ${cityId}`;
+  const units = new Map<string, number>();
+  for (const holding of holdings) {
+    checkCount(holding.units, 'units');
+    const at = key(holding.houseId, holding.cityId);
+    units.set(at, (units.get(at) ?? 0) + holding.units);
+  }
+  const groups = new Map<string, WorkforceSite[]>();
+  for (const site of sites) {
+    const at = key(site.houseId, site.cityId);
+    groups.set(at, [...(groups.get(at) ?? []), site]);
+  }
+  const housed = new Map<string, WorkforceSite & HousedSite>();
+  for (const [at, group] of groups)
+    for (const site of allocateHousing(units.get(at) ?? 0, group)) {
+      if (housed.has(site.siteId)) throw new RangeError('each site is housed once');
+      housed.set(site.siteId, site);
+    }
+  return housed;
+}
+
+/**
+ * Logements utiles d'un bien, d'après les tailles de la configuration (`usableHousingUnits`) : une taille
+ * retirée de la configuration ne loge personne.
+ */
+export function holdingUnits(
+  property: { sizeId: string; condition: number; upkeepUnpaid: boolean },
+  sizes: readonly { id: string; housingUnits: number; minHabitableCondition: number }[],
+): number {
+  const size = sizes.find((candidate) => candidate.id === property.sizeId);
+  return size
+    ? usableHousingUnits({
+        housingUnits: size.housingUnits,
+        condition: property.condition,
+        minHabitableCondition: size.minHabitableCondition,
+        upkeepUnpaid: property.upkeepUnpaid,
+      })
+    : 0;
 }
