@@ -10,6 +10,7 @@ export * from './events';
 export * from './house';
 export * from './market';
 export * from './property';
+export * from './property-market';
 export * from './ship';
 export * from './site';
 export * from './voyage';
