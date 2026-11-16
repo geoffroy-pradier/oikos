@@ -112,6 +112,12 @@ export function HomeScreen() {
         >
           {t('home.accounts')}
         </Link>
+        <Link
+          to="/personnel"
+          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        >
+          {t('home.staffLink')}
+        </Link>
       </Card>
 
       <Card>

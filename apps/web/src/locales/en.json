@@ -83,8 +83,8 @@
     "harvestWaiting_one": "{{count}} cycle is waiting for inputs.",
     "harvestWaiting_other": "{{count}} cycles are waiting for inputs.",
     "upkeep": "Upkeep: {{cost}} a day, charged at the daily close",
-    "staff_one": "{{workers}} worker: {{housed}} housed, {{unhoused}} unhoused",
-    "staff_other": "{{workers}} workers: {{housed}} housed, {{unhoused}} unhoused",
+    "siteStaff_one": "{{workers}} worker: {{housed}} housed, {{unhoused}} unhoused",
+    "siteStaff_other": "{{workers}} workers: {{housed}} housed, {{unhoused}} unhoused",
     "wageOfDay": "Wage of the day: {{cost}} per worker",
     "dailyCost": "Cost of a day: {{cost}} (upkeep, wages and lodging), the same as a restart",
     "halted": "Halted since {{date}}: upkeep unpaid. This site no longer produces.",
@@ -123,6 +123,7 @@
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",
+    "staffLink": "House staff",
     "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it."
   },
   "agora": {
@@ -497,5 +498,16 @@
     "alreadySailed": "This departure had already taken place: {{ship}} is bound for {{city}}, due {{time}}. Nothing was paid again.",
     "noDestination": "No route leaves this city yet.",
     "overStock": "The cargo exceeds the city's free stock (goods on sale excluded)."
+  },
+  "staff": {
+    "title": "Staff",
+    "intro": "The workers of your sites, city by city. Your properties in a city house the workers of your oldest sites in that city first; the others lodge with the inhabitants, one night a day, at the city's price of the day.",
+    "back": "Back to the house",
+    "empty": "No site, no worker.",
+    "workers_one": "{{number}} worker",
+    "workers_other": "{{number}} workers",
+    "housing": "Housed by your properties: {{housed}}; lodging with the inhabitants: {{unhoused}}",
+    "lodging": "Lodging: {{cost}} a day, paid with the upkeep",
+    "lodgingUnknown": "Lodging price not set yet: it will be at the next close."
   }
 }

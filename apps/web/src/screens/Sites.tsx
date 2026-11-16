@@ -570,7 +570,7 @@ export function SitesCard({
                     )}
                     {staff && staff.workers > 0 && (
                       <p>
-                        {t('home.staff', {
+                        {t('home.siteStaff', {
                           count: staff.workers,
                           workers: number.format(staff.workers),
                           housed: number.format(staff.housed),

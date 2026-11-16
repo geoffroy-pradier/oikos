@@ -83,8 +83,8 @@
     "harvestWaiting_one": "{{count}} cycle attend des intrants.",
     "harvestWaiting_other": "{{count}} cycles attendent des intrants.",
     "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture quotidienne",
-    "staff_one": "{{workers}} travailleur : {{housed}} logé, {{unhoused}} sans logement",
-    "staff_other": "{{workers}} travailleurs : {{housed}} logés, {{unhoused}} sans logement",
+    "siteStaff_one": "{{workers}} travailleur : {{housed}} logé, {{unhoused}} sans logement",
+    "siteStaff_other": "{{workers}} travailleurs : {{housed}} logés, {{unhoused}} sans logement",
     "wageOfDay": "Salaire du jour : {{cost}} par travailleur",
     "dailyCost": "Coût d'un jour : {{cost}} (entretien, salaires et hébergement), comme une relance",
     "halted": "À l'arrêt depuis le {{date}} : entretien impayé. Ce site ne produit plus.",
@@ -123,6 +123,7 @@
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
+    "staffLink": "Personnel de la maison",
     "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir."
   },
   "agora": {
@@ -497,5 +498,16 @@
     "alreadySailed": "Ce départ avait déjà eu lieu : {{ship}} est en route vers {{city}}, arrivée prévue le {{time}}. Rien n'a été payé de nouveau.",
     "noDestination": "Aucune route ne part de cette cité pour l'instant.",
     "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite)."
+  },
+  "staff": {
+    "title": "Personnel",
+    "intro": "Les travailleurs de vos sites, cité par cité. Vos biens d'une cité logent d'abord les travailleurs de vos sites les plus anciens de cette cité ; les autres sont hébergés chez les habitants, une nuit par jour, au prix du jour de la cité.",
+    "back": "Retour à la maison",
+    "empty": "Aucun site, aucun travailleur.",
+    "workers_one": "{{number}} travailleur",
+    "workers_other": "{{number}} travailleurs",
+    "housing": "Logés par vos biens : {{housed}} ; hébergés chez les habitants : {{unhoused}}",
+    "lodging": "Hébergement : {{cost}} par jour, payé avec l'entretien",
+    "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture."
   }
 }
