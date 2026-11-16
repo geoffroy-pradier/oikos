@@ -97,7 +97,9 @@ export const setUpCity = (houseName: string, role: 'metic' | 'citizen' | 'archon
  * Deux chroniques de Kallistè (#271), écrites comme par le moteur, sous le rôle de service et dans une
  * transaction : celle de la veille, réécrite par l'IA, et celle de l'avant-veille, de repli. Chacune suit une
  * clôture enregistrée de son jour, posée si elle manque. Rien n'est remplacé d'un passage à l'autre : une
- * chronique ne change plus une fois écrite. Rend les deux jours de jeu.
+ * chronique ne change plus une fois écrite. Sur une base gardée, celles d'un passage précédent (ou du moteur)
+ * restent : la fonction rend donc les deux plus récentes de Kallistè, relues dans la même transaction, de la plus
+ * récente à la plus ancienne.
  */
 export const setUpChronicles = () =>
   db.transaction().execute(async (trx) => {
@@ -118,5 +120,8 @@ export const setUpChronicles = () =>
         values (${WORLD_ID}, ${KALLISTE_ID}, ${day}, '{}', ${fr}, ${en}, ${source})
         on conflict do nothing`.execute(trx);
     }
-    return { latest, earlier };
+    const { rows } = await sql<{ game_day: number; text_fr: string; source: 'ai' | 'fallback' }>`
+      select game_day, text_fr, source from game.chronicle_articles
+      where city_id = ${KALLISTE_ID} order by game_day desc limit 2`.execute(trx);
+    return rows;
   });
