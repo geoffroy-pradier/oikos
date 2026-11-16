@@ -7,9 +7,9 @@ import { KALLISTE_ID } from './helpers';
  * Jeu d'essai de l'onglet Cité (#264), dans le monde du seed : une élection d'archonte de Kallistè en dépôt
  * des candidatures, et un décret au vote proposé par la maison Acropole, posée en base, qui tient la charge
  * d'archonte. Son nom passe en tête de l'ordre alphabétique : l'écran ne lit les noms que des 1 000 premières
- * maisons de la cité, et une base locale en accumule davantage. Les deux formats tournent en même temps sur une base gardée d'un passage à l'autre : la mise
- * en place est sérialisée par un verrou et réutilise ce qui existe. Les fenêtres durent un an, pour qu'un
- * passage suivant les trouve encore ouvertes.
+ * maisons de la cité (#441), et une base locale en accumule davantage. Les deux formats tournent en même temps
+ * sur une base gardée d'un passage à l'autre : la mise en place est sérialisée par un verrou et réutilise ce
+ * qui existe. Les fenêtres durent un an, pour qu'un passage suivant les trouve encore ouvertes.
  */
 export const db = createDb(process.env['DATABASE_URL'] ?? '');
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
@@ -68,7 +68,7 @@ async function scene(trx: Trx) {
     ).rows[0]?.id;
   if (!(await office())) await archon(trx, ARCHON, '1 day', '2 years');
   // Un décret de taux au vote, dans les bornes et au quorum de la configuration en vigueur.
-  const { config } = await createConfigLoader(db).at(new Date());
+  const { config } = await createConfigLoader(trx).at(new Date());
   const decrees = config.decrees;
   const tax = decrees?.models.market_tax_rate;
   if (!decrees || !tax)

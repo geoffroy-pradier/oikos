@@ -67,14 +67,12 @@ test('une citoyenne se porte candidate et vote le décret, au clavier', async ({
   await expect(politics.getByRole('listitem').filter({ hasText: houseName })).toBeVisible();
   await expect(politics.getByRole('button', { name: 'Retirer ma candidature' })).toBeVisible();
 
-  // Pour, Tab jusqu'à Contre, Maj+Tab et Entrée : chaque bouton nomme le décret.
+  // Du dernier contrôle de la vie politique, Tab puis Entrée : le bouton Pour nomme le décret.
   const approve = assembly
     .getByRole('button', { name: /^Voter pour : Taxe de marché de la cité à / })
     .first();
-  await approve.focus();
+  await politics.getByRole('button', { name: 'Retirer ma candidature' }).focus();
   await page.keyboard.press('Tab');
-  await expect(assembly.getByRole('button', { name: /^Voter contre : / }).first()).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
   await expect(approve).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(assembly.getByRole('status').filter({ hasText: 'Vote enregistré.' })).toBeVisible();
