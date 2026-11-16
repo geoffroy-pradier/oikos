@@ -45,7 +45,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.
    Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.
-   La date depuis laquelle la maison est métèque ou citoyenne n'est pas encore affichée : il faut d'abord l'exposer dans une vue publique.
+   La date depuis laquelle la maison est métèque ou citoyenne n'est pas encore affichée : il faut d'abord l'exposer dans une vue publique (#420).
    Un retrait de candidature est définitif : l'écran en avertit avant, et ne propose plus de se présenter après.
    Un décret de taux appliqué est dit « en vigueur » seulement s'il est le dernier appliqué de son modèle ; les autres décrets appliqués disent leur date d'application.
    Le résultat de chaque commande s'annonce près de l'action, dans une région vivante présente avant lui ; restée sans réponse, la commande repart sous la même clé au même contenu.
