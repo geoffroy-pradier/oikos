@@ -16,7 +16,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | --- | --- |
 | Monde | `worlds`, `cities`, `districts`, `parcels`, `routes`, `calendar` |
 | Maison | `houses`, `house_members`, `skills`, `reputation`, `titles` |
-| Sites | `sites`, `buildings`, `recipes_running`, `workers`, `artisans`, `stewards`, `steward_rules` |
+| Sites | `sites`, `buildings`, `recipes_running`, `workers`, `labor_market`, `artisans`, `stewards`, `steward_rules` |
 | Stocks | `inventories`, `stock_ledger`, `warehouses` |
 | Monnaie | `accounts`, `ledger_entries`, `ledger_lines` |
 | Marchés | `orders`, `trades`, `price_candles`, `contracts`, `auctions`, `bids`, `tenders` |
@@ -85,6 +85,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   En plus, la base refuse une seconde écriture d'entretien (`upkeep.daily`) pour la même maison et le même jour de jeu ;
   cette écriture porte l'identifiant de la maison et le jour de jeu sous une seule forme admise (identifiant en minuscules, jour entier), pour que la même clé ne s'écrive pas de deux façons.
   Le détail d'une écriture `upkeep.daily` (`meta.sites`) donne, pour chaque site payé, son dû (`oboles`) et ses parts : entretien (`upkeepOboles`) et salaires (`wagesOboles`).
+  L'hébergement d'un site payé n'y figure pas : il est dans l'écriture `lodging.daily` de la même clôture (`meta.sites` : site, non logés, hébergement).
   La relance d'un site par sa maison est une écriture d'une autre nature (`upkeep.restart`), que cette unicité ne concerne pas.
   Les joueurs ne lisent pas la table des clôtures.
 - Nature d'une ligne du grand livre (`ledger_lines.nature`, migration 60) : marqueur facultatif, pris dans une liste fermée tenue par la base (`upkeep`, `wages` ; `LEDGER_LINE_NATURES` dans `packages/sim`), écrit à l'insertion et jamais modifié, puisque le grand livre est en ajout seul.
@@ -101,6 +102,10 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Cette durée est comptée en secondes, indépendamment du fuseau de la session.
   L'arrêt est daté de la transaction qui l'écrit, pas de l'instant de jeu de la clôture : si la clôture est jouée en retard, le site a produit jusqu'à son arrêt réel.
   Elle ne relie pas la reprise à un paiement : c'est la commande ou la clôture qui le garantit.
+- Marché du travail (4.4, #258) : `labor_market` porte, par cité et par jour de jeu, l'offre de travail (nulle : sans limite), les employés, les non logés, le salaire et le prix de l'hébergement du jour.
+  Une ligne naît une fois par cité et par jour, datée par la base, dans la transaction qui enregistre la clôture de son jour (même garde que la population), et ne change plus.
+  Le service la crée et la lit ; tout joueur connecté lit la dernière de chaque cité par la vue `labor_market`, et ses travailleurs par `my_workforce` (`game.my_workforce()`, au nom du propriétaire, type de retour figé par l'ADR 0006).
+  Écritures de l'hébergement : `lodging.daily` (maison et jour de jeu typés, une par maison et par jour) et `lodging.restart` (maison et site).
 - Population des PNJ (5.2) : une ligne par cité et par classe (`npc_population` : habitants entiers, jour de jeu de la dernière clôture qui l'a fait évoluer, couverture retenue), créée par le service sans clôture ni couverture, dont il ne modifie que ces trois valeurs.
   La base n'accepte une modification que si elle avance le jour de clôture de la ligne et si, à cet instant, aucune clôture de ce jour ou d'un jour postérieur n'est enregistrée pour le monde ;
   elle vérifie à la validation que la clôture de ce jour l'est (référence différée).

@@ -25,3 +25,5 @@ Une migration publiée ne se modifie plus (ADR 0004) : la migration ancienne ne 
 - Le rejeu reste vert, et le code précédent reste servi pendant un déploiement : il lit les mêmes colonnes.
 - Les tickets qui ajoutent une nature au compte de résultat (loyers, hébergement) la rangent dans une colonne existante ou ajoutent une vue nouvelle, par exemple une vue du compte de résultat par nature.
 - Une colonne `jsonb` porte une clé qu'un client ancien ignore ; le client nouveau la lit avec une valeur par défaut, comme pour une version de configuration antérieure.
+- La même limite vaut pour une contrainte recréée sans condition : la migration 60 recrée `ledger_lines_nature_known` avec la seule liste (`upkeep`, `wages`), vérifiée sur les lignes existantes.
+  Une nature nouvelle ne prend donc pas de marqueur de ligne : l'hébergement (#258) a sa propre écriture, `lodging.daily` ou `lodging.restart`, de la même transaction que l'entretien qu'il accompagne.

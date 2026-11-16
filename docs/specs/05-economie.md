@@ -220,6 +220,9 @@ Les biens se louent et se revendent entre maisons (#257, 4.5) : le loyer (`lease
 La revente paie la taxe de marché de la cité du bien, comme un échange de l'agora : sa part détruite va au puits `sink_market_tax`, le reste au trésor de la cité.
 Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix d'achat et la rénovation sont les deux premiers puits de l'immobilier en jeu.
 
+Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pas coûte chaque jour une nuit chez les PNJ, au prix du jour de la cité, détruite par le puits `sink_npc_lodging`.
+Il n'y a aucun robinet en face ; le prix de base entre à zéro dans la configuration initiale.
+
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
@@ -257,6 +260,8 @@ Dû par site = ⌈base × coefficient ÷ 10 000⌉, arrondi à l'obole supérieu
 Un montant nul ne prélève rien ; une version de configuration publiée avant l'entretien se lit sans entretien.
 Ces paramètres sont des règles publiques, lues par les joueurs avec le reste de la section `sites` (vue `site_rules`).
 Chaque site doit aussi, chaque jour, les salaires de ses travailleurs (4.4) : son dû d'un jour est son entretien plus ses salaires, chacun calculé à part puis additionné (`siteDailyDue`).
+Depuis #258, il doit aussi l'hébergement de ses travailleurs sans logement (non logés × prix du jour de sa cité), compté dans le même dû et payé avec lui, en entier ou pas du tout : un site dont l'hébergement ne peut être payé est à l'arrêt comme les autres.
+Le salaire et l'hébergement du jour sont ceux que la clôture vient de fixer pour la cité du site (4.4).
 
 Ce qui est dû : chaque clôture demande à chaque site, à l'arrêt ou non, l'entretien et les salaires d'un jour, au tarif de la configuration en vigueur après l'activation éventuelle d'une version programmée à cette clôture (activation d'abord, entretien ensuite).
 Payé à la clôture, le site tourne, ou repart s'il était à l'arrêt ;
@@ -266,6 +271,7 @@ Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
 Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6), puis les biens immobiliers payés (`meta.properties`, 4.5) ;
 elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
+l'hébergement des sites payés va au puits `sink_npc_lodging` par une écriture à part, `lodging.daily`, de la même transaction, une par maison et par jour (`meta.sites` : chaque site, ses non logés et leur hébergement), de nature 4.1 `lodging` ;
 une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 
 Maison qui ne peut pas tout payer : ses sites sont examinés par date de création, puis par identifiant.
@@ -287,10 +293,11 @@ le refuser casserait les clients restés en cache (application installée) jusqu
 Le prix envoyé est retenu avec la clé d'une relance restée sans réponse, et un nouvel essai renvoie ce prix sous cette clé, même si le tarif affiché a changé entre-temps : une clé neuve au nouveau prix pourrait payer une seconde fois une commande déjà aboutie, et la même clé avec un autre prix serait refusée.
 Si le premier envoi avait abouti, l'API rejoue sa réponse ; sinon elle refuse ce prix, et le joueur confirme le nouveau d'un nouvel essai, sous une clé neuve ;
 son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), avec une ligne marquée par nature comme à la clôture, annoncée par un événement de domaine `SiteRestarted` qui distingue entretien et salaires.
-Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires), puis la trésorerie, puis le site.
+Depuis #258, la relance paie le salaire du jour de la cité et, au prix du même jour, une nuit d'hébergement pour chaque travailleur du site que les logements de sa maison, lus à l'instant de la commande, ne logent pas ; l'hébergement part au puits `sink_npc_lodging` par une écriture `lodging.restart`, et le prix vu (`expectedUpkeepOboles`) le comprend.
+Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires, puis hébergement), puis la trésorerie, puis le site ; la clôture prend ceux des navires et des biens entre les salaires et l'hébergement.
 La clôture verrouille en plus, après ces deux puits, ceux de l'entretien des navires et des biens immobiliers, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6) puis ses biens (4.5).
 Elle prend avant tout le verrou de l'agora du monde, et la vétusté des biens le prend juste avant l'entretien : l'achat et la rénovation d'un bien le prennent aussi d'abord, si bien qu'aucun d'eux ne verrouille un bien que la clôture attendrait.
-Les loyers des baux (#257), avant la vétusté, prennent le verrou de l'agora, puis les quatre puits de l'entretien dans le même ordre, sans les mouvementer, puis les trésoreries des parties par identifiant : la relance d'un site, qui verrouille ses puits avant sa trésorerie sans prendre l'agora, ne peut donc pas attendre une trésorerie que la clôture tient pendant que la clôture attend ses puits.
+Les loyers des baux (#257), avant la vétusté, prennent le verrou de l'agora, puis les puits de l'entretien dans le même ordre (cinq depuis l'hébergement, #258), sans les mouvementer, puis les trésoreries des parties par identifiant : la relance d'un site, qui verrouille ses puits avant sa trésorerie sans prendre l'agora, ne peut donc pas attendre une trésorerie que la clôture tient pendant que la clôture attend ses puits.
 Un site dont la recette n'est plus dans la configuration, qui n'a pas de tarif, est relancé sans rien payer.
 La monnaie sous séquestre ne paie pas non plus une relance. Les relances d'un monde se font l'une après l'autre et, quand une clôture a commencé à prélever l'entretien, attendent qu'elle soit validée tout entière (l'entretien est donc la dernière étape d'une clôture, pour que cette attente soit la plus courte) ;
 si la clôture vient d'arrêter le site pendant cette attente, la relance est refusée (« le site vient de changer ») et se rejoue.
