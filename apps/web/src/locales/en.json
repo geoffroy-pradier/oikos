@@ -438,7 +438,6 @@
     "docked": "docked at {{city}}",
     "atSea": "at sea bound for {{city}}, due {{time}}",
     "atSeaUnknown": "at sea",
-    "laidUp": "(laid up: upkeep unpaid)",
     "shipyard": "Shipyard",
     "shipyardIntro": "A new ship is launched docked at {{city}}. Its price is paid once, its upkeep every day.",
     "noClasses": "No ship is for sale yet.",
@@ -446,7 +445,11 @@
     "buy": "Buy — {{cost}}",
     "bought": "{{ship}} bought for {{cost}}.",
     "alreadyBought": "This purchase had already gone through: {{ship}} bought for {{cost}}. Nothing was paid again.",
-    "buyUnanswered": "A ship purchase got no answer. Check your fleet before buying again: it may have gone through."
+    "buyUnanswered": "A ship purchase's answer was lost, and one more ship appears in your fleet. Check it before buying again: another try would be a new purchase.",
+    "afterName": ": {{state}}",
+    "withLaidUp": "{{state}} (laid up: upkeep unpaid)",
+    "buyChecked": "I have checked my fleet",
+    "noRouteFor": "No route: {{cities}}."
   },
   "shipClasses": {
     "coaster": "Coaster",

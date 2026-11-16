@@ -1,0 +1,102 @@
+import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
+import i18next from 'i18next';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { I18nextProvider, initReactI18next } from 'react-i18next';
+import { describe, expect, it, vi } from 'vitest';
+import { HouseProvider } from '../house';
+import fr from '../locales/fr.json';
+
+const CITIES = { k: 'kalliste', e: 'elaia', a: 'ampelos', h: 'halos' };
+const NAMES = { k: 'Kallistè', e: 'Elaia', a: 'Ampélos', h: 'Halos' };
+// Lectures simulées, par vue ; les règles du transport sont celles de la configuration initiale.
+const views = vi.hoisted(() => ({
+  rows: {} as Record<string, object[] | null>,
+  rules: undefined as unknown,
+}));
+vi.mock('../data', async () => {
+  const { parseShipRules } = await import('../ship-rules');
+  const { INITIAL_CONFIG } = await import('@oikos/config');
+  const rules = parseShipRules({ ships: (INITIAL_CONFIG as GameConfig).ships });
+  const reload = () => Promise.resolve(null);
+  return {
+    useRows: (view: string) => ({ rows: views.rows[view] ?? null, failed: false, reload }),
+    useShipRules: () => ({ rules: views.rules ?? rules, failed: false, reload }),
+  };
+});
+const { MapScreen } = await import('./Map');
+const { parseShipRules } = await import('../ship-rules');
+
+async function render(ships: object[] | null, voyages: object[] = []) {
+  views.rows = {
+    my_ships: ships,
+    my_voyages: voyages,
+  };
+  const instance = i18next.createInstance();
+  await instance.use(initReactI18next).init({
+    resources: { fr: { translation: fr } },
+    lng: 'fr',
+    interpolation: { escapeValue: false },
+  });
+  const house = { id: 'h1', name: 'Test', cityId: 'k', accessToken: 't', cityName: 'Kallistè' };
+  return renderToStaticMarkup(
+    <I18nextProvider i18n={instance}>
+      <HouseProvider
+        value={{ ...house, cityNames: NAMES, citySlugs: CITIES, citizenshipStatus: 'metic' }}
+      >
+        <MapScreen />
+      </HouseProvider>
+    </I18nextProvider>,
+  );
+}
+
+describe('carte de l’archipel', () => {
+  it('quatre cités et six routes dessinées, et la liste qui les dit au clavier', async () => {
+    const html = await render([]);
+    expect(html).toContain('role="img" aria-label="Carte de l&#x27;archipel : 4 cités, 6 routes');
+    expect(html.match(/<line /g)).toHaveLength(6);
+    expect(html).toContain('Kallistè – Elaia : 4 h');
+    expect(html).toContain('Elaia – Halos : 8 h');
+    expect(html).toContain('pas encore de navire');
+  });
+
+  it('chaque navire dit où il est : à quai, ou en mer avec sa destination', async () => {
+    const html = await render(
+      [
+        { id: 's1', class_id: 'coaster', docked_city_id: 'k', laid_up_at: null },
+        { id: 's2', class_id: 'coaster', docked_city_id: null, laid_up_at: null },
+        {
+          id: 's3',
+          class_id: 'round_ship',
+          docked_city_id: 'e',
+          laid_up_at: '2026-11-16T03:00:00Z',
+        },
+      ],
+      [
+        {
+          id: 'v1',
+          ship_id: 's2',
+          from_city_id: 'k',
+          to_city_id: 'h',
+          departed_at: '2026-11-16T10:00:00Z',
+          arrives_at: '2026-11-16T16:00:00Z',
+          arrived_at: null,
+          cargo: [],
+        },
+      ],
+    );
+    expect(html).toContain('Caboteur n° 1</span> : à quai à Kallistè');
+    expect(html).toContain('Caboteur n° 2</span> : en mer vers Halos, arrivée prévue le');
+    expect(html).toContain('Navire rond</span> : à quai à Elaia (désarmé');
+    // Un navire en mer est dessiné sur sa route, en plus des quatre cités.
+    expect(html.match(/<circle /g)).toHaveLength(5);
+  });
+
+  it('une cité qu’aucune route ne relie est nommée dans la liste', async () => {
+    const config = INITIAL_CONFIG as GameConfig;
+    const halos = config.ships.routes.filter(({ cities }) => !cities.includes('halos'));
+    views.rules = parseShipRules({ ships: { ...config.ships, routes: halos } });
+    const html = await render([]);
+    views.rules = undefined;
+    expect(html).toContain('Sans route : Halos.');
+  });
+});
