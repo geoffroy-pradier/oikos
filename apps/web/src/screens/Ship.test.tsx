@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -7,14 +7,14 @@ import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
 // Lectures simulées, par vue ; chaque rendu relit l'état courant du test.
-const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]> }));
+const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]>, rules: null as unknown }));
 vi.mock('../data', () => ({
   useRows: (view: string) => ({
     rows: views.rows[view] ?? [],
     failed: false,
     reload: () => Promise.resolve(null),
   }),
-  useShipRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
+  useShipRules: () => ({ rules: views.rules, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('../server-clock', () => ({
   serverClock: { now: () => new Date('2026-11-16T12:00:00Z') },
@@ -24,6 +24,25 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
   useParams: () => ({ shipId: 's1' }),
 }));
+// Formulaire de départ simulé : il disparaît à l'envoi, comme quand le navire prend la mer.
+vi.mock('./Departure', async () => {
+  const { useState } = await import('react');
+  return {
+    Departure: (props: { onDone: (notice: object) => Promise<unknown> }) => {
+      const [sent, setSent] = useState(false);
+      return sent ? null : (
+        <button
+          onClick={() => {
+            setSent(true);
+            void props.onDone({ kind: 'status', text: 'Parti.' });
+          }}
+        >
+          Partir
+        </button>
+      );
+    },
+  };
+});
 const { ShipScreen } = await import('./Ship');
 
 const voyage = {
@@ -98,5 +117,17 @@ describe('fiche d’un navire', () => {
     await screenOf();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByText(fr.ship.arrivedAt)).toBeTruthy();
+  });
+
+  it('après un départ, le foyer perdu avec le formulaire va au message qui l’annonce', async () => {
+    state(true);
+    views.rules = { classes: [], routes: [], portDues: {} };
+    await screenOf();
+    const button = screen.getByRole('button', { name: 'Partir' });
+    button.focus();
+    fireEvent.click(button);
+    const status = await screen.findByText('Parti.');
+    expect(document.activeElement).toBe(status);
+    views.rules = null;
   });
 });

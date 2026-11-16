@@ -1,9 +1,11 @@
 import { Button, Card } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArrivals, useFleet, useShipName, type VoyageRow } from '../fleet';
 import { useHouse } from '../house';
 import { formatList } from '../lists';
+import { Departure, type DepartureNotice } from './Departure';
 import { LoadProblem, Loading } from './LoadProblem';
 
 /** Fiche d'un navire : où il est, ses voyages (départ, arrivée prévue, cargaison), et son départ (#254). */
@@ -20,6 +22,22 @@ export function ShipScreen() {
     .filter((voyage) => voyage.ship_id === shipId)
     .reverse();
   const arrivals = useArrivals(fleet.voyages.rows).filter((voyage) => voyage.ship_id === shipId);
+  const voyageRows = fleet.voyages.rows;
+  const voyageCounts = useMemo(() => {
+    if (!voyageRows) return null;
+    const counts = new Map<string, number>();
+    for (const row of voyageRows) counts.set(row.ship_id, (counts.get(row.ship_id) ?? 0) + 1);
+    return counts;
+  }, [voyageRows]);
+  const [notice, setNotice] = useState<DepartureNotice | null>(null);
+  // Un départ réussi retire le formulaire, et son bouton avec lui : le foyer, retombé sur la page, va au
+  // message qui annonce l'issue (comme sur l'écran des sites).
+  const noticeElement = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const active = document.activeElement;
+    if (active === document.body || active?.matches(':disabled') === true)
+      noticeElement.current?.focus();
+  }, [notice]);
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   const cityName = (cityId: string) => house.cityNames[cityId] ?? cityId;
@@ -60,9 +78,35 @@ export function ShipScreen() {
               {t('ship.arrived', { city: cityName(voyage.to_city_id), cargo: cargoText(voyage) })}
             </p>
           ))}
+          {notice && (
+            <p
+              ref={noticeElement}
+              tabIndex={-1}
+              role={notice.kind}
+              className={notice.kind === 'alert' ? 'text-destructive' : ''}
+            >
+              {notice.text}
+            </p>
+          )}
           <Button variant="ghost" onClick={() => void fleet.reload()}>
             {t('ship.reload')}
           </Button>
+        </Card>
+      )}
+      {ship?.docked_city_id && !ship.laid_up_at && fleet.rules && (
+        <Card>
+          <h2 className="text-xl">{t('departure.title')}</h2>
+          <Departure
+            ship={{ ...ship, docked_city_id: ship.docked_city_id }}
+            shipName={shipName(ship)}
+            rules={fleet.rules}
+            slugs={fleet.slugs}
+            voyageCounts={voyageCounts}
+            onDone={(next) => {
+              setNotice(next);
+              return fleet.reload();
+            }}
+          />
         </Card>
       )}
       {ship && (
