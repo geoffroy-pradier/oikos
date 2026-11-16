@@ -65,6 +65,11 @@ Pour une récolte, sécheresses et bonnes années jouent cycle par cycle (7.4), 
 Pour un départ, la tempête allonge le trajet (4.6), puis le vent raccourcit la durée allongée.
 Grâce et bonne année se multiplient : au plus fort de l'une et de l'autre, un verger rend jusqu'au quadruple de son extrant.
 Exception à la règle de 4.2 (récolter en une ou plusieurs fois rend la même quantité) : le surplus d'une grâce s'arrondit sur toute la récolte qui la consomme, et sa taille dépend donc du moment de la récolte.
+La commande `temple.invokeGrace` (grâce, Charis dépensée vue) invoque une grâce de la configuration en vigueur pour la maison du joueur.
+Elle est refusée sans rien dépenser si la grâce est inconnue, si la Charis dépensée en vigueur n'est pas celle vue (`CHARIS_CHANGED`), si une invocation de cette grâce par la maison attend encore son action (`GRACE_PENDING`), si elle se recharge (`GRACE_RECHARGING`) ou si la Charis de la maison envers le dieu est sous la Charis requise (`INSUFFICIENT_CHARIS`).
+Une grâce à recharge d'un jour invoquée juste avant une clôture se réinvoque dès cette clôture.
+La Charis dépensée est une ligne `grace` du journal de la Charis (12), dans la transaction de l'invocation, et la commande émet `GraceInvoked`.
+La commande verrouille la maison, puis sa Charis envers le dieu, comme une offrande ; elle ne prend pas l'agora.
 
 ## 7.2 Hybris et Némésis
 

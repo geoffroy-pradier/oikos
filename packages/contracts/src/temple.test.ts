@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { offeringMadeSchema, templeMakeOfferingInputSchema } from './temple';
+import {
+  graceInvokedSchema,
+  offeringMadeSchema,
+  templeInvokeGraceInputSchema,
+  templeMakeOfferingInputSchema,
+} from './temple';
 
 describe('temple.makeOffering', () => {
   const valid = {
@@ -58,5 +63,47 @@ describe('temple.makeOffering', () => {
       domainEventSchema.safeParse({ ...made, payload: { ...made.payload, charisGained: 0 } })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('temple.invokeGrace (#266)', () => {
+  const ok = (input: unknown) => templeInvokeGraceInputSchema.safeParse(input).success;
+
+  it('une grâce et la Charis dépensée vue, rien de plus', () => {
+    expect(ok({ graceId: 'demeter_harvest', expectedCharisSpent: 150 })).toBe(true);
+    expect(ok({ graceId: 'demeter_harvest', expectedCharisSpent: 0 })).toBe(true);
+    for (const expectedCharisSpent of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, '150'])
+      expect([
+        expectedCharisSpent,
+        ok({ graceId: 'demeter_harvest', expectedCharisSpent }),
+      ]).toEqual([expectedCharisSpent, false]);
+    expect(ok({ graceId: 'Zeus', expectedCharisSpent: 1 })).toBe(false);
+    // La maison est celle du compte ; une grâce ne vise pas une autre maison.
+    expect(
+      ok({
+        graceId: 'demeter_harvest',
+        expectedCharisSpent: 1,
+        houseId: '01900000-0000-7000-8000-0000000000a1',
+      }),
+    ).toBe(false);
+  });
+
+  it('GraceInvoked se relit par l’union ; un effet hors du catalogue est refusé', () => {
+    const invoked = {
+      type: 'GraceInvoked' as const,
+      payload: {
+        graceUseId: '01900000-0000-7000-8000-0000000004f1',
+        houseId: '01900000-0000-7000-8000-0000000000a1',
+        graceId: 'demeter_harvest',
+        godId: 'demeter',
+        effect: 'blessed_harvest' as const,
+        magnitudeBps: 2_000,
+        charisSpent: 150,
+        readyAt: '2026-11-19T03:00:00.000Z',
+      },
+    };
+    expect(domainEventSchema.parse(invoked)).toEqual(invoked);
+    const thunder = { ...invoked, payload: { ...invoked.payload, effect: 'thunderbolt' } };
+    expect(graceInvokedSchema.safeParse(thunder).success).toBe(false);
   });
 });
