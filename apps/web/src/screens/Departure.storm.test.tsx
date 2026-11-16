@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,14 +11,17 @@ import { parseShipRules, type ShipRules } from '../ship-rules';
 // Départ sous la tempête (#417) : un caboteur à quai à Kallistè (routes de la configuration initiale :
 // Elaia et Ampélos à 4 h, Halos à 6 h), à l'heure du serveur fixée.
 const NOW = '2026-11-17T12:00:00.000Z';
+// `events` : `loading` tant que la lecture n'a pas répondu, `null` pour une lecture en échec.
 const state = vi.hoisted(() => ({
-  events: [] as unknown[] | null,
+  events: [] as unknown[] | null | 'loading',
   reads: new Map<string, unknown>(),
 }));
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters: unknown) => {
     state.reads.set(view, filters);
     const rows = view === 'world_events' ? state.events : [];
+    if (rows === 'loading')
+      return { rows: null, failed: false, reload: () => Promise.resolve(null) };
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
@@ -116,5 +119,39 @@ describe('départ d’un navire : durée allongée par une tempête en cours sur
     expect(screen.getByLabelText(/^Elaia — 4 h de mer, coût/)).toBeTruthy();
     expect(screen.getByText(fr.departure.stormsUnknown)).toBeTruthy();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('pendant la lecture des tempêtes, la durée du calme est annoncée comme provisoire', async () => {
+    state.events = 'loading';
+    await mount();
+    expect(screen.getByLabelText(/^Elaia — 4 h de mer, coût/)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe(fr.departure.stormsLoading);
+    state.events = [];
+    cleanup();
+    await mount();
+    // Région toujours présente, vide une fois les tempêtes lues.
+    expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('après un « Réessayer » réussi, le foyer va au titre de la carte', async () => {
+    state.events = null;
+    await mount();
+    state.events = [storm('e1', 'k', 'e', 2_500)];
+    const retry = screen.getByRole('button', { name: fr.app.retry });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByText(fr.departure.stormsUnknown)).toBeNull());
+    expect(screen.getByLabelText(/^Elaia — 5 h de mer par tempête/)).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: fr.departure.title }));
+  });
+
+  it('une durée allongée égale à celle du calme à l’arrondi n’est pas annoncée comme allongée', async () => {
+    // 1 % de 4 h : 4,04 h, soit « 4 h » à l'affichage.
+    state.events = [storm('e1', 'k', 'e', 100)];
+    await mount();
+    expect(screen.getByLabelText(/^Elaia — 4 h de mer, coût/)).toBeTruthy();
+    expect(screen.queryByText(/par tempête/)).toBeNull();
+    fireEvent.click(screen.getByLabelText(/^Elaia/));
+    expect(screen.getByText(/^Tempête entre Kallistè et Elaia jusqu'au /)).toBeTruthy();
   });
 });

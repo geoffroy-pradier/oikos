@@ -190,3 +190,26 @@ export function checkDecreeParams(bounds: DecreeModelBounds, model: DecreeModel,
     faulty: new Set((parsed?.error?.issues ?? []).map((issue) => String(issue.path[0]))),
   };
 }
+
+/**
+ * Nombre saisi dans la langue de l'interface, écrit comme le formulaire affiche ses bornes : séparateur des
+ * milliers de la langue ou espace de toute sorte entre groupes de trois chiffres (« 30 000 », « 30,000 » en
+ * anglais), décimales après le séparateur de la langue (en français, la virgule ou le point). `null` : rien
+ * de saisi ; `NaN` : saisie illisible, à dire comme telle plutôt que « hors des bornes ».
+ */
+export function readTypedNumber(typed: string, language: string): number | null {
+  const text = typed.trim();
+  if (text === '') return null;
+  const parts = new Intl.NumberFormat(language).formatToParts(12_345.6);
+  const group = parts.find((part) => part.type === 'group')?.value ?? '';
+  const decimal = parts.find((part) => part.type === 'decimal')?.value ?? '.';
+  const escape = (chars: string) => chars.replace(/[\\\]^-]/g, '\\$&');
+  const groups = `[\\s${/\s/.test(group) ? '' : escape(group)}]`;
+  const decimals = `[${escape(decimal === ',' && group !== '.' ? ',.' : decimal)}]`;
+  const match = new RegExp(`^(-?)(\\d{1,3}(?:${groups}\\d{3})+|\\d+)(?:${decimals}(\\d+))?$`).exec(
+    text,
+  );
+  if (!match) return NaN;
+  const [, sign = '', whole = '', fraction = '0'] = match;
+  return Number(`${sign}${whole.replace(/\D/g, '')}.${fraction}`);
+}

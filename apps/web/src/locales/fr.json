@@ -542,6 +542,7 @@
     "sailed": "{{ship}} est parti vers {{city}} pour {{cost}} : arrivée prévue le {{time}}.",
     "alreadySailed": "Ce départ avait déjà eu lieu : {{ship}} est en route vers {{city}}, arrivée prévue le {{time}}. Rien n'a été payé de nouveau.",
     "noDestination": "Aucune route ne part de cette cité pour l'instant.",
+    "stormsLoading": "Lecture des tempêtes en cours : les durées annoncées sont celles par temps calme, provisoires.",
     "stormsUnknown": "Les tempêtes en cours n'ont pas pu être lues : les durées annoncées sont celles par temps calme.",
     "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite)."
   },
@@ -717,6 +718,7 @@
     "goods_other": "Biens de la fête (de 1 à {{count}})",
     "between": "Entre {{min}} et {{max}}",
     "outOfBounds": "Hors des bornes du décret.",
+    "unreadable": "Nombre illisible : écrivez un nombre sans unité, par exemple 7,5 ou 30 000.",
     "submit": "Proposer au vote",
     "done": "Décret proposé : il est au vote.",
     "betweenOboles": "Entre {{min}} et {{max}} oboles ({{minMoney}} à {{maxMoney}}).",
