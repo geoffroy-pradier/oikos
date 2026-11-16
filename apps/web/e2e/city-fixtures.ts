@@ -1,5 +1,6 @@
 import { createConfigLoader } from '@oikos/config';
 import { createDb, type GameDatabase } from '@oikos/db';
+import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql, type Transaction } from 'kysely';
 import { KALLISTE_ID } from './helpers';
 
@@ -90,4 +91,32 @@ export const setUpCity = (houseName: string, role: 'metic' | 'citizen' | 'archon
     if (!house) throw new Error(`Maison ${houseName} introuvable`);
     if (role !== 'metic') await naturalize(trx, house.id);
     if (role === 'archon') await archon(trx, house.id, '1 hour', '1 day');
+  });
+
+/**
+ * Deux chroniques de Kallistè (#271), écrites comme par le moteur, sous le rôle de service et dans une
+ * transaction : celle de la veille, réécrite par l'IA, et celle de l'avant-veille, de repli. Chacune suit une
+ * clôture enregistrée de son jour, posée si elle manque. Rien n'est remplacé d'un passage à l'autre : une
+ * chronique ne change plus une fois écrite. Rend les deux jours de jeu.
+ */
+export const setUpChronicles = () =>
+  db.transaction().execute(async (trx) => {
+    await sql`select pg_advisory_xact_lock(hashtext('e2e:city-chronicle'))`.execute(trx);
+    const { id: versionId, config } = await createConfigLoader(trx).at(new Date());
+    const { clock } = config;
+    const latest = gameDayAt(new Date(), clock) - 1;
+    const earlier = latest - 1;
+    await sql`set local role oikos_service`.execute(trx);
+    for (const [day, source, fr, en] of [
+      [earlier, 'fallback', 'Avant-veille E2E : journée calme.', 'Day before E2E: a quiet day.'],
+      [latest, 'ai', 'Veille E2E : la gazette.\n\nUn navire au port.', 'Eve E2E: the gazette.'],
+    ] as const) {
+      await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+        values (${WORLD_ID}, ${day}, ${dailyCloseAt(day, clock)}, ${versionId})
+        on conflict do nothing`.execute(trx);
+      await sql`insert into game.chronicle_articles (world_id, city_id, game_day, facts, text_fr, text_en, source)
+        values (${WORLD_ID}, ${KALLISTE_ID}, ${day}, '{}', ${fr}, ${en}, ${source})
+        on conflict do nothing`.execute(trx);
+    }
+    return { latest, earlier };
   });
