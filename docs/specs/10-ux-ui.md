@@ -54,6 +54,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Un retrait de candidature est définitif : l'écran en avertit avant, et ne propose plus de se présenter après.
    Un décret de taux appliqué est dit « en vigueur » seulement s'il est le dernier appliqué de son modèle ; les autres décrets appliqués disent leur date d'application.
    Le résultat de chaque commande s'annonce près de l'action, dans une région vivante présente avant lui ; restée sans réponse, la commande repart sous la même clé au même contenu.
+   L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
+   « En cours » se lit à l'heure du serveur, relue chaque minute ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
 6. Comptes : résultat, bilan, flux, par période.
    Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ;
    les stocks sans prix observé sont comptés à part, hors du total).

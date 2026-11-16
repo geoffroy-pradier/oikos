@@ -9,6 +9,7 @@ import { useMoney } from '../money';
 import { parkBySize } from '../property';
 import { coverageShare, parseCityPopulation } from '../population';
 import { CityAssembly } from './CityAssembly';
+import { CityEvents } from './CityEvents';
 import { CityPolitics } from './CityPolitics';
 import { CityTreasury } from './CityTreasury';
 import { LoadProblem, Loading } from './LoadProblem';
@@ -16,7 +17,7 @@ import { LoadProblem, Loading } from './LoadProblem';
 /**
  * Onglet Cité : identité de la cité de la maison (6.1, vue `city_identity`), puis sa population, classe
  * par classe, et la couverture de ses besoins vitaux à la dernière clôture (docs/specs/05-economie.md,
- * 5.2, vue `city_population`). Lecture seule.
+ * 5.2, vue `city_population`), ses événements en cours (7.4). Lecture seule.
  */
 export function CityScreen() {
   const { t, i18n } = useTranslation();
@@ -94,6 +95,7 @@ export function CityScreen() {
           </ul>
         )}
       </Card>
+      <CityEvents />
       <CityPolitics />
       <CityAssembly />
       <CityTreasury />
