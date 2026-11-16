@@ -123,6 +123,38 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expectNoHorizontalScroll(page);
   await page.unroute(economy);
 
+  // Animation, au clavier : le calendrier des événements (#267) reste lisible à 360 px avec une tempête
+  // ajoutée à la réponse de l'API, en cours à l'heure qu'elle rend.
+  const events = '**/api/admin/events';
+  await page.route(events, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { data: { now: string; events: unknown[] } };
+    const endsAt = new Date(Date.parse(body.data.now) + 86_400_000).toISOString();
+    body.data.events.push({
+      id: randomUUID(),
+      world: 'archipel',
+      model: 'storm',
+      city: 'kalliste',
+      otherCity: 'halos',
+      goodId: null,
+      startsAt: body.data.now,
+      endsAt,
+      magnitudeBps: 2_500,
+      plannedDay: 1,
+    });
+    await route.fulfill({ response, json: body });
+  });
+  await modules.getByRole('button', { name: 'Animation' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Calendrier des événements', level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('row', { name: /^En cours Tempête route kalliste – halos/ }),
+  ).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.unroute(events);
+
   // Accès : le compte s'y lit avec son rôle ; l'API refuse un identifiant inconnu ; rien ne déborde à 360 px.
   await modules.getByRole('button', { name: 'Accès' }).click();
   await expect(page.getByRole('heading', { name: 'Accès', level: 1 })).toBeVisible();
