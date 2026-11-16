@@ -8,7 +8,13 @@ import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandRespo
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { parseCityIdentities } from '../city-identity';
-import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf, yieldGaps } from '../harvest-events';
+import {
+  gapsExplainedBy,
+  harvestUnderEvents,
+  YIELD_MODELS,
+  yieldEventsOf,
+  yieldGaps,
+} from '../harvest-events';
 import {
   freeStockIn,
   parseLaborMarket,
@@ -204,11 +210,15 @@ export function SitesCard({
     const lost = gaps.map((gap) => stackText({ ...gap, quantity: Math.abs(gap.quantity) }));
     return t(`home.${tense}.${model}`, { list: list(lost) });
   };
-  /** Écart d'une récolte faite à son rendement sans événement : celui d'un champ ou d'un verger (#417). */
+  /**
+   * Écart d'une récolte faite à son rendement sans événement : celui d'un champ ou d'un verger (#417), et
+   * seulement s'il est du signe de l'événement de son type (`gapsExplainedBy`).
+   */
   const collectedGaps = (site: Site, data: SiteCollectOutput) => {
     const recipe = rules?.recipe(site.recipe_id);
-    return recipe && Number.isSafeInteger(data.cycles)
-      ? yieldGaps(recipe, data.cycles, data.outputs)
+    const model = recipe && yieldModelOf(recipe.siteType);
+    return recipe && model && Number.isSafeInteger(data.cycles)
+      ? gapsExplainedBy(model, yieldGaps(recipe, data.cycles, data.outputs))
       : [];
   };
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
@@ -503,8 +513,14 @@ export function SitesCard({
             list: list(outcome.collected.map(stackText)),
           }),
         );
+      // Tout réduit à zéro : dit « à rien », comme pour une récolte seule.
+      const nothing = outcome.collected.every((stack) => stack.quantity === 0);
       for (const [model, touchedSites] of touched)
-        parts.push(t(`home.collectedAllGap.${model}`, { list: list(touchedSites) }));
+        parts.push(
+          t(nothing ? 'home.collectedAllGapZero' : `home.collectedAllGap.${model}`, {
+            list: list(touchedSites),
+          }),
+        );
       for (const failure of outcome.failed)
         parts.push(
           t('home.collectAllFailed', {

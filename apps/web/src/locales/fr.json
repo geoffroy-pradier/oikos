@@ -134,6 +134,7 @@
       "drought": "La sécheresse a réduit la récolte de : {{list}}.",
       "good_year": "La bonne année a accru la récolte de : {{list}}."
     },
+    "collectedAllGapZero": "La sécheresse a réduit à rien la récolte de : {{list}} ; les cycles sont comptés, sans rien produire.",
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",

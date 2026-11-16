@@ -134,6 +134,7 @@
       "drought": "The drought reduced the harvest of: {{list}}.",
       "good_year": "The good year increased the harvest of: {{list}}."
     },
+    "collectedAllGapZero": "The drought reduced the harvest of {{list}} to nothing: the cycles are counted, producing nothing.",
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",

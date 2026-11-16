@@ -47,7 +47,7 @@ vi.mock('../api', () => ({
 vi.mock('../data', async () => {
   const { parseSiteRules } = await import('../site-rules');
   const rules = parseSiteRules({
-    recipes: [quick('grow_wheat'), quick('grow_olives')],
+    recipes: [quick('grow_wheat'), quick('grow_olives'), quick('mill_flour')],
     sites: config.sites,
   });
   return {
@@ -208,5 +208,103 @@ describe('écran Sites : récoltes sous les événements du monde (#417)', () =>
     await screen.findByRole('button', { name: 'Récolter : Champ de blé' });
     expect(screen.queryByText(/^À récolter/)).toBeNull();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+});
+
+const answer = (cycles: number, goodId: string, quantity: number) => ({
+  ok: true,
+  replayed: false,
+  data: { cycles, outputs: [{ goodId, quantity }] },
+});
+const collectAllButton = () => screen.findByRole('button', { name: /^Tout récolter/ });
+
+describe('écran Sites : issue d’une récolte faite (#417, #456)', () => {
+  it('un atelier et un champ sans écart : rien n’est dit après la quantité', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s3', 'mill_flour')];
+    api.collectSite
+      .mockResolvedValueOnce(answer(3, 'wheat', 30))
+      .mockResolvedValueOnce(answer(3, 'flour', 30));
+    await show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Récolter : Champ de blé' }));
+    await waitFor(() => expect(statuses()).toBe('Récolte engrangée : 30 × Blé.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Récolter : Moulin' }));
+    await waitFor(() => expect(statuses()).toBe('Récolte engrangée : 30 × Farine.'));
+  });
+
+  it('bonne année : la récolte faite accrue est dite, et « Tout récolter » nomme le verger', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s2', 'grow_olives')];
+    api.collectSite.mockResolvedValueOnce(answer(3, 'olives', 45));
+    await show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Récolter : Oliveraie' }));
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée : 45 × Olives. La bonne année y a ajouté 15 × Olives.',
+      ),
+    );
+    api.collectSite.mockImplementation((siteId: string) =>
+      Promise.resolve(siteId === 's1' ? answer(3, 'wheat', 30) : answer(3, 'olives', 45)),
+    );
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 2 sites : 30 × Blé et 45 × Olives. ' +
+          'La bonne année a accru la récolte de : Oliveraie.',
+      ),
+    );
+  });
+
+  it('écart d’un signe contraire au modèle (extrant changé par une version) : rien n’est dit', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s2', 'grow_olives')];
+    // Un champ qui rend plus, un verger qui rend moins, que `cycles` × extrant affiché.
+    api.collectSite.mockImplementation((siteId: string) =>
+      Promise.resolve(siteId === 's1' ? answer(3, 'wheat', 36) : answer(3, 'olives', 0)),
+    );
+    await show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Récolter : Champ de blé' }));
+    await waitFor(() => expect(statuses()).toBe('Récolte engrangée : 36 × Blé.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Récolter : Oliveraie' }));
+    await waitFor(() => expect(statuses()).toBe('Récolte engrangée : 0 × Olives.'));
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe('Récolte engrangée sur 2 sites : 36 × Blé et 0 × Olives.'),
+    );
+  });
+
+  it('« Tout récolter » entièrement réduit à zéro : dit « à rien », comme une récolte seule', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s4', 'grow_wheat')];
+    api.collectSite.mockResolvedValue(answer(3, 'wheat', 0));
+    await show();
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 2 sites : 0 × Blé. La sécheresse a réduit à rien la récolte de : ' +
+          'Champ de blé 1 et Champ de blé 2 ; les cycles sont comptés, sans rien produire.',
+      ),
+    );
+  });
+
+  it('« Tout récolter » réessayé après un échec : seule l’issue du nouvel essai est dite', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s2', 'grow_olives')];
+    api.collectSite
+      .mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: '' } })
+      .mockResolvedValueOnce(answer(3, 'olives', 45))
+      .mockResolvedValueOnce(answer(3, 'wheat', 0))
+      .mockResolvedValueOnce(answer(3, 'olives', 30));
+    await show();
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 1 site : 45 × Olives. ' +
+          'La bonne année a accru la récolte de : Oliveraie. ' +
+          `Échec pour Champ de blé. ${fr.errors.INTERNAL}`,
+      ),
+    );
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 2 sites : 0 × Blé et 30 × Olives. ' +
+          'La sécheresse a réduit la récolte de : Champ de blé.',
+      ),
+    );
   });
 });

@@ -38,6 +38,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Un site à l'arrêt n'annonce pas l'événement en cours : ses cycles sont gelés, sa récolte estimée est celle des cycles faits avant l'arrêt.
    L'issue d'une récolte faite explique l'écart de la quantité rendue par l'API à `cycles` × extrant : réduite à zéro ou de combien par une sécheresse, accrue par une bonne année ; « Tout récolter » nomme les sites touchés.
    Cette explication se déduit de la réponse de la récolte et du type du site, sans dépendre de la lecture des événements.
+   Un écart d'un autre signe que celui du modèle (sécheresse en moins, bonne année en plus), par exemple après une version de configuration qui change l'extrant entre l'affichage et la récolte, n'est pas expliqué.
+   « Tout récolter » entièrement réduit à zéro le dit « à rien », comme une récolte seule.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
    L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.

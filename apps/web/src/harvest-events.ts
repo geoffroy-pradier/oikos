@@ -34,6 +34,16 @@ export function yieldGaps(recipe: SiteRecipe, cycles: number, outputs: readonly 
 }
 
 /**
+ * Écarts qu'un modèle de rendement explique : tous du signe de son effet (sécheresse en moins, bonne année en
+ * plus). Un écart d'un autre signe n'est pas de son fait (une version de configuration qui change l'extrant
+ * entre l'affichage et la récolte, par exemple) : rien n'est expliqué.
+ */
+export function gapsExplainedBy(model: WorldEventKind, gaps: readonly Stack[]): readonly Stack[] {
+  const { sign } = WORLD_EVENT_CATALOGUE[model];
+  return gaps.every((gap) => Math.sign(gap.quantity) === sign) ? gaps : [];
+}
+
+/**
  * Ce que rendraient les `cycles` premiers cycles après `cycleStartedAt` sous les événements de rendement du
  * site (`yieldEventsOf`), calculé comme l'API (`cycleYield`) : chaque cycle qui se termine pendant un
  * événement produit selon le plus fort en cours. Indicatif : l'API recalcule à la récolte.
