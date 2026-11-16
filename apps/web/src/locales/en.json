@@ -606,5 +606,34 @@
     "leaseTerminated": "Lease terminated for unpaid rent: {{property}}.",
     "toStaff": "See the staff",
     "toProperty": "See the property"
+  },
+  "cityPolitics": {
+    "title": "Civic life",
+    "meticNotice": "As a metic, your house sees the life of the city but neither votes nor stands for office here: it will once it becomes a citizen.",
+    "archon": "Archon in office: {{house}}, until {{until}}",
+    "noArchon": "No archon in office.",
+    "election": "Current election",
+    "noElection": "No election under way.",
+    "phase": {
+      "upcoming": "Election {{office}}: candidacies are not open yet.",
+      "filing": "Election {{office}}: candidacies are open.",
+      "voting": "Election {{office}}: voting is open.",
+      "counting": "Election {{office}}: voting closed, the count comes at the next daily close.",
+      "tallied": "Election {{office}}: counted."
+    },
+    "offices": {
+      "archon": "of the archon"
+    },
+    "filing": "Candidacies from {{at}}",
+    "voting": "Voting from {{at}}",
+    "closing": "Voting closes {{at}}",
+    "noCandidate": "No candidate yet.",
+    "lastResults": "Last counted election",
+    "noResults": "No election counted yet.",
+    "result_one": "{{house}}: {{votes}} vote",
+    "result_other": "{{house}}: {{votes}} votes",
+    "elected_one": "{{house}}: {{votes}} vote, elected",
+    "elected_other": "{{house}}: {{votes}} votes, elected",
+    "unknownHouse": "Unknown house"
   }
 }

@@ -8,6 +8,7 @@ import { employmentShare, parseCityLabor } from '../labor';
 import { useMoney } from '../money';
 import { parkBySize } from '../property';
 import { coverageShare, parseCityPopulation } from '../population';
+import { CityPolitics } from './CityPolitics';
 import { LoadProblem, Loading } from './LoadProblem';
 
 /**
@@ -91,6 +92,7 @@ export function CityScreen() {
           </ul>
         )}
       </Card>
+      <CityPolitics />
       <Card className="flex flex-col gap-3">
         <h2 ref={laborTitle} tabIndex={-1} className="text-xl">
           {t('city.labor.title')}
