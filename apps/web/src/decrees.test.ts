@@ -1,6 +1,12 @@
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { groupDecrees, parseDecreeRules, parseDecrees, ratesInForce } from './decrees';
+import {
+  groupDecrees,
+  parseDecreeRules,
+  parseDecrees,
+  ratesInForce,
+  readTypedNumber,
+} from './decrees';
 
 const config = INITIAL_CONFIG as GameConfig;
 const decree = {
@@ -109,5 +115,36 @@ describe('décrets de la cité (#264)', () => {
         { ...decree, id: 'voting', status: 'proposed' },
       ]) ?? [];
     expect([...ratesInForce(decrees)].sort()).toEqual(['new', 'port']);
+  });
+});
+
+describe('nombre saisi dans un formulaire de décret (#444, #456)', () => {
+  it('séparateur des milliers tel que l’aide l’affiche, ou espace ; décimales de la langue', () => {
+    const shown = new Intl.NumberFormat('fr').format(30_000);
+    for (const typed of [shown, '30 000', '30\u00a0000', ' 30000 '])
+      expect(readTypedNumber(typed, 'fr')).toBe(30_000);
+    expect(readTypedNumber('7,5', 'fr')).toBe(7.5);
+    expect(readTypedNumber('7.5', 'fr')).toBe(7.5);
+    expect(readTypedNumber('1 234,5', 'fr')).toBe(1_234.5);
+    expect(readTypedNumber(new Intl.NumberFormat('en').format(30_000), 'en')).toBe(30_000);
+    expect(readTypedNumber('30 000', 'en')).toBe(30_000);
+    expect(readTypedNumber('7.5', 'en')).toBe(7.5);
+    expect(readTypedNumber('-5', 'fr')).toBe(-5);
+  });
+
+  it('rien de saisi : `null` ; saisie illisible : `NaN`, jamais un autre nombre', () => {
+    expect(readTypedNumber('  ', 'fr')).toBeNull();
+    // En anglais, la virgule sépare les milliers : « 7,5 » n'est ni 7,5 ni 75.
+    for (const [typed, language] of [
+      ['7,5', 'en'],
+      ['12 %', 'fr'],
+      ['30 00', 'fr'],
+      ['3 0000', 'fr'],
+      ['douze', 'fr'],
+      ['1,2,3', 'fr'],
+      ['0x10', 'fr'],
+      ['1e3', 'fr'],
+    ] as const)
+      expect(readTypedNumber(typed, language)).toBeNaN();
   });
 });

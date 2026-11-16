@@ -95,7 +95,6 @@ export function ShipScreen() {
       )}
       {ship?.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
         <Card>
-          <h2 className="text-xl">{t('departure.title')}</h2>
           <Departure
             ship={{ ...ship, docked_city_id: ship.docked_city_id }}
             shipName={shipName(ship)}

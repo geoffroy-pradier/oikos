@@ -40,6 +40,9 @@ export function Departure(props: {
   const money = useMoney();
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
+  // Titre de la carte : le foyer y va après un « Réessayer » réussi.
+  const title = useRef<HTMLHeadingElement>(null);
   const stock = useRows<Inventory>(
     'my_inventories',
     'city_id, good_id, quantity, reserved',
@@ -60,9 +63,10 @@ export function Departure(props: {
     if (!cityId || !quote) return [];
     const storm = stormOn(storms.events ?? [], ship.docked_city_id, cityId);
     const seconds = storm && stormDurationSeconds(quote.durationSeconds, storm.magnitudeBps);
-    return [{ cityId, quote, storm, seconds: seconds ?? quote.durationSeconds }];
+    // Allongée, mais égale à celle du calme une fois arrondie : la durée n'est pas annoncée comme allongée.
+    const longer = seconds !== undefined && hours(seconds) !== hours(quote.durationSeconds);
+    return [{ cityId, quote, storm, seconds: seconds ?? quote.durationSeconds, longer }];
   });
-  const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
   const capacity = rules.classes.find((row) => row.id === ship.class_id)?.capacityUnits ?? 0;
   const [to, setTo] = useState('');
   const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -143,12 +147,24 @@ export function Departure(props: {
     }
   }
 
-  if (destinations.length === 0) return <p>{t('departure.noDestination')}</p>;
+  const heading = (
+    <h2 ref={title} tabIndex={-1} className="text-xl">
+      {t('departure.title')}
+    </h2>
+  );
+  if (destinations.length === 0)
+    return (
+      <>
+        {heading}
+        <p>{t('departure.noDestination')}</p>
+      </>
+    );
   return (
     <form onSubmit={(event) => void depart(event)} className="flex flex-col gap-3">
+      {heading}
       <fieldset>
         <legend className="font-semibold">{t('departure.destination')}</legend>
-        {destinations.map(({ cityId, quote, storm, seconds }) => (
+        {destinations.map(({ cityId, quote, longer, seconds }) => (
           <label key={cityId} className="flex min-h-11 items-center gap-2">
             <input
               type="radio"
@@ -157,7 +173,7 @@ export function Departure(props: {
               checked={to === cityId}
               onChange={() => setTo(cityId)}
             />
-            {t(storm ? 'departure.optionStorm' : 'departure.option', {
+            {t(longer ? 'departure.optionStorm' : 'departure.option', {
               city: house.cityNames[cityId] ?? cityId,
               hours: hours(seconds),
               calm: hours(quote.durationSeconds),
@@ -197,8 +213,12 @@ export function Departure(props: {
       </fieldset>
       {loaded > capacity && <p role="alert">{t('errors.CARGO_OVER_CAPACITY')}</p>}
       {overStock && <p role="alert">{t('departure.overStock')}</p>}
+      {/* Région toujours présente : la durée du calme est provisoire tant que les tempêtes se lisent. */}
+      <p role="status" className="empty:absolute">
+        {storms.events === null && !storms.failed ? t('departure.stormsLoading') : ''}
+      </p>
       {storms.failed && <p>{t('departure.stormsUnknown')}</p>}
-      {storms.failed && <LoadProblem onRetry={storms.reload} />}
+      {storms.failed && <LoadProblem heading={title} onRetry={storms.reload} />}
       {chosen?.storm && (
         <p>{describeWorldEvent(chosen.storm, t, i18n.language, house.cityNames)}</p>
       )}

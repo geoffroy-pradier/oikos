@@ -250,4 +250,38 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     const title = await screen.findByRole('heading', { name: fr.decreeForm.title });
     await waitFor(() => expect(document.activeElement).toBe(title));
   });
+
+  it('montant saisi avec séparateur des milliers, comme l’aide l’affiche : accepté (#456)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.public_works }));
+    const amount = screen.getByLabelText(fr.decreeForm.amount);
+    // Tel que l'aide l'écrit (espace fine insécable), puis avec une espace ordinaire.
+    fireEvent.change(amount, { target: { value: new Intl.NumberFormat('fr').format(1_500) } });
+    expect(amount.getAttribute('aria-invalid')).toBeNull();
+    expect(screen.getByText(/Soit 250 drachmes\.$/)).toBeTruthy();
+    fireEvent.change(amount, { target: { value: '1 500' } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
+      model: 'public_works',
+      params: { amountOboles: 1_500 },
+    });
+  });
+
+  it('saisie illisible : son propre message, pas « Hors des bornes » ; rien ne part (#456)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    const rate = screen.getByLabelText(fr.decreeForm.rate);
+    fireEvent.change(rate, { target: { value: '5 %' } });
+    expect(screen.getByText(fr.decreeForm.unreadable)).toBeTruthy();
+    expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
+    expect(rate.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.click(submit());
+    expect(api.cityCommand).not.toHaveBeenCalled();
+    fireEvent.change(rate, { target: { value: '12' } });
+    expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
+    expect(screen.queryByText(fr.decreeForm.unreadable)).toBeNull();
+  });
 });

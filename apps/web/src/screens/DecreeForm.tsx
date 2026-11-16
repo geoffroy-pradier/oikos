@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
 import { useRows } from '../data';
-import { checkDecreeParams, parseDecreeRules } from '../decrees';
+import { checkDecreeParams, parseDecreeRules, readTypedNumber } from '../decrees';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { parseOffices } from '../politics';
@@ -15,9 +15,6 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 const BPS = 10_000;
 /** Paramètre du décret que porte chaque champ saisi. */
 const PARAMS = { rate: 'rateBps', factor: 'coefficientBps', amount: 'amountOboles', days: 'days' };
-
-/** Nombre saisi : décimal (virgule ou point) pour un taux ou un coefficient, entier pour le reste. */
-const read = (typed: string) => (typed.trim() === '' ? NaN : Number(typed.replace(',', '.')));
 
 /**
  * Proposition d'un décret par l'archonte en charge (6.3), d'après le catalogue fermé en vigueur
@@ -34,6 +31,8 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   });
   const factor = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
   const number = new Intl.NumberFormat(i18n.language);
+  /** Nombre saisi, au format de la langue (`readTypedNumber`) ; rien de saisi ou illisible : `NaN`. */
+  const read = (typed: string) => readTypedNumber(typed, i18n.language) ?? NaN;
   const ruleRows = useRows<unknown>(
     'decree_rules',
     'model, bounds, voting_days, quorum_bps, max_open_per_city, spending_cap_share_bps',
@@ -98,8 +97,15 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const { proposal, faulty } = checkDecreeParams(bounds, chosen, candidate);
   const spending = chosen === 'festival' ? bounds.festival : bounds.public_works;
   const fits = (name: keyof typeof PARAMS) => field(name) !== '' && !faulty.has(PARAMS[name]);
+  // Une saisie illisible a son propre message : ce n'est pas un nombre hors des bornes.
   const invalid = (name: keyof typeof PARAMS) =>
-    field(name) !== '' && faulty.has(PARAMS[name]) ? t('decreeForm.outOfBounds') : undefined;
+    field(name) === ''
+      ? undefined
+      : Number.isNaN(read(field(name)))
+        ? t('decreeForm.unreadable')
+        : faulty.has(PARAMS[name])
+          ? t('decreeForm.outOfBounds')
+          : undefined;
   // Aucun bien coché n'est dit qu'une fois la fête entamée, comme un champ n'est jugé qu'une fois rempli.
   const started = goods !== null || field('amount') !== '' || field('days') !== '';
   const goodsInvalid = !faulty.has('goodIds')

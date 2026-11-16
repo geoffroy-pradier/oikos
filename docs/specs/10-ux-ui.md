@@ -55,7 +55,9 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    La fiche d'un navire liste ses voyages (départ, arrivée prévue ou faite, cargaison) ; un voyage en mer à une lecture et arrivé à la suivante est annoncé, la flotte étant relue chaque minute ou à la demande.
    Le départ se fait depuis la fiche en deux touches : la destination, qui dit la durée pour la classe du navire et le coût, puis « Partir ».
    Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
-   Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme ; une lecture en échec le dit et se relit.
+   Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit.
+   Après un « Réessayer » réussi, le foyer va au titre de la carte.
+   Une durée allongée égale à celle du calme une fois arrondie n'est pas annoncée comme allongée.
    L'arrivée annoncée après le départ est celle que rend l'API.
    La cargaison est facultative, prise dans le stock libre de la cité, et bornée par la cale et par ce stock ; le coût est annoncé avant l'envoi, et « le prix a changé » rend la main à une demande neuve au coût relu.
    La même saisie restée sans réponse repart sous la même clé ; une autre saisie (destination, cargaison ou coût) est une autre demande, sous une clé neuve : si l'essai précédent avait abouti, le navire est en mer et la demande est refusée, sans second départ.
@@ -65,6 +67,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).
+   Une saisie s'écrit comme les bornes s'affichent (« 30 000 », ou « 30,000 » en anglais) ; une saisie illisible a son propre message, distinct de « Hors des bornes ».
    Une fête sans bien coché ou avec trop de biens le dit dans une région toujours présente, reliée au groupe de cases ; une proposition réussie remet le formulaire à zéro, biens compris.
    Une lecture en échec ou illisible (charges ou règles) se dit et se relit ; après un « Réessayer » réussi, le foyer va au titre « Proposer un décret ».
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.
