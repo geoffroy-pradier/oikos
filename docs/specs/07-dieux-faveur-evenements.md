@@ -30,10 +30,15 @@ Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et 
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
 Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues avec les grâces (#266).
 Une version publiée avant la Charis se lit sans taux : aucun dieu n'y accepte d'offrande, rien ne décline, et la Charis de cité est nulle.
+Une offrande (`temple.makeOffering`) donne à un dieu des oboles, détruites par le puits `sink_offerings` (5.5), et des biens du stock libre de la maison dans sa cité, hors réservations des ventes, qui partent vers l'extrémité `offering` du journal des stocks.
+Le joueur envoie la Charis qu'il a vue : un autre taux en vigueur est refusé (`CHARIS_CHANGED`), rien n'est offert.
+Oboles, biens et Charis passent dans une seule transaction, contrôlée par la base (12), et la commande émet `OfferingMade`.
+Seule la maison qui offre gagne de la Charis : aucune commande n'en prend à une maison pour en donner à une autre, et la base refuse toute autre nature de mouvement.
+La commande verrouille la maison, puis sa Charis envers le dieu, avant l'agora : le déclin de la clôture tient les Charis avant de prendre l'agora aux étapes suivantes, et l'ordre inverse les ferait s'interbloquer.
 La Charis de cité d'une cité est la Charis de ses citoyennes envers son dieu protecteur, sommée, fois le poids de ce dieu (10 000 = ×1), arrondie vers zéro : les métèques n'y comptent pas.
 Décision (ambiguïté de cette section) : elle suit la Charis courante, déclin compris, plutôt que le cumul des offrandes, et rien ne la consomme encore (miracles : phase 3).
 Lectures : `temple_rules` (publique : la section `gods` de la configuration en vigueur), `my_favor` (privée : la Charis de sa maison par dieu) et `city_charis` (publique : la Charis de chaque cité envers son dieu protecteur).
-Une cité dont on est la seule citoyenne révèle donc sa Charis envers le dieu protecteur, au poids près.
+Une maison seule citoyenne de sa cité y révèle donc sa Charis envers le dieu protecteur, au poids près.
 
 ## 7.2 Hybris et Némésis
 

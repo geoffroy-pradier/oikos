@@ -6,6 +6,7 @@ import {
   db,
   ELAIA,
   eventsOf,
+  fund,
   give,
   GRANT,
   KALLISTE,
@@ -13,7 +14,7 @@ import {
   owner,
   send,
 } from './property.integration-fixtures';
-import { appWithConfig, type App } from './voyage.integration-fixtures';
+import { appWithConfig, WORLD, type App } from './voyage.integration-fixtures';
 
 // Offrandes à un dieu, contre Supabase local, avec la configuration initiale : Déméter prend la monnaie à
 // 1 Charis par obole, le blé à 6 et le pain à 15. Chaque test fonde sa maison à Kallistè.
@@ -179,11 +180,60 @@ describe('temple.makeOffering', () => {
       gods: config.gods.map((god) => (god.id === 'demeter' ? { ...god, charisPerObole: 2 } : god)),
     }));
     expect(codeOf(await reply('demeter', 10, wheat, 40, dearer))).toBe('CHARIS_CHANGED');
+    // Une version qui ne prend plus la monnaie refuse l'offrande, même à la Charis vue.
+    const moneyless = appWithConfig((config) => ({
+      ...config,
+      gods: config.gods.map((god) => (god.id === 'demeter' ? { ...god, charisPerObole: 0 } : god)),
+    }));
+    expect(codeOf(await reply('demeter', 10, wheat, 40, moneyless))).toBe('OFFERING_REFUSED');
     expect(codeOf(await reply('demeter', GRANT + 1, [], GRANT + 1))).toBe('INSUFFICIENT_FUNDS');
     expect(await reply('demeter', 0, [], 1)).toMatchObject({
       status: 400,
       body: { error: { code: 'VALIDATION_FAILED' } },
     });
     await untouched(player.houseId, GRANT, 5);
+  });
+
+  it('deux offrandes à la fois, chacune de toute la trésorerie : une seule passe, une seule Charis', async () => {
+    const player = await newPlayer(KALLISTE);
+    const replies = await Promise.all([
+      offer(player.user, GRANT, [], GRANT),
+      offer(player.user, GRANT, [], GRANT),
+    ]);
+    expect(replies.map((reply) => codeOf(reply) ?? reply.status).sort()).toEqual([
+      200,
+      'INSUFFICIENT_FUNDS',
+    ]);
+    expect([await balanceOf(player.houseId), await charisOf(player.houseId)]).toEqual([0, GRANT]);
+  });
+
+  it('la Charis avant l’agora : une clôture qui tient la Charis puis prend l’agora ne s’interbloque pas', async () => {
+    const player = await newPlayer(KALLISTE);
+    await fund(player.houseId, 100);
+    expect((await offer(player.user, 10, [], 10)).status).toBe(200);
+    // Comme le déclin de la clôture : la Charis de la maison verrouillée, puis l'agora du monde.
+    const { offering } = await owner.transaction().execute(async (close) => {
+      await sql`set local lock_timeout = '10s'`.execute(close);
+      await sql`select 1 from game.favor where house_id = ${player.houseId} for update`.execute(
+        close,
+      );
+      const offering = offer(player.user, 10, [], 10);
+      // L'offrande attend la Charis.
+      for (let tries = 0; ; tries += 1) {
+        const waiting = await sql<{ n: string }>`select count(*) as n from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock' and query like '%"favor"%'`.execute(
+          owner,
+        );
+        if (Number(waiting.rows[0]?.n) > 0) break;
+        if (tries > 100) throw new Error('the offering never waited for the Charis lock');
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${WORLD}`}, 0))`.execute(
+        close,
+      );
+      return { offering };
+    });
+    expect((await offering).status).toBe(200);
+    expect(await charisOf(player.houseId)).toBe(20);
   });
 });
