@@ -100,6 +100,19 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   elle fait évoluer la population avant de prélever l'entretien (5.5).
 - **Affichage.** L'onglet Cité montre au joueur la population de sa cité, classe par classe, et la couverture des besoins vitaux retenue à la dernière clôture (vue `city_population`) ; tant qu'aucun tick de demande n'a créé l'état, il le dit.
 - **Cités.** Une cité du monde est rattachée à sa population de configuration par son identifiant court (`slug`). Une cité absente de la configuration n'a pas de demande de PNJ.
+- **Fêtes de la cité** (#263, 7.5). Pendant une fête appliquée de sa cité, la demande des PNJ de chacun des biens de la fête est relevée, à tout prix, et son budget du tick avec elle, arrondi à l'obole inférieure.
+  La hausse, en points de base, est la part de `decrees.models.festival.demandBoostBps` que fait la dépense de la fête par jour : ⌊demandBoostBps × montant ÷ (maxOboles × jours)⌋, montant et jours ramenés au plus aux maximums du modèle en vigueur.
+  Elle vaut donc toute la hausse pour une fête au montant maximal d'un seul jour ; une fête plus longue ou moins coûteuse relève moins la demande chaque jour.
+  Plusieurs fêtes d'un même bien s'ajoutent, ensemble au plus `demandBoostBps` ; une configuration sans cette hausse, ou qui ne borne plus les fêtes, ne relève rien.
+  Le besoin mesuré pour la couverture ne change pas : ce que les PNJ achètent en plus pendant une fête compte comme servi au-delà du besoin (couverture bornée à 100 %).
+  Le calcul est pur (`festivalDemandBoosts`, `packages/sim`).
+  La hausse se calcule à chaque tick sur le montant voté, ramené au maximum du modèle en vigueur à ce tick, et non sur le montant payé à la clôture : les deux ne diffèrent que si la configuration a changé entre-temps.
+  Un tick du jour de jeu D joué avant la validation de la clôture qui ouvre D (clôture en retard, ou en cours) ne voit pas encore la fête : la fête commence pour lui au tick suivant.
+  Une fête est un puits, mais la demande qu'elle crée fait payer des achats par le robinet des PNJ.
+  Ordre de grandeur : sur toute sa durée, une fête fait payer au robinet au plus `demandBoostBps` ÷ 10 000 × (dépense de référence d'un jour de ses biens) ÷ `maxOboles` fois son montant, quels que soient son montant et sa durée, et seulement si l'offre suit.
+  Avec la configuration initiale (Kallistè, 144 ticks par jour), la dépense de référence d'un jour vaut environ 31 000 oboles pour le pain, 8 400 pour le vin, 8 200 pour le poisson et 7 200 pour l'huile : la fête la plus favorable (pain, vin, poisson) en mobilise environ 47 700, soit 1,6 fois `maxOboles` (30 000).
+  À 5 000 points, le robinet induit vaudrait donc jusqu'à 0,8 fois le montant de la fête, qui ne serait presque plus un puits ; la valeur initiale est de 2 500 points, soit au plus 0,4 fois le montant environ.
+  Ce réglage, comme les bornes des fêtes, se fait dans Olympe par une version de configuration.
 - **Événements.** Chaque achat des PNJ émet un événement de domaine `TradeExecuted`, le même qu'un échange entre joueurs, sans ordre d'achat (`buyOrderId` nul) et sans commande : il est écrit dans la transaction du tick, donc jamais pour un tick annulé ou simulé à blanc.
 
 **Prix de réserve des PNJ.** Les PNJ n'achètent pas un bien au-delà d'un multiple de son prix de référence (paramètre du back-office, 3 au départ).

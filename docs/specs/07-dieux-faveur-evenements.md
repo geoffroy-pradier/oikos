@@ -38,3 +38,8 @@ Les événements du monde sont planifiés par le moteur plusieurs jours à l'ava
 ## 7.5 Calendrier sacré
 
 Chaque saison porte une fête majeure (les Dionysies, les Panathénées, les fêtes de Déméter, les Jeux). Une fête crée un pic de demande prévisible sur certains biens, un concours et une occasion de mécénat. Le calendrier donne au monde un rythme lisible et aux commerçants des anticipations à jouer.
+
+Dans la phase 2 (ticket 263), une fête est un décret de la cité (6.3) : un montant, une durée en jours de jeu et des biens, pris dans la liste de la configuration.
+Décision (ambiguïté de cette section) : la fête paie son montant du trésor de la cité à un puits, qui le détruit (`sink_festivals`, 5.5), à la clôture qui l'applique.
+Elle relève ensuite, pendant ses jours de jeu à compter du jour que cette clôture ouvre, la demande des PNJ de sa cité pour ses biens (5.2) : le pic est annoncé dès le vote, et les commerçants peuvent s'y préparer.
+Son effet sur la Charis de la cité, le concours et le mécénat attendent la phase 3.

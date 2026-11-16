@@ -255,6 +255,39 @@ const measureOf = async (cityId: string) =>
       .execute()
   ).map((row) => [row.served, row.demanded]);
 
+/** Une fête appliquée, posée garde levée : réglée au jour de jeu `settledDay`, proposée par la maison donnée. */
+async function festival(
+  world: World,
+  houseId: string,
+  params: object,
+  settledDay: number,
+  cityId = world.cityId,
+) {
+  const guards = (on: boolean) =>
+    ['elections', 'offices', 'decrees'].map(
+      (name) => sql`alter table ${sql.table(`game.${name}`)} ${sql.raw(on ? 'enable' : 'disable')}
+        trigger ${sql.ref(`${name}_guard`)}`,
+    );
+  const officeId = randomUUID();
+  await owner.transaction().execute(async (trx) => {
+    for (const query of [
+      ...guards(false),
+      sql`with e as (insert into game.elections (world_id, city_id, office, candidacy_opens_at, voting_opens_at,
+          voting_closes_at, term_ends_at, tallied_at)
+          values (${world.worldId}, ${world.cityId}, 'archon', now() - interval '9 days', now() - interval '8 days',
+            now() - interval '7 days', now() + interval '20 days', now()) returning *)
+        insert into game.offices (id, world_id, city_id, office, house_id, election_id, starts_at, ends_at)
+        select ${officeId}, world_id, city_id, office, ${houseId}, id, voting_closes_at, term_ends_at from e`,
+      sql`insert into game.decrees (world_id, city_id, model, params, office_id, proposed_by, proposed_at,
+          voting_closes_at, quorum_bps, status, tallied_at, electorate, votes_for, votes_against, applied_at, settled_day)
+        values (${world.worldId}, ${cityId}, 'festival', ${JSON.stringify(params)}::jsonb, ${officeId}, ${houseId},
+          now() - interval '3 days', now() - interval '1 day', 0, 'applied', now(), 0, 0, 0, now(), ${settledDay})`,
+      ...guards(true),
+    ])
+      await query.execute(trx);
+  });
+}
+
 describe('demande des PNJ au tick', () => {
   it('achète de la moins chère à la plus chère, dans la limite de la demande à chaque prix', async () => {
     const world = await newWorld();
@@ -365,6 +398,69 @@ describe('demande des PNJ au tick', () => {
     expect(second.summary).toMatchObject({ npcDemand: { units: 3 } });
     expect(await carryOf(world.cityId)).toBeCloseTo(0, 9);
     expect(await balanceOf(seller.houseId)).toBe(30);
+  });
+
+  it('fête sur deux jours (#263) : demande et budget de ses biens relevés ces jours-là, besoin mesuré inchangé', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const decrees = (INITIAL_CONFIG as GameConfig).decrees;
+    if (!decrees?.models.festival)
+      throw new Error('festival expected in the initial configuration');
+    // Une fête au maximum (30 000 oboles) sur deux jours : +5 000 ÷ 2 = +25 % chaque jour.
+    const rules = {
+      ...decrees.models.festival,
+      goodIds: ['wheat', 'bread'],
+      demandBoostBps: 5_000,
+    };
+    const config = { ...economy(), decrees: { ...decrees, models: { festival: rules } } };
+    const clock = active.config.clock;
+    const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+    const other = randomUUID();
+    await sql`insert into game.cities (id, world_id, slug, name) values (${other}, ${world.worldId}, 'elaia', 'E')`.execute(
+      owner,
+    );
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 2, goodIds: ['wheat'] },
+      day,
+    );
+    // Une fête d'un autre bien, une fête de la même cité déjà finie, une fête d'une autre cité : sans effet.
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 7, goodIds: ['bread'] },
+      day,
+    );
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 1, goodIds: ['wheat'] },
+      day - 1,
+    );
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 7, goodIds: ['wheat'] },
+      day,
+      other,
+    );
+    const ticks = [
+      index,
+      ...[1, 2].map(
+        (later) => tickIndexAt(dailyCloseAt(day + later, clock), clock.tickMinutes) + 1,
+      ),
+    ];
+    const units = [];
+    for (const tick of ticks)
+      units.push((await runTick(db, request(world.worldId, config, tick))).summary['npcDemand']);
+    expect(units).toMatchObject([{ units: 25 }, { units: 25 }, { units: 20 }]);
+    expect(await measureOf(world.cityId)).toEqual([
+      [25, 20],
+      [25, 20],
+      [20, 20],
+    ]);
+    expect(await balanceOf(seller.houseId)).toBe(70 * 6);
   });
 
   it('deux cités, deux biens : chaque marché est servi à part, dans l’ordre d’ancienneté à prix égal', async () => {

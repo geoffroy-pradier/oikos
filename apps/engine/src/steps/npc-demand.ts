@@ -1,7 +1,10 @@
-import { tradeExecutedSchema } from '@oikos/contracts';
-import { cityRates } from '@oikos/db';
+import { decreeProposalSchema, tradeExecutedSchema } from '@oikos/contracts';
+import { cityRates, type Db } from '@oikos/db';
 import {
+  boostedBudget,
+  boostedDemand,
   classDemand,
+  festivalDemandBoosts,
   gameDayAt,
   marketTax,
   matchNpcDemand,
@@ -35,6 +38,9 @@ const CONSUMPTION = 'npc_consumption';
  * de ses biens vitaux et ce qui lui a été servi, marché vide compris : la clôture suivante en tire la
  * couverture. Un tick rattrapé achète mais ne mesure rien : après une panne, les ticks rejoués d'affilée
  * vident un carnet que personne n'a pu regarnir, et compteraient comme une pénurie.
+ *
+ * Pendant une fête de la cité (7.5, #263), la demande et le budget de chacun de ses biens montent de la hausse
+ * que `festivalDemandBoosts` calcule pour le jour de jeu du tick ; le besoin mesuré, lui, ne change pas.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -103,10 +109,17 @@ export const npcDemand: TickStep = {
             })),
           )
           .execute();
+      const gameDay = gameDayAt(scheduledAt, config.clock);
+      const boosts = festivalDemandBoosts(
+        await festivalsOf(trx, city.id, gameDay, config.decrees?.models.festival?.maxDays),
+        gameDay,
+        config.decrees?.models.festival,
+      );
       const bought = new Map<string, number>();
       for (const goodId of basketGoods) {
         const good = goods.get(goodId);
         if (!good) continue;
+        const boostBps = boosts.get(goodId) ?? 0;
         const reserve = Math.floor(good.referencePriceOboles * config.market.npcMaxPriceFactor);
         const asks = await trx
           .selectFrom('game.orders')
@@ -142,7 +155,8 @@ export const npcDemand: TickStep = {
               return (
                 sum +
                 classDemand({
-                  quantityPerThousand: entry.quantityPerThousand,
+                  // Q est proportionnelle à Q0 : relever Q0 relève la demande de la fête.
+                  quantityPerThousand: boostedDemand(entry.quantityPerThousand, boostBps),
                   population: npcClass.population,
                   price,
                   referencePrice: good.referencePriceOboles,
@@ -152,7 +166,7 @@ export const npcDemand: TickStep = {
                 })
               );
             }, 0),
-          budget: npcGoodBudget(classes, goodId, referencePrice),
+          budget: boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
           carry: carried?.carry ?? 0,
         });
 
@@ -257,7 +271,7 @@ export const npcDemand: TickStep = {
               world_id: worldId,
               city_id: city.id,
               class_id: classId,
-              game_day: gameDayAt(scheduledAt, config.clock),
+              game_day: gameDay,
               served,
               demanded,
             })),
@@ -277,3 +291,29 @@ export const npcDemand: TickStep = {
     };
   },
 };
+
+/**
+ * Fêtes appliquées d'une cité qui peuvent durer jusqu'au jour de jeu donné : réglées ce jour ou dans les
+ * `maxDays - 1` jours d'avant. Sans modèle de fête ouvert, aucune. Une fête aux paramètres illisibles (écrite
+ * hors de l'API) est journalisée et ignorée : elle ne doit pas arrêter les achats des PNJ du monde.
+ */
+async function festivalsOf(trx: Db, cityId: string, gameDay: number, maxDays: number | undefined) {
+  if (maxDays === undefined) return [];
+  const rows = await trx
+    .selectFrom('game.decrees')
+    .select(['id', 'params', 'settled_day'])
+    .where('city_id', '=', cityId)
+    .where('model', '=', 'festival')
+    .where('status', '=', 'applied')
+    .where('settled_day', '<=', gameDay)
+    .where('settled_day', '>', gameDay - maxDays)
+    .execute();
+  return rows.flatMap((row) => {
+    const parsed = decreeProposalSchema.safeParse({ model: 'festival', params: row.params });
+    if (!parsed.success || parsed.data.model !== 'festival' || row.settled_day === null) {
+      console.error(`Festival ${row.id} is unreadable: no demand boost`);
+      return [];
+    }
+    return [{ ...parsed.data.params, settledDay: row.settled_day }];
+  });
+}
