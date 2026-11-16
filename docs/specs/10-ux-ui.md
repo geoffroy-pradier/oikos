@@ -22,6 +22,9 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Le tableau de bord ouvre aussi l'écran Personnel (`/personnel`) : les travailleurs des sites de la maison, cité par cité, logés par ses biens ou hébergés chez les habitants, et le coût d'un jour de cet hébergement au prix du jour de la cité.
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
+   Ces clés sont gardées en stockage de session, comme celles des sites et des navires : elles survivent au changement d'onglet et au rechargement.
+   Le prix de vente et le loyer par jour ont chacun leur saisie et leur libellé.
+   Sous le prix de vente, l'écran annonce le net du vendeur après la taxe de marché de la cité du bien (vue `city_rates`, même calcul et même arrondi que l'API), comme l'agora ; tant que ce taux n'est pas lu, il n'annonce rien.
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.

@@ -1,10 +1,11 @@
 import { Button, Card } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { propertyCommand, type PropertyCommandInputs } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { cityMarketTax, parseMarketTax } from '../market-rules';
 import { useMoney } from '../money';
 import {
   conditionShare,
@@ -14,6 +15,7 @@ import {
   parsePropertyRules,
   type Offer,
 } from '../property';
+import { pendingKeys, sendUnderKey } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { PropertyActions } from './PropertyActions';
 
@@ -36,8 +38,9 @@ const ROW = 'flex flex-col gap-2 border-t border-border pt-3 first:border-t-0 fi
 
 /**
  * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
- * Chaque commande part au prix affiché, sous une clé gardée tant qu'elle reste sans réponse : un nouvel
- * essai rejoue la même commande au lieu d'en jouer une seconde.
+ * Chaque commande part au prix affiché, sous une clé gardée en stockage de session tant qu'elle reste
+ * sans réponse, comme celles des sites et des navires : un nouvel essai, même après un rechargement,
+ * rejoue la même commande au lieu d'en jouer une seconde.
  */
 export function PropertyScreen() {
   const { t, i18n } = useTranslation();
@@ -68,6 +71,15 @@ export function PropertyScreen() {
     'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, ended_day, end_reason',
     'started_at',
   );
+  // Taxe de marché de la cité de chaque bien (5.3, 5.6), prélevée sur une revente : elle n'est pas
+  // nécessaire à l'écran ; illisible, le net du vendeur n'est simplement pas annoncé.
+  const marketRows = useRows<unknown>('market_rules', 'market_tax', 'market_tax');
+  const rateRows = useRows<{ city_id?: unknown }>(
+    'city_rates',
+    'city_id, market_tax_rate_bps',
+    'city_id',
+    world,
+  );
   const reads = [rulesRows, cityRows, offerRows, mineRows, leaseRows];
   const sizes = rulesRows.rows === null ? null : parsePropertyRules(rulesRows.rows[0] ?? null);
   const offers =
@@ -79,9 +91,19 @@ export function PropertyScreen() {
   const loading = reads.some((read) => read.rows === null && !read.failed);
   const failed =
     reads.some((read) => read.failed) || (!loading && [sizes, offers, mine, leases].includes(null));
-  const reload = () => Promise.all(reads.map((read) => read.reload()));
+  const reload = () => Promise.all([...reads, marketRows, rateRows].map((read) => read.reload()));
+  const worldTax = marketRows.rows && parseMarketTax(marketRows.rows[0] ?? null);
+  const taxIn = (cityId: string) =>
+    cityMarketTax(
+      worldTax ?? null,
+      rateRows.rows?.find((row) => row.city_id === cityId),
+    );
 
-  const keys = useRef(new Map<string, string>());
+  // Portée disjointe de celles des sites (`oikos.pending.<maison>.`) et des navires.
+  const pending = useMemo(
+    () => pendingKeys(`property.${house.id}`, () => window.sessionStorage),
+    [house.id],
+  );
   // Le contrôle qui a lancé la commande a pu disparaître (offre achetée, bail fini) ou devenir inactif :
   // le foyer, retombé sur la page, va au résultat, annoncé près de l'action.
   const noticeElement = useRef<HTMLParagraphElement>(null);
@@ -91,11 +113,14 @@ export function PropertyScreen() {
     if (busy) return;
     setBusy(true);
     setNotice(null);
-    const key = keys.current.get(intent) ?? crypto.randomUUID();
-    keys.current.set(intent, key);
     try {
-      const result = await propertyCommand(name, input, house.accessToken, key);
-      if (result.ok || result.error.code !== 'INTERNAL') keys.current.delete(intent);
+      const result = await sendUnderKey(
+        pending,
+        intent,
+        () => crypto.randomUUID(),
+        input,
+        (key, sent) => propertyCommand(name, sent ?? input, house.accessToken, key),
+      );
       setNotice(
         result.ok
           ? {
@@ -244,6 +269,7 @@ export function PropertyScreen() {
                     <PropertyActions
                       property={property}
                       size={size}
+                      tax={taxIn(property.cityId)}
                       offer={openOffer(property.id)}
                       leased={lease !== undefined}
                       name={describe(property)}
