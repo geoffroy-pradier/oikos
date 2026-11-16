@@ -128,23 +128,37 @@ const WORDS = [
 ];
 const WORD = new RegExp(`(?<![\\p{L}\\p{N}])(?:${WORDS.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
 
-/** Le texte, débarrassé des noms donnés quand ils forment un mot entier (une cité, un bien peuvent porter un mot de nombre). */
-function withoutNames(text: string, names: readonly string[]): string {
-  // Un nom n'est retiré que s'il forme un mot entier : « Vin » ne fait pas de « Vingt » un « gt ».
+/** Caractères de format (espace sans largeur, trait d'union conditionnel…), invisibles : retirés avant le contrôle. */
+const FORMAT = /\p{Cf}/gu;
+/** Le texte tel qu'il se lit : accents composés, sans caractère de format. */
+const visible = (text: string) => text.normalize('NFC').replace(FORMAT, '');
+/** Le texte replié (NFKC) : lettres pleine chasse, ligatures et chiffres romains Unicode ramenés à leur forme simple. */
+const folded = (text: string) => text.normalize('NFKC').replace(FORMAT, '');
+/** Un mot qui mêle des lettres latines et des lettres d'une autre écriture (« dеux » au е cyrillique). */
+const MIXED_SCRIPT = /[\p{L}\p{M}]+/gu;
+const mixesScripts = (word: string) =>
+  /\p{Script=Latin}/u.test(word) && /(?!\p{Script=Latin})\p{L}/u.test(word);
+
+/**
+ * Le texte, mis sous la forme `form`, débarrassé des noms donnés (sous la même forme) là où ils forment un mot
+ * entier : « Vin » ne fait pas de « Vingt » un « gt ». Une cité ou un bien peuvent porter un mot de nombre.
+ */
+function withoutNames(text: string, names: readonly string[], form = folded): string {
   const escape = (name: string) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return [...names]
+    .map(form)
     .filter((name) => name.length > 0)
     .sort((a, b) => b.length - a.length)
     .reduce(
       (rest, name) =>
         rest.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escape(name)}(?![\\p{L}\\p{N}])`, 'gu'), ' '),
-      text,
+      form(text),
     );
 }
 
 /**
- * Nombres écrits en chiffres latins dans un texte, une fois retirés les noms donnés. Un nombre décimal se lit
- * `NaN` : il n'est jamais dans les faits, tous entiers.
+ * Nombres écrits en chiffres latins dans un texte replié (NFKC), une fois retirés les noms donnés. Un nombre
+ * décimal se lit `NaN` : il n'est jamais dans les faits, tous entiers.
  */
 export function numbersInText(text: string, names: readonly string[] = []): number[] {
   return [...withoutNames(text, names).matchAll(NUMBER)].map(([match]) =>
@@ -152,12 +166,17 @@ export function numbersInText(text: string, names: readonly string[] = []): numb
   );
 }
 
-/** Nombres écrits autrement qu'en chiffres latins (chiffres non latins, romains, lettres), tels qu'écrits. */
+/**
+ * Nombres écrits autrement qu'en chiffres latins, tels qu'écrits : chiffres non latins et fractions (lus avant le
+ * repliement, qui ferait de « ½ » un « 1⁄2 »), puis, dans le texte replié, chiffres romains, mots de nombre et mots
+ * qui mêlent plusieurs écritures.
+ */
 export function writtenNumbers(text: string, names: readonly string[] = []): string[] {
   const bare = withoutNames(text, names);
-  return [OTHER_DIGIT, ROMAN, WORD].flatMap((pattern) =>
-    [...bare.matchAll(pattern)].map(([match]) => match),
-  );
+  const others = [...withoutNames(text, names, visible).matchAll(OTHER_DIGIT)];
+  const words = [ROMAN, WORD].flatMap((pattern) => [...bare.matchAll(pattern)]);
+  const mixed = [...bare.matchAll(MIXED_SCRIPT)].filter(([word]) => mixesScripts(word));
+  return [...others, ...words, ...mixed].map(([match]) => match);
 }
 
 /**
@@ -177,9 +196,10 @@ export function numberIssues(
 }
 
 /**
- * Noms retirés d'un texte avant le contrôle : cités et biens de la configuration, cités en base, et maisons élues
- * (écrites par des joueurs) dont le nom ne porte lui-même aucun nombre. Une maison « Mille Oboles » ou « Deux Rives »
- * n'est pas retirée : une réécriture qui la cite tombe sur le repli.
+ * Noms retirés d'un texte avant le contrôle : cités et biens de la configuration, puis cités en base et maisons élues
+ * (écrites par des joueurs) dont le nom ne porte lui-même aucun nombre ni ne mêle plusieurs écritures. Une maison ou
+ * une cité « Mille Oboles », « Deux Rives » ou « dеux » (е cyrillique) n'est pas retirée : une réécriture qui la cite
+ * tombe sur le repli.
  */
 export function chronicleNames(facts: ChronicleFacts, context: ChronicleContext): string[] {
   const allowed = chronicleNumbers(facts);
@@ -190,7 +210,7 @@ export function chronicleNames(facts: ChronicleFacts, context: ChronicleContext)
       ...Object.values(locale.cities),
       ...Object.values(locale.goods),
     ]),
-    ...context.cityNames.values(),
+    ...[...context.cityNames.values()].filter(plain),
     ...facts.elections.map((election) => election.houseName).filter(plain),
   ];
 }

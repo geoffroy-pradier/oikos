@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { composeChronicle } from './compose';
 import { chronicleNames, numberIssues, numbersInText, writtenNumbers } from './numbers';
 
-const context = { citySlug: 'kalliste', cityNames: new Map([['nesos', 'Nèsos 7']]) };
+const context = { citySlug: 'kalliste', cityNames: new Map([['nesos', 'Nèsos']]) };
 const facts = chronicleFacts({
   cityId: 'kalliste',
   events: [{ type: 'trade', cityId: 'kalliste', goodId: 'wheat', price: 6, quantity: 1500 }],
@@ -81,7 +81,7 @@ describe('nombres d’un texte', () => {
   it('laisse passer un, une, one, a, les noms de la configuration et ceux qui ressemblent à des chiffres romains', () => {
     for (const text of [
       'Un navire, une caravane, one ship, a storm.',
-      'Delphes, Milet, Kallistè, Elaia, Ampelos, Halos et Nèsos 7.',
+      'Delphes, Milet, Kallistè, Elaia, Ampelos, Halos et Nèsos.',
       'Blé, Olives, Raisin, Bois, Argile, Laine, Poisson, Sel, Farine, Huile d’olive, Vin, Amphores.',
       'Wheat, Grapes, Wood, Clay, Wool, Fish, Salt, Flour, Olive oil, Charcoal, Cloth, Bread, Wine, Amphorae.',
       'Les Alcméonides et les Philaïdes ; I am here ; Vive la cité ; Mme Dion.',
@@ -111,6 +111,40 @@ describe('nombres d’un texte', () => {
     expect(check('Deux Rives')).toEqual(['Deux']);
     expect(chronicleNames(elected('Deux Rives'), context)).not.toContain('Deux Rives');
     expect(chronicleNames(elected('Philaïdes'), context)).toContain('Philaïdes');
+  });
+
+  it('lit le texte normalisé (NFKC, sans caractère de format) et refuse un mot qui mêle plusieurs écritures', () => {
+    const decomposed = 'ze\u0301ro navire, le deuxie\u0300me jour';
+    for (const text of [
+      decomposed,
+      'vi\u200bngt navires',
+      'vin\u00adgt navires',
+      'ｖｉｎｇｔ navires',
+    ])
+      expect(issues(text), text).not.toEqual([]);
+    expect(writtenNumbers('d\u0435ux navires')).toEqual(['d\u0435ux']);
+    // Un mot d'une seule autre écriture n'est pas un nombre latin déguisé : il passe.
+    expect(issues('Ἀθῆναι, Москва, Kallistè, Ampelos, Huile d’olive.')).toEqual([]);
+    // Un nom de maison ou de cité normalisé est retiré sous sa forme normalisée.
+    expect(electedIssues('Philai\u0308des', 'La maison Philaïdes est élue avec 3 voix.')).toEqual(
+      [],
+    );
+  });
+
+  it('une cité en base dont le nom porte un nombre ou mêle des écritures n’est pas retirée', () => {
+    const names = (name: string) =>
+      chronicleNames(facts, { ...context, cityNames: new Map([['nesos', name]]) });
+    expect(names('Nèsos')).toContain('Nèsos');
+    for (const name of ['Nèsos 7', 'Deux Rives', 'D\u0435ux Rives'])
+      expect(names(name), name).not.toContain(name);
+    expect(numberIssues('Un navire de Nèsos 7.', facts, names('Nèsos 7'))).toEqual([7]);
+    expect(
+      numberIssues(
+        'La maison d\u0435ux.',
+        elected('d\u0435ux'),
+        chronicleNames(elected('d\u0435ux'), context),
+      ),
+    ).toEqual(['d\u0435ux']);
   });
 
   it('la chronique de repli, quels que soient les faits, est toujours acceptée', () => {

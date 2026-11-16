@@ -7,6 +7,7 @@ import {
   shipRoute,
   DEFAULT_AI,
   DEFAULT_CHAT,
+  DEFAULT_CHRONICLE,
   DEFAULT_LABOR,
   cityHasPort,
   cityStartingRecipeId,
@@ -69,6 +70,7 @@ const FIXTURE: GameConfig = {
   },
   telemetry: { retentionDays: 30 },
   chat: { maxMessageLength: 280, retentionDays: 14, rateLimit: { messages: 5, windowSeconds: 30 } },
+  chronicle: { maxGoods: 5, settleSeconds: 120, maxTextLength: 1_500 },
   ai: {
     budgetMicroEurosPerActivePlayerMonth: 80_000,
     expectedActivePlayers: 200,
@@ -744,6 +746,46 @@ describe('discussion', () => {
       expect.stringMatching(/^chat\.rateLimit\.windowSeconds: /),
     ]);
     expect(errorsOf({ ...clone(), chat: { ...clone().chat, extra: 1 } })).not.toEqual([]);
+  });
+});
+
+describe('chronique', () => {
+  it('une version publiée avant elle reste lisible : trois biens, une minute, 2 000 caractères', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.chronicle;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.chronicle).toEqual({
+      maxGoods: 3,
+      settleSeconds: 60,
+      maxTextLength: 2_000,
+    });
+    expect(Object.isFrozen(DEFAULT_CHRONICLE)).toBe(true);
+  });
+
+  it('de 0 à 20 biens, au plus une heure d’attente, des textes de 200 à 4 000 caractères', () => {
+    const errors = (chronicle: Partial<GameConfig['chronicle']>) =>
+      errorsOf({ ...clone(), chronicle: { ...clone().chronicle, ...chronicle } });
+    const valid = [
+      { maxGoods: 0 },
+      { maxGoods: 20 },
+      { settleSeconds: 0 },
+      { settleSeconds: 3_600 },
+      { maxTextLength: 200 },
+      { maxTextLength: 4_000 },
+    ];
+    expect(valid.map(errors)).toEqual(valid.map(() => []));
+    const wrong: [Partial<GameConfig['chronicle']>, string][] = [
+      [{ maxGoods: -1 }, 'maxGoods'],
+      [{ maxGoods: 21 }, 'maxGoods'],
+      [{ maxGoods: 1.5 }, 'maxGoods'],
+      [{ settleSeconds: -1 }, 'settleSeconds'],
+      [{ settleSeconds: 3_601 }, 'settleSeconds'],
+      [{ maxTextLength: 199 }, 'maxTextLength'],
+      [{ maxTextLength: 4_001 }, 'maxTextLength'],
+    ];
+    for (const [value, key] of wrong)
+      expect(errors(value)).toEqual([expect.stringMatching(new RegExp(`^chronicle\\.${key}: `))]);
   });
 });
 
