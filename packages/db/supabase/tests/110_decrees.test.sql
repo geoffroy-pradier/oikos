@@ -89,7 +89,7 @@ select is(
    where table_schema = 'game' and table_name in ('decrees', 'decree_votes') and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
   'decree_votes.approve:INSERT decree_votes.decree_id:INSERT decree_votes.house_id:INSERT '
     || 'decrees.applied_at:UPDATE decrees.city_id:INSERT decrees.electorate:UPDATE decrees.model:INSERT decrees.office_id:INSERT decrees.params:INSERT '
-    || 'decrees.proposed_by:INSERT decrees.quorum_bps:INSERT decrees.status:UPDATE decrees.tallied_at:UPDATE '
+    || 'decrees.proposed_by:INSERT decrees.quorum_bps:INSERT decrees.settled_day:UPDATE decrees.status:UPDATE decrees.tallied_at:UPDATE '
     || 'decrees.votes_against:UPDATE decrees.votes_for:UPDATE decrees.voting_closes_at:INSERT decrees.world_id:INSERT',
   'le service ne choisit ni identifiant, ni date, ni état à la proposition : liste figée');
 select is(

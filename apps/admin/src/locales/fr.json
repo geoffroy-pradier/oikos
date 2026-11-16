@@ -188,7 +188,7 @@
       "sink_npc_lodging": "Hébergement des travailleurs chez les PNJ",
       "sink_upkeep": "Entretien des sites",
       "sink_market_tax": "Taxe de marché, part détruite",
-      "sink_offerings": "Offrandes, fêtes et liturgies",
+      "sink_offerings": "Offrandes et liturgies",
       "sink_temple_interest": "Intérêts du Trésor du temple",
       "sink_public_works": "Grands travaux et merveilles",
       "sink_site_acquisition": "Acquisition de sites",
@@ -198,7 +198,8 @@
       "sink_ship_upkeep": "Entretien des navires",
       "sink_property_purchase": "Achat de logements à la cité",
       "sink_property_upkeep": "Entretien des logements",
-      "sink_property_works": "Rénovation des logements"
+      "sink_property_works": "Rénovation des logements",
+      "sink_festivals": "Fêtes de la cité"
     },
     "byDay_one": "Robinets et puits : net par jour de jeu (jour lu : 1)",
     "byDay_other": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",

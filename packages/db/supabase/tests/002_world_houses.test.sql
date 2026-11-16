@@ -42,7 +42,7 @@ select is(
     || 'channels(city_id,created_at,house_high,house_low,id,kind,world_id) cities(created_at,id,name,slug,world_id) '
     || 'citizenships(city_id,house_id,id,since,status) '
     || 'decree_votes(cast_at,decree_id,house_id) '
-    || 'decrees(applied_at,city_id,electorate,id,model,params,proposed_at,proposed_by,quorum_bps,status,tallied_at,votes_against,votes_for,voting_closes_at,world_id) '
+    || 'decrees(applied_at,city_id,electorate,id,model,params,proposed_at,proposed_by,quorum_bps,settled_day,status,tallied_at,votes_against,votes_for,voting_closes_at,world_id) '
     || 'elections(candidacy_opens_at,city_id,id,office,tallied_at,term_ends_at,voting_closes_at,voting_opens_at,world_id) '
     || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
