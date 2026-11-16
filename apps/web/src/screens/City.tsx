@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { describeCity, parseCityIdentities } from '../city-identity';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { employmentShare, parseCityLabor } from '../labor';
+import { useMoney } from '../money';
+import { parkBySize } from '../property';
 import { coverageShare, parseCityPopulation } from '../population';
 import { LoadProblem, Loading } from './LoadProblem';
 
@@ -42,6 +45,24 @@ export function CityScreen() {
     maximumFractionDigits: 0,
   });
   const failed = rows.failed || (rows.rows !== null && city === null);
+  // Marché du travail du jour de la cité (4.4) et son parc de logements (4.5).
+  const money = useMoney();
+  const laborTitle = useRef<HTMLHeadingElement>(null);
+  const laborRows = useRows<unknown>(
+    'labor_market',
+    'city_id, game_day, supply, employed, unhoused, wage_oboles, lodging_oboles',
+    'city_id',
+    { city_id: house.cityId },
+  );
+  const laborMap = laborRows.rows === null ? undefined : parseCityLabor(laborRows.rows);
+  const labor = laborMap?.get(house.cityId);
+  const employment = labor ? employmentShare(labor) : null;
+  const parkTitle = useRef<HTMLHeadingElement>(null);
+  const parkRows = useRows<unknown>('city_properties', 'id, size_id, for_sale', 'size_id', {
+    city_id: house.cityId,
+  });
+  const park = parkRows.rows === null ? undefined : parkBySize(parkRows.rows);
+  const sizeName = (id: string) => t(`propertySizes.${id}`, { defaultValue: id });
   // Une classe ou un nom ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const className = (id: string) => t(`npcClasses.${id}`, { defaultValue: id });
 
@@ -66,6 +87,55 @@ export function CityScreen() {
           <ul className="flex flex-col gap-1">
             {[lines.god, lines.port, lines.terroir, lines.start].map((line) => (
               <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card className="flex flex-col gap-3">
+        <h2 ref={laborTitle} tabIndex={-1} className="text-xl">
+          {t('city.labor.title')}
+        </h2>
+        {laborRows.rows === null && !laborRows.failed && <Loading />}
+        {(laborRows.failed || laborMap === null) && (
+          <LoadProblem heading={laborTitle} onRetry={() => laborRows.reload()} />
+        )}
+        {laborMap && !labor && <p className="text-muted-foreground">{t('city.labor.none')}</p>}
+        {labor && (
+          <ul className="flex flex-col gap-1">
+            <li>{t('city.labor.wage', { cost: money(labor.wageOboles) })}</li>
+            <li>
+              {employment === null
+                ? t('city.labor.unlimited', { employed: number.format(labor.employed) })
+                : t('city.labor.employment', {
+                    percent: percent.format(employment),
+                    employed: number.format(labor.employed),
+                    supply: number.format(labor.supply),
+                  })}
+            </li>
+            <li>{t('city.labor.lodging', { cost: money(labor.lodgingOboles) })}</li>
+            <li>{t('city.labor.unhoused', { number: number.format(labor.unhoused) })}</li>
+          </ul>
+        )}
+      </Card>
+      <Card className="flex flex-col gap-3">
+        <h2 ref={parkTitle} tabIndex={-1} className="text-xl">
+          {t('city.park.title')}
+        </h2>
+        {parkRows.rows === null && !parkRows.failed && <Loading />}
+        {(parkRows.failed || park === null) && (
+          <LoadProblem heading={parkTitle} onRetry={() => parkRows.reload()} />
+        )}
+        {park?.length === 0 && <p className="text-muted-foreground">{t('city.park.empty')}</p>}
+        {park && park.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {park.map((size) => (
+              <li key={size.sizeId}>
+                {t('city.park.size', {
+                  size: sizeName(size.sizeId),
+                  total: number.format(size.total),
+                  forSale: number.format(size.forSale),
+                })}
+              </li>
             ))}
           </ul>
         )}

@@ -406,7 +406,21 @@
     "inhabitants_one": "{{number}} habitant",
     "inhabitants_other": "{{number}} habitants",
     "coverage": "Besoins vitaux couverts à {{percent}} à la dernière clôture",
-    "coverageUnknown": "Couverture des besoins vitaux pas encore mesurée"
+    "coverageUnknown": "Couverture des besoins vitaux pas encore mesurée",
+    "labor": {
+      "title": "Marché du travail",
+      "none": "Pas encore fixé : il le sera à la prochaine clôture quotidienne.",
+      "wage": "Salaire du jour : {{cost}} par travailleur",
+      "employment": "Taux d'emploi : {{percent}} ({{employed}} employés pour {{supply}} travailleurs disponibles)",
+      "unlimited": "{{employed}} employés ; main-d’œuvre sans limite",
+      "lodging": "Hébergement chez les habitants : {{cost}} la nuit",
+      "unhoused": "Travailleurs sans logement dans la cité : {{number}}"
+    },
+    "park": {
+      "title": "Parc de logements",
+      "empty": "Aucun logement dans la cité.",
+      "size": "{{size}} : {{total}} au total, dont {{forSale}} encore à vendre par la cité"
+    }
   },
   "npcClasses": {
     "thetes": "Thètes",
@@ -509,5 +523,9 @@
     "housing": "Logés par vos biens : {{housed}} ; hébergés chez les habitants : {{unhoused}}",
     "lodging": "Hébergement : {{cost}} par jour, payé avec l'entretien",
     "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture."
+  },
+  "propertySizes": {
+    "townhouse": "Maison de ville",
+    "tenement": "Immeuble de rapport"
   }
 }

@@ -406,7 +406,21 @@
     "inhabitants_one": "{{number}} inhabitant",
     "inhabitants_other": "{{number}} inhabitants",
     "coverage": "Vital needs {{percent}} covered at the last close",
-    "coverageUnknown": "Vital needs coverage not measured yet"
+    "coverageUnknown": "Vital needs coverage not measured yet",
+    "labor": {
+      "title": "Labour market",
+      "none": "Not set yet: it will be at the next daily close.",
+      "wage": "Wage of the day: {{cost}} per worker",
+      "employment": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
+      "unlimited": "{{employed}} employed; unlimited labour",
+      "lodging": "Lodging with the inhabitants: {{cost}} a night",
+      "unhoused": "Unhoused workers in the city: {{number}}"
+    },
+    "park": {
+      "title": "Housing stock",
+      "empty": "No housing in the city.",
+      "size": "{{size}}: {{total}} in all, {{forSale}} still for sale by the city"
+    }
   },
   "npcClasses": {
     "thetes": "Thetes",
@@ -509,5 +523,9 @@
     "housing": "Housed by your properties: {{housed}}; lodging with the inhabitants: {{unhoused}}",
     "lodging": "Lodging: {{cost}} a day, paid with the upkeep",
     "lodgingUnknown": "Lodging price not set yet: it will be at the next close."
+  },
+  "propertySizes": {
+    "townhouse": "Town house",
+    "tenement": "Tenement"
   }
 }
