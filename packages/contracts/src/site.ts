@@ -141,8 +141,8 @@ export const siteRecipeChangedSchema = z.strictObject({
 export const siteRestartInputSchema = z.strictObject({
   siteId: z.uuid(),
   /**
-   * Prix de la relance que le joueur a vu, en oboles : le dû d'un jour du site, entretien et salaires
-   * compris (5.5). Comme pour `site.acquire`, facultatif.
+   * Prix de la relance que le joueur a vu, en oboles : le dû d'un jour du site, entretien, salaires et
+   * hébergement compris (5.5, #258). Comme pour `site.acquire`, facultatif.
    */
   expectedUpkeepOboles: z.number().int().nonnegative().optional(),
 });
@@ -154,6 +154,11 @@ export const siteRestartOutputSchema = z.object({
   upkeepOboles: z.number().int().nonnegative(),
   /** Salaires payés, en oboles, détruits par le puits `sink_npc_wages` (4.4). */
   wagesOboles: z.number().int().nonnegative(),
+  /**
+   * Hébergement payé pour les travailleurs du site sans logement, en oboles, détruit par le puits
+   * `sink_npc_lodging` (#258). Absent d'une réponse antérieure : rien.
+   */
+  lodgingOboles: z.number().int().nonnegative().optional(),
   /** Début du cycle repris : celui d'avant l'arrêt, décalé de la durée de l'arrêt (ISO 8601). */
   cycleStartedAt: z.iso.datetime(),
 });
@@ -177,6 +182,8 @@ export const siteRestartedSchema = z.strictObject({
     houseId: z.uuid(),
     upkeepOboles: z.number().int().nonnegative(),
     wagesOboles: z.number().int().nonnegative(),
+    /** Hébergement d'un jour des travailleurs sans logement (#258) ; absent quand il ne coûte rien. */
+    lodgingOboles: z.number().int().nonnegative().optional(),
   }),
 });
 
