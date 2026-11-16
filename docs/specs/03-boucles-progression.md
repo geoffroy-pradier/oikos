@@ -13,7 +13,7 @@ Le jeu tourne en temps réel persistant : une saison de jeu dure 7 jours réels,
 
 ## Temps et horloges
 
-- **Tick économique** toutes les 10 minutes : demande des PNJ, prix de référence, avancement des trajets.
+- **Tick économique** toutes les 10 minutes : demande des PNJ, prix de référence, arrivée des voyages échus (4.6).
 - **Clôture quotidienne** à 04 h 00 (heure de Paris) : salaires, loyers, entretien, intérêts, impôts, chronique du jour.
   Le jour de jeu commence à la clôture : c'est le jour civil local (fuseau et heure de clôture de la configuration) dont la clôture a eu lieu, et avant elle on est encore dans le jour précédent.
   Il y a une clôture par jour de jeu, à son premier instant. Ni le jour de jeu ni l'instant de sa clôture ne dépendent de la durée du tick.

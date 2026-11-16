@@ -186,7 +186,15 @@ Voyages, dans la phase 2 (#252) :
   Un événement de domaine `VoyageDeparted` l'annonce.
   La commande prend le verrou d'agora du monde, puis la trésorerie, le navire et les stocks dans l'ordre des biens : elle ne s'intercale pas dans l'entretien d'une clôture, qui prend le même verrou d'abord.
 - Le stock en mer n'est dans aucun stock de la maison : aucun ordre ne le réserve, aucun PNJ ne l'achète, et la demande des PNJ, qui ne lit pas les stocks, n'en dépend pas.
-  L'arrivée et le déchargement dans la cité d'arrivée sont joués par le moteur (#253).
+- L'arrivée est une étape du tick, jouée par le moteur après la demande des PNJ (#253, écart assumé avec l'évaluation paresseuse des trajets, 13).
+  Chaque tick décharge les voyages de son monde dont l'arrivée prévue est atteinte à son instant de jeu (début de son intervalle), et seulement eux.
+  Dans la transaction du tick, l'arrivée est datée de cet instant, la cargaison passe de l'extrémité `in_transit` au stock de la maison dans la cité d'arrivée (ouvert s'il n'existait pas), exactement ce qui a été chargé, et le navire y est à quai ; un événement de domaine `VoyageArrived` l'annonce.
+  Un voyage échu pendant une panne du moteur est déchargé par le premier tick, rattrapé ou non, qui commence à son échéance ou après, et daté de ce tick : son arrivée peut donc être antérieure à l'écriture du déchargement.
+  Un navire désarmé en mer accoste et reste désarmé ; un navire sur lest accoste sans rien décharger ; un bien retiré de la configuration se décharge comme les autres.
+  Rejouer un tick, ou deux moteurs à la fois, ne décharge rien deux fois : le tick n'est joué qu'une fois, l'étape prend le verrou d'agora du monde puis les voyages échus (un voyage verrouillé ailleurs est laissé au tick suivant), et la base refuse un second déchargement.
+  Tous les voyages échus d'un monde sont déchargés dans la seule transaction de son tick : une erreur sur l'un d'eux fait échouer tout le tick du monde, demande des PNJ comprise, repris au passage suivant.
+  Limite connue : le tick peut s'interbloquer avec une récolte de la même maison dans la cité d'arrivée, qui verrouille ses stocks sans le verrou d'agora, quand la demande des PNJ a déjà verrouillé un de ses stocks vendus ; PostgreSQL annule l'une des deux en entier, sans double effet, et un nouvel essai automatique est prévu par un ticket à venir.
+  La cargaison déchargée est dans le stock libre de la maison : elle se vend aussitôt à l'agora de la cité d'arrivée ; les PNJ, qui n'achètent qu'aux ventes en attente, ne l'achètent qu'au premier tick qui suit sa mise en vente.
 - L'entretien d'un navire est celui de sa classe, par jour de jeu, sans coefficient (décision : le coefficient d'entretien des sites, 5.5, ne s'y applique pas).
   La clôture examine les navires d'une maison après ses sites, avec ce qui reste de la trésorerie, par date de création puis identifiant, chacun payé en entier ou pas du tout, dans l'écriture `upkeep.daily` de la maison, par une ligne marquée `upkeep` vers le puits `sink_ship_upkeep`.
   Un navire impayé est désarmé jusqu'à une clôture qui le paie ; il n'a pas de commande de relance, et ne part pas tant qu'il est désarmé.

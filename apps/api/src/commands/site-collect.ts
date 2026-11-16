@@ -73,9 +73,12 @@ export const siteCollect = defineCommand({
     }
 
     // Stocks touchés, intrants et extrants confondus, ouverts puis verrouillés dans l'ordre des biens
-    // (celui des unités de code, le même en JavaScript et en base avec le classement "C", que suit
-    // aussi le moteur) : deux récoltes de la même maison, une récolte et une vente, une récolte et un
-    // tick ne s'attendent jamais l'une l'autre.
+    // (celui des unités de code, le même en JavaScript et en base avec le classement "C") : deux récoltes
+    // de la même maison, une récolte et une vente ne s'interbloquent pas. Une récolte et un tick le
+    // peuvent : le tick verrouille les stocks vendus aux PNJ dans l'ordre des prix, puis les stocks
+    // d'arrivée des voyages (#253). PostgreSQL annule alors l'une des deux en entier, sans double effet ;
+    // la récolte se renvoie sous la même clé, le tick est rejoué au passage suivant. Un nouvel essai
+    // automatique est prévu par un ticket à venir.
     const goods = [...new Set([...recipe.inputs, ...recipe.outputs].map((stack) => stack.goodId))];
     goods.sort();
     const produced = new Set(recipe.outputs.map((stack) => stack.goodId));
