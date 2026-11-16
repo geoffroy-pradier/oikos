@@ -14,6 +14,10 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
   Le loyer des baux non plus (#257) : il se paie à une étape de la clôture, avant la vétusté, une écriture par bail et par jour de jeu, et un loyer impayé met fin au bail dans la transaction de la clôture (12).
 - **Appariement des ordres** à l'insertion, dans la transaction, avec un verrou par couple cité et bien.
 - **Aléa déterministe** : chaque tick tire d'une graine enregistrée, ce qui permet de rejouer et d'auditer un résultat contesté.
+  Les événements du monde (7.3, #267) tirent de la graine de leur jour, SHA-256 de la graine du monde (`worlds.seed`) et du numéro du jour de jeu, enregistrée avec chaque événement.
+  La graine du monde est tirée par la base à sa création (générateur sûr), jamais modifiée, et illisible pour les joueurs : la connaître ferait prévoir tous les événements à venir.
+  La dérivation est à sens unique : la graine d'un jour ne dit rien de celle du monde ni des autres jours.
+  Même graine et mêmes règles donnent les mêmes événements ; le banc fixe la graine de son monde, mais ne joue aucun événement (probabilités nulles, et clôtures de jours passés, voir 7.4).
 - **Configuration figée par tick** : un tick lit une version de configuration et une seule.
   Une activation de configuration ne s'antidate pas : sa date de création est l'heure de la base, posée par une garde quel que soit l'appelant, et la base refuse une échéance antérieure (`activations_not_backdated`) ;
   une programmation ou une annulation validée après son échéance est refusée à la validation.

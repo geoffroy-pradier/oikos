@@ -39,7 +39,7 @@ export interface PlanningInput {
   /** Jour de jeu planifié : celui où commencent les événements tirés. */
   startDay: number;
   /** Modèles en vigueur ; un modèle absent n'est jamais tiré. */
-  models: Partial<Record<WorldEventKind, WorldEventRules>>;
+  models: { readonly [K in WorldEventKind]?: WorldEventRules | undefined };
   /** Cités du monde (identifiants courts de la configuration). L'ordre donné n'importe pas. */
   cities: readonly string[];
   /** Routes du monde, chacune entre deux cités de `cities`. L'ordre donné n'importe pas. */

@@ -50,6 +50,14 @@ Au-delà d'un seuil, Némésis frappe : incendie d'entrepôt, procès, artisan q
 
 Les événements du monde sont planifiés par le moteur plusieurs jours à l'avance. La Pythie en tire des oracles volontairement ambigus, rédigés par l'IA à partir de l'événement réel. Consulter l'oracle coûte des offrandes ; bien l'interpréter permet de se positionner avant les autres. Les oracles s'échangent et se discutent : c'est un marché de l'information.
 
+Dans la phase 2 (ticket 267), la planification est une étape de la clôture quotidienne, avant l'entretien.
+La clôture qui ouvre le jour J planifie les événements qui commencent au jour J + `worldEvents.planningLeadDays` (délai de planification, en jours de jeu, au moins un).
+Leur graine est celle de ce jour : SHA-256 de la graine du monde et du numéro du jour, à sens unique (13).
+Un événement commence à la clôture qui ouvre son premier jour et finit à celle qui ouvre le jour qui le suit ; il est enregistré avant de commencer, et ne change plus.
+Les joueurs ne lisent un événement qu'une fois commencé (`public.world_events`) ; Olympe montre aussi ceux à venir (15).
+Rejouer une clôture ne planifie rien deux fois : un seul événement d'un modèle commence un jour donné.
+Une clôture manquée (panne) ne planifie pas son jour : ce jour n'a pas d'événement, ce qui ne coûte rien aux joueurs.
+
 ## 7.4 Événements
 
 | Famille | Exemples | Portée |
@@ -59,6 +67,25 @@ Les événements du monde sont planifiés par le moteur plusieurs jours à l'ava
 | Mythiques | Un monstre ferme une route maritime, un héros de passage commande des armes | Région, résolution coopérative |
 | Divins | Querelle entre deux dieux qui oppose leurs protégés pendant une saison | Monde |
 | Personnels | Quêtes narratives de la maison, proposées selon son histoire | Maison |
+
+Dans la phase 2 (ticket 267), un petit catalogue fermé de modèles naturels et économiques, planifiés par le moteur (7.3) :
+
+| Modèle | Portée | Effet de l'ampleur |
+| --- | --- | --- |
+| Sécheresse (`drought`) | Une cité | Rendement des champs réduit |
+| Bonne année (`good_year`) | Une cité | Rendement des vergers accru |
+| Tempête (`storm`) | Une route | Trajets qui partent pendant la tempête allongés |
+| Caravane étrangère (`caravan`) | Une cité et un bien | Demande des PNJ de la cité pour ce bien accrue |
+
+La configuration (`worldEvents.models`) donne à chaque modèle une probabilité par jour, une durée en jours de jeu et une ampleur en points de base, bornées (au plus 10 000 : rendement nul ou doublé, trajet deux fois plus long, demande doublée).
+Chaque jour planifié, chaque modèle tire de son propre générateur (graine du jour et nom du modèle) : s'il survient, puis sa portée (cité, route ou bien, uniformes), sa durée et son ampleur, uniformes entre leurs bornes.
+Changer les règles d'un modèle ne change donc pas les tirages des autres ; au plus un événement par modèle et par jour de début.
+La cité est tirée parmi celles du monde connues de la configuration, la route parmi les routes entre elles, le bien d'une caravane parmi `goodIds`, des biens achetés par au moins une classe de PNJ.
+Décision (paramètres neutres) : toutes les probabilités sont nulles dans la configuration initiale, si bien que le banc de #78 ne joue aucun événement.
+Limite connue : le banc de #78 clôt des jours passés, et la base refuse un événement qui commencerait avant l'instant de sa planification.
+Avec une probabilité non nulle, ses clôtures échoueraient : pour calibrer les événements (#283), il faudra que le banc joue ses jours à venir, ou les planifie autrement.
+Décision : une tempête retarde, elle ne fait rien perdre.
+Hors périmètre : déclenchement manuel et création depuis Olympe, maître du jeu par IA, événements mythiques, divins et personnels.
 
 ## 7.5 Calendrier sacré
 
