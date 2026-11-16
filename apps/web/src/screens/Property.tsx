@@ -8,20 +8,23 @@ import { useHouse } from '../house';
 import { useMoney } from '../money';
 import {
   conditionShare,
+  parseLeases,
   parseMyProperties,
   parseOffers,
   parsePropertyRules,
   type Offer,
 } from '../property';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PropertyActions } from './PropertyActions';
 
 type Command = Parameters<typeof propertyCommand>[0];
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const ROW = 'flex flex-col gap-2 border-t border-border pt-3 first:border-t-0 first:pt-0';
 
 /**
- * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, et ses biens. Chaque
- * commande part au prix affiché, sous une clé gardée tant qu'elle reste sans réponse (même clé rejouée).
+ * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
+ * Chaque commande part au prix affiché, sous une clé gardée tant qu'elle reste sans réponse : un nouvel
+ * essai rejoue la même commande au lieu d'en jouer une seconde.
  */
 export function PropertyScreen() {
   const { t, i18n } = useTranslation();
@@ -47,16 +50,22 @@ export function PropertyScreen() {
     'id, city_id, size_id, lot, condition, upkeep_unpaid_since',
     'lot',
   );
-  const reads = [rulesRows, cityRows, offerRows, mineRows];
+  const leaseRows = useRows<unknown>(
+    'my_leases',
+    'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, ended_day, end_reason',
+    'started_at',
+  );
+  const reads = [rulesRows, cityRows, offerRows, mineRows, leaseRows];
   const sizes = rulesRows.rows === null ? null : parsePropertyRules(rulesRows.rows[0] ?? null);
   const offers =
     sizes && cityRows.rows && offerRows.rows
       ? parseOffers(cityRows.rows, offerRows.rows, sizes)
       : null;
   const mine = mineRows.rows === null ? null : parseMyProperties(mineRows.rows);
+  const leases = leaseRows.rows === null ? null : parseLeases(leaseRows.rows, house.id);
   const loading = reads.some((read) => read.rows === null && !read.failed);
   const failed =
-    reads.some((read) => read.failed) || (!loading && [sizes, offers, mine].includes(null));
+    reads.some((read) => read.failed) || (!loading && [sizes, offers, mine, leases].includes(null));
   const reload = () => Promise.all(reads.map((read) => read.reload()));
 
   const keys = useRef(new Map<string, string>());
@@ -99,6 +108,12 @@ export function PropertyScreen() {
       ? null
       : t('property.condition', { percent: percent.format(conditionShare(value)) });
   const mineIds = new Set((mine ?? []).map((property) => property.id));
+  const openOffer = (propertyId: string) =>
+    (offers ?? []).find((offer) => offer.kind !== 'citySale' && offer.propertyId === propertyId);
+  const leasedOut = (propertyId: string) =>
+    (leases ?? []).find(
+      (lease) => !lease.asTenant && lease.endedAt === null && lease.propertyId === propertyId,
+    );
 
   const offerAction = (offer: Offer) => {
     if (mineIds.has(offer.propertyId)) return null;
@@ -174,6 +189,7 @@ export function PropertyScreen() {
             <ul className="flex flex-col gap-3">
               {(mine ?? []).map((property) => {
                 const size = sizes?.get(property.sizeId);
+                const lease = leasedOut(property.id);
                 return (
                   <li key={property.id} className={ROW}>
                     <h3 className="font-semibold">{describe(property)}</h3>
@@ -186,9 +202,50 @@ export function PropertyScreen() {
                         })}
                       </p>
                     )}
+                    {lease && <p>{t('property.leasedOut', { cost: money(lease.rentOboles) })}</p>}
+                    <PropertyActions
+                      property={property}
+                      size={size}
+                      offer={openOffer(property.id)}
+                      leased={lease !== undefined}
+                      busy={busy}
+                      run={run}
+                    />
                   </li>
                 );
               })}
+            </ul>
+          </Card>
+          <Card className="flex flex-col gap-3">
+            <h2 className="text-xl">{t('property.leases')}</h2>
+            {leases?.length === 0 && (
+              <p className="text-muted-foreground">{t('property.noLeases')}</p>
+            )}
+            <ul className="flex flex-col gap-3">
+              {(leases ?? []).map((lease) => (
+                <li key={lease.id} className={ROW}>
+                  <h3 className="font-semibold">{describe(lease)}</h3>
+                  <p>
+                    {t(lease.asTenant ? 'property.asTenant' : 'property.asLandlord', {
+                      cost: money(lease.rentOboles),
+                    })}
+                  </p>
+                  {lease.endReason && <p>{t(`property.ended.${lease.endReason}`)}</p>}
+                  {lease.ending && <p>{t('property.ending')}</p>}
+                  {!lease.endedAt && !lease.ending && (
+                    <Button
+                      variant="secondary"
+                      aria-disabled={busy}
+                      aria-label={`${t('property.endLease')} — ${describe(lease)}`}
+                      onClick={() =>
+                        void run(`end:${lease.id}`, 'property.endLease', { leaseId: lease.id })
+                      }
+                    >
+                      {t('property.endLease')}
+                    </Button>
+                  )}
+                </li>
+              ))}
             </ul>
           </Card>
         </>

@@ -50,6 +50,19 @@ async function showProperty() {
     </I18nextProvider>,
   );
 }
+const lease = {
+  id: 'l1',
+  property_id: 'p5',
+  city_id: 'c1',
+  size_id: 'townhouse',
+  lot: 5,
+  tenant_house_id: 'h1',
+  rent_oboles: 40,
+  end_requested_at: null,
+  ended_at: null,
+  ended_day: null,
+  end_reason: null,
+};
 beforeEach(() => {
   api.propertyCommand.mockReset();
   api.propertyCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
@@ -62,6 +75,7 @@ beforeEach(() => {
       { ...mine, property_id: 'p2', lot: 2, condition: 8000, kind: 'lease', price_oboles: 30 },
     ],
     my_properties: [mine],
+    my_leases: [lease],
   };
 });
 afterEach(cleanup);
@@ -110,5 +124,28 @@ describe('écran Immobilier (#259)', () => {
     state.views['my_properties'] = null;
     await showProperty();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+  it('mes baux : fin demandée, bail résilié, fin du bail', async () => {
+    state.views['my_leases'] = [
+      lease,
+      { ...lease, id: 'l2', lot: 6, end_requested_at: '2026-11-16T10:00:00Z' },
+      {
+        ...lease,
+        id: 'l3',
+        lot: 7,
+        ended_at: '2026-11-15T03:00:00Z',
+        ended_day: 1,
+        end_reason: 'unpaid',
+      },
+    ];
+    await showProperty();
+    expect(screen.getByText(fr.property.ending)).toBeTruthy();
+    expect(screen.getByText(fr.property.ended.unpaid)).toBeTruthy();
+    // Un seul bail en cours sans fin demandée : un seul bouton.
+    const end = screen.getAllByRole('button', { name: /^Mettre fin au bail/ });
+    expect(end).toHaveLength(1);
+    fireEvent.click(end[0] as HTMLElement);
+    await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
+    expect(sent()[0]?.slice(0, 2)).toEqual(['property.endLease', { leaseId: 'l1' }]);
   });
 });
