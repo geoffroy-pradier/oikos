@@ -700,5 +700,22 @@
     "outOfBounds": "Outside the decree's bounds.",
     "submit": "Put to the vote",
     "done": "Decree proposed: it is under vote."
+  },
+  "treasury": {
+    "title": "Public treasury",
+    "balance": "Balance: {{amount}}",
+    "marketTax": "Market tax in force: {{rate}}",
+    "portDues": "Port dues in force: coefficient {{factor}}",
+    "flows": "Income and spending on the latest days the treasury moved",
+    "noFlows": "No treasury movement yet.",
+    "day": "{{date}}: net {{net}}",
+    "noDay": "Unknown day",
+    "natures": {
+      "market_tax": "Market tax: {{amount}}",
+      "port_dues": "Port dues: {{amount}}",
+      "public_works": "Public works: {{amount}}",
+      "festival": "Festivals: {{amount}}",
+      "other": "Other movements: {{amount}}"
+    }
   }
 }
