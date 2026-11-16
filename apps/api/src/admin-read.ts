@@ -414,37 +414,21 @@ export function registerAdminReads(
         'w.slug as world',
         'e.model',
         'c.slug as city',
-        'o.slug as other_city',
-        'e.good_id',
-        'e.starts_at',
-        'e.ends_at',
-        'e.magnitude_bps',
-        'e.planned_day',
+        'o.slug as otherCity',
+        'e.good_id as goodId',
+        'e.starts_at as startsAt',
+        'e.ends_at as endsAt',
+        'e.magnitude_bps as magnitudeBps',
+        'e.planned_day as plannedDay',
       ])
       .where('e.ends_at', '>', new Date(now.getTime() - EVENTS_PAST_MS))
       .orderBy('e.starts_at', 'desc')
       .orderBy('e.id', 'desc')
       .limit(MAX_EVENTS)
       .execute();
-    return c.json({
-      ok: true,
-      data: {
-        now: now.toISOString(),
-        pastDays: EVENTS_PAST_MS / 86_400_000,
-        events: events.map((event) => ({
-          id: event.id,
-          world: event.world,
-          model: event.model,
-          city: event.city,
-          otherCity: event.other_city,
-          goodId: event.good_id,
-          startsAt: event.starts_at.toISOString(),
-          endsAt: event.ends_at.toISOString(),
-          magnitudeBps: event.magnitude_bps,
-          plannedDay: event.planned_day,
-        })),
-      },
-    });
+    // Les instants partent en ISO 8601 (sérialisation JSON d'une `Date`).
+    const data = { now: now.toISOString(), pastDays: EVENTS_PAST_MS / 86_400_000, events };
+    return c.json({ ok: true, data });
   });
 
   // Journal d'audit : toutes les commandes d'administration, réussies ou refusées, les plus récentes d'abord.

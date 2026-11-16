@@ -84,7 +84,8 @@ describe('GET /api/admin/events', () => {
       inMs: 3_600_000,
       lastsMs: 86_400_000,
     });
-    const reply = await get(await newUser('community_manager'));
+    const reader = await newUser('community_manager');
+    const reply = await get(reader);
     expect(Date.parse(reply.body.data.now)).toBeLessThan(storm.startsAt.getTime());
     expect(reply.body.data.pastDays).toBe(30);
     // Les plus tardifs d'abord : ceux à venir passent avant ceux en cours et finis.
@@ -106,6 +107,15 @@ describe('GET /api/admin/events', () => {
         magnitudeBps: 4_000,
         plannedDay: 1,
       },
+    ]);
+    // La lecture est tracée sous sa route, avec le rôle et l'issue (15.4).
+    const traces = await owner
+      .selectFrom('telemetry.admin_reads')
+      .select(['admin_role', 'route', 'status'])
+      .where('user_id', '=', reader)
+      .execute();
+    expect(traces).toEqual([
+      { admin_role: 'community_manager', route: '/api/admin/events', status: 200 },
     ]);
   });
 });

@@ -16,6 +16,7 @@ export interface WorldEventRow {
   magnitudeBps: number;
   plannedDay: number;
 }
+type EventsData = { now: string; pastDays: number; events: WorldEventRow[] };
 
 /** État d'un événement à l'heure donnée : à venir, en cours ou passé. */
 export function eventStatus(event: Pick<WorldEventRow, 'startsAt' | 'endsAt'>, now: Date) {
@@ -30,23 +31,19 @@ export function eventStatus(event: Pick<WorldEventRow, 'startsAt' | 'endsAt'>, n
  */
 export function Events({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
-  const [data, setData] = useState<{
-    now: string;
-    pastDays: number;
-    events: WorldEventRow[];
-  } | null>(null);
+  const [data, setData] = useState<EventsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const token = useRef(accessToken);
   token.current = accessToken;
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
-  const percent = new Intl.NumberFormat(i18n.language, { style: 'percent' });
+  const percent = new Intl.NumberFormat(i18n.language, {
+    style: 'percent',
+    maximumFractionDigits: 2,
+  });
 
   const load = useCallback(async (retried = false) => {
-    const reply = await adminGet<{ now: string; pastDays: number; events: WorldEventRow[] }>(
-      'events',
-      token.current,
-    );
+    const reply = await adminGet<EventsData>('events', token.current);
     setError(reply.ok ? null : reply.code);
     if (reply.ok) setData(reply.data);
     if (retried) title.current?.focus();
