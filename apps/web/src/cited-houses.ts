@@ -10,14 +10,27 @@ import { parseHouseNames, statusOf } from './politics';
 export const CITED_HOUSES_PER_READ = 100;
 
 /**
- * Identifiants à lire : la maison du joueur d'abord, puis les maisons citées dans l'ordre donné (les plus
- * importantes d'abord), sans doublon ni vide, bornés à `CITED_HOUSES_PER_READ`, puis triés : la même
- * liste de maisons donne toujours le même filtre, et la lecture ne repart pas à chaque rendu.
+ * Lectures de la vue `houses` par écran, au plus : un nombre fixe, pour que l'écran appelle toujours autant
+ * de lectures (`useRows`) ; celles qui n'ont rien à lire ne partent pas. Au-delà de
+ * `CITED_HOUSES_PER_READ` × `CITED_HOUSE_READS` maisons citées (1 000, ce que la vue rend au plus en une
+ * lecture), les dernières s'affichent « Maison inconnue ». Limite technique, pas d'équilibrage.
  */
-export function citedHouseIds(houseId: string, cited: readonly (string | undefined)[]): string[] {
+export const CITED_HOUSE_READS = 10;
+
+/**
+ * Identifiants à lire : la maison du joueur d'abord, puis les maisons citées dans l'ordre donné (les plus
+ * importantes d'abord), sans doublon ni vide, bornés à `CITED_HOUSE_READS` paquets, puis triés et coupés
+ * en paquets de `CITED_HOUSES_PER_READ` : la même liste de maisons donne toujours les mêmes filtres, et les
+ * lectures ne repartent pas à chaque rendu.
+ */
+export function citedHouseIds(houseId: string, cited: readonly (string | undefined)[]): string[][] {
   const ids = new Set([houseId]);
   for (const id of cited) if (id) ids.add(id);
-  return [...ids].slice(0, CITED_HOUSES_PER_READ).sort();
+  const sorted = [...ids].slice(0, CITED_HOUSES_PER_READ * CITED_HOUSE_READS).sort();
+  const chunks: string[][] = [];
+  for (let at = 0; at < sorted.length; at += CITED_HOUSES_PER_READ)
+    chunks.push(sorted.slice(at, at + CITED_HOUSES_PER_READ));
+  return chunks;
 }
 
 /**
@@ -29,23 +42,30 @@ export function citedHouseIds(houseId: string, cited: readonly (string | undefin
  */
 export function useCitedHouses(cited: readonly (string | undefined)[] | null) {
   const house = useHouse();
-  const ids = cited === null ? null : citedHouseIds(house.id, cited);
-  const read = useRows<unknown>('houses', 'id, name, citizenship_status', 'id', ids && { id: ids });
-  const names = read.rows === null ? null : parseHouseNames(read.rows);
-  const status = read.rows === null ? null : statusOf(read.rows, house.id);
+  const chunks = cited === null ? null : citedHouseIds(house.id, cited);
+  // Toujours `CITED_HOUSE_READS` lectures, dans le même ordre (règle des hooks) : un paquet absent ne lit rien.
+  const reads = Array.from({ length: CITED_HOUSE_READS }, (_, index) => {
+    const ids = chunks?.[index];
+    return {
+      used: ids !== undefined,
+      ...useRows<unknown>('houses', 'id, name, citizenship_status', 'id', ids ? { id: ids } : null),
+    };
+  });
+  const used = reads.filter((read) => read.used);
+  const done = chunks !== null && used.every((read) => read.rows !== null);
+  const rows = done ? used.flatMap((read) => read.rows ?? []) : null;
+  const failed = used.some((read) => read.failed);
+  const names = rows === null ? null : parseHouseNames(rows);
+  const status = rows === null ? null : statusOf(rows, house.id);
   const last = useRef<{ names: Map<string, string>; status: typeof status } | null>(null);
   if (names) last.current = { names, status };
-  const shown = names
-    ? { names, status }
-    : read.rows === null && !read.failed
-      ? last.current
-      : null;
+  const shown = names ? { names, status } : rows === null && !failed ? last.current : null;
   return {
     names: shown?.names ?? null,
     status: shown?.status ?? null,
     /** Lecture en cours, rien encore à montrer ; jamais vrai tant que `cited` vaut `null`. */
-    loading: ids !== null && read.rows === null && !read.failed && last.current === null,
-    failed: read.failed || (read.rows !== null && names === null),
-    reload: read.reload,
+    loading: chunks !== null && rows === null && !failed && last.current === null,
+    failed: failed || (rows !== null && names === null),
+    reload: () => Promise.all(used.map((read) => read.reload())),
   };
 }

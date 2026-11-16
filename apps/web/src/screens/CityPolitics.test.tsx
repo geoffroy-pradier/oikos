@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CITED_HOUSE_READS } from '../cited-houses';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
@@ -10,11 +11,11 @@ import fr from '../locales/fr.json';
 // La vue `houses` rend au plus 1 000 lignes par lecture, par ordre de nom, comme PostgREST (`max_rows`).
 const state = vi.hoisted(() => ({
   views: {} as Record<string, unknown[] | null>,
-  houseFilter: undefined as unknown,
+  houseFilters: [] as unknown[],
 }));
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters: unknown = {}) => {
-    if (view === 'houses') state.houseFilter = filters;
+    if (view === 'houses') state.houseFilters.push(filters);
     if (view === 'houses' && filters === null)
       return { rows: null, failed: false, reload: () => Promise.resolve(null) };
     let rows = view in state.views ? (state.views[view] ?? null) : [];
@@ -27,6 +28,8 @@ vi.mock('../data', () => ({
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
+// Filtres des lectures de maisons du dernier rendu : un nombre fixe de lectures, les vides à `null`.
+const houseReads = () => state.houseFilters.slice(-CITED_HOUSE_READS).filter(Boolean);
 const { CityPolitics } = await import('./CityPolitics');
 
 const day = 86_400_000;
@@ -70,7 +73,7 @@ const crowd = Array.from({ length: 1_500 }, (_, i) => ({
 afterEach(() => {
   cleanup();
   state.views = {};
-  state.houseFilter = undefined;
+  state.houseFilters = [];
 });
 
 describe('vie politique de la cité (#264)', () => {
@@ -151,7 +154,7 @@ describe('vie politique de la cité (#264)', () => {
     };
     // La coquille croit la maison métèque ; sa propre ligne, relue, la dit citoyenne.
     await show('metic');
-    expect(state.houseFilter).toEqual({ id: ['h1', 'h2', 'h3', 'h4'] });
+    expect(houseReads()).toEqual([{ id: ['h1', 'h2', 'h3', 'h4'] }]);
     expect(screen.getByText('Citoyen à Kallistè')).toBeTruthy();
     expect(screen.getByText(/^Archonte en charge : Maison Zeus, jusqu'au /)).toBeTruthy();
     expect(screen.getByText('Maison Zoé')).toBeTruthy();
@@ -159,7 +162,7 @@ describe('vie politique de la cité (#264)', () => {
     expect(screen.queryByText(fr.cityPolitics.unknownHouse, { exact: false })).toBeNull();
   });
 
-  it('beaucoup de candidats : une lecture bornée à 100 maisons, la sienne et l’archonte compris (#441)', async () => {
+  it('beaucoup de candidats : lus par paquets de 100, aucun ne s’affiche « Maison inconnue » (#441)', async () => {
     state.views = {
       houses: crowd,
       offices: [{ house_id: 'x1499', office: 'archon', ends_at: iso(3), in_office: true }],
@@ -172,10 +175,38 @@ describe('vie politique de la cité (#264)', () => {
       })),
     };
     await show();
-    const { id } = state.houseFilter as { id: string[] };
-    expect(id).toHaveLength(100);
-    expect(id).toEqual([...id].sort());
-    expect(id).toEqual(expect.arrayContaining(['h1', 'x1499', 'x0000']));
+    const ids = houseReads().map((filter) => (filter as { id: string[] }).id);
+    expect(ids.map((chunk) => chunk.length)).toEqual([100, 100, 100, 2]);
+    expect(ids.flat()).toEqual([...ids.flat()].sort());
+    expect(ids.flat()).toEqual(expect.arrayContaining(['h1', 'x1499', 'x0000', 'x0299']));
     expect(screen.getByText(/^Archonte en charge : Maison A1499, jusqu'au /)).toBeTruthy();
+    expect(screen.getByText('Maison A0299')).toBeTruthy();
+    // Chaque bouton de vote nomme son candidat : aucun n'est indiscernable des autres.
+    expect(screen.getByRole('button', { name: /Maison A0299/ })).toBeTruthy();
+    expect(screen.queryByText(fr.cityPolitics.unknownHouse, { exact: false })).toBeNull();
+  });
+
+  it('au-delà de 1 000 maisons citées : la sienne et l’archonte d’abord, les dernières inconnues (#441)', async () => {
+    state.views = {
+      houses: [...crowd, { id: 'h1', name: 'Maison Test', citizenship_status: 'citizen' }],
+      offices: [{ house_id: 'x1499', office: 'archon', ends_at: iso(3), in_office: true }],
+      elections: [election()],
+      election_candidates: crowd.slice(0, 1_200).map((row, i) => ({
+        id: `k${String(i)}`,
+        election_id: 'e1',
+        house_id: row.id,
+        withdrawn_at: null,
+      })),
+    };
+    await show();
+    const ids = houseReads().flatMap((filter) => (filter as { id: string[] }).id);
+    expect(houseReads()).toHaveLength(CITED_HOUSE_READS);
+    expect(ids).toHaveLength(1_000);
+    expect(ids).toEqual(expect.arrayContaining(['h1', 'x1499', 'x0997']));
+    expect(ids).not.toContain('x0998');
+    expect(screen.getByText('Citoyen à Kallistè')).toBeTruthy();
+    expect(screen.getByText(/^Archonte en charge : Maison A1499, jusqu'au /)).toBeTruthy();
+    expect(screen.getByText('Maison A0997')).toBeTruthy();
+    expect(screen.getAllByText(fr.cityPolitics.unknownHouse)).toHaveLength(202);
   });
 });

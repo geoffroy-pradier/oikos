@@ -119,4 +119,30 @@ describe('onglet Cité : lectures bornées des maisons citées (#441)', () => {
     await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
     expect(calls.reads.get('houses')).toBe(1);
   });
+
+  it('vie politique, 150 candidats : deux paquets lus une fois, puis plus rien', async () => {
+    const before = { houses: data.houses, candidates: data.election_candidates };
+    const crowd = Array.from({ length: 150 }, (_, i) => `x${String(i).padStart(3, '0')}`);
+    data.houses = [
+      ...(before.houses ?? []),
+      ...crowd.map((id) => ({ id, name: `Maison ${id}`, citizenship_status: 'citizen' })),
+    ];
+    data.election_candidates = crowd.map((id) => ({
+      id: `k${id}`,
+      election_id: 'e1',
+      house_id: id,
+      withdrawn_at: null,
+    }));
+    try {
+      await show(<CityPolitics />);
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+      expect(calls.houseIds.map((ids) => (ids as string[]).length)).toEqual([100, 52]);
+      expect(screen.getByText('Maison x149')).toBeTruthy();
+      await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+      expect(calls.reads.get('houses')).toBe(2);
+    } finally {
+      data.houses = before.houses ?? [];
+      data.election_candidates = before.candidates ?? [];
+    }
+  });
 });

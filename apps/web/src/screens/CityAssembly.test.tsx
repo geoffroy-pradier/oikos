@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CITED_HOUSE_READS } from '../cited-houses';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
@@ -10,13 +11,13 @@ import fr from '../locales/fr.json';
 // La vue `houses` rend au plus 1 000 lignes par lecture, par ordre de nom, comme PostgREST (`max_rows`).
 const state = vi.hoisted(() => ({
   views: {} as Record<string, unknown[] | null>,
-  houseFilter: undefined as unknown,
+  houseFilters: [] as unknown[],
 }));
 const api = vi.hoisted(() => ({ cityCommand: vi.fn() }));
 vi.mock('../api', () => ({ cityCommand: api.cityCommand }));
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters: unknown = {}) => {
-    if (view === 'houses') state.houseFilter = filters;
+    if (view === 'houses') state.houseFilters.push(filters);
     if (view === 'houses' && filters === null)
       return { rows: null, failed: false, reload: () => Promise.resolve(null) };
     let rows = view in state.views ? (state.views[view] ?? null) : [];
@@ -29,6 +30,8 @@ vi.mock('../data', () => ({
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
+// Filtres des lectures de maisons du dernier rendu : un nombre fixe de lectures, les vides à `null`.
+const houseReads = () => state.houseFilters.slice(-CITED_HOUSE_READS).filter(Boolean);
 const { CityAssembly } = await import('./CityAssembly');
 
 const decree = (id: string, status: string, model: string, params: unknown, extra = {}) => ({
@@ -77,7 +80,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   state.views = {};
-  state.houseFilter = undefined;
+  state.houseFilters = [];
 });
 
 describe('assemblée de la cité (#264)', () => {
@@ -226,7 +229,7 @@ describe('assemblée de la cité (#264)', () => {
     };
     // La coquille croit la maison métèque ; sa propre ligne, relue, la dit citoyenne.
     await show();
-    expect(state.houseFilter).toEqual({ id: ['h1', 'h2'] });
+    expect(houseReads()).toEqual([{ id: ['h1', 'h2'] }]);
     expect(screen.getByText(/^Proposé par Maison Zeus ; vote clos le /)).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Voter pour : Grands travaux/ })).toBeTruthy();
     expect(screen.queryByText(fr.assembly.meticNotice)).toBeNull();
