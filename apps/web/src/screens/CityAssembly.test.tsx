@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
-// Assemblée de l'onglet Cité (#264) : lectures simulées vue par vue.
+// Assemblée de l'onglet Cité (#264) : lectures simulées vue par vue, commandes espionnées.
 const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
+const api = vi.hoisted(() => ({ cityCommand: vi.fn() }));
+vi.mock('../api', () => ({ cityCommand: api.cityCommand }));
 vi.mock('../data', () => ({
   useRows: (view: string) => {
     const rows = view in state.views ? (state.views[view] ?? null) : [];
@@ -55,13 +57,17 @@ async function show() {
     </I18nextProvider>,
   );
 }
+beforeEach(() => {
+  api.cityCommand.mockReset();
+  api.cityCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
+});
 afterEach(() => {
   cleanup();
   state.views = {};
 });
 
 describe('assemblée de la cité (#264)', () => {
-  it('décret au vote : ce qu’il dit, qui l’a proposé, quand le vote se clôt', async () => {
+  it('décret au vote : pour ou contre en deux touches, le résultat reçoit le foyer ; voté, rien ne dit le choix', async () => {
     state.views = {
       houses,
       decrees: [decree('d1', 'proposed', 'market_tax_rate', { rateBps: 800 })],
@@ -69,8 +75,20 @@ describe('assemblée de la cité (#264)', () => {
     await show();
     expect(screen.getByText(/^Taxe de marché de la cité à 8\s?%$/)).toBeTruthy();
     expect(screen.getByText(/^Proposé par Maison Alpha ; vote clos le /)).toBeTruthy();
-    expect(screen.queryByText(fr.assembly.meticNotice)).toBeNull();
-    expect(screen.getByText(fr.assembly.noPassed)).toBeTruthy();
+    const against = screen.getByRole('button', { name: /^Voter contre : Taxe de marché/ });
+    fireEvent.click(against);
+    await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
+    expect(api.cityCommand.mock.calls[0]?.slice(0, 3)).toEqual([
+      'city.voteDecree',
+      { decreeId: 'd1', approve: false },
+      't',
+    ]);
+    await waitFor(() => expect(document.activeElement?.textContent).toBe(fr.assembly.voted));
+    cleanup();
+    state.views.my_decree_votes = [{ decree_id: 'd1' }];
+    await show();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getByText(fr.assembly.alreadyVoted)).toBeTruthy();
   });
 
   it('adoptés et en vigueur, rejetés et caducs, avec leur décompte ; décret illisible nommé par son modèle', async () => {
@@ -84,6 +102,14 @@ describe('assemblée de la cité (#264)', () => {
           { coefficientBps: 15000 },
           { applied_at: '2026-11-17T04:00:00+00:00' },
         ),
+        // Appliqué plus tôt, remplacé par d2 : appliqué, plus en vigueur.
+        decree(
+          'd1',
+          'applied',
+          'port_dues',
+          { coefficientBps: 12000 },
+          { applied_at: '2026-11-10T04:00:00+00:00' },
+        ),
         decree('d3', 'adopted', 'festival', {
           amountOboles: 600,
           days: 2,
@@ -95,17 +121,22 @@ describe('assemblée de la cité (#264)', () => {
     };
     await show();
     expect(screen.getByText('Droit de port de la cité multiplié par 1,5')).toBeTruthy();
-    expect(screen.getByText(/^En vigueur depuis le /)).toBeTruthy();
+    const applied = screen.getAllByText(/^Appliqué le /).map((line) => line.textContent ?? '');
+    expect(applied).toHaveLength(2);
+    expect(applied.filter((line) => line.endsWith('; en vigueur'))).toHaveLength(1);
+    expect(
+      screen.getByText('Droit de port de la cité multiplié par 1,2').parentElement?.textContent,
+    ).not.toContain('en vigueur');
     expect(screen.getByText('Fête de 2 jours : 100 drachmes, pour Pain, Vin')).toBeTruthy();
     expect(screen.getByText(fr.assembly.status.adopted)).toBeTruthy();
     expect(screen.getByText(/^Grands travaux : 1\s?000 drachmes$/)).toBeTruthy();
     expect(screen.getByText(fr.assembly.status.lapsed)).toBeTruthy();
     expect(screen.getByText('Décret illisible (market_tax_rate)')).toBeTruthy();
-    expect(screen.getAllByText('Pour : 3 ; contre : 1 ; citoyens : 5')).toHaveLength(4);
+    expect(screen.getAllByText('Pour : 3 ; contre : 1 ; citoyens : 5')).toHaveLength(5);
     expect(screen.getByText(fr.assembly.noOpen)).toBeTruthy();
   });
 
-  it('un métèque voit les décrets au vote, et l’écran dit pourquoi il ne vote pas ; lecture en échec annoncée', async () => {
+  it('un métèque voit les décrets au vote sans bouton, et l’écran dit pourquoi ; un refus est dit', async () => {
     state.views = {
       houses: [{ ...houses[0], citizenship_status: 'metic' }, houses[1]],
       decrees: [decree('d1', 'proposed', 'public_works', { amountOboles: 600 })],
@@ -113,9 +144,52 @@ describe('assemblée de la cité (#264)', () => {
     await show();
     expect(screen.getByText(fr.assembly.meticNotice)).toBeTruthy();
     expect(screen.getByText('Grands travaux : 100 drachmes')).toBeTruthy();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
     cleanup();
-    state.views = { decrees: null };
+    api.cityCommand.mockResolvedValue({ ok: false, error: { code: 'VOTING_CLOSED', message: '' } });
+    state.views.houses = houses;
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: /^Voter pour : Grands travaux/ }));
+    expect((await screen.findByRole('alert')).textContent).toBe(fr.errors.VOTING_CLOSED);
+  });
+  it('aucun décret adopté ; lectures en échec annoncées, celle des votes de la maison comprise', async () => {
+    state.views = { houses, decrees: [] };
+    await show();
+    expect(screen.getByText(fr.assembly.noPassed)).toBeTruthy();
+    cleanup();
+    state.views = { houses, decrees: null };
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+    cleanup();
+    state.views = {
+      houses,
+      decrees: [decree('d1', 'proposed', 'public_works', { amountOboles: 600 })],
+      my_decree_votes: null,
+    };
+    await show();
+    expect(screen.queryByRole('button', { name: /^Voter pour/ })).toBeNull();
+    expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('sans réponse, le vote repart sous la même clé ; après un refus, la clé suivante est neuve', async () => {
+    api.cityCommand.mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: '' } });
+    api.cityCommand.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'VOTING_CLOSED', message: '' },
+    });
+    state.views = {
+      houses,
+      decrees: [decree('d1', 'proposed', 'public_works', { amountOboles: 600 })],
+    };
+    await show();
+    const approve = () => screen.getByRole('button', { name: /^Voter pour : Grands travaux/ });
+    for (let call = 1; call <= 3; call++) {
+      await waitFor(() => expect(approve().getAttribute('aria-disabled')).toBe('false'));
+      fireEvent.click(approve());
+      await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(call));
+    }
+    const keys = api.cityCommand.mock.calls.map((call) => call[3] as string);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
   });
 });

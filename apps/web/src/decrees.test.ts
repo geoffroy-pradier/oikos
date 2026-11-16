@@ -1,6 +1,6 @@
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
-import { groupDecrees, parseDecreeRules, parseDecrees } from './decrees';
+import { groupDecrees, parseDecreeRules, parseDecrees, ratesInForce } from './decrees';
 
 const config = INITIAL_CONFIG as GameConfig;
 const decree = {
@@ -90,5 +90,24 @@ describe('décrets de la cité (#264)', () => {
         { ...rules[0], model: 'market_tax_rate', bounds: { minRateBps: 900, maxRateBps: 100 } },
       ]),
     ).toBeNull();
+  });
+  it('en vigueur : le dernier décret appliqué de chaque modèle de taux, jamais une dépense', () => {
+    const applied = (id: string, model: string, params: unknown, at: string) => ({
+      ...decree,
+      id,
+      model,
+      params,
+      status: 'applied',
+      applied_at: at,
+    });
+    const decrees =
+      parseDecrees([
+        applied('old', 'market_tax_rate', { rateBps: 500 }, '2026-11-10T04:00:00+00:00'),
+        applied('new', 'market_tax_rate', { rateBps: 700 }, '2026-11-12T04:00:00+00:00'),
+        applied('port', 'port_dues', { coefficientBps: 12000 }, '2026-11-11T04:00:00+00:00'),
+        applied('works', 'public_works', { amountOboles: 600 }, '2026-11-13T04:00:00+00:00'),
+        { ...decree, id: 'voting', status: 'proposed' },
+      ]) ?? [];
+    expect([...ratesInForce(decrees)].sort()).toEqual(['new', 'port']);
   });
 });

@@ -91,6 +91,28 @@ export function groupDecrees(decrees: readonly Decree[]) {
   };
 }
 
+/**
+ * Décrets de taux en vigueur : pour chaque modèle de taux, le dernier appliqué (6.3), comme le moteur
+ * l'arbitre (date d'application, puis fin du vote, puis identifiant). Une dépense n'est jamais « en vigueur ».
+ */
+export function ratesInForce(decrees: readonly Decree[]): Set<string> {
+  const latest = new Map<string, Decree>();
+  const later = (a: Decree, b: Decree) =>
+    (a.appliedAt ?? 0) - (b.appliedAt ?? 0) ||
+    a.votingClosesAt - b.votingClosesAt ||
+    a.id.localeCompare(b.id);
+  for (const decree of decrees) {
+    if (
+      decree.status !== 'applied' ||
+      (decree.model !== 'market_tax_rate' && decree.model !== 'port_dues')
+    )
+      continue;
+    const current = latest.get(decree.model);
+    if (!current || later(decree, current) > 0) latest.set(decree.model, decree);
+  }
+  return new Set([...latest.values()].map((decree) => decree.id));
+}
+
 const range = (min: string, max: string) =>
   z
     .record(z.string(), count)

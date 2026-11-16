@@ -653,15 +653,22 @@
     "noOpen": "No decree under vote.",
     "meticNotice": "As a metic, your house does not vote on the city's decrees.",
     "proposed": "Proposed by {{house}}; voting closes {{closes}}",
+    "approve": "For",
+    "reject": "Against",
+    "approveFor": "Vote for: {{decree}}",
+    "rejectFor": "Vote against: {{decree}}",
+    "alreadyVoted": "Your house has voted on this decree. The ballot is secret.",
+    "voted": "Vote recorded.",
     "passed": "Adopted decrees",
     "noPassed": "No decree adopted.",
     "other": "Rejected or lapsed decrees",
     "tally": "For: {{for}}; against: {{against}}; citizens: {{electorate}}",
     "status": {
       "adopted": "Adopted: it takes effect at the next daily close.",
-      "applied": "In force since {{at}}",
+      "applied": "Applied on {{at}}",
       "rejected": "Rejected.",
-      "lapsed": "Lapsed: the treasury no longer covered it at the close."
+      "lapsed": "Lapsed: the close did not apply it.",
+      "inForce": "Applied on {{at}}; in force"
     },
     "models": {
       "market_tax_rate": "City market tax at {{rate}}",
