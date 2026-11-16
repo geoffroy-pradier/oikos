@@ -9,7 +9,7 @@ import {
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { dailyCloseAt, gameDayAt, planWorldEvents } from '@oikos/sim';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runDailyClose } from '../close';
+import { runDailyClose, type CloseStep } from '../close';
 import { CLOSE_STEPS } from '../close-steps';
 import { eventDaySeed, worldEventPlanning } from './world-event-planning';
 
@@ -27,11 +27,15 @@ const certain = <T extends { probabilityBps: number }>(model: T): T => ({
 });
 const { drought, good_year, storm, caravan } = initial.worldEvents.models;
 if (!drought || !good_year || !storm || !caravan) throw new Error('four models expected');
+// Délai différent de celui de la configuration initiale : un délai écrit en dur dans l'étape se verrait.
+const LEAD = 5;
+if (initial.worldEvents.planningLeadDays === LEAD)
+  throw new Error('LEAD must differ from the initial config');
 // Certitude pour les quatre modèles : chaque jour planifié a ses quatre événements.
-const sure: GameConfig = {
+const certainly = (planningLeadDays: number): GameConfig => ({
   ...initial,
   worldEvents: {
-    planningLeadDays: 3,
+    planningLeadDays,
     models: {
       drought: certain(drought),
       good_year: certain(good_year),
@@ -39,14 +43,20 @@ const sure: GameConfig = {
       caravan: certain(caravan),
     },
   },
-};
+});
+const sure = certainly(LEAD);
 let active: LoadedConfig;
 const TODAY = gameDayAt(new Date(), clock);
-const close = (worldId: string, given: GameConfig, steps = [worldEventPlanning]) =>
+const close = (
+  worldId: string,
+  given: GameConfig,
+  steps: readonly CloseStep[] = [worldEventPlanning],
+  gameDay = TODAY,
+) =>
   runDailyClose(db, {
     worldId,
-    gameDay: TODAY,
-    closeAt: dailyCloseAt(TODAY, clock),
+    gameDay,
+    closeAt: dailyCloseAt(gameDay, clock),
     config: { at: async () => ({ ...active, config: given }) },
     steps,
     now: new Date(),
@@ -94,15 +104,72 @@ async function newWorld(seed: string, slugs = ['kalliste', 'elaia', 'ampelos', '
 }
 
 describe('planification des événements du monde à la clôture (#267)', () => {
-  it('est jouée par la clôture, avant l’entretien', () => {
-    expect(CLOSE_STEPS).toContain(worldEventPlanning);
-    expect(CLOSE_STEPS.indexOf(worldEventPlanning)).toBeLessThan(CLOSE_STEPS.length - 1);
+  it('clôtures complètes (toutes les étapes) : planifiées au délai, rien de plus à la clôture rejouée', async () => {
+    const worldId = await newWorld(randomUUID());
+    const all = ['drought', 'good_year', 'storm', 'caravan'];
+    const yesterday = await close(worldId, sure, CLOSE_STEPS, TODAY - 1);
+    expect([yesterday.status, yesterday.summary['worldEventPlanning']]).toEqual([
+      'done',
+      { startDay: TODAY - 1 + LEAD, planned: 4, models: all },
+    ]);
+    const today = await close(worldId, sure, CLOSE_STEPS);
+    expect([today.status, today.summary['worldEventPlanning']]).toEqual([
+      'done',
+      { startDay: TODAY + LEAD, planned: 4, models: all },
+    ]);
+    const events = await eventsOf(worldId);
+    expect(events.map((event) => [event.planned_day, event.start_day]).sort()).toEqual(
+      [
+        ...Array<number[]>(4).fill([TODAY - 1, TODAY - 1 + LEAD]),
+        ...Array<number[]>(4).fill([TODAY, TODAY + LEAD]),
+      ].sort(),
+    );
+    // Rejouée, la clôture du jour est ignorée et rend le résumé enregistré : aucun événement de plus.
+    const again = await close(worldId, sure, CLOSE_STEPS);
+    expect([again.status, again.summary['worldEventPlanning']]).toEqual([
+      'skipped',
+      today.summary['worldEventPlanning'],
+    ]);
+    expect(await eventsOf(worldId)).toEqual(events);
   });
 
-  it('probabilités nulles de la configuration initiale : aucun événement', async () => {
+  it('clôture rattrapée en retard (délai d’un jour) : elle réussit, sans l’événement déjà commencé', async () => {
+    const worldId = await newWorld(randomUUID());
+    const nextDay = certainly(1);
+    // La clôture d'hier, jouée maintenant : son jour planifié (aujourd'hui) a déjà commencé selon la base.
+    const late = await close(worldId, nextDay, CLOSE_STEPS, TODAY - 1);
+    expect([late.status, late.summary['worldEventPlanning']]).toEqual([
+      'done',
+      { startDay: TODAY, planned: 0, models: [] },
+    ]);
+    expect(Object.keys(late.summary)).toEqual(CLOSE_STEPS.map((step) => step.name));
+    expect(await eventsOf(worldId)).toEqual([]);
+    // Celle d'aujourd'hui, à l'heure, planifie demain.
+    const onTime = await close(worldId, nextDay, CLOSE_STEPS);
+    expect(onTime.summary['worldEventPlanning']).toMatchObject({ startDay: TODAY + 1, planned: 4 });
+    expect((await eventsOf(worldId)).map((event) => event.start_day)).toEqual(
+      Array<number>(4).fill(TODAY + 1),
+    );
+  });
+
+  it('probabilités nulles de la configuration initiale : aucun événement, résumé de même forme', async () => {
     const worldId = await newWorld(randomUUID());
     expect((await close(worldId, initial)).summary).toEqual({
-      worldEventPlanning: { planned: 0 },
+      worldEventPlanning: {
+        startDay: TODAY + (initial.worldEvents?.planningLeadDays ?? NaN),
+        planned: 0,
+        models: [],
+      },
+    });
+    expect(await eventsOf(worldId)).toEqual([]);
+  });
+
+  it('sans section worldEvents : aucun événement, jour planifié nul', async () => {
+    const worldId = await newWorld(randomUUID());
+    const older = structuredClone(sure);
+    delete older.worldEvents;
+    expect((await close(worldId, older)).summary).toEqual({
+      worldEventPlanning: { startDay: null, planned: 0, models: [] },
     });
     expect(await eventsOf(worldId)).toEqual([]);
   });
@@ -110,7 +177,7 @@ describe('planification des événements du monde à la clôture (#267)', () => 
   it('planifie le jour situé au délai, aux instants de ses clôtures, tiré de la graine de ce jour', async () => {
     const seed = randomUUID();
     const worldId = await newWorld(seed);
-    const startDay = TODAY + 3;
+    const startDay = TODAY + LEAD;
     const outcome = await close(worldId, sure);
     expect(outcome.summary).toEqual({
       worldEventPlanning: {
@@ -153,7 +220,7 @@ describe('planification des événements du monde à la clôture (#267)', () => 
     // L'étape jouée deux fois dans la même clôture : la seconde passe ne planifie rien.
     const twice = { ...worldEventPlanning, name: 'again' };
     const outcome = await close(worldId, sure, [worldEventPlanning, twice]);
-    expect(outcome.summary['again']).toEqual({ startDay: TODAY + 3, planned: 0, models: [] });
+    expect(outcome.summary['again']).toEqual({ startDay: TODAY + LEAD, planned: 0, models: [] });
     const once = await eventsOf(worldId);
     expect(once).toHaveLength(4);
     // La clôture rejouée est ignorée ; un autre tirage du même jour n'y changerait rien.
@@ -191,11 +258,38 @@ describe('planification des événements du monde à la clôture (#267)', () => 
   });
 
   it('ne tire que sur les cités du monde connues de la configuration, et les routes entre elles', async () => {
-    const worldId = await newWorld(randomUUID(), ['kalliste', 'elaia', 'atlantis']);
-    await close(worldId, sure);
-    const events = await eventsOf(worldId);
-    for (const event of events) expect(['kalliste', 'elaia']).toContain(event.city);
-    const tempest = events.find((event) => event.model === 'storm');
-    expect([tempest?.city, tempest?.other]).toEqual(['elaia', 'kalliste']);
+    const slugs = ['kalliste', 'elaia', 'atlantis'];
+    // Graines fixes, retenues pour le jour planifié (qui suit la date du test) parce que, sans les filtres, elles
+    // tireraient la cité inconnue, ou une route vers une cité absente du monde : la régression se verrait.
+    const unfiltered = (seed: string) =>
+      planWorldEvents({
+        daySeed: eventDaySeed(seed, TODAY + LEAD),
+        startDay: TODAY + LEAD,
+        models: sure.worldEvents?.models ?? {},
+        cities: slugs,
+        routes: sure.ships.routes.map((route) => route.cities),
+      });
+    const candidates = Array.from({ length: 32 }, (_, index) => `filtre-des-cites-${index}`);
+    const onUnknownCity = candidates.find((seed) =>
+      unfiltered(seed).some((event) => event.cityId === 'atlantis'),
+    );
+    const onAbsentRoute = candidates.find((seed) =>
+      unfiltered(seed).some(
+        (event) =>
+          event.model === 'storm' && `${event.cityId} ${event.otherCityId}` !== 'elaia kalliste',
+      ),
+    );
+    expect([onUnknownCity, onAbsentRoute]).not.toContain(undefined);
+    for (const seed of new Set([onUnknownCity ?? '', onAbsentRoute ?? ''])) {
+      const worldId = await newWorld(seed, slugs);
+      expect((await close(worldId, sure)).summary['worldEventPlanning']).toMatchObject({
+        planned: 4,
+      });
+      const events = await eventsOf(worldId);
+      expect(events).toHaveLength(4);
+      for (const event of events) expect(['kalliste', 'elaia']).toContain(event.city);
+      const tempest = events.find((event) => event.model === 'storm');
+      expect([tempest?.city, tempest?.other]).toEqual(['elaia', 'kalliste']);
+    }
   });
 });

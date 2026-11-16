@@ -152,9 +152,9 @@ export interface City extends Bench {
 export async function createCity(bench: Bench, days: number): Promise<City> {
   const [worldId, cityId] = [randomUUID(), randomUUID()];
   // Graine fixée (#267), pour que ses tirages soient reproductibles. Le banc ne joue pourtant aucun événement :
-  // ils sont à probabilité nulle dans la configuration initiale, et il ne le pourrait pas autrement, car il clôt
-  // des jours passés et la base refuse un événement qui commencerait avant l'instant de sa planification (migration
-  // 190, `guard_world_event`) : une probabilité non nulle ferait échouer ses clôtures.
+  // ils sont à probabilité nulle dans la configuration initiale. Avec une probabilité non nulle, ses clôtures, qui
+  // sont celles de jours passés, réussiraient, mais ne planifieraient que les événements qui commencent après
+  // l'heure de la base (7.3), donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
   await sql`insert into game.worlds (id, slug, name, seed)
     values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', 'banc-equilibrage-78')`.execute(
     bench.owner,
