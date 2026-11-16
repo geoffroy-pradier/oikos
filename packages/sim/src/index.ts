@@ -6,6 +6,7 @@ export * from './clock';
 export * from './decree';
 export * from './demand';
 export * from './festival';
+export * from './graces';
 export * from './labor';
 export * from './ledger';
 export * from './orderbook';

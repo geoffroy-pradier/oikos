@@ -40,6 +40,17 @@ Décision (ambiguïté de cette section) : elle suit la Charis courante, déclin
 Lectures : `temple_rules` (publique : la section `gods` de la configuration en vigueur), `my_favor` (privée : la Charis de sa maison par dieu) et `city_charis` (publique : la Charis de chaque cité envers son dieu protecteur).
 Une maison seule citoyenne de sa cité y révèle donc sa Charis envers le dieu protecteur, au poids près.
 
+Grâces, dans la phase 2 (ticket 266).
+Décision (ambiguïté de cette section) : trois effets, chacun appliqué à la prochaine action admise de la maison qui a invoqué la grâce.
+Le catalogue des effets est fermé : une grâce nouvelle ne demande aucun code, un effet nouveau si.
+La configuration (`graces`) donne à chaque grâce son dieu, son effet, son ampleur en points de base, la Charis requise envers ce dieu pour l'invoquer, la Charis dépensée (au plus la requise) et sa recharge en jours de jeu (de 1 à 366).
+Récolte bénie (`blessed_harvest`) : une récolte d'un site de matière première rend, pour chaque extrant, ⌊quantité × ampleur ÷ 10 000⌋ unités de plus, arrondi vers le bas sur la quantité de toute la récolte (`graceSurplus`, `packages/sim`).
+Atelier inspiré (`inspired_workshop`) : de même pour une récolte d'atelier, sans intrant supplémentaire.
+Vent favorable (`fair_wind`) : le prochain départ d'un navire dure ⌈durée × (10 000 − ampleur) ÷ 10 000⌉ secondes, arrondi vers le haut comme la durée elle-même (`fairWindSeconds`).
+L'ampleur est bornée par effet : une récolte au plus doublée (10 000), un trajet au plus deux fois plus court (5 000), jamais instantané.
+Une version publiée avant les grâces se lit sans grâce.
+Configuration initiale, à calibrer : Déméter accorde une récolte bénie, Athéna un atelier inspiré, chacun de 20 %, et Poséidon un vent favorable de 25 % ; chacune demande 300 de Charis, en dépense 150 et se recharge en trois jours.
+
 ## 7.2 Hybris et Némésis
 
 Chaque maison a une jauge d'Hybris cachée, dont seul le niveau approximatif est visible. Elle monte avec la part de marché excessive sur un bien (au-delà de 35 % d'une cité), l'écart de fortune avec la médiane, le refus des liturgies et les ententes sur les prix. Elle baisse avec le mécénat et les offrandes.
