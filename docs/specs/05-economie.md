@@ -259,7 +259,7 @@ impayé, il est à l'arrêt jusqu'à la clôture suivante ou jusqu'à une relanc
 Il n'y a pas d'arriéré : un jour passé à l'arrêt ne crée aucune dette.
 Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, même si la clôture est jouée en retard ;
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
-Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6) ;
+Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6), puis les biens immobiliers payés (`meta.properties`, 4.5) ;
 elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
 une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 
@@ -283,7 +283,8 @@ Le prix envoyé est retenu avec la clé d'une relance restée sans réponse, et 
 Si le premier envoi avait abouti, l'API rejoue sa réponse ; sinon elle refuse ce prix, et le joueur confirme le nouveau d'un nouvel essai, sous une clé neuve ;
 son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), avec une ligne marquée par nature comme à la clôture, annoncée par un événement de domaine `SiteRestarted` qui distingue entretien et salaires.
 Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires), puis la trésorerie, puis le site.
-La clôture verrouille en plus, après ces deux puits, celui de l'entretien des navires, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6).
+La clôture verrouille en plus, après ces deux puits, ceux de l'entretien des navires et des biens immobiliers, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6) puis ses biens (4.5).
+Elle prend avant tout le verrou de l'agora du monde, et la vétusté des biens le prend juste avant l'entretien : l'achat et la rénovation d'un bien le prennent aussi d'abord, si bien qu'aucun d'eux ne verrouille un bien que la clôture attendrait.
 Un site dont la recette n'est plus dans la configuration, qui n'a pas de tarif, est relancé sans rien payer.
 La monnaie sous séquestre ne paie pas non plus une relance. Les relances d'un monde se font l'une après l'autre et, quand une clôture a commencé à prélever l'entretien, attendent qu'elle soit validée tout entière (l'entretien est donc la dernière étape d'une clôture, pour que cette attente soit la plus courte) ;
 si la clôture vient d'arrêter le site pendant cette attente, la relance est refusée (« le site vient de changer ») et se rejoue.

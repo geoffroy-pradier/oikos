@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dailyUpkeep,
   dailyWages,
+  settlePropertyUpkeep,
   settleShipUpkeep,
   settleUpkeep,
   siteDailyDue,
@@ -263,6 +264,48 @@ describe('entretien des navires (#252)', () => {
         expect(total).toBeLessThanOrEqual(treasury);
         expect(paid.length + unpaid.length).toBe(listed.length);
         // Un navire impayé coûtait plus que ce qui restait quand il a été examiné.
+        for (const due of unpaid) expect(due.oboles).toBeGreaterThan(treasury - total);
+      }),
+    );
+  });
+});
+
+describe('entretien des biens immobiliers (#256)', () => {
+  it('après les sites et les navires, avec ce qui reste : chaque bien en entier ou pas du tout', () => {
+    const properties = [
+      { propertyId: 'p', oboles: 20 },
+      { propertyId: 'q', oboles: 50 },
+      { propertyId: 'r', oboles: 0 },
+      { propertyId: 's', oboles: 15 },
+    ];
+    const sites = settleUpkeep(100, [{ siteId: 's', oboles: 30 }]);
+    const ships = settleShipUpkeep(100 - sites.total, [{ shipId: 'a', oboles: 40 }]);
+    // Restent 30 : p (20) est payé, q (50) ne l'est pas, r ne coûte rien, s (15) ne tient plus dans 10.
+    expect(settlePropertyUpkeep(100 - sites.total - ships.total, properties)).toEqual({
+      paid: [properties[0], properties[2]],
+      unpaid: [properties[1], properties[3]],
+      total: 20,
+    });
+    // Solde nul : seul le bien qui ne coûte rien est payé.
+    expect(settlePropertyUpkeep(0, properties).paid).toEqual([properties[2]]);
+    expect(() => settlePropertyUpkeep(10, [properties[0], { ...properties[0] }] as never)).toThrow(
+      'each due is settled once',
+    );
+  });
+
+  it('conservation : prélevé = somme des biens payés, jamais plus que la trésorerie', () => {
+    const propertyDues = fc.uniqueArray(
+      fc.record({ propertyId: fc.uuid(), oboles: fc.integer({ min: 0, max: 500 }) }),
+      { maxLength: 8, selector: (due) => due.propertyId },
+    );
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 2_000 }), propertyDues, (treasury, listed) => {
+        const { paid, unpaid, total } = settlePropertyUpkeep(treasury, listed);
+        expect(total).toBe(paid.reduce((sum, due) => sum + due.oboles, 0));
+        expect(total).toBeLessThanOrEqual(treasury);
+        expect([...paid, ...unpaid].map((due) => due.propertyId).sort()).toEqual(
+          listed.map((due) => due.propertyId).sort(),
+        );
         for (const due of unpaid) expect(due.oboles).toBeGreaterThan(treasury - total);
       }),
     );

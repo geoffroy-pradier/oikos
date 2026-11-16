@@ -152,6 +152,14 @@ const SUMMARY_KEYS = [
 ];
 /** Résumé de l'entretien des navires : oboles payées, navires payés, impayés, désarmés, réarmés. */
 const SHIP_KEYS = ['shipUpkeepOboles', 'shipsPaid', 'shipsUnpaid', 'laidUp', 'rearmed'];
+/** Résumé de l'entretien des biens immobiliers (#256) : oboles, biens payés, impayés, constatés, levés. */
+const PROPERTY_KEYS = [
+  'propertyUpkeepOboles',
+  'propertiesPaid',
+  'propertiesUnpaid',
+  'lapsed',
+  'restored',
+];
 /** Résumé de l'étape enregistré avec chaque clôture du monde, dans l'ordre des jours de jeu. */
 const summariesOf = async (worldId: string) =>
   (
@@ -160,9 +168,10 @@ const summariesOf = async (worldId: string) =>
     }>`select summary from game.daily_closes
       where world_id = ${worldId} order by game_day`)
   ).map(({ summary }) => {
-    expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS, ...SHIP_KEYS].sort());
-    // Ces maisons n'ont pas de navire (#252) : rien à leur titre.
-    expect(SHIP_KEYS.map((key) => summary.siteUpkeep[key])).toEqual(SHIP_KEYS.map(() => 0));
+    const others = [...SHIP_KEYS, ...PROPERTY_KEYS];
+    expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS, ...others].sort());
+    // Ces maisons n'ont ni navire (#252) ni bien immobilier (#256) : rien à leur titre.
+    expect(others.map((key) => summary.siteUpkeep[key])).toEqual(others.map(() => 0));
     return SUMMARY_KEYS.map((key) => summary.siteUpkeep[key]);
   });
 

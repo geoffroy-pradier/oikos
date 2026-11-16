@@ -85,11 +85,20 @@ export interface ShipUpkeepDue {
   oboles: number;
 }
 
+/** Entretien d'un jour d'un bien immobilier (#256) : celui de sa taille, payé en entier ou pas du tout. */
+export interface PropertyUpkeepDue {
+  propertyId: string;
+  oboles: number;
+}
+
 /** `T` : le dû de chaque site ou navire tel que reçu, rendu tel quel (ses parts par nature comprises). */
 export interface UpkeepSettlement<T extends { oboles: number } = UpkeepDue> {
   /** Dus payés, dans l'ordre reçu. */
   paid: T[];
-  /** Dus que la trésorerie ne pouvait pas payer en entier : leur site est à l'arrêt, leur navire désarmé. */
+  /**
+   * Dus que la trésorerie ne pouvait pas payer en entier : leur site est à l'arrêt, leur navire désarmé,
+   * leur bien ne loge personne.
+   */
   unpaid: T[];
   /** Somme prélevée : celle des dus payés, jamais plus que la trésorerie. */
   total: number;
@@ -140,4 +149,15 @@ export function settleShipUpkeep<T extends ShipUpkeepDue>(
   dues: readonly T[],
 ): UpkeepSettlement<T> {
   return settleInOrder(balance, dues, (due) => due.shipId);
+}
+
+/**
+ * Les biens immobiliers d'une maison à une clôture (#256), examinés après ses sites et ses navires, avec
+ * ce qui reste de la trésorerie, dans l'ordre reçu (`settleInOrder`).
+ */
+export function settlePropertyUpkeep<T extends PropertyUpkeepDue>(
+  balance: number,
+  dues: readonly T[],
+): UpkeepSettlement<T> {
+  return settleInOrder(balance, dues, (due) => due.propertyId);
 }
