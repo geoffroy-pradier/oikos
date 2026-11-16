@@ -8,9 +8,10 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`, ou acheté à une autre maison et cédé par elle, écriture `property.sale`, 4.5), loyers (`rents` : écriture `lease.rent`, négatifs pour le locataire, positifs pour le propriétaire, 4.5), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
   Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
+  La revente d'un bien entre maisons se lit comme une vente de l'agora : le vendeur, qui lit le prix de son offre vendue, voit la cession au brut en `acquisitions` (positive) et l'écart avec le net crédité en `taxes` ; l'acheteur voit le prix en `acquisitions` (négatif).
   L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6) ; celui des biens immobiliers aussi (4.5).
   La rénovation d'un bien marque elle aussi son débit `upkeep`.
   Un ticket qui ajoute une écriture de maison lui donne sa nature ici.
@@ -28,7 +29,9 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Décision (#252, ADR 0006) : le transport y entre plutôt que dans une vue nouvelle, comme les salaires avant lui ; l'écran Comptes la libelle « Entretien, salaires et transport ».
   Les colonnes du compte de résultat sont figées : la migration qui l'a créé le recrée tel quel quand la suite des migrations est rejouée, ce qu'une colonne de plus rendrait impossible.
   Une nature nouvelle y entre dans une colonne existante, ou dans une vue nouvelle.
-  Hors exploitation (`non_operating`) : acquisitions de sites, de navires et de biens immobiliers, dotation de départ, et `other` pour tout le reste.
+  Décision (#257, ADR 0006) : les loyers d'un jour y entrent par leur net, dans les ventes (`sales`, produits d'exploitation) quand il est positif, dans les charges courantes (`upkeep`) quand il est négatif : un loyer reçu est une recette, un loyer payé une charge.
+  Une maison qui reçoit et paie des loyers le même jour n'en voit que le solde, dont `my_cash_flows` donne le détail.
+  Hors exploitation (`non_operating`) : acquisitions de sites, de navires et de biens immobiliers, cession d'un bien à une autre maison, dotation de départ, et `other` pour tout le reste.
   Résultat plus hors exploitation font la variation de la monnaie de la maison sur la période (`cash_change`), dont `escrow_change` est la part du séquestre : la variation de la trésorerie seule est leur différence.
   La saison d'un jour de jeu est celle du moteur (`seasonIndexAt`) : des saisons de `seasonDays` jours de jeu (au plus 366) comptés depuis le lundi 5 janvier 1970, lues comme le jour avec l'horloge en vigueur à la lecture ;
   la vue par saison donne le premier et le dernier jour de jeu de chacune.
@@ -40,7 +43,7 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Un bien qui n'a jamais eu de prix observé dans la cité n'a ni prix ni valeur ;
   aucun prix n'est inventé à sa place.
   Bilan (`my_balance_sheet`) : trésorerie, séquestre (nul tant que la maison n'a pas eu d'achat en attente), valeur des stocks qui ont un prix, et nombre de stocks sans prix, que cette valeur ignore.
-  Les sites, les navires et les biens immobiliers n'y figurent pas : leur prix d'acquisition est détruit.
+  Les sites, les navires et les biens immobiliers n'y figurent pas : leur prix d'acquisition est détruit, ou versé au vendeur d'un bien revendu.
 - **Famille** : conjoint, héritiers, parents, chacun avec 2 ou 3 traits. Un membre peut être placé à la tête d'un site ou envoyé en ambassade. Les mariages entre maisons de joueurs créent une alliance formelle (accès croisé aux entrepôts, clause d'entraide).
 - **Timè** : monte avec les contrats honorés, les liturgies et les mandats bien tenus ; baisse avec les défauts de paiement et les sanctions. Elle conditionne le crédit, l'éligibilité et les prix obtenus des PNJ.
 
@@ -174,6 +177,36 @@ Phase 2, première version (#256) :
 - **Lecture** : les règles (`property_rules`) et le parc de chaque cité, par bien, sans propriétaire nommé et avec l'état des seuls biens à vendre (`city_properties`), sont publics pour tout joueur connecté ; une maison lit ses biens, leur état et leur impayé par `my_properties`.
   L'écran attend #259.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
+
+Phase 2, seconde version (#257) : les biens se louent et se revendent entre maisons.
+Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en créer ; seule la taxe de la revente en détruit une part.
+
+- **Offres** : la maison propriétaire offre un bien à la location, au loyer quotidien qu'elle fixe (`property.offerLease`), ou à la vente, à prix affiché (`property.listForSale`), et retire son offre (`property.withdrawOffer`).
+  Une seule offre est ouverte par bien, de vente ou de location (`PROPERTY_ALREADY_LISTED`) : pour en changer, on retire la première.
+  Un bien loué ne s'offre ni à la vente ni à la location avant la fin du bail (`PROPERTY_LEASED`).
+  Il n'y a ni enchère ni négociation : l'offre se prend à son prix, ou se retire.
+- **Bail** (`property.lease`, bien et loyer vu) : une autre maison loue le bien au loyer de l'offre ; un autre loyer est refusé (`PRICE_CHANGED`), et une maison ne loue pas son propre bien (`OWN_PROPERTY`).
+  Rien n'est payé à la signature : le premier loyer est celui de la première clôture qui suit.
+  Le bail n'a pas de durée : il court jusqu'à ce que l'une ou l'autre partie en demande la fin (`property.endLease`), une fois et sans retour, ou jusqu'à un loyer impayé.
+  La fin demandée prend effet à la clôture suivante, qui ne demande alors plus de loyer.
+  Une fin demandée entre l'instant de jeu d'une clôture et son passage réel, quand la clôture est jouée en retard, termine le bail à cette clôture, sans loyer du jour.
+- **Loyer** : chaque clôture, avant la vétusté et l'entretien (étape `leaseRent`), met d'abord fin aux baux dont la fin est demandée, puis demande à chaque autre bail signé avant l'instant de la clôture le loyer d'un jour, dans l'ordre des signatures, de la trésorerie du locataire à celle du propriétaire, par une écriture `lease.rent` par bail (`settleRents`, `packages/sim`).
+  Le loyer est payé en entier si la trésorerie du locataire le couvre, sinon le bail prend fin, impayé ; la monnaie sous séquestre ne paie pas.
+  Un loyer reçu est disponible aussitôt : il peut payer, plus loin dans l'ordre, un loyer dû par le propriétaire, puis l'entretien de ses sites, navires et biens.
+  Les loyers passent les premiers de ce qui touche la monnaie pour cette raison, et parce que le logement des travailleurs (#258) lira les baux restés en cours.
+  Une clôture manquée ne demande pas de loyer pour le jour manqué, comme l'entretien.
+  Chaque bail terminé, demandé ou impayé, a son événement `LeaseEnded`.
+- **Revente** (`property.buyListed`, bien et prix vu) : une autre maison achète le bien mis en vente, au prix affiché ; un autre prix est refusé (`PRICE_CHANGED`), une maison n'achète pas son propre bien (`OWN_PROPERTY`), et une trésorerie qui ne couvre pas le prix ne paie rien.
+  Une seule écriture `property.sale` débite l'acheteur du prix, crédite le vendeur du net, et prélève la taxe de marché de la cité du bien comme à l'agora (5.3) : même calcul (`marketTax`), même répartition entre le puits `sink_market_tax` et le trésor de la cité.
+  Le bien change de maison dans la même transaction et garde son état et son entretien impayé ; son instant d'achat devient celui de la revente.
+  Un bien revendu entre l'instant de jeu d'une clôture et son passage réel a donc un instant d'achat postérieur à la clôture, qui ne prélève son entretien du jour ni sur l'ancien propriétaire ni sur le nouveau (seuls les biens achetés avant l'instant de la clôture le doivent).
+  Événement `PropertySold`, avec le prix, le net et les deux parts de la taxe.
+- **Concurrence** : toutes ces commandes prennent le verrou de l'agora du monde, puis le bien (la revente, ensuite, les deux trésoreries par identifiant) ; deux locations ou deux achats du même bien se suivent, et le second trouve l'offre fermée.
+  Une offre retirée pendant qu'on l'achète ou qu'on la loue n'est ni vendue ni louée : l'un ou l'autre passe, jamais les deux.
+  La base vérifie à la validation qu'une offre vendue a cédé le bien à l'acheteur et qu'un bail a fermé son offre louée (12).
+- **Lecture** : les offres ouvertes de toutes les cités sont publiques pour tout joueur connecté (`property_offers` : le bien, sa cité, sa taille, son numéro, son état, la nature de l'offre et son prix ou loyer, sa date), sans la maison qui offre ; offrir un bien rend son état public.
+  Chaque partie lit les baux dont elle est partie, en cours et terminés, avec les deux maisons, le loyer, la demande de fin et la fin (`my_leases`).
+  L'écran attend #259 ; le loyer d'équilibre et le logement des travailleurs, #258.
 
 ## 4.6 La flotte et les caravanes
 
