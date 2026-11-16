@@ -159,11 +159,17 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le quorum est fixé à la proposition ; les paramètres sont un objet que l'API valide contre les bornes de la configuration en vigueur, la base ne lisant pas la configuration.
   Au dépouillement, la base recompte elle-même les votes et les citoyens de la cité devenus citoyens avant la fin du vote, et n'admet que l'issue qui en découle : adopté si les votes exprimés atteignent le quorum et que les pour l'emportent strictement, rejeté sinon.
   Un vote est déposé par un citoyen de la cité pendant le vote, un seul par maison et par décret, et il ne change plus ; il prend un verrou partagé sur le décret, que le dépouillement verrouille avant de compter.
-  Le passage à `applied` attend les effets des décrets (#262, #263) : la garde le refuse encore.
+  Un décret adopté de taux (taxe de marché, droit de port) passe une fois à `applied` (#262), à la date de la transaction (`applied_at`), sans que rien d'autre ne change ; `applied` est un état final.
+  Un décret de dépense reste adopté : son application attend #263, et la garde la refuse encore.
+  Un seul événement `DecreeApplied` par décret (index unique sur `domain_events`).
+  Taux en vigueur d'une cité : `game.city_rates(monde, règles)` est le seul calcul, pour le service (qui lui passe la configuration qu'il a lue) comme pour les joueurs.
+  Il rend, pour chaque cité du monde, la valeur du dernier décret appliqué, ramenée dans les bornes du modèle, sinon celle de la configuration, que ces bornes ne touchent pas ; un modèle que la configuration ne borne pas rend la valeur de la configuration.
+  Dernier appliqué : le plus récemment appliqué, puis, à la même clôture, celui dont le vote a fini le plus tard, puis l'identifiant le plus grand.
   Le service n'écrit ni identifiant, ni date, ni état à la proposition, et ne supprime rien.
   Les joueurs connectés lisent les décrets de toutes les cités (`public.decrees` : paramètres, auteur, état, calendrier, quorum, et le décompte, nul avant le dépouillement) et les règles en vigueur (`decree_rules` : une ligne par modèle ouvert, avec les bornes de ses paramètres et les règles du vote, rendue par `game.decree_rules()`).
   D'un vote, un joueur ne lit que celui de sa maison, et seulement son décret et sa date (`my_decree_votes`, « j'ai voté ») : jamais son choix, ni le vote d'une autre maison.
-  Les vues des décrets sont créées sous condition, pour que les tickets suivants puissent les étendre (ADR 0006).
+  Les vues des décrets sont créées sous condition, pour que les tickets suivants puissent les étendre (ADR 0006) ; `public.decrees` rend aussi la date d'application.
+  Les joueurs connectés lisent les taux en vigueur de chaque cité (`public.city_rates` : taux de la taxe de marché et coefficient du droit de port, sous la version en vigueur, par `game.city_rates_in_force()`), sans pouvoir calculer des taux sous d'autres règles.
 - Voyages (4.6, #252) : `voyages` porte le navire, sa maison, les cités de départ et d'arrivée, le départ, l'arrivée prévue et l'arrivée ; `voyage_cargo` une ligne par bien et sa quantité.
   La base garantit qu'un voyage part à l'instant de sa transaction, en mer, de la cité où son navire armé est à quai, qu'un navire n'a qu'un voyage en mer à la fois (index unique), que seule l'arrivée s'écrit ensuite, une fois, ni avant l'arrivée prévue ni dans le futur, et que la cargaison s'écrit dans la transaction du départ puis ne change plus.
   Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).

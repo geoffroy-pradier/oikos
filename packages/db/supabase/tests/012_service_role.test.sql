@@ -40,7 +40,7 @@ select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name collate "C", column_name collate "C")
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
-  'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status decrees.electorate decrees.status decrees.tallied_at '
+  'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status decrees.applied_at decrees.electorate decrees.status decrees.tallied_at '
     || 'decrees.votes_against decrees.votes_for elections.tallied_at '
     || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
@@ -75,7 +75,7 @@ select is(
   'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_property_listing_settled game.check_trade_settled game.check_trade_settlement '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
-    || 'game.city_identity game.city_properties game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
+    || 'game.city_identity game.city_properties game.city_rates_in_force game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
     || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
     || 'game.politics_rules game.property_offers game.property_rules game.purge_messages game.readable_channel_ids game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
@@ -100,7 +100,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.purge_messages game.uuid_v7 '
+  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
