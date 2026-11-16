@@ -154,6 +154,8 @@ Phase 2, première version (#256) :
   par cité, le nombre de biens de chaque taille (`countsByCity`).
   L'état d'un bien va de 0 à 10 000 (neuf).
   Entretien et vétusté entrent à zéro dans la configuration initiale (paramètres neutres) ; une version publiée avant l'immobilier n'a aucun bien.
+- **Parc** : chaque cité a un parc fini, d'abord détenu par elle, que le moteur crée au premier tick qui la connaît (comme sa population, 5.2) et complète jusqu'au nombre de la configuration ;
+  baisser ce nombre ne retire aucun bien.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes
