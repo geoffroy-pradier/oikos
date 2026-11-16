@@ -438,7 +438,6 @@
     "docked": "à quai à {{city}}",
     "atSea": "en mer vers {{city}}, arrivée prévue le {{time}}",
     "atSeaUnknown": "en mer",
-    "laidUp": "(désarmé : entretien impayé)",
     "shipyard": "Chantier naval",
     "shipyardIntro": "Un navire neuf naît à quai à {{city}}. Son prix est payé une fois, son entretien chaque jour.",
     "noClasses": "Aucun navire n'est à vendre pour l'instant.",
@@ -446,7 +445,11 @@
     "buy": "Acheter — {{cost}}",
     "bought": "{{ship}} acheté pour {{cost}}.",
     "alreadyBought": "Cet achat avait déjà abouti : {{ship}} acheté pour {{cost}}. Rien n'a été payé de nouveau.",
-    "buyUnanswered": "Un achat de navire est resté sans réponse. Vérifiez votre flotte avant de racheter : il a pu aboutir."
+    "buyUnanswered": "La réponse d'un achat de navire s'est perdue, et un navire de plus apparaît dans votre flotte. Vérifiez-la avant de racheter : un nouvel essai serait un nouvel achat.",
+    "afterName": " : {{state}}",
+    "withLaidUp": "{{state}} (désarmé : entretien impayé)",
+    "buyChecked": "J'ai vérifié ma flotte",
+    "noRouteFor": "Sans route : {{cities}}."
   },
   "shipClasses": {
     "coaster": "Caboteur",
