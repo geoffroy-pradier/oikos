@@ -1218,7 +1218,9 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
         await column('Ventes').getByRole('button').focus();
         await page.keyboard.press('Enter');
         await expect(column('Ventes')).toHaveAttribute('aria-sort', 'descending');
-        await expect(income.getByRole('status')).toHaveText('Trié par Ventes, ordre décroissant');
+        await expect(income.getByRole('status')).toHaveText(
+          'Trié par Ventes et loyers reçus, ordre décroissant',
+        );
       }
       await expectNoHorizontalScroll(page);
       await page.getByLabel('Langue').selectOption('en');

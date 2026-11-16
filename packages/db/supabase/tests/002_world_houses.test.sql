@@ -46,6 +46,7 @@ select is(
     || 'elections(candidacy_opens_at,city_id,id,office,tallied_at,term_ends_at,voting_closes_at,voting_opens_at,world_id) '
     || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
+    || 'leases(end_reason,end_requested_at,end_requested_by,ended_at,ended_day,id,landlord_house_id,property_id,rent_oboles,started_at,tenant_house_id) '
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'messages(channel_id,created_at,hidden_at,house_id,id,visible_body) '
     || 'npc_population(city_id,class_id,closed_day,coverage_bps,population) '
@@ -54,6 +55,7 @@ select is(
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'properties(acquired_at,city_id,condition,id,lot,owner_house_id,size_id,upkeep_unpaid_since) '
+    || 'property_listings(closed_at,created_at,house_id,id,kind,ledger_entry_id,outcome,price_oboles,property_id) '
     || 'ships(class_id,docked_city_id,house_id,id,laid_up_at) sites(city_id,cycle_started_at,halted_at,house_id,id,recipe_id) '
     || 'trades(ledger_entry_id,price,quantity,sell_order_id) voyage_cargo(good_id,quantity,voyage_id) '
     || 'voyages(arrived_at,arrives_at,departed_at,from_city_id,house_id,id,ship_id,to_city_id) worlds(created_at,id,name,slug)',
