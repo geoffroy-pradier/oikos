@@ -720,7 +720,8 @@
     "done": "Décret proposé : il est au vote.",
     "betweenOboles": "Entre {{min}} et {{max}} oboles ({{minMoney}} à {{maxMoney}}).",
     "amountIs": "Soit {{amount}}.",
-    "tooManyGoods": "Trop de biens pour cette fête."
+    "tooManyGoods": "Trop de biens pour cette fête.",
+    "noGoods": "Cochez au moins un bien pour cette fête."
   },
   "treasury": {
     "title": "Trésor public",

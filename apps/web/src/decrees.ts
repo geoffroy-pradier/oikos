@@ -1,4 +1,5 @@
 import {
+  boundedDecreeParamsSchemas,
   decreeProposalSchema,
   type DecreeModel,
   type DecreeModelBounds,
@@ -175,5 +176,17 @@ export function parseDecreeRules(rows: unknown): DecreeRules | null {
     quorumBps: first?.quorum_bps ?? 0,
     maxOpenPerCity: first?.max_open_per_city ?? 0,
     spendingCapShareBps: first?.spending_cap_share_bps ?? 0,
+  };
+}
+
+/**
+ * Paramètres saisis jugés par le schéma borné de `@oikos/contracts`, le même que l'API : la proposition
+ * s'ils sont tous dans les bornes, et le nom de chaque paramètre fautif, jugé seul. Modèle fermé : rien ne part.
+ */
+export function checkDecreeParams(bounds: DecreeModelBounds, model: DecreeModel, params: unknown) {
+  const parsed = boundedDecreeParamsSchemas(bounds)[model]?.safeParse(params);
+  return {
+    proposal: parsed?.success ? ({ model, params: parsed.data } as DecreeProposal) : null,
+    faulty: new Set((parsed?.error?.issues ?? []).map((issue) => String(issue.path[0]))),
   };
 }
