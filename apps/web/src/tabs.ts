@@ -9,7 +9,10 @@ export const TABS = [
 export type TabId = (typeof TABS)[number]['id'];
 
 /** Écrans ouverts depuis un onglet sans en être la racine : l'onglet reste marqué actif. */
-const TAB_SCREENS: Readonly<Record<string, TabId>> = { '/comptes': 'house' };
+const TAB_SCREENS: Readonly<Record<string, TabId>> = {
+  '/comptes': 'house',
+  '/personnel': 'house',
+};
 
 /**
  * Onglet actif pour un chemin : la racine d'un onglet ou une page sous elle (`/agora/…`), un écran

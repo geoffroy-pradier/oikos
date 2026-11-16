@@ -5,6 +5,7 @@ import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
 import { MapScreen } from './screens/Map';
 import { ShipScreen } from './screens/Ship';
+import { StaffScreen } from './screens/Staff';
 import { NotFound } from './screens/NotFound';
 import { Placeholder } from './screens/Placeholder';
 import { Shell } from './Shell';
@@ -19,6 +20,7 @@ const routeTree = rootRoute.addChildren([
   route('/', HomeScreen),
   // Écrans de l'onglet Maison, ouverts depuis le tableau de bord.
   route('/comptes', AccountsScreen),
+  route('/personnel', StaffScreen),
   route('/carte', MapScreen),
   route('/carte/navire/$shipId', ShipScreen),
   route('/agora', AgoraScreen),
