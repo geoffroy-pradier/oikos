@@ -147,6 +147,46 @@
     }
   },
   "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
+  "properties": {
+    "sizes": [
+      {
+        "id": "townhouse",
+        "purchasePriceOboles": 3000,
+        "housingUnits": 4,
+        "dailyUpkeepOboles": 0,
+        "dailyWear": 0,
+        "minHabitableCondition": 3000,
+        "renovation": {
+          "oboles": 300,
+          "goods": [
+            { "goodId": "wood", "quantity": 20 },
+            { "goodId": "clay", "quantity": 30 }
+          ]
+        }
+      },
+      {
+        "id": "tenement",
+        "purchasePriceOboles": 9000,
+        "housingUnits": 16,
+        "dailyUpkeepOboles": 0,
+        "dailyWear": 0,
+        "minHabitableCondition": 3000,
+        "renovation": {
+          "oboles": 900,
+          "goods": [
+            { "goodId": "wood", "quantity": 60 },
+            { "goodId": "clay", "quantity": 90 }
+          ]
+        }
+      }
+    ],
+    "countsByCity": {
+      "kalliste": { "townhouse": 20, "tenement": 6 },
+      "elaia": { "townhouse": 12, "tenement": 3 },
+      "ampelos": { "townhouse": 12, "tenement": 3 },
+      "halos": { "townhouse": 12, "tenement": 3 }
+    }
+  },
   "goods": [
     { "id": "wheat", "tier": "raw", "referencePriceOboles": 6, "elasticity": 0.4 },
     { "id": "olives", "tier": "raw", "referencePriceOboles": 9, "elasticity": 0.6 },

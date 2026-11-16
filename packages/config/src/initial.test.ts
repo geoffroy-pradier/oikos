@@ -152,6 +152,18 @@ describe('jeu de valeurs initial', () => {
     for (const shipClass of config.ships.classes) expect(shipClass.dailyUpkeepOboles).toBe(0);
   });
 
+  it('deux tailles de logement, sans entretien ni vétusté au départ, dans chaque cité (#256, paramètres neutres)', () => {
+    const { sizes, countsByCity } = config.properties;
+    expect(sizes.map((size) => size.id)).toEqual(['townhouse', 'tenement']);
+    for (const size of sizes) {
+      expect([size.id, size.dailyUpkeepOboles, size.dailyWear]).toEqual([size.id, 0, 0]);
+      // Une rénovation coûte moins que l'achat.
+      expect(size.renovation.oboles).toBeLessThan(size.purchasePriceOboles);
+    }
+    for (const city of config.cities)
+      for (const size of sizes) expect(countsByCity[city.id]?.[size.id]).toBeGreaterThan(0);
+  });
+
   it('métèque trois jours, archonte élu pour 28 jours, au plus deux mandats de suite (3, 6.2 ; #260)', () => {
     expect(config.politics).toEqual({
       meticDays: 3,

@@ -15,6 +15,7 @@ import {
   DEFAULT_PRICE_HISTORY,
   DEFAULT_POPULATION_DYNAMICS,
   DEFAULT_PRICE_INDEX,
+  DEFAULT_PROPERTIES,
   DEFAULT_SHIPS,
   DEFAULT_SITES,
   DEFAULT_STAFF,
@@ -116,6 +117,20 @@ const FIXTURE: GameConfig = {
     portDues: { byClassOboles: { coaster: 4 }, burnShareBps: 5_000, cityCoefficientBps: {} },
   },
   staff: { dailyWageOboles: { kalliste: 3 } },
+  properties: {
+    sizes: [
+      {
+        id: 'townhouse',
+        purchasePriceOboles: 2_400,
+        housingUnits: 4,
+        dailyUpkeepOboles: 5,
+        dailyWear: 40,
+        minHabitableCondition: 2_500,
+        renovation: { oboles: 200, goods: [{ goodId: 'wheat', quantity: 3 }] },
+      },
+    ],
+    countsByCity: { kalliste: { townhouse: 8 } },
+  },
   politics: {
     meticDays: 2,
     archon: { termDays: 21, candidacyDays: 3, votingDays: 2, maxConsecutiveTerms: 3 },
@@ -1253,5 +1268,86 @@ describe('routes et droit de port (4.6, 5.6)', () => {
     // Cité sans coefficient : ×1.
     expect(cityPortDuesCoefficientBps(result.config, 'halos')).toBe(10_000);
     expect(cityPortDuesCoefficientBps(result.config, 'constructor')).toBe(10_000);
+  });
+});
+
+describe('immobilier (4.5)', () => {
+  const townhouse = () => at(clone().properties.sizes, 0);
+  const withSize = (patch: Record<string, unknown>) => ({
+    ...clone(),
+    properties: { ...clone().properties, sizes: [{ ...townhouse(), ...patch }] },
+  });
+  const fields = (candidate: unknown) => errorsOf(candidate).map((error) => error.split(':')[0]);
+
+  it('une version publiée avant l’immobilier reste lisible, sans aucun bien', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.properties;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.properties).toEqual({ sizes: [], countsByCity: {} });
+    expect(Object.isFrozen(DEFAULT_PROPERTIES.sizes)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_PROPERTIES.countsByCity)).toBe(true);
+  });
+
+  it('une taille : prix, capacité et coût de rénovation positifs, entretien, vétusté et seuil bornés', () => {
+    expect(
+      fields(withSize({ dailyUpkeepOboles: 0, dailyWear: 0, minHabitableCondition: 0 })),
+    ).toEqual([]);
+    expect(fields(withSize({ dailyWear: 10_000, minHabitableCondition: 10_000 }))).toEqual([]);
+    for (const [key, values] of [
+      ['purchasePriceOboles', [0, -1, 2.5, 1_000_000_001]],
+      ['housingUnits', [0, 1.5, 1_000_001]],
+      ['dailyUpkeepOboles', [-1, 0.5]],
+      ['dailyWear', [-1, 10_001, 0.5]],
+      ['minHabitableCondition', [-1, 10_001, 0.5]],
+    ] as const)
+      for (const value of values)
+        expect([key, value, fields(withSize({ [key]: value }))]).toEqual([
+          key,
+          value,
+          [`properties.sizes[0].${key}`],
+        ]);
+    // Une rénovation gratuite n'aurait pas d'écriture du grand livre, à laquelle la base la reconnaît.
+    expect(fields(withSize({ renovation: { oboles: 0, goods: [] } }))).toEqual([
+      'properties.sizes[0].renovation.oboles',
+    ]);
+    expect(fields(withSize({ renovation: { oboles: 1, goods: [] } }))).toEqual([]);
+    expect(fields(withSize({ shop: true }))).toEqual(['properties.sizes[0]']);
+  });
+
+  it('rénovation : des biens connus, chacun une fois, en quantité positive', () => {
+    const goods = (list: unknown[]) =>
+      errorsOf(withSize({ renovation: { oboles: 10, goods: list } }));
+    expect(goods([{ goodId: 'marble', quantity: 1 }])).toEqual([
+      'properties.sizes[0].renovation.goods[0].goodId: unknown good "marble"',
+    ]);
+    expect(
+      goods([
+        { goodId: 'wheat', quantity: 1 },
+        { goodId: 'wheat', quantity: 2 },
+      ]),
+    ).toEqual(['properties.sizes[0].renovation.goods: duplicate good "wheat"']);
+    expect(goods([{ goodId: 'wheat', quantity: 0 }]).map((e) => e.split(':')[0])).toEqual([
+      'properties.sizes[0].renovation.goods[0].quantity',
+    ]);
+  });
+
+  it('parc : des cités et des tailles connues, des nombres entiers bornés, des tailles uniques', () => {
+    const counts = (countsByCity: unknown) =>
+      errorsOf({ ...clone(), properties: { ...clone().properties, countsByCity } });
+    expect(counts({ atlantis: { townhouse: 1 } })).toEqual([
+      'properties.countsByCity.atlantis: unknown city "atlantis"',
+    ]);
+    expect(counts({ kalliste: { palace: 1 } })).toEqual([
+      'properties.countsByCity.kalliste.palace: unknown size "palace"',
+    ]);
+    for (const value of [-1, 10_001, 1.5])
+      expect(counts({ kalliste: { townhouse: value } }).map((e) => e.split(':')[0])).toEqual([
+        'properties.countsByCity.kalliste.townhouse',
+      ]);
+    expect(counts({ kalliste: { townhouse: 0 } })).toEqual([]);
+    expect(
+      errorsOf({ ...clone(), properties: { sizes: [townhouse(), townhouse()], countsByCity: {} } }),
+    ).toEqual(['properties.sizes: duplicate id "townhouse"']);
   });
 });
