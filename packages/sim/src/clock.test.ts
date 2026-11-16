@@ -96,6 +96,12 @@ describe('clôture quotidienne à 04 h 00, heure de Paris', () => {
   });
 });
 
+/**
+ * Délai des tests qui parcourent une année tick par tick (52 560 ticks de 10 minutes) : le délai par défaut
+ * de vitest (5 s) a été dépassé en `ci`, où les tests de tous les paquets tournent en même temps.
+ */
+const YEAR_SCAN_TIMEOUT_MS = 30_000;
+
 describe('bascule de saison', () => {
   const switches = (fromIso: string, toIso: string) => {
     const found: string[] = [];
@@ -123,18 +129,22 @@ describe('bascule de saison', () => {
     expect(seasonIndexAt(at('2026-11-15T22:00:00Z'), PARIS)).toBe(before + 1);
   });
 
-  it('suit la durée de saison de la configuration : avec 28 jours, une bascule toutes les 28 clôtures', () => {
-    const clock = { ...PARIS, seasonDays: 28 };
-    const found: number[] = [];
-    for (let index = at('2026-01-01T00:00:00Z'); index < at('2027-01-01T00:00:00Z'); index++) {
-      if (isSeasonSwitch(index, clock)) found.push(index);
-    }
-    expect(found).toHaveLength(13);
-    const gaps = found
-      .slice(1)
-      .map((index, position) => closesBetweenIndexes(found[position] ?? 0, index));
-    expect(new Set(gaps)).toEqual(new Set([28]));
-  });
+  it(
+    'suit la durée de saison de la configuration : avec 28 jours, une bascule toutes les 28 clôtures',
+    () => {
+      const clock = { ...PARIS, seasonDays: 28 };
+      const found: number[] = [];
+      for (let index = at('2026-01-01T00:00:00Z'); index < at('2027-01-01T00:00:00Z'); index++) {
+        if (isSeasonSwitch(index, clock)) found.push(index);
+      }
+      expect(found).toHaveLength(13);
+      const gaps = found
+        .slice(1)
+        .map((index, position) => closesBetweenIndexes(found[position] ?? 0, index));
+      expect(new Set(gaps)).toEqual(new Set([28]));
+    },
+    YEAR_SCAN_TIMEOUT_MS,
+  );
 
   it('avec une saison d’un jour, chaque clôture est une bascule', () => {
     const clock = { ...PARIS, seasonDays: 1 };
@@ -144,11 +154,15 @@ describe('bascule de saison', () => {
     }
   });
 
-  it('52 ou 53 bascules par an, jamais deux le même jour', () => {
-    const year = switches('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z');
-    expect(year).toHaveLength(52);
-    expect(new Set(year.map((iso) => iso.slice(0, 10))).size).toBe(year.length);
-  });
+  it(
+    '52 ou 53 bascules par an, jamais deux le même jour',
+    () => {
+      const year = switches('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z');
+      expect(year).toHaveLength(52);
+      expect(new Set(year.map((iso) => iso.slice(0, 10))).size).toBe(year.length);
+    },
+    YEAR_SCAN_TIMEOUT_MS,
+  );
 });
 
 /** Premier tick qui commence à l'instant donné ou après. */
