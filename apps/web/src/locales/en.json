@@ -124,6 +124,7 @@
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",
     "staffLink": "House staff",
+    "propertyLink": "Property",
     "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it."
   },
   "agora": {
@@ -309,7 +310,12 @@
     "SHIP_LAID_UP": "This ship is laid up: it can only sail after a daily close that pays its upkeep.",
     "SHIP_CLASS_RETIRED": "This ship class was withdrawn: it can no longer sail.",
     "NO_ROUTE": "No route leads to that city.",
-    "CARGO_OVER_CAPACITY": "The cargo exceeds the ship's capacity."
+    "CARGO_OVER_CAPACITY": "The cargo exceeds the ship's capacity.",
+    "OWN_PROPERTY": "This is your own property.",
+    "PROPERTY_NOT_FOR_LEASE": "This property is no longer for lease.",
+    "PROPERTY_NOT_FOR_SALE": "This property is no longer for sale.",
+    "PROPERTY_NOT_FOUND": "This property no longer exists.",
+    "PROPERTY_SIZE_RETIRED": "This property size has been retired."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -529,5 +535,33 @@
   "propertySizes": {
     "townhouse": "Town house",
     "tenement": "Tenement"
+  },
+  "property": {
+    "title": "Property",
+    "intro": "The archipelago's housing: buy it from the city or from a house, lease it, renovate it. A property houses your workers in its city while it is in good repair; rent is paid every day at the close.",
+    "describe": "{{size}} no. {{lot}}, {{city}}",
+    "condition": "Condition: {{percent}}",
+    "offers": "Properties on offer",
+    "noOffers": "No property on offer for now.",
+    "offer": {
+      "citySale": "Sold by the city: {{cost}}",
+      "sale": "Sold by a house: {{cost}}",
+      "lease": "For lease: {{cost}} a day"
+    },
+    "take": {
+      "citySale": "Buy from the city ({{cost}})",
+      "sale": "Buy ({{cost}})",
+      "lease": "Lease ({{cost}} a day)"
+    },
+    "yourOffer": "Your offer.",
+    "mine": "My properties",
+    "noneMine": "You own no property.",
+    "upkeep": "Upkeep: {{cost}} a day, charged at the close",
+    "unpaid": "Upkeep unpaid since {{date}}: this property houses no one until it is paid.",
+    "done": {
+      "buy": "Property bought.",
+      "buyListed": "Property bought.",
+      "lease": "Lease signed."
+    }
   }
 }

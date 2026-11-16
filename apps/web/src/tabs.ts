@@ -12,6 +12,7 @@ export type TabId = (typeof TABS)[number]['id'];
 const TAB_SCREENS: Readonly<Record<string, TabId>> = {
   '/comptes': 'house',
   '/personnel': 'house',
+  '/immobilier': 'house',
 };
 
 /**
