@@ -1,5 +1,6 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
-import { yieldModelOf } from '@oikos/sim';
+import type { SiteCollectOutput } from '@oikos/contracts';
+import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
 import { Button, Card } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +8,7 @@ import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandRespo
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { parseCityIdentities } from '../city-identity';
-import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf } from '../harvest-events';
+import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf, yieldGaps } from '../harvest-events';
 import {
   freeStockIn,
   parseLaborMarket,
@@ -109,12 +110,19 @@ export function SitesCard({
   const staffOf = useMemo(() => parseSiteStaff(workforceRows.rows), [workforceRows.rows]);
   // Événements de rendement des cités des sites (7.4, #417) qui finissent après le début du plus ancien cycle
   // en cours : les seuls qu'une récolte peut encore rencontrer. La vue ne rend que ceux commencés.
-  const oldest = Math.min(...(sites.rows ?? []).map((site) => Date.parse(site.cycle_started_at)));
-  const eventRows = useEventRows({
-    city_id: [...new Set((sites.rows ?? []).map((site) => site.city_id))].sort(),
-    model: YIELD_MODELS,
-    ends_at: { gt: new Date(Number.isFinite(oldest) ? oldest : 0).toISOString() },
-  });
+  // Rien n'est lu tant que les sites ne sont pas lus, ni sans site : une lecture vide ferait estimer un champ
+  // comme sans événement.
+  const siteRows = sites.rows ?? [];
+  const oldest = Math.min(...siteRows.map((site) => Date.parse(site.cycle_started_at)));
+  const eventRows = useEventRows(
+    siteRows.length === 0
+      ? null
+      : {
+          city_id: [...new Set(siteRows.map((site) => site.city_id))].sort(),
+          model: YIELD_MODELS,
+          ends_at: { gt: new Date(oldest).toISOString() },
+        },
+  );
   const { events, reload: reloadEvents } = eventRows;
   const { reload: reloadLaborDays } = laborRows;
   const { reload: reloadWorkforce } = workforceRows;
@@ -195,6 +203,13 @@ export function SitesCard({
     if (outputs.every((stack) => stack.quantity === 0)) return t(`home.${tense}Zero`);
     const lost = gaps.map((gap) => stackText({ ...gap, quantity: Math.abs(gap.quantity) }));
     return t(`home.${tense}.${model}`, { list: list(lost) });
+  };
+  /** Écart d'une récolte faite à son rendement sans événement : celui d'un champ ou d'un verger (#417). */
+  const collectedGaps = (site: Site, data: SiteCollectOutput) => {
+    const recipe = rules?.recipe(site.recipe_id);
+    return recipe && Number.isSafeInteger(data.cycles)
+      ? yieldGaps(recipe, data.cycles, data.outputs)
+      : [];
   };
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
@@ -303,7 +318,8 @@ export function SitesCard({
     if (!mine) return { halted, harvest, ...none, alerts };
     const start = new Date(site.cycle_started_at);
     const estimate = harvestUnderEvents(recipe, harvest.cycles, start, mine);
-    return { halted, harvest, estimate, current: inForce(mine, now), alerts };
+    // Un site à l'arrêt a ses cycles gelés : l'événement en cours ne touche pas sa récolte, il n'est pas dit.
+    return { halted, harvest, estimate, current: halted ? [] : inForce(mine, now), alerts };
   };
   const watched = rows
     .map((site) => ({ site, alerts: stateOf(site).alerts }))
@@ -365,7 +381,12 @@ export function SitesCard({
     run(
       site.id,
       () => collectSite(site.id, house.accessToken),
-      (data) => t('home.collected', { list: list(data.outputs.map(stackText)) }),
+      (data) => {
+        const done = t('home.collected', { list: list(data.outputs.map(stackText)) });
+        // Rendement touché par un événement : l'écart à `cycles` × extrant est expliqué (7.4, #417).
+        const why = gapText(site, data.outputs, collectedGaps(site, data), 'collectedGap');
+        return why ? `${done} ${why}` : done;
+      },
     );
 
   async function change(site: Site, recipeId: string) {
@@ -458,10 +479,19 @@ export function SitesCard({
     setBusy(true);
     setNotice(null);
     const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
+    // Sites dont la récolte faite a été touchée par un événement de rendement, par modèle (7.4, #417).
+    const touched = new Map<WorldEventKind, string[]>();
     try {
       const outcome = await collectAll(
         harvestable.map((site) => site.id),
-        (siteId) => collectSite(siteId, house.accessToken),
+        async (siteId) => {
+          const result = await collectSite(siteId, house.accessToken);
+          const site = harvestable.find((candidate) => candidate.id === siteId);
+          const model = yieldModelOf(rules?.siteTypeOf(site?.recipe_id ?? '') ?? '');
+          if (result.ok && site && model && collectedGaps(site, result.data).length > 0)
+            touched.set(model, [...(touched.get(model) ?? []), siteName(site)]);
+          return result;
+        },
       );
       await refresh();
       const parts: string[] = [];
@@ -473,6 +503,8 @@ export function SitesCard({
             list: list(outcome.collected.map(stackText)),
           }),
         );
+      for (const [model, touchedSites] of touched)
+        parts.push(t(`home.collectedAllGap.${model}`, { list: list(touchedSites) }));
       for (const failure of outcome.failed)
         parts.push(
           t('home.collectAllFailed', {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,8 +37,9 @@ const state = vi.hoisted(() => ({
   events: [] as unknown[] | null,
   reads: new Map<string, unknown>(),
 }));
+const api = vi.hoisted(() => ({ collectSite: vi.fn() }));
 vi.mock('../api', () => ({
-  collectSite: vi.fn(),
+  collectSite: api.collectSite,
   acquireSite: vi.fn(),
   restartSite: vi.fn(),
   setSiteRecipe: vi.fn(),
@@ -83,7 +84,15 @@ async function show() {
   );
 }
 Element.prototype.scrollIntoView = () => undefined;
+const statuses = () =>
+  screen
+    .queryAllByRole('status')
+    .map((region) => region.textContent)
+    .filter(Boolean)
+    .join(' ');
+
 beforeEach(() => {
+  api.collectSite.mockReset();
   window.sessionStorage.clear();
   state.sites = [site('s1', 'grow_wheat')];
   state.events = [];
@@ -100,6 +109,21 @@ describe('écran Sites : récoltes sous les événements du monde (#417)', () =>
       model: ['drought', 'good_year'],
       ends_at: { gt: '2026-06-01T00:00:00.000Z' },
     });
+  });
+
+  it('sans site lu ni site du tout, les événements ne sont pas lus', async () => {
+    state.sites = [];
+    await show();
+    expect(state.reads.get('world_events')).toBeNull();
+  });
+
+  it('champ à l’arrêt : estimé au rendement de ses cycles gelés, l’événement en cours n’est pas dit', async () => {
+    // Arrêté à 2 h : deux cycles faits, avant la sécheresse commencée à 2 h 30 ; rien ne la touche.
+    state.sites = [{ ...site('s1', 'grow_wheat'), halted_at: '2026-06-01T02:00:00Z' }];
+    state.events = [event('e1', 'drought', '02:30', 5_000)];
+    await show();
+    expect(await screen.findByText('À récolter : 20 × Blé.')).toBeTruthy();
+    expect(screen.queryByText(/^Sécheresse/)).toBeNull();
   });
 
   it('sécheresse en cours : récolte estimée réduite, l’écart et l’événement dits', async () => {
@@ -134,6 +158,48 @@ describe('écran Sites : récoltes sous les événements du monde (#417)', () =>
     state.events = [event('e1', 'drought', '00:00', 10_000)];
     await show();
     expect(await screen.findByText(`À récolter : 0 × Blé. ${fr.home.eventGapZero}`)).toBeTruthy();
+  });
+
+  it('une récolte faite réduite, ou réduite à zéro, est expliquée dans l’issue annoncée', async () => {
+    state.events = [event('e1', 'drought', '01:30', 3_000)];
+    const answer = (quantity: number) => ({
+      ok: true,
+      replayed: false,
+      data: { cycles: 3, outputs: [{ goodId: 'wheat', quantity }] },
+    });
+    api.collectSite.mockResolvedValueOnce(answer(24)).mockResolvedValueOnce(answer(0));
+    await show();
+    const button = await screen.findByRole('button', { name: 'Récolter : Champ de blé' });
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(statuses()).toBe('Récolte engrangée : 24 × Blé. La sécheresse en a retiré 6 × Blé.'),
+    );
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(statuses()).toBe(`Récolte engrangée : 0 × Blé. ${fr.home.collectedGapZero}`),
+    );
+  });
+
+  it('« Tout récolter » nomme les sites dont la récolte a été touchée', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s2', 'grow_olives')];
+    api.collectSite.mockImplementation((siteId: string) =>
+      Promise.resolve({
+        ok: true,
+        replayed: false,
+        data:
+          siteId === 's1'
+            ? { cycles: 3, outputs: [{ goodId: 'wheat', quantity: 0 }] }
+            : { cycles: 3, outputs: [{ goodId: 'olives', quantity: 30 }] },
+      }),
+    );
+    await show();
+    fireEvent.click(await screen.findByRole('button', { name: /^Tout récolter/ }));
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 2 sites : 0 × Blé et 30 × Olives. ' +
+          'La sécheresse a réduit la récolte de : Champ de blé.',
+      ),
+    );
   });
 
   it('événements illisibles : la récolte d’un champ n’est pas estimée, relire est proposé', async () => {

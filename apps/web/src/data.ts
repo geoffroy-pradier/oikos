@@ -16,7 +16,8 @@ export function useRows<T>(
   columns: string,
   order: string,
   /** Égalité par colonne ; une liste : une valeur parmi celles-ci ; `{ gt }` : strictement après. */
-  filters: Record<string, string | readonly string[] | { gt: string }> = {},
+  /** `null` : rien n'est lu tant que le filtre n'est pas connu (`rows` reste `null`, sans échec). */
+  filters: Record<string, string | readonly string[] | { gt: string }> | null = {},
   /** Les `limit` dernières lignes selon `order`, rendues de la plus récente à la plus ancienne. */
   latestOnly?: { limit: number },
 ) {
@@ -27,8 +28,12 @@ export function useRows<T>(
   const latest = useRef(0);
   const reload = useCallback(async () => {
     const request = ++latest.current;
+    const parsed = JSON.parse(filterKey) as Record<
+      string,
+      string | string[] | { gt: string }
+    > | null;
+    if (parsed === null) return null;
     let query = supabase.from(view).select(columns);
-    const parsed = JSON.parse(filterKey) as Record<string, string | string[] | { gt: string }>;
     for (const [column, value] of Object.entries(parsed)) {
       if (value === null) throw new TypeError(`Null filter on ${column}`);
       query = Array.isArray(value)

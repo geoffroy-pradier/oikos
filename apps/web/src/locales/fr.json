@@ -125,6 +125,15 @@
       "good_year": "La bonne année y ajoute {{list}}."
     },
     "eventGapZero": "La sécheresse réduit cette récolte à rien : récolter fait quand même avancer les cycles.",
+    "collectedGap": {
+      "drought": "La sécheresse en a retiré {{list}}.",
+      "good_year": "La bonne année y a ajouté {{list}}."
+    },
+    "collectedGapZero": "La sécheresse a réduit cette récolte à rien : les cycles sont comptés, sans rien produire.",
+    "collectedAllGap": {
+      "drought": "La sécheresse a réduit la récolte de : {{list}}.",
+      "good_year": "La bonne année a accru la récolte de : {{list}}."
+    },
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
