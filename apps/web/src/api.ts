@@ -146,3 +146,23 @@ export const departVoyage = (
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<VoyageDepartOutput>('voyage.depart', input, accessToken, idempotencyKey);
+
+/**
+ * Commandes de l'immobilier (4.5). Chaque prix envoyé est celui que le joueur a vu : un autre prix en
+ * vigueur est refusé (`PRICE_CHANGED`), rien n'est payé. `idempotencyKey` : la même clé tant que la
+ * commande n'a pas reçu de réponse.
+ */
+export const propertyCommand = (
+  name:
+    | 'property.buy'
+    | 'property.buyListed'
+    | 'property.lease'
+    | 'property.renovate'
+    | 'property.listForSale'
+    | 'property.offerLease'
+    | 'property.withdrawOffer'
+    | 'property.endLease',
+  input: Record<string, unknown>,
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
