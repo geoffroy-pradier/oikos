@@ -1,5 +1,5 @@
 /** Accès typé à la base pour l'API de jeu et le moteur (Kysely). */
-import type { Blazon } from '@oikos/contracts';
+import type { Blazon, DecreeModel } from '@oikos/contracts';
 import {
   Kysely,
   PostgresDialect,
@@ -263,6 +263,40 @@ export interface GameDatabase {
     election_id: ColumnType<string, string, never>;
     starts_at: ColumnType<Date, Date, never>;
     ends_at: ColumnType<Date, Date, never>;
+  };
+  /**
+   * Décrets (6.3) : proposés par l'archonte en charge, dépouillés une fois par la clôture, qui écrit l'état,
+   * la date et le décompte que la base recompte (garde).
+   */
+  'game.decrees': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    model: ColumnType<DecreeModel, DecreeModel, never>;
+    /** `jsonb` : lu désérialisé, écrit sous forme de texte JSON. */
+    params: ColumnType<unknown, string, never>;
+    office_id: ColumnType<string, string, never>;
+    proposed_by: ColumnType<string, string, never>;
+    status: ColumnType<
+      'proposed' | 'adopted' | 'rejected' | 'applied',
+      never,
+      'adopted' | 'rejected'
+    >;
+    proposed_at: ColumnType<Date, never, never>;
+    voting_closes_at: ColumnType<Date, Date, never>;
+    quorum_bps: ColumnType<number, number, never>;
+    tallied_at: ColumnType<Date | null, never, Date>;
+    electorate: ColumnType<number | null, never, number>;
+    votes_for: ColumnType<number | null, never, number>;
+    votes_against: ColumnType<number | null, never, number>;
+  };
+  /** Votes sur un décret : un par maison, datés par la base, définitifs. */
+  'game.decree_votes': {
+    id: ColumnType<string, never, never>;
+    decree_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    approve: ColumnType<boolean, boolean, never>;
+    cast_at: ColumnType<Date, never, never>;
   };
   /**
    * Canaux de discussion (6.6) : celui d'une cité, né avec elle, ou la conversation privée de deux maisons
