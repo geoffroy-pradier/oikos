@@ -646,5 +646,30 @@
     },
     "withdrawn": "Votre maison a retiré sa candidature à cette élection : c'est définitif.",
     "withdrawWarning": "Un retrait est définitif : votre maison ne pourra plus se présenter à cette élection."
+  },
+  "assembly": {
+    "title": "Assemblée",
+    "open": "Décrets au vote",
+    "noOpen": "Aucun décret au vote.",
+    "meticNotice": "Métèque, votre maison ne vote pas les décrets de la cité.",
+    "proposed": "Proposé par {{house}} ; vote clos le {{closes}}",
+    "passed": "Décrets adoptés",
+    "noPassed": "Aucun décret adopté.",
+    "other": "Décrets rejetés ou caducs",
+    "tally": "Pour : {{for}} ; contre : {{against}} ; citoyens : {{electorate}}",
+    "status": {
+      "adopted": "Adopté : il s'applique à la prochaine clôture quotidienne.",
+      "applied": "En vigueur depuis le {{at}}",
+      "rejected": "Rejeté.",
+      "lapsed": "Caduc : le trésor ne le couvrait plus à la clôture."
+    },
+    "models": {
+      "market_tax_rate": "Taxe de marché de la cité à {{rate}}",
+      "port_dues": "Droit de port de la cité multiplié par {{factor}}",
+      "public_works": "Grands travaux : {{amount}}",
+      "festival_one": "Fête d'{{count}} jour : {{amount}}, pour {{goods}}",
+      "festival_other": "Fête de {{count}} jours : {{amount}}, pour {{goods}}"
+    },
+    "unreadable": "Décret illisible ({{model}})"
   }
 }

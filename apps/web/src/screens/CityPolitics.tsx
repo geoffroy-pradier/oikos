@@ -11,6 +11,7 @@ import {
   parseHouseNames,
   parseOffices,
   parseResults,
+  statusOf,
 } from '../politics';
 import { serverClock } from '../server-clock';
 import { ElectionActions } from './ElectionActions';
@@ -72,7 +73,7 @@ export function CityPolitics() {
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const number = new Intl.NumberFormat(i18n.language);
   const nameOf = (id: string) => names?.get(id) ?? t('cityPolitics.unknownHouse');
-  const status = names && houseRows.rows ? myStatus(houseRows.rows, house.id) : null;
+  const status = names && houseRows.rows ? statusOf(houseRows.rows, house.id) : null;
   const citizen = (status ?? house.citizenshipStatus) === 'citizen';
   const archon = offices?.find((office) => office.office === 'archon' && office.inOffice);
   const election = elections ? currentElection(elections) : null;
@@ -152,18 +153,4 @@ export function CityPolitics() {
       )}
     </Card>
   );
-}
-
-/** Statut de citoyenneté de la maison, relu dans la vue `houses` ; `null` s'il est illisible. */
-function myStatus(rows: unknown[], houseId: string): 'metic' | 'citizen' | null {
-  const row = rows.find(
-    (candidate): candidate is { id: string; citizenship_status: unknown } =>
-      typeof candidate === 'object' &&
-      candidate !== null &&
-      'id' in candidate &&
-      candidate.id === houseId,
-  );
-  return row?.citizenship_status === 'citizen' || row?.citizenship_status === 'metic'
-    ? row.citizenship_status
-    : null;
 }

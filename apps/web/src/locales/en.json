@@ -646,5 +646,30 @@
     },
     "withdrawn": "Your house withdrew its candidacy for this election: this is final.",
     "withdrawWarning": "Withdrawing is final: your house will not be able to stand again in this election."
+  },
+  "assembly": {
+    "title": "Assembly",
+    "open": "Decrees under vote",
+    "noOpen": "No decree under vote.",
+    "meticNotice": "As a metic, your house does not vote on the city's decrees.",
+    "proposed": "Proposed by {{house}}; voting closes {{closes}}",
+    "passed": "Adopted decrees",
+    "noPassed": "No decree adopted.",
+    "other": "Rejected or lapsed decrees",
+    "tally": "For: {{for}}; against: {{against}}; citizens: {{electorate}}",
+    "status": {
+      "adopted": "Adopted: it takes effect at the next daily close.",
+      "applied": "In force since {{at}}",
+      "rejected": "Rejected.",
+      "lapsed": "Lapsed: the treasury no longer covered it at the close."
+    },
+    "models": {
+      "market_tax_rate": "City market tax at {{rate}}",
+      "port_dues": "City port dues multiplied by {{factor}}",
+      "public_works": "Public works: {{amount}}",
+      "festival_one": "Festival of {{count}} day: {{amount}}, for {{goods}}",
+      "festival_other": "Festival of {{count}} days: {{amount}}, for {{goods}}"
+    },
+    "unreadable": "Unreadable decree ({{model}})"
   }
 }
