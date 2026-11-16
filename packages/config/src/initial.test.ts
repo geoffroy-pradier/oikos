@@ -40,6 +40,28 @@ describe('jeu de valeurs initial', () => {
     ]);
   });
 
+  it('Charis (#265) : chaque dieu prend la monnaie et les biens de son domaine à leur prix de référence', () => {
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    const domains = Object.fromEntries(
+      config.gods.map((god) => [god.id, Object.keys(god.charisPerUnit).sort()]),
+    );
+    expect(domains).toEqual({
+      demeter: ['bread', 'flour', 'wheat'],
+      athena: ['cloth', 'olive_oil', 'olives'],
+      dionysos: ['grapes', 'wine'],
+      poseidon: ['fish', 'salt'],
+      apollo: [],
+    });
+    for (const god of config.gods) {
+      // Offrir un bien rapporte autant qu'offrir son prix de référence en oboles.
+      expect(god.charisPerObole).toBe(1);
+      for (const [goodId, rate] of Object.entries(god.charisPerUnit))
+        expect(rate).toBe(price.get(goodId));
+      // Un déclin lent, de 1 % par jour ; la Charis de cité compte celle des citoyennes telle quelle.
+      expect([god.dailyDecayBps, god.cityCharisWeightBps]).toEqual([100, 10_000]);
+    }
+  });
+
   it('terroirs et recettes de départ des quatre cités (#250)', () => {
     const terroir = (cityId: string) =>
       [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])].sort();

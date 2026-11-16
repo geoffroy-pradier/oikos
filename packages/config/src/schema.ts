@@ -78,11 +78,29 @@ export const npcClassSchema = z.strictObject({
     .min(1),
 });
 
+/** Charis par unité offerte d'un bien, ou par obole : au plus un million, pour un gain en entiers sûrs. */
+const charisRate = z.number().int().max(1_000_000);
+
 /**
- * Un dieu du panthéon (docs/specs/07-dieux-faveur-evenements.md) : son identifiant seul pour l'instant,
- * que la Charis (#265) complétera.
+ * Un dieu du panthéon et sa Charis (docs/specs/07-dieux-faveur-evenements.md, 7.1 ; #265). Lu par les joueurs
+ * (vue `public.temple_rules`) : n'y ranger aucun paramètre qui doive rester caché. Ajouter un dieu ne demande
+ * aucun code. Les champs de la Charis sont absents des versions publiées avant elle : le dieu n'y accepte
+ * aucune offrande, rien ne décline, et sa Charis de cité est nulle.
  */
-export const godSchema = z.strictObject({ id });
+export const godSchema = z.strictObject({
+  id,
+  /** Charis gagnée par obole offerte (puits `sink_offerings`). Nulle : le dieu n'accepte pas la monnaie. */
+  charisPerObole: charisRate.min(0).default(0),
+  /** Charis gagnée par unité offerte de chaque bien ; un bien absent n'est pas accepté. */
+  charisPerUnit: z.record(id, charisRate.positive()).default({}),
+  /** Déclin de la Charis de chaque maison à chaque clôture, arrondi vers zéro. Nul : elle ne décline pas. */
+  dailyDecayBps: z.number().int().min(0).max(10_000).default(0),
+  /**
+   * Poids de la Charis de cité d'une cité dont il est le dieu protecteur : la Charis de ses citoyennes
+   * envers lui, sommée, fois ce poids (10 000 = ×1), arrondie vers zéro.
+   */
+  cityCharisWeightBps: z.number().int().min(0).max(100_000).default(0),
+});
 
 /**
  * Une cité et son identité (docs/specs/06-cites-politique-communaute.md, 6.1).
@@ -950,6 +968,12 @@ export const gameConfigSchema = z
       });
     });
     const gods = new Set(config.gods.map((god) => god.id));
+    // Charis : des biens connus. Un bien retiré de la configuration doit l'être aussi des offrandes.
+    config.gods.forEach((god, index) => {
+      for (const goodId of Object.keys(god.charisPerUnit))
+        if (!goods.has(goodId))
+          issue(['gods', index, 'charisPerUnit', goodId], `unknown good "${goodId}"`);
+    });
     const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
     // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
     // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».
@@ -1054,3 +1078,4 @@ export type Politics = z.infer<typeof politicsSchema>;
 export type ShipRoute = z.infer<typeof shipRouteSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;
 export type PropertySize = z.infer<typeof propertySizeSchema>;
+export type God = z.infer<typeof godSchema>;

@@ -180,7 +180,22 @@ const FIXTURE: GameConfig = {
       basket: [{ goodId: 'bread', need: 'vital', quantityPerThousand: 26 }],
     },
   ],
-  gods: [{ id: 'demeter' }, { id: 'poseidon' }],
+  gods: [
+    {
+      id: 'demeter',
+      charisPerObole: 1,
+      charisPerUnit: { wheat: 6, bread: 15 },
+      dailyDecayBps: 100,
+      cityCharisWeightBps: 10_000,
+    },
+    {
+      id: 'poseidon',
+      charisPerObole: 0,
+      charisPerUnit: {},
+      dailyDecayBps: 0,
+      cityCharisWeightBps: 0,
+    },
+  ],
   cities: [
     {
       id: 'kalliste',
@@ -1001,7 +1016,7 @@ describe('dieux et identité des cités (6.1)', () => {
     expect(cityStartingRecipeId(result.config, 'kalliste')).toBe('grow_wheat');
   });
 
-  it('dieu : identifiant seul, sans doublon ; un dieu protecteur inconnu est refusé', () => {
+  it('dieu : sans doublon ; un dieu protecteur inconnu est refusé', () => {
     expect(errorsOf({ ...clone(), gods: [{ id: 'demeter' }, { id: 'demeter' }] })).toEqual([
       'gods: duplicate id "demeter"',
     ]);
@@ -1016,6 +1031,49 @@ describe('dieux et identité des cités (6.1)', () => {
       'cities[0].patronGodId: unknown god "demeter"',
     ]);
     expect(errorsOf(withCity({ patronGodId: undefined }))).toEqual([]);
+  });
+
+  it('Charis (#265) : un dieu publié avant elle n’accepte rien et ne décline pas ; taux bornés, biens connus', () => {
+    const older = validateConfig({ ...clone(), gods: [{ id: 'demeter' }] });
+    if (!older.ok) throw new Error(older.errors.join('\n'));
+    expect(older.config.gods).toEqual([
+      {
+        id: 'demeter',
+        charisPerObole: 0,
+        charisPerUnit: {},
+        dailyDecayBps: 0,
+        cityCharisWeightBps: 0,
+      },
+    ]);
+    const god = (patch: Record<string, unknown>) => ({
+      ...clone(),
+      gods: [{ ...clone().gods[0], ...patch }],
+    });
+    expect(errorsOf(god({ charisPerUnit: { wheat: 6, fish: 12 } }))).toEqual([
+      'gods[0].charisPerUnit.fish: unknown good "fish"',
+    ]);
+    for (const patch of [
+      { charisPerUnit: { wheat: 0 } },
+      { charisPerUnit: { wheat: 1_000_001 } },
+      { charisPerUnit: { wheat: 1.5 } },
+      { charisPerObole: -1 },
+      { charisPerObole: 1_000_001 },
+      { dailyDecayBps: 10_001 },
+      { dailyDecayBps: -1 },
+      { cityCharisWeightBps: 100_001 },
+    ])
+      expect(errorsOf(god(patch))).toEqual([expect.stringMatching(/^gods\[0\]\.\w+/)]);
+    // Bornes atteintes : tout un jour de Charis perdu, un poids de ×10, un taux d'un million.
+    expect(
+      errorsOf(
+        god({
+          charisPerObole: 1_000_000,
+          charisPerUnit: { wheat: 1_000_000 },
+          dailyDecayBps: 10_000,
+          cityCharisWeightBps: 100_000,
+        }),
+      ),
+    ).toEqual([]);
   });
 
   it('terroir : recettes connues de production primaire, sans doublon ; un atelier y est refusé', () => {

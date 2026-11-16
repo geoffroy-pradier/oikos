@@ -9,7 +9,7 @@ Chaque cité a un terroir (ressources abondantes et absentes), un port ou non, u
 Dans la première version (ticket 250), l'Archipel compte quatre cités, décrites par la configuration sous leur identifiant court.
 Chacune y porte son terroir, son port, son dieu protecteur et, si elle le veut, sa propre recette de départ (3, progression) ; à défaut, c'est la recette de départ commune.
 Le terroir est la liste des productions de matière première qu'un site de la cité peut lancer ; les ateliers sont admis partout (4.2).
-Les dieux sont une liste `gods` de la configuration, réduite pour l'instant à leurs identifiants, que la Charis complétera (7.1).
+Les dieux sont une liste `gods` de la configuration : leur identifiant et leur Charis (7.1, ticket 265).
 Le schéma refuse un dieu, une recette ou une classe de PNJ inconnus, un atelier cité dans un terroir, et une cité dont la recette de départ n'est pas dans son terroir.
 Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce terroir.
 
