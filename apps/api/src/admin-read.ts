@@ -27,6 +27,9 @@ const DEFAULT_AUDIT_PAGE = 50;
 const MAX_AUDIT_PAGE = 100;
 const DEFAULT_ECONOMY_DAYS = 30;
 const MAX_ECONOMY_DAYS = 90;
+/** Calendrier des événements : finis depuis au plus 30 jours, et au plus 1 000 lignes. */
+const EVENTS_PAST_MS = 30 * 86_400_000;
+const MAX_EVENTS = 1_000;
 
 /**
  * Lectures du back-office (docs/specs/15-back-office-olympe.md) : le back-office n'accède jamais aux
@@ -78,6 +81,7 @@ export function registerAdminReads(
     ['/api/admin/config/*', 'config'],
     ['/api/admin/audit', 'audit'],
     ['/api/admin/roles', 'access'],
+    ['/api/admin/events', 'animation'],
   ] as const) {
     const roles: readonly AdminRole[] = ADMIN_MODULE_ROLES[module];
     app.use(path, async (c, next) => {
@@ -86,7 +90,7 @@ export function registerAdminReads(
     });
   }
   // Tout autre chemin que ceux déclarés ici et `/me` est refusé, quel que soit le rôle.
-  const OPEN_PATHS = ['me', 'vigie', 'economy', 'audit', 'roles'].map(
+  const OPEN_PATHS = ['me', 'vigie', 'economy', 'audit', 'roles', 'events'].map(
     (name) => `/api/admin/${name}`,
   );
   app.use('/api/admin/*', async (c, next) => {
@@ -392,6 +396,39 @@ export function registerAdminReads(
     }
     const { payload, ...meta } = version;
     return c.json({ ok: true, data: { ...meta, config: payload } });
+  });
+
+  // Calendrier des événements du monde (7.3, 7.4 ; #267), tous mondes : ceux à venir, que les joueurs ne lisent
+  // pas encore, et ceux en cours ou finis depuis `EVENTS_PAST_MS`, à l'heure de la base, sans leur graine. Les plus
+  // tardifs d'abord : la limite coupe les plus anciens, jamais ceux à venir.
+  app.get('/api/admin/events', async (c) => {
+    const { rows } = await sql<{ now: Date }>`select now() as now`.execute(db);
+    const now = rows[0]?.now ?? new Date();
+    const events = await db
+      .selectFrom('game.world_events as e')
+      .innerJoin('game.worlds as w', 'w.id', 'e.world_id')
+      .innerJoin('game.cities as c', 'c.id', 'e.city_id')
+      .leftJoin('game.cities as o', 'o.id', 'e.other_city_id')
+      .select([
+        'e.id',
+        'w.slug as world',
+        'e.model',
+        'c.slug as city',
+        'o.slug as otherCity',
+        'e.good_id as goodId',
+        'e.starts_at as startsAt',
+        'e.ends_at as endsAt',
+        'e.magnitude_bps as magnitudeBps',
+        'e.planned_day as plannedDay',
+      ])
+      .where('e.ends_at', '>', new Date(now.getTime() - EVENTS_PAST_MS))
+      .orderBy('e.starts_at', 'desc')
+      .orderBy('e.id', 'desc')
+      .limit(MAX_EVENTS)
+      .execute();
+    // Les instants partent en ISO 8601 (sérialisation JSON d'une `Date`).
+    const data = { now: now.toISOString(), pastDays: EVENTS_PAST_MS / 86_400_000, events };
+    return c.json({ ok: true, data });
   });
 
   // Journal d'audit : toutes les commandes d'administration, réussies ou refusées, les plus récentes d'abord.

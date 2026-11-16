@@ -10,6 +10,7 @@ import { Access } from './screens/Access';
 import { Audit } from './screens/Audit';
 import { Config } from './screens/Config';
 import { Economy } from './screens/Economy';
+import { Events } from './screens/Events';
 import { SecondFactor } from './screens/SecondFactor';
 import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
@@ -106,6 +107,8 @@ export function App() {
         <Audit accessToken={token} />
       ) : current === 'access' ? (
         <Access accessToken={token} userId={userId} />
+      ) : current === 'animation' ? (
+        <Events accessToken={token} />
       ) : (
         <p>{t('app.forbiddenModule')}</p>
       );

@@ -24,6 +24,11 @@ Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son ét
 Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.
 Le module IA (prompts, jeux d'essai) attend une phase suivante.
 
+Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
+`GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
+L'écran dit l'état de chacun (à venir, en cours, passé) à l'heure de l'API, pas du navigateur.
+Déclenchement manuel, création d'événements et propositions du maître du jeu attendent une phase suivante.
+
 ## 15.2 Cycle de vie d'un changement d'équilibrage
 
 1. **Brouillon** : un concepteur modifie des valeurs ; le schéma refuse les valeurs hors bornes.
@@ -137,6 +142,7 @@ Cette fonction ne sait pas qui l'appelle : c'est l'API qui établit l'identité 
 le compte de service de l'API est donc de confiance pour cette identité, comme pour toutes les écritures du jeu.
 Les lectures du back-office passent par des routes `GET /api/admin/*` de l'API, soumises au même contrôle (second facteur et rôle relu à chaque requête) : Vigie, économie (masse monétaire, robinets et puits : 5.5) et paramètres pour le super-administrateur, le concepteur de jeu et l'observateur ;
 journal d'audit pour le super-administrateur et l'observateur.
+Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la même voie, pour le super-administrateur, le concepteur de jeu, le responsable communauté et l'observateur, et chacune de ses lectures est tracée comme les autres.
 Le journal d'audit rend le résultat de chaque commande d'administration, jamais son entrée.
 Il est trié par ordre d'inscription ; l'heure affichée est celle du début de la commande, si bien que deux commandes simultanées peuvent y apparaître dans l'ordre inverse de leurs heures.
 L'application `apps/admin` ne parle qu'à Supabase Auth (lien magique, puis second facteur TOTP : enrôlement d'une application d'authentification à la première connexion, code à chaque session) et à ces routes ;

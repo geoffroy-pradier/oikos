@@ -56,7 +56,8 @@
     "economy": "Economy",
     "config": "Parameters",
     "audit": "Audit log",
-    "access": "Access"
+    "access": "Access",
+    "animation": "Live events"
   },
   "vigie": {
     "title": "Watch",
@@ -257,6 +258,37 @@
       "failed": "Failed"
     },
     "rejectedNoCode": "Rejected"
+  },
+  "events": {
+    "title": "Event calendar",
+    "caption": "World events planned by the engine, latest first: upcoming, ongoing or ended within {{days}} days, at server time ({{now}}). Players only see an event once it starts.",
+    "empty": "No event planned.",
+    "status": "Status",
+    "model": "Event",
+    "scope": "Scope",
+    "starts": "Start",
+    "ends": "End",
+    "magnitude": "Magnitude",
+    "world": "World",
+    "route": "route {{from}} – {{to}}",
+    "cityGood": "{{city}}, {{good}}",
+    "statuses": {
+      "upcoming": "Upcoming",
+      "ongoing": "Ongoing",
+      "past": "Past"
+    },
+    "models": {
+      "drought": "Drought",
+      "good_year": "Good year",
+      "storm": "Storm",
+      "caravan": "Foreign caravan"
+    },
+    "effects": {
+      "drought": "field yield −{{value}}",
+      "good_year": "orchard yield +{{value}}",
+      "storm": "voyages +{{value}}",
+      "caravan": "NPC demand +{{value}}"
+    }
   },
   "config": {
     "title": "Parameters",

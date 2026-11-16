@@ -11,6 +11,8 @@ export const ADMIN_MODULE_ROLES = {
   /** Économie : masse monétaire, robinets et puits (`GET /api/admin/economy`). */
   economy: ['super_admin', 'game_designer', 'observer'],
   config: ['super_admin', 'game_designer', 'observer'],
+  /** Animation : calendrier des événements du monde, en lecture (`GET /api/admin/events`, #267). */
+  animation: ['super_admin', 'game_designer', 'community_manager', 'observer'],
   audit: ['super_admin', 'observer'],
   /** Accès : qui porte quel rôle. Mêmes comptes que ceux qui accordent et retirent les rôles. */
   access: ROLE_MANAGER_ROLES,
