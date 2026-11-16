@@ -41,7 +41,7 @@ select is(
    from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema in ('game', 'config', 'telemetry', 'admin') and privilege_type = 'UPDATE'),
   'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status decrees.applied_at decrees.electorate decrees.settled_day decrees.status decrees.tallied_at '
-    || 'decrees.votes_against decrees.votes_for elections.tallied_at '
+    || 'decrees.votes_against decrees.votes_for elections.tallied_at favor.charis '
     || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
@@ -72,7 +72,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
-  'admin.set_role config.cancel_clock_changing_activations game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
+  'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade '
     || 'game.check_decree_settled_on_close game.check_escrow_debit game.check_escrow_matches_orders game.check_property_listing_settled '
     || 'game.check_trade_settled game.check_trade_settlement game.check_treasury_debit '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '

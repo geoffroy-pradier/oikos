@@ -106,6 +106,9 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Une ligne naît une fois par cité et par jour, datée par la base, dans la transaction qui enregistre la clôture de son jour (même garde que la population), et ne change plus.
   Le service la crée et la lit ; tout joueur connecté lit la dernière de chaque cité par la vue `labor_market`, et ses travailleurs par `my_workforce` (`game.my_workforce()`, au nom du propriétaire, type de retour figé par l'ADR 0006).
   Écritures de l'hébergement : `lodging.daily` (maison et jour de jeu typés, une par maison et par jour) et `lodging.restart` (maison et site).
+- Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
+  Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.
+  Toute autre nature est refusée : chaque mécanique qui touche la Charis y ajoute la sienne, et aucune ne prend de Charis à une maison pour la donner à une autre.
 - Population des PNJ (5.2) : une ligne par cité et par classe (`npc_population` : habitants entiers, jour de jeu de la dernière clôture qui l'a fait évoluer, couverture retenue), créée par le service sans clôture ni couverture, dont il ne modifie que ces trois valeurs.
   La base n'accepte une modification que si elle avance le jour de clôture de la ligne et si, à cet instant, aucune clôture de ce jour ou d'un jour postérieur n'est enregistrée pour le monde ;
   elle vérifie à la validation que la clôture de ce jour l'est (référence différée).

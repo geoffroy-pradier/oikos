@@ -125,6 +125,25 @@ export interface GameDatabase {
     voyage_id?: string | null;
     created_at: Generated<Date>;
   };
+  /** Charis d'une maison envers un dieu : le cumul de `game.favor_ledger`, jamais écrite à la main. */
+  'game.favor': {
+    house_id: ColumnType<string, never, never>;
+    god_id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, never, never>;
+    /** `update` ne sert qu'à verrouiller la ligne (`for update`) : la garde refuse toute modification. */
+    charis: ColumnType<string, never, never>;
+  };
+  /** Journal de la Charis, en ajout seul : le déclin d'une clôture (`decay`). */
+  'game.favor_ledger': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    god_id: ColumnType<string, string, never>;
+    amount: ColumnType<string, number, never>;
+    kind: ColumnType<'decay', 'decay', never>;
+    game_day: ColumnType<number | null, number | null | undefined, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Ordres de l'agora : le reste ne change que par un échange, l'état que par une annulation. */
   'game.orders': {
     id: Generated<string>;
