@@ -143,12 +143,19 @@ describe('règlement de l’entretien d’une maison', () => {
 describe('salaires et dû d’un site (4.4, 5.5)', () => {
   const workers = fc.oneof(fc.constantFrom(0, 1, 4), fc.integer({ min: 0, max: 1_000 }));
   const wage = fc.oneof(fc.constantFrom(0, 1), fc.integer({ min: 0, max: 1_000_000_000 }));
-  const site = fc.record({
-    upkeepBaseOboles: fc.integer({ min: 0, max: 500 }),
-    coefficientBps: fc.integer({ min: 0, max: 100_000 }),
-    workers: fc.integer({ min: 0, max: 6 }),
-    wageOboles: fc.integer({ min: 0, max: 40 }),
-  });
+  const site = fc
+    .record({
+      upkeepBaseOboles: fc.integer({ min: 0, max: 500 }),
+      coefficientBps: fc.integer({ min: 0, max: 100_000 }),
+      workers: fc.integer({ min: 0, max: 6 }),
+      wageOboles: fc.integer({ min: 0, max: 40 }),
+      unhousedShare: fc.integer({ min: 0, max: 6 }),
+      lodgingPriceOboles: fc.integer({ min: 0, max: 30 }),
+    })
+    .map(({ unhousedShare, ...input }) => ({
+      ...input,
+      unhoused: Math.min(unhousedShare, input.workers),
+    }));
 
   it('exemples : travailleurs × salaire, exact ; aucun travailleur ou un salaire nul ne doivent rien', () => {
     expect(dailyWages(4, 7)).toBe(28);
@@ -158,14 +165,35 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
     // Champ 30 à ×1,25 (37,5 → 38), quatre travailleurs à 7.
     expect(
       siteDailyDue({ upkeepBaseOboles: 30, coefficientBps: 12_500, workers: 4, wageOboles: 7 }),
-    ).toEqual({ upkeepOboles: 38, wagesOboles: 28, oboles: 66 });
+    ).toEqual({ upkeepOboles: 38, wagesOboles: 28, lodgingOboles: 0, oboles: 66 });
+    // Deux des quatre sans logement, à 5 la nuit (#258) : 10 de plus, dans une part à elle.
+    expect(
+      siteDailyDue({
+        upkeepBaseOboles: 30,
+        coefficientBps: 12_500,
+        workers: 4,
+        wageOboles: 7,
+        unhoused: 2,
+        lodgingPriceOboles: 5,
+      }),
+    ).toEqual({ upkeepOboles: 38, wagesOboles: 28, lodgingOboles: 10, oboles: 76 });
+    for (const unhoused of [-1, 5, 1.5])
+      expect(() =>
+        siteDailyDue({
+          upkeepBaseOboles: 0,
+          coefficientBps: 0,
+          workers: 4,
+          wageOboles: 0,
+          unhoused,
+        }),
+      ).toThrow(RangeError);
     // Salaire nul (configuration initiale) : le dû est l'entretien seul, comme avant le personnel.
     expect(
       siteDailyDue({ upkeepBaseOboles: 30, coefficientBps: 12_500, workers: 4, wageOboles: 0 }),
-    ).toEqual({ upkeepOboles: 38, wagesOboles: 0, oboles: 38 });
+    ).toEqual({ upkeepOboles: 38, wagesOboles: 0, lodgingOboles: 0, oboles: 38 });
     expect(
       siteDailyDue({ upkeepBaseOboles: 0, coefficientBps: 0, workers: 0, wageOboles: 0 }),
-    ).toEqual({ upkeepOboles: 0, wagesOboles: 0, oboles: 0 });
+    ).toEqual({ upkeepOboles: 0, wagesOboles: 0, lodgingOboles: 0, oboles: 0 });
   });
 
   it('salaires exacts et croissants en travailleurs comme en salaire ; refus hors des entiers sûrs', () => {
@@ -187,7 +215,7 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
     // Deux parts sûres dont la somme ne l'est plus : refusé, jamais arrondi.
     expect(() =>
       siteDailyDue({ upkeepBaseOboles: max, coefficientBps: 10_000, workers: 1, wageOboles: 1 }),
-    ).toThrow('upkeep + wages is too large');
+    ).toThrow('upkeep + wages + lodging is too large');
   });
 
   it('les parts font le tout : entretien de `dailyUpkeep`, salaires de `dailyWages`', () => {
@@ -196,7 +224,8 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
         const due = siteDailyDue(input);
         expect(due.upkeepOboles).toBe(dailyUpkeep(input.upkeepBaseOboles, input.coefficientBps));
         expect(due.wagesOboles).toBe(dailyWages(input.workers, input.wageOboles));
-        expect(due.oboles).toBe(due.upkeepOboles + due.wagesOboles);
+        expect(due.lodgingOboles).toBe(dailyWages(input.unhoused, input.lodgingPriceOboles));
+        expect(due.oboles).toBe(due.upkeepOboles + due.wagesOboles + due.lodgingOboles);
       }),
     );
   });
@@ -213,7 +242,7 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
         const lines = sumDailyDues(paid);
         // Les lignes de l'écriture (une par nature) font exactement le prélèvement.
         expect(lines.oboles).toBe(total);
-        expect(lines.upkeepOboles + lines.wagesOboles).toBe(total);
+        expect(lines.upkeepOboles + lines.wagesOboles + lines.lodgingOboles).toBe(total);
         expect(total).toBeLessThanOrEqual(treasury);
         // Ni paiement partiel, ni part payée seule : un site impayé ne laisse rien dans les lignes.
         expect(sumDailyDues([...paid, ...unpaid]).oboles).toBe(
@@ -226,7 +255,12 @@ describe('salaires et dû d’un site (4.4, 5.5)', () => {
         );
       }),
     );
-    expect(sumDailyDues([])).toEqual({ upkeepOboles: 0, wagesOboles: 0, oboles: 0 });
+    expect(sumDailyDues([])).toEqual({
+      upkeepOboles: 0,
+      wagesOboles: 0,
+      lodgingOboles: 0,
+      oboles: 0,
+    });
     for (const bad of [-1, 0.5, Number.NaN])
       expect(() => sumDailyDues([{ upkeepOboles: 1, wagesOboles: bad }])).toThrow(RangeError);
   });

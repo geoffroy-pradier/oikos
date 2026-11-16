@@ -7,6 +7,7 @@ import {
   shipRoute,
   DEFAULT_AI,
   DEFAULT_CHAT,
+  DEFAULT_LABOR,
   cityHasPort,
   cityStartingRecipeId,
   cityDailyWageOboles,
@@ -117,6 +118,11 @@ const FIXTURE: GameConfig = {
     portDues: { byClassOboles: { coaster: 4 }, burnShareBps: 5_000, cityCoefficientBps: {} },
   },
   staff: { dailyWageOboles: { kalliste: 3 } },
+  labor: {
+    workingShareBps: {},
+    wage: { minBps: 10_000, maxBps: 10_000, slopeBps: 0 },
+    lodging: { baseOboles: 0, minBps: 10_000, maxBps: 10_000, slopeBps: 0 },
+  },
   properties: {
     sizes: [
       {
@@ -884,11 +890,76 @@ describe('personnel : dû d’un jour dans les entiers sûrs', () => {
   it('refuse une recette dont le dû d’un jour dépasserait les entiers sûrs dans une cité, à l’unité près', () => {
     expect(errorsOf(withWorkers(most))).toEqual([]);
     expect(errorsOf(withWorkers(most + 1))).toEqual([
-      'recipes[0].workers: a day of upkeep and wages in "kalliste" exceeds the safe integer range',
+      'recipes[0].workers: a day of upkeep, wages and lodging in "kalliste" exceeds the safe integer range',
     ]);
     // Sans salaire, aucun travailleur ne coûte : la borne ne s'applique pas.
     const unpaid = { ...withWorkers(most + 1), staff: { dailyWageOboles: { kalliste: 0 } } };
     expect(errorsOf(unpaid)).toEqual([]);
+  });
+});
+
+describe('marché du travail et hébergement (#258)', () => {
+  const withLabor = (patch: Record<string, unknown>) => ({
+    ...clone(),
+    labor: { ...structuredClone(DEFAULT_LABOR), ...patch },
+  });
+
+  it('une version publiée avant le marché du travail reste lisible : offre sans limite, rien à loger', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.labor;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.labor).toEqual(DEFAULT_LABOR);
+    expect(Object.isFrozen(DEFAULT_LABOR)).toBe(true);
+    expect(errorsOf(withLabor({}))).toEqual([]);
+  });
+
+  it('classes travailleuses connues, parts de 0 à 10 000 points', () => {
+    expect(errorsOf(withLabor({ workingShareBps: { thetes: 0, hippeis: 10_000 } }))).toEqual([]);
+    expect(errorsOf(withLabor({ workingShareBps: { metics: 5_000 } }))).toEqual([
+      'labor.workingShareBps.metics: unknown NPC class "metics"',
+    ]);
+    for (const bad of [-1, 10_001, 0.5])
+      expect(errorsOf(withLabor({ workingShareBps: { thetes: bad } }))).toEqual([
+        expect.stringMatching(/^labor\.workingShareBps\.thetes: /),
+      ]);
+  });
+
+  it('courbes : bornes de ×0 à ×10, la basse sous la haute, pente bornée ; champ inconnu refusé', () => {
+    const wage = (curve: Record<string, unknown>) =>
+      errorsOf(withLabor({ wage: { ...DEFAULT_LABOR.wage, ...curve } }));
+    expect(wage({ minBps: 0, maxBps: 100_000, slopeBps: 100_000 })).toEqual([]);
+    expect(wage({ minBps: 12_000, maxBps: 11_000 })).toEqual([
+      'labor.wage.maxBps: minBps must not exceed maxBps',
+    ]);
+    expect(wage({ maxBps: 100_001 })).toEqual([expect.stringMatching(/^labor\.wage\.maxBps: /)]);
+    expect(wage({ slopeBps: -1 })).toEqual([expect.stringMatching(/^labor\.wage\.slopeBps: /)]);
+    expect(wage({ pivotBps: 1 })).toEqual([expect.stringMatching(/^labor\.wage: /)]);
+    const lodging = (patch: Record<string, unknown>) =>
+      errorsOf(withLabor({ lodging: { ...DEFAULT_LABOR.lodging, ...patch } }));
+    expect(lodging({ baseOboles: 12, minBps: 10_000, maxBps: 40_000, slopeBps: 30_000 })).toEqual(
+      [],
+    );
+    expect(lodging({ baseOboles: -1 })).toEqual([
+      expect.stringMatching(/^labor\.lodging\.baseOboles: /),
+    ]);
+    expect(lodging({ minBps: 2, maxBps: 1 })).toEqual([
+      'labor.lodging.maxBps: minBps must not exceed maxBps',
+    ]);
+  });
+
+  it('le dû d’un jour reste dans les entiers sûrs aux bornes hautes du salaire et de l’hébergement', () => {
+    // Un travailleur, un milliard d'hébergement à ×10 : 10^10 par travailleur.
+    const config = withLabor({
+      lodging: { baseOboles: 1_000_000_000, minBps: 0, maxBps: 100_000, slopeBps: 0 },
+    });
+    const most = Math.floor((Number.MAX_SAFE_INTEGER - 25) / 10_000_000_000);
+    at(config.recipes, 0).workers = most;
+    expect(errorsOf(config)).toEqual([]);
+    at(config.recipes, 0).workers = most + 1;
+    expect(errorsOf(config)).toEqual([
+      'recipes[0].workers: a day of upkeep, wages and lodging in "kalliste" exceeds the safe integer range',
+    ]);
   });
 });
 

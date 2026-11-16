@@ -38,38 +38,52 @@ export function dailyWages(workers: number, wageOboles: number): number {
 export interface SiteDailyDue {
   upkeepOboles: number;
   wagesOboles: number;
-  /** Le tout, payé en entier ou pas du tout : entretien plus salaires. */
+  /** Hébergement chez les PNJ de ses travailleurs sans logement (4.5, #258). */
+  lodgingOboles: number;
+  /** Le tout, payé en entier ou pas du tout : entretien, salaires et hébergement. */
   oboles: number;
 }
 
 /**
- * Dû d'un site pour un jour de jeu : son entretien (`dailyUpkeep`) et les salaires de ses travailleurs
- * (`dailyWages`), calculés chacun à part puis additionnés, si bien que les parts font toujours le tout.
+ * Dû d'un site pour un jour de jeu : son entretien (`dailyUpkeep`), les salaires de ses travailleurs
+ * (`dailyWages`) et l'hébergement de ceux qui n'ont pas de logement (non logés × prix du jour), calculés
+ * chacun à part puis additionnés, si bien que les parts font toujours le tout. Sans non logés indiqués,
+ * l'hébergement est nul.
  */
 export function siteDailyDue(site: {
   upkeepBaseOboles: number;
   coefficientBps: number;
   workers: number;
   wageOboles: number;
+  unhoused?: number;
+  lodgingPriceOboles?: number;
 }): SiteDailyDue {
+  const unhoused = site.unhoused ?? 0;
+  if (!Number.isSafeInteger(unhoused) || unhoused < 0 || unhoused > site.workers)
+    throw new RangeError('unhoused must be an integer from 0 to workers');
   const upkeepOboles = dailyUpkeep(site.upkeepBaseOboles, site.coefficientBps);
   const wagesOboles = dailyWages(site.workers, site.wageOboles);
-  const oboles = upkeepOboles + wagesOboles;
-  if (!Number.isSafeInteger(oboles)) throw new RangeError('upkeep + wages is too large');
-  return { upkeepOboles, wagesOboles, oboles };
+  const lodgingOboles = dailyWages(unhoused, site.lodgingPriceOboles ?? 0);
+  const oboles = upkeepOboles + wagesOboles + lodgingOboles;
+  if (!Number.isSafeInteger(oboles)) throw new RangeError('upkeep + wages + lodging is too large');
+  return { upkeepOboles, wagesOboles, lodgingOboles, oboles };
 }
 
 /** Somme, par nature, de ce que doivent des sites : les montants des lignes d'une écriture. */
-export function sumDailyDues(dues: readonly Omit<SiteDailyDue, 'oboles'>[]): SiteDailyDue {
-  const total = { upkeepOboles: 0, wagesOboles: 0, oboles: 0 };
+export function sumDailyDues(
+  dues: readonly (Omit<SiteDailyDue, 'oboles' | 'lodgingOboles'> & { lodgingOboles?: number })[],
+): SiteDailyDue {
+  const total = { upkeepOboles: 0, wagesOboles: 0, lodgingOboles: 0, oboles: 0 };
   for (const due of dues) {
-    for (const part of [due.upkeepOboles, due.wagesOboles])
+    const lodging = due.lodgingOboles ?? 0;
+    for (const part of [due.upkeepOboles, due.wagesOboles, lodging])
       if (!Number.isSafeInteger(part) || part < 0)
         throw new RangeError('each part must be a non-negative integer');
     total.upkeepOboles += due.upkeepOboles;
     total.wagesOboles += due.wagesOboles;
+    total.lodgingOboles += lodging;
   }
-  total.oboles = total.upkeepOboles + total.wagesOboles;
+  total.oboles = total.upkeepOboles + total.wagesOboles + total.lodgingOboles;
   if (!Number.isSafeInteger(total.oboles)) throw new RangeError('total due is too large');
   return total;
 }

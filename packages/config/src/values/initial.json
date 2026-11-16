@@ -166,6 +166,11 @@
     }
   },
   "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
+  "labor": {
+    "workingShareBps": {},
+    "wage": { "minBps": 10000, "maxBps": 10000, "slopeBps": 0 },
+    "lodging": { "baseOboles": 0, "minBps": 10000, "maxBps": 10000, "slopeBps": 0 }
+  },
   "properties": {
     "sizes": [
       {
