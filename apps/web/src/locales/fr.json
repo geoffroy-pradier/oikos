@@ -124,6 +124,7 @@
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
     "staffLink": "Personnel de la maison",
+    "propertyLink": "Immobilier",
     "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir."
   },
   "agora": {
@@ -309,7 +310,12 @@
     "SHIP_LAID_UP": "Ce navire est désarmé : il ne part qu'après une clôture qui paie son entretien.",
     "SHIP_CLASS_RETIRED": "Cette classe de navire a été retirée : il ne peut plus partir.",
     "NO_ROUTE": "Aucune route ne mène à cette cité.",
-    "CARGO_OVER_CAPACITY": "La cargaison dépasse la capacité du navire."
+    "CARGO_OVER_CAPACITY": "La cargaison dépasse la capacité du navire.",
+    "OWN_PROPERTY": "C'est votre propre bien.",
+    "PROPERTY_NOT_FOR_LEASE": "Ce bien n'est plus à louer.",
+    "PROPERTY_NOT_FOR_SALE": "Ce bien n'est plus à vendre.",
+    "PROPERTY_NOT_FOUND": "Ce bien n'existe plus.",
+    "PROPERTY_SIZE_RETIRED": "Cette taille de bien a été retirée."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -529,5 +535,33 @@
   "propertySizes": {
     "townhouse": "Maison de ville",
     "tenement": "Immeuble de rapport"
+  },
+  "property": {
+    "title": "Immobilier",
+    "intro": "Les logements de l'archipel : achetez-les à la cité ou à une maison, louez-les, rénovez-les. Un bien loge vos travailleurs de sa cité tant qu'il est en état ; un loyer se paie chaque jour à la clôture.",
+    "describe": "{{size}} n° {{lot}}, {{city}}",
+    "condition": "État : {{percent}}",
+    "offers": "Biens offerts",
+    "noOffers": "Aucun bien offert pour l'instant.",
+    "offer": {
+      "citySale": "Vendu par la cité : {{cost}}",
+      "sale": "Vendu par une maison : {{cost}}",
+      "lease": "À louer : {{cost}} par jour"
+    },
+    "take": {
+      "citySale": "Acheter à la cité ({{cost}})",
+      "sale": "Acheter ({{cost}})",
+      "lease": "Louer ({{cost}} par jour)"
+    },
+    "yourOffer": "Votre offre.",
+    "mine": "Mes biens",
+    "noneMine": "Vous n'avez aucun bien.",
+    "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture",
+    "unpaid": "Entretien impayé depuis le {{date}} : ce bien ne loge personne jusqu'au paiement.",
+    "done": {
+      "buy": "Bien acheté.",
+      "buyListed": "Bien acheté.",
+      "lease": "Bail signé."
+    }
   }
 }
