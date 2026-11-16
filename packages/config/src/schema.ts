@@ -331,6 +331,57 @@ export const staffSchema = z.strictObject({
 });
 
 /**
+ * Courbe d'un prix du marché du travail (#258) : un multiplicateur en points de base (10 000 : ×1), de
+ * `minBps` à `maxBps` (de ×0 à ×10), qui monte de `slopeBps` quand le taux mesuré passe de 0 à 100 %.
+ * Calcul : `curveBps` (packages/sim).
+ */
+const laborCurveShape = {
+  minBps: z.number().int().min(0).max(100_000),
+  maxBps: z.number().int().min(0).max(100_000),
+  slopeBps: z.number().int().min(0).max(100_000),
+};
+const laborCurveOrdered: [
+  (curve: { minBps: number; maxBps: number }) => boolean,
+  { message: string; path: string[] },
+] = [
+  (curve) => curve.minBps <= curve.maxBps,
+  { message: 'minBps must not exceed maxBps', path: ['maxBps'] },
+];
+export const laborCurveSchema = z.strictObject(laborCurveShape).refine(...laborCurveOrdered);
+
+/**
+ * Valeurs lues pour les versions publiées avant le marché du travail : offre sans limite, salaire de base
+ * de la cité, aucun hébergement à payer. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_LABOR = deepFreeze({
+  workingShareBps: {} as Record<string, number>,
+  wage: { minBps: 10_000, maxBps: 10_000, slopeBps: 0 },
+  lodging: { baseOboles: 0, minBps: 10_000, maxBps: 10_000, slopeBps: 0 },
+});
+
+/**
+ * Marché du travail et logement des travailleurs (docs/specs/04-systemes-gestion.md, 4.4 et 4.5 ; #258).
+ * Chaque clôture fixe, par cité, le salaire du jour (salaire de base de `staff` × courbe du salaire au
+ * taux d'emploi) et le prix d'une nuit d'hébergement chez les PNJ pour un travailleur sans logement (prix
+ * de base × courbe de l'hébergement à la pénurie de logements), détruit par le puits `sink_npc_lodging`.
+ */
+export const laborSchema = z.strictObject({
+  /**
+   * Classes de PNJ travailleuses (identifiants de `npcClasses`) et part de leur population qui travaille,
+   * en points de base. Vide : l'offre de travail est sans limite et le taux d'emploi nul.
+   */
+  workingShareBps: z.record(id, z.number().int().min(0).max(10_000)),
+  wage: laborCurveSchema,
+  lodging: z
+    .strictObject({
+      /** Prix de base d'une nuit d'hébergement, en oboles, par travailleur sans logement. Nul : rien. */
+      baseOboles: staffDailyWageObolesSchema,
+      ...laborCurveShape,
+    })
+    .refine(...laborCurveOrdered),
+});
+
+/**
  * Une taille de logement (docs/specs/04-systemes-gestion.md, 4.5 ; #256). Lue par les joueurs (vue
  * `public.property_rules`) : n'y ranger aucun paramètre qui doive rester caché. L'état d'un bien va de 0 à
  * 10 000 (neuf) : vétusté et seuil se comptent dans cette unité.
@@ -737,6 +788,8 @@ export const gameConfigSchema = z
     staff: staffSchema.default(DEFAULT_STAFF),
     /** Absent des versions publiées avant l'immobilier : aucun bien. */
     properties: propertiesSchema.default(DEFAULT_PROPERTIES),
+    /** Absent des versions publiées avant le marché du travail : offre sans limite, aucun hébergement. */
+    labor: laborSchema.default(DEFAULT_LABOR),
     /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
@@ -912,23 +965,33 @@ export const gameConfigSchema = z
           issue(['staff', 'dailyWageOboles'], `missing city "${city.id}"`);
       }
     }
-    // Dû d'un jour d'un site (5.5) : travailleurs × salaire + ⌈entretien × coefficient⌉. Au-delà des
+    // Marché du travail (#258) : des classes travailleuses connues.
+    for (const classId of Object.keys(config.labor.workingShareBps))
+      if (!classes.has(classId))
+        issue(['labor', 'workingShareBps', classId], `unknown NPC class "${classId}"`);
+    // Dû d'un jour d'un site (5.5) : ⌈entretien × coefficient⌉ + travailleurs × salaire du jour, au plus
+    // à la borne haute de la courbe (#258), + travailleurs × hébergement, au plus à la sienne. Au-delà des
     // entiers sûrs, le calcul est refusé (`siteDailyDue`) et la clôture échouerait pour tout le monde :
     // la version est refusée avant. Calcul exact en entiers longs.
     const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    const ceilBps = (amount: number, bps: number) =>
+      (BigInt(amount) * BigInt(bps) + 9_999n) / 10_000n;
     const highestWage = Object.entries(wages).reduce<[string, number] | null>(
       (top, entry) => (top === null || entry[1] > top[1] ? entry : top),
       null,
     );
-    if (highestWage !== null) {
+    const { lodging, wage } = config.labor;
+    const lodgingCap = ceilBps(lodging.baseOboles, lodging.maxBps);
+    const wageCap = highestWage === null ? 0n : ceilBps(highestWage[1], wage.maxBps);
+    if (wageCap > 0n || lodgingCap > 0n) {
+      const where = highestWage?.[0] ?? config.cities[0]?.id ?? '';
       config.recipes.forEach((recipe, index) => {
-        const upkeep =
-          (BigInt(dailyOboles[recipe.siteType]) * BigInt(coefficientBps) + 9_999n) / 10_000n;
-        const due = BigInt(recipe.workers) * BigInt(highestWage[1]) + upkeep;
+        const upkeep = ceilBps(dailyOboles[recipe.siteType], coefficientBps);
+        const due = BigInt(recipe.workers) * (wageCap + lodgingCap) + upkeep;
         if (due > BigInt(Number.MAX_SAFE_INTEGER))
           issue(
             ['recipes', index, 'workers'],
-            `a day of upkeep and wages in "${highestWage[0]}" exceeds the safe integer range`,
+            `a day of upkeep, wages and lodging in "${where}" exceeds the safe integer range`,
           );
       });
     }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { cityStartingRecipeId, cityTerroirAdmits, INITIAL_CONFIG, validateConfig } from './index';
+import {
+  cityStartingRecipeId,
+  cityTerroirAdmits,
+  DEFAULT_LABOR,
+  INITIAL_CONFIG,
+  validateConfig,
+} from './index';
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
@@ -124,6 +130,10 @@ describe('jeu de valeurs initial', () => {
       config.cities.map((city) => city.id).sort(),
     );
     expect(Object.values(config.staff.dailyWageOboles).every((wage) => wage === 0)).toBe(true);
+  });
+
+  it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {
+    expect(config.labor).toEqual(DEFAULT_LABOR);
   });
 
   it('chaque recette a une capacité d’accumulation d’un à sept jours', () => {
