@@ -9,7 +9,8 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
   Elle déplace du stock d'une extrémité à une autre du journal des stocks et met un navire à quai ; une écriture faite à la lecture devrait l'être par chaque lecteur, dont le client qui ne lit que par Supabase et n'écrit rien.
   Le coût suit toujours l'activité : l'étape ne lit que les voyages échus, par un index partiel des voyages en mer (`voyages_due_idx`), et un tick sans arrivée ne fait qu'une recherche vide.
   Un voyage arrive au premier tick qui commence à son échéance ou après, rattrapé ou non, daté de l'instant de ce tick : jamais plus tard qu'un tick, sauf panne du moteur, que la Vigie montre (voyages en retard de déchargement).
-- **Ticks globaux** pour ce qui dépend de tous : demande des PNJ, prix de référence, population, météo, Hybris, et l'arrivée des voyages échus.
+- **Ticks globaux** pour ce qui dépend de tous : demande des PNJ, prix de référence, population, météo, Hybris, l'arrivée des voyages échus, et le parc de logements des cités (4.5), que le premier tick qui connaît une cité crée et que les suivants complètent jusqu'au nombre de la configuration.
+  La vétusté des biens immobiliers n'est pas un calcul paresseux : c'est une étape de la clôture quotidienne, juste avant l'entretien, une fois par jour de jeu, car la base doit savoir qu'un bien ne s'use qu'une fois par jour (12).
 - **Appariement des ordres** à l'insertion, dans la transaction, avec un verrou par couple cité et bien.
 - **Aléa déterministe** : chaque tick tire d'une graine enregistrée, ce qui permet de rejouer et d'auditer un résultat contesté.
 - **Configuration figée par tick** : un tick lit une version de configuration et une seule.

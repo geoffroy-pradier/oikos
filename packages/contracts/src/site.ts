@@ -200,10 +200,30 @@ const shipsSettled = z
   .refine((ships) => ships.upkeepOboles === ships.paid.reduce((sum, due) => sum + due.oboles, 0), {
     message: 'ship upkeep must add up',
   });
+/** L'entretien d'un jour d'un bien immobilier, payé en entier ou pas du tout (#256). */
+const propertyUpkeepDue = z.strictObject({ propertyId: z.uuid(), oboles });
+/**
+ * Entretien des biens immobiliers d'une maison réglé à une clôture, après ses sites et ses navires (#256) :
+ * ce qui a été payé, ce qui ne l'a pas été, les biens que cette clôture a trouvés impayés (`lapsed` : ils
+ * ne logent plus personne) et ceux dont elle a levé l'impayé (`restored`).
+ */
+const propertiesSettled = z
+  .strictObject({
+    upkeepOboles: oboles,
+    paid: z.array(propertyUpkeepDue),
+    unpaid: z.array(propertyUpkeepDue),
+    lapsed: z.array(z.uuid()),
+    restored: z.array(z.uuid()),
+  })
+  .refine(
+    (estate) => estate.upkeepOboles === estate.paid.reduce((sum, due) => sum + due.oboles, 0),
+    { message: 'property upkeep must add up' },
+  );
 /**
  * Entretien et salaires d'une maison réglés à une clôture quotidienne (5.5) : ce qui a été payé, au total
  * et par nature, ce qui ne l'a pas été, les sites que cette clôture a arrêtés et ceux qu'elle a relancés.
- * Une maison qui a des navires y trouve aussi leur entretien (`ships`), compté dans le total.
+ * Une maison qui a des navires y trouve aussi leur entretien (`ships`), compté dans le total, et de même
+ * pour ses biens immobiliers (`properties`).
  * Émis par le moteur, sans commande.
  */
 export const upkeepSettledSchema = z.strictObject({
@@ -220,12 +240,16 @@ export const upkeepSettledSchema = z.strictObject({
       halted: z.array(z.uuid()),
       resumed: z.array(z.uuid()),
       ships: shipsSettled.optional(),
+      properties: propertiesSettled.optional(),
     })
     // Les parts font le tout, et le tout est ce que les sites et les navires payés ont coûté.
     .refine(
       (payload) =>
         payload.paidOboles ===
-          payload.upkeepOboles + payload.wagesOboles + (payload.ships?.upkeepOboles ?? 0) &&
+          payload.upkeepOboles +
+            payload.wagesOboles +
+            (payload.ships?.upkeepOboles ?? 0) +
+            (payload.properties?.upkeepOboles ?? 0) &&
         payload.upkeepOboles === payload.paid.reduce((sum, due) => sum + due.upkeepOboles, 0) &&
         payload.wagesOboles === payload.paid.reduce((sum, due) => sum + due.wagesOboles, 0),
       { message: 'paid amounts must add up' },
