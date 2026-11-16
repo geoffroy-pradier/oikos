@@ -110,12 +110,19 @@ export function SitesCard({
   const staffOf = useMemo(() => parseSiteStaff(workforceRows.rows), [workforceRows.rows]);
   // Événements de rendement des cités des sites (7.4, #417) qui finissent après le début du plus ancien cycle
   // en cours : les seuls qu'une récolte peut encore rencontrer. La vue ne rend que ceux commencés.
-  const oldest = Math.min(...(sites.rows ?? []).map((site) => Date.parse(site.cycle_started_at)));
-  const eventRows = useEventRows({
-    city_id: [...new Set((sites.rows ?? []).map((site) => site.city_id))].sort(),
-    model: YIELD_MODELS,
-    ends_at: { gt: new Date(Number.isFinite(oldest) ? oldest : 0).toISOString() },
-  });
+  // Rien n'est lu tant que les sites ne sont pas lus, ni sans site : une lecture vide ferait estimer un champ
+  // comme sans événement.
+  const siteRows = sites.rows ?? [];
+  const oldest = Math.min(...siteRows.map((site) => Date.parse(site.cycle_started_at)));
+  const eventRows = useEventRows(
+    siteRows.length === 0
+      ? null
+      : {
+          city_id: [...new Set(siteRows.map((site) => site.city_id))].sort(),
+          model: YIELD_MODELS,
+          ends_at: { gt: new Date(oldest).toISOString() },
+        },
+  );
   const { events, reload: reloadEvents } = eventRows;
   const { reload: reloadLaborDays } = laborRows;
   const { reload: reloadWorkforce } = workforceRows;
@@ -311,7 +318,8 @@ export function SitesCard({
     if (!mine) return { halted, harvest, ...none, alerts };
     const start = new Date(site.cycle_started_at);
     const estimate = harvestUnderEvents(recipe, harvest.cycles, start, mine);
-    return { halted, harvest, estimate, current: inForce(mine, now), alerts };
+    // Un site à l'arrêt a ses cycles gelés : l'événement en cours ne touche pas sa récolte, il n'est pas dit.
+    return { halted, harvest, estimate, current: halted ? [] : inForce(mine, now), alerts };
   };
   const watched = rows
     .map((site) => ({ site, alerts: stateOf(site).alerts }))

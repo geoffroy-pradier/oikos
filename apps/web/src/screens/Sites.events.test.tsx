@@ -111,6 +111,21 @@ describe('écran Sites : récoltes sous les événements du monde (#417)', () =>
     });
   });
 
+  it('sans site lu ni site du tout, les événements ne sont pas lus', async () => {
+    state.sites = [];
+    await show();
+    expect(state.reads.get('world_events')).toBeNull();
+  });
+
+  it('champ à l’arrêt : estimé au rendement de ses cycles gelés, l’événement en cours n’est pas dit', async () => {
+    // Arrêté à 2 h : deux cycles faits, avant la sécheresse commencée à 2 h 30 ; rien ne la touche.
+    state.sites = [{ ...site('s1', 'grow_wheat'), halted_at: '2026-06-01T02:00:00Z' }];
+    state.events = [event('e1', 'drought', '02:30', 5_000)];
+    await show();
+    expect(await screen.findByText('À récolter : 20 × Blé.')).toBeTruthy();
+    expect(screen.queryByText(/^Sécheresse/)).toBeNull();
+  });
+
   it('sécheresse en cours : récolte estimée réduite, l’écart et l’événement dits', async () => {
     // Commencée à 1 h 30 : les cycles finis à 2 h et 3 h rendent ⌊10 × 70 %⌋ = 7, soit 24 au lieu de 30.
     // Une sécheresse d'une autre cité et une bonne année (vergers) ne touchent pas le champ.
