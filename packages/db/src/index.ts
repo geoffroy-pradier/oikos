@@ -14,7 +14,14 @@ export * from './city-rates';
 
 /** Tables du schéma `game`. À remplacer par les types générés quand le schéma grossira. */
 export interface GameDatabase {
-  'game.worlds': { id: Generated<string>; slug: string; name: string; created_at: Generated<Date> };
+  'game.worlds': {
+    id: Generated<string>;
+    slug: string;
+    name: string;
+    /** Graine des événements du monde (#267) : tirée par la base à la création, sauf graine donnée ; immuable. */
+    seed: ColumnType<string, string | undefined, never>;
+    created_at: Generated<Date>;
+  };
   'game.cities': {
     id: Generated<string>;
     world_id: string;
@@ -316,6 +323,38 @@ export interface GameDatabase {
     unhoused: ColumnType<string, number, never>;
     wage_oboles: ColumnType<string, number, never>;
     lodging_oboles: ColumnType<string, number, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Événements du monde (#267) : planifiés par la clôture avant leur début, immuables (garde de la base). */
+  'game.world_events': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    model: ColumnType<'drought' | 'good_year' | 'storm' | 'caravan', string, never>;
+    city_id: ColumnType<string, string, never>;
+    other_city_id: ColumnType<string | null, string | null, never>;
+    good_id: ColumnType<string | null, string | null, never>;
+    planned_day: ColumnType<number, number, never>;
+    start_day: ColumnType<number, number, never>;
+    /** Premier jour de jeu qui n'est plus sous l'événement. */
+    end_day: ColumnType<number, number, never>;
+    starts_at: ColumnType<Date, Date, never>;
+    ends_at: ColumnType<Date, Date, never>;
+    magnitude_bps: ColumnType<number, number, never>;
+    seed: ColumnType<string, string, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Effets appliqués des événements : écart de rendement d'une récolte, retard d'un départ (audit). */
+  'game.event_effects': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    event_id: ColumnType<string, string, never>;
+    kind: ColumnType<'site_yield' | 'voyage_delay', string, never>;
+    site_id: ColumnType<string | null, string | null | undefined, never>;
+    voyage_id: ColumnType<string | null, string | null | undefined, never>;
+    good_id: ColumnType<string | null, string | null | undefined, never>;
+    /** `bigint` : lu en texte. */
+    quantity: ColumnType<string | null, number | null | undefined, never>;
+    delay_seconds: ColumnType<number | null, number | null | undefined, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
