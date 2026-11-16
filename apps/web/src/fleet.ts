@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useRows, useShipRules } from './data';
 import { useHouse } from './house';
 import { serverClock, syncServerClock } from './server-clock';
+import { withCityCoefficients } from './ship-rules';
 
 /** Un navire de la maison (vue `my_ships`) : à quai dans une cité, ou en mer (`docked_city_id` nul). */
 export interface ShipRow {
@@ -25,7 +26,8 @@ export interface VoyageRow {
 
 /**
  * Ce que montrent la carte et les fiches : les cités du monde de la maison (identifiant de configuration
- * par identifiant de cité, lus avec la maison), les règles du transport, les navires et les voyages de la maison, et l'heure
+ * par identifiant de cité, lus avec la maison), les règles du transport (et, pour le départ, au droit de port
+ * en vigueur de chaque cité), les navires et les voyages de la maison, et l'heure
  * du serveur, relue chaque minute pour avancer les navires en mer.
  */
 export function useFleet() {
@@ -62,9 +64,37 @@ export function useFleet() {
   }, [reloadShips, reloadVoyages]);
   // Cités du monde de la maison, lues avec elle (`App.tsx`) : la table les rend toutes, au-delà d'une page.
   const slugs = useMemo(() => new Map(Object.entries(house.citySlugs ?? {})), [house.citySlugs]);
-  const failed = rules.failed || ships.failed || voyages.failed;
-  const reload = () => Promise.all([rules.reload(), ships.reload(), voyages.reload()]);
-  return { slugs, rules: rules.rules, ships, voyages, now, failed, reload };
+  // Droit de port en vigueur de chaque cité (décrets, 5.6) : seul le départ en a besoin, et il attend de
+  // l'avoir lu plutôt que d'annoncer le coefficient de la configuration. Les seules cités du monde de la
+  // maison : la vue les rend toutes, au-delà d'une page.
+  const cityIds = useMemo(() => [...slugs.keys()].sort(), [slugs]);
+  const cityRates = useRows<unknown>(
+    'city_rates',
+    'city_id, port_dues_coefficient_bps',
+    'city_id',
+    {
+      city_id: cityIds,
+    },
+  );
+  const departureRules = useMemo(
+    () =>
+      rules.rules && cityRates.rows && cityIds.length > 0
+        ? withCityCoefficients(rules.rules, cityRates.rows, slugs)
+        : null,
+    [rules.rules, cityRates.rows, cityIds, slugs],
+  );
+  const failed =
+    rules.failed ||
+    ships.failed ||
+    voyages.failed ||
+    cityRates.failed ||
+    (rules.rules !== null &&
+      cityRates.rows !== null &&
+      cityIds.length > 0 &&
+      departureRules === null);
+  const reload = () =>
+    Promise.all([rules.reload(), ships.reload(), voyages.reload(), cityRates.reload()]);
+  return { slugs, rules: rules.rules, departureRules, ships, voyages, now, failed, reload };
 }
 
 /** Nom d'un navire : sa classe, numérotée quand la maison en a plusieurs de la même classe. */

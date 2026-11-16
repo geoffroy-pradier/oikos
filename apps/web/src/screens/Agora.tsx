@@ -6,7 +6,7 @@ import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
 import { LoadProblem, Loading } from './LoadProblem';
 import { useHouse } from '../house';
-import { parseMarketTax, previewSale } from '../market-rules';
+import { cityMarketTax, parseMarketTax, previewSale } from '../market-rules';
 import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 import { parseCandleSeconds } from '../price-history';
@@ -65,7 +65,14 @@ export function AgoraScreen() {
     'market_tax, price_history',
     'market_tax',
   );
-  const tax = rules.rows ? parseMarketTax(rules.rows[0] ?? null) : null;
+  // Taux de la cité du marché (5.6) : il remplace celui du monde dès qu'un décret y est appliqué.
+  const cityRate = useRows<unknown>('city_rates', 'market_tax_rate_bps', 'city_id', {
+    city_id: house.cityId,
+  });
+  const tax =
+    rules.rows && cityRate.rows
+      ? cityMarketTax(parseMarketTax(rules.rows[0] ?? null), cityRate.rows[0] ?? null)
+      : null;
   // Durée des chandeliers en vigueur : elle désigne la série de prix à afficher.
   const candleSeconds = rules.rows ? parseCandleSeconds(rules.rows[0] ?? null) : null;
   const [side, setSide] = useState<'sell' | 'buy'>('sell');
@@ -129,7 +136,7 @@ export function AgoraScreen() {
       };
     }
     // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
-    await Promise.all([book.reload(), mine.reload(), rules.reload()]);
+    await Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()]);
     setNotice(next);
     setBusy(false);
   }
@@ -151,7 +158,7 @@ export function AgoraScreen() {
           }),
         }
       : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
-    await Promise.all([book.reload(), mine.reload(), rules.reload()]);
+    await Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()]);
     setNotice(next);
     setBusy(false);
   }
@@ -180,10 +187,16 @@ export function AgoraScreen() {
           ))}
         </select>
       </Card>
-      {(book.failed || mine.failed || rules.failed || (rules.rows && !(tax && candleSeconds))) && (
+      {(book.failed ||
+        mine.failed ||
+        rules.failed ||
+        cityRate.failed ||
+        (rules.rows && cityRate.rows && !(tax && candleSeconds))) && (
         <LoadProblem
           heading={bookTitle}
-          onRetry={() => Promise.all([book.reload(), mine.reload(), rules.reload()])}
+          onRetry={() =>
+            Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()])
+          }
         />
       )}
 

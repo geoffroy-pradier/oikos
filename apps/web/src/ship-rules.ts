@@ -60,6 +60,30 @@ export function parseShipRules(row: unknown): ShipRules | null {
   return parsed.success ? parsed.data : null;
 }
 
+const coefficientRowsSchema = z.array(
+  z.object({ city_id: name, port_dues_coefficient_bps: z.number().int().min(0).max(100_000) }),
+);
+/**
+ * Règles du transport au coefficient de droit de port en vigueur de chaque cité du monde de la maison (vue
+ * `public.city_rates` : dernier décret appliqué, sinon la configuration, 5.6). `slugs` donne l'identifiant de
+ * configuration de chaque cité du monde ; les lignes des autres mondes sont ignorées, une cité sans ligne
+ * garde le coefficient de la configuration. `null` si une ligne est illisible.
+ */
+export function withCityCoefficients(
+  rules: ShipRules,
+  rows: unknown,
+  slugs: ReadonlyMap<string, string>,
+): ShipRules | null {
+  const parsed = coefficientRowsSchema.safeParse(rows);
+  if (!parsed.success) return null;
+  const inForce = { ...rules.portDues.cityCoefficientBps };
+  for (const row of parsed.data) {
+    const slug = slugs.get(row.city_id);
+    if (slug !== undefined) inForce[slug] = row.port_dues_coefficient_bps;
+  }
+  return { ...rules, portDues: { ...rules.portDues, cityCoefficientBps: inForce } };
+}
+
 /** Cités reliées à `fromSlug` par une route, avec la durée de référence en heures, triées par durée. */
 export function destinationsFrom(rules: ShipRules, fromSlug: string) {
   return rules.routes
