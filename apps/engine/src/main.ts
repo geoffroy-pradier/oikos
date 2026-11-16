@@ -1,13 +1,16 @@
+import { dbCallStore, fakeProvider } from '@oikos/ai';
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
 import { purgeMessages } from './chat-retention';
+import { writeAllChronicles } from './chronicle/task';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { TICK_STEPS } from './tick-steps';
 
 const QUEUE = 'world-clock';
+const CHRONICLE_QUEUE = 'city-chronicle';
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -17,6 +20,11 @@ await ensureInitialConfig(db, INITIAL_CONFIG);
 // Une activation programmée avant le refus des changements d'horloge (#123) n'est pas appliquée (#213).
 await cancelClockChangingActivations(db);
 const loader = createConfigLoader(db);
+// Passerelle IA (ADR 0005) : le fournisseur réel est le ticket #269. D'ici là, `AI_PROVIDER=fake` : le fournisseur
+// factice, sans réponse, ne sert qu'à un usage activé par erreur ; la passerelle rend alors le repli.
+if ((process.env['AI_PROVIDER'] ?? 'fake') !== 'fake')
+  console.warn('AI_PROVIDER: only the fake provider exists yet (#269); every AI usage falls back');
+const ai = { provider: fakeProvider([]), store: dbCallStore(db) };
 
 // File de tâches dans Postgres (pg-boss) : pas de Redis. L'horloge passe chaque minute ; le moteur joue
 // alors tous les ticks échus, dans l'ordre. Une tâche en échec est reprise sans double effet.
@@ -47,6 +55,15 @@ await boss.work(QUEUE, async () => {
   );
   for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
+});
+// Chronique des cités (#271), dans sa propre file : les appels à l'IA, longs, ne retardent ni ticks ni clôtures,
+// et son échec ne les retient pas. Elle suit la clôture d'au moins `chronicle.settleSeconds`.
+await boss.createQueue(CHRONICLE_QUEUE);
+await boss.schedule(CHRONICLE_QUEUE, '* * * * *');
+await boss.work(CHRONICLE_QUEUE, async () => {
+  const now = await databaseNow(db);
+  for (const { worldId, written } of await writeAllChronicles(db, { now, config: loader, ...ai }))
+    if (written > 0) console.log(`World ${worldId}: wrote ${written} chronicles`);
 });
 console.log('OIKOS engine started');
 
