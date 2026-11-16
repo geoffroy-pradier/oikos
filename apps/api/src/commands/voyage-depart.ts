@@ -1,14 +1,10 @@
-import {
-  cityPortDuesCoefficientBps,
-  portDuesBaseOboles,
-  routeProvisionsOboles,
-  shipRoute,
-} from '@oikos/config';
+import { portDuesBaseOboles, routeProvisionsOboles, shipRoute } from '@oikos/config';
 import {
   VOYAGE_DEPART_ERROR_CODES,
   voyageDepartInputSchema,
   voyageDepartOutputSchema,
 } from '@oikos/contracts';
+import { cityRatesOf } from '@oikos/db';
 import { cargoUnits, departureCost, voyageDurationSeconds } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
@@ -22,7 +18,7 @@ const NO_STOCK = { code: 'INSUFFICIENT_STOCK', message: 'Not enough free stock t
 /**
  * Un navire part d'une cité vers une autre (4.6) : sa cargaison sort du stock libre de la maison vers
  * l'extrémité `in_transit`, rattachée au voyage ; la maison paie les provisions (puits) et le droit de port
- * de la cité d'arrivée (5.6 : part détruite, reste au trésor de la cité) dans une écriture
+ * de la cité d'arrivée (5.6 : coefficient de cette cité, part détruite, reste au trésor de la cité) dans une écriture
  * `voyage.departure`. L'arrivée est jouée par le moteur (#253). Un autre coût que le coût vu est refusé.
  */
 export const voyageDepart = defineCommand({
@@ -93,10 +89,13 @@ export const voyageDepart = defineCommand({
     if (!route) return refuse('NO_ROUTE', 'No sea route links these cities.');
     if (cargoUnits(input.cargo) > shipClass.capacityUnits)
       return refuse('CARGO_OVER_CAPACITY', `This ship carries ${shipClass.capacityUnits} units.`);
+    // Coefficient de la cité d'arrivée (5.6) : dernier décret appliqué, sinon la configuration, lu sous le
+    // verrou de l'agora, que prend aussi la clôture qui applique un décret.
+    const arrival = await cityRatesOf(trx, owned.world_id, input.toCityId, config);
     const cost = departureCost({
       provisionsOboles: routeProvisionsOboles(route, shipClass.id),
       portDuesBaseOboles: portDuesBaseOboles(config, shipClass.id),
-      cityCoefficientBps: cityPortDuesCoefficientBps(config, toSlug),
+      cityCoefficientBps: arrival.portDuesCoefficientBps,
       burnShareBps: config.ships.portDues.burnShareBps,
     });
     // Le coût affiché fait foi : un autre tarif (configuration activée entre-temps) n'est pas prélevé.

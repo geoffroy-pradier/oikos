@@ -131,6 +131,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Une erreur de répartition déplace de la monnaie entre le vendeur, le puits et la cité sans en créer ;
   elle est exclue par le calcul de la taxe (`packages/sim`, testé par propriétés) et par les tests de la commande et du tick.
   Deux paramètres du back-office, en points de base (1 pour 10 000) : le taux, borné à 50 %, et la part de la taxe qui est détruite, le reste allant au trésor de la cité (5.6).
+  Ce taux est celui du monde : une cité le remplace sur son agora par un décret appliqué (5.6, 6.3), et chaque échange est taxé au taux de la cité du marché ; la part détruite reste celle du monde.
   Arrondi à l'obole, par échange et toujours vers le haut : taxe = ⌈brut × taux⌉, part détruite = ⌈taxe × part⌉, trésor = taxe − part détruite, net = brut − taxe.
   L'arrondi ne joue donc jamais en faveur de la monnaie en circulation, et découper une vente en petits ordres ne fait jamais payer moins (arrondie vers le bas, la taxe d'un échange de moins de 1 ÷ taux oboles serait nulle).
   En contrepartie, un échange paie au plus une obole de plus que le taux exact : une vente servie en plusieurs échanges peut rapporter quelques oboles de moins que le net annoncé pour un échange unique.
@@ -321,6 +322,15 @@ Les recettes alimentent le trésor de la cité, dépensé par les magistrats.
 La concurrence fiscale entre cités est un ressort de jeu assumé.
 
 Droit de port, décision du ticket #252 : un forfait par arrivée et par classe de navire, payé au départ, que la cité module par son coefficient, et non 2 % de la valeur de la cargaison, qui n'a pas de valeur publique sûre (4.6).
-Une part est détruite, le reste va au trésor de la cité d'arrivée, comme la taxe de marché ; le coefficient de chaque cité est un paramètre de configuration, à 10 000 (×1) au départ, que les décrets régleront (#262).
+Une part est détruite, le reste va au trésor de la cité d'arrivée, comme la taxe de marché ; le coefficient de chaque cité est un paramètre de configuration, à 10 000 (×1) au départ, que les décrets règlent (#262).
+
+Taux par cité, décisions du ticket #262 : la taxe de marché d'une cité et le coefficient de son droit de port sont ceux de son dernier décret appliqué (6.3), ramenés dans les bornes que la configuration fixe aux décrets (`decrees.models`), sinon ceux de la configuration (`marketTax.rateBps`, `ships.portDues.cityCoefficientBps`).
+Tant qu'aucun décret n'est appliqué, rien ne change donc pour la cité.
+Les bornes encadrent les votes des cités, pas le monde : le taux de la configuration n'y est pas ramené.
+Un décret devenu hors bornes, parce qu'une version de configuration les a resserrées depuis son vote, s'applique quand même et vaut la borne la plus proche, à son application comme ensuite ; il retrouve sa valeur votée si les bornes s'élargissent.
+Un modèle que la configuration ne borne plus rend à chaque cité la valeur de la configuration : le monde a repris ce taux aux cités, et leurs décrets retrouvent leur effet s'il le rouvre.
+Le dernier décret appliqué est le plus récemment appliqué ; deux décrets d'une même cité appliqués à la même clôture se départagent par la fin de leur vote, la plus tardive l'emportant, puis par leur identifiant.
+Un seul calcul, celui de la base (`game.city_rates`), donne ces taux à toutes les commandes et étapes qui taxent : l'agora (`market.placeOrder`), les achats des PNJ, la revente d'un bien (`property.buyListed`) et le départ d'un navire (`voyage.depart`).
+Chacune le lit sous le verrou de l'agora du monde, que prend aussi la clôture qui applique un décret : un échange ou un départ validé après elle paie le taux nouveau.
 
 Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité. Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux, et les joueurs ne le lisent pas encore.

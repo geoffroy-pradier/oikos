@@ -3,6 +3,7 @@ import {
   propertyBuyListedInputSchema,
   propertyBuyListedOutputSchema,
 } from '@oikos/contracts';
+import { cityRatesOf } from '@oikos/db';
 import { marketTax } from '@oikos/sim';
 import { defineCommand } from '../registry';
 import { lockHouseProperty, openListingOf, refuse } from './property-offer';
@@ -12,7 +13,7 @@ const NOT_FOR_SALE = { code: 'PROPERTY_NOT_FOR_SALE', message: 'This property is
 /**
  * La maison achète un bien mis en vente par une autre (docs/specs/04-systemes-gestion.md, 4.5), au prix
  * affiché qu'elle a vu, sans enchère. Elle paie le prix, le vendeur en reçoit le net de la taxe de marché
- * de la cité du bien, prélevée comme à l'agora (5.3, même calcul `marketTax`, même répartition entre le
+ * de la cité du bien, au taux de cette cité, prélevée comme à l'agora (5.3, même calcul `marketTax`, même répartition entre le
  * puits `sink_market_tax` et le trésor de la cité), dans une seule écriture `property.sale` : la revente
  * transfère de la monnaie sans en créer, et n'en détruit que la part détruite de la taxe. La base ne cède
  * le bien qu'à cette écriture, et ne règle l'offre qu'une fois.
@@ -53,7 +54,12 @@ export const propertyBuyListed = defineCommand({
     if (!buyer || !seller) throw new Error(`Missing treasury for the sale of ${property.id}`);
     if (Number(buyer.balance) < priceOboles)
       return refuse('INSUFFICIENT_FUNDS', 'Not enough money.');
-    const tax = marketTax(priceOboles, config.marketTax);
+    // Taux de la cité du bien, lu sous le verrou de l'agora pris par `lockHouseProperty`.
+    const rates = await cityRatesOf(trx, house.world_id, property.city_id, config);
+    const tax = marketTax(priceOboles, {
+      rateBps: rates.marketTaxRateBps,
+      burnShareBps: config.marketTax.burnShareBps,
+    });
     const taxAccount = (column: 'system_key' | 'city_id', value: string) =>
       trx
         .selectFrom('game.accounts')

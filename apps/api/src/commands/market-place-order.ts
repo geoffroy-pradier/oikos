@@ -3,6 +3,7 @@ import {
   marketPlaceOrderInputSchema,
   marketPlaceOrderOutputSchema,
 } from '@oikos/contracts';
+import { cityRatesOf } from '@oikos/db';
 import { marketTax, planLimitOrder } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
@@ -175,8 +176,17 @@ export const marketPlaceOrder = defineCommand({
         .execute();
       return entry.id;
     };
-    // Comptes de la taxe : le puits du monde et le trésor de la cité, lus seulement s'il y a à prélever.
-    const taxed = trades.length > 0 && config.marketTax.rateBps > 0;
+    // Taxe de la cité du marché (5.6), lue sous le verrou de l'agora : celui que prend la clôture qui
+    // applique un décret de taux. Ses comptes, le puits du monde et le trésor de la cité, ne sont lus que
+    // s'il y a à prélever.
+    const rule = {
+      rateBps:
+        trades.length > 0
+          ? (await cityRatesOf(trx, house.world_id, city.id, config)).marketTaxRateBps
+          : 0,
+      burnShareBps: config.marketTax.burnShareBps,
+    };
+    const taxed = rule.rateBps > 0;
     const taxAccount = (key: 'sink' | 'treasury') =>
       trx
         .selectFrom('game.accounts')
@@ -201,7 +211,7 @@ export const marketPlaceOrder = defineCommand({
       const payer = buying ? account : await accountOf(otherId, 'escrow').executeTakeFirstOrThrow();
       const payee = buying ? await accountOf(otherId, 'house').executeTakeFirstOrThrow() : account;
       const gross = trade.price * trade.quantity;
-      const tax = marketTax(gross, config.marketTax);
+      const tax = marketTax(gross, rule);
       const entryId = await post(
         'market.trade',
         payer.id,
