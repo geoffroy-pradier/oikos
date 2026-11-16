@@ -18,6 +18,7 @@ import {
 import {
   decreeAdoptedSchema,
   decreeAppliedSchema,
+  decreeLapsedSchema,
   decreeProposedSchema,
   decreeRejectedSchema,
   decreeVoteCastSchema,
@@ -85,6 +86,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   decreeAdoptedSchema,
   decreeRejectedSchema,
   decreeAppliedSchema,
+  decreeLapsedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   directChannelOpenedSchema,

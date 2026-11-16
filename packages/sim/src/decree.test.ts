@@ -1,7 +1,12 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { dailyCloseAt, gameDayAt } from './clock';
-import { decreeOutcome, decreeSpendingCapOboles, decreeVotingClosesAt } from './decree';
+import {
+  decreeOutcome,
+  decreeSpendingCapOboles,
+  decreeSpendingDecision,
+  decreeVotingClosesAt,
+} from './decree';
 
 const DAY_MS = 86_400_000;
 const PARIS = { dailyCloseHour: 4, timezone: 'Europe/Paris' };
@@ -104,6 +109,70 @@ describe('plafond d’un décret de dépense', () => {
           expect(cap * 10_000n <= treasury * BigInt(share)).toBe(true);
           expect((cap + 1n) * 10_000n > treasury * BigInt(share)).toBe(true);
           expect(cap <= treasury).toBe(true);
+        },
+      ),
+    );
+  });
+});
+
+describe('règlement d’un décret de dépense à la clôture', () => {
+  const decide = (treasury: bigint, amountOboles: number, maxOboles = 60_000, share = 2_500) =>
+    decreeSpendingDecision({ treasury, amountOboles, maxOboles, spendingCapShareBps: share });
+
+  it('payé s’il tient dans le plafond, à l’obole près ; caduc sinon, avec ce que le trésor permettait', () => {
+    expect(decide(2_400n, 600)).toEqual({ applied: true, spentOboles: 600, bounded: false });
+    expect(decide(2_403n, 601)).toEqual({ applied: false, reason: 'uncovered', capOboles: 600 });
+    expect(decide(0n, 1)).toEqual({ applied: false, reason: 'uncovered', capOboles: 0 });
+    expect(decide(1n, 1, 60_000, 10_000)).toEqual({
+      applied: true,
+      spentOboles: 1,
+      bounded: false,
+    });
+    expect(decide(10n ** 12n, 1, 60_000, 0)).toEqual({
+      applied: false,
+      reason: 'uncovered',
+      capOboles: 0,
+    });
+    // Maximum resserré depuis le vote : ramené, jamais relevé à un minimum.
+    expect(decide(10_000n, 2_000, 1_500)).toEqual({
+      applied: true,
+      spentOboles: 1_500,
+      bounded: true,
+    });
+    const closed = { treasury: 10_000n, amountOboles: 600 };
+    expect(
+      decreeSpendingDecision({ ...closed, maxOboles: undefined, spendingCapShareBps: 2_500 }),
+    ).toEqual({ applied: false, reason: 'model_closed' });
+    expect(
+      decreeSpendingDecision({ ...closed, maxOboles: 600, spendingCapShareBps: undefined }),
+    ).toEqual({ applied: false, reason: 'model_closed' });
+    expect(() => decide(1_000n, 0)).toThrow(RangeError);
+  });
+
+  it('propriétés : payé au plus le voté, le maximum et le plafond, jamais plus que le trésor ; conservation', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 0n, max: 10n ** 13n }),
+        fc.integer({ min: 1, max: 1_000_000_000_000 }),
+        fc.integer({ min: 1, max: 1_000_000_000_000 }),
+        fc.integer({ min: 0, max: 10_000 }),
+        (treasury, amount, max, share) => {
+          const decision = decide(treasury, amount, max, share);
+          const cap = decreeSpendingCapOboles(treasury, share);
+          if (decision.applied) {
+            const spent = BigInt(decision.spentOboles);
+            expect(spent >= 1n && spent <= cap && spent <= treasury).toBe(true);
+            expect(decision.spentOboles).toBe(Math.min(amount, max));
+            // Le trésor reste positif ou nul après la dépense.
+            expect(treasury - spent >= 0n).toBe(true);
+          } else {
+            expect(decision).toEqual({
+              applied: false,
+              reason: 'uncovered',
+              capOboles: Number(cap),
+            });
+            expect(BigInt(Math.min(amount, max)) > cap).toBe(true);
+          }
         },
       ),
     );

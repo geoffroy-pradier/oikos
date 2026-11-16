@@ -175,20 +175,43 @@ describe('city.voteDecree et événements des décrets', () => {
         domainEventSchema.safeParse({ ...applied, payload: { ...applied?.payload, inForceBps } })
           .success,
       ).toBe(false);
-    // Une valeur en vigueur pour un décret de taux, et pour lui seul : une dépense (#263) n'en a pas.
+    // Une valeur en vigueur pour un décret de taux, un montant payé pour une dépense (#263), chacun le sien.
     const spending = { model: 'public_works', params: { amountOboles: 600 } };
-    const payload = (decree: unknown, inForceBps?: number) => ({
+    const payload = (decree: unknown, extra: object = {}) => ({
       type: 'DecreeApplied',
-      payload: {
-        decreeId: DECREE,
-        cityId: CITY,
-        decree,
-        ...(inForceBps === undefined ? {} : { inForceBps }),
-      },
+      payload: { decreeId: DECREE, cityId: CITY, decree, ...extra },
     });
-    expect(domainEventSchema.safeParse(payload(spending)).success).toBe(true);
-    expect(domainEventSchema.safeParse(payload(spending, 600)).success).toBe(false);
+    expect(domainEventSchema.safeParse(payload(spending, { spentOboles: 600 })).success).toBe(true);
+    expect(domainEventSchema.safeParse(payload(spending)).success).toBe(false);
+    for (const spentOboles of [0, -1, 1.5])
+      expect(domainEventSchema.safeParse(payload(spending, { spentOboles })).success).toBe(false);
+    expect(
+      domainEventSchema.safeParse(payload(spending, { spentOboles: 600, inForceBps: 600 })).success,
+    ).toBe(false);
     const rate = { model: 'market_tax_rate', params: { rateBps: 900 } };
     expect(domainEventSchema.safeParse(payload(rate)).success).toBe(false);
+    expect(
+      domainEventSchema.safeParse(payload(rate, { inForceBps: 900, spentOboles: 1 })).success,
+    ).toBe(false);
+  });
+
+  it('caducité d’une dépense : sa raison, et ce que le trésor permettait quand il ne la couvre pas', () => {
+    const festival = {
+      model: 'festival',
+      params: { amountOboles: 300, days: 2, goodIds: ['bread'] },
+    };
+    const lapsed = (decree: unknown, extra: object) =>
+      domainEventSchema.safeParse({
+        type: 'DecreeLapsed',
+        payload: { decreeId: DECREE, cityId: CITY, decree, ...extra },
+      }).success;
+    expect(lapsed(festival, { reason: 'uncovered', capOboles: 0 })).toBe(true);
+    expect(lapsed(festival, { reason: 'model_closed' })).toBe(true);
+    expect(lapsed(festival, { reason: 'uncovered' })).toBe(false);
+    expect(lapsed(festival, { reason: 'model_closed', capOboles: 10 })).toBe(false);
+    expect(lapsed(festival, { reason: 'uncovered', capOboles: -1 })).toBe(false);
+    expect(lapsed(festival, { reason: 'too_late' })).toBe(false);
+    const rate = { model: 'port_dues', params: { coefficientBps: 900 } };
+    expect(lapsed(rate, { reason: 'model_closed' })).toBe(false);
   });
 });
