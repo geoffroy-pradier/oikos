@@ -13,6 +13,14 @@ const facts = chronicleFacts({
   maxGoods: 3,
 });
 const issues = (text: string) => numberIssues(text, facts, chronicleNames(facts, context));
+// Faits d'un jour où la maison `houseName` est élue, et ce que le contrôle relève dans `text` ce jour-là.
+const elected = (houseName: string) =>
+  chronicleFacts({
+    ...{ cityId: 'kalliste', worldEvents: [], population: null, maxGoods: 3 },
+    events: [{ type: 'election', cityId: 'kalliste', houseName, votes: 3 }],
+  });
+const electedIssues = (houseName: string, text: string) =>
+  numberIssues(text, elected(houseName), chronicleNames(elected(houseName), context));
 
 describe('nombres d’un texte', () => {
   it('lit les milliers de chaque langue, apostrophe comprise ; un décimal se lit `NaN`', () => {
@@ -84,23 +92,20 @@ describe('nombres d’un texte', () => {
     expect(writtenNumbers('Le port de Deux Rives.', ['Deux Rives'])).toEqual([]);
   });
 
+  it('ne retire un nom que s’il forme un mot entier : « Vin » ne cache pas « Vingt »', () => {
+    expect(issues('Vingt navires mouillent au port.')).toEqual(['Vingt']);
+    expect(issues('Vingt et un navires.')).toEqual(['Vingt']);
+    expect(issues('Le Vin de Milet ; wine ; Kallistè.')).toEqual([]);
+    expect(electedIssues('rois', 'La maison rois. Le blé à trois oboles.')).toEqual(['trois']);
+    expect(electedIssues('ille', 'La maison ille ; mille oboles.')).toEqual(['mille']);
+    expect(electedIssues('oubl', 'La maison oubl ; le prix a doublé.')).toEqual(['doublé']);
+    expect(electedIssues('ingt', 'La maison ingt ; vingt navires.')).toEqual(['vingt']);
+    const words = writtenNumbers('Sextuplé, septuplé, octupled ; trillion, quadrillions, zillion.');
+    expect(words.join(' ')).toBe('Sextuplé septuplé octupled trillion quadrillions zillion');
+  });
+
   it('une maison élue au nom sans nombre est retirée avant le contrôle ; « Mille Oboles », « Deux Rives » non', () => {
-    const elected = (houseName: string) =>
-      chronicleFacts({
-        cityId: 'kalliste',
-        events: [{ type: 'election', cityId: 'kalliste', houseName, votes: 3 }],
-        worldEvents: [],
-        population: null,
-        maxGoods: 3,
-      });
-    const check = (houseName: string) => {
-      const day = elected(houseName);
-      return numberIssues(
-        `La maison ${houseName} est élue avec 3 voix.`,
-        day,
-        chronicleNames(day, context),
-      );
-    };
+    const check = (name: string) => electedIssues(name, `La maison ${name} est élue avec 3 voix.`);
     expect(check('Philaïdes')).toEqual([]);
     expect(check('Mille Oboles')).toEqual(['Mille']);
     expect(check('Deux Rives')).toEqual(['Deux']);

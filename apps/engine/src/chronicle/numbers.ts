@@ -69,6 +69,9 @@ const WORDS = [
   'tripl\\p{L}*',
   'quadrupl\\p{L}*',
   'quintupl\\p{L}*',
+  'sextupl\\p{L}*',
+  'septupl\\p{L}*',
+  'octupl\\p{L}*',
   'd[ée]cupl\\p{L}*',
   'centupl\\p{L}*',
   // Anglais : nombres, ordinaux, quantités.
@@ -116,6 +119,7 @@ const WORDS = [
   'century',
   'centuries',
   'decades?',
+  '\\p{L}*illions?',
   'nil',
   'nought',
   'naught',
@@ -124,12 +128,18 @@ const WORDS = [
 ];
 const WORD = new RegExp(`(?<![\\p{L}\\p{N}])(?:${WORDS.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
 
-/** Le texte, débarrassé des noms donnés (une cité, un bien peuvent porter un mot de nombre). */
+/** Le texte, débarrassé des noms donnés quand ils forment un mot entier (une cité, un bien peuvent porter un mot de nombre). */
 function withoutNames(text: string, names: readonly string[]): string {
+  // Un nom n'est retiré que s'il forme un mot entier : « Vin » ne fait pas de « Vingt » un « gt ».
+  const escape = (name: string) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return [...names]
     .filter((name) => name.length > 0)
     .sort((a, b) => b.length - a.length)
-    .reduce((rest, name) => rest.replaceAll(name, ' '), text);
+    .reduce(
+      (rest, name) =>
+        rest.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escape(name)}(?![\\p{L}\\p{N}])`, 'gu'), ' '),
+      text,
+    );
 }
 
 /**
