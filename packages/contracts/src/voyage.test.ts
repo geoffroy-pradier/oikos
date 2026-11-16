@@ -77,7 +77,13 @@ describe('voyage.depart', () => {
     const storm = { eventId: '01900000-0000-7000-8000-0000000004e1', delaySeconds: 3_600 };
     const stormy = { ...departed, payload: { ...payload, storm } };
     expect(domainEventSchema.parse(stormy)).toEqual(stormy);
+    // Raccourci par un vent favorable (#266) : la grâce consommée et les secondes retirées.
+    const fairWind = { graceUseId: storm.eventId, graceId: 'poseidon_wind', savedSeconds: 900 };
+    const windy = { ...departed, payload: { ...payload, storm, fairWind } };
+    expect(domainEventSchema.parse(windy)).toEqual(windy);
     for (const changed of [
+      { ...payload, fairWind: { ...fairWind, savedSeconds: 0 } },
+      { ...payload, fairWind: { ...fairWind, graceUseId: 'vent' } },
       { ...payload, portDues: { oboles: 41, burned: 21, treasury: 21 } },
       { ...payload, toCityId: KALLISTE },
       { ...payload, provisionsOboles: -1 },
