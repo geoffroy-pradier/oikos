@@ -152,6 +152,15 @@ describe('city.voteDecree et événements des décrets', () => {
           quorumReached: true,
         },
       })),
+      {
+        type: 'DecreeApplied',
+        payload: {
+          decreeId: DECREE,
+          cityId: CITY,
+          decree: { model: 'market_tax_rate', params: { rateBps: 900 } },
+          inForceBps: 600,
+        },
+      },
     ];
     for (const event of events) {
       const written = JSON.parse(JSON.stringify(event)) as unknown;
@@ -159,5 +168,27 @@ describe('city.voteDecree et événements des décrets', () => {
     }
     const withChoice = { ...events[1], payload: { ...events[1]?.payload, approve: true } };
     expect(domainEventSchema.safeParse(withChoice).success).toBe(false);
+    // Une valeur en vigueur se dit en points de base entiers, positifs, au plus ×10.
+    const applied = events.at(-1);
+    for (const inForceBps of [-1, 1.5, 100_001])
+      expect(
+        domainEventSchema.safeParse({ ...applied, payload: { ...applied?.payload, inForceBps } })
+          .success,
+      ).toBe(false);
+    // Une valeur en vigueur pour un décret de taux, et pour lui seul : une dépense (#263) n'en a pas.
+    const spending = { model: 'public_works', params: { amountOboles: 600 } };
+    const payload = (decree: unknown, inForceBps?: number) => ({
+      type: 'DecreeApplied',
+      payload: {
+        decreeId: DECREE,
+        cityId: CITY,
+        decree,
+        ...(inForceBps === undefined ? {} : { inForceBps }),
+      },
+    });
+    expect(domainEventSchema.safeParse(payload(spending)).success).toBe(true);
+    expect(domainEventSchema.safeParse(payload(spending, 600)).success).toBe(false);
+    const rate = { model: 'market_tax_rate', params: { rateBps: 900 } };
+    expect(domainEventSchema.safeParse(payload(rate)).success).toBe(false);
   });
 });

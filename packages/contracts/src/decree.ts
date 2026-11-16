@@ -186,3 +186,25 @@ export const decreeRejectedSchema = z.strictObject({
   type: z.literal('DecreeRejected'),
   payload: tallyPayload,
 });
+/** Modèles de taux : leur application met une valeur en vigueur dans la cité (#262). */
+const isRateModel = (model: DecreeModel) => model === 'market_tax_rate' || model === 'port_dues';
+/**
+ * Application d'un décret à la clôture : le décret tel que voté, et, pour un décret de taux (#262), le taux ou
+ * le coefficient qu'il met en vigueur dans sa cité, borné par le monde, en points de base. Ils diffèrent
+ * quand la configuration a resserré les bornes depuis le vote, ou ne borne plus le modèle (valeur du monde).
+ * Un décret de dépense (#263) n'a pas de valeur en vigueur : `inForceBps` est absent, et seulement pour lui.
+ */
+export const decreeAppliedSchema = z.strictObject({
+  type: z.literal('DecreeApplied'),
+  payload: z
+    .strictObject({
+      decreeId: z.uuid(),
+      cityId: z.uuid(),
+      decree: decreeProposalSchema,
+      inForceBps: z.number().int().min(0).max(100_000).optional(),
+    })
+    .refine((payload) => isRateModel(payload.decree.model) === (payload.inForceBps !== undefined), {
+      message: 'a rate decree, and only a rate decree, has a value in force',
+      path: ['inForceBps'],
+    }),
+});
