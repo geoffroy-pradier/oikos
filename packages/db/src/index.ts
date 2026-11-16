@@ -154,18 +154,47 @@ export interface GameDatabase {
     /** `update` ne sert qu'à verrouiller la ligne (`for update`) : la garde refuse toute modification. */
     charis: ColumnType<string, never, never>;
   };
-  /** Journal de la Charis, en ajout seul : une offrande (`offering`) ou le déclin d'une clôture (`decay`). */
+  /**
+   * Journal de la Charis, en ajout seul : une offrande (`offering`), le déclin d'une clôture (`decay`) ou la
+   * Charis dépensée par une grâce (`grace`, #266).
+   */
   'game.favor_ledger': {
     id: ColumnType<string, never, never>;
     world_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     god_id: ColumnType<string, string, never>;
     amount: ColumnType<string, number, never>;
-    kind: ColumnType<'offering' | 'decay', 'offering' | 'decay', never>;
+    kind: ColumnType<'offering' | 'decay' | 'grace', 'offering' | 'decay' | 'grace', never>;
     /** Offrande d'une ligne `offering` ; nulle pour toute autre. */
     offering_id: ColumnType<string | null, string | null | undefined, never>;
+    /** Invocation d'une ligne `grace` ; nulle pour toute autre. */
+    grace_use_id: ColumnType<string | null, string | null | undefined, never>;
     game_day: ColumnType<number | null, number | null | undefined, never>;
     created_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Grâces invoquées (7.1, #266) : écrites par `temple.invokeGrace`, puis consommées une fois par une récolte
+   * (`site_id`) ou un départ (`voyage_id`) ; rien d'autre ne change (garde de la base).
+   */
+  'game.graces_used': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    grace_id: ColumnType<string, string, never>;
+    god_id: ColumnType<string, string, never>;
+    effect: ColumnType<
+      'blessed_harvest' | 'inspired_workshop' | 'fair_wind',
+      'blessed_harvest' | 'inspired_workshop' | 'fair_wind',
+      never
+    >;
+    magnitude_bps: ColumnType<number, number, never>;
+    charis_spent: ColumnType<string, number, never>;
+    invoked_at: ColumnType<Date, never, never>;
+    ready_at: ColumnType<Date, Date, never>;
+    consumed_at: ColumnType<Date | null, never, Date>;
+    site_id: ColumnType<string | null, never, string>;
+    voyage_id: ColumnType<string | null, never, string>;
+    saved_seconds: ColumnType<number | null, never, number>;
   };
   /** Ordres de l'agora : le reste ne change que par un échange, l'état que par une annulation. */
   'game.orders': {

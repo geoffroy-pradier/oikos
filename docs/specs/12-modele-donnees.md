@@ -109,11 +109,18 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.
+  Une ligne de grâce (`grace`, #266) est négative : la Charis dépensée par une invocation de la même transaction, de la même maison et envers le même dieu, une fois par invocation.
   Toute autre nature est refusée : chaque mécanique qui touche la Charis y ajoute la sienne, et aucune ne prend de Charis à une maison pour la donner à une autre.
 - Offrandes (7.1, #265) : `offerings` garde chaque offrande, immuable : sa maison, la cité de sa maison, son dieu, ses oboles, sa Charis et, s'il y a des oboles, son écriture `temple.offering`.
   À la validation, la base contrôle que cette écriture a deux lignes, la trésorerie de la maison débitée des oboles et le puits `sink_offerings` crédité d'autant, qu'une offrande sans oboles donne des biens, et que sa Charis est au journal.
   Les biens offerts vont du stock de la maison dans sa cité vers l'extrémité système `offering` du journal des stocks, rattachés à leur offrande (`stock_ledger.offering_id`), un mouvement par bien ; rien ne revient de cette extrémité (contrainte `stock_ledger_offering_one_way`).
   La base ne recalcule pas la Charis d'une offrande, qu'elle ne lit pas dans la configuration : l'API la calcule, comme le montant de l'entretien.
+- Grâces (7.1, #266) : `graces_used` garde chaque invocation : sa maison, sa grâce, son dieu, son effet, son ampleur et sa Charis dépensée, lus dans la configuration en vigueur à l'invocation, son instant et la fin de sa recharge, calculée par l'API.
+  Elle naît maintenant, en attente ; la base refuse une invocation d'une grâce dont une invocation de la même maison se recharge encore, ou attend encore (index unique, qui tient sous concurrence).
+  Sa Charis dépensée est au journal de la Charis, dans la même transaction ; une grâce gratuite n'y a pas de ligne (contrôle à la validation).
+  Elle ne change ensuite qu'une fois : consommée maintenant par une récolte d'un site de sa maison (`site_id`), qui n'en consomme qu'une, ou par le départ, à cet instant, d'un voyage de sa maison (`voyage_id`, avec les secondes gagnées).
+  La base ne vérifie ni l'ampleur ni la recharge, qu'elle ne lit pas dans la configuration, ni que l'effet convient au site (champ ou atelier) : l'API le fait.
+  Le service l'écrit sans en choisir ni l'identifiant ni l'instant ; elle ne se supprime pas, et les joueurs ne la lisent que par une vue.
 - Population des PNJ (5.2) : une ligne par cité et par classe (`npc_population` : habitants entiers, jour de jeu de la dernière clôture qui l'a fait évoluer, couverture retenue), créée par le service sans clôture ni couverture, dont il ne modifie que ces trois valeurs.
   La base n'accepte une modification que si elle avance le jour de clôture de la ligne et si, à cet instant, aucune clôture de ce jour ou d'un jour postérieur n'est enregistrée pour le monde ;
   elle vérifie à la validation que la clôture de ce jour l'est (référence différée).
