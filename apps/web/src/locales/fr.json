@@ -634,6 +634,17 @@
     "result_other": "{{house}} : {{votes}} voix",
     "elected_one": "{{house}} : {{votes}} voix, élue",
     "elected_other": "{{house}} : {{votes}} voix, élue",
-    "unknownHouse": "Maison inconnue"
+    "unknownHouse": "Maison inconnue",
+    "voteFor": "Voter pour {{house}}",
+    "voted": "Votre maison a voté. Le vote est secret.",
+    "stand": "Me porter candidat",
+    "withdraw": "Retirer ma candidature",
+    "done": {
+      "standForElection": "Candidature déposée.",
+      "withdrawCandidacy": "Candidature retirée.",
+      "castVote": "Vote enregistré."
+    },
+    "withdrawn": "Votre maison a retiré sa candidature à cette élection : c'est définitif.",
+    "withdrawWarning": "Un retrait est définitif : votre maison ne pourra plus se présenter à cette élection."
   }
 }

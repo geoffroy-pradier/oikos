@@ -13,6 +13,7 @@ import {
   parseResults,
 } from '../politics';
 import { serverClock } from '../server-clock';
+import { ElectionActions } from './ElectionActions';
 import { LoadProblem, Loading } from './LoadProblem';
 
 /**
@@ -116,6 +117,20 @@ export function CityPolitics() {
                   <li key={candidate.id}>{nameOf(candidate.houseId)}</li>
                 ))}
               </ul>
+              {citizen && (
+                <ElectionActions
+                  election={election}
+                  phase={phase}
+                  candidates={running}
+                  withdrawn={
+                    candidates?.some(
+                      (c) => c.electionId === election.id && c.houseId === house.id && c.withdrawn,
+                    ) ?? false
+                  }
+                  nameOf={nameOf}
+                  onDone={reload}
+                />
+              )}
             </>
           )}
           <h3 className="font-semibold">{t('cityPolitics.lastResults')}</h3>

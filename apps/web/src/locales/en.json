@@ -634,6 +634,17 @@
     "result_other": "{{house}}: {{votes}} votes",
     "elected_one": "{{house}}: {{votes}} vote, elected",
     "elected_other": "{{house}}: {{votes}} votes, elected",
-    "unknownHouse": "Unknown house"
+    "unknownHouse": "Unknown house",
+    "voteFor": "Vote for {{house}}",
+    "voted": "Your house has voted. The ballot is secret.",
+    "stand": "Stand for election",
+    "withdraw": "Withdraw my candidacy",
+    "done": {
+      "standForElection": "Candidacy filed.",
+      "withdrawCandidacy": "Candidacy withdrawn.",
+      "castVote": "Vote recorded."
+    },
+    "withdrawn": "Your house withdrew its candidacy for this election: this is final.",
+    "withdrawWarning": "Withdrawing is final: your house will not be able to stand again in this election."
   }
 }
