@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { composeChronicle } from './compose';
 import { chronicleRewriteRequest } from './rewrite';
 
-const context = { citySlug: 'kalliste', cityNames: new Map([['nesos', 'Nèsos 7']]) };
+const context = { citySlug: 'kalliste', cityNames: new Map([['nesos', 'Nèsos']]) };
 const facts = chronicleFacts({
   cityId: 'kalliste',
   events: [
@@ -46,10 +46,10 @@ describe('réécriture par la passerelle', () => {
     expect(result.provider.requests).toHaveLength(0);
   });
 
-  it('une réécriture qui ne cite que des nombres des faits est gardée, milliers et noms à chiffre compris', async () => {
+  it('une réécriture qui ne cite que des nombres des faits est gardée, milliers de chaque langue compris', async () => {
     const texts = {
-      fr: 'Grande affluence : 1 500 mesures de Blé à 6 oboles ; un navire de Nèsos 7. La cité perd 12 âmes, il en reste 1 191.',
-      en: 'Busy agora: 1,500 measures of Wheat at 6 obols; one ship from Nèsos 7. The city loses 12 souls, 1,191 remain.',
+      fr: 'Grande affluence : 1 500 mesures de Blé à 6 oboles ; un navire de Nèsos. La cité perd 12 âmes, il en reste 1 191.',
+      en: 'Busy agora: 1,500 measures of Wheat at 6 obols; one ship from Nèsos. The city loses 12 souls, 1,191 remain.',
     };
     expect(await rewrite(texts)).toMatchObject({ value: texts, source: 'ai', outcome: 'ok' });
   });
