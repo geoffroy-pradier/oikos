@@ -8,6 +8,8 @@ import { useHouse } from '../house';
 import { parseCityIdentities } from '../city-identity';
 import {
   freeStockIn,
+  parseLaborMarket,
+  parseWorkforce,
   previewHarvest,
   siteAlerts,
   type SiteAlert,
@@ -78,6 +80,26 @@ export function SitesCard({
     [identityRows.rows],
   );
   const reloadIdentities = identityRows.reload;
+  // Salaire et hébergement du jour de chaque cité, et travailleurs sans logement de chaque site (#258) :
+  // le prix d'une relance les comprend.
+  const laborRows = useRows<unknown>(
+    'labor_market',
+    'city_id, wage_oboles, lodging_oboles',
+    'city_id',
+  );
+  const workforceRows = useRows<unknown>('my_workforce', 'site_id, unhoused', 'site_id');
+  // `null` tant que le marché du travail n'est pas lu (ou que sa lecture échoue) : aucun prix de relance
+  // n'est annoncé, plutôt qu'un prix au salaire de base que l'API refuserait.
+  const laborDays = useMemo(
+    () => (laborRows.rows === null ? null : parseLaborMarket(laborRows.rows)),
+    [laborRows.rows],
+  );
+  const unhousedOf = useMemo(
+    () => (workforceRows.rows === null ? null : parseWorkforce(workforceRows.rows)),
+    [workforceRows.rows],
+  );
+  const { reload: reloadLaborDays } = laborRows;
+  const { reload: reloadWorkforce } = workforceRows;
   const admits = (cityId: string) => (recipe: { id: string; siteType: string }) => {
     const identity = identities?.get(cityId);
     return cityTerroirAdmits(
@@ -162,6 +184,9 @@ export function SitesCard({
       void reloadRules();
       // Une version activée entre-temps a pu resserrer ou élargir le terroir, comme changer les règles.
       void reloadIdentities();
+      // Une clôture a pu fixer un autre salaire ; un bail, loger d'autres travailleurs.
+      void reloadLaborDays();
+      void reloadWorkforce();
     };
     const timer = setInterval(() => {
       setNow(serverClock.now());
@@ -178,7 +203,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [reloadSites, reloadRules, reloadIdentities]);
+  }, [reloadSites, reloadRules, reloadIdentities, reloadLaborDays, reloadWorkforce]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -273,7 +298,14 @@ export function SitesCard({
 
   /** Relit ce qu'une commande a pu changer, puis l'heure. */
   async function refresh() {
-    await Promise.all([sites.reload(), reloadRules(), reloadIdentities(), onChanged()]);
+    await Promise.all([
+      sites.reload(),
+      reloadRules(),
+      reloadIdentities(),
+      reloadLaborDays(),
+      reloadWorkforce(),
+      onChanged(),
+    ]);
     setNow(serverClock.now());
   }
 
@@ -503,10 +535,19 @@ export function SitesCard({
           const retired = alerts.includes('retired');
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
           const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
-          // Prix d'une relance : l'entretien et les salaires du site (5.5). Sans l'identité de la cité,
-          // aucun salaire n'est compté ; si elle en a, l'API refuse ce prix plutôt que d'en prélever un autre.
+          // Prix d'une relance : l'entretien, les salaires et l'hébergement du site (5.5, #258), au salaire du
+          // jour de sa cité s'il est lu. Sans l'identité de la cité ni son marché du travail, aucun salaire
+          // n'est compté ; l'API refuse alors un prix faux plutôt que d'en prélever un autre.
           const slug = identities?.get(site.city_id)?.slug ?? null;
-          const restartCost = rules ? rules.restartCostOf(site.recipe_id, slug) : null;
+          const restartCost =
+            rules && laborDays
+              ? rules.restartCostOf(
+                  site.recipe_id,
+                  slug,
+                  laborDays.get(site.city_id),
+                  unhousedOf?.get(site.id),
+                )
+              : null;
           return (
             <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">

@@ -32,7 +32,11 @@ const halted = {
   cycle_started_at: '2026-05-31T20:00:00Z',
   halted_at: '2026-05-31T22:00:00Z',
 };
-const state = vi.hoisted(() => ({ rules: null as unknown }));
+const state = vi.hoisted(() => ({
+  rules: null as unknown,
+  labor: [] as unknown[] | null,
+  workforce: [] as unknown[],
+}));
 const api = vi.hoisted(() => ({ acquireSite: vi.fn(), restartSite: vi.fn() }));
 vi.mock('../api', () => ({
   collectSite: vi.fn(),
@@ -53,7 +57,14 @@ vi.mock('../data', () => {
   const [sites, identities] = [[halted], [identity]];
   return {
     useRows: (view: string) => {
-      const rows = view === 'city_identity' ? identities : sites;
+      const rows =
+        view === 'city_identity'
+          ? identities
+          : view === 'labor_market'
+            ? state.labor
+            : view === 'my_workforce'
+              ? state.workforce
+              : sites;
       return { rows, failed: false, reload: () => Promise.resolve(rows) };
     },
     useSiteRules: () => ({ rules: state.rules, failed: false, reload: () => Promise.resolve() }),
@@ -90,6 +101,8 @@ beforeEach(() => {
   api.restartSite.mockReset();
   window.sessionStorage.clear();
   state.rules = withPrices(600, 30);
+  state.labor = [];
+  state.workforce = [];
 });
 afterEach(cleanup);
 
@@ -113,6 +126,37 @@ describe('prix envoyés par la carte des sites', () => {
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
     expect(sends(api.restartSite).map((sent) => sent.price)).toEqual([50]);
     expect(await screen.findByText(/Site relancé.*8 drachmes 2 oboles/)).toBeTruthy();
+  });
+
+  it('relance au salaire et à l’hébergement du jour de la cité (#258) : deux nuits pour deux non logés', async () => {
+    // Salaire du jour 7 (et non 5, le salaire de base des règles), hébergement 3 : 30 + 4 × 7 + 2 × 3.
+    state.rules = withPrices(600, 30, { kalliste: 5 });
+    state.labor = [{ city_id: 'c1', wage_oboles: 7, lodging_oboles: 3 }];
+    state.workforce = [{ site_id: 's1', unhoused: 2 }];
+    api.restartSite.mockResolvedValue({
+      ok: true,
+      data: { siteId: 's1', upkeepOboles: 30, wagesOboles: 28, cycleStartedAt: halted.halted_at },
+    });
+    await show();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Relancer : .*10 drachmes 4 oboles/ }),
+    );
+    await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
+    expect(sends(api.restartSite).map((sent) => sent.price)).toEqual([64]);
+  });
+
+  it('hébergement payant mais travailleurs du site non lus : aucun prix annoncé, rien à envoyer', async () => {
+    state.labor = [{ city_id: 'c1', wage_oboles: 7, lodging_oboles: 3 }];
+    await show();
+    await screen.findAllByText(/Plafond d'accumulation/);
+    expect(screen.queryByRole('button', { name: /^Relancer/ })).toBeNull();
+  });
+
+  it('marché du travail pas encore lu ou illisible : aucun prix de relance annoncé', async () => {
+    state.labor = null;
+    await show();
+    await screen.findAllByText(/Plafond d'accumulation/);
+    expect(screen.queryByRole('button', { name: /^Relancer/ })).toBeNull();
   });
 
   it('relance : le prix affiché, puis le même sous la clé en attente ; après « prix changé », le nouveau sous une clé neuve', async () => {
