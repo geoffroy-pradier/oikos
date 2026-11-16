@@ -61,6 +61,9 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Première version (#264), dans l'onglet Cité : la vie politique (statut de la maison relu dans sa ligne de la vue `houses`, archonte en charge, élection en cours avec sa phase, son calendrier et ses candidats, résultats de la dernière élection dépouillée), l'assemblée et le trésor public ; les débats attendent la discussion de la cité (#274).
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
+   Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).
+   Une fête sans bien coché ou avec trop de biens le dit dans une région toujours présente, reliée au groupe de cases ; une proposition réussie remet le formulaire à zéro, biens compris.
+   Une lecture en échec ou illisible (charges ou règles) se dit et se relit ; après un « Réessayer » réussi, le foyer va au titre « Proposer un décret ».
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.
    Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.

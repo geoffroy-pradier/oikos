@@ -720,7 +720,8 @@
     "done": "Decree proposed: it is under vote.",
     "betweenOboles": "Between {{min}} and {{max}} obols ({{minMoney}} to {{maxMoney}}).",
     "amountIs": "That is {{amount}}.",
-    "tooManyGoods": "Too many goods for this festival."
+    "tooManyGoods": "Too many goods for this festival.",
+    "noGoods": "Tick at least one good for this festival."
   },
   "treasury": {
     "title": "Public treasury",
