@@ -4,6 +4,7 @@ export * from './candles';
 export * from './clock';
 export * from './decree';
 export * from './demand';
+export * from './labor';
 export * from './ledger';
 export * from './orderbook';
 export * from './population';
