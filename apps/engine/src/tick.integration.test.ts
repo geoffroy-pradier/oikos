@@ -30,11 +30,12 @@ beforeAll(async () => {
   const { tickMinutes } = (await loader.at(now)).config.clock;
   // Un tick à venir : sur une base neuve, la configuration vient d'être activée et n'était pas encore en
   // vigueur au début du tick en cours. L'horloge injectée (`now`) fait comme si son heure était venue.
-  // Deux ticks plus loin plutôt qu'un : l'activation d'essai du rejeu s'annule alors avant son échéance,
-  // ce que la base n'accepte qu'à plus d'une minute de celle-ci.
+  // Deux ticks plus loin plutôt qu'un : l'activation d'essai du rejeu se programme puis s'annule avant son
+  // échéance, ce que la base n'accepte qu'à plus d'une minute de celle-ci.
   index = tickIndexAt(now, tickMinutes) + 2;
   // La version attendue est celle du tick joué, pas celle de maintenant : une version programmée pour la
   // clôture par un autre fichier de tests (`admin.scheduleConfig`) peut entrer en vigueur entre les deux (#354).
+  // Seule limite : une programmation à cet instant faite par une autre suite après ce point, sur la même base.
   active = await loader.at(tickStart(index, tickMinutes));
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
@@ -177,8 +178,11 @@ describe('exécution d’un tick', () => {
       expect(await dryRunTick(db, tick, replay)).toEqual(played.summary);
       expect(await dryRunTick(db, tick, { seed: played.seed })).not.toEqual(played.summary);
     } finally {
+      // Sans effet si elle est déjà annulée : `admin.cancelActivation` annule toute l'échéance.
       await sql`insert into config.activation_cancellations (activation_id, cancelled_by)
-        select id, ${randomUUID()} from config.activations where version_id = ${published.version.id}`.execute(
+        select a.id, ${randomUUID()} from config.activations a
+        where a.version_id = ${published.version.id}
+          and not exists (select 1 from config.activation_cancellations c where c.activation_id = a.id)`.execute(
         db,
       );
     }
