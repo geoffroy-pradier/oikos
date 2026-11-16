@@ -8,6 +8,7 @@ import {
   sumDailyDues,
   type SystemAccountKey,
 } from '@oikos/sim';
+import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 
@@ -22,6 +23,28 @@ const SINKS = [
   'sink_ship_upkeep',
   'sink_property_upkeep',
 ] as const satisfies readonly SystemAccountKey[];
+
+/**
+ * Verrouille les puits de l'entretien dans l'ordre de `SINKS` et rend leurs comptes. Toute étape de la
+ * clôture qui verrouille une trésorerie le fait d'abord, après l'agora : la relance d'un site, qui ne prend
+ * pas l'agora, verrouille ses puits puis la trésorerie, et l'attendrait sinon pendant qu'elle-même attend.
+ */
+export async function lockUpkeepSinks(trx: Db, worldId: string) {
+  const ids: string[] = [];
+  for (const key of SINKS)
+    ids.push(
+      (
+        await trx
+          .selectFrom('game.accounts')
+          .select('id')
+          .where('world_id', '=', worldId)
+          .where('system_key', '=', key)
+          .forUpdate()
+          .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${key} account`))
+      ).id,
+    );
+  return ids as [string, string, string, string];
+}
 
 /**
  * Entretien et salaires quotidiens des sites (5.5, 4.4). Chaque site qui existait à l'instant de la
@@ -53,20 +76,7 @@ export const siteUpkeep: CloseStep = {
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
-    const lockSink = async (key: (typeof SINKS)[number]) =>
-      (
-        await trx
-          .selectFrom('game.accounts')
-          .select('id')
-          .where('world_id', '=', worldId)
-          .where('system_key', '=', key)
-          .forUpdate()
-          .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${key} account`))
-      ).id;
-    const upkeepSink = await lockSink(SINKS[0]);
-    const wagesSink = await lockSink(SINKS[1]);
-    const shipSink = await lockSink(SINKS[2]);
-    const propertySink = await lockSink(SINKS[3]);
+    const [upkeepSink, wagesSink, shipSink, propertySink] = await lockUpkeepSinks(trx, worldId);
     const propertyUpkeepOf = new Map(
       config.properties.sizes.map((size) => [size.id, size.dailyUpkeepOboles]),
     );
