@@ -1,4 +1,4 @@
-import type { MarketTaxRule } from '@oikos/sim';
+import { PROPERTY_CONDITION_MAX, type MarketTaxRule } from '@oikos/sim';
 import { Button, Field } from '@oikos/ui';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,13 +24,18 @@ function controls(
 ) {
   const renovation = size?.renovation;
   return {
-    renovation: renovation && property.condition < 10_000 ? renovation : undefined,
+    renovation: renovation && property.condition < PROPERTY_CONDITION_MAX ? renovation : undefined,
     withdraw: offer !== undefined,
     list: !offer && !leased,
   };
 }
-const renovateIntent = (propertyId: string, renovation: PropertySize['renovation']) =>
-  `renovate:${propertyId}:${JSON.stringify(renovation)}`;
+// L'état lu entre dans l'intention : après une rénovation aboutie sans réponse, l'usure du jour ne fait pas
+// reprendre l'ancienne clé, qui rejouerait l'ancienne réponse sans rien rénover.
+const renovateIntent = (
+  propertyId: string,
+  condition: number,
+  renovation: PropertySize['renovation'],
+) => `renovate:${propertyId}:${condition}:${JSON.stringify(renovation)}`;
 
 /**
  * Intentions que proposent les contrôles d'un bien de la maison ; une intention finie par `:` vaut pour
@@ -44,7 +49,9 @@ export function ownerIntents(
 ): string[] {
   const shown = controls(property, size, offer, leased);
   return [
-    ...(shown.renovation ? [renovateIntent(property.id, shown.renovation)] : []),
+    ...(shown.renovation
+      ? [renovateIntent(property.id, property.condition, shown.renovation)]
+      : []),
     ...(shown.withdraw ? [`withdraw:${property.id}`] : []),
     ...(shown.list ? [`listForSale:${property.id}:`, `offerLease:${property.id}:`] : []),
   ];
@@ -122,11 +129,15 @@ export function PropertyActions({
           aria-disabled={busy}
           aria-label={`${renovateText} — ${name}`}
           onClick={() =>
-            void run(renovateIntent(property.id, renovation), 'property.renovate', {
-              propertyId: property.id,
-              expectedCostOboles: renovation.oboles,
-              expectedGoods: renovation.goods,
-            })
+            void run(
+              renovateIntent(property.id, property.condition, renovation),
+              'property.renovate',
+              {
+                propertyId: property.id,
+                expectedCostOboles: renovation.oboles,
+                expectedGoods: renovation.goods,
+              },
+            )
           }
         >
           {renovateText}
