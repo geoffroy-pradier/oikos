@@ -1,4 +1,5 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
+import { yieldModelOf } from '@oikos/sim';
 import { Button, Card } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,7 @@ import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandRespo
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { parseCityIdentities } from '../city-identity';
+import { harvestUnderEvents, YIELD_MODELS, yieldEventsOf } from '../harvest-events';
 import {
   freeStockIn,
   parseLaborMarket,
@@ -28,6 +30,7 @@ import {
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { serverClock, syncServerClock } from '../server-clock';
+import { describeWorldEvent, inForce, useEventRows } from '../world-events';
 
 interface Site {
   id: string;
@@ -104,6 +107,15 @@ export function SitesCard({
     [workforceRows.rows],
   );
   const staffOf = useMemo(() => parseSiteStaff(workforceRows.rows), [workforceRows.rows]);
+  // Événements de rendement des cités des sites (7.4, #417) qui finissent après le début du plus ancien cycle
+  // en cours : les seuls qu'une récolte peut encore rencontrer. La vue ne rend que ceux commencés.
+  const oldest = Math.min(...(sites.rows ?? []).map((site) => Date.parse(site.cycle_started_at)));
+  const eventRows = useEventRows({
+    city_id: [...new Set((sites.rows ?? []).map((site) => site.city_id))].sort(),
+    model: YIELD_MODELS,
+    ends_at: { gt: new Date(Number.isFinite(oldest) ? oldest : 0).toISOString() },
+  });
+  const { events, reload: reloadEvents } = eventRows;
   const { reload: reloadLaborDays } = laborRows;
   const { reload: reloadWorkforce } = workforceRows;
   const admits = (cityId: string) => (recipe: { id: string; siteType: string }) => {
@@ -168,6 +180,22 @@ export function SitesCard({
       quantity: number.format(stack.quantity),
       good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
     });
+  /**
+   * Explication d'une récolte touchée par un événement de rendement (7.4) : à rien (sécheresse au plus
+   * fort, ou extrant arrondi à zéro), ou de combien. `tense` : estimation, ou récolte faite.
+   */
+  const gapText = (
+    site: Site,
+    outputs: readonly { goodId: string; quantity: number }[],
+    gaps: readonly { goodId: string; quantity: number }[],
+    tense: 'eventGap' | 'collectedGap',
+  ) => {
+    const model = yieldModelOf(rules?.siteTypeOf(site.recipe_id) ?? '');
+    if (model === undefined || gaps.length === 0) return null;
+    if (outputs.every((stack) => stack.quantity === 0)) return t(`home.${tense}Zero`);
+    const lost = gaps.map((gap) => stackText({ ...gap, quantity: Math.abs(gap.quantity) }));
+    return t(`home.${tense}.${model}`, { list: list(lost) });
+  };
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
     freeStockIn(stock ?? [], site.city_id, goodId);
@@ -193,6 +221,8 @@ export function SitesCard({
       // Une clôture a pu fixer un autre salaire ; un bail, loger d'autres travailleurs.
       void reloadLaborDays();
       void reloadWorkforce();
+      // Un événement a pu commencer.
+      void reloadEvents();
     };
     const timer = setInterval(() => {
       setNow(serverClock.now());
@@ -209,7 +239,7 @@ export function SitesCard({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [reloadSites, reloadRules, reloadIdentities, reloadLaborDays, reloadWorkforce]);
+  }, [reloadSites, reloadRules, reloadIdentities, reloadLaborDays, reloadWorkforce, reloadEvents]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
@@ -242,15 +272,21 @@ export function SitesCard({
         text: t('home.haltedNow', { list: list(halted.map(siteName)) }),
       });
   }, [sites.rows]);
-  /** Ce qu'une récolte donnerait maintenant (`harvest`, `null` sans règles ni stock) et les alertes du site. */
+  /**
+   * Ce qu'une récolte donnerait maintenant (`harvest`, `null` sans règles ni stock), la quantité estimée sous
+   * les événements de rendement (`estimate`, `null` tant qu'ils ne sont pas lus), ceux en cours (`current`)
+   * et les alertes du site.
+   */
   const stateOf = (site: Site) => {
     const recipe = rules?.recipe(site.recipe_id);
     const halted = site.halted_at ? new Date(site.halted_at) : null;
+    const none = { estimate: null, current: [] };
     // Recette retirée de la configuration (4.2) : le site ne produit plus, quel que soit son arrêt.
-    if (rules && !recipe) return { halted, harvest: null, alerts: ['retired'] as SiteAlert[] };
+    if (rules && !recipe)
+      return { halted, harvest: null, ...none, alerts: ['retired'] as SiteAlert[] };
     // Tant que le stock ou l'heure ne sont pas lus, rien n'est annoncé : on ne dit pas « à court » à tort.
     if (!recipe || !stock || !now)
-      return { halted, harvest: null, alerts: halted ? ['halted' as const] : [] };
+      return { halted, harvest: null, ...none, alerts: halted ? ['halted' as const] : [] };
     const harvest = previewHarvest(
       recipe,
       new Date(site.cycle_started_at),
@@ -258,7 +294,16 @@ export function SitesCard({
       freeStockOf(site),
       halted,
     );
-    return { halted, harvest, alerts: siteAlerts(recipe, harvest, halted !== null) };
+    const alerts = siteAlerts(recipe, harvest, halted !== null);
+    // Champ ou verger : sa récolte n'est estimée qu'une fois ses événements lus.
+    const mine =
+      yieldModelOf(recipe.siteType) === undefined
+        ? []
+        : events && yieldEventsOf(events, site.city_id, recipe.siteType);
+    if (!mine) return { halted, harvest, ...none, alerts };
+    const start = new Date(site.cycle_started_at);
+    const estimate = harvestUnderEvents(recipe, harvest.cycles, start, mine);
+    return { halted, harvest, estimate, current: inForce(mine, now), alerts };
   };
   const watched = rows
     .map((site) => ({ site, alerts: stateOf(site).alerts }))
@@ -310,6 +355,7 @@ export function SitesCard({
       reloadIdentities(),
       reloadLaborDays(),
       reloadWorkforce(),
+      reloadEvents(),
       onChanged(),
     ]);
     setNow(serverClock.now());
@@ -497,10 +543,12 @@ export function SitesCard({
         </Button>
       )}
       {announce(ALL)}
-      {(sites.failed || rulesFailed) && (
+      {(sites.failed || rulesFailed || eventRows.failed) && (
         <LoadProblem
           heading={title}
-          onRetry={() => Promise.all([sites.reload(), reloadRules(), reloadIdentities()])}
+          onRetry={() =>
+            Promise.all([sites.reload(), reloadRules(), reloadIdentities(), reloadEvents()])
+          }
         />
       )}
       {sites.rows === null && !sites.failed && <Loading />}
@@ -536,7 +584,12 @@ export function SitesCard({
               ? picked
               : site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
-          const { halted, harvest, alerts } = stateOf(site);
+          const { halted, harvest, estimate, current, alerts } = stateOf(site);
+          // Récolte estimée touchée par un événement de rendement : à rien, ou de combien (7.4, #417).
+          const why =
+            estimate && harvest && harvest.cycles > 0
+              ? gapText(site, estimate.outputs, estimate.gaps, 'eventGap')
+              : null;
           // Sans recette, ni récolte ni relance : seul le changement de production est proposé.
           const retired = alerts.includes('retired');
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
@@ -657,11 +710,17 @@ export function SitesCard({
                   </ul>
                 </div>
               )}
-              {harvest && (
+              {current.map((event) => (
+                <p key={event.id} className="text-sm font-semibold">
+                  {describeWorldEvent(event, t, i18n.language, house.cityNames)}
+                </p>
+              ))}
+              {harvest && estimate && (
                 <p className="text-sm">
                   {harvest.cycles > 0
-                    ? t('home.harvestable', { list: list(harvest.outputs.map(stackText)) })
+                    ? t('home.harvestable', { list: list(estimate.outputs.map(stackText)) })
                     : t('home.harvestNone')}
+                  {why && <> {why}</>}
                   {harvest.waiting > 0 && (
                     <> {t('home.harvestWaiting', { count: harvest.waiting })}</>
                   )}

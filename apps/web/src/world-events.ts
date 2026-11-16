@@ -64,6 +64,16 @@ export const parseWorldEvents = (rows: readonly unknown[]): WorldEvent[] =>
 export const inForce = (events: readonly WorldEvent[], at: Date) =>
   events.filter((event) => event.startsAt <= at && at < event.endsAt);
 
+/** Événements lus de la vue `world_events` selon `filters` (`useRows`) ; `null` tant que rien n'est lu. */
+export function useEventRows(filters: Parameters<typeof useRows>[3]) {
+  const read = useRows<unknown>('world_events', WORLD_EVENT_COLUMNS, 'starts_at', filters);
+  const events = useMemo(
+    () => (read.rows === null ? null : parseWorldEvents(read.rows)),
+    [read.rows],
+  );
+  return { events, failed: read.failed, reload: read.reload };
+}
+
 /**
  * Événements en cours (vue `world_events`) selon `filters`, à l'heure du serveur, relus chaque minute onglet
  * visible et au retour sur l'onglet ; `null` tant que rien n'est lu. Seuls ceux qui finissent après
@@ -72,12 +82,8 @@ export const inForce = (events: readonly WorldEvent[], at: Date) =>
 export function useWorldEvents(filters: Record<string, string | readonly string[]>) {
   const [now, setNow] = useState(() => serverClock.now());
   const [since, setSince] = useState(() => now.toISOString());
-  const read = useRows<unknown>('world_events', WORLD_EVENT_COLUMNS, 'starts_at', {
-    ...filters,
-    ends_at: { gt: since },
-  });
-  const all = useMemo(() => (read.rows === null ? null : parseWorldEvents(read.rows)), [read.rows]);
-  const { reload } = read;
+  const read = useEventRows({ ...filters, ends_at: { gt: since } });
+  const { events: all, reload } = read;
   // Une fois, au montage : la borne change avec l'heure du serveur lue, et `reload` avec elle.
   useEffect(() => {
     let live = true;

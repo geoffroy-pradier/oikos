@@ -120,6 +120,11 @@
     "collectedAll_one": "Récolte engrangée sur {{number}} site : {{list}}.",
     "collectedAll_other": "Récolte engrangée sur {{number}} sites : {{list}}.",
     "collectAllFailed": "Échec pour {{site}}. {{reason}}",
+    "eventGap": {
+      "drought": "La sécheresse en retire {{list}}.",
+      "good_year": "La bonne année y ajoute {{list}}."
+    },
+    "eventGapZero": "La sécheresse réduit cette récolte à rien : récolter fait quand même avancer les cycles.",
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
