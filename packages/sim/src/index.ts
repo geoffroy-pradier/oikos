@@ -10,6 +10,7 @@ export * from './population';
 export * from './price-index';
 export * from './production';
 export * from './property';
+export * from './rent';
 export * from './rng';
 export * from './tax';
 export * from './upkeep';
