@@ -17,7 +17,14 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 ## Écrans clés à maquetter en premier
 
 1. Tableau de bord de la maison : trésorerie, alertes, production en cours, tâches du jour.
+   Première version des alertes (#259) : travailleurs sans logement dans les cités où une nuit d'hébergement coûte, bien à rénover (état sous le seuil où il ne loge plus personne) ou dont l'entretien est impayé, bail résilié pour loyer impayé à la dernière clôture du monde de la maison, chacune avec un lien vers l'écran Personnel ou Immobilier.
+   Rien à signaler : la carte se tait.
+   Le tableau de bord ouvre aussi l'écran Personnel (`/personnel`) : les travailleurs des sites de la maison, cité par cité, logés par ses biens ou hébergés chez les habitants, et le coût d'un jour de cet hébergement au prix du jour de la cité.
+   Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
+   Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
+   Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
+   L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.

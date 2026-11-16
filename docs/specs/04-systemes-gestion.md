@@ -189,7 +189,7 @@ Phase 2, première version (#256) :
   Une taille retirée de la configuration ne doit rien ; un bien de la cité ne doit rien.
   L'événement `UpkeepSettled` en porte le détail (`properties` : payés, impayés, impayés constatés et levés par cette clôture).
 - **Lecture** : les règles (`property_rules`) et le parc de chaque cité, par bien, sans propriétaire nommé et avec l'état des seuls biens à vendre (`city_properties`), sont publics pour tout joueur connecté ; une maison lit ses biens, leur état et leur impayé par `my_properties`.
-  L'écran attend #259.
+  L'écran Immobilier (#259) montre les biens offerts, ceux de la maison et ses baux, et en porte les commandes au prix affiché.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 - **Logement des travailleurs** (#258, 4.4) : les logements utiles des biens qu'une maison possède sans les avoir loués, et de ceux qu'elle loue par un bail en cours, logent les travailleurs de ses sites de la cité du bien, les plus anciens sites d'abord (`allocateWorkforce`) ; un bien loué loge son locataire, pas son propriétaire, et un bien de la cité ne loge personne.
   La clôture lit ces logements une fois, après la fin des baux impayés et la vétusté du jour, avant l'entretien : un bien que cette clôture trouve impayé loge encore ce jour-là, et plus à partir de la clôture suivante ; un impayé qu'elle règle ne loge qu'à partir de la suivante, quel que soit l'ordre dans lequel elle examine les maisons.
@@ -224,7 +224,7 @@ Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en cré
   La base vérifie à la validation qu'une offre vendue a cédé le bien à l'acheteur et qu'un bail a fermé son offre louée (12).
 - **Lecture** : les offres ouvertes de toutes les cités sont publiques pour tout joueur connecté (`property_offers` : le bien, sa cité, sa taille, son numéro, son état, la nature de l'offre et son prix ou loyer, sa date), sans la maison qui offre ; offrir un bien rend son état public.
   Chaque partie lit les baux dont elle est partie, en cours et terminés, avec les deux maisons, le loyer, la demande de fin et la fin (`my_leases`).
-  L'écran attend #259 ; le loyer d'équilibre viendra ensuite, et le logement des travailleurs (#258) est décrit plus haut.
+  Le loyer d'équilibre viendra ensuite, et le logement des travailleurs (#258) est décrit plus haut.
 
 ## 4.6 La flotte et les caravanes
 

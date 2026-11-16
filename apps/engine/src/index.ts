@@ -8,6 +8,7 @@ export {
   type TickStep,
 } from './tick';
 export { CLOSE_STEPS } from './close-steps';
+export { cityProperties } from './steps/city-properties';
 export { TICK_STEPS } from './tick-steps';
 export { runDailyClose, type CloseRequest } from './close';
 export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './scheduler';
