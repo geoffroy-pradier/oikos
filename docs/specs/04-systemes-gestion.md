@@ -8,9 +8,10 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
-  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`, ou acheté à une autre maison et cédé par elle, écriture `property.sale`, 4.5), loyers (`rents` : écriture `lease.rent`, négatifs pour le locataire, positifs pour le propriétaire, 4.5), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
+  Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), hébergement (`lodging` : nuits des travailleurs sans logement, écritures `lodging.daily` à la clôture et `lodging.restart` à la relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`, ou acheté à une autre maison et cédé par elle, écriture `property.sale`, 4.5), loyers (`rents` : écriture `lease.rent`, négatifs pour le locataire, positifs pour le propriétaire, 4.5), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
   Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
+  L'hébergement (#258) a sa propre écriture, de la même transaction, plutôt qu'une ligne marquée `lodging` : la migration 60 recrée sans condition sa contrainte de nature avec la seule liste (`upkeep`, `wages`), et son rejeu échouerait sur une base où une ligne porte un autre marqueur (règle 9, ADR 0006).
   La revente d'un bien entre maisons se lit comme une vente de l'agora : le vendeur, qui lit le prix de son offre vendue, voit la cession au brut en `acquisitions` (positive) et l'écart avec le net crédité en `taxes` ; l'acheteur voit le prix en `acquisitions` (négatif).
   L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6) ; celui des biens immobiliers aussi (4.5).
   La rénovation d'un bien marque elle aussi son débit `upkeep`.
@@ -25,7 +26,7 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   il n'y a ni variation de stock ni amortissement, les stocks sont au bilan.
   La monnaie de la maison y est sa trésorerie plus son séquestre : retenir ou rendre le prix d'un achat en attente est un mouvement entre ses deux comptes, sans effet sur le résultat, et l'achat est une charge le jour où il est servi (au flux de la seule trésorerie, un achat payé par le séquestre ne serait jamais une charge).
   Exploitation : ventes au brut, achats, taxes, charges courantes ; leur somme est le résultat (`operating_result`).
-  La colonne de l'entretien (`upkeep`) y porte les charges courantes : entretien des sites, des navires et des biens immobiliers, rénovation des biens, salaires et transport, dont `my_cash_flows` donne le détail par nature.
+  La colonne de l'entretien (`upkeep`) y porte les charges courantes : entretien des sites, des navires et des biens immobiliers, rénovation des biens, salaires, hébergement et transport, dont `my_cash_flows` donne le détail par nature.
   Décision (#252, ADR 0006) : le transport y entre plutôt que dans une vue nouvelle, comme les salaires avant lui ; l'écran Comptes la libelle « Entretien, salaires et transport ».
   Les colonnes du compte de résultat sont figées : la migration qui l'a créé le recrée tel quel quand la suite des migrations est rejouée, ce qu'une colonne de plus rendrait impossible.
   Une nature nouvelle y entre dans une colonne existante, ou dans une vue nouvelle.
@@ -137,7 +138,20 @@ Pour un atelier, rien n'est « accumulé » tant que les intrants ne sont pas co
   Salaires d'un site pour un jour = travailleurs × salaire du jour, en oboles, sans arrondi.
   Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et détruits (puits `sink_npc_wages`, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.
   Le salaire du jour est une règle publique, lue par les joueurs avec les règles des sites (vue `site_rules`, clé `staff` de la colonne `sites`).
-  Le salaire d'équilibre, le logement et le moral viendront ensuite (#258).
+  Marché du travail (#258) : l'offre de travail d'une cité est la part de la population de ses classes que la configuration désigne comme travailleuses (`labor.workingShareBps`, arrondie à l'habitant inférieur, sur la population courante ; celle de la configuration pour une classe que le moteur n'a pas encore fait naître).
+  Sans classe travailleuse, l'offre est sans limite.
+  Ses employés sont les travailleurs des sites de la cité, au nombre de leur recette en vigueur.
+  Chaque clôture, juste avant l'entretien, fixe et enregistre une fois par jour de jeu, pour chaque cité, le salaire du jour : le salaire de base de la cité (`staff.dailyWageOboles`) multiplié par une courbe du taux d'emploi (employés ÷ offre), de sa borne basse à sa borne haute (`labor.wage` : bornes et pente, en points de base), arrondi à l'obole supérieure (`equilibriumWage`, `packages/sim`).
+  Si la population tombe sous l'emploi, aucun site ne s'arrête pour autant : le salaire est à sa borne haute, et aucun site ne s'ouvre.
+  `site.acquire`, `site.setRecipe` (vers une recette qui demande plus de travailleurs) et `house.create` (site de départ) refusent alors, sans rien prélever, un site dont les travailleurs dépasseraient l'offre (`NO_WORKERS_AVAILABLE`) ; l'écran de fondation marque la cité et propose les autres.
+  Ces commandes se suivent par cité (verrou consultatif `labor:<cité>`, pris avant la trésorerie et les sites, que la clôture peut tenir) : deux acquisitions simultanées ne prennent pas les mêmes travailleurs.
+  La clôture et la relance paient le salaire du jour fixé par la dernière clôture de la cité du site ; sans lui (avant la première clôture qui le fixe), le salaire de base.
+  Logement (#258) : une maison loge ses travailleurs dans les logements qu'elle possède ou loue dans la cité de ses sites (4.5), les sites les plus anciens d'abord.
+  Chaque travailleur sans logement lui coûte chaque jour une nuit d'hébergement chez les PNJ, dont la monnaie est détruite (puits `sink_npc_lodging`, 5.5) : son prix du jour, fixé avec le salaire, est le prix de base de la configuration (`labor.lodging.baseOboles`) multiplié par une courbe de la pénurie de logements de la cité (non logés ÷ employés), bornée de même (`lodgingPrice`).
+  La pénurie fait donc monter le coût du travail, ce qui donne un sens économique aux baux.
+  Le marché du travail du jour de chaque cité est public (vue `labor_market` : offre, employés, non logés, salaire et hébergement) ; une maison lit ses travailleurs, site par site, logés ou non (vue `my_workforce`, calculée à la lecture comme la relance les compte).
+  La configuration initiale est neutre : aucune classe travailleuse (offre sans limite), courbe du salaire à ×1, hébergement nul.
+  Le moral, les artisans, le débauchage et la migration des travailleurs entre cités viendront ensuite.
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
 
@@ -177,6 +191,10 @@ Phase 2, première version (#256) :
 - **Lecture** : les règles (`property_rules`) et le parc de chaque cité, par bien, sans propriétaire nommé et avec l'état des seuls biens à vendre (`city_properties`), sont publics pour tout joueur connecté ; une maison lit ses biens, leur état et leur impayé par `my_properties`.
   L'écran attend #259.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
+- **Logement des travailleurs** (#258, 4.4) : les logements utiles des biens qu'une maison possède sans les avoir loués, et de ceux qu'elle loue par un bail en cours, logent les travailleurs de ses sites de la cité du bien, les plus anciens sites d'abord (`allocateWorkforce`) ; un bien loué loge son locataire, pas son propriétaire, et un bien de la cité ne loge personne.
+  La clôture lit ces logements une fois, après la fin des baux impayés et la vétusté du jour, avant l'entretien : un bien que cette clôture trouve impayé loge encore ce jour-là, et plus à partir de la clôture suivante ; un impayé qu'elle règle ne loge qu'à partir de la suivante, quel que soit l'ordre dans lequel elle examine les maisons.
+  La relance d'un site les lit à l'instant de la commande.
+  Chaque travailleur sans logement coûte une nuit d'hébergement chez les PNJ (4.4).
 
 Phase 2, seconde version (#257) : les biens se louent et se revendent entre maisons.
 Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en créer ; seule la taxe de la revente en détruit une part.
@@ -206,7 +224,7 @@ Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en cré
   La base vérifie à la validation qu'une offre vendue a cédé le bien à l'acheteur et qu'un bail a fermé son offre louée (12).
 - **Lecture** : les offres ouvertes de toutes les cités sont publiques pour tout joueur connecté (`property_offers` : le bien, sa cité, sa taille, son numéro, son état, la nature de l'offre et son prix ou loyer, sa date), sans la maison qui offre ; offrir un bien rend son état public.
   Chaque partie lit les baux dont elle est partie, en cours et terminés, avec les deux maisons, le loyer, la demande de fin et la fin (`my_leases`).
-  L'écran attend #259 ; le loyer d'équilibre et le logement des travailleurs, #258.
+  L'écran attend #259 ; le loyer d'équilibre viendra ensuite, et le logement des travailleurs (#258) est décrit plus haut.
 
 ## 4.6 La flotte et les caravanes
 
