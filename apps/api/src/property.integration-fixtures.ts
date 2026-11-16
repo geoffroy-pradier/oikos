@@ -99,3 +99,20 @@ export const linesOf = async (kind: string, propertyId: string) =>
       owner,
     )
   ).rows.map((row) => ({ key: row.key, amount: Number(row.amount) }));
+
+/** Une maison fondée par la commande, propriétaire d'un bien neuf qu'elle a acheté à la cité. */
+export async function newOwner(cityId: string, sizeId = 'townhouse') {
+  const player = await newPlayer(cityId);
+  const propertyId = await newProperty(cityId, sizeId);
+  const bought = await buy(player.user, propertyId, sizeOf(sizeId).purchasePriceOboles);
+  expect(bought.status).toBe(200);
+  return { ...player, propertyId };
+}
+
+/** Les offres du bien, des plus anciennes aux plus récentes. */
+export const listingsOf = async (propertyId: string) =>
+  (
+    await sql<{ house_id: string; kind: string; price: string; outcome: string | null }>`
+      select house_id, kind, price_oboles as price, outcome from game.property_listings
+      where property_id = ${propertyId} order by created_at, id`.execute(db)
+  ).rows.map((row) => ({ ...row, price: Number(row.price) }));

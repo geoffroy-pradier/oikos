@@ -29,6 +29,11 @@ import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
 import { propertyBuy } from './commands/property-buy';
+import {
+  propertyListForSale,
+  propertyOfferLease,
+  propertyWithdrawOffer,
+} from './commands/property-offer';
 import { propertyRenovate } from './commands/property-renovate';
 import { shipAcquire } from './commands/ship-acquire';
 import { siteAcquire } from './commands/site-acquire';
@@ -68,6 +73,9 @@ export const COMMANDS = [
   shipAcquire,
   propertyBuy,
   propertyRenovate,
+  propertyOfferLease,
+  propertyListForSale,
+  propertyWithdrawOffer,
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,
