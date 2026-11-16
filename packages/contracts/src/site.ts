@@ -177,11 +177,20 @@ export const siteRestartedSchema = z.strictObject({
 });
 
 const oboles = z.number().int().nonnegative();
-/** Le dû d'un jour d'un site, payé en entier ou pas du tout : entretien plus salaires (5.5, 4.4). */
+/**
+ * Le dû d'un jour d'un site, payé en entier ou pas du tout : entretien plus salaires (5.5, 4.4), plus
+ * l'hébergement chez les PNJ de ses travailleurs sans logement quand il coûte (#258).
+ */
 const upkeepDue = z
-  .strictObject({ siteId: z.uuid(), oboles, upkeepOboles: oboles, wagesOboles: oboles })
-  .refine((due) => due.oboles === due.upkeepOboles + due.wagesOboles, {
-    message: 'oboles must be upkeep plus wages',
+  .strictObject({
+    siteId: z.uuid(),
+    oboles,
+    upkeepOboles: oboles,
+    wagesOboles: oboles,
+    lodgingOboles: oboles.optional(),
+  })
+  .refine((due) => due.oboles === due.upkeepOboles + due.wagesOboles + (due.lodgingOboles ?? 0), {
+    message: 'oboles must be upkeep plus wages plus lodging',
   });
 /** L'entretien d'un jour d'un navire, payé en entier ou pas du tout (#252). */
 const shipUpkeepDue = z.strictObject({ shipId: z.uuid(), oboles });
@@ -235,6 +244,8 @@ export const upkeepSettledSchema = z.strictObject({
       paidOboles: oboles,
       upkeepOboles: oboles,
       wagesOboles: oboles,
+      /** Hébergement chez les PNJ (#258), écriture `lodging.daily` ; absent quand il ne coûte rien. */
+      lodgingOboles: oboles.optional(),
       paid: z.array(upkeepDue),
       unpaid: z.array(upkeepDue),
       halted: z.array(z.uuid()),
@@ -248,10 +259,13 @@ export const upkeepSettledSchema = z.strictObject({
         payload.paidOboles ===
           payload.upkeepOboles +
             payload.wagesOboles +
+            (payload.lodgingOboles ?? 0) +
             (payload.ships?.upkeepOboles ?? 0) +
             (payload.properties?.upkeepOboles ?? 0) &&
         payload.upkeepOboles === payload.paid.reduce((sum, due) => sum + due.upkeepOboles, 0) &&
-        payload.wagesOboles === payload.paid.reduce((sum, due) => sum + due.wagesOboles, 0),
+        payload.wagesOboles === payload.paid.reduce((sum, due) => sum + due.wagesOboles, 0) &&
+        (payload.lodgingOboles ?? 0) ===
+          payload.paid.reduce((sum, due) => sum + (due.lodgingOboles ?? 0), 0),
       { message: 'paid amounts must add up' },
     ),
 });

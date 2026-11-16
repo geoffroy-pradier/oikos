@@ -1,6 +1,8 @@
 import { cityDailyWageOboles } from '@oikos/config';
 import { upkeepSettledSchema } from '@oikos/contracts';
 import {
+  allocateWorkforce,
+  holdingUnits,
   settlePropertyUpkeep,
   settleShipUpkeep,
   settleUpkeep,
@@ -8,20 +10,22 @@ import {
   sumDailyDues,
   type SystemAccountKey,
 } from '@oikos/sim';
-import type { Db } from '@oikos/db';
+import { readHousing, type Db } from '@oikos/db';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 
 /**
- * Puits du dû quotidien des sites (docs/specs/05-economie.md, 5.5), dans l'ordre où ils sont verrouillés,
- * le même que la relance d'un site : l'entretien, puis les salaires (4.4), puis l'entretien des navires
- * (4.6) et celui des biens immobiliers (4.5), que seule la clôture prélève.
+ * Puits du dû quotidien des sites (docs/specs/05-economie.md, 5.5), dans l'ordre où ils sont verrouillés :
+ * l'entretien, puis les salaires (4.4), puis l'entretien des navires (4.6) et celui des biens immobiliers
+ * (4.5), que seule la clôture prélève, puis l'hébergement chez les PNJ (#258). La relance d'un site prend
+ * l'entretien, les salaires et l'hébergement, dans le même ordre.
  */
 const SINKS = [
   'sink_upkeep',
   'sink_npc_wages',
   'sink_ship_upkeep',
   'sink_property_upkeep',
+  'sink_npc_lodging',
 ] as const satisfies readonly SystemAccountKey[];
 
 /**
@@ -43,7 +47,7 @@ export async function lockUpkeepSinks(trx: Db, worldId: string) {
           .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${key} account`))
       ).id,
     );
-  return ids as [string, string, string, string];
+  return ids as [string, string, string, string, string];
 }
 
 /**
@@ -63,6 +67,12 @@ export async function lockUpkeepSinks(trx: Db, worldId: string) {
  * achat : chacun doit l'entretien d'un jour de sa taille, par une ligne `upkeep` vers le puits
  * `sink_property_upkeep`. Un bien impayé ne loge plus personne jusqu'à la clôture qui le paie ; une taille
  * retirée ne doit rien. L'étape parcourt aussi les maisons qui n'ont que des biens.
+ * Le salaire du jour et le prix de l'hébergement de chaque cité sont ceux que l'étape `laborMarket` vient
+ * d'enregistrer (4.4, #258) ; sans eux (étape jouée seule), le salaire de base de la configuration, et
+ * aucun hébergement. Les travailleurs d'un site que les logements de sa maison dans sa cité ne logent pas
+ * (les sites les plus anciens d'abord) coûtent chacun une nuit d'hébergement, comptée dans le dû du site,
+ * payé en entier ou pas du tout ; elle part au puits `sink_npc_lodging` par une écriture `lodging.daily`
+ * de la même transaction, de nature 4.1 `lodging`.
  * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
  */
 export const siteUpkeep: CloseStep = {
@@ -76,14 +86,32 @@ export const siteUpkeep: CloseStep = {
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
-    const [upkeepSink, wagesSink, shipSink, propertySink] = await lockUpkeepSinks(trx, worldId);
+    const [upkeepSink, wagesSink, shipSink, propertySink, lodgingSink] = await lockUpkeepSinks(
+      trx,
+      worldId,
+    );
     const propertyUpkeepOf = new Map(
       config.properties.sizes.map((size) => [size.id, size.dailyUpkeepOboles]),
     );
     const shipUpkeepOf = new Map(
       config.ships.classes.map((shipClass) => [shipClass.id, shipClass.dailyUpkeepOboles]),
     );
-    // Salaire du jour de chaque cité du monde : la cité de la configuration porte l'identifiant de son slug.
+    // Salaire du jour et prix de l'hébergement de chaque cité du monde, fixés par le marché du travail du
+    // jour ; à défaut, le salaire de base de la cité (la cité de la configuration porte l'identifiant de son
+    // slug), sans hébergement.
+    const market = new Map(
+      (
+        await trx
+          .selectFrom('game.labor_market')
+          .select(['city_id', 'wage_oboles', 'lodging_oboles'])
+          .where('world_id', '=', worldId)
+          .where('game_day', '=', gameDay)
+          .execute()
+      ).map((row) => [
+        row.city_id,
+        { wage: Number(row.wage_oboles), lodging: Number(row.lodging_oboles) },
+      ]),
+    );
     const wageOf = new Map(
       (
         await trx
@@ -91,8 +119,23 @@ export const siteUpkeep: CloseStep = {
           .select(['id', 'slug'])
           .where('world_id', '=', worldId)
           .execute()
-      ).map((city) => [city.id, cityDailyWageOboles(config, city.slug)]),
+      ).map((city) => [
+        city.id,
+        market.get(city.id)?.wage ?? cityDailyWageOboles(config, city.slug),
+      ]),
     );
+    const lodgingOf = (cityId: string) => market.get(cityId)?.lodging ?? 0;
+    const lodgingDue = [...market.values()].some((day) => day.lodging > 0);
+    // Les logements du monde, lus une fois, avant qu'une maison ne marque ou ne lève l'impayé de ses biens
+    // : un bien trouvé impayé par cette clôture loge encore ce jour-là, quel que soit l'ordre des maisons,
+    // comme l'a compté le marché du travail (4.5). Inutile si nulle part l'hébergement ne coûte rien.
+    const holdings = lodgingDue
+      ? (await readHousing(trx, { worldId })).map((row) => ({
+          houseId: row.houseId,
+          cityId: row.cityId,
+          units: holdingUnits(row, config.properties.sizes),
+        }))
+      : [];
     // Les maisons qui avaient un site, un navire ou un bien immobilier à l'instant de la clôture.
     const houses = await trx
       .selectFrom('game.sites')
@@ -119,6 +162,7 @@ export const siteUpkeep: CloseStep = {
       houses: 0,
       paidOboles: 0,
       wagesOboles: 0,
+      lodgingOboles: 0,
       sitesPaid: 0,
       sitesUnpaid: 0,
       halted: 0,
@@ -147,24 +191,46 @@ export const siteUpkeep: CloseStep = {
         .executeTakeFirstOrThrow();
       const sites = await trx
         .selectFrom('game.sites')
-        .select(['id', 'recipe_id', 'city_id', 'halted_at'])
+        .select(['id', 'house_id', 'recipe_id', 'city_id', 'halted_at'])
         .where('house_id', '=', houseId)
         .where('created_at', '<', closeAt)
         .orderBy('created_at')
         .orderBy('id')
         .forUpdate()
         .execute();
+      // Logement de ses travailleurs : ses logements lus avant la boucle, attribués à ses sites verrouillés.
+      const housed = allocateWorkforce(
+        sites.map((site) => ({
+          siteId: site.id,
+          houseId,
+          cityId: site.city_id,
+          workers: recipeOf.get(site.recipe_id)?.workers ?? 0,
+        })),
+        holdings.filter((holding) => holding.houseId === houseId),
+      );
       const dues = sites.map((site) => {
         const recipe = recipeOf.get(site.recipe_id);
-        const { upkeepOboles, wagesOboles, oboles } = recipe
+        const { upkeepOboles, wagesOboles, lodgingOboles, oboles } = recipe
           ? siteDailyDue({
               upkeepBaseOboles: dailyOboles[recipe.siteType],
               coefficientBps,
               workers: recipe.workers,
               wageOboles: wageOf.get(site.city_id) ?? 0,
+              unhoused: housed.get(site.id)?.unhoused ?? 0,
+              lodgingPriceOboles: lodgingOf(site.city_id),
             })
-          : { upkeepOboles: 0, wagesOboles: 0, oboles: 0 };
-        return { siteId: site.id, oboles, upkeepOboles, wagesOboles };
+          : { upkeepOboles: 0, wagesOboles: 0, lodgingOboles: 0, oboles: 0 };
+        // L'hébergement n'apparaît que s'il coûte : l'écriture et l'événement restent ceux d'avant #258.
+        return {
+          siteId: site.id,
+          oboles,
+          upkeepOboles,
+          wagesOboles,
+          ...(lodgingOboles > 0 && {
+            lodgingOboles,
+            unhoused: housed.get(site.id)?.unhoused ?? 0,
+          }),
+        };
       });
       const {
         paid: settled,
@@ -235,7 +301,9 @@ export const siteUpkeep: CloseStep = {
         restored.length;
       if (total === 0 && touched === 0) continue;
 
-      if (total > 0) {
+      // L'entretien, les salaires, les navires et les biens dans l'écriture d'entretien ; l'hébergement dans
+      // la sienne, de la même transaction.
+      if (total - lines.lodgingOboles > 0) {
         const entry = await trx
           .insertInto('game.ledger_entries')
           .values({
@@ -244,7 +312,12 @@ export const siteUpkeep: CloseStep = {
             meta: JSON.stringify({
               houseId,
               gameDay,
-              sites: paid,
+              // Le dû de chaque site par nature de cette écriture ; l'hébergement est dans la sienne.
+              sites: paid.flatMap(({ siteId, upkeepOboles, wagesOboles }) =>
+                upkeepOboles + wagesOboles > 0
+                  ? [{ siteId, oboles: upkeepOboles + wagesOboles, upkeepOboles, wagesOboles }]
+                  : [],
+              ),
               ...(paidShips.length > 0 && { ships: paidShips }),
               ...(paidEstates.length > 0 && { properties: paidEstates }),
             }),
@@ -272,6 +345,32 @@ export const siteUpkeep: CloseStep = {
                 { entry_id: entry.id, account_id: part.sink, amount: part.oboles },
               ]),
           )
+          .execute();
+      }
+      if (lines.lodgingOboles > 0) {
+        const entry = await trx
+          .insertInto('game.ledger_entries')
+          .values({
+            world_id: worldId,
+            kind: 'lodging.daily',
+            meta: JSON.stringify({
+              houseId,
+              gameDay,
+              sites: paid.flatMap((due) =>
+                'lodgingOboles' in due
+                  ? [{ siteId: due.siteId, unhoused: due.unhoused, oboles: due.lodgingOboles }]
+                  : [],
+              ),
+            }),
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        await trx
+          .insertInto('game.ledger_lines')
+          .values([
+            { entry_id: entry.id, account_id: account.id, amount: -lines.lodgingOboles },
+            { entry_id: entry.id, account_id: lodgingSink, amount: lines.lodgingOboles },
+          ])
           .execute();
       }
       // L'arrêt et la reprise sont datés par la base ; à la reprise, elle exige que le cycle avance
@@ -327,8 +426,9 @@ export const siteUpkeep: CloseStep = {
           paidOboles: total,
           upkeepOboles: lines.upkeepOboles,
           wagesOboles: lines.wagesOboles,
-          paid,
-          unpaid,
+          ...(lines.lodgingOboles > 0 && { lodgingOboles: lines.lodgingOboles }),
+          paid: paid.map(({ unhoused: _, ...due }) => due),
+          unpaid: unpaid.map(({ unhoused: _, ...due }) => due),
           halted,
           resumed,
           ...(ships.length > 0 && {
@@ -358,6 +458,7 @@ export const siteUpkeep: CloseStep = {
       totals.houses += 1;
       totals.paidOboles += total;
       totals.wagesOboles += lines.wagesOboles;
+      totals.lodgingOboles += lines.lodgingOboles;
       totals.sitesPaid += paid.length;
       totals.sitesUnpaid += unpaid.length;
       totals.halted += halted.length;

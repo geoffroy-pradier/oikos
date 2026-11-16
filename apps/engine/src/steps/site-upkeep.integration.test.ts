@@ -168,9 +168,10 @@ const summariesOf = async (worldId: string) =>
     }>`select summary from game.daily_closes
       where world_id = ${worldId} order by game_day`)
   ).map(({ summary }) => {
-    const others = [...SHIP_KEYS, ...PROPERTY_KEYS];
+    const others = [...SHIP_KEYS, ...PROPERTY_KEYS, 'lodgingOboles'];
     expect(Object.keys(summary.siteUpkeep).sort()).toEqual([...SUMMARY_KEYS, ...others].sort());
-    // Ces maisons n'ont ni navire (#252) ni bien immobilier (#256) : rien à leur titre.
+    // Ces maisons n'ont ni navire (#252) ni bien immobilier (#256), ni hébergement à payer (#258) : rien à
+    // leur titre.
     expect(others.map((key) => summary.siteUpkeep[key])).toEqual(others.map(() => 0));
     return SUMMARY_KEYS.map((key) => summary.siteUpkeep[key]);
   });
