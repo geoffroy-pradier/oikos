@@ -22,6 +22,7 @@ import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
 import { cityCastVote } from './commands/city-cast-vote';
 import { cityProposeDecree } from './commands/city-decree';
+import { cityVoteDecree } from './commands/city-vote-decree';
 import { cityStandForElection, cityWithdrawCandidacy } from './commands/city-election';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
@@ -71,6 +72,7 @@ export const COMMANDS = [
   cityWithdrawCandidacy,
   cityCastVote,
   cityProposeDecree,
+  cityVoteDecree,
   voyageDepart,
   chatOpenDirect,
   chatPost,
