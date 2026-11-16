@@ -1,6 +1,6 @@
 import { WORLD_EVENT_CATALOGUE, type WorldEventKind } from '@oikos/sim';
 import type { TFunction } from 'i18next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useRows } from './data';
 import { serverClock, syncServerClock } from './server-clock';
@@ -76,14 +76,23 @@ export function useEventRows(filters: Parameters<typeof useRows>[3]) {
 
 /**
  * Événements en cours (vue `world_events`) selon `filters`, à l'heure du serveur, relus chaque minute onglet
- * visible et au retour sur l'onglet ; `null` tant que rien n'est lu. Seuls ceux qui finissent après
- * l'ouverture de l'écran sont lus (instant repris une fois l'heure du serveur lue) : la vue garde le passé.
+ * visible et au retour sur l'onglet ; `null` tant que rien n'est lu. Seuls ceux qui finissent après une borne
+ * sont lus, la vue gardant le passé : l'heure du serveur à l'ouverture de l'écran (reprise une fois lue),
+ * puis, à la relecture qui suit la fin d'un événement lu, l'heure de cette relecture. Une longue session ne
+ * garde donc pas les événements finis depuis l'ouverture. Pendant la lecture sous la nouvelle borne, les
+ * événements déjà lus restent rendus : l'écran ne repasse pas par le chargement.
  */
 export function useWorldEvents(filters: Record<string, string | readonly string[]>) {
   const [now, setNow] = useState(() => serverClock.now());
   const [since, setSince] = useState(() => now.toISOString());
   const read = useEventRows({ ...filters, ends_at: { gt: since } });
-  const { events: all, reload } = read;
+  const { events: fresh, reload } = read;
+  const filterKey = JSON.stringify(filters);
+  const last = useRef<{ filterKey: string; events: WorldEvent[] } | null>(null);
+  if (fresh) last.current = { filterKey, events: fresh };
+  const all = fresh ?? (last.current?.filterKey === filterKey ? last.current.events : null);
+  const lastEvents = useRef(all);
+  lastEvents.current = all;
   // Une fois, au montage : la borne change avec l'heure du serveur lue, et `reload` avec elle.
   useEffect(() => {
     let live = true;
@@ -97,8 +106,13 @@ export function useWorldEvents(filters: Record<string, string | readonly string[
   }, []);
   useEffect(() => {
     const reread = () => {
-      setNow(serverClock.now());
-      if (document.visibilityState === 'visible') void reload();
+      const at = serverClock.now();
+      setNow(at);
+      if (document.visibilityState !== 'visible') return;
+      // Un événement lu est fini : la borne avance, et la lecture sous la nouvelle borne tient lieu de
+      // relecture (une seule lecture).
+      if (lastEvents.current?.some((event) => event.endsAt <= at)) setSince(at.toISOString());
+      else void reload();
     };
     const timer = setInterval(reread, 60_000);
     document.addEventListener('visibilitychange', reread);

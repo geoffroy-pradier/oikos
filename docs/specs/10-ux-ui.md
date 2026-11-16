@@ -41,6 +41,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
    L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
+   Seuls sont lus les événements qui finissent après une borne : l'heure du serveur à l'ouverture de l'écran, avancée à l'heure de la relecture qui suit la fin d'un événement lu ; une longue session ne garde pas les événements finis.
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.
@@ -68,7 +69,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.
    Ces écrans ne lisent dans la vue `houses` que les maisons qu'ils nomment (archonte en charge, candidats de l'élection en cours, résultats de la dernière élection, auteurs des décrets au vote) et la ligne de la maison du joueur, d'où vient son statut (#441) : la vue rend au plus 1 000 lignes par lecture.
-   Une lecture porte sur 100 maisons au plus, la maison du joueur et l'archonte d'abord ; au-delà, une maison s'affiche « Maison inconnue ».
+   Ces maisons sont lues par paquets de 100, en 10 lectures au plus (1 000 maisons), la maison du joueur et l'archonte d'abord ; au-delà, une maison s'affiche « Maison inconnue ».
    La date depuis laquelle la maison est métèque ou citoyenne n'est pas encore affichée : il faut d'abord l'exposer dans une vue publique (#420).
    Un retrait de candidature est définitif : l'écran en avertit avant, et ne propose plus de se présenter après.
    Un décret de taux appliqué est dit « en vigueur » seulement s'il est le dernier appliqué de son modèle ; les autres décrets appliqués disent leur date d'application.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ const NOW = '2026-11-17T12:00:00.000Z';
 const state = vi.hoisted(() => ({
   rows: [] as unknown[] | null,
   reads: [] as { view: string; filters: unknown }[],
+  reloads: 0,
 }));
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters: unknown) => {
@@ -18,7 +19,7 @@ vi.mock('../data', () => ({
     return {
       rows: state.rows,
       failed: state.rows === null,
-      reload: () => Promise.resolve(state.rows),
+      reload: () => (state.reloads++, Promise.resolve(state.rows)),
     };
   },
 }));
@@ -61,6 +62,7 @@ afterEach(() => {
   cleanup();
   state.rows = [];
   state.reads = [];
+  state.reloads = 0;
 });
 
 describe('onglet Cité : événements en cours de la cité (#417)', () => {
@@ -95,5 +97,20 @@ describe('onglet Cité : événements en cours de la cité (#417)', () => {
     expect(screen.getByRole('alert').textContent).toBe(fr.app.loadFailed);
     expect(screen.queryByText(fr.worldEvents.none)).toBeNull();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('« Réessayer » relit la carte : les événements paraissent et le foyer va au titre', async () => {
+    state.rows = null;
+    await show();
+    state.rows = [event('e2', 'good_year', { magnitude_bps: 1_500 })];
+    const retry = screen.getByRole('button', { name: fr.app.retry });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(state.reloads).toBe(1);
+    expect(screen.getByRole('listitem').textContent).toMatch(/^Bonne année à Kallistè /);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { name: fr.worldEvents.title }),
+    );
   });
 });

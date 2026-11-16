@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { parseShipRules } from './ship-rules';
 import { parseSiteRules } from './site-rules';
 import { supabase } from './supabase';
@@ -9,7 +9,8 @@ import { supabase } from './supabase';
  * Quand la vue ou le filtre change, les lignes de l'ancien filtre disparaissent aussitôt, et seule la
  * réponse de la lecture la plus récente est retenue : une réponse tardive ne s'affiche jamais sous un
  * autre filtre. `reload` rend les lignes qu'elle vient de lire, `null` en cas d'échec ou si une lecture
- * plus récente l'a remplacée.
+ * plus récente l'a remplacée. Un `reload` gardé d'un rendu sous un autre filtre ne lit rien et rend `null` :
+ * il n'annule pas la lecture du filtre courant, et sa réponse ne serait de toute façon pas retenue.
  */
 export function useRows<T>(
   view: string,
@@ -30,7 +31,11 @@ export function useRows<T>(
   const rows = read?.key === key ? read.rows : null;
   const failed = read?.key === key && read.failed;
   const latest = useRef(0);
+  // Clé du dernier rendu affiché, posée avant les effets qui lancent la lecture de ce rendu.
+  const current = useRef(key);
+  useLayoutEffect(() => void (current.current = key), [key]);
   const reload = useCallback(async () => {
+    if (key !== current.current) return null;
     const request = ++latest.current;
     const parsed = JSON.parse(filterKey) as Record<
       string,
@@ -52,7 +57,7 @@ export function useRows<T>(
       (response) => response,
       () => null,
     );
-    if (request !== latest.current) return null;
+    if (request !== latest.current || key !== current.current) return null;
     const fresh = result && !result.error ? ((result.data as T[] | null) ?? []) : null;
     // Un échec garde les lignes déjà lues sous ce filtre.
     setRead((before) => ({
