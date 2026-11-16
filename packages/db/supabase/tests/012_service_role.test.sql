@@ -76,7 +76,7 @@ select is(
     || 'game.check_escrow_debit game.check_escrow_matches_orders game.check_property_listing_settled game.check_trade_settled game.check_trade_settlement '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_identity game.city_properties game.city_rates_in_force game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
-    || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.order_book '
+    || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.my_workforce game.order_book '
     || 'game.politics_rules game.property_offers game.property_rules game.purge_messages game.readable_channel_ids game.ship_rules game.site_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.

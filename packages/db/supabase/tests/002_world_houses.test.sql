@@ -46,6 +46,7 @@ select is(
     || 'elections(candidacy_opens_at,city_id,id,office,tallied_at,term_ends_at,voting_closes_at,voting_opens_at,world_id) '
     || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
+    || 'labor_market(city_id,employed,game_day,lodging_oboles,supply,unhoused,wage_oboles) '
     || 'leases(end_reason,end_requested_at,end_requested_by,ended_at,ended_day,id,landlord_house_id,property_id,rent_oboles,started_at,tenant_house_id) '
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'messages(channel_id,created_at,hidden_at,house_id,id,visible_body) '
