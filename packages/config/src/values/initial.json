@@ -91,6 +91,25 @@
     "meticDays": 3,
     "archon": { "termDays": 28, "candidacyDays": 4, "votingDays": 3, "maxConsecutiveTerms": 2 }
   },
+  "decrees": {
+    "votingDays": 2,
+    "quorumBps": 2000,
+    "maxOpenPerCity": 3,
+    "spendingCapShareBps": 2500,
+    "models": {
+      "market_tax_rate": { "minRateBps": 200, "maxRateBps": 1000 },
+      "port_dues": { "minCoefficientBps": 5000, "maxCoefficientBps": 20000 },
+      "public_works": { "minOboles": 600, "maxOboles": 60000 },
+      "festival": {
+        "minOboles": 300,
+        "maxOboles": 30000,
+        "minDays": 1,
+        "maxDays": 7,
+        "goodIds": ["bread", "wine", "olive_oil", "fish"],
+        "maxGoods": 3
+      }
+    }
+  },
   "ships": {
     "classes": [
       {

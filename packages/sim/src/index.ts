@@ -2,6 +2,7 @@
 export * from './buyback';
 export * from './candles';
 export * from './clock';
+export * from './decree';
 export * from './demand';
 export * from './ledger';
 export * from './orderbook';
