@@ -43,14 +43,20 @@ export function citedHouseIds(houseId: string, cited: readonly (string | undefin
 export function useCitedHouses(cited: readonly (string | undefined)[] | null) {
   const house = useHouse();
   const chunks = cited === null ? null : citedHouseIds(house.id, cited);
-  // Toujours `CITED_HOUSE_READS` lectures, dans le même ordre (règle des hooks) : un paquet absent ne lit rien.
-  const reads = Array.from({ length: CITED_HOUSE_READS }, (_, index) => {
+  // Règle des hooks : la boucle a une longueur constante (`CITED_HOUSE_READS`), sans sortie anticipée ni
+  // condition autour de l'appel ; chaque rendu appelle donc `useRows` autant de fois, dans le même ordre, et
+  // chaque paquet garde sa lecture d'un rendu à l'autre. Un paquet absent passe un filtre `null` : rien n'est lu.
+  const reads = [];
+  for (let index = 0; index < CITED_HOUSE_READS; index++) {
     const ids = chunks?.[index];
-    return {
-      used: ids !== undefined,
-      ...useRows<unknown>('houses', 'id, name, citizenship_status', 'id', ids ? { id: ids } : null),
-    };
-  });
+    const read = useRows<unknown>(
+      'houses',
+      'id, name, citizenship_status',
+      'id',
+      ids ? { id: ids } : null,
+    );
+    reads.push({ ...read, used: ids !== undefined });
+  }
   const used = reads.filter((read) => read.used);
   const done = chunks !== null && used.every((read) => read.rows !== null);
   const rows = done ? used.flatMap((read) => read.rows ?? []) : null;
