@@ -39,7 +39,9 @@ select is(
          group by table_name) granted),
   'accounts(balance,house_id,id,kind) ballots(cast_at,election_id,house_id) '
     || 'candidacies(created_at,election_id,house_id,id,withdrawn_at) '
-    || 'channels(city_id,created_at,house_high,house_low,id,kind,world_id) cities(created_at,id,name,slug,world_id) '
+    || 'channels(city_id,created_at,house_high,house_low,id,kind,world_id) '
+    || 'chronicle_articles(city_id,created_at,game_day,id,source,text_en,text_fr,world_id) '
+    || 'cities(created_at,id,name,slug,world_id) '
     || 'citizenships(city_id,house_id,id,since,status) '
     || 'decree_votes(cast_at,decree_id,house_id) '
     || 'decrees(applied_at,city_id,electorate,id,model,params,proposed_at,proposed_by,quorum_bps,settled_day,status,tallied_at,votes_against,votes_for,voting_closes_at,world_id) '

@@ -343,6 +343,20 @@ export interface GameDatabase {
     seed: ColumnType<string, string, never>;
     created_at: ColumnType<Date, never, never>;
   };
+  /** Chronique d'une cité à une clôture (#271) : écrite une fois par le moteur, jamais modifiée. */
+  'game.chronicle_articles': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    /** Jour de jeu de la clôture qui la publie. */
+    game_day: ColumnType<number, number, never>;
+    /** `jsonb` : lu désérialisé, écrit sous forme de texte JSON. */
+    facts: ColumnType<unknown, string, never>;
+    text_fr: ColumnType<string, string, never>;
+    text_en: ColumnType<string, string, never>;
+    source: ColumnType<'ai' | 'fallback', 'ai' | 'fallback', never>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Effets appliqués des événements : écart de rendement d'une récolte, retard d'un départ (audit). */
   'game.event_effects': {
     id: ColumnType<string, never, never>;
