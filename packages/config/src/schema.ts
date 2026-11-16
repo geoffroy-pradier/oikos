@@ -330,6 +330,56 @@ export const staffSchema = z.strictObject({
 });
 
 /**
+ * Une taille de logement (docs/specs/04-systemes-gestion.md, 4.5 ; #256). Lue par les joueurs (vue
+ * `public.property_rules`) : n'y ranger aucun paramètre qui doive rester caché. L'état d'un bien va de 0 à
+ * 10 000 (neuf) : vétusté et seuil se comptent dans cette unité.
+ */
+export const propertySizeSchema = z.strictObject({
+  id,
+  /** Prix d'achat à la cité, en oboles. La monnaie est détruite (puits `sink_property_purchase`). */
+  purchasePriceOboles: z.number().int().positive().max(1_000_000_000),
+  /** Capacité en logements d'un bien en état de loger. */
+  housingUnits: z.number().int().positive().max(1_000_000),
+  /** Entretien par jour de jeu, en oboles, prélevé à la clôture (puits `sink_property_upkeep`). Nul : rien. */
+  dailyUpkeepOboles: upkeepDailyObolesSchema,
+  /** Vétusté : points d'état perdus à chaque clôture. Nul : le bien ne s'use pas. */
+  dailyWear: z.number().int().min(0).max(10_000),
+  /** État sous lequel le bien ne loge plus personne, jusqu'à sa rénovation. */
+  minHabitableCondition: z.number().int().min(0).max(10_000),
+  /**
+   * Rénovation, qui rend au bien son état neuf : des oboles détruites (puits `sink_property_works`), et
+   * des biens consommés dans le stock libre de la maison dans la cité du bien. Le prix en oboles est
+   * positif : la base reconnaît une rénovation à son écriture du grand livre.
+   */
+  renovation: z.strictObject({
+    oboles: z.number().int().positive().max(1_000_000_000),
+    goods: z.array(stack).max(20),
+  }),
+});
+
+/**
+ * Valeurs lues pour les versions publiées avant l'immobilier : aucune taille, aucun bien dans aucune
+ * cité. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_PROPERTIES = deepFreeze({
+  sizes: [] as z.infer<typeof propertySizeSchema>[],
+  countsByCity: {} as Record<string, Record<string, number>>,
+});
+
+/**
+ * Immobilier urbain (4.5) : le parc de logements de chaque cité, que le moteur crée, détenu d'abord par
+ * la cité. Lue par les joueurs (vue `public.property_rules`).
+ */
+export const propertiesSchema = z.strictObject({
+  sizes: z.array(propertySizeSchema).max(10),
+  /**
+   * Nombre de biens de chaque taille, par cité (identifiants de `cities` et de `sizes`). Le parc d'une
+   * cité grandit jusqu'à ce nombre ; le baisser ne retire aucun bien.
+   */
+  countsByCity: z.record(id, z.record(id, z.number().int().min(0).max(10_000))),
+});
+
+/**
  * Valeurs lues pour les versions publiées avant la taxe de marché : elles ne taxaient rien. FIGÉES, pour
  * la même raison que `DEFAULT_SITES`.
  */
@@ -684,6 +734,8 @@ export const gameConfigSchema = z
     ships: shipsSchema.default(DEFAULT_SHIPS),
     /** Absent des versions publiées avant le personnel : aucun salaire. */
     staff: staffSchema.default(DEFAULT_STAFF),
+    /** Absent des versions publiées avant l'immobilier : aucun bien. */
+    properties: propertiesSchema.default(DEFAULT_PROPERTIES),
     /** Absent des versions publiées avant la taxe de marché : elles restent lisibles, sans taxe. */
     marketTax: marketTaxSchema.default(DEFAULT_MARKET_TAX),
     /** Absent des versions publiées avant l'historique des prix : chandeliers d'une heure. */
@@ -732,6 +784,26 @@ export const gameConfigSchema = z
     }
     for (const duplicate of duplicates(config.ships.classes.map((row) => row.id))) {
       issue(['ships', 'classes'], `duplicate id "${duplicate}"`);
+    }
+    // Immobilier : des tailles uniques, des biens de rénovation connus, des cités et des tailles connues.
+    const sizeIds = new Set(config.properties.sizes.map((row) => row.id));
+    for (const duplicate of duplicates(config.properties.sizes.map((row) => row.id)))
+      issue(['properties', 'sizes'], `duplicate id "${duplicate}"`);
+    config.properties.sizes.forEach((size, index) => {
+      const path = ['properties', 'sizes', index, 'renovation', 'goods'];
+      for (const duplicate of duplicates(size.renovation.goods.map((entry) => entry.goodId)))
+        issue(path, `duplicate good "${duplicate}"`);
+      size.renovation.goods.forEach((entry, position) => {
+        if (!goods.has(entry.goodId))
+          issue([...path, position, 'goodId'], `unknown good "${entry.goodId}"`);
+      });
+    });
+    for (const [cityId, counts] of Object.entries(config.properties.countsByCity)) {
+      if (!config.cities.some((city) => city.id === cityId))
+        issue(['properties', 'countsByCity', cityId], `unknown city "${cityId}"`);
+      for (const sizeId of Object.keys(counts))
+        if (!sizeIds.has(sizeId))
+          issue(['properties', 'countsByCity', cityId, sizeId], `unknown size "${sizeId}"`);
     }
     // Tarifs du transport : des classes connues, et toutes dès qu'une l'est (une classe oubliée
     // voyagerait gratuitement) ; des routes entre deux cités à port, sans doublon dans un sens ou l'autre.
@@ -912,3 +984,4 @@ export type ShipClass = z.infer<typeof shipClassSchema>;
 export type Politics = z.infer<typeof politicsSchema>;
 export type ShipRoute = z.infer<typeof shipRouteSchema>;
 export type NpcClass = z.infer<typeof npcClassSchema>;
+export type PropertySize = z.infer<typeof propertySizeSchema>;

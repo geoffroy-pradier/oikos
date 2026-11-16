@@ -146,6 +146,16 @@ Héritage direct des jeux de référence, relié au reste de l'économie.
 - **Cycle** : achat, rénovation, location, revente ; vétusté et entretien ; ventes aux enchères après saisie.
 - **Urbanisme** : le zonage et les permis sont décidés par le magistrat élu (astynome).
 
+Phase 2, première version (#256) :
+
+- **Un seul bien, le logement, en deux tailles** : la maison de ville (`townhouse`) et l'immeuble de rapport (`tenement`).
+  Boutiques, entrepôts, auberges, bains, zonage, permis et ventes aux enchères attendent la phase 3.
+- **Configuration** (section `properties`, publique) : par taille, le prix d'achat à la cité, la capacité en logements, l'entretien quotidien, la vétusté perdue à chaque clôture, le seuil d'état sous lequel le bien ne loge plus personne, et le coût de la rénovation, en oboles (toujours positif) et en biens ;
+  par cité, le nombre de biens de chaque taille (`countsByCity`).
+  L'état d'un bien va de 0 à 10 000 (neuf).
+  Entretien et vétusté entrent à zéro dans la configuration initiale (paramètres neutres) ; une version publiée avant l'immobilier n'a aucun bien.
+- **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
+
 ## 4.6 La flotte et les caravanes
 
 Les prix diffèrent d'une cité à l'autre ; le transport est le métier qui les rapproche.
