@@ -100,6 +100,10 @@ export const voyageDepartedSchema = z.strictObject({
         .refine((dues) => dues.oboles === dues.burned + dues.treasury, {
           message: 'port dues parts must add up',
         }),
+      /** Tempête de la route au départ (7.4, #267) : le retard qu'elle ajoute au trajet ; absente sans retard. */
+      storm: z
+        .strictObject({ eventId: z.uuid(), delaySeconds: z.number().int().positive() })
+        .optional(),
     })
     .refine((payload) => payload.fromCityId !== payload.toCityId, {
       message: 'a voyage links two different cities',

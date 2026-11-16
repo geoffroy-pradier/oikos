@@ -260,6 +260,8 @@ Voyages, dans la phase 2 (#252) :
 
 - Une route (`ships.routes`) relie deux cités à port, dans les deux sens, en 2 à 20 heures pour un navire de vitesse 10 000.
   Un trajet dure ⌈heures × 3 600 × 10 000 ÷ vitesse⌉ secondes : un navire plus lent met plus longtemps, jamais moins que la durée exacte.
+  Un navire qui part pendant une tempête de sa route (7.4, #267) met ⌈durée × (10 000 + ampleur) ÷ 10 000⌉ secondes, avec la plus forte tempête en cours au départ (à égalité, la plus ancienne) ; une tempête qui commence en cours de trajet ne le change pas.
+  Décision : une tempête retarde, elle ne fait rien perdre ; le retard est expliqué dans `event_effects` et porté par `VoyageDeparted` (`storm`).
   Chaque route porte les provisions d'un voyage par classe de navire, en oboles, détruites au départ (puits `sink_voyage_provisions`).
 - Le droit de port de la cité d'arrivée (`ships.portDues`, 5.6) est un forfait par classe, multiplié par le coefficient de la cité (10 000 = ×1 ; une cité sans coefficient est à ×1), arrondi à l'obole supérieure, et payé au départ.
   Ce coefficient est celui du dernier décret appliqué de la cité, sinon celui de la configuration (#262) ; l'écran de départ le lit dans la vue `city_rates` et n'annonce aucun coût avant de l'avoir lu.

@@ -1,8 +1,10 @@
 import { decreeProposalSchema, tradeExecutedSchema } from '@oikos/contracts';
 import { cityRates, type Db } from '@oikos/db';
 import {
+  addBoosts,
   boostedBudget,
   boostedDemand,
+  caravanDemandBoosts,
   classDemand,
   festivalDemandBoosts,
   gameDayAt,
@@ -41,6 +43,8 @@ const CONSUMPTION = 'npc_consumption';
  *
  * Pendant une fête de la cité (7.5, #263), la demande et le budget de chacun de ses biens montent de la hausse
  * que `festivalDemandBoosts` calcule pour le jour de jeu du tick ; le besoin mesuré, lui, ne change pas.
+ * Pendant une caravane étrangère de la cité (7.4, #267), celle de son bien monte en plus de l'ampleur de la plus
+ * forte caravane du bien : les deux hausses s'ajoutent, chacune bornée par sa propre règle.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -110,10 +114,29 @@ export const npcDemand: TickStep = {
           )
           .execute();
       const gameDay = gameDayAt(scheduledAt, config.clock);
-      const boosts = festivalDemandBoosts(
-        await festivalsOf(trx, city.id, gameDay, config.decrees?.models.festival?.maxDays),
-        gameDay,
-        config.decrees?.models.festival,
+      const caravans = await trx
+        .selectFrom('game.world_events')
+        .select(['good_id', 'start_day', 'end_day', 'magnitude_bps'])
+        .where('city_id', '=', city.id)
+        .where('model', '=', 'caravan')
+        .where('start_day', '<=', gameDay)
+        .where('end_day', '>', gameDay)
+        .execute();
+      const boosts = addBoosts(
+        festivalDemandBoosts(
+          await festivalsOf(trx, city.id, gameDay, config.decrees?.models.festival?.maxDays),
+          gameDay,
+          config.decrees?.models.festival,
+        ),
+        caravanDemandBoosts(
+          caravans.map((row) => ({
+            goodId: row.good_id,
+            startDay: row.start_day,
+            endDay: row.end_day,
+            magnitudeBps: row.magnitude_bps,
+          })),
+          gameDay,
+        ),
       );
       const bought = new Map<string, number>();
       for (const goodId of basketGoods) {

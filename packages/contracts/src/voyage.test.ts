@@ -73,10 +73,16 @@ describe('voyage.depart', () => {
     expect(voyageDepartedSchema.parse(written)).toEqual(departed);
     expect(domainEventSchema.parse(written)).toEqual(departed);
     const payload = departed.payload;
+    // Retardé par une tempête (#267) : le retard et l'événement qui le cause.
+    const storm = { eventId: '01900000-0000-7000-8000-0000000004e1', delaySeconds: 3_600 };
+    const stormy = { ...departed, payload: { ...payload, storm } };
+    expect(domainEventSchema.parse(stormy)).toEqual(stormy);
     for (const changed of [
       { ...payload, portDues: { oboles: 41, burned: 21, treasury: 21 } },
       { ...payload, toCityId: KALLISTE },
       { ...payload, provisionsOboles: -1 },
+      { ...payload, storm: { ...storm, delaySeconds: 0 } },
+      { ...payload, storm: { ...storm, eventId: 'tempête' } },
     ])
       expect(domainEventSchema.safeParse({ ...departed, payload: changed }).success).toBe(false);
   });
