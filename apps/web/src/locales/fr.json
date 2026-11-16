@@ -283,7 +283,8 @@
     "RECIPIENT_NOT_FOUND": "Cette maison est introuvable.",
     "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même.",
     "CHANNEL_NOT_FOUND": "Vous ne pouvez pas écrire dans ce canal.",
-    "MESSAGE_TOO_LONG": "Ce message est trop long. Raccourcissez-le."
+    "MESSAGE_TOO_LONG": "Ce message est trop long. Raccourcissez-le.",
+    "TOO_MANY_MESSAGES": "Vous écrivez trop vite. Patientez un instant avant le prochain message."
   },
   "shell": {
     "skipToContent": "Aller au contenu",

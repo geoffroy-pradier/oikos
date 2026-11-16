@@ -1,4 +1,5 @@
 import { CHAT_POST_ERROR_CODES, chatPostInputSchema, chatPostOutputSchema } from '@oikos/contracts';
+import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { accountHasHouse } from './chat-open-direct';
 import { refuse } from './city-election';
@@ -60,9 +61,30 @@ export const chatPost = defineCommand({
         : refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     const channel = { id: target.channelId };
     const house = { id: target.houseId };
-    const { maxMessageLength } = config.chat;
+    const { maxMessageLength, rateLimit } = config.chat;
     if ([...input.body].length > maxMessageLength)
       return refuse('MESSAGE_TOO_LONG', `At most ${maxMessageLength} characters.`);
+    // Débit propre à la discussion, tous canaux confondus, sur une fenêtre glissante. Le verrou de la maison
+    // ordonne ses écritures simultanées : chacune compte, une fois le verrou pris, les messages que les
+    // précédentes ont validés (niveau READ COMMITTED du registre).
+    await sql`select pg_advisory_xact_lock(hashtextextended(${`chat.post:${house.id}`}, 0))`.execute(
+      trx,
+    );
+    const recent = await trx
+      .selectFrom('game.messages')
+      .select((eb) => eb.fn.countAll<string>().as('count'))
+      .where('house_id', '=', house.id)
+      .where(
+        'created_at',
+        '>',
+        sql<Date>`now() - make_interval(secs => ${rateLimit.windowSeconds})`,
+      )
+      .executeTakeFirstOrThrow();
+    if (Number(recent.count) >= rateLimit.messages)
+      return refuse(
+        'TOO_MANY_MESSAGES',
+        `At most ${rateLimit.messages} messages every ${rateLimit.windowSeconds} seconds.`,
+      );
     const message = await trx
       .insertInto('game.messages')
       .values({ channel_id: channel.id, house_id: house.id, body: input.body })

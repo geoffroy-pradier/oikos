@@ -60,9 +60,10 @@ export interface CommandDefinition<I = unknown, O = unknown> {
    */
   admin?: readonly AdminRole[];
   /**
-   * Le journal ne garde de l'entrée que sa taille et son empreinte, comme pour une commande d'administration
-   * refusée : le texte d'un joueur (message, 6.6) n'y est pas écrit. Une empreinte n'est pas un secret : celle
-   * d'un texte court se devine par essais (ADR 0002). Le rejeu d'une clé compare l'entrée par cette empreinte.
+   * Le journal ne garde de l'entrée que sa taille et l'empreinte de sa forme canonique, comme pour une commande
+   * d'administration refusée : le texte d'un joueur (message, 6.6) n'y est pas écrit. Une empreinte n'est pas
+   * un secret : celle d'un texte court se devine par essais (ADR 0002). Le rejeu d'une clé compare toujours
+   * l'entrée, par cette empreinte, sans tenir compte de l'ordre des clés.
    */
   redactInput?: boolean;
   /** Erreurs métier déduites d'une contrainte de la base, qui fait foi sous concurrence. */
@@ -107,17 +108,24 @@ const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(
 const UNSTORABLE_INPUT = '{"unstorable":true}';
 
 /**
- * Texte JSON de l'entrée, ou `null` si elle ne peut pas être stockée en `jsonb` : caractère nul,
- * demi-paire de substitution isolée, imbrication trop profonde. Le journal doit pouvoir s'écrire
- * quelle que soit l'entrée reçue.
+ * Texte JSON de l'entrée et sa forme canonique (clés triées), ou `null` si elle ne peut pas être stockée en
+ * `jsonb` : caractère nul, demi-paire de substitution isolée, imbrication trop profonde pour la sérialiser
+ * ou pour la mettre sous forme canonique (`canonicalJson`, récursive, atteint la limite de la pile avant
+ * `JSON.stringify`). Le journal doit pouvoir s'écrire quelle que soit l'entrée reçue : rien ici ne lève.
  */
-export function storableJson(input: unknown): string | null {
+export function storableInput(input: unknown): { text: string; canonical: string } | null {
   try {
     const text = JSON.stringify(input ?? null);
-    return /\\u(0000|d[89a-f][0-9a-f]{2})/i.test(text) ? null : text;
+    if (/\\u(0000|d[89a-f][0-9a-f]{2})/i.test(text)) return null;
+    return { text, canonical: canonicalJson(input) };
   } catch {
     return null;
   }
+}
+
+/** Texte JSON de l'entrée, ou `null` si elle ne peut pas être stockée (voir `storableInput`). */
+export function storableJson(input: unknown): string | null {
+  return storableInput(input)?.text ?? null;
 }
 
 /**
@@ -135,15 +143,19 @@ export async function executeCommand(
 ): Promise<CommandOutcome> {
   const startedAt = performance.now();
   const duration = () => Math.round(performance.now() - startedAt);
-  const storable = storableJson(input);
-  const loggedInput = storable ?? UNSTORABLE_INPUT;
+  const storable = storableInput(input);
+  const loggedInput = storable?.text ?? UNSTORABLE_INPUT;
   // Entrée d'une commande d'administration refusée ou en panne avant le contrôle du rôle : le journal n'en
   // garde que la taille et l'empreinte. Sans cela, un compte sans rôle remplirait le journal (en ajout
   // seul) avec des corps de la taille d'une configuration.
+  // Empreinte de la forme canonique (clés triées), comme la comparaison des entrées journalisées en clair : la
+  // même entrée, clés dans un autre ordre, se rejoue sous la même clé.
+  // Calculée par `storableInput`, qui ne lève pas : une entrée trop profonde est journalisée comme non stockable.
+  const canonicalInput = storable?.canonical ?? UNSTORABLE_INPUT;
   const redactedInput = JSON.stringify({
     redacted: true,
-    bytes: Buffer.byteLength(loggedInput),
-    sha256: createHash('sha256').update(loggedInput).digest('hex'),
+    bytes: Buffer.byteLength(canonicalInput),
+    sha256: createHash('sha256').update(canonicalInput).digest('hex'),
   });
   let authorized = !command.admin;
   let trx: ControlledTransaction<GameDatabase> | undefined;

@@ -84,6 +84,19 @@ Un décret est un type de loi pris dans un catalogue de 40 modèles paramétrés
 - **Parrainage** : un vétéran devient le proxène d'un nouveau ; les deux sont récompensés aux paliers de progression du filleul.
 - **Jeux panhelléniques** : à chaque fin d'Olympiade, épreuves économiques par cité et par maison (meilleure marge, plus belle fête, plus longue route), avec titres permanents.
 
+Dans la phase 2 (ticket 273), la discussion compte deux sortes de canaux.
+Décision (ambiguïté de cette section) : un canal par cité, où écrit et lit toute maison de la cité, citoyenne ou métèque, et des conversations privées entre deux maisons d'un même monde, de la même cité ou non.
+Les canaux de ligue, de confrérie et de marché et le forum de la cité viennent avec les phases suivantes.
+Une conversation privée s'ouvre par `chat.openDirect` ; elle est unique pour une paire de maisons, quel que soit qui l'ouvre, et une maison ne converse pas avec elle-même.
+Un message s'écrit par `chat.post`, dans le canal de sa cité ou dans l'une de ses conversations, nulle part ailleurs ; un canal où la maison n'écrit pas est refusé sous le même code qu'un canal inconnu (`CHANNEL_NOT_FOUND`), pour ne pas révéler les conversations des autres.
+Le texte est débarrassé de ses blancs de début et de fin, ne peut être vide ni porter de caractère de contrôle (hors saut de ligne et tabulation), et compte au plus `chat.maxMessageLength` caractères (500).
+Une maison écrit au plus `chat.rateLimit.messages` messages (10), tous canaux confondus, sur toute fenêtre glissante de `chat.rateLimit.windowSeconds` secondes (60) ; au-delà, `TOO_MANY_MESSAGES`.
+Ce débit s'ajoute à la limite générale de l'API par commande (13).
+Son refus est un refus métier, journalisé comme les autres (statut 409), et non un refus avant exécution : il n'entre pas dans les compteurs `rate_limited` de la Vigie.
+Un message masqué par la modération (#275, #276) reste listé, dit masqué, mais ne rend plus son texte aux joueurs.
+Décision (18, conservation limitée) : le moteur supprime chaque message `chat.retentionDays` jours après son écriture (30) ; le journal des commandes n'en garde pas le texte (ADR 0002).
+Le temps réel et l'onglet Messages viennent avec le ticket 274.
+
 ## 6.7 Formes de concurrence
 
 Guerre des prix, course à la qualité, verrouillage d'une ressource, débauchage d'artisans, surenchère sur une concession, prise de contrôle d'une société, campagne électorale, concurrence fiscale entre cités, contrefaçon et renseignement commercial (voie d'Hermès, avec risque d'être découvert).

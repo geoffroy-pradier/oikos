@@ -283,7 +283,8 @@
     "RECIPIENT_NOT_FOUND": "This house cannot be found.",
     "SELF_CONVERSATION": "Your house cannot hold a conversation with itself.",
     "CHANNEL_NOT_FOUND": "You cannot write in this channel.",
-    "MESSAGE_TOO_LONG": "This message is too long. Please shorten it."
+    "MESSAGE_TOO_LONG": "This message is too long. Please shorten it.",
+    "TOO_MANY_MESSAGES": "You are writing too fast. Wait a moment before your next message."
   },
   "shell": {
     "skipToContent": "Skip to content",

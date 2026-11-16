@@ -321,14 +321,18 @@ describe('executeCommand', () => {
 
   it('entrée invalide ou non stockable : refus journalisé, jamais d’erreur 500 ni de trou dans le journal', async () => {
     const [house, command] = [await newHouse(), probe('probe.rename')];
-    const deep = JSON.parse(`${'['.repeat(6000)}${']'.repeat(6000)}`) as unknown;
+    const nested = (depth: number) =>
+      JSON.parse(`${'['.repeat(depth)}${']'.repeat(depth)}`) as unknown;
+    // En dernier, 3 500 niveaux : `JSON.stringify` passe, la forme canonique (récursive) dépasse la pile
+    // dans Node par défaut ; refusée, l'entrée a sa ligne au journal, quelle que soit la profondeur atteinte.
     const inputs = [
       { name: 'ab' },
       null,
       { name: 'ab\u0000cd' },
       { name: 'Bon Nom', 'x\u0000': 1 },
       { name: '\ud800xyz' },
-      deep,
+      nested(6000),
+      nested(3500),
     ];
     for (const input of inputs) {
       expect((await run(command, house.userId, input)).response).toMatchObject({
@@ -338,8 +342,8 @@ describe('executeCommand', () => {
     }
     const log = await logOf(house.userId);
     expect(log.map((row) => row.status)).toEqual(inputs.map(() => 'rejected'));
-    expect(log.slice(2).map((row) => row.input)).toEqual(
-      inputs.slice(2).map(() => ({ unstorable: true })),
+    expect(log.slice(2, -1).map((row) => row.input)).toEqual(
+      inputs.slice(2, -1).map(() => ({ unstorable: true })),
     );
     expect([command.runs(), await nameOf(house.houseId)]).toEqual([0, house.name]);
   });
