@@ -190,3 +190,24 @@ export const acquireIntentBelow = (sitesCount: number) => (intent: string) => {
   const count = /^acquire:.*:(\d+)$/.exec(intent)?.[1];
   return count !== undefined && Number(count) < sitesCount;
 };
+
+/**
+ * Intention comptée : une demande sur `subject` (classe de navire achetée, navire qui part) faite quand la
+ * maison en comptait `count` (navires de la maison, voyages de ce navire). Comme pour l'acquisition d'un
+ * site, une demande aboutie sans réponse ajoute un navire ou un voyage, vu à la relecture : la même demande
+ * devient alors une nouvelle intention, pas le rejeu de la première. `null` tant que le compte n'est pas lu.
+ */
+export const countedIntent = (kind: string, subject: string, count: number | null) =>
+  count === null ? null : `${kind}:${subject}:${count}`;
+
+/**
+ * Intentions de ce genre devenues caduques : faites avec moins que le compte lu maintenant pour leur sujet
+ * (`countOf` rend `undefined` pour un sujet qu'il ne connaît pas : l'intention reste en attente).
+ */
+export const countedIntentBelow =
+  (kind: string, countOf: (subject: string) => number | undefined) => (intent: string) => {
+    const match = new RegExp(`^${kind}:(.*):(\\d+)$`).exec(intent);
+    if (!match?.[1] || match[2] === undefined) return false;
+    const count = countOf(match[1]);
+    return count !== undefined && Number(match[2]) < count;
+  };

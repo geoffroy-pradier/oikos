@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   acquireIntent,
   acquireIntentBelow,
+  countedIntent,
+  countedIntentBelow,
   outcomeKnown,
   pendingKeys,
   restartIntent,
@@ -243,5 +245,23 @@ describe('clés des commandes restées sans réponse', () => {
     expect(sent).toEqual([{ key: 'old-key', price: undefined }]);
     // `keyFor` lit l'une et l'autre formes.
     expect(pendingKeys('house-l', () => storage).keyFor(intent, counter())).toBe('old-key');
+  });
+});
+
+describe('intentions comptées (navires et voyages)', () => {
+  it('rien à envoyer tant que le compte n’est pas lu ; sinon le sujet et le compte', () => {
+    expect(countedIntent('ship', 'coaster', null)).toBeNull();
+    expect(countedIntent('ship', 'coaster', 0)).toBe('ship:coaster:0');
+  });
+
+  it('caduque dès que la relecture compte plus, pour ce sujet et ce genre seulement', () => {
+    const counts = new Map([['s1', 2]]);
+    const obsolete = countedIntentBelow('depart', (subject) => counts.get(subject));
+    expect(obsolete('depart:s1:1')).toBe(true);
+    expect(obsolete('depart:s1:2')).toBe(false);
+    // Sujet inconnu de la relecture : l'issue reste inconnue, la clé est gardée.
+    expect(obsolete('depart:s2:0')).toBe(false);
+    expect(obsolete('ship:s1:0')).toBe(false);
+    expect(obsolete('acquire:grow_wheat:0')).toBe(false);
   });
 });
