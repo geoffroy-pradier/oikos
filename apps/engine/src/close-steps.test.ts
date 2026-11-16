@@ -4,6 +4,7 @@ import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
 import { citizenship } from './steps/citizenship';
 import { decreeApplication } from './steps/decree-application';
+import { decreeSpending } from './steps/decree-spending';
 import { decreeTally } from './steps/decree-tally';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
@@ -21,8 +22,9 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // vétusté des biens juste avant l'entretien, qu'elle précède sous le verrou de l'agora ; les loyers
     // avant elle, les premiers de ce qui touche la monnaie (#257). Le dépouillement des décrets, sans monnaie
     // ni stock, passe avant les loyers ; l'application des décrets de taux le suit, avant tout ce qui taxe ou
-    // paie (#262), et juste avant les loyers : les étapes d'avant ne tiennent pas le verrou de l'agora. Le
-    // marché du travail (#258) juste avant l'entretien, qui prélève son salaire et son hébergement.
+    // paie (#262) ; le règlement des dépenses (#263) vient juste après, juste avant les loyers : les étapes
+    // d'avant ne tiennent pas le verrou de l'agora. Le marché du travail (#258) juste avant l'entretien, qui
+    // prélève son salaire et son hébergement.
     const order = [
       citizenship,
       archonTally,
@@ -30,6 +32,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       decreeTally,
       npcPopulation,
       decreeApplication,
+      decreeSpending,
       leaseRent,
       propertyWear,
       laborMarket,
@@ -40,7 +43,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(laborMarket)).toBe(CLOSE_STEPS.length - 2);
     expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 3);
     expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 4);
-    expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
+    expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
+    expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     const names = CLOSE_STEPS.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
   });

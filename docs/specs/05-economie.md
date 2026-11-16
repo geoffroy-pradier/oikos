@@ -215,7 +215,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Achats des PNJ aux joueurs | Salaires versés aux travailleurs PNJ |
 | Prêts du Trésor du temple | Entretien des bâtiments et navires |
 | Récompenses de quêtes et de Jeux | Taxes de marché et droits de port (part détruite) |
-| Dotation de départ | Offrandes, fêtes et liturgies |
+| Dotation de départ | Offrandes, liturgies et fêtes de la cité |
 |  | Intérêts payés au Trésor du temple |
 |  | Grands travaux et merveilles |
 | Rachat du stock d'un bien à retirer (Olympe, 5.1) | Acquisition de sites et achat de navires |
@@ -235,6 +235,10 @@ Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix
 
 Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pas coûte chaque jour une nuit chez les PNJ, au prix du jour de la cité, détruite par le puits `sink_npc_lodging`.
 Il n'y a aucun robinet en face ; le prix de base entre à zéro dans la configuration initiale.
+
+Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par une cité sont payés par son trésor, à la clôture qui les applique, au puits `sink_public_works` (écriture `city.public_works`) ou `sink_festivals` (écriture `city.festival`).
+Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
+Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des offrandes et des liturgies.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
@@ -357,6 +361,13 @@ Chacune le lit sous le verrou de l'agora du monde, que prend aussi la clôture q
 
 Dans la première version : le trésor de la cité est un compte du grand livre, un par cité, ouvert par la base à la création de la cité.
 Il n'est jamais débiteur (la cité ne dépense que ce qu'elle a reçu), et le service de jeu ne peut ni l'ouvrir ni en modifier le solde hors des journaux.
+
+Dépenses du trésor, décisions du ticket #263 : le trésor d'une cité ne paie que ses décrets de dépense appliqués (6.3), grands travaux et fêtes, chacun à son puits (5.5).
+La clôture qui trouve un décret de dépense adopté le règle une fois, sous le verrou du trésor de sa cité : elle paie le montant voté, ramené au plus au maximum du modèle en vigueur, s'il ne dépasse pas la part `spendingCapShareBps` du trésor à cet instant, arrondie à l'obole inférieure, comme à la proposition.
+Sinon le décret est caduc (`lapsed`), rien n'est payé, et l'événement `DecreeLapsed` le dit, avec ce que le trésor permettait ; un modèle que la configuration n'ouvre plus rend aussi le décret caduc.
+Le trésor n'est donc jamais débiteur.
+Les décrets d'une même clôture se règlent dans l'ordre de la fin de leur vote, chacun contre le trésor que les précédents ont laissé.
+Un décret adopté depuis longtemps (par exemple avant ce ticket) est réglé à la première clôture qui le trouve, contre le trésor et la configuration de cette clôture ; une fête court à partir du jour que cette clôture ouvre, jamais sur une période passée.
 
 Comptes publics du trésor, décision du ticket #263 (6.2 : « comptes publics visibles de tous ») : tout joueur connecté lit, pour chaque cité, le solde de son trésor (vue `city_treasury`) et ses flux par jour de jeu et par nature (vue `city_treasury_flows`), un visiteur anonyme rien.
 Les natures sont la part de la taxe de marché que garde la cité (échanges de l'agora, achats des PNJ, revente d'un bien), celle du droit de port, les grands travaux et les fêtes ; `other` recueille toute nature d'écriture que la vue ne connaît pas encore, pour que la somme des flux reste le solde.
