@@ -23,6 +23,11 @@
     ]
   },
   "telemetry": { "retentionDays": 90 },
+  "chat": {
+    "maxMessageLength": 500,
+    "retentionDays": 30,
+    "rateLimit": { "messages": 10, "windowSeconds": 60 }
+  },
   "ai": {
     "budgetMicroEurosPerActivePlayerMonth": 0,
     "expectedActivePlayers": 0,

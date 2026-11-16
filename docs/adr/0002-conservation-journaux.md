@@ -27,6 +27,7 @@ fin, ni être purgé au hasard.
 | Refus avant exécution | 1 an | Compteurs horaires, sans identité |
 | Fenêtres de limite de débit | 1 heure | Données éphémères, sans valeur d'audit ; purge par l'API |
 | Appels de la passerelle IA (`telemetry.ai_calls`) | Rétention de la télémétrie, au moins 32 jours | Le plafond mensuel s'y lit ; sans texte de joueur (ADR 0005) ; purge par la fonction du propriétaire, comme les passages de tick et de clôture (migrations 41 et 50) |
+| Messages de la discussion (`game.messages`, 6.6) | `chat.retentionDays` de la configuration : 30 jours au départ, jamais moins d'un jour | Conservation limitée des messages (18) ; purge par la fonction du propriétaire `game.purge_messages`, tâche du moteur distincte de celle de la télémétrie (migration 92) |
 
 - **Idempotence.** Un client ne renvoie une clé que tant qu'il attend une réponse (quelques minutes au
   plus) ; 90 jours couvrent très largement ce besoin. Aujourd'hui la clé vit dans sa ligne du journal
@@ -42,7 +43,9 @@ fin, ni être purgé au hasard.
   partitionnés par mois (spécification 12) ; purger, c'est détacher puis supprimer une partition entière
   échue, par une migration ou une tâche du moteur exécutée au nom du propriétaire. Les déclencheurs qui
   interdisent `delete` et `truncate` restent en place : aucune ligne isolée ne peut disparaître.
-- **D'ici le partitionnement, rien n'est purgé, sauf la télémétrie** (passages de tick et de clôture depuis la migration 41, appels de la passerelle IA depuis la migration 50), supprimée par les fonctions du propriétaire à la rétention de la configuration.
+- **D'ici le partitionnement, rien n'est purgé, sauf la télémétrie et les messages** (passages de tick et de clôture depuis la migration 41, appels de la passerelle IA depuis la migration 50, messages de la discussion depuis la migration 92), supprimés par les fonctions du propriétaire à la durée de la configuration.
+  Les messages se suppriment ligne à ligne, par date, et non par partition : leur conservation se compte en jours et change avec la configuration, ce qu'un découpage par mois ne suit pas.
+  La garde des messages refuse toute autre suppression, même au propriétaire, comme celle des passages de clôture.
   Pour le reste, les volumes du prototype ne le justifient pas, et une purge improvisée affaiblirait les garanties d'immuabilité.
   Le partitionnement et la tâche de purge sont à livrer avant l'ouverture à des joueurs réels (alpha fermée).
 - **Données personnelles.** Les journaux ne contiennent que des identifiants de comptes, jamais d'adresse
@@ -54,6 +57,8 @@ fin, ni être purgé au hasard.
 
 - Les durées ci-dessus sont des décisions d'exploitation, pas des paramètres d'équilibrage : elles vivent
   dans la tâche de purge, pas dans `packages/config`.
+  Exceptions : la rétention de la télémétrie et la conservation des messages vivent dans `packages/config`.
+  La seconde est une règle connue des joueurs (#273), et la Vigie suit la première.
 - Une clé d'idempotence rejouée plus de 90 jours après sa commande exécute la commande à nouveau. Aucun
   client ne garde une clé aussi longtemps.
 - Tant que le partitionnement n'est pas fait, les tables grossissent : la Vigie doit rester lisible grâce

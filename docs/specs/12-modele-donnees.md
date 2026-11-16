@@ -71,6 +71,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La garde de la fonction reste pour une version en vigueur publiée avant ce contrôle ou un monde dont le fuseau a quitté depuis la liste de la base ;
   ce cas est signalé dans la Vigie (3, 15). La durée de saison est bornée par le schéma (au plus 366 jours) : au-delà des entiers de la base, la fonction échouerait, et avec elle les cinq vues de comptes de tous les joueurs.
 - Tables volumineuses partitionnées par mois (`trades`, `ledger_lines`, `messages`, `domain_events`), agrégats en vues matérialisées rafraîchies par le moteur.
+  Les messages ne le sont pas : leur conservation, en jours de la configuration (`chat.retentionDays`), se purge ligne à ligne par `game.purge_messages` (ADR 0002).
   Dans la première version, les chandeliers de prix (`price_candles`) sont une table ordinaire que le moteur remplit, de clé cité, bien, durée et début de période : un recalcul remplace la ligne, il ne l'ajoute pas.
   Chaque échange porte un rang d'exécution (`trades.seq`), donné par la base : l'horodatage d'un échange est celui du début de sa transaction et ne départage pas les échanges d'un même appariement.
   Ce rang est unique, et le service n'écrit ni le rang ni la date d'un échange.

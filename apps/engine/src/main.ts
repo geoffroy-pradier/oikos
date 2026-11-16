@@ -1,6 +1,7 @@
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
+import { purgeMessages } from './chat-retention';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
@@ -44,6 +45,10 @@ await boss.work(QUEUE, async () => {
   // Rétention de la télémétrie (#213) : un échec est signalé, il n'arrête ni ticks ni clôtures.
   await purgeTelemetry(db, { now, config: loader }).catch((error: unknown) =>
     console.error('Telemetry purge failed', error),
+  );
+  // Conservation limitée des messages (#273), tâche à part : même traitement d'un échec.
+  await purgeMessages(db, { now, config: loader }).catch((error: unknown) =>
+    console.error('Message purge failed', error),
   );
   for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
