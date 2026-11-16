@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { voyageDepartedSchema, voyageDepartInputSchema } from './voyage';
+import { voyageArrivedSchema, voyageDepartedSchema, voyageDepartInputSchema } from './voyage';
 
 const SHIP = '01900000-0000-7000-8000-0000000003f1';
 const [KALLISTE, ELAIA] = [
@@ -79,5 +79,44 @@ describe('voyage.depart', () => {
       { ...payload, provisionsOboles: -1 },
     ])
       expect(domainEventSchema.safeParse({ ...departed, payload: changed }).success).toBe(false);
+  });
+});
+
+describe('VoyageArrived', () => {
+  const arrived = {
+    type: 'VoyageArrived' as const,
+    payload: {
+      voyageId: '01900000-0000-7000-8000-0000000004f1',
+      shipId: SHIP,
+      houseId: '01900000-0000-7000-8000-0000000000a1',
+      fromCityId: KALLISTE,
+      toCityId: ELAIA,
+      arrivesAt: '2026-11-15T14:00:00.000Z',
+      arrivedAt: '2026-11-15T14:10:00.000Z',
+      cargo: [{ goodId: 'wheat', quantity: 120 }],
+    },
+  };
+
+  it('se relit tel qu’il est écrit, cargaison vide comprise (navire sur lest)', () => {
+    const written = JSON.parse(JSON.stringify(arrived)) as unknown;
+    expect(voyageArrivedSchema.parse(written)).toEqual(arrived);
+    expect(domainEventSchema.parse(written)).toEqual(arrived);
+    const ballast = { ...arrived, payload: { ...arrived.payload, cargo: [] } };
+    expect(domainEventSchema.parse(ballast)).toEqual(ballast);
+  });
+
+  it('daté de son échéance ou après, entre deux cités, avec des quantités entières positives', () => {
+    const payload = arrived.payload;
+    const parses = (changed: Record<string, unknown>) =>
+      domainEventSchema.safeParse({ ...arrived, payload: { ...payload, ...changed } }).success;
+    expect(parses({ arrivedAt: payload.arrivesAt })).toBe(true);
+    for (const changed of [
+      { arrivedAt: '2026-11-15T13:59:59.999Z' },
+      { toCityId: KALLISTE },
+      { cargo: [{ goodId: 'wheat', quantity: 0 }] },
+      { arrivedAt: undefined },
+      { worldId: KALLISTE },
+    ])
+      expect([changed, parses(changed)]).toEqual([changed, false]);
   });
 });
