@@ -38,6 +38,12 @@ const closesBetweenIndexes = (from: number, to: number) => {
   return count;
 };
 
+/**
+ * Délai des tests qui parcourent une année tick par tick (52 560 ticks de 10 minutes) : le délai par défaut
+ * de vitest (5 s) a été dépassé en `ci`, où les tests de tous les paquets tournent en même temps.
+ */
+const YEAR_SCAN_TIMEOUT_MS = 30_000;
+
 describe('ticks', () => {
   it('un instant appartient au tick qui commence à ou avant lui, et les ticks se suivent sans trou', () => {
     fc.assert(
@@ -68,18 +74,22 @@ describe('clôture quotidienne à 04 h 00, heure de Paris', () => {
     ]);
   });
 
-  it('exactement une clôture par jour, y compris les jours de changement d’heure', () => {
-    // 29 mars 2026 : passage à l'heure d'été. 25 octobre 2026 : retour à l'heure d'hiver.
-    expect(closesBetween('2026-03-28T12:00:00Z', '2026-03-30T12:00:00Z')).toEqual([
-      '2026-03-29T02:00:00.000Z',
-      '2026-03-30T02:00:00.000Z',
-    ]);
-    expect(closesBetween('2026-10-24T12:00:00Z', '2026-10-26T12:00:00Z')).toEqual([
-      '2026-10-25T03:00:00.000Z',
-      '2026-10-26T03:00:00.000Z',
-    ]);
-    expect(closesBetween('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z')).toHaveLength(365);
-  });
+  it(
+    'exactement une clôture par jour, y compris les jours de changement d’heure',
+    () => {
+      // 29 mars 2026 : passage à l'heure d'été. 25 octobre 2026 : retour à l'heure d'hiver.
+      expect(closesBetween('2026-03-28T12:00:00Z', '2026-03-30T12:00:00Z')).toEqual([
+        '2026-03-29T02:00:00.000Z',
+        '2026-03-30T02:00:00.000Z',
+      ]);
+      expect(closesBetween('2026-10-24T12:00:00Z', '2026-10-26T12:00:00Z')).toEqual([
+        '2026-10-25T03:00:00.000Z',
+        '2026-10-26T03:00:00.000Z',
+      ]);
+      expect(closesBetween('2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z')).toHaveLength(365);
+    },
+    YEAR_SCAN_TIMEOUT_MS,
+  );
 
   it('lit l’heure locale avec l’heure d’été', () => {
     expect(localTime(new Date('2026-07-15T02:00:00Z'), 'Europe/Paris')).toMatchObject({
@@ -95,12 +105,6 @@ describe('clôture quotidienne à 04 h 00, heure de Paris', () => {
     });
   });
 });
-
-/**
- * Délai des tests qui parcourent une année tick par tick (52 560 ticks de 10 minutes) : le délai par défaut
- * de vitest (5 s) a été dépassé en `ci`, où les tests de tous les paquets tournent en même temps.
- */
-const YEAR_SCAN_TIMEOUT_MS = 30_000;
 
 describe('bascule de saison', () => {
   const switches = (fromIso: string, toIso: string) => {
