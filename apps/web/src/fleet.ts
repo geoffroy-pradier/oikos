@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows, useShipRules } from './data';
 import { useHouse } from './house';
@@ -38,15 +38,28 @@ export function useFleet() {
     'departed_at',
   );
   const [now, setNow] = useState(() => serverClock.now());
+  // Chaque minute, onglet visible, et au retour sur l'onglet : l'heure avance, navires et voyages sont
+  // relus (une arrivée paraît).
+  const reloadShips = ships.reload;
+  const reloadVoyages = voyages.reload;
   useEffect(() => {
     let live = true;
     void syncServerClock().then(() => live && setNow(serverClock.now()));
-    const timer = setInterval(() => setNow(serverClock.now()), 60_000);
+    const reread = () => {
+      setNow(serverClock.now());
+      if (document.visibilityState !== 'visible') return;
+      void reloadShips();
+      void reloadVoyages();
+    };
+    const timer = setInterval(reread, 60_000);
+    // Au retour sur l'onglet (minuterie ralentie en arrière-plan), relu aussitôt.
+    document.addEventListener('visibilitychange', reread);
     return () => {
       live = false;
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', reread);
     };
-  }, []);
+  }, [reloadShips, reloadVoyages]);
   // Cités du monde de la maison, lues avec elle (`App.tsx`) : la table les rend toutes, au-delà d'une page.
   const slugs = useMemo(() => new Map(Object.entries(house.citySlugs ?? {})), [house.citySlugs]);
   const failed = rules.failed || ships.failed || voyages.failed;
@@ -70,3 +83,21 @@ export function useShipName(ships: readonly ShipRow[]) {
 /** Voyage en cours d'un navire en mer : le dernier parti et pas encore arrivé. */
 export const voyageAtSea = (voyages: readonly VoyageRow[], shipId: string) =>
   voyages.findLast((voyage) => voyage.ship_id === shipId && voyage.arrived_at === null);
+
+/**
+ * Voyages arrivés depuis la lecture précédente : en mer à une lecture, arrivés à la suivante. La première
+ * lecture n'annonce rien (un voyage déjà arrivé se lit dans la liste). Le dernier lot reste annoncé
+ * jusqu'à la relecture suivante qui en apporte un autre.
+ */
+export function useArrivals(voyages: readonly VoyageRow[] | null): VoyageRow[] {
+  const atSea = useRef<Set<string> | null>(null);
+  const [arrived, setArrived] = useState<VoyageRow[]>([]);
+  useEffect(() => {
+    if (!voyages) return;
+    const before = atSea.current;
+    atSea.current = new Set(voyages.filter((v) => v.arrived_at === null).map((v) => v.id));
+    const landed = before ? voyages.filter((v) => v.arrived_at !== null && before.has(v.id)) : [];
+    if (landed.length > 0) setArrived(landed);
+  }, [voyages]);
+  return arrived;
+}
