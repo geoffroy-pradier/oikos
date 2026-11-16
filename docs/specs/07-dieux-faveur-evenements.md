@@ -23,6 +23,9 @@ Ajouter un dieu ne demande aucun code.
 Une offrande rapporte la somme de ses dons au taux du dieu, en entiers et sans arrondi ; un seul don refusé fait refuser toute l'offrande (`offeringCharis`, `packages/sim`).
 À chaque clôture, la Charis d'une maison envers un dieu perd ⌊Charis × déclin ÷ 10 000⌋, arrondi vers zéro (`charisDecay`).
 Conséquence de cet arrondi : une Charis trop petite pour perdre une unité ne décline plus (sous 100 avec un déclin de 1 %).
+La clôture joue ce déclin dans son étape `favorDecay`, après la population des PNJ et avant tout ce qui touche la monnaie : elle ne prend pas l'agora.
+Chaque perte est une ligne `decay` du journal de la Charis (12), une par maison, dieu et jour de jeu (index unique) : une clôture rejouée ne fait pas décliner deux fois.
+Un dieu sans déclin, ou retiré de la configuration, ne fait rien perdre.
 Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
 Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues avec les grâces (#266).

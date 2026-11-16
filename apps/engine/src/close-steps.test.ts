@@ -6,6 +6,7 @@ import { citizenship } from './steps/citizenship';
 import { decreeApplication } from './steps/decree-application';
 import { decreeSpending } from './steps/decree-spending';
 import { decreeTally } from './steps/decree-tally';
+import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
@@ -24,13 +25,15 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // ni stock, passe avant les loyers ; l'application des décrets de taux le suit, avant tout ce qui taxe ou
     // paie (#262) ; le règlement des dépenses (#263) vient juste après, juste avant les loyers : les étapes
     // d'avant ne tiennent pas le verrou de l'agora. Le marché du travail (#258) juste avant l'entretien, qui
-    // prélève son salaire et son hébergement.
+    // prélève son salaire et son hébergement. Le déclin de la Charis (#265), sans monnaie ni stock ni agora,
+    // passe avant tout ce qui peut prendre l'agora.
     const order = [
       citizenship,
       archonTally,
       archonOpening,
       decreeTally,
       npcPopulation,
+      favorDecay,
       decreeApplication,
       decreeSpending,
       leaseRent,
@@ -45,6 +48,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 4);
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
+    expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
     const names = CLOSE_STEPS.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
   });
