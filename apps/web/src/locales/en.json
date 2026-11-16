@@ -600,8 +600,8 @@
     "title": "To watch",
     "unhoused_one": "{{number}} unhoused worker: lodging with the inhabitants, at your expense.",
     "unhoused_other": "{{number}} unhoused workers: lodging with the inhabitants, at your expense.",
-    "renovate": "{{property}} needs renovating: it no longer houses anyone.",
-    "unpaid": "{{property}}: upkeep unpaid, it houses no one.",
+    "renovate": "{{property}} needs renovating: this property no longer houses anyone.",
+    "unpaid": "{{property}}: upkeep unpaid, this property houses no one.",
     "leaseTerminated": "Lease terminated for unpaid rent: {{property}}.",
     "toStaff": "See the staff",
     "toProperty": "See the property"

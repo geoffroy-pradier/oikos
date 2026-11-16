@@ -3,10 +3,9 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
-import { parseSiteStaff } from '../site-rules';
-import { houseAlerts } from '../property-alerts';
+import { parseCityLabor } from '../labor';
+import { houseAlerts, parseUnhoused } from '../property-alerts';
 import { parseLeases, parseMyProperties, parsePropertyRules } from '../property';
-import { serverClock } from '../server-clock';
 
 /**
  * Alertes du tableau de bord (#259) : travailleurs sans logement, bien à rénover ou dont l'entretien est
@@ -16,10 +15,11 @@ import { serverClock } from '../server-clock';
 export function HouseAlerts() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
-  const staffRows = useRows<unknown>(
-    'my_workforce',
-    'site_id, workers, housed, unhoused',
-    'site_id',
+  const staffRows = useRows<unknown>('my_workforce', 'site_id, city_id, unhoused', 'site_id');
+  const laborRows = useRows<unknown>(
+    'labor_market',
+    'city_id, game_day, supply, employed, unhoused, wage_oboles, lodging_oboles',
+    'city_id',
   );
   const rulesRows = useRows<unknown>('property_rules', 'properties', 'properties');
   const mineRows = useRows<unknown>(
@@ -29,21 +29,23 @@ export function HouseAlerts() {
   );
   const leaseRows = useRows<unknown>(
     'my_leases',
-    'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, end_reason',
+    'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, ended_day, end_reason',
     'started_at',
   );
   const sizes = rulesRows.rows ? parsePropertyRules(rulesRows.rows[0] ?? null) : null;
   const properties = mineRows.rows ? parseMyProperties(mineRows.rows) : null;
   const leases = leaseRows.rows ? parseLeases(leaseRows.rows, house.id) : null;
-  const staff = staffRows.rows ? [...parseSiteStaff(staffRows.rows).values()] : null;
+  const labor = laborRows.rows ? parseCityLabor(laborRows.rows) : null;
+  // Sans logement là seulement où l'hébergement coûte : à 0 obole, rien à signaler.
+  const staff = staffRows.rows && labor ? parseUnhoused(staffRows.rows, labor) : null;
   const alerts =
-    sizes && properties && leases && staff
+    sizes && properties && leases && labor && staff !== null
       ? houseAlerts({
-          unhoused: staff.reduce((sum, site) => sum + site.unhoused, 0),
+          unhoused: staff,
           properties,
           sizes,
           leases,
-          now: serverClock.now().getTime(),
+          lastCloseDay: Math.max(...[...labor.values()].map((city) => city.gameDay), -1),
         })
       : [];
   if (alerts.length === 0) return null;

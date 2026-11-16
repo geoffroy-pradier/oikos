@@ -5,22 +5,30 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
-import { houseAlerts, TERMINATED_LEASE_NOTICE_MS } from '../property-alerts';
+import { houseAlerts, parseUnhoused } from '../property-alerts';
+import { parseCityLabor } from '../labor';
 import { parseLeases, parsePropertyRules } from '../property';
 
-// Alertes du tableau de bord (#259) : lectures simulées par vue, heure du serveur fixée.
+// Alertes du tableau de bord (#259) : lectures simulées par vue.
 const config = INITIAL_CONFIG as GameConfig;
-const NOW = Date.parse('2026-11-16T12:00:00Z');
 const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]> }));
 vi.mock('../data', () => ({
   useRows: (view: string) => ({ rows: views.rows[view] ?? [], failed: false, reload: () => null }),
 }));
-vi.mock('../server-clock', () => ({ serverClock: { now: () => new Date(NOW) } }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
 const { HouseAlerts } = await import('./HouseAlerts');
 
+const day = (city_id: string, game_day: number, lodging_oboles: number) => ({
+  city_id,
+  game_day,
+  supply: 0,
+  employed: 0,
+  unhoused: 0,
+  wage_oboles: 5,
+  lodging_oboles,
+});
 const townhouse = config.properties.sizes.find((size) => size.id === 'townhouse');
 const property = {
   id: 'p1',
@@ -39,7 +47,8 @@ const lease = {
   tenant_house_id: 'h1',
   rent_oboles: 40,
   end_requested_at: null,
-  ended_at: new Date(NOW - 3_600_000).toISOString(),
+  ended_at: '2026-11-16T03:00:00Z',
+  ended_day: 20000,
   end_reason: 'unpaid',
 };
 
@@ -64,7 +73,8 @@ describe('alertes du tableau de bord (#259)', () => {
   it('travailleurs sans logement, bien à rénover, entretien impayé, bail résilié', async () => {
     views.rows = {
       property_rules: [{ properties: config.properties }],
-      my_workforce: [{ site_id: 's1', workers: 4, housed: 1, unhoused: 3 }],
+      labor_market: [day('k', 20000, 3)],
+      my_workforce: [{ site_id: 's1', city_id: 'k', unhoused: 3 }],
       my_properties: [
         { ...property, condition: 0 },
         { ...property, id: 'p2', lot: 5, upkeep_unpaid_since: '2026-11-16T03:00:00Z' },
@@ -83,19 +93,23 @@ describe('alertes du tableau de bord (#259)', () => {
     expect(await render()).toBe('');
   });
 
-  it('un bail résilié depuis plus d’un jour, ou terminé à la demande, n’est plus signalé', () => {
+  it('hébergement gratuit : pas d’alerte ; bail résilié avant la dernière clôture ou à la demande : non plus', () => {
+    const labor = parseCityLabor([day('k', 20001, 0), day('e', 20000, 2)]) ?? new Map();
+    const staff = [
+      { site_id: 's1', city_id: 'k', unhoused: 3 },
+      { site_id: 's2', city_id: 'e', unhoused: 1 },
+    ];
+    expect(parseUnhoused(staff, labor)).toBe(1);
+    expect(parseUnhoused([{ site_id: 's1' }], labor)).toBeNull();
     const leases = parseLeases(
-      [
-        { ...lease, ended_at: new Date(NOW - TERMINATED_LEASE_NOTICE_MS).toISOString() },
-        { ...lease, id: 'l2', end_reason: 'requested' },
-        { ...lease, id: 'l3', ended_at: null, end_reason: null },
-      ],
+      [lease, { ...lease, id: 'l2', ended_day: 20001, end_reason: 'requested' }],
       'h1',
     );
     const sizes = parsePropertyRules({ properties: config.properties }) ?? new Map();
-    expect(
-      houseAlerts({ unhoused: 0, properties: [], sizes, leases: leases ?? [], now: NOW }),
-    ).toEqual([]);
+    const alerts = (lastCloseDay: number) =>
+      houseAlerts({ unhoused: 0, properties: [], sizes, leases: leases ?? [], lastCloseDay });
+    expect(alerts(20001)).toEqual([]);
+    expect(alerts(20000).map((alert) => alert.kind)).toEqual(['leaseTerminated']);
     // Seuil de logement : un bien juste au seuil loge encore.
     const atThreshold = {
       id: 'p1',
@@ -106,7 +120,7 @@ describe('alertes du tableau de bord (#259)', () => {
       unpaidSince: null,
     };
     expect(
-      houseAlerts({ unhoused: 0, properties: [atThreshold], sizes, leases: [], now: NOW }),
+      houseAlerts({ unhoused: 0, properties: [atThreshold], sizes, leases: [], lastCloseDay: 0 }),
     ).toEqual([]);
   });
 });
