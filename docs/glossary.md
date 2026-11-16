@@ -9,7 +9,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Agora | Le marché de la cité, et par extension l'espace public (forum) |
 | Séquestre | Monnaie qu'un achat en attente à l'agora retient hors de la trésorerie (prix limite × reste), rendue à l'annulation (`escrow`) |
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
-| Charis | Faveur divine, gagnée par les offrandes et les actes |
+| Charis | Faveur divine d'une maison envers un dieu, entière, gagnée par les offrandes et les actes ; elle décline à chaque clôture et ne se transfère pas (`favor`) |
 | Timè | Honneur, réputation publique de la maison |
 | Hybris | Démesure : jauge qui monte quand une maison domine trop |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
@@ -34,3 +34,6 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Bail, loyer (lease, rent) | Location d'un bien immobilier d'une maison à une autre, sans durée ; le locataire paie au propriétaire un loyer quotidien à chaque clôture (`leases`, `lease.rent`) |
 | Propriétaire, locataire (landlord, tenant) | Les deux parties d'un bail (`landlord`, `tenant`) ; à ne pas confondre avec le propriétaire de la base de données |
 | Revente (resale) | Achat d'un bien immobilier mis en vente par une autre maison, taxé comme un échange de l'agora (`property.sale`) |
+| Offrande (offering) | Don d'oboles, détruites, et de biens, retirés de la circulation, qu'une maison fait à un dieu pour gagner de la Charis (`offerings`, `temple.makeOffering`) |
+| Déclin (decay) | Part de sa Charis qu'une maison perd envers chaque dieu à chaque clôture, arrondie vers zéro (`dailyDecayBps`) |
+| Charis de cité (city Charis) | Charis des citoyens d'une cité envers son dieu protecteur, sommée et pondérée par le dieu (`city_charis`) |
