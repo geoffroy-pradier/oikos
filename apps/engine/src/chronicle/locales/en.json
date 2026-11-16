@@ -1,0 +1,63 @@
+{
+  "quiet": "A quiet day in {{city}}: no trade in the agora, no ship in the harbour, no decision of the assembly.",
+  "configChange": "By decision of Olympus, new laws govern the world from this close onwards.",
+  "worldEvents": {
+    "drought": "A drought strikes the fields of {{city}}.",
+    "good_year": "The orchards of {{city}} enjoy a good year.",
+    "storm": "A storm rises on the route between {{city}} and {{other}}.",
+    "caravan": "A foreign caravan reaches {{city}} and asks for: {{good}}."
+  },
+  "election": "House {{house}} is elected archon with {{votes}}.",
+  "electionUnnamed": "A house is elected archon with {{votes}}.",
+  "votes_one": "{{count}} vote",
+  "votes_other": "{{count}} votes",
+  "decree": {
+    "adopted": "The assembly adopts {{decree}}: {{for}} for, {{against}} against.",
+    "rejected": "The assembly rejects {{decree}}: {{for}} for, {{against}} against.",
+    "applied": "In force: {{decree}}.",
+    "lapsed": "Without effect: {{decree}}."
+  },
+  "decrees": {
+    "market_tax_rate": "the market tax decree",
+    "port_dues": "the port dues decree",
+    "public_works": "the public works decree",
+    "festival": "the festival decree"
+  },
+  "market": "In the agora:",
+  "good": "{{good}}, {{traded}} at {{average}} on average (from {{low}} to {{high}}).",
+  "goodOnePrice": "{{good}}, {{traded}} at {{average}}.",
+  "traded_one": "{{count}} unit traded",
+  "traded_other": "{{count}} units traded",
+  "oboles_one": "{{count}} obol",
+  "oboles_other": "{{count}} obols",
+  "otherGoods_one": "Trade also in {{count}} other good.",
+  "otherGoods_other": "Trade also in {{count}} other goods.",
+  "arrivals": "In the harbour, {{ships}} from {{city}}.",
+  "ships_one": "{{count}} ship arrived",
+  "ships_other": "{{count}} ships arrived",
+  "population": {
+    "up": "The city counts {{population}}, {{change}} more than at the previous close.",
+    "down": "The city counts {{population}}, {{change}} fewer than at the previous close.",
+    "same": "The population of the city holds at {{population}}."
+  },
+  "inhabitants_one": "{{count}} inhabitant",
+  "inhabitants_other": "{{count}} inhabitants",
+  "goods": {
+    "wheat": "Wheat",
+    "olives": "Olives",
+    "grapes": "Grapes",
+    "wood": "Wood",
+    "clay": "Clay",
+    "wool": "Wool",
+    "fish": "Fish",
+    "salt": "Salt",
+    "flour": "Flour",
+    "olive_oil": "Olive oil",
+    "charcoal": "Charcoal",
+    "cloth": "Cloth",
+    "bread": "Bread",
+    "wine": "Wine",
+    "amphorae": "Amphorae"
+  },
+  "cities": { "kalliste": "Kallistè", "elaia": "Elaia", "ampelos": "Ampelos", "halos": "Halos" }
+}
