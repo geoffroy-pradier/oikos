@@ -15,6 +15,12 @@ import {
   candidacyWithdrawnSchema,
   citizenshipGrantedSchema,
 } from './city';
+import {
+  decreeAdoptedSchema,
+  decreeProposedSchema,
+  decreeRejectedSchema,
+  decreeVoteCastSchema,
+} from './decree';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
 import { propertyBoughtSchema, propertyRenovatedSchema } from './property';
 import { shipAcquiredSchema } from './ship';
@@ -59,6 +65,10 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   candidacyFiledSchema,
   candidacyWithdrawnSchema,
   ballotCastSchema,
+  decreeProposedSchema,
+  decreeVoteCastSchema,
+  decreeAdoptedSchema,
+  decreeRejectedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   directChannelOpenedSchema,

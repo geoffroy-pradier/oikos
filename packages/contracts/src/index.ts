@@ -4,6 +4,7 @@ export * from './admin-modules';
 export * from './chat';
 export * from './city';
 export * from './command';
+export * from './decree';
 export * from './errors';
 export * from './events';
 export * from './house';
