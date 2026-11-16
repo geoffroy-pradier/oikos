@@ -4,6 +4,7 @@ import {
   siteAcquireOutputSchema,
 } from '@oikos/contracts';
 import { cityTerroirAdmits } from '@oikos/config';
+import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand, type CommandResult } from '../registry';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
@@ -15,7 +16,8 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
  * La maison acquiert un site dans sa cité (docs/specs/04-systemes-gestion.md, 4.1 et 4.2). Le type du
  * site est celui de la recette choisie ; son prix, fixé par la configuration, est détruit (puits
  * `sink_site_acquisition`). Le nombre de sites est borné par le niveau du siège. Une production primaire
- * doit être du terroir de la cité (6.1) ; un atelier est admis partout.
+ * doit être du terroir de la cité (6.1) ; un atelier est admis partout. La cité doit offrir les
+ * travailleurs de sa recette (4.4, #258) : sinon refus, sans rien payer.
  */
 export const siteAcquire = defineCommand({
   name: 'site.acquire',
@@ -64,6 +66,13 @@ export const siteAcquire = defineCommand({
     // Le prix affiché fait foi : un autre tarif (configuration activée entre-temps) n'est pas prélevé.
     if (input.expectedCostOboles !== undefined && input.expectedCostOboles !== costOboles)
       return refuse('PRICE_CHANGED', `This site now costs ${costOboles} oboles.`);
+    // Le verrou du marché du travail de la cité avant la trésorerie, que la clôture peut tenir.
+    if (laborIsLimited(config) && recipe.workers > 0) {
+      await lockCityLabor(trx, citizenship.city_id);
+      const city = { id: citizenship.city_id, slug: citizenship.slug };
+      if (!(await workersAvailable(trx, config, city, recipe.workers)))
+        return refuse('NO_WORKERS_AVAILABLE', 'This city has no workers left for this site.');
+    }
     const account = await trx
       .selectFrom('game.accounts')
       .select(['id', 'balance'])

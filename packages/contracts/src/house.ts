@@ -46,6 +46,8 @@ export const HOUSE_CREATE_ERROR_CODES = [
   'CITY_NOT_FOUND',
   'HOUSE_ALREADY_EXISTS',
   'HOUSE_NAME_TAKEN',
+  /** La cité n'offre plus les travailleurs du site de départ (4.4, #258) : choisir une autre cité. */
+  'NO_WORKERS_AVAILABLE',
 ] as const;
 export type HouseCreateErrorCode = (typeof HOUSE_CREATE_ERROR_CODES)[number];
 

@@ -32,7 +32,10 @@
     "shape": "Shield",
     "tincture": "Colour",
     "emblem": "Emblem",
-    "submit": "Found the house"
+    "submit": "Found the house",
+    "cityFull": "no free workers left for a first site",
+    "noWorkers": "This city has no free workers left for your first site: nothing was created. Choose another city: {{cities}}.",
+    "noWorkersAnywhere": "No city has free workers left for a first site: nothing was created. Try again later."
   },
   "home": {
     "title": "House {{name}}",
@@ -267,6 +270,7 @@
     "RECIPE_NOT_IN_TERROIR": "This production does not grow in your city's land. Workshops are allowed everywhere.",
     "RECIPE_UNCHANGED": "This site already has this production.",
     "SITE_LIMIT_REACHED": "Your house already runs as many sites as its headquarters allows.",
+    "NO_WORKERS_AVAILABLE": "This city has no free workers left for this site: nothing was paid.",
     "COLLECT_FIRST": "Collect this site before changing its production.",
     "SITE_CHANGED": "This site just changed. Try again.",
     "SITE_HALTED": "This site is halted: its upkeep is unpaid. Restart it first.",
