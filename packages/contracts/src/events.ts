@@ -16,6 +16,7 @@ import {
   citizenshipGrantedSchema,
 } from './city';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
+import { propertyBoughtSchema } from './property';
 import { shipAcquiredSchema } from './ship';
 import { voyageArrivedSchema, voyageDepartedSchema } from './voyage';
 import {
@@ -51,6 +52,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   siteRestartedSchema,
   upkeepSettledSchema,
   shipAcquiredSchema,
+  propertyBoughtSchema,
   citizenshipGrantedSchema,
   archonElectedSchema,
   candidacyFiledSchema,

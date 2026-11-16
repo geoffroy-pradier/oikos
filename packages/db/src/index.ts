@@ -204,6 +204,24 @@ export interface GameDatabase {
     laid_up_at: ColumnType<Date | null, never, Date | null>;
     created_at: ColumnType<Date, never, never>;
   };
+  /**
+   * Parc de logements d'une cité (4.5). Le moteur crée un bien neuf, à la cité ; la base n'en change le
+   * propriétaire que par une écriture d'achat, et n'en relève l'état que par une rénovation.
+   */
+  'game.properties': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    size_id: ColumnType<string, string, never>;
+    lot: ColumnType<number, number, never>;
+    owner_house_id: ColumnType<string | null, never, string>;
+    /** Instant de l'achat, posé par la base avec le propriétaire. */
+    acquired_at: ColumnType<Date | null, never, never>;
+    condition: ColumnType<number, never, number>;
+    worn_day: ColumnType<number | null, never, number>;
+    upkeep_unpaid_since: ColumnType<Date | null, never, Date | null>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
   'game.elections': {
     id: ColumnType<string, never, never>;
