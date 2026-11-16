@@ -127,6 +127,29 @@ export function parseWorkforce(rows: readonly unknown[] | null): Map<string, num
   );
 }
 
+/** Personnel d'un site de la maison : travailleurs requis par sa recette, logés ou non (#258). */
+export interface SiteStaff {
+  workers: number;
+  housed: number;
+  unhoused: number;
+}
+
+/**
+ * Personnel de chaque site de la maison (vue `my_workforce`), par identifiant de site. Une ligne
+ * illisible est ignorée : la fiche du site tait alors son personnel plutôt que d'en inventer un.
+ */
+export function parseSiteStaff(rows: readonly unknown[] | null): Map<string, SiteStaff> {
+  const row = z.object({ site_id: name, workers: count, housed: count, unhoused: count });
+  return new Map(
+    (rows ?? []).flatMap((raw) => {
+      const parsed = row.safeParse(raw);
+      if (!parsed.success) return [];
+      const { site_id, workers, housed, unhoused } = parsed.data;
+      return [[site_id, { workers, housed, unhoused }] as const];
+    }),
+  );
+}
+
 /** Rend `null` si la réponse n'a pas la forme attendue : l'écran annonce alors un échec de lecture. */
 export function parseSiteRules(raw: unknown): SiteRules | null {
   const parsed = siteRulesSchema.safeParse(raw);
