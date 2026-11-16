@@ -167,3 +167,17 @@ export function parseHouseNames(rows: unknown): Map<string, string> | null {
   if (!parsed.success) return null;
   return new Map(parsed.data.map((row) => [row.id, row.name]));
 }
+
+/** Statut de citoyenneté de la maison, relu dans la vue `houses` ; `null` s'il est illisible. */
+export function statusOf(rows: unknown[], houseId: string): 'metic' | 'citizen' | null {
+  const row = rows.find(
+    (candidate): candidate is { id: string; citizenship_status: unknown } =>
+      typeof candidate === 'object' &&
+      candidate !== null &&
+      'id' in candidate &&
+      candidate.id === houseId,
+  );
+  return row?.citizenship_status === 'citizen' || row?.citizenship_status === 'metic'
+    ? row.citizenship_status
+    : null;
+}
