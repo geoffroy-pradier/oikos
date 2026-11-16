@@ -222,4 +222,26 @@ describe('SiteCollected (#267)', () => {
     ])
       expect(siteCollectedSchema.safeParse({ ...collected, payload }).success).toBe(false);
   });
+
+  it('porte la grâce consommée (#266) : un surplus positif, d’un effet de récolte', () => {
+    const grace = {
+      graceUseId: EVENT,
+      graceId: 'demeter_harvest',
+      effect: 'blessed_harvest',
+      surplus: [{ goodId: 'wheat', quantity: 21 }],
+    };
+    const blessed = { ...collected, payload: { ...collected.payload, grace } };
+    expect(domainEventSchema.parse(blessed)).toEqual(blessed);
+    for (const patch of [
+      { surplus: [] },
+      { surplus: [{ goodId: 'wheat', quantity: 0 }] },
+      { effect: 'fair_wind' },
+    ])
+      expect(
+        siteCollectedSchema.safeParse({
+          ...collected,
+          payload: { ...collected.payload, grace: { ...grace, ...patch } },
+        }).success,
+      ).toBe(false);
+  });
 });

@@ -8,6 +8,18 @@ const collectedStack = z.strictObject({
   goodId: z.string(),
   quantity: z.number().int().positive(),
 });
+/**
+ * Grâce consommée par la récolte (7.1, #266) : son surplus, venu de l'extrémité `production`, s'ajoute aux extrants.
+ * Absente sans grâce, ou si la grâce en attente n'ajoutait rien (elle reste en attente).
+ */
+const collectGrace = z
+  .strictObject({
+    graceUseId: z.uuid(),
+    graceId: z.string(),
+    effect: z.enum(['blessed_harvest', 'inspired_workshop']),
+    surplus: z.array(collectedStack).min(1),
+  })
+  .optional();
 
 export const siteCollectOutputSchema = z.object({
   siteId: z.uuid(),
@@ -15,12 +27,16 @@ export const siteCollectOutputSchema = z.object({
   cycles: z.number().int().positive(),
   /** Intrants consommés dans le stock de la maison (vide pour une production primaire). */
   inputs: z.array(collectedStack),
-  /** Extrants entrés au stock, un par extrant de la recette : nul pour un rendement nul (sécheresse, 7.4). */
+  /**
+   * Extrants entrés au stock, un par extrant de la recette : nul pour un rendement nul (sécheresse, 7.4), hors
+   * surplus d'une grâce (`grace`).
+   */
   outputs: z
     .array(z.strictObject({ goodId: z.string(), quantity: z.number().int().nonnegative() }))
     .min(1),
   /** Début du cycle désormais en cours (ISO 8601). */
   cycleStartedAt: z.iso.datetime(),
+  grace: collectGrace,
 });
 export type SiteCollectOutput = z.infer<typeof siteCollectOutputSchema>;
 
@@ -53,6 +69,7 @@ export const siteCollectedSchema = z.strictObject({
       .array(z.strictObject({ eventId: z.uuid(), goodId: z.string(), quantity: z.number().int() }))
       .min(1)
       .optional(),
+    grace: collectGrace,
   }),
 });
 

@@ -70,6 +70,10 @@ Elle est refusée sans rien dépenser si la grâce est inconnue, si la Charis d�
 Une grâce à recharge d'un jour invoquée juste avant une clôture se réinvoque dès cette clôture.
 La Charis dépensée est une ligne `grace` du journal de la Charis (12), dans la transaction de l'invocation, et la commande émet `GraceInvoked`.
 La commande verrouille la maison, puis sa Charis envers le dieu, comme une offrande ; elle ne prend pas l'agora.
+Une récolte admise d'un site de matière première consomme une récolte bénie en attente de la maison, une récolte d'atelier un atelier inspiré.
+Le surplus vient de l'extrémité `production` du journal des stocks, par des mouvements `grace.surplus` rattachés à la grâce, vers le stock où entre la récolte ; un atelier n'y consomme aucun intrant de plus.
+La réponse et l'événement `SiteCollected` le portent à part (`grace`), hors des extrants de la recette.
+Une récolte verrouille les grâces en attente de sa maison après ses stocks : de deux récoltes concurrentes, une seule consomme une grâce en attente, et l'autre se fait sans elle.
 
 ## 7.2 Hybris et Némésis
 
