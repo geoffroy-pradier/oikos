@@ -127,6 +127,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Ces gardes s'exécutent au nom du propriétaire de la base ; elle ne lit pas la configuration et ne contrôle donc ni le prix, ni le coût, ni les biens consommés : la commande les garantit.
   Cet index, et un index partiel pour les rénovations, retrouvent ces écritures sans parcourir le grand livre.
   Le service crée un bien sans en choisir l'identifiant, la date ni l'état, n'en modifie que le propriétaire, l'état, le jour d'usure et l'impayé, et ne le supprime pas.
+  Les joueurs connectés lisent les règles par `property_rules` (section `properties` de la configuration en vigueur, rendue par `game.property_rules()`), le parc de toutes les cités par `city_properties` (une ligne par bien : sa taille, son numéro, s'il est encore à vendre par la cité et, seulement alors, son état ; jamais le propriétaire, l'état ni l'impayé d'un bien détenu par une maison ; rendu par `game.city_properties()`, exécutée au nom du propriétaire, dont le type de retour est figé par l'ADR 0006) et les biens de leur maison par `my_properties`, sous règle par ligne ;
+  un visiteur anonyme ne lit rien.
 - Citoyenneté (3, 6.2, #260) : `citizenships` porte la maison, sa cité, son statut (métèque ou citoyen) et la date de ce statut.
   La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
   Le service n'écrit à la fondation que la maison et la cité, et à la promotion que le statut et la date ; c'est la clôture qui promeut.

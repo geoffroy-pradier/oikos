@@ -171,6 +171,8 @@ Phase 2, première version (#256) :
   Impayé, le bien ne loge personne jusqu'à la clôture qui le paie (`upkeep_unpaid_since`) ; il n'y a ni relance ni arriéré.
   Une taille retirée de la configuration ne doit rien ; un bien de la cité ne doit rien.
   L'événement `UpkeepSettled` en porte le détail (`properties` : payés, impayés, impayés constatés et levés par cette clôture).
+- **Lecture** : les règles (`property_rules`) et le parc de chaque cité, par bien, sans propriétaire nommé et avec l'état des seuls biens à vendre (`city_properties`), sont publics pour tout joueur connecté ; une maison lit ses biens, leur état et leur impayé par `my_properties`.
+  L'écran attend #259.
 - **Logements utiles** : un bien loge sa capacité si son état atteint le seuil de sa taille et que son entretien est payé, personne sinon (`usableHousingUnits`, `packages/sim`).
 
 ## 4.6 La flotte et les caravanes
