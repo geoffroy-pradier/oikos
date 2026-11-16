@@ -266,6 +266,22 @@ export interface GameDatabase {
     ended_day: ColumnType<number | null, never, number>;
     end_reason: ColumnType<'requested' | 'unpaid' | null, never, 'requested' | 'unpaid'>;
   };
+  /**
+   * Marché du travail d'une cité pour un jour de jeu (4.4, #258) : écrit une fois par la clôture qui ouvre
+   * ce jour, immuable ensuite (garde de la base). Montants et effectifs `bigint` : lus en texte.
+   */
+  'game.labor_market': {
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, never>;
+    /** Offre de travail ; nulle : sans limite. */
+    supply: ColumnType<string | null, number | null, never>;
+    employed: ColumnType<string, number, never>;
+    unhoused: ColumnType<string, number, never>;
+    wage_oboles: ColumnType<string, number, never>;
+    lodging_oboles: ColumnType<string, number, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Élections (6.2) : la clôture les ouvre et les dépouille ; calendrier immuable (garde de la base). */
   'game.elections': {
     id: ColumnType<string, never, never>;
