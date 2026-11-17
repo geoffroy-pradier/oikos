@@ -1,4 +1,5 @@
 import {
+  type ChatOpenDirectOutput,
   type ChatPostOutput,
   commandErrorSchema,
   IDEMPOTENCY_HEADER,
@@ -212,3 +213,7 @@ export const postMessage = (
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<ChatPostOutput>('chat.post', { channelId, body }, accessToken, idempotencyKey);
+
+/** Ouvre la conversation privée avec la maison, ou rend celle qui existe. */
+export const openDirect = (houseId: string, accessToken: string, idempotencyKey: string) =>
+  sendCommand<ChatOpenDirectOutput>('chat.openDirect', { houseId }, accessToken, idempotencyKey);

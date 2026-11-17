@@ -1,12 +1,13 @@
 import { CLIENT_SETTINGS } from '@oikos/config/client';
 import { Card } from '@oikos/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Channel, Unread } from '../chat';
 import { useChat } from '../chat-reads';
 import { useHouse } from '../house';
 import { LoadProblem, Loading } from './LoadProblem';
 import { MessageComposer } from './MessageComposer';
+import { NewConversation } from './NewConversation';
 
 /**
  * Onglet Messages (6.6, #274) : le canal de la cité et les conversations privées de la maison, chacun avec ses
@@ -37,11 +38,90 @@ export function MessagesScreen() {
   const atLeast = unread ? [...unread.values()].some((count) => count.atLeast) : false;
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
 
+  // Message reçu annoncé poliment, sans déplacer le foyer (spécification 10, écran 8), hors première lecture
+  // d'un canal ; une annonce qui nomme une maison attend son nom, au plus `chatPollSeconds` secondes.
+  const [announcement, setAnnouncement] = useState({ n: 0, text: '' });
+  const describe = useRef({ nameOf, channelName, t });
+  describe.current = { nameOf, channelName, t };
+  const seen = useRef<{ channel: string; ids: Set<string> } | null>(null);
+  const counted = useRef<Map<string, number> | null>(null);
+  const pending = useRef<{ houses: string[]; say: () => string }[]>([]);
+  const deadline = useRef(0);
+  const [queued, setQueued] = useState(0);
+  useEffect(() => {
+    const { t: say } = describe.current;
+    const events: { houses: string[]; say: () => string }[] = [];
+    if (open && messages) {
+      const before = seen.current;
+      seen.current = { channel: open.id, ids: new Set(messages.map((message) => message.id)) };
+      const fresh =
+        before?.channel === open.id
+          ? messages.filter(
+              (message) => !before.ids.has(message.id) && message.houseId !== house.id,
+            )
+          : [];
+      const [one] = fresh;
+      if (fresh.length === 1 && one)
+        events.push({
+          houses: [one.houseId],
+          say: () =>
+            say('messages.arrived', {
+              house: describe.current.nameOf(one.houseId),
+              text: one.body ?? say('messages.hidden'),
+            }),
+        });
+      else if (fresh.length > 1)
+        events.push({
+          houses: [],
+          say: () => say('messages.arrivedMany', { count: fresh.length }),
+        });
+    }
+    if (unread && channels) {
+      const before = counted.current;
+      counted.current = new Map([...unread].map(([id, count]) => [id, count.count]));
+      for (const channel of channels)
+        if (
+          before &&
+          channel.id !== open?.id &&
+          (unread.get(channel.id)?.count ?? 0) > (before.get(channel.id) ?? 0)
+        )
+          events.push({
+            houses: channel.otherHouseId ? [channel.otherHouseId] : [],
+            say: () =>
+              say('messages.arrivedIn', { channel: describe.current.channelName(channel) }),
+          });
+    }
+    if (events.length > 0) {
+      if (pending.current.length === 0)
+        deadline.current = Date.now() + CLIENT_SETTINGS.chatPollSeconds * 1_000;
+      pending.current.push(...events);
+      setQueued((n) => n + 1);
+    }
+  }, [open, messages, unread, channels, house.id]);
+  // Les noms lus, par leur liste : la carte des noms est neuve à chaque rendu.
+  const known = names ? [...names.keys()].sort().join(',') : '';
+  useEffect(() => {
+    if (pending.current.length === 0) return;
+    const flush = () => {
+      const text = pending.current.map((event) => event.say()).join(' ');
+      pending.current = [];
+      setAnnouncement((last) => ({ n: last.n + 1, text }));
+    };
+    const ids = new Set(known.split(','));
+    const named = (id: string) => id === house.id || ids.has(id);
+    if (chat.failed || pending.current.every((event) => event.houses.every(named))) return flush();
+    const timer = setTimeout(flush, Math.max(0, deadline.current - Date.now()));
+    return () => clearTimeout(timer);
+  }, [queued, known, chat.failed, house.id]);
+
   return (
     <div className="flex flex-col gap-4">
       <h1 ref={title} tabIndex={-1} className="text-2xl">
         {t('tabs.messages.label')}
       </h1>
+      <div aria-live="polite" className="sr-only">
+        <p key={announcement.n}>{announcement.text}</p>
+      </div>
       {/* Région présente avant son texte : le passage en relecture est annoncé poliment. */}
       <p role="status" className="text-muted-foreground empty:hidden">
         {chat.live === 'polling'
@@ -76,6 +156,15 @@ export function MessagesScreen() {
                 );
               })}
             </ul>
+            {channels[0] && (
+              <NewConversation
+                worldId={channels[0].worldId}
+                onOpened={async (channelId) => {
+                  await chat.reload();
+                  setSelected(channelId);
+                }}
+              />
+            )}
           </Card>
           {open && (
             <Card className="flex min-w-0 flex-col gap-3">

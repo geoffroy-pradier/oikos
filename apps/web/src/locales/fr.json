@@ -778,6 +778,14 @@
     "send": "Envoyer",
     "sendHint": "Ctrl+Entrée (Cmd+Entrée sur Mac) envoie aussi le message.",
     "posted": "Message envoyé.",
-    "invalid": "Écrivez un message, sans caractère de contrôle."
+    "invalid": "Écrivez un message, sans caractère de contrôle.",
+    "newConversation": "Écrire à une maison, par son nom",
+    "open": "Ouvrir la conversation",
+    "opened": "Conversation ouverte avec {{house}}.",
+    "noSuchHouse": "Aucune maison de ce nom dans votre monde.",
+    "arrived": "Nouveau message de {{house}} : {{text}}",
+    "arrivedMany_one": "{{count}} nouveau message dans ce canal.",
+    "arrivedMany_other": "{{count}} nouveaux messages dans ce canal.",
+    "arrivedIn": "Nouveau message : {{channel}}."
   }
 }
