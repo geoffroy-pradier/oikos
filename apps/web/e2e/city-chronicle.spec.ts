@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { gameDayDate } from '@oikos/sim';
 import { expect, test } from '@playwright/test';
-import { db, setUpChronicles } from './city-fixtures';
+import { closeCityDb, setUpChronicles } from './city-fixtures';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 // Onglet Cité, chronique (#271) : la plus récente en entier ; la précédente, repliée, s'ouvre et se referme au
 // clavier ; la mention de l'IA suit la source de chacune. À 360 px comme à 1 440 px, sans défilement horizontal.
-test.afterAll(() => db.destroy());
+test.afterAll(closeCityDb);
 
 const date = (day: number) =>
   new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' }).format(gameDayDate(day));
