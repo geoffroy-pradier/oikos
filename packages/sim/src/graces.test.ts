@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { fairWindSeconds, graceSurplus } from './graces';
+import { fairWindSeconds, graceSurplus, graceToConsume, type PendingGrace } from './graces';
 import { stormDurationSeconds } from './world-event-effects';
 
 const bps = fc.oneof(
@@ -93,6 +93,55 @@ describe('vent favorable (#266)', () => {
         // Tempête d'abord, vent ensuite : le vent ne rallonge jamais ce que la tempête a fixé.
         const stormy = stormDurationSeconds(seconds, storm);
         expect(fairWindSeconds(stormy, magnitude)).toBeLessThanOrEqual(stormy);
+      }),
+    );
+  });
+});
+describe('grâce consommée par une action (#266)', () => {
+  const at = (ms: number) => new Date(ms);
+  const pending: PendingGrace[] = [
+    { id: 'b', effect: 'blessed_harvest', invokedAt: at(2) },
+    { id: 'w', effect: 'fair_wind', invokedAt: at(1) },
+    { id: 'a', effect: 'blessed_harvest', invokedAt: at(2) },
+    { id: 'c', effect: 'blessed_harvest', invokedAt: at(3) },
+  ];
+  it('exemples : la plus ancienne de l’effet, à égalité le plus petit identifiant, si elle ajoute', () => {
+    expect(graceToConsume(pending, 'blessed_harvest', () => true)?.id).toBe('a');
+    expect(graceToConsume(pending, 'fair_wind', () => true)?.id).toBe('w');
+    expect(graceToConsume(pending, 'inspired_workshop', () => true)).toBeUndefined();
+    // La plus ancienne n'ajoute rien : aucune n'est consommée, pas même une plus récente.
+    expect(graceToConsume(pending, 'blessed_harvest', (grace) => grace.id !== 'a')).toBeUndefined();
+  });
+
+  it('propriété : une grâce ne se consomme qu’une fois, par une action de son effet', () => {
+    const effect = fc.constantFrom('blessed_harvest', 'inspired_workshop', 'fair_wind');
+    const step = fc.oneof(
+      fc.record({ invoke: effect, at: fc.nat(20) }),
+      fc.record({ act: effect, adds: fc.boolean() }),
+    );
+    fc.assert(
+      fc.property(fc.array(step, { maxLength: 40 }), (steps) => {
+        let waiting: PendingGrace[] = [];
+        const invoked: PendingGrace[] = [];
+        const consumed: { grace: PendingGrace; by: string }[] = [];
+        for (const [index, item] of steps.entries()) {
+          if ('invoke' in item) {
+            const grace = { id: `g${index}`, effect: item.invoke, invokedAt: at(item.at) };
+            waiting.push(grace);
+            invoked.push(grace);
+            continue;
+          }
+          const grace = graceToConsume(waiting, item.act, () => item.adds);
+          if (!grace) continue;
+          consumed.push({ grace, by: item.act });
+          waiting = waiting.filter((candidate) => candidate !== grace);
+        }
+        const ids = consumed.map(({ grace }) => grace.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const { grace, by } of consumed) expect(grace.effect).toBe(by);
+        expect([...ids, ...waiting.map((grace) => grace.id)].sort()).toEqual(
+          invoked.map((grace) => grace.id).sort(),
+        );
       }),
     );
   });

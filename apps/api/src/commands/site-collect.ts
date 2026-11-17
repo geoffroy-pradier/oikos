@@ -1,3 +1,4 @@
+import { isWorkshop } from '@oikos/config';
 import {
   SITE_COLLECT_ERROR_CODES,
   siteCollectInputSchema,
@@ -7,6 +8,8 @@ import {
   accrueProduction,
   accrueWorkshop,
   cycleYield,
+  graceSurplus,
+  graceToConsume,
   yieldDeltaBps,
   yieldModelOf,
 } from '@oikos/sim';
@@ -25,6 +28,13 @@ import { defineCommand } from '../registry';
  * de cycle se lisent dans le temps du site, gelé pendant un arrêt : la relance le décale, y compris pour les cycles
  * finis avant l'arrêt et non récoltés (limite assumée, 4.3). Les événements sont lus sans verrou : ils ne changent
  * jamais et commencent au moins un jour de jeu après leur planification (`planningLeadDays` ≥ 1), jamais en cours.
+ *
+ * Grâces (7.1, #266) : la récolte d'un site de matière première consomme la plus ancienne récolte bénie en attente
+ * de la maison, celle d'un atelier le plus ancien atelier inspiré, une seule, et seulement si son surplus
+ * (`graceSurplus`, sur les extrants après les événements du monde) n'est pas nul : sinon elle reste en attente. Le
+ * surplus vient de l'extrémité `production` du journal des stocks, rattaché à la grâce ; un atelier n'y consomme
+ * aucun intrant de plus. Les grâces en attente sont verrouillées après les stocks, comme par un départ : deux
+ * récoltes de la maison ne consomment pas la même.
  */
 export const siteCollect = defineCommand({
   name: 'site.collect',
@@ -170,6 +180,33 @@ export const siteCollect = defineCommand({
       for (const [eventId, gap] of byEvent) gaps.push({ eventId, goodId, quantity: gap });
       return { goodId, quantity };
     });
+    // Grâce de l'effet de la récolte, la plus ancienne en attente, verrouillée : une récolte concurrente qui l'a
+    // consommée entre-temps la fait sortir de cette lecture, à sa validation.
+    const effect = isWorkshop(recipe)
+      ? ('inspired_workshop' as const)
+      : ('blessed_harvest' as const);
+    const pending = await trx
+      .selectFrom('game.graces_used')
+      .select(['id', 'grace_id', 'magnitude_bps', 'invoked_at'])
+      .where('house_id', '=', site.house_id)
+      .where('effect', '=', effect)
+      .where('consumed_at', 'is', null)
+      .orderBy('invoked_at')
+      .orderBy('id')
+      .forUpdate()
+      .execute();
+    const surplusOf = (magnitudeBps: number) => graceSurplus(outputs, magnitudeBps);
+    const grace = graceToConsume(
+      pending.map((row) => ({ ...row, effect, invokedAt: row.invoked_at })),
+      effect,
+      (candidate) => surplusOf(candidate.magnitude_bps).length > 0,
+    );
+    const blessing = grace && {
+      graceUseId: grace.id,
+      graceId: grace.grace_id,
+      effect,
+      surplus: surplusOf(grace.magnitude_bps),
+    };
     const movement = { world_id: site.world_id, kind: 'site.collect' };
     // Intrants sortis puis extrants entrés, dans la même transaction, par le journal des stocks.
     for (const { goodId, quantity } of inputs) {
@@ -199,6 +236,28 @@ export const siteCollect = defineCommand({
           from_system: 'production',
           to_inventory_id: inventory.id,
         })
+        .execute();
+    }
+    if (blessing) {
+      // Consommée d'abord : la base n'admet un surplus que d'une grâce consommée dans sa transaction.
+      await trx
+        .updateTable('game.graces_used')
+        .set({ consumed_at: sql<Date>`now()`, site_id: site.id })
+        .where('id', '=', blessing.graceUseId)
+        .execute();
+      await trx
+        .insertInto('game.stock_ledger')
+        .values(
+          blessing.surplus.map(({ goodId, quantity }) => ({
+            world_id: site.world_id,
+            good_id: goodId,
+            quantity,
+            from_system: 'production',
+            to_inventory_id: inventoryOf(goodId)?.id ?? null,
+            kind: 'grace.surplus',
+            grace_use_id: blessing.graceUseId,
+          })),
+        )
         .execute();
     }
     await trx
@@ -231,11 +290,19 @@ export const siteCollect = defineCommand({
         inputs,
         outputs,
         ...(gaps.length > 0 && { eventEffects: gaps }),
+        ...(blessing && { grace: blessing }),
       },
     });
     return {
       ok: true,
-      data: { siteId: site.id, cycles, inputs, outputs, cycleStartedAt: since.toISOString() },
+      data: {
+        siteId: site.id,
+        cycles,
+        inputs,
+        outputs,
+        cycleStartedAt: since.toISOString(),
+        ...(blessing && { grace: blessing }),
+      },
     };
   },
 });

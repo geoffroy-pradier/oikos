@@ -136,6 +136,7 @@ Qualité, marque, cadence et personnel ne sont pas encore simulés.
 Un atelier dont la recette a quitté la configuration ne se récolte pas non plus (4.2).
 Un atelier à l'arrêt faute d'entretien payé (5.5) ne consomme aucun intrant : il ne se récolte pas tant qu'il est à l'arrêt (refus « site à l'arrêt »), même réapprovisionné entre-temps.
 Pour un atelier, rien n'est « accumulé » tant que les intrants ne sont pas consommés : les cycles écoulés avant l'arrêt restent dus, dans la limite du plafond, et tournent à la première récolte après la relance.
+Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊quantité × ampleur ÷ 10 000⌋ de chaque extrant, sans intrant de plus.
 
 ## 4.4 Le personnel
 

@@ -1,7 +1,7 @@
 /**
  * Grâces (docs/specs/07-dieux-faveur-evenements.md, 7.1 ; #266) : ce qu'une grâce ajoute à l'action qui la
- * consomme. Calculs purs, en entiers. Une grâce ne retire jamais rien : elle ajoute des unités à une récolte,
- * ou raccourcit un trajet sans l'annuler.
+ * consomme, et quelle grâce en attente une action consomme. Calculs purs, en entiers. Une grâce ne retire jamais
+ * rien : elle ajoute des unités à une récolte, ou raccourcit un trajet sans l'annuler.
  */
 const BPS = 10_000;
 
@@ -44,4 +44,29 @@ export function fairWindSeconds(seconds: number, magnitudeBps: number): number {
     throw new RangeError('seconds must be a non-negative integer');
   checkMagnitude(magnitudeBps, BPS / 2);
   return Number((BigInt(seconds) * BigInt(BPS - magnitudeBps) + BigInt(BPS - 1)) / BigInt(BPS));
+}
+/** Une invocation en attente de l'action qui la consommera. */
+export interface PendingGrace {
+  id: string;
+  effect: string;
+  invokedAt: Date;
+}
+
+/**
+ * La grâce qu'une action consomme parmi celles en attente de la maison : la plus ancienne de l'effet de
+ * l'action (à égalité d'instant, le plus petit identifiant), une seule, et seulement si elle ajoute quelque
+ * chose (`adds`) ; sinon aucune, et toutes restent en attente.
+ */
+export function graceToConsume<T extends PendingGrace>(
+  pending: readonly T[],
+  effect: string,
+  adds: (grace: T) => boolean,
+): T | undefined {
+  let oldest: T | undefined;
+  for (const grace of pending) {
+    if (grace.effect !== effect) continue;
+    const gap = oldest ? grace.invokedAt.getTime() - oldest.invokedAt.getTime() : -1;
+    if (!oldest || gap < 0 || (gap === 0 && grace.id < oldest.id)) oldest = grace;
+  }
+  return oldest && adds(oldest) ? oldest : undefined;
 }
