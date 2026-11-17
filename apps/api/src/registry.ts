@@ -66,6 +66,13 @@ export interface CommandDefinition<I = unknown, O = unknown> {
    * l'entrée, par cette empreinte, sans tenir compte de l'ordre des clés.
    */
   redactInput?: boolean;
+  /**
+   * Sanctions qui refusent la commande (#275), relues en base à chaque commande. Par défaut, une commande de jeu
+   * est refusée à un compte suspendu ou exclu (`SUSPENDED`) ; `chat` la refuse aussi à un compte réduit au
+   * silence (`SILENCED`) ; `exempt` ne la refuse jamais (l'appel d'une sanction). Une commande d'administration
+   * n'y est pas soumise : son rôle, relu de même, en décide.
+   */
+  moderation?: 'chat' | 'exempt';
   /** Erreurs métier déduites d'une contrainte de la base, qui fait foi sous concurrence. */
   errorByConstraint?: Record<string, CommandError>;
   handler(context: CommandContext, input: I): Promise<CommandResult<O>>;
@@ -103,6 +110,35 @@ export function canonicalJson(value: unknown): string {
 }
 
 const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
+
+/**
+ * Sanction en vigueur qui refuse une commande au compte, à l'instant de la commande : une suspension ou une
+ * exclusion validée (`SUSPENDED`), sinon un silence si la commande écrit dans la discussion (`SILENCED`).
+ */
+async function moderationRefusal(
+  trx: Db,
+  command: CommandDefinition,
+  userId: string,
+  now: Date,
+): Promise<CommandResult<never> | null> {
+  if (command.admin || command.moderation === 'exempt') return null;
+  const kinds = await trx
+    .selectFrom('admin.sanctions')
+    .select('kind')
+    .where('user_id', '=', userId)
+    .where('kind', 'in', [
+      'suspension',
+      'ban',
+      ...(command.moderation === 'chat' ? ['silence' as const] : []),
+    ])
+    .where('starts_at', '<=', now)
+    .where((eb) => eb.or([eb('ends_at', 'is', null), eb('ends_at', '>', now)]))
+    .where((eb) => eb.or([eb('kind', '<>', 'ban'), eb('validated_by', 'is not', null)]))
+    .execute();
+  if (kinds.some(({ kind }) => kind !== 'silence'))
+    return failure('SUSPENDED', 'This account is suspended.');
+  return kinds.length > 0 ? failure('SILENCED', 'This account is silenced.') : null;
+}
 
 /** Entrée journalisée à la place d'une entrée que Postgres ne peut pas stocker. */
 const UNSTORABLE_INPUT = '{"unstorable":true}';
@@ -209,8 +245,12 @@ export async function executeCommand(
         )?.role ?? null)
       : null;
     context.admin_role = adminRole;
+    // La sanction est relue en base à chaque commande, comme le rôle : levée ou finie, elle cesse d'agir.
+    const sanctioned = await moderationRefusal(trx, command, userId, now);
     if (command.admin && (aal !== 'aal2' || !adminRole || !command.admin.includes(adminRole))) {
       response = failure('FORBIDDEN', 'Administrator role and two-factor session required.');
+    } else if (sanctioned) {
+      response = sanctioned;
     } else if (((authorized = true), storable === null)) {
       response = failure('VALIDATION_FAILED', 'Input cannot be stored.');
     } else if (!parsed.success) {

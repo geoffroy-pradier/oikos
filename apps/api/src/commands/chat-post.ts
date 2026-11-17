@@ -1,3 +1,4 @@
+import { findBannedTerm } from '@oikos/config';
 import { CHAT_POST_ERROR_CODES, chatPostInputSchema, chatPostOutputSchema } from '@oikos/contracts';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
@@ -24,6 +25,8 @@ export const chatPost = defineCommand({
   // Le texte ne vit que dans `game.messages`, que le moteur purge : le journal des commandes n'en garde que
   // la taille et l'empreinte.
   redactInput: true,
+  // Refusée à un compte réduit au silence (`SILENCED`), comme toute commande de jeu à un compte suspendu.
+  moderation: 'chat',
   errorByConstraint: {
     messages_author_member: CHANNEL_NOT_FOUND,
     // Le schéma d'entrée refuse avant la base tout texte qu'elle refuserait ; filet si leurs classes de
@@ -64,6 +67,9 @@ export const chatPost = defineCommand({
     const { maxMessageLength, rateLimit } = config.chat;
     if ([...input.body].length > maxMessageLength)
       return refuse('MESSAGE_TOO_LONG', `At most ${maxMessageLength} characters.`);
+    // Filtre de vocabulaire (#275), avant tout enregistrement : le terme trouvé n'est ni rendu ni journalisé.
+    if (findBannedTerm(config.moderation.bannedTerms, input.body) !== null)
+      return refuse('MESSAGE_REJECTED', 'The message contains a banned term.');
     // Débit propre à la discussion, tous canaux confondus, sur une fenêtre glissante. Le verrou de la maison
     // ordonne ses écritures simultanées : chacune compte, une fois le verrou pris, les messages que les
     // précédentes ont validés (niveau READ COMMITTED du registre).
