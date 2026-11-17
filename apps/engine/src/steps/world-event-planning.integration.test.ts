@@ -11,6 +11,7 @@ import { dailyCloseAt, gameDayAt, planWorldEvents } from '@oikos/sim';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runDailyClose, type CloseStep } from '../close';
 import { CLOSE_STEPS } from '../close-steps';
+import { fallbackOracle } from '../oracle/compose';
 import { eventDaySeed, worldEventPlanning } from './world-event-planning';
 
 // Planification des événements du monde à la clôture (#267), contre Supabase local. Chaque test a son monde.
@@ -213,6 +214,53 @@ describe('planification des événements du monde à la clôture (#267)', () => 
       expect(event.starts_at).toEqual(dailyCloseAt(event.start_day, clock));
       expect(event.ends_at).toEqual(dailyCloseAt(event.end_day, clock));
     }
+  });
+
+  it('chaque événement a son oracle de repli, choisi par sa graine, écrit dans la transaction de la clôture', async () => {
+    const worldId = await newWorld(randomUUID());
+    const twice = { ...worldEventPlanning, name: 'again' };
+    await close(worldId, sure, [worldEventPlanning, twice]);
+    const oracles = await owner
+      .selectFrom('game.oracles as o')
+      .innerJoin('game.world_events as e', 'e.id', 'o.event_id')
+      .select(['e.model', 'e.good_id', 'e.seed', 'e.created_at as planned_at', 'o.created_at'])
+      .select(['o.world_id', 'o.text_fr', 'o.text_en', 'o.source', 'o.rewritten_at'])
+      .where('e.world_id', '=', worldId)
+      .orderBy('e.model')
+      .execute();
+    // Une seule fois par événement, même quand l'étape repasse.
+    expect(oracles.map((oracle) => oracle.model)).toEqual([
+      'caravan',
+      'drought',
+      'good_year',
+      'storm',
+    ]);
+    for (const oracle of oracles) {
+      const { model, good_id: goodId, seed } = oracle;
+      expect({ ...oracle, texts: { fr: oracle.text_fr, en: oracle.text_en } }).toMatchObject({
+        world_id: worldId,
+        source: 'fallback',
+        rewritten_at: null,
+        created_at: oracle.planned_at,
+        texts: fallbackOracle({ model, goodId, seed }),
+      });
+    }
+  });
+
+  it('une clôture en échec après la planification n’écrit ni événement ni oracle', async () => {
+    const worldId = await newWorld(randomUUID());
+    const failing: CloseStep = {
+      name: 'failing',
+      run: () => Promise.reject(new Error('panne après la planification')),
+    };
+    await expect(close(worldId, sure, [worldEventPlanning, failing])).rejects.toThrow('panne');
+    expect(await eventsOf(worldId)).toEqual([]);
+    const oracles = await owner
+      .selectFrom('game.oracles')
+      .select('id')
+      .where('world_id', '=', worldId)
+      .execute();
+    expect(oracles).toEqual([]);
   });
 
   it('rejouée : rien n’est planifié deux fois, ni par la clôture, ni par l’étape seule', async () => {
