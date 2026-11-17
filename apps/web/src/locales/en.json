@@ -728,6 +728,13 @@
     "tooManyGoods": "Too many goods for this festival.",
     "noGoods": "Tick at least one good for this festival."
   },
+  "chronicle": {
+    "title": "City chronicle",
+    "day": "Chronicle of {{date}}",
+    "earlier": "Earlier chronicles",
+    "none": "No chronicle yet: the first one will appear after the next close.",
+    "aiNote": "Story rewritten by AI from the facts of the day. Each of its numbers comes from those facts, but it may attach one to the wrong fact: when in doubt, trust the other city cards."
+  },
   "treasury": {
     "title": "Public treasury",
     "balance": "Balance: {{amount}}",

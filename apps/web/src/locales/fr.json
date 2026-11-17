@@ -728,6 +728,13 @@
     "tooManyGoods": "Trop de biens pour cette fête.",
     "noGoods": "Cochez au moins un bien pour cette fête."
   },
+  "chronicle": {
+    "title": "Chronique de la cité",
+    "day": "Chronique du {{date}}",
+    "earlier": "Chroniques précédentes",
+    "none": "Aucune chronique pour l'instant : la première paraîtra après la prochaine clôture.",
+    "aiNote": "Récit réécrit par l'IA à partir des faits du jour. Chacun de ses nombres vient de ces faits, mais il peut les attribuer au mauvais fait : en cas de doute, fiez-vous aux autres cartes de la cité."
+  },
   "treasury": {
     "title": "Trésor public",
     "balance": "Solde : {{amount}}",
