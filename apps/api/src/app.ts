@@ -43,6 +43,7 @@ import { siteRestart } from './commands/site-restart';
 import { voyageDepart } from './commands/voyage-depart';
 import { siteCollect } from './commands/site-collect';
 import { siteSetRecipe } from './commands/site-set-recipe';
+import { templeInvokeGrace } from './commands/temple-invoke-grace';
 import { templeMakeOffering } from './commands/temple-make-offering';
 import type { RateLimiter } from './rate-limit';
 import {
@@ -83,6 +84,7 @@ export const COMMANDS = [
   propertyEndLease,
   propertyBuyListed,
   templeMakeOffering,
+  templeInvokeGrace,
   cityStandForElection,
   cityWithdrawCandidacy,
   cityCastVote,

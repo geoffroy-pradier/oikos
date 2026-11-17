@@ -72,3 +72,54 @@ export const offeringMadeSchema = z.strictObject({
     charisGained: charis,
   }),
 });
+
+const GRACE_EFFECTS = ['blessed_harvest', 'inspired_workshop', 'fair_wind'] as const;
+const charisSpent = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+
+/**
+ * Commande `temple.invokeGrace` (7.1, #266) : la maison invoque une grâce de la configuration ; sa Charis envers
+ * le dieu de la grâce est dépensée, et la grâce attend la prochaine action admise de son effet, qui la consomme.
+ */
+export const templeInvokeGraceInputSchema = z.strictObject({
+  graceId: id,
+  /** Charis dépensée que le joueur a vue (`temple_rules`) : une autre en vigueur est refusée (`CHARIS_CHANGED`). */
+  expectedCharisSpent: charisSpent,
+});
+export type TempleInvokeGraceInput = z.infer<typeof templeInvokeGraceInputSchema>;
+
+const invocation = {
+  graceUseId: z.uuid(),
+  graceId: z.string(),
+  godId: z.string(),
+  effect: z.enum(GRACE_EFFECTS),
+  magnitudeBps: z.number().int().positive(),
+  charisSpent,
+  /** Fin de la recharge (ISO 8601) : la clôture qui ouvre le jour de jeu de l'invocation plus la recharge. */
+  readyAt: z.iso.datetime(),
+};
+export const templeInvokeGraceOutputSchema = z.object({
+  ...invocation,
+  /** Charis de la maison envers ce dieu après l'invocation. */
+  charis: charisSpent,
+});
+export type TempleInvokeGraceOutput = z.infer<typeof templeInvokeGraceOutputSchema>;
+
+export const TEMPLE_INVOKE_GRACE_ERROR_CODES = [
+  'HOUSE_NOT_FOUND',
+  /** Grâce absente de la configuration en vigueur. */
+  'GRACE_NOT_FOUND',
+  /** La Charis dépensée en vigueur n'est pas celle que le client a envoyée : rien n'est dépensé. */
+  'CHARIS_CHANGED',
+  /** La Charis de la maison envers le dieu est sous la Charis requise. */
+  'INSUFFICIENT_CHARIS',
+  /** Une invocation de cette grâce attend encore l'action qui la consommera. */
+  'GRACE_PENDING',
+  /** La grâce se recharge : elle se réinvoque à la clôture que le message nomme. */
+  'GRACE_RECHARGING',
+] as const;
+export type TempleInvokeGraceErrorCode = (typeof TEMPLE_INVOKE_GRACE_ERROR_CODES)[number];
+
+export const graceInvokedSchema = z.strictObject({
+  type: z.literal('GraceInvoked'),
+  payload: z.strictObject({ ...invocation, houseId: z.uuid() }),
+});
