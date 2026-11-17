@@ -9,4 +9,15 @@ export const CLIENT_SETTINGS = Object.freeze({
    * proposée par le bandeau, jamais imposée (`docs/specs/10-ux-ui.md`).
    */
   updateCheckMinutes: 60,
+  /**
+   * Intervalle, en secondes, entre deux relectures des messages de l'onglet Messages tant que Realtime ne
+   * les apporte pas (abonnement refusé, coupé ou pas encore établi) ; l'écran le dit (ADR 0008).
+   */
+  chatPollSeconds: 15,
+  /**
+   * Intervalle, en secondes, entre deux relectures de sécurité des messages quand Realtime les apporte : une
+   * diffusion peut tomber en panne sans que l'abonnement le sache (partition du jour manquante, fonction de
+   * Realtime changée), le message n'est alors manqué que jusqu'à cette relecture (ADR 0008).
+   */
+  chatSafetyRereadSeconds: 120,
 });

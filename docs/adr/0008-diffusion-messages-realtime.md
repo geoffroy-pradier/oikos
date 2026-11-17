@@ -32,7 +32,9 @@ Il limite aussi le nombre de canaux d'un client (100 par défaut).
   Des règles restrictives refusent à `anon` et `authenticated` toute insertion, modification et suppression dans `realtime.messages`, quelles que soient les règles permissives ajoutées plus tard.
   Realtime refuse donc la diffusion d'un client sur un canal privé.
 - **Repli : la relecture.**
-  Tant que l'abonnement n'est pas établi, ou s'il tombe, l'écran relit les messages à intervalle régulier (`CLIENT_SETTINGS.chatPollSeconds`, `packages/config`) et dit que les messages ne viennent plus en direct ; il relit aussi quand l'abonnement revient.
+  Tant que l'abonnement n'est pas établi, ou s'il tombe, l'écran relit les messages à intervalle régulier (`CLIENT_SETTINGS.chatPollSeconds`, `packages/config`) et dit que les messages ne viennent plus en direct.
+  Il relit aussi chaque fois que tous ses abonnements sont établis, la première fois comprise : un message validé entre la première lecture et l'abonnement n'a été diffusé à personne.
+  En direct, une relecture de sécurité lente (`CLIENT_SETTINGS.chatSafetyRereadSeconds`) borne la durée d'une panne de la diffusion que l'abonnement ne voit pas (partition du jour manquante, fonction de Realtime changée).
 - **Migration tolérante.**
   La CLI de Supabase crée le schéma de Realtime avant les migrations quand Realtime est activé (`config.toml`), au démarrage comme à `db reset`.
   Si `realtime.messages` n'existe pas encore, la migration n'écrit pas les règles et l'annonce par un avertissement.
