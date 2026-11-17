@@ -12,12 +12,23 @@ import { KALLISTE_ID } from './helpers';
  * sur une base gardée d'un passage à l'autre : la mise en place est sérialisée par un verrou et réutilise ce
  * qui existe. Les fenêtres durent un an, pour qu'un passage suivant les trouve encore ouvertes.
  */
-export const db = createDb(process.env['DATABASE_URL'] ?? '');
+let current: ReturnType<typeof createDb> | undefined;
+/**
+ * Connexion du jeu d'essai, ouverte à la demande : plusieurs fichiers de test s'en servent et chacun la referme à
+ * la fin (`closeCityDb`) ; quand Playwright les joue dans le même processus, le suivant en rouvre une.
+ */
+export const closeCityDb = async () => {
+  const closing = current;
+  current = undefined;
+  await closing?.destroy();
+};
 const WORLD_ID = '01900000-0000-7000-8000-000000000001';
 const ARCHON_USER = '01900000-0000-7000-8000-00000000e264';
 const ARCHON = '01900000-0000-7000-8000-00000000e265';
 export const ARCHON_NAME = 'Acropole';
 type Trx = Transaction<GameDatabase>;
+const inTransaction = <T>(run: (trx: Trx) => Promise<T>) =>
+  (current ??= createDb(process.env['DATABASE_URL'] ?? '')).transaction().execute(run);
 
 /** La maison passe citoyenne de Kallistè, comme à la clôture qui la promeut. */
 const naturalize = (trx: Trx, houseId: string) =>
@@ -83,7 +94,7 @@ async function scene(trx: Trx) {
 
 /** Pose la scène de Kallistè ; la maison nommée devient citoyenne, ou archonte en charge pour un jour. */
 export const setUpCity = (houseName: string, role: 'metic' | 'citizen' | 'archon') =>
-  db.transaction().execute(async (trx) => {
+  inTransaction(async (trx) => {
     await scene(trx);
     const house = (
       await sql<{ id: string }>`select id from game.houses where name = ${houseName}`.execute(trx)
@@ -102,7 +113,7 @@ export const setUpCity = (houseName: string, role: 'metic' | 'citizen' | 'archon
  * récente à la plus ancienne.
  */
 export const setUpChronicles = () =>
-  db.transaction().execute(async (trx) => {
+  inTransaction(async (trx) => {
     await sql`select pg_advisory_xact_lock(hashtext('e2e:city-chronicle'))`.execute(trx);
     const { id: versionId, config } = await createConfigLoader(trx).at(new Date());
     const { clock } = config;

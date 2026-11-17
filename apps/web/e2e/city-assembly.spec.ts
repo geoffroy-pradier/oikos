@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
-import { db, ARCHON_NAME, setUpCity } from './city-fixtures';
+import { closeCityDb, ARCHON_NAME, setUpCity } from './city-fixtures';
 import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 // Onglet Cité (#264) : vie politique, assemblée et trésor public de Kallistè, avec une élection en dépôt
 // des candidatures et un décret au vote ; ce qu'y voient et y font un métèque, une citoyenne et l'archonte.
-test.afterAll(() => db.destroy());
+test.afterAll(closeCityDb);
 
 async function openCity(page: Page, role: Parameters<typeof setUpCity>[1]) {
   const id = randomUUID();
