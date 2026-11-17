@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { dailyCloseAt, planWorldEvents } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
+import { fallbackOracle } from '../oracle/compose';
 
 /**
  * Graine des événements d'un jour de jeu (13, #267) : SHA-256 de la graine du monde et du jour, en hexadécimal.
@@ -22,8 +23,9 @@ export function eventDaySeed(worldSeed: string, gameDay: number): string {
  * est déjà atteint selon l'heure de la base (`now()` de sa transaction, celle de la garde) : ses événements sont
  * manqués, et le reste de la clôture se joue. Elle ne prend aucun verrou : la clôture tient celui de son monde,
  * que la garde de la base reprend. Un événement déjà planifié pour ce modèle et ce jour (étape rejouée, délai
- * raccourci entre deux clôtures) n'est pas planifié une seconde fois. Le résumé a toujours la même forme ; son
- * jour planifié est nul sans section.
+ * raccourci entre deux clôtures) n'est pas planifié une seconde fois. Chaque événement planifié a son oracle de
+ * repli (7.3, #270), écrit dans la même transaction et choisi par la graine de l'événement ; un événement déjà
+ * planifié garde le sien. Le résumé a toujours la même forme ; son jour planifié est nul sans section.
  */
 export const worldEventPlanning: CloseStep = {
   name: 'worldEventPlanning',
@@ -89,9 +91,15 @@ export const worldEventPlanning: CloseStep = {
           seed: daySeed,
         })
         .onConflict((conflict) => conflict.constraint('world_events_once').doNothing())
-        .returning('model')
+        .returning(['id', 'model'])
         .executeTakeFirst();
-      if (row) inserted.push(row.model);
+      if (!row) continue;
+      const oracle = fallbackOracle({ model: event.model, goodId: event.goodId, seed: daySeed });
+      await trx
+        .insertInto('game.oracles')
+        .values({ world_id: worldId, event_id: row.id, text_fr: oracle.fr, text_en: oracle.en })
+        .execute();
+      inserted.push(row.model);
     }
     return { startDay, planned: inserted.length, models: inserted };
   },

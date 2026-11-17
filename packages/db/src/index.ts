@@ -12,6 +12,9 @@ import pg from 'pg';
 
 export * from './city-rates';
 
+/** Issue de l'essai de réécriture d'un oracle par l'IA (7.3, #270) : celle de la passerelle, hors usage coupé. */
+export type OracleRewriteOutcome = 'ok' | 'invalid' | 'timeout' | 'error' | 'capped';
+
 /** Tables du schéma `game`. À remplacer par les types générés quand le schéma grossira. */
 export interface GameDatabase {
   'game.worlds': {
@@ -386,6 +389,32 @@ export interface GameDatabase {
     text_fr: ColumnType<string, string, never>;
     text_en: ColumnType<string, string, never>;
     source: ColumnType<'ai' | 'fallback', 'ai' | 'fallback', never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Oracle d'un événement (7.3, #270) : écrit en repli avec son événement, réécrit au plus une fois par l'IA avant
+   * qu'il commence (garde de la base).
+   */
+  'game.oracles': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    event_id: ColumnType<string, string, never>;
+    text_fr: ColumnType<string, string, string>;
+    text_en: ColumnType<string, string, string>;
+    source: ColumnType<'ai' | 'fallback', never, 'ai' | 'fallback'>;
+    /** Essai de réécriture : daté de sa transaction (`now()`), une fois. */
+    rewritten_at: ColumnType<Date | null, never, Date>;
+    rewrite_outcome: ColumnType<OracleRewriteOutcome | null, never, OracleRewriteOutcome>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Consultation de la Pythie (7.3, #270) : payée par une offrande, elle rend des oracles ; immuable. */
+  'game.oracle_consultations': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    offering_id: ColumnType<string, string, never>;
+    oracle_ids: ColumnType<string[], string[], never>;
     created_at: ColumnType<Date, never, never>;
   };
   /** Effets appliqués des événements : écart de rendement d'une récolte, retard d'un départ (audit). */
