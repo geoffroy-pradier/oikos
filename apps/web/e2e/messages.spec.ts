@@ -30,15 +30,19 @@ async function foundHouse(page: Page, prefix: string) {
  */
 async function recordAnnouncements(page: Page) {
   await page.evaluate(() => {
-    const region = document.querySelector('[aria-live="polite"]');
+    // La région de l'écran Messages, dans le contenu principal : le bandeau de mise à jour (`UpdatePrompt`),
+    // rendu avant l'application, porte lui aussi une région polie, toujours présente et vide.
+    const regions = document.querySelectorAll('#main [aria-live="polite"]');
+    const [region] = regions;
+    if (regions.length !== 1 || !region)
+      throw new Error(`une région d'annonce attendue dans #main, ${regions.length} trouvée(s)`);
     const said: string[] = [];
     Object.assign(window, { __announced: said });
-    if (region)
-      new MutationObserver(() => said.push(region.textContent ?? '')).observe(region, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-      });
+    new MutationObserver(() => said.push(region.textContent ?? '')).observe(region, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
   });
 }
 const announced = (page: Page) =>
