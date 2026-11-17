@@ -432,6 +432,7 @@
         "npcClasses": "NPC classes",
         "gods": "Gods",
         "graces": "Graces",
+        "oracle": "Pythia",
         "cities": "Cities"
       },
       "fields": {

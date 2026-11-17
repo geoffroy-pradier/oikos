@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
+import { oracleIssues, oracleSchema } from './oracle';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
@@ -866,6 +867,8 @@ export const gameConfigSchema = z
     gods: z.array(godSchema).max(100).default([]),
     /** Absent des versions publiées avant les grâces (#266) : aucune grâce ne s'invoque. */
     graces: z.array(graceSchema).max(300).default([]),
+    /** Absent des versions publiées avant la Pythie (#270) : aucune consultation de l'oracle. */
+    oracle: oracleSchema.optional(),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
@@ -1018,6 +1021,9 @@ export const gameConfigSchema = z
     });
     for (const { path, message } of gracesIssues(config.graces, gods))
       issue(['graces', ...path], message);
+    if (config.oracle)
+      for (const { path, message } of oracleIssues(config.oracle, config.gods))
+        issue(['oracle', ...path], message);
     const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
     // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
     // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».

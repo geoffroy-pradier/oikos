@@ -432,6 +432,7 @@
         "npcClasses": "Classes de PNJ",
         "gods": "Dieux",
         "graces": "Grâces",
+        "oracle": "Pythie",
         "cities": "Cités"
       },
       "fields": {

@@ -88,13 +88,17 @@ describe('grâces (7.1, #266)', () => {
     expect(errorsOf([...GRACES, { ...GRACES[1], effect: 'blessed_harvest' }])).toEqual([
       'graces: duplicate id "apollo_wind"',
     ]);
-    // Un dieu retiré de la configuration doit l'être aussi de ses grâces (Apollon ne protège aucune cité).
+    // Un dieu retiré de la configuration doit l'être aussi de ses grâces (Apollon ne protège aucune cité), et de
+    // la Pythie (#270).
     const godless = {
       ...base(),
       gods: base().gods.filter((god) => god.id !== 'apollo'),
       graces: GRACES,
     };
     const result = validateConfig(godless);
-    expect(result.ok ? [] : result.errors).toEqual(['graces[1].godId: unknown god "apollo"']);
+    expect(result.ok ? [] : result.errors).toEqual([
+      'graces[1].godId: unknown god "apollo"',
+      'oracle.godId: unknown god "apollo"',
+    ]);
   });
 });
