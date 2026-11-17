@@ -1,0 +1,22 @@
+{
+  "drought": [
+    "La terre ouvrira la bouche et ne boira que la poussière ; les épis courberont la tête sous un ciel d'airain.",
+    "Hélios s'attardera sur les sillons, et la source se taira avant que le grain ne mûrisse.",
+    "Les nuages passeront sans s'arrêter, et le blé aura soif dans sa gaine."
+  ],
+  "good_year": [
+    "Les branches ploieront sous leur fardeau, et le pressoir chantera plus longtemps qu'à l'accoutumée.",
+    "Les rameaux d'Athéna et les ceps de Dionysos porteront plus qu'ils ne promettent.",
+    "Que les paniers soient prêts : la sève monte, et les fruits viendront en foule."
+  ],
+  "storm": [
+    "Poséidon frappera la mer de son trident ; le marin prudent attendra au port que l'écume retombe.",
+    "Les vents d'Éole se querelleront sur la route des navires, et le voyage s'allongera.",
+    "Le ciel se fendra au-dessus des flots ; ce qui part tardera à arriver, mais arrivera."
+  ],
+  "caravan": [
+    "Des chameaux viendront de l'Orient, et leurs maîtres n'auront qu'un mot à la bouche : {{good}}.",
+    "L'étranger frappera aux portes de l'agora ; ce qu'il désire porte un nom : {{good}}.",
+    "Une poussière lointaine annonce des bourses pleines ; elles s'ouvriront pour ceci : {{good}}."
+  ]
+}

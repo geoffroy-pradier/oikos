@@ -1,0 +1,22 @@
+{
+  "drought": [
+    "The earth will open its mouth and drink only dust; the ears of grain will bow beneath a brazen sky.",
+    "Helios will linger over the furrows, and the spring will fall silent before the grain ripens.",
+    "The clouds will pass without stopping, and the wheat will thirst in its husk."
+  ],
+  "good_year": [
+    "The branches will bend beneath their burden, and the press will sing longer than is its wont.",
+    "The boughs of Athena and the vines of Dionysos will bear more than they promise.",
+    "Let the baskets be ready: the sap is rising, and the fruit will come in crowds."
+  ],
+  "storm": [
+    "Poseidon will strike the sea with his trident; the prudent sailor will wait in port until the foam settles.",
+    "The winds of Aeolus will quarrel over the road of the ships, and the voyage will grow long.",
+    "The sky will split above the waves; what sets out will be late to arrive, but it will arrive."
+  ],
+  "caravan": [
+    "Camels will come from the East, and their masters will have but one word on their lips: {{good}}.",
+    "The stranger will knock at the gates of the agora; what he desires has a name: {{good}}.",
+    "A distant dust heralds full purses; they will open for this: {{good}}."
+  ]
+}

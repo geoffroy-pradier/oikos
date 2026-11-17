@@ -505,6 +505,7 @@
     }
   ],
   "graces": [],
+  "oracle": { "godId": "apollo", "consultationOboles": 60, "maxTextLength": 400 },
   "cities": [
     {
       "id": "kalliste",
