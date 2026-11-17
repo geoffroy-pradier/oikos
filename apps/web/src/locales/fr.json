@@ -343,7 +343,6 @@
     "skipToContent": "Aller au contenu",
     "navigation": "Navigation principale",
     "darkTheme": "Thème sombre",
-    "comingSoon": "Cet espace ouvrira avec les prochaines étapes du jeu.",
     "notFound": "Cette page n'existe pas.",
     "backHome": "Revenir à la maison"
   },
@@ -760,5 +759,20 @@
     "good_year": "Bonne année à {{city}} jusqu'au {{date}} : chaque cycle de verger rend {{percent}} de plus.",
     "storm": "Tempête entre {{city}} et {{other}} jusqu'au {{date}} : les trajets qui partent durent {{percent}} de plus.",
     "caravan": "Caravane étrangère à {{city}} jusqu'au {{date}} : les habitants achètent {{percent}} de plus du bien « {{good}} »."
+  },
+  "messages": {
+    "channels": "Canaux",
+    "cityChannel": "Canal de {{city}}",
+    "direct": "Conversation avec {{house}}",
+    "you": "Votre maison",
+    "unread_one": "{{count}} message non lu",
+    "unread_other": "{{count}} messages non lus",
+    "unreadAtLeast_one": "{{count}} messages non lus ou plus",
+    "unreadAtLeast_other": "{{count}} messages non lus ou plus",
+    "none": "Aucun message pour l'instant.",
+    "hidden": "Message masqué par la modération.",
+    "list": "Messages du canal",
+    "polling_one": "Les messages ne viennent plus en direct : l'écran les relit chaque seconde.",
+    "polling_other": "Les messages ne viennent plus en direct : l'écran les relit toutes les {{count}} secondes."
   }
 }

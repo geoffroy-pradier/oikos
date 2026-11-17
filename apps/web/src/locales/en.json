@@ -343,7 +343,6 @@
     "skipToContent": "Skip to content",
     "navigation": "Main navigation",
     "darkTheme": "Dark theme",
-    "comingSoon": "This area will open with the next stages of the game.",
     "notFound": "This page does not exist.",
     "backHome": "Back to the house"
   },
@@ -760,5 +759,20 @@
     "good_year": "Good year in {{city}} until {{date}}: each orchard cycle yields {{percent}} more.",
     "storm": "Storm between {{city}} and {{other}} until {{date}}: voyages that set sail take {{percent}} longer.",
     "caravan": "Foreign caravan in {{city}} until {{date}}: the inhabitants buy {{percent}} more of {{good}}."
+  },
+  "messages": {
+    "channels": "Channels",
+    "cityChannel": "{{city}} channel",
+    "direct": "Conversation with {{house}}",
+    "you": "Your house",
+    "unread_one": "{{count}} unread message",
+    "unread_other": "{{count}} unread messages",
+    "unreadAtLeast_one": "{{count}} or more unread messages",
+    "unreadAtLeast_other": "{{count}} or more unread messages",
+    "none": "No messages yet.",
+    "hidden": "Message hidden by moderation.",
+    "list": "Channel messages",
+    "polling_one": "Messages no longer arrive live: the screen rereads them every second.",
+    "polling_other": "Messages no longer arrive live: the screen rereads them every {{count}} seconds."
   }
 }
