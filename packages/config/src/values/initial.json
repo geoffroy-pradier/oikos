@@ -28,6 +28,11 @@
     "retentionDays": 30,
     "rateLimit": { "messages": 10, "windowSeconds": 60 }
   },
+  "moderation": {
+    "reportReasons": ["spam", "harassment", "hate", "cheating", "other"],
+    "bannedTerms": [],
+    "maxAppealLength": 1000
+  },
   "chronicle": { "maxGoods": 3, "settleSeconds": 60, "maxTextLength": 2000 },
   "ai": {
     "budgetMicroEurosPerActivePlayerMonth": 0,

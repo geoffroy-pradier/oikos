@@ -8,6 +8,7 @@ import {
   DEFAULT_AI,
   DEFAULT_CHAT,
   DEFAULT_CHRONICLE,
+  DEFAULT_MODERATION,
   DEFAULT_LABOR,
   cityHasPort,
   cityStartingRecipeId,
@@ -70,6 +71,7 @@ const FIXTURE: GameConfig = {
   },
   telemetry: { retentionDays: 30 },
   chat: { maxMessageLength: 280, retentionDays: 14, rateLimit: { messages: 5, windowSeconds: 30 } },
+  moderation: { reportReasons: ['spam', 'other'], bannedTerms: ['maudit'], maxAppealLength: 600 },
   chronicle: { maxGoods: 5, settleSeconds: 120, maxTextLength: 1_500 },
   ai: {
     budgetMicroEurosPerActivePlayerMonth: 80_000,
@@ -747,6 +749,45 @@ describe('discussion', () => {
       expect.stringMatching(/^chat\.rateLimit\.windowSeconds: /),
     ]);
     expect(errorsOf({ ...clone(), chat: { ...clone().chat, extra: 1 } })).not.toEqual([]);
+  });
+});
+
+describe('modération', () => {
+  it('une version publiée avant elle reste lisible : cinq motifs, aucun terme interdit, 1 000 caractères', () => {
+    const older: Partial<GameConfig> = clone();
+    delete older.moderation;
+    const result = validateConfig(older);
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.moderation).toEqual({
+      reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
+      bannedTerms: [],
+      maxAppealLength: 1_000,
+    });
+    expect(Object.isFrozen(DEFAULT_MODERATION.reportReasons)).toBe(true);
+  });
+
+  it('au moins un motif, sans doublon ; des termes qui portent une lettre ou un chiffre ; un appel de 1 à 2 000 caractères', () => {
+    const errors = (moderation: Partial<GameConfig['moderation']>) =>
+      errorsOf({ ...clone(), moderation: { ...clone().moderation, ...moderation } });
+    expect(errors({ maxAppealLength: 2_000 })).toEqual([]);
+    expect(errors({ bannedTerms: ['  Gros mot ', 'x1'] })).toEqual([]);
+    for (const wrong of [0, 2_001, 1.5])
+      expect(errors({ maxAppealLength: wrong })).toEqual([
+        expect.stringMatching(/^moderation\.maxAppealLength: /),
+      ]);
+    expect(errors({ reportReasons: [] })).toEqual([
+      expect.stringMatching(/^moderation\.reportReasons: /),
+    ]);
+    expect(errors({ reportReasons: ['spam', 'spam'] })).toEqual([
+      expect.stringMatching(/^moderation\.reportReasons: .*spam/),
+    ]);
+    expect(errors({ reportReasons: ['Spam'] })).toEqual([
+      expect.stringMatching(/^moderation\.reportReasons\[0\]: /),
+    ]);
+    expect(errors({ bannedTerms: ['ok', ' -- '] })).toEqual([
+      expect.stringMatching(/^moderation\.bannedTerms\[1\]: /),
+    ]);
+    expect(errors({ bannedTerms: [''] })).not.toEqual([]);
   });
 });
 
