@@ -4,11 +4,11 @@ import { AgoraScreen } from './screens/Agora';
 import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
 import { MapScreen } from './screens/Map';
+import { MessagesScreen } from './screens/Messages';
 import { PropertyScreen } from './screens/Property';
 import { ShipScreen } from './screens/Ship';
 import { StaffScreen } from './screens/Staff';
 import { NotFound } from './screens/NotFound';
-import { Placeholder } from './screens/Placeholder';
 import { Shell } from './Shell';
 
 export { TABS, tabOf, type TabId } from './tabs';
@@ -27,7 +27,7 @@ const routeTree = rootRoute.addChildren([
   route('/carte/navire/$shipId', ShipScreen),
   route('/agora', AgoraScreen),
   route('/cite', CityScreen),
-  route('/messages', () => <Placeholder tab="messages" />),
+  route('/messages', MessagesScreen),
 ]);
 
 // Adresse inconnue : écran traduit, jamais le texte par défaut du routeur.
