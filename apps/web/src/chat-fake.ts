@@ -10,6 +10,9 @@ export const fake = {
   channels: [] as unknown[] | null,
   messages: [] as Record<string, unknown>[],
   houses: [] as unknown[],
+  /** Signalements de la maison (`my_reports`) et motifs en vigueur (`moderation_rules`), #275. */
+  reports: [] as unknown[],
+  rules: [] as unknown[],
   live: 'connecting' as LiveState,
   topics: null as readonly string[] | null,
   signal: (() => undefined) as (channelId?: string) => void,
@@ -63,6 +66,8 @@ export function resetFake() {
     messageRow('d1', 'dm', 'h2', 5),
     messageRow('d2', 'dm', 'h2', 6),
   ];
+  fake.reports = [];
+  fake.rules = [{ report_reasons: ['spam', 'other'] }];
   fake.live = 'connecting';
   fake.topics = null;
   fake.cache.clear();
@@ -74,6 +79,8 @@ const rowsFor = (view: string, filters: Filters): unknown[] | null => {
   if (filters === null) return null;
   if (view === 'my_channels') return fake.channels && [...fake.channels];
   if (view === 'houses') return [...fake.houses];
+  if (view === 'my_reports') return [...fake.reports];
+  if (view === 'moderation_rules') return [...fake.rules];
   const neq = (filters['house_id'] as { neq?: string } | undefined)?.neq;
   const channel = filters['channel_id'];
   return fake.messages.filter(

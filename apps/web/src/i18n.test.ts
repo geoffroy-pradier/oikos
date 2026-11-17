@@ -87,6 +87,7 @@ describe('traductions', () => {
       ...config.gods.map((god) => `gods.${god.id}`),
       ...config.cities.map((city) => `cities.${city.id}`),
       ...SITE_TYPES.map((type) => `siteTypes.${type}`),
+      ...config.moderation.reportReasons.map((reason) => `reports.reasons.${reason}`),
     ];
     expect(keys(fr)).toEqual(expect.arrayContaining(expected));
   });

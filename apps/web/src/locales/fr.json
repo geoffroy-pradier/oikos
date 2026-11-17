@@ -930,5 +930,21 @@
     "invalid": "Écrivez votre appel avant de l'envoyer.",
     "appealSent": "Votre appel est envoyé : la modération l'examinera.",
     "appealed": "Appel envoyé le {{date}} :"
+  },
+  "reports": {
+    "button": "Signaler",
+    "open": "Signaler le message de {{house}}",
+    "reason": "Motif du signalement du message de {{house}}",
+    "send": "Envoyer le signalement",
+    "cancel": "Annuler",
+    "sent": "Message signalé : la modération l'examinera.",
+    "reported": "Vous avez signalé ce message.",
+    "reasons": {
+      "spam": "Publicité ou messages répétés",
+      "harassment": "Harcèlement",
+      "hate": "Haine ou discrimination",
+      "cheating": "Triche ou arnaque",
+      "other": "Autre manquement à la charte"
+    }
   }
 }

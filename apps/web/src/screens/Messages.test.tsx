@@ -52,7 +52,7 @@ const shown = () =>
     .map((item) => [
       item.querySelector('.font-semibold')?.textContent,
       item.querySelector('time')?.getAttribute('dateTime'),
-      item.lastElementChild?.textContent,
+      item.children[1]?.textContent,
     ]);
 
 describe('onglet Messages (#274)', () => {

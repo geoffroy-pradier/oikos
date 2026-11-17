@@ -1,6 +1,7 @@
 import {
   type ChatOpenDirectOutput,
   type ChatPostOutput,
+  type ChatReportOutput,
   commandErrorSchema,
   IDEMPOTENCY_HEADER,
   type CityCastVoteInput,
@@ -278,3 +279,12 @@ export const appealSanction = (
     accessToken,
     idempotencyKey,
   );
+
+/** Signalement d'un message (#275). `idempotencyKey` : la même clé tant que ce signalement n'a pas reçu de réponse. */
+export const reportMessage = (
+  messageId: string,
+  reason: string,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<ChatReportOutput>('chat.report', { messageId, reason }, accessToken, idempotencyKey);
