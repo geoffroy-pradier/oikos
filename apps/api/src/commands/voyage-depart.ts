@@ -5,7 +5,14 @@ import {
   voyageDepartOutputSchema,
 } from '@oikos/contracts';
 import { cityRatesOf } from '@oikos/db';
-import { cargoUnits, departureCost, stormDurationSeconds, voyageDurationSeconds } from '@oikos/sim';
+import {
+  cargoUnits,
+  departureCost,
+  fairWindSeconds,
+  graceToConsume,
+  stormDurationSeconds,
+  voyageDurationSeconds,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 
@@ -23,6 +30,9 @@ const NO_STOCK = { code: 'INSUFFICIENT_STOCK', message: 'Not enough free stock t
  * Un départ pendant une tempête de sa route (7.4, #267) allonge le trajet de l'ampleur de la plus forte (à égalité,
  * la plus ancienne), sans rien faire perdre ; le retard est expliqué dans `event_effects`. Les événements sont lus
  * sans verrou : ils ne changent jamais, et commencent après leur planification.
+ * Un vent favorable en attente de la maison (7.1, #266), le plus ancien, raccourcit ensuite le trajet
+ * (`fairWindSeconds`, sur la durée que la tempête a fixée) et se consomme ; s'il ne retire pas une seconde, il reste
+ * en attente. Les grâces en attente sont verrouillées en dernier, après les stocks, comme par une récolte.
  */
 export const voyageDepart = defineCommand({
   name: 'voyage.depart',
@@ -147,7 +157,23 @@ export const voyageDepart = defineCommand({
       .limit(1)
       .executeTakeFirst();
     const calm = voyageDurationSeconds(route.hours, shipClass.speedBps);
-    const seconds = storm ? stormDurationSeconds(calm, storm.magnitude_bps) : calm;
+    const stormy = storm ? stormDurationSeconds(calm, storm.magnitude_bps) : calm;
+    const pending = await trx
+      .selectFrom('game.graces_used')
+      .select(['id', 'grace_id', 'magnitude_bps', 'invoked_at'])
+      .where('house_id', '=', owned.house_id)
+      .where('effect', '=', 'fair_wind')
+      .where('consumed_at', 'is', null)
+      .orderBy('invoked_at')
+      .orderBy('id')
+      .forUpdate()
+      .execute();
+    const wind = graceToConsume(
+      pending.map((row) => ({ ...row, effect: 'fair_wind', invokedAt: row.invoked_at })),
+      'fair_wind',
+      (candidate) => fairWindSeconds(stormy, candidate.magnitude_bps) < stormy,
+    );
+    const seconds = wind ? fairWindSeconds(stormy, wind.magnitude_bps) : stormy;
     const voyage = await trx
       .insertInto('game.voyages')
       .values({
@@ -192,7 +218,22 @@ export const voyageDepart = defineCommand({
       .set({ docked_city_id: null })
       .where('id', '=', owned.id)
       .execute();
-    const delaySeconds = seconds - calm;
+    const fairWind = wind && {
+      graceUseId: wind.id,
+      graceId: wind.grace_id,
+      savedSeconds: stormy - seconds,
+    };
+    if (fairWind)
+      await trx
+        .updateTable('game.graces_used')
+        .set({
+          consumed_at: sql<Date>`now()`,
+          voyage_id: voyage.id,
+          saved_seconds: fairWind.savedSeconds,
+        })
+        .where('id', '=', fairWind.graceUseId)
+        .execute();
+    const delaySeconds = stormy - calm;
     if (storm && delaySeconds > 0)
       await trx
         .insertInto('game.event_effects')
@@ -271,11 +312,17 @@ export const voyageDepart = defineCommand({
         houseId: owned.house_id,
         portDues: dues,
         ...(storm && delaySeconds > 0 && { storm: { eventId: storm.id, delaySeconds } }),
+        ...(fairWind && { fairWind }),
       },
     });
     return {
       ok: true,
-      data: { ...departure, portDuesOboles: dues.oboles, costOboles: cost.totalOboles },
+      data: {
+        ...departure,
+        portDuesOboles: dues.oboles,
+        costOboles: cost.totalOboles,
+        ...(fairWind && { fairWind }),
+      },
     };
   },
 });

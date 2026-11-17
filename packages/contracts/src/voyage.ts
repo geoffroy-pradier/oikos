@@ -36,6 +36,15 @@ export const voyageDepartInputSchema = z.strictObject({
 });
 export type VoyageDepartInput = z.infer<typeof voyageDepartInputSchema>;
 
+/** Vent favorable consommé par le départ (7.1, #266) : les secondes qu'il retire au trajet ; absent sans lui. */
+const fairWind = z
+  .strictObject({
+    graceUseId: z.uuid(),
+    graceId: z.string(),
+    savedSeconds: z.number().int().positive(),
+  })
+  .optional();
+
 export const voyageDepartOutputSchema = z.object({
   voyageId: z.uuid(),
   shipId: z.uuid(),
@@ -51,6 +60,7 @@ export const voyageDepartOutputSchema = z.object({
   portDuesOboles: oboles,
   /** Ce que la maison a payé : provisions plus droit de port. */
   costOboles: oboles,
+  fairWind,
 });
 export type VoyageDepartOutput = z.infer<typeof voyageDepartOutputSchema>;
 
@@ -104,6 +114,7 @@ export const voyageDepartedSchema = z.strictObject({
       storm: z
         .strictObject({ eventId: z.uuid(), delaySeconds: z.number().int().positive() })
         .optional(),
+      fairWind,
     })
     .refine((payload) => payload.fromCityId !== payload.toCityId, {
       message: 'a voyage links two different cities',

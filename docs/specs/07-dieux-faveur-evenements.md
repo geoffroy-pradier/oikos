@@ -57,9 +57,11 @@ Recharge : invoquée le jour de jeu J, une grâce se réinvoque à partir de la 
 Décision : ce qui est payé est servi ; l'effet, l'ampleur, le dieu, la Charis dépensée et la recharge sont ceux de la version en vigueur à l'invocation, même si une version plus récente change ou retire la grâce.
 Décision : une action consomme au plus une grâce, la plus ancienne en attente de son effet (à égalité, le plus petit identifiant), et une seule fois ; les grâces ne se cumulent jamais.
 Décision : une grâce n'est consommée que si elle ajoute quelque chose (au moins une unité à la récolte, au moins une seconde retirée au trajet) ; sinon elle reste en attente, et une grâce plus récente n'est pas essayée à sa place.
-Limite connue : une grâce de faible ampleur peut rester longtemps en attente, et bloque pendant ce temps sa recharge et les grâces plus récentes.
-Par exemple, un vent favorable à 1 point de base ne retire une seconde qu'à un trajet d'au moins 10 000 secondes, et un atelier inspiré attend que la maison récolte un atelier.
+Une grâce qui attend bloque sa réinvocation (`GRACE_PENDING`) et les grâces plus récentes du même effet ; deux causes, distinctes, la font attendre longtemps.
+La première est une ampleur trop faible pour rien ajouter : par exemple, un vent favorable à 1 point de base ne retire une seconde qu'à un trajet d'au moins 10 000 secondes.
 Le calibrage (#283) choisit des ampleurs qui évitent ce cas.
+Limite connue : la seconde est l'absence d'action qui convienne, que le calibrage des ampleurs n'évite pas.
+Un atelier inspiré invoqué par une maison sans atelier attend qu'elle en récolte un, et un vent favorable invoqué par une maison sans navire attend qu'elle en fasse partir un.
 Décision (ordre d'application) : l'événement du monde d'abord, la grâce ensuite.
 Pour une récolte, sécheresses et bonnes années jouent cycle par cycle (7.4), puis la grâce sur la quantité de toute la récolte : une récolte réduite à rien par une sécheresse au plus fort ne rend rien de plus.
 Pour un départ, la tempête allonge le trajet (4.6), puis le vent raccourcit la durée allongée.
@@ -74,6 +76,9 @@ Une récolte admise d'un site de matière première consomme une récolte bénie
 Le surplus vient de l'extrémité `production` du journal des stocks, par des mouvements `grace.surplus` rattachés à la grâce, vers le stock où entre la récolte ; un atelier n'y consomme aucun intrant de plus.
 La réponse et l'événement `SiteCollected` le portent à part (`grace`), hors des extrants de la recette.
 Une récolte verrouille les grâces en attente de sa maison après ses stocks : de deux récoltes concurrentes, une seule consomme une grâce en attente, et l'autre se fait sans elle.
+Un départ admis d'un navire (4.6) consomme un vent favorable en attente de la maison, quel que soit le navire ; un départ refusé ne consomme rien.
+La tempête garde son retard dans `event_effects`, le vent ses secondes retirées dans `graces_used` (12).
+La réponse et l'événement `VoyageDeparted` portent le vent consommé (`fairWind`).
 
 ## 7.2 Hybris et Némésis
 
