@@ -173,17 +173,16 @@ const safe = <T>(storage: () => KeyStorage | undefined, action: (store: KeyStora
 const localStore = () => window.localStorage;
 
 export function readMarks(houseId: string, storage: () => KeyStorage | undefined = localStore) {
+  // `null` : rien de rangé ; `undefined` : stockage indisponible, les marques de la mémoire font foi.
   const stored = safe(storage, (store) => store.getItem(marksKey(houseId)));
-  const marks: Record<string, number> = { ...memory.get(houseId) };
+  if (stored === undefined) return { ...memory.get(houseId) } as ReadMarks;
   try {
     const parsed = z.record(z.string(), z.number()).safeParse(JSON.parse(stored ?? '{}'));
-    if (parsed.success)
-      for (const [channel, at] of Object.entries(parsed.data))
-        marks[channel] = Math.max(marks[channel] ?? at, at);
+    return (parsed.success ? parsed.data : {}) as ReadMarks;
   } catch {
-    // Valeur illisible : les marques en mémoire seulement.
+    // Valeur illisible : aucune marque, tous les messages sont non lus.
+    return {};
   }
-  return marks as ReadMarks;
 }
 
 /** Le canal est lu jusqu'à `at` ; une marque ne recule jamais. Rend les marques à jour. */
@@ -196,7 +195,11 @@ export function markRead(
   const marks = { ...readMarks(houseId, storage) };
   if ((marks[channelId] ?? Number.NEGATIVE_INFINITY) >= at) return marks;
   marks[channelId] = at;
-  memory.set(houseId, marks);
-  safe(storage, (store) => store.setItem(marksKey(houseId), JSON.stringify(marks)));
+  const kept = safe(
+    storage,
+    (store) => (store.setItem(marksKey(houseId), JSON.stringify(marks)), true),
+  );
+  if (kept) memory.delete(houseId);
+  else memory.set(houseId, marks);
   return marks;
 }
