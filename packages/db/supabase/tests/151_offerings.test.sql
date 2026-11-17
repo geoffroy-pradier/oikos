@@ -95,8 +95,9 @@ select is(
      and privilege_type <> 'SELECT'),
   'favor_ledger.offering_id:INSERT offerings.charis:INSERT offerings.city_id:INSERT offerings.god_id:INSERT '
     || 'offerings.house_id:INSERT offerings.ledger_entry_id:INSERT offerings.oboles:INSERT offerings.world_id:INSERT '
-    || 'stock_ledger.offering_id:INSERT',
-  'le service écrit une offrande sans en choisir ni l''identifiant ni la date, et y rattache stocks et Charis : liste figée');
+    || 'oracle_consultations.offering_id:INSERT stock_ledger.offering_id:INSERT',
+  'le service écrit une offrande sans en choisir ni l''identifiant ni la date, et y rattache stocks, Charis et '
+    || 'consultation de la Pythie (#270) : liste figée');
 select ok(not exists (select 1 from unnest(array['anon', 'authenticated']) r
   where has_any_column_privilege(r, 'game.offerings', 'select, insert, update')), 'aucun accès client direct');
 select ok(not exists (select 1 from pg_roles r, unnest(array['game.guard_offering()', 'game.check_offering_settled()',
