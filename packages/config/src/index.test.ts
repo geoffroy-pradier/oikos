@@ -198,6 +198,7 @@ const FIXTURE: GameConfig = {
       cityCharisWeightBps: 0,
     },
   ],
+  graces: [],
   cities: [
     {
       id: 'kalliste',

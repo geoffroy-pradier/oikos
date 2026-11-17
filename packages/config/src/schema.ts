@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
+import { graceSchema, gracesIssues } from './graces';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
@@ -863,6 +864,8 @@ export const gameConfigSchema = z
     worldEvents: worldEventsSchema.optional(),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
+    /** Absent des versions publiées avant les grâces (#266) : aucune grâce ne s'invoque. */
+    graces: z.array(graceSchema).max(300).default([]),
     goods: z.array(goodSchema).min(1),
     recipes: z.array(recipeSchema),
     npcClasses: z.array(npcClassSchema).min(1),
@@ -1013,6 +1016,8 @@ export const gameConfigSchema = z
         if (!goods.has(goodId))
           issue(['gods', index, 'charisPerUnit', goodId], `unknown good "${goodId}"`);
     });
+    for (const { path, message } of gracesIssues(config.graces, gods))
+      issue(['graces', ...path], message);
     const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
     // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
     // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».

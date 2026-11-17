@@ -504,6 +504,7 @@
       "cityCharisWeightBps": 10000
     }
   ],
+  "graces": [],
   "cities": [
     {
       "id": "kalliste",

@@ -1260,6 +1260,7 @@ Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 ## Critères d'acceptation
 
 - [ ] Configuration initiale ajustée : salaires, offre de travail, hébergement, entretien des navires et des logements, vétusté, salaire des intendants, droits de port, provisions et probabilité des événements activés ; chaque valeur justifiée dans la demande de fusion ; aucune constante d'équilibrage dans le code.
+- [ ] Grâces offertes dans la configuration initiale, au moins une par dieu concerné (7.1, #266), et déclin et poids de la Charis de cité calibrés ; chaque valeur justifiée dans la demande de fusion.
 - [ ] Terroir de Kallistè resserré ; les tests de bout en bout de la cité prototype et le banc à une cité de #78 suivent, leurs bornes inchangées ou leur changement justifié.
 - [ ] Bornes écrites à la main dans le banc à quatre cités, pas recalculées par le code testé : dans chaque cité, celles de la phase 1 (coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas) ; pour le monde, variation de la masse monétaire de −3 % à +3 % sur les 30 jours mesurés.
 - [ ] Le banc joue les événements, avec sa graine fixe.

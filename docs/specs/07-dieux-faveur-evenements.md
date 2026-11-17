@@ -28,7 +28,7 @@ Chaque perte est une ligne `decay` du journal de la Charis (12), une par maison,
 Un dieu sans déclin, ou retiré de la configuration, ne fait rien perdre.
 Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
-Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues avec les grâces (#266).
+Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues au calibrage (#283).
 Une version publiée avant la Charis se lit sans taux : aucun dieu n'y accepte d'offrande, rien ne décline, et la Charis de cité est nulle.
 Une offrande (`temple.makeOffering`) donne à un dieu des oboles, détruites par le puits `sink_offerings` (5.5), et des biens du stock libre de la maison dans sa cité, hors réservations des ventes, qui partent vers l'extrémité `offering` du journal des stocks.
 Le joueur envoie la Charis qu'il a vue : un autre taux en vigueur est refusé (`CHARIS_CHANGED`), rien n'est offert.
@@ -36,9 +36,35 @@ Oboles, biens et Charis passent dans une seule transaction, contrôlée par la b
 Seule la maison qui offre gagne de la Charis : aucune commande n'en prend à une maison pour en donner à une autre, et la base refuse toute autre nature de mouvement.
 La commande verrouille la maison, puis sa Charis envers le dieu, avant l'agora : le déclin de la clôture tient les Charis avant de prendre l'agora aux étapes suivantes, et l'ordre inverse les ferait s'interbloquer.
 La Charis de cité d'une cité est la Charis de ses citoyennes envers son dieu protecteur, sommée, fois le poids de ce dieu (10 000 = ×1), arrondie vers zéro : les métèques n'y comptent pas.
-Décision (ambiguïté de cette section) : elle suit la Charis courante, déclin compris, plutôt que le cumul des offrandes, et rien ne la consomme encore (miracles : phase 3).
+Décision (ambiguïté de cette section) : elle suit la Charis courante, déclin et grâces compris, plutôt que le cumul des offrandes.
+La Charis qu'une citoyenne dépense pour une grâce envers le dieu protecteur de sa cité baisse donc d'autant, au poids près, la Charis de cité ; les miracles collectifs qui la consommeraient attendent la phase 3.
 Lectures : `temple_rules` (publique : la section `gods` de la configuration en vigueur), `my_favor` (privée : la Charis de sa maison par dieu) et `city_charis` (publique : la Charis de chaque cité envers son dieu protecteur).
 Une maison seule citoyenne de sa cité y révèle donc sa Charis envers le dieu protecteur, au poids près.
+
+Grâces, dans la phase 2 (ticket 266).
+Décision (ambiguïté de cette section) : trois effets, chacun appliqué à la prochaine action admise de la maison qui a invoqué la grâce.
+Le catalogue des effets est fermé : une grâce nouvelle ne demande aucun code, un effet nouveau si.
+La configuration (`graces`) donne à chaque grâce son dieu, son effet, son ampleur en points de base, la Charis requise envers ce dieu pour l'invoquer, la Charis dépensée (au plus la requise) et sa recharge en jours de jeu (de 1 à 366).
+Décision : le tableau ci-dessus prévoit trois grâces par dieu ; la phase 2 n'en vise qu'une par dieu concerné (une récolte bénie pour Déméter, un atelier inspiré pour Athéna, un vent favorable pour Poséidon), et le schéma ne borne pas leur nombre par dieu.
+Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) : paramètres neutres, comme les probabilités des événements du monde (7.4).
+Décision : en phase 2, l'effet d'une grâce n'est pas limité au domaine de son dieu ; une récolte bénie vaut pour tout site de matière première, quel que soit le dieu qui l'accorde.
+Récolte bénie (`blessed_harvest`) : une récolte d'un site de matière première rend, pour chaque extrant, ⌊quantité × ampleur ÷ 10 000⌋ unités de plus, arrondi vers le bas sur la quantité de toute la récolte (`graceSurplus`, `packages/sim`).
+Atelier inspiré (`inspired_workshop`) : de même pour une récolte d'atelier, sans intrant supplémentaire.
+Vent favorable (`fair_wind`) : le prochain départ d'un navire dure ⌈durée × (10 000 − ampleur) ÷ 10 000⌉ secondes, arrondi vers le haut comme la durée elle-même (`fairWindSeconds`).
+L'ampleur est bornée par effet : une récolte au plus doublée (10 000), un trajet au plus deux fois plus court (5 000), jamais instantané.
+Une version publiée avant les grâces se lit sans grâce.
+Recharge : invoquée le jour de jeu J, une grâce se réinvoque à partir de la clôture qui ouvre le jour J + recharge, et pas tant qu'une de ses invocations attend encore son action ; une invocation en attente n'expire pas.
+Décision : ce qui est payé est servi ; l'effet, l'ampleur, le dieu, la Charis dépensée et la recharge sont ceux de la version en vigueur à l'invocation, même si une version plus récente change ou retire la grâce.
+Décision : une action consomme au plus une grâce, la plus ancienne en attente de son effet (à égalité, le plus petit identifiant), et une seule fois ; les grâces ne se cumulent jamais.
+Décision : une grâce n'est consommée que si elle ajoute quelque chose (au moins une unité à la récolte, au moins une seconde retirée au trajet) ; sinon elle reste en attente, et une grâce plus récente n'est pas essayée à sa place.
+Limite connue : une grâce de faible ampleur peut rester longtemps en attente, et bloque pendant ce temps sa recharge et les grâces plus récentes.
+Par exemple, un vent favorable à 1 point de base ne retire une seconde qu'à un trajet d'au moins 10 000 secondes, et un atelier inspiré attend que la maison récolte un atelier.
+Le calibrage (#283) choisit des ampleurs qui évitent ce cas.
+Décision (ordre d'application) : l'événement du monde d'abord, la grâce ensuite.
+Pour une récolte, sécheresses et bonnes années jouent cycle par cycle (7.4), puis la grâce sur la quantité de toute la récolte : une récolte réduite à rien par une sécheresse au plus fort ne rend rien de plus.
+Pour un départ, la tempête allonge le trajet (4.6), puis le vent raccourcit la durée allongée.
+Grâce et bonne année se multiplient : au plus fort de l'une et de l'autre, un verger rend jusqu'au quadruple de son extrant.
+Exception à la règle de 4.2 (récolter en une ou plusieurs fois rend la même quantité) : le surplus d'une grâce s'arrondit sur toute la récolte qui la consomme, et sa taille dépend donc du moment de la récolte.
 
 ## 7.2 Hybris et Némésis
 

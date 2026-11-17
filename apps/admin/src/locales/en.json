@@ -431,6 +431,7 @@
         "recipes": "Recipes",
         "npcClasses": "NPC classes",
         "gods": "Gods",
+        "graces": "Graces",
         "cities": "Cities"
       },
       "fields": {
