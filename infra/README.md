@@ -47,6 +47,8 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    Le service `realtime` doit être en bonne santé avant la première application : il crée son schéma (`realtime.messages`) à la première vérification de santé de son locataire, et la migration de la diffusion des messages (ADR 0008) y pose les règles d'abonnement.
    Sans ce schéma, cette migration n'écrit pas les règles et l'annonce par un avertissement : les canaux privés restent fermés, l'onglet Messages relit à intervalle régulier.
    Vérifier après la première application que `select count(*) from pg_policies where schemaname = 'realtime' and tablename = 'messages'` rend 4 ; sinon, une fois Realtime en bonne santé, rejouer la migration `20261116000220_chat_broadcast.sql` par `psql -f`, elle est rejouable.
+   Ces règles sont posées par `postgres`, qui n'est pas propriétaire de `realtime.messages` : il ne le peut que par l'extension `supautils` de l'image Postgres de Supabase, dont le réglage `supautils.policy_grants` lui accorde cette table.
+   La production doit donc tourner sur la même image Postgres de Supabase, avec ce réglage (`show supautils.policy_grants` doit citer `realtime.messages`) ; sur une autre image, la migration échoue faute de droits.
    `supabase db push` les enregistre dans `supabase_migrations.schema_migrations`, la table que lit ensuite `deploy.sh` (voir « Migrations au déploiement »).
    Les migrations créent le rôle `oikos_service` (sans connexion), qui porte les seuls droits de l'API et du moteur.
    👤 Créer ensuite le compte de connexion des services, membre de ce rôle, avec un mot de passe généré (jamais dans le dépôt), et le placer dans `OIKOS_DATABASE_URL` :
