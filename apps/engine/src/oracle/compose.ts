@@ -47,7 +47,7 @@ export function oracleVariant(subject: OracleSubject): number {
 }
 
 /** Bien d'une caravane dit par son nom ; un bien sans traduction, par son identifiant. */
-const goodName = (locale: ChronicleLocale, goodId: string) =>
+export const goodName = (locale: ChronicleLocale, goodId: string) =>
   Object.hasOwn(GOODS[locale], goodId) ? (GOODS[locale][goodId] ?? goodId) : goodId;
 
 /** Oracle de repli d'un événement, dans les deux langues, au même rang. */
