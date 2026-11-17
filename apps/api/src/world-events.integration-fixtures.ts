@@ -6,7 +6,8 @@ import { sql } from 'kysely';
  * Planifie un événement comme la clôture (#267), sous la garde de la base : il commence dans `inMs`
  * millisecondes à l'horloge de la base (un événement déjà commencé est refusé) et dure `lastsMs`. Son jour de
  * planification, le suivant de la dernière clôture du monde, est enregistré comme une clôture jouée dans la même
- * transaction, après lui. Les jours de l'événement sont fictifs : seuls ses instants comptent ici.
+ * transaction, après lui. Les jours de l'événement sont fictifs : seuls ses instants comptent ici. Avec `oracle`,
+ * son oracle de repli est écrit dans la même transaction, comme par la planification (#270).
  */
 export async function planEvent(
   owner: Db,
@@ -19,6 +20,7 @@ export async function planEvent(
     magnitudeBps: number;
     inMs: number;
     lastsMs: number;
+    oracle?: { fr: string; en: string };
   },
 ) {
   // La clôture enregistrée lit une version de configuration : celle de départ, posée au besoin.
@@ -49,11 +51,23 @@ export async function planEvent(
       })
       .returning('id')
       .executeTakeFirstOrThrow();
+    const oracle = event.oracle
+      ? await trx
+          .insertInto('game.oracles')
+          .values({
+            world_id: event.worldId,
+            event_id: id,
+            text_fr: event.oracle.fr,
+            text_en: event.oracle.en,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow()
+      : null;
     await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
       values (${event.worldId}, ${clock.day}, now(), (select id from config.versions order by id limit 1))`.execute(
       trx,
     );
-    return { eventId: id, startsAt };
+    return { eventId: id, startsAt, oracleId: oracle?.id ?? null };
   });
 }
 
