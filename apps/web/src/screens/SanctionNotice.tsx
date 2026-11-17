@@ -10,6 +10,7 @@ import {
   type Sanction,
 } from '../moderation';
 import { serverClock } from '../server-clock';
+import { SanctionAppeal } from './SanctionAppeal';
 
 /** Au-delà, `setTimeout` déborde : la liste se recalcule au plus tard à cette échéance. */
 const MAX_TIMER_MS = 2 ** 31 - 1;
@@ -48,14 +49,20 @@ export function SanctionNotice() {
       <h2 className="text-xl">{t('sanctions.title')}</h2>
       <ul className="flex flex-col gap-3">
         {sanctions.map((sanction) => (
-          <SanctionItem key={sanction.id} sanction={sanction} />
+          <SanctionItem key={sanction.id} sanction={sanction} onAppealed={reload} />
         ))}
       </ul>
     </Card>
   );
 }
 
-function SanctionItem({ sanction }: { sanction: Sanction }) {
+function SanctionItem({
+  sanction,
+  onAppealed,
+}: {
+  sanction: Sanction;
+  onAppealed: () => Promise<unknown>;
+}) {
   const { t, i18n } = useTranslation();
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
   const future = sanction.startsAt > serverClock.now().getTime();
@@ -78,6 +85,11 @@ function SanctionItem({ sanction }: { sanction: Sanction }) {
           </blockquote>
         </>
       )}
+      <SanctionAppeal
+        sanctionId={sanction.id}
+        appealed={sanction.appealedAt !== null}
+        onAppealed={onAppealed}
+      />
     </li>
   );
 }

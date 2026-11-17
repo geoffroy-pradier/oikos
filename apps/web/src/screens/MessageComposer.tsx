@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postMessage } from '../api';
 import { useHouse } from '../house';
-import { pendingKeys, sendUnderKey } from '../pending-keys';
+import { fingerprint, pendingKeys, sendUnderKey } from '../pending-keys';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const session = () => window.sessionStorage;
@@ -33,16 +33,6 @@ const keepDraft = (key: string, text: string) => {
     else drafts.delete(key);
   }
 };
-
-/** Empreinte courte d'un texte (FNV-1a, 32 bits), pour nommer son intention sans ranger le texte deux fois. */
-function fingerprint(text: string) {
-  let hash = 0x811c9dc5;
-  for (const char of text) {
-    hash ^= char.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return `${text.length}.${hash.toString(36)}`;
-}
 
 /**
  * Saisie d'un message dans le canal ouvert (6.6). Une saisie n'est jamais perdue : brouillon par canal, gardé

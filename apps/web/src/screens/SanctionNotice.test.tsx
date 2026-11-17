@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,10 +8,11 @@ import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 import { currentSanctions, nextSanctionEnd, SANCTIONED_EVENT } from '../moderation';
 
-// Sanctions du compte (#275) : lecture simulée.
+// Sanctions du compte (#275) : lecture et appel simulés.
 const fake = vi.hoisted(() => ({
   rows: [] as unknown[] | null,
   reloads: 0,
+  appeals: [] as { id: string; body: string; key: string; answer: (r: unknown) => void }[],
 }));
 vi.mock('../supabase', () => ({ supabase: {} }));
 vi.mock('../data', async () => {
@@ -27,6 +28,10 @@ vi.mock('../data', async () => {
     },
   };
 });
+vi.mock('../api', () => ({
+  appealSanction: (id: string, body: string, _token: string, key: string) =>
+    new Promise((answer) => fake.appeals.push({ id, body, key, answer })),
+}));
 const { SanctionNotice } = await import('./SanctionNotice');
 
 const HOUR = 3_600_000;
@@ -61,6 +66,7 @@ beforeEach(() => {
   sessionStorage.clear();
   fake.rows = [];
   fake.reloads = 0;
+  fake.appeals.length = 0;
 });
 afterEach(cleanup);
 
@@ -94,6 +100,56 @@ describe('sanctions en cours', () => {
     expect(screen.getByText(/^Jusqu'au /)).toBeTruthy();
     expect(screen.getByText("Sans fin : l'exclusion est définitive.")).toBeTruthy();
     expect(screen.getByText('Je conteste.')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Faire appel' })).toHaveLength(1);
+  });
+
+  it('un appel s’écrit au clavier, part sous une clé gardée tant qu’il est sans réponse, puis le foyer passe au résultat', async () => {
+    fake.rows = [row('s1', 'suspension', -HOUR, HOUR)];
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Faire appel' }));
+    const box = screen.getByRole('textbox', { name: 'Votre appel' });
+    expect(document.activeElement).toBe(box);
+    fireEvent.click(screen.getByRole('button', { name: "Envoyer l'appel" }));
+    expect(screen.getByRole('alert').textContent).toBe("Écrivez votre appel avant de l'envoyer.");
+    expect(fake.appeals).toHaveLength(0);
+    fireEvent.change(box, { target: { value: '  Je conteste.  ' } });
+    fireEvent.submit(box);
+    const first = fake.appeals[0];
+    expect([first?.id, first?.body]).toEqual(['s1', 'Je conteste.']);
+    // Réponse perdue : le même appel repart sous la même clé.
+    await act(async () => first?.answer({ ok: false, error: { code: 'INTERNAL', message: 'x' } }));
+    fireEvent.submit(box);
+    expect(fake.appeals[1]?.key).toBe(first?.key);
+    // La relecture montre l'appel fait : le formulaire disparaît, le résultat et le foyer restent.
+    fake.rows = [row('s1', 'suspension', -HOUR, HOUR, true)];
+    await act(async () =>
+      fake.appeals[1]?.answer({ ok: true, data: { sanctionId: 's1' }, replayed: false }),
+    );
+    expect(screen.queryByRole('button', { name: 'Faire appel' })).toBeNull();
+    expect(screen.getByText('Je conteste.')).toBeTruthy();
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe("Votre appel est envoyé : la modération l'examinera.");
+    expect(document.activeElement).toBe(status);
+    expect(fake.reloads).toBe(1);
+  });
+
+  it('un refus est expliqué ; annuler rend le foyer au bouton', async () => {
+    fake.rows = [row('s1', 'silence', -HOUR, HOUR)];
+    await show('en');
+    fireEvent.click(screen.getByRole('button', { name: 'Appeal' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your appeal' }), {
+      target: { value: 'Please.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send the appeal' }));
+    await act(async () =>
+      fake.appeals[0]?.answer({ ok: false, error: { code: 'SANCTION_ENDED', message: 'x' } }),
+    );
+    expect(screen.getByRole('alert').textContent).toBe(
+      'This sanction has ended: it can no longer be appealed.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await act(async () => new Promise((resolve) => setTimeout(resolve)));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Appeal' }));
   });
 
   it('se relit quand l’API refuse une commande pour une sanction', async () => {
