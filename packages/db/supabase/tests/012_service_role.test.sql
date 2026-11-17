@@ -49,7 +49,7 @@ select is(
     || 'oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '
     || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
-    || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count ships.docked_city_id ships.laid_up_at '
+    || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count sanctions.appeal_body ships.docked_city_id ships.laid_up_at '
     || 'sites.cycle_started_at sites.halted_at sites.recipe_id voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(

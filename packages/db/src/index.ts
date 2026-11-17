@@ -545,6 +545,19 @@ export interface GameDatabase {
     hidden_at: ColumnType<Date | null, never, never>;
   };
   /**
+   * Signalements d'un message (#275) : écrits ouverts, datés par la base ; à la purge du message, `message_id`
+   * devient nul. Le service n'écrit ni l'état ni la date.
+   */
+  'game.reports': {
+    id: ColumnType<string, never, never>;
+    message_id: ColumnType<string | null, string, never>;
+    reported_house_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    reason: ColumnType<string, string, never>;
+    state: ColumnType<'open' | 'dismissed' | 'upheld', never, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
    * Voyages (4.6). Le service fait partir un voyage sans en choisir ni l'identifiant ni la date de
    * départ, puis n'écrit que son arrivée.
    */
@@ -680,6 +693,25 @@ export interface GameDatabase {
       'super_admin' | 'game_designer' | 'community_manager' | 'moderator' | 'support' | 'observer';
     granted_by: string | null;
     granted_at: Generated<Date>;
+  };
+  /**
+   * Sanctions des comptes (#275), lues à chaque commande. Le service n'y écrit que le texte d'un appel, que la
+   * base date (`appealed_at`) et n'admet qu'une fois, sur une sanction en vigueur.
+   */
+  'admin.sanctions': {
+    id: ColumnType<string, never, never>;
+    user_id: ColumnType<string, never, never>;
+    kind: ColumnType<'warning' | 'silence' | 'suspension' | 'ban', never, never>;
+    starts_at: ColumnType<Date, never, never>;
+    /** Nulle pour une exclusion, définitive. */
+    ends_at: ColumnType<Date | null, never, never>;
+    reason: ColumnType<string, never, never>;
+    author_id: ColumnType<string, never, never>;
+    /** Seconde personne qui valide une exclusion : sans elle, l'exclusion n'est pas en vigueur. */
+    validated_by: ColumnType<string | null, never, never>;
+    appeal_body: ColumnType<string | null, never, string>;
+    appealed_at: ColumnType<Date | null, never, never>;
+    created_at: ColumnType<Date, never, never>;
   };
   'config.versions': {
     id: Generated<string>;
