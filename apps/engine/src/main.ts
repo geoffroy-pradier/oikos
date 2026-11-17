@@ -6,11 +6,13 @@ import { purgeMessages } from './chat-retention';
 import { writeAllChronicles } from './chronicle/task';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
+import { rewriteAllOracles } from './oracle/task';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { TICK_STEPS } from './tick-steps';
 
 const QUEUE = 'world-clock';
 const CHRONICLE_QUEUE = 'city-chronicle';
+const ORACLE_QUEUE = 'pythia-oracles';
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -64,6 +66,20 @@ await boss.work(CHRONICLE_QUEUE, async () => {
   const now = await databaseNow(db);
   for (const { worldId, written } of await writeAllChronicles(db, { now, config: loader, ...ai }))
     if (written > 0) console.log(`World ${worldId}: wrote ${written} chronicles`);
+});
+// Oracles de la Pythie (#270), dans leur propre file, pour la même raison : chaque oracle de repli d'un événement à
+// venir est essayé une fois par l'IA, après la clôture qui l'a planifié. IA coupée, la tâche ne fait rien.
+await boss.createQueue(ORACLE_QUEUE);
+await boss.schedule(ORACLE_QUEUE, '* * * * *');
+await boss.work(ORACLE_QUEUE, async () => {
+  const now = await databaseNow(db);
+  for (const { worldId, attempted, rewritten } of await rewriteAllOracles(db, {
+    now,
+    config: loader,
+    ...ai,
+  }))
+    if (attempted > 0)
+      console.log(`World ${worldId}: rewrote ${rewritten} of ${attempted} oracles`);
 });
 console.log('OIKOS engine started');
 
