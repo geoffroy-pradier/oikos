@@ -34,6 +34,7 @@ import {
   type VoyageDepartInput,
   type VoyageDepartOutput,
 } from '@oikos/contracts';
+import { SANCTIONED_EVENT } from './moderation';
 import { serverClock } from './server-clock';
 
 /** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
@@ -74,7 +75,13 @@ export async function sendCommand<T>(
       return { ok: true, data: body.data as T, replayed };
     }
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
-    if (error?.success) return { ok: false, error: error.data };
+    if (error?.success) {
+      // Refus pour une sanction (#275) : l'annonce des sanctions se relit.
+      const sanctioned = error.data.code === 'SUSPENDED' || error.data.code === 'SILENCED';
+      if (sanctioned && typeof window !== 'undefined')
+        window.dispatchEvent(new Event(SANCTIONED_EVENT));
+      return { ok: false, error: error.data };
+    }
   } catch {
     // Réseau coupé ou réponse illisible : même traitement.
   }

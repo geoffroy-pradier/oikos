@@ -881,5 +881,32 @@
       "when": "Consulted on {{date}}. Date of the event: uncertain, to come after this consultation.",
       "aiNote": "Text rewritten by AI from the Pythia's oracle."
     }
+  },
+  "sanctions": {
+    "title": "Sanctions on your account",
+    "kind": {
+      "warning": "Warning",
+      "silence": "Silenced",
+      "suspension": "Account suspended",
+      "ban": "Account banned"
+    },
+    "effect": {
+      "warning": "A warning blocks nothing: it is a reminder of the code of conduct.",
+      "silence": "You can read and report messages, but not write any.",
+      "suspension": "You cannot act in the game; you can still read its screens.",
+      "ban": "You cannot act in the game."
+    },
+    "reason": "Reason: {{reason}}",
+    "starts": "Starting {{date}}.",
+    "until": "Until {{date}}.",
+    "permanent": "No end: the ban is permanent.",
+    "appeal": "Appeal",
+    "appealLabel": "Your appeal",
+    "appealHint": "Explain why you contest this sanction. One appeal per sanction.",
+    "send": "Send the appeal",
+    "cancel": "Cancel",
+    "invalid": "Write your appeal before sending it.",
+    "appealSent": "Your appeal is sent: moderation will review it.",
+    "appealed": "Appeal sent on {{date}}:"
   }
 }
