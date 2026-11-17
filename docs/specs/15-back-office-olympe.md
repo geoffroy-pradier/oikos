@@ -37,6 +37,8 @@ Déclenchement manuel, création d'événements et propositions du maître du je
 4. **Programmation** : activation à la prochaine clôture quotidienne, annoncée aux joueurs dans la chronique.
 5. **Suivi** : alerte automatique si un indicateur sort de sa plage dans les 72 heures ; retour arrière en un clic.
 
+L'annonce paraît dans la chronique publiée à la clôture où la version entre en vigueur (6.6, décision de #271) : la clôture a lu une autre version que la précédente ; une programmation annulée n'est pas annoncée.
+
 Avant la programmation (étape 4), Olympe dit sous chaque version ce qu'elle retire et que l'état du monde porte encore, tous mondes confondus : les biens détenus ou portés par un ordre ouvert (la programmation est alors refusée : 5.1), les recettes que des sites exploitent encore, avec le nombre de sites et de maisons (ces sites seront à l'arrêt faute de recette : 4.2), et les classes de PNJ qui ont encore un état de population, avec le nombre de cités et d'habitants gardés (5.2).
 Une recette ou une classe en usage ne refuse pas la programmation (décision de #97) mais la soumet à une confirmation explicite (#200) : une case à cocher sous la version, sans laquelle le bouton de programmation reste inactif ;
 l'API, elle, refuse une programmation non confirmée (`CONFIG_RETIRED_UNCONFIRMED`, qui nomme chaque recette et chaque classe ;

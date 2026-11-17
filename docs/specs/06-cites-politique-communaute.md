@@ -124,6 +124,40 @@ Un message masqué par la modération (#275, #276) reste listé, dit masqué, ma
 Décision (18, conservation limitée) : le moteur supprime chaque message `chat.retentionDays` jours après son écriture (30) ; le journal des commandes n'en garde pas le texte (ADR 0002).
 Le temps réel et l'onglet Messages viennent avec le ticket 274.
 
+Dans la phase 2 (ticket 271), la chronique paraît à chaque clôture quotidienne, une par cité, et raconte ce qui s'est passé depuis la clôture précédente, résultats de celle-ci compris.
+Décision (ambiguïté de cette section et de 15.2) : la chronique d'un jour de jeu paraît à la clôture qui l'ouvre, comme une gazette du matin ; on ne programme une version de configuration que pour la prochaine clôture, si bien que la chronique annonce la version qui entre en vigueur à cette clôture, et non la veille.
+Ses faits sont lus dans les journaux, jamais inventés : les échanges de l'agora (volume, prix bas, haut et moyen des `chronicle.maxGoods` biens les plus échangés, en oboles entières, et le nombre des autres), les navires arrivés par cité de départ, l'archonte élu et ses voix, les décrets dépouillés, appliqués ou tombés, les événements du monde qui commencent (jamais ceux à venir : 7.3), la version de configuration qui entre en vigueur et la population de la cité avant et après la clôture.
+Les événements de domaine comptés sont ceux des cités du monde écrits entre la fin de la clôture précédente et la fin de celle-ci ; sans clôture précédente, depuis la clôture de la veille.
+Une nouvelle version de configuration est annoncée quand la clôture a lu une autre version que la clôture précédente : une programmation annulée (par Olympe ou par le moteur) n'est pas annoncée, et un monde sans clôture précédente n'annonce rien.
+Un archonte élu dont la maison est introuvable est annoncé sans nom.
+La chronique n'est écrite que `chronicle.settleSeconds` secondes après la fin de la clôture (60), pour qu'une commande commencée avant cette fin soit validée.
+Seule la dernière clôture d'un monde a sa chronique : comme une clôture manquée (3), une chronique manquée n'est pas rattrapée.
+Le moteur la compose d'abord par des gabarits `fr` et `en` (règle 6) : c'est la chronique que lit le joueur quand l'IA est coupée ou que sa réécriture est rejetée.
+La passerelle IA (usage `chronicle`, 8.4) la réécrit ensuite à partir des faits et de ce brouillon ; une réécriture vide ou plus longue que `chronicle.maxTextLength` caractères (2 000) est rejetée au profit des gabarits.
+Une réécriture ne cite de nombre qu'en chiffres latins, et seulement un nombre des faits : un décimal, ou un nombre dont les milliers séparés par une espace, une virgule, un point ou une apostrophe forment un nombre absent des faits, la fait rejeter.
+Elle est aussi rejetée pour tout nombre écrit autrement : chiffres non latins et fractions, chiffres romains de deux lettres majuscules au moins (ordinaux compris, comme « XIIe »), nombres et ordinaux en lettres en français et en anglais, zéro et à partir de deux (« second » et « seconde » compris), et une liste fermée de quantités en lettres.
+Cette liste compte les quantités (dizaine à centaine, huitaine, neuvaine, quinzaine, millier, myriade, moitié, demi, tiers, quart, paire, dozen, score, half, twice, thrice, quarter, pair, couple, both, trio, duo, nil, nought, naught), les durées qui comptent des années (siècle, décennie, centenaire, millénaire, century, decade) et les racines des multiplicatifs, avec toutes leurs formes dérivées (doubl…, tripl…, quadrupl…, quintupl…, sextupl…, septupl…, octupl…, décupl…, centupl…, halv…, tout mot en -fold), ainsi que tout mot en -illion (trillion, quadrillion…).
+« Un », « une », « one » et « a », qui sont aussi des articles, restent permis.
+Les noms des cités et des biens de la configuration sont retirés du texte avant ce contrôle, comme tout nom retiré seulement là où il forme un mot entier (« Vin » ne cache pas « Vingt ») ; le nom d'une cité en base ou d'une maison élue ne l'est que s'il ne porte lui-même ni nombre écrit autrement qu'en chiffres latins, ni chiffre absent des faits, et ne mêle pas plusieurs écritures dans un mot : une réécriture qui cite une maison « Mille Oboles » ou « Deux Rives » est rejetée au profit des gabarits.
+Le texte et les noms sont normalisés avant le contrôle (NFKC, caractères de format comme l'espace sans largeur ou le trait d'union conditionnel retirés), les chiffres non latins et les fractions étant lus avant ce repliement ; un mot qui mêle des lettres latines et celles d'une autre écriture (« dеux » au е cyrillique) est rejeté.
+Les gabarits n'écrivent aucun nombre en lettres.
+La chronique de repli n'est pas soumise à ce contrôle : elle le passe, sauf quand un nom de maison ou de cité en base porte lui-même un nombre.
+Limites connues : un nombre cité est accepté s'il figure parmi les faits, même rattaché au mauvais fait (le prix d'un bien donné pour le nombre de navires, par exemple) ; un nombre écrit sous une forme absente de la liste, ou dans une autre langue que le français et l'anglais, n'est pas détecté.
+Le contrôle laisse aussi passer des marques invisibles qui ne sont pas des caractères de format (U+034F, sélecteurs de variante), glissées dans un mot de nombre.
+Il laisse passer des marques combinantes visibles ajoutées à un mot de nombre (« vińgt »).
+Il laisse passer le i sans point (« vıngt »), lettre latine que le repliement NFKC ne ramène pas au i.
+Il laisse passer un mot entièrement non latin qui mêle deux autres écritures (« ԁеυх », cyrillique et grec) : seul le mélange avec des lettres latines est rejeté.
+Il laisse passer un nombre écrit entièrement dans une autre écriture (« два »).
+Ces formes sont improbables de la part d'un modèle.
+Un nom de maison ne peut porter ni marque invisible ni marque combinante, mais peut porter des lettres d'autres écritures, le i sans point ou des lettres accentuées : un tel nom, s'il ne contient aucun nombre ni aucun mot qui mêle des écritures, est retiré du texte comme les autres.
+À l'inverse, un mot de la liste qui sert à autre chose (« neuf » pour « nouveau », « un quart d'heure », « harbour quarter », « score ») fait rejeter la réécriture : ce faux positif est sans danger, la chronique paraît alors par les gabarits.
+Un bien ou une cité ajoutés plus tard par Olympe sans traduction dans les gabarits du moteur s'affichent dans la chronique sous leur identifiant (une cité, sous son nom en base).
+Une chronique est écrite une fois par cité et par clôture : rejouer la tâche n'écrit rien de plus, et deux moteurs ne l'écrivent pas ensemble.
+Elle ne change plus une fois écrite, et garde sa source (`ai` ou `fallback`).
+Tout joueur connecté lit les chroniques de toutes les cités (vue `chronicle_articles`), sans leurs faits ; un visiteur anonyme n'en lit rien.
+L'onglet Cité montre la chronique la plus récente en entier et les six précédentes repliées ; une chronique réécrite par l'IA le dit, et rappelle qu'elle peut attribuer un nombre au mauvais fait.
+Les tribunes libres des joueurs viennent avec une phase suivante.
+
 ## 6.7 Formes de concurrence
 
 Guerre des prix, course à la qualité, verrouillage d'une ressource, débauchage d'artisans, surenchère sur une concession, prise de contrôle d'une société, campagne électorale, concurrence fiscale entre cités, contrefaçon et renseignement commercial (voie d'Hermès, avec risque d'être découvert).
