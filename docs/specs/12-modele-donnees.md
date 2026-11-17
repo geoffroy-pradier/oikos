@@ -228,3 +228,10 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La quantité récoltée passe par le journal des stocks, qui fait foi ; la demande relevée par une caravane n'a pas de ligne d'effet, ses achats étant des échanges.
   Le service insère sans choisir ni identifiant ni date, et ne modifie ni ne supprime rien.
   Les joueurs connectés lisent les événements commencés (`starts_at` atteint), de tous les mondes, par `public.world_events`, sans graine ni jour de planification ; un événement à venir ne leur est pas lisible, et les effets non plus.
+- Pythie (7.3, #270) : `oracles` garde l'oracle de chaque événement, un par événement : ses textes `fr` et `en`, leur source (`fallback` ou `ai`) et l'essai de réécriture (son instant et son issue).
+  La base garantit qu'un oracle naît en repli, dans la transaction qui planifie son événement et dans son monde, qu'il ne change ensuite qu'une fois, par l'essai de réécriture, daté de sa transaction, avant que l'événement commence, que ses textes ne changent que si l'essai réussit, et qu'il ne se supprime pas.
+  Son identifiant est aléatoire, et non horodaté : il ne dit pas le jour de la planification.
+  `oracle_consultations` garde chaque consultation, immuable : sa maison, la cité de sa maison, l'offrande qui la paie (une par consultation) et les oracles qu'elle a rendus.
+  La base garantit qu'elle naît maintenant, avec une offrande de monnaie de la même maison, de la même cité et de la même transaction, qu'elle ne rend que des oracles distincts, de son monde, d'événements de sa cité (une tempête sur une de ses routes comprise) qui n'ont pas commencé, et, à la validation, que son offrande est payée par une écriture `temple.oracle` et sans bien ; une écriture `temple.oracle` ne paie qu'une consultation.
+  La base ne lit pas la configuration : le prix et le dieu de la Pythie sont vérifiés par l'API, comme la Charis d'une offrande.
+  Les joueurs connectés lisent leurs consultations et les oracles qu'elles ont rendus, sous règles par ligne et sans l'événement ni l'essai de réécriture, par `public.my_oracles`.

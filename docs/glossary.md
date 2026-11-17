@@ -48,3 +48,6 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Bonne année (good year) | Événement du monde qui accroît, pendant ses jours, le rendement des vergers d'une cité (`good_year`) |
 | Tempête (storm) | Événement du monde qui allonge les trajets partis sur une route pendant ses jours, sans rien faire perdre (`storm`) |
 | Caravane étrangère (foreign caravan) | Événement du monde qui accroît, pendant ses jours, la demande des PNJ d'une cité pour un bien (`caravan`) |
+| Pythie (Pythia) | Prêtresse d'Apollon qui rend, contre une offrande de monnaie, les oracles des événements à venir de la cité de la maison (`temple.consultOracle`) |
+| Oracle (oracle) | Annonce volontairement ambiguë d'un événement du monde à venir, écrite à la main et parfois réécrite par l'IA, sans chiffre ni nom de cité (`oracles`) |
+| Consultation (consultation) | Offrande de monnaie qui paie la lecture des oracles de la cité de la maison (`oracle_consultations`, `temple.oracle`) |

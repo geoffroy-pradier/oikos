@@ -102,6 +102,35 @@ Une clôture manquée (panne) ne planifie pas son jour : ce jour n'a pas d'évé
 Une clôture jouée en retard ne planifie pas non plus un jour dont le début est déjà atteint selon l'heure de la base (`now()` de sa transaction), par exemple avec un délai d'un jour quand elle est rattrapée après l'heure de la clôture suivante.
 Ce jour n'a pas d'événement, et le reste de la clôture (loyers, entretien) se joue normalement.
 
+Dans la phase 2 (ticket 270), chaque événement planifié a son oracle, écrit dans la transaction qui le planifie.
+Décision (règle 6) : l'oracle de repli est écrit à la main, plusieurs par modèle d'événement, en `fr` et en `en` (`apps/engine/src/oracle/locales`), et choisi par la graine de l'événement et son modèle ; l'IA ne fait ensuite que le réécrire, et le jeu s'en contente IA coupée.
+Un oracle de repli ne dit que la nature de l'événement, et le bien d'une caravane : ni la cité, ni le jour, ni l'ampleur, ni la durée.
+Décision : la tempête d'une route est un événement de chacune de ses deux cités.
+Après chaque clôture, une tâche du moteur essaie une fois de réécrire, par la passerelle IA (usage `oracle`, 8.4), chaque oracle encore en repli d'un événement qui n'a pas commencé ; IA coupée, elle ne lit ni n'essaie rien.
+Le modèle reçoit la nature de l'événement, le bien d'une caravane et l'oracle de repli, jamais la cité, le jour, l'ampleur ni un texte de joueur.
+Sa sortie est rejetée, et le repli reste, si un texte est vide ou plus long que `oracle.maxTextLength`, ou s'il cite un nombre ou une cité (contrôle ci-dessous).
+L'issue de l'essai est gardée : un oracle n'est pas réessayé, même après un délai dépassé ou un plafond atteint, et l'issue gardée reste définitive, même après le changement de mois qui lève le plafond.
+Limite connue : si le moteur s'arrête, ou si l'écriture échoue, entre la réponse du modèle et l'enregistrement de l'issue, l'oracle est essayé à nouveau, et payé une seconde fois au fournisseur.
+Contrôle d'un oracle réécrit (`oracleTextIssues`) : il rejette tout caractère numérique Unicode (chiffres latins ou non, chiffres romains Unicode, fractions, exposants), tout nombre que relève le contrôle de la chronique (6.6 : nombres, ordinaux et quantités en lettres, en français et en anglais, chiffres romains en capitales, mots qui mêlent plusieurs écritures), « premier » et « first », et toute lettre hors de l'écriture latine.
+Il rejette aussi tout nom de cité : les traductions de toutes les cités connues, et l'identifiant et le nom en base de chaque cité du monde.
+Un nom est cherché après repliement NFKC, sans caractère invisible, sans diacritique, en minuscules, ligatures défaites, lettres d'allure trompeuse confondues (`l` et `i`, `rn` et `m`, `vv` et `w`), dans la suite de toutes les lettres du texte : en mot entier, en début, au milieu ou en fin de mot (« Kallistéens »), espacé ou ponctué lettre à lettre (« K.a.l.l.i.s.t.è »).
+Limites connues : un nom de moins de quatre lettres n'est cherché qu'en mot entier ; un dérivé qui ne contient pas le nom entier (« Ampélote »), une traduction ou une allusion (« la cité de la vigne ») ne sont pas relevés, ni un nombre écrit sous une forme absente de la liste du contrôle de la chronique, ou dans une autre langue.
+Les lettres latines d'allure trompeuse hors de la liste ci-dessus (« ı » sans point, petites capitales, lettres de l'alphabet phonétique) ne sont pas confondues, ni les chiffres romains en minuscules, ni des durées comme « fortnight » ou « once » : le risque reste faible, puisque le modèle ne reçoit jamais la cité.
+Inversement, un mot ou une suite de mots qui contient un nom par hasard (« halos », pour Halos) fait rejeter un oracle correct, qui garde son repli.
+Décision : consulter la Pythie (`temple.consultOracle`, prix vu) est une offrande de monnaie au dieu de la Pythie (`oracle.godId`, Apollon), au prix de la configuration (`oracle.consultationOboles`) ; la configuration exige que ce dieu accepte la monnaie.
+Ses oboles vont au puits `sink_offerings` par une écriture `temple.oracle` (nature `offerings`, 4.1), sa Charis entre au journal comme celle d'une offrande (7.1), et elle rend les oracles des événements de la cité de la maison qui n'ont pas commencé, tels qu'ils sont écrits à cet instant.
+Le tout se fait dans une transaction, avec les verrous d'une offrande, et la commande émet `OracleConsulted`.
+Un autre prix en vigueur est refusé (`PRICE_CHANGED`), et une version publiée avant la Pythie ne se consulte pas (`ORACLE_UNAVAILABLE`) : rien n'est payé.
+Décision : une consultation est payée même quand aucun événement ne s'annonce ; la refuser dirait gratuitement que rien ne vient.
+Décision : un joueur relit les oracles qu'il a consultés (`public.my_oracles`) dans leur dernier texte : un oracle consulté en repli, puis réécrit, se relit réécrit.
+Il n'y lit ni l'événement qu'un oracle annonce, ni son jour ; un autre joueur, même de la même cité, ne les lit pas sans consulter à son tour.
+Un oracle a un identifiant aléatoire : un identifiant horodaté dirait la clôture qui a planifié son événement, donc son premier jour.
+Limite connue : un joueur qui consulte chaque jour voit un oracle nouveau paraître après la clôture d'un jour J, et en déduit que son événement commence au jour J + `worldEvents.planningLeadDays` ; l'identifiant aléatoire n'empêche que de le lire sans consulter chaque jour.
+Le prix de la consultation se lit dans la colonne `oracle` de `public.temple_rules`, nulle pour une version publiée avant la Pythie.
+Configuration initiale : 60 oboles, à revoir au calibrage (#283).
+Limite connue : un événement planifié par le code précédent pendant un déploiement n'a pas d'oracle, et aucune consultation ne le rend.
+Hors périmètre : marché des oracles, présages de Némésis, écran du temple (#272).
+
 ## 7.4 Événements
 
 | Famille | Exemples | Portée |
