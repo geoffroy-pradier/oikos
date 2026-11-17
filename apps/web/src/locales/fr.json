@@ -773,6 +773,11 @@
     "hidden": "Message masqué par la modération.",
     "list": "Messages du canal",
     "polling_one": "Les messages ne viennent plus en direct : l'écran les relit chaque seconde.",
-    "polling_other": "Les messages ne viennent plus en direct : l'écran les relit toutes les {{count}} secondes."
+    "polling_other": "Les messages ne viennent plus en direct : l'écran les relit toutes les {{count}} secondes.",
+    "compose": "Votre message dans « {{channel}} »",
+    "send": "Envoyer",
+    "sendHint": "Ctrl+Entrée (Cmd+Entrée sur Mac) envoie aussi le message.",
+    "posted": "Message envoyé.",
+    "invalid": "Écrivez un message, sans caractère de contrôle."
   }
 }

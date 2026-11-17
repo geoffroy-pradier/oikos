@@ -6,6 +6,7 @@ import type { Channel, Unread } from '../chat';
 import { useChat } from '../chat-reads';
 import { useHouse } from '../house';
 import { LoadProblem, Loading } from './LoadProblem';
+import { MessageComposer } from './MessageComposer';
 
 /**
  * Onglet Messages (6.6, #274) : le canal de la cité et les conversations privées de la maison, chacun avec ses
@@ -104,6 +105,12 @@ export function MessagesScreen() {
                   ))}
                 </ol>
               )}
+              <MessageComposer
+                key={open.id}
+                channelId={open.id}
+                label={t('messages.compose', { channel: channelName(open) })}
+                onPosted={chat.reload}
+              />
             </Card>
           )}
         </div>

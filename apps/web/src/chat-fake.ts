@@ -72,8 +72,8 @@ export function resetFake() {
 
 const rowsFor = (view: string, filters: Filters): unknown[] | null => {
   if (filters === null) return null;
-  if (view === 'my_channels') return fake.channels;
-  if (view === 'houses') return fake.houses;
+  if (view === 'my_channels') return fake.channels && [...fake.channels];
+  if (view === 'houses') return [...fake.houses];
   const neq = (filters['house_id'] as { neq?: string } | undefined)?.neq;
   const channel = filters['channel_id'];
   return fake.messages.filter(
