@@ -46,7 +46,7 @@ select is(
    from information_schema.column_privileges
    where table_schema = 'game' and table_name in ('favor', 'favor_ledger') and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
   'favor.charis:UPDATE favor_ledger.amount:INSERT favor_ledger.game_day:INSERT favor_ledger.god_id:INSERT '
-    || 'favor_ledger.house_id:INSERT favor_ledger.kind:INSERT favor_ledger.offering_id:INSERT favor_ledger.world_id:INSERT',
+    || 'favor_ledger.grace_use_id:INSERT favor_ledger.house_id:INSERT favor_ledger.kind:INSERT favor_ledger.offering_id:INSERT favor_ledger.world_id:INSERT',
   'le service écrit au journal sans en choisir ni l''identifiant ni la date : liste figée');
 select ok(not exists (select 1 from unnest(array['game.favor', 'game.favor_ledger']) t, unnest(array['anon', 'authenticated']) r
   where has_any_column_privilege(r, t, 'insert, update')
@@ -81,7 +81,7 @@ select throws_ok(pg_temp.svc(pg_temp.favor(-1) || pg_temp.record(20001)), '23001
   'et il a son jour');
 select throws_ok(pg_temp.svc(pg_temp.favor(-130, day => 20001) || pg_temp.record(20001)), '23514', null,
   'une Charis ne passe pas sous zéro');
-select throws_ok(pg_temp.svc(pg_temp.favor(5, 'grace')), '23001', 'unknown Charis movement', 'une nature inconnue est refusée');
+select throws_ok(pg_temp.svc(pg_temp.favor(5, 'miracle')), '23001', 'unknown Charis movement', 'une nature inconnue est refusée');
 
 -- La Charis ne change que par son journal, qui ne se modifie pas.
 select throws_ok(pg_temp.svc($s$update game.favor set charis = 1;$s$), '23001', 'Charis changes only through its journal',
