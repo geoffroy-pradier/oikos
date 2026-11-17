@@ -56,7 +56,8 @@ select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name, column_name) from information_schema.columns
    where table_schema = 'public' and table_name in ('temple_rules', 'my_graces')),
   'my_graces.charis_spent my_graces.consumed_at my_graces.effect my_graces.god_id my_graces.grace_id my_graces.house_id '
-    || 'my_graces.id my_graces.invoked_at my_graces.magnitude_bps my_graces.ready_at temple_rules.gods temple_rules.graces',
+    || 'my_graces.id my_graces.invoked_at my_graces.magnitude_bps my_graces.ready_at temple_rules.gods temple_rules.graces '
+    || 'temple_rules.oracle',
   'colonnes des vues : liste figée');
 select ok(not has_column_privilege('authenticated', 'game.graces_used', 'site_id', 'select')
   and not has_column_privilege('authenticated', 'game.graces_used', 'voyage_id', 'select')

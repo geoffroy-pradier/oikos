@@ -56,6 +56,7 @@ select is(
     || 'npc_population(city_id,class_id,closed_day,coverage_bps,population) '
     || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '
     || 'offices(city_id,election_id,ends_at,house_id,id,office,starts_at,world_id) '
+    || 'oracle_consultations(city_id,created_at,house_id,id,oracle_ids) oracles(id,source,text_en,text_fr) '
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'properties(acquired_at,city_id,condition,id,lot,owner_house_id,size_id,upkeep_unpaid_since) '
