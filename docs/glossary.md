@@ -26,6 +26,9 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Désarmé (laid up) | Se dit d'un navire dont l'entretien n'a pas été payé à la clôture : il ne part plus jusqu'à une clôture qui le paie (`laid_up_at`) |
 | Canal de la cité (city channel) | Discussion commune d'une cité, où écrit toute maison de la cité, citoyenne ou métèque (`channel`, de type `city`) |
 | Conversation privée (direct conversation) | Discussion entre deux maisons d'un même monde (`channel`, de type `direct`) |
+| Signalement (report) | Message d'une autre maison désigné à la modération par une maison qui le lit, sous un motif de la configuration (`report`) |
+| Sanction (sanction) | Mesure de la modération sur un compte, graduée : avertissement (`warning`), silence (`silence`), suspension (`suspension`), exclusion définitive (`ban`) |
+| Appel (appeal) | Contestation d'une sanction pas encore finie par le compte sanctionné, une fois par sanction (`appeal`) |
 | Bien immobilier (property) | Logement d'une cité, d'abord détenu par elle, qu'une maison achète, rénove et entretient (`property`) |
 | Maison de ville (townhouse) | Petit logement, la plus petite des deux tailles de bien immobilier (`townhouse`) ; à ne pas confondre avec la maison du joueur (oikos) |
 | Immeuble de rapport (tenement) | Grand logement de plusieurs foyers, la plus grande des deux tailles de bien immobilier (`tenement`) |
