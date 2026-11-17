@@ -9,9 +9,9 @@ describe('modes de modération des commandes enregistrées', () => {
       .map((command) => command.name)
       .sort();
 
-  it('seule chat.post est refusée à un compte réduit au silence ; aucune commande n’est exempte', () => {
+  it('seule chat.post est refusée à un compte réduit au silence ; seul l’appel est exempt', () => {
     expect(names((command) => command.moderation === 'chat')).toEqual(['chat.post']);
-    expect(names((command) => command.moderation === 'exempt')).toEqual([]);
+    expect(names((command) => command.moderation === 'exempt')).toEqual(['moderation.appeal']);
   });
 
   it('une commande d’administration ne déclare aucun mode : son rôle en décide', () => {

@@ -20,6 +20,7 @@ import { adminBuyBackGood } from './commands/admin-buyback';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
+import { chatReport } from './commands/chat-report';
 import { cityCastVote } from './commands/city-cast-vote';
 import { cityProposeDecree } from './commands/city-decree';
 import { cityVoteDecree } from './commands/city-vote-decree';
@@ -28,6 +29,7 @@ import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
 import { marketPlaceOrder } from './commands/market-place-order';
+import { moderationAppeal } from './commands/moderation-appeal';
 import { propertyBuy } from './commands/property-buy';
 import { propertyBuyListed } from './commands/property-buy-listed';
 import { propertyEndLease, propertyLease } from './commands/property-lease';
@@ -95,6 +97,8 @@ export const COMMANDS = [
   voyageDepart,
   chatOpenDirect,
   chatPost,
+  chatReport,
+  moderationAppeal,
   marketPlaceOrder,
   marketCancelOrder,
   adminPublishConfig,
