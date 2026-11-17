@@ -44,6 +44,9 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
    pnpm exec supabase db push --workdir packages/db --db-url "$DATABASE_URL"
    ```
    Les migrations sont appliquées avant le basculement des conteneurs et restent compatibles avec la version précédente du code.
+   Le service `realtime` doit être en bonne santé avant la première application : il crée son schéma (`realtime.messages`) à la première vérification de santé de son locataire, et la migration de la diffusion des messages (ADR 0008) y pose les règles d'abonnement.
+   Sans ce schéma, cette migration n'écrit pas les règles et l'annonce par un avertissement : les canaux privés restent fermés, l'onglet Messages relit à intervalle régulier.
+   Vérifier après la première application que `select count(*) from pg_policies where schemaname = 'realtime' and tablename = 'messages'` rend 4 ; sinon, une fois Realtime en bonne santé, rejouer la migration `20261116000220_chat_broadcast.sql` par `psql -f`, elle est rejouable.
    `supabase db push` les enregistre dans `supabase_migrations.schema_migrations`, la table que lit ensuite `deploy.sh` (voir « Migrations au déploiement »).
    Les migrations créent le rôle `oikos_service` (sans connexion), qui porte les seuls droits de l'API et du moteur.
    👤 Créer ensuite le compte de connexion des services, membre de ce rôle, avec un mot de passe généré (jamais dans le dépôt), et le placer dans `OIKOS_DATABASE_URL` :
@@ -80,6 +83,7 @@ Pour l'activer, un humain doit, une fois le serveur prêt :
 - créer les secrets de dépôt `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` ;
 - créer les variables de dépôt `VITE_SUPABASE_URL` (`https://supabase.<domaine>`) et `VITE_SUPABASE_PUBLISHABLE_KEY` (clé publique « anon » de l'instance : publique par nature, ce n'est pas un secret) ;
 - dans le `.env` de Supabase : ajouter `https://olympe.<domaine>` à `ADDITIONAL_REDIRECT_URLS` (sinon le lien de connexion du back-office ramène sur le client joueur) et activer le second facteur TOTP de Supabase Auth, exigé par le back-office (variables `GOTRUE_MFA_TOTP_ENROLL_ENABLED` et `GOTRUE_MFA_TOTP_VERIFY_ENABLED` du service `auth` ; à confirmer sur la version épinglée lors de l'installation) ;
+- pour le locataire de Realtime (table `_realtime.tenants`, ou l'API d'administration de Realtime selon la version épinglée) : n'admettre que les canaux privés (`private_only`), pour qu'aucun client ne diffuse, même hors de la base, et porter la limite de connexions simultanées (`max_concurrent_users`, 200 par défaut) à la cible de 13 (1 500), puis redémarrer le service `realtime` (ADR 0008) ;
 - créer la variable de dépôt `DEPLOY_ENABLED` avec la valeur `true`, et protéger l'environnement GitHub `preproduction` s'il doit exiger une approbation ;
 - sur le serveur : l'utilisateur de déploiement doit pouvoir lancer `docker compose`, écrire dans `/opt/oikos/oikos` (clone Git) et dans `/opt/oikos/supabase/docker/.env`, et lire les images du registre (`docker login ghcr.io` avec un jeton en lecture seule si le dépôt est privé). Attention : l'accès à Docker équivaut à un accès root, et ce `.env` contient tous les secrets du serveur ; ce compte doit être réservé au déploiement ;
 - Caddy et la base doivent déjà tourner (`docker compose up -d` une première fois, étape 7) : le contrôle de santé passe par Caddy.

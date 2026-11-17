@@ -45,8 +45,10 @@ max_frequency = "1s"
 enabled = true
 port = 54324
 
+# Realtime, en diffusion par canal (11.2) : la base diffuse les messages de la discussion (ADR 0008). La CLI
+# crée son schéma (`realtime.messages`) avant les migrations, qui y posent les règles d'abonnement.
 [realtime]
-enabled = false
+enabled = true
 
 [storage]
 enabled = false

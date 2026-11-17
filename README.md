@@ -110,6 +110,12 @@ Pour regarder la base locale, Supabase Studio est ouvert sur `http://127.0.0.1:5
 SQL, utilisateurs d'Auth). Il a tous les droits sur la base : en local seulement. Si Supabase tournait
 déjà avant cette version du dépôt, `pnpm db:stop` puis `pnpm db:start` le font apparaître.
 
+Supabase local démarre aussi Realtime, par qui les messages de l'onglet Messages arrivent sans recharger la
+page (ADR 0008). Sa CLI crée le schéma de Realtime avant de rejouer les migrations, qui y posent les règles
+d'abonnement. Si Supabase tournait déjà avant cette version du dépôt (Realtime alors désactivé),
+`pnpm db:stop`, `pnpm db:start` puis `pnpm db:reset` le mettent en place ; sans cela, l'onglet Messages relit
+les messages à intervalle régulier et le dit, et `pnpm test:db` échoue sur les tests de la diffusion.
+
 Pour arrêter : `Ctrl+C` dans chaque terminal, puis `pnpm db:stop`. `pnpm db:reset` efface toutes les
 données locales et rejoue les migrations.
 
