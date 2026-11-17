@@ -140,7 +140,8 @@ Cette liste compte les quantités (dizaine à centaine, huitaine, neuvaine, quin
 « Un », « une », « one » et « a », qui sont aussi des articles, restent permis.
 Les noms des cités et des biens de la configuration sont retirés du texte avant ce contrôle, comme tout nom retiré seulement là où il forme un mot entier (« Vin » ne cache pas « Vingt ») ; le nom d'une cité en base ou d'une maison élue ne l'est que s'il ne porte lui-même ni nombre écrit autrement qu'en chiffres latins, ni chiffre absent des faits, et ne mêle pas plusieurs écritures dans un mot : une réécriture qui cite une maison « Mille Oboles » ou « Deux Rives » est rejetée au profit des gabarits.
 Le texte et les noms sont normalisés avant le contrôle (NFKC, caractères de format comme l'espace sans largeur ou le trait d'union conditionnel retirés), les chiffres non latins et les fractions étant lus avant ce repliement ; un mot qui mêle des lettres latines et celles d'une autre écriture (« dеux » au е cyrillique) est rejeté.
-Les gabarits n'écrivent aucun nombre en lettres : la chronique de repli passe toujours ce contrôle.
+Les gabarits n'écrivent aucun nombre en lettres.
+La chronique de repli n'est pas soumise à ce contrôle : elle le passe, sauf quand un nom de maison ou de cité en base porte lui-même un nombre.
 Limites connues : un nombre cité est accepté s'il figure parmi les faits, même rattaché au mauvais fait (le prix d'un bien donné pour le nombre de navires, par exemple) ; un nombre écrit sous une forme absente de la liste, ou dans une autre langue que le français et l'anglais, n'est pas détecté.
 Le contrôle laisse aussi passer des marques invisibles qui ne sont pas des caractères de format (U+034F, sélecteurs de variante), glissées dans un mot de nombre.
 Il laisse passer des marques combinantes visibles ajoutées à un mot de nombre (« vińgt »).
@@ -148,13 +149,13 @@ Il laisse passer le i sans point (« vıngt »), lettre latine que le repliement
 Il laisse passer un mot entièrement non latin qui mêle deux autres écritures (« ԁеυх », cyrillique et grec) : seul le mélange avec des lettres latines est rejeté.
 Il laisse passer un nombre écrit entièrement dans une autre écriture (« два »).
 Ces formes sont improbables de la part d'un modèle.
-Un nom de maison ne peut porter ni marque invisible ni marque combinante, mais peut porter des lettres d'autres écritures, le i sans point ou des lettres accentuées : un tel nom, s'il ne contient aucun mot de la liste, est retiré du texte comme les autres.
+Un nom de maison ne peut porter ni marque invisible ni marque combinante, mais peut porter des lettres d'autres écritures, le i sans point ou des lettres accentuées : un tel nom, s'il ne contient aucun nombre ni aucun mot qui mêle des écritures, est retiré du texte comme les autres.
 À l'inverse, un mot de la liste qui sert à autre chose (« neuf » pour « nouveau », « un quart d'heure », « harbour quarter », « score ») fait rejeter la réécriture : ce faux positif est sans danger, la chronique paraît alors par les gabarits.
 Un bien ou une cité ajoutés plus tard par Olympe sans traduction dans les gabarits du moteur s'affichent dans la chronique sous leur identifiant (une cité, sous son nom en base).
 Une chronique est écrite une fois par cité et par clôture : rejouer la tâche n'écrit rien de plus, et deux moteurs ne l'écrivent pas ensemble.
 Elle ne change plus une fois écrite, et garde sa source (`ai` ou `fallback`).
 Tout joueur connecté lit les chroniques de toutes les cités (vue `chronicle_articles`), sans leurs faits ; un visiteur anonyme n'en lit rien.
-L'onglet Cité montre la chronique de la dernière clôture en entier et les six précédentes repliées ; une chronique réécrite par l'IA le dit, et rappelle qu'elle peut attribuer un nombre au mauvais fait.
+L'onglet Cité montre la chronique la plus récente en entier et les six précédentes repliées ; une chronique réécrite par l'IA le dit, et rappelle qu'elle peut attribuer un nombre au mauvais fait.
 Les tribunes libres des joueurs viennent avec une phase suivante.
 
 ## 6.7 Formes de concurrence
