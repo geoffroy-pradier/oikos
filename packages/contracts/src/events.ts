@@ -34,7 +34,7 @@ import {
   propertySoldSchema,
 } from './property-market';
 import { shipAcquiredSchema } from './ship';
-import { graceInvokedSchema, offeringMadeSchema } from './temple';
+import { graceInvokedSchema, offeringMadeSchema, oracleConsultedSchema } from './temple';
 import { voyageArrivedSchema, voyageDepartedSchema } from './voyage';
 import {
   siteAcquiredSchema,
@@ -73,6 +73,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   propertyRenovatedSchema,
   offeringMadeSchema,
   graceInvokedSchema,
+  oracleConsultedSchema,
   propertyOfferedSchema,
   propertyOfferWithdrawnSchema,
   propertySoldSchema,

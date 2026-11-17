@@ -5,6 +5,7 @@ import {
 } from '@oikos/contracts';
 import { offeringCharis } from '@oikos/sim';
 import { sql } from 'kysely';
+import { charisOf, lockOffering, writeOffering } from '../offering';
 import { defineCommand, type CommandResult } from '../registry';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
@@ -65,27 +66,8 @@ export const templeMakeOffering = defineCommand({
       .select('city_id')
       .where('house_id', '=', house.id)
       .executeTakeFirstOrThrow();
-    await trx
-      .selectFrom('game.favor')
-      .select('charis')
-      .where('house_id', '=', house.id)
-      .where('god_id', '=', god.id)
-      .forUpdate()
-      .execute();
-    const agora = `market:${house.world_id}`;
-    await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(trx);
-    let treasuryId: string | null = null;
-    if (input.oboles > 0) {
-      const account = await trx
-        .selectFrom('game.accounts')
-        .select(['id', 'balance'])
-        .where('house_id', '=', house.id)
-        .where('kind', '=', 'house')
-        .forUpdate()
-        .executeTakeFirstOrThrow();
-      if (Number(account.balance) < input.oboles) return refuse(NO_FUNDS.code, NO_FUNDS.message);
-      treasuryId = account.id;
-    }
+    const treasury = await lockOffering(trx, house, god.id, input.oboles);
+    if (treasury && treasury.balance < input.oboles) return refuse(NO_FUNDS.code, NO_FUNDS.message);
     // Stocks libres de la cité de la maison, verrouillés dans l'ordre des biens (classement "C") : ce que
     // réservent les ventes en attente n'est pas offert.
     const goodIds = goods.map((entry) => entry.goodId);
@@ -108,45 +90,16 @@ export const templeMakeOffering = defineCommand({
         return refuse(NO_STOCK.code, NO_STOCK.message);
     }
 
-    let entryId: string | null = null;
-    if (treasuryId !== null) {
-      const sink = await trx
-        .selectFrom('game.accounts')
-        .select('id')
-        .where('world_id', '=', house.world_id)
-        .where('system_key', '=', 'sink_offerings')
-        .executeTakeFirstOrThrow(() => new Error(`World ${house.world_id} has no sink_offerings`));
-      const entry = await trx
-        .insertInto('game.ledger_entries')
-        .values({
-          world_id: house.world_id,
-          kind: 'temple.offering',
-          meta: JSON.stringify({ houseId: house.id, godId: god.id }),
-        })
-        .returning('id')
-        .executeTakeFirstOrThrow();
-      entryId = entry.id;
-      await trx
-        .insertInto('game.ledger_lines')
-        .values([
-          { entry_id: entry.id, account_id: treasuryId, amount: -input.oboles },
-          { entry_id: entry.id, account_id: sink.id, amount: input.oboles },
-        ])
-        .execute();
-    }
-    const offering = await trx
-      .insertInto('game.offerings')
-      .values({
-        world_id: house.world_id,
-        house_id: house.id,
-        city_id: cityId,
-        god_id: god.id,
-        oboles: input.oboles,
-        charis: gain.charis,
-        ledger_entry_id: entryId,
-      })
-      .returning('id')
-      .executeTakeFirstOrThrow();
+    const offeringId = await writeOffering(trx, {
+      worldId: house.world_id,
+      houseId: house.id,
+      cityId,
+      godId: god.id,
+      oboles: input.oboles,
+      charis: gain.charis,
+      treasuryId: treasury?.id ?? null,
+      kind: 'temple.offering',
+    });
     if (goods.length > 0)
       await trx
         .insertInto('game.stock_ledger')
@@ -158,33 +111,16 @@ export const templeMakeOffering = defineCommand({
             from_inventory_id: stockOf(goodId)?.id ?? null,
             to_system: 'offering',
             kind: 'temple.offering',
-            offering_id: offering.id,
+            offering_id: offeringId,
           })),
         )
         .execute();
-    await trx
-      .insertInto('game.favor_ledger')
-      .values({
-        world_id: house.world_id,
-        house_id: house.id,
-        god_id: god.id,
-        amount: gain.charis,
-        kind: 'offering',
-        offering_id: offering.id,
-      })
-      .execute();
-
-    const after = await trx
-      .selectFrom('game.favor')
-      .select('charis')
-      .where('house_id', '=', house.id)
-      .where('god_id', '=', god.id)
-      .executeTakeFirstOrThrow();
+    const charis = await charisOf(trx, house.id, god.id);
 
     emit({
       type: 'OfferingMade',
       payload: {
-        offeringId: offering.id,
+        offeringId,
         houseId: house.id,
         cityId: cityId,
         godId: god.id,
@@ -196,12 +132,12 @@ export const templeMakeOffering = defineCommand({
     return {
       ok: true,
       data: {
-        offeringId: offering.id,
+        offeringId,
         godId: god.id,
         oboles: input.oboles,
         goods,
         charisGained: gain.charis,
-        charis: Number(after.charis),
+        charis,
       },
     };
   },

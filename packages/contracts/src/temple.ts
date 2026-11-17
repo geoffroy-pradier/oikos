@@ -123,3 +123,62 @@ export const graceInvokedSchema = z.strictObject({
   type: z.literal('GraceInvoked'),
   payload: z.strictObject({ ...invocation, houseId: z.uuid() }),
 });
+
+const oboles = z.number().int().positive().max(1_000_000_000);
+const oracle = z.strictObject({
+  oracleId: z.uuid(),
+  fr: z.string(),
+  en: z.string(),
+  /** `ai` : réécrit par l'IA ; `fallback` : l'oracle écrit à la main. */
+  source: z.enum(['ai', 'fallback']),
+});
+
+/**
+ * Commande `temple.consultOracle` (7.3, #270) : la maison consulte la Pythie, une offrande de monnaie au dieu de
+ * la Pythie, au prix de la configuration ; ses oboles sont détruites, elle gagne leur Charis, et lit les oracles
+ * des événements à venir de sa cité. Payée même quand aucun événement ne s'annonce : le savoir est ce qu'elle achète.
+ */
+export const templeConsultOracleInputSchema = z.strictObject({
+  /** Prix que le joueur a vu (`temple_rules.oracle`) : un autre prix en vigueur est refusé (`PRICE_CHANGED`). */
+  expectedOboles: oboles,
+});
+export type TempleConsultOracleInput = z.infer<typeof templeConsultOracleInputSchema>;
+
+export const templeConsultOracleOutputSchema = z.object({
+  consultationId: z.uuid(),
+  offeringId: z.uuid(),
+  godId: z.string(),
+  oboles,
+  charisGained: charis,
+  /** Charis de la maison envers ce dieu après la consultation. */
+  charis,
+  /** Oracles des événements à venir de la cité, dans l'ordre des identifiants (sans ordre de dates). */
+  oracles: z.array(oracle),
+});
+export type TempleConsultOracleOutput = z.infer<typeof templeConsultOracleOutputSchema>;
+
+export const TEMPLE_CONSULT_ORACLE_ERROR_CODES = [
+  'HOUSE_NOT_FOUND',
+  /** La configuration en vigueur n'offre pas de consultation (version antérieure à la Pythie). */
+  'ORACLE_UNAVAILABLE',
+  /** Le prix en vigueur n'est pas celui que le client a envoyé : rien n'est payé. */
+  'PRICE_CHANGED',
+  'INSUFFICIENT_FUNDS',
+  /** La Charis de la maison envers ce dieu dépasserait le plus grand entier sûr. */
+  'CHARIS_LIMIT_REACHED',
+] as const;
+export type TempleConsultOracleErrorCode = (typeof TEMPLE_CONSULT_ORACLE_ERROR_CODES)[number];
+
+export const oracleConsultedSchema = z.strictObject({
+  type: z.literal('OracleConsulted'),
+  payload: z.strictObject({
+    consultationId: z.uuid(),
+    offeringId: z.uuid(),
+    houseId: z.uuid(),
+    cityId: z.uuid(),
+    godId: z.string(),
+    oboles,
+    charisGained: charis,
+    oracleIds: z.array(z.uuid()),
+  }),
+});
