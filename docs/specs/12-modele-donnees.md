@@ -119,6 +119,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Elle naît maintenant, en attente ; la base refuse une invocation d'une grâce dont une invocation de la même maison se recharge encore, ou attend encore (index unique, qui tient sous concurrence).
   Sa Charis dépensée est au journal de la Charis, dans la même transaction ; une grâce gratuite n'y a pas de ligne (contrôle à la validation).
   Elle ne change ensuite qu'une fois : consommée maintenant par une récolte d'un site de sa maison (`site_id`), qui n'en consomme qu'une, ou par le départ, à cet instant, d'un voyage de sa maison (`voyage_id`, avec les secondes gagnées).
+  Une récolte qui la consomme rend son surplus : des mouvements `grace.surplus` de l'extrémité `production` vers le stock de sa maison dans la cité du site, rattachés à elle (`stock_ledger.grace_use_id`), un par bien (contrôle à la validation).
   La base ne vérifie ni l'ampleur ni la recharge, qu'elle ne lit pas dans la configuration, ni que l'effet convient au site (champ ou atelier) : l'API le fait.
   Le service l'écrit sans en choisir ni l'identifiant ni l'instant ; elle ne se supprime pas, et les joueurs ne la lisent que par une vue.
 - Population des PNJ (5.2) : une ligne par cité et par classe (`npc_population` : habitants entiers, jour de jeu de la dernière clôture qui l'a fait évoluer, couverture retenue), créée par le service sans clôture ni couverture, dont il ne modifie que ces trois valeurs.

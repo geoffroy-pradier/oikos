@@ -132,6 +132,8 @@ export interface GameDatabase {
     voyage_id?: string | null;
     /** Offrande d'un mouvement vers l'extrémité `offering` (7.1) ; nul pour tout autre. */
     offering_id?: string | null;
+    /** Grâce dont un mouvement `grace.surplus` est le surplus, venu de `production` (7.1, #266). */
+    grace_use_id?: string | null;
     created_at: Generated<Date>;
   };
   /** Offrandes (7.1, #265) : écrites une fois par `temple.makeOffering`, immuables (garde de la base). */
