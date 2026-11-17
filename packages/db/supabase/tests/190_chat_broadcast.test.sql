@@ -1,5 +1,5 @@
 begin;
-select plan(45);
+select plan(44);
 
 -- Diffusion des messages par Realtime (ADR 0008, ticket 274). Jeu d'essai : Alice, métèque de Kallistè ; Bob,
 -- citoyen de Kallistè ; Chloé, métèque d'Elaia ; Dion, dans un autre monde ; Eudore, sans maison.
@@ -201,12 +201,14 @@ select is(pg_temp.rights_of('alice', pg_temp.t('alice')) || ' ' || pg_temp.right
 create function pg_temp.refuse() returns trigger language plpgsql as $$
 begin raise exception 'Realtime en panne'; end $$;
 create trigger refuse before insert on realtime.messages for each row execute function pg_temp.refuse();
+-- L'insertion se fait sous le rôle du service, qui ne voit pas les fonctions de pgTAP : une erreur ferait échouer
+-- le test ; la vérification se fait ensuite sous le rôle du test.
 set local role oikos_service;
-select lives_ok($$insert into game.messages (channel_id, house_id, body)
-  values ('00000000-0000-7000-8000-0000000274e1', '00000000-0000-7000-8000-0000000274b1', 'Sans Realtime')$$,
-  'Realtime en panne, le message est écrit quand même');
+insert into game.messages (channel_id, house_id, body)
+  values ('00000000-0000-7000-8000-0000000274e1', '00000000-0000-7000-8000-0000000274b1', 'Sans Realtime');
 reset role;
-select is((select count(*) from game.messages where body = 'Sans Realtime'), 1::bigint, 'et il est en base');
+select is((select count(*) from game.messages where body = 'Sans Realtime'), 1::bigint,
+  'Realtime en panne, le message est écrit quand même et il est en base');
 select pg_temp.collect();
 select is((select count(*) from realtime.messages where payload ->> 'message_id' in (select id from ours)), 4::bigint,
   'et sans diffusion');
