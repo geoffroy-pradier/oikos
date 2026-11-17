@@ -18,9 +18,15 @@ export function useRows<T>(
   view: string,
   columns: string,
   order: string,
-  /** Égalité par colonne ; une liste : une valeur parmi celles-ci ; `{ gt }` : strictement après. */
+  /**
+   * Égalité par colonne ; une liste : une valeur parmi celles-ci ; `{ gt }` : strictement après ; `{ neq }` :
+   * toute autre valeur que celle-ci.
+   */
   /** `null` : rien n'est lu tant que le filtre n'est pas connu (`rows` reste `null`, sans échec). */
-  filters: Record<string, string | readonly string[] | { gt: string }> | null = {},
+  filters: Record<
+    string,
+    string | readonly string[] | { gt: string } | { neq: string }
+  > | null = {},
   /** Les `limit` dernières lignes selon `order`, rendues de la plus récente à la plus ancienne. */
   latestOnly?: { limit: number },
 ) {
@@ -41,7 +47,7 @@ export function useRows<T>(
     const request = ++latest.current;
     const parsed = JSON.parse(filterKey) as Record<
       string,
-      string | string[] | { gt: string }
+      string | string[] | { gt: string } | { neq: string }
     > | null;
     if (parsed === null) return null;
     let query = supabase.from(view).select(columns);
@@ -50,7 +56,9 @@ export function useRows<T>(
       query = Array.isArray(value)
         ? query.in(column, value)
         : typeof value === 'object'
-          ? query.gt(column, value.gt)
+          ? 'gt' in value
+            ? query.gt(column, value.gt)
+            : query.neq(column, value.neq)
           : query.eq(column, value);
     }
     let ordered = query.order(order, { ascending: limit === undefined });

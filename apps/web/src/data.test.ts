@@ -9,7 +9,9 @@ vi.mock('./supabase', () => ({
     from: () => {
       let filter = '';
       const query: Record<string, unknown> = {
-        eq: (column: string, value: string) => ((filter = `${column}=${value}`), query),
+        eq: (column: string, value: string) => ((filter += `${column}=${value}`), query),
+        neq: (column: string, value: string) => ((filter += `${column}<>${value}`), query),
+        gt: (column: string, value: string) => ((filter += `${column}>${value}`), query),
         then: (ok: (v: unknown) => unknown) =>
           new Promise((resolve) => {
             reads.push({ filter, answer: (rows) => resolve(ok({ data: rows })) });
@@ -46,5 +48,16 @@ describe('useRows : une lecture d’un ancien filtre ne prend pas la place du fi
     expect(staleRows).toEqual([{ id: 'b' }]);
     expect(result.current.rows).toEqual([{ id: 'b' }]);
     expect(result.current.failed).toBe(false);
+  });
+});
+
+describe('useRows : filtres', () => {
+  it('égalité, autre valeur que, strictement après', async () => {
+    reads.length = 0;
+    renderHook(() =>
+      useRows('v', 'id', 'id', { city_id: 'c1', house_id: { neq: 'h1' }, at: { gt: 't0' } }),
+    );
+    await act(async () => reads[0]?.answer([]));
+    expect(reads.map((read) => read.filter)).toEqual(['city_id=c1house_id<>h1at>t0']);
   });
 });
