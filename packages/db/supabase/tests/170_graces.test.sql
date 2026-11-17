@@ -98,8 +98,9 @@ select is(
     || 'graces_used.ready_at:INSERT graces_used.saved_seconds:UPDATE graces_used.site_id:UPDATE graces_used.voyage_id:UPDATE '
     || 'graces_used.world_id:INSERT stock_ledger.grace_use_id:INSERT',
   'le service invoque sans choisir ni l''identifiant ni l''instant, puis ne fait que consommer : liste figée');
-select ok(not exists (select 1 from unnest(array['anon', 'authenticated']) r
-  where has_any_column_privilege(r, 'game.graces_used', 'select, insert, update')), 'aucun accès client direct');
+select ok(not has_any_column_privilege('anon', 'game.graces_used', 'select, insert, update')
+  and not has_any_column_privilege('authenticated', 'game.graces_used', 'insert, update'),
+  'aucune écriture client ; un joueur ne lit que les siennes (migration 232)');
 select ok(not exists (select 1 from pg_roles r, unnest(array['game.guard_grace_use()', 'game.check_grace_settled()',
     'game.check_grace_stock_movement()']) f
   where has_function_privilege(r.oid, f, 'execute') and r.rolname in ('anon', 'authenticated', 'oikos_service', 'service_role')),

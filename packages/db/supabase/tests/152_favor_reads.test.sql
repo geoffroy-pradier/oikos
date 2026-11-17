@@ -77,7 +77,8 @@ select is(
 select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name, column_name) from information_schema.columns
    where table_schema = 'public' and table_name in ('temple_rules', 'city_charis', 'my_favor')),
-  'city_charis.charis city_charis.city_id city_charis.god_id my_favor.charis my_favor.god_id my_favor.house_id temple_rules.gods',
+  'city_charis.charis city_charis.city_id city_charis.god_id my_favor.charis my_favor.god_id my_favor.house_id temple_rules.gods '
+    || 'temple_rules.graces',
   'colonnes des vues : liste figée');
 
 set local role anon;

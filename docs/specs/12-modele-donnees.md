@@ -120,8 +120,9 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Sa Charis dépensée est au journal de la Charis, dans la même transaction ; une grâce gratuite n'y a pas de ligne (contrôle à la validation).
   Elle ne change ensuite qu'une fois : consommée maintenant par une récolte d'un site de sa maison (`site_id`), qui n'en consomme qu'une, ou par le départ, à cet instant, d'un voyage de sa maison (`voyage_id`, avec les secondes gagnées).
   Une récolte qui la consomme rend son surplus : des mouvements `grace.surplus` de l'extrémité `production` vers le stock de sa maison dans la cité du site, rattachés à elle (`stock_ledger.grace_use_id`), un par bien (contrôle à la validation).
-  La base ne vérifie ni l'ampleur ni la recharge, qu'elle ne lit pas dans la configuration, ni que l'effet convient au site (champ ou atelier) : l'API le fait.
-  Le service l'écrit sans en choisir ni l'identifiant ni l'instant ; elle ne se supprime pas, et les joueurs ne la lisent que par une vue.
+  La base ne vérifie ni l'ampleur ni la durée de la recharge, qu'elle ne lit pas dans la configuration, ni que l'effet convient au site (champ ou atelier) : l'API le fait.
+  Le service l'écrit sans en choisir ni l'identifiant ni l'instant ; elle ne se supprime pas.
+  Les joueurs connectés lisent les invocations de leur maison, sous règles par ligne et sans l'action qui les a consommées, par `public.my_graces` (en attente ou en recharge), et les grâces de la configuration par la colonne `graces` de `public.temple_rules`.
 - Population des PNJ (5.2) : une ligne par cité et par classe (`npc_population` : habitants entiers, jour de jeu de la dernière clôture qui l'a fait évoluer, couverture retenue), créée par le service sans clôture ni couverture, dont il ne modifie que ces trois valeurs.
   La base n'accepte une modification que si elle avance le jour de clôture de la ligne et si, à cet instant, aucune clôture de ce jour ou d'un jour postérieur n'est enregistrée pour le monde ;
   elle vérifie à la validation que la clôture de ce jour l'est (référence différée).

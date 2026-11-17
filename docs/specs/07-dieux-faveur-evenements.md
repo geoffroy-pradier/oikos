@@ -79,6 +79,8 @@ Une récolte verrouille les grâces en attente de sa maison après ses stocks : 
 Un départ admis d'un navire (4.6) consomme un vent favorable en attente de la maison, quel que soit le navire ; un départ refusé ne consomme rien.
 La tempête garde son retard dans `event_effects`, le vent ses secondes retirées dans `graces_used` (12).
 La réponse et l'événement `VoyageDeparted` portent le vent consommé (`fairWind`).
+Lectures : `temple_rules` gagne la colonne `graces`, la section `graces` de la configuration en vigueur (une liste vide pour une version publiée avant elles), et `my_graces` (privée) rend les grâces de sa maison en attente (`consumed_at` nul) ou consommées et en recharge jusqu'à `ready_at`, sans l'action qui les a consommées.
+L'écran du temple est un autre ticket (#272).
 
 ## 7.2 Hybris et Némésis
 

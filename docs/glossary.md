@@ -37,6 +37,11 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Offrande (offering) | Don d'oboles, détruites, et de biens, retirés de la circulation, qu'une maison fait à un dieu pour gagner de la Charis (`offerings`, `temple.makeOffering`) |
 | Déclin (decay) | Part de sa Charis qu'une maison perd envers chaque dieu à chaque clôture, arrondie vers zéro (`dailyDecayBps`) |
 | Charis de cité (city Charis) | Charis des citoyens d'une cité envers son dieu protecteur, sommée et pondérée par le dieu (`city_charis`) |
+| Grâce (grace) | Pouvoir actif d'un dieu qu'une maison invoque en dépensant de la Charis ; il s'applique une fois à sa prochaine action admise, puis se recharge (`graces`, `temple.invokeGrace`, `graces_used`) |
+| Récolte bénie (blessed harvest) | Grâce qui ajoute un pourcentage, arrondi vers le bas, à la prochaine récolte d'un site de matière première (`blessed_harvest`) |
+| Atelier inspiré (inspired workshop) | Grâce qui ajoute un pourcentage, arrondi vers le bas, à la prochaine récolte d'un atelier, sans intrant de plus (`inspired_workshop`) |
+| Vent favorable (fair wind) | Grâce qui raccourcit le prochain départ d'un navire de la maison (`fair_wind`) |
+| Recharge (cooldown) | Jours de jeu, comptés depuis le jour de son invocation, avant qu'une grâce consommée se réinvoque (`cooldownDays`, `ready_at`) |
 | Événement du monde (world event) | Événement planifié par le moteur quelques jours à l'avance, tiré de la graine du monde ; les joueurs ne le voient qu'à son début (`world_events`) |
 | Graine du monde (world seed) | Valeur secrète tirée à la création d'un monde, jamais modifiée, dont se dérive l'aléa des événements de chaque jour (`worlds.seed`) |
 | Sécheresse (drought) | Événement du monde qui réduit, pendant ses jours, le rendement des champs d'une cité (`drought`) |
