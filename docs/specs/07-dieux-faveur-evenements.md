@@ -57,6 +57,9 @@ Recharge : invoquée le jour de jeu J, une grâce se réinvoque à partir de la 
 Décision : ce qui est payé est servi ; l'effet, l'ampleur, le dieu, la Charis dépensée et la recharge sont ceux de la version en vigueur à l'invocation, même si une version plus récente change ou retire la grâce.
 Décision : une action consomme au plus une grâce, la plus ancienne en attente de son effet (à égalité, le plus petit identifiant), et une seule fois ; les grâces ne se cumulent jamais.
 Décision : une grâce n'est consommée que si elle ajoute quelque chose (au moins une unité à la récolte, au moins une seconde retirée au trajet) ; sinon elle reste en attente, et une grâce plus récente n'est pas essayée à sa place.
+Limite connue : une grâce de faible ampleur peut rester longtemps en attente, et bloque pendant ce temps sa recharge et les grâces plus récentes.
+Par exemple, un vent favorable à 1 point de base ne retire une seconde qu'à un trajet d'au moins 10 000 secondes, et un atelier inspiré attend que la maison récolte un atelier.
+Le calibrage (#283) choisit des ampleurs qui évitent ce cas.
 Décision (ordre d'application) : l'événement du monde d'abord, la grâce ensuite.
 Pour une récolte, sécheresses et bonnes années jouent cycle par cycle (7.4), puis la grâce sur la quantité de toute la récolte : une récolte réduite à rien par une sécheresse au plus fort ne rend rien de plus.
 Pour un départ, la tempête allonge le trajet (4.6), puis le vent raccourcit la durée allongée.
