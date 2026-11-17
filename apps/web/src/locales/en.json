@@ -778,6 +778,14 @@
     "send": "Send",
     "sendHint": "Ctrl+Enter (Cmd+Enter on a Mac) also sends the message.",
     "posted": "Message sent.",
-    "invalid": "Write a message, without control characters."
+    "invalid": "Write a message, without control characters.",
+    "newConversation": "Write to a house, by its name",
+    "open": "Open the conversation",
+    "opened": "Conversation opened with {{house}}.",
+    "noSuchHouse": "No house of that name in your world.",
+    "arrived": "New message from {{house}}: {{text}}",
+    "arrivedMany_one": "{{count}} new message in this channel.",
+    "arrivedMany_other": "{{count}} new messages in this channel.",
+    "arrivedIn": "New message: {{channel}}."
   }
 }
