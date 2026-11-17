@@ -1,4 +1,5 @@
 import {
+  type ChatPostOutput,
   commandErrorSchema,
   IDEMPOTENCY_HEADER,
   type CityCastVoteInput,
@@ -203,3 +204,11 @@ export const cityCommand = <N extends keyof CityCommandInputs>(
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
+
+/** `idempotencyKey` : la même clé tant que ce message (canal et texte) n'a pas reçu de réponse. */
+export const postMessage = (
+  channelId: string,
+  body: string,
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<ChatPostOutput>('chat.post', { channelId, body }, accessToken, idempotencyKey);

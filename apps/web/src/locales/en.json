@@ -773,6 +773,11 @@
     "hidden": "Message hidden by moderation.",
     "list": "Channel messages",
     "polling_one": "Messages no longer arrive live: the screen rereads them every second.",
-    "polling_other": "Messages no longer arrive live: the screen rereads them every {{count}} seconds."
+    "polling_other": "Messages no longer arrive live: the screen rereads them every {{count}} seconds.",
+    "compose": "Your message in “{{channel}}”",
+    "send": "Send",
+    "sendHint": "Ctrl+Enter (Cmd+Enter on a Mac) also sends the message.",
+    "posted": "Message sent.",
+    "invalid": "Write a message, without control characters."
   }
 }

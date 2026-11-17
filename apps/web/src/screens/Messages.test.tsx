@@ -88,18 +88,18 @@ describe('onglet Messages (#274)', () => {
   it('sans Realtime, l’écran dit qu’il relit à l’intervalle réglé ; en direct, il se tait (fr et en)', async () => {
     fake.live = 'polling';
     await show();
-    expect(screen.getByRole('status').textContent).toBe(
+    expect(screen.getAllByRole('status')[0]?.textContent).toBe(
       "Les messages ne viennent plus en direct : l'écran les relit toutes les 42 secondes.",
     );
     cleanup();
     await show('en');
-    expect(screen.getByRole('status').textContent).toBe(
+    expect(screen.getAllByRole('status')[0]?.textContent).toBe(
       'Messages no longer arrive live: the screen rereads them every 42 seconds.',
     );
     cleanup();
     fake.live = 'live';
     await show('en');
-    expect(screen.getByRole('status').textContent).toBe('');
+    expect(screen.getAllByRole('status')[0]?.textContent).toBe('');
     expect(channelButton(/^Kallistè channel/)).toBeTruthy();
   });
 
