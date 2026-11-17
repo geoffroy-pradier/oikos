@@ -54,6 +54,7 @@ GitHub Actions construit les images, les publie sur le registre GitHub et déplo
 Les migrations sont appliquées avant le basculement des conteneurs et doivent rester compatibles avec la version précédente du code.
 Seules les migrations absentes de `supabase_migrations.schema_migrations` (la table de la CLI Supabase) sont appliquées, chacune en une transaction avec son enregistrement ;
 une migration en échec arrête le déploiement sans être enregistrée.
+Realtime crée son schéma avant la première migration qui y pose des règles (ADR 0008) : la CLI le fait en local et en `ci`, et en production le service `realtime` doit être en bonne santé avant l'application des migrations.
 Une base déployée avant cette table est reconnue à ce qu'aucune migration n'y est enregistrée alors que le schéma `game` existe : les migrations de la version précédente y sont enregistrées sans être rejouées (`infra/README.md`).
 La suite entière reste rejouable, vérifiée en `ci`.
 

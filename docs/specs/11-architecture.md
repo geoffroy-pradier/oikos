@@ -9,6 +9,9 @@ Les lectures et le temps réel passent par Supabase, toute action de jeu par l'A
 ## 11.1 Principe : lectures par Supabase, écritures par l'API de jeu
 
 - **Lectures** : le client interroge des vues exposées par l'API automatique de Supabase, protégées par les règles de sécurité par ligne. Les mises à jour en direct passent par Supabase Realtime.
+- **Temps réel** (ADR 0008, #274) : seule la base diffuse, en canaux privés de Realtime, et seulement des identifiants ; le client relit ensuite par les vues.
+  Un abonnement est autorisé par une règle par ligne sur `realtime.messages`, et aucun client ne peut y écrire, donc diffuser.
+  Quand Realtime ne répond pas, l'écran relit à intervalle régulier et le dit.
 - **Écritures** : aucune table de jeu n'est modifiable depuis le client. Toute action passe par une commande de l'API de jeu, qui vérifie le jeton Supabase, valide, applique les règles dans une transaction et écrit.
 - **Simulation** : un service moteur exécute les ticks, la clôture quotidienne, les événements et les appels IA, via une file de tâches stockée dans Postgres.
 - **Configuration versionnée** : les versions sont immuables et leurs activations, programmées, sont tenues en ajout seul (`config.activations`).
