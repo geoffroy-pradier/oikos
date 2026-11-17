@@ -43,7 +43,9 @@ Il limite aussi le nombre de canaux d'un client (100 par défaut).
 
 ## Conséquences
 
-- Chaque message coûte une relecture par client abonné au sujet ; le texte ne passe que par une vue sous règles par ligne.
+- Chaque diffusion coûte à chaque client abonné au sujet une lecture des non lus (au plus 100 messages des canaux de sa maison), plus celle des 50 derniers messages du canal s'il est ouvert, plus celle de la liste des canaux si le canal diffusé lui est inconnu (conversation nouvelle).
+  Les relectures de repli, de sécurité, de retour sur l'onglet et d'abonnement établi relisent tout : canaux, messages du canal ouvert, non lus.
+  Le texte ne passe que par une vue sous règles par ligne.
 - Le masquage d'un message n'est pas diffusé : il apparaît à la relecture suivante.
 - Un abonnement est autorisé à son établissement : une maison qui ne lit plus un canal garde son abonnement jusqu'à la reconnexion, et n'en reçoit que des identifiants.
 - Les canaux publics de Realtime restent ouverts par défaut (`private_only` du locataire) : un client peut y diffuser à d'autres clients, hors de la base.

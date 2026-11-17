@@ -94,6 +94,20 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
 7. Temple : Charis, grâces, offrandes, oracle.
+8. Messages (#274) : le canal de la cité et les conversations privées de la maison, chacun avec ses messages non lus, puis les derniers messages du canal ouvert, nommés et datés ; un message masqué est dit tel.
+   Décision (le ticket ne dit pas où se tient la lecture) : les non lus se comptent sur l'appareil, par une marque de lecture de chaque canal en stockage local, l'instant du dernier message lu.
+   Un autre appareil, ou un stockage effacé, compte de nouveau comme non lus tous les messages encore conservés ; au-delà des 100 messages les plus récents des autres maisons, un compte est dit « 100 messages non lus ou plus ».
+   Le canal ouvert est lu jusqu'à son dernier message tant que l'onglet est visible.
+   Chaque canal a sa saisie, envoyée par son bouton, par Ctrl+Entrée ou par Cmd+Entrée.
+   Son brouillon survit au changement de canal, d'onglet et au rechargement (stockage de session), à un refus et à une réponse perdue ; il n'est effacé que si le texte envoyé est encore celui de la saisie.
+   Sans stockage de session, il est gardé en mémoire : il survit au changement de canal et d'onglet, pas au rechargement.
+   La même saisie restée sans réponse repart sous la même clé ; un autre texte est une autre demande, sous une clé neuve.
+   Une conversation s'ouvre par le nom d'une maison du monde, sans tenir compte de la casse.
+   Un message reçu est annoncé poliment aux lecteurs d'écran, sans déplacer le foyer : son auteur et son texte dans le canal ouvert, le canal où il est arrivé sinon.
+   Une annonce qui nomme une maison pas encore lue attend son nom, au plus `chatPollSeconds` secondes, puis la dit « Maison inconnue ».
+   Les messages arrivent par Realtime (ADR 0008) ; quand Realtime ne répond pas, l'écran relit toutes les `chatPollSeconds` secondes (15, réglage du client dans `packages/config`) et le dit.
+   L'écran relit aussi dès que ses abonnements sont établis, et toutes les `chatSafetyRereadSeconds` secondes (120) en direct, sans le dire.
+   Hors de l'onglet Messages, rien n'est encore signalé : le nombre de non lus sur l'onglet viendra avec les notifications.
 
 ## Direction artistique
 

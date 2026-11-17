@@ -127,6 +127,7 @@ Un message validé est diffusé sur le sujet de son canal pour le canal d'une ci
 Décision (ambiguïté du ticket, « le sujet de son canal ») : une conversation privée est diffusée aux maisons, pour que la première réponse d'une conversation que l'autre maison vient d'ouvrir arrive en direct et qu'un client tienne deux abonnements quel que soit son nombre de conversations.
 La diffusion ne porte que des identifiants : le texte se relit par la vue des messages, sous règles par ligne.
 Un joueur ne s'abonne qu'aux canaux qu'il lit et aux sujets de ses maisons ; aucun client ne diffuse.
+L'onglet Messages compte les messages non lus sur l'appareil (10, écran 8).
 
 Dans la phase 2 (ticket 271), la chronique paraît à chaque clôture quotidienne, une par cité, et raconte ce qui s'est passé depuis la clôture précédente, résultats de celle-ci compris.
 Décision (ambiguïté de cette section et de 15.2) : la chronique d'un jour de jeu paraît à la clôture qui l'ouvre, comme une gazette du matin ; on ne programme une version de configuration que pour la prochaine clôture, si bien que la chronique annonce la version qui entre en vigueur à cette clôture, et non la veille.
