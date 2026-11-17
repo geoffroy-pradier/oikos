@@ -1,14 +1,18 @@
 # État du projet
 
-Point d'étape au 16 novembre 2026, vers 18 h 45 (heure de Paris).
+Point d'étape au 17 novembre 2026, vers 13 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Vingt sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #267 (événements du monde), #268 (passerelle IA), #273 (discussion) et #291 (écran Sites filtré par terroir).
-Des suivis sont ouverts :
-- #403 et #404, de #259 (entretien impayé visible sur les offres, net du vendeur après taxe) ;
-- #420, #441 et #444, de #264 (« depuis quand » du statut, plafond de lecture des maisons, finitions du formulaire de décret) ;
-- #417 et #446, de #267 (montrer les événements au joueur, tests complémentaires).
-Le suivi #354 (test instable du moteur près de la clôture) est fermé lui aussi.
+Vingt-quatre sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #273 et #274 (discussion, puis temps réel et onglet Messages) et #291 (écran Sites filtré par terroir).
+Les suivis #354, #404, #417, #441, #444, #456, #463 et #485 sont fermés eux aussi.
+Des suivis restent ouverts :
+- #403, de #259 (entretien impayé visible sur les offres) ;
+- #420, de #264 (« depuis quand » du statut) ;
+- #446, de #267 (tests complémentaires des événements) ;
+- #477, de #266 (vent favorable et surplus d'une grâce dans les écrans) ;
+- #495, de #270 (contrôle de sortie des oracles, données de test, interblocage) ;
+- #333, nouvel essai automatique des commandes sur interblocage ;
+- #484 et #489, instabilités de `ci` (tests d'intégration d'admin-config, interblocage rare du rejeu des migrations).
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -19,8 +23,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250 à #265, #267, #268, #273, #291.
-  En cours : #266 (grâces).
+  Fermés : #250 à #268, #270, #271, #273, #274, #291.
+  En cours, pas encore en demande de fusion : #272 (écran Temple) et #275 (modération : signalement, sanctions du joueur et blocage).
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -74,8 +78,10 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
   en drachmes et oboles, les stocks valorisés au prix moyen observé et le compte de résultat par jour ou
   par saison.
 - **Client.** Application web installable (PWA), utilisable à 360 px de large et au clavier, en français
-  et en anglais. Onglets Maison, Carte, Agora et Cité ; Messages est une coquille vide (l'écran de la discussion attend #274). Une nouvelle
-  version est proposée, jamais imposée pendant une saisie. Une acquisition restée sans réponse garde sa
+  et en anglais.
+  Onglets Maison, Carte, Agora, Cité et Messages (#274).
+  Une nouvelle version est proposée, jamais imposée pendant une saisie.
+  Une acquisition restée sans réponse garde sa
   clé d'idempotence, même onglet quitté : la renvoyer rejoue l'achat au lieu de le payer deux fois. Même
   aboutie, la clé n'est rendue qu'à la relecture qui montre le site acheté (#176). L'avertissement d'une
   acquisition restée sans réponse revient à chaque ouverture de l'écran tant que le joueur n'a pas cliqué
@@ -148,17 +154,29 @@ Ajouts de la phase 2 :
 - **Événements du monde** (#267, 7.3, 7.4) : chaque monde a une graine secrète ; la clôture planifie, quelques jours à l'avance et de façon reproductible, sécheresses, bonnes années, tempêtes et caravanes étrangères.
   Une sécheresse réduit et une bonne année accroît la récolte des cycles qui se terminent pendant elle (dans le temps du site, gelé pendant un arrêt) ; une tempête allonge le trajet d'un navire qui part pendant elle ; une caravane relève la demande des PNJ pour son bien.
   Chaque écart est expliqué dans `event_effects` ; les joueurs ne lisent un événement qu'une fois commencé, et Olympe montre aussi ceux à venir (module Animation).
-  Toutes les probabilités sont nulles dans la configuration initiale : rien ne change tant qu'une version ne les active pas, et rien ne les montre encore au joueur (#417).
+  Toutes les probabilités sont nulles dans la configuration initiale : rien ne change tant qu'une version ne les active pas.
+  Le joueur voit les événements en cours de sa cité, et l'effet d'un événement sur une récolte ou un trajet est expliqué sur la fiche concernée (#417, #456).
 - **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
   Commandes `chat.openDirect` et `chat.post`, limite de débit propre à la discussion, messages purgés après 30 jours (configuration).
   Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
+- **Grâces** (#266, 7.1) : une maison invoque, contre de la Charis, une grâce (`temple.invokeGrace`) d'un catalogue fermé de trois effets : récolte bénie, atelier inspiré, vent favorable.
+  La grâce s'applique à la prochaine action admise de la maison, une seule fois, avec une ampleur bornée par effet, puis se recharge en jours de jeu.
+  Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) ; lectures `temple_rules.graces` et `my_graces`, sans écran encore (#272, #477).
+- **Chronique quotidienne** (#271, 6.6) : à chaque clôture, une chronique par cité raconte, à partir des seuls journaux, la population, les échanges, les arrivées de navires, les élections, les décrets, les événements qui commencent et la nouvelle version de configuration.
+  Elle est composée par des gabarits `fr` et `en`, puis réécrite par l'IA si elle est allumée ; une réécriture qui cite un nombre absent des faits, ou écrit un nombre autrement qu'en chiffres latins, est rejetée au profit des gabarits.
+  L'onglet Cité la montre.
+- **Discussion en temps réel et onglet Messages** (#274, 6.6, 10, ADR 0008) : la base diffuse en canal privé Realtime chaque message validé, sans son texte, aux seules maisons qui peuvent le lire ; le client relit alors le canal par les vues.
+  L'onglet Messages montre le canal de la cité et les conversations privées, avec les non lus comptés sur l'appareil, la saisie (brouillon jamais perdu, envoi au clavier), l'ouverture d'une conversation par le nom d'une maison et l'annonce polie des messages reçus.
+  Sans Realtime, l'écran relit toutes les 15 secondes et le dit.
+- **Pythie** (#270, 7.3) : chaque événement planifié a son oracle, écrit à la main en repli, `fr` et `en`, qui ne dit que sa nature, et le bien d'une caravane ; une tâche du moteur essaie une fois de le faire réécrire par l'IA, sans nombre ni nom de cité.
+  Consulter la Pythie (`temple.consultOracle`) est une offrande de 60 oboles à Apollon, au prix vu, qui rend les oracles des événements à venir de la cité, même quand il n'y en a aucun ; le joueur relit ses oracles par `my_oracles`, sans écran encore (#272).
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
   La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
   Kallistè garde toutes ses matières premières jusqu'au calibrage à quatre cités (#283).
 - **Passerelle IA** (#268, ADR 0005) : `packages/ai` rend toujours un résultat, la sortie du modèle si elle est conforme à son schéma, sinon le repli.
   Plafond mensuel par usage, journal `telemetry.ai_calls` sans texte, tableau dans la Vigie.
-  Aucun usage n'est encore branché, et tous sont coupés dans la configuration initiale ; le fournisseur réel attend #269 (`needs-human`).
+  La chronique (#271) et les oracles (#270) l'appellent, et tous les usages sont coupés dans la configuration initiale ; le fournisseur réel attend #269 (`needs-human`).
 - **Contrôle `ci` en parallèle** (#298) : statique, base, intégration (deux jobs), bout en bout et images tournent en même temps, en 4 minutes environ au lieu de 10.
   Un changement de documents seuls ne lance que les contrôles statiques, en moins d'une minute.
   Le job final `ci` reste le seul contrôle à attendre ; il n'apparaît qu'à la fin de l'exécution.
@@ -411,9 +429,7 @@ Défauts connus :
 Limites assumées pour l'instant :
 
 - Le transport est en jeu, mais à paramètres neutres : il ne coûte rien tant que le calibrage (#283) n'a pas fixé provisions, droit de port et entretien des navires.
-- Pas de temps réel : un écran ne se met à jour qu'après une action ou un rechargement ; seule la carte
-  des sites relit ses sites et ses règles chaque minute (onglet visible), et l'heure du serveur au retour sur
-  l'onglet.
+- Temps réel pour la seule discussion (#274) : les autres écrans ne se mettent à jour qu'après une action ou un rechargement ; la carte des sites relit ses sites et ses règles chaque minute (onglet visible), et l'heure du serveur au retour sur l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
 - Le prix moyen observé est dit « sur N h » ou passé selon l'heure du navigateur, elle aussi : une horloge
@@ -424,4 +440,4 @@ Limites assumées pour l'instant :
   un indice des prix inconnu tant qu'une version de configuration qui porte `marketTax`,
   `sites.upkeep`, `populationDynamics` et `priceIndex` n'a pas été publiée dans Olympe, programmée par un
   second compte et activée à une clôture. « En jeu » vaut pour une base neuve.
-- Aucun usage d'IA en jeu à ce stade : la passerelle existe, aucun usage ne l'appelle encore.
+- Deux usages d'IA sont branchés, la chronique et les oracles, et coupés dans la configuration initiale : le jeu se joue entièrement sur leurs replis, et le fournisseur réel attend #269 (`needs-human`).
