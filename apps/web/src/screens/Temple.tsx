@@ -7,6 +7,7 @@ import { charisByGod, parseCityCharis, parseFavor } from '../temple';
 import { LoadProblem, Loading } from './LoadProblem';
 import { TempleGraces } from './TempleGraces';
 import { TempleOffering } from './TempleOffering';
+import { TemplePythia } from './TemplePythia';
 
 /**
  * Écran du temple (10, écran clé 7 ; 7.1 et 7.3), ouvert depuis l'onglet Cité : la Charis de la maison envers
@@ -105,6 +106,13 @@ export function TempleScreen() {
           <TempleGraces rules={rules.rules} favor={favor} onDone={reload} />
         ) : (
           <h2 className="text-xl">{t('temple.graces.title')}</h2>
+        )}
+      </Card>
+      <Card className="flex flex-col gap-3">
+        {rules.rules ? (
+          <TemplePythia rules={rules.rules} favor={favor} onDone={reload} />
+        ) : (
+          <h2 className="text-xl">{t('temple.pythia.title')}</h2>
         )}
       </Card>
     </div>

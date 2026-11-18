@@ -73,6 +73,7 @@ describe('écran du temple : Charis (#272)', () => {
       'Athéna : 99 Charis',
       'Apollon : 0 Charis',
       fr.temple.city.title,
+      fr.temple.pythia.consulted,
     ]);
     expect(
       screen.getByText(/^Déclin du jour : −12 à la prochaine clôture \(1\s?% par jour\)\.$/),
