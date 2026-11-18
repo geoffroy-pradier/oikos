@@ -6,6 +6,7 @@
     "typecheck": { "dependsOn": ["^typecheck"] },
     "test": { "dependsOn": ["^typecheck"] },
     "test:integration": { "cache": false, "passThroughEnv": ["DATABASE_URL"] },
+    "test:balance": { "cache": false, "passThroughEnv": ["DATABASE_URL", "BALANCE_REPORT"] },
     "dev": { "cache": false, "persistent": true }
   }
 }
