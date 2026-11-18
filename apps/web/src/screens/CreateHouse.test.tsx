@@ -84,3 +84,16 @@ describe('fondation dans une cité sans travailleurs libres (#258)', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Aucune cité'));
   });
 });
+
+describe('nom refusé par la modération (#527)', () => {
+  it.each([
+    ['MESSAGE_REJECTED', 'Ce nom contient un terme interdit par la charte'],
+    ['SILENCED', 'Votre compte est réduit au silence : un nom de maison est un texte public'],
+  ])('%s : l’écran dit pourquoi le nom ne passe pas', async (code, text) => {
+    sent.answers.push({ ok: false, error: { code, message: '' } });
+    await mount();
+    fireEvent.click(screen.getByRole('radio', { name: 'Kallistè' }));
+    found();
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(text));
+  });
+});

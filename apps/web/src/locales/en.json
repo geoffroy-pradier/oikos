@@ -35,7 +35,9 @@
     "submit": "Found the house",
     "cityFull": "no free workers left for a first site",
     "noWorkers": "This city has no free workers left for your first site: nothing was created. Choose another city: {{cities}}.",
-    "noWorkersAnywhere": "No city has free workers left for a first site: nothing was created. Try again later."
+    "noWorkersAnywhere": "No city has free workers left for a first site: nothing was created. Try again later.",
+    "nameRejected": "This name contains a term banned by the code of conduct: your house was not founded. Choose another one.",
+    "silenced": "Your account is silenced: a house name is public text, so you cannot found your house until the sanction ends."
   },
   "home": {
     "title": "House {{name}}",

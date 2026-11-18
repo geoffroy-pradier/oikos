@@ -9,8 +9,12 @@ describe('modes de modération des commandes enregistrées', () => {
       .map((command) => command.name)
       .sort();
 
-  it('seule chat.post est refusée à un compte réduit au silence ; seul l’appel est exempt', () => {
-    expect(names((command) => command.moderation === 'chat')).toEqual(['chat.post']);
+  it('seules chat.post et les noms de maison sont refusés à un compte réduit au silence ; seul l’appel est exempt', () => {
+    expect(names((command) => command.moderation === 'chat')).toEqual([
+      'chat.post',
+      'house.create',
+      'house.rename',
+    ]);
     expect(names((command) => command.moderation === 'exempt')).toEqual(['moderation.appeal']);
   });
 

@@ -134,6 +134,12 @@ chaque refus de l'API y est expliqué.
 - Aucun accès direct aux tables : le back-office appelle des commandes d'administration, soumises aux mêmes règles de journalisation que les commandes de jeu.
 - Les modérateurs peuvent être des joueurs bénévoles : leur rôle ne donne accès à aucune donnée économique privée.
 
+Un nom de maison est un texte public : `house.create` et `house.rename` passent par le filtre de vocabulaire de la discussion (`moderation.bannedTerms`, 6.6) et par le silence (ticket 527).
+Un nom qui contient un terme interdit est refusé avec le même code que la discussion, `MESSAGE_REJECTED`, avant toute écriture ; le terme n'est ni rendu ni journalisé, et le journal des commandes ne garde pas le nom refusé.
+Décision (ambiguïté du ticket) : un compte réduit au silence ne fonde ni ne renomme sa maison (`SILENCED`), par cohérence avec la discussion ; il le peut de nouveau à la fin de la sanction.
+Une suspension ou une exclusion refuse déjà toute commande de jeu (`SUSPENDED`).
+Le renommage d'office par la modération reste hors de cette règle et attend une phase suivante.
+
 Dans la première version, une commande d'administration (`admin.*`) n'est exécutée que si la session porte le second facteur (niveau `aal2` du jeton) et si le compte a, dans `admin.roles`, l'un des rôles que la commande autorise ;
 le rôle est relu à chaque commande. Tout refus (`FORBIDDEN`) est journalisé comme une commande rejetée.
 Chaque ligne du journal des commandes porte le niveau d'assurance de la session, le rôle d'administration relu à cet instant et la version de configuration en vigueur.

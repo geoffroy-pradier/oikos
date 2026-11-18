@@ -3,7 +3,7 @@ import {
   houseCreateInputSchema,
   houseCreateOutputSchema,
 } from '@oikos/contracts';
-import { cityStartingRecipeId } from '@oikos/config';
+import { cityStartingRecipeId, findBannedTerm } from '@oikos/config';
 import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand } from '../registry';
 
@@ -18,6 +18,10 @@ export const houseCreate = defineCommand({
   input: houseCreateInputSchema,
   output: houseCreateOutputSchema,
   errors: HOUSE_CREATE_ERROR_CODES,
+  // Un nom de maison est un texte public : refusé à un compte réduit au silence (`SILENCED`), comme un message.
+  moderation: 'chat',
+  // Le nom refusé ne reste pas dans le journal des commandes : celui d'une maison fondée est dans `game.houses`.
+  redactInput: true,
   // Les contraintes de la base font foi, y compris sous concurrence.
   errorByConstraint: {
     houses_one_per_user: {
@@ -33,6 +37,12 @@ export const houseCreate = defineCommand({
     },
   },
   async handler({ trx, userId, emit, config }, input) {
+    // Filtre de vocabulaire de la discussion (#275, #527) : le terme trouvé n'est ni rendu ni journalisé.
+    if (findBannedTerm(config.moderation.bannedTerms, input.name) !== null)
+      return {
+        ok: false,
+        error: { code: 'MESSAGE_REJECTED', message: 'The name contains a banned term.' },
+      };
     const city = await trx
       .selectFrom('game.cities')
       .select(['id', 'world_id', 'slug'])

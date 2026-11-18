@@ -48,6 +48,10 @@ export const HOUSE_CREATE_ERROR_CODES = [
   'HOUSE_NAME_TAKEN',
   /** La cité n'offre plus les travailleurs du site de départ (4.4, #258) : choisir une autre cité. */
   'NO_WORKERS_AVAILABLE',
+  /** Le nom contient un terme interdit (`moderation.bannedTerms`), comme un message de la discussion (#527). */
+  'MESSAGE_REJECTED',
+  /** Le compte est réduit au silence : un nom de maison est un texte public, comme un message (#527). */
+  'SILENCED',
 ] as const;
 export type HouseCreateErrorCode = (typeof HOUSE_CREATE_ERROR_CODES)[number];
 
@@ -58,5 +62,12 @@ export type HouseRenameInput = z.infer<typeof houseRenameInputSchema>;
 export const houseRenameOutputSchema = z.object({ houseId: z.uuid(), name: z.string() });
 export type HouseRenameOutput = z.infer<typeof houseRenameOutputSchema>;
 
-export const HOUSE_RENAME_ERROR_CODES = ['HOUSE_NOT_FOUND', 'HOUSE_NAME_TAKEN'] as const;
+export const HOUSE_RENAME_ERROR_CODES = [
+  'HOUSE_NOT_FOUND',
+  'HOUSE_NAME_TAKEN',
+  /** Le nom contient un terme interdit (`moderation.bannedTerms`), comme un message de la discussion (#527). */
+  'MESSAGE_REJECTED',
+  /** Le compte est réduit au silence : un nom de maison est un texte public, comme un message (#527). */
+  'SILENCED',
+] as const;
 export type HouseRenameErrorCode = (typeof HOUSE_RENAME_ERROR_CODES)[number];

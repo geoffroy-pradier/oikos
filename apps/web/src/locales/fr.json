@@ -35,7 +35,9 @@
     "submit": "Fonder la maison",
     "cityFull": "plus de travailleurs libres pour un premier site",
     "noWorkers": "Cette cité n'a plus de travailleurs libres pour votre premier site : rien n'a été créé. Choisissez une autre cité : {{cities}}.",
-    "noWorkersAnywhere": "Aucune cité n'a plus de travailleurs libres pour un premier site : rien n'a été créé. Réessayez plus tard."
+    "noWorkersAnywhere": "Aucune cité n'a plus de travailleurs libres pour un premier site : rien n'a été créé. Réessayez plus tard.",
+    "nameRejected": "Ce nom contient un terme interdit par la charte : votre maison n'a pas été fondée. Choisissez-en un autre.",
+    "silenced": "Votre compte est réduit au silence : un nom de maison est un texte public, vous ne pouvez pas fonder votre maison avant la fin de la sanction."
   },
   "home": {
     "title": "Maison {{name}}",

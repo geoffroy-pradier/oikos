@@ -80,7 +80,11 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
       ? others.length > 0
         ? t('createHouse.noWorkers', { cities: others.join(', ') })
         : t('createHouse.noWorkersAnywhere')
-      : errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL']);
+      : errorCode === 'MESSAGE_REJECTED'
+        ? t('createHouse.nameRejected')
+        : errorCode === 'SILENCED'
+          ? t('createHouse.silenced')
+          : errorCode && t([`errors.${errorCode}`, 'errors.INTERNAL']);
 
   const select = <K extends keyof Blazon>(part: K, options: readonly Blazon[K][]) => (
     <>
@@ -111,7 +115,11 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
         required
         maxLength={24}
         aria-describedby="name-hint form-error"
-        aria-invalid={errorCode === 'VALIDATION_FAILED' || errorCode === 'HOUSE_NAME_TAKEN'}
+        aria-invalid={
+          errorCode === 'VALIDATION_FAILED' ||
+          errorCode === 'HOUSE_NAME_TAKEN' ||
+          errorCode === 'MESSAGE_REJECTED'
+        }
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
