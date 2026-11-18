@@ -3,7 +3,7 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { TEST_CONFIG } from './test-config';
 import { db, newShipowner, owner, send } from './voyage.integration-fixtures';
-import { planEvent, waitUntil } from './world-events.integration-fixtures';
+import { pastEvent, planEvent, waitUntil } from './world-events.integration-fixtures';
 
 // Effets des événements du monde sur les commandes (#267), contre Supabase local. Chaque test a son monde, pour
 // qu'un événement n'y touche que ses propres maisons.
@@ -13,6 +13,9 @@ const recipe = TEST_CONFIG.config.recipes.find((row) => row.id === 'grow_wheat')
 if (!recipe?.outputs[0] || recipe.siteType !== 'field') throw new Error('grow_wheat expected');
 const CYCLE_MS = recipe.durationMinutes * 60_000;
 const PER_CYCLE = recipe.outputs[0].quantity;
+const olives = TEST_CONFIG.config.recipes.find((row) => row.id === 'grow_olives');
+if (!olives?.outputs[0] || olives.siteType !== 'orchard') throw new Error('grow_olives expected');
+const OLIVES_PER_CYCLE = olives.outputs[0].quantity;
 
 /** Un monde neuf et ses cités, par identifiant court de la configuration. */
 async function newWorld(slugs: string[]) {
@@ -35,23 +38,45 @@ const effectsOf = (eventId: string) =>
     .where('event_id', '=', eventId)
     .execute();
 
-/** Le site de la maison, dont le `cycles`-ième cycle se termine à `lastEnds` (garde de la base levée). */
-async function siteEndingAt(houseId: string, cycles: number, lastEnds: Date) {
+/**
+ * Le site de la maison qui exploite la recette, dont le `cycles`-ième cycle se termine à `lastEnds` (garde de la
+ * base levée).
+ */
+async function siteEndingAt(
+  houseId: string,
+  cycles: number,
+  lastEnds: Date,
+  recipeId = 'grow_wheat',
+) {
+  const cycleMs =
+    (TEST_CONFIG.config.recipes.find((row) => row.id === recipeId)?.durationMinutes ?? 0) * 60_000;
   const site = await db
     .selectFrom('game.sites')
     .select('id')
     .where('house_id', '=', houseId)
+    .where('recipe_id', '=', recipeId)
     .executeTakeFirstOrThrow();
   await owner.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
-    await sql`update game.sites set cycle_started_at = ${new Date(lastEnds.getTime() - cycles * CYCLE_MS)},
-      created_at = ${new Date(lastEnds.getTime() - (cycles + 1) * CYCLE_MS)} where id = ${site.id}`.execute(
+    await sql`update game.sites set cycle_started_at = ${new Date(lastEnds.getTime() - cycles * cycleMs)},
+      created_at = ${new Date(lastEnds.getTime() - (cycles + 1) * cycleMs)} where id = ${site.id}`.execute(
       trx,
     );
     await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
   });
   return site.id;
 }
+
+/** Met les sites à l'arrêt à l'instant donné, comme une clôture qui ne les paie pas (garde de la base levée). */
+const halt = (siteIds: string[], at: Date) =>
+  owner.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await trx.updateTable('game.sites').set({ halted_at: at }).where('id', 'in', siteIds).execute();
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+/** Relance d'un site par la commande, entretien d'un jour payé. */
+const restart = (player: { user: string }, siteId: string) =>
+  send(player.user, 'site.restart', { siteId });
 
 describe('sécheresse et récolte (#267)', () => {
   it('à cheval sur son début : seuls les cycles terminés pendant la sécheresse sont réduits', async () => {
@@ -178,26 +203,127 @@ describe('sécheresse et récolte (#267)', () => {
     const sites = await Promise.all([early, late].map((p) => siteEndingAt(p.houseId, 1, ends)));
     const halted = new Date(ends.getTime() + 100);
     await waitUntil(db, halted);
-    await owner.transaction().execute(async (trx) => {
-      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
-      await trx
-        .updateTable('game.sites')
-        .set({ halted_at: halted })
-        .where('id', 'in', sites)
-        .execute();
-      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
-    });
+    await halt(sites, halted);
     // Récolté pendant l'arrêt, le cycle finit pendant la sécheresse : il ne rend rien.
     const during = await send(early.user, 'site.collect', { siteId: sites[0] });
     expect(during.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: 0 }] } });
-    // Relancé après la sécheresse, temps du site décalé de l'arrêt (plus de 1,4 s) : le cycle produit en entier.
+    // Relancé par la commande après la sécheresse, temps du site décalé de l'arrêt (plus de 1,4 s) : le cycle
+    // produit en entier.
     await waitUntil(db, new Date(drought.startsAt.getTime() + 1_800));
-    await sql`update game.sites set halted_at = null,
-      cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second'
-      where id = ${sites[1]}`.execute(owner);
+    expect((await restart(late, sites[1] ?? '')).body).toMatchObject({ ok: true });
     const after = await send(late.user, 'site.collect', { siteId: sites[1] });
     expect(after.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: PER_CYCLE }] } });
     expect((await effectsOf(drought.eventId)).map((effect) => effect.site_id)).toEqual([sites[0]]);
+  });
+  it('arrêt puis relance pendant elle : commencée pendant l’arrêt, elle touche un cycle fini avant (4.2, 7.4)', async () => {
+    const { worldId, city } = await newWorld(['kalliste']);
+    const kalliste = city['kalliste'] ?? '';
+    const [early, late] = [await newShipowner(kalliste), await newShipowner(kalliste)];
+    const drought = await planEvent(owner, {
+      worldId,
+      model: 'drought',
+      cityId: kalliste,
+      magnitudeBps: 10_000,
+      inMs: 1_500,
+      lastsMs: 86_400_000,
+    });
+    // Un cycle de chaque champ finit, puis les champs s'arrêtent, avant la sécheresse ; aucun n'est récolté.
+    const ends = new Date(drought.startsAt.getTime() - 1_000);
+    const sites = await Promise.all([early, late].map((p) => siteEndingAt(p.houseId, 1, ends)));
+    const halted = new Date(ends.getTime() + 100);
+    await waitUntil(db, halted);
+    await halt(sites, halted);
+    // Récolté à l'arrêt, le cycle finit avant la sécheresse : il produit en entier.
+    const during = await send(early.user, 'site.collect', { siteId: sites[0] });
+    expect(during.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: PER_CYCLE }] } });
+    // Relancé pendant la sécheresse, temps du site décalé de plus d'une seconde : sa fin tombe dedans.
+    await waitUntil(db, new Date(drought.startsAt.getTime() + 100));
+    expect((await restart(late, sites[1] ?? '')).body).toMatchObject({ ok: true });
+    const after = await send(late.user, 'site.collect', { siteId: sites[1] });
+    expect(after.body).toMatchObject({ data: { cycles: 1, outputs: [{ quantity: 0 }] } });
+    expect(await effectsOf(drought.eventId)).toMatchObject([
+      { site_id: sites[1], quantity: String(-PER_CYCLE) },
+    ]);
+  });
+});
+
+describe('bonne année et récolte (#267)', () => {
+  it('accroît un verger de la cité, de bout en bout ; ni un champ, ni une sécheresse finie avant son cycle', async () => {
+    const { worldId, city } = await newWorld(['kalliste']);
+    const kalliste = city['kalliste'] ?? '';
+    // Une maison sans navire, son champ de départ, et un verger d'oliviers acquis dans la même cité.
+    const user = randomUUID();
+    await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
+      owner,
+    );
+    const name = `Oliviers ${[...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
+    const blazon = { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' };
+    const founded = await send(user, 'house.create', { cityId: kalliste, name, blazon });
+    const houseId = founded.body.data.houseId as string;
+    const acquired = await send(user, 'site.acquire', { recipeId: 'grow_olives' });
+    const orchard = acquired.body.data.siteId as string;
+    // Bonne année de 25 % dans 1 s ; deux cycles de chaque site, le second fini 0,3 s après son début.
+    const goodYear = await planEvent(owner, {
+      worldId,
+      model: 'good_year',
+      cityId: kalliste,
+      magnitudeBps: 2_500,
+      inMs: 1_000,
+      lastsMs: 86_400_000,
+    });
+    const ends = new Date(goodYear.startsAt.getTime() + 300);
+    const field = await siteEndingAt(houseId, 2, ends);
+    await siteEndingAt(houseId, 2, ends, 'grow_olives');
+    // Une sécheresse au plus fort, finie à l'instant où commencent les cycles du champ (fin exclue).
+    const fieldStarts = new Date(ends.getTime() - 2 * CYCLE_MS);
+    const drought = await pastEvent(owner, {
+      worldId,
+      model: 'drought',
+      cityId: kalliste,
+      magnitudeBps: 10_000,
+      startsAt: new Date(fieldStarts.getTime() - CYCLE_MS),
+      endsAt: fieldStarts,
+    });
+    await waitUntil(db, ends);
+    const raised = Math.floor((OLIVES_PER_CYCLE * 12_500) / 10_000);
+    const collected = await send(user, 'site.collect', { siteId: orchard });
+    expect(collected.body).toMatchObject({
+      ok: true,
+      data: { cycles: 2, outputs: [{ goodId: 'olives', quantity: OLIVES_PER_CYCLE + raised }] },
+    });
+    const wheat = await send(user, 'site.collect', { siteId: field });
+    expect(wheat.body).toMatchObject({
+      ok: true,
+      data: { cycles: 2, outputs: [{ goodId: 'wheat', quantity: 2 * PER_CYCLE }] },
+    });
+    expect(await effectsOf(drought.eventId)).toEqual([]);
+    expect(await effectsOf(goodYear.eventId)).toEqual([
+      {
+        kind: 'site_yield',
+        site_id: orchard,
+        voyage_id: null,
+        good_id: 'olives',
+        quantity: String(raised - OLIVES_PER_CYCLE),
+        delay_seconds: null,
+      },
+    ]);
+    const payloads = await db
+      .selectFrom('game.domain_events')
+      .select(sql<string>`payload ->> 'siteId'`.as('siteId'))
+      .select(sql<unknown>`payload -> 'eventEffects'`.as('eventEffects'))
+      .where('type', '=', 'SiteCollected')
+      .where(sql<boolean>`payload ->> 'siteId' in (${orchard}, ${field})`)
+      .orderBy('seq')
+      .execute();
+    expect(payloads).toEqual([
+      {
+        siteId: orchard,
+        eventEffects: [
+          { eventId: goodYear.eventId, goodId: 'olives', quantity: raised - OLIVES_PER_CYCLE },
+        ],
+      },
+      { siteId: field, eventEffects: null },
+    ]);
   });
 });
 

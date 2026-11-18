@@ -68,6 +68,7 @@ Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du
 L'écran dit l'état de chacun (à venir, en cours, passé) à l'heure de l'API, pas du navigateur.
 La réponse est décrite par un schéma partagé de `@oikos/contracts` (#446), qui en choisit les champs : une colonne lue en plus ne sort pas.
 Elle dit aussi si la liste est coupée (plus de 1 000 événements dans la fenêtre), et l'écran le signale sous sa légende.
+Cette lecture, faite sur la fin des événements et non sur leur monde, a son propre index.
 Déclenchement manuel, création d'événements et propositions du maître du jeu attendent une phase suivante.
 
 ## 15.2 Cycle de vie d'un changement d'équilibrage

@@ -160,7 +160,7 @@ Limite connue : le banc de #78 clôt des jours passés, et une clôture ne plani
 Avec une probabilité non nulle, ses clôtures réussiraient, mais ne planifieraient que des événements qui commencent après l'heure de la base, donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
 Pour calibrer les événements (#283), il faudra que le banc joue ses jours à venir, ou les planifie autrement.
 Décision : une tempête retarde, elle ne fait rien perdre.
-Décision : un cycle de champ ou de verger est touché par un événement de rendement si sa fin, dans le temps propre du site (gelé pendant un arrêt, 4.3), tombe dans la fenêtre de l'événement ; pour un site jamais arrêté, c'est le temps réel.
+Décision : un cycle de champ ou de verger est touché par un événement de rendement si sa fin, dans le temps propre du site (gelé pendant un arrêt, 4.2), tombe dans la fenêtre de l'événement ; pour un site jamais arrêté, c'est le temps réel.
 Limite connue : après un arrêt et une relance, un événement peut toucher des cycles faits avant l'arrêt, ou les épargner ; les récolter avant ou après la relance peut donc différer.
 Hors périmètre : déclenchement manuel et création depuis Olympe, maître du jeu par IA, événements mythiques, divins et personnels.
 
