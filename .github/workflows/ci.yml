@@ -14,8 +14,9 @@ concurrency:
 # Le job `ci`, en dernier, est le seul contrôle requis : il est vert si tous les autres le sont, ou si ceux
 # qui ne concernent pas le changement ont été sautés (documents seuls, ou interfaces seules pour la base et
 # l'intégration).
-# Sur main, après une fusion, seuls `changes` et `static` tournent : la suite complète a tourné sur la
-# demande de fusion, fusionnée à jour de main ; ce passage garde le cache de Turborepo chaud pour les suivantes.
+# Sur main, après une fusion, seuls `changes` et `static` tournent (ADR 0009) : la suite complète a tourné sur
+# la demande de fusion, que `scripts/fusionner.sh` ne fusionne qu'à jour de main ; ce passage garde le cache de
+# Turborepo chaud pour les suivantes.
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -52,9 +53,9 @@ jobs:
             exit 1
           fi
           # Documents seuls (docs/, fichiers Markdown, réglages des agents) : ni base, ni intégration, ni
-          # bout en bout. Tout autre fichier déclenche toute la suite. Sans détection des renommages, un
-          # fichier de code renommé en document compte par son ancien chemin. La liste est lue avant le
-          # filtre : un tube interrompu ne peut pas la faire passer pour vide.
+          # bout en bout. Tout autre fichier lance au moins le bout en bout et les images. Sans détection
+          # des renommages, un fichier de code renommé en document compte par son ancien chemin. La liste
+          # est lue avant le filtre : un tube interrompu ne peut pas la faire passer pour vide.
           files="$(git diff --no-renames --name-only "$base" HEAD)"
           if printf '%s\n' "$files" | grep -qvE '^(docs/|\.claude/)|\.md$|^$'; then
             echo "code=true" >> "$GITHUB_OUTPUT"
@@ -95,6 +96,8 @@ jobs:
         run: pnpm typecheck
       - name: Test
         run: pnpm test
+      - name: Merge script
+        run: bash scripts/test-fusionner.sh
 
   # pgTAP sur Supabase local : migrations rejouées depuis zéro, tests de schéma et de règles par ligne, rejeu
   # de la suite (règle 9) et application des migrations comme au déploiement.
@@ -246,7 +249,7 @@ jobs:
 
   # Seul contrôle à attendre avant une fusion (CLAUDE.md, boucle de travail, étapes 7 et 8). Il n'est créé
   # qu'à la fin de l'exécution : tant qu'il est absent, rien n'est fusionné. Tout job ajouté à ce fichier
-  # doit être ajouté à `needs` et à la liste `expected` ci-dessous.
+  # doit être ajouté à `needs` et à la liste `keys == [...]` ci-dessous.
   ci:
     if: always()
     needs: [changes, static, database, integration, e2e, build]

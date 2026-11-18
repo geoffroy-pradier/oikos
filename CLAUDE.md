@@ -49,6 +49,7 @@ Tu travailles sans attendre de validation humaine, dans cet ordre :
 6. Ouvre une demande de fusion de moins de 400 lignes modifiées (hors fichiers générés), qui référence le ticket (`Closes #N`). Découpe si c'est plus gros.
 7. Attends la fin du contrôle `ci` sur la demande de fusion. Le dépôt n'a pas de protection de branche : c'est toi qui garantis qu'aucune fusion ne part avec un contrôle rouge, en cours ou absent.
 8. Si `ci` est vert et que la relecture (section Revue) n'a laissé aucun point ouvert, fusionne toi-même en squash (outil de fusion de la session, ou `gh api -X PUT repos/{owner}/{repo}/pulls/{n}/merge -f merge_method=squash`), puis supprime la branche. Ne pousse jamais directement sur `main`.
+   La demande doit être à jour de `main` : la suite complète ne retourne pas sur `main` après une fusion (ADR 0009). Si `main` a avancé, remets-la à jour et attends de nouveau `ci`. `scripts/fusionner.sh <numéro> <tête>` vérifie tout cela avant de fusionner.
    Si `ci` échoue, corrige sur la même branche. Trois échecs de suite sur la même cause : pose le label `blocked`, explique dans le ticket, passe au suivant.
 9. Une fois fusionné, passe au ticket suivant.
 

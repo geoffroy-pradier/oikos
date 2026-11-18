@@ -179,8 +179,9 @@ Ajouts de la phase 2 :
   La chronique (#271) et les oracles (#270) l'appellent, et tous les usages sont coupés dans la configuration initiale ; le fournisseur réel attend #269 (`needs-human`).
 - **Contrôle `ci` en parallèle** (#298) : statique, base, intégration (deux jobs), bout en bout et images tournent en même temps, en 4 minutes environ au lieu de 10.
   Un changement de documents seuls ne lance que les contrôles statiques, en moins d'une minute.
-  Pour réduire la dépense de GitHub Actions, un changement des seules interfaces (`apps/web`, `apps/admin`) saute aussi la base et l'intégration, et une fusion sur `main` ne relance que les contrôles statiques : la suite complète a déjà tourné sur la demande de fusion, fusionnée à jour de `main`.
-  Les images Docker ne sont construites et poussées qu'une fois le déploiement activé (`DEPLOY_ENABLED`).
+  Pour réduire la dépense de GitHub Actions, un changement des seules interfaces (`apps/web`, `apps/admin`) saute aussi la base et l'intégration, et une fusion sur `main` ne relance que `changes` et les contrôles statiques (ADR 0009).
+  La suite complète a déjà tourné sur la demande de fusion, que `scripts/fusionner.sh` ne fusionne qu'à jour de `main`.
+  Le flux `deploy` ne construit et ne publie images et clients statiques qu'une fois le déploiement activé (`DEPLOY_ENABLED`).
   Le job final `ci` reste le seul contrôle à attendre ; il n'apparaît qu'à la fin de l'exécution.
 
 Ajouts de la fin de la phase 1 :
