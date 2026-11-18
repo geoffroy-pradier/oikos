@@ -14,6 +14,8 @@ import {
   wagesDue,
 } from './balance/city';
 import { housingMorning, lodgingDue, newHousing, propertyUpkeepDue } from './balance/housing';
+import { dateCitizens, dateMetics } from './balance/calendar';
+import { newPolitics, politicsMorning, settled, winnerOf } from './balance/politics';
 import { morning, seller } from './balance/strategy';
 import { actAfterTick, hireSteward, type Steward } from './balance/steward';
 import { traderMorning, type Prices, type Trader } from './balance/trade';
@@ -81,6 +83,9 @@ it(
       ...traders.map((trader) => ({ city: trader.home, house: trader })),
     ];
     const housing = newHousing();
+    const politics = newPolitics();
+    // Métèques arrivés au jour 0 de jeu : la clôture les promeut citoyens après `politics.meticDays` jours.
+    for (const city of cities) await dateMetics(city, closeOf(city, 0));
     const prices: Prices = new Map();
 
     const days: DayMeasure[] = [];
@@ -97,6 +102,7 @@ it(
       wages += wagesDue(world, houses, day, WAGES.workerOboles);
       wages += stewards.filter((steward) => steward.hiredDay < day).length * WAGES.stewardOboles;
       await closeDay(world, day);
+      await dateCitizens(world, closeOf(world, day));
       const now = new Date(closeOf(world, day).getTime() + MINUTE);
       for (const { city, houses: own } of settlements)
         for (const house of own) acquisitions += await morning(city, house, now);
@@ -106,6 +112,13 @@ it(
           if (hired) stewards.push(hired);
         }
       for (const { city, house } of residents) await housingMorning(city, house, now, housing);
+      for (const { city, houses: own } of settlements)
+        await politicsMorning(
+          city,
+          [...own, ...traders.filter((trader) => trader.home.cityId === city.cityId)],
+          now,
+          politics,
+        );
       for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
       // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
       const hours =
@@ -135,17 +148,35 @@ it(
       if (day >= WARMUP) days.push(measure);
     }
 
+    // Décrets de dépense réglés par les clôtures jouées : leur montant sort du trésor de leur cité, vers son puits.
+    const lastDay = WARMUP + MEASURED - 1;
+    const paid = settled(world, politics, lastDay);
+    const drawn = new Map<string, number>();
+    for (const decree of paid)
+      drawn.set(decree.cityId, (drawn.get(decree.cityId) ?? 0) + decree.amountOboles);
+    const paidFor = (model: string) =>
+      paid
+        .filter((decree) => decree.model === model)
+        .reduce((sum, decree) => sum + decree.amountOboles, 0);
+
     // Robinets, puits et trésors des cités rapprochés des flux comptés ; puis la masse en circulation.
-    const ledger = await reconcile(world, houses.length, {
-      sink_upkeep: upkeep,
-      sink_site_acquisition: acquisitions,
-      sink_ship_purchase: ships,
-      sink_npc_wages: wages,
-      sink_property_purchase: housing.purchased,
-      sink_property_works: housing.works,
-      sink_property_upkeep: estateUpkeep,
-      sink_npc_lodging: lodging,
-    });
+    const ledger = await reconcile(
+      world,
+      houses.length,
+      {
+        sink_upkeep: upkeep,
+        sink_site_acquisition: acquisitions,
+        sink_ship_purchase: ships,
+        sink_npc_wages: wages,
+        sink_property_purchase: housing.purchased,
+        sink_property_works: housing.works,
+        sink_property_upkeep: estateUpkeep,
+        sink_npc_lodging: lodging,
+        sink_public_works: paidFor('public_works'),
+        sink_festivals: paidFor('festival'),
+      },
+      drawn,
+    );
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
     // Le trésor de chaque cité reçoit la taxe des échanges de son marché, et rien d'autre.
@@ -179,6 +210,33 @@ it(
     expect(Number(unpaid.rows[0]?.n), 'intendants impayés').toBe(
       stewards.filter((steward) => steward.hiredDay === WARMUP + MEASURED - 1).length,
     );
+    // Vie civique : chaque élection dépouillée a donné la charge au candidat que les bulletins du banc désignent, et
+    // chaque décret dont le vote est clos a l'issue que ses votes imposent (adopté et payé, ou rejeté).
+    const offices = await sql<{
+      election_id: string;
+      house_id: string;
+    }>`select election_id, house_id
+      from game.offices where world_id = ${world.worldId}`.execute(world.db);
+    const elected = new Map(offices.rows.map((row) => [row.election_id, row.house_id]));
+    let elections = 0;
+    for (const [electionId, followed] of politics.elections) {
+      if (!elected.has(electionId)) continue;
+      elections += 1;
+      expect(elected.get(electionId), `archonte de ${followed.cityId}`).toBe(
+        winnerOf(followed.candidates).houseId,
+      );
+    }
+    expect(elections, 'élections dépouillées').toBeGreaterThanOrEqual(SLUGS.length);
+    const statuses = await sql<{ id: string; status: string }>`select id, status from game.decrees
+      where world_id = ${world.worldId}`.execute(world.db);
+    const statusOf = new Map(statuses.rows.map((row) => [row.id, row.status]));
+    const closed = politics.decrees.filter((decree) => decree.closesAt <= closeOf(world, lastDay));
+    for (const decree of closed)
+      expect(statusOf.get(decree.decreeId), `${decree.model} de ${decree.cityId}`).toBe(
+        decree.adopted ? 'applied' : 'rejected',
+      );
+    expect(paidFor('public_works'), 'grands travaux payés').toBeGreaterThan(0);
+    expect(paidFor('festival'), 'fêtes payées').toBeGreaterThan(0);
     // Le logement a servi par ses trois voies : achats, baux, rénovations ; aucun bail n'a pris fin faute de loyer,
     // aucun bien n'est resté sans entretien payé (le rapprochement du logement des travailleurs le suppose), et
     // des travailleurs sont logés dans chaque cité.
