@@ -148,6 +148,13 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
 
 Inspiration de la céramique grecque à figures noires et rouges : aplats terre cuite, noir, ocre et bleu égéen, frises géométriques, icônes au trait. Illustrations fixes en 2D (pas de 3D), carte en vectoriel. Thèmes clair et sombre. Un guide de style unique sert de référence à toutes les images générées pour garder la cohérence.
 
+Ce fonds est traité de façon contemporaine (#574, ADR 0010) : surfaces superposées et ombres douces, coins arrondis, espaces généreux.
+Les titres et les chiffres clés sont dans une serif de titrage (Fraunces), l'interface dans une linéale (Inter), toutes deux servies par l'application.
+Les frises (méandre, vague) ornent sans jamais porter d'information.
+De courtes animations répondent au survol, à l'appui et à l'apparition d'un panneau ; elles sont coupées sous `prefers-reduced-motion`.
+Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi et propose l'action qui la remplit.
+Les jetons et les composants de `@oikos/ui` font foi ; la page `catalogue.html` les montre dans les deux thèmes.
+
 ## Exigences
 
 - Premier affichage en moins de 2,5 s sur réseau mobile 4G ; application installable, consultation hors ligne des dernières données.

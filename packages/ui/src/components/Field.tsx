@@ -26,7 +26,8 @@ export function Field({ label, hint, error, className, id, ...props }: FieldProp
         aria-invalid={error ? true : undefined}
         aria-describedby={[describedBy, hintId, errorId].filter(Boolean).join(' ') || undefined}
         className={cn(
-          'min-h-11 w-full rounded-md border border-border bg-surface px-3 text-foreground',
+          'min-h-11 w-full rounded-md border border-border bg-surface-raised px-3 text-foreground',
+          'transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground/60',
           error && 'border-danger',
           className,
         )}
