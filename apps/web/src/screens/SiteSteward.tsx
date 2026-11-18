@@ -8,13 +8,19 @@ import { pendingKeys, sendUnderKey } from '../pending-keys';
 import type { SiteRecipe } from '../site-rules';
 import { blankRule, draftOf, goodsFor, hireIntent, moveUp } from '../stewards';
 import { rulesIntent, rulesOf, staleIntents, type RuleDraft, type Steward } from '../stewards';
-import type { StewardActivity, StewardOperation } from '../stewards';
+import type { StewardActivity, StewardInstruction, StewardOperation } from '../stewards';
+import { instructionIntent } from '../stewards';
+import type { StewardRule } from '@oikos/contracts';
+import { SiteStewardInstruction } from './SiteStewardInstruction';
 import { useCommandNotice } from './CommandNotice';
 
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 const KINDS = ['collect', 'sell', 'buy'] as const;
 
-/** Section Intendant d'un site (4.4) : embaucher, donner les règles par formulaire (sans IA), renvoyer. */
+/**
+ * Section Intendant d'un site (4.4) : embaucher, donner une consigne (#280) dont la proposition se valide ou se
+ * reprend dans le formulaire, donner les règles par formulaire (sans IA), renvoyer.
+ */
 export function SiteSteward(props: {
   siteId: string;
   siteName: string;
@@ -23,6 +29,8 @@ export function SiteSteward(props: {
   steward: Steward | undefined;
   /** Dernières opérations de l'intendant et son dernier refus (#279) ; absentes tant qu'elles ne sont pas lues. */
   activity?: StewardActivity | undefined;
+  /** Dernière consigne de l'intendant et sa réponse (#280) ; absente sans consigne ou tant qu'elle n'est pas lue. */
+  instruction?: StewardInstruction | undefined;
   /** Postes du siège, salaire d'un jour et règles au plus (`site_rules`, clé `stewards`) ; zéro sans eux. */
   rules: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
   /** Intendants en poste de la maison. */
@@ -49,6 +57,9 @@ export function SiteSteward(props: {
   const rows =
     steward && draft?.stewardId === steward.id ? draft.rows : (steward?.rules ?? []).map(draftOf);
   const edit = (next: RuleDraft[]) => steward && setDraft({ stewardId: steward.id, rows: next });
+  // Le formulaire, voie complète du jeu sans IA : la section de consigne y mène.
+  const form = useRef<HTMLFormElement>(null);
+  const openForm = () => form.current?.focus();
   const kinds = KINDS.filter(
     (kind) => kind !== 'buy' || goodsFor(props.recipe, { kind, goodId: '' }).length > 0,
   );
@@ -89,7 +100,7 @@ export function SiteSteward(props: {
     input: StewardCommandInputs[N],
     done: (data: Record<string, unknown>) => string,
   ) {
-    if (running.current) return;
+    if (running.current) return null;
     running.current = true;
     setBusy(true);
     setNotice(null);
@@ -103,6 +114,7 @@ export function SiteSteward(props: {
           : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
       );
       await props.onChanged();
+      return result.ok ? 'ok' : result.error.code;
     } finally {
       running.current = false;
       setBusy(false);
@@ -205,7 +217,37 @@ export function SiteSteward(props: {
               )}
             </section>
           )}
+          <SiteStewardInstruction
+            steward={steward}
+            instruction={props.instruction}
+            busy={busy}
+            describe={describe}
+            onSubmit={async (text) => {
+              const input = { stewardId: steward.id, text };
+              const code = await run(
+                'steward.submitInstruction',
+                instructionIntent(steward, text),
+                input,
+                () => t('steward.instruction.sent', { name: steward.name }),
+              );
+              if (code === 'AI_UNAVAILABLE') openForm();
+              return code === 'ok';
+            }}
+            onValidate={(proposed: StewardRule[]) => {
+              const input = { stewardId: steward.id, rules: proposed };
+              const done = () => t('steward.saved', { count: proposed.length, name: steward.name });
+              void run('steward.setRules', rulesIntent(steward, proposed), input, done);
+            }}
+            onEdit={(proposed) => {
+              edit(proposed.map(draftOf));
+              openForm();
+            }}
+            onRefresh={() => void props.onChanged()}
+            openForm={openForm}
+          />
           <form
+            ref={form}
+            tabIndex={-1}
             className="flex flex-col gap-3"
             aria-label={t('steward.rulesOf', { name: steward.name })}
             onSubmit={save}
