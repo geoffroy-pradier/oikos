@@ -50,8 +50,8 @@ select is(
    where table_schema = 'game' and table_name in ('channels', 'channel_members', 'messages')
      and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
   'channels.house_high:INSERT channels.house_low:INSERT channels.world_id:INSERT '
-    || 'messages.body:INSERT messages.channel_id:INSERT messages.house_id:INSERT',
-  'le service ouvre une conversation et écrit un message, sans identifiant, date, type, cité ni masquage : liste figée');
+    || 'messages.body:INSERT messages.channel_id:INSERT messages.hidden_at:UPDATE messages.house_id:INSERT',
+  'le service ouvre une conversation, écrit un message sans identifiant, date, type ni cité, et le masque (#276) : liste figée');
 select ok(not has_table_privilege('oikos_service', t, p), format('le service n''a pas %s sur %s', p, t))
 from unnest(array['game.channels', 'game.channel_members', 'game.messages']) t, unnest(array['update', 'delete', 'truncate']) p
 where p <> 'truncate' or t = 'game.messages';
@@ -147,8 +147,8 @@ select throws_ok(format($$insert into game.messages (channel_id, house_id, body,
   '23001', 'a message is posted now, visible', 'même le propriétaire n''antidate pas un message');
 
 -- Après l'écriture : seul le masquage change, une fois ; aucune suppression hors de la purge.
-select throws_ok($$select pg_temp.as_service($s$update game.messages set hidden_at = now() where body = 'Bienvenue.'$s$)$$,
-  '42501', null, 'le service ne masque pas un message (modération, #276)');
+select throws_ok($$select pg_temp.as_service($s$update game.messages set hidden_at = now() - interval '1 hour' where body = 'Bienvenue.'$s$)$$,
+  '23001', 'a message is hidden once, now', 'le service masque un message maintenant seulement (modération, #276)');
 select throws_ok($$select pg_temp.as_service($s$delete from game.messages where body = 'Bienvenue.'$s$)$$,
   '42501', null, 'ni ne le supprime');
 select throws_ok($$delete from game.messages where body = 'Bienvenue.'$$,

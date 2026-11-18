@@ -60,9 +60,9 @@ select is(
   (select string_agg(table_name || '.' || column_name || ':' || privilege_type, ' ' order by table_name, column_name, privilege_type)
    from information_schema.column_privileges
    where grantee = 'oikos_service' and (table_schema, table_name) in (('game', 'reports'), ('admin', 'sanctions'))
-     and privilege_type in ('INSERT', 'UPDATE')),
-  'reports.house_id:INSERT reports.message_id:INSERT reports.reason:INSERT reports.reported_house_id:INSERT sanctions.appeal_body:UPDATE',
-  'le service écrit un signalement sans son état ni sa date, et rien d''une sanction que le texte d''un appel');
+     and privilege_type = 'INSERT' and table_name = 'reports'),
+  'reports.house_id:INSERT reports.message_id:INSERT reports.reason:INSERT reports.reported_house_id:INSERT',
+  'le service écrit un signalement sans son état ni sa date (droits des sanctions : 220)');
 
 -- Gardes des signalements.
 select throws_ok($$insert into game.reports (message_id, reported_house_id, house_id, reason) values

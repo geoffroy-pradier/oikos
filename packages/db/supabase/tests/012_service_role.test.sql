@@ -43,13 +43,14 @@ select is(
   'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status decrees.applied_at decrees.electorate decrees.settled_day decrees.status decrees.tallied_at '
     || 'decrees.votes_against decrees.votes_for elections.tallied_at favor.charis '
     || 'graces_used.consumed_at graces_used.saved_seconds graces_used.site_id graces_used.voyage_id '
-    || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day npc_demand_carry.carry '
+    || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day messages.hidden_at npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
     || 'oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '
     || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
-    || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count sanctions.appeal_body ships.docked_city_id ships.laid_up_at '
+    || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count reports.resolved_by reports.state '
+    || 'sanctions.appeal_body sanctions.appeal_decided_by sanctions.appeal_decision sanctions.lifted_by sanctions.validated_by ships.docked_city_id ships.laid_up_at '
     || 'sites.cycle_started_at sites.halted_at sites.recipe_id voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
