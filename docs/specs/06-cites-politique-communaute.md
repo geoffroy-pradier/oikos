@@ -127,6 +127,7 @@ Le texte et chaque terme sont décomposés (NFKD : les lettres pleine chasse ou 
 Un terme, d'un ou de plusieurs mots, n'est reconnu que là où il forme des mots entiers qui se suivent : « con » ne refuse pas « conseil », « fils de chien » refuse « Fils-de-chien ».
 Limites connues : un terme écrit lettre à lettre (« c o n »), avec des chiffres pour des lettres (« c0n »), au pluriel ou sous une forme fléchie absente de la liste, ou avec une ligature (« œ ») que la décomposition ne sépare pas, n'est pas reconnu.
 Un compte réduit au silence (13) n'écrit plus (`SILENCED`) : il lit, signale, ouvre une conversation et fait appel.
+Le même filtre et le même silence valent pour le nom d'une maison, à la fondation et au renommage (15.4).
 Toute maison signale un message visible d'une autre maison, dans un canal qu'elle lit, sous l'un des motifs de la configuration (`moderation.reportReasons`), par `chat.report`, une fois par message (`ALREADY_REPORTED`) ; ni ses propres messages (`OWN_MESSAGE`), ni un message déjà masqué (`MESSAGE_HIDDEN`).
 Un message d'un canal qu'elle ne lit pas est refusé comme un message inconnu (`MESSAGE_NOT_FOUND`).
 Décision (18, conservation limitée) : le moteur supprime chaque message `chat.retentionDays` jours après son écriture (30) ; le journal des commandes n'en garde pas le texte (ADR 0002).
