@@ -449,7 +449,8 @@
       "title": "Parc de logements",
       "empty": "Aucun logement dans la cité.",
       "size": "{{size}} : {{total}} au total, dont {{forSale}} encore à vendre par la cité"
-    }
+    },
+    "templeLink": "Temple : Charis, offrandes, grâces et oracle"
   },
   "npcClasses": {
     "thetes": "Thètes",
@@ -787,5 +788,24 @@
     "arrivedMany_one": "{{count}} nouveau message dans ce canal.",
     "arrivedMany_other": "{{count}} nouveaux messages dans ce canal.",
     "arrivedIn": "Nouveau message : {{channel}}."
+  },
+  "temple": {
+    "title": "Temple de {{city}}",
+    "intro": "La Charis se gagne dieu par dieu, en offrandes de biens ou de monnaie. Elle décline un peu à chaque clôture, se dépense pour invoquer une grâce et ne s'achète pas.",
+    "charis": {
+      "title": "Charis de votre maison",
+      "none": "Aucun dieu dans la configuration en vigueur.",
+      "god": "{{god}} : {{charis}} Charis",
+      "decay": "Déclin du jour : −{{loss}} à la prochaine clôture ({{percent}} par jour).",
+      "noLoss": "Déclin du jour : rien à la prochaine clôture ({{percent}} par jour, arrondi vers zéro).",
+      "noDecay": "Cette Charis ne décline pas."
+    },
+    "city": {
+      "title": "Charis de la cité",
+      "charis": "Charis de {{city}} envers {{god}}, son dieu protecteur : {{charis}}",
+      "noPatron": "{{city}} n'a pas de dieu protecteur : elle n'a pas de Charis de cité.",
+      "citizen": "Elle est la somme de la Charis de ses citoyennes envers ce dieu : la vôtre y compte.",
+      "metic": "Elle est la somme de la Charis de ses citoyennes envers ce dieu : votre maison, métèque, n'y compte pas."
+    }
   }
 }

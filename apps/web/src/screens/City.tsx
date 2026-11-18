@@ -1,4 +1,5 @@
 import { Card } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { describeCity, parseCityIdentities } from '../city-identity';
@@ -76,6 +77,12 @@ export function CityScreen() {
       <Card>
         <h1 className="text-2xl">{t('city.title', { city: house.cityName })}</h1>
         <p className="text-muted-foreground">{t('city.intro')}</p>
+        <Link
+          to="/cite/temple"
+          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        >
+          {t('city.templeLink')}
+        </Link>
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={identityTitle} tabIndex={-1} className="text-xl">

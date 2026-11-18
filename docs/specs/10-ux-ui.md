@@ -94,6 +94,9 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
 7. Temple : Charis, grâces, offrandes, oracle.
+   Première version (#272) : l'écran du temple (`/cite/temple`) s'ouvre au clavier depuis l'onglet Cité, auquel il appartient.
+   Il montre la Charis de la maison envers chaque dieu de la configuration (`temple_rules`, `my_favor` ; nulle sans ligne), et son déclin du jour : ce que la prochaine clôture lui retirera (`charisDecay`, 7.1), ou rien.
+   Il montre la Charis de la cité de la maison envers son dieu protecteur (`city_charis`), ou dit que la cité n'en a pas ; une maison métèque lit qu'elle n'y compte pas.
 8. Messages (#274) : le canal de la cité et les conversations privées de la maison, chacun avec ses messages non lus, puis les derniers messages du canal ouvert, nommés et datés ; un message masqué est dit tel.
    Décision (le ticket ne dit pas où se tient la lecture) : les non lus se comptent sur l'appareil, par une marque de lecture de chaque canal en stockage local, l'instant du dernier message lu.
    Un autre appareil, ou un stockage effacé, compte de nouveau comme non lus tous les messages encore conservés ; au-delà des 100 messages les plus récents des autres maisons, un compte est dit « 100 messages non lus ou plus ».

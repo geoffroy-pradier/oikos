@@ -449,7 +449,8 @@
       "title": "Housing stock",
       "empty": "No housing in the city.",
       "size": "{{size}}: {{total}} in all, {{forSale}} still for sale by the city"
-    }
+    },
+    "templeLink": "Temple: Charis, offerings, graces and oracle"
   },
   "npcClasses": {
     "thetes": "Thetes",
@@ -787,5 +788,24 @@
     "arrivedMany_one": "{{count}} new message in this channel.",
     "arrivedMany_other": "{{count}} new messages in this channel.",
     "arrivedIn": "New message: {{channel}}."
+  },
+  "temple": {
+    "title": "Temple of {{city}}",
+    "intro": "Charis is earned god by god, through offerings of goods or money. It declines a little at each close, is spent to invoke a grace, and cannot be bought.",
+    "charis": {
+      "title": "Your house's Charis",
+      "none": "No god in the configuration in force.",
+      "god": "{{god}}: {{charis}} Charis",
+      "decay": "Today's decline: −{{loss}} at the next close ({{percent}} a day).",
+      "noLoss": "Today's decline: nothing at the next close ({{percent}} a day, rounded toward zero).",
+      "noDecay": "This Charis does not decline."
+    },
+    "city": {
+      "title": "City Charis",
+      "charis": "Charis of {{city}} toward {{god}}, its patron god: {{charis}}",
+      "noPatron": "{{city}} has no patron god: it has no city Charis.",
+      "citizen": "It is the sum of its citizens' Charis toward this god: yours counts.",
+      "metic": "It is the sum of its citizens' Charis toward this god: your house, a metic, does not count."
+    }
   }
 }
