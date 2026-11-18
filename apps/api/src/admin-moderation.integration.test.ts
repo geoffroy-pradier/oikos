@@ -226,3 +226,142 @@ describe('admin.hideMessage', () => {
     ]);
   });
 });
+
+describe('admin.resolveReport', () => {
+  it('traite d’un coup les signalements ouverts du message, une fois ; pas par le compte signalé', async () => {
+    const world = await newWorld();
+    const [alice, bob, chloe] = [await world.player(), await world.player(), await world.player()];
+    const posted = await post(bob.user, world.kallisteChannel, 'Achetez mon blé !');
+    const messageId = posted.body.data.messageId as string;
+    const reportIds: string[] = [];
+    for (const reporter of [alice, chloe])
+      reportIds.push(
+        (await send(reporter.user, 'chat.report', { messageId, reason: 'spam' })).body.data
+          .reportId,
+      );
+    // Bob et Alice portent aussi un rôle : ni le signalé ni qui a signalé ne traitent le message, même par le
+    // signalement d'un autre.
+    for (const who of [bob, alice]) {
+      await sql`insert into admin.roles (user_id, role, granted_by) values (${who.user}, 'moderator', ${await root})`.execute(
+        owner,
+      );
+      staff.push(who.user);
+    }
+    const target = { reportId: reportIds[1], decision: 'upheld' };
+    for (const who of [bob, alice])
+      expect(codeOf(await send(`aal2:${who.user}`, 'admin.resolveReport', target))).toEqual([
+        409,
+        'SECOND_PERSON_REQUIRED',
+      ]);
+    const [m1, m2] = [await member('moderator'), await member('community_manager')];
+    const replies = await Promise.all([
+      send(m1, 'admin.resolveReport', target),
+      send(m2, 'admin.resolveReport', { reportId: reportIds[0], decision: 'dismissed' }),
+    ]);
+    const passed = replies.filter((reply) => reply.status === 200);
+    expect(passed).toHaveLength(1);
+    expect(passed[0]?.body.data.reportIds).toEqual(reportIds);
+    expect(replies.map(codeOf).filter(([status]) => status !== 200)).toEqual([
+      [409, 'ALREADY_RESOLVED'],
+    ]);
+    const states = await rows(sql<{ state: string; resolved_by: string }>`
+      select distinct state, resolved_by from game.reports where message_id = ${messageId}`);
+    expect(states).toEqual([
+      {
+        state: passed[0]?.body.data.decision,
+        resolved_by: idOf(replies[0] === passed[0] ? m1 : m2),
+      },
+    ]);
+    expect(
+      codeOf(await send(m1, 'admin.resolveReport', { reportId: randomUUID(), decision: 'upheld' })),
+    ).toEqual([404, 'REPORT_NOT_FOUND']);
+  });
+});
+
+describe('admin.decideAppeal', () => {
+  it('rejeté, la sanction court ; accueilli, elle est levée ; ni l’auteur ni deux fois', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const [dion, eudore, phedon] = [
+      await member('moderator'),
+      await member('moderator'),
+      await member('super_admin'),
+    ];
+    const pronounce = async (kind: string, hours: number) =>
+      (await send(dion, 'admin.sanction', { userId: alice.user, kind, hours, reason: 'Spam' })).body
+        .data.sanctionId as string;
+    const [suspension, warning] = [
+      await pronounce('suspension', 24),
+      await pronounce('warning', 168),
+    ];
+    const decide = (who: string, sanctionId: string, decision: string) =>
+      send(who, 'admin.decideAppeal', { sanctionId, decision });
+    expect(codeOf(await decide(eudore, warning, 'granted'))).toEqual([409, 'NOT_APPEALED']);
+    for (const sanctionId of [suspension, warning])
+      expect(
+        (await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Je conteste.' })).status,
+      ).toBe(200);
+    expect(codeOf(await decide(dion, suspension, 'granted'))).toEqual([
+      409,
+      'SECOND_PERSON_REQUIRED',
+    ]);
+
+    const rejected = await decide(eudore, warning, 'rejected');
+    expect(rejected.body.data).toEqual({
+      sanctionId: warning,
+      decision: 'rejected',
+      liftedAt: null,
+    });
+    // Deux décisions simultanées : une seule passe ; rejeté, l'appel laisse courir la suspension.
+    const both = await Promise.all([
+      decide(eudore, suspension, 'rejected'),
+      decide(phedon, suspension, 'rejected'),
+    ]);
+    expect(both.map(codeOf).sort()).toEqual([
+      [200, undefined],
+      [409, 'APPEAL_DECIDED'],
+    ]);
+    expect(codeOf(await post(alice.user, world.kallisteChannel, 'Libre ?'))).toEqual([
+      409,
+      'SUSPENDED',
+    ]);
+    const [decided] = await rows(sql<{ by: string; lifted: boolean }>`
+      select appeal_decided_by as by, lifted_at is not null as lifted
+      from admin.sanctions where id = ${suspension}`);
+    expect(decided).toEqual({ by: idOf(both[0]?.status === 200 ? eudore : phedon), lifted: false });
+    expect(codeOf(await decide(eudore, randomUUID(), 'granted'))).toEqual([
+      404,
+      'SANCTION_NOT_FOUND',
+    ]);
+  });
+
+  it('accueilli, un appel lève la suspension : le compte rejoue ses commandes, et ne refait pas appel', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const [dion, eudore] = [await member('moderator'), await member('moderator')];
+    const pronounced = await send(dion, 'admin.sanction', {
+      userId: alice.user,
+      kind: 'suspension',
+      hours: 168,
+      reason: 'Triche supposée',
+    });
+    const sanctionId = pronounced.body.data.sanctionId as string;
+    expect(codeOf(await post(alice.user, world.kallisteChannel, 'Suspendue ?'))).toEqual([
+      409,
+      'SUSPENDED',
+    ]);
+    await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Erreur.' });
+    const granted = await send(eudore, 'admin.decideAppeal', { sanctionId, decision: 'granted' });
+    expect(granted.body.data.liftedAt).toEqual(expect.any(String));
+    expect((await post(alice.user, world.kallisteChannel, 'Merci.')).status).toBe(200);
+    expect(
+      codeOf(await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Encore.' })),
+    ).toEqual([409, 'SANCTION_ENDED']);
+    const events = await rows(sql<{ type: string; payload: unknown }>`
+      select e.type, e.payload from game.domain_events e
+      join game.command_log l on l.id = e.command_id where l.user_id = ${idOf(eudore)}`);
+    expect(events).toEqual([
+      { type: 'AppealDecided', payload: { sanctionId, decision: 'granted', lifted: true } },
+    ]);
+  });
+});
