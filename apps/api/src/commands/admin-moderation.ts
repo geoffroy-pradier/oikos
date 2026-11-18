@@ -1,11 +1,17 @@
 import {
   ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
+  ADMIN_DECIDE_APPEAL_ERROR_CODES,
   ADMIN_HIDE_MESSAGE_ERROR_CODES,
+  ADMIN_RESOLVE_REPORT_ERROR_CODES,
   ADMIN_SANCTION_ERROR_CODES,
   adminConfirmExclusionInputSchema,
   adminConfirmExclusionOutputSchema,
+  adminDecideAppealInputSchema,
+  adminDecideAppealOutputSchema,
   adminHideMessageInputSchema,
   adminHideMessageOutputSchema,
+  adminResolveReportInputSchema,
+  adminResolveReportOutputSchema,
   adminSanctionInputSchema,
   adminSanctionOutputSchema,
   MODERATION_ROLES,
@@ -143,6 +149,126 @@ export const adminHideMessage = defineCommand({
     return {
       ok: true,
       data: { messageId: message.id, hiddenAt: hidden.hidden_at.toISOString() },
+    };
+  },
+});
+
+/**
+ * Traite un signalement : il est écarté ou retenu, avec les autres signalements encore ouverts du même message (une
+ * entrée de la file). Ni le compte de la maison signalée ni un compte qui a signalé ce message ne le traitent.
+ */
+export const adminResolveReport = defineCommand({
+  name: 'admin.resolveReport',
+  admin: MODERATION_ROLES,
+  input: adminResolveReportInputSchema,
+  output: adminResolveReportOutputSchema,
+  errors: ADMIN_RESOLVE_REPORT_ERROR_CODES,
+  errorByConstraint: { reports_resolved_by_other: SECOND_PERSON_REQUIRED },
+  async handler({ trx, userId, emit }, input) {
+    const target = await trx
+      .selectFrom('game.reports as r')
+      .innerJoin('game.houses as h', 'h.id', 'r.reported_house_id')
+      .select(['r.id', 'r.message_id', 'h.user_id as reportedUserId'])
+      .where('r.id', '=', input.reportId)
+      .executeTakeFirst();
+    if (!target) return refuse('REPORT_NOT_FOUND', 'No such report.');
+    // Verrous des signalements du message, dans l'ordre des identifiants : deux traitements simultanés du même
+    // message, par l'un ou l'autre de ses signalements, s'ordonnent sans s'interbloquer ; le second voit le premier.
+    const reports = await trx
+      .selectFrom('game.reports')
+      .select(['id', 'state', 'created_at', 'house_id'])
+      // Le signalement désigné en est toujours, même si la purge a emporté son message entre-temps.
+      .where((eb) =>
+        eb.or([
+          eb('id', '=', target.id),
+          ...(target.message_id ? [eb('message_id', '=', target.message_id)] : []),
+        ]),
+      )
+      .orderBy('id')
+      .forUpdate()
+      .execute();
+    if (reports.find(({ id }) => id === target.id)?.state !== 'open')
+      return refuse('ALREADY_RESOLVED', 'This report is already resolved.');
+    const open = reports.filter(({ state }) => state === 'open');
+    const ownCase = await trx
+      .selectFrom('game.houses')
+      .select('id')
+      .where(
+        'id',
+        'in',
+        open.map(({ house_id }) => house_id),
+      )
+      .where('user_id', '=', userId)
+      .executeTakeFirst();
+    if (target.reportedUserId === userId || ownCase)
+      return { ok: false, error: SECOND_PERSON_REQUIRED };
+    await trx
+      .updateTable('game.reports')
+      .set({ state: input.decision, resolved_by: userId })
+      .where(
+        'id',
+        'in',
+        open.map(({ id }) => id),
+      )
+      .execute();
+    const reportIds = open
+      .sort((a, b) => a.created_at.getTime() - b.created_at.getTime() || (a.id < b.id ? -1 : 1))
+      .map(({ id }) => id);
+    emit({ type: 'ReportsResolved', payload: { reportIds, decision: input.decision } });
+    return { ok: true, data: { reportIds, decision: input.decision } };
+  },
+});
+
+/**
+ * Tranche l'appel d'une sanction, par un autre compte que son auteur et que le compte sanctionné. Accueilli, il lève
+ * la sanction si elle n'est pas finie : sa fin devient cet instant. Rejeté, la sanction court jusqu'à sa fin.
+ */
+export const adminDecideAppeal = defineCommand({
+  name: 'admin.decideAppeal',
+  admin: MODERATION_ROLES,
+  input: adminDecideAppealInputSchema,
+  output: adminDecideAppealOutputSchema,
+  errors: ADMIN_DECIDE_APPEAL_ERROR_CODES,
+  errorByConstraint: { sanctions_decided_by_other: SECOND_PERSON_REQUIRED },
+  async handler({ trx, userId, emit, now }, input) {
+    // Verrou de la ligne : de deux décisions simultanées, la seconde voit la première.
+    const sanction = await trx
+      .selectFrom('admin.sanctions')
+      .select(['id', 'user_id', 'author_id', 'ends_at', 'appeal_body', 'appeal_decision'])
+      .where('id', '=', input.sanctionId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!sanction) return refuse('SANCTION_NOT_FOUND', 'No such sanction.');
+    if (sanction.appeal_body === null)
+      return refuse('NOT_APPEALED', 'This sanction has no appeal.');
+    if (sanction.appeal_decision)
+      return refuse('APPEAL_DECIDED', 'This appeal is already decided.');
+    if (sanction.author_id === userId || sanction.user_id === userId)
+      return { ok: false, error: SECOND_PERSON_REQUIRED };
+    // Même instant que celui de la base, qui refuserait de lever une sanction finie.
+    const lift =
+      input.decision === 'granted' && (sanction.ends_at === null || sanction.ends_at > now);
+    const decided = await trx
+      .updateTable('admin.sanctions')
+      .set({
+        appeal_decision: input.decision,
+        appeal_decided_by: userId,
+        ...(lift ? { lifted_by: userId } : {}),
+      })
+      .where('id', '=', sanction.id)
+      .returning('lifted_at')
+      .executeTakeFirstOrThrow();
+    emit({
+      type: 'AppealDecided',
+      payload: { sanctionId: sanction.id, decision: input.decision, lifted: lift },
+    });
+    return {
+      ok: true,
+      data: {
+        sanctionId: sanction.id,
+        decision: input.decision,
+        liftedAt: decided.lifted_at?.toISOString() ?? null,
+      },
     };
   },
 });

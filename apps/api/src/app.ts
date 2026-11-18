@@ -19,7 +19,9 @@ import {
 import { adminBuyBackGood } from './commands/admin-buyback';
 import {
   adminConfirmExclusion,
+  adminDecideAppeal,
   adminHideMessage,
+  adminResolveReport,
   adminSanction,
 } from './commands/admin-moderation';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
@@ -115,6 +117,8 @@ export const COMMANDS = [
   adminSanction,
   adminConfirmExclusion,
   adminHideMessage,
+  adminResolveReport,
+  adminDecideAppeal,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
