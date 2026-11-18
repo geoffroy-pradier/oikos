@@ -4,10 +4,12 @@ import {
   ensureInitialConfig,
   INITIAL_CONFIG,
   validateConfig,
+  cityStartingRecipeId,
+  type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { CLOSE_STEPS, npcDemand, runDailyClose, runTick } from '@oikos/engine';
+import { CLOSE_STEPS, npcDemand, runDailyClose, runTick, type TickStep } from '@oikos/engine';
 import {
   accrueProduction,
   accrueWorkshop,
@@ -95,8 +97,12 @@ export interface House {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Reply = { ok: boolean; data?: any; error?: { code: string } };
 
-/** Connexions, application et configuration du banc ; `start` avant usage, `stop` à la fin. */
-export function openBench() {
+/**
+ * Connexions, application et configuration du banc ; `start` avant usage, `stop` à la fin. Le banc de
+ * plusieurs cités joue une variante de `config` (`options.config`), qui ne change que des paramètres de
+ * scénario (`world.ts`) : les recettes, l'horloge et les prix restent ceux de `config`.
+ */
+export function openBench(options: { config?: GameConfig } = {}) {
   const db = createDb(serviceRoleUrl(DATABASE_URL));
   const owner = createDb(DATABASE_URL);
   // Les clôtures et les ticks citent une version publiée ; ils lisent ici la configuration du banc,
@@ -134,7 +140,10 @@ export function openBench() {
     send,
     async start() {
       await ensureInitialConfig(db, INITIAL_CONFIG);
-      loaded = { ...(await createConfigLoader(db).at(new Date())), config };
+      loaded = {
+        ...(await createConfigLoader(db).at(new Date())),
+        config: options.config ?? config,
+      };
     },
     stop: () => Promise.all([db.destroy(), owner.destroy()]),
   };
@@ -144,29 +153,50 @@ export type Bench = ReturnType<typeof openBench>;
 export interface City extends Bench {
   worldId: string;
   cityId: string;
+  /** Identifiant de la cité dans la configuration (`config.cities`). */
+  slug: string;
   /** Jour de jeu du jour 0. */
   firstDay: number;
 }
 
-/** Monde et cité neufs ; les `days` jours de jeu sont passés : la base refuse une clôture datée après son heure. */
-export async function createCity(bench: Bench, days: number): Promise<City> {
-  const [worldId, cityId] = [randomUUID(), randomUUID()];
+/** Graine de monde du banc à une cité (#78) ; celle du banc de plusieurs cités est dans `world.ts`. */
+const SEED = 'banc-equilibrage-78';
+/** Cités d'un monde neuf, une par identifiant de la configuration ; les `days` jours de jeu sont passés. */
+export async function createWorld(
+  bench: Bench,
+  days: number,
+  slugs: readonly string[],
+  seed = SEED,
+): Promise<City[]> {
+  const worldId = randomUUID();
   // Graine fixée (#267), pour que ses tirages soient reproductibles. Le banc ne joue pourtant aucun événement :
   // ils sont à probabilité nulle dans la configuration initiale. Avec une probabilité non nulle, ses clôtures, qui
   // sont celles de jours passés, réussiraient, mais ne planifieraient que les événements qui commencent après
   // l'heure de la base (7.3), donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
   await sql`insert into game.worlds (id, slug, name, seed)
-    values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', 'banc-equilibrage-78')`.execute(
+    values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', ${seed})`.execute(
     bench.owner,
   );
-  await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Kallistè')`.execute(
-    bench.owner,
-  );
-  return { ...bench, worldId, cityId, firstDay: gameDayAt(new Date(), config.clock) - days - 2 };
+  const firstDay = gameDayAt(new Date(), config.clock) - days - 2;
+  const cities: City[] = [];
+  for (const slug of slugs) {
+    const cityId = randomUUID();
+    await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, ${slug})`.execute(
+      bench.owner,
+    );
+    cities.push({ ...bench, worldId, cityId, slug, firstDay });
+  }
+  return cities;
+}
+/** Monde et cité neufs (Kallistè) ; les `days` jours de jeu sont passés : la base refuse une clôture datée après son heure. */
+export async function createCity(bench: Bench, days: number): Promise<City> {
+  const [city] = await createWorld(bench, days, ['kalliste']);
+  if (!city) throw new Error('No city created');
+  return city;
 }
 export const closeOf = (city: City, day: number) => dailyCloseAt(city.firstDay + day, config.clock);
 
-/** Maisons fondées par `house.create`, chacune avec le champ de blé de la fondation, ramené au jour 0. */
+/** Maisons fondées par `house.create`, chacune avec le site de départ de sa cité, ramené au jour 0. */
 export async function foundHouses(city: City, roles: readonly Role[]) {
   const [houses, day0]: [House[], Date] = [[], closeOf(city, 0)];
   for (const role of roles.flatMap((each) => Array<Role>(each.count).fill(each))) {
@@ -180,6 +210,7 @@ export async function foundHouses(city: City, roles: readonly Role[]) {
       blazon: { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' },
     });
     if (!founded.ok) throw new Error(`house.create: ${founded.error?.code}`);
+    const start = cityStartingRecipeId(config, city.slug);
     const field = await city.db
       .selectFrom('game.sites')
       .select('id')
@@ -190,7 +221,7 @@ export async function foundHouses(city: City, roles: readonly Role[]) {
       role,
       user,
       houseId: founded.data.houseId,
-      sites: [{ id: field.id, recipeId: 'grow_wheat', createdAt: day0, since: day0 }],
+      sites: [{ id: field.id, recipeId: start, createdAt: day0, since: day0 }],
       produced: new Map(),
     });
   }
@@ -325,7 +356,7 @@ export const closeDay = (city: City, day: number) =>
  * Ticks de demande des PNJ du jour `day`, à leur instant de jeu, du premier qui commence à sa clôture ou
  * juste après (il ouvre le jour pour le moteur : `isDailyClose`) à la clôture suivante ; rend leur nombre.
  */
-export async function tickDay(city: City, day: number) {
+export async function tickDay(city: City, day: number, steps: readonly TickStep[] = [npcDemand]) {
   const { tickMinutes } = config.clock;
   const end = closeOf(city, day + 1);
   const first = tickIndexAt(new Date(closeOf(city, day).getTime() - 1), tickMinutes) + 1;
@@ -338,7 +369,7 @@ export async function tickDay(city: City, day: number) {
       index,
       scheduledAt,
       config: city.loader,
-      steps: [npcDemand],
+      steps,
       now: () => new Date(scheduledAt.getTime() + 1000),
     });
   }
@@ -363,8 +394,12 @@ export async function accounts(city: City) {
   let supply = 0;
   for (const row of rows) {
     if (row.kind !== 'system') supply += Number(row.balance);
+    // Les trésors de plusieurs cités sont une même ligne : leur somme.
     if (row.kind === 'system' || row.kind === 'treasury')
-      system.set(row.system_key ?? row.kind, Number(row.balance));
+      system.set(
+        row.system_key ?? row.kind,
+        (system.get(row.system_key ?? row.kind) ?? 0) + Number(row.balance),
+      );
   }
   return { supply, system };
 }
@@ -379,10 +414,13 @@ const nonZero = (balances: Record<string, number>) =>
  */
 export async function reconcile(city: City, founded: number, counted: Record<string, number>) {
   const trades = await city.db
-    .selectFrom('game.trades')
-    .select(['price', 'quantity', 'buy_order_id'])
-    .where('world_id', '=', city.worldId)
+    .selectFrom('game.trades as t')
+    .innerJoin('game.orders as o', 'o.id', 't.sell_order_id')
+    .select(['t.price', 't.quantity', 't.buy_order_id', 'o.city_id'])
+    .where('t.world_id', '=', city.worldId)
     .execute();
+  // Trésor de chaque cité : la part de la taxe des échanges de son marché.
+  const treasuries = new Map<string, number>();
   const grant = founded * config.starting.grantOboles;
   const flows = { faucet_npc_purchases: 0, sink_market_tax: 0, treasury: 0 };
   for (const trade of trades) {
@@ -391,6 +429,7 @@ export async function reconcile(city: City, founded: number, counted: Record<str
     if (trade.buy_order_id === null) flows.faucet_npc_purchases -= gross;
     flows.sink_market_tax += tax.burned;
     flows.treasury += tax.treasury;
+    treasuries.set(trade.city_id, (treasuries.get(trade.city_id) ?? 0) + tax.treasury);
   }
   const { supply, system } = await accounts(city);
   const sinks = Object.values(counted).reduce((sum, sink) => sum + sink, flows.sink_market_tax);
@@ -399,6 +438,8 @@ export async function reconcile(city: City, founded: number, counted: Record<str
     expected: nonZero({ faucet_starting_grant: -grant, ...counted, ...flows }),
     supply,
     mass: grant - flows.faucet_npc_purchases - sinks,
+    /** Trésor attendu de chaque cité (par identifiant) : le banc en compare les soldes à `treasuryOf`. */
+    treasuries,
   };
 }
 /** Rang du dernier échange du monde. */
@@ -410,3 +451,13 @@ export const lastSeq = async (city: City) =>
       }>`select max(seq) as seq from game.trades where world_id = ${city.worldId}`.execute(city.db)
     ).rows[0]?.seq ?? 0,
   );
+/** Solde du trésor de chaque cité du monde, par identifiant de cité. */
+export async function treasuryOf(city: City) {
+  const rows = await city.db
+    .selectFrom('game.accounts')
+    .select(['city_id', 'balance'])
+    .where('world_id', '=', city.worldId)
+    .where('kind', '=', 'treasury')
+    .execute();
+  return new Map(rows.map((row) => [row.city_id ?? '', Number(row.balance)]));
+}

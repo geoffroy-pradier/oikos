@@ -177,8 +177,21 @@ pnpm typecheck
 pnpm test               # tests unitaires et de propriétés
 pnpm test:db            # pgTAP sur Supabase local
 pnpm test:integration   # API et moteur contre Supabase local
+pnpm test:balance       # banc d'équilibrage des quatre cités, contre Supabase local
 pnpm test:e2e           # Playwright : parcours web complet, sur la construction de production
 ```
+
+### Banc d'équilibrage
+
+Le banc d'équilibrage joue des maisons scriptées dans un monde à part, avec les vraies commandes et le moteur, pour mesurer l'économie.
+Le banc à une cité (#78) est un test d'intégration ordinaire : `apps/api/src/balance.integration.test.ts`, avec ses bornes.
+Le banc des quatre cités (#281) est à part : `apps/api/src/balance-world.bench.ts`, que `pnpm test:balance` lance contre Supabase local (`DATABASE_URL`, comme les tests d'intégration).
+Son monde a une graine fixe, écrite dans `apps/api/src/balance/world.ts` : tant que la probabilité des événements est nulle (configuration initiale), il n'en joue aucun.
+Il joue 10 jours de mise en route et 30 jours mesurés dans les quatre cités de la configuration initiale, dont la population est divisée par quatre pour que sa demande totale soit celle d'une cité du banc de #78.
+Ses maisons sont fondées selon le terroir de chaque cité, et leurs paramètres de scénario sont des constantes nommées du banc, jamais des valeurs du jeu, qui restent dans `packages/config`.
+Il ne borne pas l'économie, que #283 calibre : il vérifie que le grand livre, les puits, les robinets et le trésor de chaque cité se rapprochent des flux comptés, et que chaque cité a tourné.
+Sa durée est bornée dans le test (`MAX_MINUTES`) et par le délai du job.
+Dans la `ci`, le job `balance` le lance ; s'il échoue, `ci` est rouge.
 
 Catalogue des composants du système de design : `pnpm --filter @oikos/web dev`, puis `http://localhost:5173/catalogue.html`.
 

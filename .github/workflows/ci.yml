@@ -188,6 +188,34 @@ jobs:
         if: failure()
         run: docker logs supabase_db_oikos 2>&1 | grep -iE 'lock|deadlock' | tail -n 50 || true
 
+  # Banc d'équilibrage des quatre cités (#281, README, « Banc d'équilibrage ») : un job à part, car il dure
+  # plusieurs minutes. Son échec rend `ci` rouge. Sa durée est bornée par le test (`MAX_MINUTES`) et par ce délai,
+  # et notée dans le résumé du job.
+  balance:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Supabase
+        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+      - name: Balance bench
+        run: |
+          started="$(date +%s)"
+          status=0
+          pnpm test:balance || status=$?
+          echo "Banc d'équilibrage : $(( $(date +%s) - started )) s" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
   e2e:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -250,7 +278,7 @@ jobs:
   # doit être ajouté à `needs` et à la liste `expected` ci-dessous.
   ci:
     if: always()
-    needs: [changes, static, database, integration, e2e, build]
+    needs: [changes, static, database, integration, balance, e2e, build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -261,7 +289,7 @@ jobs:
           echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           echo "$RESULTS" | jq -e '
             (.changes.outputs.code) as $code
-            | (keys == ["build", "changes", "database", "e2e", "integration", "static"])
+            | (keys == ["balance", "build", "changes", "database", "e2e", "integration", "static"])
             and (to_entries
             | all(.value.result == "success"
                   or (.value.result == "skipped" and $code == "false"

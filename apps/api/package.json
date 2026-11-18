@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "VITEST_INTEGRATION=1 vitest run",
+    "test:balance": "VITEST_BALANCE=1 vitest run",
     "dev": "tsx watch src/main.ts",
     "local": "tsx --env-file=../../.env src/main.ts"
   },
