@@ -58,7 +58,7 @@ select is(
   'messages.body:INSERT messages.channel_id:INSERT messages.hidden_at:UPDATE messages.house_id:INSERT '
   || 'reports.house_id:INSERT reports.message_id:INSERT reports.reason:INSERT reports.reported_house_id:INSERT reports.resolved_by:UPDATE reports.state:UPDATE '
   || 'sanctions.appeal_body:UPDATE sanctions.appeal_decided_by:UPDATE sanctions.appeal_decision:UPDATE sanctions.author_id:INSERT sanctions.ends_at:INSERT '
-  || 'sanctions.kind:INSERT sanctions.lifted_by:UPDATE sanctions.reason:INSERT sanctions.user_id:INSERT sanctions.validated_by:UPDATE',
+  || 'sanctions.kind:INSERT sanctions.lift_proposed_by:UPDATE sanctions.lifted_by:UPDATE sanctions.reason:INSERT sanctions.user_id:INSERT sanctions.validated_by:UPDATE',
   'le service n''écrit ni un instant, ni un début, ni la validation d''une sanction qu''il prononce');
 select is(
   (select count(*) from information_schema.column_privileges
@@ -100,11 +100,12 @@ select throws_ok($$select pg_temp.as_service($s$update admin.sanctions set valid
 select throws_ok($$update admin.sanctions set starts_at = now() - interval '1 day' where reason = 'Silence'$$,
   '23001', 'a sanction only changes by appeal, confirmation, decision or lift', 'le début d''une sanction ne change pas autrement');
 
--- Lever : jamais seule ; un appel accueilli lève, par qui le tranche, la sanction pas encore finie, et doit la lever.
-select throws_ok($$select pg_temp.as_service($s$update admin.sanctions set lifted_by = '00000000-0000-4000-8000-0000000220ae' where reason = 'Silence'$s$)$$,
-  '23001', 'a sanction is lifted only by granting its appeal', 'une levée seule est refusée');
+-- Lever : une exclusion validée, jamais seule (sans appel, voir 340) ; un appel accueilli lève, par qui le tranche, la
+-- sanction pas encore finie, et doit la lever.
+select throws_ok($$select pg_temp.as_service($s$update admin.sanctions set lifted_by = '00000000-0000-4000-8000-0000000220af' where reason = 'Ban-ancien'$s$)$$,
+  '23514', 'a confirmed exclusion is lifted by a second person, after a proposal', 'la levée seule d''une exclusion validée est refusée');
 select throws_ok($$update admin.sanctions set ends_at = now() + interval '1 hour' where reason = 'Silence'$$,
-  '23001', 'a sanction is lifted only by granting its appeal', 'une fin ne s''avance que par une levée');
+  '23001', 'a sanction is lifted once, by an account', 'une fin ne s''avance que par une levée');
 select throws_ok($$select pg_temp.as_service($s$update admin.sanctions set lifted_at = now() - interval '1 day' where reason = 'Sans-appel'$s$)$$,
   '42501', null, 'le service ne date pas une levée');
 
