@@ -68,6 +68,7 @@ describe('grâces du temple (#272)', () => {
   it('à invoquer d’une touche, en recharge jusqu’à une date, en attente, ou Charis insuffisante', async () => {
     state.uses = [
       {
+        id: 'u1',
         house_id: 'h1',
         grace_id: 'fair_wind',
         god_id: 'poseidon',
@@ -129,6 +130,7 @@ describe('grâces du temple (#272)', () => {
     cleanup();
     state.uses = [
       {
+        id: 'u2',
         house_id: 'h1',
         grace_id: 'blessed_harvest',
         god_id: 'demeter',

@@ -13,8 +13,10 @@ const sent = vi.hoisted(() => ({
   answers: [] as unknown[],
 }));
 vi.mock('../data', () => ({
-  useRows: () => ({
-    rows: [{ city_id: 'k', good_id: 'wheat', quantity: 100, reserved: 20 }],
+  // Aucune grâce en attente : les durées sont celles du calme.
+  useRows: (view: string) => ({
+    rows:
+      view === 'my_graces' ? [] : [{ city_id: 'k', good_id: 'wheat', quantity: 100, reserved: 20 }],
     failed: false,
     reload: () => Promise.resolve(null),
   }),

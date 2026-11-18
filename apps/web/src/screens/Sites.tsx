@@ -221,6 +221,13 @@ export function SitesCard({
       ? gapsExplainedBy(model, yieldGaps(recipe, data.cycles, data.outputs))
       : [];
   };
+  /** Surplus d'une grâce consommée par une récolte (7.1, #477), bien par bien, tel que l'API l'a rendu. */
+  const graceText = ({ grace }: SiteCollectOutput, site?: string) =>
+    grace &&
+    t(`home.${site === undefined ? 'collectedGrace' : 'collectedAllGrace'}.${grace.effect}`, {
+      site,
+      list: list(grace.surplus.map(stackText)),
+    });
   // Un atelier ne consomme que le stock de sa propre cité, quelle que soit celle de la maison.
   const freeStockOf = (site: Site) => (goodId: string) =>
     freeStockIn(stock ?? [], site.city_id, goodId);
@@ -395,7 +402,8 @@ export function SitesCard({
         const done = t('home.collected', { list: list(data.outputs.map(stackText)) });
         // Rendement touché par un événement : l'écart à `cycles` × extrant est expliqué (7.4, #417).
         const why = gapText(site, data.outputs, collectedGaps(site, data), 'collectedGap');
-        return why ? `${done} ${why}` : done;
+        // La grâce joue après l'événement (7.1) : son surplus est dit après l'écart dû à l'événement.
+        return [done, why, graceText(data)].filter(Boolean).join(' ');
       },
     );
 
@@ -491,6 +499,8 @@ export function SitesCard({
     const names = new Map(harvestable.map((site) => [site.id, siteName(site)]));
     // Sites dont la récolte faite a été touchée par un événement de rendement, par modèle (7.4, #417).
     const touched = new Map<WorldEventKind, string[]>();
+    // Surplus des grâces consommées, site par site (7.1, #477).
+    const blessed: string[] = [];
     try {
       const outcome = await collectAll(
         harvestable.map((site) => site.id),
@@ -500,6 +510,8 @@ export function SitesCard({
           const model = yieldModelOf(rules?.siteTypeOf(site?.recipe_id ?? '') ?? '');
           if (result.ok && site && model && collectedGaps(site, result.data).length > 0)
             touched.set(model, [...(touched.get(model) ?? []), siteName(site)]);
+          const grace = result.ok && graceText(result.data, site ? siteName(site) : siteId);
+          if (grace) blessed.push(grace);
           return result;
         },
       );
@@ -521,6 +533,7 @@ export function SitesCard({
             list: list(touchedSites),
           }),
         );
+      parts.push(...blessed);
       for (const failure of outcome.failed)
         parts.push(
           t('home.collectAllFailed', {

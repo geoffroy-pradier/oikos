@@ -135,6 +135,14 @@
       "good_year": "The good year increased the harvest of: {{list}}."
     },
     "collectedAllGapZero": "The drought reduced the harvest of {{list}} to nothing: the cycles are counted, producing nothing.",
+    "collectedGrace": {
+      "blessed_harvest": "The blessed harvest added {{list}}.",
+      "inspired_workshop": "The inspired workshop added {{list}}."
+    },
+    "collectedAllGrace": {
+      "blessed_harvest": "Blessed harvest on {{site}}: {{list}} more.",
+      "inspired_workshop": "Inspired workshop on {{site}}: {{list}} more."
+    },
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "accounts": "House accounts",
@@ -576,6 +584,8 @@
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h at sea, cost {{cost}}",
     "optionStorm": "{{city}} — {{hours}} h at sea in a storm ({{calm}} h in calm weather), cost {{cost}}",
+    "optionWind": "{{city}} — {{hours}} h at sea with a fair wind ({{stormy}} h without it), cost {{cost}}",
+    "optionStormWind": "{{city}} — {{hours}} h at sea in a storm with a fair wind ({{stormy}} h without the wind, {{calm}} h in calm weather), cost {{cost}}",
     "cargo": "Cargo: {{loaded}} units out of {{capacity}} (optional: without cargo, the ship sails in ballast)",
     "noStock": "No free goods in this city: the ship can sail in ballast.",
     "good": "{{good}} ({{free}} free)",
@@ -584,9 +594,15 @@
     "submit": "Sail to {{city}} — {{cost}}",
     "sailed": "{{ship}} sailed for {{city}} for {{cost}}: due {{time}}.",
     "alreadySailed": "This departure had already taken place: {{ship}} is bound for {{city}}, due {{time}}. Nothing was paid again.",
+    "sailedWind": "The fair wind shortened the voyage by {{saved}} h.",
+    "sailedWindSlight": "The fair wind shortened the voyage by a few minutes at most.",
     "noDestination": "No route leaves this city yet.",
     "stormsLoading": "Reading current storms: the durations shown are those in calm weather, provisionally.",
     "stormsUnknown": "Current storms could not be read: the durations shown are those in calm weather.",
+    "windsLoading": "Reading your graces: the durations shown are without a fair wind, provisionally.",
+    "windsUnknown": "Your pending graces could not be read: the durations shown are without a fair wind.",
+    "fairWind": "This departure will use your pending fair wind from {{god}}: it takes {{saved}} h off the voyage.",
+    "fairWindSlight": "This departure will use your pending fair wind from {{god}}: it takes a few minutes at most off the voyage.",
     "overStock": "The cargo exceeds the city's free stock (goods on sale excluded)."
   },
   "staff": {
