@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, Frieze, MapIcon, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -59,15 +59,21 @@ export function MapScreen() {
   const loading = ships === null || rules === null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-2xl">{t('map.title')}</h1>
-        <p className="text-muted-foreground">{t('map.intro')}</p>
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
+      <Card elevation="raised" className="overflow-hidden p-0">
+        <Frieze tone="aegean" pattern="wave" />
+        <div className="flex flex-col gap-1 p-4">
+          <h1 className="flex items-center gap-2 text-2xl">
+            <MapIcon aria-hidden="true" className="size-6 shrink-0 text-aegean" />
+            {t('map.title')}
+          </h1>
+          <p className="text-muted-foreground">{t('map.intro')}</p>
+        </div>
       </Card>
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
       {loading && !fleet.failed && <Loading />}
 
-      <Card>
+      <Card className="flex flex-col gap-3">
         {/* Dessin schématique : la liste qui suit porte les mêmes informations, au clavier. */}
         <svg
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -76,7 +82,7 @@ export function MapScreen() {
             cities: number.format(layout.size),
             routes: number.format(routes.length),
           })}
-          className="w-full rounded bg-secondary/30"
+          className="mx-auto max-h-[32rem] w-full rounded-lg bg-aegean-subtle"
         >
           {routes.map(({ from, to, hours: duration }) => {
             const a = pointOf(from);
@@ -99,7 +105,9 @@ export function MapScreen() {
                   y={middle.y - 1}
                   textAnchor="middle"
                   fontSize={3.2}
-                  className="fill-foreground"
+                  className="fill-foreground stroke-aegean-subtle"
+                  strokeWidth={1.2}
+                  style={{ paintOrder: 'stroke' }}
                 >
                   {hours(duration)}
                 </text>
@@ -112,13 +120,21 @@ export function MapScreen() {
             const docked = (ships ?? []).filter((ship) => ship.docked_city_id === cityId).length;
             return (
               <g key={cityId}>
-                <circle cx={point.x} cy={point.y} r={2.6} className="fill-primary" />
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={2.6}
+                  className="fill-primary stroke-primary/25"
+                  strokeWidth={3}
+                />
                 <text
                   x={point.x}
                   y={point.y + 6}
                   textAnchor="middle"
                   fontSize={4}
-                  className="fill-foreground font-semibold"
+                  className="fill-foreground stroke-aegean-subtle font-semibold"
+                  strokeWidth={1.2}
+                  style={{ paintOrder: 'stroke' }}
                 >
                   {cityName(cityId)}
                   {docked > 0 && ` ⚓${number.format(docked)}`}
@@ -145,7 +161,7 @@ export function MapScreen() {
           })}
         </svg>
 
-        <h2 className="mt-4 text-xl">{t('map.routes')}</h2>
+        <h2 className="mt-1 text-xl">{t('map.routes')}</h2>
         {rules && routes.length === 0 && (
           <p className="text-muted-foreground">{t('map.noRoutes')}</p>
         )}
@@ -154,9 +170,10 @@ export function MapScreen() {
             {t('map.noRouteFor', { cities: formatList(i18n.language, unlinked.map(cityName)) })}
           </p>
         )}
-        <ul>
+        <ul className="flex flex-col gap-1.5">
           {routes.map(({ from, to, hours: duration }) => (
-            <li key={`${from}-${to}`}>
+            <li key={`${from}-${to}`} className="flex items-center gap-2">
+              <Waves aria-hidden="true" className="size-4 shrink-0 text-aegean" />
               {t('map.route', {
                 from: cityName(from),
                 to: cityName(to),
@@ -167,26 +184,37 @@ export function MapScreen() {
         </ul>
       </Card>
 
-      <Card>
+      <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('map.fleet')}</h2>
-        {ships?.length === 0 && <p className="text-muted-foreground">{t('map.noShips')}</p>}
+        {ships?.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
+            {t('map.noShips')}
+          </p>
+        )}
         {/* Arrivées vues à la relecture (chaque minute) : annoncées. */}
         {arrivals.map((voyage) => (
-          <p key={voyage.id} role="status" className="font-semibold">
+          <p
+            key={voyage.id}
+            role="status"
+            className="rounded-lg bg-success-subtle p-3 font-semibold text-foreground"
+          >
             {t('map.arrived', { city: cityName(voyage.to_city_id) })}
           </p>
         ))}
-        <ul>
+        <ul className="flex flex-col gap-2">
           {(ships ?? []).map((ship) => (
-            <li key={ship.id}>
-              <Link
-                to="/carte/navire/$shipId"
-                params={{ shipId: ship.id }}
-                className="font-semibold text-primary underline underline-offset-4"
-              >
-                {shipName(ship)}
-              </Link>
-              {t('map.afterName', { state: stateOf(ship) })}
+            <li key={ship.id} className="flex items-start gap-2 rounded-lg bg-muted/40 p-3">
+              <Ship aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-aegean" />
+              <span>
+                <Link
+                  to="/carte/navire/$shipId"
+                  params={{ shipId: ship.id }}
+                  className="font-semibold text-primary underline underline-offset-4"
+                >
+                  {shipName(ship)}
+                </Link>
+                {t('map.afterName', { state: stateOf(ship) })}
+              </span>
             </li>
           ))}
         </ul>

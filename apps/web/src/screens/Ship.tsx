@@ -1,4 +1,4 @@
-import { Button, Card } from '@oikos/ui';
+import { Anchor, Badge, Button, Card, CircleAlert, Frieze, Info } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -58,43 +58,68 @@ export function ShipScreen() {
         );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Link
         to="/carte"
-        className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        className="inline-flex min-h-11 items-center gap-2 self-start font-semibold text-primary underline underline-offset-4"
       >
         {t('ship.back')}
       </Link>
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
       {ships === null && !fleet.failed && <Loading />}
-      {ships && !ship && <p role="alert">{t('errors.SHIP_NOT_FOUND')}</p>}
+      {ships && !ship && (
+        <p role="alert" className="rounded-lg bg-danger-subtle p-3 font-semibold text-danger">
+          {t('errors.SHIP_NOT_FOUND')}
+        </p>
+      )}
       {ship && (
-        <Card>
-          <h1 className="text-2xl">{shipName(ship)}</h1>
-          <p>{ship.laid_up_at ? t('map.withLaidUp', { state: place }) : place}</p>
-          {/* Une arrivée vue à la relecture (chaque minute, ou « Relire ») est annoncée. */}
-          {arrivals.map((voyage) => (
-            <p key={voyage.id} role="status" className="font-semibold">
-              {t('ship.arrived', { city: cityName(voyage.to_city_id), cargo: cargoText(voyage) })}
+        <Card elevation="raised" className="flex flex-col gap-3 overflow-hidden p-0">
+          <Frieze tone="aegean" pattern="wave" />
+          <div className="flex flex-col gap-3 p-4">
+            <h1 className="text-2xl">{shipName(ship)}</h1>
+            <p>
+              <Badge tone="aegean" icon={<Anchor aria-hidden="true" />}>
+                {ship.laid_up_at ? t('map.withLaidUp', { state: place }) : place}
+              </Badge>
             </p>
-          ))}
-          {notice && (
-            <p
-              ref={noticeElement}
-              tabIndex={-1}
-              role={notice.kind}
-              className={notice.kind === 'alert' ? 'text-destructive' : ''}
-            >
-              {notice.text}
-            </p>
-          )}
-          <Button variant="ghost" onClick={() => void fleet.reload()}>
-            {t('ship.reload')}
-          </Button>
+            {/* Une arrivée vue à la relecture (chaque minute, ou « Relire ») est annoncée. */}
+            {arrivals.map((voyage) => (
+              <p
+                key={voyage.id}
+                role="status"
+                className="rounded-lg bg-success-subtle p-3 font-semibold text-foreground"
+              >
+                {t('ship.arrived', { city: cityName(voyage.to_city_id), cargo: cargoText(voyage) })}
+              </p>
+            ))}
+            {notice && (
+              <p
+                ref={noticeElement}
+                tabIndex={-1}
+                role={notice.kind}
+                className={
+                  'flex items-start gap-2 rounded-lg p-3 ' +
+                  (notice.kind === 'alert'
+                    ? 'bg-danger-subtle font-semibold text-danger'
+                    : 'bg-success-subtle text-foreground')
+                }
+              >
+                {notice.kind === 'alert' ? (
+                  <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                ) : (
+                  <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                )}
+                {notice.text}
+              </p>
+            )}
+            <Button variant="secondary" className="self-start" onClick={() => void fleet.reload()}>
+              {t('ship.reload')}
+            </Button>
+          </div>
         </Card>
       )}
       {ship?.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
-        <Card>
+        <Card className="flex flex-col gap-3">
           <Departure
             ship={{ ...ship, docked_city_id: ship.docked_city_id }}
             shipName={shipName(ship)}
@@ -110,18 +135,22 @@ export function ShipScreen() {
       )}
       {ship && (
         <Card>
-          <h2 className="text-xl">{t('ship.voyages')}</h2>
-          {voyages.length === 0 && <p className="text-muted-foreground">{t('ship.noVoyages')}</p>}
+          <h2 className="mb-3 text-xl">{t('ship.voyages')}</h2>
+          {voyages.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
+              {t('ship.noVoyages')}
+            </p>
+          )}
           <ul className="flex flex-col gap-3">
             {voyages.map((voyage) => (
-              <li key={voyage.id}>
+              <li key={voyage.id} className="rounded-lg bg-muted/40 p-3">
                 <h3 className="font-semibold">
                   {t('ship.voyage', {
                     from: cityName(voyage.from_city_id),
                     to: cityName(voyage.to_city_id),
                   })}
                 </h3>
-                <dl className="grid grid-cols-[auto_1fr] gap-x-3">
+                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 [&>dt]:text-muted-foreground">
                   <dt>{t('ship.departedAt')}</dt>
                   <dd>{time.format(new Date(voyage.departed_at))}</dd>
                   <dt>{voyage.arrived_at ? t('ship.arrivedAt') : t('ship.arrivesAt')}</dt>
