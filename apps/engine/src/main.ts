@@ -9,6 +9,7 @@ import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { rewriteAllOracles } from './oracle/task';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { answerAllStewardInstructions } from './steward-instruction/task';
+import { purgeStewardOperations } from './steward-retention';
 import { runAllStewards } from './stewards';
 import { TICK_STEPS } from './tick-steps';
 
@@ -75,6 +76,10 @@ await boss.work(QUEUE, async () => {
   // Texte des consignes d'intendant (#280), à la même conservation : même traitement d'un échec.
   await purgeStewardInstructions(db, { now, config: loader }).catch((error: unknown) =>
     console.error('Steward instruction purge failed', error),
+  );
+  // Opérations des intendants (#561), à leur propre conservation : même traitement d'un échec.
+  await purgeStewardOperations(db, { now, config: loader }).catch((error: unknown) =>
+    console.error('Steward operation purge failed', error),
   );
   for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
