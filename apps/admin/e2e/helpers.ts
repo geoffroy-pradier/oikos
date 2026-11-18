@@ -34,12 +34,24 @@ export async function signIn(page: Page, email: string, previousLinks = 0) {
   await page.goto(await magicLink(email, previousLinks));
 }
 
-/** Inscrit un rôle en base pour un compte, comme un humain le fait pour le tout premier super-administrateur. */
+/**
+ * Inscrit un rôle en base pour un compte. Le super-administrateur n'est nommé par personne, comme le tout premier,
+ * créé par un humain ; tout autre rôle doit l'être par un autre compte (`roles_granted_unless_root`) : un
+ * super-administrateur s'il en existe un, sinon n'importe quel autre compte de la base.
+ */
 export async function grantRole(email: string, role: string) {
   const db = createDb(process.env['DATABASE_URL'] ?? '');
-  await sql`insert into admin.roles (user_id, role)
-    select id, ${role} from auth.users where email = ${email}`.execute(db);
-  await db.destroy();
+  try {
+    const inserted = await sql`insert into admin.roles (user_id, role, granted_by)
+      select target.id, ${role}, case when ${role} = 'super_admin' then null else coalesce(
+        (select r.user_id from admin.roles r where r.role = 'super_admin' and r.user_id <> target.id limit 1),
+        (select u.id from auth.users u where u.id <> target.id limit 1)) end
+      from auth.users target where target.email = ${email}`.execute(db);
+    if (inserted.numAffectedRows !== 1n)
+      throw new Error(`Aucun compte ${email} à qui donner le rôle ${role}`);
+  } finally {
+    await db.destroy();
+  }
 }
 
 /** Inscrit le super-administrateur en base, comme un humain le fait pour le tout premier. */
