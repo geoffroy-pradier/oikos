@@ -28,7 +28,8 @@ $$;
 revoke all on function game.property_offers_upkeep() from public;
 grant execute on function game.property_offers_upkeep() to authenticated;
 
--- Vue créée une fois (ADR 0006) : une migration suivante pourra lui ajouter une colonne en fin de liste.
+-- Vue créée une fois (ADR 0006). Elle ne lit que la fonction ci-dessus, au type figé : une colonne de plus
+-- passera par une fonction nouvelle.
 do $$
 begin
   if to_regclass('public.property_offers_upkeep') is null then
