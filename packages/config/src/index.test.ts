@@ -75,6 +75,7 @@ const FIXTURE: GameConfig = {
     reportReasons: ['spam', 'other'],
     bannedTerms: ['maudit'],
     maxAppealLength: 600,
+    staleReportHours: 12,
     sanctionHours: { warning: [24], silence: [2, 12], suspension: [48] },
   },
   chronicle: { maxGoods: 5, settleSeconds: 120, maxTextLength: 1_500 },
@@ -767,6 +768,7 @@ describe('modération', () => {
       reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
       bannedTerms: [],
       maxAppealLength: 1_000,
+      staleReportHours: 24,
       sanctionHours: { warning: [168], silence: [1, 24, 72], suspension: [24, 168, 720] },
     });
     expect(Object.isFrozen(DEFAULT_MODERATION.reportReasons)).toBe(true);
@@ -803,6 +805,20 @@ describe('modération', () => {
       ]);
     expect(errors({ ...hours, ban: [1] })).not.toEqual([]);
     expect(errors({ warning: [1], silence: [1] })).not.toEqual([]);
+  });
+
+  it('seuil des signalements en attente : de 1 à 720 heures entières, 24 par défaut', () => {
+    const errors = (staleReportHours: unknown) =>
+      errorsOf({ ...clone(), moderation: { ...clone().moderation, staleReportHours } });
+    expect(errors(1)).toEqual([]);
+    expect(errors(720)).toEqual([]);
+    for (const wrong of [0, 721, 1.5])
+      expect(errors(wrong)).toEqual([expect.stringMatching(/^moderation\.staleReportHours: /)]);
+    const older: Partial<GameConfig['moderation']> = clone().moderation;
+    delete older.staleReportHours;
+    const result = validateConfig({ ...clone(), moderation: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.moderation.staleReportHours).toBe(24);
   });
 
   it('au moins un motif, sans doublon ; des termes qui portent une lettre ou un chiffre ; un appel de 1 à 2 000 caractères', () => {

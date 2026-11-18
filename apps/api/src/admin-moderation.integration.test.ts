@@ -3,7 +3,7 @@ import { adminReportsSchema, type AdminRole } from '@oikos/contracts';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { appWith, codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
-import { testConfig } from './test-config';
+import { TEST_CONFIG, testConfig } from './test-config';
 
 // Commandes d'administration de la modération (#276), contre Supabase local : rôles, sanction, double validation
 // de l'exclusion, masquage. Les comptes de l'équipe sont inscrits par le test ; leurs rôles sont retirés à la fin.
@@ -450,5 +450,64 @@ describe('GET /api/admin/reports', () => {
         status: 403,
       })),
     ]);
+  });
+});
+
+describe('signalements en attente depuis plus que le seuil (15.5, #530)', () => {
+  const staleWith = async (hours: number) => {
+    const config = {
+      ...TEST_CONFIG,
+      config: {
+        ...TEST_CONFIG.config,
+        moderation: { ...TEST_CONFIG.config.moderation, staleReportHours: hours },
+      },
+    };
+    const res = await appWith(async () => config).request('/api/admin/vigie', {
+      headers: { authorization: `Bearer ${await member('observer')}` },
+    });
+    expect(res.status).toBe(200);
+    return ((await res.json()) as { data: { staleReports: Record<string, number | null> } }).data
+      .staleReports;
+  };
+
+  it('compte les signalements ouverts plus anciens que le seuil de la configuration, et rend ce seuil', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    for (const body of ['Ancien', 'Récent']) await post(bob.user, world.kallisteChannel, body);
+    const messages = await rows(sql<{ id: string }>`
+      select id from game.messages where house_id = ${bob.houseId} order by body`);
+    const [before24, before48] = [await staleWith(24), await staleWith(48)];
+    const [old, recent] = messages.map((m) => m.id);
+    for (const messageId of [old, recent])
+      expect((await send(alice.user, 'chat.report', { messageId, reason: 'spam' })).status).toBe(
+        200,
+      );
+    // Un signalement est immuable et daté de sa transaction : l'essai en recule un sans les gardes.
+    await owner.transaction().execute(async (tx) => {
+      await sql`set local session_replication_role = replica`.execute(tx);
+      await sql`update game.reports set created_at = now() - interval '30 hours'
+        where message_id = ${old}`.execute(tx);
+    });
+    const [after24, after48] = [await staleWith(24), await staleWith(48)];
+    expect(after24).toMatchObject({ afterHours: 24, count: (before24.count ?? 0) + 1 });
+    expect(after24.oldestHours).toBeGreaterThanOrEqual(30);
+    expect(after48).toMatchObject({ afterHours: 48, count: before48.count });
+    // Traité, il n'attend plus.
+    const moderator = await member('moderator');
+    const [report] = await rows(
+      sql<{ id: string }>`select id from game.reports where message_id = ${old}`,
+    );
+    await send(moderator, 'admin.resolveReport', { reportId: report?.id, decision: 'dismissed' });
+    expect((await staleWith(24)).count).toBe(before24.count);
+    const queue = adminReportsSchema.parse(
+      (
+        (await (
+          await appWith(testConfig).request('/api/admin/reports', {
+            headers: { authorization: `Bearer ${moderator}` },
+          })
+        ).json()) as { data: unknown }
+      ).data,
+    );
+    expect(queue.staleAfterHours).toBe(TEST_CONFIG.config.moderation.staleReportHours);
   });
 });

@@ -1,4 +1,4 @@
-import { ConfigError, databaseKnowsTimezone } from '@oikos/config';
+import { ConfigError, DEFAULT_MODERATION, databaseKnowsTimezone } from '@oikos/config';
 import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
@@ -242,6 +242,28 @@ export function registerAdminReads(
         throw error;
       },
     );
+    // Signalements ouverts depuis plus que le seuil de la configuration (15.5) ; nul sans configuration lisible.
+    const staleReports = await loadConfig(now).then(
+      async (loaded) => {
+        const hours = loaded.config.moderation.staleReportHours;
+        const { rows } = await sql<{ n: string; oldest: string | null }>`
+          select count(*)::text as n,
+                 floor(extract(epoch from now() - min(created_at)) / 3600)::text as oldest
+          from game.reports
+          where state = 'open' and created_at < now() - ${hours}::int * interval '1 hour'`.execute(
+          db,
+        );
+        return {
+          afterHours: hours,
+          count: Number(rows[0]?.n),
+          oldestHours: rows[0]?.oldest == null ? null : Number(rows[0].oldest),
+        };
+      },
+      (error: unknown) => {
+        if (error instanceof ConfigError) return null;
+        throw error;
+      },
+    );
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -258,6 +280,7 @@ export function registerAdminReads(
           maxDurationMs: total?.tick_max_ms ?? null,
         },
         voyagesOverdue,
+        staleReports,
         // Une clôture en échec (une maison en erreur annule celle de tout son monde) : comptée, et la
         // dernière erreur, qui nomme l'étape et la maison, affichée.
         closes24h: {
@@ -445,7 +468,20 @@ export function registerAdminReads(
     );
     const [row] = rows;
     if (!row) throw new Error('The database returned no moderation queue');
-    const data = { now: row.now.toISOString(), contextSize: REPORT_CONTEXT_MESSAGES, ...row.queue };
+    // Sans configuration en vigueur lisible, la file reste lisible avec le seuil par défaut de la configuration.
+    const staleAfterHours = await loadConfig(row.now).then(
+      ({ config }) => config.moderation.staleReportHours,
+      (error: unknown) => {
+        if (error instanceof ConfigError) return DEFAULT_MODERATION.staleReportHours;
+        throw error;
+      },
+    );
+    const data = {
+      now: row.now.toISOString(),
+      contextSize: REPORT_CONTEXT_MESSAGES,
+      staleAfterHours,
+      ...row.queue,
+    };
     return c.json({ ok: true, data });
   });
 

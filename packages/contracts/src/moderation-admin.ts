@@ -193,6 +193,8 @@ const queueMessageSchema = z.strictObject({
 export const adminReportsSchema = z.strictObject({
   now: instant,
   contextSize: z.number().int().nonnegative(),
+  /** Seuil d'alerte des signalements en attente, en heures (`moderation.staleReportHours`). */
+  staleAfterHours: z.number().int().positive(),
   /** Une entrée par message signalé, la plus ancienne d'abord, puis la plus signalée. */
   queue: z.array(
     z.strictObject({

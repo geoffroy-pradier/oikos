@@ -1,8 +1,6 @@
-import { ADMIN_MODULE_ROLES, type AdminReports, type AdminRole } from '@oikos/contracts';
 import { Button } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
-import { staleReportHours } from '../moderation-age';
 import { TABLE } from '../table';
 import { useAdmin } from '../useAdmin';
 import { StaleReportsAlert } from './Moderation';
@@ -17,6 +15,11 @@ interface VigieData {
    * confondus. `null` sans configuration en vigueur lisible ; absent d'une API antérieure : rien n'est affiché.
    */
   voyagesOverdue?: number | null;
+  /**
+   * Signalements ouverts depuis plus de `afterHours` (`moderation.staleReportHours`), et ancienneté du plus
+   * ancien, en heures. `null` sans configuration lisible ; absent d'une API antérieure : rien n'est affiché.
+   */
+  staleReports?: { afterHours: number; count: number; oldestHours: number | null } | null;
   /** Absent d'une API antérieure à ce champ : rien n'est affiché à sa place. */
   closes24h?: { failed: number; lastError: string | null };
   recentTicks: {
@@ -74,20 +77,8 @@ const review = (selfReviewAllowed: unknown) =>
       ? 'reviewRequired'
       : 'reviewUnknown';
 
-/**
- * Alerte « signalements en attente depuis plus de 24 h » (15.5) : elle lit la file de la modération, que seuls
- * les rôles de ce module peuvent lire. Une lecture en échec n'affiche rien : la Vigie ne s'en trouble pas.
- */
-function StaleReports({ accessToken }: { accessToken: string }) {
-  const { data } = useAdmin<AdminReports>('reports', accessToken);
-  return <StaleReportsAlert hours={staleReportHours(data)} />;
-}
-
-/**
- * Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). `role` : le rôle du compte, qui décide si
- * l'alerte des signalements en attente est lue.
- */
-export function Vigie({ accessToken, role }: { accessToken: string; role?: AdminRole }) {
+/** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
+export function Vigie({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const { data, error, reload } = useAdmin<VigieData>('vigie', accessToken);
   const number = new Intl.NumberFormat(i18n.language);
@@ -128,6 +119,18 @@ export function Vigie({ accessToken, role }: { accessToken: string; role?: Admin
                   : number.format(data.voyagesOverdue),
               ],
             ] as [string, string][])),
+        ...(data.staleReports === undefined
+          ? []
+          : ([
+              [
+                data.staleReports === null
+                  ? t('vigie.staleReportsUnknown')
+                  : t('vigie.staleReports', { hours: data.staleReports.afterHours }),
+                data.staleReports === null
+                  ? t('vigie.none')
+                  : number.format(data.staleReports.count),
+              ],
+            ] as [string, string][])),
         ...(data.closes24h
           ? ([
               [t('vigie.closesFailed'), number.format(data.closes24h.failed)],
@@ -162,8 +165,12 @@ export function Vigie({ accessToken, role }: { accessToken: string; role?: Admin
       </div>
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
-      {role && (ADMIN_MODULE_ROLES.moderation as readonly AdminRole[]).includes(role) && (
-        <StaleReports accessToken={accessToken} />
+      {/* Signalements ouverts au-delà du seuil de la configuration (15.5) : l'API les compte. */}
+      {data?.staleReports && data.staleReports.count > 0 && (
+        <StaleReportsAlert
+          hours={data.staleReports.oldestHours ?? data.staleReports.afterHours}
+          limit={data.staleReports.afterHours}
+        />
       )}
       {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
       {data?.selfReviewAllowed === true && (
