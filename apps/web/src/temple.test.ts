@@ -7,6 +7,7 @@ import {
   offeringQuote,
   parseCityCharis,
   parseFavor,
+  parseOracles,
   parseTempleRules,
 } from './temple';
 
@@ -26,8 +27,9 @@ describe('règles des temples (#272)', () => {
     });
   });
 
-  it('aucune ligne : aucun dieu ; une ligne illisible : null', () => {
-    expect(parseTempleRules(null)).toEqual({ gods: [] });
+  it('aucune ligne : ni dieu, ni grâce, ni Pythie ; une ligne illisible : null', () => {
+    expect(parseTempleRules(null)).toEqual({ gods: [], graces: [], oracle: null });
+    expect(parseTempleRules({ oracle: { godId: 'apollo', consultationOboles: 0 } })).toBeNull();
     expect(parseTempleRules({ gods: [{ id: 'demeter', dailyDecayBps: 20_000 }] })).toBeNull();
   });
 
@@ -94,5 +96,25 @@ describe('intention comptée sur la Charis (#272)', () => {
     expect(charisIntentStale('offering', new Map([['demeter', 112]]))(intent)).toBe(true);
     expect(charisIntentStale('oracle', new Map())(intent)).toBe(false);
     expect(charisIntentStale('oracle', new Map())(charisIntent('oracle', 'apollo', 60))).toBe(true);
+  });
+});
+
+describe('oracles consultés (#272)', () => {
+  it('ceux de la maison, du plus récemment consulté au plus ancien ; une ligne illisible : null', () => {
+    const row = (id: string, at: string, houseId = 'h1') => ({
+      id,
+      house_id: houseId,
+      text_fr: `fr ${id}`,
+      text_en: `en ${id}`,
+      source: 'fallback',
+      consulted_at: at,
+    });
+    const rows = [
+      row('a', '2026-11-16T10:00:00+00:00'),
+      row('b', '2026-11-17T10:00:00.5+00:00'),
+      row('c', '2026-11-18T10:00:00+00:00', 'h2'),
+    ];
+    expect(parseOracles(rows, 'h1')?.map((oracle) => oracle.id)).toEqual(['b', 'a']);
+    expect(parseOracles([{ ...row('a', 'hier') }], 'h1')).toBeNull();
   });
 });
