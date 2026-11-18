@@ -5,6 +5,7 @@ import { useRows, useTempleRules } from '../data';
 import { useHouse } from '../house';
 import { charisByGod, parseCityCharis, parseFavor } from '../temple';
 import { LoadProblem, Loading } from './LoadProblem';
+import { TempleGraces } from './TempleGraces';
 import { TempleOffering } from './TempleOffering';
 
 /**
@@ -98,6 +99,13 @@ export function TempleScreen() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('temple.offering.title')}</h2>
         {rules.rules && <TempleOffering rules={rules.rules} favor={favor} onDone={reload} />}
+      </Card>
+      <Card className="flex flex-col gap-3">
+        {rules.rules && favor ? (
+          <TempleGraces rules={rules.rules} favor={favor} onDone={reload} />
+        ) : (
+          <h2 className="text-xl">{t('temple.graces.title')}</h2>
+        )}
       </Card>
     </div>
   );

@@ -357,7 +357,7 @@
     "GRACE_NOT_FOUND": "Cette grâce n'est plus offerte dans la configuration en vigueur. Rechargez la page.",
     "INSUFFICIENT_CHARIS": "Votre Charis envers ce dieu ne suffit pas pour invoquer cette grâce.",
     "GRACE_PENDING": "Cette grâce attend encore l'action qui la consommera : elle ne s'invoque pas de nouveau d'ici là.",
-    "GRACE_RECHARGING": "Cette grâce se recharge : elle se réinvoquera à la clôture indiquée.",
+    "GRACE_RECHARGING": "Cette grâce se recharge : sa fiche dit jusqu'à quand.",
     "ORACLE_UNAVAILABLE": "La Pythie ne se consulte pas dans la configuration en vigueur : rien n'a été payé."
   },
   "shell": {
@@ -842,6 +842,30 @@
       "quote": "Cette offrande vous rapportera {{charis}} Charis envers {{god}}.",
       "submit": "Offrir à {{god}} (+{{charis}} Charis)",
       "done": "Offrande faite à {{god}} : +{{gained}} Charis. Votre Charis envers {{god}} : {{charis}}."
+    },
+    "graces": {
+      "title": "Grâces",
+      "none": "Aucune grâce n'est offerte dans la configuration en vigueur.",
+      "name": "{{effect}} ({{god}})",
+      "effects": {
+        "blessed_harvest": "Récolte bénie",
+        "inspired_workshop": "Atelier inspiré",
+        "fair_wind": "Vent favorable"
+      },
+      "effect": {
+        "blessed_harvest": "La prochaine récolte d'un site de matière première rend {{percent}} de plus.",
+        "inspired_workshop": "La prochaine récolte d'un atelier rend {{percent}} de plus, sans intrant de plus.",
+        "fair_wind": "Le prochain départ d'un navire dure {{percent}} de moins.",
+        "unknown": "Effet que cette version de l'écran ne sait pas décrire."
+      },
+      "cost_one": "Requiert {{required}} Charis envers {{god}} et en dépense {{spent}} ; se recharge {{count}} jour de jeu.",
+      "cost_other": "Requiert {{required}} Charis envers {{god}} et en dépense {{spent}} ; se recharge {{count}} jours de jeu.",
+      "invoke": "Invoquer {{grace}} (−{{spent}} Charis)",
+      "short": "Charis insuffisante : il vous en manque {{missing}}.",
+      "pending": "En attente : elle s'appliquera à votre prochaine action de cet effet.",
+      "pendingRecharging": "En attente : elle s'appliquera à votre prochaine action de cet effet, et se recharge jusqu'au {{date}}.",
+      "recharging": "En recharge jusqu'au {{date}}.",
+      "done": "Grâce invoquée : {{grace}}. Elle s'appliquera à votre prochaine action de cet effet et se recharge jusqu'au {{date}}. Votre Charis envers ce dieu : {{charis}}."
     }
   }
 }

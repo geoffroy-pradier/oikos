@@ -357,7 +357,7 @@
     "GRACE_NOT_FOUND": "This grace is no longer offered in the configuration in force. Reload the page.",
     "INSUFFICIENT_CHARIS": "Your Charis toward this god is not enough to invoke this grace.",
     "GRACE_PENDING": "This grace is still waiting for the action that will consume it: it cannot be invoked again until then.",
-    "GRACE_RECHARGING": "This grace is recharging: it can be invoked again at the close shown.",
+    "GRACE_RECHARGING": "This grace is recharging: its card shows until when.",
     "ORACLE_UNAVAILABLE": "The Pythia cannot be consulted in the configuration in force: nothing was paid."
   },
   "shell": {
@@ -842,6 +842,30 @@
       "quote": "This offering will earn you {{charis}} Charis toward {{god}}.",
       "submit": "Offer to {{god}} (+{{charis}} Charis)",
       "done": "Offering made to {{god}}: +{{gained}} Charis. Your Charis toward {{god}}: {{charis}}."
+    },
+    "graces": {
+      "title": "Graces",
+      "none": "No grace is offered in the configuration in force.",
+      "name": "{{effect}} ({{god}})",
+      "effects": {
+        "blessed_harvest": "Blessed harvest",
+        "inspired_workshop": "Inspired workshop",
+        "fair_wind": "Fair wind"
+      },
+      "effect": {
+        "blessed_harvest": "The next harvest of a raw-material site yields {{percent}} more.",
+        "inspired_workshop": "The next harvest of a workshop yields {{percent}} more, with no extra input.",
+        "fair_wind": "The next departure of a ship takes {{percent}} less time.",
+        "unknown": "An effect this version of the screen cannot describe."
+      },
+      "cost_one": "Requires {{required}} Charis toward {{god}} and spends {{spent}}; recharges for {{count}} game day.",
+      "cost_other": "Requires {{required}} Charis toward {{god}} and spends {{spent}}; recharges for {{count}} game days.",
+      "invoke": "Invoke {{grace}} (−{{spent}} Charis)",
+      "short": "Not enough Charis: you are {{missing}} short.",
+      "pending": "Waiting: it will apply to your next action of this effect.",
+      "pendingRecharging": "Waiting: it will apply to your next action of this effect, and recharges until {{date}}.",
+      "recharging": "Recharging until {{date}}.",
+      "done": "Grace invoked: {{grace}}. It will apply to your next action of this effect and recharges until {{date}}. Your Charis toward this god: {{charis}}."
     }
   }
 }
