@@ -8,6 +8,7 @@ import { MessagesScreen } from './screens/Messages';
 import { PropertyScreen } from './screens/Property';
 import { ShipScreen } from './screens/Ship';
 import { StaffScreen } from './screens/Staff';
+import { TempleScreen } from './screens/Temple';
 import { NotFound } from './screens/NotFound';
 import { Shell } from './Shell';
 
@@ -27,6 +28,7 @@ const routeTree = rootRoute.addChildren([
   route('/carte/navire/$shipId', ShipScreen),
   route('/agora', AgoraScreen),
   route('/cite', CityScreen),
+  route('/cite/temple', TempleScreen),
   route('/messages', MessagesScreen),
 ]);
 

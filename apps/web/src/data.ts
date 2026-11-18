@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { parseShipRules } from './ship-rules';
 import { parseSiteRules } from './site-rules';
 import { supabase } from './supabase';
+import { parseTempleRules } from './temple';
 
 /**
  * Lit les lignes d'une vue de lecture (les règles par ligne ne rendent que celles du joueur).
@@ -118,3 +119,7 @@ export const useSiteRules = () => useRulesRow('site_rules', 'recipes, sites', pa
 
 /** Règles du transport de la configuration en vigueur (vue `ship_rules`, une ligne). */
 export const useShipRules = () => useRulesRow('ship_rules', 'ships', parseShipRules);
+
+/** Règles des temples de la configuration en vigueur (vue `temple_rules`, une ligne). */
+export const useTempleRules = () =>
+  useRulesRow('temple_rules', 'gods, graces, oracle', parseTempleRules);
