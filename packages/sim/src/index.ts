@@ -17,6 +17,7 @@ export * from './production';
 export * from './property';
 export * from './rent';
 export * from './rng';
+export * from './steward';
 export * from './tax';
 export * from './upkeep';
 export * from './voyage';
