@@ -106,10 +106,17 @@ jobs:
         run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
       - name: Test database
         run: pnpm db:reset && pnpm test:db
+      # Identifie, dans le journal de Postgres, la session qui tient un verrou plus d'une seconde (ticket #489).
+      - name: Log lock waits
+        run: |
+          psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
       - name: Replay migrations
         env:
           REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:replay
+      - name: Lock waits in the Postgres log
+        if: failure()
+        run: docker logs supabase_db_oikos 2>&1 | grep -iE 'lock|deadlock' | tail -n 50 || true
       - name: Deploy migrations
         env:
           MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
@@ -168,11 +175,18 @@ jobs:
             end if;
           end $check$;
           SQL
+      # Identifie, dans le journal de Postgres, la session qui tient un verrou plus d'une seconde (ticket #489).
+      - name: Log lock waits
+        run: |
+          psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
       # Filet de la règle 9 : la suite des migrations se rejoue aussi sur une base remplie de données.
       - name: Replay migrations on data
         env:
           REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:replay
+      - name: Lock waits in the Postgres log
+        if: failure()
+        run: docker logs supabase_db_oikos 2>&1 | grep -iE 'lock|deadlock' | tail -n 50 || true
 
   e2e:
     needs: changes
