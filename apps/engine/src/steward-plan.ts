@@ -1,6 +1,6 @@
 import { stewardRulesLimit, type GameConfig } from '@oikos/config';
 import { MAX_ORDER_QUANTITY } from '@oikos/contracts';
-import type { Db } from '@oikos/db';
+import { notSanctioned, type Db } from '@oikos/db';
 import {
   accrueProduction,
   nextStewardOperation,
@@ -42,11 +42,7 @@ export const candidates = (db: Db, tick: StewardTick, perTick: number) =>
       sql<boolean>`(select count(*) from game.steward_operations o
         where o.steward_id = s.id and o.tick_index = ${tick.index}) < ${perTick}`,
     )
-    .where(
-      sql<boolean>`not exists (select 1 from admin.sanctions x where x.user_id = h.user_id
-        and x.kind in ('suspension', 'ban') and x.starts_at <= now()
-        and (x.ends_at is null or x.ends_at > now()) and (x.kind <> 'ban' or x.validated_by is not null))`,
-    )
+    .where(notSanctioned(sql.ref('h.user_id')))
     .orderBy('s.hired_at')
     .orderBy('s.id')
     .execute();

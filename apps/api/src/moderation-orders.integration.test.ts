@@ -277,6 +277,87 @@ describe('validation d’une exclusion (#528)', () => {
     expect(n).toBe(1);
   });
 
+  /**
+   * Un ordre d'Alice, déjà passé au contrôle des sanctions du registre (l'exclusion n'est pas encore validée), et la
+   * validation de son exclusion attendent ensemble le verrou d'agora, que le test tient ; `validationFirst` dit qui
+   * est en file le premier. Rend les deux réponses et ce qu'il faut vérifier ensuite.
+   */
+  async function race(validationFirst: boolean) {
+    const world = await newWorld();
+    const alice = await world.player();
+    const first = await placed(order(alice, world.kalliste, 'buy', 4, 2));
+    const start = await money(alice.houseId);
+    const sanctionId = await propose(alice.user);
+    const validator = await moderator();
+    const agora = `market:${world.worldId}`;
+    /** Attend que `n` transactions attendent le verrou d'agora du monde. */
+    const queued = async (n: number) => {
+      for (let tries = 0; tries < 300; tries += 1) {
+        const [{ waiting } = { waiting: 0 }] = await rows(sql<{ waiting: number }>`
+          select count(*)::int as waiting from pg_locks, hashtextextended(${agora}, 0) as k
+          where locktype = 'advisory' and not granted
+            and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`);
+        if (waiting >= n) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error(`${n} transactions never queued for ${agora}`);
+    };
+    const late = () => order(alice, world.kalliste, 'buy', 3, 5);
+    const confirm = () => send(validator, 'admin.confirmExclusion', { sanctionId });
+    const replies = await owner.transaction().execute(async (trx) => {
+      await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(trx);
+      const [one, two] = validationFirst ? [confirm, late] : [late, confirm];
+      const firstReply = one();
+      await queued(1);
+      const secondReply = two();
+      await queued(2);
+      return validationFirst
+        ? { confirmed: firstReply, late: secondReply }
+        : { late: firstReply, confirmed: secondReply };
+    });
+    return {
+      alice,
+      first,
+      start,
+      late: await replies.late,
+      confirmed: await replies.confirmed,
+    };
+  }
+
+  it('un ordre en file avant la validation est annulé avec les autres, jamais laissé ouvert', async () => {
+    // Sans le verrou d'agora de la validation, elle validerait sans voir l'ordre, qui resterait ouvert.
+    const { alice, first, start, late, confirmed } = await race(false);
+    expect(late.status).toBe(200);
+    expect(confirmed.status).toBe(200);
+    expect(await statusOf([first, late.body.data.orderId as string])).toEqual([
+      'cancelled',
+      'cancelled',
+    ]);
+    expect(await money(alice.houseId)).toEqual({
+      treasury: start.treasury + start.escrow,
+      escrow: 0,
+    });
+  });
+
+  it('un ordre en file après la validation est refusé : la sanction est relue sous le verrou d’agora', async () => {
+    // Le registre a lu la sanction au début de la transaction, avant la validation : seule la relecture de
+    // `placeOrder`, sous le verrou, voit l'exclusion validée pendant l'attente.
+    const { alice, first, start, late, confirmed } = await race(true);
+    expect(confirmed.status).toBe(200);
+    expect(codeOf(late)).toEqual([409, 'SUSPENDED']);
+    expect(
+      await rows(sql`select id, status from game.orders where house_id = ${alice.houseId}`),
+    ).toEqual([{ id: first, status: 'cancelled' }]);
+    expect(await money(alice.houseId)).toEqual({
+      treasury: start.treasury + start.escrow,
+      escrow: 0,
+    });
+    const [logged] = await rows(sql<{ status: string; error_code: string }>`
+      select status, error_code from game.command_log
+      where user_id = ${alice.user} and command = 'market.placeOrder' order by created_at desc limit 1`);
+    expect(logged).toEqual({ status: 'rejected', error_code: 'SUSPENDED' });
+  });
+
   it('une maison sans ordre ouvert, ou un compte sans maison : la validation passe sans écriture', async () => {
     const world = await newWorld();
     const alice = await world.player();
@@ -296,5 +377,65 @@ describe('validation d’une exclusion (#528)', () => {
       await rows(sql`select count(*)::int as n from game.ledger_entries
         where world_id = ${world.worldId} and kind = 'market.escrow_release'`),
     ).toEqual([{ n: 0 }]);
+  });
+
+  it('en même temps que ses annulations, des achats et des ventes d’autres maisons : ni interblocage, ni séquestre rendu deux fois', async () => {
+    for (let round = 0; round < 3; round += 1) {
+      const world = await newWorld();
+      const alice = await world.player();
+      const [bob, chloe] = [await world.player(), await world.player()];
+      const start = await money(alice.houseId);
+      await give(world.worldId, world.kalliste, alice, 6);
+      await give(world.worldId, world.kalliste, bob, 6);
+      const buys = [
+        await placed(order(alice, world.kalliste, 'buy', 8, 3)),
+        await placed(order(alice, world.kalliste, 'buy', 7, 3)),
+        await placed(order(alice, world.elaia, 'buy', 9, 2)),
+      ];
+      const sells = [
+        await placed(order(alice, world.kalliste, 'sell', 20, 3)),
+        await placed(order(alice, world.kalliste, 'sell', 21, 3)),
+      ];
+      const total = await totalOf([world.worldId]);
+      const sanctionId = await propose(alice.user);
+      const validator = await moderator();
+      const replies = await Promise.all([
+        send(validator, 'admin.confirmExclusion', { sanctionId }),
+        ...[buys[0], sells[1], buys[2]].map((orderId) =>
+          send(alice.user, 'market.cancelOrder', { orderId }),
+        ),
+        // Bob vend dans les achats d'Alice, Chloé achète ses ventes : ils prennent le verrou d'agora.
+        order(bob, world.kalliste, 'sell', 7, 4),
+        order(chloe, world.kalliste, 'buy', 21, 4),
+      ]);
+      expect(replies[0]?.status).toBe(200);
+      for (const reply of replies.slice(1, 4))
+        expect([
+          [200, undefined],
+          [409, 'ORDER_NOT_OPEN'],
+        ]).toContainEqual(codeOf(reply));
+      for (const reply of replies.slice(4)) expect(reply.status).toBe(200);
+      // Plus rien d'ouvert chez Alice : servi avant, annulé par elle ou par l'exclusion.
+      expect((await statusOf([...buys, ...sells])).every((status) => status !== 'open')).toBe(true);
+      expect(await money(alice.houseId)).toMatchObject({ escrow: 0 });
+      expect(await reservedOf(alice.houseId)).toBe(0);
+      expect(await totalOf([world.worldId])).toBe(total);
+      expect(await unbalanced([world.worldId])).toEqual([]);
+      // Ce qu'Alice a acheté a été payé par son séquestre, le reste lui est revenu : sa monnaie (trésorerie et
+      // séquestre) a baissé de ce qu'elle a payé, et monté du net de ses ventes.
+      const [flows] = await rows(sql<{ paid: string; earned: string }>`
+        select
+          coalesce(sum(t.price * t.quantity) filter (where b.house_id = ${alice.houseId}), 0) as paid,
+          coalesce(sum(l.amount) filter (where s.house_id = ${alice.houseId}), 0) as earned
+        from game.trades t
+        join game.orders b on b.id = t.buy_order_id join game.orders s on s.id = t.sell_order_id
+        left join game.ledger_lines l on l.entry_id = t.ledger_entry_id
+          and l.account_id = (select id from game.accounts where house_id = ${alice.houseId} and kind = 'house')
+        where t.world_id = ${world.worldId}`);
+      const after = await money(alice.houseId);
+      expect(after.treasury + after.escrow).toBe(
+        start.treasury + start.escrow - Number(flows?.paid) + Number(flows?.earned),
+      );
+    }
   });
 });

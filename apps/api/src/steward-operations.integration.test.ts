@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { INITIAL_CONFIG, publishVersion, type GameConfig } from '@oikos/config';
 import { runAllStewards, runStewards } from '@oikos/engine';
 import { createDb } from '@oikos/db';
@@ -391,6 +392,48 @@ describe('opérations des intendants', () => {
     expect(run.failed).toBe(0);
     expect((await operationsOf(id)).map((op) => op.status)).toEqual(['ok']);
     expect((await stock(player.houseId, 'wheat')).quantity).toBe(before.quantity + 40);
+  });
+
+  it('compte exclu pendant que l’intendant attend l’agora : relu sous ce verrou, il ne place plus d’ordre (#528)', async () => {
+    const player = await newPlayer();
+    const id = await steward(player.user, player.field, [holdWheat]);
+    // Le compte exclu ne renvoie plus son intendant (`SUSPENDED`) : exclu, il n'est plus mené à aucun tick.
+    hired.splice(
+      hired.findIndex((entry) => entry.id === id),
+      1,
+    );
+    await give(player.houseId, 'wheat', 10, await cityOf(player.field));
+    const agora = `market:${WORLD}`;
+    const held = await owner.startTransaction().execute();
+    await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(held);
+    // L'intendant a lu la liste des intendants (compte encore libre) et attend le verrou d'agora.
+    const running = runStewards(db, tick());
+    for (let tries = 0; ; tries += 1) {
+      const waiting = await sql<{ n: number }>`
+        select count(*)::int as n from pg_locks, hashtextextended(${agora}, 0) as k
+        where locktype = 'advisory' and not granted
+          and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`.execute(
+        owner,
+      );
+      if ((waiting.rows[0]?.n ?? 0) > 0) break;
+      if (tries > 300) throw new Error('The steward never waited for the agora');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    // Une exclusion validée entre-temps, comme par `admin.confirmExclusion` (qui annule alors les ordres du compte).
+    const [author, validator] = [randomUUID(), randomUUID()];
+    for (const user of [author, validator])
+      await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
+        owner,
+      );
+    await sql`insert into admin.sanctions (user_id, kind, reason, author_id, validated_by)
+      values (${player.user}, 'ban', 'Triche', ${author}, ${validator})`.execute(owner);
+    await held.commit().execute();
+    expect((await running).failed).toBe(0);
+    expect(await operationsOf(id)).toEqual([]);
+    expect(await stock(player.houseId, 'wheat')).toEqual({ quantity: 10, reserved: 0 });
+    const orders = await sql<{ n: number }>`
+      select count(*)::int as n from game.orders where house_id = ${player.houseId}`.execute(owner);
+    expect(orders.rows).toEqual([{ n: 0 }]);
   });
 
   it('la clé d’une opération est hors de portée du joueur : l’API la refuse, l’intendant la prend', async () => {

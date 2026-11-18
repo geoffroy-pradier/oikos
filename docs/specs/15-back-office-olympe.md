@@ -156,6 +156,13 @@ Chaque ordre annulé produit son `OrderCancelled`, sous la commande de validatio
 Une exclusion proposée et pas encore validée n'annule rien.
 Ses stocks et sa trésorerie restent à la maison : leur saisie attend un ticket de suite.
 La réponse de la commande et le journal d'audit ne disent rien de ces ordres ni de ces oboles : un modérateur ne lit aucune donnée économique privée.
+Ordre des verrous : la validation prend le verrou d'agora de chaque monde où le compte a une maison, dans l'ordre des identifiants, avant toute ligne, comme un ordre placé, la demande des PNJ, la clôture et le rachat ;
+puis les ordres, la trésorerie et le séquestre de chaque maison, dans l'ordre de `market.cancelOrder`.
+Le registre lit la sanction au début de la transaction d'une commande ; `market.placeOrder` la relit sous le verrou d'agora, à l'heure de l'instruction, et refuse alors un compte suspendu ou exclu (`SUSPENDED`), sans rien écrire.
+Un ordre que le compte place pendant la validation, déjà passé au contrôle du registre, est donc annulé avec les autres s'il a pris le verrou avant elle, et refusé (`SUSPENDED`) s'il le prend après : jamais laissé ouvert ;
+une annulation par le joueur au même instant passe avant ou après, et le séquestre n'est rendu qu'une fois.
+Un intendant du compte relit aussi la sanction sous ce verrou, avant l'opération (4.4) : il ne place pas d'ordre pour un compte exclu pendant qu'il attendait, et rien n'est noté.
+Reste une fenêtre : une maison fondée dans un autre monde pendant la validation, et qui y place aussitôt un ordre ; elle demande deux commandes du compte à l'instant de la validation, et n'est pas couverte.
 
 Dans la première version, une commande d'administration (`admin.*`) n'est exécutée que si la session porte le second facteur (niveau `aal2` du jeton) et si le compte a, dans `admin.roles`, l'un des rôles que la commande autorise ;
 le rôle est relu à chaque commande. Tout refus (`FORBIDDEN`) est journalisé comme une commande rejetée.

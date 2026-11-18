@@ -1,5 +1,5 @@
 import type { MarketPlaceOrderInput, MarketPlaceOrderOutput } from '@oikos/contracts';
-import { cityRatesOf } from '@oikos/db';
+import { cityRatesOf, notSanctioned } from '@oikos/db';
 import { marketTax, planLimitOrder } from '@oikos/sim';
 import { sql } from 'kysely';
 import {
@@ -97,6 +97,17 @@ export const placeOrder = defineOperation({
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${house.world_id}`}, 0))`.execute(
       trx,
     );
+    // Sanction relue sous ce verrou, à l'heure de l'instruction (#528) : le registre l'a contrôlée au début de la
+    // transaction, mais une exclusion validée pendant l'attente du verrou a déjà annulé les ordres du compte ; un
+    // ordre placé après elle resterait ouvert, sous séquestre, chez un compte exclu.
+    // Colonne qualifiée : la sous-requête de `notSanctioned` a aussi un `user_id`.
+    const sanctioned = await trx
+      .selectFrom('game.houses as h')
+      .select('h.id')
+      .where('h.id', '=', house.id)
+      .where((eb) => eb.not(notSanctioned(sql.ref('h.user_id'))))
+      .executeTakeFirst();
+    if (sanctioned) return refuse('SUSPENDED', 'This account is suspended.');
     const buying = input.side === 'buy';
     const accountOf = (houseId: string, kind: 'house' | 'escrow') =>
       trx
