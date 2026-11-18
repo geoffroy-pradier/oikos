@@ -4,9 +4,8 @@ Point d'étape au 18 novembre 2026, vers 19 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
 Vingt-neuf sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #272 (écran Temple), #273 et #274 (discussion, puis temps réel et onglet Messages), #275 à #277 (modération : signalement et sanctions, commandes d'administration, module Olympe), #278 (intendants, 1/3) et #291 (écran Sites filtré par terroir).
-Les suivis #333, #354, #403, #404, #417, #441, #444, #456, #463, #477, #484, #485, #489, #527, #530 et #532 sont fermés eux aussi.
+Les suivis #333, #354, #403, #404, #417, #420, #441, #444, #456, #463, #477, #484, #485, #489, #527, #530 et #532 sont fermés eux aussi.
 Des suivis restent ouverts :
-- #420, de #264 (« depuis quand » du statut), dont la demande de fusion #559 attend `ci` ;
 - #446, de #267 (tests complémentaires des événements) ;
 - #495, de #270 (contrôle de sortie des oracles, données de test, interblocage) ;
 - #528, de #275 (ordres et séquestre d'un compte suspendu ou exclu) ;
@@ -147,7 +146,7 @@ Ajouts de la phase 2 :
   Le trésor de chaque cité est public : solde et flux par jour et par nature (vues `city_treasury` et `city_treasury_flows`).
 - **Écran Cité** (#264, 10) : l'onglet Cité montre le statut de la maison, la vie politique (archonte, élection en cours avec candidature et vote, derniers résultats), l'assemblée (décrets au vote, vote en deux touches, décrets adoptés et en vigueur, formulaire de proposition de l'archonte aux bornes annoncées) et le trésor public (solde, flux par jour, taxes en vigueur).
   Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
-  La date du statut attend #420.
+  Il dit depuis quand la maison est citoyenne ou métèque, d'après la vue `my_citizenships` (#420), qui ne rend que les maisons du joueur.
 - **Charis** (#265, 7.1) : une maison fait des offrandes de monnaie ou de biens à un dieu du catalogue de la configuration et gagne sa Charis envers lui ; les oboles sont détruites par un puits, les biens quittent le stock par le journal des stocks.
   La Charis décline chaque jour à la clôture, une fois par jour même si la clôture est rejouée ; la Charis de cité somme celle des citoyennes envers le dieu protecteur.
   Lectures : règles du temple et Charis de cité publiques, Charis de sa maison privée, montrées par l'écran Temple (#272).
