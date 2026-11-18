@@ -5,6 +5,7 @@ import {
   dailyWages,
   settlePropertyUpkeep,
   settleShipUpkeep,
+  settleStewardWages,
   settleUpkeep,
   siteDailyDue,
   sumDailyDues,
@@ -339,6 +340,39 @@ describe('entretien des biens immobiliers (#256)', () => {
         expect(total).toBeLessThanOrEqual(treasury);
         expect([...paid, ...unpaid].map((due) => due.propertyId).sort()).toEqual(
           listed.map((due) => due.propertyId).sort(),
+        );
+        for (const due of unpaid) expect(due.oboles).toBeGreaterThan(treasury - total);
+      }),
+    );
+  });
+});
+
+describe('salaires des intendants (#278)', () => {
+  it('après tout le reste, avec ce qui reste : chaque intendant en entier ou pas du tout', () => {
+    const dues = [12, 12, 0, 12].map((oboles, n) => ({ stewardId: `s${n}`, oboles }));
+    const [a, b, z, o] = dues;
+    // Restent 25 après le site : a et b sont payés, z ne coûte rien, o (12) ne tient plus dans 1.
+    const rest = 60 - settleUpkeep(60, [{ siteId: 's', oboles: 35 }]).total;
+    expect(settleStewardWages(rest, dues)).toEqual({ paid: [a, b, z], unpaid: [o], total: 24 });
+    // Solde nul : seul un salaire nul est payé.
+    expect(settleStewardWages(0, dues).paid).toEqual([z]);
+    expect(() => settleStewardWages(10, [dues[0], { ...dues[0] }] as never)).toThrow(
+      'each due is settled once',
+    );
+  });
+
+  it('conservation : prélevé = somme des intendants payés, jamais plus que la trésorerie', () => {
+    const wages = fc.uniqueArray(
+      fc.record({ stewardId: fc.uuid(), oboles: fc.integer({ min: 0, max: 500 }) }),
+      { maxLength: 8, selector: (due) => due.stewardId },
+    );
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 2_000 }), wages, (treasury, listed) => {
+        const { paid, unpaid, total } = settleStewardWages(treasury, listed);
+        expect(total).toBe(paid.reduce((sum, due) => sum + due.oboles, 0));
+        expect(total).toBeLessThanOrEqual(treasury);
+        expect([...paid, ...unpaid].map((due) => due.stewardId).sort()).toEqual(
+          listed.map((due) => due.stewardId).sort(),
         );
         for (const due of unpaid) expect(due.oboles).toBeGreaterThan(treasury - total);
       }),

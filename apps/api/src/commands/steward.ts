@@ -1,12 +1,16 @@
 import { randomInt } from 'node:crypto';
-import { stewardLimit } from '@oikos/config';
+import { stewardLimit, stewardRulesLimit } from '@oikos/config';
 import {
   STEWARD_DISMISS_ERROR_CODES,
   STEWARD_HIRE_ERROR_CODES,
+  STEWARD_SET_RULES_ERROR_CODES,
   stewardDismissInputSchema,
   stewardDismissOutputSchema,
   stewardHireInputSchema,
   stewardHireOutputSchema,
+  stewardSetRulesInputSchema,
+  stewardSetRulesOutputSchema,
+  type StewardRule,
 } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
@@ -97,6 +101,92 @@ async function lockSteward(trx: Db, userId: string, stewardId: string) {
     )
     .forUpdate()
     .executeTakeFirst();
+}
+
+/**
+ * Donne ses règles à un intendant (4.4) : elles remplacent toutes les précédentes, dans l'ordre reçu, par une
+ * révision nouvelle (rien n'est effacé). La grammaire et ses bornes sont celles du contrat ; la configuration
+ * en vigueur borne leur nombre, et chaque bien doit en être connu ; un rachat ne vise qu'un intrant de la
+ * recette du site. Aucune liste vide n'est refusée : un intendant sans règle ne fait rien.
+ */
+export const stewardSetRules = defineCommand({
+  name: 'steward.setRules',
+  input: stewardSetRulesInputSchema,
+  output: stewardSetRulesOutputSchema,
+  errors: STEWARD_SET_RULES_ERROR_CODES,
+  async handler({ trx, userId, emit, config }, input) {
+    const steward = await lockSteward(trx, userId, input.stewardId);
+    if (!steward) return refuse('STEWARD_NOT_FOUND', 'Unknown steward.');
+    if (input.rules.length > stewardRulesLimit(config))
+      return refuse('TOO_MANY_RULES', `At most ${stewardRulesLimit(config)} rules.`);
+    const site = await trx
+      .selectFrom('game.sites')
+      .select('recipe_id')
+      .where('id', '=', steward.site_id)
+      .executeTakeFirstOrThrow();
+    const goods = new Set(config.goods.map((good) => good.id));
+    const inputs = new Set(
+      config.recipes
+        .find((recipe) => recipe.id === site.recipe_id)
+        ?.inputs.map((stack) => stack.goodId) ?? [],
+    );
+    for (const rule of input.rules) {
+      if (rule.kind === 'collect') continue;
+      if (!goods.has(rule.goodId)) return refuse('GOOD_NOT_FOUND', `Unknown good ${rule.goodId}.`);
+      if (rule.kind === 'buy' && !inputs.has(rule.goodId))
+        return refuse('NOT_AN_INPUT', `${rule.goodId} is not an input of this site.`);
+    }
+    const { rules_revision: revision } = await trx
+      .updateTable('game.stewards')
+      .set({ rules_revision: sql<number>`rules_revision + 1` })
+      .where('id', '=', steward.id)
+      .returning('rules_revision')
+      .executeTakeFirstOrThrow();
+    if (input.rules.length > 0)
+      await trx
+        .insertInto('game.steward_rules')
+        .values(
+          input.rules.map((rule, position) => ({
+            steward_id: steward.id,
+            revision,
+            position,
+            ...row(rule),
+          })),
+        )
+        .execute();
+    emit({
+      type: 'StewardRulesSet',
+      payload: {
+        stewardId: steward.id,
+        houseId: steward.house_id,
+        siteId: steward.site_id,
+        rules: input.rules,
+      },
+    });
+    return { ok: true, data: { stewardId: steward.id, rules: input.rules } };
+  },
+});
+
+/** Une règle de la grammaire dans les colonnes de `game.steward_rules`. */
+function row(rule: StewardRule) {
+  switch (rule.kind) {
+    case 'collect':
+      return { kind: rule.kind, good_id: null, price_oboles: null, units: null };
+    case 'sell':
+      return {
+        kind: rule.kind,
+        good_id: rule.goodId,
+        price_oboles: rule.minPriceOboles,
+        units: rule.keepUnits,
+      };
+    case 'buy':
+      return {
+        kind: rule.kind,
+        good_id: rule.goodId,
+        price_oboles: rule.maxPriceOboles,
+        units: rule.targetUnits,
+      };
+  }
 }
 
 /** Renvoie un intendant (4.4) : il quitte son poste, ses règles cessent avec lui ; rien n'est remboursé. */

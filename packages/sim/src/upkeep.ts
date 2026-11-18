@@ -105,6 +105,12 @@ export interface PropertyUpkeepDue {
   oboles: number;
 }
 
+/** Salaire d'un jour d'un intendant (#278) : celui de la configuration, payé en entier ou pas du tout. */
+export interface StewardWageDue {
+  stewardId: string;
+  oboles: number;
+}
+
 /** `T` : le dû de chaque site ou navire tel que reçu, rendu tel quel (ses parts par nature comprises). */
 export interface UpkeepSettlement<T extends { oboles: number } = UpkeepDue> {
   /** Dus payés, dans l'ordre reçu. */
@@ -174,4 +180,15 @@ export function settlePropertyUpkeep<T extends PropertyUpkeepDue>(
   dues: readonly T[],
 ): UpkeepSettlement<T> {
   return settleInOrder(balance, dues, (due) => due.propertyId);
+}
+
+/**
+ * Les intendants d'une maison à une clôture (#278), examinés après ses sites, ses navires et ses biens, avec ce
+ * qui reste de la trésorerie, dans l'ordre reçu (`settleInOrder`). Un intendant impayé n'agit pas.
+ */
+export function settleStewardWages<T extends StewardWageDue>(
+  balance: number,
+  dues: readonly T[],
+): UpkeepSettlement<T> {
+  return settleInOrder(balance, dues, (due) => due.stewardId);
 }
