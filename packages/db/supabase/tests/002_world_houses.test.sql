@@ -61,6 +61,7 @@ select is(
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'properties(acquired_at,city_id,condition,id,lot,owner_house_id,size_id,upkeep_unpaid_since) '
     || 'property_listings(closed_at,created_at,house_id,id,kind,ledger_entry_id,outcome,price_oboles,property_id) '
+    || 'reports(created_at,house_id,id,message_id,reason,state) '
     || 'ships(class_id,docked_city_id,house_id,id,laid_up_at) sites(city_id,cycle_started_at,halted_at,house_id,id,recipe_id) '
     || 'trades(ledger_entry_id,price,quantity,sell_order_id) voyage_cargo(good_id,quantity,voyage_id) '
     || 'voyages(arrived_at,arrives_at,departed_at,from_city_id,house_id,id,ship_id,to_city_id) '
