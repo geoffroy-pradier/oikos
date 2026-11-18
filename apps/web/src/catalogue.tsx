@@ -11,13 +11,16 @@ import {
   Card,
   Coins,
   CONTRAST_PAIRS,
+  EmptyState,
   Field,
   Frieze,
   Moon,
   Plus,
   Ship,
+  Skeleton,
   Stat,
   Sun,
+  Tabs,
   Wheat,
 } from '@oikos/ui';
 import { StrictMode, useState, type ReactNode } from 'react';
@@ -125,6 +128,39 @@ function Catalogue() {
           </div>
           <Field label="Field" hint="hint" defaultValue="value" />
           <Field label="Field · error" error="error" defaultValue="value" />
+        </Section>
+
+        <Section title="Tabs">
+          <Tabs
+            label="Tabs"
+            items={['Agora', 'Contrats', 'Fret'].map((id) => ({
+              id,
+              label: id,
+              content: (
+                <p className="text-muted-foreground">Panneau {id} : flèches, Début et Fin.</p>
+              ),
+            }))}
+          />
+        </Section>
+
+        <Section title="Skeleton">
+          <div role="status" aria-label="loading" className="flex items-center gap-4">
+            <Skeleton round className="size-12 shrink-0" />
+            <div className="flex flex-1 flex-col gap-2">
+              <Skeleton className="w-2/3" />
+              <Skeleton className="w-1/2" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          </div>
+        </Section>
+
+        <Section title="EmptyState">
+          <EmptyState
+            icon={<Ship />}
+            title="Aucun navire au port"
+            description="Le chantier naval vend chaque classe à son prix."
+            action={<Button icon={<Plus />}>Ouvrir le chantier</Button>}
+          />
         </Section>
 
         <Section title="Icons · Frieze">
