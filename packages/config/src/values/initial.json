@@ -208,6 +208,29 @@
     }
   },
   "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
+  "stewards": {
+    "limitByHeadquartersLevel": [2],
+    "dailyWageOboles": 0,
+    "rulesPerSteward": 5,
+    "names": [
+      "Nikias",
+      "Lysandros",
+      "Théano",
+      "Kléon",
+      "Aspasia",
+      "Démétrios",
+      "Phèdre",
+      "Kallias",
+      "Myrtô",
+      "Xénon",
+      "Ismène",
+      "Hermippos",
+      "Agathé",
+      "Philon",
+      "Korinna",
+      "Timon"
+    ]
+  },
   "labor": {
     "workingShareBps": {},
     "wage": { "minBps": 10000, "maxBps": 10000, "slopeBps": 0 },
