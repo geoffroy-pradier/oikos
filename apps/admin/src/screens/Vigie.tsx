@@ -1,8 +1,11 @@
+import { ADMIN_MODULE_ROLES, type AdminReports, type AdminRole } from '@oikos/contracts';
 import { Button } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
+import { staleReportHours } from '../moderation-age';
 import { TABLE } from '../table';
 import { useAdmin } from '../useAdmin';
+import { StaleReportsAlert } from './Moderation';
 
 interface VigieData {
   houses: number;
@@ -71,8 +74,20 @@ const review = (selfReviewAllowed: unknown) =>
       ? 'reviewRequired'
       : 'reviewUnknown';
 
-/** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
-export function Vigie({ accessToken }: { accessToken: string }) {
+/**
+ * Alerte « signalements en attente depuis plus de 24 h » (15.5) : elle lit la file de la modération, que seuls
+ * les rôles de ce module peuvent lire. Une lecture en échec n'affiche rien : la Vigie ne s'en trouble pas.
+ */
+function StaleReports({ accessToken }: { accessToken: string }) {
+  const { data } = useAdmin<AdminReports>('reports', accessToken);
+  return <StaleReportsAlert hours={staleReportHours(data)} />;
+}
+
+/**
+ * Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). `role` : le rôle du compte, qui décide si
+ * l'alerte des signalements en attente est lue.
+ */
+export function Vigie({ accessToken, role }: { accessToken: string; role?: AdminRole }) {
   const { t, i18n } = useTranslation();
   const { data, error, reload } = useAdmin<VigieData>('vigie', accessToken);
   const number = new Intl.NumberFormat(i18n.language);
@@ -147,6 +162,9 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       </div>
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
+      {role && (ADMIN_MODULE_ROLES.moderation as readonly AdminRole[]).includes(role) && (
+        <StaleReports accessToken={accessToken} />
+      )}
       {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
       {data?.selfReviewAllowed === true && (
         <p className="rounded-md border border-danger p-3 font-semibold text-danger">
