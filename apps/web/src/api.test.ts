@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { sendCommand } from './api';
+import { consultOracle, invokeGrace, makeOffering, sendCommand } from './api';
 
 const respond = (body: unknown, status = 200) =>
   vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status }));
@@ -95,4 +95,25 @@ it('toute réponse de l’API, même un refus, donne l’heure du serveur', asyn
   const behind = Date.now() - serverClock.now().getTime();
   expect(behind).toBeGreaterThan(5 * 3_600_000 - 2_000);
   expect(behind).toBeLessThan(5 * 3_600_000 + 2_000);
+});
+
+it('commandes du temple : chacune sous son nom, avec la valeur vue et la clé de son intention', async () => {
+  const fetchImpl = respond({ ok: true, data: {} });
+  vi.stubGlobal('fetch', fetchImpl);
+  const offering = { godId: 'demeter', oboles: 6, goods: [], expectedCharis: 6 };
+  await makeOffering(offering, 't', 'k1');
+  await invokeGrace('blessing', 150, 't', 'k2');
+  await consultOracle(60, 't', 'k3');
+  vi.unstubAllGlobals();
+  expect(
+    fetchImpl.mock.calls.map(([url, init]) => [
+      url,
+      init?.body,
+      new Headers(init?.headers).get('Idempotency-Key'),
+    ]),
+  ).toEqual([
+    ['/api/commands/temple.makeOffering', JSON.stringify(offering), 'k1'],
+    ['/api/commands/temple.invokeGrace', '{"graceId":"blessing","expectedCharisSpent":150}', 'k2'],
+    ['/api/commands/temple.consultOracle', '{"expectedOboles":60}', 'k3'],
+  ]);
 });

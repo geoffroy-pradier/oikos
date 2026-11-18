@@ -278,7 +278,7 @@
     "HOUSE_NOT_FOUND": "Vous n'avez pas encore fondé de maison.",
     "SITE_NOT_FOUND": "Ce site est introuvable.",
     "GOOD_NOT_FOUND": "Ce bien n'existe pas.",
-    "INSUFFICIENT_STOCK": "Stock libre insuffisant pour cette vente.",
+    "INSUFFICIENT_STOCK": "Stock libre insuffisant : rien n'a été pris.",
     "INSUFFICIENT_FUNDS": "Trésorerie insuffisante.",
     "NOTHING_TO_COLLECT": "Rien à récolter pour l'instant : le cycle en cours n'est pas terminé.",
     "FORBIDDEN": "Cette action est réservée à l'administration.",
@@ -349,7 +349,16 @@
     "PROPERTY_NOT_FOUND": "Ce bien n'existe plus.",
     "PROPERTY_NOT_LISTED": "Ce bien n'a plus d'offre ouverte.",
     "PROPERTY_NOT_OWNED": "Ce bien n'est pas à vous.",
-    "PROPERTY_SIZE_RETIRED": "Cette taille de bien a été retirée."
+    "PROPERTY_SIZE_RETIRED": "Cette taille de bien a été retirée.",
+    "GOD_NOT_FOUND": "Ce dieu n'est plus honoré dans la configuration en vigueur. Rechargez la page.",
+    "OFFERING_REFUSED": "Ce dieu refuse l'un de ces dons : rien n'a été offert.",
+    "CHARIS_CHANGED": "La Charis a changé depuis l'affichage : rien n'a été offert ni dépensé. Vérifiez la nouvelle valeur puis réessayez.",
+    "CHARIS_LIMIT_REACHED": "Votre Charis envers ce dieu ne peut pas monter plus haut.",
+    "GRACE_NOT_FOUND": "Cette grâce n'est plus offerte dans la configuration en vigueur. Rechargez la page.",
+    "INSUFFICIENT_CHARIS": "Votre Charis envers ce dieu ne suffit pas pour invoquer cette grâce.",
+    "GRACE_PENDING": "Cette grâce attend encore l'action qui la consommera : elle ne s'invoque pas de nouveau d'ici là.",
+    "GRACE_RECHARGING": "Cette grâce se recharge : elle se réinvoquera à la clôture indiquée.",
+    "ORACLE_UNAVAILABLE": "La Pythie ne se consulte pas dans la configuration en vigueur : rien n'a été payé."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
