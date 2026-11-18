@@ -117,6 +117,7 @@ export const VIGIE = {
   commands24h: { ok: 300, rejected: 41, failed: 7 },
   ticks24h: { failed: 2, maxDurationMs: 850 },
   voyagesOverdue: 4,
+  staleReports: { afterHours: 24, count: 0, oldestHours: null },
   closes24h: { failed: 1, lastError: 'Close step siteUpkeep failed on house h1: boom' },
   recentTicks: [
     {

@@ -99,7 +99,7 @@ export function App() {
   } else if (granted && token && userId) {
     screen =
       current === 'vigie' ? (
-        <Vigie accessToken={token} role={granted} />
+        <Vigie accessToken={token} />
       ) : current === 'economy' ? (
         <Economy accessToken={token} />
       ) : current === 'config' ? (

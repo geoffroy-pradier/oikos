@@ -4,6 +4,7 @@ import { hoursSince, staleReportHours } from './moderation-age';
 const NOW = '2026-11-18T12:00:00Z';
 const queue = (...createdAt: string[]) => ({
   now: NOW,
+  staleAfterHours: 24,
   queue: createdAt.map((at) => ({ reports: [{ createdAt: at }] })),
 });
 // Le type de la file est large : seul ce que la fonction lit est fourni.
@@ -14,6 +15,15 @@ describe('alerte des signalements en attente (15.5)', () => {
   it('« plus de 24 h » : exactement 24 h n’alerte pas, une seconde de plus si', () => {
     expect(stale('2026-11-17T12:00:00Z')).toBeNull();
     expect(stale('2026-11-17T11:59:59Z')).toBe(24);
+  });
+  it('le seuil est celui de la configuration rendu par l’API', () => {
+    const data = { ...queue('2026-11-18T08:00:00Z'), staleAfterHours: 3 };
+    expect(staleReportHours(data as unknown as Parameters<typeof staleReportHours>[0])).toBe(4);
+    expect(
+      staleReportHours({ ...data, staleAfterHours: 4 } as unknown as Parameters<
+        typeof staleReportHours
+      >[0]),
+    ).toBeNull();
   });
   it('compte le plus ancien signalement de toute la file, en heures entières', () => {
     expect(stale('2026-11-18T11:00:00Z', '2026-11-16T09:30:00Z', '2026-11-17T20:00:00Z')).toBe(50);

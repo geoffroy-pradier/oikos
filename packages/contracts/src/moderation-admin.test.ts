@@ -71,7 +71,14 @@ describe('GET /api/admin/reports', () => {
     reports: [{ id: ID, reason: 'spam', createdAt: at }],
     context: [message],
   };
-  const reports = { now: at, contextSize: 5, queue: [entry], appeals: [], pendingExclusions: [] };
+  const reports = {
+    now: at,
+    contextSize: 5,
+    staleAfterHours: 24,
+    queue: [entry],
+    appeals: [],
+    pendingExclusions: [],
+  };
 
   it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
     expect(adminReportsSchema.parse(reports)).toEqual(reports);

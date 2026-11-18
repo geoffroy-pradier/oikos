@@ -30,6 +30,7 @@ const message = (
 const REPORTS: AdminReports = {
   now: NOW,
   contextSize: 2,
+  staleAfterHours: 24,
   queue: [
     {
       world: 'w',

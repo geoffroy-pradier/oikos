@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
 import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
-import { hoursSince, STALE_REPORT_HOURS, staleReportHours } from '../moderation-age';
+import { hoursSince, staleReportHours } from '../moderation-age';
 import { useAdmin } from '../useAdmin';
 
 type Entry = AdminReports['queue'][number];
@@ -26,12 +26,12 @@ export type Gesture =
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
 
 /** Alerte « signalements en attente depuis plus de 24 h » (15.5), partagée par ce module et la Vigie. */
-export function StaleReportsAlert({ hours }: { hours: number | null }) {
+export function StaleReportsAlert({ hours, limit }: { hours: number | null; limit: number }) {
   const { t } = useTranslation();
   if (hours === null) return null;
   return (
     <p role="alert" className="rounded-md border border-danger p-3 font-semibold text-danger">
-      {t('moderation.stale', { hours, limit: STALE_REPORT_HOURS })}
+      {t('moderation.stale', { hours, limit })}
     </p>
   );
 }
@@ -215,7 +215,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         <LoadError code={error} onRetry={() => void reload().then(() => title.current?.focus())} />
       )}
       {!data && !error && <p>{t('app.loading')}</p>}
-      <StaleReportsAlert hours={stale} />
+      <StaleReportsAlert hours={stale} limit={data?.staleAfterHours ?? 0} />
       {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
       <div
         role={notice?.kind ?? 'status'}

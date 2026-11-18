@@ -29,6 +29,7 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
         data: {
           now: '2026-11-18T12:00:00Z',
           contextSize: 5,
+          staleAfterHours: 24,
           queue: [],
           appeals: [],
           pendingExclusions: [],

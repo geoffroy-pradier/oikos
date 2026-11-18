@@ -614,6 +614,7 @@ export const DEFAULT_MODERATION = deepFreeze({
   reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
   bannedTerms: [] as string[],
   maxAppealLength: 1_000,
+  staleReportHours: 24,
   sanctionHours: DEFAULT_SANCTION_HOURS,
 });
 
@@ -640,6 +641,11 @@ export const moderationSchema = z
     bannedTerms: z.array(z.string().min(1).max(100)).max(5_000),
     /** Longueur maximale d'un appel, en caractères (points de code Unicode). */
     maxAppealLength: z.number().int().min(1).max(2_000),
+    /**
+     * Seuil d'alerte de la Vigie (15.5), en heures : un signalement encore ouvert au-delà passe en alerte.
+     * Absent d'une version publiée avant lui : 24 heures, le seuil de la spécification.
+     */
+    staleReportHours: z.number().int().min(1).max(720).default(DEFAULT_MODERATION.staleReportHours),
     /**
      * Durées, en heures, entre lesquelles un modérateur choisit (`admin.sanction`) ; une exclusion n'en a pas.
      * Absentes d'une version publiée avant les commandes d'administration : `DEFAULT_SANCTION_HOURS`.

@@ -294,54 +294,40 @@ describe('Vigie', () => {
 });
 
 describe('Vigie : signalements en attente (15.5)', () => {
-  const reports = (createdAt: string) => ({
-    now: '2026-11-18T12:00:00Z',
-    contextSize: 2,
-    queue: [{ reports: [{ id: 'r', reason: 'spam', createdAt }] }],
-    appeals: [],
-    pendingExclusions: [],
-  });
-  const answer = (createdAt: string) =>
-    adminGet.mockImplementation((path: string) =>
-      Promise.resolve({ ok: true, data: path === 'reports' ? reports(createdAt) : VIGIE }),
-    );
+  const figure = async (label: string) =>
+    (await screen.findByText(label)).parentElement?.querySelector('dd')?.textContent;
+  const answer = (staleReports: unknown) =>
+    adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, staleReports } });
 
-  it('un rôle de la modération voit l’alerte quand un signalement attend depuis plus de 24 h', async () => {
-    answer('2026-11-17T09:00:00Z');
-    render(<Vigie accessToken="token" role="super_admin" />);
+  it('affiche le compte et passe en alerte quand des signalements dépassent le seuil de la configuration', async () => {
+    answer({ afterHours: 12, count: 3, oldestHours: 27 });
+    render(<Vigie accessToken="token" />);
     expect(
       await screen.findByText(
-        'Des signalements attendent depuis plus de 24 h (le plus ancien : 27 h).',
+        'Des signalements attendent depuis plus de 12 h (le plus ancien : 27 h).',
       ),
     ).toBeTruthy();
-    expect(adminGet.mock.calls.map(([path]) => path).sort()).toEqual(['reports', 'vigie']);
-  });
-
-  it('pas d’alerte sous 24 h', async () => {
-    answer('2026-11-18T09:00:00Z');
-    render(<Vigie accessToken="token" role="super_admin" />);
-    await screen.findByText('Maisons fondées');
-    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('reports', 'token'));
-    expect(screen.queryByText(/attendent depuis plus de 24 h/)).toBeNull();
-  });
-
-  it('un rôle qui ne lit pas la file ne la demande pas, et ne voit pas l’alerte', async () => {
-    answer('2026-11-10T09:00:00Z');
-    render(<Vigie accessToken="token" role="observer" />);
-    await screen.findByText('Maisons fondées');
+    expect(await figure('Signalements en attente depuis plus de 12 h')).toBe('3');
     expect(adminGet.mock.calls.map(([path]) => path)).toEqual(['vigie']);
-    expect(screen.queryByText(/attendent depuis plus de 24 h/)).toBeNull();
   });
 
-  it('une file illisible ne trouble pas la Vigie', async () => {
-    adminGet.mockImplementation((path: string) =>
-      Promise.resolve(
-        path === 'reports' ? { ok: false, code: 'INTERNAL' } : { ok: true, data: VIGIE },
-      ),
-    );
-    render(<Vigie accessToken="token" role="super_admin" />);
-    await screen.findByText('Maisons fondées');
+  it('aucun signalement au-delà du seuil : le compte à zéro, pas d’alerte', async () => {
+    answer({ afterHours: 24, count: 0, oldestHours: null });
+    render(<Vigie accessToken="token" />);
+    expect(await figure('Signalements en attente depuis plus de 24 h')).toBe('0');
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('seuil illisible : dit qu’il est inconnu, sans alerte ; API antérieure : rien', async () => {
+    answer(null);
+    const first = render(<Vigie accessToken="token" />);
+    expect(await figure('Signalements en attente (seuil inconnu)')).toBe('—');
+    expect(screen.queryByRole('alert')).toBeNull();
+    first.unmount();
+    answer(undefined);
+    render(<Vigie accessToken="token" />);
+    await screen.findByText('Maisons fondées');
+    expect(screen.queryByText(/Signalements en attente/)).toBeNull();
   });
 });
 

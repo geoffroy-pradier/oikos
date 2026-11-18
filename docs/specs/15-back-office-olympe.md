@@ -53,9 +53,12 @@ Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, 
 Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
 Décision (ambiguïté du ticket) : aucune route ne rend `moderation.sanctionHours` aux rôles de la modération, seuls ceux qui lisent la configuration y ont accès ; l'écran ne code donc aucune durée, laisse saisir les heures et explique le refus `DURATION_NOT_OFFERED` de l'API, qui reste juge.
 Décision (ambiguïté du ticket) : retenir ou classer un signalement ne sanctionne ni ne masque rien (voir plus haut) ; l'écran propose les trois gestes séparément, à la main du modérateur.
-L'alerte « signalements en attente depuis plus de 24 h » (15.5) s'affiche en tête du module quand le plus ancien signalement ouvert attend depuis plus de 24 heures, d'après l'heure de la base rendue par l'API.
-Elle s'affiche aussi dans la Vigie, pour les rôles qui lisent la file (le super-administrateur) : la Vigie lit alors `GET /api/admin/reports`, qu'elle n'ouvre pas aux autres rôles, et reste muette si cette lecture échoue.
-Décision (ambiguïté du ticket) : le compteur de la Vigie elle-même (`GET /api/admin/vigie`) n'est pas modifié ; un indicateur côté API attend une phase suivante.
+L'alerte « signalements en attente depuis plus de 24 h » (15.5) s'affiche en tête du module quand le plus ancien signalement ouvert attend depuis plus longtemps que le seuil, d'après l'heure de la base rendue par l'API.
+Le seuil est `moderation.staleReportHours` (24 par défaut, de 1 à 720 heures) : `GET /api/admin/reports` le rend (`staleAfterHours`) et l'écran n'en code aucun.
+Décision (#530) : la Vigie lit ce compte dans `GET /api/admin/vigie`, qui rend `staleReports` : le seuil (`afterHours`), le nombre de signalements ouverts depuis plus longtemps (`count`) et l'ancienneté du plus ancien en heures (`oldestHours`).
+`staleReports` est nul sans configuration en vigueur lisible.
+La Vigie affiche ce nombre, y compris à zéro, et passe en alerte dès qu'il dépasse zéro ; elle le montre à tous les rôles qui la lisent, sans lire la file (`GET /api/admin/reports` reste fermé à ces rôles).
+Hors périmètre : toute notification hors d'Olympe.
 Décision (relecture de #275) : un nom de maison, texte public, ne passe encore ni par le filtre de vocabulaire ni par le silence à sa fondation ou à son changement ; un ticket de suite les y soumettra.
 Décision (relecture de #275) : un compte suspendu ou exclu ne peut plus annuler ses ordres, qui restent sous séquestre et peuvent s'exécuter ; un ticket de suite, qui touche à la monnaie, décidera de leur annulation et du retour du séquestre.
 

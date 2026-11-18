@@ -68,6 +68,8 @@
     "commandsRejected": "Rejected commands (24 h)",
     "commandsFailed": "Failed commands (24 h)",
     "ticksFailed": "Failed ticks (24 h)",
+    "staleReports": "Reports waiting for more than {{hours}} h",
+    "staleReportsUnknown": "Reports waiting (threshold unknown)",
     "closesFailed": "Failed daily closes (24 h)",
     "closeLastError": "Last failed daily close",
     "tickMax": "Longest tick (24 h)",
