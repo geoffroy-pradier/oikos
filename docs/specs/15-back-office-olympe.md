@@ -66,6 +66,8 @@ Décision (relecture de #275) : un compte suspendu ou exclu ne peut plus annuler
 Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
 `GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
 L'écran dit l'état de chacun (à venir, en cours, passé) à l'heure de l'API, pas du navigateur.
+La réponse est décrite par un schéma partagé de `@oikos/contracts` (#446), qui en choisit les champs : une colonne lue en plus ne sort pas.
+Elle dit aussi si la liste est coupée (plus de 1 000 événements dans la fenêtre), et l'écran le signale sous sa légende.
 Déclenchement manuel, création d'événements et propositions du maître du jeu attendent une phase suivante.
 
 ## 15.2 Cycle de vie d'un changement d'équilibrage
@@ -192,7 +194,7 @@ Cette fonction ne sait pas qui l'appelle : c'est l'API qui établit l'identité 
 le compte de service de l'API est donc de confiance pour cette identité, comme pour toutes les écritures du jeu.
 Les lectures du back-office passent par des routes `GET /api/admin/*` de l'API, soumises au même contrôle (second facteur et rôle relu à chaque requête) : Vigie, économie (masse monétaire, robinets et puits : 5.5) et paramètres pour le super-administrateur, le concepteur de jeu et l'observateur ;
 journal d'audit pour le super-administrateur et l'observateur.
-Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la même voie, pour le super-administrateur, le concepteur de jeu, le responsable communauté et l'observateur, et chacune de ses lectures est tracée comme les autres.
+Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la même voie, pour le super-administrateur, le concepteur de jeu, le responsable communauté et l'observateur, et chacune de ses lectures est tracée comme les autres, sous sa route, refusée ou non.
 La file de la modération (`GET /api/admin/reports`, #276) se lit par la même voie, pour les rôles de la modération, et ses lectures sont tracées de même.
 Elle rend une entrée par message qui a des signalements ouverts, la plus ancienne d'abord, puis la plus signalée (au plus 200), avec la maison signalée et son compte, le message, même masqué, ses signalements (motif et date, jamais la maison qui signale) et les cinq messages qui le précèdent et les cinq qui le suivent dans son canal ;
 un signalement dont la purge a emporté le message fait son entrée seul, sans texte ni contexte.

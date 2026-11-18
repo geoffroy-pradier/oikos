@@ -71,6 +71,62 @@ export async function planEvent(
   });
 }
 
+/**
+ * Pose un événement déjà commencé, voire fini, aux instants donnés : la garde, qui refuse un événement planifié
+ * après son début, est levée le temps de l'insertion par le propriétaire de la base. Son jour de planification
+ * est enregistré comme une clôture jouée, comme par `planEvent`, mais avant lui : la garde levée ne le refuse pas,
+ * et la clé vers la clôture, vérifiée aussitôt, ne laisse rien en attente qui empêcherait de la rétablir.
+ */
+export async function pastEvent(
+  owner: Db,
+  event: {
+    worldId: string;
+    model: 'drought' | 'good_year' | 'storm' | 'caravan';
+    cityId: string;
+    otherCityId?: string;
+    magnitudeBps: number;
+    startsAt: Date;
+    endsAt: Date;
+  },
+) {
+  await ensureInitialConfig(owner, INITIAL_CONFIG);
+  return owner.transaction().execute(async (trx) => {
+    const { rows } = await sql<{ day: number }>`select
+      coalesce((select max(game_day) from game.daily_closes where world_id = ${event.worldId}), 0) + 1 as day`.execute(
+      trx,
+    );
+    const day = rows[0]?.day ?? 1;
+    await sql`alter table game.world_events disable trigger world_events_guard`.execute(trx);
+    await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+      values (${event.worldId}, ${day}, now(), (select id from config.versions order by id limit 1))`.execute(
+      trx,
+    );
+    // Jeu d'essai, pas code du jeu : la clé est contrôlée aussitôt, sur une clôture déjà posée.
+    // eslint-disable-next-line no-restricted-syntax
+    await sql`set constraints game.world_events_played_close immediate`.execute(trx);
+    const { id } = await trx
+      .insertInto('game.world_events')
+      .values({
+        world_id: event.worldId,
+        model: event.model,
+        city_id: event.cityId,
+        other_city_id: event.otherCityId ?? null,
+        good_id: null,
+        planned_day: day,
+        start_day: day + 1,
+        end_day: day + 2,
+        starts_at: event.startsAt,
+        ends_at: event.endsAt,
+        magnitude_bps: event.magnitudeBps,
+        seed: '0'.repeat(64),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await sql`alter table game.world_events enable trigger world_events_guard`.execute(trx);
+    return { eventId: id };
+  });
+}
+
 /** Attend que l'horloge de la base dépasse l'instant donné. */
 export async function waitUntil(db: Db, instant: Date) {
   for (;;) {

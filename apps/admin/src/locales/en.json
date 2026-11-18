@@ -386,6 +386,7 @@
     "title": "Event calendar",
     "caption": "World events planned by the engine, latest first: upcoming, ongoing or ended within {{days}} days, at server time ({{now}}). Players only see an event once it starts.",
     "empty": "No event planned.",
+    "truncated": "List cut short: only the {{shown}} latest events are shown, older ones are missing.",
     "status": "Status",
     "model": "Event",
     "scope": "Scope",
