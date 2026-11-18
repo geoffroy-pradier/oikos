@@ -254,6 +254,8 @@ Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en cré
   Une offre retirée pendant qu'on l'achète ou qu'on la loue n'est ni vendue ni louée : l'un ou l'autre passe, jamais les deux.
   La base vérifie à la validation qu'une offre vendue a cédé le bien à l'acheteur et qu'un bail a fermé son offre louée (12).
 - **Lecture** : les offres ouvertes de toutes les cités sont publiques pour tout joueur connecté (`property_offers` : le bien, sa cité, sa taille, son numéro, son état, la nature de l'offre et son prix ou loyer, sa date), sans la maison qui offre ; offrir un bien rend son état public.
+  Offrir un bien rend aussi public son entretien impayé, que l'acheteur reprend avec le bien et qui l'empêche de loger, même loué (#403).
+  `property_offers_upkeep` donne les mêmes offres avec, pour chacune, l'impayé du bien et le jour de jeu de la clôture qui l'a constaté, sans l'instant exact ; l'écran Immobilier l'annonce sur l'offre.
   Chaque partie lit les baux dont elle est partie, en cours et terminés, avec les deux maisons, le loyer, la demande de fin et la fin (`my_leases`).
   Le loyer d'équilibre viendra ensuite, et le logement des travailleurs (#258) est décrit plus haut.
 

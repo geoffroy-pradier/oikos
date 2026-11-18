@@ -11,6 +11,14 @@ import {
 
 const config = INITIAL_CONFIG as GameConfig;
 const sizes = parsePropertyRules({ properties: config.properties });
+const offerAt = (lot: number) => ({
+  propertyId: `p${lot}`,
+  cityId: 'c1',
+  sizeId: 'townhouse',
+  lot,
+  condition: 7000,
+  kind: 'sale' as const,
+});
 
 describe('parc de logements (#259)', () => {
   it('parc d’une cité par taille : total et biens encore à vendre ; ligne illisible : échec', () => {
@@ -40,7 +48,7 @@ describe('immobilier lu par le client (#259)', () => {
     ).toBeNull();
   });
 
-  it('offres : biens de la cité au prix de leur taille, puis offres des maisons', () => {
+  it('offres : biens de la cité au prix de leur taille, puis offres des maisons et leur impayé', () => {
     const townhouse = sizes?.get('townhouse');
     const offers = parseOffers(
       [
@@ -57,6 +65,30 @@ describe('immobilier lu par le client (#259)', () => {
           condition: 8000,
           kind: 'lease',
           price_oboles: 40,
+          upkeep_unpaid: false,
+          upkeep_unpaid_day: null,
+        },
+        {
+          property_id: 'p4',
+          city_id: 'c1',
+          size_id: 'townhouse',
+          lot: 4,
+          condition: 7000,
+          kind: 'sale',
+          price_oboles: 900,
+          upkeep_unpaid: true,
+          upkeep_unpaid_day: 20_773,
+        },
+        {
+          property_id: 'p5',
+          city_id: 'c1',
+          size_id: 'townhouse',
+          lot: 5,
+          condition: 7000,
+          kind: 'sale',
+          price_oboles: 800,
+          upkeep_unpaid: true,
+          upkeep_unpaid_day: null,
         },
       ],
       sizes ?? new Map(),
@@ -70,6 +102,7 @@ describe('immobilier lu par le client (#259)', () => {
         condition: 9000,
         kind: 'citySale',
         priceOboles: townhouse?.purchasePriceOboles,
+        unpaid: null,
       },
       {
         propertyId: 'p2',
@@ -79,9 +112,17 @@ describe('immobilier lu par le client (#259)', () => {
         condition: 8000,
         kind: 'lease',
         priceOboles: 40,
+        unpaid: null,
       },
+      { ...offerAt(4), priceOboles: 900, unpaid: { day: 20_773 } },
+      { ...offerAt(5), priceOboles: 800, unpaid: { day: null } },
     ]);
     expect(parseOffers([{ id: 'p1' }], [], new Map())).toBeNull();
+    // Une offre lue sans son impayé (vue `property_offers` d'avant #403) est illisible : l'écran le dit.
+    const before = { property_id: 'p4', city_id: 'c1', size_id: 'townhouse', lot: 4 };
+    expect(
+      parseOffers([], [{ ...before, condition: 7000, kind: 'sale', price_oboles: 900 }], new Map()),
+    ).toBeNull();
   });
 
   it('mes biens par cité et lot ; mes baux en cours d’abord, locataire ou propriétaire', () => {

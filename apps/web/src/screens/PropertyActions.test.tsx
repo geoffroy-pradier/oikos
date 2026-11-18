@@ -62,7 +62,7 @@ beforeEach(() => {
   api.propertyCommand.mockResolvedValue({ ok: true, data: {}, replayed: false });
   state.views = {
     property_rules: [{ properties: config.properties }],
-    property_offers: [
+    property_offers_upkeep: [
       {
         property_id: 'p2',
         city_id: 'c1',
@@ -71,6 +71,8 @@ beforeEach(() => {
         condition: 8000,
         kind: 'lease',
         price_oboles: 30,
+        upkeep_unpaid: false,
+        upkeep_unpaid_day: null,
       },
     ],
     my_properties: [mine],
@@ -226,19 +228,26 @@ describe('commandes du propriétaire (#259)', () => {
   });
 
   it('commande aboutie sans réponse : la relecture qui montre l’effet rend la clé, la même demande repart sous une clé neuve', async () => {
-    const listed = { ...mine, property_id: 'p9', kind: 'sale', price_oboles: 500 };
+    const listed = {
+      ...mine,
+      property_id: 'p9',
+      kind: 'sale',
+      price_oboles: 500,
+      upkeep_unpaid: false,
+      upkeep_unpaid_day: null,
+    };
     const lost = { ok: false, error: { code: 'INTERNAL', message: 'lost' } };
     api.propertyCommand
       .mockImplementationOnce(() => {
         // La mise en vente a abouti, sa réponse s'est perdue : la relecture montre l'offre ouverte.
-        state.views['property_offers'] = [listed];
+        state.views['property_offers_upkeep'] = [listed];
         return Promise.resolve(lost);
       })
       .mockImplementationOnce(() => {
-        state.views['property_offers'] = [];
+        state.views['property_offers_upkeep'] = [];
         return Promise.resolve({ ok: true, data: {}, replayed: false });
       });
-    state.views['property_offers'] = [];
+    state.views['property_offers_upkeep'] = [];
     await showProperty();
     const list = () => {
       fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {

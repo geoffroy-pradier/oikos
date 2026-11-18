@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
+import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 const config = INITIAL_CONFIG as GameConfig;
@@ -32,11 +33,11 @@ const mine = {
   condition: 6000,
   upkeep_unpaid_since: null,
 };
-async function showProperty() {
+async function showProperty(lng: 'fr' | 'en' = 'fr') {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
-    resources: { fr: { translation: fr } },
-    lng: 'fr',
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng,
     interpolation: { escapeValue: false },
   });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
@@ -72,8 +73,17 @@ beforeEach(() => {
     city_properties: [
       { id: 'p1', city_id: 'c1', size_id: 'townhouse', lot: 1, for_sale: true, condition: 10000 },
     ],
-    property_offers: [
-      { ...mine, property_id: 'p2', lot: 2, condition: 8000, kind: 'lease', price_oboles: 30 },
+    property_offers_upkeep: [
+      {
+        ...mine,
+        property_id: 'p2',
+        lot: 2,
+        condition: 8000,
+        kind: 'lease',
+        price_oboles: 30,
+        upkeep_unpaid: false,
+        upkeep_unpaid_day: null,
+      },
     ],
     my_properties: [mine],
     my_leases: [lease],
@@ -128,6 +138,39 @@ describe('écran Immobilier (#259)', () => {
     state.views['my_properties'] = null;
     await showProperty();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+  it('offre d’un bien impayé (#403) : l’impayé et son jour de jeu, en fr et en en, décrits au bouton', async () => {
+    const offer = { ...mine, condition: 8000, upkeep_unpaid: true, kind: 'sale' };
+    state.views['property_offers_upkeep'] = [
+      { ...offer, property_id: 'p3', lot: 3, price_oboles: 900, upkeep_unpaid_day: 20_773 },
+      { ...offer, property_id: 'p4', lot: 4, price_oboles: 800, upkeep_unpaid_day: null },
+      {
+        ...offer,
+        property_id: 'p6',
+        lot: 6,
+        price_oboles: 700,
+        upkeep_unpaid: false,
+        upkeep_unpaid_day: null,
+      },
+    ];
+    await showProperty();
+    const dated = screen.getByText(
+      "Entretien impayé depuis le 16 nov. 2026 : ce bien ne loge personne jusqu'à ce qu'une clôture paie son entretien.",
+    );
+    expect(screen.getAllByText(fr.property.offerUnpaidUndated)).toHaveLength(1);
+    // Le bouton d'achat de l'offre impayée en porte l'avertissement ; celui de l'offre payée, rien.
+    const buy = (lot: number) =>
+      screen.getByRole('button', { name: new RegExp(`^Acheter \\(.*n° ${lot}, Kallistè$`) });
+    expect(buy(3).getAttribute('aria-describedby')).toBe(dated.id);
+    expect(buy(6).getAttribute('aria-describedby')).toBeNull();
+    cleanup();
+    await showProperty('en');
+    expect(
+      screen.getByText(
+        'Upkeep unpaid since Nov 16, 2026: this property houses no one until a close pays its upkeep.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getAllByText(en.property.offerUnpaidUndated)).toHaveLength(1);
   });
   it('mes baux : fin demandée, bail résilié, fin du bail', async () => {
     state.views['my_leases'] = [

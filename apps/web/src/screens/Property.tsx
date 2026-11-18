@@ -1,3 +1,4 @@
+import { gameDayDate } from '@oikos/sim';
 import { Button, Card } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -58,9 +59,10 @@ export function PropertyScreen() {
     'lot',
     world,
   );
+  // Les offres des maisons avec l'entretien impayé de leur bien (#403), que l'acheteur reprend.
   const offerRows = useRows<unknown>(
-    'property_offers',
-    'property_id, city_id, size_id, lot, condition, kind, price_oboles',
+    'property_offers_upkeep',
+    'property_id, city_id, size_id, lot, condition, kind, price_oboles, upkeep_unpaid, upkeep_unpaid_day',
     'listed_at',
     world,
   );
@@ -168,6 +170,9 @@ export function PropertyScreen() {
     maximumFractionDigits: 0,
   });
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
+  // Un jour de jeu se lit à sa date civile, rendue à minuit UTC (`gameDayDate`).
+  const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeZone: 'UTC' });
+  const unpaidId = (offer: Offer) => `offer-unpaid-${offer.kind}-${offer.propertyId}`;
   const describe = (property: { sizeId: string; lot: number; cityId: string }) =>
     t('property.describe', {
       size: t(`propertySizes.${property.sizeId}`, { defaultValue: property.sizeId }),
@@ -234,6 +239,7 @@ export function PropertyScreen() {
         className={WAITING}
         aria-disabled={busy}
         aria-label={`${label} — ${describe(offer)}`}
+        aria-describedby={offer.unpaid ? unpaidId(offer) : undefined}
         onClick={() => void send()}
       >
         {label}
@@ -268,6 +274,15 @@ export function PropertyScreen() {
                   <h3 className="font-semibold">{describe(offer)}</h3>
                   <p>{t(`property.offer.${offer.kind}`, { cost: money(offer.priceOboles) })}</p>
                   {condition(offer.condition) && <p>{condition(offer.condition)}</p>}
+                  {offer.unpaid && (
+                    <p id={unpaidId(offer)} className="font-semibold text-danger">
+                      {offer.unpaid.day === null
+                        ? t('property.offerUnpaidUndated')
+                        : t('property.offerUnpaid', {
+                            date: day.format(gameDayDate(offer.unpaid.day)),
+                          })}
+                    </p>
+                  )}
                   {mineIds.has(offer.propertyId) && (
                     <p className="text-muted-foreground">{t('property.yourOffer')}</p>
                   )}

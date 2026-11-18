@@ -645,6 +645,8 @@
       "lease": "Lease ({{cost}} a day)"
     },
     "yourOffer": "Your offer.",
+    "offerUnpaid": "Upkeep unpaid since {{date}}: this property houses no one until a close pays its upkeep.",
+    "offerUnpaidUndated": "Upkeep unpaid: this property houses no one until a close pays its upkeep.",
     "mine": "My properties",
     "noneMine": "You own no property.",
     "upkeep": "Upkeep: {{cost}} a day, charged at the close",

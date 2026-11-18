@@ -645,6 +645,8 @@
       "lease": "Louer ({{cost}} par jour)"
     },
     "yourOffer": "Votre offre.",
+    "offerUnpaid": "Entretien impayé depuis le {{date}} : ce bien ne loge personne jusqu'à ce qu'une clôture paie son entretien.",
+    "offerUnpaidUndated": "Entretien impayé : ce bien ne loge personne jusqu'à ce qu'une clôture paie son entretien.",
     "mine": "Mes biens",
     "noneMine": "Vous n'avez aucun bien.",
     "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture",
