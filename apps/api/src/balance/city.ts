@@ -356,7 +356,12 @@ export const closeDay = (city: City, day: number) =>
  * Ticks de demande des PNJ du jour `day`, à leur instant de jeu, du premier qui commence à sa clôture ou
  * juste après (il ouvre le jour pour le moteur : `isDailyClose`) à la clôture suivante ; rend leur nombre.
  */
-export async function tickDay(city: City, day: number, steps: readonly TickStep[] = [npcDemand]) {
+export async function tickDay(
+  city: City,
+  day: number,
+  steps: readonly TickStep[] = [npcDemand],
+  after?: (index: number) => Promise<void>,
+) {
   const { tickMinutes } = config.clock;
   const end = closeOf(city, day + 1);
   const first = tickIndexAt(new Date(closeOf(city, day).getTime() - 1), tickMinutes) + 1;
@@ -372,6 +377,7 @@ export async function tickDay(city: City, day: number, steps: readonly TickStep[
       steps,
       now: () => new Date(scheduledAt.getTime() + 1000),
     });
+    await after?.(index);
   }
 }
 /** Entretien dû à la clôture du jour `day`, d'après les sites du banc créés avant elle. */
@@ -383,6 +389,12 @@ export const upkeepDue = (city: City, houses: readonly House[], day: number) =>
       const { coefficientBps, dailyOboles } = config.sites.upkeep;
       return sum + dailyUpkeep(dailyOboles[recipeOf(site.recipeId).siteType], coefficientBps);
     }, 0);
+/** Salaires dus à la clôture du jour `day`, d'après les sites du banc créés avant elle : `wage` oboles par travailleur. */
+export const wagesDue = (city: City, houses: readonly House[], day: number, wage: number) =>
+  houses
+    .flatMap((house) => house.sites)
+    .filter((site) => site.createdAt < closeOf(city, day))
+    .reduce((sum, site) => sum + recipeOf(site.recipeId).workers * wage, 0);
 /** Monnaie en circulation (`supply`, comptes hors système) ; soldes des comptes système et du trésor. */
 export async function accounts(city: City) {
   const rows = await city.db

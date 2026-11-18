@@ -106,6 +106,8 @@ export interface Seller extends House {
   asks: Map<string, number>;
   /** Quantités mises en vente la veille, par bien. */
   listed: Map<string, number>;
+  /** Biens dont la vente est confiée à l'intendant de la maison (règles `sell`) : la maison ne les met pas en vente. */
+  delegated?: ReadonlySet<string>;
 }
 export const seller = (house: House): Seller => ({ ...house, asks: new Map(), listed: new Map() });
 
@@ -234,6 +236,7 @@ export async function morning(city: City, house: Seller, now: Date) {
     .where('house_id', '=', house.houseId)
     .execute();
   for (const stock of stocks) {
+    if (house.delegated?.has(stock.good_id)) continue;
     const reference = referenceOf(stock.good_id);
     // Prix demandé : un pas de plus quand les ventes de la veille ont couvert sa récolte (le stock ne
     // grossit pas), un pas de moins quand elles n'en ont pas écoulé `SOLD_SHARE_PRODUCED` ; pour un bien

@@ -22,9 +22,19 @@ export const MEASURED = 30;
 /** Jours d'une fenêtre de moyenne (début et fin de la période mesurée). */
 export const WINDOW = 10;
 
-/** Configuration jouée : celle du banc, à la population près de chaque cité. */
+/**
+ * Salaires du scénario, en oboles par jour : nuls dans la configuration initiale, ils sont posés pour que le banc
+ * exerce le paiement des travailleurs PNJ et des intendants (4.4). Ce sont des paramètres du banc, pas du jeu.
+ */
+export const WAGES = { workerOboles: 4, stewardOboles: 10 };
+
+/** Configuration jouée : celle du banc, à la population près de chaque cité et aux salaires du scénario. */
 export const worldConfig = {
   ...config,
+  staff: { dailyWageOboles: Object.fromEntries(SLUGS.map((slug) => [slug, WAGES.workerOboles])) },
+  ...(config.stewards && {
+    stewards: { ...config.stewards, dailyWageOboles: WAGES.stewardOboles },
+  }),
   cities: config.cities.map((city) => ({
     ...city,
     population: Object.fromEntries(
@@ -81,3 +91,6 @@ export const TRADER_HOMES = ['kalliste', 'elaia', 'halos'] as const;
 export const TRADER: Role = { name: 'négociant', count: 1, sites: [], trader: true };
 /** Étapes des ticks du banc : la demande des PNJ, puis l'arrivée des voyages (4.6). */
 export const WORLD_STEPS = [npcDemand, voyageArrivals];
+
+/** Maisons qui confient la vente de leurs récoltes à un intendant, par nom de rôle. */
+export const STEWARD_ROLES = ['fermier', 'pêcheur', 'pêcheur-saunier'];
