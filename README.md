@@ -17,7 +17,8 @@ et faveur des dieux.
 
 ## État
 
-Phase 1 (prototype « une cité ») : en cours. Ce qui est jouable, les décisions prises et les points en suspens sont dans `docs/etat.md` ; les tickets dans `docs/tickets/phase-1.md`.
+Phase 2 (alpha fermée) : en cours.
+Ce qui est jouable, les décisions prises et les points en suspens sont dans `docs/etat.md` ; les tickets dans `docs/tickets/phase-2.md`.
 
 ## Démarrer
 
@@ -118,6 +119,36 @@ les messages à intervalle régulier et le dit, et `pnpm test:db` échoue sur le
 
 Pour arrêter : `Ctrl+C` dans chaque terminal, puis `pnpm db:stop`. `pnpm db:reset` efface toutes les
 données locales et rejoue les migrations.
+
+### Mettre à jour après de nouvelles fusions
+
+Pour récupérer ce qui a été fusionné sur `main` en gardant ses comptes, ses maisons et sa partie en cours :
+
+1. Arrêter l'API, le moteur et les clients (`Ctrl+C` dans chaque terminal).
+   L'API et le moteur ne se rechargent pas seuls : sans redémarrage, ils gardent l'ancien code, et un écran récent peut alors se voir refuser une lecture qu'ils ne connaissent pas encore.
+2. Récupérer le code et les dépendances :
+
+   ```powershell
+   git pull
+   pnpm install
+   ```
+
+3. Appliquer à la base locale les seules migrations nouvelles, sans rien effacer :
+
+   ```powershell
+   pnpm db:migrate
+   ```
+
+   Supabase tient le registre des migrations déjà appliquées et n'applique que les autres.
+   L'option `--include-all` du script applique aussi une migration fusionnée après une autre plus récente qu'elle ; les migrations sont écrites pour être rejouables (règle 9 de `CLAUDE.md`).
+   « Remote database is up to date » : rien à appliquer.
+4. Relancer `pnpm local:api`, `pnpm local:engine`, `pnpm local:web` (et `pnpm local:admin`), chacun dans son terminal.
+   La configuration en vigueur dans la base ne change pas : l'API ne publie la configuration initiale (`packages/config/src/values/initial.json`) que dans une base qui n'en a aucune.
+   Une clé de configuration nouvelle prend sa valeur par défaut ; pour reprendre d'autres valeurs nouvelles de `initial.json`, les publier depuis le module Paramètres d'Olympe, ou repartir de zéro avec `pnpm db:reset`.
+
+`pnpm db:reset` reste le recours si la base locale est dans un état incohérent : il efface toutes les données locales, comptes compris.
+Après un `pnpm db:reset`, se déconnecter du jeu et d'Olympe (ou effacer les données du site `127.0.0.1` dans le navigateur) avant de recréer son compte : une session ouverte avant la remise à zéro désigne un compte qui n'existe plus (#565).
+Le rôle de super-administrateur est à inscrire de nouveau en base (voir « Back-office »).
 
 ### Back-office (facultatif)
 
