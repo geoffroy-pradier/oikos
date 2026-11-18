@@ -1,3 +1,4 @@
+import { npcDemand, voyageArrivals } from '@oikos/engine';
 import { config, type City, type Role } from './city';
 import type { Seller } from './strategy';
 
@@ -74,3 +75,9 @@ export interface Settlement {
   city: City;
   houses: Seller[];
 }
+
+/** Cités d'attache des négociants (leur navire y naît) : une maison chacune, sans autre site que celui de la fondation. */
+export const TRADER_HOMES = ['kalliste', 'elaia', 'halos'] as const;
+export const TRADER: Role = { name: 'négociant', count: 1, sites: [], trader: true };
+/** Étapes des ticks du banc : la demande des PNJ, puis l'arrivée des voyages (4.6). */
+export const WORLD_STEPS = [npcDemand, voyageArrivals];

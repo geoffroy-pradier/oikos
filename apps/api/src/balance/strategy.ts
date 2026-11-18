@@ -110,7 +110,7 @@ export interface Seller extends House {
 export const seller = (house: House): Seller => ({ ...house, asks: new Map(), listed: new Map() });
 
 /** Ordres ouverts de la maison, annulés ; rend, par bien, ce qui a été vendu la veille. */
-async function cancelOpen(city: City, house: Seller) {
+export async function cancelOpen(city: City, house: Seller) {
   const open = await city.db
     .selectFrom('game.orders')
     .select(['id', 'good_id', 'side', 'quantity', 'remaining'])
@@ -134,7 +134,7 @@ async function cancelOpen(city: City, house: Seller) {
  * Ordre de `n` unités, s'il y en a ; rend vrai s'il est placé. Seul un achat faute de trésorerie peut
  * être refusé : tout autre refus fait échouer le banc.
  */
-async function place(
+export async function place(
   city: City,
   house: House,
   goodId: string,
@@ -154,7 +154,7 @@ async function place(
   return placed.ok;
 }
 /** Fait échouer le banc sur un refus, sauf un manque de trésorerie quand il est admis. */
-function assertAdmitted(reply: Reply, shortOfFundsAllowed: boolean, command: string) {
+export function assertAdmitted(reply: Reply, shortOfFundsAllowed: boolean, command: string) {
   if (!reply.ok && !(shortOfFundsAllowed && reply.error?.code === 'INSUFFICIENT_FUNDS'))
     throw new Error(`${command}: ${reply.error?.code}`);
 }
