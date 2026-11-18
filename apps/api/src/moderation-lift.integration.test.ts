@@ -3,8 +3,8 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
 
-// Retrait d'une exclusion proposée (#531), contre Supabase local. Les comptes de l'équipe sont inscrits par le
-// test ; leurs rôles sont retirés à la fin.
+// Retrait d'une exclusion proposée et levée d'une sanction sans appel (#531), contre Supabase local. Les comptes de
+// l'équipe sont inscrits par le test ; leurs rôles sont retirés à la fin.
 const staff: string[] = [];
 afterAll(async () => {
   await sql`delete from admin.roles where user_id = any(${staff}::uuid[])`.execute(owner);
@@ -51,6 +51,11 @@ const statusOf = async (ids: string[]) =>
     await rows(sql<{ status: string }>`
       select status from game.orders where id = any(${ids}::uuid[]) order by array_position(${ids}::uuid[], id)`)
   ).map((row) => row.status);
+const entriesOf = async (worldId: string) =>
+  (
+    await rows(sql<{ n: number }>`
+      select count(*)::int as n from game.ledger_entries where world_id = ${worldId}`)
+  )[0]?.n;
 /** Exclusions de la file, d'après la fonction que lit `GET /api/admin/reports`. */
 const pendingIds = async () =>
   (
@@ -116,6 +121,7 @@ describe('admin.withdrawExclusion', () => {
     for (const [command, code] of [
       ['admin.withdrawExclusion', 'EXCLUSION_WITHDRAWN'],
       ['admin.confirmExclusion', 'EXCLUSION_WITHDRAWN'],
+      ['admin.liftSanction', 'SANCTION_ENDED'],
     ] as const)
       expect([command, ...codeOf(await send(other, command, { sanctionId }))]).toEqual([
         command,
@@ -163,5 +169,154 @@ describe('admin.withdrawExclusion', () => {
       expect(confirmed.status).toBe(200);
       expect(await statusOf([orderId])).toEqual(['cancelled']);
     }
+  });
+});
+
+describe('admin.liftSanction', () => {
+  it('lève seule une suspension, que son auteur ou un autre compte lève ; le compte rejoue aussitôt', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const { author, sanctionId } = await pronounce(alice.user, 'suspension', 24);
+    expect(codeOf(await buy(alice.user, world.kalliste, 2, 1))).toEqual([409, 'SUSPENDED']);
+    await grant(alice.user, await (root ??= superAdmin()));
+    expect(codeOf(await send(`aal2:${alice.user}`, 'admin.liftSanction', { sanctionId }))).toEqual([
+      409,
+      'SECOND_PERSON_REQUIRED',
+    ]);
+
+    const key = randomUUID();
+    const lifted = await send(author, 'admin.liftSanction', { sanctionId }, { key });
+    expect(lifted.status).toBe(200);
+    expect(lifted.body.data).toEqual({
+      sanctionId,
+      pending: false,
+      liftedAt: expect.any(String),
+    });
+    const again = await send(author, 'admin.liftSanction', { sanctionId }, { key });
+    expect([again.status, again.replayed, again.body]).toEqual([200, 'true', lifted.body]);
+    expect((await buy(alice.user, world.kalliste, 2, 1)).status).toBe(200);
+    const [read] = await rows(sql<{ ends_at: Date }>`
+      select ends_at from admin.sanctions where id = ${sanctionId}`);
+    expect(read?.ends_at.toISOString()).toBe(lifted.body.data.liftedAt);
+    expect((await eventsOf(author)).at(-1)).toEqual({
+      command: 'admin.liftSanction',
+      type: 'SanctionLifted',
+      payload: { sanctionId, userId: alice.user, kind: 'suspension' },
+    });
+    expect(codeOf(await send(await moderator(), 'admin.liftSanction', { sanctionId }))).toEqual([
+      409,
+      'SANCTION_ENDED',
+    ]);
+  });
+
+  it('refuse une sanction sous appel, une exclusion à valider, une sanction finie ou inconnue', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const { sanctionId: silence } = await pronounce(alice.user, 'silence', 24);
+    expect(
+      (await send(alice.user, 'moderation.appeal', { sanctionId: silence, body: 'Je conteste.' }))
+        .status,
+    ).toBe(200);
+    const pending = await propose(alice.user);
+    const [ended] = await rows(sql<{ id: string }>`
+      insert into admin.sanctions (user_id, kind, starts_at, ends_at, reason, author_id)
+      values (${alice.user}, 'warning', now() - interval '2 days', now() - interval '1 day', 'Fini', ${idOf(await moderator())})
+      returning id`);
+    const other = await moderator();
+    for (const [id, code] of [
+      [silence, 'APPEAL_PENDING'],
+      [pending, 'NOT_CONFIRMED'],
+      [ended?.id, 'SANCTION_ENDED'],
+      [randomUUID(), 'SANCTION_NOT_FOUND'],
+    ] as const)
+      expect([
+        code,
+        codeOf(await send(other, 'admin.liftSanction', { sanctionId: id }))[1],
+      ]).toEqual([code, code]);
+    // Accueillir l'appel lève la sanction, comme avant.
+    const decided = await send(other, 'admin.decideAppeal', {
+      sanctionId: silence,
+      decision: 'granted',
+    });
+    expect(decided.body.data.liftedAt).not.toBeNull();
+  });
+
+  it('une exclusion validée se lève à deux, sans rouvrir les ordres ni toucher au séquestre', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const orderId = (await buy(alice.user, world.kalliste, 6, 5)).body.data.orderId as string;
+    const sanctionId = await propose(alice.user);
+    expect((await send(await moderator(), 'admin.confirmExclusion', { sanctionId })).status).toBe(
+      200,
+    );
+    const afterExclusion = await money(alice.houseId);
+    expect(afterExclusion.escrow).toBe(0);
+    const entries = await entriesOf(world.worldId);
+
+    const [first, second] = [await moderator(), await moderator()];
+    const proposed = await send(first, 'admin.liftSanction', { sanctionId });
+    expect(proposed.body.data).toEqual({ sanctionId, pending: true, liftedAt: null });
+    // Proposée, la levée n'agit pas, et qui l'a proposée ne la confirme pas.
+    expect(codeOf(await buy(alice.user, world.kalliste, 2, 1))).toEqual([409, 'SUSPENDED']);
+    expect(codeOf(await send(first, 'admin.liftSanction', { sanctionId }))).toEqual([
+      409,
+      'SECOND_PERSON_REQUIRED',
+    ]);
+    const lifted = await send(second, 'admin.liftSanction', { sanctionId });
+    expect(lifted.body.data).toEqual({ sanctionId, pending: false, liftedAt: expect.any(String) });
+    expect(await eventsOf(first)).toEqual([
+      {
+        command: 'admin.liftSanction',
+        type: 'SanctionLiftProposed',
+        payload: { sanctionId, userId: alice.user },
+      },
+    ]);
+
+    // L'ordre annulé à la validation le reste, et la levée n'a rien écrit au grand livre.
+    expect(await statusOf([orderId])).toEqual(['cancelled']);
+    expect(await money(alice.houseId)).toEqual(afterExclusion);
+    expect(await entriesOf(world.worldId)).toBe(entries);
+    expect(
+      await rows(sql`select e.type from game.domain_events e join game.command_log l on l.id = e.command_id
+        where l.user_id = ${idOf(second)}`),
+    ).toEqual([{ type: 'SanctionLifted' }]);
+    // Levée, l'exclusion n'agit plus : Alice rejoue, avec ce que sa maison a gardé.
+    expect((await buy(alice.user, world.kalliste, 2, 1)).status).toBe(200);
+    expect(codeOf(await send(await moderator(), 'admin.liftSanction', { sanctionId }))).toEqual([
+      409,
+      'SANCTION_ENDED',
+    ]);
+  });
+
+  it('deux propositions simultanées : de deux personnes, elles lèvent ; d’une seule, non', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    const confirmed = async (user: string) => {
+      const sanctionId = await propose(user);
+      expect((await send(await moderator(), 'admin.confirmExclusion', { sanctionId })).status).toBe(
+        200,
+      );
+      return sanctionId;
+    };
+    const [forAlice, forBob] = [await confirmed(alice.user), await confirmed(bob.user)];
+    const [m1, m2] = [await moderator(), await moderator()];
+    const two = await Promise.all([
+      send(m1, 'admin.liftSanction', { sanctionId: forAlice }),
+      send(m2, 'admin.liftSanction', { sanctionId: forAlice }),
+    ]);
+    expect(two.map((reply) => reply.body.data?.pending).sort()).toEqual([false, true]);
+    const one = await Promise.all([
+      send(m1, 'admin.liftSanction', { sanctionId: forBob }),
+      send(m1, 'admin.liftSanction', { sanctionId: forBob }),
+    ]);
+    expect(one.map((reply) => reply.body.data?.pending ?? reply.body.error?.code).sort()).toEqual([
+      'SECOND_PERSON_REQUIRED',
+      true,
+    ]);
+    expect(
+      await rows(sql<{ lifted: boolean }>`
+        select lifted_at is not null as lifted from admin.sanctions
+        where id in (${forAlice}, ${forBob}) order by id = ${forAlice} desc`),
+    ).toEqual([{ lifted: true }, { lifted: false }]);
   });
 });

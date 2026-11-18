@@ -6,11 +6,6 @@ Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouver
 Vingt-neuf sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #272 (écran Temple), #273 et #274 (discussion, puis temps réel et onglet Messages), #275 à #277 (modération : signalement et sanctions, commandes d'administration, module Olympe), #278 (intendants, 1/3) et #291 (écran Sites filtré par terroir).
 Les suivis #333, #354, #403, #404, #417, #420, #441, #444, #456, #463, #477, #484, #485, #489, #527, #530 et #532 sont fermés eux aussi.
 Des suivis restent ouverts :
-- #446, de #267 (tests complémentaires des événements) ;
-- #495, de #270 (contrôle de sortie des oracles, données de test, interblocage) ;
-- #528, de #275 (ordres et séquestre d'un compte suspendu ou exclu) ;
-- #529, de #276 (décision d'appel visible par le joueur) ;
-- #531, de #276 (retirer une exclusion proposée, lever une sanction sans appel) ;
 - #541, de #276 (durées de sanction proposées lisibles par l'écran de modération).
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
@@ -172,11 +167,12 @@ Ajouts de la phase 2 :
 - **Modération** (#275 à #277, #527, #530, #532 ; 6.6, 13, 15) : une maison signale un message d'un canal qu'elle lit, sous un motif de la configuration (`chat.report`), une fois par message.
   Un terme interdit de la configuration refuse le message (`MESSAGE_REJECTED`), et aussi le nom d'une maison à la fondation et au renommage (#527) ; un compte réduit au silence n'écrit ni ne fonde ni ne renomme (`SILENCED`).
   Les sanctions sont graduées : avertissement, silence, suspension, exclusion ; l'exclusion n'agit qu'une fois validée par une seconde personne.
-  Les commandes d'administration (`admin.sanction`, `admin.confirmExclusion`, `admin.decideAppeal`, `admin.resolveReport`, `admin.hideMessage`) sont ouvertes aux rôles de la modération.
+  Les commandes d'administration (`admin.sanction`, `admin.confirmExclusion`, `admin.withdrawExclusion`, `admin.liftSanction`, `admin.decideAppeal`, `admin.resolveReport`, `admin.hideMessage`) sont ouvertes aux rôles de la modération (#531 pour le retrait et la levée sans appel).
   Le module Modération d'Olympe liste la file des signalements, avec le message dans son contexte, les gestes de chaque entrée, les exclusions à valider et les appels à trancher.
   La Vigie compte les signalements en attente depuis plus de 24 heures (#530).
   Le masquage d'un message est diffusé en temps réel, sans son texte (#532).
-  Le retrait d'une exclusion proposée, la levée d'une sanction sans appel et la décision d'appel rendue au joueur attendent des suites (#531, #529).
+  La modération retire une exclusion proposée et lève une sanction sans appel, à deux pour une exclusion validée (#531) ; le joueur lit la décision sur ses appels dans l'annonce de ses sanctions (#529).
+  Les levées proposées n'apparaissent pas encore dans la file d'Olympe.
 - **Écran Temple** (#272, 10) : l'écran `/cite/temple`, sous l'onglet Cité, montre la Charis de la maison envers chaque dieu et son déclin du jour, et celle de la cité envers son dieu protecteur.
   Il permet l'offrande, l'invocation d'une grâce et la consultation de la Pythie, chacune au taux ou au prix vu, et relit les oracles consultés.
 - **Intendants, 1/3** (#278, 4.4) : une maison embauche un intendant par site, dans la limite des postes de son siège (`steward.hire`), le renvoie (`steward.dismiss`) et lui fixe des règles à grammaire fermée (`steward.setRules`).

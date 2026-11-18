@@ -21,6 +21,7 @@ import {
   adminConfirmExclusion,
   adminDecideAppeal,
   adminHideMessage,
+  adminLiftSanction,
   adminResolveReport,
   adminSanction,
   adminWithdrawExclusion,
@@ -126,6 +127,7 @@ export const COMMANDS = [
   adminResolveReport,
   adminDecideAppeal,
   adminWithdrawExclusion,
+  adminLiftSanction,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {

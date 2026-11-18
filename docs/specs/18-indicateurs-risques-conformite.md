@@ -37,6 +37,7 @@ Ces cibles sont des hypothèses de travail à recaler sur les mesures de l'alpha
   Dans la phase 2 (ticket 275), le joueur signale un message sous un motif de la configuration (6.6), et voit en tête de chaque écran ses sanctions pas encore finies, avec leur effet, leur motif, leur fin (« sans fin » pour une exclusion) et le moyen d'en faire appel (10).
   Décision (le ticket ne dit pas de quelle sanction on fait appel) : on fait appel d'une sanction pas encore finie, une seule fois, par un texte d'au plus `moderation.maxAppealLength` caractères (1 000) ; une sanction finie ne se conteste plus (`SANCTION_ENDED`).
   L'appel ne suspend pas la sanction ; il est tranché par `admin.decideAppeal` (15.1, #276), par un autre compte que l'auteur de la sanction et que le compte sanctionné, et accueilli, il la lève.
+  La modération peut aussi lever une sanction sans appel, et retirer une exclusion proposée (15.1, #531).
   `game.my_sanctions()` a un type rendu figé (ADR 0006) ; une sanction levée y finit à l'instant de sa levée.
   Le joueur lit la décision sur ses appels par une fonction et une vue nouvelles (#529, `game.my_appeal_decisions()`, `public.my_appeal_decisions`) : une ligne par appel tranché, avec la sanction, la décision (accueilli ou rejeté) et son instant, jamais l'auteur de la décision ni de la levée.
   Comme pour ses sanctions, il ne lit que ses propres appels, et rien d'une exclusion encore à valider.

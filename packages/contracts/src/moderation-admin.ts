@@ -94,10 +94,38 @@ export const ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES = [
   'FORBIDDEN',
   /** Aucune exclusion sous cet identifiant. */
   'SANCTION_NOT_FOUND',
-  /** Déjà validée : elle ne se retire pas. */
+  /** Déjà validée : elle se lève (`admin.liftSanction`), elle ne se retire pas. */
   'ALREADY_CONFIRMED',
   'EXCLUSION_WITHDRAWN',
   /** Le compte exclu ne retire pas son exclusion. */
+  'SECOND_PERSON_REQUIRED',
+] as const;
+
+/**
+ * Commande `admin.liftSanction` : lève sans appel une sanction en vigueur, qui finit à cet instant. Une exclusion
+ * validée demande deux personnes (15.4) : la première commande propose la levée (`pending`), une autre personne
+ * la confirme par la même commande. Une sanction dont l'appel attend se lève en tranchant l'appel.
+ */
+export const adminLiftSanctionInputSchema = z.strictObject({ sanctionId: z.uuid() });
+export type AdminLiftSanctionInput = z.infer<typeof adminLiftSanctionInputSchema>;
+export const adminLiftSanctionOutputSchema = z.object({
+  sanctionId: z.uuid(),
+  /** Levée proposée, à confirmer par une autre personne : la sanction court encore. */
+  pending: z.boolean(),
+  /** Instant de la levée ; nul tant qu'elle n'est que proposée. */
+  liftedAt: z.iso.datetime().nullable(),
+});
+export type AdminLiftSanctionOutput = z.infer<typeof adminLiftSanctionOutputSchema>;
+export const ADMIN_LIFT_SANCTION_ERROR_CODES = [
+  'FORBIDDEN',
+  'SANCTION_NOT_FOUND',
+  /** Finie, déjà levée ou retirée. */
+  'SANCTION_ENDED',
+  /** Exclusion proposée, pas encore validée : elle se retire (`admin.withdrawExclusion`). */
+  'NOT_CONFIRMED',
+  /** Un appel attend : la sanction se lève en l'accueillant (`admin.decideAppeal`). */
+  'APPEAL_PENDING',
+  /** Le compte sanctionné ne lève pas sa sanction ; qui propose la levée d'une exclusion ne la confirme pas. */
   'SECOND_PERSON_REQUIRED',
 ] as const;
 
@@ -184,6 +212,20 @@ export const exclusionConfirmedSchema = z.strictObject({
 export const exclusionWithdrawnSchema = z.strictObject({
   type: z.literal('ExclusionWithdrawn'),
   payload: z.strictObject({ sanctionId: z.uuid(), userId: z.uuid() }),
+});
+/** La levée d'une exclusion validée est proposée ; une autre personne la confirmera. */
+export const sanctionLiftProposedSchema = z.strictObject({
+  type: z.literal('SanctionLiftProposed'),
+  payload: z.strictObject({ sanctionId: z.uuid(), userId: z.uuid() }),
+});
+/** Une sanction est levée sans appel : elle finit à cet instant. */
+export const sanctionLiftedSchema = z.strictObject({
+  type: z.literal('SanctionLifted'),
+  payload: z.strictObject({
+    sanctionId: z.uuid(),
+    userId: z.uuid(),
+    kind: z.enum(['warning', 'silence', 'suspension', 'ban']),
+  }),
 });
 export const messageHiddenSchema = z.strictObject({
   type: z.literal('MessageHidden'),

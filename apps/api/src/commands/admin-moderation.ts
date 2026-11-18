@@ -2,6 +2,7 @@ import {
   ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
   ADMIN_DECIDE_APPEAL_ERROR_CODES,
   ADMIN_HIDE_MESSAGE_ERROR_CODES,
+  ADMIN_LIFT_SANCTION_ERROR_CODES,
   ADMIN_RESOLVE_REPORT_ERROR_CODES,
   ADMIN_SANCTION_ERROR_CODES,
   ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
@@ -11,6 +12,8 @@ import {
   adminDecideAppealOutputSchema,
   adminHideMessageInputSchema,
   adminHideMessageOutputSchema,
+  adminLiftSanctionInputSchema,
+  adminLiftSanctionOutputSchema,
   adminResolveReportInputSchema,
   adminResolveReportOutputSchema,
   adminSanctionInputSchema,
@@ -27,7 +30,8 @@ import { cancelOrdersOfExcluded } from './exclusion-orders';
 /**
  * Commandes d'administration de la modération (docs/specs/15-back-office-olympe.md, 15.1, 15.4 ; #276, #531). La
  * base tient les mêmes règles que ces commandes (migrations 260 et 390) : elle date chaque changement, n'en admet
- * qu'un, et refuse qu'une exclusion soit validée par son auteur ou par le compte exclu.
+ * qu'un, refuse qu'une exclusion soit validée par son auteur ou par le compte exclu, et qu'une exclusion validée
+ * soit levée sans appel par une seule personne.
  */
 
 const HOUR_MS = 3_600_000;
@@ -39,6 +43,11 @@ export const SECOND_PERSON_REQUIRED = {
 const EXCLUSION_WITHDRAWN = {
   code: 'EXCLUSION_WITHDRAWN',
   message: 'This exclusion was withdrawn.',
+};
+const SANCTION_ENDED = { code: 'SANCTION_ENDED', message: 'The sanction has ended.' };
+const APPEAL_PENDING = {
+  code: 'APPEAL_PENDING',
+  message: 'An appeal is pending: decide it to lift the sanction.',
 };
 
 /**
@@ -175,6 +184,79 @@ export const adminWithdrawExclusion = defineCommand({
     return {
       ok: true,
       data: { sanctionId: ban.id, withdrawnAt: withdrawn.lifted_at.toISOString() },
+    };
+  },
+});
+
+/**
+ * Lève sans appel une sanction en vigueur : elle finit à cet instant. Tout compte de la modération le peut, sauf le
+ * compte sanctionné. Une exclusion validée demande deux personnes (15.4) : la première commande en propose la levée,
+ * une autre personne la lève par la même commande. Ce que la validation a annulé (ordres, séquestre rendu : #528)
+ * le reste : lever l'exclusion ne rouvre aucun ordre. Une sanction dont l'appel attend se lève en l'accueillant.
+ */
+export const adminLiftSanction = defineCommand({
+  name: 'admin.liftSanction',
+  admin: MODERATION_ROLES,
+  input: adminLiftSanctionInputSchema,
+  output: adminLiftSanctionOutputSchema,
+  errors: ADMIN_LIFT_SANCTION_ERROR_CODES,
+  errorByConstraint: {
+    sanctions_lift_shape: SECOND_PERSON_REQUIRED,
+    sanctions_lift_proposal_shape: SECOND_PERSON_REQUIRED,
+    sanctions_lift_confirmed_by_other: SECOND_PERSON_REQUIRED,
+    sanctions_lift_not_ended: SANCTION_ENDED,
+    sanctions_lift_appeal_pending: APPEAL_PENDING,
+  },
+  async handler({ trx, userId, emit, now }, input) {
+    // Verrou de la ligne : de deux levées, ou d'une proposition et d'une levée, simultanées, la seconde voit la
+    // première ; de deux propositions de deux personnes, la seconde lève donc l'exclusion.
+    const sanction = await trx
+      .selectFrom('admin.sanctions')
+      .select([
+        'id',
+        'user_id',
+        'kind',
+        'ends_at',
+        'validated_by',
+        'appeal_body',
+        'appeal_decision',
+        'lift_proposed_by',
+      ])
+      .where('id', '=', input.sanctionId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!sanction) return refuse('SANCTION_NOT_FOUND', 'No such sanction.');
+    // Même instant que celui de la base, qui refuserait de lever une sanction finie.
+    if (sanction.ends_at && sanction.ends_at <= now) return { ok: false, error: SANCTION_ENDED };
+    const ban = sanction.kind === 'ban';
+    if (ban && !sanction.validated_by)
+      return refuse('NOT_CONFIRMED', 'This exclusion is not confirmed: withdraw it instead.');
+    if (sanction.user_id === userId) return { ok: false, error: SECOND_PERSON_REQUIRED };
+    if (sanction.appeal_body !== null && sanction.appeal_decision === null)
+      return { ok: false, error: APPEAL_PENDING };
+    const target = { sanctionId: sanction.id, userId: sanction.user_id };
+    if (ban && !sanction.lift_proposed_by) {
+      await trx
+        .updateTable('admin.sanctions')
+        .set({ lift_proposed_by: userId })
+        .where('id', '=', sanction.id)
+        .execute();
+      emit({ type: 'SanctionLiftProposed', payload: target });
+      return { ok: true, data: { sanctionId: sanction.id, pending: true, liftedAt: null } };
+    }
+    if (ban && sanction.lift_proposed_by === userId)
+      return { ok: false, error: SECOND_PERSON_REQUIRED };
+    const lifted = await trx
+      .updateTable('admin.sanctions')
+      .set({ lifted_by: userId })
+      .where('id', '=', sanction.id)
+      .returning('lifted_at')
+      .executeTakeFirstOrThrow();
+    if (!lifted.lifted_at) throw new Error('The database did not date the lift');
+    emit({ type: 'SanctionLifted', payload: { ...target, kind: sanction.kind } });
+    return {
+      ok: true,
+      data: { sanctionId: sanction.id, pending: false, liftedAt: lifted.lifted_at.toISOString() },
     };
   },
 });
