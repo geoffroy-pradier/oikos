@@ -337,3 +337,124 @@ it('un refus que l’écran ne connaît pas est dit avec son code, sans passer p
   await waitFor(() => expect(adminCommand).toHaveBeenCalledTimes(2));
   expect(adminCommand.mock.calls[1]?.[3]).not.toBe(adminCommand.mock.calls[0]?.[3]);
 });
+
+const WITH_SANCTIONS: AdminReports = {
+  ...REPORTS,
+  queue: [],
+  appeals: [
+    {
+      sanctionId: id(311),
+      userId: id(711),
+      kind: 'suspension',
+      reason: 'Insultes',
+      startsAt: '2026-11-16T10:00:00Z',
+      endsAt: '2026-11-23T10:00:00Z',
+      authorId: id(721),
+      appealBody: 'Je regrette',
+      appealedAt: '2026-11-17T10:00:00Z',
+    },
+  ],
+  pendingExclusions: [
+    {
+      sanctionId: id(312),
+      userId: id(712),
+      reason: 'Triche répétée',
+      authorId: id(722),
+      proposedAt: '2026-11-17T08:00:00Z',
+    },
+  ],
+};
+async function openedSanctions(commandReplies: object[], after: AdminReports) {
+  adminGet.mockResolvedValueOnce({ ok: true, data: WITH_SANCTIONS });
+  adminGet.mockResolvedValue({ ok: true, data: after });
+  for (const reply of commandReplies) adminCommand.mockResolvedValueOnce(reply);
+  render(<Moderation accessToken="token" />);
+  await screen.findByRole('heading', { name: 'Appels à trancher' });
+}
+
+it('liste les exclusions à valider et les appels, comptes en entier', async () => {
+  expect(adminReportsSchema.safeParse(WITH_SANCTIONS).success).toBe(true);
+  await openedSanctions([], WITH_SANCTIONS);
+  const exclusion = screen.getByRole('list', { name: 'Exclusions à valider' });
+  expect(within(exclusion).getByText(id(712))).toBeTruthy();
+  expect(
+    within(exclusion).getByText(`Proposée le 17/11/2026 08:00 par le compte ${id(722)}.`),
+  ).toBeTruthy();
+  expect(within(exclusion).getByText('Motif : Triche répétée')).toBeTruthy();
+  const appeal = screen.getByRole('list', { name: 'Appels à trancher' });
+  expect(within(appeal).getByText(/^Appel d'une sanction \(suspension\) du compte/)).toBeTruthy();
+  expect(within(appeal).getByText(/Du 16\/11\/2026 10:00 au 23\/11\/2026 10:00\./)).toBeTruthy();
+  expect(within(appeal).getByText('Appel du 17/11/2026 10:00 : Je regrette')).toBeTruthy();
+  expect(within(appeal).getByText('Motif : Insultes')).toBeTruthy();
+});
+
+it('valide une exclusion après confirmation ; le refus de la seconde personne est expliqué', async () => {
+  await openedSanctions(
+    [
+      { ok: false, code: 'SECOND_PERSON_REQUIRED' },
+      { ok: true, data: { sanctionId: id(312), startsAt: NOW } },
+    ],
+    WITH_SANCTIONS,
+  );
+  const validate = () =>
+    screen.getByRole('button', { name: `Valider l'exclusion du compte ${id(712).slice(0, 8)}` });
+  fireEvent.click(validate());
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'exclusion" }));
+  await waitFor(() => expect(notice('alert')).toMatch(/^Un autre compte que l'auteur/));
+  expect(document.activeElement).toBe(validate());
+  fireEvent.click(validate());
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'exclusion" }));
+  await waitFor(() => expect(notice('status')).toBe('Exclusion validée : elle commence.'));
+  expect(adminCommand.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+    ['admin.confirmExclusion', { sanctionId: id(312) }],
+    ['admin.confirmExclusion', { sanctionId: id(312) }],
+  ]);
+});
+
+it('tranche un appel : accueillir et rejeter envoient la décision, après confirmation', async () => {
+  await openedSanctions(
+    [
+      { ok: true, data: { sanctionId: id(311), decision: 'granted', liftedAt: NOW } },
+      { ok: true, data: { sanctionId: id(311), decision: 'rejected', liftedAt: null } },
+    ],
+    WITH_SANCTIONS,
+  );
+  const account = id(711).slice(0, 8);
+  fireEvent.click(screen.getByRole('button', { name: `Accueillir l'appel du compte ${account}` }));
+  const cancel = screen.getByRole('button', { name: 'Annuler' });
+  expect(document.getElementById(cancel.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+    `L'appel sera accueilli : la sanction du compte ${id(711)} sera levée à cet instant si elle n'est pas finie.`,
+  );
+  expect(adminCommand).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer : accueillir' }));
+  await waitFor(() => expect(notice('status')).toBe('Appel accueilli.'));
+  fireEvent.click(screen.getByRole('button', { name: `Rejeter l'appel du compte ${account}` }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer : rejeter' }));
+  await waitFor(() => expect(notice('status')).toBe('Appel rejeté.'));
+  expect(adminCommand.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+    ['admin.decideAppeal', { sanctionId: id(311), decision: 'granted' }],
+    ['admin.decideAppeal', { sanctionId: id(311), decision: 'rejected' }],
+  ]);
+});
+
+it('Entrée tenue sur « Accueillir l’appel » n’ouvre ni ne confirme rien', async () => {
+  await openedSanctions([], WITH_SANCTIONS);
+  screen.getByRole('button', { name: new RegExp(`^Accueillir l'appel`) }).focus();
+  enter(true);
+  expect(screen.queryByRole('button', { name: 'Annuler' })).toBeNull();
+  enter();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+  enter(true);
+  expect(adminCommand).not.toHaveBeenCalled();
+});
+
+it('listes vides dites, en français et en anglais', async () => {
+  adminGet.mockResolvedValue({ ok: true, data: { ...REPORTS, queue: [] } });
+  render(<Moderation accessToken="token" />);
+  expect(await screen.findByText('Aucune exclusion à valider.')).toBeTruthy();
+  expect(screen.getByText('Aucun appel à trancher.')).toBeTruthy();
+  await i18n.changeLanguage('en');
+  expect(screen.getByText('No exclusion to confirm.')).toBeTruthy();
+  expect(screen.getByText('No appeal to decide.')).toBeTruthy();
+});
