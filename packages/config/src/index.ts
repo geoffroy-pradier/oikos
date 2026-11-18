@@ -6,6 +6,7 @@ export * from './graces';
 export * from './moderation';
 export * from './oracle';
 export * from './schema';
+export * from './stewards';
 export * from './store';
 export * from './validate';
 export * from './world-events';

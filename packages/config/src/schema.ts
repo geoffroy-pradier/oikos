@@ -3,6 +3,7 @@ import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
 import { filterForm } from './moderation';
 import { oracleIssues, oracleSchema } from './oracle';
+import { stewardsSchema } from './stewards';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */
@@ -910,6 +911,8 @@ export const gameConfigSchema = z
     ships: shipsSchema.default(DEFAULT_SHIPS),
     /** Absent des versions publiées avant le personnel : aucun salaire. */
     staff: staffSchema.default(DEFAULT_STAFF),
+    /** Absent des versions publiées avant les intendants (#278) : aucun poste, aucun salaire. */
+    stewards: stewardsSchema.optional(),
     /** Absent des versions publiées avant l'immobilier : aucun bien. */
     properties: propertiesSchema.default(DEFAULT_PROPERTIES),
     /** Absent des versions publiées avant le marché du travail : offre sans limite, aucun hébergement. */

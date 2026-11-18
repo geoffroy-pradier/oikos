@@ -15,5 +15,6 @@ export * from './property';
 export * from './property-market';
 export * from './ship';
 export * from './site';
+export * from './steward';
 export * from './temple';
 export * from './voyage';
