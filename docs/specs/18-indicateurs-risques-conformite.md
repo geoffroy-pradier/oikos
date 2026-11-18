@@ -40,6 +40,9 @@ Ces cibles sont des hypothèses de travail à recaler sur les mesures de l'alpha
   `game.my_sanctions()` a un type rendu figé (ADR 0006) ; une sanction levée y finit à l'instant de sa levée.
   Le joueur lit la décision sur ses appels par une fonction et une vue nouvelles (#529, `game.my_appeal_decisions()`, `public.my_appeal_decisions`) : une ligne par appel tranché, avec la sanction, la décision (accueilli ou rejeté) et son instant, jamais l'auteur de la décision ni de la levée.
   Comme pour ses sanctions, il ne lit que ses propres appels, et rien d'une exclusion encore à valider.
+  L'annonce des sanctions dit la décision sous l'appel : accueilli (la sanction est levée) ou rejeté (elle est maintenue), avec sa date.
+  Décision (ambiguïté du ticket) : une sanction finie dont l'appel est tranché, dont celle qu'un appel accueilli a levée, reste annoncée, sans son effet et avec sa fin, jusqu'à ce que le joueur masque cet avis.
+  Ce choix est gardé dans le navigateur, pour ce compte et sur cet appareil seulement, sans écriture en base ni durée de la configuration ; un autre appareil montre de nouveau l'avis.
   Le texte de l'appel est gardé avec la sanction, pas dans le journal des commandes.
   La liste initiale des termes interdits est vide : elle relève de la charte de conduite, que le responsable communauté remplit par Olympe.
 - **Commerce** : conditions de vente, droit de rétractation, TVA, mentions légales. Aucun mécanisme de hasard payant.
