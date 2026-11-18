@@ -1,25 +1,39 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   balanceOf,
   db,
-  ELAIA,
   eventsOf,
   GRANT,
-  KALLISTE,
   newPlayer,
   owner,
   send,
 } from './property.integration-fixtures';
 import { TEST_CONFIG } from './test-config';
-import { appWithConfig, HALOS, WORLD, type App } from './voyage.integration-fixtures';
+import { appWithConfig, type App } from './voyage.integration-fixtures';
 import { planEvent, waitUntil } from './world-events.integration-fixtures';
 
 // Consultation de la Pythie (#270), contre Supabase local, avec la configuration initiale : IA coupée, Apollon prend
-// la monnaie à 1 Charis par obole. Les événements du monde de test commencent dans un mois, sauf mention : ils
-// n'agissent sur aucun autre test.
+// la monnaie à 1 Charis par obole. Les événements et les oracles sont posés dans un monde à ce fichier, neuf à chaque
+// passage (#495) : ils n'agissent sur aucun autre test, et une base jamais remise à zéro n'accumule pas, d'un passage
+// à l'autre, les oracles à venir qu'une consultation rend (au plus 1 000, `oracle_consultations_oracles`).
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
+let [WORLD, KALLISTE, ELAIA, HALOS] = ['', '', '', ''];
+beforeAll(async () => {
+  WORLD = randomUUID();
+  await owner
+    .insertInto('game.worlds')
+    .values({ id: WORLD, slug: `py-${WORLD.slice(0, 12)}`, name: 'Pythie' })
+    .execute();
+  const cities = await owner
+    .insertInto('game.cities')
+    .values(['kalliste', 'elaia', 'halos'].map((slug) => ({ world_id: WORLD, slug, name: slug })))
+    .returning(['id', 'slug'])
+    .execute();
+  const idOf = (slug: string) => cities.find((city) => city.slug === slug)?.id ?? '';
+  [KALLISTE, ELAIA, HALOS] = [idOf('kalliste'), idOf('elaia'), idOf('halos')];
+});
 const PRICE = TEST_CONFIG.config.oracle?.consultationOboles ?? NaN;
 const MONTH = 30 * 86_400_000;
 const codeOf = (reply: { body: { error?: { code: string } } }) => reply.body.error?.code;
@@ -31,6 +45,14 @@ const apollo = async (houseId: string) =>
       await sql<{ charis: string }>`select charis from game.favor
         where house_id = ${houseId} and god_id = 'apollo'`.execute(db)
     ).rows[0]?.charis ?? 0,
+  );
+/** Solde du puits des offrandes du monde de ce fichier. */
+const sinkBalance = async () =>
+  Number(
+    (
+      await sql<{ balance: string }>`select balance from game.accounts
+        where world_id = ${WORLD} and system_key = 'sink_offerings'`.execute(db)
+    ).rows[0]?.balance,
   );
 const consultationsOf = async (houseId: string) =>
   (
@@ -73,12 +95,13 @@ describe('temple.consultOracle (#270)', () => {
     const storm = await plan('storm', ELAIA, { otherCityId: KALLISTE });
     const caravan = await plan('caravan', ELAIA, { goodId: 'wine' });
     const player = await newPlayer(KALLISTE);
-    const sink = await balanceOf('sink_offerings');
+    const sink = await sinkBalance();
     const done = await consult(player.user);
     expect(done.status).toBe(200);
     const ids = done.body.data.oracles.map((entry: { oracleId: string }) => entry.oracleId);
     expect(ids).toEqual(await upcomingOf(KALLISTE));
-    expect(ids).toEqual(expect.arrayContaining([drought.oracleId, storm.oracleId]));
+    // Le monde est à ce fichier, neuf à chaque passage : rien d'un passage précédent ne s'y ajoute.
+    expect(ids).toEqual([drought.oracleId, storm.oracleId].sort());
     expect(ids).not.toContain(caravan.oracleId);
     expect(done.body.data.oracles).toContainEqual({
       oracleId: drought.oracleId,
@@ -95,7 +118,7 @@ describe('temple.consultOracle (#270)', () => {
       charis: PRICE,
     });
     // Les oboles sont détruites, en entiers : rien n'est créé, rien ne se perd entre la maison et le puits.
-    expect([await balanceOf(player.houseId), (await balanceOf('sink_offerings')) - sink]).toEqual([
+    expect([await balanceOf(player.houseId), (await sinkBalance()) - sink]).toEqual([
       GRANT - PRICE,
       PRICE,
     ]);
@@ -180,6 +203,40 @@ describe('temple.consultOracle (#270)', () => {
     expect([await balanceOf(player.houseId), await apollo(player.houseId)]).toEqual([GRANT, 0]);
     expect(await consultationsOf(player.houseId)).toEqual([]);
     expect(await eventsOf(player.houseId, 'OracleConsulted')).toEqual([]);
+  });
+
+  it('la Charis avant l’agora : une clôture qui tient la Charis puis prend l’agora ne s’interbloque pas', async () => {
+    const player = await newPlayer(KALLISTE);
+    // La première consultation pose la Charis de la maison envers Apollon, que la clôture verrouille ensuite.
+    expect((await consult(player.user)).status).toBe(200);
+    // Comme le déclin de la clôture : la Charis de la maison verrouillée, puis l'agora du monde.
+    const { consultation } = await owner.transaction().execute(async (close) => {
+      await sql`set local lock_timeout = '10s'`.execute(close);
+      await sql`select 1 from game.favor where house_id = ${player.houseId} for update`.execute(
+        close,
+      );
+      const consultation = consult(player.user);
+      // La consultation attend la Charis.
+      for (let tries = 0; ; tries += 1) {
+        const waiting = await sql<{ n: string }>`select count(*) as n from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock' and query like '%"favor"%'`.execute(
+          owner,
+        );
+        if (Number(waiting.rows[0]?.n) > 0) break;
+        if (tries > 100) throw new Error('the consultation never waited for the Charis lock');
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${WORLD}`}, 0))`.execute(
+        close,
+      );
+      return { consultation };
+    });
+    expect((await consultation).status).toBe(200);
+    expect([await balanceOf(player.houseId), await apollo(player.houseId)]).toEqual([
+      GRANT - 2 * PRICE,
+      2 * PRICE,
+    ]);
+    expect(await consultationsOf(player.houseId)).toHaveLength(2);
   });
 
   it('un événement commencé n’est plus rendu ; une cité sans événement à venir se consulte quand même', async () => {
