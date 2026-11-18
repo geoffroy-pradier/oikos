@@ -1,18 +1,18 @@
 # État du projet
 
-Point d'étape au 17 novembre 2026, vers 13 h (heure de Paris).
+Point d'étape au 18 novembre 2026, vers 19 h (heure de Paris).
 La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
 Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Vingt-quatre sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #273 et #274 (discussion, puis temps réel et onglet Messages) et #291 (écran Sites filtré par terroir).
-Les suivis #354, #404, #417, #441, #444, #456, #463 et #485 sont fermés eux aussi.
+Vingt-neuf sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #272 (écran Temple), #273 et #274 (discussion, puis temps réel et onglet Messages), #275 à #277 (modération : signalement et sanctions, commandes d'administration, module Olympe), #278 (intendants, 1/3) et #291 (écran Sites filtré par terroir).
+Les suivis #333, #354, #403, #404, #417, #441, #444, #456, #463, #477, #484, #485, #489, #527, #530 et #532 sont fermés eux aussi.
 Des suivis restent ouverts :
-- #403, de #259 (entretien impayé visible sur les offres) ;
-- #420, de #264 (« depuis quand » du statut) ;
+- #420, de #264 (« depuis quand » du statut), dont la demande de fusion #559 attend `ci` ;
 - #446, de #267 (tests complémentaires des événements) ;
-- #477, de #266 (vent favorable et surplus d'une grâce dans les écrans) ;
 - #495, de #270 (contrôle de sortie des oracles, données de test, interblocage) ;
-- #333, nouvel essai automatique des commandes sur interblocage ;
-- #484 et #489, instabilités de `ci` (tests d'intégration d'admin-config, interblocage rare du rejeu des migrations).
+- #528, de #275 (ordres et séquestre d'un compte suspendu ou exclu) ;
+- #529, de #276 (décision d'appel visible par le joueur) ;
+- #531, de #276 (retirer une exclusion proposée, lever une sanction sans appel) ;
+- #541, de #276 (durées de sanction proposées lisibles par l'écran de modération).
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -23,8 +23,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
 - **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250 à #268, #270, #271, #273, #274, #291.
-  En cours, pas encore en demande de fusion : #272 (écran Temple) et #275 (modération : signalement, sanctions du joueur et blocage).
+  Fermés : #250 à #268, #270 à #278, #291.
+  Restent les intendants 2/3 et 3/3 (#279, #280), puis l'équilibrage (#281 à #286, bloqué par #279), et les suivis ouverts ci-dessus.
   Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
   Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
 
@@ -170,6 +170,21 @@ Ajouts de la phase 2 :
   Sans Realtime, l'écran relit toutes les 15 secondes et le dit.
 - **Pythie** (#270, 7.3) : chaque événement planifié a son oracle, écrit à la main en repli, `fr` et `en`, qui ne dit que sa nature, et le bien d'une caravane ; une tâche du moteur essaie une fois de le faire réécrire par l'IA, sans nombre ni nom de cité.
   Consulter la Pythie (`temple.consultOracle`) est une offrande de 60 oboles à Apollon, au prix vu, qui rend les oracles des événements à venir de la cité, même quand il n'y en a aucun ; le joueur relit ses oracles par `my_oracles`, sans écran encore (#272).
+- **Modération** (#275 à #277, #527, #530, #532 ; 6.6, 13, 15) : une maison signale un message d'un canal qu'elle lit, sous un motif de la configuration (`chat.report`), une fois par message.
+  Un terme interdit de la configuration refuse le message (`MESSAGE_REJECTED`), et aussi le nom d'une maison à la fondation et au renommage (#527) ; un compte réduit au silence n'écrit ni ne fonde ni ne renomme (`SILENCED`).
+  Les sanctions sont graduées : avertissement, silence, suspension, exclusion ; l'exclusion n'agit qu'une fois validée par une seconde personne.
+  Les commandes d'administration (`admin.sanction`, `admin.confirmExclusion`, `admin.decideAppeal`, `admin.resolveReport`, `admin.hideMessage`) sont ouvertes aux rôles de la modération.
+  Le module Modération d'Olympe liste la file des signalements, avec le message dans son contexte, les gestes de chaque entrée, les exclusions à valider et les appels à trancher.
+  La Vigie compte les signalements en attente depuis plus de 24 heures (#530).
+  Le masquage d'un message est diffusé en temps réel, sans son texte (#532).
+  Le retrait d'une exclusion proposée, la levée d'une sanction sans appel et la décision d'appel rendue au joueur attendent des suites (#531, #529).
+- **Écran Temple** (#272, 10) : l'écran `/cite/temple`, sous l'onglet Cité, montre la Charis de la maison envers chaque dieu et son déclin du jour, et celle de la cité envers son dieu protecteur.
+  Il permet l'offrande, l'invocation d'une grâce et la consultation de la Pythie, chacune au taux ou au prix vu, et relit les oracles consultés.
+- **Intendants, 1/3** (#278, 4.4) : une maison embauche un intendant par site, dans la limite des postes de son siège (`steward.hire`), le renvoie (`steward.dismiss`) et lui fixe des règles à grammaire fermée (`steward.setRules`).
+  La clôture paie son salaire après les sites, les navires et les biens ; la fiche du site porte une section Intendant.
+  L'intendant n'exécute pas encore ses règles : c'est l'objet de #279 et #280.
+- **Entretien impayé sur les offres** (#403, 4.5) : la vue `property_offers_upkeep` rend l'impayé d'un bien et le jour de jeu de la clôture qui l'a constaté, et l'écran Immobilier l'annonce sur l'offre.
+- **Nouvel essai des commandes** (#333, 13) : l'API rejoue une commande annulée par un interblocage (`40P01`) ou un échec de sérialisation (`40001`), sous la même clé, jusqu'à trois essais au total.
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
   La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
@@ -410,9 +425,10 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 
 Défauts connus :
 
-- **Interblocage récolte et tick** (#333) : depuis l'arrivée des voyages, une récolte et le tick peuvent s'interbloquer quand une maison reçoit dans une cité un bien qu'elle y vend aux PNJ.
-  Postgres annule l'une des deux transactions en entier, sans double effet : le tick est repris au passage suivant, hors de son intervalle.
-  Une récolte annulée est rejouée par l'API sous la même clé (#333, spécification 13) : le joueur ne voit qu'une attente d'environ une seconde.
+- **Interblocage récolte et tick** (#333) : une récolte et le tick peuvent encore s'interbloquer quand une maison reçoit dans une cité un bien qu'elle y vend aux PNJ.
+  L'API rejoue la récolte annulée (spécification 13), mais PostgreSQL ne cherche l'interblocage qu'après `deadlock_timeout` (1 s) : la commande rejouée dépasse alors le budget de 150 ms.
+  Le moteur ne rejoue pas : le tick annulé est repris au passage suivant, hors de son intervalle.
+  Au-delà de trois essais, la commande rend `INTERNAL` et la clé reste utilisable.
 - **Étape d'arrivée d'un seul tenant** : tous les voyages échus d'un monde sont déchargés dans la transaction de son tick ; une erreur sur l'un d'eux ferait échouer tout le tick du monde.
 
 - **Non suivis en ticket, relevés en relecture** :
