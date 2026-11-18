@@ -434,7 +434,7 @@ export function registerAdminReads(
   // Calendrier des événements du monde (7.3, 7.4 ; #267), tous mondes : ceux à venir, que les joueurs ne lisent
   // pas encore, et ceux en cours ou finis depuis `EVENTS_PAST_MS`, à l'heure de la base, sans leur graine. Les plus
   // tardifs d'abord : la limite coupe les plus anciens, jamais ceux à venir. Une ligne de plus que la limite est
-  // lue pour savoir si la liste est coupée (#446).
+  // lue pour savoir si la liste est coupée (#446) ; l'index sur la fin des événements sert cette lecture.
   app.get('/api/admin/events', async (c) => {
     const maxEvents = settings.maxAdminEvents ?? MAX_EVENTS;
     const { rows } = await sql<{ now: Date }>`select now() as now`.execute(db);
