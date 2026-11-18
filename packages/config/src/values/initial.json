@@ -213,6 +213,7 @@
     "limitByHeadquartersLevel": [2],
     "dailyWageOboles": 0,
     "rulesPerSteward": 5,
+    "operationsPerTick": 1,
     "names": [
       "Nikias",
       "Lysandros",

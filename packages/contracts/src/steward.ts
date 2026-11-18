@@ -134,3 +134,59 @@ export const stewardDismissedSchema = z.strictObject({
   type: z.literal('StewardDismissed'),
   payload: z.strictObject(stewardRef),
 });
+
+/** Commandes que mène un intendant (#279), par le cœur partagé avec le joueur (ADR 0009). */
+export const STEWARD_COMMANDS = ['site.collect', 'market.placeOrder'] as const;
+export type StewardCommand = (typeof STEWARD_COMMANDS)[number];
+
+const tickRef = {
+  /** Tick dont l'intendant a mené l'opération, et rang de l'opération dans ce tick (0 d'abord). */
+  tickIndex: z.number().int().nonnegative(),
+  rank: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_STEWARD_RULES - 1),
+};
+
+/**
+ * Résumé d'une opération d'intendant, gardé avec elle et lu par la fiche du site (vue `my_steward_operations`) :
+ * une récolte dit ses cycles et ses extrants ; un ordre dit ce qu'il proposait et, réussi, ce qui s'est échangé
+ * et son état. Un refus ne garde que ce qui était tenté.
+ */
+export const stewardOperationSummarySchema = z.discriminatedUnion('command', [
+  z.strictObject({
+    command: z.literal('site.collect'),
+    cycles: z.number().int().positive().optional(),
+    outputs: z
+      .array(z.strictObject({ goodId, quantity: z.number().int().nonnegative() }))
+      .optional(),
+  }),
+  z.strictObject({
+    command: z.literal('market.placeOrder'),
+    side: z.enum(['buy', 'sell']),
+    goodId,
+    price: unitPrice,
+    quantity: units.min(1),
+    /** Unités échangées à l'arrivée de l'ordre. */
+    traded: units.optional(),
+    status: z.enum(['open', 'filled', 'cancelled']).optional(),
+  }),
+]);
+export type StewardOperationSummary = z.infer<typeof stewardOperationSummarySchema>;
+
+/**
+ * Une opération d'intendant refusée (stock, trésorerie, bien retiré…) : notée au journal des commandes au nom de
+ * la maison, sans effet, elle ne retient ni les règles suivantes ni les autres intendants. Privé, comme les règles.
+ */
+export const stewardActionFailedSchema = z.strictObject({
+  type: z.literal('StewardActionFailed'),
+  payload: z.strictObject({
+    ...stewardRef,
+    ...tickRef,
+    rule: stewardRuleSchema,
+    command: z.enum(STEWARD_COMMANDS),
+    /** Code d'erreur métier de la commande, celui que le joueur recevrait. */
+    code: z.string().regex(/^[A-Z][A-Z_]{1,63}$/),
+  }),
+});

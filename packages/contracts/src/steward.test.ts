@@ -5,6 +5,7 @@ import {
   MAX_STEWARD_RULES,
   stewardRuleSchema,
   stewardRulesSchema,
+  stewardOperationSummarySchema,
   stewardSetRulesInputSchema,
 } from './steward';
 
@@ -83,11 +84,38 @@ describe('grammaire fermée des intendants', () => {
       { type: 'StewardHired' as const, payload: { ...ref, name: 'Nikias' } },
       { type: 'StewardRulesSet' as const, payload: { ...ref, rules: [{ kind: 'collect' }, sell] } },
       { type: 'StewardDismissed' as const, payload: ref },
+      {
+        type: 'StewardActionFailed' as const,
+        payload: {
+          ...ref,
+          tickIndex: 2_948_000,
+          rank: 0,
+          rule: sell,
+          command: 'market.placeOrder' as const,
+          code: 'INSUFFICIENT_STOCK',
+        },
+      },
     ];
     for (const event of events)
       expect(domainEventSchema.parse(JSON.parse(JSON.stringify(event)))).toEqual(event);
     expect(
       domainEventSchema.safeParse({ type: 'StewardHired', payload: { ...ref, name: '' } }).success,
     ).toBe(false);
+  });
+
+  it('résumé d’une opération (#279) : une récolte ou un ordre, bornés comme la commande', () => {
+    const parse = (value: unknown) => stewardOperationSummarySchema.safeParse(value).success;
+    const order = { command: 'market.placeOrder', side: 'sell', goodId: 'flour', price: 14 };
+    expect(parse({ command: 'site.collect' })).toBe(true);
+    expect(
+      parse({ command: 'site.collect', cycles: 2, outputs: [{ goodId: 'flour', quantity: 0 }] }),
+    ).toBe(true);
+    expect(parse({ command: 'site.collect', cycles: 0 })).toBe(false);
+    expect(parse({ ...order, quantity: 5 })).toBe(true);
+    expect(parse({ ...order, quantity: 5, traded: 3, status: 'open' })).toBe(true);
+    expect(parse({ ...order, quantity: 0 })).toBe(false);
+    expect(parse({ ...order, quantity: 5, price: 0 })).toBe(false);
+    expect(parse({ ...order, quantity: 5, extra: 1 })).toBe(false);
+    expect(parse({ command: 'steward.hire' })).toBe(false);
   });
 });
