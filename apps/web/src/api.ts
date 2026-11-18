@@ -29,6 +29,9 @@ import {
   type SiteRestartOutput,
   type SiteSetRecipeOutput,
   type ShipAcquireOutput,
+  type StewardDismissInput,
+  type StewardHireInput,
+  type StewardSetRulesInput,
   type TempleConsultOracleOutput,
   type TempleInvokeGraceOutput,
   type TempleMakeOfferingInput,
@@ -195,6 +198,21 @@ export interface PropertyCommandInputs {
 export const propertyCommand = <N extends keyof PropertyCommandInputs>(
   name: N,
   input: PropertyCommandInputs[N],
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
+
+/** Entrée de chaque commande des intendants (4.4, #278), d'après les contrats. */
+export interface StewardCommandInputs {
+  'steward.hire': StewardHireInput;
+  'steward.setRules': StewardSetRulesInput;
+  'steward.dismiss': StewardDismissInput;
+}
+
+/** Commandes des intendants. `idempotencyKey` : la même clé tant que la commande n'a pas reçu de réponse. */
+export const stewardCommand = <N extends keyof StewardCommandInputs>(
+  name: N,
+  input: StewardCommandInputs[N],
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);

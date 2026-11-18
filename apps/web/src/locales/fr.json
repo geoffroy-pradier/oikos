@@ -278,6 +278,11 @@
     "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
     "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
     "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
+    "SITE_HAS_STEWARD": "Ce site a déjà son intendant.",
+    "STEWARD_LIMIT_REACHED": "Tous vos postes d'intendant sont pris.",
+    "STEWARD_NOT_FOUND": "Cet intendant n'est plus en poste.",
+    "TOO_MANY_RULES": "Trop de règles pour un intendant.",
+    "NOT_AN_INPUT": "Ce bien n'est pas un intrant de ce site : l'intendant ne le rachète pas.",
     "INTERNAL": "Une erreur est survenue. Réessayez dans un instant.",
     "COMMAND_NOT_FOUND": "Cette action n'est pas disponible.",
     "IDEMPOTENCY_KEY_REQUIRED": "La demande est incomplète. Rechargez la page et réessayez.",
@@ -962,5 +967,49 @@
       "cheating": "Triche ou arnaque",
       "other": "Autre manquement à la charte"
     }
+  },
+  "steward": {
+    "title": "Intendant",
+    "noPost": "Votre siège n'a aucun poste d'intendant.",
+    "pitch": "Un intendant mène les règles que vous lui donnez, sans vous. Son salaire, {{cost}} par jour, est payé à la clôture ; impayé, rien n'est fait.",
+    "postsTaken_one": "Votre poste d'intendant est pris.",
+    "postsTaken_other": "Vos {{count}} postes d'intendant sont pris.",
+    "hire": "Embaucher un intendant",
+    "hireFor": "Embaucher un intendant pour {{site}}",
+    "hireDone": "{{name}} entre à votre service. L'intendance commence à la prochaine clôture, qui paie son salaire.",
+    "active": "{{name}} mène ses règles : la dernière clôture a payé son salaire.",
+    "hired": "{{name}} entre en fonctions à la prochaine clôture, qui paiera son salaire (embauche du {{date}}).",
+    "unpaid": "Salaire de {{name}} impayé depuis le {{date}} : rien n'est fait jusqu'à la clôture qui le paiera.",
+    "rulesOf": "Règles de {{name}}",
+    "noRule": "Aucune règle : l'intendant ne fait rien.",
+    "rule": "Règle {{n}}",
+    "kind": "Geste",
+    "kinds": {
+      "collect": "Récolter dès que possible",
+      "sell": "Vendre à un prix plancher ou plus, en gardant une réserve",
+      "buy": "Racheter un intrant à un prix plafond ou moins, jusqu'à un stock"
+    },
+    "good": "Bien",
+    "fields": {
+      "sell": {
+        "price": "Prix plancher (oboles l'unité)",
+        "units": "Réserve gardée (unités)"
+      },
+      "buy": {
+        "price": "Prix plafond (oboles l'unité)",
+        "units": "Stock visé (unités)"
+      }
+    },
+    "up": "Monter",
+    "moveUp": "Monter la règle {{n}}",
+    "delete": "Retirer",
+    "remove": "Retirer la règle {{n}}",
+    "invalid": "La règle {{n}} est incomplète, hors bornes ou en double.",
+    "add": "Ajouter une règle (au plus {{max}})",
+    "save": "Enregistrer les règles",
+    "saved_one": "{{name}} suivra {{count}} règle.",
+    "saved_other": "{{name}} suivra {{count}} règles.",
+    "dismiss": "Renvoyer {{name}}",
+    "dismissed": "{{name}} a quitté votre service ; le poste est libre."
   }
 }
