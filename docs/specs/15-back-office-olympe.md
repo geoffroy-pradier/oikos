@@ -28,7 +28,22 @@ Modération dans la phase 2, côté joueur (ticket #275) : signalements (`game.r
 La configuration porte les motifs de signalement, les termes interdits et la longueur d'un appel (section `moderation`).
 Une exclusion est définitive et n'est en vigueur qu'une fois validée par une seconde personne (15.4) ; avant, elle n'est ni annoncée au joueur ni appliquée.
 Un joueur ne voit ni l'auteur ni le validateur d'une sanction : les modérateurs peuvent être des joueurs bénévoles.
-La file des signalements, les commandes qui prononcent, lèvent ou valident une sanction, masquent un message et tranchent un appel viennent avec #276, le module d'Olympe avec #277.
+Commandes d'administration de la modération (ticket #276) : ouvertes au super-administrateur, au responsable communauté et au modérateur (`MODERATION_ROLES`), sous second facteur, rôle relu et journal comme toute commande d'administration (15.4) ; l'écran du module vient avec #277.
+- `admin.sanction` prononce, à partir de maintenant, un avertissement, un silence ou une suspension d'une des durées de la configuration (`moderation.sanctionHours`, en heures ; par défaut 168 pour un avertissement, 1, 24 ou 72 pour un silence, 24, 168 ou 720 pour une suspension), ou propose une exclusion, sans durée.
+  Une autre durée est refusée (`DURATION_NOT_OFFERED`), comme le compte qui se sanctionne lui-même (`SELF_SANCTION`) ou un compte inconnu (`ACCOUNT_NOT_FOUND`).
+- `admin.confirmExclusion` valide une exclusion proposée, une fois (`ALREADY_CONFIRMED`) : ni son auteur ni le compte exclu ne la valident (`SECOND_PERSON_REQUIRED`), tout autre compte d'un rôle de la modération le peut, et l'exclusion commence à sa validation.
+- `admin.decideAppeal` tranche un appel, une fois (`APPEAL_DECIDED`), par un autre compte que l'auteur de la sanction et que le compte sanctionné (`SECOND_PERSON_REQUIRED`) : accueilli, il lève la sanction si elle n'est pas finie, et sa fin devient l'instant de la levée ; rejeté, la sanction court jusqu'à sa fin.
+- `admin.resolveReport` écarte ou retient un signalement ouvert, et avec lui les autres signalements ouverts du même message (une entrée de la file) ; un signalement déjà traité est refusé (`ALREADY_RESOLVED`), comme le compte de la maison signalée et celui d'une maison qui a signalé ce message (`SECOND_PERSON_REQUIRED`).
+- `admin.hideMessage` masque un message, signalé ou non, une fois (`MESSAGE_HIDDEN`) : il reste listé, sans son texte pour les joueurs (6.6).
+
+La base tient les mêmes règles (migration 260) : elle date chaque validation, décision, levée et traitement, n'admet chacun qu'une fois, et refuse ceux d'une personne qui n'y a pas droit.
+Elle n'admet une levée qu'avec l'appel accueilli, dans la même écriture et par le même compte, et l'exige quand la sanction n'est pas finie.
+Traiter un signalement ne masque ni ne sanctionne rien : ce sont deux commandes de plus, au choix de la modération.
+Décision (ambiguïté du ticket) : une exclusion proposée qui n'est pas validée n'agit jamais ; son retrait, et la levée d'une sanction sans appel, attendent une phase suivante.
+Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
+Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'indicateur de la Vigie qui le surveille attend une phase suivante.
+Décision (relecture de #275) : un nom de maison, texte public, ne passe encore ni par le filtre de vocabulaire ni par le silence à sa fondation ou à son changement ; un ticket de suite les y soumettra.
+Décision (relecture de #275) : un compte suspendu ou exclu ne peut plus annuler ses ordres, qui restent sous séquestre et peuvent s'exécuter ; un ticket de suite, qui touche à la monnaie, décidera de leur annulation et du retour du séquestre.
 
 Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
 `GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
@@ -86,6 +101,9 @@ L'écran ne contrôle rien lui-même : `apps/admin` ne dépend de `packages/conf
 | Modérateur | Modération et fiche joueur en lecture |
 | Support | Tickets, fiche joueur, compensation sous plafond |
 | Observateur | Lecture seule des tableaux de bord |
+
+Dans la phase 2 (#276), le modérateur n'a que le module Modération, sans la fiche joueur, qui attend une phase suivante : il ne lit que la file des signalements, les messages signalés et leur contexte, les appels à trancher et les exclusions à valider, jamais une donnée économique ni un tableau de bord (15.4).
+Le responsable communauté et le super-administrateur ont aussi ce module.
 
 Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux fonctions reçoit le rôle le plus large des deux ; le cumul sera rouvert si les modérateurs bénévoles le demandent.
 
@@ -151,6 +169,12 @@ le compte de service de l'API est donc de confiance pour cette identité, comme 
 Les lectures du back-office passent par des routes `GET /api/admin/*` de l'API, soumises au même contrôle (second facteur et rôle relu à chaque requête) : Vigie, économie (masse monétaire, robinets et puits : 5.5) et paramètres pour le super-administrateur, le concepteur de jeu et l'observateur ;
 journal d'audit pour le super-administrateur et l'observateur.
 Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la même voie, pour le super-administrateur, le concepteur de jeu, le responsable communauté et l'observateur, et chacune de ses lectures est tracée comme les autres.
+La file de la modération (`GET /api/admin/reports`, #276) se lit par la même voie, pour les rôles de la modération, et ses lectures sont tracées de même.
+Elle rend une entrée par message qui a des signalements ouverts, la plus ancienne d'abord, puis la plus signalée (au plus 200), avec la maison signalée et son compte, le message, même masqué, ses signalements (motif et date, jamais la maison qui signale) et les cinq messages qui le précèdent et les cinq qui le suivent dans son canal ;
+un signalement dont la purge a emporté le message fait son entrée seul, sans texte ni contexte.
+Elle rend aussi les appels à trancher et les exclusions à valider, les plus anciens d'abord.
+La base la compose par une fonction accordée au seul service de l'API (`admin.moderation_queue`) : un modérateur connecté au jeu n'en lit rien par Supabase, et son rôle ne lui ouvre aucune lecture de plus qu'à un joueur.
+Décision (ambiguïté de 15.1) : le pré-tri par l'IA attend une phase suivante.
 Le journal d'audit rend le résultat de chaque commande d'administration, jamais son entrée.
 Il est trié par ordre d'inscription ; l'heure affichée est celle du début de la commande, si bien que deux commandes simultanées peuvent y apparaître dans l'ordre inverse de leurs heures.
 L'application `apps/admin` ne parle qu'à Supabase Auth (lien magique, puis second facteur TOTP : enrôlement d'une application d'authentification à la première connexion, code à chaque session) et à ces routes ;

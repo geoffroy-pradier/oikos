@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { AdminRole } from '@oikos/contracts';
+import { adminReportsSchema, type AdminRole } from '@oikos/contracts';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
-import { codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
+import { appWith, codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
+import { testConfig } from './test-config';
 
 // Commandes d'administration de la modération (#276), contre Supabase local : rôles, sanction, double validation
 // de l'exclusion, masquage. Les comptes de l'équipe sont inscrits par le test ; leurs rôles sont retirés à la fin.
@@ -362,6 +363,92 @@ describe('admin.decideAppeal', () => {
       join game.command_log l on l.id = e.command_id where l.user_id = ${idOf(eudore)}`);
     expect(events).toEqual([
       { type: 'AppealDecided', payload: { sanctionId, decision: 'granted', lifted: true } },
+    ]);
+  });
+});
+
+describe('GET /api/admin/reports', () => {
+  const app = appWith(testConfig);
+  const read = async (token: string, path = 'reports') => {
+    const res = await app.request(`/api/admin/${path}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return { status: res.status, body: (await res.json()) as { data?: unknown } };
+  };
+
+  it('rend la file, le contexte, les appels et les exclusions à valider, et rien d’autre', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    for (const [who, body] of [
+      [alice, 'Avant'],
+      [bob, 'Propos signalé'],
+      [alice, 'Après'],
+    ] as const)
+      await post(who.user, world.kallisteChannel, body);
+    const [signaled] = await rows(sql<{ id: string }>`
+      select id from game.messages where house_id = ${bob.houseId}`);
+    const messageId = signaled?.id ?? '';
+    const reported = await send(alice.user, 'chat.report', { messageId, reason: 'spam' });
+    const moderator = await member('moderator');
+    const suspended = await send(moderator, 'admin.sanction', {
+      userId: alice.user,
+      kind: 'suspension',
+      hours: 24,
+      reason: 'Spam',
+    });
+    const sanctionId = suspended.body.data.sanctionId as string;
+    await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Ce n’est pas moi.' });
+    const ban = await send(moderator, 'admin.sanction', {
+      userId: bob.user,
+      kind: 'ban',
+      reason: 'x',
+    });
+
+    const reply = await read(await member('moderator'));
+    expect(reply.status).toBe(200);
+    // Objets stricts : une clé de plus (une donnée économique, la maison qui signale) ferait échouer la lecture.
+    const data = adminReportsSchema.parse(reply.body.data);
+    const entry = data.queue.find((item) => item.message?.id === messageId);
+    expect(entry).toMatchObject({
+      reportedHouse: { id: bob.houseId, userId: bob.user },
+      channel: { id: world.kallisteChannel, kind: 'city', city: 'kalliste' },
+      message: { body: 'Propos signalé', hiddenAt: null },
+      reports: [{ id: reported.body.data.reportId, reason: 'spam' }],
+    });
+    expect(entry?.context.map((item) => item.body)).toEqual(['Avant', 'Après']);
+    expect(data.appeals.find((item) => item.sanctionId === sanctionId)).toMatchObject({
+      userId: alice.user,
+      appealBody: 'Ce n’est pas moi.',
+    });
+    expect(data.pendingExclusions.map((item) => item.sanctionId)).toContain(
+      ban.body.data.sanctionId,
+    );
+    // Traité, le signalement quitte la file.
+    const resolved = await send(moderator, 'admin.resolveReport', {
+      reportId: reported.body.data.reportId,
+      decision: 'upheld',
+    });
+    expect(resolved.status).toBe(200);
+    const after = adminReportsSchema.parse((await read(moderator)).body.data);
+    expect(after.queue.some((item) => item.message?.id === messageId)).toBe(false);
+  });
+
+  it('ouverte aux seuls rôles de la modération ; le modérateur ne lit aucun autre module', async () => {
+    const moderator = await member('moderator');
+    for (const path of ['vigie', 'economy', 'config/versions', 'audit', 'roles', 'events'])
+      expect([path, (await read(moderator, path)).status]).toEqual([path, 403]);
+    for (const role of ['support', 'observer', 'game_designer'] as const)
+      expect([role, (await read(await member(role))).status]).toEqual([role, 403]);
+    expect((await read(idOf(moderator))).status).toBe(403);
+    expect((await read(await member('community_manager'))).status).toBe(200);
+    expect(
+      await rows(sql`select route, status from telemetry.admin_reads where user_id = ${idOf(moderator)}
+      order by created_at, id`),
+    ).toEqual([
+      ...['vigie', 'economy', 'config/versions', 'audit', 'roles', 'events'].map((path) => ({
+        route: `/api/admin/${path}`,
+        status: 403,
+      })),
     ]);
   });
 });

@@ -36,7 +36,8 @@ Ces cibles sont des hypothèses de travail à recaler sur les mesures de l'alpha
 - **Contenus** : conditions d'utilisation, charte de conduite, procédure de signalement et d'appel, conservation limitée des messages.
   Dans la phase 2 (ticket 275), le joueur signale un message sous un motif de la configuration (6.6), et voit en tête de chaque écran ses sanctions pas encore finies, avec leur effet, leur motif, leur fin (« sans fin » pour une exclusion) et le moyen d'en faire appel (10).
   Décision (le ticket ne dit pas de quelle sanction on fait appel) : on fait appel d'une sanction pas encore finie, une seule fois, par un texte d'au plus `moderation.maxAppealLength` caractères (1 000) ; une sanction finie ne se conteste plus (`SANCTION_ENDED`).
-  L'appel ne suspend pas la sanction ; son examen vient avec les commandes d'administration (#276).
+  L'appel ne suspend pas la sanction ; il est tranché par `admin.decideAppeal` (15.1, #276), par un autre compte que l'auteur de la sanction et que le compte sanctionné, et accueilli, il la lève.
+  Le joueur ne lit pas encore la décision : `game.my_sanctions()` a un type rendu figé (ADR 0006), une fonction nouvelle la rendra ; une sanction levée y finit à l'instant de sa levée.
   Le texte de l'appel est gardé avec la sanction, pas dans le journal des commandes.
   La liste initiale des termes interdits est vide : elle relève de la charte de conduite, que le responsable communauté remplit par Olympe.
 - **Commerce** : conditions de vente, droit de rétractation, TVA, mentions légales. Aucun mécanisme de hasard payant.

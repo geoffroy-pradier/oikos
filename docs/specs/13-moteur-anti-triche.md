@@ -60,3 +60,5 @@ Dans un jeu à économie ouverte, la triche principale est le transfert de riche
   L'appel (`moderation.appeal`) et les commandes d'administration n'y sont pas soumis ; les lectures non plus : un compte suspendu lit encore ses écrans.
   Le refus est un refus métier, journalisé, qui consomme la clé d'idempotence comme `FORBIDDEN` ; une commande déjà validée se rejoue toujours.
   Une sanction validée pendant qu'une commande s'exécute ne la refuse pas : elle agit dès la commande suivante.
+  Une sanction levée (appel accueilli, #276) finit à l'instant de sa levée, et cesse d'agir dès la commande suivante.
+  Décision (relecture de #275) : `SUSPENDED` reste un refus métier en 409, comme `SILENCED` ; le statut 403 est réservé à `FORBIDDEN` (rôle ou second facteur absents).

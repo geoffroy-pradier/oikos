@@ -30,6 +30,9 @@ const MAX_ECONOMY_DAYS = 90;
 /** Calendrier des événements : finis depuis au plus 30 jours, et au plus 1 000 lignes. */
 const EVENTS_PAST_MS = 30 * 86_400_000;
 const MAX_EVENTS = 1_000;
+/** File de la modération : messages de contexte de chaque côté d'un message signalé, entrées au plus. */
+const REPORT_CONTEXT_MESSAGES = 5;
+const MAX_REPORT_ENTRIES = 200;
 
 /**
  * Lectures du back-office (docs/specs/15-back-office-olympe.md) : le back-office n'accède jamais aux
@@ -82,6 +85,7 @@ export function registerAdminReads(
     ['/api/admin/audit', 'audit'],
     ['/api/admin/roles', 'access'],
     ['/api/admin/events', 'animation'],
+    ['/api/admin/reports', 'moderation'],
   ] as const) {
     const roles: readonly AdminRole[] = ADMIN_MODULE_ROLES[module];
     app.use(path, async (c, next) => {
@@ -90,7 +94,7 @@ export function registerAdminReads(
     });
   }
   // Tout autre chemin que ceux déclarés ici et `/me` est refusé, quel que soit le rôle.
-  const OPEN_PATHS = ['me', 'vigie', 'economy', 'audit', 'roles', 'events'].map(
+  const OPEN_PATHS = ['me', 'vigie', 'economy', 'audit', 'roles', 'events', 'reports'].map(
     (name) => `/api/admin/${name}`,
   );
   app.use('/api/admin/*', async (c, next) => {
@@ -428,6 +432,20 @@ export function registerAdminReads(
       .execute();
     // Les instants partent en ISO 8601 (sérialisation JSON d'une `Date`).
     const data = { now: now.toISOString(), pastDays: EVENTS_PAST_MS / 86_400_000, events };
+    return c.json({ ok: true, data });
+  });
+
+  // File de la modération (#276) : signalements ouverts et leur contexte, appels à trancher, exclusions à valider.
+  // La base la compose (`admin.moderation_queue`, migration 261) et n'y met aucune donnée économique.
+  app.get('/api/admin/reports', async (c) => {
+    const { rows } = await sql<{ now: Date; queue: Record<string, unknown> }>`
+      select now() as now,
+             admin.moderation_queue(${REPORT_CONTEXT_MESSAGES}::int, ${MAX_REPORT_ENTRIES}::int) as queue`.execute(
+      db,
+    );
+    const [row] = rows;
+    if (!row) throw new Error('The database returned no moderation queue');
+    const data = { now: row.now.toISOString(), contextSize: REPORT_CONTEXT_MESSAGES, ...row.queue };
     return c.json({ ok: true, data });
   });
 

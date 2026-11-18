@@ -57,7 +57,8 @@
     "config": "Parameters",
     "audit": "Audit log",
     "access": "Access",
-    "animation": "Live events"
+    "animation": "Live events",
+    "moderation": "Moderation"
   },
   "vigie": {
     "title": "Watch",
@@ -258,6 +259,9 @@
       "failed": "Failed"
     },
     "rejectedNoCode": "Rejected"
+  },
+  "moderation": {
+    "pending": "The Moderation module comes with a later version of Olympe."
   },
   "events": {
     "title": "Event calendar",

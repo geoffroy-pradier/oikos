@@ -109,6 +109,8 @@ export function App() {
         <Access accessToken={token} userId={userId} />
       ) : current === 'animation' ? (
         <Events accessToken={token} />
+      ) : current === 'moderation' ? (
+        <p>{t('moderation.pending')}</p>
       ) : (
         <p>{t('app.forbiddenModule')}</p>
       );

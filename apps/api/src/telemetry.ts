@@ -73,6 +73,7 @@ const ADMIN_ROUTES = [
   '/api/admin/audit',
   '/api/admin/roles',
   '/api/admin/events',
+  '/api/admin/reports',
   '/api/admin/config/versions',
   '/api/admin/config/versions/:id',
 ];
