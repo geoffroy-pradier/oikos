@@ -3,6 +3,7 @@ import { Button } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appealSanction } from '../api';
+import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { fingerprint, pendingKeys, sendUnderKey } from '../pending-keys';
 
@@ -85,7 +86,7 @@ export function SanctionAppeal({
             value={text}
             rows={4}
             aria-describedby={`${id}-hint`}
-            className="w-full rounded-md border border-border bg-surface p-2"
+            className="w-full rounded-lg border border-border bg-surface p-3"
             onChange={(event) => setText(event.target.value)}
           />
           <p id={`${id}-hint`} className="text-sm text-muted-foreground">
@@ -121,10 +122,12 @@ export function SanctionAppeal({
         </div>
       )}
       {/* Régions présentes avant leur texte : le résultat est annoncé près de l'action. */}
-      <p role="status" tabIndex={-1} ref={status}>
+      <p role="status" tabIndex={-1} ref={status} className={STATUS_BOX}>
         {notice?.kind === 'status' ? notice.text : ''}
       </p>
-      <p role="alert">{notice?.kind === 'alert' ? notice.text : ''}</p>
+      <p role="alert" className={ALERT_BOX}>
+        {notice?.kind === 'alert' ? notice.text : ''}
+      </p>
     </>
   );
 }

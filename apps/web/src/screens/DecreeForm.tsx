@@ -1,8 +1,9 @@
 import type { DecreeModel } from '@oikos/contracts';
-import { Button, Field } from '@oikos/ui';
+import { Button, Field, ScrollText as Scroll } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
+import { noticeClass } from './CommandNotice';
 import { useRows } from '../data';
 import {
   checkDecreeParams,
@@ -160,8 +161,9 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const port = bounds.port_dues;
   const festival = bounds.festival;
   return (
-    <div className="flex flex-col gap-3 border-t border-border pt-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised p-4 shadow-sm">
       <h3 ref={title} tabIndex={-1} className="font-semibold">
+        <Scroll aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('decreeForm.title')}
       </h3>
       <p className="text-muted-foreground">
@@ -173,10 +175,14 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
         })}
       </p>
       <fieldset className="flex flex-col gap-1">
-        <legend className="font-medium">{t('decreeForm.model')}</legend>
+        <legend className="mb-1 font-medium">{t('decreeForm.model')}</legend>
         {rules.models.map((option) => (
-          <label key={option} className="flex items-center gap-2">
+          <label
+            key={option}
+            className="flex min-h-11 items-center gap-3 rounded-lg border border-border-subtle px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
+          >
             <input
+              className="size-5 accent-primary"
               type="radio"
               name="decree-model"
               checked={option === chosen}
@@ -250,12 +256,16 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
             aria-describedby={goodsError}
             aria-invalid={goodsInvalid ? true : undefined}
           >
-            <legend className="font-medium">
+            <legend className="mb-1 font-medium">
               {t('decreeForm.goods', { count: festival.maxGoods })}
             </legend>
             {festival.goodIds.map((good) => (
-              <label key={good} className="flex items-center gap-2">
+              <label
+                key={good}
+                className="flex min-h-11 items-center gap-3 rounded-lg border border-border-subtle px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
+              >
                 <input
+                  className="size-5 accent-primary"
                   type="checkbox"
                   checked={picked.includes(good)}
                   onChange={(event) =>
@@ -285,7 +295,7 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
         ref={noticeElement}
         tabIndex={-1}
         role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
+        className={noticeClass(notice?.kind)}
       >
         {notice?.text ?? ''}
       </p>

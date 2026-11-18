@@ -1,5 +1,5 @@
 import type { DecreeProposal } from '@oikos/contracts';
-import { Button, Card } from '@oikos/ui';
+import { Button, Card, Gavel } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
@@ -10,11 +10,12 @@ import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { parseVoted } from '../politics';
 import { DecreeForm } from './DecreeForm';
+import { noticeClass } from './CommandNotice';
 import { LoadProblem, Loading } from './LoadProblem';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
-const ROW = 'flex flex-col gap-1 border-t border-border pt-2 first:border-t-0 first:pt-0';
+const ROW = 'flex flex-col gap-1 rounded-lg bg-muted/50 p-3 break-words';
 
 /** Ce que dit un décret, en une phrase : son modèle et ses paramètres. */
 export function useDescribeDecree() {
@@ -134,13 +135,14 @@ export function CityAssembly() {
   return (
     <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <Gavel aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('assembly.title')}
       </h2>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {groups && voted && names && (
         <>
-          <h3 className="font-semibold">{t('assembly.open')}</h3>
+          <h3 className="eyebrow mt-2">{t('assembly.open')}</h3>
           {!citizen && <p className="text-muted-foreground">{t('assembly.meticNotice')}</p>}
           {groups.open.length === 0 && (
             <p className="text-muted-foreground">{t('assembly.noOpen')}</p>
@@ -183,12 +185,12 @@ export function CityAssembly() {
             ref={noticeElement}
             tabIndex={-1}
             role={notice?.kind ?? 'status'}
-            className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
+            className={noticeClass(notice?.kind)}
           >
             {notice?.text ?? ''}
           </p>
           <DecreeForm onDone={reload} />
-          <h3 className="font-semibold">{t('assembly.passed')}</h3>
+          <h3 className="eyebrow mt-2">{t('assembly.passed')}</h3>
           {groups.passed.length === 0 && (
             <p className="text-muted-foreground">{t('assembly.noPassed')}</p>
           )}
@@ -214,7 +216,7 @@ export function CityAssembly() {
           </ul>
           {groups.other.length > 0 && (
             <>
-              <h3 className="font-semibold">{t('assembly.other')}</h3>
+              <h3 className="eyebrow mt-2">{t('assembly.other')}</h3>
               <ul className="flex flex-col gap-2">
                 {groups.other.map((decree) => (
                   <li key={decree.id} className={ROW}>

@@ -89,7 +89,7 @@ export function TempleOffering(props: {
   );
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
-  const { setNotice, region } = useCommandNotice();
+  const { setNotice, region } = useCommandNotice({ styled: true });
   // Une offrande faite sous une autre Charis que celle relue est lue (ou dépassée) : sa clé est rendue.
   const favorKey = JSON.stringify(props.favor && [...props.favor]);
   useLayoutEffect(() => {
@@ -140,7 +140,7 @@ export function TempleOffering(props: {
       <label className="flex flex-col gap-1">
         <span className="font-semibold">{t('temple.offering.god')}</span>
         <select
-          className="min-h-11 rounded-md border border-border bg-surface px-3"
+          className="min-h-11 rounded-md border border-border bg-surface px-3 text-foreground"
           value={god.id}
           onChange={(event) => {
             setGodId(event.target.value);
@@ -159,7 +159,7 @@ export function TempleOffering(props: {
         <p>{t('temple.offering.noStock', { god: godName(god.id) })}</p>
       )}
       {fields.map(({ key, label }) => (
-        <label key={key} className="flex min-h-11 flex-wrap items-center gap-2">
+        <label key={key} className="flex min-h-11 flex-wrap items-center gap-2 break-words">
           <input
             type="text"
             inputMode="numeric"
@@ -171,7 +171,10 @@ export function TempleOffering(props: {
         </label>
       ))}
       {/* Régions présentes avant leur texte : la saisie fautive est dite, la Charis annoncée avant l'envoi. */}
-      <p role="alert">
+      <p
+        role="alert"
+        className="rounded-lg bg-danger-subtle font-semibold text-danger empty:sr-only [&:not(:empty)]:p-3"
+      >
         {unreadable
           ? t('temple.offering.unreadable')
           : tooMuch
@@ -180,7 +183,7 @@ export function TempleOffering(props: {
               ? t('temple.offering.overStock')
               : ''}
       </p>
-      <p aria-live="polite">
+      <p aria-live="polite" className="rounded-lg bg-accent-subtle/60 px-3 py-2">
         {quote === null
           ? t('temple.offering.empty')
           : t('temple.offering.quote', { charis: number.format(quote), god: godName(god.id) })}

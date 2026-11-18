@@ -2,6 +2,7 @@ import { Button } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reportMessage } from '../api';
+import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
 
@@ -132,10 +133,10 @@ export function ReportMessage({
         </div>
       )}
       {/* Régions présentes avant leur texte : le résultat est annoncé près de l'action. */}
-      <p role="status" tabIndex={-1} ref={status} className="text-sm">
+      <p role="status" tabIndex={-1} ref={status} className={STATUS_BOX + ' text-sm'}>
         {notice?.kind === 'status' ? notice.text : ''}
       </p>
-      <p role="alert" className="text-sm empty:hidden">
+      <p role="alert" className={ALERT_BOX + ' text-sm'}>
         {notice?.kind === 'alert' ? notice.text : ''}
       </p>
     </div>

@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card } from '@oikos/ui';
+import { Badge, Card, Vote } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCitedHouses } from '../cited-houses';
@@ -109,6 +109,7 @@ export function CityPolitics() {
   return (
     <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <Vote aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('cityPolitics.title')}
       </h2>
       {loading && <Loading />}
@@ -132,7 +133,7 @@ export function CityPolitics() {
                 })
               : t('cityPolitics.noArchon')}
           </p>
-          <h3 className="font-semibold">{t('cityPolitics.election')}</h3>
+          <h3 className="eyebrow mt-2">{t('cityPolitics.election')}</h3>
           {!election && <p className="text-muted-foreground">{t('cityPolitics.noElection')}</p>}
           {election && phase && (
             <>
@@ -143,9 +144,13 @@ export function CityPolitics() {
                 <li>{t('cityPolitics.closing', { at: date.format(election.votingClosesAt) })}</li>
               </ul>
               {running.length === 0 && <p>{t('cityPolitics.noCandidate')}</p>}
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-wrap gap-2">
                 {running.map((candidate) => (
-                  <li key={candidate.id}>{nameOf(candidate.houseId)}</li>
+                  <li key={candidate.id}>
+                    <Badge tone="aegean" className="break-all">
+                      {nameOf(candidate.houseId)}
+                    </Badge>
+                  </li>
                 ))}
               </ul>
               {citizen && (
@@ -164,12 +169,12 @@ export function CityPolitics() {
               )}
             </>
           )}
-          <h3 className="font-semibold">{t('cityPolitics.lastResults')}</h3>
+          <h3 className="eyebrow mt-2">{t('cityPolitics.lastResults')}</h3>
           {!last && <p className="text-muted-foreground">{t('cityPolitics.noResults')}</p>}
           {last && (
             <ul className="flex flex-col gap-1">
               {lastResults.map((result) => (
-                <li key={result.houseId}>
+                <li key={result.houseId} className="rounded-lg bg-muted/50 px-3 py-2 break-words">
                   {t(result.elected ? 'cityPolitics.elected' : 'cityPolitics.result', {
                     house: nameOf(result.houseId),
                     count: result.votes,
