@@ -40,6 +40,8 @@ export interface ApiSettings {
   allowSelfReview: boolean;
   /** Nouvel essai sur conflit entre transactions ; absent : `DEFAULT_RETRY`. */
   retry?: RetrySettings;
+  /** Limite technique du calendrier des événements d'Olympe ; absente : 1 000 (réglée plus bas par les tests). */
+  maxAdminEvents?: number;
 }
 /** Réglages par défaut : ceux de la production. */
 export const DEFAULT_SETTINGS: ApiSettings = { allowSelfReview: false };

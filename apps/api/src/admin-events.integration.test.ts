@@ -7,7 +7,7 @@ import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
 import { testConfig, testVerifier } from './test-config';
-import { planEvent } from './world-events.integration-fixtures';
+import { pastEvent, planEvent } from './world-events.integration-fixtures';
 
 // Calendrier des événements du monde dans Olympe (#267), contre Supabase local.
 const DATABASE_URL =
@@ -38,13 +38,34 @@ async function newUser(role?: AdminRole): Promise<string> {
       .execute();
   return id;
 }
-const get = async (user: string, aal2 = true) => {
-  const res = await app.request('/api/admin/events', {
+const get = async (user: string, aal2 = true, via = app) => {
+  const res = await via.request('/api/admin/events', {
     headers: { authorization: `Bearer ${aal2 ? 'aal2:' : ''}${user}` },
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { status: res.status, body: (await res.json()) as { ok: boolean; data?: any } };
 };
+
+/** Un monde neuf, ses cités Kallistè et Elaia, et l'identifiant d'une cité par son identifiant court. */
+async function newWorld() {
+  const worldId = randomUUID();
+  await owner
+    .insertInto('game.worlds')
+    .values({ id: worldId, slug: `cal-${worldId.slice(0, 12)}`, name: 'Calendrier' })
+    .execute();
+  const cities = await owner
+    .insertInto('game.cities')
+    .values(['kalliste', 'elaia'].map((slug) => ({ world_id: worldId, slug, name: slug })))
+    .returning(['id', 'slug'])
+    .execute();
+  const id = (slug: string) => cities.find((city) => city.slug === slug)?.id ?? '';
+  return { worldId, id };
+}
+/** Les événements du calendrier rendus pour ce monde, par identifiant. */
+const eventsOf = (reply: Awaited<ReturnType<typeof get>>, worldId: string): string[] =>
+  reply.body.data.events
+    .filter((event: { world: string }) => event.world === `cal-${worldId.slice(0, 12)}`)
+    .map((event: { id: string }) => event.id);
 
 describe('GET /api/admin/events', () => {
   it('ouvert au concepteur de jeu, au responsable communauté et à l’observateur (et au super-administrateur)', async () => {
@@ -63,18 +84,68 @@ describe('GET /api/admin/events', () => {
     expect((await get(await newUser())).status).toBe(403);
   });
 
+  it('une lecture refusée à un rôle hors du module est tracée sous sa route, avec son issue', async () => {
+    const moderator = await newUser('moderator');
+    expect((await get(moderator)).status).toBe(403);
+    const traces = await owner
+      .selectFrom('telemetry.admin_reads')
+      .select(['admin_role', 'route', 'status'])
+      .where('user_id', '=', moderator)
+      .execute();
+    expect(traces).toEqual([{ admin_role: 'moderator', route: '/api/admin/events', status: 403 }]);
+  });
+
+  it('fenêtre du passé : un événement en cours est rendu, un événement fini depuis plus de 30 jours ne l’est pas', async () => {
+    const { worldId, id } = await newWorld();
+    const { rows } = await sql<{ now: Date }>`select now() as now`.execute(owner);
+    const now = rows[0]?.now.getTime() ?? 0;
+    const [minute, day] = [60_000, 86_400_000];
+    const at = (ms: number) => new Date(now + ms);
+    const event = (startsAt: Date, endsAt: Date) =>
+      pastEvent(owner, {
+        worldId,
+        model: 'drought',
+        cityId: id('kalliste'),
+        magnitudeBps: 1_000,
+        startsAt,
+        endsAt,
+      });
+    // Fini depuis 30 jours et une minute, depuis 30 jours moins une minute, et en cours depuis une heure.
+    await event(at(-32 * day), at(-30 * day - minute));
+    const recent = await event(at(-31 * day), at(-30 * day + minute));
+    const ongoing = await event(at(-60 * minute), at(day));
+    const reply = await get(await newUser('observer'));
+    expect(eventsOf(reply, worldId)).toEqual([ongoing.eventId, recent.eventId]);
+  });
+
+  it('lit une ligne de plus que sa limite : coupée d’un événement, la liste le dit ; entière, non', async () => {
+    const { worldId, id } = await newWorld();
+    for (const inMs of [3_600_000, 7_200_000])
+      await planEvent(owner, {
+        ...{ worldId, model: 'drought', cityId: id('kalliste'), magnitudeBps: 1_000 },
+        ...{ inMs, lastsMs: 86_400_000 },
+      });
+    // Tous mondes : les événements de la fenêtre que la base contient déjà, ceux-ci compris.
+    const { rows } = await sql<{
+      count: number;
+    }>`select count(*)::int as count from game.world_events
+      where ends_at > now() - interval '30 days'`.execute(owner);
+    const count = rows[0]?.count ?? 0;
+    const limited = (maxAdminEvents: number) =>
+      createApp({
+        ...{ db, telemetry: createTelemetry(db), verifyToken: testVerifier },
+        ...{ rateLimiter: unlimited, loadConfig: testConfig },
+        settings: { allowSelfReview: false, maxAdminEvents },
+      });
+    const reader = await newUser('observer');
+    const whole = await get(reader, true, limited(count));
+    expect([whole.body.data.truncated, whole.body.data.events.length]).toEqual([false, count]);
+    const cut = await get(reader, true, limited(count - 1));
+    expect([cut.body.data.truncated, cut.body.data.events.length]).toEqual([true, count - 1]);
+  });
+
   it('rend les événements à venir, que les joueurs ne lisent pas encore, avec leur portée, sans graine', async () => {
-    const worldId = randomUUID();
-    await owner
-      .insertInto('game.worlds')
-      .values({ id: worldId, slug: `cal-${worldId.slice(0, 12)}`, name: 'Calendrier' })
-      .execute();
-    const cities = await owner
-      .insertInto('game.cities')
-      .values(['kalliste', 'elaia'].map((slug) => ({ world_id: worldId, slug, name: slug })))
-      .returning(['id', 'slug'])
-      .execute();
-    const id = (slug: string) => cities.find((city) => city.slug === slug)?.id ?? '';
+    const { worldId, id } = await newWorld();
     const storm = await planEvent(owner, {
       worldId,
       model: 'storm',

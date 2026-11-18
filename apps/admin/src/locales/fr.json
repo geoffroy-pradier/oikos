@@ -386,6 +386,7 @@
     "title": "Calendrier des événements",
     "caption": "Événements du monde planifiés par le moteur, des plus tardifs aux plus anciens : à venir, en cours ou finis depuis {{days}} jours, à l'heure du serveur ({{now}}). Les joueurs ne voient un événement qu'à son début.",
     "empty": "Aucun événement planifié.",
+    "truncated": "Liste coupée : seuls les {{shown}} événements les plus tardifs sont affichés, les plus anciens n'y sont pas.",
     "status": "État",
     "model": "Événement",
     "scope": "Portée",

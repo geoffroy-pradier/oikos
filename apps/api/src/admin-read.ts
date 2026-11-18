@@ -1,5 +1,11 @@
 import { ConfigError, DEFAULT_MODERATION, databaseKnowsTimezone } from '@oikos/config';
-import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/contracts';
+import {
+  ADMIN_MODULE_ROLES,
+  adminEventsDataSchema,
+  type AdminEventsData,
+  type AdminRole,
+  type CommandError,
+} from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
 import { sql } from 'kysely';
@@ -427,8 +433,10 @@ export function registerAdminReads(
 
   // Calendrier des événements du monde (7.3, 7.4 ; #267), tous mondes : ceux à venir, que les joueurs ne lisent
   // pas encore, et ceux en cours ou finis depuis `EVENTS_PAST_MS`, à l'heure de la base, sans leur graine. Les plus
-  // tardifs d'abord : la limite coupe les plus anciens, jamais ceux à venir.
+  // tardifs d'abord : la limite coupe les plus anciens, jamais ceux à venir. Une ligne de plus que la limite est
+  // lue pour savoir si la liste est coupée (#446).
   app.get('/api/admin/events', async (c) => {
+    const maxEvents = settings.maxAdminEvents ?? MAX_EVENTS;
     const { rows } = await sql<{ now: Date }>`select now() as now`.execute(db);
     const now = rows[0]?.now ?? new Date();
     const events = await db
@@ -451,11 +459,9 @@ export function registerAdminReads(
       .where('e.ends_at', '>', new Date(now.getTime() - EVENTS_PAST_MS))
       .orderBy('e.starts_at', 'desc')
       .orderBy('e.id', 'desc')
-      .limit(MAX_EVENTS)
+      .limit(maxEvents + 1)
       .execute();
-    // Les instants partent en ISO 8601 (sérialisation JSON d'une `Date`).
-    const data = { now: now.toISOString(), pastDays: EVENTS_PAST_MS / 86_400_000, events };
-    return c.json({ ok: true, data });
+    return c.json({ ok: true, data: adminEventsData(now, events, maxEvents) });
   });
 
   // File de la modération (#276) : signalements ouverts et leur contexte, appels à trancher, exclusions à valider.
@@ -535,5 +541,26 @@ export function registerAdminReads(
         })),
       },
     });
+  });
+}
+
+/**
+ * Réponse du calendrier des événements (#267, #446) : les `max` premières lignes lues, et si la lecture en
+ * a trouvé davantage. Le schéma partagé choisit les champs rendus ; les instants partent en ISO 8601.
+ */
+export function adminEventsData(
+  now: Date,
+  rows: readonly (Record<string, unknown> & { startsAt: Date; endsAt: Date })[],
+  max = MAX_EVENTS,
+): AdminEventsData {
+  return adminEventsDataSchema.parse({
+    now: now.toISOString(),
+    pastDays: EVENTS_PAST_MS / 86_400_000,
+    events: rows.slice(0, max).map((row) => ({
+      ...row,
+      startsAt: row.startsAt.toISOString(),
+      endsAt: row.endsAt.toISOString(),
+    })),
+    truncated: rows.length > max,
   });
 }

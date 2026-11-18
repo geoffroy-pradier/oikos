@@ -1,22 +1,12 @@
+import type { AdminEventsData, AdminWorldEvent } from '@oikos/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
 
-export interface WorldEventRow {
-  id: string;
-  world: string;
-  model: 'drought' | 'good_year' | 'storm' | 'caravan';
-  city: string;
-  otherCity: string | null;
-  goodId: string | null;
-  startsAt: string;
-  endsAt: string;
-  magnitudeBps: number;
-  plannedDay: number;
-}
-type EventsData = { now: string; pastDays: number; events: WorldEventRow[] };
+/** Un événement tel que le rend l'API (`adminWorldEventSchema` de `@oikos/contracts`). */
+export type WorldEventRow = AdminWorldEvent;
 
 /** État d'un événement à l'heure donnée : à venir, en cours ou passé. */
 export function eventStatus(event: Pick<WorldEventRow, 'startsAt' | 'endsAt'>, now: Date) {
@@ -28,22 +18,24 @@ export function eventStatus(event: Pick<WorldEventRow, 'startsAt' | 'endsAt'>, n
  * Calendrier des événements du monde (7.3, 7.4 ; #267), en lecture : ceux à venir, que les joueurs ne voient
  * pas encore, et ceux en cours ou finis depuis peu, de tous les mondes. L'heure de référence est celle que rend
  * l'API, pas celle du navigateur. Le tableau est une région focalisable : à 360 px, il défile aussi au clavier.
+ * Une liste coupée à la limite de l'API le dit, sous la légende (#446).
  */
 export function Events({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
-  const [data, setData] = useState<EventsData | null>(null);
+  const [data, setData] = useState<AdminEventsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const token = useRef(accessToken);
   token.current = accessToken;
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const count = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
     maximumFractionDigits: 2,
   });
 
   const load = useCallback(async (retried = false) => {
-    const reply = await adminGet<EventsData>('events', token.current);
+    const reply = await adminGet<AdminEventsData>('events', token.current);
     setError(reply.ok ? null : reply.code);
     if (reply.ok) setData(reply.data);
     if (retried) title.current?.focus();
@@ -73,13 +65,22 @@ export function Events({ accessToken }: { accessToken: string }) {
           <p id="events-caption" className="text-sm text-muted-foreground">
             {t('events.caption', { now: time.format(new Date(data.now)), days: data.pastDays })}
           </p>
+          {data.truncated && (
+            <p id="events-truncated" className="text-sm font-semibold">
+              {t('events.truncated', { shown: count.format(data.events.length) })}
+            </p>
+          )}
           <div
             className="overflow-x-auto"
             role="region"
             aria-labelledby="events-caption"
             tabIndex={0}
           >
-            <table aria-labelledby="events-caption" className={TABLE}>
+            <table
+              aria-labelledby="events-caption"
+              aria-describedby={data.truncated ? 'events-truncated' : undefined}
+              className={TABLE}
+            >
               <thead>
                 <tr>
                   <th scope="col">{t('events.status')}</th>
