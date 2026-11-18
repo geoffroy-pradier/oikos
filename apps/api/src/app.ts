@@ -23,6 +23,7 @@ import {
   adminHideMessage,
   adminResolveReport,
   adminSanction,
+  adminWithdrawExclusion,
 } from './commands/admin-moderation';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { chatOpenDirect } from './commands/chat-open-direct';
@@ -124,6 +125,7 @@ export const COMMANDS = [
   adminHideMessage,
   adminResolveReport,
   adminDecideAppeal,
+  adminWithdrawExclusion,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
