@@ -966,7 +966,14 @@
     "cancel": "Cancel",
     "invalid": "Write your appeal before sending it.",
     "appealSent": "Your appeal is sent: moderation will review it.",
-    "appealed": "Appeal sent on {{date}}:"
+    "appealed": "Appeal sent on {{date}}:",
+    "ended": "Ended on {{date}}.",
+    "decision": {
+      "granted": "Appeal granted on {{date}}: the sanction is lifted.",
+      "rejected": "Appeal rejected on {{date}}: the sanction stands."
+    },
+    "dismiss": "Hide this notice",
+    "dismissed": "Notice hidden."
   },
   "reports": {
     "button": "Report",

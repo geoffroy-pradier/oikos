@@ -966,7 +966,14 @@
     "cancel": "Annuler",
     "invalid": "Écrivez votre appel avant de l'envoyer.",
     "appealSent": "Votre appel est envoyé : la modération l'examinera.",
-    "appealed": "Appel envoyé le {{date}} :"
+    "appealed": "Appel envoyé le {{date}} :",
+    "ended": "Terminée le {{date}}.",
+    "decision": {
+      "granted": "Appel accueilli le {{date}} : la sanction est levée.",
+      "rejected": "Appel rejeté le {{date}} : la sanction est maintenue."
+    },
+    "dismiss": "Masquer cet avis",
+    "dismissed": "Avis masqué."
   },
   "reports": {
     "button": "Signaler",
