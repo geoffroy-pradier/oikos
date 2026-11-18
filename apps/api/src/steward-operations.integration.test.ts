@@ -1,5 +1,6 @@
-import type { GameConfig } from '@oikos/config';
-import { runStewards } from '@oikos/engine';
+import { INITIAL_CONFIG, publishVersion, type GameConfig } from '@oikos/config';
+import { runAllStewards, runStewards } from '@oikos/engine';
+import { createDb } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fund } from './property.integration-fixtures';
@@ -404,6 +405,49 @@ describe('opérations des intendants', () => {
     const { rows } = await sql`select steward_id, status from game.command_log
       where user_id = ${player.user} and idempotency_key = ${key}`.execute(db);
     expect(rows).toEqual([{ steward_id: id, status: 'ok' }]);
+  });
+
+  it('à chaque passage, chaque monde agit sous la version de son dernier tick ; un monde en échec ne retient pas les autres', async () => {
+    const world =
+      (await sql<{ id: string }>`select game.uuid_v7() as id`.execute(owner)).rows[0]?.id ?? '';
+    await sql`insert into game.worlds (id, slug, name) values (${world}, ${`w-${world.slice(-12)}`}, 'Intendance')`.execute(
+      owner,
+    );
+    // Deux versions publiées, sans activation : le tick désigne celle qu'il a lue.
+    const publish = async () => {
+      const published = await publishVersion(owner, INITIAL_CONFIG, { note: 'stewards test' });
+      if (!published.ok) throw new Error(published.errors.join('; '));
+      return published.version.id;
+    };
+    const [older, newer] = [await publish(), await publish()];
+    await sql`insert into game.ticks (world_id, index, scheduled_at, seed, config_version_id, daily_close, season_switch)
+      values (${world}, 5, now(), 'stewards-test-seed', ${older}, false, false),
+             (${world}, 7, now(), 'stewards-test-seed', ${newer}, false, false)`.execute(owner);
+    const loaded: string[] = [];
+    const byId = async (id: string) => {
+      loaded.push(id);
+      return { ...TEST_CONFIG, id };
+    };
+    const results = await runAllStewards(db, { config: { byId } });
+    expect(results.find((result) => result.worldId === world)).toEqual({
+      worldId: world,
+      run: { acted: 0, refused: 0, failed: 0 },
+    });
+    expect(loaded).toContain(newer);
+    expect(loaded).not.toContain(older);
+    const broken = await runAllStewards(db, {
+      config: {
+        byId: (id) => (id === newer ? Promise.reject(new Error('panne simulée')) : byId(id)),
+      },
+    });
+    expect(broken.find((result) => result.worldId === world)).toEqual({
+      worldId: world,
+      error: 'panne simulée',
+    });
+    // Base injoignable : rien n'est fait, et le passage du moteur n'échoue pas.
+    const unreachable = createDb('postgresql://postgres:postgres@127.0.0.1:1/postgres');
+    await expect(runAllStewards(unreachable, { config: { byId } })).resolves.toEqual([]);
+    await unreachable.destroy();
   });
 });
 

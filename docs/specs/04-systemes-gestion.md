@@ -166,7 +166,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Le moral, les artisans, le débauchage et la migration des travailleurs entre cités viendront ensuite.
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
-  Dans la première version (#278), le joueur donne les règles par un formulaire, la voie complète du jeu IA coupée ; la consigne en langage naturel (#280) n'en sera qu'une traduction, et l'exécution des règles par le moteur vient avec #279.
+  Dans la première version (#278), le joueur donne les règles par un formulaire, la voie complète du jeu IA coupée ; la consigne en langage naturel (#280) n'en sera qu'une traduction.
   Les règles appartiennent à une grammaire fermée (`stewardRuleSchema`, `packages/contracts`), chaque nombre entier et borné comme un ordre de l'agora, une règle par sorte et par bien, au plus 20 :
   récolter le site dès que possible (`collect`) ;
   vendre un bien à un prix plancher l'unité ou plus, en gardant une réserve en stock (`sell`) ;
@@ -182,7 +182,18 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Un salaire nul est payé : la clôture rend alors actif l'intendant tout juste embauché, sans écriture.
   Décision (#278) : une version sans section `stewards` (retour arrière) n'ouvre aucun poste ; la clôture ne prélève alors aucun salaire et tient impayés, donc inactifs, les intendants en poste, jusqu'à une version qui les rétablit.
   Décision (#278) : l'intendant d'un site à l'arrêt est payé s'il reste de quoi, puisque vendre et racheter ne demandent pas que le site tourne.
-  Une version qui abaisse le nombre de règles par intendant ne réécrit pas les règles déjà données : l'exécution (#279) n'en mènera que les premières.
+  Une version qui abaisse le nombre de règles par intendant ne réécrit pas les règles déjà données : l'exécution (#279) n'en mène que les premières.
+  Exécution (#279) : après chaque tick, le moteur fait agir chaque intendant actif (en poste, payé, d'un compte ni suspendu ni exclu) au plus `stewards.operationsPerTick` fois (une au départ, une pour une version publiée avant ce paramètre), chaque opération dans sa transaction.
+  Une opération est la commande du joueur (`site.collect` ou `market.placeOrder`), menée par le même cœur (ADR 0009) pour la maison de l'intendant : mêmes règles, mêmes refus, mêmes événements, inscrite au journal des commandes au nom de la maison avec l'intendant pour acteur.
+  Sa clé d'idempotence est tirée de l'intendant, du tick et du rang de l'opération : rejouer un tick, ou deux moteurs sur le même tick, ne double rien.
+  Récolter se fait dès qu'un cycle est écoulé ; vendre place un ordre au prix plancher pour tout le stock libre au-delà de la réserve ; racheter place un ordre au prix plafond pour ce qui manque au stock visé, achats en attente de la maison comptés ; chaque quantité est bornée comme un ordre de l'agora, dans la cité du site.
+  Décision (#279) : les règles forment une file circulaire ; chaque opération part de la règle qui suit celle de l'opération précédente sous la même révision, et passe sans la compter une règle qui n'a rien à faire.
+  Une règle refusée à chaque tick (trésorerie vide, atelier sans intrant) ne retient donc pas les suivantes, et des règles nouvelles repartent de la première.
+  Une opération refusée (stock, trésorerie, prix, bien retiré) n'a aucun effet ; elle est notée au journal, par un événement `StewardActionFailed` et sur la fiche du site, et ne retient ni les règles suivantes ni les autres intendants.
+  Une opération en panne n'a aucun effet et ne prend pas sa clé : seule une trace sans clé (`failed`) est inscrite au journal des commandes, et l'opération sera retentée sous le même rang au passage suivant du moteur, tant que son tick est le dernier.
+  Décision (#279) : un intendant d'un compte suspendu ou exclu n'agit pas, sans refus noté à chaque tick ; il reprend à la levée de la sanction.
+  Un rachat garde le bien de sa règle même si la recette du site a changé depuis : les règles sont celles du joueur.
+  La fiche du site montre les cinq dernières opérations de son intendant et son dernier refus (vue `my_steward_operations`), privées comme ses règles.
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).
   La fiche de chaque site a sa section Intendant : embaucher, l'état de l'intendant (actif, en attente de la clôture qui le paie, impayé), ses règles par le formulaire, le renvoyer.
 
