@@ -163,6 +163,42 @@ export function recipeMargins(days: readonly DayMeasure[], wages: (slug: string)
   return margins;
 }
 
+/** Puits immobiliers (4.5, 5.5) et publics (6.3), dont le banc mesure la part de la monnaie détruite par les puits. */
+export const ESTATE_SINKS = [
+  'sink_property_purchase',
+  'sink_property_works',
+  'sink_property_upkeep',
+  'sink_npc_lodging',
+] as const;
+export const PUBLIC_SINKS = ['sink_public_works', 'sink_festivals'] as const;
+
+/**
+ * Part de chaque puits dans la monnaie détruite par tous les puits, en points de base, sur `days`, par cité et
+ * pour le monde ; `estate` et `public` : la somme des puits immobiliers et celle des puits publics.
+ */
+export function sinkShares(days: readonly DayMeasure[]) {
+  const shares: Record<string, Record<string, number>> = {};
+  for (const slug of [...SLUGS, 'world']) {
+    const destroyed = new Map<string, number>();
+    for (const day of days)
+      for (const [key, net] of Object.entries(day.flows[slug] ?? {}))
+        if (net < 0) destroyed.set(key, (destroyed.get(key) ?? 0) - net);
+    const total = [...destroyed.values()].reduce((sum, amount) => sum + amount, 0);
+    const bps = (keys: readonly string[]) =>
+      total === 0
+        ? 0
+        : Math.round(
+            (keys.reduce((sum, key) => sum + (destroyed.get(key) ?? 0), 0) * 10_000) / total,
+          );
+    shares[slug] = {
+      ...Object.fromEntries([...destroyed.keys()].sort().map((key) => [key, bps([key])])),
+      estate: bps(ESTATE_SINKS),
+      public: bps(PUBLIC_SINKS),
+    };
+  }
+  return shares;
+}
+
 /** Mesures publiées : tableaux dans le journal du test, et fichier JSON (`BALANCE_REPORT`) que le job `ci` conserve. */
 export async function publish(
   days: readonly DayMeasure[],
@@ -192,9 +228,15 @@ export async function publish(
   console.table(days.at(-1)?.coverage);
   console.log('Marge nette quotidienne par recette (oboles)');
   console.table(margins);
+  const shares = sinkShares(days);
+  console.log('Part de chaque puits dans la monnaie détruite (points de base, jours mesurés)');
+  console.table(shares);
   const path = process.env['BALANCE_REPORT'];
   if (path) {
     await mkdir(path.replace(/[^/]*$/, '') || '.', { recursive: true });
-    await writeFile(path, JSON.stringify({ seed: WORLD_SEED, days, margins, ...extra }, null, 1));
+    await writeFile(
+      path,
+      JSON.stringify({ seed: WORLD_SEED, days, margins, sinkShares: shares, ...extra }, null, 1),
+    );
   }
 }

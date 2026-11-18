@@ -19,7 +19,14 @@ import { newPolitics, politicsMorning, settled, winnerOf } from './balance/polit
 import { morning, seller } from './balance/strategy';
 import { actAfterTick, hireSteward, type Steward } from './balance/steward';
 import { traderMorning, type Prices, type Trader } from './balance/trade';
-import { measureDay, publish, recipeMargins, type DayMeasure } from './balance/measures';
+import {
+  measureDay,
+  PUBLIC_SINKS,
+  publish,
+  recipeMargins,
+  sinkShares,
+  type DayMeasure,
+} from './balance/measures';
 import {
   MEASURED,
   SETTLEMENTS,
@@ -278,6 +285,14 @@ it(
         .map(([key, balance]) => [key, 0 - balance]),
     );
     expect(measured).toEqual(expectedNet);
+
+    // Chaque puits qui revient chaque jour a sa part dans la monnaie détruite des jours mesurés (les achats de biens,
+    // faits surtout pendant la mise en route, sont comptés par le rapprochement ci-dessus).
+    const shares = sinkShares(days)['world'] ?? {};
+    for (const key of ['sink_property_upkeep', 'sink_npc_lodging', ...PUBLIC_SINKS])
+      expect(shares[key] ?? 0, `part de ${key}`).toBeGreaterThan(0);
+    expect(shares['estate'], 'part des puits immobiliers').toBeGreaterThan(0);
+    expect(shares['public'], 'part des puits publics').toBeGreaterThan(0);
 
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW), () => WAGES.workerOboles);
