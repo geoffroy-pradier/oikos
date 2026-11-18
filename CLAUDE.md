@@ -84,13 +84,14 @@ disponible dans la session, écris-le dans la demande de fusion et pose le label
 fusionner une fusion `sensible` sans cette relecture.
 
 **Économie du quota.** Le quota d'usage des agents est limité : cherche l'équilibre entre rapidité et économie.
+Cela ne change rien au travail `sensible` ni à sa relecture.
 
-- Les tickets ordinaires et leurs relectures vont à un agent sur un modèle plus léger (`model: sonnet`) ; les petits correctifs, fais-les toi-même.
-- Au plus deux ou trois chantiers en parallèle (un ou deux `sensible`, un ordinaire), chacun dans son répertoire de travail, avec ses bases privées et sa plage de numéros de migration. Lance un agent seulement quand un autre a fini.
-- Une seule relecture par partie, et une nouvelle seulement après une correction bloquante. Pas de demande de fusion « pile complète » en brouillon sans besoin précis.
-- Au plus une relance par job de `ci`, après lecture du journal.
-- Des consignes d'agent courtes, qui pointent les fichiers à lire.
-- Si le quota approche de sa limite, un seul chantier à la fois, les tickets `sensible` d'abord.
+- Un ticket ordinaire, tu peux l'écrire toi-même ou le déléguer à un agent générique réglé sur un modèle plus léger (`model: sonnet`). Sa relecture va à un agent générique `sonnet`, qui n'est jamais la session qui a écrit le code.
+- Ne dépasse jamais trois chantiers actifs (au plus deux `sensible`), chacun dans son répertoire de travail, avec ses propres bases locales et des numéros de migration qui ne se recouvrent pas.
+- Une seule relecture par demande de fusion ordinaire, et une nouvelle seulement après une correction bloquante. N'ouvre pas de demande de fusion en brouillon qui regroupe plusieurs parties sans besoin précis.
+- Au plus une relance par job de `ci` sans nouveau commit, après lecture du journal ; une correction poussée n'en est pas une.
+- Écris des consignes d'agent courtes, qui pointent les fichiers à lire.
+- Quand un agent s'arrête sur une limite d'usage, passe à un seul chantier à la fois. Par exception à l'étape 1, prends alors les tickets `sensible` d'abord.
 
 ## Ce que tu ne fais jamais sans un humain
 
