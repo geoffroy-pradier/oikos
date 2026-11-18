@@ -57,7 +57,8 @@
     "config": "Paramètres",
     "audit": "Journal d'audit",
     "access": "Accès",
-    "animation": "Animation"
+    "animation": "Animation",
+    "moderation": "Modération"
   },
   "vigie": {
     "title": "Vigie",
@@ -258,6 +259,9 @@
       "failed": "En panne"
     },
     "rejectedNoCode": "Refusée"
+  },
+  "moderation": {
+    "pending": "Le module Modération arrive avec une prochaine version d'Olympe."
   },
   "events": {
     "title": "Calendrier des événements",

@@ -29,6 +29,9 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Signalement (report) | Message d'une autre maison désigné à la modération par une maison qui le lit, sous un motif de la configuration (`report`) |
 | Sanction (sanction) | Mesure de la modération sur un compte, graduée : avertissement (`warning`), silence (`silence`), suspension (`suspension`), exclusion définitive (`ban`) |
 | Appel (appeal) | Contestation d'une sanction pas encore finie par le compte sanctionné, une fois par sanction (`appeal`) |
+| Validation d'une exclusion (exclusion confirmation) | Seconde personne qui confirme une exclusion proposée, autre que son auteur et que le compte exclu : l'exclusion commence alors (`confirmExclusion`) |
+| Levée (lift) | Fin avancée d'une sanction pas encore finie, quand son appel est accueilli : elle finit à cet instant (`lift`) |
+| Traitement d'un signalement (report resolution) | Décision de la modération sur un signalement ouvert : écarté (`dismissed`) ou retenu (`upheld`) |
 | Bien immobilier (property) | Logement d'une cité, d'abord détenu par elle, qu'une maison achète, rénove et entretient (`property`) |
 | Maison de ville (townhouse) | Petit logement, la plus petite des deux tailles de bien immobilier (`townhouse`) ; à ne pas confondre avec la maison du joueur (oikos) |
 | Immeuble de rapport (tenement) | Grand logement de plusieurs foyers, la plus grande des deux tailles de bien immobilier (`tenement`) |

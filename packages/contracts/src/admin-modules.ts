@@ -1,4 +1,5 @@
 import { ROLE_MANAGER_ROLES, type AdminRole } from './admin';
+import { MODERATION_ROLES } from './moderation-admin';
 
 /**
  * Modules d'Olympe et rôles qui y ont accès (docs/specs/15-back-office-olympe.md, 15.3). Liste unique :
@@ -13,6 +14,11 @@ export const ADMIN_MODULE_ROLES = {
   config: ['super_admin', 'game_designer', 'observer'],
   /** Animation : calendrier des événements du monde, en lecture (`GET /api/admin/events`, #267). */
   animation: ['super_admin', 'game_designer', 'community_manager', 'observer'],
+  /**
+   * Modération : file des signalements, appels, exclusions à valider (`GET /api/admin/reports`, #276). Mêmes rôles
+   * que ses commandes ; le modérateur, peut-être bénévole, n'y lit aucune donnée économique.
+   */
+  moderation: MODERATION_ROLES,
   audit: ['super_admin', 'observer'],
   /** Accès : qui porte quel rôle. Mêmes comptes que ceux qui accordent et retirent les rôles. */
   access: ROLE_MANAGER_ROLES,

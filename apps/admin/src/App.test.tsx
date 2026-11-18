@@ -96,7 +96,10 @@ describe('accès au back-office', () => {
   });
 
   it.each([
-    ['super_admin', ['Vigie', 'Économie', 'Paramètres', 'Animation', "Journal d'audit", 'Accès']],
+    [
+      'super_admin',
+      ['Vigie', 'Économie', 'Paramètres', 'Animation', 'Modération', "Journal d'audit", 'Accès'],
+    ],
     ['observer', ['Vigie', 'Économie', 'Paramètres', 'Animation', "Journal d'audit"]],
     ['game_designer', ['Vigie', 'Économie', 'Paramètres', 'Animation']],
   ])('le rôle %s voit les onglets prévus', async (role, expected) => {
@@ -113,7 +116,7 @@ describe('accès au back-office', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Calendrier des événements' })).toBeTruthy();
     expect(await screen.findByText('Aucun événement planifié.')).toBeTruthy();
-    expect(tabs()).toEqual(['Animation']);
+    expect(tabs()).toEqual(['Animation', 'Modération']);
     expect(adminGet).toHaveBeenCalledWith('events', A2);
   });
 
@@ -129,8 +132,19 @@ describe('accès au back-office', () => {
     expect(current().map((tab) => tab.textContent)).toEqual(['Économie']);
   });
 
-  it("un rôle sans module (modérateur) n'a ni onglet ni lecture", async () => {
+  it("le modérateur n'a que la Modération, dont l'écran vient plus tard, et ne lit rien d'autre", async () => {
     api({ ok: true, data: { role: 'moderator' } });
+    signedIn();
+    render(<App />);
+    expect(
+      await screen.findByText("Le module Modération arrive avec une prochaine version d'Olympe."),
+    ).toBeTruthy();
+    expect(tabs()).toEqual(['Modération']);
+    expect(adminGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("un rôle sans module (support) n'a ni onglet ni lecture", async () => {
+    api({ ok: true, data: { role: 'support' } });
     signedIn();
     render(<App />);
     expect(await screen.findByText('Votre rôle ne donne pas accès à ce module.')).toBeTruthy();
