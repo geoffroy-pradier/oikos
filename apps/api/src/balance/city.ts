@@ -423,11 +423,17 @@ const nonZero = (balances: Record<string, number>) =>
 /**
  * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons, achats
  * des PNJ (échanges sans ordre d'achat), taxe recalculée échange par échange par `marketTax` (règle des
- * commandes et du moteur), autres puits comptés par le banc (`counted`). Rend les soldes non nuls des
+ * commandes et du moteur), autres puits comptés par le banc (`counted`), dépenses de décrets tirées des trésors
+ * (`drawn`, par cité). Rend les soldes non nuls des
  * comptes système et du trésor (`actual`), ce que les flux font attendre (`expected`), la monnaie en
  * circulation et la masse attendue : dotation et achats des PNJ, moins tous les puits.
  */
-export async function reconcile(city: City, founded: number, counted: Record<string, number>) {
+export async function reconcile(
+  city: City,
+  founded: number,
+  counted: Record<string, number>,
+  drawn: ReadonlyMap<string, number> = new Map(),
+) {
   const trades = await city.db
     .selectFrom('game.trades as t')
     .innerJoin('game.orders as o', 'o.id', 't.sell_order_id')
@@ -445,6 +451,11 @@ export async function reconcile(city: City, founded: number, counted: Record<str
     flows.sink_market_tax += tax.burned;
     flows.treasury += tax.treasury;
     treasuries.set(trade.city_id, (treasuries.get(trade.city_id) ?? 0) + tax.treasury);
+  }
+  // Dépenses des décrets (6.3), comptées par le banc : elles sortent du trésor de leur cité, vers leur puits (`counted`).
+  for (const [cityId, amount] of drawn) {
+    treasuries.set(cityId, (treasuries.get(cityId) ?? 0) - amount);
+    flows.treasury -= amount;
   }
   const { supply, system } = await accounts(city);
   const sinks = Object.values(counted).reduce((sum, sink) => sum + sink, flows.sink_market_tax);
