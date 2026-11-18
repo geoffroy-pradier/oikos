@@ -3,6 +3,7 @@ import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { acceptTransactionConflicts } from './conflicts.integration-fixtures';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
 import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
@@ -406,4 +407,83 @@ describe('site.collect sur un atelier', () => {
     expect((await collect(player.user, mill)).body.data).toMatchObject({ cycles: 2 });
     expect(await stockOf(player.houseId)).toEqual({ wheat: 3 * WHEAT_PER_FLOUR, flour: 2 * FLOUR });
   });
+
+  it('récolte et tick qui s’interbloquent (#333) : la récolte annulée par la base est rejouée, un seul effet', async () => {
+    const player = await newPlayer('mill_flour');
+    const [mill] = player.sites as [string];
+    await give(player.houseId, 'wheat', WHEAT_PER_FLOUR);
+    await give(player.houseId, 'flour', 1);
+    await age(mill, 1.5 * MILL.durationMinutes);
+    const inventoryOf = async (goodId: string) =>
+      (
+        await owner
+          .selectFrom('game.inventories')
+          .select('id')
+          .where('house_id', '=', player.houseId)
+          .where('good_id', '=', goodId)
+          .executeTakeFirstOrThrow()
+      ).id;
+    const [wheat, flour] = [await inventoryOf('wheat'), await inventoryOf('flour')];
+    const lock = (trx: typeof owner, id: string) =>
+      trx.selectFrom('game.inventories').select('id').where('id', '=', id).forUpdate().execute();
+    const seen = acceptTransactionConflicts();
+    // L'ordre du tick : la demande des PNJ verrouille le blé que la maison vend, puis l'arrivée d'un voyage sa farine.
+    const tick = await owner.startTransaction().execute();
+    try {
+      await lock(tick, wheat);
+      const { pid } = (await sql<{ pid: number }>`select pg_backend_pid() as pid`.execute(tick))
+        .rows[0] ?? { pid: 0 };
+      // La récolte verrouille la farine puis attend le blé ; le tick demande alors la farine : un cycle.
+      const collected = collect(player.user, mill);
+      for (let tries = 0; tries < 100; tries++) {
+        const waiting = await sql<{ n: number }>`select count(*)::int as n from pg_stat_activity
+          where ${pid}::int = any(pg_blocking_pids(pid))`.execute(owner);
+        if ((waiting.rows[0]?.n ?? 0) > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      // Attendant depuis plus longtemps, la récolte détecte l'interblocage la première et la base l'annule : le
+      // tick obtient la farine, que la récolte tenait, et livre sa cargaison.
+      await lock(tick, flour);
+      await tick
+        .insertInto('game.stock_ledger')
+        .values({
+          world_id: WORLD,
+          good_id: 'flour',
+          quantity: 5,
+          from_system: 'test',
+          to_inventory_id: flour,
+          kind: 'test',
+        })
+        .execute();
+      await tick.commit().execute();
+      const reply = await collected;
+      expect(reply).toMatchObject({ status: 200, body: { data: { cycles: 1 } } });
+      expect(seen('40P01')).toBe(1);
+    } finally {
+      if (!tick.isCommitted) await tick.rollback().execute();
+    }
+    expect(await stockOf(player.houseId)).toEqual({ wheat: 0, flour: 1 + 5 + FLOUR });
+    const movements = await owner
+      .selectFrom('game.stock_ledger')
+      .select(['good_id', 'quantity'])
+      .where('kind', '=', 'site.collect')
+      .where((eb) =>
+        eb.or([eb('from_inventory_id', '=', wheat), eb('to_inventory_id', '=', flour)]),
+      )
+      .orderBy('good_id')
+      .execute();
+    expect(movements).toEqual([
+      { good_id: 'flour', quantity: String(FLOUR) },
+      { good_id: 'wheat', quantity: String(WHEAT_PER_FLOUR) },
+    ]);
+    const log = await owner
+      .selectFrom('game.command_log')
+      .select('status')
+      .where('user_id', '=', player.user)
+      .where('command', '=', 'site.collect')
+      .execute();
+    const events = await sql`select 1 from game.domain_events
+      where type = 'SiteCollected' and payload->>'siteId' = ${mill}`.execute(owner);
+    expect([log, events.rows.length]).toEqual([[{ status: 'ok' }], 1]);
+  }, 15_000);
 });

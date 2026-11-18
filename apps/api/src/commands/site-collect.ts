@@ -98,9 +98,10 @@ export const siteCollect = defineCommand({
     // (celui des unités de code, le même en JavaScript et en base avec le classement "C") : deux récoltes
     // de la même maison, une récolte et une vente ne s'interbloquent pas. Une récolte et un tick le
     // peuvent : le tick verrouille les stocks vendus aux PNJ dans l'ordre des prix, puis les stocks
-    // d'arrivée des voyages (#253). PostgreSQL annule alors l'une des deux en entier, sans double effet ;
-    // la récolte se renvoie sous la même clé, le tick est rejoué au passage suivant. Un nouvel essai
-    // automatique est prévu par un ticket à venir.
+    // d'arrivée des voyages (#253). PostgreSQL annule alors l'une des deux en entier, sans double effet.
+    // Une récolte annulée est rejouée entière par le registre, sous la même clé (#333, `executeCommand`) :
+    // elle attend la fin du tick, puis récolte ce qui est dû à son nouvel instant. Un tick annulé est
+    // repris au passage suivant.
     const goods = [...new Set([...recipe.inputs, ...recipe.outputs].map((stack) => stack.goodId))];
     goods.sort();
     const produced = new Set(recipe.outputs.map((stack) => stack.goodId));

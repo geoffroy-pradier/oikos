@@ -411,7 +411,8 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 Défauts connus :
 
 - **Interblocage récolte et tick** (#333) : depuis l'arrivée des voyages, une récolte et le tick peuvent s'interbloquer quand une maison reçoit dans une cité un bien qu'elle y vend aux PNJ.
-  Postgres annule l'une des deux transactions en entier, sans double effet : le tick est repris au passage suivant, mais le joueur dont la récolte est annulée reçoit une erreur interne ; #333 fera rejouer automatiquement la commande.
+  Postgres annule l'une des deux transactions en entier, sans double effet : le tick est repris au passage suivant, hors de son intervalle.
+  Une récolte annulée est rejouée par l'API sous la même clé (#333, spécification 13) : le joueur ne voit qu'une attente d'environ une seconde.
 - **Étape d'arrivée d'un seul tenant** : tous les voyages échus d'un monde sont déchargés dans la transaction de son tick ; une erreur sur l'un d'eux ferait échouer tout le tick du monde.
 
 - **Non suivis en ticket, relevés en relecture** :
