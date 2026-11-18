@@ -29,6 +29,7 @@ fin, ni être purgé au hasard.
 | Appels de la passerelle IA (`telemetry.ai_calls`) | Rétention de la télémétrie, au moins 32 jours | Le plafond mensuel s'y lit ; sans texte de joueur (ADR 0005) ; purge par la fonction du propriétaire, comme les passages de tick et de clôture (migrations 41 et 50) |
 | Messages de la discussion (`game.messages`, 6.6) | `chat.retentionDays` de la configuration : 30 jours au départ, jamais moins d'un jour | Conservation limitée des messages (18) ; purge par la fonction du propriétaire `game.purge_messages`, tâche du moteur distincte de celle de la télémétrie (migration 92) |
 | Texte des consignes d'intendant (`game.steward_instructions.text`, 4.4) | `chat.retentionDays`, comme les messages, jamais moins d'un jour | Texte libre d'un joueur ; effacé par la fonction du propriétaire `game.purge_steward_instructions`, la consigne et sa proposition restant (migration 350) |
+| Opérations des intendants (`game.steward_operations`, 4.4) | `stewards.operationsRetentionDays` de la configuration : 30 jours au départ, jamais moins d'un jour | Un refus durable en inscrit une par tick ; purge par la fonction du propriétaire `game.purge_steward_operations`, qui garde la dernière de chaque intendant et celles du dernier tick de son monde (migration 440) |
 
 - **Idempotence.** Un client ne renvoie une clé que tant qu'il attend une réponse (quelques minutes au
   plus) ; 90 jours couvrent très largement ce besoin. Aujourd'hui la clé vit dans sa ligne du journal
@@ -44,8 +45,11 @@ fin, ni être purgé au hasard.
   partitionnés par mois (spécification 12) ; purger, c'est détacher puis supprimer une partition entière
   échue, par une migration ou une tâche du moteur exécutée au nom du propriétaire. Les déclencheurs qui
   interdisent `delete` et `truncate` restent en place : aucune ligne isolée ne peut disparaître.
-- **D'ici le partitionnement, rien n'est purgé, sauf la télémétrie et les messages** (passages de tick et de clôture depuis la migration 41, appels de la passerelle IA depuis la migration 50, messages de la discussion depuis la migration 92), supprimés par les fonctions du propriétaire à la durée de la configuration.
+- **D'ici le partitionnement, rien n'est purgé, sauf la télémétrie, les messages et les opérations d'intendant** (passages de tick et de clôture depuis la migration 41, appels de la passerelle IA depuis la migration 50, messages de la discussion depuis la migration 92), supprimés par les fonctions du propriétaire à la durée de la configuration.
   Le texte des consignes d'intendant est effacé de même depuis la migration 350 : la ligne reste, sans son texte.
+  Les opérations des intendants se suppriment ligne à ligne de même depuis la migration 440, sauf la dernière de chaque intendant (position de la file de ses règles) et celles du dernier tick de son monde (clés d'idempotence que le moteur relit).
+  Leur garde n'admet que la suppression d'une opération de plus d'un jour, sous le réglage local de la purge, que seul le propriétaire, qui a le droit de supprimer, pourrait poser hors d'elle.
+  Si plusieurs moteurs tournaient en même temps, l'un pourrait voir purgée une opération d'un tick qu'il mène encore ; la contrainte unique du journal des commandes l'arrête alors, sans double effet, tant que ce journal n'est pas purgé.
   Les messages se suppriment ligne à ligne, par date, et non par partition : leur conservation se compte en jours et change avec la configuration, ce qu'un découpage par mois ne suit pas.
   La garde des messages refuse toute autre suppression, même au propriétaire, comme celle des passages de clôture.
   Pour le reste, les volumes du prototype ne le justifient pas, et une purge improvisée affaiblirait les garanties d'immuabilité.
@@ -64,8 +68,8 @@ fin, ni être purgé au hasard.
 
 - Les durées ci-dessus sont des décisions d'exploitation, pas des paramètres d'équilibrage : elles vivent
   dans la tâche de purge, pas dans `packages/config`.
-  Exceptions : la rétention de la télémétrie et la conservation des messages vivent dans `packages/config`.
-  La seconde est une règle connue des joueurs (#273), et la Vigie suit la première.
+  Exceptions : la rétention de la télémétrie, la conservation des messages et celle des opérations d'intendant vivent dans `packages/config`.
+  La conservation des messages est une règle connue des joueurs (#273), la Vigie suit la rétention de la télémétrie, et celle des opérations d'intendant borne ce que la fiche du site montre au joueur (4.4).
 - Une clé d'idempotence rejouée plus de 90 jours après sa commande exécute la commande à nouveau. Aucun
   client ne garde une clé aussi longtemps.
 - Tant que le partitionnement n'est pas fait, les tables grossissent : la Vigie doit rester lisible grâce
