@@ -4,7 +4,9 @@ import {
   blankRule,
   goodsFor,
   hireIntent,
+  instructionIntent,
   moveUp,
+  parseInstructions,
   parseStewardActivity,
   parseStewards,
   rulesIntent,
@@ -177,5 +179,60 @@ describe('intendants de la maison (#278)', () => {
     expect(activity.get('st2')?.recent).toHaveLength(1);
     expect(activity.get('st2')?.lastRefusal).toBe(activity.get('st2')?.recent[0]);
     expect(parseStewardActivity([]).size).toBe(0);
+  });
+});
+
+describe('consigne d’un intendant (#280)', () => {
+  const sell = { kind: 'sell', goodId: 'flour', minPriceOboles: 14, keepUnits: 0 };
+  const answered = {
+    steward_id: 'a',
+    rules_revision: 2,
+    text: 'vends la farine',
+    status: 'answered',
+    rules: [sell],
+    simulation: [{ position: 0, status: 'idle' }],
+    refusal: null,
+  };
+  it('lit la dernière consigne de chaque intendant, sa proposition et sa simulation', () => {
+    const read = parseInstructions([
+      answered,
+      { ...answered, steward_id: 'b', status: 'pending', rules: null, simulation: null },
+      {
+        ...answered,
+        steward_id: 'c',
+        text: null,
+        rules: null,
+        simulation: null,
+        refusal: 'AI_UNAVAILABLE',
+      },
+    ]);
+    expect(read.get('a')).toEqual({
+      stewardId: 'a',
+      revision: 2,
+      text: 'vends la farine',
+      status: 'answered',
+      rules: [sell],
+      simulation: [{ position: 0, status: 'idle' }],
+      refusal: null,
+    });
+    expect(read.get('b')?.status).toBe('pending');
+    expect(read.get('c')).toMatchObject({ text: null, refusal: 'AI_UNAVAILABLE' });
+  });
+
+  it('ignore une proposition hors de la grammaire ou un refus inconnu ; une simulation illisible est tue', () => {
+    const read = parseInstructions([
+      { ...answered, rules: [{ kind: 'transfer' }] },
+      { ...answered, steward_id: 'b', rules: null, simulation: null, refusal: 'TRANSFER_DONE' },
+      { ...answered, steward_id: 'c', simulation: [{ position: 0, status: 'done' }] },
+    ]);
+    expect([...read.keys()]).toEqual(['c']);
+    expect(read.get('c')?.simulation).toBeNull();
+  });
+
+  it('une consigne d’une révision passée est caduque', () => {
+    const steward = { id: 'a', revision: 2 };
+    const stale = staleIntents('s1', { id: 'a', revision: 3 });
+    expect(stale(instructionIntent(steward, 'vends'))).toBe(true);
+    expect(staleIntents('s1', steward)(instructionIntent(steward, 'vends'))).toBe(false);
   });
 });

@@ -286,6 +286,8 @@
     "STEWARD_LIMIT_REACHED": "All your steward posts are taken.",
     "STEWARD_NOT_FOUND": "This steward is no longer in post.",
     "TOO_MANY_RULES": "Too many rules for one steward.",
+    "AI_UNAVAILABLE": "Natural-language instructions are unavailable for now: give the rules with the form.",
+    "INSTRUCTION_PENDING": "An instruction is still waiting for its proposal.",
     "NOT_AN_INPUT": "This good is not an input of this site: the steward does not buy it back.",
     "INTERNAL": "Something went wrong. Try again in a moment.",
     "COMMAND_NOT_FOUND": "This action is not available.",
@@ -1025,6 +1027,35 @@
     "saved_other": "{{name}} will follow {{count}} rules.",
     "dismiss": "Dismiss {{name}}",
     "dismissed": "{{name}} has left your service; the post is free.",
+    "instruction": {
+      "title": "Instruction",
+      "label": "Your instruction to {{name}}, in your own words",
+      "hint": "For example: “sell the oil above 12 drachmas, otherwise keep it”. Write prices and quantities in digits, each price whole and in a single unit (obols or drachmas); you will approve the proposed rules.",
+      "send": "Translate into rules",
+      "sent": "{{name}} is studying your instruction: the proposal follows shortly.",
+      "quote": "Your instruction: “{{text}}”",
+      "pending": "{{name}} is studying this instruction; the proposal arrives shortly.",
+      "refresh": "Refresh",
+      "proposed": "Rules proposed by {{name}}, and what each would do now:",
+      "line": "{{n}}. {{rule}} — now: {{outcome}}",
+      "rules": {
+        "sell_one": "Sell {{good}} at {{price}} a unit or more, keeping {{count}} unit",
+        "sell_other": "Sell {{good}} at {{price}} a unit or more, keeping {{count}} units",
+        "buy_one": "Buy back {{good}} at {{price}} a unit or less, up to {{count}} unit in stock",
+        "buy_other": "Buy back {{good}} at {{price}} a unit or less, up to {{count}} units in stock"
+      },
+      "idle": "nothing to do",
+      "unknown": "simulation unavailable",
+      "validate": "Approve",
+      "edit": "Edit",
+      "toForm": "Go to the rules form",
+      "refusals": {
+        "AI_UNAVAILABLE": "The AI is off for now: {{name}} cannot translate your instruction. Give the rules with the form.",
+        "INVALID_PROPOSAL": "{{name}} could not turn this instruction into valid rules. Rephrase it, or give the rules with the form.",
+        "OUT_OF_GRAMMAR": "{{name}} can harvest, sell and buy back, nothing else: this instruction asks for something else.",
+        "AMBIGUOUS": "This instruction is ambiguous: it lacks a good, a price or a quantity written in digits, or a price is not whole in a single unit (not “12.5 drachmas” nor “1 drachma 3 obols”). Make it precise, or give the rules with the form."
+      }
+    },
     "ops": {
       "title": "Latest operations",
       "none": "No operation yet.",

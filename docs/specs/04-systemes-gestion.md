@@ -168,7 +168,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Le moral, les artisans, le débauchage et la migration des travailleurs entre cités viendront ensuite.
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
-  Dans la première version (#278), le joueur donne les règles par un formulaire, la voie complète du jeu IA coupée ; la consigne en langage naturel (#280) n'en sera qu'une traduction.
+  Dans la première version (#278), le joueur donne les règles par un formulaire, la voie complète du jeu IA coupée ; la consigne en langage naturel (#280) n'en est qu'une traduction.
   Les règles appartiennent à une grammaire fermée (`stewardRuleSchema`, `packages/contracts`), chaque nombre entier et borné comme un ordre de l'agora, une règle par sorte et par bien, au plus 20 :
   récolter le site dès que possible (`collect`) ;
   vendre un bien à un prix plancher l'unité ou plus, en gardant une réserve en stock (`sell`) ;
@@ -198,6 +198,21 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   La fiche du site montre les cinq dernières opérations de son intendant et son dernier refus (vue `my_steward_operations`), privées comme ses règles.
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).
   La fiche de chaque site a sa section Intendant : embaucher, l'état de l'intendant (actif, en attente de la clôture qui le paie, impayé), ses règles par le formulaire, le renvoyer.
+  Consigne en langage naturel (#280) : le joueur écrit une consigne à son intendant (`steward.submitInstruction`, 500 caractères au plus), qui n'est qu'une demande de traduction ; il valide toujours les règles par `steward.setRules`.
+  La commande la refuse (`AI_UNAVAILABLE`) quand l'usage `steward` de l'IA est coupé, quand son plafond du mois est atteint, ou quand la maison a donné ses consignes du jour de jeu (`ai.stewardDailyQuotaPerHouse`, intendants renvoyés compris) ; une seule consigne attend par intendant (`INSTRUCTION_PENDING`).
+  Toute consigne acceptée par la commande compte au quota du jour, même si le moteur lui répond ensuite par un refus, `AI_UNAVAILABLE` compris.
+  Le moteur traduit chaque consigne en attente une fois, par la passerelle IA (8.4), le texte du joueur passé comme donnée ; la réponse doit tenir dans la grammaire, sur les biens de la configuration et les intrants du site, sans quoi elle est rejetée.
+  Décision (#280) : le modèle ne décide d'aucun nombre (règle 6, dérogation de l'ADR 0005) ; il recopie chaque prix avec l'unité écrite à côté par le joueur (obole ou drachme, en français ou en anglais), et chaque quantité.
+  Le code lit dans le texte les paires (nombre, unité) et les quantités, et rejette une réponse dont un prix n'est pas l'une de ces paires, valeur et unité, ou dont une quantité n'y figure pas ; une réserve que la consigne ne dit pas vaut 0.
+  Un prix sans unité ne se distingue pas d'une quantité : aucune règle proposée ne peut le porter.
+  Un nombre décimal ou un prix composé (« 1 drachme 3 oboles ») rend la consigne ambiguë : refus `AMBIGUOUS`, décidé par le code sans appel.
+  Le code convertit les prix en oboles.
+  Les règles proposées sont simulées à blanc sur l'état présent du site et des stocks de la maison : chacune est menée une fois, dans l'ordre, par le cœur de la commande (ADR 0009), dans une transaction toujours annulée, et la fiche dit ce qu'elle ferait maintenant (rien, l'ordre ou la récolte, ou le refus et sa raison).
+  La proposition, ou un refus motivé (IA indisponible, réponse rejetée, consigne hors de la grammaire, consigne ambiguë), est gardée avec la consigne ; ni l'une ni l'autre ne change ensuite.
+  La fiche du site montre la dernière consigne et sa réponse (vue `my_steward_instructions`), privées comme les règles : « Valider » donne les règles proposées, « Modifier » les met dans le formulaire.
+  IA coupée, la fiche le dit et mène au formulaire, qui reste la voie complète du jeu.
+  Une proposition ne vaut que pour la révision des règles lue à la consigne : des règles données depuis la rendent caduque.
+  Le texte de la consigne n'entre ni au journal des commandes ni dans un événement ; il est effacé à la conservation de la discussion (ADR 0002).
 
 ## 4.5 L'immobilier urbain
 
