@@ -827,6 +827,21 @@
       "noPatron": "{{city}} has no patron god: it has no city Charis.",
       "citizen": "It is the sum of its citizens' Charis toward this god: yours counts.",
       "metic": "It is the sum of its citizens' Charis toward this god: your house, a metic, does not count."
+    },
+    "offering": {
+      "title": "Make an offering",
+      "noGod": "No god accepts offerings in the configuration in force.",
+      "god": "God",
+      "oboles": "Obols offered ({{rate}} Charis per obol)",
+      "good": "{{good}} ({{free}} free, {{rate}} Charis each)",
+      "noStock": "None of the goods {{god}} accepts is in your free stock in the city.",
+      "unreadable": "Write whole numbers, without a unit.",
+      "tooMuch": "At most {{max}} obols per offering.",
+      "overStock": "A quantity exceeds your free stock.",
+      "empty": "Choose an amount or goods to offer.",
+      "quote": "This offering will earn you {{charis}} Charis toward {{god}}.",
+      "submit": "Offer to {{god}} (+{{charis}} Charis)",
+      "done": "Offering made to {{god}}: +{{gained}} Charis. Your Charis toward {{god}}: {{charis}}."
     }
   }
 }
