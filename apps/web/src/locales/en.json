@@ -278,6 +278,11 @@
     "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
     "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
     "HOUSE_NAME_TAKEN": "Another house already bears this name.",
+    "SITE_HAS_STEWARD": "This site already has its steward.",
+    "STEWARD_LIMIT_REACHED": "All your steward posts are taken.",
+    "STEWARD_NOT_FOUND": "This steward is no longer in post.",
+    "TOO_MANY_RULES": "Too many rules for one steward.",
+    "NOT_AN_INPUT": "This good is not an input of this site: the steward does not buy it back.",
     "INTERNAL": "Something went wrong. Try again in a moment.",
     "COMMAND_NOT_FOUND": "This action is not available.",
     "IDEMPOTENCY_KEY_REQUIRED": "The request is incomplete. Reload the page and try again.",
@@ -962,5 +967,49 @@
       "cheating": "Cheating or scam",
       "other": "Other breach of the code of conduct"
     }
+  },
+  "steward": {
+    "title": "Steward",
+    "noPost": "Your seat has no steward post.",
+    "pitch": "A steward follows the rules you give, without you. The wage, {{cost}} a day, is paid at the close; unpaid, nothing is done.",
+    "postsTaken_one": "Your steward post is taken.",
+    "postsTaken_other": "Your {{count}} steward posts are taken.",
+    "hire": "Hire a steward",
+    "hireFor": "Hire a steward for {{site}}",
+    "hireDone": "{{name}} enters your service. The stewardship starts at the next close, which pays the wage.",
+    "active": "{{name}} follows the rules: the last close paid the wage.",
+    "hired": "{{name}} takes office at the next close, which will pay the wage (hired on {{date}}).",
+    "unpaid": "{{name}}'s wage has been unpaid since {{date}}: nothing is done until a close pays it.",
+    "rulesOf": "Rules of {{name}}",
+    "noRule": "No rules: the steward does nothing.",
+    "rule": "Rule {{n}}",
+    "kind": "Action",
+    "kinds": {
+      "collect": "Harvest as soon as possible",
+      "sell": "Sell at or above a floor price, keeping a reserve",
+      "buy": "Buy back an input at or below a ceiling price, up to a stock"
+    },
+    "good": "Good",
+    "fields": {
+      "sell": {
+        "price": "Floor price (obols per unit)",
+        "units": "Reserve kept (units)"
+      },
+      "buy": {
+        "price": "Ceiling price (obols per unit)",
+        "units": "Target stock (units)"
+      }
+    },
+    "up": "Move up",
+    "moveUp": "Move rule {{n}} up",
+    "delete": "Remove",
+    "remove": "Remove rule {{n}}",
+    "invalid": "Rule {{n}} is incomplete, out of bounds or duplicated.",
+    "add": "Add a rule (at most {{max}})",
+    "save": "Save the rules",
+    "saved_one": "{{name}} will follow {{count}} rule.",
+    "saved_other": "{{name}} will follow {{count}} rules.",
+    "dismiss": "Dismiss {{name}}",
+    "dismissed": "{{name}} has left your service; the post is free."
   }
 }
