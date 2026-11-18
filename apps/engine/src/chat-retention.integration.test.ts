@@ -8,7 +8,7 @@ import {
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { purgeMessages } from './chat-retention';
+import { purgeMessages, purgeStewardInstructions } from './chat-retention';
 
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
@@ -88,5 +88,57 @@ describe('conservation des messages', () => {
     await expect(sql`delete from game.messages`.execute(db)).rejects.toMatchObject({
       code: '42501',
     });
+  });
+});
+
+describe('conservation des consignes d’intendant', () => {
+  it('efface, sous le rôle de service, le texte des consignes plus anciennes que la conservation', async () => {
+    const [worldId, cityId, houseId, userId, siteId] = Array.from({ length: 5 }, randomUUID) as [
+      string,
+      ...string[],
+    ];
+    await owner.transaction().execute(async (trx) => {
+      await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`s-${worldId.slice(0, 12)}`}, 'Test')`.execute(
+        trx,
+      );
+      await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'K')`.execute(
+        trx,
+      );
+      await sql`insert into auth.users (id, email) values (${userId}, ${`${userId}@example.test`})`.execute(
+        trx,
+      );
+      await sql`insert into game.houses (id, world_id, user_id, name, blazon) values (${houseId}, ${worldId}, ${userId}, 'Logographes', '{}')`.execute(
+        trx,
+      );
+      await sql`insert into game.sites (id, world_id, house_id, city_id, recipe_id) values (${siteId}, ${worldId}, ${houseId}, ${cityId}, 'grow_wheat')`.execute(
+        trx,
+      );
+      const { rows } = await sql<{
+        id: string;
+      }>`insert into game.stewards (world_id, house_id, site_id, name)
+        values (${worldId}, ${houseId}, ${siteId}, 'Nikias') returning id`.execute(trx);
+      const stewardId = rows[0]?.id;
+      await sql`insert into game.steward_instructions (steward_id, rules_revision, text)
+        values (${stewardId}, 0, 'vends le blé')`.execute(trx);
+      await sql`alter table game.steward_instructions disable trigger steward_instructions_guard`.execute(
+        trx,
+      );
+      await sql`update game.steward_instructions set created_at = now() - interval '31 days'
+        where steward_id = ${stewardId}`.execute(trx);
+      await sql`alter table game.steward_instructions enable trigger steward_instructions_guard`.execute(
+        trx,
+      );
+    });
+    const texts = async () =>
+      (
+        await sql<{ text: string | null }>`select i.text from game.steward_instructions i
+          join game.stewards s on s.id = i.steward_id where s.house_id = ${houseId}`.execute(owner)
+      ).rows.map((row) => row.text);
+    await purgeStewardInstructions(db, { now: new Date(), config: retention(32) });
+    expect(await texts()).toEqual(['vends le blé']);
+    expect(
+      await purgeStewardInstructions(db, { now: new Date(), config: retention(30) }),
+    ).toBeGreaterThanOrEqual(1);
+    expect(await texts()).toEqual([null]);
   });
 });

@@ -21,3 +21,19 @@ export async function purgeMessages(
   `.execute(db);
   return Number(rows[0]?.purged ?? 0);
 }
+
+/**
+ * Texte des consignes d'intendant (4.4, #280 ; ADR 0002) : effacé à la même conservation que les messages, par la
+ * fonction du propriétaire ; la consigne et sa proposition restent. Rend le nombre de textes effacés.
+ */
+export async function purgeStewardInstructions(
+  db: Db,
+  { now, config }: { now: Date; config: Pick<ConfigLoader, 'at'> },
+): Promise<number> {
+  const { retentionDays } = (await config.at(now)).config.chat;
+  const before = new Date(now.getTime() - retentionDays * DAY_MS);
+  const { rows } = await sql<{ purged: string }>`
+    select game.purge_steward_instructions(${before}) as purged
+  `.execute(db);
+  return Number(rows[0]?.purged ?? 0);
+}

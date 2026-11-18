@@ -2,18 +2,20 @@ import { dbCallStore, fakeProvider } from '@oikos/ai';
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb } from '@oikos/db';
 import { PgBoss } from 'pg-boss';
-import { purgeMessages } from './chat-retention';
+import { purgeMessages, purgeStewardInstructions } from './chat-retention';
 import { writeAllChronicles } from './chronicle/task';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { rewriteAllOracles } from './oracle/task';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
+import { answerAllStewardInstructions } from './steward-instruction/task';
 import { runAllStewards } from './stewards';
 import { TICK_STEPS } from './tick-steps';
 
 const QUEUE = 'world-clock';
 const CHRONICLE_QUEUE = 'city-chronicle';
 const ORACLE_QUEUE = 'pythia-oracles';
+const STEWARD_INSTRUCTION_QUEUE = 'steward-instructions';
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -70,6 +72,10 @@ await boss.work(QUEUE, async () => {
   await purgeMessages(db, { now, config: loader }).catch((error: unknown) =>
     console.error('Message purge failed', error),
   );
+  // Texte des consignes d'intendant (#280), à la même conservation : même traitement d'un échec.
+  await purgeStewardInstructions(db, { now, config: loader }).catch((error: unknown) =>
+    console.error('Steward instruction purge failed', error),
+  );
   for (const { worldId, error } of [...ticks, ...closes])
     if (error) throw new Error(`World ${worldId}: ${error}`);
 });
@@ -95,6 +101,22 @@ await boss.work(ORACLE_QUEUE, async () => {
   }))
     if (attempted > 0)
       console.log(`World ${worldId}: rewrote ${rewritten} of ${attempted} oracles`);
+});
+// Consignes d'intendant (#280), dans leur propre file : chaque consigne en attente est traduite une fois par l'IA et ses
+// règles simulées à blanc ; IA coupée, elle reçoit aussitôt son refus et le joueur garde le formulaire.
+await boss.createQueue(STEWARD_INSTRUCTION_QUEUE);
+await boss.schedule(STEWARD_INSTRUCTION_QUEUE, '* * * * *');
+await boss.work(STEWARD_INSTRUCTION_QUEUE, async () => {
+  const now = await databaseNow(db);
+  for (const { worldId, answered, proposed } of await answerAllStewardInstructions(db, {
+    now,
+    config: loader,
+    ...ai,
+  }))
+    if (answered > 0)
+      console.log(
+        `World ${worldId}: answered ${answered} steward instructions, ${proposed} with rules`,
+      );
 });
 console.log('OIKOS engine started');
 
