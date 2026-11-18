@@ -147,7 +147,7 @@ Pour récupérer ce qui a été fusionné sur `main` en gardant ses comptes, ses
    La configuration en vigueur dans la base ne change pas : l'API et le moteur ne publient la configuration initiale (`packages/config/src/values/initial.json`) que dans une base qui n'en a aucune.
    Une section nouvelle de la configuration prend sa valeur par défaut seulement si son schéma en déclare une (`packages/config/src/schema.ts`).
    Sinon, le système qu'elle règle reste coupé dans une base créée avant lui : c'est le cas des intendants, de la vie politique, des décrets, des événements du monde et de la Pythie.
-   Pour les ouvrir sans effacer la base, publier une version nouvelle de la configuration depuis le module Paramètres d'Olympe : y recopier, dans l'éditeur de la version en vigueur, les sections manquantes de `initial.json`, publier, puis programmer.
+   Pour les ouvrir sans effacer la base, publier une version nouvelle de la configuration depuis le module Paramètres d'Olympe : ouvrir la version en vigueur, recopier dans son champ « Configuration (JSON) » les sections manquantes de `initial.json`, « Enregistrer comme nouvelle version », puis la programmer.
    L'auteur d'une version ne peut pas la programmer lui-même (revue par une seconde personne, 15.2) : seul en local, mettre `OLYMPE_ALLOW_SELF_REVIEW=true` dans `.env` et redémarrer l'API, ou faire programmer la version par un second compte d'Olympe.
    La version entre en vigueur à la clôture quotidienne suivante.
    Sinon, `pnpm db:reset` repart de zéro avec la configuration complète.
