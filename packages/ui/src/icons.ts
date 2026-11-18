@@ -10,6 +10,7 @@ export {
   ArrowRight,
   ArrowUpRight,
   Bell,
+  Bird,
   Check,
   ChevronDown,
   ChevronRight,
@@ -22,6 +23,7 @@ export {
   Inbox,
   Info,
   Landmark,
+  Leaf,
   LoaderCircle,
   MapIcon,
   MessagesSquare,
@@ -41,6 +43,7 @@ export {
   Users,
   Vote,
   Warehouse,
+  Waves,
   Wheat,
   X,
 } from 'lucide-react';

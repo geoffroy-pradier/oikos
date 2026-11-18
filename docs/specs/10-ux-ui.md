@@ -13,6 +13,10 @@ L'interface est conçue d'abord pour le téléphone, puis densifiée pour l'ordi
 | Messages | Canaux, messagerie, notifications, mentor |
 
 Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordinateur, barre latérale, panneaux multiples redimensionnables et tableaux denses triables, parce que les joueurs de gestion veulent voir leurs chiffres.
+Chaque onglet porte une icône au trait ; l'onglet actif est marqué par sa couleur et un trait (#575).
+Un en-tête commun montre le blason, le nom et la cité de la maison, sa trésorerie, le choix de la langue et un bouton Réglages.
+Le bouton Réglages ouvre le thème et la déconnexion ; Échap le referme et rend le foyer au bouton.
+Sur téléphone, ce bouton ne garde que son icône, avec le même nom accessible, pour que l'en-tête tienne en deux lignes.
 
 ## Écrans clés à maquetter en premier
 

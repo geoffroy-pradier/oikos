@@ -21,7 +21,7 @@ export function SignIn() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <h1 className="text-2xl">{t('signIn.title')}</h1>
-      <p>{t('signIn.intro')}</p>
+      <p className="text-muted-foreground">{t('signIn.intro')}</p>
       <Field
         label={t('signIn.email')}
         type="email"

@@ -1,3 +1,4 @@
+import type { Blazon } from '@oikos/contracts';
 import { createContext, useContext } from 'react';
 
 export interface HouseSummary {
@@ -12,6 +13,8 @@ export interface HouseSummary {
   /** Identifiant de configuration (routes, droit de port) des cités du monde, par identifiant de cité. */
   citySlugs?: Readonly<Record<string, string>>;
   citizenshipStatus: 'metic' | 'citizen';
+  /** Blason choisi à la fondation ; absent si la ligne n'en porte pas de valide. */
+  blazon?: Blazon | null;
 }
 
 const HouseContext = createContext<HouseSummary | null>(null);
