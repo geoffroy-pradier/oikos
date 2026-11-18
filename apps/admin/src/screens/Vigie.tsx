@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Hourglass, RefreshCw, Sparkles } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
@@ -159,7 +159,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl">{t('vigie.title')}</h1>
-        <Button variant="secondary" onClick={() => void reload()}>
+        <Button
+          variant="secondary"
+          icon={<RefreshCw aria-hidden="true" />}
+          onClick={() => void reload()}
+        >
           {t('app.refresh')}
         </Button>
       </div>
@@ -201,9 +205,14 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       {data && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {figures.map(([label, value]) => (
-            <div key={label} className="rounded-md border border-border p-3">
-              <dt className="text-sm text-muted-foreground">{label}</dt>
-              <dd className="text-2xl font-semibold wrap-anywhere">{value}</dd>
+            <div
+              key={label}
+              className="min-w-0 rounded-lg border border-border-subtle bg-muted/40 p-3 shadow-sm"
+            >
+              <dt className="eyebrow">{label}</dt>
+              <dd className="mt-1 font-display text-2xl font-semibold tabular-nums wrap-anywhere">
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -211,6 +220,10 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       {data?.ai && (
         <>
           <h2 id="ai-gateway" className="text-xl">
+            <Sparkles
+              aria-hidden="true"
+              className="mr-2 inline size-5 align-[-0.15em] text-accent"
+            />
             {t('vigie.ai.title')}
           </h2>
           {/* Région focalisable : à 360 px, le tableau défile aussi au clavier. */}
@@ -255,6 +268,10 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       {data && (
         <>
           <h2 id="recent-ticks" className="text-xl">
+            <Hourglass
+              aria-hidden="true"
+              className="mr-2 inline size-5 align-[-0.15em] text-accent"
+            />
             {t('vigie.recentTicks')}
           </h2>
           {data.recentTicks.length === 0 ? (
