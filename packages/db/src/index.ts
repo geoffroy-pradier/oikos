@@ -11,6 +11,7 @@ import {
 import pg from 'pg';
 
 export * from './city-rates';
+export * from './sanctions';
 
 /** Issue de l'essai de réécriture d'un oracle par l'IA (7.3, #270) : celle de la passerelle, hors usage coupé. */
 export type OracleRewriteOutcome = 'ok' | 'invalid' | 'timeout' | 'error' | 'capped';

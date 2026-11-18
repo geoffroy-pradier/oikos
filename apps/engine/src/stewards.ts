@@ -10,7 +10,7 @@ import {
   type DomainEvent,
   type StewardOperationSummary,
 } from '@oikos/contracts';
-import { violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
+import { notSanctioned, violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
 import {
   collectSite,
   placeOrder,
@@ -162,13 +162,15 @@ async function operate(
       .forUpdate()
       .execute();
     // Payé, en poste, et ses règles tenues jusqu'à la fin de l'opération : la clôture, un renvoi ou des règles
-    // nouvelles attendent.
+    // nouvelles attendent. Le compte est relu sous le verrou d'agora (#528) : une exclusion validée depuis la liste
+    // des intendants, qui a annulé les ordres du compte sous ce verrou, n'en laisse pas placer un nouveau.
     const held = await trx
       .selectFrom('game.stewards')
       .select('rules_revision')
       .where('id', '=', steward.id)
       .where('dismissed_at', 'is', null)
       .where('unpaid_since', 'is', null)
+      .where(notSanctioned(steward.user_id))
       .forShare()
       .executeTakeFirst();
     const chosen = held && (await plan(trx, tick, steward, held.rules_revision, now));

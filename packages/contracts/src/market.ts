@@ -38,6 +38,8 @@ export const MARKET_PLACE_ORDER_ERROR_CODES = [
   'GOOD_NOT_FOUND',
   'INSUFFICIENT_STOCK',
   'INSUFFICIENT_FUNDS',
+  /** Compte suspendu ou exclu, relu sous le verrou d'agora : une exclusion validée pendant l'attente (#528). */
+  'SUSPENDED',
 ] as const;
 export type MarketPlaceOrderErrorCode = (typeof MARKET_PLACE_ORDER_ERROR_CODES)[number];
 
