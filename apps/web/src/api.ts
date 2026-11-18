@@ -27,6 +27,10 @@ import {
   type SiteRestartOutput,
   type SiteSetRecipeOutput,
   type ShipAcquireOutput,
+  type TempleConsultOracleOutput,
+  type TempleInvokeGraceOutput,
+  type TempleMakeOfferingInput,
+  type TempleMakeOfferingOutput,
   type VoyageDepartInput,
   type VoyageDepartOutput,
 } from '@oikos/contracts';
@@ -217,3 +221,38 @@ export const postMessage = (
 /** Ouvre la conversation privée avec la maison, ou rend celle qui existe. */
 export const openDirect = (houseId: string, accessToken: string, idempotencyKey: string) =>
   sendCommand<ChatOpenDirectOutput>('chat.openDirect', { houseId }, accessToken, idempotencyKey);
+
+/** Offrande à un dieu (7.1), à la Charis vue dans `input` ; `idempotencyKey` : la même tant qu'elle reste sans réponse. */
+export const makeOffering = (
+  input: TempleMakeOfferingInput,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<TempleMakeOfferingOutput>('temple.makeOffering', input, accessToken, idempotencyKey);
+
+/** Invocation d'une grâce (7.1), à la Charis dépensée vue ; `idempotencyKey` : la même tant qu'elle reste sans réponse. */
+export const invokeGrace = (
+  graceId: string,
+  expectedCharisSpent: number,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<TempleInvokeGraceOutput>(
+    'temple.invokeGrace',
+    { graceId, expectedCharisSpent },
+    accessToken,
+    idempotencyKey,
+  );
+
+/** Consultation de la Pythie (7.3), au prix vu ; `idempotencyKey` : la même tant qu'elle reste sans réponse. */
+export const consultOracle = (
+  expectedOboles: number,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<TempleConsultOracleOutput>(
+    'temple.consultOracle',
+    { expectedOboles },
+    accessToken,
+    idempotencyKey,
+  );

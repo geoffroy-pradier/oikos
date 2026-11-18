@@ -17,6 +17,9 @@ import {
   SITE_RESTART_ERROR_CODES,
   SITE_SET_RECIPE_ERROR_CODES,
   SHIP_ACQUIRE_ERROR_CODES,
+  TEMPLE_CONSULT_ORACLE_ERROR_CODES,
+  TEMPLE_INVOKE_GRACE_ERROR_CODES,
+  TEMPLE_MAKE_OFFERING_ERROR_CODES,
   VOYAGE_DEPART_ERROR_CODES,
 } from '@oikos/contracts';
 import { BLAZON_EMBLEMS, BLAZON_SHAPES, BLAZON_TINCTURES } from '@oikos/contracts';
@@ -59,6 +62,9 @@ describe('traductions', () => {
         ...SITE_RESTART_ERROR_CODES,
         ...SITE_SET_RECIPE_ERROR_CODES,
         ...SHIP_ACQUIRE_ERROR_CODES,
+        ...TEMPLE_CONSULT_ORACLE_ERROR_CODES,
+        ...TEMPLE_INVOKE_GRACE_ERROR_CODES,
+        ...TEMPLE_MAKE_OFFERING_ERROR_CODES,
         ...VOYAGE_DEPART_ERROR_CODES,
       ].map((code) => `errors.${code}`),
       ...BLAZON_SHAPES.map((value) => `blazon.shape.${value}`),

@@ -278,7 +278,7 @@
     "HOUSE_NOT_FOUND": "You have not founded a house yet.",
     "SITE_NOT_FOUND": "This site cannot be found.",
     "GOOD_NOT_FOUND": "This good does not exist.",
-    "INSUFFICIENT_STOCK": "Not enough free stock for this sale.",
+    "INSUFFICIENT_STOCK": "Not enough free stock: nothing was taken.",
     "INSUFFICIENT_FUNDS": "Not enough money in the treasury.",
     "NOTHING_TO_COLLECT": "Nothing to collect yet: the current cycle is not finished.",
     "FORBIDDEN": "This action is restricted to administrators.",
@@ -337,7 +337,16 @@
     "PROPERTY_NOT_FOUND": "This property no longer exists.",
     "PROPERTY_NOT_LISTED": "This property no longer has an open offer.",
     "PROPERTY_NOT_OWNED": "This property is not yours.",
-    "PROPERTY_SIZE_RETIRED": "This property size has been retired."
+    "PROPERTY_SIZE_RETIRED": "This property size has been retired.",
+    "GOD_NOT_FOUND": "This god is no longer honoured in the configuration in force. Reload the page.",
+    "OFFERING_REFUSED": "This god refuses one of these gifts: nothing was offered.",
+    "CHARIS_CHANGED": "The Charis changed since it was shown: nothing was offered or spent. Check the new value, then try again.",
+    "CHARIS_LIMIT_REACHED": "Your Charis toward this god cannot rise any higher.",
+    "GRACE_NOT_FOUND": "This grace is no longer offered in the configuration in force. Reload the page.",
+    "INSUFFICIENT_CHARIS": "Your Charis toward this god is not enough to invoke this grace.",
+    "GRACE_PENDING": "This grace is still waiting for the action that will consume it: it cannot be invoked again until then.",
+    "GRACE_RECHARGING": "This grace is recharging: it can be invoked again at the close shown.",
+    "ORACLE_UNAVAILABLE": "The Pythia cannot be consulted in the configuration in force: nothing was paid."
   },
   "shell": {
     "skipToContent": "Skip to content",
