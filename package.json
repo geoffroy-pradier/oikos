@@ -22,6 +22,7 @@
     "db:start:ci": "supabase start --workdir packages/db -x studio,postgres-meta",
     "db:stop": "supabase stop --workdir packages/db",
     "db:reset": "supabase db reset --workdir packages/db",
+    "db:migrate": "supabase migration up --include-all --workdir packages/db",
     "test:db": "supabase test db --workdir packages/db",
     "test:db:replay": "bash packages/db/scripts/replay-migrations.sh",
     "test:db:deploy": "bash infra/test-apply-migrations.sh",
