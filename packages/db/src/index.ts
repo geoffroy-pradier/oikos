@@ -335,6 +335,28 @@ export interface GameDatabase {
     created_at: ColumnType<Date, never, never>;
   };
   /**
+   * Consignes d'intendant en langage naturel (#280) : une en attente par intendant, répondue une fois par sa
+   * proposition ; le texte n'est effacé que par la purge de la conservation (garde de la base).
+   */
+  'game.steward_instructions': {
+    id: ColumnType<string, never, never>;
+    steward_id: ColumnType<string, string, never>;
+    /** Révision des règles que le joueur avait sous les yeux en écrivant la consigne. */
+    rules_revision: ColumnType<number, number, never>;
+    text: ColumnType<string | null, string, never>;
+    status: ColumnType<'pending' | 'answered', never, 'answered'>;
+    created_at: ColumnType<Date, never, never>;
+    answered_at: ColumnType<Date | null, never, never>;
+  };
+  /** Réponse du moteur à une consigne : règles proposées et simulation, ou refus ; jamais modifiée. */
+  'game.steward_proposals': {
+    instruction_id: ColumnType<string, string, never>;
+    rules: ColumnType<unknown, string | null, never>;
+    simulation: ColumnType<unknown, string | null, never>;
+    refusal: ColumnType<string | null, string | null, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
    * Parc de logements d'une cité (4.5). Le moteur crée un bien neuf, à la cité ; la base n'en change le
    * propriétaire que par une écriture d'achat, et n'en relève l'état que par une rénovation.
    */
