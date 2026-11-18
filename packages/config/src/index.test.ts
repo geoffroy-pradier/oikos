@@ -71,7 +71,12 @@ const FIXTURE: GameConfig = {
   },
   telemetry: { retentionDays: 30 },
   chat: { maxMessageLength: 280, retentionDays: 14, rateLimit: { messages: 5, windowSeconds: 30 } },
-  moderation: { reportReasons: ['spam', 'other'], bannedTerms: ['maudit'], maxAppealLength: 600 },
+  moderation: {
+    reportReasons: ['spam', 'other'],
+    bannedTerms: ['maudit'],
+    maxAppealLength: 600,
+    sanctionHours: { warning: [24], silence: [2, 12], suspension: [48] },
+  },
   chronicle: { maxGoods: 5, settleSeconds: 120, maxTextLength: 1_500 },
   ai: {
     budgetMicroEurosPerActivePlayerMonth: 80_000,
@@ -762,8 +767,42 @@ describe('modération', () => {
       reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
       bannedTerms: [],
       maxAppealLength: 1_000,
+      sanctionHours: { warning: [168], silence: [1, 24, 72], suspension: [24, 168, 720] },
     });
     expect(Object.isFrozen(DEFAULT_MODERATION.reportReasons)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_MODERATION.sanctionHours.silence)).toBe(true);
+  });
+
+  it('une version publiée avant les commandes d’administration garde ses motifs et prend les durées par défaut', () => {
+    const older: Omit<GameConfig['moderation'], 'sanctionHours'> & { sanctionHours?: unknown } =
+      clone().moderation;
+    delete older.sanctionHours;
+    const result = validateConfig({ ...clone(), moderation: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.moderation.reportReasons).toEqual(['spam', 'other']);
+    expect(result.config.moderation.sanctionHours).toEqual(DEFAULT_MODERATION.sanctionHours);
+  });
+
+  it('durées des sanctions : de une à dix par sorte, distinctes, d’une heure à un an, pas d’exclusion', () => {
+    const errors = (sanctionHours: unknown) =>
+      errorsOf({ ...clone(), moderation: { ...clone().moderation, sanctionHours } });
+    const hours = { warning: [1], silence: [1, 8_760], suspension: [24] };
+    expect(errors(hours)).toEqual([]);
+    for (const [wrong, path] of [
+      [{ ...hours, silence: [] }, 'silence'],
+      [{ ...hours, silence: [0] }, 'silence.0'],
+      [{ ...hours, silence: [8_761] }, 'silence.0'],
+      [{ ...hours, silence: [1.5] }, 'silence.0'],
+      [{ ...hours, suspension: [24, 24] }, 'suspension'],
+      [{ ...hours, suspension: Array.from({ length: 11 }, (_, i) => i + 1) }, 'suspension'],
+    ] as const)
+      expect(errors(wrong)).toEqual([
+        expect.stringMatching(
+          new RegExp(`^moderation\\.sanctionHours\\.${path.replace('.', '\\[')}`),
+        ),
+      ]);
+    expect(errors({ ...hours, ban: [1] })).not.toEqual([]);
+    expect(errors({ warning: [1], silence: [1] })).not.toEqual([]);
   });
 
   it('au moins un motif, sans doublon ; des termes qui portent une lettre ou un chiffre ; un appel de 1 à 2 000 caractères', () => {

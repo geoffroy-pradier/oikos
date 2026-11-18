@@ -24,6 +24,13 @@ import {
   decreeVoteCastSchema,
 } from './decree';
 import { messageReportedSchema, sanctionAppealedSchema } from './moderation';
+import {
+  appealDecidedSchema,
+  exclusionConfirmedSchema,
+  messageHiddenSchema,
+  reportsResolvedSchema,
+  sanctionPronouncedSchema,
+} from './moderation-admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
 import { propertyBoughtSchema, propertyRenovatedSchema } from './property';
 import {
@@ -98,6 +105,11 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   messagePostedSchema,
   messageReportedSchema,
   sanctionAppealedSchema,
+  sanctionPronouncedSchema,
+  exclusionConfirmedSchema,
+  messageHiddenSchema,
+  reportsResolvedSchema,
+  appealDecidedSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

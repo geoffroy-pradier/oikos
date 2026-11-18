@@ -594,14 +594,34 @@ export const chatSchema = z.strictObject({
 });
 
 /**
+ * Durées proposées aux modérateurs, en heures, lues pour les versions publiées avant les commandes
+ * d'administration (#276) : un avertissement affiché une semaine ; un silence d'une heure, d'un jour ou de trois ;
+ * une suspension d'un jour, d'une semaine ou de trente jours. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_SANCTION_HOURS = deepFreeze({
+  warning: [168],
+  silence: [1, 24, 72],
+  suspension: [24, 168, 720],
+});
+
+/**
  * Valeurs lues pour les versions publiées avant la modération (#275) : cinq motifs de signalement, aucun terme
- * interdit, des appels de 1 000 caractères au plus. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ * interdit, des appels de 1 000 caractères au plus, les durées de `DEFAULT_SANCTION_HOURS`. FIGÉES, pour la même
+ * raison que `DEFAULT_SITES`.
  */
 export const DEFAULT_MODERATION = deepFreeze({
   reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
   bannedTerms: [] as string[],
   maxAppealLength: 1_000,
+  sanctionHours: DEFAULT_SANCTION_HOURS,
 });
+
+/** Durées proposées pour une sorte de sanction : de une à dix, distinctes, d'une heure à un an. */
+const sanctionHoursSchema = z
+  .array(z.number().int().min(1).max(8_760))
+  .min(1)
+  .max(10)
+  .refine((hours) => new Set(hours).size === hours.length, { message: 'duplicate duration' });
 
 /**
  * Modération (docs/specs/15-back-office-olympe.md, 15.1 ; 18, contenus ; #275). Les motifs se lisent par les
@@ -619,6 +639,17 @@ export const moderationSchema = z
     bannedTerms: z.array(z.string().min(1).max(100)).max(5_000),
     /** Longueur maximale d'un appel, en caractères (points de code Unicode). */
     maxAppealLength: z.number().int().min(1).max(2_000),
+    /**
+     * Durées, en heures, entre lesquelles un modérateur choisit (`admin.sanction`) ; une exclusion n'en a pas.
+     * Absentes d'une version publiée avant les commandes d'administration : `DEFAULT_SANCTION_HOURS`.
+     */
+    sanctionHours: z
+      .strictObject({
+        warning: sanctionHoursSchema,
+        silence: sanctionHoursSchema,
+        suspension: sanctionHoursSchema,
+      })
+      .default(DEFAULT_SANCTION_HOURS),
   })
   .superRefine((moderation, ctx) => {
     for (const duplicate of duplicates(moderation.reportReasons))
