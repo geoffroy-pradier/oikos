@@ -96,6 +96,20 @@ describe('parseSiteRules', () => {
     ).toBeNull();
   });
 
+  it('intendants (#278) : postes, salaire et règles rendus sous `stewards`, aucun poste sans la section', () => {
+    const stewards = { limitByHeadquartersLevel: [2, 3], dailyWageOboles: 4, rulesPerSteward: 5 };
+    expect(parseSiteRules(raw({ sites: { ...config.sites, stewards } }))?.stewards).toEqual({
+      limit: 2,
+      dailyWageOboles: 4,
+      rulesPerSteward: 5,
+    });
+    const none = { limit: 0, dailyWageOboles: 0, rulesPerSteward: 0 };
+    expect(parseSiteRules(raw())?.stewards).toEqual(none);
+    expect(parseSiteRules(raw({ sites: null }))?.stewards).toEqual(none);
+    const bad = { ...stewards, dailyWageOboles: -1 };
+    expect(parseSiteRules(raw({ sites: { ...config.sites, stewards: bad } }))).toBeNull();
+  });
+
   it('prix d’une relance au marché du travail du jour (#258) : son salaire, et l’hébergement des non logés', () => {
     const staff = { dailyWageOboles: { kalliste: 5 } };
     const rules = parseSiteRules(raw({ sites: { ...config.sites, staff } }));

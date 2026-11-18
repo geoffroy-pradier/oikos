@@ -36,6 +36,8 @@ import {
   sendUnderKey,
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
+import { SiteSteward } from './SiteSteward';
+import { parseStewards } from '../stewards';
 import { serverClock, syncServerClock } from '../server-clock';
 import { describeWorldEvent, inForce, useEventRows } from '../world-events';
 
@@ -114,6 +116,26 @@ export function SitesCard({
     [workforceRows.rows],
   );
   const staffOf = useMemo(() => parseSiteStaff(workforceRows.rows), [workforceRows.rows]);
+  // Intendants en poste et leurs règles (#278) ; leur section n'est montrée qu'une fois les deux vues lues.
+  const stewardRows = useRows<unknown>(
+    'my_stewards',
+    'id, site_id, name, hired_at, unpaid_since, rules_revision',
+    'hired_at',
+  );
+  const stewardRuleRows = useRows<unknown>(
+    'my_steward_rules',
+    'steward_id, position, kind, good_id, price_oboles, units',
+    'position',
+  );
+  const stewards = useMemo(
+    () =>
+      stewardRows.rows && stewardRuleRows.rows
+        ? parseStewards(stewardRows.rows, stewardRuleRows.rows)
+        : null,
+    [stewardRows.rows, stewardRuleRows.rows],
+  );
+  const { reload: reloadStewards } = stewardRows;
+  const { reload: reloadStewardRules } = stewardRuleRows;
   // Événements de rendement des cités des sites (7.4, #417) qui finissent après le début du plus ancien cycle
   // en cours : les seuls qu'une récolte peut encore rencontrer. La vue ne rend que ceux commencés.
   // Rien n'est lu tant que les sites ne sont pas lus, ni sans site : une lecture vide ferait estimer un champ
@@ -835,6 +857,17 @@ export function SitesCard({
                 </div>
               )}
               {announce(site.id)}
+              {rules && stewards && (
+                <SiteSteward
+                  siteId={site.id}
+                  siteName={name}
+                  recipe={recipe ?? null}
+                  steward={stewards.get(site.id)}
+                  rules={rules.stewards}
+                  posted={stewards.size}
+                  onChanged={() => Promise.all([reloadStewards(), reloadStewardRules()])}
+                />
+              )}
             </li>
           );
         })}

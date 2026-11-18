@@ -106,6 +106,10 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Une ligne naît une fois par cité et par jour, datée par la base, dans la transaction qui enregistre la clôture de son jour (même garde que la population), et ne change plus.
   Le service la crée et la lit ; tout joueur connecté lit la dernière de chaque cité par la vue `labor_market`, et ses travailleurs par `my_workforce` (`game.my_workforce()`, au nom du propriétaire, type de retour figé par l'ADR 0006).
   Écritures de l'hébergement : `lodging.daily` (maison et jour de jeu typés, une par maison et par jour) et `lodging.restart` (maison et site).
+- Intendants (4.4, #278) : `stewards` porte la maison, le site, le nom, l'embauche, l'impayé, le renvoi et la révision en vigueur des règles ; `steward_rules` porte les règles de chaque révision, dans leur ordre.
+  La base garantit un seul intendant en poste par site, de la maison du site, qu'il naît maintenant et impayé, que son identité ne change plus, que son impayé et son renvoi sont datés de la transaction qui les écrit, et qu'un intendant renvoyé ne change plus.
+  Les règles s'écrivent dans la révision en vigueur d'un intendant en poste, révision qui n'avance que d'un pas à la fois et que la même transaction a ouverte (`rules_revised_at`) ; le service ne les modifie ni ne les supprime.
+  Un joueur lit ses intendants en poste et leurs règles en vigueur par `my_stewards` et `my_steward_rules`, jamais ceux d'une autre maison (pgTAP 230).
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.

@@ -297,6 +297,7 @@ Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
 Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6), puis les biens immobiliers payés (`meta.properties`, 4.5) ;
 elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
+les intendants payés (4.4, #278) y ont chacun leur dû avec son site (`meta.stewards`), et leur somme une ligne `wages` vers `sink_npc_wages`, examinés après les biens immobiliers ;
 l'hébergement des sites payés va au puits `sink_npc_lodging` par une écriture à part, `lodging.daily`, de la même transaction, une par maison et par jour (`meta.sites` : chaque site, ses non logés et leur hébergement), de nature 4.1 `lodging` ;
 une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 

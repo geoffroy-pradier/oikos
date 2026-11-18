@@ -941,7 +941,7 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
     await page.getByRole('button', { name: 'Acquérir' }).click();
     await expect(page.getByText(count)).toBeVisible();
   }
-  const headings = page.getByRole('listitem').getByRole('heading');
+  const headings = page.getByRole('listitem').getByRole('heading', { level: 3 });
   await expect(headings).toHaveText(['Champ de blé', 'Oliveraie 1', 'Oliveraie 2']);
 
   // Un cycle d'olives s'est écoulé : changer de production exige de récolter d'abord. Au clavier.
