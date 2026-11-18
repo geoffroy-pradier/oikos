@@ -172,6 +172,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
   Le service n'écrit à la fondation que la maison et la cité, et à la promotion que le statut et la date ; c'est la clôture qui promeut.
   Les joueurs connectés lisent le statut de toute maison (`houses.citizenship_status`).
+  Un joueur lit aussi la citoyenneté de ses seules maisons avec sa date par `my_citizenships` (#420), vue `security_invoker` créée une fois : maison, cité, statut, instant du statut et son jour de jeu, calculé à l'horloge en vigueur comme les autres lectures datées (nul sans horloge).
+  La date d'une autre maison n'en sort pas, un visiteur anonyme ne lit rien, et `houses` garde ses colonnes (ADR 0006).
 - Élection de l'archonte (6.2, #260) : `elections` (cité, charge `archon`, ouverture du dépôt des candidatures, ouverture et fin du vote, fin du mandat, dépouillement), `candidacies` (élection, maison, dépôt, retrait), `ballots` (élection, maison qui vote, candidature choisie) et `offices` (cité, maison, charge, élection, début et fin du mandat).
   La base garantit qu'une élection naît non dépouillée, que son calendrier se suit dans l'ordre et ne change plus, qu'une cité n'a qu'une élection ouverte par charge, et qu'une élection n'est dépouillée qu'une fois, après la fin du vote, à la date de la transaction.
   Une candidature est déposée par un citoyen de la cité pendant le dépôt, une seule par maison et par élection ; elle ne change que par son retrait, définitif, pendant le dépôt et avant tout bulletin.

@@ -697,6 +697,10 @@
   },
   "cityPolitics": {
     "title": "Vie politique",
+    "statusSince": {
+      "citizen": "Citoyenne à {{city}} depuis le {{date}}",
+      "metic": "Métèque à {{city}} depuis le {{date}}"
+    },
     "meticNotice": "Métèque, votre maison voit la vie de la cité mais n'y vote pas et ne s'y présente pas : elle le pourra une fois citoyenne.",
     "archon": "Archonte en charge : {{house}}, jusqu'au {{until}}",
     "noArchon": "Aucun archonte en charge.",

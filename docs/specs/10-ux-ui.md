@@ -85,7 +85,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.
    Ces écrans ne lisent dans la vue `houses` que les maisons qu'ils nomment (archonte en charge, candidats de l'élection en cours, résultats de la dernière élection, auteurs des décrets au vote) et la ligne de la maison du joueur, d'où vient son statut (#441) : la vue rend au plus 1 000 lignes par lecture.
    Ces maisons sont lues par paquets de 100, en 10 lectures au plus (1 000 maisons), la maison du joueur et l'archonte d'abord ; au-delà, une maison s'affiche « Maison inconnue ».
-   La date depuis laquelle la maison est métèque ou citoyenne n'est pas encore affichée : il faut d'abord l'exposer dans une vue publique (#420).
+   Le statut s'affiche avec sa date, « Citoyenne à … depuis le … » ou « Métèque à … depuis le … », lus ensemble dans la ligne de la maison de la vue `my_citizenships` (#420), et ce statut prime sur celui de `houses`, boutons compris.
+   La date est le jour de jeu du statut, ou, sans horloge en vigueur, le jour local de son instant ; si la vue ne rend pas de ligne pour la maison, le statut s'affiche seul, relu dans `houses`.
    Un retrait de candidature est définitif : l'écran en avertit avant, et ne propose plus de se présenter après.
    Un décret de taux appliqué est dit « en vigueur » seulement s'il est le dernier appliqué de son modèle ; les autres décrets appliqués disent leur date d'application.
    Le résultat de chaque commande s'annonce près de l'action, dans une région vivante présente avant lui ; restée sans réponse, la commande repart sous la même clé au même contenu.

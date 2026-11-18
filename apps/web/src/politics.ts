@@ -168,6 +168,33 @@ export function parseHouseNames(rows: unknown): Map<string, string> | null {
   return new Map(parsed.data.map((row) => [row.id, row.name]));
 }
 
+/** Citoyenneté de la maison du joueur et sa date (vue `my_citizenships`, #420). */
+export interface Citizenship {
+  status: 'metic' | 'citizen';
+  /** Instant du statut, en millisecondes. */
+  since: number;
+  /** Jour de jeu du statut (jours depuis 1970-01-01), `null` sans horloge en vigueur. */
+  sinceDay: number | null;
+}
+
+const citizenshipRow = z.object({
+  house_id: id,
+  status: z.enum(['metic', 'citizen']),
+  since: at,
+  since_day: z.number().int().min(0).max(2_932_896).nullable(),
+});
+
+/**
+ * Citoyenneté de la maison `houseId` : `undefined` si la vue n'en rend pas (maison sans cité), `null` si une
+ * ligne est illisible.
+ */
+export function parseCitizenship(rows: unknown, houseId: string): Citizenship | null | undefined {
+  const parsed = z.array(citizenshipRow).safeParse(rows);
+  if (!parsed.success) return null;
+  const row = parsed.data.find((candidate) => candidate.house_id === houseId);
+  return row && { status: row.status, since: row.since, sinceDay: row.since_day };
+}
+
 /** Statut de citoyenneté de la maison, relu dans la vue `houses` ; `null` s'il est illisible. */
 export function statusOf(rows: unknown[], houseId: string): 'metic' | 'citizen' | null {
   const row = rows.find(

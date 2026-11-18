@@ -5,6 +5,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CITED_HOUSE_READS } from '../cited-houses';
 import { HouseProvider } from '../house';
+import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 // Vie politique de l'onglet Cité (#264) : lectures simulées vue par vue.
@@ -12,10 +13,12 @@ import fr from '../locales/fr.json';
 const state = vi.hoisted(() => ({
   views: {} as Record<string, unknown[] | null>,
   houseFilters: [] as unknown[],
+  filters: {} as Record<string, unknown>,
 }));
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters: unknown = {}) => {
     if (view === 'houses') state.houseFilters.push(filters);
+    state.filters[view] = filters;
     if (view === 'houses' && filters === null)
       return { rows: null, failed: false, reload: () => Promise.resolve(null) };
     let rows = view in state.views ? (state.views[view] ?? null) : [];
@@ -48,11 +51,11 @@ const houses = [
   { id: 'h1', name: 'Maison Test', citizenship_status: 'citizen' },
   { id: 'h2', name: 'Maison Alpha', citizenship_status: 'citizen' },
 ];
-async function show(status: 'metic' | 'citizen' = 'citizen') {
+async function show(status: 'metic' | 'citizen' = 'citizen', lng: 'fr' | 'en' = 'fr') {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
-    resources: { fr: { translation: fr } },
-    lng: 'fr',
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng,
     interpolation: { escapeValue: false },
   });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
@@ -74,6 +77,7 @@ afterEach(() => {
   cleanup();
   state.views = {};
   state.houseFilters = [];
+  state.filters = {};
 });
 
 describe('vie politique de la cité (#264)', () => {
@@ -208,5 +212,69 @@ describe('vie politique de la cité (#264)', () => {
     expect(screen.getByText(/^Archonte en charge : Maison A1499, jusqu'au /)).toBeTruthy();
     expect(screen.getByText('Maison A0997')).toBeTruthy();
     expect(screen.getAllByText(fr.cityPolitics.unknownHouse)).toHaveLength(202);
+  });
+});
+
+describe('statut de la maison et sa date (#420)', () => {
+  // Jour de jeu du 29 mars 2026 (jours depuis 1970-01-01).
+  const day29 = Date.UTC(2026, 2, 29) / day;
+  const mine = (status: string, since_day: number | null, since = '2026-03-29T02:00:00Z') => ({
+    house_id: 'h1',
+    status,
+    since,
+    since_day,
+  });
+
+  it('citoyenne depuis le jour de jeu de son statut, lu dans sa propre ligne', async () => {
+    // `houses` dit encore métèque : le statut daté de `my_citizenships` prime, boutons compris.
+    state.views = {
+      houses: [{ ...houses[0], citizenship_status: 'metic' }, houses[1]],
+      elections: [election()],
+      election_candidates: [{ id: 'k2', election_id: 'e1', house_id: 'h2', withdrawn_at: null }],
+      my_citizenships: [mine('citizen', day29)],
+    };
+    await show('metic');
+    expect(state.filters.my_citizenships).toEqual({ house_id: 'h1' });
+    expect(screen.getByText('Citoyenne à Kallistè depuis le 29 mars 2026')).toBeTruthy();
+    expect(screen.queryByText(fr.cityPolitics.meticNotice)).toBeNull();
+    expect(screen.getByRole('button', { name: /Maison Alpha/ })).toBeTruthy();
+  });
+
+  it('métèque depuis le jour de jeu de la veille, en français et en anglais', async () => {
+    state.views = { houses, my_citizenships: [mine('metic', day29 - 1, '2026-03-29T01:59:59Z')] };
+    await show();
+    expect(screen.getByText('Métèque à Kallistè depuis le 28 mars 2026')).toBeTruthy();
+    expect(screen.getByText(fr.cityPolitics.meticNotice)).toBeTruthy();
+    cleanup();
+    await show('citizen', 'en');
+    expect(screen.getByText('Metic in Kallistè since March 28, 2026')).toBeTruthy();
+    cleanup();
+    state.views = { houses, my_citizenships: [mine('citizen', day29)] };
+    await show('citizen', 'en');
+    expect(screen.getByText('Citizen in Kallistè since March 29, 2026')).toBeTruthy();
+  });
+
+  it('sans horloge en vigueur : le jour local de l’instant', async () => {
+    state.views = { houses, my_citizenships: [mine('citizen', null, '2026-03-29T12:00:00Z')] };
+    await show();
+    const local = new Intl.DateTimeFormat('fr', { dateStyle: 'long' }).format(
+      Date.parse('2026-03-29T12:00:00Z'),
+    );
+    expect(screen.getByText(`Citoyenne à Kallistè depuis le ${local}`)).toBeTruthy();
+  });
+
+  it('sans ligne pour la maison : le statut sans date ; ligne illisible : lecture en échec', async () => {
+    state.views = { houses, my_citizenships: [{ ...mine('metic', day29), house_id: 'h2' }] };
+    await show();
+    expect(screen.getByText('Citoyen à Kallistè')).toBeTruthy();
+    expect(screen.queryByText(/depuis le/)).toBeNull();
+    cleanup();
+    state.views = { houses, my_citizenships: [mine('exile', day29)] };
+    await show();
+    expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+    cleanup();
+    state.views = { houses, my_citizenships: null };
+    await show();
+    expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
   });
 });
