@@ -19,6 +19,7 @@ import {
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { refuse } from './city-election';
+import { cancelOrdersOfExcluded } from './exclusion-orders';
 
 /**
  * Commandes d'administration de la modération (docs/specs/15-back-office-olympe.md, 15.1, 15.4 ; #276). La base
@@ -85,7 +86,10 @@ export const adminSanction = defineCommand({
   },
 });
 
-/** Valide une exclusion proposée (double validation, 15.4) : elle commence à cet instant. */
+/**
+ * Valide une exclusion proposée (double validation, 15.4) : elle commence à cet instant. Dans la même transaction,
+ * les ordres ouverts de toutes les maisons du compte exclu sont annulés et leur séquestre rendu (#528).
+ */
 export const adminConfirmExclusion = defineCommand({
   name: 'admin.confirmExclusion',
   admin: MODERATION_ROLES,
@@ -113,6 +117,7 @@ export const adminConfirmExclusion = defineCommand({
       .where('id', '=', ban.id)
       .returning('starts_at')
       .executeTakeFirstOrThrow();
+    await cancelOrdersOfExcluded(trx, ban.user_id, emit);
     emit({ type: 'ExclusionConfirmed', payload: { sanctionId: ban.id, userId: ban.user_id } });
     return {
       ok: true,

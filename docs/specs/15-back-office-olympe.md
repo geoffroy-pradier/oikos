@@ -32,6 +32,7 @@ Commandes d'administration de la modération (ticket #276) : ouvertes au super-a
 - `admin.sanction` prononce, à partir de maintenant, un avertissement, un silence ou une suspension d'une des durées de la configuration (`moderation.sanctionHours`, en heures ; par défaut 168 pour un avertissement, 1, 24 ou 72 pour un silence, 24, 168 ou 720 pour une suspension), ou propose une exclusion, sans durée.
   Une autre durée est refusée (`DURATION_NOT_OFFERED`), comme le compte qui se sanctionne lui-même (`SELF_SANCTION`) ou un compte inconnu (`ACCOUNT_NOT_FOUND`).
 - `admin.confirmExclusion` valide une exclusion proposée, une fois (`ALREADY_CONFIRMED`) : ni son auteur ni le compte exclu ne la valident (`SECOND_PERSON_REQUIRED`), tout autre compte d'un rôle de la modération le peut, et l'exclusion commence à sa validation.
+  Dans la même transaction, elle annule les ordres ouverts de toutes les maisons du compte exclu et rend leur séquestre (15.4, #528).
 - `admin.decideAppeal` tranche un appel, une fois (`APPEAL_DECIDED`), par un autre compte que l'auteur de la sanction et que le compte sanctionné (`SECOND_PERSON_REQUIRED`) : accueilli, il lève la sanction si elle n'est pas finie, et sa fin devient l'instant de la levée ; rejeté, la sanction court jusqu'à sa fin.
 - `admin.resolveReport` écarte ou retient un signalement ouvert, et avec lui les autres signalements ouverts du même message (une entrée de la file) ; un signalement déjà traité est refusé (`ALREADY_RESOLVED`), comme le compte de la maison signalée et celui d'une maison qui a signalé ce message (`SECOND_PERSON_REQUIRED`).
 - `admin.hideMessage` masque un message, signalé ou non, une fois (`MESSAGE_HIDDEN`) : il reste listé, sans son texte pour les joueurs (6.6).
@@ -61,7 +62,7 @@ Sans elle, `GET /api/admin/reports` rend le seuil par défaut de la configuratio
 La Vigie affiche ce nombre, y compris à zéro, et passe en alerte dès qu'il dépasse zéro ; elle le montre à tous les rôles qui la lisent, sans lire la file (`GET /api/admin/reports` reste fermé à ces rôles).
 Hors périmètre : toute notification hors d'Olympe.
 Décision (relecture de #275) : un nom de maison, texte public, ne passe encore ni par le filtre de vocabulaire ni par le silence à sa fondation ou à son changement ; un ticket de suite les y soumettra.
-Décision (relecture de #275, tranchée par #528) : un compte suspendu ou exclu peut toujours annuler ses ordres (15.4).
+Décision (relecture de #275, tranchée par #528) : un compte suspendu ou exclu peut toujours annuler ses ordres, et la validation d'une exclusion les annule tous (15.4).
 
 Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
 `GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
@@ -150,6 +151,11 @@ Le renommage d'office par la modération reste hors de cette règle et attend un
 Ordres de marché d'un compte suspendu ou exclu (#528).
 L'annulation d'un ordre est la seule commande de jeu qui ne crée rien : elle rend ce que l'ordre engageait (séquestre d'un achat, réservation d'une vente).
 Sans elle, les ordres d'un compte suspendu resteraient sous séquestre et pourraient s'exécuter pendant toute la suspension ; ils le peuvent encore s'il ne les annule pas, et c'est son choix.
+La validation d'une exclusion (`admin.confirmExclusion`) annule, dans sa transaction, les ordres ouverts de toutes les maisons du compte exclu, tous mondes confondus, comme `market.cancelOrder` : ce qui a été servi reste acquis, la réservation d'une vente est levée, et le séquestre des achats revient à la trésorerie de leur maison, en une écriture `market.escrow_release` par maison au grand livre.
+Chaque ordre annulé produit son `OrderCancelled`, sous la commande de validation.
+Une exclusion proposée et pas encore validée n'annule rien.
+Ses stocks et sa trésorerie restent à la maison : leur saisie attend un ticket de suite.
+La réponse de la commande et le journal d'audit ne disent rien de ces ordres ni de ces oboles : un modérateur ne lit aucune donnée économique privée.
 
 Dans la première version, une commande d'administration (`admin.*`) n'est exécutée que si la session porte le second facteur (niveau `aal2` du jeton) et si le compte a, dans `admin.roles`, l'un des rôles que la commande autorise ;
 le rôle est relu à chaque commande. Tout refus (`FORBIDDEN`) est journalisé comme une commande rejetée.
