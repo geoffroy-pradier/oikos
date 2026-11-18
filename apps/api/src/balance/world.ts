@@ -1,4 +1,4 @@
-import { npcDemand, voyageArrivals } from '@oikos/engine';
+import { cityProperties, npcDemand, voyageArrivals } from '@oikos/engine';
 import { config, type City, type Role } from './city';
 import type { Seller } from './strategy';
 
@@ -28,9 +28,40 @@ export const WINDOW = 10;
  */
 export const WAGES = { workerOboles: 4, stewardOboles: 10 };
 
+/**
+ * Logement du scénario (4.5, #258), neutre dans la configuration initiale : une nuit chez les PNJ coûte 1 obole,
+ * jusqu'à trois fois plus quand aucun travailleur n'est logé (le salaire du banc est de 4) ; un bien a un entretien
+ * et perd 3 % d'état par jour de jeu, donc passe sous son seuil d'habitabilité en 23 jours et se rénove dans le
+ * banc. Les prix d'achat et de rénovation de la configuration initiale (3 000 oboles une maison de ville, 20 bois et 30 argile
+ * pour la rénover) ne s'amortiraient jamais au prix d'une nuit que les maisons du banc peuvent payer, et dépasseraient
+ * la production de bois et d'argile de leurs cités, déjà déficitaires : le banc divise les prix par cinq, comme il pose ses
+ * salaires, et rénove avec du blé, que toutes ses maisons récoltent. Ce sont des paramètres du banc, pas du jeu ; leur calibrage est l'affaire de #283.
+ */
+export const HOUSING = {
+  lodging: { baseOboles: 1, minBps: 10_000, maxBps: 30_000, slopeBps: 20_000 },
+  upkeepOboles: { townhouse: 1, tenement: 3 } as Record<string, number>,
+  dailyWear: 300,
+  priceDivisor: 5,
+  renovationWheat: { townhouse: 50, tenement: 150 } as Record<string, number>,
+};
+
 /** Configuration jouée : celle du banc, à la population près de chaque cité et aux salaires du scénario. */
 export const worldConfig = {
   ...config,
+  labor: { ...config.labor, lodging: HOUSING.lodging },
+  properties: {
+    ...config.properties,
+    sizes: config.properties.sizes.map((size) => ({
+      ...size,
+      purchasePriceOboles: size.purchasePriceOboles / HOUSING.priceDivisor,
+      dailyUpkeepOboles: HOUSING.upkeepOboles[size.id] ?? 0,
+      dailyWear: HOUSING.dailyWear,
+      renovation: {
+        oboles: size.renovation.oboles / HOUSING.priceDivisor,
+        goods: [{ goodId: 'wheat', quantity: HOUSING.renovationWheat[size.id] ?? 0 }],
+      },
+    })),
+  },
   staff: { dailyWageOboles: Object.fromEntries(SLUGS.map((slug) => [slug, WAGES.workerOboles])) },
   ...(config.stewards && {
     stewards: { ...config.stewards, dailyWageOboles: WAGES.stewardOboles },
@@ -89,8 +120,8 @@ export interface Settlement {
 /** Cités d'attache des négociants (leur navire y naît) : une maison chacune, sans autre site que celui de la fondation. */
 export const TRADER_HOMES = ['kalliste', 'elaia', 'halos'] as const;
 export const TRADER: Role = { name: 'négociant', count: 1, sites: [], trader: true };
-/** Étapes des ticks du banc : la demande des PNJ, puis l'arrivée des voyages (4.6). */
-export const WORLD_STEPS = [npcDemand, voyageArrivals];
+/** Étapes des ticks du banc : le parc de logements des cités (4.5), la demande des PNJ, puis l'arrivée des voyages (4.6). */
+export const WORLD_STEPS = [cityProperties, npcDemand, voyageArrivals];
 
 /** Maisons qui confient la vente de leurs récoltes à un intendant, par nom de rôle. */
 export const STEWARD_ROLES = ['fermier', 'pêcheur', 'pêcheur-saunier'];

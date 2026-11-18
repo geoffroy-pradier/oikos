@@ -13,6 +13,7 @@ import {
   upkeepDue,
   wagesDue,
 } from './balance/city';
+import { housingMorning, lodgingDue, newHousing, propertyUpkeepDue } from './balance/housing';
 import { morning, seller } from './balance/strategy';
 import { actAfterTick, hireSteward, type Steward } from './balance/steward';
 import { traderMorning, type Prices, type Trader } from './balance/trade';
@@ -74,6 +75,12 @@ it(
         traders.push({ ...seller(house), home, waitedDays: 0 });
     }
     const houses = [...settlements.flatMap((settlement) => settlement.houses), ...traders];
+    // Maisons et leur cité.
+    const residents = [
+      ...settlements.flatMap(({ city, houses: own }) => own.map((house) => ({ city, house }))),
+      ...traders.map((trader) => ({ city: trader.home, house: trader })),
+    ];
+    const housing = newHousing();
     const prices: Prices = new Map();
 
     const days: DayMeasure[] = [];
@@ -81,9 +88,11 @@ it(
     const stewards: Steward[] = [];
     const operations = { acted: 0, refused: 0, failed: 0 };
     let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
-    let wages = 0;
+    let [wages, estateUpkeep, lodging] = [0, 0, 0];
     for (let day = 0; day < WARMUP + MEASURED; day++) {
       upkeep += upkeepDue(world, houses, day);
+      estateUpkeep += propertyUpkeepDue(world, housing, day);
+      lodging += await lodgingDue(world, residents, day);
       // Salaires de la clôture : les travailleurs des sites, et les intendants embauchés avant elle (payés d'avance).
       wages += wagesDue(world, houses, day, WAGES.workerOboles);
       wages += stewards.filter((steward) => steward.hiredDay < day).length * WAGES.stewardOboles;
@@ -96,6 +105,7 @@ it(
           const hired = await hireSteward(city, house, day, now, stewards);
           if (hired) stewards.push(hired);
         }
+      for (const { city, house } of residents) await housingMorning(city, house, now, housing);
       for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
       // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
       const hours =
@@ -131,6 +141,10 @@ it(
       sink_site_acquisition: acquisitions,
       sink_ship_purchase: ships,
       sink_npc_wages: wages,
+      sink_property_purchase: housing.purchased,
+      sink_property_works: housing.works,
+      sink_property_upkeep: estateUpkeep,
+      sink_npc_lodging: lodging,
     });
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -164,6 +178,27 @@ it(
     );
     expect(Number(unpaid.rows[0]?.n), 'intendants impayés').toBe(
       stewards.filter((steward) => steward.hiredDay === WARMUP + MEASURED - 1).length,
+    );
+    // Le logement a servi par ses trois voies : achats, baux, rénovations ; aucun bail n'a pris fin faute de loyer,
+    // aucun bien n'est resté sans entretien payé (le rapprochement du logement des travailleurs le suppose), et
+    // des travailleurs sont logés dans chaque cité.
+    expect(housing.bought, 'biens achetés').toBeGreaterThan(0);
+    expect(housing.leased, 'baux signés').toBeGreaterThan(0);
+    expect(housing.renovated, 'biens rénovés').toBeGreaterThan(0);
+    expect(lodging, 'hébergement chez les PNJ').toBeGreaterThan(0);
+    const strained = await sql<{ n: string }>`select
+      (select count(*) from game.leases where world_id = ${world.worldId} and end_reason = 'unpaid')
+      + (select count(*) from game.properties where world_id = ${world.worldId} and upkeep_unpaid_since is not null) as n`.execute(
+      world.db,
+    );
+    expect(Number(strained.rows[0]?.n), 'loyers ou entretiens impayés').toBe(0);
+    const unhoused = await sql<{ employed: string; unhoused: string }>`
+      select sum(employed) as employed, sum(unhoused) as unhoused from game.labor_market
+      where world_id = ${world.worldId} and game_day = (select max(game_day) from game.labor_market where world_id = ${world.worldId})`.execute(
+      world.db,
+    );
+    expect(Number(unhoused.rows[0]?.unhoused), 'travailleurs non logés').toBeLessThan(
+      Number(unhoused.rows[0]?.employed),
     );
     // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
     const sailed = (
