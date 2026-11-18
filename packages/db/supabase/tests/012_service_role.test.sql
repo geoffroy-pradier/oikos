@@ -51,7 +51,7 @@ select is(
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
     || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count reports.resolved_by reports.state '
     || 'sanctions.appeal_body sanctions.appeal_decided_by sanctions.appeal_decision sanctions.lifted_by sanctions.validated_by ships.docked_city_id ships.laid_up_at '
-    || 'sites.cycle_started_at sites.halted_at sites.recipe_id stewards.dismissed_at stewards.rules_revision stewards.unpaid_since voyages.arrived_at',
+    || 'sites.cycle_started_at sites.halted_at sites.recipe_id steward_instructions.status stewards.dismissed_at stewards.rules_revision stewards.unpaid_since voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
@@ -82,7 +82,7 @@ select is(
     || 'game.city_charis game.city_identity game.city_properties game.city_rates_in_force game.city_treasuries game.city_treasury_flows '
     || 'game.clock_rules game.create_city_channel game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids '
     || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.market_rules game.moderation_rules game.my_sanctions game.my_workforce game.order_book '
-    || 'game.politics_rules game.property_offers game.property_offers_upkeep game.property_rules game.purge_messages game.readable_channel_ids game.ship_rules game.site_rules game.temple_graces game.temple_oracle game.temple_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
+    || 'game.politics_rules game.property_offers game.property_offers_upkeep game.property_rules game.purge_messages game.purge_steward_instructions game.readable_channel_ids game.ship_rules game.site_rules game.temple_graces game.temple_oracle game.temple_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
 select is(
@@ -105,7 +105,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.uuid_v7 '
+  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.purge_steward_instructions game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
