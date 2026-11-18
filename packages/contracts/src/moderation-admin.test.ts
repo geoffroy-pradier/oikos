@@ -76,6 +76,7 @@ describe('GET /api/admin/reports', () => {
     now: at,
     contextSize: 5,
     staleAfterHours: 24,
+    sanctionHours: { warning: [168], silence: [1, 24], suspension: [720] },
     queue: [entry],
     appeals: [],
     pendingExclusions: [],
@@ -83,7 +84,17 @@ describe('GET /api/admin/reports', () => {
 
   it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
     expect(adminReportsSchema.parse(reports)).toEqual(reports);
+    const unread = { ...reports, sanctionHours: null };
+    expect(adminReportsSchema.parse(unread)).toEqual(unread);
+    const hours = reports.sanctionHours;
     for (const wrong of [
+      // Des durées, rien d'autre de la configuration ; chaque sorte en a au moins une, entière et positive.
+      { ...reports, sanctionHours: { ...hours, bannedTerms: [] } },
+      { ...reports, sanctionHours: { ...hours, silence: [] } },
+      { ...reports, sanctionHours: { ...hours, silence: [1.5] } },
+      { ...reports, sanctionHours: { ...hours, silence: [0] } },
+      { ...reports, sanctionHours: { warning: [168], silence: [1] } },
+      { ...reports, sanctionHours: undefined },
       { ...reports, queue: [{ ...entry, reportedHouse: { ...entry.reportedHouse, balance: 10 } }] },
       { ...reports, queue: [{ ...entry, reports: [{ ...entry.reports[0], houseId: ID }] }] },
       { ...reports, queue: [{ ...entry, reports: [] }] },

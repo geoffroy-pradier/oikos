@@ -1,5 +1,5 @@
 import { SANCTION_REASON_MAX_CHARS, type AdminReports } from '@oikos/contracts';
-import { Button, Field } from '@oikos/ui';
+import { Button } from '@oikos/ui';
 import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
@@ -25,6 +25,16 @@ export type Gesture =
   | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
 
+/**
+ * Durées proposées pour une sanction (#541) : celles que rend l'API, lues dans la version en vigueur. Aucune sans
+ * version lisible, ou lues d'une API antérieure qui ne les rendait pas.
+ */
+export function offeredHours(data: AdminReports | null, gesture: Gesture): readonly number[] {
+  return gesture === 'warning' || gesture === 'silence' || gesture === 'suspension'
+    ? (data?.sanctionHours?.[gesture] ?? [])
+    : [];
+}
+
 /** Alerte « signalements en attente depuis plus de 24 h » (15.5), partagée par ce module et la Vigie. */
 export function StaleReportsAlert({ hours, limit }: { hours: number | null; limit: number }) {
   const { t } = useTranslation();
@@ -39,7 +49,7 @@ export function StaleReportsAlert({ hours, limit }: { hours: number | null; limi
 /**
  * Module Modération (15.1) : file des signalements, du plus ancien au plus signalé, avec le contexte de la
  * conversation ; masquer, sanctionner, proposer une exclusion, retenir ou classer. Chaque geste passe par une
- * confirmation qui nomme la maison visée ; les règles (durées offertes, seconde personne) sont celles de l'API.
+ * confirmation qui nomme la maison visée ; les durées proposées et la seconde personne sont celles de l'API.
  */
 export function Moderation({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
@@ -50,7 +60,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   const [open, setOpen] = useState<{ scope: string; gesture: Gesture } | null>(null);
   /** Bouton qui reprend le foyer après un geste annulé ou refusé. */
   const [returnTo, setReturnTo] = useState<string | null>(null);
-  const [hours, setHours] = useState('');
+  const [duration, setDuration] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [invalid, setInvalid] = useState<{ hours?: boolean; reason?: boolean }>({});
   const [busy, setBusy] = useState(false);
@@ -93,7 +103,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   function begin(scope: string, gesture: Gesture) {
     setReturnTo(null);
     setNotice(null);
-    setHours('');
+    // Une seule durée proposée (l'avertissement, par défaut) : elle est choisie d'office.
+    const offered = offeredHours(data, gesture);
+    setDuration(offered.length === 1 ? (offered[0] ?? null) : null);
     setReason('');
     setInvalid({});
     setOpen({ scope, gesture });
@@ -122,10 +134,11 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         t(`moderation.done.${gesture}`),
       );
     } else {
-      // Contrôlé à la confirmation : durée entière positive, motif non vide ; l'API reste juge des durées offertes.
+      // Contrôlé à la confirmation : une durée proposée, un motif non vide. L'API reste juge, sous la version
+      // en vigueur à l'instant de la commande.
       const length = [...reason.trim()].length;
-      const duration = Number(hours);
-      const hoursInvalid = gesture !== 'ban' && !(Number.isInteger(duration) && duration > 0);
+      const hoursInvalid =
+        gesture !== 'ban' && (duration === null || !offeredHours(data, gesture).includes(duration));
       const reasonInvalid = length === 0 || length > SANCTION_REASON_MAX_CHARS;
       setInvalid({ hours: hoursInvalid, reason: reasonInvalid });
       if (hoursInvalid || reasonInvalid)
@@ -137,7 +150,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         'admin.sanction',
         gesture === 'ban'
           ? { ...base, kind: gesture }
-          : { ...base, kind: gesture, hours: duration },
+          : // Jamais nulle ici : contrôlée plus haut.
+            { ...base, kind: gesture, hours: duration ?? 0 },
         t(`moderation.done.${gesture}`, { house }),
       );
     }
@@ -334,18 +348,11 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                           onCancel={cancel}
                         >
                           {asked !== 'ban' && (
-                            <Field
-                              id="moderation-hours"
-                              label={t('moderation.hours')}
-                              hint={t('moderation.hoursHint')}
-                              error={invalid.hours ? t('moderation.hoursInvalid') : undefined}
-                              type="number"
-                              inputMode="numeric"
-                              min={1}
-                              step={1}
-                              autoFocus
-                              value={hours}
-                              onChange={(event) => setHours(event.target.value)}
+                            <Durations
+                              hours={offeredHours(data, asked)}
+                              value={duration}
+                              invalid={invalid.hours === true}
+                              onChange={setDuration}
                             />
                           )}
                           <label htmlFor="moderation-reason" className="font-medium">
@@ -464,6 +471,68 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Choix de la durée d'une sanction parmi celles que l'API propose (#541), au clavier comme un groupe de boutons
+ * radio. Sans durée lisible, le groupe le dit et la sanction ne part pas.
+ */
+function Durations({
+  hours,
+  value,
+  invalid,
+  onChange,
+}: {
+  hours: readonly number[];
+  value: number | null;
+  invalid: boolean;
+  onChange: (hours: number) => void;
+}) {
+  const { t } = useTranslation();
+  const label = (count: number) =>
+    count % 24 === 0
+      ? t('moderation.durationDays', { count: count / 24, hours: count })
+      : t('moderation.durationHours', { count });
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2" aria-describedby="moderation-hours-hint">
+      <legend className="font-medium">{t('moderation.hours')}</legend>
+      {hours.length === 0 ? (
+        <p id="moderation-hours" tabIndex={-1} className="text-sm font-semibold text-danger">
+          {t('moderation.hoursUnavailable')}
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {hours.map((count, index) => (
+            <label
+              key={count}
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
+            >
+              <input
+                type="radio"
+                name="moderation-hours"
+                id={index === 0 ? 'moderation-hours' : undefined}
+                className="size-5 shrink-0"
+                value={count}
+                checked={value === count}
+                autoFocus={index === 0}
+                aria-invalid={invalid ? true : undefined}
+                onChange={() => onChange(count)}
+              />
+              {label(count)}
+            </label>
+          ))}
+        </div>
+      )}
+      <p id="moderation-hours-hint" className="text-sm text-muted-foreground">
+        {t('moderation.hoursHint')}
+      </p>
+      {invalid && hours.length > 0 && (
+        <p role="alert" className="text-sm font-semibold text-danger">
+          {t('moderation.hoursInvalid')}
+        </p>
+      )}
+    </fieldset>
   );
 }
 
