@@ -33,3 +33,5 @@ de `game.accounts` en `with check (true)`), et une migration en échec laissait 
 - Corriger une migration publiée coûte un fichier de plus ; l'historique des migrations devient celui de
   la base.
 - Une version poussée deux fois avec le même numéro de migration est refusée au déploiement.
+- Le rejeu pose un `lock_timeout` et reprend la suite entière, au plus trois fois, quand une session de Supabase tient un verrou sur une table que la migration modifie.
+- Toute autre erreur le fait échouer tout de suite, et l'empreinte du schéma reste comparée à celle d'avant le premier essai.

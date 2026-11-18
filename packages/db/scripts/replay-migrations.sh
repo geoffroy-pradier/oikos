@@ -10,6 +10,7 @@
 #
 # Pas de base par défaut : la base désignée doit être déjà migrée (`pnpm db:reset`), avec le compte
 # propriétaire du schéma (`postgres` en local), et elle est modifiée comme par un déploiement.
+# REPLAY_MAX_ATTEMPTS (3) et REPLAY_LOCK_TIMEOUT (10s) règlent le nouvel essai face à un verrou concurrent.
 set -euo pipefail
 
 url="${REPLAY_DATABASE_URL:?REPLAY_DATABASE_URL : base déjà migrée à rejouer, voir packages/db/scripts/replay-migrations.sh}"
@@ -22,16 +23,54 @@ fingerprint() {
   psql "$url" -X -q -At -v ON_ERROR_STOP=1 -f "$db_dir/scripts/schema-fingerprint.sql" > "$1"
 }
 
-fingerprint "$work/before"
-for pass in 1 2; do
-  for file in "$db_dir"/supabase/migrations/*.sql; do
-    if ! psql "$url" -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$file" > /dev/null 2> "$work/error"; then
-      echo "rejeu $pass : échec de $(basename "$file")" >&2
-      cat "$work/error" >&2
-      exit 1
-    fi
+# Les services de Supabase (PostgREST, Realtime, Auth, pg_cron) gardent des sessions sur la base et peuvent
+# prendre un verrou sur une table pendant qu'une migration la modifie (`drop policy` demande un verrou
+# exclusif) : Postgres tranche alors par un interblocage ou, ici, par `lock_timeout`. Ce n'est pas un défaut
+# des migrations : seul ce cas déclenche un nouvel essai du rejeu entier, borné (REPLAY_MAX_ATTEMPTS, 3 par
+# défaut). Toute autre erreur échoue tout de suite, et chaque essai rejoue toutes les migrations.
+max_attempts="${REPLAY_MAX_ATTEMPTS:-3}"
+export PGOPTIONS="$PGOPTIONS -c lock_timeout=${REPLAY_LOCK_TIMEOUT:-10s}"
+
+# Code SQL 55P03 (lock_not_available) ou 40P01 (deadlock_detected), lu dans le message verbeux.
+lock_failure() {
+  grep -Eq '(ERROR|FATAL):  (55P03|40P01):' "$1"
+}
+
+# Sessions des autres clients au moment de l'échec, pour identifier la concurrente.
+show_sessions() {
+  psql "$url" -X -q -At -F ' | ' -c "
+    select pid, coalesce(application_name, ''), coalesce(usename, ''), state, coalesce(wait_event, ''),
+           left(regexp_replace(query, '\\s+', ' ', 'g'), 100)
+    from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid()
+    order by pid" >&2 || true
+}
+
+replay_all() {
+  local pass file
+  for pass in 1 2; do
+    for file in "$db_dir"/supabase/migrations/*.sql; do
+      if ! psql "$url" -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction -f "$file" > /dev/null 2> "$work/error"; then
+        echo "rejeu $pass : échec de $(basename "$file")" >&2
+        cat "$work/error" >&2
+        return 1
+      fi
+    done
+    echo "rejeu $pass : $(ls "$db_dir"/supabase/migrations/*.sql | wc -l) migrations passées"
   done
-  echo "rejeu $pass : $(ls "$db_dir"/supabase/migrations/*.sql | wc -l) migrations passées"
+}
+
+fingerprint "$work/before"
+attempt=1
+until replay_all; do
+  if ! lock_failure "$work/error" || [ "$attempt" -ge "$max_attempts" ]; then
+    lock_failure "$work/error" && echo "verrou toujours tenu après $attempt essais" >&2
+    show_sessions
+    exit 1
+  fi
+  echo "verrou tenu par une autre session (essai $attempt sur $max_attempts), nouvel essai du rejeu entier" >&2
+  show_sessions
+  attempt=$((attempt + 1))
+  sleep 3
 done
 fingerprint "$work/after"
 if ! diff -u "$work/before" "$work/after"; then
