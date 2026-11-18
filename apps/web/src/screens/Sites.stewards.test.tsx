@@ -74,12 +74,33 @@ describe('fiche de site : section Intendant (#278)', () => {
           units: '50',
         },
       ],
+      my_steward_operations: [
+        {
+          steward_id: 'st1',
+          tick_index: '2948000',
+          rank: 0,
+          created_at: hired,
+          status: 'rejected',
+          error_code: 'INSUFFICIENT_FUNDS',
+          kind: 'buy',
+          good_id: 'wheat',
+          summary: {
+            command: 'market.placeOrder',
+            side: 'buy',
+            goodId: 'wheat',
+            price: 7,
+            quantity: 50,
+          },
+        },
+      ],
     };
     const html = await render();
     expect(html.match(/<h4[^>]*>Intendant<\/h4>/g)).toHaveLength(2);
     expect(html).toContain('Nikias mène ses règles');
     expect(html).toContain('aria-label="Règles de Nikias"');
     expect(html).toContain('value="50"');
+    // Ses opérations (#279) : son dernier refus, avec sa raison.
+    expect(html).toContain('rachat de Blé refusé : Trésorerie insuffisante.');
     // Un poste reste libre : le champ de blé peut embaucher.
     expect(html).toContain('aria-label="Embaucher un intendant pour Champ de blé"');
   });

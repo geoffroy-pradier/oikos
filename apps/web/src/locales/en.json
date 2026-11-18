@@ -1018,6 +1018,25 @@
     "saved_one": "{{name}} will follow {{count}} rule.",
     "saved_other": "{{name}} will follow {{count}} rules.",
     "dismiss": "Dismiss {{name}}",
-    "dismissed": "{{name}} has left your service; the post is free."
+    "dismissed": "{{name}} has left your service; the post is free.",
+    "ops": {
+      "title": "Latest operations",
+      "none": "No operation yet.",
+      "line": "{{date}}: {{text}}",
+      "collected_one": "harvested {{count}} cycle ({{goods}})",
+      "collected_other": "harvested {{count}} cycles ({{goods}})",
+      "sell": "offered {{quantity}} {{good}} at {{price}} each or more, {{traded}}",
+      "sold_one": "{{count}} sold",
+      "sold_other": "{{count}} sold",
+      "buy": "bid for {{quantity}} {{good}} at {{price}} each or less, {{traded}}",
+      "received_one": "{{count}} received",
+      "received_other": "{{count}} received",
+      "refused": {
+        "collect": "harvest refused: {{reason}}",
+        "sell": "sale of {{good}} refused: {{reason}}",
+        "buy": "purchase of {{good}} refused: {{reason}}"
+      },
+      "lastRefusal": "Last refusal, {{text}}"
+    }
   }
 }

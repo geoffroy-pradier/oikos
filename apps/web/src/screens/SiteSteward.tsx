@@ -8,6 +8,7 @@ import { pendingKeys, sendUnderKey } from '../pending-keys';
 import type { SiteRecipe } from '../site-rules';
 import { blankRule, draftOf, goodsFor, hireIntent, moveUp } from '../stewards';
 import { rulesIntent, rulesOf, staleIntents, type RuleDraft, type Steward } from '../stewards';
+import type { StewardActivity, StewardOperation } from '../stewards';
 import { useCommandNotice } from './CommandNotice';
 
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
@@ -20,6 +21,8 @@ export function SiteSteward(props: {
   /** Recette du site, si la configuration la connaît : ses extrants se vendent, ses intrants se rachètent. */
   recipe: SiteRecipe | null;
   steward: Steward | undefined;
+  /** Dernières opérations de l'intendant et son dernier refus (#279) ; absentes tant qu'elles ne sont pas lues. */
+  activity?: StewardActivity | undefined;
   /** Postes du siège, salaire d'un jour et règles au plus (`site_rules`, clé `stewards`) ; zéro sans eux. */
   rules: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
   /** Intendants en poste de la maison. */
@@ -52,6 +55,33 @@ export function SiteSteward(props: {
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
   const checked = rulesOf(rows);
   const labelId = `steward-${siteId}`;
+  /** Une opération en une phrase : ce qu'elle a fait, ou ce qui a été refusé et pourquoi. */
+  const describe = (operation: StewardOperation) => {
+    const good = operation.goodId ? goodName(operation.goodId) : '';
+    const { summary } = operation;
+    if (operation.status === 'rejected')
+      return t(`steward.ops.refused.${operation.kind}`, {
+        good,
+        reason: t([`errors.${operation.code ?? ''}`, 'errors.INTERNAL']),
+      });
+    if (summary.command === 'site.collect') {
+      const outputs = summary.outputs ?? [];
+      const goods = outputs
+        .map((stack) => `${stack.quantity} ${goodName(stack.goodId)}`)
+        .join(', ');
+      return t('steward.ops.collected', { count: summary.cycles ?? 0, goods });
+    }
+    // L'accord de « vendus » ou « reçus » suit les unités échangées, pas celles de l'ordre.
+    const exchanged = summary.side === 'sell' ? 'sold' : 'received';
+    return t(`steward.ops.${summary.side}`, {
+      quantity: summary.quantity,
+      good: goodName(summary.goodId),
+      price: money(summary.price),
+      traded: t(`steward.ops.${exchanged}`, { count: summary.traded ?? 0 }),
+    });
+  };
+  const line = (operation: StewardOperation) =>
+    t('steward.ops.line', { date: date.format(operation.at), text: describe(operation) });
 
   async function run<N extends keyof StewardCommandInputs>(
     name: N,
@@ -149,6 +179,29 @@ export function SiteSteward(props: {
               date: steward.since ? date.format(steward.since) : '',
             })}
           </p>
+          {props.activity !== undefined && (
+            <section aria-labelledby={`${labelId}-ops`} className="flex flex-col gap-1 text-sm">
+              <h5 id={`${labelId}-ops`} className="font-semibold">
+                {t('steward.ops.title')}
+              </h5>
+              {props.activity.recent.length === 0 ? (
+                <p className="text-muted-foreground">{t('steward.ops.none')}</p>
+              ) : (
+                <ol className="flex flex-col gap-1">
+                  {props.activity.recent.map((operation, index) => (
+                    <li key={index} className="break-words">
+                      {line(operation)}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {props.activity.lastRefusal && (
+                <p className="break-words font-semibold text-danger">
+                  {t('steward.ops.lastRefusal', { text: line(props.activity.lastRefusal) })}
+                </p>
+              )}
+            </section>
+          )}
           <form
             className="flex flex-col gap-3"
             aria-label={t('steward.rulesOf', { name: steward.name })}

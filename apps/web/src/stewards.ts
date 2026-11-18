@@ -1,4 +1,10 @@
-import { stewardRuleSchema, stewardRulesSchema, type StewardRule } from '@oikos/contracts';
+import {
+  stewardOperationSummarySchema,
+  stewardRuleSchema,
+  stewardRulesSchema,
+  type StewardOperationSummary,
+  type StewardRule,
+} from '@oikos/contracts';
 import { z } from 'zod';
 
 /** Intendant en poste d'un site de la maison (vues `my_stewards` et `my_steward_rules`, #278). */
@@ -86,6 +92,61 @@ export function parseStewards(
       return [[siteId, steward] as const];
     }),
   );
+}
+
+/** Une opération menée par un intendant (vue `my_steward_operations`, #279). */
+export interface StewardOperation {
+  at: Date;
+  /** `ok` : la commande a eu son effet ; `rejected` : refusée, sans effet, pour la raison `code`. */
+  status: 'ok' | 'rejected';
+  code: string | null;
+  kind: 'collect' | 'sell' | 'buy';
+  goodId: string | null;
+  summary: StewardOperationSummary;
+}
+/** Les dernières opérations d'un intendant, la plus récente d'abord, et son dernier refus. */
+export interface StewardActivity {
+  recent: StewardOperation[];
+  lastRefusal: StewardOperation | null;
+}
+/** Opérations montrées par la fiche d'un site : celles que la vue rend, au plus. */
+export const RECENT_OPERATIONS = 5;
+
+const operationRow = z.object({
+  steward_id: uuid,
+  tick_index: z.union([z.number(), z.string().regex(/^\d+$/).transform(Number)]),
+  rank: z.number().int(),
+  created_at: z.string(),
+  status: z.enum(['ok', 'rejected']),
+  error_code: z.string().nullable(),
+  kind: z.enum(['collect', 'sell', 'buy']),
+  good_id: z.string().nullable(),
+  summary: stewardOperationSummarySchema,
+});
+
+/** Activité de chaque intendant de la maison ; une ligne illisible est ignorée. */
+export function parseStewardActivity(rows: readonly unknown[]): Map<string, StewardActivity> {
+  const parsed = rows.flatMap((raw) => {
+    const row = operationRow.safeParse(raw);
+    return row.success ? [row.data] : [];
+  });
+  parsed.sort((a, b) => b.tick_index - a.tick_index || b.rank - a.rank);
+  const activity = new Map<string, StewardActivity>();
+  for (const row of parsed) {
+    const operation: StewardOperation = {
+      at: new Date(row.created_at),
+      status: row.status,
+      code: row.error_code,
+      kind: row.kind,
+      goodId: row.good_id,
+      summary: row.summary,
+    };
+    const own = activity.get(row.steward_id) ?? { recent: [], lastRefusal: null };
+    if (own.recent.length < RECENT_OPERATIONS) own.recent.push(operation);
+    if (operation.status === 'rejected' && !own.lastRefusal) own.lastRefusal = operation;
+    activity.set(row.steward_id, own);
+  }
+  return activity;
 }
 
 /** Une règle telle que le formulaire la saisit : sorte, bien, prix et quantité en texte. */

@@ -1018,6 +1018,25 @@
     "saved_one": "{{name}} suivra {{count}} règle.",
     "saved_other": "{{name}} suivra {{count}} règles.",
     "dismiss": "Renvoyer {{name}}",
-    "dismissed": "{{name}} a quitté votre service ; le poste est libre."
+    "dismissed": "{{name}} a quitté votre service ; le poste est libre.",
+    "ops": {
+      "title": "Dernières opérations",
+      "none": "Aucune opération pour l'instant.",
+      "line": "{{date}} : {{text}}",
+      "collected_one": "récolte de {{count}} cycle ({{goods}})",
+      "collected_other": "récolte de {{count}} cycles ({{goods}})",
+      "sell": "mise en vente de {{quantity}} {{good}} à {{price}} l'unité ou plus, {{traded}}",
+      "sold_one": "dont {{count}} vendu",
+      "sold_other": "dont {{count}} vendus",
+      "buy": "achat de {{quantity}} {{good}} à {{price}} l'unité ou moins, {{traded}}",
+      "received_one": "dont {{count}} reçu",
+      "received_other": "dont {{count}} reçus",
+      "refused": {
+        "collect": "récolte refusée : {{reason}}",
+        "sell": "vente de {{good}} refusée : {{reason}}",
+        "buy": "rachat de {{good}} refusé : {{reason}}"
+      },
+      "lastRefusal": "Dernier refus, {{text}}"
+    }
   }
 }
