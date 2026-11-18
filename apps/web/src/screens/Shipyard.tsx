@@ -1,4 +1,4 @@
-import { Button, Card } from '@oikos/ui';
+import { Button, Card, CircleAlert, Hammer, Info } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireShip } from '../api';
@@ -96,15 +96,21 @@ export function Shipyard(props: {
   }
 
   return (
-    <Card>
-      <h2 className="text-xl">{t('map.shipyard')}</h2>
+    <Card className="flex flex-col gap-3">
+      <h2 className="flex items-center gap-2 text-xl">
+        <Hammer aria-hidden="true" className="size-5 shrink-0 text-accent" />
+        {t('map.shipyard')}
+      </h2>
       <p className="text-muted-foreground">{t('map.shipyardIntro', { city: house.cityName })}</p>
       {rules?.classes.length === 0 && <p>{t('map.noClasses')}</p>}
       <ul className="flex flex-col gap-2">
         {(rules?.classes ?? []).map((shipClass) => (
-          <li key={shipClass.id} className="flex flex-wrap items-center justify-between gap-2">
+          <li
+            key={shipClass.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-3"
+          >
             <span>
-              <span className="font-semibold">
+              <span className="font-display font-semibold">
                 {t(`shipClasses.${shipClass.id}`, { defaultValue: shipClass.id })}
               </span>{' '}
               {t('map.classLine', {
@@ -113,6 +119,7 @@ export function Shipyard(props: {
               })}
             </span>
             <Button
+              className="w-full sm:w-auto"
               disabled={busy || ships === null}
               onClick={() => void buy(shipClass.id, shipClass.purchaseCostOboles)}
             >
@@ -126,8 +133,18 @@ export function Shipyard(props: {
           ref={noticeElement}
           tabIndex={-1}
           role={notice.kind}
-          className={notice.kind === 'alert' ? 'text-destructive' : ''}
+          className={
+            'flex items-start gap-2 rounded-lg p-3 ' +
+            (notice.kind === 'alert'
+              ? 'bg-danger-subtle font-semibold text-danger'
+              : 'bg-success-subtle text-foreground')
+          }
         >
+          {notice.kind === 'alert' ? (
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          ) : (
+            <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          )}
           {notice.text}
         </p>
       )}
