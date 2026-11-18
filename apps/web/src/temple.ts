@@ -6,7 +6,7 @@ const count = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
 /**
  * Ce que le client lit des règles des temples (vue `public.temple_rules`, 7.1 et 7.3) : les dieux de la
- * configuration en vigueur. Schéma souple sur la forme, comme `site-rules.ts` : un champ nouveau
+ * configuration en vigueur, ses grâces et sa Pythie. Schéma souple sur la forme, comme `site-rules.ts` : un champ nouveau
  * reste lisible. Un dieu d'une version publiée avant la Charis ne porte que son identifiant : les valeurs par
  * défaut sont celles du schéma de la configuration (aucune offrande acceptée, aucun déclin), comme pour l'API.
  * L'API fait foi ; le client ne s'en sert que pour proposer et annoncer.
@@ -17,20 +17,42 @@ const godSchema = z.object({
   charisPerUnit: z.record(id, count).default({}),
   dailyDecayBps: z.number().int().min(0).max(10_000).default(0),
 });
+const graceSchema = z.object({
+  id,
+  godId: id,
+  /** Effet du catalogue fermé (7.1) ; un effet plus récent que le client se lit par son identifiant. */
+  effect: id,
+  magnitudeBps: z.number().int().min(1).max(10_000),
+  charisRequired: count,
+  charisSpent: count,
+  cooldownDays: z.number().int().positive(),
+});
+const oracleSchema = z.object({ godId: id, consultationOboles: z.number().int().positive() });
 // Une colonne nulle : la section manque à la version en vigueur.
-const rulesSchema = z.object({ gods: z.array(godSchema).nullish() });
+const rulesSchema = z.object({
+  gods: z.array(godSchema).nullish(),
+  graces: z.array(graceSchema).nullish(),
+  oracle: oracleSchema.nullish(),
+});
 export type TempleGod = z.infer<typeof godSchema>;
+export type TempleGrace = z.infer<typeof graceSchema>;
 export interface TempleRules {
   gods: TempleGod[];
+  /** Grâces de la configuration en vigueur ; aucune pour une version publiée avant elles. */
+  graces: TempleGrace[];
+  /** Dieu et prix de la consultation de la Pythie ; `null` pour une version publiée avant elle. */
+  oracle: z.infer<typeof oracleSchema> | null;
 }
 
 /**
- * Règles des temples lues dans la ligne de `temple_rules`. Aucune ligne (aucune configuration en vigueur) : aucun
- * dieu. `null` si la ligne est illisible : l'écran annonce un échec.
+ * Règles des temples lues dans la ligne de `temple_rules`. Aucune ligne (aucune configuration en vigueur) : ni
+ * dieu, ni grâce, ni Pythie. `null` si la ligne est illisible : l'écran annonce un échec.
  */
 export function parseTempleRules(row: unknown): TempleRules | null {
   const parsed = rulesSchema.safeParse(row ?? {});
-  return parsed.success ? { gods: parsed.data.gods ?? [] } : null;
+  if (!parsed.success) return null;
+  const { gods, graces, oracle } = parsed.data;
+  return { gods: gods ?? [], graces: graces ?? [], oracle: oracle ?? null };
 }
 
 /**
@@ -97,3 +119,25 @@ export const charisIntentStale =
     const match = new RegExp(`^${kind}:([^:]+):(\\d+):`).exec(intent);
     return !!match?.[1] && Number(match[2]) !== (favor.get(match[1]) ?? 0);
   };
+
+const oracleRow = z.object({
+  id,
+  house_id: id,
+  text_fr: z.string(),
+  text_en: z.string(),
+  source: z.enum(['ai', 'fallback']),
+  consulted_at: z.iso.datetime({ offset: true }).transform((value) => Date.parse(value)),
+});
+export type ConsultedOracle = z.infer<typeof oracleRow>;
+
+/**
+ * Oracles que la maison a consultés (vue `my_oracles`), du plus récemment consulté au plus ancien, dans leur
+ * dernier texte ; `null` si une ligne est illisible.
+ */
+export function parseOracles(rows: unknown, houseId: string): ConsultedOracle[] | null {
+  const parsed = z.array(oracleRow).safeParse(rows);
+  if (!parsed.success) return null;
+  return parsed.data
+    .filter((row) => row.house_id === houseId)
+    .sort((a, b) => b.consulted_at - a.consulted_at || a.id.localeCompare(b.id));
+}
