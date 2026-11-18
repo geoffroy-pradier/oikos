@@ -211,3 +211,13 @@ export const countedIntentBelow =
     const count = countOf(match[1]);
     return count !== undefined && Number(match[2]) < count;
   };
+
+/** Empreinte courte d'un texte (FNV-1a, 32 bits), pour nommer son intention sans ranger le texte deux fois. */
+export function fingerprint(text: string) {
+  let hash = 0x811c9dc5;
+  for (const char of text) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${text.length}.${hash.toString(36)}`;
+}

@@ -14,6 +14,7 @@ import {
   type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
+  type ModerationAppealOutput,
   type PropertyBuyInput,
   type PropertyBuyListedInput,
   type PropertyEndLeaseInput,
@@ -260,6 +261,20 @@ export const consultOracle = (
   sendCommand<TempleConsultOracleOutput>(
     'temple.consultOracle',
     { expectedOboles },
+    accessToken,
+    idempotencyKey,
+  );
+
+/** Appel d'une sanction (#275). `idempotencyKey` : la même clé tant que ce texte n'a pas reçu de réponse. */
+export const appealSanction = (
+  sanctionId: string,
+  body: string,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<ModerationAppealOutput>(
+    'moderation.appeal',
+    { sanctionId, body },
     accessToken,
     idempotencyKey,
   );
