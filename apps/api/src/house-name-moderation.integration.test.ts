@@ -47,6 +47,7 @@ describe('house.create', () => {
     // Le journal ne garde pas le nom refusé.
     const [log] = await rows(sql<{ input: unknown }>`
       select input from game.command_log where user_id = ${user} and error_code = 'MESSAGE_REJECTED' limit 1`);
+    expect(log).toBeDefined();
     expect(JSON.stringify(log)).not.toMatch(/maudit|chien/i);
   });
 
@@ -81,7 +82,14 @@ describe('house.rename', () => {
     await silence(user, 2);
     expect(codeOf(await rename(user, `Logoi ${letters()}`))).toEqual([409, 'SILENCED']);
     expect(await housesOf(user)).toEqual([before]);
-    await new Promise((resolve) => setTimeout(resolve, 2_100));
+    // Attend la fin du silence selon l'horloge de la base, que relit la commande.
+    for (let waited = 0; ; waited += 200) {
+      const [state] = await rows(sql<{ over: boolean }>`
+        select bool_and(ends_at <= clock_timestamp()) as over from admin.sanctions where user_id = ${user}`);
+      if (state?.over) break;
+      if (waited > 10_000) throw new Error('le silence ne finit pas');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
     expect((await rename(user, `Logoi ${letters()}`)).status).toBe(200);
   });
 });
