@@ -235,11 +235,13 @@ export const adminDecideAppeal = defineCommand({
   output: adminDecideAppealOutputSchema,
   errors: ADMIN_DECIDE_APPEAL_ERROR_CODES,
   errorByConstraint: { sanctions_decided_by_other: SECOND_PERSON_REQUIRED },
-  async handler({ trx, userId, emit, now }, input) {
+  async handler({ trx, userId, emit }, input) {
     // Verrou de la ligne : de deux décisions simultanées, la seconde voit la première.
     const sanction = await trx
       .selectFrom('admin.sanctions')
-      .select(['id', 'user_id', 'author_id', 'ends_at', 'appeal_body', 'appeal_decision'])
+      .select(['id', 'user_id', 'author_id', 'appeal_body', 'appeal_decision'])
+      // À l'horloge de la base, comme la garde `sanctions_lift_not_ended` : pas à `now`, tronqué (#611).
+      .select(sql<boolean>`ends_at is null or ends_at > now()`.as('inForce'))
       .where('id', '=', input.sanctionId)
       .forUpdate()
       .executeTakeFirst();
@@ -251,8 +253,7 @@ export const adminDecideAppeal = defineCommand({
     if (sanction.author_id === userId || sanction.user_id === userId)
       return { ok: false, error: SECOND_PERSON_REQUIRED };
     // Même instant que celui de la base, qui refuserait de lever une sanction finie.
-    const lift =
-      input.decision === 'granted' && (sanction.ends_at === null || sanction.ends_at > now);
+    const lift = input.decision === 'granted' && sanction.inForce;
     const decided = await trx
       .updateTable('admin.sanctions')
       .set({

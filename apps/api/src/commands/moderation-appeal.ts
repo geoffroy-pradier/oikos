@@ -3,6 +3,7 @@ import {
   moderationAppealInputSchema,
   moderationAppealOutputSchema,
 } from '@oikos/contracts';
+import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { refuse } from './city-election';
 
@@ -23,11 +24,13 @@ export const moderationAppeal = defineCommand({
   // Le texte se garde avec la sanction : le journal n'en garde que la taille et l'empreinte.
   redactInput: true,
   errorByConstraint: { sanctions_appeal_in_force: SANCTION_ENDED },
-  async handler({ trx, userId, emit, config, now }, input) {
+  async handler({ trx, userId, emit, config }, input) {
     // Verrou de la ligne : deux appels simultanés de la même sanction s'ordonnent, le second voit le premier.
     const sanction = await trx
       .selectFrom('admin.sanctions')
-      .select(['id', 'ends_at', 'appealed_at'])
+      .select(['id', 'appealed_at'])
+      // À l'horloge de la base, comme la garde `sanctions_appeal_in_force` : pas à `now`, tronqué (#611).
+      .select(sql<boolean>`ends_at is not null and ends_at <= now()`.as('ended'))
       .where('id', '=', input.sanctionId)
       .where('user_id', '=', userId)
       // Une exclusion pas encore validée n'est pas annoncée au compte : elle n'existe pas pour lui.
@@ -35,7 +38,7 @@ export const moderationAppeal = defineCommand({
       .forUpdate()
       .executeTakeFirst();
     if (!sanction) return refuse('SANCTION_NOT_FOUND', 'No such sanction for this account.');
-    if (sanction.ends_at && sanction.ends_at <= now) return { ok: false, error: SANCTION_ENDED };
+    if (sanction.ended) return { ok: false, error: SANCTION_ENDED };
     if (sanction.appealed_at) return refuse('ALREADY_APPEALED', 'One appeal per sanction.');
     const { maxAppealLength } = config.moderation;
     if ([...input.body].length > maxAppealLength)
