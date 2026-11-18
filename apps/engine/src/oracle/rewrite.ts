@@ -9,7 +9,7 @@ import { goodName, ORACLE_LOCALES, type OracleTexts } from './compose';
  * comme données la nature de l'événement réel, le bien d'une caravane et l'oracle de repli, jamais un texte de
  * joueur, ni la cité, ni le jour, ni l'ampleur ; il rend un texte par langue. La passerelle garde le repli si la
  * réponse n'est pas conforme : un texte vide ou trop long, un nombre sous quelque forme que ce soit, une lettre
- * hors de l'écriture latine ou un nom de cité (`oracleTextIssues`).
+ * hors de l'alphabet latin courant ou un nom de cité (`oracleTextIssues`).
  */
 export const ORACLE_INSTRUCTIONS = [
   'Tu es la Pythie de Delphes, dans un jeu de gestion de la Grèce antique.',
