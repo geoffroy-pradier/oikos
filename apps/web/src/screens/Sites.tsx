@@ -37,7 +37,7 @@ import {
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { SiteSteward } from './SiteSteward';
-import { parseStewardActivity, parseStewards } from '../stewards';
+import { parseInstructions, parseStewardActivity, parseStewards } from '../stewards';
 import { serverClock, syncServerClock } from '../server-clock';
 import { describeWorldEvent, inForce, useEventRows } from '../world-events';
 
@@ -147,8 +147,19 @@ export function SitesCard({
     () => (operationRows.rows ? parseStewardActivity(operationRows.rows) : null),
     [operationRows.rows],
   );
+  // Dernière consigne de chaque intendant et sa réponse (#280).
+  const instructionRows = useRows<unknown>(
+    'my_steward_instructions',
+    'steward_id, rules_revision, text, status, rules, simulation, refusal',
+    'created_at',
+  );
+  const instructions = useMemo(
+    () => (instructionRows.rows ? parseInstructions(instructionRows.rows) : null),
+    [instructionRows.rows],
+  );
   const { reload: reloadStewards } = stewardRows;
   const { reload: reloadStewardRules } = stewardRuleRows;
+  const { reload: reloadInstructions } = instructionRows;
   // Événements de rendement des cités des sites (7.4, #417) qui finissent après le début du plus ancien cycle
   // en cours : les seuls qu'une récolte peut encore rencontrer. La vue ne rend que ceux commencés.
   // Rien n'est lu tant que les sites ne sont pas lus, ni sans site : une lecture vide ferait estimer un champ
@@ -895,9 +906,12 @@ export function SitesCard({
                       ? (activity.get(stewards.get(site.id)?.id ?? '') ?? NO_ACTIVITY)
                       : undefined
                   }
+                  instruction={instructions?.get(stewards.get(site.id)?.id ?? '')}
                   rules={rules.stewards}
                   posted={stewards.size}
-                  onChanged={() => Promise.all([reloadStewards(), reloadStewardRules()])}
+                  onChanged={() =>
+                    Promise.all([reloadStewards(), reloadStewardRules(), reloadInstructions()])
+                  }
                 />
               )}
             </li>
