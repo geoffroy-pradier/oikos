@@ -18,6 +18,7 @@ import {
   type OperationDefinition,
   type OperationResult,
 } from '@oikos/operations';
+import type { StewardAction } from '@oikos/sim';
 import { sql, type ControlledTransaction } from 'kysely';
 import { candidates, plan, type Steward, type StewardTick } from './steward-plan';
 
@@ -46,6 +47,63 @@ async function attempt<I, O>(
   }
 }
 
+/** Ce qu'une opération a tenté (la commande et son entrée), son issue, et son résumé pour la fiche du site. */
+export interface Performed {
+  tried: { command: string; input: unknown };
+  result: OperationResult<unknown>;
+  summary: StewardOperationSummary;
+}
+
+/**
+ * Mène l'action d'une règle par le cœur de la commande du joueur (ADR 0009), pour la maison de l'intendant, dans la
+ * cité de son site. Les effets restent dans la transaction du contexte : à l'appelant de les garder ou de les annuler.
+ * `onTry` reçoit la commande tentée avant qu'elle ne soit menée : une panne la laisse connue de l'appelant.
+ * Partagé par l'opération du moteur et la simulation à blanc des règles proposées (#280).
+ */
+export async function perform(
+  context: OperationContext,
+  steward: Pick<Steward, 'house_id' | 'site_id'>,
+  cityId: string,
+  action: StewardAction,
+  onTry: (tried: Performed['tried']) => void = () => {},
+): Promise<Performed> {
+  const actor = { houseId: steward.house_id };
+  if (action.kind === 'collect') {
+    const input = siteCollectInputSchema.parse({ siteId: steward.site_id });
+    onTry({ command: collectSite.name, input });
+    const collected = await attempt(collectSite, context, actor, input);
+    return {
+      tried: { command: collectSite.name, input },
+      result: collected.ok
+        ? { ok: true, data: siteCollectOutputSchema.parse(collected.data) }
+        : collected,
+      summary: {
+        command: 'site.collect',
+        ...(collected.ok && { cycles: collected.data.cycles, outputs: collected.data.outputs }),
+      },
+    };
+  }
+  const { side, goodId, price, quantity } = action;
+  const input = marketPlaceOrderInputSchema.parse({ cityId, goodId, side, price, quantity });
+  onTry({ command: placeOrder.name, input });
+  const placed = await attempt(placeOrder, context, actor, input);
+  const traded = placed.ok ? placed.data.trades.reduce((sum, fill) => sum + fill.quantity, 0) : 0;
+  return {
+    tried: { command: placeOrder.name, input },
+    result: placed.ok
+      ? { ok: true, data: marketPlaceOrderOutputSchema.parse(placed.data) }
+      : placed,
+    summary: {
+      command: 'market.placeOrder',
+      side,
+      goodId,
+      price,
+      quantity,
+      ...(placed.ok && { traded, status: placed.data.status }),
+    },
+  };
+}
+
 type Outcome = 'done' | 'acted' | 'refused' | 'idle' | 'failed';
 
 /**
@@ -67,7 +125,8 @@ async function operate(
   // Le deux-points, refusé par `idempotencyKeySchema`, met cette clé hors de portée du joueur (migration 340).
   const key = `steward:${steward.id}:${tick.index}:${rank}`;
   let trx: ControlledTransaction<GameDatabase> | undefined;
-  let tried: { command: string; input: unknown } | null = null;
+  // Posée par `perform` avant que la commande ne soit menée : une panne garde sa trace d'audit.
+  let tried = null as Performed['tried'] | null;
   try {
     trx = await db.startTransaction().setIsolationLevel('read committed').execute();
     // Même verrou que le registre pour la même clé : deux moteurs sur la même opération se suivent.
@@ -126,46 +185,10 @@ async function operate(
       config: tick.config,
       now,
     };
-    const actor = { houseId: steward.house_id };
-    let result: OperationResult<unknown>;
-    let summary: StewardOperationSummary;
-    if (action.kind === 'collect') {
-      const input = siteCollectInputSchema.parse({ siteId: steward.site_id });
-      tried = { command: collectSite.name, input };
-      const collected = await attempt(collectSite, context, actor, input);
-      result = collected.ok
-        ? { ok: true, data: siteCollectOutputSchema.parse(collected.data) }
-        : collected;
-      summary = {
-        command: 'site.collect',
-        ...(collected.ok && { cycles: collected.data.cycles, outputs: collected.data.outputs }),
-      };
-    } else {
-      const { side, goodId, price, quantity } = action;
-      const input = marketPlaceOrderInputSchema.parse({
-        cityId: chosen.cityId,
-        goodId,
-        side,
-        price,
-        quantity,
-      });
-      tried = { command: placeOrder.name, input };
-      const placed = await attempt(placeOrder, context, actor, input);
-      result = placed.ok
-        ? { ok: true, data: marketPlaceOrderOutputSchema.parse(placed.data) }
-        : placed;
-      const traded = placed.ok
-        ? placed.data.trades.reduce((sum, fill) => sum + fill.quantity, 0)
-        : 0;
-      summary = {
-        command: 'market.placeOrder',
-        side,
-        goodId,
-        price,
-        quantity,
-        ...(placed.ok && { traded, status: placed.data.status }),
-      };
-    }
+    const performed = await perform(context, steward, chosen.cityId, action, (t) => {
+      tried = t;
+    });
+    const { result, summary } = performed;
     if (!result.ok) {
       // Un refus ne laisse aucun effet ni événement de la commande : seulement sa trace et son événement.
       await effects.rollbackToSavepoint('operation').execute();
@@ -180,7 +203,7 @@ async function operate(
             tickIndex: tick.index,
             rank,
             rule,
-            command: tried.command,
+            command: performed.tried.command,
             code: result.error.code,
           },
         }),
@@ -190,9 +213,9 @@ async function operate(
       .insertInto('game.command_log')
       .values({
         user_id: steward.user_id,
-        command: tried.command,
+        command: performed.tried.command,
         idempotency_key: key,
-        input: JSON.stringify(tried.input),
+        input: JSON.stringify(performed.tried.input),
         status: result.ok ? 'ok' : 'rejected',
         error_code: result.ok ? null : result.error.code,
         response: JSON.stringify(result),
