@@ -136,3 +136,41 @@ export const setUpChronicles = () =>
       where city_id = ${KALLISTE_ID} order by game_day desc limit 2`.execute(trx);
     return rows;
   });
+
+/** Texte de repli de l'oracle du jeu d'essai du temple, balisage compris : l'écran doit l'afficher tel quel. */
+export const E2E_ORACLE = {
+  fr: 'E2E : les épis se courbent sous un ciel <em>d’airain</em>.',
+  en: 'E2E: the ears bow under a <em>brazen</em> sky.',
+};
+
+/**
+ * Un événement à venir de Kallistè et son oracle de repli (#272), comme les planifie une clôture. L'événement est
+ * rattaché à la clôture de la veille (clé `world_events_played_close`), posée si elle manque comme pour les
+ * chroniques ; sa garde, qui veut une clôture pas encore enregistrée, est levée le temps de l'écriture : aucune
+ * clôture future n'entre dans la base. Il commence dans cinq ans, à un jour de jeu lointain : il n'agit sur aucun
+ * autre test, et une base gardée le réutilise d'un passage à l'autre.
+ */
+export const setUpOracle = () =>
+  inTransaction(async (trx) => {
+    await sql`select pg_advisory_xact_lock(hashtext('e2e:temple-oracle'))`.execute(trx);
+    const known = await sql`select 1 from game.oracles where text_fr = ${E2E_ORACLE.fr}`.execute(
+      trx,
+    );
+    if (known.rows.length > 0) return;
+    const { id: versionId, config } = await createConfigLoader(trx).at(new Date());
+    const day = gameDayAt(new Date(), config.clock) - 1;
+    await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+      values (${WORLD_ID}, ${day}, ${dailyCloseAt(day, config.clock)}, ${versionId})
+      on conflict do nothing`.execute(trx);
+    // Vérifiée tout de suite : une vérification différée en attente empêcherait de rétablir la garde.
+    await sql`set constraints game.world_events_played_close immediate`.execute(trx);
+    await sql`alter table game.world_events disable trigger world_events_guard`.execute(trx);
+    const event = await sql<{ id: string }>`insert into game.world_events (world_id, model, city_id,
+        planned_day, start_day, end_day, starts_at, ends_at, magnitude_bps, seed)
+      values (${WORLD_ID}, 'drought', ${KALLISTE_ID}, ${day}, ${day + 1826}, ${day + 1827},
+        now() + interval '5 years', now() + interval '5 years 1 day', 1000, ${'0'.repeat(64)})
+      returning id`.execute(trx);
+    await sql`alter table game.world_events enable trigger world_events_guard`.execute(trx);
+    await sql`insert into game.oracles (world_id, event_id, text_fr, text_en)
+      values (${WORLD_ID}, ${event.rows[0]?.id}, ${E2E_ORACLE.fr}, ${E2E_ORACLE.en})`.execute(trx);
+  });
