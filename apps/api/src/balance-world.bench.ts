@@ -13,14 +13,18 @@ import {
   upkeepDue,
 } from './balance/city';
 import { morning, seller } from './balance/strategy';
+import { traderMorning, type Prices, type Trader } from './balance/trade';
 import { measureDay, publish, recipeMargins, type DayMeasure } from './balance/measures';
 import {
   MEASURED,
   SETTLEMENTS,
   SLUGS,
+  TRADER,
+  TRADER_HOMES,
   WARMUP,
   WINDOW,
   WORLD_SEED,
+  WORLD_STEPS,
   worldConfig,
   type Settlement,
 } from './balance/world';
@@ -57,21 +61,31 @@ it(
       });
     const [world] = cities;
     if (!world) throw new Error('No city created');
-    const houses = settlements.flatMap((settlement) => settlement.houses);
+    // Négociants : une maison dans chacune des cités d'attache, avec le site de départ de la cité.
+    const traders: Trader[] = [];
+    for (const slug of TRADER_HOMES) {
+      const home = cities.find((city) => city.slug === slug);
+      if (!home) throw new Error(`No city ${slug}`);
+      for (const house of await foundHouses(home, [TRADER]))
+        traders.push({ ...seller(house), home, waitedDays: 0 });
+    }
+    const houses = [...settlements.flatMap((settlement) => settlement.houses), ...traders];
+    const prices: Prices = new Map();
 
     const days: DayMeasure[] = [];
     const measured: Record<string, number> = {};
-    let [seq, at, upkeep, acquisitions] = [await lastSeq(world), new Date(0), 0, 0];
+    let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
     for (let day = 0; day < WARMUP + MEASURED; day++) {
       upkeep += upkeepDue(world, houses, day);
       await closeDay(world, day);
       const now = new Date(closeOf(world, day).getTime() + MINUTE);
       for (const { city, houses: own } of settlements)
         for (const house of own) acquisitions += await morning(city, house, now);
+      for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
       // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
       const hours =
         (closeOf(world, day + 1).getTime() - closeOf(world, day).getTime()) / (60 * MINUTE);
-      expect(await tickDay(world, day)).toBe(hours);
+      expect(await tickDay(world, day, WORLD_STEPS)).toBe(hours);
       // Mesures du jour ; la mise en route n'est pas publiée, mais le rang et l'instant avancent.
       const measure = await measureDay(settlements, day, { seq, at });
       [seq, at] = [
@@ -81,6 +95,13 @@ it(
       ];
       for (const [key, net] of Object.entries(measure.flows['world'] ?? {}))
         measured[key] = (measured[key] ?? 0) + net;
+      // Prix observés : le dernier prix moyen de chaque bien dans chaque cité où il s'est échangé.
+      for (const [slug, goods] of Object.entries(measure.traded)) {
+        const known = prices.get(slug) ?? new Map<string, number>();
+        for (const [goodId, good] of Object.entries(goods))
+          known.set(goodId, good.turnover / good.volume);
+        prices.set(slug, known);
+      }
       if (day >= WARMUP) days.push(measure);
     }
 
@@ -88,6 +109,7 @@ it(
     const ledger = await reconcile(world, houses.length, {
       sink_upkeep: upkeep,
       sink_site_acquisition: acquisitions,
+      sink_ship_purchase: ships,
     });
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -110,6 +132,17 @@ it(
       );
     }
     expect(acquisitions).toBeGreaterThan(0);
+    // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
+    const sailed = (
+      await sql<{ voyages: string; units: string }>`select count(*) as voyages,
+        coalesce(sum(c.units), 0) as units
+        from game.voyages v left join lateral (select sum(quantity) as units from game.voyage_cargo
+          where voyage_id = v.id) c on true
+        where v.world_id = ${world.worldId} and v.arrived_at is not null`.execute(world.db)
+    ).rows[0];
+    expect(Number(sailed?.voyages), 'voyages arrivés').toBeGreaterThan(0);
+    expect(Number(sailed?.units), 'unités transportées').toBeGreaterThan(0);
+
     // Les flux mesurés (mise en route comprise), sommés sur tous les jours, rendent ceux du grand livre : le net de
     // chaque robinet et de chaque puits, relevé sur les lignes du grand livre, est l'opposé du solde de son compte,
     // que le rapprochement tire des flux comptés.
@@ -122,6 +155,10 @@ it(
 
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW), () => 0);
-    await publish(days, margins, { minutes: Math.round(minutes * 10) / 10 });
+    await publish(days, margins, {
+      minutes: Math.round(minutes * 10) / 10,
+      voyages: Number(sailed?.voyages),
+      units: Number(sailed?.units),
+    });
   },
 );
