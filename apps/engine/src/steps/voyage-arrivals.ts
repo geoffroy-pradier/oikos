@@ -20,8 +20,8 @@ const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * Interblocage possible avec une récolte, qui ne prend pas le verrou d'agora : la demande des PNJ, plus tôt
  * dans le tick, a pu verrouiller un stock vendu (maison H, cité C, blé) avant un stock d'arrivée (H, C,
  * farine) qu'une récolte de H à C tient en attendant le blé. PostgreSQL annule l'une des deux en entier, sans
- * double effet (tick rejoué au passage suivant, récolte renvoyée sous la même clé) ; un ticket à venir
- * prévoit un nouvel essai automatique.
+ * double effet : un tick annulé est repris au passage suivant (aucun nouvel essai dans le moteur), une récolte
+ * annulée est rejouée par le registre des commandes de l'API, sous la même clé (#333).
  */
 export const voyageArrivals: TickStep = {
   name: 'voyageArrivals',

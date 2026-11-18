@@ -308,7 +308,8 @@ Voyages, dans la phase 2 (#252) :
   Un navire désarmé en mer accoste et reste désarmé ; un navire sur lest accoste sans rien décharger ; un bien retiré de la configuration se décharge comme les autres.
   Rejouer un tick, ou deux moteurs à la fois, ne décharge rien deux fois : le tick n'est joué qu'une fois, l'étape prend le verrou d'agora du monde puis les voyages échus (un voyage verrouillé ailleurs est laissé au tick suivant), et la base refuse un second déchargement.
   Tous les voyages échus d'un monde sont déchargés dans la seule transaction de son tick : une erreur sur l'un d'eux fait échouer tout le tick du monde, demande des PNJ comprise, repris au passage suivant.
-  Limite connue : le tick peut s'interbloquer avec une récolte de la même maison dans la cité d'arrivée, qui verrouille ses stocks sans le verrou d'agora, quand la demande des PNJ a déjà verrouillé un de ses stocks vendus ; PostgreSQL annule l'une des deux en entier, sans double effet, et un nouvel essai automatique est prévu par un ticket à venir.
+  Limite connue : le tick peut s'interbloquer avec une récolte de la même maison dans la cité d'arrivée, qui verrouille ses stocks sans le verrou d'agora, quand la demande des PNJ a déjà verrouillé un de ses stocks vendus.
+  PostgreSQL annule alors l'une des deux en entier, sans double effet : une récolte annulée est rejouée par l'API sous la même clé, un tick annulé est repris au passage suivant (#333, spécification 13).
   La Vigie compte les voyages en retard de déchargement de plus d'un tick (15).
   La cargaison déchargée est dans le stock libre de la maison : elle se vend aussitôt à l'agora de la cité d'arrivée ; les PNJ, qui n'achètent qu'aux ventes en attente, ne l'achètent qu'au premier tick qui suit sa mise en vente.
 - L'entretien d'un navire est celui de sa classe, par jour de jeu, sans coefficient (décision : le coefficient d'entretien des sites, 5.5, ne s'y applique pas).
