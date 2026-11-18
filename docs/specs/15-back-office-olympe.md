@@ -59,12 +59,16 @@ Décision (relecture de #275) : un message signalé est purgé avec les autres, 
 Chaque entrée dit la maison signalée, les motifs et l'ancienneté du plus ancien signalement, et montre le message dans la conversation autour de lui (`contextSize` messages de chaque côté) ; un message purgé n'a ni texte ni contexte.
 Les gestes d'une entrée sont : masquer le message, avertir, réduire au silence, suspendre, proposer une exclusion, retenir le signalement, le classer sans suite.
 Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clavier va au geste sans effet (« Annuler »), et la répétition d'une touche Entrée tenue n'ouvre ni ne confirme rien, comme dans le module Accès (15.3).
-Une sanction à durée demande, dans sa confirmation, un nombre entier d'heures et un motif ; une exclusion ne demande que le motif.
+Une sanction à durée demande, dans sa confirmation, l'une des durées proposées et un motif ; une exclusion ne demande que le motif.
 Sous la file, l'écran liste les exclusions proposées à valider et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
 Valider une exclusion, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
 Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, seulement la décision ; la décision « motivée » du ticket ne l'est donc pas en base, et l'écran n'ajoute pas de champ qui ne mènerait nulle part.
 Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
-Décision (ambiguïté du ticket) : aucune route ne rend `moderation.sanctionHours` aux rôles de la modération, seuls ceux qui lisent la configuration y ont accès ; l'écran ne code donc aucune durée, laisse saisir les heures et explique le refus `DURATION_NOT_OFFERED` de l'API, qui reste juge.
+Durées proposées (#541) : `GET /api/admin/reports` rend `sanctionHours`, les durées de `moderation.sanctionHours` dans la version en vigueur à l'heure de la base, et rien d'autre de la configuration que ce seuil et ces durées.
+Elles sont nulles sans version en vigueur lisible, sans laquelle aucune commande ne passe.
+L'écran les propose comme un choix exclusif (boutons radio), sans champ libre et sans durée codée ; une seule durée proposée est choisie d'office, et sans durée lisible la sanction ne part pas.
+L'API reste juge : une version entrée en vigueur entre la lecture et la commande fait refuser la durée (`DURATION_NOT_OFFERED`), l'écran le dit, relit les durées et fait choisir de nouveau.
+Décision (#541) : un champ ajouté à la réponse existante plutôt qu'une route nouvelle ; la version précédente d'Olympe ne valide pas la réponse et l'ignore, et l'écran tient pour indisponibles les durées d'une API qui ne les rend pas encore.
 Décision (ambiguïté du ticket) : retenir ou classer un signalement ne sanctionne ni ne masque rien (voir plus haut) ; l'écran propose les trois gestes séparément, à la main du modérateur.
 L'alerte « signalements en attente depuis plus de 24 h » (15.5) s'affiche en tête du module quand le plus ancien signalement ouvert attend depuis plus longtemps que le seuil, d'après l'heure de la base rendue par l'API.
 Le seuil est `moderation.staleReportHours` (24 par défaut, de 1 à 720 heures) : `GET /api/admin/reports` le rend (`staleAfterHours`) et l'écran n'en code aucun.

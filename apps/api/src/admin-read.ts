@@ -475,17 +475,25 @@ export function registerAdminReads(
     const [row] = rows;
     if (!row) throw new Error('The database returned no moderation queue');
     // Sans configuration en vigueur lisible, la file reste lisible avec le seuil par défaut de la configuration.
-    const staleAfterHours = await loadConfig(row.now).then(
-      ({ config }) => config.moderation.staleReportHours,
+    const moderation = await loadConfig(row.now).then(
+      ({ config }) => config.moderation,
       (error: unknown) => {
-        if (error instanceof ConfigError) return DEFAULT_MODERATION.staleReportHours;
+        if (error instanceof ConfigError) return null;
         throw error;
       },
     );
     const data = {
       now: row.now.toISOString(),
       contextSize: REPORT_CONTEXT_MESSAGES,
-      staleAfterHours,
+      staleAfterHours: moderation?.staleReportHours ?? DEFAULT_MODERATION.staleReportHours,
+      // Durées de `admin.sanction` (#541), et rien d'autre de la configuration : nulles sans version en vigueur
+      // lisible, sans laquelle aucune commande ne passe. Champ ajouté : l'Olympe précédent ne valide pas la
+      // réponse et l'ignore.
+      sanctionHours: moderation && {
+        warning: moderation.sanctionHours.warning,
+        silence: moderation.sanctionHours.silence,
+        suspension: moderation.sanctionHours.suspension,
+      },
       ...row.queue,
     };
     return c.json({ ok: true, data });

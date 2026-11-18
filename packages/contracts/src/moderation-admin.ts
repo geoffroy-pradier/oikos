@@ -266,6 +266,18 @@ export const adminReportsSchema = z.strictObject({
   contextSize: z.number().int().nonnegative(),
   /** Seuil d'alerte des signalements en attente, en heures (`moderation.staleReportHours`). */
   staleAfterHours: z.number().int().positive(),
+  /**
+   * Durées, en heures, que `admin.sanction` accepte pour chaque sorte de sanction à durée (#541) : celles de
+   * `moderation.sanctionHours` dans la version en vigueur, et rien d'autre de la configuration ; nulles sans
+   * version en vigueur lisible.
+   */
+  sanctionHours: z
+    .strictObject({
+      warning: z.array(z.number().int().positive()).min(1),
+      silence: z.array(z.number().int().positive()).min(1),
+      suspension: z.array(z.number().int().positive()).min(1),
+    })
+    .nullable(),
   /** Une entrée par message signalé, la plus ancienne d'abord, puis la plus signalée. */
   queue: z.array(
     z.strictObject({

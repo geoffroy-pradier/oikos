@@ -331,17 +331,21 @@ describe('Vigie', () => {
         });
         expect(reply.status).toBe(200);
         const { data } = (await reply.json()) as Reply['body'];
-        // La file de la modération reste lisible, au seuil par défaut de la configuration (#530).
+        // La file de la modération reste lisible, au seuil par défaut de la configuration (#530), sans durée de
+        // sanction : aucune commande ne passe sans version en vigueur (#541).
         const reports = await app.request('/api/admin/reports', {
           headers: { authorization: `Bearer aal2:${users.moderator}` },
         });
         expect(reports.status).toBe(200);
-        const queue = (await reports.json()) as { data: { staleAfterHours: unknown } };
+        const queue = (await reports.json()) as {
+          data: { staleAfterHours: unknown; sanctionHours: unknown };
+        };
         throw new Rollback(
           JSON.stringify({
             clock: data.clock,
             staleReports: data.staleReports,
             staleAfterHours: queue.data.staleAfterHours,
+            sanctionHours: queue.data.sanctionHours,
           }),
         );
       })
@@ -353,6 +357,7 @@ describe('Vigie', () => {
       clock: null,
       staleReports: null,
       staleAfterHours: DEFAULT_MODERATION.staleReportHours,
+      sanctionHours: null,
     });
   });
 

@@ -470,6 +470,63 @@ describe('GET /api/admin/reports', () => {
       })),
     ]);
   });
+
+  it('rend les durées de la version en vigueur, celles qu’admin.sanction accepte, et rien d’autre (#541)', async () => {
+    const sanctionHours = { warning: [2], silence: [3, 5], suspension: [7] };
+    const loaded = {
+      ...TEST_CONFIG,
+      config: {
+        ...TEST_CONFIG.config,
+        moderation: { ...TEST_CONFIG.config.moderation, bannedTerms: ['secret'], sanctionHours },
+      },
+    };
+    const via = appWith(async () => loaded);
+    const moderator = await member('moderator');
+    const res = await via.request('/api/admin/reports', {
+      headers: { authorization: `Bearer ${moderator}` },
+    });
+    expect(res.status).toBe(200);
+    // Contrat strict : les termes interdits, ou toute autre valeur de la configuration, feraient échouer la lecture.
+    const data = adminReportsSchema.parse(((await res.json()) as { data: unknown }).data);
+    expect(data.sanctionHours).toEqual(sanctionHours);
+    expect(JSON.stringify(data)).not.toContain('secret');
+    // La version de `testConfig` rend les siennes.
+    const initial = adminReportsSchema.parse((await read(moderator)).body.data);
+    expect(initial.sanctionHours).toEqual(TEST_CONFIG.config.moderation.sanctionHours);
+    // Chaque durée rendue passe la commande, sous la même version ; une durée de l'autre version y est refusée.
+    const target = (await (await newWorld()).player()).user;
+    for (const [kind, hours] of Object.entries(sanctionHours).flatMap(([kind, list]) =>
+      list.map((h) => [kind, h] as const),
+    ))
+      expect([
+        kind,
+        hours,
+        (
+          await send(
+            moderator,
+            'admin.sanction',
+            { userId: target, kind, hours, reason: 'x' },
+            { via },
+          )
+        ).status,
+      ]).toEqual([kind, hours, 200]);
+    const offered = { userId: target, kind: 'silence', hours: 24, reason: 'x' };
+    expect(codeOf(await send(moderator, 'admin.sanction', offered))[0]).toBe(200);
+    expect(codeOf(await send(moderator, 'admin.sanction', offered, { via }))[1]).toBe(
+      'DURATION_NOT_OFFERED',
+    );
+    // Les rôles hors de la modération ne lisent pas ces durées.
+    for (const role of ['support', 'observer', 'game_designer'] as const) {
+      const refused = await via.request('/api/admin/reports', {
+        headers: { authorization: `Bearer ${await member(role)}` },
+      });
+      expect([role, refused.status, ((await refused.json()) as { data?: unknown }).data]).toEqual([
+        role,
+        403,
+        undefined,
+      ]);
+    }
+  });
 });
 
 describe('signalements en attente depuis plus que le seuil (15.5, #530)', () => {

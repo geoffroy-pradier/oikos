@@ -31,6 +31,7 @@ const REPORTS: AdminReports = {
   now: NOW,
   contextSize: 2,
   staleAfterHours: 24,
+  sanctionHours: { warning: [168], silence: [1, 24, 72], suspension: [24, 168, 720] },
   queue: [
     {
       world: 'w',
@@ -83,6 +84,8 @@ async function opened(commandReplies: object[] = [], after: AdminReports = AFTER
 }
 const entryOf = (house: string) =>
   screen.getByRole('listitem', { name: new RegExp(`^Message de la maison ${house} :`) });
+const findEntry = (house: string) =>
+  screen.findByRole('listitem', { name: new RegExp(`^Message de la maison ${house} :`) });
 const notice = (role: 'status' | 'alert') =>
   screen.getAllByRole(role).find((node) => node.tagName === 'DIV')?.textContent;
 const enter = (repeat = false) => {
@@ -234,7 +237,9 @@ it('un refus de l’API est expliqué et le foyer revient au bouton du geste', a
   );
 });
 
-it('réduit au silence : durée et motif contrôlés, puis commande avec la durée saisie', async () => {
+const radio = (name: string) => screen.getByRole('radio', { name }) as HTMLInputElement;
+
+it('réduit au silence : une durée proposée et un motif, puis commande avec la durée choisie', async () => {
   await opened([
     {
       ok: true,
@@ -242,16 +247,22 @@ it('réduit au silence : durée et motif contrôlés, puis commande avec la dur�
     },
   ]);
   fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Réduire au silence' }));
-  const hours = screen.getByLabelText('Durée (heures)') as HTMLInputElement;
-  expect(document.activeElement).toBe(hours);
+  // Les durées de la configuration en vigueur, rendues par l'API ; aucun champ libre.
+  const group = screen.getByRole('group', { name: 'Durée' });
+  expect(
+    within(group)
+      .getAllByRole('radio')
+      .map((node) => node.getAttribute('value')),
+  ).toEqual(['1', '24', '72']);
+  expect(within(group).queryByRole('spinbutton')).toBeNull();
+  expect(radio('1 heure').checked).toBe(false);
+  expect(document.activeElement).toBe(radio('1 heure'));
   const confirm = () => screen.getByRole('button', { name: 'Confirmer le silence' });
   fireEvent.click(confirm());
   expect(adminCommand).not.toHaveBeenCalled();
-  expect(screen.getByText("Entrez un nombre entier d'heures, supérieur à zéro.")).toBeTruthy();
-  fireEvent.change(hours, { target: { value: '1.5' } });
-  fireEvent.click(confirm());
-  expect(adminCommand).not.toHaveBeenCalled();
-  fireEvent.change(hours, { target: { value: '24' } });
+  expect(screen.getByText("Choisissez l'une des durées proposées.")).toBeTruthy();
+  expect(document.activeElement).toBe(radio('1 heure'));
+  fireEvent.click(radio('1 jour (24 h)'));
   fireEvent.click(confirm());
   expect(adminCommand).not.toHaveBeenCalled();
   expect(
@@ -267,7 +278,51 @@ it('réduit au silence : durée et motif contrôlés, puis commande avec la dur�
   ]);
 });
 
-it('propose une exclusion sans durée ; refus de durée : les champs restent, l’exclusion n’a pas de durée', async () => {
+it('une seule durée proposée est choisie d’office ; les libellés existent en anglais', async () => {
+  await opened([
+    {
+      ok: true,
+      data: { sanctionId: id(303), kind: 'warning', startsAt: NOW, endsAt: NOW, pending: false },
+    },
+  ]);
+  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Avertir' }));
+  expect(radio('7 jours (168 h)').checked).toBe(true);
+  fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Ton agressif' } });
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'avertissement" }));
+  await waitFor(() => expect(adminCommand).toHaveBeenCalledTimes(1));
+  expect(adminCommand.mock.calls[0]?.[1]).toMatchObject({ kind: 'warning', hours: 168 });
+  await waitFor(() => expect(notice('status')).toBe('Avertissement prononcé à la maison Alpha.'));
+  fireEvent.click(within(entryOf('Delta')).getByRole('button', { name: 'Réduire au silence' }));
+  await i18n.changeLanguage('en');
+  expect(screen.getByRole('group', { name: 'Duration' })).toBeTruthy();
+  expect(radio('1 hour').checked).toBe(false);
+  expect(radio('3 days (72 h)')).toBeTruthy();
+});
+
+it('sans durée lisible, la sanction à durée ne part pas ; l’exclusion, si', async () => {
+  // `null` : version en vigueur illisible ; champ absent : API antérieure à #541.
+  const older: Partial<AdminReports> = { ...REPORTS };
+  delete older.sanctionHours;
+  for (const data of [{ ...REPORTS, sanctionHours: null }, older]) {
+    adminGet.mockResolvedValue({ ok: true, data });
+    render(<Moderation accessToken="token" />);
+    fireEvent.click(within(await findEntry('Alpha')).getByRole('button', { name: 'Suspendre' }));
+    const group = screen.getByRole('group', { name: 'Durée' });
+    expect(within(group).queryByRole('radio')).toBeNull();
+    const unavailable = within(group).getByText(/^Aucune durée proposée n'a pu être lue/);
+    fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suspension' }));
+    expect(adminCommand).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(unavailable);
+    cleanup();
+  }
+});
+
+it('durée retirée entre-temps : le refus est expliqué, les durées relues, le choix est à refaire', async () => {
+  const changed = {
+    ...REPORTS,
+    sanctionHours: { ...REPORTS.sanctionHours, suspension: [48, 96] },
+  } as AdminReports;
   await opened(
     [
       { ok: false, code: 'DURATION_NOT_OFFERED' },
@@ -276,18 +331,29 @@ it('propose une exclusion sans durée ; refus de durée : les champs restent, l�
         data: { sanctionId: id(302), kind: 'ban', startsAt: NOW, endsAt: null, pending: true },
       },
     ],
-    REPORTS,
+    changed,
   );
   fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
-  fireEvent.change(screen.getByLabelText('Durée (heures)'), { target: { value: '5' } });
+  fireEvent.click(radio('30 jours (720 h)'));
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suspension' }));
-  await waitFor(() => expect(notice('alert')).toMatch(/^Cette durée n'est pas offerte/));
-  // Les champs restent à corriger.
-  expect((screen.getByLabelText('Durée (heures)') as HTMLInputElement).value).toBe('5');
+  await waitFor(() => expect(notice('alert')).toMatch(/^Cette durée n'est plus proposée/));
+  // La confirmation reste ouverte, avec les durées relues ; aucune n'est choisie, le motif reste.
+  expect(
+    screen
+      .getAllByRole('radio')
+      .map((node) => [node.getAttribute('value'), (node as HTMLInputElement).checked]),
+  ).toEqual([
+    ['48', false],
+    ['96', false],
+  ]);
+  expect((screen.getByLabelText('Motif') as HTMLTextAreaElement).value).toBe('Récidive');
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suspension' }));
+  expect(adminCommand).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Choisissez l'une des durées proposées.")).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
   fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: "Proposer l'exclusion" }));
-  expect(screen.queryByLabelText('Durée (heures)')).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Durée' })).toBeNull();
   expect(document.activeElement).toBe(screen.getByLabelText('Motif'));
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer la proposition' }));
