@@ -73,6 +73,12 @@ export interface Offer {
   condition: number | null;
   kind: 'citySale' | 'sale' | 'lease';
   priceOboles: number;
+  /**
+   * Entretien impayé du bien offert par une maison, qu'il garde à la revente et qui le prive de loger :
+   * `null` s'il est payé (toujours pour un bien de la cité) ; sinon, le jour de jeu où une clôture l'a
+   * constaté (`day`), `null` si la base ne le date pas (aucune horloge en vigueur).
+   */
+  unpaid: { day: number | null } | null;
 }
 
 const offerRow = z.object({
@@ -83,6 +89,8 @@ const offerRow = z.object({
   condition,
   kind: z.enum(['sale', 'lease']),
   price_oboles: oboles,
+  upkeep_unpaid: z.boolean(),
+  upkeep_unpaid_day: z.number().int().nullable(),
 });
 const cityRow = z.object({
   id,
@@ -95,8 +103,9 @@ const cityRow = z.object({
 
 /**
  * Biens offerts : ceux que la cité vend encore (vue `city_properties`), au prix de leur taille, puis les
- * offres des maisons (vue `property_offers`). Une taille que la configuration ne connaît plus n'a pas de
- * prix : son bien n'est pas proposé. `null` si une ligne est illisible.
+ * offres des maisons avec l'entretien impayé de leur bien (vue `property_offers_upkeep`, #403). Une
+ * taille que la configuration ne connaît plus n'a pas de prix : son bien n'est pas proposé. `null` si une
+ * ligne est illisible.
  */
 export function parseOffers(
   cityRows: unknown,
@@ -118,6 +127,7 @@ export function parseOffers(
             condition: row.condition,
             kind: 'citySale',
             priceOboles: size.purchasePriceOboles,
+            unpaid: null,
           },
         ]
       : [];
@@ -130,6 +140,7 @@ export function parseOffers(
     condition: row.condition,
     kind: row.kind,
     priceOboles: row.price_oboles,
+    unpaid: row.upkeep_unpaid ? { day: row.upkeep_unpaid_day } : null,
   }));
   // Par cité, taille puis lot : le bien d'une cité se retrouve à la même place d'une lecture à l'autre.
   return [...byCity, ...byHouses].sort(
