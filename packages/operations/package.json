@@ -1,0 +1,19 @@
+{
+  "name": "@oikos/operations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@oikos/config": "workspace:*",
+    "@oikos/contracts": "workspace:*",
+    "@oikos/db": "workspace:*",
+    "@oikos/sim": "workspace:*",
+    "kysely": "^0.29.9"
+  }
+}

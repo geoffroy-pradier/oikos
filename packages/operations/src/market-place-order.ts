@@ -1,14 +1,16 @@
-import {
-  MARKET_PLACE_ORDER_ERROR_CODES,
-  marketPlaceOrderInputSchema,
-  marketPlaceOrderOutputSchema,
-} from '@oikos/contracts';
+import type { MarketPlaceOrderInput, MarketPlaceOrderOutput } from '@oikos/contracts';
 import { cityRatesOf } from '@oikos/db';
 import { marketTax, planLimitOrder } from '@oikos/sim';
 import { sql } from 'kysely';
-import { defineCommand, type CommandResult } from '../registry';
+import {
+  defineOperation,
+  houseOf,
+  type Actor,
+  type OperationContext,
+  type OperationResult,
+} from './context';
 
-const refuse = (code: string, message: string): CommandResult<never> => ({
+const refuse = (code: string, message: string): OperationResult<never> => ({
   ok: false,
   error: { code, message },
 });
@@ -20,12 +22,12 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
  * une écriture au grand livre (l'acheteur qui attendait paie de son séquestre), puis livré par le journal
  * des stocks. La même écriture prélève la taxe de marché sur le vendeur : l'acheteur paie le brut, le
  * vendeur reçoit le net, le reste va au puits et au trésor de la cité.
+ *
+ * Cœur de la commande `market.placeOrder`, partagé avec les intendants (ADR 0009) : l'ordre de la maison de
+ * l'acteur.
  */
-export const marketPlaceOrder = defineCommand({
+export const placeOrder = defineOperation({
   name: 'market.placeOrder',
-  input: marketPlaceOrderInputSchema,
-  output: marketPlaceOrderOutputSchema,
-  errors: MARKET_PLACE_ORDER_ERROR_CODES,
   // La base fait foi sous concurrence : le stock libre est borné par la réservation, le solde par le compte.
   errorByConstraint: {
     inventories_reserved_within_quantity: {
@@ -34,12 +36,15 @@ export const marketPlaceOrder = defineCommand({
     },
     accounts_no_overdraft: { code: 'INSUFFICIENT_FUNDS', message: 'Not enough money.' },
   },
-  async handler({ trx, userId, emit, config }, input) {
-    const house = await trx
-      .selectFrom('game.houses')
-      .select(['id', 'world_id'])
-      .where('user_id', '=', userId)
-      .executeTakeFirst();
+  async run(
+    { trx, emit, config }: OperationContext,
+    actor: Actor,
+    input: MarketPlaceOrderInput,
+  ): Promise<OperationResult<MarketPlaceOrderOutput>> {
+    const house = await houseOf(
+      trx.selectFrom('game.houses').select(['id', 'world_id']),
+      actor,
+    ).executeTakeFirst();
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     const city = await trx
       .selectFrom('game.cities')
