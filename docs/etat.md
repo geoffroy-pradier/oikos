@@ -150,7 +150,7 @@ Ajouts de la phase 2 :
   La date du statut attend #420.
 - **Charis** (#265, 7.1) : une maison fait des offrandes de monnaie ou de biens à un dieu du catalogue de la configuration et gagne sa Charis envers lui ; les oboles sont détruites par un puits, les biens quittent le stock par le journal des stocks.
   La Charis décline chaque jour à la clôture, une fois par jour même si la clôture est rejouée ; la Charis de cité somme celle des citoyennes envers le dieu protecteur.
-  Lectures : règles du temple et Charis de cité publiques, Charis de sa maison privée ; pas encore d'écran (#272).
+  Lectures : règles du temple et Charis de cité publiques, Charis de sa maison privée, montrées par l'écran Temple (#272).
 - **Événements du monde** (#267, 7.3, 7.4) : chaque monde a une graine secrète ; la clôture planifie, quelques jours à l'avance et de façon reproductible, sécheresses, bonnes années, tempêtes et caravanes étrangères.
   Une sécheresse réduit et une bonne année accroît la récolte des cycles qui se terminent pendant elle (dans le temps du site, gelé pendant un arrêt) ; une tempête allonge le trajet d'un navire qui part pendant elle ; une caravane relève la demande des PNJ pour son bien.
   Chaque écart est expliqué dans `event_effects` ; les joueurs ne lisent un événement qu'une fois commencé, et Olympe montre aussi ceux à venir (module Animation).
@@ -161,7 +161,7 @@ Ajouts de la phase 2 :
   Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
 - **Grâces** (#266, 7.1) : une maison invoque, contre de la Charis, une grâce (`temple.invokeGrace`) d'un catalogue fermé de trois effets : récolte bénie, atelier inspiré, vent favorable.
   La grâce s'applique à la prochaine action admise de la maison, une seule fois, avec une ampleur bornée par effet, puis se recharge en jours de jeu.
-  Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) ; lectures `temple_rules.graces` et `my_graces`, sans écran encore (#272, #477).
+  Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) ; lectures `temple_rules.graces` et `my_graces`, montrées par l'écran Temple (#272, #477).
 - **Chronique quotidienne** (#271, 6.6) : à chaque clôture, une chronique par cité raconte, à partir des seuls journaux, la population, les échanges, les arrivées de navires, les élections, les décrets, les événements qui commencent et la nouvelle version de configuration.
   Elle est composée par des gabarits `fr` et `en`, puis réécrite par l'IA si elle est allumée ; une réécriture qui cite un nombre absent des faits, ou écrit un nombre autrement qu'en chiffres latins, est rejetée au profit des gabarits.
   L'onglet Cité la montre.
@@ -169,7 +169,7 @@ Ajouts de la phase 2 :
   L'onglet Messages montre le canal de la cité et les conversations privées, avec les non lus comptés sur l'appareil, la saisie (brouillon jamais perdu, envoi au clavier), l'ouverture d'une conversation par le nom d'une maison et l'annonce polie des messages reçus.
   Sans Realtime, l'écran relit toutes les 15 secondes et le dit.
 - **Pythie** (#270, 7.3) : chaque événement planifié a son oracle, écrit à la main en repli, `fr` et `en`, qui ne dit que sa nature, et le bien d'une caravane ; une tâche du moteur essaie une fois de le faire réécrire par l'IA, sans nombre ni nom de cité.
-  Consulter la Pythie (`temple.consultOracle`) est une offrande de 60 oboles à Apollon, au prix vu, qui rend les oracles des événements à venir de la cité, même quand il n'y en a aucun ; le joueur relit ses oracles par `my_oracles`, sans écran encore (#272).
+  Consulter la Pythie (`temple.consultOracle`) est une offrande de 60 oboles à Apollon, au prix vu, qui rend les oracles des événements à venir de la cité, même quand il n'y en a aucun ; le joueur relit ses oracles par `my_oracles`, montrés par l'écran Temple (#272).
 - **Modération** (#275 à #277, #527, #530, #532 ; 6.6, 13, 15) : une maison signale un message d'un canal qu'elle lit, sous un motif de la configuration (`chat.report`), une fois par message.
   Un terme interdit de la configuration refuse le message (`MESSAGE_REJECTED`), et aussi le nom d'une maison à la fondation et au renommage (#527) ; un compte réduit au silence n'écrit ni ne fonde ni ne renomme (`SILENCED`).
   Les sanctions sont graduées : avertissement, silence, suspension, exclusion ; l'exclusion n'agit qu'une fois validée par une seconde personne.
