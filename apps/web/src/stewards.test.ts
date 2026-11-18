@@ -5,6 +5,7 @@ import {
   goodsFor,
   hireIntent,
   moveUp,
+  parseStewardActivity,
   parseStewards,
   rulesIntent,
   rulesOf,
@@ -124,5 +125,57 @@ describe('intendants de la maison (#278)', () => {
     ).toEqual([hire, old]);
     // Sans intendant lu, rien n'est caduc : une embauche sans réponse repart sous sa clé.
     expect([hire, old].filter(staleIntents('s1', undefined))).toEqual([]);
+  });
+
+  it('opérations (#279) : les cinq dernières par intendant, la plus récente d’abord, et le dernier refus', () => {
+    const op = (stewardId: string, tick: number | string, extra = {}) => ({
+      steward_id: stewardId,
+      tick_index: tick,
+      rank: 0,
+      created_at: hired,
+      status: 'ok',
+      error_code: null,
+      kind: 'collect',
+      good_id: null,
+      summary: { command: 'site.collect', cycles: 1, outputs: [{ goodId: 'wheat', quantity: 40 }] },
+      ...extra,
+    });
+    const refused = {
+      status: 'rejected',
+      error_code: 'INSUFFICIENT_FUNDS',
+      kind: 'buy',
+      good_id: 'wheat',
+      summary: {
+        command: 'market.placeOrder',
+        side: 'buy',
+        goodId: 'wheat',
+        price: 7,
+        quantity: 50,
+      },
+    };
+    const activity = parseStewardActivity([
+      op('st1', 1, refused),
+      ...[2, 3, 4, 5, 6].map((tick) => op('st1', String(tick))),
+      op('st1', 6, { rank: 1, kind: 'sell' }),
+      op('st2', 9, refused),
+      op('st2', 'illisible'),
+      { ...op('st2', 10), summary: { command: 'steward.hire' } },
+    ]);
+    const first = activity.get('st1');
+    expect(first?.recent.map((operation) => operation.kind)).toEqual([
+      'sell',
+      'collect',
+      'collect',
+      'collect',
+      'collect',
+    ]);
+    expect(first?.lastRefusal).toMatchObject({
+      code: 'INSUFFICIENT_FUNDS',
+      kind: 'buy',
+      goodId: 'wheat',
+    });
+    expect(activity.get('st2')?.recent).toHaveLength(1);
+    expect(activity.get('st2')?.lastRefusal).toBe(activity.get('st2')?.recent[0]);
+    expect(parseStewardActivity([]).size).toBe(0);
   });
 });

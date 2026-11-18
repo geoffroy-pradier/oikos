@@ -37,7 +37,7 @@ import {
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { SiteSteward } from './SiteSteward';
-import { parseStewards } from '../stewards';
+import { parseStewardActivity, parseStewards } from '../stewards';
 import { serverClock, syncServerClock } from '../server-clock';
 import { describeWorldEvent, inForce, useEventRows } from '../world-events';
 
@@ -59,6 +59,9 @@ const ALL = 'all';
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 // Pendant une commande, les boutons restent atteignables (le focus ne retombe pas sur la page).
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
+
+/** Un intendant lu sans opération : la fiche le dit, plutôt que de taire la section. */
+const NO_ACTIVITY = { recent: [], lastRefusal: null };
 
 /**
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
@@ -133,6 +136,16 @@ export function SitesCard({
         ? parseStewards(stewardRows.rows, stewardRuleRows.rows)
         : null,
     [stewardRows.rows, stewardRuleRows.rows],
+  );
+  // Dernières opérations de chaque intendant et son dernier refus (#279), menées par le moteur.
+  const operationRows = useRows<unknown>(
+    'my_steward_operations',
+    'steward_id, tick_index, rank, created_at, status, error_code, kind, good_id, summary',
+    'created_at',
+  );
+  const activity = useMemo(
+    () => (operationRows.rows ? parseStewardActivity(operationRows.rows) : null),
+    [operationRows.rows],
   );
   const { reload: reloadStewards } = stewardRows;
   const { reload: reloadStewardRules } = stewardRuleRows;
@@ -863,6 +876,11 @@ export function SitesCard({
                   siteName={name}
                   recipe={recipe ?? null}
                   steward={stewards.get(site.id)}
+                  activity={
+                    activity
+                      ? (activity.get(stewards.get(site.id)?.id ?? '') ?? NO_ACTIVITY)
+                      : undefined
+                  }
                   rules={rules.stewards}
                   posted={stewards.size}
                   onChanged={() => Promise.all([reloadStewards(), reloadStewardRules()])}

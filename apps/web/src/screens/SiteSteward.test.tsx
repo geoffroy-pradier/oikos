@@ -6,7 +6,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
-import type { Steward } from '../stewards';
+import type { Steward, StewardActivity } from '../stewards';
 
 // Section Intendant de la fiche d'un site (#278) : commandes espionnées, aucune lecture.
 const api = vi.hoisted(() => ({ stewardCommand: vi.fn() }));
@@ -28,7 +28,7 @@ const nikias: Steward = {
 const onChanged = vi.fn(() => Promise.resolve());
 async function show(
   steward: Steward | undefined,
-  options: { posted?: number; rules?: typeof posts } = {},
+  options: { posted?: number; rules?: typeof posts; activity?: StewardActivity } = {},
 ) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -45,6 +45,7 @@ async function show(
           siteName="Moulin"
           recipe={mill ?? null}
           steward={steward}
+          activity={options.activity}
           rules={options.rules ?? posts}
           posted={options.posted ?? (steward ? 1 : 0)}
           onChanged={onChanged}
@@ -166,5 +167,88 @@ describe('section Intendant (#278)', () => {
     await show({ ...nikias, revision: 2 });
     await click('Enregistrer les règles', 4);
     expect(keyOf(3)).not.toBe(keyOf(1));
+  });
+
+  it('opérations (#279) : les dernières, en phrases, et le dernier refus avec sa raison', async () => {
+    const at = new Date('2026-11-18T10:00:00Z');
+    const activity: StewardActivity = {
+      recent: [
+        {
+          at,
+          status: 'ok',
+          code: null,
+          kind: 'sell',
+          goodId: 'flour',
+          summary: {
+            command: 'market.placeOrder',
+            side: 'sell',
+            goodId: 'flour',
+            price: 14,
+            quantity: 30,
+            traded: 12,
+            status: 'open',
+          },
+        },
+        {
+          at,
+          status: 'ok',
+          code: null,
+          kind: 'collect',
+          goodId: null,
+          summary: {
+            command: 'site.collect',
+            cycles: 2,
+            outputs: [{ goodId: 'flour', quantity: 16 }],
+          },
+        },
+        {
+          at,
+          status: 'ok',
+          code: null,
+          kind: 'buy',
+          goodId: 'wheat',
+          summary: {
+            command: 'market.placeOrder',
+            side: 'buy',
+            goodId: 'wheat',
+            price: 7,
+            quantity: 50,
+            traded: 1,
+            status: 'open',
+          },
+        },
+      ],
+      lastRefusal: {
+        at,
+        status: 'rejected',
+        code: 'INSUFFICIENT_FUNDS',
+        kind: 'buy',
+        goodId: 'wheat',
+        summary: {
+          command: 'market.placeOrder',
+          side: 'buy',
+          goodId: 'wheat',
+          price: 7,
+          quantity: 50,
+        },
+      },
+    };
+    await show(nikias, { activity });
+    const list = screen.getByRole('region', { name: 'Dernières opérations' });
+    const items = [...list.querySelectorAll('li')].map((item) => item.textContent);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toMatch(/mise en vente de 30 Farine à .+ l'unité ou plus, dont 12 vendus$/);
+    expect(items[1]).toMatch(/récolte de 2 cycles \(16 Farine\)$/);
+    // L'accord suit les unités échangées : 50 demandées, une seule reçue.
+    expect(items[2]).toMatch(/achat de 50 Blé à .+ l'unité ou moins, dont 1 reçu$/);
+    expect(list.textContent).toContain(`Dernier refus, `);
+    expect(list.textContent).toContain(`rachat de Blé refusé : ${fr.errors.INSUFFICIENT_FUNDS}`);
+    cleanup();
+    await show(nikias, { activity: { recent: [], lastRefusal: null } });
+    expect(screen.getByText("Aucune opération pour l'instant.")).toBeTruthy();
+    cleanup();
+    // Lecture en cours ou en échec : la section n'est pas montrée.
+    await show(nikias);
+    expect(screen.queryByText('Dernières opérations')).toBeNull();
   });
 });
