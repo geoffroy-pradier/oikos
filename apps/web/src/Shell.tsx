@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelect } from './LanguageSelect';
 import { applyTheme, initialTheme, type Theme } from './preferences';
+import { SanctionNotice } from './screens/SanctionNotice';
 import { router, TABS, tabOf, type TabId } from './router';
 import { supabase } from './supabase';
 
@@ -101,6 +102,7 @@ export function Shell() {
         </header>
         <div className="meander" aria-hidden="true" />
         <main id="main" tabIndex={-1} className="mx-auto max-w-5xl p-4 lg:p-8">
+          <SanctionNotice />
           <Outlet />
         </main>
       </div>

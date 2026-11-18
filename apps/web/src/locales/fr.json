@@ -903,5 +903,32 @@
       "when": "Consulté le {{date}}. Date de l'événement : imprécise, à venir après cette consultation.",
       "aiNote": "Texte réécrit par l'IA à partir de l'oracle de la Pythie."
     }
+  },
+  "sanctions": {
+    "title": "Sanctions de votre compte",
+    "kind": {
+      "warning": "Avertissement",
+      "silence": "Réduit au silence",
+      "suspension": "Compte suspendu",
+      "ban": "Compte exclu"
+    },
+    "effect": {
+      "warning": "Un avertissement ne bloque rien : il rappelle la charte de conduite.",
+      "silence": "Vous lisez et signalez les messages, mais n'en écrivez plus.",
+      "suspension": "Vous ne pouvez plus agir dans le jeu ; vous en lisez encore les écrans.",
+      "ban": "Vous ne pouvez plus agir dans le jeu."
+    },
+    "reason": "Motif : {{reason}}",
+    "starts": "À partir du {{date}}.",
+    "until": "Jusqu'au {{date}}.",
+    "permanent": "Sans fin : l'exclusion est définitive.",
+    "appeal": "Faire appel",
+    "appealLabel": "Votre appel",
+    "appealHint": "Expliquez pourquoi vous contestez cette sanction. Un seul appel par sanction.",
+    "send": "Envoyer l'appel",
+    "cancel": "Annuler",
+    "invalid": "Écrivez votre appel avant de l'envoyer.",
+    "appealSent": "Votre appel est envoyé : la modération l'examinera.",
+    "appealed": "Appel envoyé le {{date}} :"
   }
 }

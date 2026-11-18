@@ -117,3 +117,22 @@ it('commandes du temple : chacune sous son nom, avec la valeur vue et la clé de
     ['/api/commands/temple.consultOracle', '{"expectedOboles":60}', 'k3'],
   ]);
 });
+
+it('un refus pour une sanction est rendu tel quel, et signalé à la fenêtre quand elle existe', async () => {
+  const refused = {
+    ok: false,
+    error: { code: 'SUSPENDED', message: 'This account is suspended.' },
+  };
+  const result = await sendCommand('chat.post', {}, 't', 'key-12345678', respond(refused, 409));
+  expect(result).toEqual(refused);
+  const dispatchEvent = vi.fn();
+  vi.stubGlobal('window', { dispatchEvent });
+  try {
+    await sendCommand('chat.post', {}, 't', 'key-12345678', respond(refused, 409));
+    expect(dispatchEvent.mock.calls.map(([event]) => (event as Event).type)).toEqual([
+      'oikos:sanctioned',
+    ]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
