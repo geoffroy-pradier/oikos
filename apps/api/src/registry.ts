@@ -100,8 +100,8 @@ export interface CommandDefinition<I = unknown, O = unknown> {
   /**
    * Sanctions qui refusent la commande (#275), relues en base à chaque commande. Par défaut, une commande de jeu
    * est refusée à un compte suspendu ou exclu (`SUSPENDED`) ; `chat` la refuse aussi à un compte réduit au
-   * silence (`SILENCED`) ; `exempt` ne la refuse jamais (l'appel d'une sanction). Une commande d'administration
-   * n'y est pas soumise : son rôle, relu de même, en décide.
+   * silence (`SILENCED`) ; `exempt` ne la refuse jamais (l'appel d'une sanction, et l'annulation d'un ordre, qui ne
+   * crée rien : #528). Une commande d'administration n'y est pas soumise : son rôle, relu de même, en décide.
    */
   moderation?: 'chat' | 'exempt';
   /** Erreurs métier déduites d'une contrainte de la base, qui fait foi sous concurrence. */

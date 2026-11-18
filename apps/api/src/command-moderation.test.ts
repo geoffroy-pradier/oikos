@@ -9,13 +9,16 @@ describe('modes de modération des commandes enregistrées', () => {
       .map((command) => command.name)
       .sort();
 
-  it('seules chat.post et les noms de maison sont refusés à un compte réduit au silence ; seul l’appel est exempt', () => {
+  it('seules chat.post et les noms de maison sont refusés à un compte réduit au silence ; seuls l’appel et l’annulation d’un ordre sont exempts (#528)', () => {
     expect(names((command) => command.moderation === 'chat')).toEqual([
       'chat.post',
       'house.create',
       'house.rename',
     ]);
-    expect(names((command) => command.moderation === 'exempt')).toEqual(['moderation.appeal']);
+    expect(names((command) => command.moderation === 'exempt')).toEqual([
+      'market.cancelOrder',
+      'moderation.appeal',
+    ]);
   });
 
   it('une commande d’administration ne déclare aucun mode : son rôle en décide', () => {

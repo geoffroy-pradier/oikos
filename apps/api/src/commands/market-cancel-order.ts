@@ -9,12 +9,16 @@ import { defineCommand } from '../registry';
  * Annule un ordre ouvert de sa propre maison : ce qui a déjà été servi reste acquis, seul le reste est
  * retiré du carnet. La base libère la réservation du stock d'une vente (déclencheur des ordres) ; pour
  * un achat, la commande rend à la trésorerie ce que le séquestre retenait (prix × reste).
+ *
+ * Seule commande de jeu permise à un compte suspendu ou exclu (#528) : elle ne crée rien, elle rend ce qu'un ordre
+ * engageait. Sans elle, ses ordres resteraient sous séquestre et pourraient s'exécuter pendant la suspension.
  */
 export const marketCancelOrder = defineCommand({
   name: 'market.cancelOrder',
   input: marketCancelOrderInputSchema,
   output: marketCancelOrderOutputSchema,
   errors: MARKET_CANCEL_ORDER_ERROR_CODES,
+  moderation: 'exempt',
   async handler({ trx, userId, emit }, input) {
     // Verrouille l'ordre : un achat ou un tick qui le sert au même instant passe avant ou après,
     // jamais pendant. L'état lu ici est donc celui qui sera annulé.
