@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, ScrollText } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { consultOracle } from '../api';
@@ -49,7 +49,7 @@ export function TemplePythia(props: {
   );
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
-  const { setNotice, region } = useCommandNotice();
+  const { setNotice, region } = useCommandNotice({ styled: true });
   // Une consultation faite sous une autre Charis que celle relue envers le dieu est lue : sa clé est rendue.
   const favorKey = JSON.stringify(props.favor && [...props.favor]);
   useLayoutEffect(() => {
@@ -101,6 +101,7 @@ export function TemplePythia(props: {
   return (
     <>
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <ScrollText aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('temple.pythia.title')}
       </h2>
       <p className="text-muted-foreground">{t('temple.pythia.intro')}</p>
@@ -125,7 +126,7 @@ export function TemplePythia(props: {
         </>
       )}
       {region}
-      <h3 className="font-semibold">{t('temple.pythia.consulted')}</h3>
+      <h3 className="eyebrow mt-2">{t('temple.pythia.consulted')}</h3>
       {read.rows === null && !read.failed && <Loading />}
       {(read.failed || (read.rows !== null && oracles === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
@@ -136,7 +137,7 @@ export function TemplePythia(props: {
           {oracles.map((oracle) => (
             <li
               key={oracle.id}
-              className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0"
+              className="flex flex-col gap-1 rounded-lg border-l-4 border-accent bg-accent-subtle/50 p-3 break-words"
             >
               {/* Texte brut : React l'échappe, rien n'y est interprété. */}
               <blockquote className="whitespace-pre-line break-words italic">

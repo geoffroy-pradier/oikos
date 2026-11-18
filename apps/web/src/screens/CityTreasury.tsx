@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card } from '@oikos/ui';
+import { Card, Coins } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -62,16 +62,17 @@ export function CityTreasury() {
   return (
     <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <Coins aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('treasury.title')}
       </h2>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {balance !== null && days && rate && (
         <>
-          <p className="text-lg font-semibold">
+          <p className="font-display text-2xl font-semibold tracking-tight break-words tabular-nums">
             {t('treasury.balance', { amount: money(balance) })}
           </p>
-          <ul className="flex flex-col gap-1">
+          <ul className="flex list-inside list-disc flex-col gap-1 marker:text-accent">
             <li>
               {t('treasury.marketTax', { rate: percent.format(rate.marketTaxRateBps / BPS) })}
             </li>
@@ -79,13 +80,13 @@ export function CityTreasury() {
               {t('treasury.portDues', { factor: factor.format(rate.portDuesCoefficientBps / BPS) })}
             </li>
           </ul>
-          <h3 className="font-semibold">{t('treasury.flows')}</h3>
+          <h3 className="eyebrow">{t('treasury.flows')}</h3>
           {days.length === 0 && <p className="text-muted-foreground">{t('treasury.noFlows')}</p>}
           <ul className="flex flex-col gap-2">
             {days.slice(0, SHOWN_DAYS).map((day) => (
               <li
                 key={day.day ?? 'none'}
-                className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0 first:pt-0"
+                className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3"
               >
                 <h4 className="font-medium">
                   {day.day === null

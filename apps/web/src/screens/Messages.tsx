@@ -1,5 +1,5 @@
 import { CLIENT_SETTINGS } from '@oikos/config/client';
-import { Card } from '@oikos/ui';
+import { Badge, Card, Inbox, MessagesSquare } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Channel, Unread } from '../chat';
@@ -120,13 +120,17 @@ export function MessagesScreen() {
   return (
     <div className="flex flex-col gap-4">
       <h1 ref={title} tabIndex={-1} className="text-2xl">
+        <MessagesSquare
+          aria-hidden="true"
+          className="mr-2 inline size-6 align-[-0.15em] text-accent"
+        />
         {t('tabs.messages.label')}
       </h1>
       <div aria-live="polite" className="sr-only">
         <p key={announcement.n}>{announcement.text}</p>
       </div>
       {/* Région présente avant son texte : le passage en relecture est annoncé poliment. */}
-      <p role="status" className="text-muted-foreground empty:hidden">
+      <p role="status" className="rounded-lg bg-aegean-subtle p-3 text-aegean empty:sr-only">
         {chat.live === 'polling'
           ? t('messages.polling', { count: CLIENT_SETTINGS.chatPollSeconds })
           : ''}
@@ -134,11 +138,19 @@ export function MessagesScreen() {
       {chat.failed && <LoadProblem heading={title} onRetry={chat.reload} />}
       {channels === null && !chat.failed && <Loading />}
       {channels && (
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[18rem_1fr] lg:items-start">
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
           <Card className="flex flex-col gap-2">
-            <h2 className="text-xl">{t('messages.channels')}</h2>
+            <h2 className="text-xl">
+              <Inbox
+                aria-hidden="true"
+                className="mr-2 inline size-5 align-[-0.15em] text-accent"
+              />
+              {t('messages.channels')}
+            </h2>
             {total > 0 && (
-              <p>{t(atLeast ? 'messages.unreadAtLeast' : 'messages.unread', { count: total })}</p>
+              <p className="font-medium">
+                {t(atLeast ? 'messages.unreadAtLeast' : 'messages.unread', { count: total })}
+              </p>
             )}
             <ul className="flex flex-col gap-1">
               {channels.map((channel) => {
@@ -150,10 +162,14 @@ export function MessagesScreen() {
                       type="button"
                       aria-current={current ? 'true' : undefined}
                       onClick={() => setSelected(channel.id)}
-                      className={`flex min-h-11 w-full flex-wrap items-center justify-between gap-x-2 rounded-md px-3 py-2 text-left wrap-anywhere hover:bg-muted ${current ? 'font-bold underline underline-offset-4' : ''}`}
+                      className={`flex min-h-11 w-full flex-wrap items-center justify-between gap-x-2 rounded-lg px-3 py-2 text-left wrap-anywhere transition-colors duration-(--motion-fast) hover:bg-muted ${current ? 'bg-primary-subtle font-bold text-primary' : ''}`}
                     >
                       <span>{channelName(channel)}</span>
-                      {count && <span className="text-sm">{count}</span>}
+                      {count && (
+                        <Badge tone="primary" className="whitespace-normal">
+                          {count}
+                        </Badge>
+                      )}
                     </button>
                   </li>
                 );
@@ -177,9 +193,12 @@ export function MessagesScreen() {
                 <p className="text-muted-foreground">{t('messages.none')}</p>
               )}
               {messages && messages.length > 0 && (
-                <ol className="flex flex-col gap-2" aria-label={t('messages.list')}>
+                <ol className="flex flex-col gap-3" aria-label={t('messages.list')}>
                   {messages.map((message) => (
-                    <li key={message.id} className="flex flex-col border-t border-border pt-2">
+                    <li
+                      key={message.id}
+                      className={`flex max-w-full flex-col gap-1 rounded-xl p-3 sm:max-w-[85%] ${message.houseId === house.id ? 'self-end bg-primary-subtle' : 'self-start bg-muted/60'}`}
+                    >
                       <p className="text-sm text-muted-foreground">
                         <span className="font-semibold text-foreground">
                           {nameOf(message.houseId)}

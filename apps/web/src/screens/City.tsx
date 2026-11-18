@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Amphora, Bird, Card, Frieze, Hammer, House, Landmark, Users } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -74,18 +74,30 @@ export function CityScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-2xl">{t('city.title', { city: house.cityName })}</h1>
-        <p className="text-muted-foreground">{t('city.intro')}</p>
-        <Link
-          to="/cite/temple"
-          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-        >
-          {t('city.templeLink')}
-        </Link>
+      <Card elevation="raised" className="overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-col gap-1 p-4">
+          {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
+          <h1 className="text-2xl">
+            <Landmark
+              aria-hidden="true"
+              className="mr-2 inline size-6 align-[-0.15em] text-accent"
+            />
+            {t('city.title', { city: house.cityName })}
+          </h1>
+          <p className="text-muted-foreground">{t('city.intro')}</p>
+          <Link
+            to="/cite/temple"
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+          >
+            <Amphora aria-hidden="true" className="mr-2 inline size-4" />
+            {t('city.templeLink')}
+          </Link>
+        </div>
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={identityTitle} tabIndex={-1} className="text-xl">
+          <Bird aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
           {t('cityIdentity.title')}
         </h2>
         {read.rows === null && !read.failed && <Loading />}
@@ -96,7 +108,7 @@ export function CityScreen() {
           <p className="text-muted-foreground">{t('cityIdentity.missing')}</p>
         )}
         {lines && (
-          <ul className="flex flex-col gap-1">
+          <ul className="flex list-inside list-disc flex-col gap-1 marker:text-accent">
             {[lines.god, lines.port, lines.terroir, lines.start].map((line) => (
               <li key={line}>{line}</li>
             ))}
@@ -110,6 +122,7 @@ export function CityScreen() {
       <CityTreasury />
       <Card className="flex flex-col gap-3">
         <h2 ref={laborTitle} tabIndex={-1} className="text-xl">
+          <Hammer aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
           {t('city.labor.title')}
         </h2>
         {laborRows.rows === null && !laborRows.failed && <Loading />}
@@ -140,6 +153,7 @@ export function CityScreen() {
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={parkTitle} tabIndex={-1} className="text-xl">
+          <House aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
           {t('city.park.title')}
         </h2>
         {parkRows.rows === null && !parkRows.failed && <Loading />}
@@ -163,6 +177,7 @@ export function CityScreen() {
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={title} tabIndex={-1} className="text-xl">
+          <Users aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
           {t('city.population')}
         </h2>
         {rows.rows === null && !rows.failed && <Loading />}
@@ -179,7 +194,7 @@ export function CityScreen() {
               {city.classes.map((row) => {
                 const share = coverageShare(row);
                 return (
-                  <li key={row.class_id} className="flex flex-col border-t border-border pt-2">
+                  <li key={row.class_id} className="flex flex-col rounded-lg bg-muted/50 p-3">
                     <h3 className="font-semibold">{className(row.class_id)}</h3>
                     <p>
                       {t('city.inhabitants', {

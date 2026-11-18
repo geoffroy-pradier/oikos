@@ -5,6 +5,7 @@ import { cityCommand, type CityCommandInputs } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { parseVoted, type Candidate, type Election, type ElectionPhase } from '../politics';
+import { noticeClass } from './CommandNotice';
 import { LoadProblem } from './LoadProblem';
 
 type Command = 'city.standForElection' | 'city.withdrawCandidacy' | 'city.castVote';
@@ -112,7 +113,7 @@ export function ElectionActions(props: {
         ref={noticeElement}
         tabIndex={-1}
         role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
+        className={noticeClass(notice?.kind)}
       >
         {notice?.text ?? ''}
       </p>

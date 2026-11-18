@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Bird, Button } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invokeGrace } from '../api';
@@ -52,7 +52,7 @@ export function TempleGraces(props: {
     keys.settleWhere((intent) => shown.has(intent));
   }, [keys, invoked]);
   const [busy, setBusy] = useState(false);
-  const { setNotice, region } = useCommandNotice();
+  const { setNotice, region } = useCommandNotice({ styled: true });
   const number = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
@@ -102,6 +102,7 @@ export function TempleGraces(props: {
   return (
     <>
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <Bird aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('temple.graces.title')}
       </h2>
       {read.rows === null && !read.failed && <Loading />}
@@ -114,7 +115,7 @@ export function TempleGraces(props: {
           {items.map(({ grace, state }) => (
             <li
               key={grace.id}
-              className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0"
+              className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3 break-words"
             >
               <h3 className="font-semibold">{name(grace)}</h3>
               <p>
@@ -136,7 +137,7 @@ export function TempleGraces(props: {
               )}
               {state.kind === 'ready' ? (
                 <Button
-                  className="self-start"
+                  className="max-w-full self-start text-wrap wrap-anywhere"
                   disabled={busy}
                   onClick={() => void invoke(grace, grace.charisSpent ?? 0)}
                 >

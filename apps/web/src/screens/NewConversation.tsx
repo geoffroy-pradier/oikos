@@ -3,6 +3,7 @@ import { Button } from '@oikos/ui';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { openDirect } from '../api';
+import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { supabase } from '../supabase';
 
@@ -80,7 +81,7 @@ export function NewConversation({
 
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-2 border-t border-border-subtle pt-3"
       onSubmit={(event) => {
         event.preventDefault();
         void open();
@@ -93,7 +94,7 @@ export function NewConversation({
         id={id}
         value={name}
         autoComplete="off"
-        className="min-h-11 w-full rounded-md border border-border bg-surface px-2"
+        className="min-h-11 w-full rounded-lg border border-border bg-surface px-2"
         onChange={(event) => setName(event.target.value)}
       />
       <Button
@@ -103,8 +104,12 @@ export function NewConversation({
       >
         {t('messages.open')}
       </Button>
-      <p role="status">{notice?.kind === 'status' ? notice.text : ''}</p>
-      <p role="alert">{notice?.kind === 'alert' ? notice.text : ''}</p>
+      <p role="status" className={STATUS_BOX}>
+        {notice?.kind === 'status' ? notice.text : ''}
+      </p>
+      <p role="alert" className={ALERT_BOX}>
+        {notice?.kind === 'alert' ? notice.text : ''}
+      </p>
     </form>
   );
 }

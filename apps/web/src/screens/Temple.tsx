@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Amphora, Card, Frieze, Landmark, Sparkles } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows, useTempleRules } from '../data';
@@ -48,12 +48,23 @@ export function TempleScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-2xl">{t('temple.title', { city: house.cityName })}</h1>
-        <p className="text-muted-foreground">{t('temple.intro')}</p>
+      <Card elevation="raised" className="overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-col gap-1 p-4">
+          {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
+          <h1 className="text-2xl">
+            <Landmark
+              aria-hidden="true"
+              className="mr-2 inline size-6 align-[-0.15em] text-accent"
+            />
+            {t('temple.title', { city: house.cityName })}
+          </h1>
+          <p className="text-muted-foreground">{t('temple.intro')}</p>
+        </div>
       </Card>
       <Card className="flex flex-col gap-3">
         <h2 ref={title} tabIndex={-1} className="text-xl">
+          <Sparkles aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
           {t('temple.charis.title')}
         </h2>
         {loading && <Loading />}
@@ -62,10 +73,7 @@ export function TempleScreen() {
         {gods && gods.length > 0 && (
           <ul className="flex flex-col gap-2">
             {gods.map(({ god, charis, decay }) => (
-              <li
-                key={god.id}
-                className="flex flex-col border-t border-border pt-2 first:border-t-0"
-              >
+              <li key={god.id} className="flex flex-col rounded-lg bg-muted/50 p-3">
                 <h3 className="font-semibold">
                   {t('temple.charis.god', { god: godName(god.id), charis: number.format(charis) })}
                 </h3>
@@ -83,7 +91,7 @@ export function TempleScreen() {
         )}
         {city !== null && cityRows.rows !== null && (
           <>
-            <h3 className="font-semibold">{t('temple.city.title')}</h3>
+            <h3 className="eyebrow mt-2">{t('temple.city.title')}</h3>
             <p>
               {city
                 ? t('temple.city.charis', {
@@ -98,7 +106,10 @@ export function TempleScreen() {
         )}
       </Card>
       <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('temple.offering.title')}</h2>
+        <h2 className="text-xl">
+          <Amphora aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+          {t('temple.offering.title')}
+        </h2>
         {rules.rules && <TempleOffering rules={rules.rules} favor={favor} onDone={reload} />}
       </Card>
       <Card className="flex flex-col gap-3">

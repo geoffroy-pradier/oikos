@@ -3,6 +3,7 @@ import { Button } from '@oikos/ui';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postMessage } from '../api';
+import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { fingerprint, pendingKeys, sendUnderKey } from '../pending-keys';
 
@@ -112,7 +113,7 @@ export function MessageComposer({
         value={text}
         rows={3}
         aria-describedby={`${id}-hint`}
-        className="w-full rounded-md border border-border bg-surface p-2"
+        className="w-full rounded-lg border border-border bg-surface p-3"
         onChange={(event) => change(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -133,8 +134,12 @@ export function MessageComposer({
           {t('messages.send')}
         </Button>
         {/* Régions présentes avant leur texte : le résultat est annoncé là où l'action a été faite. */}
-        <p role="status">{notice?.kind === 'status' ? notice.text : ''}</p>
-        <p role="alert">{notice?.kind === 'alert' ? notice.text : ''}</p>
+        <p role="status" className={STATUS_BOX}>
+          {notice?.kind === 'status' ? notice.text : ''}
+        </p>
+        <p role="alert" className={ALERT_BOX}>
+          {notice?.kind === 'alert' ? notice.text : ''}
+        </p>
       </div>
     </form>
   );

@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, Sparkles } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
@@ -20,6 +20,7 @@ export function CityEvents() {
   return (
     <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <Sparkles aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('worldEvents.title')}
       </h2>
       <p className="text-muted-foreground">{t('worldEvents.intro')}</p>
@@ -29,7 +30,9 @@ export function CityEvents() {
       {events && events.length > 0 && (
         <ul className="flex flex-col gap-1">
           {events.map((event) => (
-            <li key={event.id}>{describeWorldEvent(event, t, i18n.language, house.cityNames)}</li>
+            <li key={event.id} className="rounded-lg bg-accent-subtle/60 px-3 py-2 break-words">
+              {describeWorldEvent(event, t, i18n.language, house.cityNames)}
+            </li>
           ))}
         </ul>
       )}

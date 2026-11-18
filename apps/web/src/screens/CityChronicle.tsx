@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card } from '@oikos/ui';
+import { Card, ScrollText } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { chronicleParagraphs, parseChronicle, type ChronicleArticle } from '../chronicle';
@@ -44,6 +44,7 @@ export function CityChronicle() {
   return (
     <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
+        <ScrollText aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
         {t('chronicle.title')}
       </h2>
       {read.rows === null && !read.failed && <Loading />}
@@ -52,17 +53,22 @@ export function CityChronicle() {
       )}
       {articles?.length === 0 && <p className="text-muted-foreground">{t('chronicle.none')}</p>}
       {latest && (
-        <article className="flex flex-col gap-2 break-words">
+        <article className="flex flex-col gap-2 rounded-lg bg-muted/50 p-3 break-words">
           <h3 className="font-semibold">{heading(latest)}</h3>
           {body(latest)}
         </article>
       )}
       {earlier.length > 0 && (
-        <section className="flex flex-col gap-2 border-t border-border pt-2">
+        <section className="flex flex-col gap-2 border-t border-border-subtle pt-3">
           <h3 className="font-semibold">{t('chronicle.earlier')}</h3>
           {earlier.map((article) => (
-            <details key={article.id} className="break-words">
-              <summary className="cursor-pointer">{heading(article)}</summary>
+            <details
+              key={article.id}
+              className="rounded-lg border border-border-subtle px-3 py-1 break-words"
+            >
+              <summary className="min-h-11 cursor-pointer py-2.5 font-medium">
+                {heading(article)}
+              </summary>
               <div className="flex flex-col gap-2 pt-2">{body(article)}</div>
             </details>
           ))}

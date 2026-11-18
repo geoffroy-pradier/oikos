@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, TriangleAlert } from '@oikos/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -45,8 +45,14 @@ export function SanctionNotice() {
 
   if (!sanctions || sanctions.length === 0) return null;
   return (
-    <Card className="mb-4 flex flex-col gap-3 border-2 border-primary">
-      <h2 className="text-xl">{t('sanctions.title')}</h2>
+    <Card elevation="raised" className="mb-4 flex flex-col gap-3 border-2 border-primary">
+      <h2 className="text-xl">
+        <TriangleAlert
+          aria-hidden="true"
+          className="mr-2 inline size-5 align-[-0.15em] text-primary"
+        />
+        {t('sanctions.title')}
+      </h2>
       <ul className="flex flex-col gap-3">
         {sanctions.map((sanction) => (
           <SanctionItem key={sanction.id} sanction={sanction} onAppealed={reload} />
@@ -67,7 +73,7 @@ function SanctionItem({
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
   const future = sanction.startsAt > serverClock.now().getTime();
   return (
-    <li className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0 first:pt-0">
+    <li className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3">
       <h3 className="font-semibold">{t(`sanctions.kind.${sanction.kind}`)}</h3>
       <p>{t(`sanctions.effect.${sanction.kind}`)}</p>
       <p className="break-words">{t('sanctions.reason', { reason: sanction.reason })}</p>
@@ -80,7 +86,7 @@ function SanctionItem({
       {sanction.appealedAt !== null && (
         <>
           <p>{t('sanctions.appealed', { date: date.format(sanction.appealedAt) })}</p>
-          <blockquote className="border-l-2 border-border pl-3 break-words whitespace-pre-wrap">
+          <blockquote className="border-l-4 border-accent pl-3 break-words whitespace-pre-wrap">
             {sanction.appealBody}
           </blockquote>
         </>
