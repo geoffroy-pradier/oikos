@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { adminSanctionInputSchema, MODERATION_ROLES } from './moderation-admin';
+import { adminReportsSchema, adminSanctionInputSchema, MODERATION_ROLES } from './moderation-admin';
 
 const ID = '01900000-0000-7000-8000-000000000e76';
 
@@ -50,5 +50,37 @@ describe('événements de la modération', () => {
         payload: { sanctionId: ID, userId: ID, kind: 'ban', pending: true, reason: 'x' },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('GET /api/admin/reports', () => {
+  const at = '2026-11-18T10:00:00.000Z';
+  const message = {
+    id: ID,
+    houseId: ID,
+    houseName: 'Philaïdes',
+    body: 'x',
+    createdAt: at,
+    hiddenAt: null,
+  };
+  const entry = {
+    world: 'archipel',
+    reportedHouse: { id: ID, name: 'Philaïdes', userId: ID },
+    channel: { id: ID, kind: 'city', city: 'kalliste' },
+    message,
+    reports: [{ id: ID, reason: 'spam', createdAt: at }],
+    context: [message],
+  };
+  const reports = { now: at, contextSize: 5, queue: [entry], appeals: [], pendingExclusions: [] };
+
+  it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
+    expect(adminReportsSchema.parse(reports)).toEqual(reports);
+    for (const wrong of [
+      { ...reports, queue: [{ ...entry, reportedHouse: { ...entry.reportedHouse, balance: 10 } }] },
+      { ...reports, queue: [{ ...entry, reports: [{ ...entry.reports[0], houseId: ID }] }] },
+      { ...reports, queue: [{ ...entry, reports: [] }] },
+      { ...reports, economy: {} },
+    ])
+      expect(adminReportsSchema.safeParse(wrong).success).toBe(false);
   });
 });
