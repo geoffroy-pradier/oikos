@@ -67,7 +67,7 @@ ajoute le label `sensible` et un paragraphe « Risques » dans la description, a
 
 ## Répartition entre modèles
 
-La session principale écrit elle-même le code des tickets ordinaires. Deux sous-agents, définis dans
+La session principale écrit le code des tickets ordinaires, ou le délègue (voir « Économie du quota »). Deux sous-agents, définis dans
 `.claude/agents/` et réglés sur le modèle le plus fort, sont réservés au travail sensible :
 
 - `dev-sensible` écrit le code et les tests de tout ticket (ou partie de ticket) portant le label `sensible` ;
