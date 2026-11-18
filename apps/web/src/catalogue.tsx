@@ -4,12 +4,31 @@
  * ses libellés d'exemple ne sont pas des textes d'interface du jeu.
  */
 import * as ui from '@oikos/ui';
-import { Button, Card, CONTRAST_PAIRS, Field, Frieze } from '@oikos/ui';
+import {
+  Amphora,
+  Badge,
+  Button,
+  Card,
+  Coins,
+  CONTRAST_PAIRS,
+  Field,
+  Frieze,
+  Moon,
+  Plus,
+  Ship,
+  Stat,
+  Sun,
+  Wheat,
+} from '@oikos/ui';
 import { StrictMode, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const TOKENS = [...new Set(CONTRAST_PAIRS.flatMap(([fg, bg]) => [fg, bg]))];
+const ICONS = Object.entries(ui).filter(
+  (entry): entry is [string, ui.Icon] => typeof entry[1] === 'object' && 'render' in entry[1],
+);
+const TONES = ['neutral', 'primary', 'accent', 'aegean', 'success', 'danger'] as const;
 
 function Section({
   title,
@@ -45,29 +64,77 @@ function Catalogue() {
             Fraunces pour les titres, Inter pour le reste.
           </p>
         </div>
-        <Button variant="secondary" onClick={toggle}>
+        <Button variant="secondary" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggle}>
           {theme === 'dark' ? 'light' : 'dark'}
         </Button>
       </header>
       <Frieze />
 
+      <Card elevation="raised" className="grid grid-cols-2 gap-6 p-6 md:grid-cols-4">
+        <Stat
+          label="Trésorerie"
+          icon={<Coins />}
+          value="1 248 dr."
+          delta={{ value: '+4,2 %', trend: 'up' }}
+          hint="depuis hier"
+        />
+        <Stat
+          label="Production"
+          icon={<Wheat />}
+          value="312"
+          delta={{ value: '−8 %', trend: 'down' }}
+        />
+        <Stat
+          label="Navires en mer"
+          icon={<Ship />}
+          value="4"
+          delta={{ value: '0', trend: 'flat' }}
+        />
+        <Stat
+          label="Charges"
+          icon={<Amphora />}
+          value="96 dr."
+          delta={{ value: '+3 %', trend: 'up', tone: 'negative' }}
+        />
+      </Card>
+
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Section title="Button">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button>primary</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button icon={<Plus />}>primary</Button>
             <Button variant="secondary">secondary</Button>
             <Button variant="ghost">ghost</Button>
+            <Button variant="danger">danger</Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm">sm</Button>
             <Button size="lg">lg</Button>
+            <Button size="icon" variant="secondary" icon={<Ship />} aria-label="icon" />
+            <Button loading>loading</Button>
             <Button disabled>disabled</Button>
           </div>
         </Section>
 
-        <Section title="Field">
+        <Section title="Badge · Field">
+          <div className="flex flex-wrap gap-2">
+            {TONES.map((tone) => (
+              <Badge key={tone} tone={tone}>
+                {tone}
+              </Badge>
+            ))}
+          </div>
           <Field label="Field" hint="hint" defaultValue="value" />
           <Field label="Field · error" error="error" defaultValue="value" />
         </Section>
 
-        <Section title="Frieze">
+        <Section title="Icons · Frieze">
+          <ul className="grid grid-cols-8 gap-3 text-muted-foreground">
+            {ICONS.map(([name, Icon]) => (
+              <li key={name} title={name}>
+                <Icon aria-hidden="true" className="size-5" />
+              </li>
+            ))}
+          </ul>
           <Frieze tone="foreground" />
           <Frieze pattern="wave" tone="aegean" />
           <Frieze tone="accent" />

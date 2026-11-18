@@ -1,7 +1,10 @@
 /** Système de design OIKOS (ADR 0010). La feuille de thème s'importe par `@oikos/ui/theme.css`. */
 export { cn } from './cn';
+export { Badge, type BadgeProps } from './components/Badge';
 export { Button, type ButtonProps } from './components/Button';
-export { Card } from './components/Card';
+export { Card, type CardProps } from './components/Card';
 export { Field, type FieldProps } from './components/Field';
 export { Frieze, type FriezeProps } from './components/Frieze';
+export { Stat, type StatProps } from './components/Stat';
 export { AA_TEXT, AA_UI, CONTRAST_PAIRS, contrastRatio } from './contrast';
+export * from './icons';
