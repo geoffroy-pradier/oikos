@@ -163,6 +163,9 @@ importers:
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@oikos/operations':
+        specifier: workspace:*
+        version: link:../../packages/operations
       '@oikos/sim':
         specifier: workspace:*
         version: link:../../packages/sim
