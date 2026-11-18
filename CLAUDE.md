@@ -47,7 +47,7 @@ Tu travailles sans attendre de validation humaine, dans cet ordre :
 4. Écris les tests en même temps que le code. Les critères d'acceptation du ticket doivent être couverts.
 5. Lance en local `pnpm lint`, `pnpm typecheck`, `pnpm test` jusqu'au vert.
 6. Ouvre une demande de fusion de moins de 400 lignes modifiées (hors fichiers générés), qui référence le ticket (`Closes #N`). Découpe si c'est plus gros.
-7. Attends la fin du contrôle `ci` sur la demande de fusion. Le dépôt n'a pas de protection de branche : c'est toi qui garantis qu'aucune fusion ne part avec un contrôle rouge, en cours ou absent.
+7. Attends la fin du contrôle `ci` sur la demande de fusion. Le ruleset de `main` exige `ci` vert et la fusion en squash ; vérifie-le quand même toi-même : aucune fusion ne part avec un contrôle rouge, en cours ou absent.
 8. Si `ci` est vert et que la relecture (section Revue) n'a laissé aucun point ouvert, fusionne toi-même en squash (outil de fusion de la session, ou `gh api -X PUT repos/{owner}/{repo}/pulls/{n}/merge -f merge_method=squash`), puis supprime la branche. Ne pousse jamais directement sur `main`.
    Si `ci` échoue, corrige sur la même branche. Trois échecs de suite sur la même cause : pose le label `blocked`, explique dans le ticket, passe au suivant.
 9. Une fois fusionné, passe au ticket suivant.
@@ -82,6 +82,15 @@ fort ; ne retire jamais ce label toi-même.
 Ne délègue jamais à ces deux agents un ticket qui n'est pas `sensible`. Si l'un d'eux n'est pas
 disponible dans la session, écris-le dans la demande de fusion et pose le label `needs-human` au lieu de
 fusionner une fusion `sensible` sans cette relecture.
+
+**Économie du quota.** Le quota d'usage des agents est limité : cherche l'équilibre entre rapidité et économie.
+
+- Les tickets ordinaires et leurs relectures vont à un agent sur un modèle plus léger (`model: sonnet`) ; les petits correctifs, fais-les toi-même.
+- Au plus deux ou trois chantiers en parallèle (un ou deux `sensible`, un ordinaire), chacun dans son répertoire de travail, avec ses bases privées et sa plage de numéros de migration. Lance un agent seulement quand un autre a fini.
+- Une seule relecture par partie, et une nouvelle seulement après une correction bloquante. Pas de demande de fusion « pile complète » en brouillon sans besoin précis.
+- Au plus une relance par job de `ci`, après lecture du journal.
+- Des consignes d'agent courtes, qui pointent les fichiers à lire.
+- Si le quota approche de sa limite, un seul chantier à la fois, les tickets `sensible` d'abord.
 
 ## Ce que tu ne fais jamais sans un humain
 
