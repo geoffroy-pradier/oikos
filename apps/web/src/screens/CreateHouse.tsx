@@ -6,10 +6,11 @@ import {
   normalizeHouseName,
   type Blazon,
 } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
+import { Badge, Button } from '@oikos/ui';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createHouse } from '../api';
+import { Blazon as BlazonPreview } from '../Blazon';
 import { describeCity, parseCityIdentities } from '../city-identity';
 import { useRows } from '../data';
 import { LoadProblem } from './LoadProblem';
@@ -107,7 +108,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-2">
       <h1 className="text-2xl">{t('createHouse.title')}</h1>
-      <p>{t('createHouse.intro')}</p>
+      <p className="text-muted-foreground">{t('createHouse.intro')}</p>
       <label htmlFor="name">{t('createHouse.name')}</label>
       <input
         className={CONTROL}
@@ -142,7 +143,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
             // qu'une fois, par `aria-describedby`.
             <label
               key={city.id}
-              className="flex gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+              className="flex cursor-pointer gap-3 rounded-lg border border-border bg-surface-raised p-3 shadow-sm transition-colors duration-(--motion-fast) hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary-subtle has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
             >
               <input
                 type="radio"
@@ -163,15 +164,20 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
                 <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
                   {lines && [lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
                   {identities && !identity && t('cityIdentity.missing')}
-                  {fullCityIds.includes(city.id) && ` · ${t('createHouse.cityFull')}`}
+                  {fullCityIds.includes(city.id) && (
+                    <Badge tone="danger" className="ml-2">
+                      {t('createHouse.cityFull')}
+                    </Badge>
+                  )}
                 </span>
               </span>
             </label>
           );
         })}
       </fieldset>
-      <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
+      <fieldset className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-muted/60 p-3">
         <legend>{t('createHouse.blazon')}</legend>
+        <BlazonPreview blazon={blazon} className="size-16 self-center" />
         {select('shape', BLAZON_SHAPES)}
         {select('tincture', BLAZON_TINCTURES)}
         {select('emblem', BLAZON_EMBLEMS)}

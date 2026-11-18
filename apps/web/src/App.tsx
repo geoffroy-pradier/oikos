@@ -1,7 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card } from '@oikos/ui';
+import { blazonSchema } from '@oikos/contracts';
+import { Button, Card, EmptyState, Frieze, Landmark, Skeleton, TriangleAlert } from '@oikos/ui';
 import { RouterProvider } from '@tanstack/react-router';
 import { HouseProvider } from './house';
 import { LanguageSelect } from './LanguageSelect';
@@ -15,6 +16,7 @@ interface House {
   name: string;
   city_id: string;
   citizenship_status: 'metic' | 'citizen';
+  blazon: unknown;
 }
 
 /** Âge (monde de jeu) servi par ce client : identifiant court, fixé à la construction (`.env.example`). */
@@ -43,7 +45,7 @@ export function App() {
     const [mine, world] = await Promise.all([
       supabase
         .from('houses')
-        .select('id, name, city_id, citizenship_status')
+        .select('id, name, city_id, citizenship_status, blazon')
         .eq('is_mine', true)
         .maybeSingle(),
       supabase.from('worlds').select('id').eq('slug', WORLD_SLUG).maybeSingle(),
@@ -90,6 +92,7 @@ export function App() {
           citySlugs: Object.fromEntries(cities.map((city) => [city.id, city.slug])),
           citizenshipStatus: house.citizenship_status,
           accessToken: session.access_token,
+          blazon: blazonSchema.safeParse(house.blazon).data ?? null,
         }}
       >
         <RouterProvider router={router} />
@@ -97,14 +100,20 @@ export function App() {
     );
   }
 
-  let screen = <p>{t('app.loading')}</p>;
+  let screen = (
+    <div role="status" aria-label={t('app.loading')} className="flex flex-col gap-3">
+      <Skeleton className="h-7 w-2/3" />
+      <Skeleton className="h-11 w-full" />
+    </div>
+  );
   if (session === null) screen = <SignIn />;
   else if (session && loadFailed) {
     screen = (
-      <>
-        <p role="alert">{t('app.loadFailed')}</p>
-        <Button onClick={() => void load()}>{t('app.retry')}</Button>
-      </>
+      <EmptyState
+        icon={<TriangleAlert />}
+        title={<span role="alert">{t('app.loadFailed')}</span>}
+        action={<Button onClick={() => void load()}>{t('app.retry')}</Button>}
+      />
     );
   } else if (session && house === null) {
     screen = <CreateHouse cities={cities} accessToken={session.access_token} onCreated={load} />;
@@ -114,7 +123,10 @@ export function App() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="flex flex-wrap items-center justify-between gap-2 p-4">
-        <p className="font-display text-3xl font-semibold text-primary">{t('app.title')}</p>
+        <p className="flex items-center gap-2 font-display text-3xl font-semibold text-primary">
+          <Landmark aria-hidden="true" className="size-7" />
+          {t('app.title')}
+        </p>
         <div className="flex items-center gap-2">
           <LanguageSelect />
           {session && (
@@ -124,9 +136,11 @@ export function App() {
           )}
         </div>
       </header>
-      <div className="meander" aria-hidden="true" />
-      <main className="mx-auto max-w-md p-4">
-        <Card className="flex flex-col gap-3">{screen}</Card>
+      <Frieze />
+      <main className="mx-auto max-w-md animate-rise p-4">
+        <Card elevation="raised" className="flex flex-col gap-3">
+          {screen}
+        </Card>
       </main>
     </div>
   );

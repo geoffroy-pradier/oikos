@@ -380,7 +380,11 @@
     "navigation": "Navigation principale",
     "darkTheme": "Thème sombre",
     "notFound": "Cette page n'existe pas.",
-    "backHome": "Revenir à la maison"
+    "backHome": "Revenir à la maison",
+    "settings": "Réglages",
+    "settingsPanel": "Réglages du compte",
+    "balance": "Trésorerie",
+    "house": "Maison {{name}}"
   },
   "languages": {
     "fr": "Français",

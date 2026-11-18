@@ -123,6 +123,7 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await nav.getByRole('link', { name: 'Agora' }).click();
 
   // Thème sombre : appliqué et mémorisé.
+  await page.getByRole('button', { name: 'Réglages' }).click();
   await page.getByRole('button', { name: 'Thème sombre' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await nav.getByRole('link', { name: 'Maison' }).click();
