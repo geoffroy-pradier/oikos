@@ -79,9 +79,37 @@ async function newUser(role?: AdminRole, grantedBy: string | null = null): Promi
   }
   return id;
 }
+/**
+ * Rend à un puits les stocks de biens que la configuration de test ne connaît pas, laissés par une autre
+ * suite de la même base (le moteur y garde du murex après `voyage-arrivals`, #484). Toute version
+ * programmée ici retirerait ces biens et serait refusée (`CONFIG_GOOD_IN_USE`) : ces tests ne doivent pas
+ * dépendre de l'ordre des paquets. Par le journal des stocks, comme `clearRelic`, jamais en effaçant.
+ */
+async function drainForeignStock(): Promise<void> {
+  const kept = TEST_CONFIG.config.goods.map((good) => good.id);
+  const foreign = await db
+    .selectFrom('game.inventories')
+    .select(['id', 'world_id', 'good_id', 'quantity'])
+    .where('quantity', '>', '0')
+    .where('good_id', '<>', sql<string>`all(${kept}::text[])`)
+    .execute();
+  for (const stock of foreign)
+    await db
+      .insertInto('game.stock_ledger')
+      .values({
+        world_id: stock.world_id,
+        good_id: stock.good_id,
+        quantity: Number(stock.quantity),
+        kind: 'test.foreign_stock',
+        from_inventory_id: stock.id,
+        to_system: 'consumption',
+      })
+      .execute();
+}
 let root: string;
 let designer: string;
 beforeAll(async () => {
+  await drainForeignStock();
   // Comme au démarrage de l'API : la configuration initiale existe et est active avant toute publication.
   // Sans cela, sur une base neuve, une version publiée ici ferait croire aux autres suites qu'elle l'est déjà.
   await ensureInitialConfig(db, INITIAL_CONFIG);
