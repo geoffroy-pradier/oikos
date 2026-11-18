@@ -106,6 +106,12 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Une grâce à invoquer s'invoque en deux touches au plus, Tab jusqu'à son bouton puis Entrée ; le bouton nomme la Charis dépensée, envoyée telle quelle.
    Restée sans réponse, l'invocation repart sous la même clé et la même Charis dépensée ; une autre Charis dépensée en vigueur est une demande neuve, sous une clé neuve ; la clé est rendue dès que la grâce se lit en attente ou en recharge.
    Décision (le ticket ne dit rien d'une grâce retirée) : une grâce que la configuration ne porte plus reste affichée, sans bouton, tant qu'une invocation de la maison l'attend ou la recharge (ce qui est payé est servi, 7.1).
+   La Pythie dit le prix d'une consultation (`temple_rules`, colonne `oracle`) et la Charis qu'elle rapporte à son dieu ; la consultation part au prix vu, et un autre prix en vigueur est refusé, rien n'est payé.
+   Une consultation sans oracle est dite payée : la Pythie se tait, aucun événement ne s'annonce.
+   Restée sans réponse, la consultation repart sous la même clé et au même prix ; un autre prix en vigueur est une demande neuve, sous une clé neuve.
+   La clé est rendue, comme celle d'une offrande, dès qu'une relecture montre une autre Charis de la maison envers le dieu de la Pythie que celle lue à la demande : une consultation suivante n'est jamais le rejeu d'une consultation déjà faite.
+   Les oracles consultés (`my_oracles`, les 20 plus récemment consultés) s'affichent dans la langue de l'interface, chacun avec sa date de consultation ; la date de leur événement est dite imprécise, à venir après la consultation.
+   Le texte d'un oracle, peut-être réécrit par l'IA (et alors dit tel), s'affiche en texte brut : aucun balisage n'y est interprété (#270).
 8. Messages (#274) : le canal de la cité et les conversations privées de la maison, chacun avec ses messages non lus, puis les derniers messages du canal ouvert, nommés et datés ; un message masqué est dit tel.
    Décision (le ticket ne dit pas où se tient la lecture) : les non lus se comptent sur l'appareil, par une marque de lecture de chaque canal en stockage local, l'instant du dernier message lu.
    Un autre appareil, ou un stockage effacé, compte de nouveau comme non lus tous les messages encore conservés ; au-delà des 100 messages les plus récents des autres maisons, un compte est dit « 100 messages non lus ou plus ».

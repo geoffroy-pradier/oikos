@@ -866,6 +866,20 @@
       "pendingRecharging": "Waiting: it will apply to your next action of this effect, and recharges until {{date}}.",
       "recharging": "Recharging until {{date}}.",
       "done": "Grace invoked: {{grace}}. It will apply to your next action of this effect and recharges until {{date}}. Your Charis toward this god: {{charis}}."
+    },
+    "pythia": {
+      "title": "The Pythia",
+      "intro": "Consulting the Pythia is an offering of money to her god: she gives the oracles of the events to come in your city. An oracle tells neither the day nor the scale of its event.",
+      "unavailable": "The Pythia cannot be consulted in the configuration in force.",
+      "price": "A consultation costs {{price}} and earns you {{charis}} Charis toward {{god}}.",
+      "consult": "Consult the Pythia for {{price}}",
+      "done_one": "Consultation made for {{price}}: +{{gained}} Charis. The Pythia gave {{count}} oracle.",
+      "done_other": "Consultation made for {{price}}: +{{gained}} Charis. The Pythia gave {{count}} oracles.",
+      "done_zero": "Consultation made for {{price}}: +{{gained}} Charis. The Pythia is silent: no event is foretold for now.",
+      "consulted": "Oracles consulted",
+      "none": "You have not consulted any oracle yet.",
+      "when": "Consulted on {{date}}. Date of the event: uncertain, to come after this consultation.",
+      "aiNote": "Text rewritten by AI from the Pythia's oracle."
     }
   }
 }

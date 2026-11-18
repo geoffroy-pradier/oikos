@@ -866,6 +866,20 @@
       "pendingRecharging": "En attente : elle s'appliquera à votre prochaine action de cet effet, et se recharge jusqu'au {{date}}.",
       "recharging": "En recharge jusqu'au {{date}}.",
       "done": "Grâce invoquée : {{grace}}. Elle s'appliquera à votre prochaine action de cet effet et se recharge jusqu'au {{date}}. Votre Charis envers ce dieu : {{charis}}."
+    },
+    "pythia": {
+      "title": "La Pythie",
+      "intro": "Consulter la Pythie est une offrande de monnaie à son dieu : elle rend les oracles des événements à venir dans votre cité. Un oracle ne dit ni le jour ni l'ampleur de son événement.",
+      "unavailable": "La Pythie ne se consulte pas dans la configuration en vigueur.",
+      "price": "Une consultation coûte {{price}} et vous rapporte {{charis}} Charis envers {{god}}.",
+      "consult": "Consulter la Pythie pour {{price}}",
+      "done_one": "Consultation faite pour {{price}} : +{{gained}} Charis. La Pythie a rendu {{count}} oracle.",
+      "done_other": "Consultation faite pour {{price}} : +{{gained}} Charis. La Pythie a rendu {{count}} oracles.",
+      "done_zero": "Consultation faite pour {{price}} : +{{gained}} Charis. La Pythie se tait : aucun événement ne s'annonce pour l'instant.",
+      "consulted": "Oracles consultés",
+      "none": "Vous n'avez encore consulté aucun oracle.",
+      "when": "Consulté le {{date}}. Date de l'événement : imprécise, à venir après cette consultation.",
+      "aiNote": "Texte réécrit par l'IA à partir de l'oracle de la Pythie."
     }
   }
 }
