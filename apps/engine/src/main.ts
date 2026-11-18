@@ -8,6 +8,7 @@ import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
 import { rewriteAllOracles } from './oracle/task';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
+import { runAllStewards } from './stewards';
 import { TICK_STEPS } from './tick-steps';
 
 const QUEUE = 'world-clock';
@@ -47,6 +48,20 @@ await boss.work(QUEUE, async () => {
     if (played.length > 0) console.log(`World ${worldId}: played ticks ${played.join(', ')}`);
   for (const { worldId, played } of closes)
     if (played.length > 0) console.log(`World ${worldId}: closed game days ${played.join(', ')}`);
+  // Opérations des intendants (#279) pour le dernier tick de chaque monde, après la clôture qui paie leur salaire :
+  // chacune dans sa transaction, hors de celle du tick. Un monde en échec est signalé, il ne retient pas les autres.
+  // Comme les purges : un échec est signalé, il n'arrête pas le passage.
+  const stewards = await runAllStewards(db, { config: loader }).catch((error: unknown) => {
+    console.error('Stewards failed', error);
+    return [];
+  });
+  for (const { worldId, run, error } of stewards) {
+    if (error) console.error(`World ${worldId}: stewards failed: ${error}`);
+    else if (run && run.acted + run.refused + run.failed > 0)
+      console.log(
+        `World ${worldId}: stewards acted ${run.acted}, refused ${run.refused}, failed ${run.failed}`,
+      );
+  }
   // Rétention de la télémétrie (#213) : un échec est signalé, il n'arrête ni ticks ni clôtures.
   await purgeTelemetry(db, { now, config: loader }).catch((error: unknown) =>
     console.error('Telemetry purge failed', error),

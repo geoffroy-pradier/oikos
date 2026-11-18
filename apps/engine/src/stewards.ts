@@ -1,4 +1,4 @@
-import { stewardOperationsPerTick } from '@oikos/config';
+import { stewardOperationsPerTick, type ConfigLoader } from '@oikos/config';
 import {
   domainEventSchema,
   marketPlaceOrderInputSchema,
@@ -280,4 +280,51 @@ export async function runStewards(db: Db, tick: StewardTick): Promise<StewardRun
     }
   }
   return run;
+}
+
+/**
+ * Mène les opérations des intendants de chaque monde pour son dernier tick joué, sous la version de configuration
+ * de ce tick. Appelé à chaque passage du moteur, après les ticks et les clôtures : une opération manquée (moteur
+ * arrêté, panne) est menée au passage suivant tant que le tick est le dernier, puis ne l'est plus. L'échec d'un
+ * monde n'arrête pas les autres.
+ */
+export async function runAllStewards(
+  db: Db,
+  { config }: { config: Pick<ConfigLoader, 'byId'> },
+): Promise<{ worldId: string; run?: StewardRun; error?: string }[]> {
+  // Mondes illisibles (base indisponible) : signalé et rien à faire, sans faire échouer le passage du moteur.
+  const worlds = await db
+    .selectFrom('game.worlds')
+    .select('id')
+    .orderBy('id')
+    .execute()
+    .catch((error: unknown) => {
+      console.error('Stewards: worlds could not be read', error);
+      return [];
+    });
+  const results: { worldId: string; run?: StewardRun; error?: string }[] = [];
+  for (const { id: worldId } of worlds) {
+    try {
+      const last = await db
+        .selectFrom('game.ticks')
+        .select(['index', 'config_version_id'])
+        .where('world_id', '=', worldId)
+        .orderBy('index', 'desc')
+        .limit(1)
+        .executeTakeFirst();
+      if (!last) continue;
+      const loaded = await config.byId(last.config_version_id);
+      const tick = {
+        worldId,
+        index: Number(last.index),
+        configVersionId: loaded.id,
+        config: loaded.config,
+      };
+      results.push({ worldId, run: await runStewards(db, tick) });
+    } catch (error) {
+      console.error(`World ${worldId}: stewards could not act`, error);
+      results.push({ worldId, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return results;
 }
