@@ -29,17 +29,22 @@ fingerprint() {
 # des migrations : seul ce cas déclenche un nouvel essai du rejeu entier, borné (REPLAY_MAX_ATTEMPTS, 3 par
 # défaut). Toute autre erreur échoue tout de suite, et chaque essai rejoue toutes les migrations.
 max_attempts="${REPLAY_MAX_ATTEMPTS:-3}"
+case "$max_attempts" in
+  "" | *[!0-9]*) echo "REPLAY_MAX_ATTEMPTS doit être un entier positif : $max_attempts" >&2; exit 2 ;;
+esac
 export PGOPTIONS="$PGOPTIONS -c lock_timeout=${REPLAY_LOCK_TIMEOUT:-10s}"
 
-# Code SQL 55P03 (lock_not_available) ou 40P01 (deadlock_detected), lu dans le message verbeux.
+# Code SQL 55P03 (lock_not_available) ou 40P01 (deadlock_detected), lu dans le message verbeux, quelle que
+# soit la langue des messages.
 lock_failure() {
-  grep -Eq '(ERROR|FATAL):  (55P03|40P01):' "$1"
+  grep -Eq ':  (55P03|40P01): ' "$1"
 }
 
 # Sessions des autres clients au moment de l'échec, pour identifier la concurrente.
 show_sessions() {
   psql "$url" -X -q -At -F ' | ' -c "
     select pid, coalesce(application_name, ''), coalesce(usename, ''), state, coalesce(wait_event, ''),
+           'bloquée par ' || coalesce(nullif(array_to_string(pg_blocking_pids(pid), ','), ''), '-'),
            left(regexp_replace(query, '\\s+', ' ', 'g'), 100)
     from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid()
     order by pid" >&2 || true
