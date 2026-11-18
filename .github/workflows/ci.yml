@@ -209,12 +209,22 @@ jobs:
       - name: Start Supabase
         run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
       - name: Balance bench
+        env:
+          BALANCE_REPORT: ${{ github.workspace }}/balance-report/measures.json
         run: |
           started="$(date +%s)"
           status=0
           pnpm test:balance || status=$?
           echo "Banc d'équilibrage : $(( $(date +%s) - started )) s" | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$status"
+      # Mesures du banc (monnaie, panier, couverture, population, net des robinets et des puits, marges), pour #283.
+      - name: Upload balance measures
+        if: always() && hashFiles('balance-report/measures.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: balance-measures
+          path: balance-report/measures.json
+          retention-days: 90
 
   e2e:
     needs: changes

@@ -190,6 +190,8 @@ Son monde a une graine fixe, écrite dans `apps/api/src/balance/world.ts` : tant
 Il joue 10 jours de mise en route et 30 jours mesurés dans les quatre cités de la configuration initiale, dont la population est divisée par quatre pour que sa demande totale soit celle d'une cité du banc de #78.
 Ses maisons sont fondées selon le terroir de chaque cité, et leurs paramètres de scénario sont des constantes nommées du banc, jamais des valeurs du jeu, qui restent dans `packages/config`.
 Il ne borne pas l'économie, que #283 calibre : il vérifie que le grand livre, les puits, les robinets et le trésor de chaque cité se rapprochent des flux comptés, et que chaque cité a tourné.
+Le test publie ses mesures dans son journal, et dans le fichier JSON que `BALANCE_REPORT` désigne ; le job `balance` le conserve comme pièce jointe (`balance-measures`).
+Les mesures, par jour mesuré, sont : par cité et pour le monde, la monnaie en circulation et le net de chaque robinet et de chaque puits ; par cité, le coût du panier, la couverture des besoins vitaux par classe et la population ; enfin la marge nette quotidienne de chaque recette dans chaque cité, aux prix moyens des dix derniers jours.
 Sa durée est bornée dans le test (`MAX_MINUTES`) et par le délai du job.
 Dans la `ci`, le job `balance` le lance ; s'il échoue, `ci` est rouge.
 
