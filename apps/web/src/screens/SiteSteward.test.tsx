@@ -77,6 +77,15 @@ describe('section Intendant (#278)', () => {
     expect(screen.getByRole('status').textContent).toMatch(/^Kléon entre à votre service/);
   });
 
+  it('sans poste libre, ou sans poste du tout, aucune embauche n’est proposée', async () => {
+    await show(undefined, { posted: 2 });
+    expect(screen.getByText("Vos 2 postes d'intendant sont pris.")).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    cleanup();
+    await show(undefined, { rules: { ...posts, limit: 0 } });
+    expect(screen.getByText("Votre siège n'a aucun poste d'intendant.")).toBeTruthy();
+  });
+
   it('règles : le formulaire saisit la grammaire, au clavier, et envoie les règles dans leur ordre', async () => {
     api.stewardCommand.mockResolvedValue(ok({ stewardId: 'st1', rules: [] }));
     await show(nikias);
@@ -116,5 +125,46 @@ describe('section Intendant (#278)', () => {
       expect.any(String),
     );
     expect(screen.getByRole('status').textContent).toBe('Nikias suivra 2 règles.');
+  });
+
+  it('un refus est dit ; une commande sans réponse repart sous la même clé', async () => {
+    api.stewardCommand
+      .mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: 'x' } })
+      .mockResolvedValueOnce({ ok: false, error: { code: 'STEWARD_NOT_FOUND', message: 'x' } });
+    await show({ ...nikias, state: 'unpaid', since: new Date('2026-11-18T03:00:00Z') });
+    expect(screen.getByText(/^Salaire de Nikias impayé depuis le/)).toBeTruthy();
+    const dismiss = screen.getByRole('button', { name: 'Renvoyer Nikias' });
+    fireEvent.click(dismiss);
+    const alerts = () => screen.getAllByRole('alert').map((node) => node.textContent);
+    await waitFor(() => expect(alerts()).toContain(fr.errors.INTERNAL));
+    fireEvent.click(dismiss);
+    await waitFor(() => expect(api.stewardCommand).toHaveBeenCalledTimes(2));
+    const [first, second] = api.stewardCommand.mock.calls;
+    expect(first?.[3]).toBe(second?.[3]);
+    expect(first?.slice(0, 2)).toEqual(['steward.dismiss', { stewardId: 'st1' }]);
+    await waitFor(() => expect(alerts()).toContain("Cet intendant n'est plus en poste."));
+  });
+
+  it('une intention sans réponse cesse quand la relecture en montre l’effet : une réembauche prend une clé neuve', async () => {
+    const lost = { ok: false, error: { code: 'INTERNAL', message: 'x' } };
+    api.stewardCommand.mockResolvedValue(lost);
+    const keyOf = (call: number) => api.stewardCommand.mock.calls[call]?.[3] as string;
+    const click = async (name: string, calls: number) => {
+      fireEvent.click(screen.getByRole('button', { name }));
+      await waitFor(() => expect(api.stewardCommand).toHaveBeenCalledTimes(calls));
+      cleanup();
+    };
+    await show(undefined);
+    await click('Embaucher un intendant pour Moulin', 1);
+    // Relue, l'embauche a eu lieu ; renvoyé ensuite, le site réembauche sous une autre clé.
+    await show(nikias);
+    await click('Enregistrer les règles', 2);
+    await show(undefined);
+    await click('Embaucher un intendant pour Moulin', 3);
+    expect(keyOf(2)).not.toBe(keyOf(0));
+    // Les règles relues à une révision plus récente : les mêmes règles repartent sous une clé neuve.
+    await show({ ...nikias, revision: 2 });
+    await click('Enregistrer les règles', 4);
+    expect(keyOf(3)).not.toBe(keyOf(1));
   });
 });

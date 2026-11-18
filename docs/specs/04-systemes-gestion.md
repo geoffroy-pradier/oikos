@@ -5,12 +5,14 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
 ## 4.1 La maison (oikos)
 
 - **Siège** : bâtiment évolutif (10 niveaux) qui fixe le nombre de sites gérables et de postes d'intendant.
+  Toute maison est au premier niveau : ses postes d'intendant sont le premier nombre de `stewards.limitByHeadquartersLevel` (4.4), comme ses sites celui de `sites.limitByHeadquartersLevel`.
 - **Trésor et comptes** : compte de résultat et bilan tenus automatiquement, consultables par jour, saison et année, avec marge par filière et par site.
   Dans la première version, les comptes sont trois vues en lecture seule, que le joueur lit pour sa seule maison ; elles sont calculées à la lecture depuis le grand livre, qui fait foi, et rien n'y est recopié.
   Flux de trésorerie (`my_cash_flows`) : par compte (trésorerie, séquestre), jour de jeu et nature, en oboles, crédit positif.
   Natures : ventes (`sales`, au brut : prix × quantité de l'échange), taxes (`taxes` : l'écart entre ce brut et le net crédité), achats (`purchases`), entretien (`upkeep` : clôture et relance, rénovation d'un bien immobilier, écriture `property.renovate`, 4.5), salaires (`wages` : clôture et relance, 4.4), hébergement (`lodging` : nuits des travailleurs sans logement, écritures `lodging.daily` à la clôture et `lodging.restart` à la relance, 4.4), acquisitions (`acquisitions` : un site, un navire, un bien immobilier acheté à la cité, écriture `property.buy`, ou acheté à une autre maison et cédé par elle, écriture `property.sale`, 4.5), loyers (`rents` : écriture `lease.rent`, négatifs pour le locataire, positifs pour le propriétaire, 4.5), transport (`transport` : provisions et droit de port payés au départ d'un voyage, écriture `voyage.departure`, 4.6), offrandes (`offerings` : oboles offertes à un dieu, écriture `temple.offering`, 7.1, ou payées pour consulter la Pythie, écriture `temple.oracle`, 7.3), dotation de départ (`grant`), séquestre (`escrow` : monnaie retenue pour un achat en attente, ou rendue) et `other` pour toute écriture d'une nature que la vue ne connaît pas encore.
   Une écriture peut porter plusieurs natures : une ligne du grand livre marquée d'une nature (`ledger_lines.nature`, 12) est rangée sous ce marqueur, une ligne sans marqueur sous la nature de son écriture.
   Ainsi l'écriture d'entretien d'une clôture ou d'une relance porte une ligne `upkeep` et une ligne `wages`.
+  Le salaire des intendants (4.4, #278) a sa propre ligne `wages` dans l'écriture `upkeep.daily` de la clôture, vers le même puits : il compte donc en salaires, sans changer aucune vue.
   L'hébergement (#258) a sa propre écriture, de la même transaction, plutôt qu'une ligne marquée `lodging` : la migration 60 recrée sans condition sa contrainte de nature avec la seule liste (`upkeep`, `wages`), et son rejeu échouerait sur une base où une ligne porte un autre marqueur (règle 9, ADR 0006).
   La revente d'un bien entre maisons se lit comme une vente de l'agora : le vendeur, qui lit le prix de son offre vendue, voit la cession au brut en `acquisitions` (positive) et l'écart avec le net crédité en `taxes` ; l'acheteur voit le prix en `acquisitions` (négatif).
   L'entretien des navires, prélevé dans la même écriture de clôture, a sa propre ligne marquée `upkeep`, vers son puits (4.6) ; celui des biens immobiliers aussi (4.5).
@@ -164,6 +166,25 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Le moral, les artisans, le débauchage et la migration des travailleurs entre cités viendront ensuite.
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
+  Dans la première version (#278), le joueur donne les règles par un formulaire, la voie complète du jeu IA coupée ; la consigne en langage naturel (#280) n'en sera qu'une traduction, et l'exécution des règles par le moteur vient avec #279.
+  Les règles appartiennent à une grammaire fermée (`stewardRuleSchema`, `packages/contracts`), chaque nombre entier et borné comme un ordre de l'agora, une règle par sorte et par bien, au plus 20 :
+  récolter le site dès que possible (`collect`) ;
+  vendre un bien à un prix plancher l'unité ou plus, en gardant une réserve en stock (`sell`) ;
+  racheter un intrant de la recette du site à un prix plafond l'unité ou moins, jusqu'à un stock visé (`buy`).
+  La configuration fixe les postes par niveau de siège, le salaire d'un intendant par jour (nul au départ, paramètres neutres) et le nombre de règles par intendant (section `stewards`, publique dans `site_rules` sans sa liste de noms) ; une version publiée avant les intendants n'ouvre aucun poste.
+  `steward.hire` embauche un intendant pour un site de la maison, un par site, dans la limite des postes ; il ne coûte rien, et reçoit un nom tiré de la liste de la configuration, parmi ceux que la maison n'emploie pas encore quand il en reste.
+  `steward.setRules` remplace toutes ses règles, dans l'ordre où il les mènera, par une révision nouvelle : rien n'est effacé, et une liste vide est admise (il ne fait rien).
+  La commande refuse un bien que la configuration ne connaît pas et un rachat qui ne vise pas un intrant de la recette du site au moment où les règles sont données.
+  `steward.dismiss` le renvoie : son poste et son site se libèrent, rien n'est remboursé, et l'intendant renvoyé ne change plus.
+  Salaire : chaque clôture examine les intendants d'une maison après ses sites, ses navires et ses biens, dans l'ordre de leur embauche, avec ce qui reste de la trésorerie ; chacun, en poste et embauché avant l'instant de la clôture, doit le salaire d'un jour, payé en entier ou pas du tout (5.5).
+  Un intendant impayé est inactif jusqu'à la clôture qui le paie.
+  Décision (#278) : un intendant embauché est impayé jusqu'à la première clôture, qui paie d'avance la journée qui commence ; il n'agit donc jamais sans qu'une clôture ait payé son jour, et embaucher puis renvoyer entre deux clôtures n'évite aucun salaire.
+  Un salaire nul est payé : la clôture rend alors actif l'intendant tout juste embauché, sans écriture.
+  Décision (#278) : une version sans section `stewards` (retour arrière) n'ouvre aucun poste ; la clôture ne prélève alors aucun salaire et tient impayés, donc inactifs, les intendants en poste, jusqu'à une version qui les rétablit.
+  Décision (#278) : l'intendant d'un site à l'arrêt est payé s'il reste de quoi, puisque vendre et racheter ne demandent pas que le site tourne.
+  Une version qui abaisse le nombre de règles par intendant ne réécrit pas les règles déjà données : l'exécution (#279) n'en mènera que les premières.
+  Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).
+  La fiche de chaque site a sa section Intendant : embaucher, l'état de l'intendant (actif, en attente de la clôture qui le paie, impayé), ses règles par le formulaire, le renvoyer.
 
 ## 4.5 L'immobilier urbain
 

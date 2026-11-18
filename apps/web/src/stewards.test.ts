@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   draftOf,
+  blankRule,
+  goodsFor,
   hireIntent,
+  moveUp,
   parseStewards,
   rulesIntent,
   rulesOf,
@@ -89,6 +92,23 @@ describe('intendants de la maison (#278)', () => {
         rulesOf(drafts.map((draft, rank) => (rank === index ? { ...draft, ...changed } : draft))),
       ).toEqual({ invalid: index });
     expect(rulesOf([...drafts, drafts[1] as RuleDraft])).toEqual({ invalid: 3 });
+  });
+
+  it('formulaire : un rachat vise les intrants, une vente aussi les extrants ; les règles se réordonnent', () => {
+    const mill = { inputs: [{ goodId: 'wheat' }], outputs: [{ goodId: 'flour' }] };
+    expect(goodsFor(mill, { kind: 'buy', goodId: '' })).toEqual(['wheat']);
+    expect(goodsFor(mill, { kind: 'sell', goodId: '' })).toEqual(['flour', 'wheat']);
+    expect(goodsFor(mill, { kind: 'sell', goodId: 'olives' })).toEqual([
+      'olives',
+      'flour',
+      'wheat',
+    ]);
+    expect(goodsFor(null, { kind: 'buy', goodId: '' })).toEqual([]);
+    expect(blankRule(mill, 'buy')).toEqual({ kind: 'buy', goodId: 'wheat', price: '', units: '' });
+    expect(blankRule(mill, 'collect').goodId).toBe('');
+    expect(moveUp(['a', 'b', 'c'], 2)).toEqual(['a', 'c', 'b']);
+    expect(moveUp(['a', 'b', 'c'], 0)).toEqual(['a', 'b', 'c']);
+    expect(moveUp(['a', 'b'], 5)).toEqual(['a', 'b']);
   });
 
   it('intentions : l’embauche caduque dès que l’intendant est lu, les règles d’une révision dépassée', () => {

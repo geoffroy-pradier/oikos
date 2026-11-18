@@ -46,6 +46,15 @@ const siteRulesSchema = z.object({
       // Salaire du jour par cité (section `staff` de la configuration, rendue ici par la vue) ; absent
       // d'une version publiée avant le personnel : aucun salaire, comme pour l'API.
       staff: z.object({ dailyWageOboles: z.record(name, staffDailyWageObolesSchema) }).optional(),
+      // Intendants (section `stewards`, rendue ici sans ses noms, #278) ; absente d'une version publiée avant
+      // eux : aucun poste, comme pour l'API.
+      stewards: z
+        .object({
+          limitByHeadquartersLevel: z.array(z.number().int().nonnegative()).min(1),
+          dailyWageOboles: staffDailyWageObolesSchema,
+          rulesPerSteward: z.number().int().nonnegative(),
+        })
+        .optional(),
     })
     .nullable()
     .transform((sites) => sites ?? DEFAULT_SITES),
@@ -56,6 +65,8 @@ export type SiteRecipe = RawRules['recipes'][number];
 export interface SiteRules {
   /** Nombre de sites qu'une maison peut exploiter (premier niveau de siège, le seul pour l'instant). */
   limit: number;
+  /** Intendants (#278) : postes du premier niveau de siège, salaire d'un jour, règles au plus ; zéro sans eux. */
+  stewards: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
   /** Recettes qu'un site peut recevoir, avec le prix d'un site de leur type. */
   offers: { recipe: SiteRecipe; costOboles: number }[];
   /** Type de site d'une recette, connue ou non du client. */
@@ -156,6 +167,7 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
   if (!parsed.success) return null;
   const { recipes, sites } = parsed.data;
   const staff = 'staff' in sites ? sites.staff : undefined;
+  const stewards = 'stewards' in sites ? sites.stewards : undefined;
   // `Map` : un type de site nommé comme une propriété d'objet (« constructor ») n'a pas de prix.
   const costs = new Map(Object.entries(sites.acquisitionCostOboles));
   const typeOf = (recipeId: string) =>
@@ -166,6 +178,11 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
   };
   return {
     limit: sites.limitByHeadquartersLevel[0] ?? 0,
+    stewards: {
+      limit: stewards?.limitByHeadquartersLevel[0] ?? 0,
+      dailyWageOboles: stewards?.dailyWageOboles ?? 0,
+      rulesPerSteward: stewards?.rulesPerSteward ?? 0,
+    },
     offers: recipes.flatMap((recipe) => {
       const costOboles = costs.get(recipe.siteType);
       return costOboles === undefined ? [] : [{ recipe, costOboles }];
