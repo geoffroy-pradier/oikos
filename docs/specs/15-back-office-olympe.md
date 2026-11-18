@@ -61,7 +61,7 @@ Sans elle, `GET /api/admin/reports` rend le seuil par défaut de la configuratio
 La Vigie affiche ce nombre, y compris à zéro, et passe en alerte dès qu'il dépasse zéro ; elle le montre à tous les rôles qui la lisent, sans lire la file (`GET /api/admin/reports` reste fermé à ces rôles).
 Hors périmètre : toute notification hors d'Olympe.
 Décision (relecture de #275) : un nom de maison, texte public, ne passe encore ni par le filtre de vocabulaire ni par le silence à sa fondation ou à son changement ; un ticket de suite les y soumettra.
-Décision (relecture de #275) : un compte suspendu ou exclu ne peut plus annuler ses ordres, qui restent sous séquestre et peuvent s'exécuter ; un ticket de suite, qui touche à la monnaie, décidera de leur annulation et du retour du séquestre.
+Décision (relecture de #275, tranchée par #528) : un compte suspendu ou exclu peut toujours annuler ses ordres (15.4).
 
 Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
 `GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
@@ -144,8 +144,12 @@ chaque refus de l'API y est expliqué.
 Un nom de maison est un texte public : `house.create` et `house.rename` passent par le filtre de vocabulaire de la discussion (`moderation.bannedTerms`, 6.6) et par le silence (ticket 527).
 Un nom qui contient un terme interdit est refusé avec le même code que la discussion, `MESSAGE_REJECTED`, avant toute écriture ; le terme n'est ni rendu ni journalisé, et le journal des commandes ne garde pas le nom refusé.
 Décision (ambiguïté du ticket) : un compte réduit au silence ne fonde ni ne renomme sa maison (`SILENCED`), par cohérence avec la discussion ; il le peut de nouveau à la fin de la sanction.
-Une suspension ou une exclusion refuse déjà toute commande de jeu (`SUSPENDED`).
+Une suspension ou une exclusion refuse déjà toute commande de jeu (`SUSPENDED`), sauf l'appel de la sanction et `market.cancelOrder` (#528).
 Le renommage d'office par la modération reste hors de cette règle et attend une phase suivante.
+
+Ordres de marché d'un compte suspendu ou exclu (#528).
+L'annulation d'un ordre est la seule commande de jeu qui ne crée rien : elle rend ce que l'ordre engageait (séquestre d'un achat, réservation d'une vente).
+Sans elle, les ordres d'un compte suspendu resteraient sous séquestre et pourraient s'exécuter pendant toute la suspension ; ils le peuvent encore s'il ne les annule pas, et c'est son choix.
 
 Dans la première version, une commande d'administration (`admin.*`) n'est exécutée que si la session porte le second facteur (niveau `aal2` du jeton) et si le compte a, dans `admin.roles`, l'un des rôles que la commande autorise ;
 le rôle est relu à chaque commande. Tout refus (`FORBIDDEN`) est journalisé comme une commande rejetée.
