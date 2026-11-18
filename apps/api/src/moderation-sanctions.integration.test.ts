@@ -59,7 +59,7 @@ describe('sanctions relues à chaque commande', () => {
     ]);
   });
 
-  it('une suspension refuse toute commande de jeu, pas une commande d’administration', async () => {
+  it('une suspension refuse toute commande de jeu, pas l’appel', async () => {
     const world = await newWorld();
     const [alice, bob] = [await world.player(), await world.player()];
     await sanction(alice.user, 'suspension', 0, 3600);
@@ -69,6 +69,11 @@ describe('sanctions relues à chaque commande', () => {
       await send(alice.user, 'house.rename', { name: 'Suspendus' }),
     ])
       expect(codeOf(reply)).toEqual([409, 'SUSPENDED']);
+    const [suspension] = await rows(
+      sql<{ id: string }>`select id from admin.sanctions where user_id = ${alice.user}`,
+    );
+    const appeal = { sanctionId: suspension?.id, body: 'Je conteste.' };
+    expect((await send(alice.user, 'moderation.appeal', appeal)).status).toBe(200);
     expect((await post(bob.user, world.kallisteChannel, 'Bob, libre.')).status).toBe(200);
   });
 

@@ -775,11 +775,14 @@ export function serviceRoleUrl(connectionString: string): string {
   return url.toString();
 }
 
-/** Nom de la contrainte violée (unicité 23505 ou vérification 23514), ou `null` pour toute autre erreur. */
+/**
+ * Nom de la contrainte violée (clé étrangère 23503, unicité 23505 ou vérification 23514), ou `null` pour toute
+ * autre erreur. Une commande ne traduit que les contraintes qu'elle nomme (`errorByConstraint`).
+ */
 export function violatedConstraint(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) return null;
   const { code, constraint } = error as { code?: unknown; constraint?: unknown };
-  const isViolation = code === '23505' || code === '23514';
+  const isViolation = code === '23503' || code === '23505' || code === '23514';
   return isViolation && typeof constraint === 'string' ? constraint : null;
 }
 
