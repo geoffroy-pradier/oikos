@@ -38,7 +38,7 @@ test('un métèque voit élection, décret au vote et trésor, sans bouton, et s
   const titles = await page.getByRole('heading', { level: 2 }).allTextContents();
   expect(titles.filter((title) => cards.includes(title))).toEqual(cards);
 
-  await expect(politics.getByText('Métèque à Kallistè')).toBeVisible();
+  await expect(politics.getByText(/^Métèque à Kallistè depuis le /)).toBeVisible();
   await expect(politics.getByText(/^Métèque, votre maison voit la vie de la cité/)).toBeVisible();
   await expect(politics.getByText(/^Archonte en charge : /)).toBeVisible();
   await expect(politics.getByText(/^Candidatures à partir du /)).toBeVisible();
@@ -59,7 +59,7 @@ test('un métèque voit élection, décret au vote et trésor, sans bouton, et s
 
 test('une citoyenne se porte candidate et vote le décret, au clavier', async ({ page }) => {
   const { houseName, politics, assembly } = await openCity(page, 'citizen');
-  await expect(politics.getByText('Citoyen à Kallistè')).toBeVisible();
+  await expect(politics.getByText(/^Citoyenne à Kallistè depuis le /)).toBeVisible();
 
   await politics.getByRole('button', { name: 'Me porter candidat' }).focus();
   await page.keyboard.press('Enter');

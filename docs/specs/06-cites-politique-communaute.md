@@ -46,6 +46,8 @@ Dans la phase 2 (ticket 263), les comptes publics sont le solde et les flux du t
 
 Dans la phase 2 (ticket 260), l'archonte est le seul magistrat ; les autres charges, le conseil, la destitution et l'ostracisme viennent ensuite.
 Seuls les citoyens votent et se présentent, dans leur cité ; une maison y devient citoyenne d'elle-même après `politics.meticDays` jours de jeu comme métèque (3, progression).
+Le joueur lit depuis quel jour de jeu sa maison est métèque ou citoyenne (#420).
+Décision (le ticket 420 laisse le choix) : cette date n'est lue que pour ses propres maisons ; le statut des autres maisons reste public, sans date.
 Le calendrier vient de la configuration (`politics.archon`) : un mandat de `termDays` jours de jeu (28, une année), précédé du dépôt des candidatures (`candidacyDays`, 4 jours) puis du vote (`votingDays`, 3 jours).
 La clôture qui ouvre un mandat dépouille l'élection qui le pourvoit, puis ouvre celle du mandat suivant quand son dépôt doit commencer ; ces deux étapes passent avant l'entretien.
 Le premier mandat d'une cité commence `candidacyDays + votingDays` jours après la première clôture qui lit une configuration avec la section `politics` ; chaque mandat suivant commence à la fin du précédent, pourvu ou vacant.

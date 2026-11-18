@@ -697,6 +697,10 @@
   },
   "cityPolitics": {
     "title": "Civic life",
+    "statusSince": {
+      "citizen": "Citizen in {{city}} since {{date}}",
+      "metic": "Metic in {{city}} since {{date}}"
+    },
     "meticNotice": "As a metic, your house sees the life of the city but neither votes nor stands for office here: it will once it becomes a citizen.",
     "archon": "Archon in office: {{house}}, until {{until}}",
     "noArchon": "No archon in office.",

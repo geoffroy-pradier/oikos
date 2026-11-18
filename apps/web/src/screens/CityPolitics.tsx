@@ -1,3 +1,4 @@
+import { gameDayDate } from '@oikos/sim';
 import { Card } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +9,7 @@ import {
   currentElection,
   electionPhase,
   parseCandidates,
+  parseCitizenship,
   parseElections,
   parseOffices,
   parseResults,
@@ -38,6 +40,15 @@ export function CityPolitics() {
     'candidacy_opens_at',
     city,
   );
+  // Statut et date de la maison du joueur, lus ensemble dans `my_citizenships` (#420).
+  const citizenshipRows = useRows<unknown>(
+    'my_citizenships',
+    'house_id, status, since, since_day',
+    'since',
+    { house_id: house.id },
+  );
+  const citizenship =
+    citizenshipRows.rows === null ? null : parseCitizenship(citizenshipRows.rows, house.id);
   const elections = electionRows.rows === null ? null : parseElections(electionRows.rows);
   const ids = elections?.map((election) => election.id) ?? [];
   const byElection = { election_id: ids };
@@ -67,13 +78,13 @@ export function CityPolitics() {
       ? [archon?.houseId, ...lastResults.map((r) => r.houseId), ...running.map((c) => c.houseId)]
       : null,
   );
-  const reads = [officeRows, electionRows, candidateRows, resultRows];
+  const reads = [officeRows, electionRows, candidateRows, resultRows, citizenshipRows];
   const names = houses.names;
   const loading = houses.loading || reads.some((read) => read.rows === null && !read.failed);
   const failed =
     houses.failed ||
     reads.some((read) => read.failed) ||
-    (!loading && [names, offices, elections, candidates, results].includes(null));
+    (!loading && [names, offices, elections, candidates, results, citizenship].includes(null));
   const [now, setNow] = useState(() => serverClock.now().getTime());
   const reload = async () => {
     await Promise.all([...reads, houses].map((read) => read.reload()));
@@ -83,7 +94,15 @@ export function CityPolitics() {
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const number = new Intl.NumberFormat(i18n.language);
   const nameOf = (id: string) => names?.get(id) ?? t('cityPolitics.unknownHouse');
-  const citizen = (houses.status ?? house.citizenshipStatus) === 'citizen';
+  const status = citizenship?.status ?? houses.status ?? house.citizenshipStatus;
+  const citizen = status === 'citizen';
+  // Le jour de jeu du statut, comme les autres dates de jeu ; sans horloge, le jour local de l'instant.
+  const since = (value: { since: number; sinceDay: number | null }) =>
+    value.sinceDay === null
+      ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(value.since)
+      : new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeZone: 'UTC' }).format(
+          gameDayDate(value.sinceDay),
+        );
   const phase = election ? electionPhase(election, now) : null;
   const office = (id: string) => t(`cityPolitics.offices.${id}`, { defaultValue: id });
 
@@ -96,7 +115,14 @@ export function CityPolitics() {
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {!loading && !failed && (
         <>
-          <p>{t(`home.status.${citizen ? 'citizen' : 'metic'}`, { city: house.cityName })}</p>
+          <p>
+            {citizenship
+              ? t(`cityPolitics.statusSince.${citizenship.status}`, {
+                  city: house.cityName,
+                  date: since(citizenship),
+                })
+              : t(`home.status.${citizen ? 'citizen' : 'metic'}`, { city: house.cityName })}
+          </p>
           {!citizen && <p className="text-muted-foreground">{t('cityPolitics.meticNotice')}</p>}
           <p>
             {archon
