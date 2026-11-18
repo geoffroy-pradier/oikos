@@ -10,7 +10,7 @@ import { CONTROL_CHARACTERS } from './chat';
  * Sanctions graduées (13, 15.1) : un avertissement ne bloque rien ; un silence refuse `chat.post`
  * (`SILENCED`) ; une suspension et une exclusion refusent toute commande de jeu (`SUSPENDED`), sauf l'appel et
  * l'annulation d'un ordre (#528). Une exclusion est définitive (sans fin), et n'est en vigueur qu'une fois validée
- * par une seconde personne (15.4).
+ * par une seconde personne (15.4), qui annule alors les ordres ouverts du compte et rend leur séquestre.
  */
 export const SANCTION_KINDS = ['warning', 'silence', 'suspension', 'ban'] as const;
 export type SanctionKind = (typeof SANCTION_KINDS)[number];

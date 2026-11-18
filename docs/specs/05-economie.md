@@ -137,7 +137,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   son reste n'attend que si la trésorerie, une fois les échanges payés, peut en retenir le prix en entier, sinon il est annulé et l'achat le signale.
   Il n'est refusé que si rien n'est possible : pas une unité payable, ni de quoi retenir le prix d'un ordre en attente.
   Un ordre ouvert s'annule par sa maison : ce qui a déjà été servi reste acquis, le reste quitte le carnet, le stock qu'une vente réservait est libéré et la monnaie qu'un achat retenait revient à la trésorerie.
-  Une suspension ou une exclusion n'empêche pas cette annulation (15.4, #528).
+  Une suspension ou une exclusion n'empêche pas cette annulation, et une exclusion validée annule elle-même tous les ordres ouverts du compte (15.4, #528).
   Une maison n'échange pas avec elle-même : son ordre ignore ses propres ordres du côté opposé, même mieux placés, et peut donc attendre à côté d'eux à un prix qui les croise.
   Les autres joueurs ne voient du carnet que la quantité par côté et par niveau de prix, jamais l'identité des maisons.
   Taxe de marché : chaque échange, entre joueurs comme avec les PNJ, prélève sur le vendeur une taxe proportionnelle à son montant brut (prix × quantité), dans la même écriture que le paiement ;
