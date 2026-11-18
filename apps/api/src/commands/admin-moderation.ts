@@ -4,6 +4,7 @@ import {
   ADMIN_HIDE_MESSAGE_ERROR_CODES,
   ADMIN_RESOLVE_REPORT_ERROR_CODES,
   ADMIN_SANCTION_ERROR_CODES,
+  ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
   adminConfirmExclusionInputSchema,
   adminConfirmExclusionOutputSchema,
   adminDecideAppealInputSchema,
@@ -14,6 +15,8 @@ import {
   adminResolveReportOutputSchema,
   adminSanctionInputSchema,
   adminSanctionOutputSchema,
+  adminWithdrawExclusionInputSchema,
+  adminWithdrawExclusionOutputSchema,
   MODERATION_ROLES,
 } from '@oikos/contracts';
 import { sql } from 'kysely';
@@ -22,9 +25,9 @@ import { refuse } from './city-election';
 import { cancelOrdersOfExcluded } from './exclusion-orders';
 
 /**
- * Commandes d'administration de la modération (docs/specs/15-back-office-olympe.md, 15.1, 15.4 ; #276). La base
- * tient les mêmes règles que ces commandes (migration 260) : elle date chaque changement, n'en admet qu'un, et
- * refuse qu'une exclusion soit validée par son auteur ou par le compte exclu.
+ * Commandes d'administration de la modération (docs/specs/15-back-office-olympe.md, 15.1, 15.4 ; #276, #531). La
+ * base tient les mêmes règles que ces commandes (migrations 260 et 390) : elle date chaque changement, n'en admet
+ * qu'un, et refuse qu'une exclusion soit validée par son auteur ou par le compte exclu.
  */
 
 const HOUR_MS = 3_600_000;
@@ -32,6 +35,10 @@ const SELF_SANCTION = { code: 'SELF_SANCTION', message: 'An account does not san
 export const SECOND_PERSON_REQUIRED = {
   code: 'SECOND_PERSON_REQUIRED',
   message: 'Another account than the author and the sanctioned account must do this.',
+};
+const EXCLUSION_WITHDRAWN = {
+  code: 'EXCLUSION_WITHDRAWN',
+  message: 'This exclusion was withdrawn.',
 };
 
 /**
@@ -96,12 +103,16 @@ export const adminConfirmExclusion = defineCommand({
   input: adminConfirmExclusionInputSchema,
   output: adminConfirmExclusionOutputSchema,
   errors: ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
-  errorByConstraint: { sanctions_validated_by_other: SECOND_PERSON_REQUIRED },
+  errorByConstraint: {
+    sanctions_validated_by_other: SECOND_PERSON_REQUIRED,
+    sanctions_confirm_not_withdrawn: EXCLUSION_WITHDRAWN,
+  },
   async handler({ trx, userId, emit }, input) {
-    // Verrou de la ligne : de deux validations simultanées, la seconde voit la première.
+    // Verrou de la ligne : de deux validations simultanées, ou d'une validation et d'un retrait, la seconde voit
+    // la première. Une exclusion retirée n'annule donc jamais d'ordre.
     const ban = await trx
       .selectFrom('admin.sanctions')
-      .select(['id', 'user_id', 'author_id', 'validated_by'])
+      .select(['id', 'user_id', 'author_id', 'validated_by', 'lifted_at'])
       .where('id', '=', input.sanctionId)
       .where('kind', '=', 'ban')
       .forUpdate()
@@ -109,6 +120,7 @@ export const adminConfirmExclusion = defineCommand({
     if (!ban) return refuse('SANCTION_NOT_FOUND', 'No such exclusion.');
     if (ban.validated_by)
       return refuse('ALREADY_CONFIRMED', 'This exclusion is already confirmed.');
+    if (ban.lifted_at) return { ok: false, error: EXCLUSION_WITHDRAWN };
     if (ban.author_id === userId || ban.user_id === userId)
       return { ok: false, error: SECOND_PERSON_REQUIRED };
     const confirmed = await trx
@@ -122,6 +134,47 @@ export const adminConfirmExclusion = defineCommand({
     return {
       ok: true,
       data: { sanctionId: ban.id, startsAt: confirmed.starts_at.toISOString() },
+    };
+  },
+});
+
+/**
+ * Retire une exclusion proposée et pas encore validée : elle n'a jamais agi, et quitte la file. Retirer ne demande pas
+ * de seconde personne : son auteur le peut, tout autre compte de la modération aussi, sauf le compte exclu. La base
+ * date le retrait, qui est une levée de l'exclusion proposée : elle prend une fin.
+ */
+export const adminWithdrawExclusion = defineCommand({
+  name: 'admin.withdrawExclusion',
+  admin: MODERATION_ROLES,
+  input: adminWithdrawExclusionInputSchema,
+  output: adminWithdrawExclusionOutputSchema,
+  errors: ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
+  errorByConstraint: { sanctions_lift_shape: SECOND_PERSON_REQUIRED },
+  async handler({ trx, userId, emit }, input) {
+    // Verrou de la ligne : un retrait et une validation simultanés s'ordonnent, le second voit le premier.
+    const ban = await trx
+      .selectFrom('admin.sanctions')
+      .select(['id', 'user_id', 'validated_by', 'lifted_at'])
+      .where('id', '=', input.sanctionId)
+      .where('kind', '=', 'ban')
+      .forUpdate()
+      .executeTakeFirst();
+    if (!ban) return refuse('SANCTION_NOT_FOUND', 'No such exclusion.');
+    if (ban.validated_by)
+      return refuse('ALREADY_CONFIRMED', 'This exclusion is confirmed: lift it instead.');
+    if (ban.lifted_at) return { ok: false, error: EXCLUSION_WITHDRAWN };
+    if (ban.user_id === userId) return { ok: false, error: SECOND_PERSON_REQUIRED };
+    const withdrawn = await trx
+      .updateTable('admin.sanctions')
+      .set({ lifted_by: userId })
+      .where('id', '=', ban.id)
+      .returning('lifted_at')
+      .executeTakeFirstOrThrow();
+    if (!withdrawn.lifted_at) throw new Error('The database did not date the withdrawal');
+    emit({ type: 'ExclusionWithdrawn', payload: { sanctionId: ban.id, userId: ban.user_id } });
+    return {
+      ok: true,
+      data: { sanctionId: ban.id, withdrawnAt: withdrawn.lifted_at.toISOString() },
     };
   },
 });

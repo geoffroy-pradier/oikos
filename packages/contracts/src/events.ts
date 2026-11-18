@@ -27,6 +27,7 @@ import { messageReportedSchema, sanctionAppealedSchema } from './moderation';
 import {
   appealDecidedSchema,
   exclusionConfirmedSchema,
+  exclusionWithdrawnSchema,
   messageHiddenSchema,
   reportsResolvedSchema,
   sanctionPronouncedSchema,
@@ -122,6 +123,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   messageHiddenSchema,
   reportsResolvedSchema,
   appealDecidedSchema,
+  exclusionWithdrawnSchema,
   orderPlacedSchema,
   tradeExecutedSchema,
   orderCancelledSchema,

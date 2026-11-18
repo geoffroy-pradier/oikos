@@ -33,7 +33,11 @@ Commandes d'administration de la modération (ticket #276) : ouvertes au super-a
   Une autre durée est refusée (`DURATION_NOT_OFFERED`), comme le compte qui se sanctionne lui-même (`SELF_SANCTION`) ou un compte inconnu (`ACCOUNT_NOT_FOUND`).
 - `admin.confirmExclusion` valide une exclusion proposée, une fois (`ALREADY_CONFIRMED`) : ni son auteur ni le compte exclu ne la valident (`SECOND_PERSON_REQUIRED`), tout autre compte d'un rôle de la modération le peut, et l'exclusion commence à sa validation.
   Dans la même transaction, elle annule les ordres ouverts de toutes les maisons du compte exclu et rend leur séquestre (15.4, #528).
+  Une exclusion retirée ne se valide plus (`EXCLUSION_WITHDRAWN`).
 - `admin.decideAppeal` tranche un appel, une fois (`APPEAL_DECIDED`), par un autre compte que l'auteur de la sanction et que le compte sanctionné (`SECOND_PERSON_REQUIRED`) : accueilli, il lève la sanction si elle n'est pas finie, et sa fin devient l'instant de la levée ; rejeté, la sanction court jusqu'à sa fin.
+- `admin.withdrawExclusion` retire une exclusion proposée et pas encore validée, qui quitte la file et n'a jamais agi (#531) ; sa fin devient l'instant du retrait.
+  Retirer ne demande pas de seconde personne : son auteur le peut, comme tout autre compte d'un rôle de la modération, sauf le compte exclu (`SECOND_PERSON_REQUIRED`).
+  Une exclusion validée ne se retire pas, elle se lève (`ALREADY_CONFIRMED`) ; une exclusion retirée ne se retire pas deux fois (`EXCLUSION_WITHDRAWN`).
 - `admin.resolveReport` écarte ou retient un signalement ouvert, et avec lui les autres signalements ouverts du même message (une entrée de la file) ; un signalement déjà traité est refusé (`ALREADY_RESOLVED`), comme le compte de la maison signalée et celui d'une maison qui a signalé ce message (`SECOND_PERSON_REQUIRED`).
 - `admin.hideMessage` masque un message, signalé ou non, une fois (`MESSAGE_HIDDEN`) : il reste listé, sans son texte pour les joueurs (6.6).
 
@@ -41,7 +45,7 @@ La base tient les mêmes règles (migrations 260 et 390) : elle date chaque vali
 Avec une décision sur l'appel, elle n'admet une levée qu'avec l'appel accueilli, dans la même écriture et par le même compte, et l'exige quand la sanction n'est pas finie.
 Sans décision, elle admet le retrait d'une exclusion proposée, la levée seule d'une autre sanction que l'exclusion, et celle d'une exclusion validée par une autre personne que celle qui l'a proposée ; jamais pendant qu'un appel attend, ni d'une sanction finie.
 Traiter un signalement ne masque ni ne sanctionne rien : ce sont deux commandes de plus, au choix de la modération.
-Décision (ambiguïté du ticket) : une exclusion proposée qui n'est pas validée n'agit jamais ; son retrait, et la levée d'une sanction sans appel, attendent une phase suivante.
+Décision (ambiguïté du ticket) : une exclusion proposée qui n'est pas validée n'agit jamais ; elle se retire par `admin.withdrawExclusion` (#531).
 Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
 Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'alerte de la Vigie qui le surveille lit son compte dans `GET /api/admin/vigie` (#530).
 Écran du module Modération (ticket #277) : il lit `GET /api/admin/reports` et liste la file, du plus ancien au plus signalé, dans l'ordre de l'API.
@@ -154,7 +158,7 @@ L'annulation d'un ordre est la seule commande de jeu qui ne crée rien : elle re
 Sans elle, les ordres d'un compte suspendu resteraient sous séquestre et pourraient s'exécuter pendant toute la suspension ; ils le peuvent encore s'il ne les annule pas, et c'est son choix.
 La validation d'une exclusion (`admin.confirmExclusion`) annule, dans sa transaction, les ordres ouverts de toutes les maisons du compte exclu, tous mondes confondus, comme `market.cancelOrder` : ce qui a été servi reste acquis, la réservation d'une vente est levée, et le séquestre des achats revient à la trésorerie de leur maison, en une écriture `market.escrow_release` par maison au grand livre.
 Chaque ordre annulé produit son `OrderCancelled`, sous la commande de validation.
-Une exclusion proposée et pas encore validée n'annule rien.
+Une exclusion proposée et pas encore validée n'annule rien, et son retrait non plus (#531).
 Ses stocks et sa trésorerie restent à la maison : leur saisie attend un ticket de suite.
 La réponse de la commande et le journal d'audit ne disent rien de ces ordres ni de ces oboles : un modérateur ne lit aucune donnée économique privée.
 Ordre des verrous : la validation prend le verrou d'agora de chaque monde où le compte a une maison, dans l'ordre des identifiants, avant toute ligne, comme un ordre placé, la demande des PNJ, la clôture et le rachat ;

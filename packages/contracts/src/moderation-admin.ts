@@ -73,7 +73,31 @@ export const ADMIN_CONFIRM_EXCLUSION_ERROR_CODES = [
   /** Aucune exclusion sous cet identifiant. */
   'SANCTION_NOT_FOUND',
   'ALREADY_CONFIRMED',
+  /** L'exclusion a été retirée (`admin.withdrawExclusion`) : elle ne se valide plus. */
+  'EXCLUSION_WITHDRAWN',
   /** L'auteur de la proposition, ou le compte exclu, ne la valide pas : un autre compte le fait. */
+  'SECOND_PERSON_REQUIRED',
+] as const;
+
+/**
+ * Commande `admin.withdrawExclusion` : retire une exclusion proposée et pas encore validée, qui quitte la file. Elle
+ * n'a jamais agi ; tout compte de la modération la retire, son auteur compris, sauf le compte exclu.
+ */
+export const adminWithdrawExclusionInputSchema = z.strictObject({ sanctionId: z.uuid() });
+export type AdminWithdrawExclusionInput = z.infer<typeof adminWithdrawExclusionInputSchema>;
+export const adminWithdrawExclusionOutputSchema = z.object({
+  sanctionId: z.uuid(),
+  withdrawnAt: z.iso.datetime(),
+});
+export type AdminWithdrawExclusionOutput = z.infer<typeof adminWithdrawExclusionOutputSchema>;
+export const ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES = [
+  'FORBIDDEN',
+  /** Aucune exclusion sous cet identifiant. */
+  'SANCTION_NOT_FOUND',
+  /** Déjà validée : elle ne se retire pas. */
+  'ALREADY_CONFIRMED',
+  'EXCLUSION_WITHDRAWN',
+  /** Le compte exclu ne retire pas son exclusion. */
   'SECOND_PERSON_REQUIRED',
 ] as const;
 
@@ -154,6 +178,11 @@ export const sanctionPronouncedSchema = z.strictObject({
 });
 export const exclusionConfirmedSchema = z.strictObject({
   type: z.literal('ExclusionConfirmed'),
+  payload: z.strictObject({ sanctionId: z.uuid(), userId: z.uuid() }),
+});
+/** Une exclusion proposée est retirée, sans avoir jamais agi. */
+export const exclusionWithdrawnSchema = z.strictObject({
+  type: z.literal('ExclusionWithdrawn'),
   payload: z.strictObject({ sanctionId: z.uuid(), userId: z.uuid() }),
 });
 export const messageHiddenSchema = z.strictObject({

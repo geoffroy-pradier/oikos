@@ -348,6 +348,7 @@
       "SELF_SANCTION": "On ne se sanctionne pas soi-même.",
       "SANCTION_NOT_FOUND": "Cette sanction n'existe plus.",
       "ALREADY_CONFIRMED": "Cette exclusion est déjà validée.",
+      "EXCLUSION_WITHDRAWN": "Cette exclusion a été retirée.",
       "SECOND_PERSON_REQUIRED": "Un autre compte que l'auteur et que le compte concerné doit le faire.",
       "MESSAGE_NOT_FOUND": "Ce message n'existe plus.",
       "MESSAGE_HIDDEN": "Ce message est déjà masqué.",
