@@ -1,7 +1,7 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
 import type { SiteCollectOutput } from '@oikos/contracts';
 import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
-import { Button, Card } from '@oikos/ui';
+import { Button, Card, EmptyState, TriangleAlert, Wheat } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
@@ -613,7 +613,8 @@ export function SitesCard({
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 ref={title} tabIndex={-1} className="text-xl">
+        <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
+          <Wheat aria-hidden="true" className="size-5 text-accent" />
           {t('home.sites')}
         </h2>
         {rules && sites.rows && (
@@ -648,10 +649,16 @@ export function SitesCard({
         />
       )}
       {sites.rows === null && !sites.failed && <Loading />}
-      {sites.rows?.length === 0 && <p className="text-muted-foreground">{t('home.sitesEmpty')}</p>}
+      {sites.rows?.length === 0 && (
+        <EmptyState icon={<Wheat />} title={t('home.sitesEmpty')} headingLevel={3} />
+      )}
       {watched.length > 0 && (
-        <section aria-labelledby="sites-watch" className="flex flex-col gap-1">
-          <h3 id="sites-watch" className="font-semibold">
+        <section
+          aria-labelledby="sites-watch"
+          className="flex flex-col gap-1 rounded-lg border border-danger/40 bg-danger-subtle/40 p-3"
+        >
+          <h3 id="sites-watch" className="flex items-center gap-2 font-semibold">
+            <TriangleAlert aria-hidden="true" className="size-4 text-danger" />
             {t('home.watch')}
           </h3>
           <ul className="list-disc pl-5">
@@ -701,7 +708,10 @@ export function SitesCard({
               ? rules.restartCostOf(site.recipe_id, slug, day, unhousedOf?.get(site.id))
               : null;
           return (
-            <li key={site.id} className="flex flex-col gap-2 border-t border-border pt-3">
+            <li
+              key={site.id}
+              className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="text-lg">{name}</h3>
@@ -763,14 +773,18 @@ export function SitesCard({
                   </Button>
                 )}
               </div>
-              {retired && <p className="font-semibold text-danger">{t('home.retired')}</p>}
+              {retired && (
+                <p className="rounded-md bg-danger-subtle px-3 py-2 font-semibold text-danger">
+                  {t('home.retired')}
+                </p>
+              )}
               {/* Production gardée d'avant un resserrement du terroir : elle tourne, mais on n'y revient pas. */}
               {recipe && !admits(site.city_id)(recipe) && (
                 <p className="text-muted-foreground">{t('home.outOfTerroir')}</p>
               )}
               {halted && !retired && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="min-w-0 flex-1 font-semibold text-danger">
+                  <p className="min-w-0 flex-1 rounded-md bg-danger-subtle px-3 py-2 font-semibold text-danger">
                     {t('home.halted', { date: date.format(halted) })}
                   </p>
                   {/* Sans les règles, le prix est inconnu : pas de bouton qui annoncerait « 0 obole ». */}
@@ -812,7 +826,7 @@ export function SitesCard({
                 </p>
               ))}
               {harvest && estimate && (
-                <p className="text-sm">
+                <p className="rounded-md bg-muted/60 px-3 py-2 text-sm">
                   {harvest.cycles > 0
                     ? t('home.harvestable', { list: list(estimate.outputs.map(stackText)) })
                     : t('home.harvestNone')}
@@ -895,7 +909,7 @@ export function SitesCard({
       {rules && sites.rows && (
         <form
           aria-labelledby="sites-acquire"
-          className="flex flex-col gap-2 border-t border-border pt-3"
+          className="flex flex-col gap-2 rounded-lg border border-dashed border-border-subtle p-3"
           onSubmit={(event) => void acquire(event)}
         >
           <h3 id="sites-acquire" className="text-lg">

@@ -1,4 +1,4 @@
-import { Button, Card } from '@oikos/ui';
+import { Button, Card, EmptyState, Frieze, Scale, TriangleAlert } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,22 +72,27 @@ export function AccountsScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 ref={title} tabIndex={-1} className="text-2xl">
-          {t('accounts.title', { name: house.name })}
-        </h1>
-        <Link
-          to="/"
-          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-        >
-          {t('shell.backHome')}
-        </Link>
+      <Card elevation="raised" className="overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-col gap-1 p-4">
+          <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
+            <Scale aria-hidden="true" className="size-6 text-accent" />
+            {t('accounts.title', { name: house.name })}
+          </h1>
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+          >
+            {t('shell.backHome')}
+          </Link>
+        </div>
       </Card>
       {failed ? (
-        <Card className="flex flex-col items-start gap-2">
-          <p role="alert">{t('app.loadFailed')}</p>
-          <Button onClick={retry}>{t('app.retry')}</Button>
-        </Card>
+        <EmptyState
+          icon={<TriangleAlert />}
+          title={<span role="alert">{t('app.loadFailed')}</span>}
+          action={<Button onClick={retry}>{t('app.retry')}</Button>}
+        />
       ) : (
         !(sheet && stocks) && <Loading />
       )}
@@ -101,10 +106,14 @@ export function AccountsScreen() {
             {(['treasury', 'escrow', 'stockValue', 'total'] as const).map((line) => (
               <div
                 key={line}
-                className={line === 'total' ? `${LINE} mt-2 border-t border-border pt-2` : LINE}
+                className={
+                  line === 'total'
+                    ? `${LINE} mt-2 border-t border-border pt-2 font-display text-xl`
+                    : `${LINE} py-1`
+                }
               >
                 <dt>{t(`accounts.${line}`)}</dt>
-                <dd className="font-semibold">{money(sheet[line])}</dd>
+                <dd className="font-semibold tabular-nums">{money(sheet[line])}</dd>
               </div>
             ))}
           </dl>

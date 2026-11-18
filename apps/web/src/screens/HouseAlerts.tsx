@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, TriangleAlert } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -61,8 +61,11 @@ export function HouseAlerts() {
   const LINK = 'underline underline-offset-4';
 
   return (
-    <Card className="flex flex-col gap-2">
-      <h2 className="text-xl">{t('alerts.title')}</h2>
+    <Card className="flex flex-col gap-2 border-danger/40 bg-danger-subtle/40">
+      <h2 className="flex items-center gap-2 text-xl">
+        <TriangleAlert aria-hidden="true" className="size-5 text-danger" />
+        {t('alerts.title')}
+      </h2>
       <ul className="flex flex-col gap-2">
         {alerts.map((alert) => {
           const key =
@@ -70,7 +73,7 @@ export function HouseAlerts() {
               ? alert.kind
               : `${alert.kind}:${'lease' in alert ? alert.lease.id : alert.property.id}`;
           return (
-            <li key={key} className="font-semibold text-danger">
+            <li key={key} className="rounded-md bg-surface px-3 py-2 font-semibold text-danger">
               {alert.kind === 'unhoused'
                 ? t('alerts.unhoused', {
                     count: alert.workers,

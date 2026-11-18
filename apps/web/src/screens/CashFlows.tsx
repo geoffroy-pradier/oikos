@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card } from '@oikos/ui';
+import { Card, Coins, EmptyState } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HOUSE_NATURES, parseCashFlowDays } from '../cash-flows';
@@ -48,13 +48,15 @@ export function CashFlows() {
       {(read.failed || (read.rows !== null && parsed === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {days?.length === 0 && <p className="text-muted-foreground">{t('accounts.flows.none')}</p>}
+      {days?.length === 0 && (
+        <EmptyState icon={<Coins />} title={t('accounts.flows.none')} headingLevel={3} />
+      )}
       {days && days.length > 0 && (
         <ul className="flex flex-col gap-2">
           {days.slice(0, SHOWN_DAYS).map((day) => (
             <li
               key={day.day ?? 'none'}
-              className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0"
+              className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
             >
               <h3 className="font-medium">
                 {t('accounts.flows.day', {

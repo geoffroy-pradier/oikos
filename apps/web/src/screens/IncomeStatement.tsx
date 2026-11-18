@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, EmptyState, ScrollText } from '@oikos/ui';
 import { gameDayDate } from '@oikos/sim';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -85,12 +85,17 @@ export function IncomeStatement(props: {
         </label>
       </div>
       {rows === undefined && <Loading />}
-      {rows?.length === 0 && <p>{t('accounts.income.empty')}</p>}
+      {rows?.length === 0 && (
+        <EmptyState icon={<ScrollText />} title={t('accounts.income.empty')} headingLevel={3} />
+      )}
       {sorted.length > 0 && (
         <>
           <ul className="flex flex-col gap-3 lg:hidden">
             {sorted.map((row) => (
-              <li key={row.firstDay ?? 'unknown'} className="rounded-md border border-border p-3">
+              <li
+                key={row.firstDay ?? 'unknown'}
+                className="rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
+              >
                 <h3 className="text-lg">{period(row)}</h3>
                 <dl>
                   {INCOME_COLUMNS.map((column) => (
@@ -149,7 +154,7 @@ export function IncomeStatement(props: {
               </thead>
               <tbody>
                 {sorted.map((row) => (
-                  <tr key={row.firstDay ?? 'unknown'} className="border-t border-border">
+                  <tr key={row.firstDay ?? 'unknown'} className="border-t border-border-subtle">
                     <th scope="row" className="py-2 pr-3 font-normal whitespace-nowrap">
                       {period(row)}
                     </th>
