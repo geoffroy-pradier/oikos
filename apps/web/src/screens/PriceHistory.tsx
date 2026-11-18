@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { ArrowDownRight, ArrowUpRight, Badge, Card, Minus, ScrollText } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -61,7 +61,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
   const bodyWidth = Math.min(slot * 0.6, 12);
 
   return (
-    <Card>
+    <Card className="flex flex-col gap-3">
       <h2 ref={title} tabIndex={-1} className="text-xl">
         {t('agora.priceTitle', { good })}
       </h2>
@@ -72,22 +72,39 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
         />
       )}
       {candles.rows === null && !candles.failed && <Loading />}
-      {series?.length === 0 && <p className="text-muted-foreground">{t('agora.priceEmpty')}</p>}
+      {series?.length === 0 && (
+        <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
+          {t('agora.priceEmpty')}
+        </p>
+      )}
       {summary && (
         <>
-          <p>
-            <strong>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <strong className="font-display text-lg">
               {t('agora.lastPrice', {
                 price: number.format(summary.last),
                 date: date(summary.lastAt),
               })}
-            </strong>{' '}
-            {summary.change === null
-              ? t('agora.changeUnknown')
-              : t('agora.change', { change: percent.format(summary.change) })}
+            </strong>
+            <Badge
+              tone="aegean"
+              icon={
+                summary.change === null || summary.change === 0 ? (
+                  <Minus aria-hidden="true" />
+                ) : summary.change > 0 ? (
+                  <ArrowUpRight aria-hidden="true" />
+                ) : (
+                  <ArrowDownRight aria-hidden="true" />
+                )
+              }
+            >
+              {summary.change === null
+                ? t('agora.changeUnknown')
+                : t('agora.change', { change: percent.format(summary.change) })}
+            </Badge>
           </p>
           {average && (
-            <p>
+            <p className="text-sm text-muted-foreground">
               {t(average.current ? 'agora.observedPrice' : 'agora.observedPriceDated', {
                 hours: number.format(average.hours),
                 price: number.format(average.price),
@@ -99,7 +116,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
           <svg
             role="img"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="block h-40 w-full text-foreground"
+            className="block h-40 w-full rounded-lg bg-muted/40 p-1 text-foreground"
             // Le cadre s'étire sur la largeur de la carte ; les traits gardent leur épaisseur.
             preserveAspectRatio="none"
             aria-label={t('agora.chartLabel', {
@@ -110,6 +127,20 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
               ...scale,
             })}
           >
+            {/* Repères horizontaux : haut, milieu et bas de l'échelle, décoratifs. */}
+            {[0.25, 0.5, 0.75].map((share) => (
+              <line
+                key={share}
+                x1={0}
+                x2={WIDTH}
+                y1={HEIGHT * share}
+                y2={HEIGHT * share}
+                stroke="currentColor"
+                strokeOpacity={0.15}
+                strokeDasharray="2 3"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
             <g transform={`translate(0 ${MARGIN})`}>
               {marks.map((mark, index) => {
                 const candle = shown[index];
@@ -160,17 +191,18 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
           </svg>
           <p className="text-sm text-muted-foreground">{t('agora.chartLegend', scale)}</p>
           <details className="mt-2">
-            <summary className="min-h-11 cursor-pointer content-center">
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md font-medium hover:text-primary">
+              <ScrollText aria-hidden="true" className="size-4 shrink-0 text-accent" />
               {t('agora.priceTable')}
             </summary>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left tabular-nums">
                 <caption className="sr-only">{t('agora.priceTitle', { good })}</caption>
                 <thead>
                   <tr>
                     {(['period', 'open', 'high', 'low', 'close', 'volume'] as const).map(
                       (column) => (
-                        <th key={column} scope="col" className="pr-3">
+                        <th key={column} scope="col" className="eyebrow py-1 pr-3 font-semibold">
                           {t(`agora.${column}`)}
                         </th>
                       ),
@@ -179,13 +211,13 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
                 </thead>
                 <tbody>
                   {[...shown].reverse().map((candle) => (
-                    <tr key={candle.periodStart}>
-                      <th scope="row" className="whitespace-nowrap pr-3 font-normal">
+                    <tr key={candle.periodStart} className="border-t border-border-subtle">
+                      <th scope="row" className="py-1.5 pr-3 font-normal whitespace-nowrap">
                         {date(candle.periodStart)}
                       </th>
                       {[candle.open, candle.high, candle.low, candle.close, candle.volume].map(
                         (value, column) => (
-                          <td key={column} className="whitespace-nowrap pr-3">
+                          <td key={column} className="py-1.5 pr-3 whitespace-nowrap">
                             {number.format(value)}
                           </td>
                         ),

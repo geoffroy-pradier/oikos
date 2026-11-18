@@ -1,5 +1,5 @@
 import { marketPlaceOrderInputSchema } from '@oikos/contracts';
-import { Button, Card } from '@oikos/ui';
+import { Badge, Button, Card, CircleAlert, Frieze, Info, Scale, Store } from '@oikos/ui';
 import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -19,7 +19,12 @@ import { useMoney } from '../money';
  */
 const GOOD_IDS = Object.keys(fr.goods);
 const DEFAULT_GOOD = 'wheat';
-const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
+const CONTROL =
+  'min-h-11 w-full rounded-md border border-border bg-surface-raised px-3 text-foreground ' +
+  'transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground/60';
+const LABEL = 'text-sm font-medium';
+/** Part de la quantité du niveau le plus fourni, en pourcentage : la profondeur du carnet, en fond de ligne. */
+const depthOf = (quantity: number, deepest: number) => Math.round((quantity / deepest) * 100);
 
 interface Level {
   side: 'buy' | 'sell';
@@ -165,27 +170,36 @@ export function AgoraScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-2xl">{t('agora.title', { city: house.cityName })}</h1>
-        <label htmlFor="good">{t('agora.good')}</label>
-        <select
-          className={CONTROL}
-          id="good"
-          value={goodId}
-          // Pas de changement de bien pendant qu'une commande est en route : son résultat et le carnet
-          // relu ensuite portent sur le bien affiché.
-          disabled={busy}
-          onChange={(event) => {
-            setGoodId(event.target.value);
-            setNotice(null);
-          }}
-        >
-          {GOOD_IDS.map((id) => (
-            <option key={id} value={id}>
-              {t(`goods.${id}`)}
-            </option>
-          ))}
-        </select>
+      <Card elevation="raised" className="flex flex-col gap-3 overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-col gap-3 p-4">
+          {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
+          <h1 className="text-2xl">
+            <Store aria-hidden="true" className="mr-2 inline size-6 align-[-0.15em] text-accent" />
+            {t('agora.title', { city: house.cityName })}
+          </h1>
+          <label htmlFor="good" className={LABEL}>
+            {t('agora.good')}
+          </label>
+          <select
+            className={CONTROL}
+            id="good"
+            value={goodId}
+            // Pas de changement de bien pendant qu'une commande est en route : son résultat et le carnet
+            // relu ensuite portent sur le bien affiché.
+            disabled={busy}
+            onChange={(event) => {
+              setGoodId(event.target.value);
+              setNotice(null);
+            }}
+          >
+            {GOOD_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`goods.${id}`)}
+              </option>
+            ))}
+          </select>
+        </div>
       </Card>
       {(book.failed ||
         mine.failed ||
@@ -204,83 +218,125 @@ export function AgoraScreen() {
         <PriceHistory cityId={house.cityId} goodId={goodId} periodSeconds={candleSeconds} />
       )}
 
-      <Card>
+      <Card className="flex flex-col gap-3">
         <h2 ref={bookTitle} tabIndex={-1} className="text-xl">
           {t('agora.book', { good })}
         </h2>
         {book.rows === null && !book.failed && <Loading />}
-        {book.rows !== null &&
-          (
-            [
-              ['asks', asks, 'bookCaption', 'offered', 'bookEmpty'],
-              ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty'],
-            ] as const
-          ).map(([key, levels, caption, column, empty]) =>
-            levels?.length === 0 ? (
-              <p key={key} className="text-muted-foreground">
-                {t(`agora.${empty}`)}
-              </p>
-            ) : (
-              // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
-              // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-              <div key={key} className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <caption className="text-left text-sm text-muted-foreground">
-                    {t(`agora.${caption}`)}
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">{t('agora.price')}</th>
-                      <th scope="col">{t(`agora.${column}`)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {levels?.map((level) => (
-                      <tr key={level.price}>
-                        <td className="whitespace-nowrap">{number.format(level.price)}</td>
-                        <td className="whitespace-nowrap">{number.format(level.quantity)}</td>
+        {book.rows !== null && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {(
+              [
+                ['asks', asks, 'bookCaption', 'offered', 'bookEmpty', 'danger'],
+                ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty', 'success'],
+              ] as const
+            ).map(([key, levels, caption, column, empty, tone]) => {
+              const deepest = Math.max(1, ...(levels ?? []).map((level) => level.quantity));
+              return levels?.length === 0 ? (
+                <p
+                  key={key}
+                  className="rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground"
+                >
+                  {t(`agora.${empty}`)}
+                </p>
+              ) : (
+                // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
+                // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
+                <div key={key} className="overflow-x-auto rounded-lg bg-muted/40 p-2">
+                  <table className="w-full text-left tabular-nums">
+                    <caption className="px-2 pb-2 text-left text-sm text-muted-foreground">
+                      {t(`agora.${caption}`)}
+                    </caption>
+                    <thead>
+                      <tr className="border-b border-border-subtle">
+                        <th scope="col" className="eyebrow px-2 py-1 font-semibold">
+                          {t('agora.price')}
+                        </th>
+                        <th scope="col" className="eyebrow px-2 py-1 text-right font-semibold">
+                          {t(`agora.${column}`)}
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ),
-          )}
+                    </thead>
+                    <tbody>
+                      {levels?.map((level) => (
+                        <tr key={level.price} className="border-b border-border-subtle/60">
+                          <td className="px-2 py-1.5 font-semibold whitespace-nowrap">
+                            {number.format(level.price)}
+                          </td>
+                          <td
+                            className="px-2 py-1.5 text-right whitespace-nowrap"
+                            // Profondeur du niveau : une barre qui part de la droite, sous le chiffre.
+                            style={{
+                              backgroundImage: `linear-gradient(to left, var(--${tone}-subtle) ${depthOf(level.quantity, deepest)}%, transparent ${depthOf(level.quantity, deepest)}%)`,
+                            }}
+                          >
+                            {number.format(level.quantity)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       <Card>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-2">
-          <h2 className="text-xl">{t('agora.place', { good })}</h2>
-          <label htmlFor="side">{t('agora.side')}</label>
-          <select
-            className={CONTROL}
-            id="side"
-            value={side}
-            onChange={(event) => setSide(event.target.value === 'buy' ? 'buy' : 'sell')}
-          >
-            <option value="sell">{t('agora.sell')}</option>
-            <option value="buy">{t('agora.buy')}</option>
-          </select>
-          <label htmlFor="price">{t('agora.limitPrice')}</label>
-          <input
-            className={CONTROL}
-            id="price"
-            inputMode="numeric"
-            value={price}
-            aria-describedby="expected-net"
-            onChange={(event) => setPrice(event.target.value)}
-          />
-          <label htmlFor="quantity">{t('agora.quantity')}</label>
-          <input
-            className={CONTROL}
-            id="quantity"
-            inputMode="numeric"
-            value={quantity}
-            aria-describedby="expected-net"
-            onChange={(event) => setQuantity(event.target.value)}
-          />
+        <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+          <h2 className="text-xl">
+            <Scale aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+            {t('agora.place', { good })}
+          </h2>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="side" className={LABEL}>
+              {t('agora.side')}
+            </label>
+            <select
+              className={CONTROL}
+              id="side"
+              value={side}
+              onChange={(event) => setSide(event.target.value === 'buy' ? 'buy' : 'sell')}
+            >
+              <option value="sell">{t('agora.sell')}</option>
+              <option value="buy">{t('agora.buy')}</option>
+            </select>
+          </div>
+          {/* min-w-0 : à police très agrandie, les champs rétrécissent avec la page au lieu de la déborder. */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="price" className={LABEL}>
+                {t('agora.limitPrice')}
+              </label>
+              <input
+                className={CONTROL}
+                id="price"
+                inputMode="numeric"
+                value={price}
+                aria-describedby="expected-net"
+                onChange={(event) => setPrice(event.target.value)}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="quantity" className={LABEL}>
+                {t('agora.quantity')}
+              </label>
+              <input
+                className={CONTROL}
+                id="quantity"
+                inputMode="numeric"
+                value={quantity}
+                aria-describedby="expected-net"
+                onChange={(event) => setQuantity(event.target.value)}
+              />
+            </div>
+          </div>
           {/* Description des deux champs et du bouton : lue en y arrivant, pas annoncée à chaque frappe. */}
-          <p id="expected-net" className="text-sm text-muted-foreground">
+          <p
+            id="expected-net"
+            className="rounded-md bg-aegean-subtle p-2 text-sm text-foreground empty:hidden"
+          >
             {preview &&
               t('agora.expectedNet', {
                 net: money(preview.net),
@@ -288,25 +344,44 @@ export function AgoraScreen() {
                 tax: money(preview.tax),
               })}
           </p>
-          <Button type="submit" disabled={busy} aria-describedby="expected-net">
+          <Button
+            type="submit"
+            disabled={busy}
+            aria-describedby="expected-net"
+            className="w-full sm:w-auto sm:self-start"
+          >
             {t('agora.submit')}
           </Button>
         </form>
       </Card>
 
-      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
+      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. Vide, il est masqué
+          visuellement (sr-only) mais reste dans l'arbre d'accessibilité, jamais en display:none. */}
       <p
         role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
+        className={
+          'flex items-start gap-2 rounded-lg p-3 empty:sr-only ' +
+          (notice?.kind === 'alert'
+            ? 'bg-danger-subtle font-semibold text-danger'
+            : 'bg-success-subtle text-foreground')
+        }
       >
+        {notice &&
+          (notice.kind === 'alert' ? (
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          ) : (
+            <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          ))}
         {notice?.text}
       </p>
 
-      <Card>
+      <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('agora.myOrders')}</h2>
         {mine.rows === null && !mine.failed && <Loading />}
         {mine.rows?.length === 0 && (
-          <p className="text-muted-foreground">{t('agora.myOrdersEmpty')}</p>
+          <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
+            {t('agora.myOrdersEmpty')}
+          </p>
         )}
         <ul className="flex flex-col gap-2">
           {mine.rows?.map((order) => {
@@ -319,12 +394,18 @@ export function AgoraScreen() {
             };
             const buying = order.side === 'buy';
             return (
-              <li key={order.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  <strong>{t(buying ? 'agora.sideBuy' : 'agora.sideSell')}</strong>
-                  {' · '}
-                  {t('agora.myOrder', values)}
-                  {buying && ` (${t('agora.myOrderHeld', values)})`}
+              <li
+                key={order.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 p-3"
+              >
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Badge tone={buying ? 'success' : 'primary'}>
+                    {t(buying ? 'agora.sideBuy' : 'agora.sideSell')}
+                  </Badge>
+                  <span>
+                    {t('agora.myOrder', values)}
+                    {buying && ` (${t('agora.myOrderHeld', values)})`}
+                  </span>
                 </span>
                 <Button
                   variant="secondary"
