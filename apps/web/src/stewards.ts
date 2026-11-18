@@ -136,6 +136,32 @@ export function rulesOf(
   return { invalid: typeof first === 'number' ? first : 0 };
 }
 
+type Stacks = { inputs: { goodId: string }[]; outputs: { goodId: string }[] } | null;
+
+/** Biens qu'une règle peut viser : un rachat, les intrants ; une vente, les extrants puis les intrants. */
+export function goodsFor(recipe: Stacks, row: Pick<RuleDraft, 'kind' | 'goodId'>): string[] {
+  const inputs = recipe?.inputs.map((stack) => stack.goodId) ?? [];
+  const outputs = recipe?.outputs.map((stack) => stack.goodId) ?? [];
+  const offered = row.kind === 'buy' ? inputs : [...new Set([...outputs, ...inputs])];
+  return row.goodId && !offered.includes(row.goodId) ? [row.goodId, ...offered] : offered;
+}
+
+/** Règle neuve de cette sorte, sur le premier bien proposé, sans nombre. */
+export const blankRule = (recipe: Stacks, kind: RuleDraft['kind']): RuleDraft => ({
+  kind,
+  goodId: kind === 'collect' ? '' : (goodsFor(recipe, { kind, goodId: '' })[0] ?? ''),
+  price: '',
+  units: '',
+});
+
+/** La ligne `index` passe avant la précédente. */
+export const moveUp = <T>(rows: readonly T[], index: number): T[] =>
+  index <= 0 || index >= rows.length
+    ? [...rows]
+    : rows.map(
+        (row, rank) => rows[rank === index ? index - 1 : rank === index - 1 ? index : rank] ?? row,
+      );
+
 /** Intention d'une embauche : le site. */
 export const hireIntent = (siteId: string) => `hire:${siteId}`;
 
