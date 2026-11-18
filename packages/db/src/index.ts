@@ -68,6 +68,8 @@ export interface GameDatabase {
     aal?: 'aal1' | 'aal2' | null;
     admin_role?: string | null;
     config_version_id?: string | null;
+    /** Intendant qui a mené la commande au nom de la maison du compte (#279) ; nul pour le joueur. */
+    steward_id?: string | null;
     created_at: Generated<Date>;
   };
   'game.domain_events': {
@@ -313,6 +315,24 @@ export interface GameDatabase {
     price_oboles: ColumnType<string | null, number | null, never>;
     /** Réserve gardée par une vente, stock cible d'un rachat ; nul pour une récolte. */
     units: ColumnType<string | null, number | null, never>;
+  };
+  /**
+   * Opérations des intendants (#279) : une par intendant, tick et rang, inscrite avec la ligne du journal des
+   * commandes qu'elle nomme, jamais modifiée (garde de la base).
+   */
+  'game.steward_operations': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    steward_id: ColumnType<string, string, never>;
+    tick_index: ColumnType<string, number, never>;
+    rank: ColumnType<number, number, never>;
+    rules_revision: ColumnType<number, number, never>;
+    rule_position: ColumnType<number, number, never>;
+    status: ColumnType<'ok' | 'rejected', 'ok' | 'rejected', never>;
+    error_code: ColumnType<string | null, string | null, never>;
+    summary: ColumnType<unknown, string, never>;
+    command_id: ColumnType<string, string, never>;
+    created_at: ColumnType<Date, never, never>;
   };
   /**
    * Parc de logements d'une cité (4.5). Le moteur crée un bien neuf, à la cité ; la base n'en change le

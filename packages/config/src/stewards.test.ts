@@ -3,6 +3,7 @@ import {
   INITIAL_CONFIG,
   stewardDailyWageOboles,
   stewardLimit,
+  stewardOperationsPerTick,
   stewardRulesLimit,
   validateConfig,
   type StewardsRules,
@@ -67,5 +68,27 @@ describe('intendants (4.4, #278)', () => {
         names.length === 2 ? 'stewards.names[1]' : 'stewards.names[0]',
       ]);
     expect(fieldsOf({ ...stewards, names: ['Kléon d’Athènes'] })).toEqual([]);
+  });
+
+  it('opérations par tick (#279) : une au départ, une pour une version publiée avant elles, entier de 1 à 20', () => {
+    const initial = validateConfig(INITIAL_CONFIG);
+    if (!initial.ok) throw new Error(initial.errors.join('\n'));
+    expect(stewardOperationsPerTick(initial.config)).toBe(1);
+    const older: Record<string, unknown> = { ...base().stewards };
+    delete older['operationsPerTick'];
+    const result = validateConfig({ ...base(), stewards: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.stewards?.operationsPerTick).toBe(1);
+    const stewards = base().stewards;
+    for (const value of [0, 21, 1.5, '1'])
+      expect(fieldsOf({ ...stewards, operationsPerTick: value })).toEqual([
+        'stewards.operationsPerTick',
+      ]);
+    expect(fieldsOf({ ...stewards, operationsPerTick: 20 })).toEqual([]);
+    const without: Record<string, unknown> = base();
+    delete without['stewards'];
+    const none = validateConfig(without);
+    if (!none.ok) throw new Error(none.errors.join('\n'));
+    expect(stewardOperationsPerTick(none.config)).toBe(0);
   });
 });

@@ -19,6 +19,11 @@ export const stewardsSchema = z
     dailyWageOboles: z.number().int().min(0).max(1_000_000_000),
     /** Règles au plus par intendant ; plafond technique de 20, celui du contrat (`MAX_STEWARD_RULES`). */
     rulesPerSteward: z.number().int().min(1).max(20),
+    /**
+     * Opérations au plus par intendant et par tick (#279), menées dans l'ordre de ses règles. Absent d'une version
+     * publiée avant l'exécution des règles : une, la valeur de départ.
+     */
+    operationsPerTick: z.number().int().min(1).max(20).default(1),
     /** Noms que reçoit un intendant à son embauche, tirés au hasard : du contenu, pas de l'équilibrage. */
     names: z
       .array(
@@ -61,4 +66,9 @@ export function stewardDailyWageOboles(config: WithStewards): number {
 /** Règles au plus par intendant : aucune avant les intendants. */
 export function stewardRulesLimit(config: WithStewards): number {
   return config.stewards?.rulesPerSteward ?? 0;
+}
+
+/** Opérations au plus par intendant et par tick : aucune avant les intendants. */
+export function stewardOperationsPerTick(config: WithStewards): number {
+  return config.stewards?.operationsPerTick ?? 0;
 }
