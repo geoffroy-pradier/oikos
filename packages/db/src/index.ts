@@ -284,6 +284,37 @@ export interface GameDatabase {
     created_at: ColumnType<Date, never, never>;
   };
   /**
+   * Intendants des maisons (4.4, #278), un par site en poste. Le service embauche sans choisir ni la date ni
+   * l'impayé (posé à l'embauche), puis ne change que l'impayé (clôture) et le renvoi (garde de la base).
+   */
+  'game.stewards': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    site_id: ColumnType<string, string, never>;
+    name: ColumnType<string, string, never>;
+    hired_at: ColumnType<Date, never, never>;
+    /** Impayé depuis cet instant (l'intendant n'agit pas) ; nul quand la dernière clôture l'a payé. */
+    unpaid_since: ColumnType<Date | null, never, Date | null>;
+    dismissed_at: ColumnType<Date | null, never, Date>;
+    /** Révision en vigueur de ses règles ; 0 : aucune. Elle n'avance que d'un pas à la fois. */
+    rules_revision: ColumnType<number, never, number>;
+    /** Instant de la transaction qui a ouvert la révision en vigueur, posé par la garde. */
+    rules_revised_at: ColumnType<Date | null, never, never>;
+  };
+  /** Règles d'un intendant par révision : écrites dans la révision en vigueur, jamais modifiées ni effacées. */
+  'game.steward_rules': {
+    steward_id: ColumnType<string, string, never>;
+    revision: ColumnType<number, number, never>;
+    position: ColumnType<number, number, never>;
+    kind: ColumnType<'collect' | 'sell' | 'buy', 'collect' | 'sell' | 'buy', never>;
+    good_id: ColumnType<string | null, string | null, never>;
+    /** Prix plancher d'une vente, plafond d'un rachat, par unité ; nul pour une récolte. */
+    price_oboles: ColumnType<string | null, number | null, never>;
+    /** Réserve gardée par une vente, stock cible d'un rachat ; nul pour une récolte. */
+    units: ColumnType<string | null, number | null, never>;
+  };
+  /**
    * Parc de logements d'une cité (4.5). Le moteur crée un bien neuf, à la cité ; la base n'en change le
    * propriétaire que par une écriture d'achat, et n'en relève l'état que par une rénovation.
    */
