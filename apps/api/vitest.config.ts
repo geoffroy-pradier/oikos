@@ -7,6 +7,8 @@ export default defineConfig({
     // Les tests d'intégration exigent Supabase local : ils ont leur propre commande (`pnpm test:integration`).
     include: integration ? ['src/**/*.integration.test.ts'] : ['src/**/*.test.ts'],
     exclude: integration ? [] : ['src/**/*.integration.test.ts'],
+    // Un conflit entre transactions, rejoué par le registre, fait échouer un test qui ne l'accepte pas (#333).
+    setupFiles: integration ? ['src/conflicts.integration-fixtures.ts'] : [],
     // Certains tests d'intégration posent une contrainte temporaire pour simuler une panne : les fichiers
     // partagent la même base et s'exécutent donc l'un après l'autre.
     fileParallelism: !integration,

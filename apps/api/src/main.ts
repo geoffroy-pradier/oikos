@@ -5,6 +5,7 @@ import { createApp } from './app';
 import { tokenVerifierFromEnv } from './auth';
 import { SELF_REVIEW_ENV, selfReviewFromEnv } from './commands/admin-config';
 import { createSharedRateLimiter, rateLimitFromEnv } from './rate-limit';
+import { retryFromEnv } from './registry';
 import { createTelemetry } from './telemetry';
 
 function requireEnv(name: string): string {
@@ -33,7 +34,7 @@ if (allowSelfReview) {
 }
 const app = createApp({
   db,
-  settings: { allowSelfReview },
+  settings: { allowSelfReview, retry: retryFromEnv(process.env) },
   telemetry,
   loadConfig: createConfigLoader(db).at,
   verifyToken: tokenVerifierFromEnv(process.env),

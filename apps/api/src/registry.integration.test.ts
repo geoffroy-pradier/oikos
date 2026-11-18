@@ -3,6 +3,7 @@ import type { DomainEvent } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
+import { acceptTransactionConflicts } from './conflicts.integration-fixtures';
 import { z } from 'zod';
 import {
   defineCommand,
@@ -10,6 +11,7 @@ import {
   type CommandContext,
   type CommandOutcome,
   type CommandResult,
+  DEFAULT_RETRY,
 } from './registry';
 import { TEST_CONFIG, testConfig } from './test-config';
 
@@ -503,5 +505,189 @@ describe('executeCommand', () => {
       { status: 'rejected', aal: 'aal1', admin_role: null, config_version_id: config },
       { status: 'failed', aal: 'aal1', admin_role: null, config_version_id: config },
     ]);
+  });
+
+  describe('nouvel essai sur conflit entre transactions (#333)', () => {
+    /** Renomme la maison, puis lève l'erreur `code` de PostgreSQL aux essais que `raise` désigne (le n-ième). */
+    const conflicting = (name: string, code: string, raise: (run: number) => boolean) => {
+      const rename = probe(name);
+      const command = defineCommand({
+        ...rename,
+        async handler(context, input) {
+          const result = await rename.handler(context, input);
+          if (raise(rename.runs()))
+            await sql
+              .raw(`do $$ begin raise exception 'conflit simulé' using errcode = '${code}'; end $$`)
+              .execute(context.trx);
+          return result;
+        },
+      });
+      return Object.assign(command, { runs: rename.runs });
+    };
+    it('deux commandes qui s’interbloquent : la base en annule une, rejouée seule, un seul effet chacune', async () => {
+      const [a, b] = [await newHouse(), await newHouse()];
+      const opened = new Map<string, () => void>();
+      const locked = new Map(
+        [a, b].map(({ houseId }) => [
+          houseId,
+          new Promise<void>((resolve) => opened.set(houseId, resolve)),
+        ]),
+      );
+      let runs = 0;
+      // Chaque commande verrouille sa maison, attend que l'autre ait verrouillé la sienne, puis la verrouille : un cycle.
+      const crossing = defineCommand({
+        name: 'probe.crossing',
+        input: z.strictObject({ own: z.uuid(), other: z.uuid(), name: z.string() }),
+        output: z.strictObject({ houseId: z.uuid() }),
+        errors: [],
+        async handler({ trx, emit }, input) {
+          runs += 1;
+          await trx
+            .updateTable('game.houses')
+            .set({ name: input.name })
+            .where('id', '=', input.own)
+            .execute();
+          opened.get(input.own)?.();
+          await locked.get(input.other);
+          await trx
+            .selectFrom('game.houses')
+            .select('id')
+            .where('id', '=', input.other)
+            .forUpdate()
+            .execute();
+          emit({
+            type: 'HouseRenamed',
+            payload: { houseId: input.own, previousName: '?', name: input.name },
+          });
+          return { ok: true, data: { houseId: input.own } };
+        },
+      });
+      const seen = acceptTransactionConflicts();
+      const names = [`Croix ${letters()}`, `Croix ${letters()}`] as const;
+      const cross = (own: typeof a, other: typeof a, name: string) =>
+        executeCommand(
+          db,
+          crossing,
+          {
+            userId: own.userId,
+            idempotencyKey: randomUUID(),
+            input: { own: own.houseId, other: other.houseId, name },
+          },
+          testConfig,
+        );
+      const outcomes = await Promise.all([cross(a, b, names[0]), cross(b, a, names[1])]);
+      expect(outcomes).toEqual(
+        [a, b].map(({ houseId }) => ({
+          replayed: false,
+          response: { ok: true, data: { houseId } },
+        })),
+      );
+      // Trois exécutions : chacune une fois, plus le nouvel essai de celle que la base a annulée.
+      expect([runs, seen('40P01')]).toEqual([3, 1]);
+      for (const [index, house] of [a, b].entries()) {
+        expect(await nameOf(house.houseId)).toBe(names[index]);
+        expect(await eventsOf(house.houseId)).toBe(1);
+        expect(await logOf(house.userId)).toMatchObject([{ status: 'ok' }]);
+      }
+    }, 15_000);
+
+    it('échec de sérialisation au premier essai : le second réussit, un seul effet, une ligne au journal, même rejeu', async () => {
+      const [house, key, name] = [await newHouse(), randomUUID(), `Sérielle ${letters()}`];
+      const command = conflicting('probe.serial', '40001', (run) => run === 1);
+      const seen = acceptTransactionConflicts();
+      const first = await run(command, house.userId, { name }, key);
+      expect(first).toEqual({
+        replayed: false,
+        response: { ok: true, data: { houseId: house.houseId, name } },
+      });
+      expect(await run(command, house.userId, { name }, key)).toEqual({
+        ...first,
+        replayed: true,
+      });
+      expect([command.runs(), seen('40001')]).toEqual([2, 1]);
+      expect([await nameOf(house.houseId), await eventsOf(house.houseId)]).toEqual([name, 1]);
+      expect(await logOf(house.userId)).toMatchObject([{ status: 'ok', idempotency_key: key }]);
+    });
+
+    it('conflit persistant : essais bornés, puis erreur inattendue, une seule trace sans clé ; la clé reste utilisable', async () => {
+      const [house, key] = [await newHouse(), randomUUID()];
+      const always = conflicting('probe.deadlocked', '40P01', () => true);
+      const seen = acceptTransactionConflicts();
+      const request = {
+        userId: house.userId,
+        idempotencyKey: key,
+        input: { name: `Bloquée ${letters()}` },
+      };
+      expect((await executeCommand(db, always, request, testConfig)).response).toMatchObject({
+        ok: false,
+        error: { code: 'INTERNAL' },
+      });
+      expect([always.runs(), seen('40P01')]).toEqual([
+        DEFAULT_RETRY.maxAttempts,
+        DEFAULT_RETRY.maxAttempts - 1,
+      ]);
+      // Un seul essai permis : aucun nouvel essai.
+      const once = conflicting('probe.once', '40P01', () => true);
+      const settings = { allowSelfReview: false, retry: { maxAttempts: 1, delayMs: 0 } };
+      await executeCommand(
+        db,
+        once,
+        { ...request, idempotencyKey: randomUUID() },
+        testConfig,
+        settings,
+      );
+      // Toute autre erreur de la base, même un verrou non obtenu, n'est pas rejouée.
+      const other = conflicting('probe.lockTimeout', '55P03', () => true);
+      await run(other, house.userId, { name: `Verrou ${letters()}` });
+      expect([once.runs(), other.runs()]).toEqual([1, 1]);
+      expect([await nameOf(house.houseId), await eventsOf(house.houseId)]).toEqual([house.name, 0]);
+      expect(await logOf(house.userId)).toMatchObject(
+        [1, 2, 3].map(() => ({ status: 'failed', idempotency_key: null })),
+      );
+      expect(
+        (await executeCommand(db, probe('probe.after'), request, testConfig)).response,
+      ).toMatchObject({
+        ok: true,
+      });
+    });
+
+    it('requête de même clé validée pendant l’attente du nouvel essai : il rend sa réponse, en rejeu, sans second effet', async () => {
+      const [house, key, name] = [await newHouse(), randomUUID(), `Relais ${letters()}`];
+      const request = { userId: house.userId, idempotencyKey: key, input: { name } };
+      let second: Promise<CommandOutcome> | undefined;
+      const rename = probe('probe.relay');
+      const command = defineCommand({
+        ...rename,
+        async handler(context, input) {
+          const result = await rename.handler(context, input);
+          if (second) return result;
+          // Premier essai : la requête de même clé part et attend le verrou de la clé, puis la base annule cet essai.
+          second = executeCommand(db, command, request, testConfig);
+          for (let tries = 0; tries < 100; tries++) {
+            const waiting = await sql<{ n: number }>`select count(*)::int as n from pg_locks
+              where locktype = 'advisory' and not granted
+                and objid = (hashtextextended(${`${house.userId}:${key}`}, 0) & 4294967295)::oid`.execute(
+              owner,
+            );
+            if ((waiting.rows[0]?.n ?? 0) > 0) break;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+          await sql`do $$ begin raise exception 'conflit simulé' using errcode = '40001'; end $$`.execute(
+            context.trx,
+          );
+          return result;
+        },
+      });
+      const seen = acceptTransactionConflicts();
+      const first = await executeCommand(db, command, request, testConfig);
+      const other = await second;
+      expect(other).toEqual({
+        replayed: false,
+        response: { ok: true, data: { houseId: house.houseId, name } },
+      });
+      expect(first).toEqual({ ...other, replayed: true });
+      expect([rename.runs(), seen('40001'), await eventsOf(house.houseId)]).toEqual([2, 1, 1]);
+      expect(await logOf(house.userId)).toMatchObject([{ status: 'ok', idempotency_key: key }]);
+    });
   });
 });

@@ -36,6 +36,23 @@ Le serveur est seul maître de l'état du jeu : le client n'envoie que des inten
   Garantie côté lecture écartée : un verrou `SHARE` sur `config.activations` et ses annulations, pris par le tick et la clôture jusqu'à leur validation, ferait attendre toute programmation pendant chaque clôture (jusqu'à cinq minutes) et, par la file des verrous, les ticks de tous les mondes derrière une programmation en attente ;
   raisons détaillées dans l'ADR 0003.
 
+## Verrous et nouvel essai
+
+Chaque transaction prend ses verrous dans un ordre fixe, mais ces ordres ne forment pas un ordre global (#333).
+Une récolte (`site.collect`) verrouille son site, puis les stocks qu'elle touche dans l'ordre des biens (classement "C"), puis les grâces en attente de la maison, sans prendre le verrou de l'agora.
+Le tick verrouille l'agora du monde, puis, par la demande des PNJ, les stocks vendus aux PNJ dans l'ordre des prix, puis, à l'arrivée des voyages, les voyages, les stocks d'arrivée (par maison, cité et bien) et les navires.
+Un tick qui achète du blé à la maison H dans la cité C et y décharge sa farine, et une récolte du moulin de H à C, qui verrouille la farine puis le blé, forment donc un cycle.
+Changer l'ordre des étapes ne suffirait pas : le cycle reste possible avec d'autres biens.
+PostgreSQL rompt un cycle en annulant l'une des transactions en entier (interblocage, `40P01`) : il n'en reste aucun effet.
+L'API rejoue alors la commande entière, sous la même clé d'idempotence : configuration, horloge de la base et verrou de la clé sont repris, et la commande s'exécute à l'instant de l'essai validé.
+L'essai annulé ne laisse ni ligne au journal des commandes, ni événement, ni réponse : seule l'issue du dernier essai est journalisée et rendue, et la durée journalisée compte tous les essais.
+Si une requête de même clé a validé pendant l'attente, le nouvel essai rend sa réponse, en rejeu, comme tout rejeu.
+Un échec de sérialisation (`40001`) est rejoué de même ; aucune autre erreur ne l'est, pas même un verrou non obtenu à temps ni une connexion perdue, dont l'issue peut être inconnue.
+Le nombre d'essais et l'attente entre deux essais sont des réglages techniques de l'API, pas des valeurs d'équilibrage : `API_COMMAND_MAX_ATTEMPTS` (3 essais au plus, le premier compris) et `API_COMMAND_RETRY_DELAY_MS` (le n-ième nouvel essai attend n fois 50 ms, plus un tirage d'au plus 50 ms).
+Au-delà, la commande rend `INTERNAL`, avec une seule trace sans clé au journal : la clé reste utilisable.
+Limite assumée : PostgreSQL ne cherche un interblocage qu'après `deadlock_timeout` (1 s par défaut), si bien qu'une commande rejouée dépasse le budget de 150 ms ; c'est rare, et préférable à une erreur.
+Le moteur ne rejoue pas : un tick annulé est repris au passage suivant, hors de son intervalle.
+
 ## Budgets de performance
 
 | Mesure | Cible à 5 000 joueurs actifs par jour |
