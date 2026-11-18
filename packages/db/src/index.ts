@@ -542,7 +542,8 @@ export interface GameDatabase {
     /** Le texte tant que le message n'est pas masqué, nul ensuite (colonne générée). */
     visible_body: ColumnType<string | null, never, never>;
     created_at: ColumnType<Date, never, never>;
-    hidden_at: ColumnType<Date | null, never, never>;
+    /** Posé par la modération (#276) : maintenant, une fois (garde de la base). */
+    hidden_at: ColumnType<Date | null, never, Date>;
   };
   /**
    * Signalements d'un message (#275) : écrits ouverts, datés par la base ; à la purge du message, `message_id`
@@ -554,8 +555,12 @@ export interface GameDatabase {
     reported_house_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     reason: ColumnType<string, string, never>;
-    state: ColumnType<'open' | 'dismissed' | 'upheld', never, never>;
+    /** Écarté ou retenu par la modération (#276), une fois, par un autre compte que le signalé. */
+    state: ColumnType<'open' | 'dismissed' | 'upheld', never, 'dismissed' | 'upheld'>;
     created_at: ColumnType<Date, never, never>;
+    /** Instant du traitement, posé par la base. */
+    resolved_at: ColumnType<Date | null, never, never>;
+    resolved_by: ColumnType<string | null, never, string>;
   };
   /**
    * Voyages (4.6). Le service fait partir un voyage sans en choisir ni l'identifiant ni la date de
@@ -695,23 +700,34 @@ export interface GameDatabase {
     granted_at: Generated<Date>;
   };
   /**
-   * Sanctions des comptes (#275), lues à chaque commande. Le service n'y écrit que le texte d'un appel, que la
-   * base date (`appealed_at`) et n'admet qu'une fois, sur une sanction en vigueur.
+   * Sanctions des comptes (#275), lues à chaque commande. Le service prononce une sanction qui commence
+   * maintenant (#276), puis n'y écrit que l'appel, la validation d'une exclusion, la décision sur l'appel et la
+   * levée : la base date chacun et n'en admet qu'un (migration 260).
    */
   'admin.sanctions': {
     id: ColumnType<string, never, never>;
-    user_id: ColumnType<string, never, never>;
-    kind: ColumnType<'warning' | 'silence' | 'suspension' | 'ban', never, never>;
+    user_id: ColumnType<string, string, never>;
+    kind: ColumnType<
+      'warning' | 'silence' | 'suspension' | 'ban',
+      'warning' | 'silence' | 'suspension' | 'ban',
+      never
+    >;
+    /** Début : l'écriture, ou la validation d'une exclusion. */
     starts_at: ColumnType<Date, never, never>;
-    /** Nulle pour une exclusion, définitive. */
-    ends_at: ColumnType<Date | null, never, never>;
-    reason: ColumnType<string, never, never>;
-    author_id: ColumnType<string, never, never>;
+    /** Nulle pour une exclusion, définitive, tant qu'elle n'est pas levée ; une levée y pose son instant. */
+    ends_at: ColumnType<Date | null, Date | null, never>;
+    reason: ColumnType<string, string, never>;
+    author_id: ColumnType<string, string, never>;
     /** Seconde personne qui valide une exclusion : sans elle, l'exclusion n'est pas en vigueur. */
-    validated_by: ColumnType<string | null, never, never>;
+    validated_by: ColumnType<string | null, never, string>;
     appeal_body: ColumnType<string | null, never, string>;
     appealed_at: ColumnType<Date | null, never, never>;
     created_at: ColumnType<Date, never, never>;
+    lifted_at: ColumnType<Date | null, never, never>;
+    lifted_by: ColumnType<string | null, never, string>;
+    appeal_decision: ColumnType<'granted' | 'rejected' | null, never, 'granted' | 'rejected'>;
+    appeal_decided_by: ColumnType<string | null, never, string>;
+    appeal_decided_at: ColumnType<Date | null, never, never>;
   };
   'config.versions': {
     id: Generated<string>;

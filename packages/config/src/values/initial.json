@@ -31,7 +31,8 @@
   "moderation": {
     "reportReasons": ["spam", "harassment", "hate", "cheating", "other"],
     "bannedTerms": [],
-    "maxAppealLength": 1000
+    "maxAppealLength": 1000,
+    "sanctionHours": { "warning": [168], "silence": [1, 24, 72], "suspension": [24, 168, 720] }
   },
   "chronicle": { "maxGoods": 3, "settleSeconds": 60, "maxTextLength": 2000 },
   "ai": {
