@@ -308,3 +308,62 @@ describe('écran Sites : issue d’une récolte faite (#417, #456)', () => {
     );
   });
 });
+
+// Surplus d'une grâce consommée par la récolte (#477) : porté à part par la réponse, hors des extrants.
+const blessed = (
+  answered: ReturnType<typeof answer>,
+  effect: 'blessed_harvest' | 'inspired_workshop',
+  surplus: { goodId: string; quantity: number }[],
+) => ({
+  ...answered,
+  data: { ...answered.data, grace: { graceUseId: 'u1', graceId: 'g1', effect, surplus } },
+});
+
+describe('écran Sites : surplus d’une grâce dans l’issue d’une récolte (#477)', () => {
+  it('récolte bénie après une sécheresse, atelier inspiré : le surplus est dit bien par bien', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s3', 'mill_flour')];
+    state.events = [event('e1', 'drought', '01:30', 3_000)];
+    api.collectSite
+      .mockResolvedValueOnce(
+        blessed(answer(3, 'wheat', 24), 'blessed_harvest', [{ goodId: 'wheat', quantity: 4 }]),
+      )
+      .mockResolvedValueOnce(
+        blessed(answer(3, 'flour', 30), 'inspired_workshop', [{ goodId: 'flour', quantity: 6 }]),
+      );
+    await show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Récolter : Champ de blé' }));
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée : 24 × Blé. La sécheresse en a retiré 6 × Blé. ' +
+          'La récolte bénie y a ajouté 4 × Blé.',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Récolter : Moulin' }));
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        "Récolte engrangée : 30 × Farine. L'atelier inspiré y a ajouté 6 × Farine.",
+      ),
+    );
+  });
+
+  it('« Tout récolter » dit le surplus de chaque grâce consommée, site par site', async () => {
+    state.sites = [site('s1', 'grow_wheat'), site('s2', 'grow_olives')];
+    api.collectSite.mockImplementation((siteId: string) =>
+      Promise.resolve(
+        siteId === 's1'
+          ? answer(3, 'wheat', 30)
+          : blessed(answer(3, 'olives', 30), 'blessed_harvest', [
+              { goodId: 'olives', quantity: 6 },
+            ]),
+      ),
+    );
+    await show();
+    fireEvent.click(await collectAllButton());
+    await waitFor(() =>
+      expect(statuses()).toBe(
+        'Récolte engrangée sur 2 sites : 30 × Blé et 30 × Olives. ' +
+          'Récolte bénie sur Oliveraie : 6 × Olives de plus.',
+      ),
+    );
+  });
+});

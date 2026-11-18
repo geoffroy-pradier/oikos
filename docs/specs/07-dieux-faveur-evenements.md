@@ -81,6 +81,7 @@ La tempête garde son retard dans `event_effects`, le vent ses secondes retirée
 La réponse et l'événement `VoyageDeparted` portent le vent consommé (`fairWind`).
 Lectures : `temple_rules` gagne la colonne `graces`, la section `graces` de la configuration en vigueur (une liste vide pour une version publiée avant elles), et `my_graces` (privée) rend les grâces de sa maison en attente (`consumed_at` nul) ou consommées et en recharge jusqu'à `ready_at`, sans l'action qui les a consommées.
 L'écran du temple est un autre ticket (#272).
+L'écran de départ annonce la durée après le vent favorable que le départ consommerait, et l'issue d'une récolte le surplus de sa grâce (#477, 10).
 
 ## 7.2 Hybris et Némésis
 

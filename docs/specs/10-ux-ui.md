@@ -40,6 +40,8 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Cette explication se déduit de la réponse de la récolte et du type du site, sans dépendre de la lecture des événements.
    Un écart d'un autre signe que celui du modèle (sécheresse en moins, bonne année en plus), par exemple après une version de configuration qui change l'extrant entre l'affichage et la récolte, n'est pas expliqué.
    « Tout récolter » entièrement réduit à zéro le dit « à rien », comme une récolte seule.
+   L'issue d'une récolte qui a consommé une grâce (#477) dit ensuite son surplus bien par bien, tel que la réponse le porte (`grace`), après l'écart dû à l'événement.
+   « Tout récolter » le dit site par site, à part du total des extrants, comme l'API le porte à part.
    L'onglet Cité montre le marché du travail du jour de la cité (salaire, taux d'emploi, prix de l'hébergement, travailleurs sans logement) et son parc de logements par taille.
    L'onglet Cité montre aussi les événements du monde en cours dans la cité (#417, vue `world_events`) : sécheresse, bonne année et caravane étrangère, chacune avec sa fin et son ampleur en pourcentage (pour une caravane, le bien demandé).
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
@@ -58,6 +60,12 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit.
    Après un « Réessayer » réussi, le foyer va au titre de la carte.
    Une durée allongée égale à celle du calme une fois arrondie n'est pas annoncée comme allongée.
+   Un vent favorable en attente de la maison (#477, vue `my_graces`) raccourcit la durée annoncée comme l'API la comptera : le plus ancien en attente, s'il retire au moins une seconde à la durée allongée par la tempête (`graceToConsume`, `fairWindSeconds`).
+   La destination dit alors aussi la durée sans le vent ; la destination choisie dit que le départ consommera ce vent, de quel dieu, et ce qu'il retire au trajet.
+   Un vent qui ne retire que quelques minutes au plus ne change pas la durée arrondie, mais la destination choisie dit qu'il sera consommé.
+   Tant que les grâces ne sont pas lues, la durée annoncée est sans vent, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit, avec les tempêtes, par un seul « Réessayer ».
+   Décision (le ticket ne dit rien de leur relecture) : les grâces se lisent à l'ouverture de l'écran et après chaque départ, pas chaque minute, une grâce en attente n'expirant pas.
+   Le départ fait dit ce que le vent a retiré au trajet, d'après la réponse de l'API (`fairWind`).
    L'arrivée annoncée après le départ est celle que rend l'API.
    La cargaison est facultative, prise dans le stock libre de la cité, et bornée par la cale et par ce stock ; le coût est annoncé avant l'envoi, et « le prix a changé » rend la main à une demande neuve au coût relu.
    La même saisie restée sans réponse repart sous la même clé ; une autre saisie (destination, cargaison ou coût) est une autre demande, sous une clé neuve : si l'essai précédent avait abouti, le navire est en mer et la demande est refusée, sans second départ.

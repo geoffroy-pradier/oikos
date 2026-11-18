@@ -135,6 +135,14 @@
       "good_year": "La bonne année a accru la récolte de : {{list}}."
     },
     "collectedAllGapZero": "La sécheresse a réduit à rien la récolte de : {{list}} ; les cycles sont comptés, sans rien produire.",
+    "collectedGrace": {
+      "blessed_harvest": "La récolte bénie y a ajouté {{list}}.",
+      "inspired_workshop": "L'atelier inspiré y a ajouté {{list}}."
+    },
+    "collectedAllGrace": {
+      "blessed_harvest": "Récolte bénie sur {{site}} : {{list}} de plus.",
+      "inspired_workshop": "Atelier inspiré sur {{site}} : {{list}} de plus."
+    },
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "accounts": "Comptes de la maison",
@@ -576,6 +584,8 @@
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h de mer, coût {{cost}}",
     "optionStorm": "{{city}} — {{hours}} h de mer par tempête ({{calm}} h par temps calme), coût {{cost}}",
+    "optionWind": "{{city}} — {{hours}} h de mer par vent favorable ({{stormy}} h sans lui), coût {{cost}}",
+    "optionStormWind": "{{city}} — {{hours}} h de mer par tempête et vent favorable ({{stormy}} h sans le vent, {{calm}} h par temps calme), coût {{cost}}",
     "cargo": "Cargaison : {{loaded}} unités sur {{capacity}} (facultative : sans cargaison, le navire part sur lest)",
     "noStock": "Aucun bien libre dans cette cité : le navire peut partir sur lest.",
     "good": "{{good}} ({{free}} libres)",
@@ -584,9 +594,15 @@
     "submit": "Partir vers {{city}} — {{cost}}",
     "sailed": "{{ship}} est parti vers {{city}} pour {{cost}} : arrivée prévue le {{time}}.",
     "alreadySailed": "Ce départ avait déjà eu lieu : {{ship}} est en route vers {{city}}, arrivée prévue le {{time}}. Rien n'a été payé de nouveau.",
+    "sailedWind": "Le vent favorable a raccourci le trajet de {{saved}} h.",
+    "sailedWindSlight": "Le vent favorable a raccourci le trajet de quelques minutes au plus.",
     "noDestination": "Aucune route ne part de cette cité pour l'instant.",
     "stormsLoading": "Lecture des tempêtes en cours : les durées annoncées sont celles par temps calme, provisoires.",
     "stormsUnknown": "Les tempêtes en cours n'ont pas pu être lues : les durées annoncées sont celles par temps calme.",
+    "windsLoading": "Lecture de vos grâces en cours : les durées annoncées sont sans vent favorable, provisoires.",
+    "windsUnknown": "Vos grâces en attente n'ont pas pu être lues : les durées annoncées sont sans vent favorable.",
+    "fairWind": "Ce départ consommera votre vent favorable de {{god}}, en attente : il retire {{saved}} h au trajet.",
+    "fairWindSlight": "Ce départ consommera votre vent favorable de {{god}}, en attente : il ne retire au trajet que quelques minutes au plus.",
     "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite)."
   },
   "staff": {

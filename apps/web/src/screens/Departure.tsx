@@ -1,9 +1,10 @@
-import { stormDurationSeconds } from '@oikos/sim';
+import { fairWindSeconds, graceToConsume, stormDurationSeconds } from '@oikos/sim';
 import { Button } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { departVoyage } from '../api';
 import { useRows } from '../data';
+import { parseGraceUses, pendingGraces } from '../graces';
 import type { ShipRow } from '../fleet';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
@@ -19,6 +20,8 @@ interface Inventory {
   reserved: number;
 }
 export type DepartureNotice = { kind: 'status' | 'alert'; text: string };
+const GRACE_COLUMNS =
+  'id, house_id, grace_id, god_id, effect, magnitude_bps, charis_spent, invoked_at, ready_at, consumed_at';
 
 /**
  * Départ d'un navire à quai (4.6) : une destination, une cargaison prise dans le stock libre de la cité
@@ -41,6 +44,12 @@ export function Departure(props: {
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
+  // Secondes retirées par un vent favorable ; arrondies à « 0 h », elles sont dites « quelques minutes au plus ».
+  const saved = (seconds: number, key: 'fairWind' | 'sailedWind', god?: string) =>
+    t(hours(seconds) === hours(0) ? `departure.${key}Slight` : `departure.${key}`, {
+      saved: hours(seconds),
+      god: god && t(`gods.${god}`, { defaultValue: god }),
+    });
   // Titre de la carte : le foyer y va après un « Réessayer » réussi.
   const title = useRef<HTMLHeadingElement>(null);
   const stock = useRows<Inventory>(
@@ -57,15 +66,33 @@ export function Departure(props: {
   // Tempêtes en cours dans le monde de la maison, à l'heure du serveur (7.4, #417) : un départ sur leur route
   // dure plus longtemps, comme l'API le comptera. Tant qu'elles ne sont pas lues, la durée est celle du calme.
   const storms = useWorldEvents({ model: 'storm', city_id: [...slugs.keys()].sort() });
+  // Vents favorables en attente de la maison (7.1, #477) : le départ consommera le plus ancien, s'il retire au
+  // moins une seconde à la durée allongée par la tempête, comme l'API. Tant qu'ils ne sont pas lus, aucun vent.
+  const graces = useRows<unknown>('my_graces', GRACE_COLUMNS, 'invoked_at', {
+    house_id: house.id,
+    effect: 'fair_wind',
+  });
+  const uses = graces.rows === null ? null : parseGraceUses(graces.rows, house.id);
+  const winds = uses && pendingGraces(uses, 'fair_wind');
+  const windsFailed = graces.failed || (graces.rows !== null && uses === null);
   const destinations = destinationsFrom(rules, fromSlug).flatMap(({ slug }) => {
     const cityId = idOf.get(slug);
     const quote = cityId && quoteDeparture(rules, ship.class_id, fromSlug, slug);
     if (!cityId || !quote) return [];
     const storm = stormOn(storms.events ?? [], ship.docked_city_id, cityId);
-    const seconds = storm && stormDurationSeconds(quote.durationSeconds, storm.magnitudeBps);
-    // Allongée, mais égale à celle du calme une fois arrondie : la durée n'est pas annoncée comme allongée.
-    const longer = seconds !== undefined && hours(seconds) !== hours(quote.durationSeconds);
-    return [{ cityId, quote, storm, seconds: seconds ?? quote.durationSeconds, longer }];
+    const stormy = storm
+      ? stormDurationSeconds(quote.durationSeconds, storm.magnitudeBps)
+      : quote.durationSeconds;
+    const wind = graceToConsume(
+      winds ?? [],
+      'fair_wind',
+      (grace) => fairWindSeconds(stormy, grace.magnitudeBps) < stormy,
+    );
+    const seconds = wind ? fairWindSeconds(stormy, wind.magnitudeBps) : stormy;
+    // Allongée (ou raccourcie), mais égale une fois arrondie : la durée n'est pas annoncée comme changée.
+    const longer = hours(stormy) !== hours(quote.durationSeconds);
+    const shorter = hours(seconds) !== hours(stormy);
+    return [{ cityId, quote, storm, stormy, wind, seconds, longer, shorter }];
   });
   const capacity = rules.classes.find((row) => row.id === ship.class_id)?.capacityUnits ?? 0;
   const [to, setTo] = useState('');
@@ -126,18 +153,23 @@ export function Departure(props: {
         true,
       );
       if (result.ok) setQuantities({});
-      // Relu après toute issue : un refus (stock insuffisant) a pu venir d'un stock changé entre-temps.
-      await stock.reload();
+      // Relu après toute issue : un refus (stock insuffisant) a pu venir d'un stock changé entre-temps, un
+      // départ sans réponse a pu consommer le vent favorable.
+      await Promise.all([stock.reload(), graces.reload()]);
+      const wind = result.ok && result.data.fairWind;
       await props.onDone(
         result.ok
           ? {
               kind: 'status',
-              text: t(result.replayed ? 'departure.alreadySailed' : 'departure.sailed', {
-                ship: props.shipName,
-                city: house.cityNames[result.data.toCityId] ?? result.data.toCityId,
-                time: time.format(new Date(result.data.arrivesAt)),
-                cost: money(result.data.costOboles),
-              }),
+              text: [
+                t(result.replayed ? 'departure.alreadySailed' : 'departure.sailed', {
+                  ship: props.shipName,
+                  city: house.cityNames[result.data.toCityId] ?? result.data.toCityId,
+                  time: time.format(new Date(result.data.arrivesAt)),
+                  cost: money(result.data.costOboles),
+                }),
+                ...(wind ? [saved(wind.savedSeconds, 'sailedWind')] : []),
+              ].join(' '),
             }
           : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
       );
@@ -164,7 +196,7 @@ export function Departure(props: {
       {heading}
       <fieldset>
         <legend className="font-semibold">{t('departure.destination')}</legend>
-        {destinations.map(({ cityId, quote, longer, seconds }) => (
+        {destinations.map(({ cityId, quote, longer, shorter, stormy, seconds }) => (
           <label key={cityId} className="flex min-h-11 items-center gap-2">
             <input
               type="radio"
@@ -173,9 +205,10 @@ export function Departure(props: {
               checked={to === cityId}
               onChange={() => setTo(cityId)}
             />
-            {t(longer ? 'departure.optionStorm' : 'departure.option', {
+            {t(`departure.option${longer ? 'Storm' : ''}${shorter ? 'Wind' : ''}`, {
               city: house.cityNames[cityId] ?? cityId,
               hours: hours(seconds),
+              stormy: hours(stormy),
               calm: hours(quote.durationSeconds),
               cost: money(quote.totalOboles),
             })}
@@ -213,14 +246,30 @@ export function Departure(props: {
       </fieldset>
       {loaded > capacity && <p role="alert">{t('errors.CARGO_OVER_CAPACITY')}</p>}
       {overStock && <p role="alert">{t('departure.overStock')}</p>}
-      {/* Région toujours présente : la durée du calme est provisoire tant que les tempêtes se lisent. */}
+      {/* Région toujours présente : la durée est provisoire tant que les tempêtes et les vents se lisent. */}
       <p role="status" className="empty:absolute">
-        {storms.events === null && !storms.failed ? t('departure.stormsLoading') : ''}
+        {[
+          storms.events === null && !storms.failed && t('departure.stormsLoading'),
+          uses === null && !windsFailed && t('departure.windsLoading'),
+        ]
+          .filter(Boolean)
+          .join(' ')}
       </p>
       {storms.failed && <p>{t('departure.stormsUnknown')}</p>}
-      {storms.failed && <LoadProblem heading={title} onRetry={storms.reload} />}
+      {windsFailed && <p>{t('departure.windsUnknown')}</p>}
+      {(storms.failed || windsFailed) && (
+        <LoadProblem
+          heading={title}
+          onRetry={() =>
+            Promise.all([storms.failed && storms.reload(), windsFailed && graces.reload()])
+          }
+        />
+      )}
       {chosen?.storm && (
         <p>{describeWorldEvent(chosen.storm, t, i18n.language, house.cityNames)}</p>
+      )}
+      {chosen?.wind && (
+        <p>{saved(chosen.stormy - chosen.seconds, 'fairWind', chosen.wind.godId)}</p>
       )}
       {chosen && (
         <p>

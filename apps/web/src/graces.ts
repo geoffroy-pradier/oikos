@@ -4,6 +4,7 @@ import type { TempleGrace } from './temple';
 const id = z.string().min(1);
 const instant = z.iso.datetime({ offset: true }).transform((value) => Date.parse(value));
 const useSchema = z.object({
+  id,
   house_id: id,
   grace_id: id,
   god_id: id,
@@ -21,6 +22,21 @@ export function parseGraceUses(rows: unknown, houseId: string): GraceUse[] | nul
   const parsed = z.array(useSchema).safeParse(rows);
   return parsed.success ? parsed.data.filter((use) => use.house_id === houseId) : null;
 }
+
+/**
+ * Invocations de la maison en attente de l'action d'un effet, sous la forme que lit `graceToConsume`
+ * (`packages/sim`) : l'écran désigne la grâce qu'une action consommerait comme l'API, sans refaire le choix.
+ */
+export const pendingGraces = (uses: readonly GraceUse[], effect: string) =>
+  uses
+    .filter((use) => use.effect === effect && use.consumed_at === null)
+    .map((use) => ({
+      id: use.id,
+      effect: use.effect,
+      godId: use.god_id,
+      magnitudeBps: use.magnitude_bps,
+      invokedAt: new Date(use.invoked_at),
+    }));
 
 /**
  * État d'une grâce pour la maison (7.1) : en attente de l'action qui la consommera (et sa fin de recharge), en
