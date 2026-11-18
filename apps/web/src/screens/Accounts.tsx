@@ -11,6 +11,7 @@ import {
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { formatMoney } from '../money';
+import { CashFlows } from './CashFlows';
 import { IncomeStatement, type IncomeView } from './IncomeStatement';
 import { Loading } from './LoadProblem';
 import { ValuedStocks } from './ValuedStocks';
@@ -19,8 +20,8 @@ import { ValuedStocks } from './ValuedStocks';
 const LINE = 'flex flex-wrap items-baseline justify-between gap-x-4';
 
 /**
- * Comptes de la maison (4.1) : bilan, stocks valorisés et compte de résultat, lus dans les vues du
- * joueur, en drachmes et oboles. Une lecture en échec ou illisible est annoncée et se réessaie : elle
+ * Comptes de la maison (4.1) : bilan, stocks valorisés, compte de résultat et flux de trésorerie, lus
+ * dans les vues du joueur, en drachmes et oboles. Une lecture en échec ou illisible est annoncée et se réessaie : elle
  * n'est jamais prise pour un bilan nul, un entrepôt vide ou une période sans mouvement.
  */
 export function AccountsScreen() {
@@ -116,6 +117,7 @@ export function AccountsScreen() {
       )}
       {stocks && <ValuedStocks stocks={stocks} />}
       <IncomeStatement rows={incomeRows.failed ? null : income} view={view} onView={setView} />
+      <CashFlows />
     </div>
   );
 }

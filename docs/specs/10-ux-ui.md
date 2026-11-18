@@ -93,6 +93,9 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ;
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
+   Sous le compte de résultat, les flux de trésorerie (#272, `my_cash_flows`, compte `treasury`) : pour chacun des 7 derniers jours de jeu où la trésorerie a bougé, son net et le détail par nature, chacune libellée.
+   Les offrandes et les consultations de la Pythie y sont sous « Offrandes et consultations de la Pythie » (nature `offerings`) ; une nature que le client ne connaît pas encore est dite par son identifiant.
+   Décision (le ticket ne dit pas où libeller `offerings`) : ce détail est la seule place de la nature, le compte de résultat la gardant dans « Offrandes et autres mouvements » (4.1).
 7. Temple : Charis, grâces, offrandes, oracle.
    Première version (#272) : l'écran du temple (`/cite/temple`) s'ouvre au clavier depuis l'onglet Cité, auquel il appartient.
    Il montre la Charis de la maison envers chaque dieu de la configuration (`temple_rules`, `my_favor` ; nulle sans ligne), et son déclin du jour : ce que la prochaine clôture lui retirera (`charisDecay`, 7.1), ou rien.
