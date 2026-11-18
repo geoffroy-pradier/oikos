@@ -1,4 +1,4 @@
-import { ConfigError, databaseKnowsTimezone } from '@oikos/config';
+import { ConfigError, DEFAULT_MODERATION, databaseKnowsTimezone } from '@oikos/config';
 import { ADMIN_MODULE_ROLES, type AdminRole, type CommandError } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
 import type { Hono } from 'hono';
@@ -468,11 +468,18 @@ export function registerAdminReads(
     );
     const [row] = rows;
     if (!row) throw new Error('The database returned no moderation queue');
-    const { config } = await loadConfig(row.now);
+    // Sans configuration en vigueur lisible, la file reste lisible avec le seuil par défaut de la configuration.
+    const staleAfterHours = await loadConfig(row.now).then(
+      ({ config }) => config.moderation.staleReportHours,
+      (error: unknown) => {
+        if (error instanceof ConfigError) return DEFAULT_MODERATION.staleReportHours;
+        throw error;
+      },
+    );
     const data = {
       now: row.now.toISOString(),
       contextSize: REPORT_CONTEXT_MESSAGES,
-      staleAfterHours: config.moderation.staleReportHours,
+      staleAfterHours,
       ...row.queue,
     };
     return c.json({ ok: true, data });

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   ConfigError,
+  DEFAULT_MODERATION,
   createConfigLoader,
   ensureInitialConfig,
   INITIAL_CONFIG,
@@ -315,7 +316,7 @@ describe('Vigie', () => {
         await sql`create schema ${sql.id(schema)}`.execute(trx);
         await sql`create table ${sql.id(schema, 'versions')} (id uuid, payload jsonb)`.execute(trx);
         const none: ConfigSource = () => Promise.reject(new ConfigError('No active configuration'));
-        const reply = await createApp({
+        const app = createApp({
           db: trx.withPlugin({
             transformQuery: ({ node }) => new SchemaSwap(schema).transformNode(node),
             transformResult: ({ result }) => Promise.resolve(result),
@@ -324,17 +325,35 @@ describe('Vigie', () => {
           verifyToken: testVerifier,
           rateLimiter: unlimited,
           loadConfig: none,
-        }).request('/api/admin/vigie', {
+        });
+        const reply = await app.request('/api/admin/vigie', {
           headers: { authorization: `Bearer aal2:${users.observer}` },
         });
         expect(reply.status).toBe(200);
-        throw new Rollback(JSON.stringify(((await reply.json()) as Reply['body']).data.clock));
+        const { data } = (await reply.json()) as Reply['body'];
+        // La file de la modération reste lisible, au seuil par défaut de la configuration (#530).
+        const reports = await app.request('/api/admin/reports', {
+          headers: { authorization: `Bearer aal2:${users.moderator}` },
+        });
+        expect(reports.status).toBe(200);
+        const queue = (await reports.json()) as { data: { staleAfterHours: unknown } };
+        throw new Rollback(
+          JSON.stringify({
+            clock: data.clock,
+            staleReports: data.staleReports,
+            staleAfterHours: queue.data.staleAfterHours,
+          }),
+        );
       })
       .catch((error: unknown) => {
         if (!(error instanceof Rollback)) throw error;
         return JSON.parse(error.message) as unknown;
       });
-    expect(clock).toBeNull();
+    expect(clock).toEqual({
+      clock: null,
+      staleReports: null,
+      staleAfterHours: DEFAULT_MODERATION.staleReportHours,
+    });
   });
 
   it('une version en vigueur hors du schéma est dite telle, avec son fuseau tel qu’enregistré', async () => {
