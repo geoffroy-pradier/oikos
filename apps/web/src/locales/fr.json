@@ -286,6 +286,8 @@
     "STEWARD_LIMIT_REACHED": "Tous vos postes d'intendant sont pris.",
     "STEWARD_NOT_FOUND": "Cet intendant n'est plus en poste.",
     "TOO_MANY_RULES": "Trop de règles pour un intendant.",
+    "AI_UNAVAILABLE": "Les consignes en langage naturel sont indisponibles pour l'instant : donnez les règles par le formulaire.",
+    "INSTRUCTION_PENDING": "Une consigne attend encore sa proposition.",
     "NOT_AN_INPUT": "Ce bien n'est pas un intrant de ce site : l'intendant ne le rachète pas.",
     "INTERNAL": "Une erreur est survenue. Réessayez dans un instant.",
     "COMMAND_NOT_FOUND": "Cette action n'est pas disponible.",
@@ -1025,6 +1027,35 @@
     "saved_other": "{{name}} suivra {{count}} règles.",
     "dismiss": "Renvoyer {{name}}",
     "dismissed": "{{name}} a quitté votre service ; le poste est libre.",
+    "instruction": {
+      "title": "Consigne",
+      "label": "Votre consigne à {{name}}, en vos mots",
+      "hint": "Par exemple : « vends l'huile au-dessus de 12 drachmes, sinon stocke ». Écrivez prix et quantités en chiffres, chaque prix entier et dans une seule unité (oboles ou drachmes) ; vous validerez les règles proposées.",
+      "send": "Traduire en règles",
+      "sent": "{{name}} étudie votre consigne : sa proposition suit sous peu.",
+      "quote": "Votre consigne : « {{text}} »",
+      "pending": "{{name}} étudie cette consigne ; sa proposition arrive sous peu.",
+      "refresh": "Actualiser",
+      "proposed": "Règles proposées par {{name}}, et ce que chacune ferait maintenant :",
+      "line": "{{n}}. {{rule}} — maintenant : {{outcome}}",
+      "rules": {
+        "sell_one": "Vendre {{good}} à {{price}} l'unité ou plus, en gardant {{count}} unité",
+        "sell_other": "Vendre {{good}} à {{price}} l'unité ou plus, en gardant {{count}} unités",
+        "buy_one": "Racheter {{good}} à {{price}} l'unité ou moins, jusqu'à {{count}} unité en stock",
+        "buy_other": "Racheter {{good}} à {{price}} l'unité ou moins, jusqu'à {{count}} unités en stock"
+      },
+      "idle": "rien à faire",
+      "unknown": "simulation indisponible",
+      "validate": "Valider",
+      "edit": "Modifier",
+      "toForm": "Aller au formulaire des règles",
+      "refusals": {
+        "AI_UNAVAILABLE": "L'IA est coupée pour l'instant : {{name}} ne peut pas traduire votre consigne. Donnez les règles par le formulaire.",
+        "INVALID_PROPOSAL": "{{name}} n'a pas su traduire cette consigne en règles valables. Reformulez-la, ou donnez les règles par le formulaire.",
+        "OUT_OF_GRAMMAR": "{{name}} sait récolter, vendre et racheter, rien d'autre : cette consigne demande autre chose.",
+        "AMBIGUOUS": "Cette consigne est ambiguë : il y manque un bien, un prix ou une quantité écrits en chiffres, ou un prix n'y est pas entier dans une seule unité (pas « 12,5 drachmes » ni « 1 drachme 3 oboles »). Précisez-la, ou donnez les règles par le formulaire."
+      }
+    },
     "ops": {
       "title": "Dernières opérations",
       "none": "Aucune opération pour l'instant.",

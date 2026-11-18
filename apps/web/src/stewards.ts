@@ -1,9 +1,13 @@
 import {
+  STEWARD_PROPOSAL_REFUSALS,
   stewardOperationSummarySchema,
   stewardRuleSchema,
   stewardRulesSchema,
+  stewardSimulationSchema,
   type StewardOperationSummary,
+  type StewardProposalRefusal,
   type StewardRule,
+  type StewardSimulationStep,
 } from '@oikos/contracts';
 import { z } from 'zod';
 
@@ -149,6 +153,45 @@ export function parseStewardActivity(rows: readonly unknown[]): Map<string, Stew
   return activity;
 }
 
+/**
+ * Dernière consigne d'un intendant et sa réponse (vue `my_steward_instructions`, #280) : en attente du moteur, ou
+ * répondue par des règles proposées et leur simulation à blanc, ou par un refus motivé.
+ */
+export interface StewardInstruction {
+  stewardId: string;
+  /** Révision des règles lue à la consigne : la proposition ne vaut que tant que l'intendant y est. */
+  revision: number;
+  /** Texte du joueur ; `null` une fois effacé à la conservation. */
+  text: string | null;
+  status: 'pending' | 'answered';
+  rules: StewardRule[] | null;
+  /** Simulation des règles proposées ; `null` si elle n'a pas pu être faite. */
+  simulation: StewardSimulationStep[] | null;
+  refusal: StewardProposalRefusal | null;
+}
+
+const instructionRow = z.object({
+  steward_id: uuid,
+  rules_revision: z.number().int().nonnegative(),
+  text: z.string().nullable(),
+  status: z.enum(['pending', 'answered']),
+  rules: stewardRulesSchema.nullable(),
+  simulation: stewardSimulationSchema.nullable().catch(null),
+  refusal: z.enum(STEWARD_PROPOSAL_REFUSALS).nullable(),
+});
+
+/** Dernière consigne de chaque intendant de la maison ; une ligne illisible est ignorée. */
+export function parseInstructions(rows: readonly unknown[]): Map<string, StewardInstruction> {
+  return new Map(
+    rows.flatMap((raw) => {
+      const row = instructionRow.safeParse(raw);
+      if (!row.success) return [];
+      const { steward_id: stewardId, rules_revision: revision, ...rest } = row.data;
+      return [[stewardId, { stewardId, revision, ...rest }] as const];
+    }),
+  );
+}
+
 /** Une règle telle que le formulaire la saisit : sorte, bien, prix et quantité en texte. */
 export interface RuleDraft {
   kind: StewardRule['kind'];
@@ -230,15 +273,19 @@ export const hireIntent = (siteId: string) => `hire:${siteId}`;
 export const rulesIntent = (steward: Pick<Steward, 'id' | 'revision'>, rules: StewardRule[]) =>
   `rules:${steward.id}:${steward.revision}:${JSON.stringify(rules)}`;
 
+/** Intention d'une consigne : l'intendant, la révision lue et le texte envoyé. */
+export const instructionIntent = (steward: Pick<Steward, 'id' | 'revision'>, text: string) =>
+  `instruction:${steward.id}:${steward.revision}:${text}`;
+
 /**
  * Intentions du site que la lecture rend caduques, restées en attente après une réponse perdue : l'embauche dès
- * qu'un intendant y est lu (une réembauche après un renvoi prend une clé neuve), et les règles d'une révision
- * antérieure à celle lue.
+ * qu'un intendant y est lu (une réembauche après un renvoi prend une clé neuve), et les règles ou la consigne d'une
+ * révision antérieure à celle lue.
  */
 export const staleIntents =
   (siteId: string, steward: Pick<Steward, 'id' | 'revision'> | undefined) => (intent: string) => {
     if (!steward) return false;
     if (intent === hireIntent(siteId)) return true;
-    const revision = new RegExp(`^rules:${steward.id}:(\\d+):`).exec(intent)?.[1];
+    const revision = new RegExp(`^(?:rules|instruction):${steward.id}:(\\d+):`).exec(intent)?.[1];
     return revision !== undefined && Number(revision) < steward.revision;
   };

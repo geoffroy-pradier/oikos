@@ -21,6 +21,14 @@ Aucun fournisseur n'est encore choisi ni payé : le propriétaire a reporté tou
   La vraie garantie reste le schéma de sortie : une réponse détournée par une injection n'est pas acceptée.
   Une injection qui reste dans le schéma (un oracle au texte détourné) passe, par construction : chaque usage borne donc son schéma au strict nécessaire.
 - **Obligations des tickets d'usage** : consignes constantes, écrites dans le code de l'usage, jamais construites avec un texte de joueur ; aucun chiffre que le jeu appliquerait dans le schéma de sortie (règle 6) ; un repli développé en même temps.
+- **Dérogation de l'usage `steward` (#280)** : sa sortie porte des prix et des quantités, ceux des règles qu'il propose, à ces conditions toutes réunies.
+  Le modèle ne fait que recopier les nombres écrits en chiffres dans la consigne du joueur, avec l'unité écrite à côté de chaque prix (obole ou drachme).
+  Le code lit lui-même ces paires (nombre, unité) et ces quantités dans le texte, et rejette toute réponse dont un prix n'est pas l'une de ces paires, valeur et unité, ou dont une quantité n'y figure pas (seule une réserve de 0 peut manquer).
+  Un nombre décimal ou un prix composé de drachmes et d'oboles rend la consigne ambiguë : le code la refuse sans appel.
+  La conversion en oboles est faite par le code, jamais par le modèle.
+  Les règles proposées sont simulées à blanc et montrées au joueur avec leurs montants convertis.
+  Rien n'est appliqué sans la commande `steward.setRules` du joueur, qui refait toutes ses vérifications : la proposition seule ne change ni règle, ni stock, ni trésorerie.
+  Aucun autre usage ne profite de cette dérogation sans un ADR qui la reprenne.
 - **Plafond mensuel par usage**, calculé depuis la configuration (`ai`) : budget par joueur actif et par mois (au plus 0,10 €), nombre de joueurs actifs attendu, part de chaque usage.
   Le mois est le mois civil UTC.
   Un usage qui atteint son plafond est coupé jusqu'au mois suivant.
