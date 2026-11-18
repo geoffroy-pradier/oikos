@@ -46,7 +46,9 @@ Il limite aussi le nombre de canaux d'un client (100 par défaut).
 - Chaque diffusion coûte à chaque client abonné au sujet une lecture des non lus (au plus 100 messages des canaux de sa maison), plus celle des 50 derniers messages du canal s'il est ouvert, plus celle de la liste des canaux si le canal diffusé lui est inconnu (conversation nouvelle).
   Les relectures de repli, de sécurité, de retour sur l'onglet et d'abonnement établi relisent tout : canaux, messages du canal ouvert, non lus.
   Le texte ne passe que par une vue sous règles par ligne.
-- Le masquage d'un message n'est pas diffusé : il apparaît à la relecture suivante.
+- Le masquage d'un message est diffusé comme sa création, sous l'événement `message_hidden`, sur les mêmes sujets et avec les mêmes identifiants (migration 320, #532).
+  Le client relit alors le canal : la vue ne rend plus le texte du message masqué.
+  Un client qui n'a pas reçu la diffusion le voit à la relecture suivante.
 - Un abonnement est autorisé à son établissement : une maison qui ne lit plus un canal garde son abonnement jusqu'à la reconnexion, et n'en reçoit que des identifiants.
 - Les canaux publics de Realtime restent ouverts par défaut (`private_only` du locataire) : un client peut y diffuser à d'autres clients, hors de la base.
   Le jeu ne les écoute pas, et leurs sujets sont distincts des canaux privés.
