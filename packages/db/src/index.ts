@@ -775,8 +775,8 @@ export interface GameDatabase {
   };
   /**
    * Sanctions des comptes (#275), lues à chaque commande. Le service prononce une sanction qui commence
-   * maintenant (#276), puis n'y écrit que l'appel, la validation d'une exclusion, la décision sur l'appel et la
-   * levée : la base date chacun et n'en admet qu'un (migration 260).
+   * maintenant (#276), puis n'y écrit que l'appel, la validation d'une exclusion, la décision sur l'appel, la
+   * proposition de levée et la levée : la base date chacun et n'en admet qu'un (migrations 260 et 390).
    */
   'admin.sanctions': {
     id: ColumnType<string, never, never>;
@@ -802,6 +802,9 @@ export interface GameDatabase {
     appeal_decision: ColumnType<'granted' | 'rejected' | null, never, 'granted' | 'rejected'>;
     appeal_decided_by: ColumnType<string | null, never, string>;
     appeal_decided_at: ColumnType<Date | null, never, never>;
+    /** Qui propose de lever une exclusion validée ; une autre personne la lève (double validation, 15.4). */
+    lift_proposed_by: ColumnType<string | null, never, string>;
+    lift_proposed_at: ColumnType<Date | null, never, never>;
   };
   'config.versions': {
     id: Generated<string>;

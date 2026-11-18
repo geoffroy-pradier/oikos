@@ -50,7 +50,7 @@ select is(
     || 'orders.status price_candles.close price_candles.high price_candles.low price_candles.open '
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
     || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count reports.resolved_by reports.state '
-    || 'sanctions.appeal_body sanctions.appeal_decided_by sanctions.appeal_decision sanctions.lifted_by sanctions.validated_by ships.docked_city_id ships.laid_up_at '
+    || 'sanctions.appeal_body sanctions.appeal_decided_by sanctions.appeal_decision sanctions.lift_proposed_by sanctions.lifted_by sanctions.validated_by ships.docked_city_id ships.laid_up_at '
     || 'sites.cycle_started_at sites.halted_at sites.recipe_id steward_instructions.status stewards.dismissed_at stewards.rules_revision stewards.unpaid_since voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(

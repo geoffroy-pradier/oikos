@@ -37,8 +37,9 @@ Commandes d'administration de la modération (ticket #276) : ouvertes au super-a
 - `admin.resolveReport` écarte ou retient un signalement ouvert, et avec lui les autres signalements ouverts du même message (une entrée de la file) ; un signalement déjà traité est refusé (`ALREADY_RESOLVED`), comme le compte de la maison signalée et celui d'une maison qui a signalé ce message (`SECOND_PERSON_REQUIRED`).
 - `admin.hideMessage` masque un message, signalé ou non, une fois (`MESSAGE_HIDDEN`) : il reste listé, sans son texte pour les joueurs (6.6).
 
-La base tient les mêmes règles (migration 260) : elle date chaque validation, décision, levée et traitement, n'admet chacun qu'une fois, et refuse ceux d'une personne qui n'y a pas droit.
-Elle n'admet une levée qu'avec l'appel accueilli, dans la même écriture et par le même compte, et l'exige quand la sanction n'est pas finie.
+La base tient les mêmes règles (migrations 260 et 390) : elle date chaque validation, décision, proposition de levée, levée, retrait et traitement, n'admet chacun qu'une fois, et refuse ceux d'une personne qui n'y a pas droit.
+Avec une décision sur l'appel, elle n'admet une levée qu'avec l'appel accueilli, dans la même écriture et par le même compte, et l'exige quand la sanction n'est pas finie.
+Sans décision, elle admet le retrait d'une exclusion proposée, la levée seule d'une autre sanction que l'exclusion, et celle d'une exclusion validée par une autre personne que celle qui l'a proposée ; jamais pendant qu'un appel attend, ni d'une sanction finie.
 Traiter un signalement ne masque ni ne sanctionne rien : ce sont deux commandes de plus, au choix de la modération.
 Décision (ambiguïté du ticket) : une exclusion proposée qui n'est pas validée n'agit jamais ; son retrait, et la levée d'une sanction sans appel, attendent une phase suivante.
 Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
