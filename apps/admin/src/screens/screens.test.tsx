@@ -293,6 +293,58 @@ describe('Vigie', () => {
   });
 });
 
+describe('Vigie : signalements en attente (15.5)', () => {
+  const reports = (createdAt: string) => ({
+    now: '2026-11-18T12:00:00Z',
+    contextSize: 2,
+    queue: [{ reports: [{ id: 'r', reason: 'spam', createdAt }] }],
+    appeals: [],
+    pendingExclusions: [],
+  });
+  const answer = (createdAt: string) =>
+    adminGet.mockImplementation((path: string) =>
+      Promise.resolve({ ok: true, data: path === 'reports' ? reports(createdAt) : VIGIE }),
+    );
+
+  it('un rôle de la modération voit l’alerte quand un signalement attend depuis plus de 24 h', async () => {
+    answer('2026-11-17T09:00:00Z');
+    render(<Vigie accessToken="token" role="super_admin" />);
+    expect(
+      await screen.findByText(
+        'Des signalements attendent depuis plus de 24 h (le plus ancien : 27 h).',
+      ),
+    ).toBeTruthy();
+    expect(adminGet.mock.calls.map(([path]) => path).sort()).toEqual(['reports', 'vigie']);
+  });
+
+  it('pas d’alerte sous 24 h', async () => {
+    answer('2026-11-18T09:00:00Z');
+    render(<Vigie accessToken="token" role="super_admin" />);
+    await screen.findByText('Maisons fondées');
+    await waitFor(() => expect(adminGet).toHaveBeenCalledWith('reports', 'token'));
+    expect(screen.queryByText(/attendent depuis plus de 24 h/)).toBeNull();
+  });
+
+  it('un rôle qui ne lit pas la file ne la demande pas, et ne voit pas l’alerte', async () => {
+    answer('2026-11-10T09:00:00Z');
+    render(<Vigie accessToken="token" role="observer" />);
+    await screen.findByText('Maisons fondées');
+    expect(adminGet.mock.calls.map(([path]) => path)).toEqual(['vigie']);
+    expect(screen.queryByText(/attendent depuis plus de 24 h/)).toBeNull();
+  });
+
+  it('une file illisible ne trouble pas la Vigie', async () => {
+    adminGet.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === 'reports' ? { ok: false, code: 'INTERNAL' } : { ok: true, data: VIGIE },
+      ),
+    );
+    render(<Vigie accessToken="token" role="super_admin" />);
+    await screen.findByText('Maisons fondées');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
 describe('Vigie : passerelle IA', () => {
   const AI = [
     {

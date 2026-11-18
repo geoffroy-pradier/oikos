@@ -34,13 +34,16 @@ export async function signIn(page: Page, email: string, previousLinks = 0) {
   await page.goto(await magicLink(email, previousLinks));
 }
 
-/** Inscrit le super-administrateur en base, comme un humain le fait pour le tout premier. */
-export async function grantSuperAdmin(email: string) {
+/** Inscrit un rôle en base pour un compte, comme un humain le fait pour le tout premier super-administrateur. */
+export async function grantRole(email: string, role: string) {
   const db = createDb(process.env['DATABASE_URL'] ?? '');
   await sql`insert into admin.roles (user_id, role)
-    select id, 'super_admin' from auth.users where email = ${email}`.execute(db);
+    select id, ${role} from auth.users where email = ${email}`.execute(db);
   await db.destroy();
 }
+
+/** Inscrit le super-administrateur en base, comme un humain le fait pour le tout premier. */
+export const grantSuperAdmin = (email: string) => grantRole(email, 'super_admin');
 
 export async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(

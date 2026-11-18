@@ -28,7 +28,7 @@ Modération dans la phase 2, côté joueur (ticket #275) : signalements (`game.r
 La configuration porte les motifs de signalement, les termes interdits et la longueur d'un appel (section `moderation`).
 Une exclusion est définitive et n'est en vigueur qu'une fois validée par une seconde personne (15.4) ; avant, elle n'est ni annoncée au joueur ni appliquée.
 Un joueur ne voit ni l'auteur ni le validateur d'une sanction : les modérateurs peuvent être des joueurs bénévoles.
-Commandes d'administration de la modération (ticket #276) : ouvertes au super-administrateur, au responsable communauté et au modérateur (`MODERATION_ROLES`), sous second facteur, rôle relu et journal comme toute commande d'administration (15.4) ; l'écran du module vient avec #277.
+Commandes d'administration de la modération (ticket #276) : ouvertes au super-administrateur, au responsable communauté et au modérateur (`MODERATION_ROLES`), sous second facteur, rôle relu et journal comme toute commande d'administration (15.4) ; l'écran du module vient avec #277 (ci-dessous).
 - `admin.sanction` prononce, à partir de maintenant, un avertissement, un silence ou une suspension d'une des durées de la configuration (`moderation.sanctionHours`, en heures ; par défaut 168 pour un avertissement, 1, 24 ou 72 pour un silence, 24, 168 ou 720 pour une suspension), ou propose une exclusion, sans durée.
   Une autre durée est refusée (`DURATION_NOT_OFFERED`), comme le compte qui se sanctionne lui-même (`SELF_SANCTION`) ou un compte inconnu (`ACCOUNT_NOT_FOUND`).
 - `admin.confirmExclusion` valide une exclusion proposée, une fois (`ALREADY_CONFIRMED`) : ni son auteur ni le compte exclu ne la valident (`SECOND_PERSON_REQUIRED`), tout autre compte d'un rôle de la modération le peut, et l'exclusion commence à sa validation.
@@ -41,7 +41,21 @@ Elle n'admet une levée qu'avec l'appel accueilli, dans la même écriture et pa
 Traiter un signalement ne masque ni ne sanctionne rien : ce sont deux commandes de plus, au choix de la modération.
 Décision (ambiguïté du ticket) : une exclusion proposée qui n'est pas validée n'agit jamais ; son retrait, et la levée d'une sanction sans appel, attendent une phase suivante.
 Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
-Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'indicateur de la Vigie qui le surveille attend une phase suivante.
+Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'alerte de la Vigie qui le surveille (#277) lit la file de la modération.
+Écran du module Modération (ticket #277) : il lit `GET /api/admin/reports` et liste la file, du plus ancien au plus signalé, dans l'ordre de l'API.
+Chaque entrée dit la maison signalée, les motifs et l'ancienneté du plus ancien signalement, et montre le message dans la conversation autour de lui (`contextSize` messages de chaque côté) ; un message purgé n'a ni texte ni contexte.
+Les gestes d'une entrée sont : masquer le message, avertir, réduire au silence, suspendre, proposer une exclusion, retenir le signalement, le classer sans suite.
+Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clavier va au geste sans effet (« Annuler »), et la répétition d'une touche Entrée tenue n'ouvre ni ne confirme rien, comme dans le module Accès (15.3).
+Une sanction à durée demande, dans sa confirmation, un nombre entier d'heures et un motif ; une exclusion ne demande que le motif.
+Sous la file, l'écran liste les exclusions proposées à valider et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
+Valider une exclusion, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
+Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, seulement la décision ; la décision « motivée » du ticket ne l'est donc pas en base, et l'écran n'ajoute pas de champ qui ne mènerait nulle part.
+Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
+Décision (ambiguïté du ticket) : aucune route ne rend `moderation.sanctionHours` aux rôles de la modération, seuls ceux qui lisent la configuration y ont accès ; l'écran ne code donc aucune durée, laisse saisir les heures et explique le refus `DURATION_NOT_OFFERED` de l'API, qui reste juge.
+Décision (ambiguïté du ticket) : retenir ou classer un signalement ne sanctionne ni ne masque rien (voir plus haut) ; l'écran propose les trois gestes séparément, à la main du modérateur.
+L'alerte « signalements en attente depuis plus de 24 h » (15.5) s'affiche en tête du module quand le plus ancien signalement ouvert attend depuis plus de 24 heures, d'après l'heure de la base rendue par l'API.
+Elle s'affiche aussi dans la Vigie, pour les rôles qui lisent la file (le super-administrateur) : la Vigie lit alors `GET /api/admin/reports`, qu'elle n'ouvre pas aux autres rôles, et reste muette si cette lecture échoue.
+Décision (ambiguïté du ticket) : le compteur de la Vigie elle-même (`GET /api/admin/vigie`) n'est pas modifié ; un indicateur côté API attend une phase suivante.
 Décision (relecture de #275) : un nom de maison, texte public, ne passe encore ni par le filtre de vocabulaire ni par le silence à sa fondation ou à son changement ; un ticket de suite les y soumettra.
 Décision (relecture de #275) : un compte suspendu ou exclu ne peut plus annuler ses ordres, qui restent sous séquestre et peuvent s'exécuter ; un ticket de suite, qui touche à la monnaie, décidera de leur annulation et du retour du séquestre.
 
