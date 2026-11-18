@@ -14,7 +14,7 @@ export const MESSAGE_BODY_MAX_CHARS = 2_000;
 
 /** Caractères de contrôle refusés : tous, sauf la tabulation et le saut de ligne. */
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/u;
+export const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/u;
 
 /** Texte d'un message : débarrassé des blancs de début et de fin, non vide, sans caractère de contrôle. */
 export const messageBodySchema = z
@@ -64,6 +64,10 @@ export const CHAT_POST_ERROR_CODES = [
   'MESSAGE_TOO_LONG',
   /** La maison a déjà écrit `chat.rateLimit.messages` messages dans la fenêtre `chat.rateLimit.windowSeconds`. */
   'TOO_MANY_MESSAGES',
+  /** Le compte est réduit au silence (#275) : il lit, signale et fait appel, mais n'écrit plus. */
+  'SILENCED',
+  /** Le texte contient un terme interdit (`moderation.bannedTerms`) : rien n'est enregistré. */
+  'MESSAGE_REJECTED',
 ] as const;
 export const CHAT_OPEN_DIRECT_ERROR_CODES = [
   'HOUSE_NOT_FOUND',

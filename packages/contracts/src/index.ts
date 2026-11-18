@@ -9,6 +9,7 @@ export * from './errors';
 export * from './events';
 export * from './house';
 export * from './market';
+export * from './moderation';
 export * from './property';
 export * from './property-market';
 export * from './ship';

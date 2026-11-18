@@ -18,4 +18,9 @@ export const FRAMEWORK_ERROR_CODES = [
   'RATE_LIMITED',
   /** Commande d'administration appelée sans le rôle requis ou sans double authentification. */
   'FORBIDDEN',
+  /**
+   * Commande de jeu d'un compte suspendu ou exclu (#275) : la sanction est relue à chaque commande. L'appel
+   * (`moderation.appeal`) et les commandes d'administration n'y sont pas soumis.
+   */
+  'SUSPENDED',
 ] as const;

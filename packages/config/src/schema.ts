@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
+import { filterForm } from './moderation';
 import { oracleIssues, oracleSchema } from './oracle';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
 
@@ -593,6 +594,50 @@ export const chatSchema = z.strictObject({
 });
 
 /**
+ * Valeurs lues pour les versions publiées avant la modération (#275) : cinq motifs de signalement, aucun terme
+ * interdit, des appels de 1 000 caractères au plus. FIGÉES, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_MODERATION = deepFreeze({
+  reportReasons: ['spam', 'harassment', 'hate', 'cheating', 'other'],
+  bannedTerms: [] as string[],
+  maxAppealLength: 1_000,
+});
+
+/**
+ * Modération (docs/specs/15-back-office-olympe.md, 15.1 ; 18, contenus ; #275). Les motifs se lisent par les
+ * joueurs (vue `public.moderation_rules`), jamais les termes interdits, qui ne servent qu'à l'API. Un appel a
+ * un plafond technique de 2 000 caractères, que la base vérifie aussi (`sanctions_appeal_length`).
+ */
+export const moderationSchema = z
+  .strictObject({
+    /** Motifs qu'un joueur choisit en signalant un message ; leurs libellés sont dans les traductions. */
+    reportReasons: z.array(id).min(1).max(20),
+    /**
+     * Termes refusés dans un message, comparés sans casse ni accent, mot à mot (`findBannedTerm`). Un terme
+     * doit contenir au moins une lettre ou un chiffre : sans eux, il ne refuserait rien.
+     */
+    bannedTerms: z.array(z.string().min(1).max(100)).max(5_000),
+    /** Longueur maximale d'un appel, en caractères (points de code Unicode). */
+    maxAppealLength: z.number().int().min(1).max(2_000),
+  })
+  .superRefine((moderation, ctx) => {
+    for (const duplicate of duplicates(moderation.reportReasons))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reportReasons'],
+        message: `duplicate reason "${duplicate}"`,
+      });
+    moderation.bannedTerms.forEach((term, index) => {
+      if (filterForm(term) === '')
+        ctx.addIssue({
+          code: 'custom',
+          path: ['bannedTerms', index],
+          message: 'no letter or digit',
+        });
+    });
+  });
+
+/**
  * Valeurs lues pour les versions publiées avant la chronique (#271) : trois biens détaillés, une minute
  * d'attente après la clôture, 2 000 caractères par texte réécrit. FIGÉES, pour la même raison que `DEFAULT_SITES`.
  */
@@ -850,6 +895,8 @@ export const gameConfigSchema = z
     telemetry: telemetrySchema.default(DEFAULT_TELEMETRY),
     /** Absent des versions publiées avant la discussion : valeurs de `DEFAULT_CHAT`. */
     chat: chatSchema.default(DEFAULT_CHAT),
+    /** Absent des versions publiées avant la modération : valeurs de `DEFAULT_MODERATION`. */
+    moderation: moderationSchema.default(DEFAULT_MODERATION),
     /** Absent des versions publiées avant la passerelle IA : tous les usages coupés. */
     ai: aiSchema.default(DEFAULT_AI),
     /** Absent des versions publiées avant la chronique : valeurs de `DEFAULT_CHRONICLE`. */
