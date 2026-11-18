@@ -1,97 +1,183 @@
 /*
- * Thème OIKOS (docs/specs/10-ux-ui.md) : céramique grecque à figures noires et rouges.
- * Aplats terre cuite, noir, ocre et bleu égéen. Thèmes clair et sombre.
+ * Thème OIKOS (docs/specs/10-ux-ui.md, ADR 0010) : céramique grecque à figures noires et rouges,
+ * traitée en surfaces superposées. Terre cuite, noir, ocre, bleu égéen ; thèmes clair et sombre.
  * Les couples texte/fond déclarés dans `src/contrast.ts` sont vérifiés AA par les tests.
+ * Polices auto-hébergées (@fontsource), jamais chargées depuis un service tiers.
  */
 @import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/inter';
 @source '.';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
   color-scheme: light;
-  --background: #faf6ef;
-  --foreground: #1c1917;
-  --surface: #ffffff;
-  --muted: #efe8dc;
-  --muted-foreground: #57534e;
-  --border: #8a7f72;
-  --primary: #9a3412;
+  --background: #f6f0e6;
+  --foreground: #1f1a17;
+  --surface: #fffdf9;
+  --surface-raised: #ffffff;
+  --muted: #ede4d6;
+  --muted-foreground: #5c5248;
+  --border: #8f8172;
+  /* Filet décoratif des surfaces : jamais seul à délimiter une commande. */
+  --border-subtle: #e2d6c4;
+  --primary: #a33a17;
+  --primary-hover: #872e10;
   --primary-foreground: #ffffff;
-  --accent: #92400e;
-  --aegean: #1e4e8c;
-  --danger: #991b1b;
+  --primary-subtle: #f8e2d6;
+  --accent: #865408;
+  --accent-subtle: #f6e7c6;
+  --aegean: #1d4f86;
+  --aegean-subtle: #dfe9f5;
+  --success: #3f6212;
+  --success-subtle: #e5edd2;
+  --danger: #9f1d1d;
+  --danger-subtle: #f9dfdb;
   --focus: #1d4ed8;
+  --glow: rgb(163 58 23 / 0.09);
+  --elevation-1: 0 1px 2px rgb(68 38 18 / 0.06), 0 1px 3px rgb(68 38 18 / 0.08);
+  --elevation-2: 0 2px 4px rgb(68 38 18 / 0.05), 0 8px 20px -4px rgb(68 38 18 / 0.12);
+  --elevation-3: 0 4px 8px rgb(68 38 18 / 0.06), 0 20px 40px -8px rgb(68 38 18 / 0.18);
+  /* Mouvement : court et amorti, coupé sous prefers-reduced-motion. */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 360ms;
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --background: #171412;
-  --foreground: #f5efe6;
-  --surface: #231f1c;
-  --muted: #2e2925;
-  --muted-foreground: #b8aea2;
-  --border: #8a7f72;
-  --primary: #ea8a5c;
-  --primary-foreground: #1c1917;
-  --accent: #e0b15a;
-  --aegean: #7fb2e5;
-  --danger: #f08a8a;
+  --background: #13100e;
+  --foreground: #f4ede3;
+  --surface: #1d1916;
+  --surface-raised: #26211d;
+  --muted: #2d2723;
+  --muted-foreground: #bcb0a2;
+  --border: #8a7c6d;
+  --border-subtle: #352e29;
+  --primary: #ee8f62;
+  --primary-hover: #f4a881;
+  --primary-foreground: #1a1210;
+  --primary-subtle: #3a2219;
+  --accent: #e3b45e;
+  --accent-subtle: #33270f;
+  --aegean: #8abbeb;
+  --aegean-subtle: #172738;
+  --success: #a8c972;
+  --success-subtle: #1f2a14;
+  --danger: #f39088;
+  --danger-subtle: #3a1a18;
   --focus: #93c5fd;
+  --glow: rgb(238 143 98 / 0.08);
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --elevation-2: 0 4px 12px -2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --elevation-3: 0 16px 40px -8px rgb(0 0 0 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
   --color-accent: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
   --color-aegean: var(--aegean);
+  --color-aegean-subtle: var(--aegean-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
   --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
   --color-focus: var(--focus);
-  --font-sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display:
-    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, ui-serif, serif;
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', Palatino, Georgia, ui-serif, serif;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rise: rise var(--motion-slow) var(--ease-out) both;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
 }
 
 @layer base {
   html {
     /* La taille de police suit le réglage du navigateur : tout est exprimé en rem. */
     font-family: var(--font-sans);
-    background: var(--background);
+    background: radial-gradient(60rem 30rem at 15% -10%, var(--glow), transparent 70%) no-repeat
+      var(--background);
     color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
   }
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    text-wrap: balance;
   }
   :focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
-    * {
+    *,
+    ::before,
+    ::after {
       transition: none !important;
       animation: none !important;
     }
   }
 }
 
-/* Frise à méandre : motif décoratif, jamais porteur d'information. */
+/* Petit titre de rubrique, en capitales espacées. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Frises : motif décoratif à la couleur du texte (terre cuite par défaut), jamais porteur d'information. */
 @utility meander {
-  height: 0.5rem;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--primary) 0 0.5rem,
-    transparent 0.5rem 0.75rem,
-    var(--foreground) 0.75rem 1rem,
-    transparent 1rem 1.25rem
-  );
+  height: 0.75rem;
+  color: var(--primary);
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 11h12M9 11V1H2v7h5V4H5' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
+    0 0 / auto 100% repeat-x;
+}
+@utility frieze-wave {
+  height: 0.75rem;
+  color: var(--primary);
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 9c3 0 3-6 6-6s3 6 6 6' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
+    0 0 / auto 100% repeat-x;
 }
