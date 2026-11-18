@@ -376,7 +376,6 @@
     "periodOpen": "Since {{from}}, with no end.",
     "pronouncedBy": "Pronounced by account {{author}}.",
     "appealBody": "Appeal of {{date}}: {{body}}",
-    "pending": "The Moderation module comes with a later version of Olympe.",
     "line": "{{date}} · {{house}}:",
     "reportLine": "{{reason}} ({{date}})",
     "sinceChannel": "{{since}} · {{channel}}"

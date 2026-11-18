@@ -23,6 +23,17 @@ function api(me: AdminReply<{ role: string }> | Promise<AdminReply<{ role: strin
         ok: true,
         data: { now: '2026-11-16T12:00:00.000Z', pastDays: 30, events: [] },
       });
+    if (path === 'reports')
+      return Promise.resolve({
+        ok: true,
+        data: {
+          now: '2026-11-18T12:00:00Z',
+          contextSize: 5,
+          queue: [],
+          appeals: [],
+          pendingExclusions: [],
+        },
+      });
     return Promise.resolve({ ok: true, data: { entries: [] } });
   });
 }
@@ -132,15 +143,13 @@ describe('accès au back-office', () => {
     expect(current().map((tab) => tab.textContent)).toEqual(['Économie']);
   });
 
-  it("le modérateur n'a que la Modération, dont l'écran vient plus tard, et ne lit rien d'autre", async () => {
+  it("le modérateur n'a que la Modération, dont il lit la file, et ne lit rien d'autre", async () => {
     api({ ok: true, data: { role: 'moderator' } });
     signedIn();
     render(<App />);
-    expect(
-      await screen.findByText("Le module Modération arrive avec une prochaine version d'Olympe."),
-    ).toBeTruthy();
+    expect(await screen.findByText('Aucun signalement en attente.')).toBeTruthy();
     expect(tabs()).toEqual(['Modération']);
-    expect(adminGet).toHaveBeenCalledTimes(1);
+    expect(adminGet.mock.calls.map(([path]) => path)).toEqual(['me', 'reports']);
   });
 
   it("un rôle sans module (support) n'a ni onglet ni lecture", async () => {

@@ -11,6 +11,7 @@ import { Audit } from './screens/Audit';
 import { Config } from './screens/Config';
 import { Economy } from './screens/Economy';
 import { Events } from './screens/Events';
+import { Moderation } from './screens/Moderation';
 import { SecondFactor } from './screens/SecondFactor';
 import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
@@ -110,7 +111,7 @@ export function App() {
       ) : current === 'animation' ? (
         <Events accessToken={token} />
       ) : current === 'moderation' ? (
-        <p>{t('moderation.pending')}</p>
+        <Moderation accessToken={token} />
       ) : (
         <p>{t('app.forbiddenModule')}</p>
       );

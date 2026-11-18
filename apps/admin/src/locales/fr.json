@@ -376,7 +376,6 @@
     "periodOpen": "Depuis le {{from}}, sans fin.",
     "pronouncedBy": "Prononcée par le compte {{author}}.",
     "appealBody": "Appel du {{date}} : {{body}}",
-    "pending": "Le module Modération arrive avec une prochaine version d'Olympe.",
     "line": "{{date}} · {{house}} :",
     "reportLine": "{{reason}} ({{date}})",
     "sinceChannel": "{{since}} · {{channel}}"
