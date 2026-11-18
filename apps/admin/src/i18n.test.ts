@@ -1,5 +1,10 @@
 import {
   ADMIN_CANCEL_ACTIVATION_ERROR_CODES,
+  ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
+  ADMIN_DECIDE_APPEAL_ERROR_CODES,
+  ADMIN_HIDE_MESSAGE_ERROR_CODES,
+  ADMIN_RESOLVE_REPORT_ERROR_CODES,
+  ADMIN_SANCTION_ERROR_CODES,
   ADMIN_GRANT_ROLE_ERROR_CODES,
   ADMIN_PUBLISH_CONFIG_ERROR_CODES,
   ADMIN_REVOKE_ROLE_ERROR_CODES,
@@ -51,6 +56,20 @@ describe('traductions du back-office', () => {
     );
     expect(keys(fr)).toEqual(expect.arrayContaining(listed.map((code) => `config.errors.${code}`)));
     expect(keys(fr)).toContain('config.invalidConfig');
+  });
+
+  it('chaque refus des commandes de modération a son message, dans les deux langues', () => {
+    const codes = [
+      ...ADMIN_SANCTION_ERROR_CODES,
+      ...ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
+      ...ADMIN_HIDE_MESSAGE_ERROR_CODES,
+      ...ADMIN_RESOLVE_REPORT_ERROR_CODES,
+      ...ADMIN_DECIDE_APPEAL_ERROR_CODES,
+    ];
+    for (const locale of [fr, en])
+      expect(keys(locale)).toEqual(
+        expect.arrayContaining(codes.map((code) => `moderation.errors.${code}`)),
+      );
   });
 
   it('français par défaut, anglais si le navigateur le demande', () => {
