@@ -6,7 +6,7 @@ import {
   type CommandError,
   type DomainEvent,
 } from '@oikos/contracts';
-import { violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
+import { transactionConflict, violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
 import { sql, type ControlledTransaction } from 'kysely';
 import type { z } from 'zod';
 
@@ -38,9 +38,38 @@ export interface CommandContext {
 export interface ApiSettings {
   /** Monde de test : l'auteur d'une version de configuration peut la programmer lui-même (15.2). */
   allowSelfReview: boolean;
+  /** Nouvel essai sur conflit entre transactions ; absent : `DEFAULT_RETRY`. */
+  retry?: RetrySettings;
 }
 /** Réglages par défaut : ceux de la production. */
 export const DEFAULT_SETTINGS: ApiSettings = { allowSelfReview: false };
+
+/**
+ * Nouvel essai d'une commande dont la transaction échoue en interblocage (40P01) ou en échec de sérialisation
+ * (40001), que PostgreSQL a annulée en entier (#333). Réglage technique de l'API, tiré de son environnement
+ * (`API_COMMAND_MAX_ATTEMPTS`, `API_COMMAND_RETRY_DELAY_MS`, voir `.env.example`) : pas une valeur d'équilibrage.
+ */
+export interface RetrySettings {
+  /** Essais au plus, le premier compris : 1 n'en fait aucun nouveau. */
+  maxAttempts: number;
+  /** Attente avant le n-ième nouvel essai : n fois `delayMs`, plus un tirage uniforme entre 0 et `delayMs`. */
+  delayMs: number;
+}
+export const DEFAULT_RETRY: RetrySettings = { maxAttempts: 3, delayMs: 50 };
+
+/** Réglages du nouvel essai tirés de l'environnement ; une variable absente prend la valeur par défaut. */
+export function retryFromEnv(env: Record<string, string | undefined>): RetrySettings {
+  const read = (name: string, fallback: number, min: number) => {
+    const raw = env[name] ?? String(fallback);
+    const value = /^\d{1,5}$/.test(raw) ? Number(raw) : Number.NaN;
+    if (!(value >= min)) throw new Error(`${name} must be an integer of at least ${min}`);
+    return value;
+  };
+  return {
+    maxAttempts: read('API_COMMAND_MAX_ATTEMPTS', DEFAULT_RETRY.maxAttempts, 1),
+    delayMs: read('API_COMMAND_RETRY_DELAY_MS', DEFAULT_RETRY.delayMs, 0),
+  };
+}
 
 /**
  * Charge la configuration active à un instant (`createConfigLoader(db).at`), sur la connexion donnée
@@ -169,15 +198,47 @@ export function storableJson(input: unknown): string | null {
  * - Réussite : effets, événements et ligne `ok` sont validés ensemble.
  * - Erreur métier : les effets éventuels sont annulés, la ligne `rejected` est validée (la clé est consommée).
  * - Erreur inattendue : tout est annulé, une ligne `failed` sans clé est écrite à part (la clé reste utilisable).
+ * - Interblocage ou échec de sérialisation (#333) : la base a tout annulé, journal et événements compris ; tout est
+ *   rejoué, configuration, horloge et verrou de la clé compris, jusqu'à `retry.maxAttempts` essais. Un essai annulé
+ *   n'écrit rien, pas même une trace : seule l'issue du dernier est journalisée et rendue. Si une requête de même
+ *   clé a validé entre-temps, le nouvel essai rend sa réponse, en rejeu. Au-delà, erreur inattendue.
  */
 export async function executeCommand(
   db: Db,
   command: CommandDefinition,
-  { userId, aal, idempotencyKey, input }: CommandRequest,
+  request: CommandRequest,
   loadConfig: ConfigSource,
   settings: ApiSettings = DEFAULT_SETTINGS,
 ): Promise<CommandOutcome> {
+  const { maxAttempts, delayMs } = settings.retry ?? DEFAULT_RETRY;
   const startedAt = performance.now();
+  for (let attempt = 1; ; attempt += 1) {
+    const retryable = attempt < maxAttempts;
+    const outcome = await attemptCommand(
+      db,
+      command,
+      request,
+      loadConfig,
+      settings,
+      startedAt,
+      retryable,
+    );
+    if (outcome) return outcome;
+    // Attente croissante, tirée au hasard : deux commandes annulées ensemble ne se recroisent pas au même instant.
+    await new Promise((resolve) => setTimeout(resolve, (attempt + Math.random()) * delayMs));
+  }
+}
+
+/** Un essai d'une commande ; `null` si la base l'a annulé sur un conflit et qu'un nouvel essai est permis. */
+async function attemptCommand(
+  db: Db,
+  command: CommandDefinition,
+  { userId, aal, idempotencyKey, input }: CommandRequest,
+  loadConfig: ConfigSource,
+  settings: ApiSettings,
+  startedAt: number,
+  retryable: boolean,
+): Promise<CommandOutcome | null> {
   const duration = () => Math.round(performance.now() - startedAt);
   const storable = storableInput(input);
   const loggedInput = storable?.text ?? UNSTORABLE_INPUT;
@@ -369,6 +430,13 @@ export async function executeCommand(
         .catch((rollbackError: unknown) =>
           console.error(`Command ${command.name}: rollback failed`, rollbackError),
         );
+    // Conflit entre transactions : rien n'est validé, rien n'est écrit ; l'appelant rejoue la commande entière.
+    const conflict = transactionConflict(error);
+    if (conflict && retryable) {
+      // Texte guetté par la garde des tests d'intégration (`conflicts.integration-fixtures.ts`).
+      console.warn(`Command ${command.name}: transaction conflict ${conflict}, retrying`);
+      return null;
+    }
     console.error(`Command ${command.name} failed`, error);
     const response = failure('INTERNAL', 'Unexpected error.');
     // Trace d'audit hors transaction, sans clé : la commande pourra être retentée avec la même clé.

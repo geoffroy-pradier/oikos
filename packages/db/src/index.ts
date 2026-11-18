@@ -833,6 +833,16 @@ export function violatedConstraint(error: unknown): string | null {
   return isViolation && typeof constraint === 'string' ? constraint : null;
 }
 
+/**
+ * Code d'un conflit entre transactions, interblocage (40P01) ou échec de sérialisation (40001), ou `null` pour toute
+ * autre erreur. PostgreSQL a alors annulé la transaction en entier : la rejouer ne double aucun effet (#333).
+ */
+export function transactionConflict(error: unknown): '40P01' | '40001' | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const { code } = error as { code?: unknown };
+  return code === '40P01' || code === '40001' ? code : null;
+}
+
 /** Un bien immobilier qui loge les travailleurs d'une maison, dans sa cité (4.5, #258). */
 export interface HousingRow {
   houseId: string;

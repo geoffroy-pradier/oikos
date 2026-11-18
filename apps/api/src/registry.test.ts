@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { canonicalJson, storableInput, storableJson } from './registry';
+import {
+  canonicalJson,
+  DEFAULT_RETRY,
+  retryFromEnv,
+  storableInput,
+  storableJson,
+} from './registry';
 
 it('ne dépend pas de l’ordre des clés, à tous les niveaux', () => {
   const a = { name: 'Abc', blazon: { shape: 'hoplon', emblem: 'owl' }, tags: [{ y: 1, x: 2 }] };
@@ -40,4 +46,20 @@ it('storableInput rend le texte et la forme canonique, ou null plutôt que de le
   }
   const deepest = JSON.parse(`${'['.repeat(100_000)}${']'.repeat(100_000)}`) as unknown;
   expect([storableInput(deepest), storableJson(deepest)]).toEqual([null, null]);
+});
+
+it('réglages du nouvel essai : valeurs par défaut, lues dans l’environnement, refusées si invalides', () => {
+  expect(retryFromEnv({})).toEqual(DEFAULT_RETRY);
+  expect(retryFromEnv({ API_COMMAND_MAX_ATTEMPTS: '1', API_COMMAND_RETRY_DELAY_MS: '0' })).toEqual({
+    maxAttempts: 1,
+    delayMs: 0,
+  });
+  for (const [name, raw] of [
+    ['API_COMMAND_MAX_ATTEMPTS', '0'],
+    ['API_COMMAND_MAX_ATTEMPTS', '-1'],
+    ['API_COMMAND_MAX_ATTEMPTS', ''],
+    ['API_COMMAND_RETRY_DELAY_MS', '2.5'],
+    ['API_COMMAND_RETRY_DELAY_MS', '1e3'],
+  ] as const)
+    expect(() => retryFromEnv({ [name]: raw })).toThrow(name);
 });
