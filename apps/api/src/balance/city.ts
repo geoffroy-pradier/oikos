@@ -17,6 +17,7 @@ import {
   dailyUpkeep,
   gameDayAt,
   isDailyClose,
+  lodgingPrice,
   marketTax,
   tickIndexAt,
   tickStart,
@@ -136,6 +137,8 @@ export function openBench(options: { config?: GameConfig } = {}) {
   return {
     db,
     owner,
+    /** Configuration jouée. */
+    played: options.config ?? config,
     loader,
     send,
     async start() {
@@ -473,3 +476,23 @@ export async function treasuryOf(city: City) {
     .execute();
   return new Map(rows.map((row) => [row.city_id ?? '', Number(row.balance)]));
 }
+
+/** Prix d'une nuit chez les PNJ dans la cité, tel que la dernière clôture l'a fixé (public, 4.4) ; 0 avant la première. */
+export async function lodgingOf(city: City) {
+  const row = await city.db
+    .selectFrom('game.labor_market')
+    .select('lodging_oboles')
+    .where('city_id', '=', city.cityId)
+    .orderBy('game_day', 'desc')
+    .limit(1)
+    .executeTakeFirst();
+  return Number(row?.lodging_oboles ?? 0);
+}
+/** Prix d'une nuit chez les PNJ au pire (tous les travailleurs de la cité sans logement), d'après la configuration jouée. */
+export const worstLodging = (city: City) =>
+  lodgingPrice({
+    baseOboles: city.played.labor.lodging.baseOboles,
+    workers: 1,
+    unhoused: 1,
+    curve: city.played.labor.lodging,
+  });

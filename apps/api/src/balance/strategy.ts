@@ -6,6 +6,7 @@ import {
   harvest,
   recipeOf,
   referenceOf,
+  worstLodging,
   type City,
   type House,
   type Reply,
@@ -32,13 +33,13 @@ const SOLD_SHARE_PRODUCED = 0.9;
 const SOLD_SHARE_RESOLD = 0.5;
 /** Jours d'intrants gardés en stock, hors vente. */
 const INPUT_DAYS_KEPT = 2;
-/** Jours d'entretien de tous ses sites qu'une maison garde après l'acquisition d'un site. */
+/** Jours d'entretien de tous ses sites, et de l'hébergement chez les PNJ de tous leurs travailleurs au pire prix, qu'une maison garde après l'acquisition d'un site. */
 const UPKEEP_DAYS_KEPT = 3;
-/** Jours d'entretien de tous ses sites qu'une maison garde hors séquestre quand elle achète ses intrants. */
+/** Mêmes dépenses, en jours, qu'une maison garde hors séquestre quand elle achète ses intrants. */
 const UPKEEP_DAYS_BEFORE_BUYING = 2;
 
 /** Entretien quotidien d'un site, en oboles. */
-const upkeepOf = (recipeId: string) =>
+export const upkeepOf = (recipeId: string) =>
   config.sites.upkeep.dailyOboles[recipeOf(recipeId).siteType] ?? 0;
 
 /**
@@ -108,6 +109,8 @@ export interface Seller extends House {
   listed: Map<string, number>;
   /** Biens dont la vente est confiée à l'intendant de la maison (règles `sell`) : la maison ne les met pas en vente. */
   delegated?: ReadonlySet<string>;
+  /** Biens gardés en stock, hors vente, pour une rénovation en préparation (`balance/housing.ts`). */
+  kept?: ReadonlyMap<string, number>;
 }
 export const seller = (house: House): Seller => ({ ...house, asks: new Map(), listed: new Map() });
 
@@ -165,7 +168,7 @@ export function assertAdmitted(reply: Reply, shortOfFundsAllowed: boolean, comma
  * Site suivant du portefeuille, s'il laisse `UPKEEP_DAYS_KEPT` jours d'entretien de tous les sites. Rend le
  * coût, d'après la configuration, du site acquis (0 sans acquisition).
  */
-async function acquireNext(city: City, house: Seller, now: Date) {
+async function acquireNext(city: City, house: Seller, now: Date, lodging: number) {
   const next = house.role.sites[house.sites.length];
   if (next) {
     const type = recipeOf(next).siteType;
@@ -173,7 +176,7 @@ async function acquireNext(city: City, house: Seller, now: Date) {
     const reserve =
       UPKEEP_DAYS_KEPT *
       [...house.sites.map((site) => site.recipeId), next].reduce(
-        (sum, id) => sum + upkeepOf(id),
+        (sum, id) => sum + upkeepOf(id) + recipeOf(id).workers * lodging,
         0,
       );
     if ((await cash(city, house.houseId)) >= cost + reserve) {
@@ -199,7 +202,8 @@ export async function morning(city: City, house: Seller, now: Date) {
   await harvest(city, house, now);
   const { listed, sold } = await cancelOpen(city, house);
   // Acquisition d'abord : un achat d'intrants mettrait sous séquestre la monnaie du site suivant.
-  const acquired = await acquireNext(city, house, now);
+  const lodging = worstLodging(city);
+  const acquired = await acquireNext(city, house, now, lodging);
   // Intrants : une journée de production, achetée au plus à `INPUT_BID` fois le prix de référence.
   const needs = new Map<string, number>();
   for (const site of house.sites) {
@@ -213,7 +217,11 @@ export async function morning(city: City, house: Seller, now: Date) {
   // La monnaie sous séquestre ne paie pas l'entretien : une maison en garde `UPKEEP_DAYS_BEFORE_BUYING`
   // jours hors de ses achats.
   const reserve =
-    UPKEEP_DAYS_BEFORE_BUYING * house.sites.reduce((sum, site) => sum + upkeepOf(site.recipeId), 0);
+    UPKEEP_DAYS_BEFORE_BUYING *
+    house.sites.reduce(
+      (sum, site) => sum + upkeepOf(site.recipeId) + recipeOf(site.recipeId).workers * lodging,
+      0,
+    );
   for (const [goodId, need] of needs) {
     const missing = need - (await free(city, house.houseId, goodId));
     const price = Math.max(1, Math.round(referenceOf(goodId) * INPUT_BID));
@@ -261,7 +269,8 @@ export async function morning(city: City, house: Seller, now: Date) {
     const quantity =
       Number(stock.quantity) -
       Number(stock.reserved) -
-      INPUT_DAYS_KEPT * (needs.get(stock.good_id) ?? 0);
+      INPUT_DAYS_KEPT * (needs.get(stock.good_id) ?? 0) -
+      (house.kept?.get(stock.good_id) ?? 0);
     if (await place(city, house, stock.good_id, 'sell', price, quantity))
       house.listed.set(stock.good_id, quantity);
   }
