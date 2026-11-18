@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next';
 import type { Channel, Unread } from '../chat';
 import { useChat } from '../chat-reads';
 import { useHouse } from '../house';
+import { useReports } from '../reports';
 import { LoadProblem, Loading } from './LoadProblem';
 import { MessageComposer } from './MessageComposer';
 import { NewConversation } from './NewConversation';
+import { ReportMessage } from './ReportMessage';
 
 /**
  * Onglet Messages (6.6, #274) : le canal de la cité et les conversations privées de la maison, chacun avec ses
@@ -21,6 +23,7 @@ export function MessagesScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const chat = useChat(selected);
   const { channels, open, messages, unread, names } = chat;
+  const reports = useReports();
 
   const nameOf = (houseId: string | null) =>
     houseId === house.id
@@ -190,6 +193,19 @@ export function MessagesScreen() {
                       ) : (
                         <p className="break-words whitespace-pre-wrap">{message.body}</p>
                       )}
+                      {/* Un message d'une autre maison, encore visible, se signale (#275). */}
+                      {message.houseId !== house.id &&
+                        !message.hidden &&
+                        reports.reasons &&
+                        reports.reasons.length > 0 && (
+                          <ReportMessage
+                            messageId={message.id}
+                            author={nameOf(message.houseId)}
+                            reasons={reports.reasons}
+                            reported={reports.reported?.has(message.id) ?? false}
+                            onReported={reports.reload}
+                          />
+                        )}
                     </li>
                   ))}
                 </ol>

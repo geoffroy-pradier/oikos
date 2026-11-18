@@ -930,5 +930,21 @@
     "invalid": "Write your appeal before sending it.",
     "appealSent": "Your appeal is sent: moderation will review it.",
     "appealed": "Appeal sent on {{date}}:"
+  },
+  "reports": {
+    "button": "Report",
+    "open": "Report the message from {{house}}",
+    "reason": "Reason for reporting the message from {{house}}",
+    "send": "Send the report",
+    "cancel": "Cancel",
+    "sent": "Message reported: moderation will review it.",
+    "reported": "You reported this message.",
+    "reasons": {
+      "spam": "Advertising or repeated messages",
+      "harassment": "Harassment",
+      "hate": "Hate or discrimination",
+      "cheating": "Cheating or scam",
+      "other": "Other breach of the code of conduct"
+    }
   }
 }
