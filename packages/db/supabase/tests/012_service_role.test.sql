@@ -75,7 +75,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
-  'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade game.broadcast_message '
+  'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade game.auth_user_exists game.broadcast_message '
     || 'game.check_decree_settled_on_close game.check_escrow_debit game.check_escrow_matches_orders game.check_grace_settled game.check_offering_settled game.check_property_listing_settled '
     || 'game.check_trade_settled game.check_trade_settlement game.check_treasury_debit '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
@@ -105,7 +105,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
+  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.auth_user_exists game.city_rates game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');

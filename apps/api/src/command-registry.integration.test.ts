@@ -4,7 +4,7 @@ import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { createTelemetry } from './telemetry';
-import { testConfig, testVerifier } from './test-config';
+import { newAccount, testConfig, testVerifier } from './test-config';
 import { createRateLimiter, unlimited } from './rate-limit';
 
 // Tests d'intégration de la route de commandes contre Supabase local, avec la commande d'exemple `house.rename`.
@@ -149,7 +149,7 @@ describe('cadre de commandes : house.rename de bout en bout', () => {
       { error: { code: 'VALIDATION_FAILED', fields: ['name'] } },
     ]);
 
-    const homeless = randomUUID();
+    const homeless = await newAccount(owner);
     const none = await rename(homeless, `Errante ${letters()}`);
     expect([none.status, await none.json()]).toMatchObject([
       404,

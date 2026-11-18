@@ -1,4 +1,6 @@
+import type { Db } from '@oikos/db';
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { sql } from 'kysely';
 
 /** Compte authentifié : son identifiant Supabase et le niveau d'assurance de sa session. */
 export interface Identity {
@@ -52,4 +54,25 @@ export function tokenVerifierFromEnv(env: Record<string, string | undefined>): T
   if (!env['SUPABASE_URL']) throw new Error('Missing SUPABASE_URL or SUPABASE_JWT_SECRET');
   const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', env['SUPABASE_URL']);
   return supabaseTokenVerifier(createRemoteJWKSet(jwksUrl));
+}
+
+/** Forme d'un identifiant de compte de Supabase Auth : un UUID, que Postgres accepte sans erreur. */
+const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ajoute à la vérification du jeton celle de son compte (#565) : un jeton reste valide jusqu'à son expiration,
+ * même si son compte a été effacé entre-temps (remise à zéro de la base, suppression). Un compte absent de
+ * Supabase Auth, ou effacé en douceur, rend `null`, comme un jeton invalide : refus `UNAUTHENTICATED`, avant la
+ * limite de débit (qui écrit en base) et avant le journal des commandes. Le compte est lu après la signature :
+ * un jeton forgé n'atteint jamais la base.
+ */
+export function existingAccountVerifier(db: Db, verifyToken: TokenVerifier): TokenVerifier {
+  return async (token) => {
+    const identity = await verifyToken(token);
+    if (!identity || !ACCOUNT_ID.test(identity.userId)) return null;
+    const { rows } = await sql<{ exists: boolean }>`
+      select game.auth_user_exists(${identity.userId}::uuid) as exists
+    `.execute(db);
+    return rows[0]?.exists === true ? identity : null;
+  };
 }

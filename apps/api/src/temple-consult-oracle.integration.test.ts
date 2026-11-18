@@ -10,7 +10,7 @@ import {
   owner,
   send,
 } from './property.integration-fixtures';
-import { TEST_CONFIG } from './test-config';
+import { newAccount, TEST_CONFIG } from './test-config';
 import { appWithConfig, type App } from './voyage.integration-fixtures';
 import { planEvent, waitUntil } from './world-events.integration-fixtures';
 
@@ -197,7 +197,7 @@ describe('temple.consultOracle (#270)', () => {
       [await consult(player.user, PRICE + 1), 'PRICE_CHANGED'],
       [await consult(player.user, GRANT + 1, undefined, dear), 'INSUFFICIENT_FUNDS'],
       [await consult(player.user, PRICE, undefined, older), 'ORACLE_UNAVAILABLE'],
-      [await consult(randomUUID()), 'HOUSE_NOT_FOUND'],
+      [await consult(await newAccount(owner)), 'HOUSE_NOT_FOUND'],
     ] as const)
       expect([codeOf(reply), reply.status >= 400]).toEqual([code, true]);
     expect([await balanceOf(player.houseId), await apollo(player.houseId)]).toEqual([GRANT, 0]);

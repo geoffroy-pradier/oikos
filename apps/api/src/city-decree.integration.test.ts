@@ -16,7 +16,7 @@ import {
   TAX,
   works,
 } from './city-decree.integration-fixtures';
-import { TEST_CONFIG } from './test-config';
+import { newAccount, TEST_CONFIG } from './test-config';
 
 // Proposition d'un décret par l'archonte en charge, contre Supabase local.
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
@@ -84,7 +84,7 @@ describe('city.proposeDecree', () => {
     await world.archon(former.houseId, true);
     for (const house of [citizen, metic, former])
       expect(code(await propose(house.user, TAX))).toBe('NOT_ARCHON');
-    expect(code(await propose(randomUUID(), TAX))).toBe('HOUSE_NOT_FOUND');
+    expect(code(await propose(await newAccount(owner), TAX))).toBe('HOUSE_NOT_FOUND');
     expect(await rows(sql`select id from game.decrees where world_id = ${world.worldId}`)).toEqual(
       [],
     );

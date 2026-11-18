@@ -13,7 +13,7 @@ import {
   type SendOptions,
 } from './chat-test-world';
 import type { Telemetry } from './telemetry';
-import { TEST_CONFIG } from './test-config';
+import { newAccount, TEST_CONFIG } from './test-config';
 
 // Messages (6.6), contre Supabase local.
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
@@ -83,10 +83,9 @@ describe('chat.post', () => {
       404,
       'CHANNEL_NOT_FOUND',
     ]);
-    expect(codeOf(await post(randomUUID(), world.kallisteChannel, 'Sans maison'))).toEqual([
-      404,
-      'HOUSE_NOT_FOUND',
-    ]);
+    expect(
+      codeOf(await post(await newAccount(owner), world.kallisteChannel, 'Sans maison')),
+    ).toEqual([404, 'HOUSE_NOT_FOUND']);
     expect(
       await rows(
         sql`select id from game.messages where house_id in (${alice.houseId}, ${chloe.houseId})`,

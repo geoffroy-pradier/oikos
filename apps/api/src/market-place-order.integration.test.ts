@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { createTelemetry } from './telemetry';
 import { unlimited } from './rate-limit';
-import { TEST_CONFIG, testVerifier } from './test-config';
+import { newAccount, TEST_CONFIG, testVerifier } from './test-config';
 
 // Tests d'intégration de `market.placeOrder` contre Supabase local. Le fichier a son propre monde (cités et
 // ordres ne se suppriment pas : rien ne doit apparaître dans le monde de test des autres suites), et chaque
@@ -631,7 +631,7 @@ describe('market.placeOrder', () => {
     ]) {
       expect((await place(patch)).body).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
     }
-    const homeless = randomUUID();
+    const homeless = await newAccount(owner);
     expect(
       (
         await send(homeless, 'market.placeOrder', {

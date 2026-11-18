@@ -177,8 +177,9 @@ expect "adoption : un second déploiement ne rejoue rien" "$(q "select count(*) 
 
 echo "# Migrations du dépôt, sur une base neuve"
 fresh_db
-# Substitut minimal de ce que fournit Supabase Auth.
-q "create schema auth; create table auth.users (id uuid primary key, email text);
+# Substitut minimal de ce que fournit Supabase Auth : `deleted_at` (effacement en douceur) est lu par
+# `game.auth_user_exists` (#565), qu'une fonction SQL valide dès sa création.
+q "create schema auth; create table auth.users (id uuid primary key, email text, deleted_at timestamptz);
    create function auth.uid() returns uuid language sql stable
      as \$\$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid \$\$"
 apply "$real_migrations"

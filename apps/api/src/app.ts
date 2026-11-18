@@ -10,7 +10,7 @@ import { bodyLimit } from 'hono/body-limit';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { registerAdminReads } from './admin-read';
 import { adminRouteTemplate, type RefusalReason, type Telemetry } from './telemetry';
-import type { Identity, TokenVerifier } from './auth';
+import { existingAccountVerifier, type Identity, type TokenVerifier } from './auth';
 import {
   adminCancelActivation,
   adminPublishConfig,
@@ -159,7 +159,9 @@ const REFUSAL_BY_STATUS: Record<number, RefusalReason> = {
 };
 
 export function createApp(deps: AppDeps) {
-  const { db, verifyToken, rateLimiter, loadConfig, telemetry, settings } = deps;
+  const { db, rateLimiter, loadConfig, telemetry, settings } = deps;
+  // Commandes et lectures d'Olympe : le compte du jeton doit encore exister (#565).
+  const verifyToken = existingAccountVerifier(db, deps.verifyToken);
   const app = new Hono<{ Variables: { identity: Identity; adminRole: AdminRole } }>();
   const fail = (error: CommandError) =>
     Response.json({ ok: false, error }, { status: statusOf(error.code) });
@@ -201,7 +203,7 @@ export function createApp(deps: AppDeps) {
     (c.req.param('name').startsWith('admin.') ? adminLimit : gameLimit)(c, next),
   );
 
-  // Toute commande exige un jeton Supabase valide.
+  // Toute commande exige un jeton Supabase valide, dont le compte existe encore.
   app.use('/api/commands/*', async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
