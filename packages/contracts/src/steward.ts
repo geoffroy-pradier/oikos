@@ -135,6 +135,62 @@ export const stewardDismissedSchema = z.strictObject({
   payload: z.strictObject(stewardRef),
 });
 
+/**
+ * Plafond technique d'une consigne en langage naturel (#280), en caractères (points de code) : il borne les données,
+ * donc le coût d'entrée, d'un appel à la passerelle IA (ADR 0005).
+ */
+export const MAX_STEWARD_INSTRUCTION_LENGTH = 500;
+
+/**
+ * Commande `steward.submitInstruction` (4.4, #280) : la maison écrit une consigne à un de ses intendants, que le
+ * moteur fera traduire en règles de la grammaire et simuler. Le texte n'entre pas au journal des commandes.
+ */
+export const stewardSubmitInstructionInputSchema = z.strictObject({
+  stewardId: z.uuid(),
+  text: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((text) => [...text].length <= MAX_STEWARD_INSTRUCTION_LENGTH, 'too long'),
+});
+export type StewardSubmitInstructionInput = z.infer<typeof stewardSubmitInstructionInputSchema>;
+
+export const stewardSubmitInstructionOutputSchema = z.object({
+  instructionId: z.uuid(),
+  stewardId: z.uuid(),
+  /** Instant de la consigne (ISO 8601) ; la proposition suit au prochain passage du moteur. */
+  submittedAt: z.iso.datetime(),
+});
+export type StewardSubmitInstructionOutput = z.infer<typeof stewardSubmitInstructionOutputSchema>;
+
+export const STEWARD_SUBMIT_INSTRUCTION_ERROR_CODES = [
+  /** Intendant inconnu, renvoyé, ou d'une autre maison : indiscernables. */
+  'STEWARD_NOT_FOUND',
+  /** IA coupée, plafond du mois atteint, ou consignes du jour de la maison épuisées : le formulaire reste. */
+  'AI_UNAVAILABLE',
+  /** Une consigne de cet intendant attend encore sa proposition. */
+  'INSTRUCTION_PENDING',
+] as const;
+
+/**
+ * Refus motivé d'une consigne, rendu par le moteur à la place de règles : `AI_UNAVAILABLE`, IA coupée, plafond
+ * atteint, délai ou panne ; `INVALID_PROPOSAL`, réponse rejetée par le schéma de la grammaire ; `OUT_OF_GRAMMAR`,
+ * consigne qui demande autre chose que les règles de la grammaire ; `AMBIGUOUS`, consigne incomplète ou ambiguë.
+ */
+export const STEWARD_PROPOSAL_REFUSALS = [
+  'AI_UNAVAILABLE',
+  'INVALID_PROPOSAL',
+  'OUT_OF_GRAMMAR',
+  'AMBIGUOUS',
+] as const;
+export type StewardProposalRefusal = (typeof STEWARD_PROPOSAL_REFUSALS)[number];
+
+/** Une consigne est donnée : ni son texte ni ses règles ne sont dans l'événement, privé comme elle. */
+export const stewardInstructionSubmittedSchema = z.strictObject({
+  type: z.literal('StewardInstructionSubmitted'),
+  payload: z.strictObject({ ...stewardRef, instructionId: z.uuid() }),
+});
+
 /** Commandes que mène un intendant (#279), par le cœur partagé avec le joueur (ADR 0009). */
 export const STEWARD_COMMANDS = ['site.collect', 'market.placeOrder'] as const;
 export type StewardCommand = (typeof STEWARD_COMMANDS)[number];
@@ -190,3 +246,30 @@ export const stewardActionFailedSchema = z.strictObject({
     code: z.string().regex(/^[A-Z][A-Z_]{1,63}$/),
   }),
 });
+
+const position = z
+  .number()
+  .int()
+  .min(0)
+  .max(MAX_STEWARD_RULES - 1);
+/**
+ * Simulation à blanc d'une règle proposée (#280) : ce qu'elle ferait maintenant, menée dans l'ordre des règles par le
+ * cœur de la commande, dans une transaction annulée. `idle` : rien à faire ; `ok` : la commande réussirait ;
+ * `rejected` : elle serait refusée pour la raison `code`, celle que le joueur recevrait.
+ */
+export const stewardSimulationStepSchema = z.discriminatedUnion('status', [
+  z.strictObject({ position, status: z.literal('idle') }),
+  z.strictObject({
+    position,
+    status: z.literal('ok'),
+    summary: stewardOperationSummarySchema,
+  }),
+  z.strictObject({
+    position,
+    status: z.literal('rejected'),
+    code: z.string().regex(/^[A-Z][A-Z_]{1,63}$/),
+    summary: stewardOperationSummarySchema,
+  }),
+]);
+export type StewardSimulationStep = z.infer<typeof stewardSimulationStepSchema>;
+export const stewardSimulationSchema = z.array(stewardSimulationStepSchema).max(MAX_STEWARD_RULES);

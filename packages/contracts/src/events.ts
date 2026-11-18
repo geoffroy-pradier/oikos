@@ -46,6 +46,7 @@ import {
   stewardActionFailedSchema,
   stewardDismissedSchema,
   stewardHiredSchema,
+  stewardInstructionSubmittedSchema,
   stewardRulesSetSchema,
 } from './steward';
 import { graceInvokedSchema, offeringMadeSchema, oracleConsultedSchema } from './temple';
@@ -86,6 +87,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   stewardRulesSetSchema,
   stewardDismissedSchema,
   stewardActionFailedSchema,
+  stewardInstructionSubmittedSchema,
   shipAcquiredSchema,
   propertyBoughtSchema,
   propertyRenovatedSchema,

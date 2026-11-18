@@ -90,7 +90,7 @@ export const stewardHire = defineCommand({
 });
 
 /** Intendant en poste de la maison du compte, verrouillé : ses commandes se suivent, et suivent son renvoi. */
-async function lockSteward(trx: Db, userId: string, stewardId: string) {
+export async function lockSteward(trx: Db, userId: string, stewardId: string) {
   return trx
     .selectFrom('game.stewards')
     .select(['id', 'house_id', 'site_id', 'rules_revision'])
