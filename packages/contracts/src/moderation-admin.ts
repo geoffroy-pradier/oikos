@@ -175,3 +175,70 @@ export const appealDecidedSchema = z.strictObject({
     lifted: z.boolean(),
   }),
 });
+
+const instant = z.iso.datetime();
+const queueMessageSchema = z.strictObject({
+  id: z.uuid(),
+  houseId: z.uuid(),
+  houseName: z.string(),
+  /** Texte entier, même d'un message masqué : la modération seule le lit. */
+  body: z.string(),
+  createdAt: instant,
+  hiddenAt: instant.nullable(),
+});
+/**
+ * Lecture `GET /api/admin/reports` (#276), pour les rôles de la modération. Objets stricts : un champ de plus, une
+ * donnée économique par exemple, ferait échouer la lecture. `now` : l'heure de la base.
+ */
+export const adminReportsSchema = z.strictObject({
+  now: instant,
+  contextSize: z.number().int().nonnegative(),
+  /** Une entrée par message signalé, la plus ancienne d'abord, puis la plus signalée. */
+  queue: z.array(
+    z.strictObject({
+      world: z.string(),
+      /** La maison signalée et son compte, que `admin.sanction` désigne. */
+      reportedHouse: z.strictObject({ id: z.uuid(), name: z.string(), userId: z.uuid() }),
+      /** Nuls quand la purge a emporté le message (18) : le signalement reste, sans texte ni contexte. */
+      channel: z
+        .strictObject({
+          id: z.uuid(),
+          kind: z.enum(['city', 'direct']),
+          city: z.string().nullable(),
+        })
+        .nullable(),
+      message: queueMessageSchema.nullable(),
+      /** Signalements ouverts du message, sans la maison qui signale. */
+      reports: z
+        .array(z.strictObject({ id: z.uuid(), reason: z.string(), createdAt: instant }))
+        .min(1),
+      /** Messages qui précèdent et qui suivent dans le canal, au plus `contextSize` de chaque côté. */
+      context: z.array(queueMessageSchema),
+    }),
+  ),
+  /** Appels à trancher, les plus anciens d'abord. */
+  appeals: z.array(
+    z.strictObject({
+      sanctionId: z.uuid(),
+      userId: z.uuid(),
+      kind: z.enum(['warning', 'silence', 'suspension', 'ban']),
+      reason: z.string(),
+      startsAt: instant,
+      endsAt: instant.nullable(),
+      authorId: z.uuid(),
+      appealBody: z.string(),
+      appealedAt: instant,
+    }),
+  ),
+  /** Exclusions proposées, à valider par un autre compte que leur auteur. */
+  pendingExclusions: z.array(
+    z.strictObject({
+      sanctionId: z.uuid(),
+      userId: z.uuid(),
+      reason: z.string(),
+      authorId: z.uuid(),
+      proposedAt: instant,
+    }),
+  ),
+});
+export type AdminReports = z.infer<typeof adminReportsSchema>;

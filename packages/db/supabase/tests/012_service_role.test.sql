@@ -105,7 +105,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.uuid_v7 '
+  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.city_rates game.purge_messages game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
