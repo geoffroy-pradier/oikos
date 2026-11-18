@@ -442,6 +442,28 @@
       "non_operating": "Hors exploitation",
       "cash_change": "Variation de la monnaie",
       "escrow_change": "dont séquestre"
+    },
+    "flows": {
+      "title": "Flux de trésorerie",
+      "none": "Aucun mouvement de votre trésorerie pour l'instant.",
+      "day": "{{date}} : net {{net}}",
+      "noDay": "Jour inconnu",
+      "unknown": "Mouvements « {{nature}} » : {{amount}}",
+      "natures": {
+        "sales": "Ventes, au brut : {{amount}}",
+        "taxes": "Taxes : {{amount}}",
+        "purchases": "Achats : {{amount}}",
+        "upkeep": "Entretien : {{amount}}",
+        "wages": "Salaires : {{amount}}",
+        "lodging": "Hébergement : {{amount}}",
+        "rents": "Loyers : {{amount}}",
+        "transport": "Transport : {{amount}}",
+        "acquisitions": "Acquisitions et cessions : {{amount}}",
+        "offerings": "Offrandes et consultations de la Pythie : {{amount}}",
+        "grant": "Dotation de départ : {{amount}}",
+        "escrow": "Séquestre (retenu ou rendu) : {{amount}}",
+        "other": "Autres mouvements : {{amount}}"
+      }
     }
   },
   "city": {

@@ -442,6 +442,28 @@
       "non_operating": "Non-operating",
       "cash_change": "Change in money",
       "escrow_change": "of which escrow"
+    },
+    "flows": {
+      "title": "Cash flows",
+      "none": "No movement of your treasury yet.",
+      "day": "{{date}}: net {{net}}",
+      "noDay": "Unknown day",
+      "unknown": "“{{nature}}” movements: {{amount}}",
+      "natures": {
+        "sales": "Sales, gross: {{amount}}",
+        "taxes": "Taxes: {{amount}}",
+        "purchases": "Purchases: {{amount}}",
+        "upkeep": "Upkeep: {{amount}}",
+        "wages": "Wages: {{amount}}",
+        "lodging": "Lodging: {{amount}}",
+        "rents": "Rents: {{amount}}",
+        "transport": "Transport: {{amount}}",
+        "acquisitions": "Acquisitions and disposals: {{amount}}",
+        "offerings": "Offerings and Pythia consultations: {{amount}}",
+        "grant": "Starting grant: {{amount}}",
+        "escrow": "Escrow (held or released): {{amount}}",
+        "other": "Other movements: {{amount}}"
+      }
     }
   },
   "city": {
