@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import {
-  accounts,
   closeDay,
   closeOf,
   createWorld,
   foundHouses,
+  lastSeq,
   MINUTE,
   openBench,
   reconcile,
@@ -13,11 +13,13 @@ import {
   upkeepDue,
 } from './balance/city';
 import { morning, seller } from './balance/strategy';
+import { measureDay, publish, recipeMargins, type DayMeasure } from './balance/measures';
 import {
   MEASURED,
   SETTLEMENTS,
   SLUGS,
   WARMUP,
+  WINDOW,
   WORLD_SEED,
   worldConfig,
   type Settlement,
@@ -57,7 +59,9 @@ it(
     if (!world) throw new Error('No city created');
     const houses = settlements.flatMap((settlement) => settlement.houses);
 
-    let [upkeep, acquisitions] = [0, 0];
+    const days: DayMeasure[] = [];
+    const measured: Record<string, number> = {};
+    let [seq, at, upkeep, acquisitions] = [await lastSeq(world), new Date(0), 0, 0];
     for (let day = 0; day < WARMUP + MEASURED; day++) {
       upkeep += upkeepDue(world, houses, day);
       await closeDay(world, day);
@@ -68,6 +72,16 @@ it(
       const hours =
         (closeOf(world, day + 1).getTime() - closeOf(world, day).getTime()) / (60 * MINUTE);
       expect(await tickDay(world, day)).toBe(hours);
+      // Mesures du jour ; la mise en route n'est pas publiée, mais le rang et l'instant avancent.
+      const measure = await measureDay(settlements, day, { seq, at });
+      [seq, at] = [
+        await lastSeq(world),
+        (await sql<{ now: Date }>`select clock_timestamp() as now`.execute(world.db)).rows[0]
+          ?.now ?? at,
+      ];
+      for (const [key, net] of Object.entries(measure.flows['world'] ?? {}))
+        measured[key] = (measured[key] ?? 0) + net;
+      if (day >= WARMUP) days.push(measure);
     }
 
     // Robinets, puits et trésors des cités rapprochés des flux comptés ; puis la masse en circulation.
@@ -88,15 +102,26 @@ it(
 
     // Chaque cité a tourné : des achats de PNJ sur son marché, une population qui ne s'est pas vidée.
     for (const { city } of settlements) {
-      const bought = await sql<{ n: string }>`select count(*) as n from game.trades t
-        join game.orders o on o.id = t.sell_order_id
-        where t.buy_order_id is null and o.city_id = ${city.cityId}`.execute(world.db);
-      expect(Number(bought.rows[0]?.n), `${city.slug} : achats des PNJ`).toBeGreaterThan(0);
-      const population = await sql<{ n: string }>`select coalesce(sum(population), 0) as n
-        from game.npc_population where city_id = ${city.cityId}`.execute(world.db);
-      expect(Number(population.rows[0]?.n), `${city.slug} : population`).toBeGreaterThan(0);
+      const net = (key: string) =>
+        days.reduce((sum, day) => sum + (day.flows[city.slug]?.[key] ?? 0), 0);
+      expect(net('faucet_npc_purchases'), `${city.slug} : achats des PNJ`).toBeGreaterThan(0);
+      expect(days.at(-1)?.population[city.slug] ?? 0, `${city.slug} : population`).toBeGreaterThan(
+        0,
+      );
     }
     expect(acquisitions).toBeGreaterThan(0);
-    expect((await accounts(world)).supply).toBe(ledger.supply);
+    // Les flux mesurés (mise en route comprise), sommés sur tous les jours, rendent ceux du grand livre : le net de
+    // chaque robinet et de chaque puits, relevé sur les lignes du grand livre, est l'opposé du solde de son compte,
+    // que le rapprochement tire des flux comptés.
+    const expectedNet = Object.fromEntries(
+      Object.entries(ledger.expected)
+        .filter(([key]) => key !== 'treasury')
+        .map(([key, balance]) => [key, 0 - balance]),
+    );
+    expect(measured).toEqual(expectedNet);
+
+    // Mesures publiées.
+    const margins = recipeMargins(days.slice(-WINDOW), () => 0);
+    await publish(days, margins, { minutes: Math.round(minutes * 10) / 10 });
   },
 );
