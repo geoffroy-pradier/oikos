@@ -12,8 +12,9 @@ permissions:
 
 jobs:
   images:
-    # Seule la branche main publie des images, y compris en lancement manuel.
-    if: github.ref == 'refs/heads/main'
+    # Seule la branche main publie des images, y compris en lancement manuel, et seulement une fois le
+    # déploiement activé : sans serveur, une image poussée ne servirait à rien et coûterait des minutes.
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -52,8 +53,9 @@ jobs:
 
   static:
     # Clients statiques (client joueur, back-office). L'adresse de Supabase et sa clé publique sont figées
-    # à la construction : sans les variables de dépôt de l'environnement, rien n'est publié.
-    if: github.ref == 'refs/heads/main'
+    # à la construction : sans les variables de dépôt de l'environnement, rien n'est publié. Comme les
+    # images, ce job attend que le déploiement soit activé.
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write

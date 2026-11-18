@@ -12,13 +12,17 @@ concurrency:
 # Les contrôles tournent en parallèle, chacun dans son propre runner : vérifications statiques, base de
 # données, tests d'intégration (un job par groupe de paquets, chacun sur sa base), bout en bout, images.
 # Le job `ci`, en dernier, est le seul contrôle requis : il est vert si tous les autres le sont, ou si ceux
-# qui ne concernent pas le changement ont été sautés (documents seuls).
+# qui ne concernent pas le changement ont été sautés (documents seuls, ou interfaces seules pour la base et
+# l'intégration).
+# Sur main, après une fusion, seuls `changes` et `static` tournent : la suite complète a tourné sur la
+# demande de fusion, fusionnée à jour de main ; ce passage garde le cache de Turborepo chaud pour les suivantes.
 jobs:
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      backend: ${{ steps.diff.outputs.backend }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +43,7 @@ jobs:
             base="$BEFORE"
           else
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --diff-filter=MDR --name-only "$base" HEAD -- packages/db/supabase/migrations)"
@@ -56,6 +61,14 @@ jobs:
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
             echo "Documents seuls : base, intégration, bout en bout et images sautés."
+          fi
+          # Interfaces seules (client joueur, Olympe) et documents : ni la base ni les tests d'intégration, qui
+          # ne lisent aucun de ces fichiers ; le bout en bout, lui, tourne.
+          if printf '%s\n' "$files" | grep -qvE '^(docs/|\.claude/|apps/web/|apps/admin/)|\.md$|^$'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            echo "Interfaces seules : base et intégration sautées."
           fi
 
   # Lint, types et tests unitaires. Le cache de Turborepo est gardé d'une exécution à l'autre : un paquet
@@ -87,7 +100,7 @@ jobs:
   # de la suite (règle 9) et application des migrations comme au déploiement.
   database:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -120,7 +133,7 @@ jobs:
   # l'autre, comme en local.
   integration:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -176,7 +189,7 @@ jobs:
 
   e2e:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -204,7 +217,7 @@ jobs:
 
   build:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -240,15 +253,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Every job passed, or was skipped for a documentation-only change
+      - name: Every job passed, or was skipped as this change allows
         env:
           RESULTS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
         run: |
           echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          echo "$RESULTS" | jq -e '
+          echo "$RESULTS" | jq -e --arg event "$EVENT" '
             (.changes.outputs.code) as $code
+            | (.changes.outputs.backend) as $backend
+            | ($event == "push") as $push
             | (keys == ["build", "changes", "database", "e2e", "integration", "static"])
             and (to_entries
             | all(.value.result == "success"
-                  or (.value.result == "skipped" and $code == "false"
-                      and (.key | IN("changes", "static") | not))))' > /dev/null
+                  or (.value.result == "skipped"
+                      and (((.key | IN("database", "integration")) and ($push or $backend == "false"))
+                           or ((.key | IN("e2e", "build")) and ($push or $code == "false"))))))' > /dev/null

@@ -65,6 +65,7 @@ Les étapes marquées 👤 exigent un humain (commande de serveur, domaine, secr
 ## Déploiement automatique
 
 Le flux `.github/workflows/deploy.yml` s'exécute à chaque fusion sur `main`.
+Tant que la variable de dépôt `DEPLOY_ENABLED` ne vaut pas `true`, il ne fait rien : ni images ni clients statiques ne sont construits ou publiés, pour ne pas dépenser de minutes sans serveur.
 
 1. **Images** : l'API et le moteur sont empaquetés en un fichier chacun (`infra/docker/bundle.mjs`), mis dans une image `node:22-alpine` sans dépendance ni outil de construction (`infra/docker/Dockerfile`, utilisateur non root), puis publiés sur `ghcr.io/<propriétaire>/oikos-api` et `oikos-engine` avec l'empreinte du commit et l'étiquette `main`. Le jeton fourni par GitHub Actions suffit.
 2. **Clients statiques** (tâche `static`) : le client joueur et le back-office sont construits (`infra/docker/static.sh`) et publiés dans l'image de transport `ghcr.io/<propriétaire>/oikos-static`. L'adresse publique de Supabase et sa clé publique sont figées dans les fichiers à la construction : la tâche ne publie rien tant que les variables de dépôt `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` n'existent pas.
