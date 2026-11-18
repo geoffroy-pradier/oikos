@@ -279,6 +279,20 @@ describe('admin.resolveReport', () => {
   });
 });
 
+/** Décisions sur ses appels, lues par le joueur comme le client (#529) : vue `my_appeal_decisions`, à son nom. */
+const decisionsSeenBy = (user: string) =>
+  owner.transaction().execute(async (trx) => {
+    await sql`set local role authenticated`.execute(trx);
+    await sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub: user, role: 'authenticated' })}, true)`.execute(
+      trx,
+    );
+    const { rows: seen } = await sql<{ sanction_id: string; decision: string; at_lift: boolean }>`
+      select d.sanction_id, d.decision, d.decided_at = s.ends_at as at_lift
+      from public.my_appeal_decisions d join public.my_sanctions s on s.id = d.sanction_id
+      order by d.decided_at, d.sanction_id`.execute(trx);
+    return seen;
+  });
+
 describe('admin.decideAppeal', () => {
   it('rejeté, la sanction court ; accueilli, elle est levée ; ni l’auteur ni deux fois', async () => {
     const world = await newWorld();
@@ -354,6 +368,11 @@ describe('admin.decideAppeal', () => {
     await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Erreur.' });
     const granted = await send(eudore, 'admin.decideAppeal', { sanctionId, decision: 'granted' });
     expect(granted.body.data.liftedAt).toEqual(expect.any(String));
+    // Le joueur lit la décision, levée à son instant ; un autre joueur ne la lit pas.
+    expect(await decisionsSeenBy(alice.user)).toEqual([
+      { sanction_id: sanctionId, decision: 'granted', at_lift: true },
+    ]);
+    expect(await decisionsSeenBy((await world.player()).user)).toEqual([]);
     expect((await post(alice.user, world.kallisteChannel, 'Merci.')).status).toBe(200);
     expect(
       codeOf(await send(alice.user, 'moderation.appeal', { sanctionId, body: 'Encore.' })),
