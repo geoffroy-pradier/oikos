@@ -52,6 +52,7 @@ import { siteRestart } from './commands/site-restart';
 import { voyageDepart } from './commands/voyage-depart';
 import { siteCollect } from './commands/site-collect';
 import { siteSetRecipe } from './commands/site-set-recipe';
+import { stewardDismiss, stewardHire } from './commands/steward';
 import { templeConsultOracle } from './commands/temple-consult-oracle';
 import { templeInvokeGrace } from './commands/temple-invoke-grace';
 import { templeMakeOffering } from './commands/temple-make-offering';
@@ -84,6 +85,8 @@ export const COMMANDS = [
   siteAcquire,
   siteSetRecipe,
   siteRestart,
+  stewardHire,
+  stewardDismiss,
   shipAcquire,
   propertyBuy,
   propertyRenovate,
