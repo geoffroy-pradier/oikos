@@ -21,5 +21,5 @@ begin
       where z.house_id in (select game.current_house_ids());
   end if;
 end $$;
-revoke all on public.my_citizenships from public, anon;
+revoke all on public.my_citizenships from public, anon, authenticated;
 grant select on public.my_citizenships to authenticated;
