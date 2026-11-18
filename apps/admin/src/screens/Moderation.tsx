@@ -9,10 +9,20 @@ import { hoursSince, STALE_REPORT_HOURS, staleReportHours } from '../moderation-
 import { useAdmin } from '../useAdmin';
 
 type Entry = AdminReports['queue'][number];
+type Appeal = AdminReports['appeals'][number];
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
-/** Geste en cours de confirmation : les sanctions graduées, l'exclusion proposée, le masquage et le classement. */
+/** Geste en cours de confirmation : sur un signalement, sur une exclusion proposée, sur un appel. */
 export type Gesture =
-  'hide' | 'dismissed' | 'upheld' | 'warning' | 'silence' | 'suspension' | 'ban';
+  | 'hide'
+  | 'dismissed'
+  | 'upheld'
+  | 'warning'
+  | 'silence'
+  | 'suspension'
+  | 'ban'
+  | 'confirmExclusion'
+  | 'granted'
+  | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
 
 /** Alerte « signalements en attente depuis plus de 24 h » (15.5), partagée par ce module et la Vigie. */
@@ -140,6 +150,53 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       setReturnTo(`${open?.scope}:${gesture}`);
     }
   }
+
+  /** Validation d'une exclusion et décision d'un appel : une sanction désignée par son identifiant. */
+  async function confirmSanction(sanctionId: string, gesture: Gesture) {
+    const ok =
+      gesture === 'confirmExclusion'
+        ? await run('admin.confirmExclusion', { sanctionId }, t('moderation.done.confirmExclusion'))
+        : await run(
+            'admin.decideAppeal',
+            { sanctionId, decision: gesture === 'granted' ? 'granted' : 'rejected' },
+            t(`moderation.done.${gesture}`),
+          );
+    setOpen(null);
+    if (ok) title.current?.focus();
+    else setReturnTo(`${sanctionId}:${gesture}`);
+  }
+  const sanctionKind = (kind: Appeal['kind']) => t(`moderation.kinds.${kind}`);
+  const period = (item: Appeal) =>
+    item.endsAt
+      ? t('moderation.period', {
+          from: date.format(new Date(item.startsAt)),
+          to: date.format(new Date(item.endsAt)),
+        })
+      : t('moderation.periodOpen', { from: date.format(new Date(item.startsAt)) });
+  /** Bouton d'un geste sur une sanction, ou sa confirmation si c'est lui qui est demandé. */
+  const sanctionGesture = (sanctionId: string, userId: string, gesture: Gesture) =>
+    open?.scope === sanctionId && open.gesture === gesture ? (
+      <Confirmation
+        key={gesture}
+        id={`confirm-${sanctionId}`}
+        sentence={t(`moderation.confirm.${gesture}`, { userId })}
+        confirmLabel={t(`moderation.confirmLabel.${gesture}`)}
+        busy={busy}
+        fields={false}
+        onConfirm={() => void confirmSanction(sanctionId, gesture)}
+        onCancel={cancel}
+      />
+    ) : (
+      <Button
+        key={gesture}
+        variant="secondary"
+        autoFocus={returnTo === `${sanctionId}:${gesture}`}
+        disabled={busy}
+        onClick={() => begin(sanctionId, gesture)}
+      >
+        {t(`moderation.act.${gesture}`, { account: userId.slice(0, 8) })}
+      </Button>
+    );
 
   const stale = staleReportHours(data);
   const queue = data?.queue ?? [];
@@ -336,6 +393,73 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                 })}
               </ol>
             </>
+          )}
+          <h2 id="moderation-exclusions" className="text-xl">
+            {t('moderation.exclusions')}
+          </h2>
+          {data.pendingExclusions.length === 0 ? (
+            <p className="text-muted-foreground">{t('moderation.exclusionsEmpty')}</p>
+          ) : (
+            <ul aria-labelledby="moderation-exclusions" className="flex flex-col gap-3">
+              {data.pendingExclusions.map((item) => (
+                <li
+                  key={item.sanctionId}
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                >
+                  <p className="font-semibold wrap-anywhere">
+                    {t('moderation.exclusionOf')} <code className="break-all">{item.userId}</code>
+                  </p>
+                  <p className="text-sm wrap-anywhere">
+                    {t('moderation.proposed', {
+                      date: date.format(new Date(item.proposedAt)),
+                      author: item.authorId,
+                    })}
+                  </p>
+                  <p className="wrap-anywhere">
+                    {t('moderation.sanctionReason', { reason: item.reason })}
+                  </p>
+                  <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
+                    {sanctionGesture(item.sanctionId, item.userId, 'confirmExclusion')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h2 id="moderation-appeals" className="text-xl">
+            {t('moderation.appeals')}
+          </h2>
+          {data.appeals.length === 0 ? (
+            <p className="text-muted-foreground">{t('moderation.appealsEmpty')}</p>
+          ) : (
+            <ul aria-labelledby="moderation-appeals" className="flex flex-col gap-3">
+              {data.appeals.map((item) => (
+                <li
+                  key={item.sanctionId}
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                >
+                  <p className="font-semibold wrap-anywhere">
+                    {t('moderation.appealOf', { kind: sanctionKind(item.kind) })}{' '}
+                    <code className="break-all">{item.userId}</code>
+                  </p>
+                  <p className="text-sm wrap-anywhere">
+                    {period(item)} {t('moderation.pronouncedBy', { author: item.authorId })}
+                  </p>
+                  <p className="wrap-anywhere">
+                    {t('moderation.sanctionReason', { reason: item.reason })}
+                  </p>
+                  <p className="wrap-anywhere">
+                    {t('moderation.appealBody', {
+                      date: date.format(new Date(item.appealedAt)),
+                      body: item.appealBody,
+                    })}
+                  </p>
+                  <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
+                    {sanctionGesture(item.sanctionId, item.userId, 'granted')}
+                    {sanctionGesture(item.sanctionId, item.userId, 'rejected')}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </>
       )}
