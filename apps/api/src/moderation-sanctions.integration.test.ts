@@ -1,7 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
-import { appWith, codeOf, db, newWorld, openDirect, owner, rows, send } from './chat-test-world';
+import {
+  appWith,
+  codeOf,
+  db,
+  newWorld,
+  openDirect,
+  owner,
+  rows,
+  send,
+  type Reply,
+} from './chat-test-world';
 import { TEST_CONFIG } from './test-config';
 
 // Sanctions relues à chaque commande et filtre de vocabulaire (#275), contre Supabase local. Les sanctions sont
@@ -32,6 +43,40 @@ async function sanction(
 const logged = async (user: string) =>
   rows(sql<{ command: string; status: string; error_code: string | null }>`
     select command, status, error_code from game.command_log where user_id = ${user} order by created_at`);
+
+/**
+ * Envoie une commande et la laisse lire son horloge puis attendre le verrou de sa clé, tenu ici (#611) : `during`
+ * reçoit l'instant exact de sa transaction (`now()`, à la microseconde, lu dans `pg_stat_activity`) et écrit dans
+ * la transaction du verrou, validée avant que la commande ne reprenne. Rend la réponse de la première commande dont
+ * `during` a gardé l'instant : il écarte (faux, sans écrire) un instant qu'une `Date` à la milliseconde représente
+ * sans perte, qui ne départage rien ; la commande suivante a une autre clé, donc un autre instant.
+ */
+async function atCommandInstant(
+  user: string,
+  command: string,
+  body: () => unknown,
+  during: (trx: Db, at: string) => Promise<boolean>,
+): Promise<Reply> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const key = randomUUID();
+    let reply: Promise<Reply> | undefined;
+    const wrote = await owner.transaction().execute(async (trx) => {
+      const { rows: held } = await sql<{ pid: number }>`select pg_backend_pid() as pid,
+        pg_advisory_xact_lock(hashtextextended(${`${user}:${key}`}, 0))`.execute(trx);
+      reply = send(user, command, body(), { key });
+      for (;;) {
+        const [waiting] = await rows(sql<{ at: string }>`select xact_start::text as at
+          from pg_stat_activity where ${held[0]?.pid}::int = any(pg_blocking_pids(pid))`);
+        if (waiting) return during(trx, waiting.at);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    });
+    if (!reply) throw new Error('The command was not sent');
+    if (wrote) return reply;
+    await reply;
+  }
+  throw new Error('No sub-millisecond command instant in five attempts');
+}
 
 describe('sanctions relues à chaque commande', () => {
   it('un silence refuse chat.post, et lui seul, puis cesse à sa fin', async () => {
@@ -137,6 +182,48 @@ describe('sanctions relues à chaque commande', () => {
       409,
       'SUSPENDED',
     ]);
+  });
+
+  it('une suspension qui commence à l’instant même de la commande, dans sa milliseconde, la refuse (#611)', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const author = await moderator();
+    const reply = await atCommandInstant(
+      alice.user,
+      'chat.post',
+      () => ({ channelId: world.kallisteChannel, body: 'À l’instant ?' }),
+      async (trx, at) => {
+        const { numAffectedRows } = await sql`insert into admin.sanctions
+            (user_id, kind, starts_at, ends_at, reason, author_id)
+          select ${alice.user}, 'suspension', t, t + interval '1 hour', 'Essai', ${author}
+          from (select ${at}::timestamptz as t) i where date_trunc('milliseconds', t) <> t`.execute(
+          trx,
+        );
+        return numAffectedRows === 1n;
+      },
+    );
+    expect(codeOf(reply)).toEqual([409, 'SUSPENDED']);
+  });
+
+  it('une sanction qui finit une microseconde après l’instant de la commande peut encore être contestée (#611)', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const author = await moderator();
+    let sanctionId = '';
+    const reply = await atCommandInstant(
+      alice.user,
+      'moderation.appeal',
+      () => ({ sanctionId: (sanctionId = randomUUID()), body: 'Je conteste.' }),
+      async (trx, at) => {
+        const { numAffectedRows } = await sql`insert into admin.sanctions
+            (id, user_id, kind, starts_at, ends_at, reason, author_id)
+          select ${sanctionId}, ${alice.user}, 'silence', t - interval '1 hour', e, 'Essai', ${author}
+          from (select ${at}::timestamptz as t, ${at}::timestamptz + interval '1 microsecond' as e) i
+          where date_trunc('milliseconds', e) = date_trunc('milliseconds', t)`.execute(trx);
+        return numAffectedRows === 1n;
+      },
+    );
+    expect(reply.status).toBe(200);
   });
 });
 

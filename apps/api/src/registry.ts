@@ -21,7 +21,10 @@ export interface CommandContext {
   emit(event: DomainEvent): void;
   /** Configuration active à l'arrivée de la commande : seule source des valeurs d'équilibrage. */
   config: GameConfig;
-  /** Instant de la commande, lu sur l'horloge de la base (début de la transaction). */
+  /**
+   * Instant de la commande, lu sur l'horloge de la base (début de la transaction), tronqué à la milliseconde :
+   * une colonne écrite à `now()` (microsecondes) se compare à `now()` dans la requête, pas à cette valeur (#611).
+   */
   now: Date;
   /**
    * Configuration active à un instant, lue dans la transaction de la commande (aucune autre connexion) :
@@ -145,12 +148,13 @@ const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(
 /**
  * Sanction en vigueur qui refuse une commande au compte, à l'instant de la commande : une suspension ou une
  * exclusion validée (`SUSPENDED`), sinon un silence si la commande écrit dans la discussion (`SILENCED`).
+ * Comparée à `now()` dans la base, à la microseconde : une `Date` tronquée à la milliseconde manquerait une
+ * sanction posée, finie ou levée dans la même milliseconde que la commande (#611).
  */
 async function moderationRefusal(
   trx: Db,
   command: CommandDefinition,
   userId: string,
-  now: Date,
 ): Promise<CommandResult<never> | null> {
   if (command.admin || command.moderation === 'exempt') return null;
   const kinds = await trx
@@ -162,8 +166,8 @@ async function moderationRefusal(
       'ban',
       ...(command.moderation === 'chat' ? ['silence' as const] : []),
     ])
-    .where('starts_at', '<=', now)
-    .where((eb) => eb.or([eb('ends_at', 'is', null), eb('ends_at', '>', now)]))
+    .where('starts_at', '<=', sql<Date>`now()`)
+    .where((eb) => eb.or([eb('ends_at', 'is', null), eb('ends_at', '>', sql<Date>`now()`)]))
     .where((eb) => eb.or([eb('kind', '<>', 'ban'), eb('validated_by', 'is not', null)]))
     .execute();
   if (kinds.some(({ kind }) => kind !== 'silence'))
@@ -309,7 +313,7 @@ async function attemptCommand(
       : null;
     context.admin_role = adminRole;
     // La sanction est relue en base à chaque commande, comme le rôle : levée ou finie, elle cesse d'agir.
-    const sanctioned = await moderationRefusal(trx, command, userId, now);
+    const sanctioned = await moderationRefusal(trx, command, userId);
     if (command.admin && (aal !== 'aal2' || !adminRole || !command.admin.includes(adminRole))) {
       response = failure('FORBIDDEN', 'Administrator role and two-factor session required.');
     } else if (sanctioned) {
