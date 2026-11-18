@@ -1,10 +1,11 @@
-import { cityDailyWageOboles } from '@oikos/config';
+import { cityDailyWageOboles, stewardDailyWageOboles } from '@oikos/config';
 import { upkeepSettledSchema } from '@oikos/contracts';
 import {
   allocateWorkforce,
   holdingUnits,
   settlePropertyUpkeep,
   settleShipUpkeep,
+  settleStewardWages,
   settleUpkeep,
   siteDailyDue,
   sumDailyDues,
@@ -73,6 +74,11 @@ export async function lockUpkeepSinks(trx: Db, worldId: string) {
  * (les sites les plus anciens d'abord) coûtent chacun une nuit d'hébergement, comptée dans le dû du site,
  * payé en entier ou pas du tout ; elle part au puits `sink_npc_lodging` par une écriture `lodging.daily`
  * de la même transaction, de nature 4.1 `lodging`.
+ * Ses intendants (4.4, #278) enfin, en poste et embauchés avant l'instant de la clôture, dans l'ordre de leur
+ * embauche : chacun doit le salaire d'un jour de la configuration, payé en entier ou pas du tout, par une ligne
+ * `wages` vers le puits `sink_npc_wages` de la même écriture, qui nomme son site. Un intendant impayé est
+ * inactif jusqu'à la clôture qui le paie ; un salaire nul est payé, et rend actif l'intendant tout juste embauché.
+ * Une version sans section `stewards` les tient tous impayés, sans rien prélever.
  * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
  */
 export const siteUpkeep: CloseStep = {
@@ -177,6 +183,9 @@ export const siteUpkeep: CloseStep = {
       propertiesUnpaid: 0,
       lapsed: 0,
       restored: 0,
+      stewardWagesOboles: 0,
+      stewardsPaid: 0,
+      stewardsUnpaid: 0,
     };
 
     for (const { house_id: houseId } of houses) {
@@ -282,7 +291,37 @@ export const siteUpkeep: CloseStep = {
       const restored = estate.paid
         .map((due) => due.propertyId)
         .filter((id) => unpaidBefore.has(id));
-      const total = sitesTotal + fleet.total + estate.total;
+      // Les intendants enfin, dans l'ordre de leur embauche, avec ce qui reste après tout le reste.
+      const stewards = await trx
+        .selectFrom('game.stewards')
+        .select(['id', 'site_id', 'unpaid_since'])
+        .where('house_id', '=', houseId)
+        .where('hired_at', '<', closeAt)
+        .where('dismissed_at', 'is', null)
+        .orderBy('hired_at')
+        .orderBy('id')
+        .forUpdate()
+        .execute();
+      const wage = stewardDailyWageOboles(config);
+      const wageDues = stewards.map((row) => ({
+        stewardId: row.id,
+        siteId: row.site_id,
+        oboles: wage,
+      }));
+      // Une version sans intendants (retour arrière) n'ouvre aucun poste : elle ne paie ni n'active personne.
+      const staff = config.stewards
+        ? settleStewardWages(
+            Number(account.balance) - sitesTotal - fleet.total - estate.total,
+            wageDues,
+          )
+        : { paid: [], unpaid: wageDues, total: 0 };
+      const paidStewards = staff.paid.filter((due) => due.oboles > 0);
+      const inactive = new Set(stewards.filter((row) => row.unpaid_since).map((row) => row.id));
+      const deactivated = staff.unpaid
+        .map((due) => due.stewardId)
+        .filter((id) => !inactive.has(id));
+      const activated = staff.paid.map((due) => due.stewardId).filter((id) => inactive.has(id));
+      const total = sitesTotal + fleet.total + estate.total + staff.total;
       // Un site au dû nul (recette retirée, ou ni entretien ni salaire) est réglé sans rien payer : il ne
       // figure ni dans l'écriture, ni dans l'événement, ni dans le compte des sites payés.
       const paid = settled.filter((due) => due.oboles > 0);
@@ -298,7 +337,9 @@ export const siteUpkeep: CloseStep = {
         fleet.unpaid.length +
         rearmed.length +
         estate.unpaid.length +
-        restored.length;
+        restored.length +
+        staff.unpaid.length +
+        activated.length;
       if (total === 0 && touched === 0) continue;
 
       // L'entretien, les salaires, les navires et les biens dans l'écriture d'entretien ; l'hébergement dans
@@ -320,6 +361,7 @@ export const siteUpkeep: CloseStep = {
               ),
               ...(paidShips.length > 0 && { ships: paidShips }),
               ...(paidEstates.length > 0 && { properties: paidEstates }),
+              ...(paidStewards.length > 0 && { stewards: paidStewards }),
             }),
           })
           .returning('id')
@@ -329,6 +371,7 @@ export const siteUpkeep: CloseStep = {
           { nature: 'wages', sink: wagesSink, oboles: lines.wagesOboles },
           { nature: 'upkeep', sink: shipSink, oboles: fleet.total },
           { nature: 'upkeep', sink: propertySink, oboles: estate.total },
+          { nature: 'wages', sink: wagesSink, oboles: staff.total },
         ] as const;
         await trx
           .insertInto('game.ledger_lines')
@@ -418,6 +461,15 @@ export const siteUpkeep: CloseStep = {
           .set({ upkeep_unpaid_since: null })
           .where('id', 'in', restored)
           .execute();
+      // L'impayé est daté par la base, de la transaction qui l'écrit (garde des intendants) ; le payé est levé.
+      if (deactivated.length + activated.length > 0)
+        await trx
+          .updateTable('game.stewards')
+          .set({
+            unpaid_since: sql<Date | null>`case when id = any(${deactivated}::uuid[]) then now() end`,
+          })
+          .where('id', 'in', [...deactivated, ...activated])
+          .execute();
       const event = upkeepSettledSchema.parse({
         type: 'UpkeepSettled',
         payload: {
@@ -449,6 +501,15 @@ export const siteUpkeep: CloseStep = {
               restored,
             },
           }),
+          ...(stewards.length > 0 && {
+            stewards: {
+              wagesOboles: staff.total,
+              paid: paidStewards,
+              unpaid: staff.unpaid,
+              deactivated,
+              activated,
+            },
+          }),
         },
       });
       await trx
@@ -473,6 +534,9 @@ export const siteUpkeep: CloseStep = {
       totals.propertiesUnpaid += estate.unpaid.length;
       totals.lapsed += lapsed.length;
       totals.restored += restored.length;
+      totals.stewardWagesOboles += staff.total;
+      totals.stewardsPaid += paidStewards.length;
+      totals.stewardsUnpaid += staff.unpaid.length;
     }
     return totals;
   },

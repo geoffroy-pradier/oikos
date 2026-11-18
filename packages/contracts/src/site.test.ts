@@ -245,3 +245,36 @@ describe('SiteCollected (#267)', () => {
       ).toBe(false);
   });
 });
+
+describe('UpkeepSettled, intendants compris (#278)', () => {
+  const [one, two] = [
+    '01900000-0000-7000-8000-0000000006f1',
+    '01900000-0000-7000-8000-0000000006f2',
+  ];
+  const wage = (stewardId: string) => ({ stewardId, siteId: FIELD, oboles: 8 });
+  const stewards = { wagesOboles: 8, paid: [wage(one)], unpaid: [wage(two)], deactivated: [two] };
+  const payload = {
+    ...{ houseId: HOUSE, gameDay: 20_771, paidOboles: 8, upkeepOboles: 0, wagesOboles: 0 },
+    ...{
+      paid: [],
+      unpaid: [],
+      halted: [],
+      resumed: [],
+      stewards: { ...stewards, activated: [one] },
+    },
+  };
+
+  it('se relit tel qu’il est écrit ; les salaires des intendants entrent dans le total, pas dans ceux des sites', () => {
+    const settled = { type: 'UpkeepSettled' as const, payload };
+    expect(domainEventSchema.parse(JSON.parse(JSON.stringify(settled)))).toEqual(settled);
+    for (const changed of [
+      { ...payload, paidOboles: 0 },
+      { ...payload, wagesOboles: 8 },
+      { ...payload, stewards: { ...payload.stewards, wagesOboles: 16 } },
+      { ...payload, stewards: { ...payload.stewards, activated: ['intendant'] } },
+      { ...payload, stewards: { ...payload.stewards, paid: [{ stewardId: one, oboles: 8 }] } },
+      { ...payload, stewards: stewards },
+    ])
+      expect(upkeepSettledSchema.safeParse({ ...settled, payload: changed }).success).toBe(false);
+  });
+});

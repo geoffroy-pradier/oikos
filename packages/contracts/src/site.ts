@@ -267,11 +267,30 @@ const propertiesSettled = z
     (estate) => estate.upkeepOboles === estate.paid.reduce((sum, due) => sum + due.oboles, 0),
     { message: 'property upkeep must add up' },
   );
+/** Le salaire d'un jour d'un intendant, avec son site, payé en entier ou pas du tout (#278). */
+const stewardWageDue = z.strictObject({ stewardId: z.uuid(), siteId: z.uuid(), oboles });
+/**
+ * Salaires des intendants d'une maison réglés à une clôture, après ses sites, ses navires et ses biens (#278) :
+ * ce qui a été payé, ce qui ne l'a pas été, les intendants que cette clôture rend inactifs (`deactivated`) et
+ * ceux qu'elle rend actifs (`activated`, dont ceux qu'elle paie pour la première fois).
+ */
+const stewardsSettled = z
+  .strictObject({
+    wagesOboles: oboles,
+    paid: z.array(stewardWageDue),
+    unpaid: z.array(stewardWageDue),
+    deactivated: z.array(z.uuid()),
+    activated: z.array(z.uuid()),
+  })
+  .refine(
+    (stewards) => stewards.wagesOboles === stewards.paid.reduce((sum, due) => sum + due.oboles, 0),
+    { message: 'steward wages must add up' },
+  );
 /**
  * Entretien et salaires d'une maison réglés à une clôture quotidienne (5.5) : ce qui a été payé, au total
  * et par nature, ce qui ne l'a pas été, les sites que cette clôture a arrêtés et ceux qu'elle a relancés.
  * Une maison qui a des navires y trouve aussi leur entretien (`ships`), compté dans le total, et de même
- * pour ses biens immobiliers (`properties`).
+ * pour ses biens immobiliers (`properties`) et ses intendants (`stewards`, hors des salaires des sites).
  * Émis par le moteur, sans commande.
  */
 export const upkeepSettledSchema = z.strictObject({
@@ -291,6 +310,7 @@ export const upkeepSettledSchema = z.strictObject({
       resumed: z.array(z.uuid()),
       ships: shipsSettled.optional(),
       properties: propertiesSettled.optional(),
+      stewards: stewardsSettled.optional(),
     })
     // Les parts font le tout, et le tout est ce que les sites et les navires payés ont coûté.
     .refine(
@@ -300,7 +320,8 @@ export const upkeepSettledSchema = z.strictObject({
             payload.wagesOboles +
             (payload.lodgingOboles ?? 0) +
             (payload.ships?.upkeepOboles ?? 0) +
-            (payload.properties?.upkeepOboles ?? 0) &&
+            (payload.properties?.upkeepOboles ?? 0) +
+            (payload.stewards?.wagesOboles ?? 0) &&
         payload.upkeepOboles === payload.paid.reduce((sum, due) => sum + due.upkeepOboles, 0) &&
         payload.wagesOboles === payload.paid.reduce((sum, due) => sum + due.wagesOboles, 0) &&
         (payload.lodgingOboles ?? 0) ===
