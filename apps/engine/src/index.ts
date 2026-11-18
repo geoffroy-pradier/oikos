@@ -18,4 +18,5 @@ export { npcPopulation } from './steps/npc-population';
 export { observedPricesStep } from './steps/observed-prices';
 export { priceCandlesStep } from './steps/price-candles';
 export { siteUpkeep } from './steps/site-upkeep';
+export { runStewards, type StewardRun, type StewardTick } from './stewards';
 export { voyageArrivals } from './steps/voyage-arrivals';

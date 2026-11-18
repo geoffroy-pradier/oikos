@@ -18,6 +18,7 @@
     "@oikos/config": "workspace:*",
     "@oikos/contracts": "workspace:*",
     "@oikos/db": "workspace:*",
+    "@oikos/operations": "workspace:*",
     "@oikos/sim": "workspace:*",
     "kysely": "^0.29.9",
     "pg-boss": "^12.38.2",
