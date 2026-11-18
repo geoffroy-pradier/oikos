@@ -11,16 +11,20 @@ import {
   tickDay,
   treasuryOf,
   upkeepDue,
+  wagesDue,
 } from './balance/city';
 import { morning, seller } from './balance/strategy';
+import { actAfterTick, hireSteward, type Steward } from './balance/steward';
 import { traderMorning, type Prices, type Trader } from './balance/trade';
 import { measureDay, publish, recipeMargins, type DayMeasure } from './balance/measures';
 import {
   MEASURED,
   SETTLEMENTS,
   SLUGS,
+  STEWARD_ROLES,
   TRADER,
   TRADER_HOMES,
+  WAGES,
   WARMUP,
   WINDOW,
   WORLD_SEED,
@@ -74,18 +78,34 @@ it(
 
     const days: DayMeasure[] = [];
     const measured: Record<string, number> = {};
+    const stewards: Steward[] = [];
+    const operations = { acted: 0, refused: 0, failed: 0 };
     let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
+    let wages = 0;
     for (let day = 0; day < WARMUP + MEASURED; day++) {
       upkeep += upkeepDue(world, houses, day);
+      // Salaires de la clôture : les travailleurs des sites, et les intendants embauchés avant elle (payés d'avance).
+      wages += wagesDue(world, houses, day, WAGES.workerOboles);
+      wages += stewards.filter((steward) => steward.hiredDay < day).length * WAGES.stewardOboles;
       await closeDay(world, day);
       const now = new Date(closeOf(world, day).getTime() + MINUTE);
       for (const { city, houses: own } of settlements)
         for (const house of own) acquisitions += await morning(city, house, now);
+      for (const { city, houses: own } of settlements)
+        for (const house of own.filter((each) => STEWARD_ROLES.includes(each.role.name))) {
+          const hired = await hireSteward(city, house, day, now, stewards);
+          if (hired) stewards.push(hired);
+        }
       for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
       // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
       const hours =
         (closeOf(world, day + 1).getTime() - closeOf(world, day).getTime()) / (60 * MINUTE);
-      expect(await tickDay(world, day, WORLD_STEPS)).toBe(hours);
+      expect(
+        await tickDay(world, day, WORLD_STEPS, async (index) => {
+          const run = await actAfterTick(world, await bench.loader.at(), index);
+          for (const key of ['acted', 'refused', 'failed'] as const) operations[key] += run[key];
+        }),
+      ).toBe(hours);
       // Mesures du jour ; la mise en route n'est pas publiée, mais le rang et l'instant avancent.
       const measure = await measureDay(settlements, day, { seq, at });
       [seq, at] = [
@@ -110,6 +130,7 @@ it(
       sink_upkeep: upkeep,
       sink_site_acquisition: acquisitions,
       sink_ship_purchase: ships,
+      sink_npc_wages: wages,
     });
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -132,6 +153,18 @@ it(
       );
     }
     expect(acquisitions).toBeGreaterThan(0);
+    // Les maisons ont payé leurs salaires, leurs intendants compris, et leurs intendants ont exécuté leurs règles.
+    expect(wages).toBeGreaterThan(0);
+    expect(stewards.length).toBeGreaterThan(0);
+    expect(operations.acted, 'opérations des intendants').toBeGreaterThan(0);
+    expect(operations.failed).toBe(0);
+    const unpaid = await sql<{ n: string }>`select count(*) as n from game.stewards
+      where world_id = ${world.worldId} and dismissed_at is null and unpaid_since is not null`.execute(
+      world.db,
+    );
+    expect(Number(unpaid.rows[0]?.n), 'intendants impayés').toBe(
+      stewards.filter((steward) => steward.hiredDay === WARMUP + MEASURED - 1).length,
+    );
     // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
     const sailed = (
       await sql<{ voyages: string; units: string }>`select count(*) as voyages,
@@ -154,9 +187,11 @@ it(
     expect(measured).toEqual(expectedNet);
 
     // Mesures publiées.
-    const margins = recipeMargins(days.slice(-WINDOW), () => 0);
+    const margins = recipeMargins(days.slice(-WINDOW), () => WAGES.workerOboles);
     await publish(days, margins, {
       minutes: Math.round(minutes * 10) / 10,
+      stewards: stewards.length,
+      stewardOperations: operations,
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
     });
