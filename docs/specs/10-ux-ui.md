@@ -56,7 +56,7 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Sans réponse mais un navire de plus à la relecture, la même clé repart une fois pour connaître l'issue ; un navire de plus après une issue inconnue prévient le joueur, rappelé à chaque ouverture de l'écran tant qu'il n'a pas dit avoir vérifié sa flotte.
    La fiche d'un navire liste ses voyages (départ, arrivée prévue ou faite, cargaison) ; un voyage en mer à une lecture et arrivé à la suivante est annoncé, la flotte étant relue chaque minute ou à la demande.
    Le départ se fait depuis la fiche en deux touches : la destination, qui dit la durée pour la classe du navire et le coût, puis « Partir ».
-   Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
+   Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
    Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit.
    Après un « Réessayer » réussi, le foyer va au titre de la carte.
    Une durée allongée égale à celle du calme une fois arrondie n'est pas annoncée comme allongée.

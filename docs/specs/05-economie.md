@@ -115,7 +115,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Ce réglage, comme les bornes des fêtes, se fait dans Olympe par une version de configuration.
 - **Caravanes étrangères** (#267, 7.4). Pendant les jours de jeu d'une caravane de sa cité, la demande des PNJ du bien de la caravane est relevée de son ampleur, comme pour une fête, budget du tick compris.
   Plusieurs caravanes du même bien ne s'ajoutent pas : seule la plus forte compte.
-  Décision : la hausse d'une caravane s'ajoute à celle des fêtes du même bien (fêtes bornées ensemble par `demandBoostBps`, caravane par son ampleur, au plus 10 000) ; la demande peut donc dépasser le double du besoin quand les deux se cumulent.
+  Décision : la hausse d'une caravane s'ajoute à celle des fêtes du même bien (fêtes bornées ensemble par `demandBoostBps`, lui-même au plus 10 000, caravane par son ampleur, au plus 10 000).
+  Quand les deux se cumulent au plus fort, la demande au prix de référence va donc jusqu'au triple du besoin (+200 %), et le budget du tick de ce bien jusqu'au triple du sien (#446).
   Comme pour une fête, le besoin mesuré ne change pas, et le jour est celui du tick ; une caravane est une demande de plus, que le robinet des PNJ paie si l'offre suit.
 - **Événements.** Chaque achat des PNJ émet un événement de domaine `TradeExecuted`, le même qu'un échange entre joueurs, sans ordre d'achat (`buyOrderId` nul) et sans commande : il est écrit dans la transaction du tick, donc jamais pour un tick annulé ou simulé à blanc.
 

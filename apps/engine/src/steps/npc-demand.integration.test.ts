@@ -288,6 +288,41 @@ async function festival(
   });
 }
 
+/**
+ * Caravanes `[début, fin exclue, bien, ampleur, cité]` (Kallistè par défaut), planifiées comme par la clôture du
+ * jour `day`, enregistrée après elles dans la même transaction.
+ */
+async function planCaravans(
+  world: World,
+  day: number,
+  rows: [number, number, string, number, string?][],
+) {
+  const clock = active.config.clock;
+  await owner.transaction().execute(async (trx) => {
+    await trx
+      .insertInto('game.world_events')
+      .values(
+        rows.map(([start, end, goodId, magnitudeBps, cityId = world.cityId]) => ({
+          world_id: world.worldId,
+          model: 'caravan',
+          city_id: cityId,
+          other_city_id: null,
+          good_id: goodId,
+          planned_day: day,
+          start_day: start,
+          end_day: end,
+          starts_at: dailyCloseAt(start, clock),
+          ends_at: dailyCloseAt(end, clock),
+          magnitude_bps: magnitudeBps,
+          seed: '0'.repeat(64),
+        })),
+      )
+      .execute();
+    await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+      values (${world.worldId}, ${day}, now(), ${active.id})`.execute(trx);
+  });
+}
+
 describe('demande des PNJ au tick', () => {
   it('achète de la moins chère à la plus chère, dans la limite de la demande à chaque prix', async () => {
     const world = await newWorld();
@@ -481,33 +516,11 @@ describe('demande des PNJ au tick', () => {
       { amountOboles: 30_000, days: 2, goodIds: ['wheat'] },
       day,
     );
-    const caravan = (start: number, end: number, goodId: string, magnitudeBps: number) => ({
-      world_id: world.worldId,
-      model: 'caravan',
-      city_id: world.cityId,
-      other_city_id: null,
-      good_id: goodId,
-      planned_day: day,
-      start_day: start,
-      end_day: end,
-      starts_at: dailyCloseAt(start, clock),
-      ends_at: dailyCloseAt(end, clock),
-      magnitude_bps: magnitudeBps,
-      seed: '0'.repeat(64),
-    });
-    // Planifiées comme par la clôture du jour, enregistrée après elles dans la même transaction.
-    await owner.transaction().execute(async (trx) => {
-      await trx
-        .insertInto('game.world_events')
-        .values([
-          caravan(day + 1, day + 3, 'wheat', 5_000),
-          caravan(day + 2, day + 3, 'wheat', 3_000),
-          caravan(day + 3, day + 4, 'bread', 9_000),
-        ])
-        .execute();
-      await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
-        values (${world.worldId}, ${day}, now(), ${active.id})`.execute(trx);
-    });
+    await planCaravans(world, day, [
+      [day + 1, day + 3, 'wheat', 5_000],
+      [day + 2, day + 3, 'wheat', 3_000],
+      [day + 3, day + 4, 'bread', 9_000],
+    ]);
     const ticks = [
       index,
       ...[1, 2, 3].map(
@@ -526,6 +539,56 @@ describe('demande des PNJ au tick', () => {
       [20, 20],
     ]);
     expect(await balanceOf(seller.houseId)).toBe(110 * 6);
+  });
+
+  it('caravane (#267) : sans effet sur une autre cité, budget relevé, jusqu’au triple du besoin avec une fête', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const decrees = (INITIAL_CONFIG as GameConfig).decrees;
+    if (!decrees?.models.festival)
+      throw new Error('festival expected in the initial configuration');
+    const rules = { ...decrees.models.festival, goodIds: ['wheat'], demandBoostBps: 10_000 };
+    const clock = active.config.clock;
+    const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+    const elaia = randomUUID();
+    await sql`insert into game.cities (id, world_id, slug, name) values (${elaia}, ${world.worldId}, 'elaia', 'E')`.execute(
+      owner,
+    );
+    // Caravanes de blé au plus fort : à Elaia dès le lendemain, à Kallistè le surlendemain ; une fête au
+    // maximum d'un seul jour (+100 %) le troisième jour.
+    await planCaravans(world, day, [
+      [day + 1, day + 4, 'wheat', 10_000, elaia],
+      [day + 2, day + 4, 'wheat', 10_000],
+    ]);
+    await festival(
+      world,
+      seller.houseId,
+      { amountOboles: 30_000, days: 1, goodIds: ['wheat'] },
+      day + 3,
+    );
+    const tick = (later: number) =>
+      tickIndexAt(dailyCloseAt(day + later, clock), clock.tickMinutes) + 1;
+    const units = [];
+    // 50 oboles de revenu : 8 unités à 6 oboles, puis, budget doublé par la caravane de Kallistè, 16.
+    for (const later of [1, 2])
+      units.push(
+        (await runTick(db, request(world.worldId, economy(20, 50), tick(later)))).summary[
+          'npcDemand'
+        ],
+      );
+    // Budget large et fête : 20 unités de besoin, +100 % de la fête, +100 % de la caravane.
+    const festive = { ...economy(), decrees: { ...decrees, models: { festival: rules } } };
+    units.push((await runTick(db, request(world.worldId, festive, tick(3)))).summary['npcDemand']);
+    expect(units).toMatchObject([
+      { units: 8, spent: 48 },
+      { units: 16, spent: 96 },
+      { units: 60, spent: 360 },
+    ]);
+    expect(await measureOf(world.cityId)).toEqual([
+      [8, 20],
+      [16, 20],
+      [60, 20],
+    ]);
   });
 
   it('deux cités, deux biens : chaque marché est servi à part, dans l’ordre d’ancienneté à prix égal', async () => {

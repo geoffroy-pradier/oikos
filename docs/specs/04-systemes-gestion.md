@@ -78,7 +78,7 @@ Une acquisition ou un changement de recette hors terroir est refusé (« hors du
 Un site qui exploite une production sortie du terroir (version de configuration qui le resserre) continue de produire, se récolte et se relance comme avant ; une fois qu'il l'a quittée, il n'y revient plus.
 Un site à l'arrêt faute d'entretien payé (5.5) se récolte pour ce qu'il avait accumulé avant son arrêt, et pas davantage (un atelier, lui, ne se récolte pas à l'arrêt : voir 4.3) : pour lui, le temps s'est arrêté à cet instant, le cycle entamé reste gelé et reprend à la relance.
 Il ne change pas de recette tant qu'il est à l'arrêt (refus « site à l'arrêt ») : il faut le relancer d'abord.
-Événements de rendement (7.4, #267) : un cycle d'un champ qui se termine pendant une sécheresse de sa cité, ou d'un verger pendant une bonne année, produit ⌊extrant × (10 000 ∓ ampleur) ÷ 10 000⌋, avec la plus forte des sécheresses (ou bonnes années) en cours à cet instant ; les autres cycles produisent normalement.
+Événements de rendement (7.4, #267) : un cycle d'un champ qui se termine pendant une sécheresse de sa cité, ou d'un verger pendant une bonne année, produit ⌊extrant × (10 000 ∓ ampleur) ÷ 10 000⌋, avec la plus forte des sécheresses (ou bonnes années) en cours à cet instant (à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) ; les autres cycles produisent normalement.
 Décision : la fin d'un cycle se lit dans le temps du site, celui de son horodatage de cycle et de la durée de sa recette, gelé pendant un arrêt ; pour un site jamais arrêté, c'est le temps réel.
 Limite connue : la relance décale ce temps de la durée de l'arrêt, y compris pour les cycles terminés avant l'arrêt et non récoltés ; un événement peut alors les toucher ou les épargner, si bien que les récolter avant ou après la relance peut différer.
 Les deux sens sont possibles (#446) : un cycle terminé pendant un événement et récolté après une relance postérieure à sa fin y échappe, tandis qu'un cycle terminé avant un événement commencé pendant l'arrêt est touché s'il est récolté après une relance faite pendant l'événement.
@@ -299,7 +299,7 @@ Voyages, dans la phase 2 (#252) :
 
 - Une route (`ships.routes`) relie deux cités à port, dans les deux sens, en 2 à 20 heures pour un navire de vitesse 10 000.
   Un trajet dure ⌈heures × 3 600 × 10 000 ÷ vitesse⌉ secondes : un navire plus lent met plus longtemps, jamais moins que la durée exacte.
-  Un navire qui part pendant une tempête de sa route (7.4, #267) met ⌈durée × (10 000 + ampleur) ÷ 10 000⌉ secondes, avec la plus forte tempête en cours au départ (à égalité, la plus ancienne) ; une tempête qui commence en cours de trajet ne le change pas.
+  Un navire qui part pendant une tempête de sa route (7.4, #267) met ⌈durée × (10 000 + ampleur) ÷ 10 000⌉ secondes, avec la plus forte tempête en cours au départ (à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) ; une tempête qui commence en cours de trajet ne le change pas.
   Décision : une tempête retarde, elle ne fait rien perdre ; le retard est expliqué dans `event_effects` et porté par `VoyageDeparted` (`storm`).
   Un vent favorable en attente de la maison (7.1, #266) raccourcit ensuite le trajet à ⌈durée × (10 000 − ampleur) ÷ 10 000⌉ secondes, sur la durée que la tempête a allongée, et se consomme ; il est porté par `VoyageDeparted` (`fairWind`).
   Chaque route porte les provisions d'un voyage par classe de navire, en oboles, détruites au départ (puits `sink_voyage_provisions`).
