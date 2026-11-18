@@ -17,6 +17,11 @@ import {
   adminScheduleConfig,
 } from './commands/admin-config';
 import { adminBuyBackGood } from './commands/admin-buyback';
+import {
+  adminConfirmExclusion,
+  adminHideMessage,
+  adminSanction,
+} from './commands/admin-moderation';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
 import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
@@ -107,6 +112,9 @@ export const COMMANDS = [
   adminGrantRole,
   adminRevokeRole,
   adminBuyBackGood,
+  adminSanction,
+  adminConfirmExclusion,
+  adminHideMessage,
 ] as readonly CommandDefinition[];
 
 const STATUS_BY_CODE: Record<string, ContentfulStatusCode> = {
