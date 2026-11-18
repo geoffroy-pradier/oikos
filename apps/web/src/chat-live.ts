@@ -5,6 +5,8 @@ import { supabase } from './supabase';
 
 /** Événement que la base diffuse pour chaque message validé (ADR 0008). */
 export const MESSAGE_POSTED = 'message_posted';
+/** Événement diffusé quand la modération masque un message : mêmes sujets, mêmes identifiants, jamais le texte. */
+export const MESSAGE_HIDDEN = 'message_hidden';
 
 /**
  * Sujets à écouter pour une maison : le canal de sa cité, et le sujet de la maison, où arrivent les messages
@@ -70,14 +72,17 @@ export function useChatLive(
     let channels: RealtimeChannel[] = [];
     void Promise.all(names.map((name) => closing.get(name))).then(() => {
       if (!live) return;
+      const onMessage = (message: { payload?: unknown }) => {
+        if (!live) return;
+        const channelId = (message.payload as { channel_id?: unknown } | undefined)?.channel_id;
+        signal.current(typeof channelId === 'string' ? channelId : undefined);
+      };
+      // Un message masqué se relit comme un message écrit : la vue ne rend plus son texte.
       channels = names.map((name) =>
         supabase
           .channel(name, { config: { private: true } })
-          .on('broadcast', { event: MESSAGE_POSTED }, (message: { payload?: unknown }) => {
-            if (!live) return;
-            const channelId = (message.payload as { channel_id?: unknown } | undefined)?.channel_id;
-            signal.current(typeof channelId === 'string' ? channelId : undefined);
-          })
+          .on('broadcast', { event: MESSAGE_POSTED }, onMessage)
+          .on('broadcast', { event: MESSAGE_HIDDEN }, onMessage)
           .subscribe((status) => onStatus(name, status)),
       );
     });

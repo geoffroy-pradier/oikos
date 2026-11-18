@@ -85,6 +85,17 @@ describe('onglet Messages (#274)', () => {
     );
   });
 
+  it('un message masqué en direct perd son texte à la diffusion du masquage (#532)', async () => {
+    await show();
+    expect(shown().map(([, , body]) => body)).toContain('Texte m2');
+    // La base masque le message ; la diffusion ne porte que le canal, l'écran relit.
+    const index = fake.messages.findIndex((row) => row['id'] === 'm2');
+    fake.messages[index] = messageRow('m2', 'city', 'h1', 3, true);
+    await act(async () => fake.signal('city'));
+    expect(shown().map(([, , body]) => body)).not.toContain('Texte m2');
+    expect(shown().filter(([, , body]) => body === fr.messages.hidden)).toHaveLength(2);
+  });
+
   it('sans Realtime, l’écran dit qu’il relit à l’intervalle réglé ; en direct, il se tait (fr et en)', async () => {
     fake.live = 'polling';
     await show();

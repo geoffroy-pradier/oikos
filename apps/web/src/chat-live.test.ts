@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 interface FakeChannel {
   name: string;
   options: unknown;
-  filter: unknown;
-  emit: (payload?: unknown) => void;
+  filters: unknown[];
+  emit: (payload?: unknown, event?: string) => void;
   status: (status: string) => void;
   removed: boolean;
 }
@@ -20,7 +20,7 @@ vi.mock('./supabase', () => ({
       const channel: FakeChannel = {
         name,
         options,
-        filter: null,
+        filters: [],
         emit: () => undefined,
         status: () => undefined,
         removed: false,
@@ -29,11 +29,16 @@ vi.mock('./supabase', () => ({
       const api = {
         on: (
           _type: string,
-          filter: unknown,
+          filter: { event: string },
           callback: (message: { payload?: unknown }) => void,
         ) => {
-          channel.filter = filter;
-          channel.emit = (payload) => callback({ payload });
+          channel.filters.push(filter);
+          const previous = channel.emit;
+          // Comme Realtime : seul l'écouteur de l'événement émis est appelé (message_posted par défaut).
+          channel.emit = (payload, event = 'message_posted') => {
+            previous(payload, event);
+            if (event === filter.event) callback({ payload });
+          };
           return api;
         },
         subscribe: (callback: (status: string) => void) => {
@@ -92,9 +97,17 @@ describe('useChatLive : messages en direct, relecture de repli (ADR 0008)', () =
     expect(chatTopics(null, 'house-1')).toBeNull();
     const { onSignal, hook } = mount();
     await settle();
-    expect(channels.map((c) => [c.name, c.options, c.filter])).toEqual([
-      ['chat:city-1', { config: { private: true } }, { event: 'message_posted' }],
-      ['house:house-1', { config: { private: true } }, { event: 'message_posted' }],
+    expect(channels.map((c) => [c.name, c.options, c.filters])).toEqual([
+      [
+        'chat:city-1',
+        { config: { private: true } },
+        [{ event: 'message_posted' }, { event: 'message_hidden' }],
+      ],
+      [
+        'house:house-1',
+        { config: { private: true } },
+        [{ event: 'message_posted' }, { event: 'message_hidden' }],
+      ],
     ]);
     expect(hook.result.current).toBe('connecting');
     await statusAll('SUBSCRIBED');
@@ -104,6 +117,17 @@ describe('useChatLive : messages en direct, relecture de repli (ADR 0008)', () =
     act(() => channels[1]?.emit({ channel_id: 'dm-1', message_id: 'm' }));
     act(() => channels[0]?.emit({ channel_id: 42 }));
     expect(onSignal.mock.calls).toEqual([['dm-1'], [undefined]]);
+  });
+
+  it('le masquage diffusé relit le canal nommé, comme un message écrit (#532)', async () => {
+    const { onSignal } = mount();
+    await settle();
+    await statusAll('SUBSCRIBED');
+    onSignal.mockClear();
+    act(() => channels[0]?.emit({ channel_id: 'city-1', message_id: 'm' }, 'message_hidden'));
+    act(() => channels[1]?.emit({ channel_id: 'dm-1', message_id: 'm' }, 'message_hidden'));
+    // Un seul appel par diffusion, malgré les deux écouteurs du canal.
+    expect(onSignal.mock.calls).toEqual([['city-1'], ['dm-1']]);
   });
 
   it('un message validé entre la première lecture et l’abonnement est relu dès que tous les abonnements sont établis', async () => {

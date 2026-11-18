@@ -135,6 +135,7 @@ Dans la phase 2 (ticket 274), les messages arrivent sans recharger la page, par 
 Un message validé est diffusé sur le sujet de son canal pour le canal d'une cité, et sur le sujet de chacune des deux maisons pour une conversation privée.
 Décision (ambiguïté du ticket, « le sujet de son canal ») : une conversation privée est diffusée aux maisons, pour que la première réponse d'une conversation que l'autre maison vient d'ouvrir arrive en direct et qu'un client tienne deux abonnements quel que soit son nombre de conversations.
 La diffusion ne porte que des identifiants : le texte se relit par la vue des messages, sous règles par ligne.
+Le masquage d'un message est diffusé de même, sous l'événement `message_hidden` et avec les seuls identifiants : le client relit le canal et ne montre plus le texte (#532).
 Un joueur ne s'abonne qu'aux canaux qu'il lit et aux sujets de ses maisons ; aucun client ne diffuse.
 L'onglet Messages compte les messages non lus sur l'appareil (10, écran 8).
 
