@@ -34,6 +34,11 @@ Ces cibles sont des hypothèses de travail à recaler sur les mesures de l'alpha
 - **RGPD** : hébergement en France, registre des traitements, politique de confidentialité, export et suppression depuis le back-office, contrat de sous-traitance avec le fournisseur d'IA, aucune donnée personnelle dans les prompts au-delà du pseudonyme.
 - **Mineurs** : inscription à partir de 15 ans, âge du consentement numérique en France ; achats réservés aux majeurs.
 - **Contenus** : conditions d'utilisation, charte de conduite, procédure de signalement et d'appel, conservation limitée des messages.
+  Dans la phase 2 (ticket 275), le joueur signale un message sous un motif de la configuration (6.6), et voit en tête de chaque écran ses sanctions pas encore finies, avec leur effet, leur motif, leur fin (« sans fin » pour une exclusion) et le moyen d'en faire appel (10).
+  Décision (le ticket ne dit pas de quelle sanction on fait appel) : on fait appel d'une sanction pas encore finie, une seule fois, par un texte d'au plus `moderation.maxAppealLength` caractères (1 000) ; une sanction finie ne se conteste plus (`SANCTION_ENDED`).
+  L'appel ne suspend pas la sanction ; son examen vient avec les commandes d'administration (#276).
+  Le texte de l'appel est gardé avec la sanction, pas dans le journal des commandes.
+  La liste initiale des termes interdits est vide : elle relève de la charte de conduite, que le responsable communauté remplit par Olympe.
 - **Commerce** : conditions de vente, droit de rétractation, TVA, mentions légales. Aucun mécanisme de hasard payant.
 - **Propriété intellectuelle** : la mythologie grecque est libre ; les illustrations et textes générés sont revus pour écarter toute ressemblance avec une œuvre existante.
 

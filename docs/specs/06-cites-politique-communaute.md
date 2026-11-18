@@ -121,6 +121,14 @@ Une maison écrit au plus `chat.rateLimit.messages` messages (10), tous canaux c
 Ce débit s'ajoute à la limite générale de l'API par commande (13).
 Son refus est un refus métier, journalisé comme les autres (statut 409), et non un refus avant exécution : il n'entre pas dans les compteurs `rate_limited` de la Vigie.
 Un message masqué par la modération (#275, #276) reste listé, dit masqué, mais ne rend plus son texte aux joueurs.
+Dans la phase 2 (ticket 275), un message qui contient un terme interdit de la configuration (`moderation.bannedTerms`) est refusé avant tout enregistrement (`MESSAGE_REJECTED`) ; le terme n'est ni rendu ni journalisé.
+Décision (ambiguïté du ticket, « comparaison sans casse ni accent ») : la comparaison se fait mot à mot.
+Le texte et chaque terme sont décomposés (NFKD : les lettres pleine chasse ou mathématiques, comme « 𝐌 » ou « ℳ », rejoignent leur lettre), puis mis en minuscules, privés de leurs accents et de leurs caractères de format (espace sans largeur, trait d'union conditionnel), le sigma final ramené au sigma, puis découpés en mots sur tout ce qui n'est ni lettre ni chiffre.
+Un terme, d'un ou de plusieurs mots, n'est reconnu que là où il forme des mots entiers qui se suivent : « con » ne refuse pas « conseil », « fils de chien » refuse « Fils-de-chien ».
+Limites connues : un terme écrit lettre à lettre (« c o n »), avec des chiffres pour des lettres (« c0n »), au pluriel ou sous une forme fléchie absente de la liste, ou avec une ligature (« œ ») que la décomposition ne sépare pas, n'est pas reconnu.
+Un compte réduit au silence (13) n'écrit plus (`SILENCED`) : il lit, signale, ouvre une conversation et fait appel.
+Toute maison signale un message visible d'une autre maison, dans un canal qu'elle lit, sous l'un des motifs de la configuration (`moderation.reportReasons`), par `chat.report`, une fois par message (`ALREADY_REPORTED`) ; ni ses propres messages (`OWN_MESSAGE`), ni un message déjà masqué (`MESSAGE_HIDDEN`).
+Un message d'un canal qu'elle ne lit pas est refusé comme un message inconnu (`MESSAGE_NOT_FOUND`).
 Décision (18, conservation limitée) : le moteur supprime chaque message `chat.retentionDays` jours après son écriture (30) ; le journal des commandes n'en garde pas le texte (ADR 0002).
 Dans la phase 2 (ticket 274), les messages arrivent sans recharger la page, par Realtime (ADR 0008).
 Un message validé est diffusé sur le sujet de son canal pour le canal d'une cité, et sur le sujet de chacune des deux maisons pour une conversation privée.

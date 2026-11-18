@@ -55,3 +55,8 @@ Dans un jeu à économie ouverte, la triche principale est le transfert de riche
 - Rapprochement des comptes par appareil, réseau et horaires de connexion, visible dans la fiche joueur du back-office.
 - Journal d'audit inaltérable de toutes les commandes, conservé 90 jours ; durées et mode de purge des journaux : `docs/adr/0002-conservation-journaux.md`.
 - Sanctions graduées et annulation des transactions par écritures inverses tracées.
+  Dans la phase 2 (ticket 275), la sanction en vigueur d'un compte est relue en base à chaque commande, dans sa transaction, à l'instant de son début : un avertissement ne bloque rien, un silence refuse `chat.post` (`SILENCED`), une suspension et une exclusion refusent toute commande de jeu (`SUSPENDED`).
+  Une exclusion n'agit qu'une fois validée par une seconde personne (15.4).
+  L'appel (`moderation.appeal`) et les commandes d'administration n'y sont pas soumis ; les lectures non plus : un compte suspendu lit encore ses écrans.
+  Le refus est un refus métier, journalisé, qui consomme la clé d'idempotence comme `FORBIDDEN` ; une commande déjà validée se rejoue toujours.
+  Une sanction validée pendant qu'une commande s'exécute ne la refuse pas : elle agit dès la commande suivante.

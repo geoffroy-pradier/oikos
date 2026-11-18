@@ -24,6 +24,12 @@ Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son ét
 Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.
 Le module IA (prompts, jeux d'essai) attend une phase suivante.
 
+Modération dans la phase 2, côté joueur (ticket #275) : signalements (`game.reports`) et sanctions graduées (`admin.sanctions` : avertissement, silence, suspension, exclusion), dont l'effet est tenu par l'API (13) et l'appel ouvert au joueur (18).
+La configuration porte les motifs de signalement, les termes interdits et la longueur d'un appel (section `moderation`).
+Une exclusion est définitive et n'est en vigueur qu'une fois validée par une seconde personne (15.4) ; avant, elle n'est ni annoncée au joueur ni appliquée.
+Un joueur ne voit ni l'auteur ni le validateur d'une sanction : les modérateurs peuvent être des joueurs bénévoles.
+La file des signalements, les commandes qui prononcent, lèvent ou valident une sanction, masquent un message et tranchent un appel viennent avec #276, le module d'Olympe avec #277.
+
 Animation dans la phase 2 (ticket #267) : le seul calendrier des événements du monde (7.3, 7.4), en lecture, ouvert au super-administrateur, au concepteur de jeu, au responsable communauté et à l'observateur.
 `GET /api/admin/events` rend, tous mondes confondus, les événements à venir, que les joueurs ne lisent pas encore, et ceux en cours ou finis depuis 30 jours, des plus tardifs aux plus anciens (au plus 1 000 : la limite coupe les plus anciens, et ceux à venir seulement s'ils sont plus de 1 000), avec l'heure de la base et cette fenêtre : monde, modèle, portée (cité, route ou cité et bien, par identifiant de la configuration), début, fin, ampleur et jour de planification, jamais la graine.
 L'écran dit l'état de chacun (à venir, en cours, passé) à l'heure de l'API, pas du navigateur.
