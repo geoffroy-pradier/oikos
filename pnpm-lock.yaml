@@ -123,6 +123,9 @@ importers:
       '@oikos/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@oikos/operations':
+        specifier: workspace:*
+        version: link:../../packages/operations
       '@oikos/sim':
         specifier: workspace:*
         version: link:../../packages/sim
@@ -309,6 +312,24 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/operations:
+    dependencies:
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../config
+      '@oikos/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@oikos/db':
+        specifier: workspace:*
+        version: link:../db
+      '@oikos/sim':
+        specifier: workspace:*
+        version: link:../sim
+      kysely:
+        specifier: ^0.29.9
+        version: 0.29.9
 
   packages/sim:
     devDependencies:

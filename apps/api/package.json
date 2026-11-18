@@ -19,6 +19,7 @@
     "@oikos/config": "workspace:*",
     "@oikos/contracts": "workspace:*",
     "@oikos/db": "workspace:*",
+    "@oikos/operations": "workspace:*",
     "@oikos/sim": "workspace:*",
     "hono": "^4.13.18",
     "jose": "^6.2.17",

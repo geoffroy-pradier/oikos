@@ -56,6 +56,7 @@ oikos/
   packages/
     sim/          coeur de simulation pur
     contracts/    schemas Zod des commandes et evenements
+    operations/   coeur des commandes partage par l'API et le moteur (ADR 0009)
     config/       schemas et valeurs d'equilibrage
     ui/           systeme de design
     db/           migrations SQL, types generes, tests pgTAP

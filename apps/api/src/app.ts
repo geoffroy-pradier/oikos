@@ -35,8 +35,8 @@ import { cityStandForElection, cityWithdrawCandidacy } from './commands/city-ele
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
 import { marketCancelOrder } from './commands/market-cancel-order';
-import { marketPlaceOrder } from './commands/market-place-order';
 import { moderationAppeal } from './commands/moderation-appeal';
+import { marketPlaceOrder, siteCollect } from './commands/operations';
 import { propertyBuy } from './commands/property-buy';
 import { propertyBuyListed } from './commands/property-buy-listed';
 import { propertyEndLease, propertyLease } from './commands/property-lease';
@@ -50,7 +50,6 @@ import { shipAcquire } from './commands/ship-acquire';
 import { siteAcquire } from './commands/site-acquire';
 import { siteRestart } from './commands/site-restart';
 import { voyageDepart } from './commands/voyage-depart';
-import { siteCollect } from './commands/site-collect';
 import { siteSetRecipe } from './commands/site-set-recipe';
 import { stewardDismiss, stewardHire, stewardSetRules } from './commands/steward';
 import { templeConsultOracle } from './commands/temple-consult-oracle';

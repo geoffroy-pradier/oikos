@@ -1,9 +1,5 @@
 import { isWorkshop } from '@oikos/config';
-import {
-  SITE_COLLECT_ERROR_CODES,
-  siteCollectInputSchema,
-  siteCollectOutputSchema,
-} from '@oikos/contracts';
+import type { SiteCollectInput, SiteCollectOutput } from '@oikos/contracts';
 import {
   accrueProduction,
   accrueWorkshop,
@@ -14,7 +10,13 @@ import {
   yieldModelOf,
 } from '@oikos/sim';
 import { sql } from 'kysely';
-import { defineCommand } from '../registry';
+import {
+  defineOperation,
+  houseOf,
+  type Actor,
+  type OperationContext,
+  type OperationResult,
+} from './context';
 
 /**
  * Récolte un site : la production est calculée ici, à partir de l'horodatage du cycle en cours
@@ -35,13 +37,17 @@ import { defineCommand } from '../registry';
  * surplus vient de l'extrémité `production` du journal des stocks, rattaché à la grâce ; un atelier n'y consomme
  * aucun intrant de plus. Les grâces en attente sont verrouillées après les stocks, comme par un départ : deux
  * récoltes de la maison ne consomment pas la même.
+ *
+ * Cœur de la commande `site.collect`, partagé avec les intendants (ADR 0009) : la récolte d'un site de la maison
+ * de l'acteur.
  */
-export const siteCollect = defineCommand({
+export const collectSite = defineOperation({
   name: 'site.collect',
-  input: siteCollectInputSchema,
-  output: siteCollectOutputSchema,
-  errors: SITE_COLLECT_ERROR_CODES,
-  async handler({ trx, userId, emit, config, now }, input) {
+  async run(
+    { trx, emit, config, now }: OperationContext,
+    actor: Actor,
+    input: SiteCollectInput,
+  ): Promise<OperationResult<SiteCollectOutput>> {
     // Verrouille le site : deux collectes simultanées s'exécutent l'une après l'autre.
     const site = await trx
       .selectFrom('game.sites')
@@ -56,7 +62,7 @@ export const siteCollect = defineCommand({
       ])
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
+        houseOf(houses.selectFrom('game.houses').select('id'), actor),
       )
       .forUpdate()
       .executeTakeFirst();
@@ -101,7 +107,8 @@ export const siteCollect = defineCommand({
     // d'arrivée des voyages (#253). PostgreSQL annule alors l'une des deux en entier, sans double effet.
     // Une récolte annulée est rejouée entière par le registre, sous la même clé (#333, `executeCommand`) :
     // elle attend la fin du tick, puis récolte ce qui est dû à son nouvel instant. Un tick annulé est
-    // repris au passage suivant.
+    // repris au passage suivant. Une récolte menée par un intendant (moteur, #279) n'a pas ce nouvel essai :
+    // annulée, elle est reprise sous le même rang au passage suivant du moteur.
     const goods = [...new Set([...recipe.inputs, ...recipe.outputs].map((stack) => stack.goodId))];
     goods.sort();
     const produced = new Set(recipe.outputs.map((stack) => stack.goodId));
