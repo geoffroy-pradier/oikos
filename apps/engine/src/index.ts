@@ -21,3 +21,7 @@ export { siteUpkeep } from './steps/site-upkeep';
 export { runAllStewards, runStewards, type StewardRun, type StewardTick } from './stewards';
 export { voyageArrivals } from './steps/voyage-arrivals';
 export { simulateRules, type SimulatedSteward } from './steward-instruction/simulate';
+export {
+  answerAllStewardInstructions,
+  answerStewardInstructions,
+} from './steward-instruction/task';
