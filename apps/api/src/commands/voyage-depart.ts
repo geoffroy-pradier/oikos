@@ -28,8 +28,9 @@ const NO_STOCK = { code: 'INSUFFICIENT_STOCK', message: 'Not enough free stock t
  * de la cité d'arrivée (5.6 : coefficient de cette cité, part détruite, reste au trésor de la cité) dans une écriture
  * `voyage.departure`. L'arrivée est jouée par le moteur (#253). Un autre coût que le coût vu est refusé.
  * Un départ pendant une tempête de sa route (7.4, #267) allonge le trajet de l'ampleur de la plus forte (à égalité,
- * la plus ancienne), sans rien faire perdre ; le retard est expliqué dans `event_effects`. Les événements sont lus
- * sans verrou : ils ne changent jamais, et commencent après leur planification.
+ * le plus petit identifiant, soit la planification la plus ancienne), sans rien faire perdre ; le retard est
+ * expliqué dans `event_effects`. Les événements sont lus sans verrou : ils ne changent jamais, et commencent
+ * après leur planification.
  * Un vent favorable en attente de la maison (7.1, #266), le plus ancien, raccourcit ensuite le trajet
  * (`fairWindSeconds`, sur la durée que la tempête a fixée) et se consomme ; s'il ne retire pas une seconde, il reste
  * en attente. Les grâces en attente sont verrouillées en dernier, après les stocks, comme par une récolte.

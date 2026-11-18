@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { TEST_CONFIG } from './test-config';
-import { db, newShipowner, owner, send } from './voyage.integration-fixtures';
+import { db, newShipowner, owner, send, type Shipowner } from './voyage.integration-fixtures';
 import { pastEvent, planEvent, waitUntil } from './world-events.integration-fixtures';
 
 // Effets des événements du monde sur les commandes (#267), contre Supabase local. Chaque test a son monde, pour
@@ -327,6 +327,29 @@ describe('bonne année et récolte (#267)', () => {
   });
 });
 
+/** Heures de la route entre deux cités, pour un navire de vitesse 10 000. */
+const hours = (from: string, to: string) =>
+  TEST_CONFIG.config.ships.routes.find(
+    (route) => route.cities.includes(from) && route.cities.includes(to),
+  )?.hours ?? 0;
+type Departure = Awaited<ReturnType<typeof send>>;
+const durationOf = (reply: Departure) =>
+  (Date.parse(reply.body.data.arrivesAt) - Date.parse(reply.body.data.departedAt)) / 1000;
+/** Départ avec 10 blés, au coût nul. */
+const leave = (player: Shipowner, from: string, to: string, key?: string) =>
+  send(
+    player.user,
+    'voyage.depart',
+    {
+      shipId: player.shipId,
+      fromCityId: from,
+      toCityId: to,
+      cargo: [{ goodId: 'wheat', quantity: 10 }],
+      expectedCostOboles: 0,
+    },
+    key,
+  );
+
 describe('tempête et départ (#267)', () => {
   it('allonge le trajet d’un navire qui part pendant la tempête de sa route, et seulement lui', async () => {
     const { worldId, city } = await newWorld(['kalliste', 'elaia', 'halos']);
@@ -340,18 +363,6 @@ describe('tempête et départ (#267)', () => {
       await newShipowner(kalliste),
       await newShipowner(kalliste),
     ];
-    const leave = (player: typeof before, toCityId = elaia) =>
-      send(player.user, 'voyage.depart', {
-        shipId: player.shipId,
-        fromCityId: kalliste,
-        toCityId,
-        cargo: [{ goodId: 'wheat', quantity: 10 }],
-        expectedCostOboles: 0,
-      });
-    const hours = (from: string, to: string) =>
-      TEST_CONFIG.config.ships.routes.find(
-        (route) => route.cities.includes(from) && route.cities.includes(to),
-      )?.hours ?? 0;
     // Tempête de 25 % sur la route de Kallistè à Elaia, planifiée dans l'autre sens, dans 3 s : le départ
     // calme part avant elle, même sur une machine lente.
     const storm = await planEvent(owner, {
@@ -363,16 +374,14 @@ describe('tempête et départ (#267)', () => {
       inMs: 3_000,
       lastsMs: 86_400_000,
     });
-    const duration = (reply: Awaited<ReturnType<typeof leave>>) =>
-      (Date.parse(reply.body.data.arrivesAt) - Date.parse(reply.body.data.departedAt)) / 1000;
-    const calm = await leave(before);
-    expect(duration(calm)).toBe(hours('kalliste', 'elaia') * 3_600);
+    const calm = await leave(before, kalliste, elaia);
+    expect(durationOf(calm)).toBe(hours('kalliste', 'elaia') * 3_600);
     await waitUntil(db, storm.startsAt);
-    const stormy = await leave(during);
-    const longer = await leave(elsewhere, halos);
+    const stormy = await leave(during, kalliste, elaia);
+    const otherRoute = await leave(elsewhere, kalliste, halos);
     // Le caboteur (vitesse 10 000) met 25 % de plus ; rien n'est perdu : la cargaison est chargée en entier.
-    expect(duration(stormy)).toBe(hours('kalliste', 'elaia') * 3_600 * 1.25);
-    expect(duration(longer)).toBe(hours('kalliste', 'halos') * 3_600);
+    expect(durationOf(stormy)).toBe(hours('kalliste', 'elaia') * 3_600 * 1.25);
+    expect(durationOf(otherRoute)).toBe(hours('kalliste', 'halos') * 3_600);
     expect(await effectsOf(storm.eventId)).toEqual([
       {
         kind: 'voyage_delay',
@@ -406,5 +415,78 @@ describe('tempête et départ (#267)', () => {
       .where('voyage_id', '=', stormy.body.data.voyageId)
       .execute();
     expect(cargo).toEqual([{ good_id: 'wheat', quantity: '10' }]);
+  });
+  it('deux tempêtes qui se chevauchent : la plus forte, et à égalité le plus petit identifiant, dans les deux sens', async () => {
+    const { worldId, city } = await newWorld(['kalliste', 'elaia', 'halos']);
+    const [kalliste, elaia, halos] = [
+      city['kalliste'] ?? '',
+      city['elaia'] ?? '',
+      city['halos'] ?? '',
+    ];
+    const storm = (cityId: string, otherCityId: string, magnitudeBps: number, inMs: number) =>
+      planEvent(owner, {
+        ...{ worldId, model: 'storm', cityId, otherCityId, magnitudeBps, inMs },
+        lastsMs: 86_400_000,
+      });
+    // Kallistè – Elaia, dans le sens du départ : 10 %, puis 30 % planifiée après (identifiant plus grand).
+    const weak = await storm(kalliste, elaia, 1_000, 1_000);
+    const strong = await storm(kalliste, elaia, 3_000, 1_100);
+    // Kallistè – Halos : deux tempêtes de 20 %, l'une dans chaque sens ; la première planifiée (plus petit
+    // identifiant) commence la dernière : ni l'ordre des débuts ni celui des sens ne la désigneraient.
+    const twins = [
+      await storm(halos, kalliste, 2_000, 1_300),
+      await storm(kalliste, halos, 2_000, 1_200),
+    ];
+    const first = twins.map((twin) => twin.eventId).sort()[0];
+    expect(first).toBe(twins[0]?.eventId);
+    expect(twins[0]?.startsAt.getTime()).toBeGreaterThan(twins[1]?.startsAt.getTime() ?? 0);
+    await waitUntil(db, new Date(Math.max(...twins.map((twin) => twin.startsAt.getTime()))));
+    const [toElaia, toHalos] = [await newShipowner(kalliste), await newShipowner(kalliste)];
+    const stormy = await leave(toElaia, kalliste, elaia);
+    const tied = await leave(toHalos, kalliste, halos);
+    expect(durationOf(stormy)).toBe((hours('kalliste', 'elaia') * 3_600 * 13) / 10);
+    expect(durationOf(tied)).toBe((hours('kalliste', 'halos') * 3_600 * 12) / 10);
+    const delays = await db
+      .selectFrom('game.event_effects')
+      .select(['event_id', 'voyage_id'])
+      .where('world_id', '=', worldId)
+      .orderBy('voyage_id')
+      .execute();
+    expect(delays).toEqual(
+      [
+        { event_id: strong.eventId, voyage_id: stormy.body.data.voyageId },
+        { event_id: first, voyage_id: tied.body.data.voyageId },
+      ].sort((a, b) => (a.voyage_id < b.voyage_id ? -1 : 1)),
+    );
+    expect(weak.eventId < strong.eventId).toBe(true);
+  });
+
+  it('un départ à la fin de la tempête (exclue) n’est pas retardé ; rejoué sous sa clé, un départ retardé ne change pas', async () => {
+    const { worldId, city } = await newWorld(['kalliste', 'elaia']);
+    const [kalliste, elaia] = [city['kalliste'] ?? '', city['elaia'] ?? ''];
+    const [during, after] = [await newShipowner(kalliste), await newShipowner(kalliste)];
+    const storm = await planEvent(owner, {
+      ...{ worldId, model: 'storm', cityId: kalliste, otherCityId: elaia, magnitudeBps: 5_000 },
+      ...{ inMs: 500, lastsMs: 1_500 },
+    });
+    await waitUntil(db, storm.startsAt);
+    const key = randomUUID();
+    const stormy = await leave(during, kalliste, elaia, key);
+    expect(durationOf(stormy)).toBe((hours('kalliste', 'elaia') * 3_600 * 3) / 2);
+    await waitUntil(db, new Date(storm.startsAt.getTime() + 1_500));
+    const calm = await leave(after, kalliste, elaia);
+    expect(durationOf(calm)).toBe(hours('kalliste', 'elaia') * 3_600);
+    // Après la tempête, la même clé rend la même réponse, sans second voyage ni second retard.
+    const again = await leave(during, kalliste, elaia, key);
+    expect(again.body).toEqual(stormy.body);
+    const voyages = await db
+      .selectFrom('game.voyages')
+      .select('id')
+      .where('ship_id', 'in', [during.shipId, after.shipId])
+      .execute();
+    expect(voyages).toHaveLength(2);
+    expect(
+      (await effectsOf(storm.eventId)).map((effect) => [effect.voyage_id, effect.delay_seconds]),
+    ).toEqual([[stormy.body.data.voyageId, hours('kalliste', 'elaia') * 1_800]]);
   });
 });

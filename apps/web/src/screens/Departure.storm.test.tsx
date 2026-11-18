@@ -90,7 +90,7 @@ describe('départ d’un navire : durée allongée par une tempête en cours sur
     });
   });
 
-  it('la plus forte tempête de la route, dans un sens ou dans l’autre ; à égalité, la plus ancienne', async () => {
+  it('la plus forte tempête de la route, dans un sens ou dans l’autre ; à égalité, celle du plus petit identifiant, soit la planification la plus ancienne', async () => {
     state.events = [
       storm('e1', 'e', 'k', 2_500, '18'),
       storm('e0', 'k', 'e', 2_500, '19'),
