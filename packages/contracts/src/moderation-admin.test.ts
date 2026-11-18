@@ -43,6 +43,8 @@ describe('événements de la modération', () => {
       { type: 'ReportsResolved', payload: { reportIds: [ID], decision: 'upheld' } },
       { type: 'AppealDecided', payload: { sanctionId: ID, decision: 'granted', lifted: true } },
       { type: 'ExclusionWithdrawn', payload: { sanctionId: ID, userId: ID } },
+      { type: 'SanctionLiftProposed', payload: { sanctionId: ID, userId: ID } },
+      { type: 'SanctionLifted', payload: { sanctionId: ID, userId: ID, kind: 'suspension' } },
     ];
     for (const event of events) expect(domainEventSchema.parse(event)).toEqual(event);
     expect(
