@@ -1,7 +1,12 @@
 import { stewardRulesLimit, type GameConfig } from '@oikos/config';
 import { MAX_ORDER_QUANTITY } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
-import { accrueProduction, nextStewardOperation, type StewardPlanRule } from '@oikos/sim';
+import {
+  accrueProduction,
+  nextStewardOperation,
+  type StewardPlanRule,
+  type StewardSight,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 
 /** Tick dont les intendants mènent leurs opérations, avec la version de configuration qu'il a lue. */
@@ -84,12 +89,30 @@ export async function plan(
     .limit(1)
     .executeTakeFirst();
   const start = last && last.rules_revision === revision ? last.rule_position + 1 : 0;
+  const { sight, cityId } = await sightOf(trx, tick.config, steward, rules, now);
+  const next = nextStewardOperation(rules, start, sight, MAX_ORDER_QUANTITY);
+  const rule = next && rules[next.position];
+  return next && rule ? { ...next, rule, revision, cityId } : null;
+}
+
+/**
+ * Ce que voit un intendant pour ces règles, lu dans la transaction : un cycle du site est-il récoltable, et le stock
+ * libre et attendu de chaque bien de ses règles pour sa maison, dans la cité du site. Partagé par l'opération du
+ * moteur et la simulation à blanc des règles proposées (#280).
+ */
+export async function sightOf(
+  trx: Db,
+  config: GameConfig,
+  steward: Pick<Steward, 'house_id' | 'site_id'>,
+  rules: readonly StewardPlanRule[],
+  now: Date,
+): Promise<{ sight: StewardSight; cityId: string }> {
   const site = await trx
     .selectFrom('game.sites')
     .select(['city_id', 'recipe_id', 'cycle_started_at', 'halted_at'])
     .where('id', '=', steward.site_id)
     .executeTakeFirstOrThrow();
-  const recipe = tick.config.recipes.find((candidate) => candidate.id === site.recipe_id);
+  const recipe = config.recipes.find((candidate) => candidate.id === site.recipe_id);
   const until = site.halted_at && site.halted_at < now ? site.halted_at : now;
   // Une recette retirée est tentée : la récolte la refuse, et le refus se lit sur la fiche du site.
   const collectable =
@@ -128,19 +151,13 @@ export async function plan(
           .groupBy('good_id')
           .execute();
   const stockOf = (goodId: string) => stocks.find((stock) => stock.good_id === goodId);
-  const next = nextStewardOperation(
-    rules,
-    start,
-    {
-      collectable,
-      free: (goodId) =>
-        Number(stockOf(goodId)?.quantity ?? 0) - Number(stockOf(goodId)?.reserved ?? 0),
-      incoming: (goodId) =>
-        Number(stockOf(goodId)?.quantity ?? 0) +
-        Number(buying.find((order) => order.good_id === goodId)?.remaining ?? 0),
-    },
-    MAX_ORDER_QUANTITY,
-  );
-  const rule = next && rules[next.position];
-  return next && rule ? { ...next, rule, revision, cityId: site.city_id } : null;
+  const sight: StewardSight = {
+    collectable,
+    free: (goodId) =>
+      Number(stockOf(goodId)?.quantity ?? 0) - Number(stockOf(goodId)?.reserved ?? 0),
+    incoming: (goodId) =>
+      Number(stockOf(goodId)?.quantity ?? 0) +
+      Number(buying.find((order) => order.good_id === goodId)?.remaining ?? 0),
+  };
+  return { sight, cityId: site.city_id };
 }
