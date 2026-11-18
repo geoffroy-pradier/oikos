@@ -41,12 +41,14 @@
   },
   "home": {
     "title": "House {{name}}",
+    "sectionsNav": "House sections",
     "status": {
       "metic": "Metic in {{city}}",
       "citizen": "Citizen in {{city}}"
     },
     "treasury": "Treasury",
     "balance": "{{amount}}",
+    "balanceLabel": "Balance",
     "stock": "Storehouse",
     "stockEmpty": "Nothing in stock yet.",
     "stockCity": "Stock in {{city}}",

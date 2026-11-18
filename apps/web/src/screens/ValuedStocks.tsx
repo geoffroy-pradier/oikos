@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, EmptyState, Package } from '@oikos/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sortRows, type ValuedStock } from '../accounts';
@@ -52,12 +52,17 @@ export function ValuedStocks({ stocks }: { stocks: ValuedStock[] }) {
         {t('accounts.stocks')}
       </h2>
       <p className="text-sm text-muted-foreground">{t('accounts.stocksIntro')}</p>
-      {stocks.length === 0 && <p>{t('accounts.stocksEmpty')}</p>}
+      {stocks.length === 0 && (
+        <EmptyState icon={<Package />} title={t('accounts.stocksEmpty')} headingLevel={3} />
+      )}
       {stocks.length > 0 && (
         <>
           <ul className="flex flex-col gap-3 lg:hidden">
             {sorted.map((stock) => (
-              <li key={id(stock)} className="rounded-md border border-border p-3">
+              <li
+                key={id(stock)}
+                className="rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
+              >
                 <h3 className="text-lg">{goodName(stock)}</h3>
                 <dl>
                   {details.map((column) => (
@@ -111,7 +116,7 @@ export function ValuedStocks({ stocks }: { stocks: ValuedStock[] }) {
             </thead>
             <tbody>
               {sorted.map((stock) => (
-                <tr key={id(stock)} className="border-t border-border">
+                <tr key={id(stock)} className="border-t border-border-subtle">
                   <th scope="row" className="py-2 pr-3 font-normal">
                     {goodName(stock)}
                   </th>

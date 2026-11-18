@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Skeleton } from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -62,8 +62,17 @@ export function LoadProblem({
   );
 }
 
-/** Lecture en cours : un texte discret, sans rôle d'annonce (les résultats d'action gardent `status`). */
+/**
+ * Lecture en cours : des formes de chargement, le texte réservé aux lecteurs d'écran, sans rôle d'annonce
+ * (les résultats d'action gardent `status`).
+ */
 export function Loading() {
   const { t } = useTranslation();
-  return <p className="text-muted-foreground">{t('app.loading')}</p>;
+  return (
+    <div aria-busy="true" className="flex flex-col gap-2">
+      <span className="sr-only">{t('app.loading')}</span>
+      <Skeleton className="h-5 w-2/3" />
+      <Skeleton className="h-5 w-1/2" />
+    </div>
+  );
 }

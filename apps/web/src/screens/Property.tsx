@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Button, Card } from '@oikos/ui';
+import { Button, Card, EmptyState, Frieze, House, Inbox, ScrollText } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +35,8 @@ const PLACE: Record<Command, Place> = {
   'property.endLease': 'leases',
 };
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
-const ROW = 'flex flex-col gap-2 border-t border-border pt-3 first:border-t-0 first:pt-0';
+const ROW =
+  'flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm';
 /** L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve. */
 const offerIntent = (offer: Offer) => `${offer.kind}:${offer.propertyId}:${offer.priceOboles}`;
 const endIntent = (leaseId: string) => `end:${leaseId}`;
@@ -249,14 +250,18 @@ export function PropertyScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-2">
-        <h1 ref={title} tabIndex={-1} className="text-2xl">
-          {t('property.title')}
-        </h1>
-        <p className="text-muted-foreground">{t('property.intro')}</p>
-        <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">
-          {t('staff.back')}
-        </Link>
+      <Card elevation="raised" className="flex flex-col gap-2 overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-col gap-2 p-4">
+          <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
+            <House aria-hidden="true" className="size-6 text-accent" />
+            {t('property.title')}
+          </h1>
+          <p className="text-muted-foreground">{t('property.intro')}</p>
+          <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">
+            {t('staff.back')}
+          </Link>
+        </div>
       </Card>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
@@ -266,7 +271,7 @@ export function PropertyScreen() {
             <h2 className="text-xl">{t('property.offers')}</h2>
             {said('offers')}
             {offers?.length === 0 && (
-              <p className="text-muted-foreground">{t('property.noOffers')}</p>
+              <EmptyState icon={<Inbox />} title={t('property.noOffers')} headingLevel={3} />
             )}
             <ul className="flex flex-col gap-3">
               {(offers ?? []).map((offer) => (
@@ -295,7 +300,7 @@ export function PropertyScreen() {
             <h2 className="text-xl">{t('property.mine')}</h2>
             {said('mine')}
             {mine?.length === 0 && (
-              <p className="text-muted-foreground">{t('property.noneMine')}</p>
+              <EmptyState icon={<House />} title={t('property.noneMine')} headingLevel={3} />
             )}
             <ul className="flex flex-col gap-3">
               {(mine ?? []).map((property) => {
@@ -333,7 +338,7 @@ export function PropertyScreen() {
             <h2 className="text-xl">{t('property.leases')}</h2>
             {said('leases')}
             {leases?.length === 0 && (
-              <p className="text-muted-foreground">{t('property.noLeases')}</p>
+              <EmptyState icon={<ScrollText />} title={t('property.noLeases')} headingLevel={3} />
             )}
             <ul className="flex flex-col gap-3">
               {(leases ?? []).map((lease) => (

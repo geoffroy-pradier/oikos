@@ -1,4 +1,14 @@
-import { Card } from '@oikos/ui';
+import {
+  Badge,
+  Card,
+  Coins,
+  EmptyState,
+  Frieze,
+  Landmark,
+  Package,
+  Stat,
+  Warehouse,
+} from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -62,11 +72,17 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-2xl">{t('home.title', { name: house.name })}</h1>
-        <p className="text-muted-foreground">
-          {t(`home.status.${house.citizenshipStatus}`, { city: house.cityName })}
-        </p>
+      <Card elevation="raised" className="overflow-hidden p-0">
+        <Frieze tone="accent" />
+        <div className="flex flex-wrap items-center justify-between gap-2 p-4">
+          <h1 className="text-2xl">{t('home.title', { name: house.name })}</h1>
+          <Badge
+            tone={house.citizenshipStatus === 'citizen' ? 'success' : 'aegean'}
+            icon={<Landmark aria-hidden="true" />}
+          >
+            {t(`home.status.${house.citizenshipStatus}`, { city: house.cityName })}
+          </Badge>
+        </div>
       </Card>
       {failed && (
         <LoadProblem
@@ -78,17 +94,18 @@ export function HomeScreen() {
 
       <HouseAlerts />
 
-      <Card>
+      <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('home.treasury')}</h2>
         {treasury.rows === null && !treasury.failed && <Loading />}
         {treasury.rows?.map((account) => (
-          <p key="balance" className="text-2xl font-semibold">
-            {t('home.balance', { amount: money(account.balance) })}
-          </p>
+          <Stat
+            key="balance"
+            icon={<Coins />}
+            label={t('home.balanceLabel')}
+            value={t('home.balance', { amount: money(account.balance) })}
+            hint={held > 0 ? t('home.held', { amount: money(held) }) : undefined}
+          />
         ))}
-        {held > 0 && (
-          <p className="text-muted-foreground">{t('home.held', { amount: money(held) })}</p>
-        )}
         {orders.rows === null && !orders.failed && <Loading />}
         {orders.rows && (
           <p>
@@ -104,36 +121,44 @@ export function HomeScreen() {
                     number: number.format(sells.length),
                   }),
                 })}{' '}
-            <Link to="/agora" className="underline">
+            <Link to="/agora" className="underline underline-offset-4">
               {t('home.toAgora')}
             </Link>
           </p>
         )}
-        <Link
-          to="/comptes"
-          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+        <nav
+          aria-label={t('home.sectionsNav')}
+          className="flex flex-wrap gap-x-4 border-t border-border-subtle pt-2"
         >
-          {t('home.accounts')}
-        </Link>
-        <Link
-          to="/personnel"
-          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-        >
-          {t('home.staffLink')}
-        </Link>
-        <Link
-          to="/immobilier"
-          className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-        >
-          {t('home.propertyLink')}
-        </Link>
+          <Link
+            to="/comptes"
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+          >
+            {t('home.accounts')}
+          </Link>
+          <Link
+            to="/personnel"
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+          >
+            {t('home.staffLink')}
+          </Link>
+          <Link
+            to="/immobilier"
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+          >
+            {t('home.propertyLink')}
+          </Link>
+        </nav>
       </Card>
 
       <Card>
-        <h2 className="text-xl">{t('home.stock')}</h2>
+        <h2 className="flex items-center gap-2 text-xl">
+          <Warehouse aria-hidden="true" className="size-5 text-accent" />
+          {t('home.stock')}
+        </h2>
         {stock.rows === null && !stock.failed && <Loading />}
         {stock.rows?.length === 0 && atSea.length === 0 && (
-          <p className="text-muted-foreground">{t('home.stockEmpty')}</p>
+          <EmptyState icon={<Package />} title={t('home.stockEmpty')} headingLevel={3} />
         )}
         {/* Une seule cité, celle de la maison : pas de titre. Sinon chaque cité a le sien. */}
         {groups.map(({ cityId, lines }) => (
@@ -143,9 +168,9 @@ export function HomeScreen() {
                 {t('home.stockCity', { city: house.cityNames[cityId] ?? cityId })}
               </h3>
             )}
-            <ul>
+            <ul className="divide-y divide-border-subtle">
               {lines.map((line) => (
-                <li key={line.id}>
+                <li key={line.id} className="py-1.5">
                   {t('home.stockLine', {
                     good: goodName(line.good_id),
                     quantity: number.format(line.quantity),
@@ -167,9 +192,9 @@ export function HomeScreen() {
             <h3 id={`sea-${voyage.id}`} className="mt-2 font-semibold">
               {t('home.atSea', { city: house.cityNames[voyage.to_city_id] ?? voyage.to_city_id })}
             </h3>
-            <ul>
+            <ul className="divide-y divide-border-subtle">
               {voyage.cargo.map((line) => (
-                <li key={line.goodId}>
+                <li key={line.goodId} className="py-1.5">
                   {t('home.stockLine', {
                     good: goodName(line.goodId),
                     quantity: number.format(line.quantity),

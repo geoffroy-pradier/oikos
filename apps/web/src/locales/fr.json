@@ -41,12 +41,14 @@
   },
   "home": {
     "title": "Maison {{name}}",
+    "sectionsNav": "Rubriques de la maison",
     "status": {
       "metic": "Métèque à {{city}}",
       "citizen": "Citoyen à {{city}}"
     },
     "treasury": "Trésorerie",
     "balance": "{{amount}}",
+    "balanceLabel": "Solde",
     "stock": "Entrepôt",
     "stockEmpty": "Aucun bien en stock pour l'instant.",
     "stockCity": "Stock à {{city}}",

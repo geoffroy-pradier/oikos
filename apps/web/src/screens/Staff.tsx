@@ -1,4 +1,4 @@
-import { Card } from '@oikos/ui';
+import { Card, EmptyState, Users } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -56,16 +56,18 @@ export function StaffScreen() {
           />
         )}
         {!loading && !failed && cities?.length === 0 && (
-          <p className="text-muted-foreground">{t('staff.empty')}</p>
+          <EmptyState icon={<Users />} title={t('staff.empty')} headingLevel={3} />
         )}
         {!loading && !failed && cities && cities.length > 0 && (
           <ul className="flex flex-col gap-3">
             {cities.map((city) => (
               <li
                 key={city.cityId}
-                className="flex flex-col gap-1 border-t border-border pt-2 first:border-t-0"
+                className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
               >
-                <h2 className="text-xl">{nameOf(city.cityId)}</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-xl">{nameOf(city.cityId)}</h2>
+                </div>
                 <p>
                   {t('staff.workers', {
                     count: city.workers,

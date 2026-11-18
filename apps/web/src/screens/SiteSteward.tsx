@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Users } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { stewardCommand, type StewardCommandInputs } from '../api';
@@ -140,11 +140,14 @@ export function SiteSteward(props: {
   return (
     <section
       aria-labelledby={labelId}
-      className="flex flex-col gap-2 rounded-md border border-border p-3"
+      className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-muted/40 p-3"
     >
-      <h4 id={labelId} className="font-semibold">
-        {t('steward.title')}
-      </h4>
+      <div className="flex items-center gap-2">
+        <Users aria-hidden="true" className="size-4 text-accent" />
+        <h4 id={labelId} className="font-semibold">
+          {t('steward.title')}
+        </h4>
+      </div>
       {!steward ? (
         rules.limit === 0 ? (
           <p className="text-sm text-muted-foreground">{t('steward.noPost')}</p>
