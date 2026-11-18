@@ -5,6 +5,7 @@ import { useRows, useTempleRules } from '../data';
 import { useHouse } from '../house';
 import { charisByGod, parseCityCharis, parseFavor } from '../temple';
 import { LoadProblem, Loading } from './LoadProblem';
+import { TempleOffering } from './TempleOffering';
 
 /**
  * Écran du temple (10, écran clé 7 ; 7.1 et 7.3), ouvert depuis l'onglet Cité : la Charis de la maison envers
@@ -93,6 +94,10 @@ export function TempleScreen() {
             {city && <p className="text-muted-foreground">{t(`temple.city.${status}`)}</p>}
           </>
         )}
+      </Card>
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-xl">{t('temple.offering.title')}</h2>
+        {rules.rules && <TempleOffering rules={rules.rules} favor={favor} onDone={reload} />}
       </Card>
     </div>
   );

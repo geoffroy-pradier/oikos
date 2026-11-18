@@ -97,6 +97,11 @@ Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordi
    Première version (#272) : l'écran du temple (`/cite/temple`) s'ouvre au clavier depuis l'onglet Cité, auquel il appartient.
    Il montre la Charis de la maison envers chaque dieu de la configuration (`temple_rules`, `my_favor` ; nulle sans ligne), et son déclin du jour : ce que la prochaine clôture lui retirera (`charisDecay`, 7.1), ou rien.
    Il montre la Charis de la cité de la maison envers son dieu protecteur (`city_charis`), ou dit que la cité n'en a pas ; une maison métèque lit qu'elle n'y compte pas.
+   Une offrande choisit un dieu parmi ceux qui acceptent un don, puis des oboles (s'il prend la monnaie, saisie en oboles) et des biens qu'il accepte, pris dans le stock libre de la maison dans sa cité, hors réservations.
+   La Charis qu'elle rapportera est annoncée avant l'envoi (`offeringCharis`, au taux de `temple_rules`) et envoyée telle quelle ; un autre taux en vigueur est refusé, rien n'est offert.
+   Une saisie illisible, au-delà du stock libre ou au-delà de la borne des oboles du contrat de la commande est dite et n'envoie rien.
+   La même offrande restée sans réponse repart sous la même clé, une autre saisie sous une clé neuve.
+   La clé est rendue dès qu'une relecture montre une autre Charis de la maison envers ce dieu que celle lue à la demande : l'offrande a abouti, ou un déclin, une grâce l'a changée ; la même saisie est alors une demande neuve, jamais le rejeu d'une offrande déjà faite.
 8. Messages (#274) : le canal de la cité et les conversations privées de la maison, chacun avec ses messages non lus, puis les derniers messages du canal ouvert, nommés et datés ; un message masqué est dit tel.
    Décision (le ticket ne dit pas où se tient la lecture) : les non lus se comptent sur l'appareil, par une marque de lecture de chaque canal en stockage local, l'instant du dernier message lu.
    Un autre appareil, ou un stockage effacé, compte de nouveau comme non lus tous les messages encore conservés ; au-delà des 100 messages les plus récents des autres maisons, un compte est dit « 100 messages non lus ou plus ».

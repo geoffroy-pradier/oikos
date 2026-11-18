@@ -100,7 +100,7 @@ describe('écran du temple : Charis (#272)', () => {
     state.views = { my_favor: [{ house_id: 'h1', god_id: 'demeter', charis: 'beaucoup' }] };
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
-    expect(screen.queryByText(/^Déméter/)).toBeNull();
+    expect(screen.queryByRole('heading', { name: /^Déméter :/ })).toBeNull();
     cleanup();
     state.rulesFailed = true;
     await show();

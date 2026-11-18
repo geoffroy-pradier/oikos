@@ -827,6 +827,21 @@
       "noPatron": "{{city}} n'a pas de dieu protecteur : elle n'a pas de Charis de cité.",
       "citizen": "Elle est la somme de la Charis de ses citoyennes envers ce dieu : la vôtre y compte.",
       "metic": "Elle est la somme de la Charis de ses citoyennes envers ce dieu : votre maison, métèque, n'y compte pas."
+    },
+    "offering": {
+      "title": "Faire une offrande",
+      "noGod": "Aucun dieu n'accepte d'offrande dans la configuration en vigueur.",
+      "god": "Dieu",
+      "oboles": "Oboles offertes ({{rate}} Charis par obole)",
+      "good": "{{good}} ({{free}} libres, {{rate}} Charis l'unité)",
+      "noStock": "Aucun bien qu'accepte {{god}} dans votre stock libre de la cité.",
+      "unreadable": "Écrivez des nombres entiers, sans unité.",
+      "tooMuch": "Au plus {{max}} oboles par offrande.",
+      "overStock": "Une quantité dépasse votre stock libre.",
+      "empty": "Choisissez un montant ou des biens à offrir.",
+      "quote": "Cette offrande vous rapportera {{charis}} Charis envers {{god}}.",
+      "submit": "Offrir à {{god}} (+{{charis}} Charis)",
+      "done": "Offrande faite à {{god}} : +{{gained}} Charis. Votre Charis envers {{god}} : {{charis}}."
     }
   }
 }
