@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config, recipeOf } from './city';
-import { laborCost, median, recipeMargins, type DayMeasure } from './measures';
+import { laborCost, median, netInputs, recipeMargins, type DayMeasure } from './measures';
 
 const day = (extra: Partial<DayMeasure> = {}): DayMeasure => ({
   day: 0,
@@ -110,5 +110,28 @@ describe('median', () => {
     expect(median([3, 1, 2])).toBe(2);
     expect(median([4, 1, 3, 2])).toBe(2.5);
     expect(() => median([])).toThrow();
+  });
+});
+
+describe('netInputs', () => {
+  it('intrants d’un jour de cycles pleins que les maisons ne produisent pas elles-mêmes', () => {
+    const mill = recipeOf('mill_flour');
+    const bakery = recipeOf('bake_bread');
+    const field = recipeOf('grow_wheat');
+    const inputs = netInputs([
+      { name: 'meunier', count: 2, sites: ['grow_wheat', 'mill_flour', 'mill_flour'] },
+      { name: 'boulanger', count: 1, sites: ['bake_bread'] },
+    ]);
+    const daily = (recipe: typeof mill, goodId: string, side: 'inputs' | 'outputs') =>
+      (recipe[side].find((stack) => stack.goodId === goodId)?.quantity ?? 0) *
+      (1440 / recipe.durationMinutes);
+    // Deux moulins par maison boivent plus de blé que son champ n'en récolte ; leur farine nourrit le fournil.
+    expect(inputs.get('wheat')).toBe(
+      2 * (2 * daily(mill, 'wheat', 'inputs') - daily(field, 'wheat', 'outputs')),
+    );
+    expect(daily(bakery, 'flour', 'inputs')).toBeLessThan(4 * daily(mill, 'flour', 'outputs'));
+    expect(inputs.has('flour')).toBe(false);
+    expect(inputs.get('charcoal')).toBe(daily(bakery, 'charcoal', 'inputs'));
+    expect(netInputs([])).toEqual(new Map());
   });
 });

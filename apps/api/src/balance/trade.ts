@@ -44,7 +44,7 @@ const priceOf = (prices: Prices, slug: string, goodId: string) =>
   prices.get(slug)?.get(goodId) ?? (referenceOf(goodId) * UNSERVED_PRICE_BPS) / 10_000;
 
 /** Départ d'un voyage : daté de l'instant de jeu (la base date de l'instant réel), arrivée à la même durée. */
-async function backdate(city: City, voyageId: string, at: Date) {
+export async function backdateVoyage(city: City, voyageId: string, at: Date) {
   await city.owner.transaction().execute(async (trx) => {
     await sql`alter table game.voyages disable trigger voyages_guard, disable trigger voyages_settled`.execute(
       trx,
@@ -176,7 +176,7 @@ export async function traderMorning(
       expectedCostOboles: cost.totalOboles,
     });
     assertAdmitted(departed, false, 'voyage.depart');
-    await backdate(home, departed.data.voyageId, now);
+    await backdateVoyage(home, departed.data.voyageId, now);
     trader.waitedDays = 0;
     return bought;
   }
