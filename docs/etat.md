@@ -172,7 +172,7 @@ Ajouts de la phase 2 :
   La Vigie compte les signalements en attente depuis plus de 24 heures (#530).
   Le masquage d'un message est diffusé en temps réel, sans son texte (#532).
   La modération retire une exclusion proposée et lève une sanction sans appel, à deux pour une exclusion validée (#531) ; le joueur lit la décision sur ses appels dans l'annonce de ses sanctions (#529).
-  Les levées proposées n'apparaissent pas encore dans la file d'Olympe.
+  Les levées d'exclusion proposées apparaissent dans la file d'Olympe, où une seconde personne les confirme (#616).
 - **Écran Temple** (#272, 10) : l'écran `/cite/temple`, sous l'onglet Cité, montre la Charis de la maison envers chaque dieu et son déclin du jour, et celle de la cité envers son dieu protecteur.
   Il permet l'offrande, l'invocation d'une grâce et la consultation de la Pythie, chacune au taux ou au prix vu, et relit les oracles consultés.
 - **Intendants, 1/3** (#278, 4.4) : une maison embauche un intendant par site, dans la limite des postes de son siège (`steward.hire`), le renvoie (`steward.dismiss`) et lui fixe des règles à grammaire fermée (`steward.setRules`).

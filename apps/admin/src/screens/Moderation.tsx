@@ -69,7 +69,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   // Intention en attente de réponse : le même geste renvoyé après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
 
-  async function run(name: string, input: unknown, done: string) {
+  /** `refusals` : messages propres au geste, lus avant ceux de la modération (`moderation.errors`). */
+  async function run(name: string, input: unknown, done: string, refusals?: string) {
     setBusy(true);
     setNotice(null);
     setReturnTo(null);
@@ -86,10 +87,13 @@ export function Moderation({ accessToken }: { accessToken: string }) {
           ? { kind: 'status', text: done }
           : {
               kind: 'alert',
-              text: i18n.exists(`moderation.errors.${reply.code}`)
-                ? t(`moderation.errors.${reply.code}`)
-                : // Refus que l'écran ne connaît pas : dit tel quel, sans le faire passer pour une panne rejouable.
-                  t('moderation.errors.REFUSED', { code: reply.code }),
+              text:
+                refusals && i18n.exists(`${refusals}.${reply.code}`)
+                  ? t(`${refusals}.${reply.code}`)
+                  : i18n.exists(`moderation.errors.${reply.code}`)
+                    ? t(`moderation.errors.${reply.code}`)
+                    : // Refus que l'écran ne connaît pas : dit tel quel, sans le faire passer pour une panne rejouable.
+                      t('moderation.errors.REFUSED', { code: reply.code }),
             },
       );
       return reply.ok;
@@ -173,7 +177,13 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   async function confirmSanction(sanctionId: string, gesture: Gesture) {
     const ok =
       gesture === 'confirmExclusion' || gesture === 'liftSanction'
-        ? await run(`admin.${gesture}`, { sanctionId }, t(`moderation.done.${gesture}`))
+        ? await run(
+            `admin.${gesture}`,
+            { sanctionId },
+            t(`moderation.done.${gesture}`),
+            // Le refus de la seconde personne a son message pour une levée (#616).
+            gesture === 'liftSanction' ? 'moderation.liftErrors' : undefined,
+          )
         : await run(
             'admin.decideAppeal',
             { sanctionId, decision: gesture === 'granted' ? 'granted' : 'rejected' },

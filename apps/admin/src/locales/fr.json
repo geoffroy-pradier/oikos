@@ -377,6 +377,9 @@
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "REFUSED": "L'API a refusé cette action (code {{code}})."
     },
+    "liftErrors": {
+      "SECOND_PERSON_REQUIRED": "Ni qui a proposé cette levée ni le compte exclu ne la confirment : un autre compte de la modération doit le faire."
+    },
     "exclusions": "Exclusions à valider",
     "exclusionsEmpty": "Aucune exclusion à valider.",
     "exclusionOf": "Exclusion proposée du compte",

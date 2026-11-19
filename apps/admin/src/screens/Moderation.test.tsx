@@ -567,7 +567,11 @@ it('liste les levées proposées et en confirme une ; le refus de qui l’a prop
   fireEvent.click(lift());
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer la levée' }));
-  await waitFor(() => expect(notice('alert')).toMatch(/^Un autre compte que l'auteur/));
+  await waitFor(() =>
+    expect(notice('alert')).toBe(
+      'Ni qui a proposé cette levée ni le compte exclu ne la confirment : un autre compte de la modération doit le faire.',
+    ),
+  );
   expect(document.activeElement).toBe(lift());
   // Levée confirmée : relue, la file ne la liste plus.
   adminGet.mockResolvedValue({ ok: true, data: { ...WITH_SANCTIONS, pendingLifts: [] } });

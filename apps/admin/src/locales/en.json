@@ -377,6 +377,9 @@
       "INTERNAL": "The action did not go through. Try again: it will not run twice.",
       "REFUSED": "The API refused this action (code {{code}})."
     },
+    "liftErrors": {
+      "SECOND_PERSON_REQUIRED": "Neither whoever proposed this lift nor the excluded account confirms it: another moderation account must do so."
+    },
     "exclusions": "Exclusions to confirm",
     "exclusionsEmpty": "No exclusion to confirm.",
     "exclusionOf": "Exclusion proposed for account",

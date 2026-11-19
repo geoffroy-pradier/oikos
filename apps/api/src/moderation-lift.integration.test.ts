@@ -378,20 +378,27 @@ describe('GET /api/admin/reports : levées proposées (#616)', () => {
 
   it('liste les levées à confirmer, sans appel qui attend, et une seconde personne les confirme de là', async () => {
     const world = await newWorld();
-    const [alice, bob, chloe] = [await world.player(), await world.player(), await world.player()];
+    const [alice, bob, chloe, dora] = [
+      await world.player(),
+      await world.player(),
+      await world.player(),
+      await world.player(),
+    ];
     const validator = await moderator();
     const confirmed = async (user: string) => {
       const sanctionId = await propose(user);
       expect((await send(validator, 'admin.confirmExclusion', { sanctionId })).status).toBe(200);
       return sanctionId;
     };
-    const [forAlice, forBob, forChloe] = [
+    const [forAlice, forBob, forChloe, forDora] = [
       await confirmed(alice.user),
       await confirmed(bob.user),
       await confirmed(chloe.user),
+      await confirmed(dora.user),
     ];
     const [proposer, other] = [await moderator(), await moderator()];
-    for (const sanctionId of [forAlice, forBob])
+    // Dora : exclusion validée sans proposition, jamais listée.
+    for (const sanctionId of [forAlice, forBob, forChloe])
       expect((await send(proposer, 'admin.liftSanction', { sanctionId })).body.data.pending).toBe(
         true,
       );
@@ -399,22 +406,31 @@ describe('GET /api/admin/reports : levées proposées (#616)', () => {
       (await send(bob.user, 'moderation.appeal', { sanctionId: forBob, body: 'Je conteste.' }))
         .status,
     ).toBe(200);
+    // Chloé : son appel, fait après la proposition, est rejeté ; la levée proposée revient dans la file.
+    expect(
+      (await send(chloe.user, 'moderation.appeal', { sanctionId: forChloe, body: 'Je conteste.' }))
+        .status,
+    ).toBe(200);
+    const rejected = await send(other, 'admin.decideAppeal', {
+      sanctionId: forChloe,
+      decision: 'rejected',
+    });
+    expect(rejected.body.data).toMatchObject({ decision: 'rejected', liftedAt: null });
 
     const listed = (await lifts(other)).filter((lift) =>
-      [forAlice, forBob, forChloe].includes(lift.sanctionId),
+      [forAlice, forBob, forChloe, forDora].includes(lift.sanctionId),
     );
-    expect(listed).toEqual([
-      {
-        sanctionId: forAlice,
-        userId: alice.user,
-        reason: 'Triche avérée',
-        authorId: expect.any(String),
-        confirmedBy: idOf(validator),
-        startsAt: expect.any(String),
-        proposedBy: idOf(proposer),
-        proposedAt: expect.any(String),
-      },
-    ]);
+    const lift = (sanctionId: string, userId: string) => ({
+      sanctionId,
+      userId,
+      reason: 'Triche avérée',
+      authorId: expect.any(String),
+      confirmedBy: idOf(validator),
+      startsAt: expect.any(String),
+      proposedBy: idOf(proposer),
+      proposedAt: expect.any(String),
+    });
+    expect(listed).toEqual([lift(forAlice, alice.user), lift(forChloe, chloe.user)]);
     // Sans connaître l'identifiant : la seconde personne le lit dans la file.
     const [entry] = listed;
     expect(

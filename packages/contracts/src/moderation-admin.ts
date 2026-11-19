@@ -327,8 +327,8 @@ export const adminReportsSchema = z.strictObject({
   ),
   /**
    * Levées proposées d'exclusions validées (#616), à confirmer par `admin.liftSanction` par une autre personne que
-   * celle qui les a proposées ; les plus anciennes d'abord, sans celles dont l'appel attend. Absentes d'une API
-   * antérieure à ce champ.
+   * celle qui les a proposées ; les plus anciennes d'abord, sans celles dont l'appel attend. Toujours rendues par
+   * l'API ; l'écran tient seulement pour vide la liste d'une API antérieure à ce champ, qui ne la rendait pas.
    */
   pendingLifts: z.array(
     z.strictObject({
