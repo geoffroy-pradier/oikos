@@ -155,8 +155,5 @@ export interface Settlement {
   houses: Seller[];
 }
 
-/** Cités d'attache des négociants (leur navire y naît) : aucune, les armateurs les remplacent. */
-export const TRADER_HOMES: readonly string[] = [];
-export const TRADER: Role = { name: 'négociant', count: 1, sites: [], trader: true };
 /** Étapes des ticks du banc : le parc de logements des cités (4.5), la demande des PNJ, puis l'arrivée des voyages (4.6). */
 export const WORLD_STEPS = [cityProperties, npcDemand, voyageArrivals];
