@@ -154,6 +154,49 @@ export function parseStewardActivity(rows: readonly unknown[]): Map<string, Stew
 }
 
 /**
+ * Ordre ouvert posé par un intendant (vue `my_steward_orders`, #562) : des règles nouvelles ou son renvoi l'annulent.
+ */
+export interface StewardOrder {
+  id: string;
+  side: 'buy' | 'sell';
+  goodId: string;
+  /** Prix limite par unité, en oboles. */
+  price: number;
+  quantity: number;
+  remaining: number;
+}
+
+const count = z.union([z.number(), z.string().regex(/^\d+$/).transform(Number)]);
+const orderRow = z.object({
+  id: uuid,
+  steward_id: uuid,
+  side: z.enum(['buy', 'sell']),
+  good_id: z.string().min(1),
+  price: count,
+  quantity: count,
+  remaining: count,
+  created_at: z.string(),
+});
+
+/** Ordres ouverts de chaque intendant de la maison, les plus anciens d'abord ; une ligne illisible est ignorée. */
+export function parseStewardOrders(rows: readonly unknown[]): Map<string, StewardOrder[]> {
+  const parsed = rows.flatMap((raw) => {
+    const row = orderRow.safeParse(raw);
+    return row.success ? [row.data] : [];
+  });
+  parsed.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  const orders = new Map<string, StewardOrder[]>();
+  for (const row of parsed) {
+    const { id, side, good_id: goodId, price, quantity, remaining } = row;
+    orders.set(row.steward_id, [
+      ...(orders.get(row.steward_id) ?? []),
+      { id, side, goodId, price, quantity, remaining },
+    ]);
+  }
+  return orders;
+}
+
+/**
  * Dernière consigne d'un intendant et sa réponse (vue `my_steward_instructions`, #280) : en attente du moteur, ou
  * répondue par des règles proposées et leur simulation à blanc, ou par un refus motivé.
  */

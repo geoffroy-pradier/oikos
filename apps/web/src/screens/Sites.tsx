@@ -37,7 +37,12 @@ import {
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { SiteSteward } from './SiteSteward';
-import { parseInstructions, parseStewardActivity, parseStewards } from '../stewards';
+import {
+  parseInstructions,
+  parseStewardActivity,
+  parseStewardOrders,
+  parseStewards,
+} from '../stewards';
 import { serverClock, syncServerClock } from '../server-clock';
 import { describeWorldEvent, inForce, useEventRows } from '../world-events';
 
@@ -157,6 +162,17 @@ export function SitesCard({
     () => (instructionRows.rows ? parseInstructions(instructionRows.rows) : null),
     [instructionRows.rows],
   );
+  // Ordres ouverts posés par chaque intendant (#562) : des règles nouvelles ou son renvoi les annulent.
+  const stewardOrderRows = useRows<unknown>(
+    'my_steward_orders',
+    'id, steward_id, side, good_id, price, quantity, remaining, created_at',
+    'created_at',
+  );
+  const stewardOrders = useMemo(
+    () => (stewardOrderRows.rows ? parseStewardOrders(stewardOrderRows.rows) : null),
+    [stewardOrderRows.rows],
+  );
+  const { reload: reloadStewardOrders } = stewardOrderRows;
   const { reload: reloadStewards } = stewardRows;
   const { reload: reloadStewardRules } = stewardRuleRows;
   const { reload: reloadInstructions } = instructionRows;
@@ -907,10 +923,20 @@ export function SitesCard({
                       : undefined
                   }
                   instruction={instructions?.get(stewards.get(site.id)?.id ?? '')}
+                  orders={
+                    stewardOrders
+                      ? (stewardOrders.get(stewards.get(site.id)?.id ?? '') ?? [])
+                      : undefined
+                  }
                   rules={rules.stewards}
                   posted={stewards.size}
                   onChanged={() =>
-                    Promise.all([reloadStewards(), reloadStewardRules(), reloadInstructions()])
+                    Promise.all([
+                      reloadStewards(),
+                      reloadStewardRules(),
+                      reloadInstructions(),
+                      reloadStewardOrders(),
+                    ])
                   }
                 />
               )}
