@@ -153,7 +153,8 @@ Pour récupérer ce qui a été fusionné sur `main` en gardant ses comptes, ses
    Sinon, `pnpm db:reset` repart de zéro avec la configuration complète.
 
 `pnpm db:reset` reste le recours si la base locale est dans un état incohérent : il efface toutes les données locales, comptes compris.
-Après un `pnpm db:reset`, se déconnecter du jeu et d'Olympe (ou effacer les données du site `127.0.0.1` dans le navigateur) avant de recréer son compte : une session ouverte avant la remise à zéro désigne un compte qui n'existe plus (#565).
+Après un `pnpm db:reset`, une session ouverte avant la remise à zéro désigne un compte qui n'existe plus : l'API la refuse (`UNAUTHENTICATED`) dès la première commande du jeu (la fondation de la maison, par exemple) ou la première lecture d'Olympe, et l'application ferme alors la session et revient à la connexion, avec un message qui dit pourquoi (#565).
+Avant cela, le jeu montre l'écran de fondation et Olympe peut demander le second facteur, que Supabase Auth refuse : se déconnecter (ou effacer les données du site `127.0.0.1` dans le navigateur) évite ce détour.
 Le rôle de super-administrateur est à inscrire de nouveau en base (voir « Back-office »).
 
 ### Back-office (facultatif)

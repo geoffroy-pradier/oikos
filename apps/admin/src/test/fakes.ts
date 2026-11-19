@@ -1,5 +1,5 @@
 import type { AdminEconomy } from '@oikos/contracts';
-import { AuthApiError, type AuthError } from '@supabase/supabase-js';
+import { AuthApiError, AuthRetryableFetchError, type AuthError } from '@supabase/supabase-js';
 import type { AdminReply } from '../api';
 
 type Listener = (event: string, session: unknown) => void;
@@ -21,11 +21,14 @@ export const auth = {
   listError: null as { message: string } | null,
   /** Erreur rendue par Supabase Auth quand le code n'est pas accepté : par défaut, code refusé. */
   codeError: refusedCode() as AuthError,
+  /** Réponse au renouvellement de la session : refusé (compte effacé), accordé, ou injoignable. */
+  refresh: 'refused' as 'refused' | 'renewed' | 'unreachable',
+  refreshes: 0,
 };
 
 /** Jeton au format de Supabase Auth : le niveau d'assurance est une revendication du jeton. */
-export function jwt(name: string, aal: 'aal1' | 'aal2') {
-  return `${name}.${btoa(JSON.stringify({ aal }))}.signature`;
+export function jwt(name: string, aal: 'aal1' | 'aal2', exp?: number) {
+  return `${name}.${btoa(JSON.stringify(exp === undefined ? { aal } : { aal, exp }))}.signature`;
 }
 
 export function sessionOf(userId: string, token: string) {
@@ -44,6 +47,25 @@ export const supabase = {
     onAuthStateChange: (listener: Listener) => {
       auth.listener = listener;
       return { data: { subscription: { unsubscribe: () => undefined } } };
+    },
+    // Comme le client de Supabase Auth : un renouvellement refusé retire la session et l'annonce lui-même.
+    refreshSession: () => {
+      auth.refreshes += 1;
+      const user = (auth.session as { user: { id: string } } | null)?.user.id;
+      if (auth.refresh === 'renewed' && user) {
+        // Jeton neuf, valide une heure (revendication `exp`), comme ceux de Supabase Auth.
+        const exp = Math.floor(Date.now() / 1000) + 3600;
+        const next = sessionOf(user, jwt(`${user}-renewed-${auth.refreshes}`, 'aal2', exp));
+        setSession(next);
+        return Promise.resolve({ data: { session: next, user: next.user }, error: null });
+      }
+      if (auth.refresh === 'unreachable') {
+        const error = new AuthRetryableFetchError('Failed to fetch', 0);
+        return Promise.resolve({ data: { session: null, user: null }, error });
+      }
+      setSession(null);
+      const error = new AuthApiError('Invalid Refresh Token', 400, 'refresh_token_not_found');
+      return Promise.resolve({ data: { session: null, user: null }, error });
     },
     signOut: () => {
       setSession(null);
@@ -101,6 +123,8 @@ export function resetAuth() {
     acceptCode: true,
     codeError: refusedCode(),
     listError: null,
+    refresh: 'refused',
+    refreshes: 0,
   });
 }
 

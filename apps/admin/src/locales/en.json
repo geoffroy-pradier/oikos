@@ -36,7 +36,8 @@
     "email": "E-mail address",
     "submit": "Send the link",
     "sent": "Link sent to {{email}}.",
-    "failed": "Sending failed. Try again in a moment."
+    "failed": "Sending failed. Try again in a moment.",
+    "sessionEnded": "Your session has ended: this account is no longer recognised, or its sign-in has expired. Sign in again to continue."
   },
   "mfa": {
     "title": "Two-factor authentication",

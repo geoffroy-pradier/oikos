@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { adminCommand, adminGet } from './api';
+import { SESSION_ENDED_EVENT } from './session';
 
 const respond = (body: unknown, status = 200) =>
   vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status }));
@@ -76,4 +77,37 @@ it('une commande sans réponse reconnue devient INTERNAL', async () => {
       ok: false,
       code: 'INTERNAL',
     });
+});
+
+it('annonce la fin de la session sur UNAUTHENTICATED seulement, en lecture comme en commande (#565)', async () => {
+  const target = new EventTarget();
+  const ended = vi.fn();
+  target.addEventListener(SESSION_ENDED_EVENT, ended);
+  vi.stubGlobal('window', target);
+  const refusal = (code: string, status: number) =>
+    respond({ ok: false, error: { code, message: '' } }, status);
+  try {
+    expect(await adminGet('vigie', 'jeton', refusal('FORBIDDEN', 403))).toEqual({
+      ok: false,
+      code: 'FORBIDDEN',
+    });
+    await adminCommand('admin.grantRole', {}, 'jeton', 'cle-12345678', refusal('INTERNAL', 500));
+    expect(ended).not.toHaveBeenCalled();
+    expect(await adminGet('me', 'jeton', refusal('UNAUTHENTICATED', 401))).toEqual({
+      ok: false,
+      code: 'UNAUTHENTICATED',
+    });
+    expect(
+      await adminCommand(
+        'admin.grantRole',
+        {},
+        'jeton',
+        'cle-12345678',
+        refusal('UNAUTHENTICATED', 401),
+      ),
+    ).toEqual({ ok: false, code: 'UNAUTHENTICATED', fields: undefined });
+    expect(ended).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
