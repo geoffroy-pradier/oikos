@@ -5,6 +5,7 @@ import {
   shipRoute,
 } from '@oikos/config';
 import { cargoUnits, departureCost, type CargoLine } from '@oikos/sim';
+import { sql } from 'kysely';
 import {
   cash,
   config,
@@ -18,7 +19,6 @@ import {
 } from './city';
 import { assertAdmitted, place, upkeepOf, type Seller } from './strategy';
 import { stewardPrice } from './steward';
-import { backdateVoyage } from './trade';
 
 /*
  * Armateurs du banc des quatre cités (#283) : une maison qui arme un caboteur et fait la navette entre sa cité
@@ -103,6 +103,22 @@ async function stocksIn(city: City, carrier: Carrier, held = false) {
   return new Map(
     rows.map((row) => [row.good_id, Number(row.quantity) - (held ? 0 : Number(row.reserved))]),
   );
+}
+
+/** Départ d'un voyage : daté de l'instant de jeu (la base date de l'instant réel), arrivée à la même durée. */
+async function backdateVoyage(city: City, voyageId: string, at: Date) {
+  await city.owner.transaction().execute(async (trx) => {
+    await sql`alter table game.voyages disable trigger voyages_guard, disable trigger voyages_settled`.execute(
+      trx,
+    );
+    await sql`update game.voyages set departed_at = ${at},
+      arrives_at = ${at}::timestamptz + (arrives_at - departed_at) where id = ${voyageId}`.execute(
+      trx,
+    );
+    await sql`alter table game.voyages enable trigger voyages_guard, enable trigger voyages_settled`.execute(
+      trx,
+    );
+  });
 }
 
 /** Départ d'un voyage, daté de `now`, avec la cargaison donnée (sur lest si elle est vide). */

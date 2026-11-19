@@ -22,7 +22,6 @@ import { dateCitizens, dateMetics } from './calendar';
 import { newPolitics, politicsMorning, settled } from './politics';
 import { morning, seller, type Seller } from './strategy';
 import { actAfterTick, hireSteward, type Steward } from './steward';
-import { traderMorning, type Prices, type Trader } from './trade';
 import { carrierMorning, carrierStep, type Carrier } from './carrier';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
@@ -31,8 +30,6 @@ import {
   MEASURED,
   SETTLEMENTS,
   SLUGS,
-  TRADER,
-  TRADER_HOMES,
   WARMUP,
   WORLD_SEED,
   WORLD_STEPS,
@@ -50,7 +47,7 @@ export interface PlayOptions {
 }
 
 /**
- * Joue un monde neuf des quatre cités (maisons scriptées par terroir, négociants, armateurs, intendants, logement, vie
+ * Joue un monde neuf des quatre cités (maisons scriptées par terroir, armateurs, intendants, logement, vie
  * civique) avec la configuration du banc, jour après jour, et rend tout ce que le banc de `ci` vérifie et que
  * le simulateur publie. Aucune vérification d'équilibrage ici : seules les gardes de la mécanique du banc lèvent.
  */
@@ -69,14 +66,6 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     });
   const [world] = cities;
   if (!world) throw new Error('No city created');
-  // Négociants : une maison dans chacune des cités d'attache, avec le site de départ de la cité.
-  const traders: Trader[] = [];
-  for (const slug of TRADER_HOMES) {
-    const home = cities.find((city) => city.slug === slug);
-    if (!home) throw new Error(`No city ${slug}`);
-    for (const house of await foundHouses(home, [TRADER]))
-      traders.push({ ...seller(house), home, waitedDays: 0 });
-  }
   // Armateurs : des maisons de leur cité d'attache, avec le site de départ de la cité ; chacun porte une part de la
   // demande de chaque bien vers chaque port, partagée entre tous ceux qui l'y portent.
   const carriers: Carrier[] = [];
@@ -120,22 +109,16 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       demand.set(goodId, (demand.get(goodId) ?? 0) + quantity);
     return demand;
   };
-  const houses = [
-    ...settlements.flatMap((settlement) => settlement.houses),
-    ...traders,
-    ...carriers,
-  ];
+  const houses = [...settlements.flatMap((settlement) => settlement.houses), ...carriers];
   // Maisons et leur cité.
   const residents = [
     ...settlements.flatMap(({ city, houses: own }) => own.map((house) => ({ city, house }))),
-    ...traders.map((trader) => ({ city: trader.home, house: trader })),
     ...carriers.map((carrier) => ({ city: carrier.home, house: carrier as Seller })),
   ];
   const housing = newHousing();
   const politics = newPolitics();
   // Métèques arrivés au jour 0 de jeu : la clôture les promeut citoyens après `politics.meticDays` jours.
   for (const city of cities) await dateMetics(city, closeOf(city, 0));
-  const prices: Prices = new Map();
 
   const days: DayMeasure[] = [];
   const measured: Record<string, number> = {};
@@ -169,14 +152,10 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     for (const { city, houses: own } of settlements)
       await politicsMorning(
         city,
-        [
-          ...own,
-          ...[...traders, ...carriers].filter((trader) => trader.home.cityId === city.cityId),
-        ],
+        [...own, ...carriers.filter((carrier) => carrier.home.cityId === city.cityId)],
         now,
         politics,
       );
-    for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
     for (const carrier of carriers) ships += await carrierMorning(carrier, now, demandOf);
     // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
     const hours =
@@ -198,13 +177,6 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     ];
     for (const [key, net] of Object.entries(measure.flows['world'] ?? {}))
       measured[key] = (measured[key] ?? 0) + net;
-    // Prix observés : le dernier prix moyen de chaque bien dans chaque cité où il s'est échangé.
-    for (const [slug, goods] of Object.entries(measure.traded)) {
-      const known = prices.get(slug) ?? new Map<string, number>();
-      for (const [goodId, good] of Object.entries(goods))
-        known.set(goodId, good.turnover / good.volume);
-      prices.set(slug, known);
-    }
     if (day >= warmup) days.push(measure);
     if (day === warmup - 1) [measuredFrom, supplyBefore] = [at, measure.supply];
   }
@@ -243,7 +215,6 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     cities,
     settlements,
     houses,
-    traders,
     carriers,
     stewards,
     operations,
