@@ -1,4 +1,5 @@
 import {
+  cityConfigSchema,
   goodSchema,
   npcClassSchema,
   recipeSchema,
@@ -6,6 +7,7 @@ import {
 } from '@oikos/config/schema';
 import fc from 'fast-check';
 import { expect, it } from 'vitest';
+import { CITY_FIELDS } from './cities-form';
 import * as form from './goods-form';
 import { BASKET_FIELDS, NPC_CLASS_FIELDS } from './npc-classes-form';
 import { RECIPE_FIELDS, STACK_FIELDS } from './recipes-form';
@@ -171,6 +173,7 @@ it.each([
   ['intrants et extrants', STACK_FIELDS, recipeSchema.shape.inputs.element.shape],
   ['classes de PNJ', NPC_CLASS_FIELDS, npcClassSchema.shape],
   ['paniers', BASKET_FIELDS, npcClassSchema.shape.basket.element.shape],
+  ['cités', CITY_FIELDS, cityConfigSchema.shape],
 ] as const)(
   '%s : chaque champ a la sorte de son schéma (entier, décimal, choix, texte)',
   (_, fields, shape) => {

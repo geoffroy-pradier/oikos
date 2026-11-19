@@ -22,17 +22,24 @@ const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
 const initial = INITIAL_CONFIG as GameConfig;
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
+/** Multiplicateur ×1 partout, celui de la configuration initiale. */
+const CITY_BPS = Object.fromEntries(initial.cities.map((city) => [city.id, 10_000]));
 let loaded: Awaited<ReturnType<ReturnType<typeof createConfigLoader>['at']>>;
 /**
  * Configuration initiale, revenu public des thètes à `bps` (10 % : 1 000 ; absent si `bps` l'est : celui d'une
- * version publiée avant le paramètre), des autres classes nul.
+ * version publiée avant le paramètre), des autres classes nul. `cities` : multiplicateur de chaque cité (#657),
+ * absent pour une cité qui n'y figure pas (celui d'une version publiée avant lui).
  */
-const settings = (bps?: number) => ({
+const settings = (bps?: number, cities: Record<string, number> = CITY_BPS) => ({
   at: async () => ({
     ...loaded,
     config: {
       ...initial,
       clock,
+      cities: initial.cities.map(({ npcPublicIncomeBps: _, ...city }) => {
+        const cityBps = cities[city.id];
+        return cityBps === undefined ? city : { ...city, npcPublicIncomeBps: cityBps };
+      }),
       npcClasses: initial.npcClasses.map(({ publicIncomeBps: _, ...npcClass }) =>
         npcClass.id !== 'thetes'
           ? { ...npcClass, publicIncomeBps: 0 }
@@ -44,22 +51,22 @@ const settings = (bps?: number) => ({
   }),
 });
 const TODAY = gameDayAt(new Date(), clock);
-const close = (worldId: string, bps?: number, day = TODAY) =>
+const close = (worldId: string, bps?: number, day = TODAY, cities = CITY_BPS) =>
   closeWorld(db, {
     worldId,
     now: dailyCloseAt(day, clock),
-    config: settings(bps),
+    config: settings(bps, cities),
     steps: [npcPublicIncome],
   });
 /** Tick de demande des PNJ de rang `rank` après l'ouverture du jour de jeu `day`, joué à son heure. */
-const tick = (worldId: string, bps?: number, rank = 1, day = TODAY) => {
+const tick = (worldId: string, bps?: number, rank = 1, day = TODAY, cities = CITY_BPS) => {
   const index = tickIndexAt(dailyCloseAt(day, clock), clock.tickMinutes) + rank;
   const scheduledAt = tickStart(index, clock.tickMinutes);
   return runTick(db, {
     worldId,
     index,
     scheduledAt,
-    config: { ...settings(bps), byId: async () => loaded },
+    config: { ...settings(bps, cities), byId: async () => loaded },
     steps: [npcDemand],
     now: () => new Date(scheduledAt.getTime() + 1000),
   });
@@ -170,5 +177,32 @@ describe('revenu public des PNJ (#632)', () => {
         entries: oboles > 0 ? [['kalliste', TODAY]] : [],
       });
     }
+  });
+
+  it('multiplicateur de chaque cité, à la clôture comme au premier tick du jour, arrondi une fois (#657)', async () => {
+    // 1 008 oboles pour 1 000 thètes à 10 %. Kallistè : 999 thètes, 1 006,992 à ×1 ; à ×1,2345, 1 243,12 : 1 243,
+    // là où deux arrondis (1 006 × 1,2345 = 1 241,9) donneraient 1 241. Elaia 6 000 à ×0, Ampélos 6 000 à ×2,
+    // Halos 6 000 sans multiplicateur (×1, version publiée avant lui).
+    const cities = { kalliste: 12_345, elaia: 0, ampelos: 20_000 };
+    const expected = {
+      purses: { kalliste: 1_243, elaia: 0, ampelos: 12_096, halos: 6_048 },
+      faucet: -(1_243 + 12_096 + 6_048),
+      entries: [
+        ['ampelos', TODAY],
+        ['halos', TODAY],
+        ['kalliste', TODAY],
+      ],
+    };
+    const spec = {
+      cities: ['kalliste', 'elaia', 'ampelos', 'halos'],
+      population: { kalliste: { thetes: 999 } },
+      houses: [],
+    };
+    const closed = await laborWorld(owner, spec);
+    expect(await close(closed.worldId, 1_000, TODAY, cities)).toEqual([TODAY]);
+    expect(await ledgerOf(closed)).toEqual(expected);
+    const ticked = await laborWorld(owner, spec);
+    await tick(ticked.worldId, 1_000, 1, TODAY, cities);
+    expect(await ledgerOf(ticked)).toEqual(expected);
   });
 });

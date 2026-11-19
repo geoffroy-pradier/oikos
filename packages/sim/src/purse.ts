@@ -16,14 +16,18 @@ const MAX = BigInt(Number.MAX_SAFE_INTEGER);
 /**
  * Revenu public d'un jour d'une cité, que le robinet `faucet_npc_public_income` verse à sa bourse à la clôture :
  * pour chaque classe, revenu par tick × ticks d'un jour × population ÷ 1 000 × part publique ÷ 10 000, sommé
- * sur les classes puis arrondi une fois à l'obole inférieure. Exact en entiers ; une part nulle ne verse rien.
+ * sur les classes, fois le multiplicateur de la cité ÷ 10 000 (#657), puis arrondi une fois à l'obole inférieure.
+ * Exact en entiers ; une part ou un multiplicateur nul ne verse rien.
  */
 export function dailyPublicIncome(
   classes: readonly PublicIncomeClass[],
   ticksPerDay: number,
+  cityBps: number,
 ): number {
   if (!Number.isSafeInteger(ticksPerDay) || ticksPerDay < 0)
     throw new RangeError('Ticks per day must be a non-negative integer');
+  if (!Number.isSafeInteger(cityBps) || cityBps < 0)
+    throw new RangeError('City multiplier must be a non-negative integer');
   let total = 0n;
   for (const { incomePerThousand, publicIncomeBps, population } of classes) {
     for (const value of [incomePerThousand, publicIncomeBps, population])
@@ -31,7 +35,7 @@ export function dailyPublicIncome(
         throw new RangeError('Income, share and population must be non-negative integers');
     total += BigInt(incomePerThousand) * BigInt(population) * BigInt(publicIncomeBps);
   }
-  const income = (total * BigInt(ticksPerDay)) / 10_000_000n;
+  const income = (total * BigInt(ticksPerDay) * BigInt(cityBps)) / 100_000_000_000n;
   if (income > MAX) throw new RangeError('Public income exceeds safe integers');
   return Number(income);
 }

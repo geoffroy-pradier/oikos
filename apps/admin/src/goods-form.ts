@@ -16,6 +16,8 @@ export interface NestedTable {
   lists: readonly { key: string; fields: readonly TableField[] }[];
   /** Choix proposés, par clé de champ : valeurs, et préfixe de leurs libellés. */
   choices: Record<string, { values: readonly string[]; labels: string }>;
+  /** Lignes ni ajoutées ni retirées par le formulaire, seulement éditées (les cités, #657). */
+  fixedRows?: boolean;
 }
 const isRecord = (value: unknown): value is Row =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

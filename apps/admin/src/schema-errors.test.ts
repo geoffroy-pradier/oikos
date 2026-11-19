@@ -104,7 +104,9 @@ it('les libellés suivent le schéma : toutes ses tables, tous les champs des ta
   for (const labels of [fr.config.schemaPath, en.config.schemaPath]) {
     expect(Object.keys(labels.tables).sort()).toEqual(Object.keys(shape).sort());
     const tables: Record<string, object> = labels.fields;
-    expect(Object.keys(tables)).toEqual(expect.arrayContaining(['goods', 'recipes', 'npcClasses']));
+    expect(Object.keys(tables)).toEqual(
+      expect.arrayContaining(['goods', 'recipes', 'npcClasses', 'cities']),
+    );
     for (const [table, fields] of Object.entries(tables)) {
       expect(Object.keys(fields).length).toBeGreaterThan(0);
       expect(Object.keys(fields).sort()).toEqual([...new Set(fieldNames(shape[table]))].sort());

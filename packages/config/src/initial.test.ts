@@ -159,6 +159,8 @@ describe('jeu de valeurs initial', () => {
     for (const npcClass of config.npcClasses) expect(npcClass.publicIncomeBps).toBe(10_000);
     // Une version publiée avant le paramètre garde le même comportement.
     expect(DEFAULT_NPC_PUBLIC_INCOME_BPS).toBe(10_000);
+    // Et la même dans chaque cité, en attendant que #283 vise les importatrices (#657).
+    for (const city of config.cities) expect(city.npcPublicIncomeBps).toBe(10_000);
   });
 
   it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {

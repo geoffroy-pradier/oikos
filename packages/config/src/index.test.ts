@@ -11,6 +11,8 @@ import {
   DEFAULT_MODERATION,
   DEFAULT_LABOR,
   cityHasPort,
+  cityPublicIncomeBps,
+  DEFAULT_CITY_PUBLIC_INCOME_BPS,
   cityStartingRecipeId,
   cityDailyWageOboles,
   cityTerroirAdmits,
@@ -378,6 +380,26 @@ describe('une configuration invalide est refusée avec un message précis', () =
       const config = clone();
       config.market.npcMaxPriceFactor = bad;
       expect(errorsOf(config)).toEqual([expect.stringMatching(/^market\.npcMaxPriceFactor: /)]);
+    }
+  });
+
+  it('multiplicateur de la part publique d’une cité : entier de ×0 à ×2, absent ×1 (#657)', () => {
+    // Absent d'une version publiée avant lui : ×1, son revenu public ne change pas.
+    expect(DEFAULT_CITY_PUBLIC_INCOME_BPS).toBe(10_000);
+    expect(cityPublicIncomeBps(at(clone().cities, 0))).toBe(10_000);
+    for (const bps of [0, 1, 20_000]) {
+      const config = clone() as GameConfig;
+      const city = { ...at(config.cities, 0), npcPublicIncomeBps: bps };
+      const result = validateConfig({ ...config, cities: [city] });
+      if (!result.ok) throw new Error(result.errors.join('\n'));
+      expect(cityPublicIncomeBps(at(result.config.cities, 0))).toBe(bps);
+    }
+    for (const bad of [-1, 20_001, 1.5, Number.NaN, '10000', null]) {
+      const config = clone() as GameConfig;
+      const city = { ...at(config.cities, 0), npcPublicIncomeBps: bad };
+      expect(errorsOf({ ...config, cities: [city] })).toEqual([
+        expect.stringMatching(/^cities\[0\]\.npcPublicIncomeBps: /),
+      ]);
     }
   });
 

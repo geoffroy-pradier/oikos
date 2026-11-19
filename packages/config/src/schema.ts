@@ -149,7 +149,23 @@ export const cityConfigSchema = z.strictObject({
   patronGodId: id.optional(),
   /** Recette du premier site d'une maison fondée ici. Absente : `starting.siteRecipeId`. */
   startingRecipeId: id.optional(),
+  /**
+   * Multiplicateur de la part publique des classes dans cette cité (#657), en points de base (10 000 = ×1), de ×0
+   * à ×2 : le levier qui vise le déficit d'une cité importatrice sans gonfler la masse des autres. Caché aux
+   * joueurs : `city_identity` ne rend que les champs d'identité. Absent : `DEFAULT_CITY_PUBLIC_INCOME_BPS`
+   * (`cityPublicIncomeBps`).
+   */
+  npcPublicIncomeBps: z.number().int().min(0).max(20_000).optional(),
 });
+
+/**
+ * Multiplicateur d'une cité dont la version de configuration ne le donne pas (#657) : ×1, si bien qu'une version
+ * publiée avant lui garde son revenu public (règle de #621).
+ */
+export const DEFAULT_CITY_PUBLIC_INCOME_BPS = 10_000;
+/** Multiplicateur de la part publique d'une cité : le sien, sinon celui d'une version publiée avant le paramètre. */
+export const cityPublicIncomeBps = (city: { npcPublicIncomeBps?: number | undefined }) =>
+  city.npcPublicIncomeBps ?? DEFAULT_CITY_PUBLIC_INCOME_BPS;
 
 /** Horloges du monde (docs/specs/03-boucles-progression.md). */
 export const clockSchema = z.strictObject({

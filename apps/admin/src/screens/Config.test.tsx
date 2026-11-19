@@ -1317,6 +1317,25 @@ it('formulaire des classes : indisponible sans panier lisible ; lecture seule po
   expect(screen.queryAllByRole('button', { name: /^(Ajouter|Retirer) / })).toEqual([]);
 });
 
+it('formulaire des cités : le multiplicateur du revenu public seul, ni ajout ni retrait (#657)', async () => {
+  const editor = await openVersion(1);
+  const halos = { id: 'halos', population: { thetes: 6000 }, hasPort: true };
+  const ampelos = { id: 'ampelos', npcPublicIncomeBps: 10_000 };
+  type(editor, JSON.stringify({ cities: [halos, ampelos] }, null, 2));
+  const label = 'multiplicateur du revenu public des PNJ (points de base, 10 000 = ×1)';
+  expect([cell('halos', label).value, cell('ampelos', label).value]).toEqual(['', '10000']);
+  // Seule cette valeur change, à sa place ; vidée, la clé disparaît (×1, comme une version d'avant).
+  type(cell('halos', label), '15000');
+  type(cell('ampelos', label), '');
+  const cities = [{ ...halos, npcPublicIncomeBps: 15_000 }, { id: 'ampelos' }];
+  expect(editor.value).toBe(JSON.stringify({ cities }, null, 2));
+  const form = within(screen.getByRole('group', { name: 'Cités' }));
+  expect(form.queryAllByLabelText('population')).toEqual([]);
+  expect(form.queryAllByRole('button')).toEqual([]);
+  type(editor, '{"cities":{}}');
+  expect(screen.getByText(/^Formulaire indisponible.*« cities »/)).toBeTruthy();
+});
+
 it.each([
   [
     'recipes',

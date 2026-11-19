@@ -573,6 +573,10 @@
         "luxury": "Luxe"
       }
     },
+    "citiesForm": {
+      "hint": "Chaque saisie réécrit le texte JSON ci-dessus. Le formulaire n'ajoute ni ne retire de cité : une cité, sa population et son identité s'éditent dans le texte.",
+      "unavailable": "Formulaire indisponible : le texte doit être un objet JSON dont « cities » est une liste d'objets."
+    },
     "schemaPath": {
       "root": "Configuration entière",
       "position": "élément {{rank}}",
@@ -633,6 +637,15 @@
           "goodId": "bien",
           "need": "besoin",
           "quantityPerThousand": "quantité pour 1 000 habitants"
+        },
+        "cities": {
+          "id": "identifiant",
+          "population": "population",
+          "terroir": "terroir",
+          "hasPort": "port",
+          "patronGodId": "dieu protecteur",
+          "startingRecipeId": "recette de départ",
+          "npcPublicIncomeBps": "multiplicateur du revenu public des PNJ (points de base, 10 000 = ×1)"
         }
       }
     }

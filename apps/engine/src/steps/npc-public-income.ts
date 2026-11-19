@@ -1,4 +1,4 @@
-import { npcPublicIncomeBps, type GameConfig } from '@oikos/config';
+import { cityPublicIncomeBps, npcPublicIncomeBps, type GameConfig } from '@oikos/config';
 import { lockNpcPurses, type Db, type NpcPurse } from '@oikos/db';
 import { dailyPublicIncome, type SystemAccountKey } from '@oikos/sim';
 import { sql } from 'kysely';
@@ -11,8 +11,9 @@ const MINUTES_PER_DAY = 1440;
 
 /**
  * Revenu public du jour de chaque cité du monde que la configuration connaît (5.5, #632) : `dailyPublicIncome`
- * sur la population courante (celle de la configuration pour une classe que le moteur n'a pas encore fait naître)
- * et la part publique de chaque classe (`npcPublicIncomeBps`). Lecture seule ; un revenu nul n'est pas rendu.
+ * sur la population courante (celle de la configuration pour une classe que le moteur n'a pas encore fait naître),
+ * la part publique de chaque classe (`npcPublicIncomeBps`) et le multiplicateur de la cité (`cityPublicIncomeBps`,
+ * #657). Lecture seule ; un revenu nul n'est pas rendu.
  */
 export async function publicIncomeDue(
   trx: Db,
@@ -32,8 +33,9 @@ export async function publicIncomeDue(
     .execute();
   const ticksPerDay = MINUTES_PER_DAY / config.clock.tickMinutes;
   return cities.flatMap((city) => {
-    const initial = config.cities.find((entry) => entry.id === city.slug)?.population;
-    if (!initial) return [];
+    const configured = config.cities.find((entry) => entry.id === city.slug);
+    if (!configured) return [];
+    const initial = configured.population;
     const oboles = dailyPublicIncome(
       config.npcClasses.map((npcClass) => ({
         incomePerThousand: npcClass.incomePerThousand,
@@ -45,6 +47,7 @@ export async function publicIncomeDue(
           0,
       })),
       ticksPerDay,
+      cityPublicIncomeBps(configured),
     );
     return oboles > 0 ? [{ cityId: city.id, oboles }] : [];
   });
