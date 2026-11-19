@@ -249,12 +249,15 @@ Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pa
 Depuis #632, elle est versée à la bourse des PNJ de la cité du site, comme les salaires : c'est un transfert, pas un puits ; le puits `sink_npc_lodging` reste au catalogue pour l'historique, sans mouvement nouveau.
 Le prix de base entre à zéro dans la configuration initiale.
 
-Revenu public des PNJ (#632) : chaque clôture, après la population et avant l'entretien, crédite la bourse des PNJ de chaque cité de la configuration par le robinet `faucet_npc_public_income`, une écriture `npc.public_income` par cité (`meta` : la cité et le jour de jeu).
-Une bourse n'attend jamais la clôture : un tick de demande dont le revenu public du jour de jeu n'a pas encore été versé à une cité le lui verse d'abord, avant les achats (déploiement après la clôture du jour, monde neuf, cité ajoutée après la clôture).
+Revenu public des PNJ (#632) : chaque jour de jeu, la bourse des PNJ de chaque cité de la configuration reçoit son revenu public par le robinet `faucet_npc_public_income`, une écriture `npc.public_income` par cité (`meta` : la cité et le jour de jeu).
+Le premier tick de demande du jour la verse, avant les achats ; la clôture, après la population et avant l'entretien, ne la verse que si aucun tick du jour ne l'a fait.
+En production, le moteur joue les ticks avant les clôtures à chaque passage (`apps/engine/src/main.ts`) : c'est donc presque toujours le premier tick du jour qui verse, sur la population de la veille, et la clôture n'est qu'un secours.
+Une bourse n'attend ainsi jamais la clôture (déploiement après la clôture du jour, monde neuf, cité ajoutée après la clôture).
 Le premier des deux qui passe verse, sur la population qu'il lit ; l'autre ne fait rien : la base tient une seule écriture `npc.public_income` par cité et par jour de jeu (index unique `ledger_entries_npc_public_income_once`), même en concurrence.
 Son montant est, pour chaque classe, le revenu d'un jour de la classe (revenu par tick × ticks d'un jour de 24 heures × population ÷ 1 000) fois sa part publique (`npcClasses[].publicIncomeBps`, de 0 à 10 000 points), sommé sur les classes puis arrondi une fois à l'obole inférieure (`dailyPublicIncome`, `packages/sim`).
-La population est celle que la clôture vient de fixer, ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
-Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), 10 000 points : le revenu d'un jour entier, l'équivalent exact du robinet des achats des PNJ d'avant #632.
+La population est la population courante lue par celui qui verse (celle de la veille pour le premier tick, celle que la clôture vient de fixer pour la clôture), ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
+Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), 10 000 points : le revenu d'un jour entier, de quoi payer exactement les achats que payait le robinet d'avant #632.
+L'équivalence ne vaut que pour les achats : la bourse reçoit le revenu d'un jour entier, dépensé ou non, alors que le robinet ne créait que ce qui était acheté ; la masse croît donc plus vite qu'avant.
 Décision (#632, règle de #621) : « neutre » veut dire ici « comportement inchangé » ; un monde en service sur une version publiée avant le paramètre continue d'acheter comme avant, et la configuration initiale écrit cette même valeur pour chaque classe.
 Ce qu'ils ne dépensent pas reste dans la bourse et compte dans la masse ; le calibrage de #283 baissera cette part à mesure que les salaires et l'hébergement remplissent les bourses.
 C'est le plancher qui fait encore acheter une cité sans emploi, et le levier « revenu des classes PNJ » de cette section ; son calibrage est celui de #283.
@@ -372,7 +375,7 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
   Croissance de 0,2 % par jour au plus, émigration de 1 % par jour au plus, bornes de 50 % à 200 % de la population initiale : la cité suit l'offre lentement, sans à-coup de prix.
 - **Mesure.** Avec 28 maisons scriptées, dont l'offre couvre d'environ 100 à 110 % de la demande de référence de chaque bien vital (un peu moins pour le pain, que la farine limite), le banc tient sur 30 jours une hausse du coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours, et des besoins vitaux couverts à 98 % au moins pour chaque classe.
 - **Limite connue.** La masse monétaire croît d'environ 60 000 oboles par jour et par cité (mesure du banc, à une cité ; un monde de quatre cités en crée donc à peu près quatre fois plus) : les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
-  Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, dont le calibrage, comme celui de la masse, est celui de #283.
+  Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, versé en entier chaque jour, dépensé ou non ; ce chiffre ne vaut plus et est à recalculer dans #283, avec le calibrage de ce revenu.
   Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
 
 ## 5.6 Fiscalité

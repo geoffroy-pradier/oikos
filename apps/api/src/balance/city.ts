@@ -3,19 +3,24 @@ import {
   createConfigLoader,
   ensureInitialConfig,
   INITIAL_CONFIG,
-  npcPublicIncomeBps,
   validateConfig,
   cityStartingRecipeId,
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { CLOSE_STEPS, npcDemand, runDailyClose, runTick, type TickStep } from '@oikos/engine';
+import {
+  CLOSE_STEPS,
+  npcDemand,
+  publicIncomeDue,
+  runDailyClose,
+  runTick,
+  type TickStep,
+} from '@oikos/engine';
 import {
   accrueProduction,
   accrueWorkshop,
   dailyCloseAt,
-  dailyPublicIncome,
   dailyUpkeep,
   gameDayAt,
   isDailyClose,
@@ -347,12 +352,12 @@ export async function harvest(city: City, house: House, now: Date) {
   }
 }
 
-/** Clôture quotidienne du moteur, jouée à son instant de jeu. */
 /** Revenu public des PNJ versé par les clôtures jouées, par monde (#632), compté par `closeDay`. */
 const publicIncome = new Map<string, number>();
 /**
- * Clôture du jour `day`. Le banc compte ensuite le revenu public qu'elle a versé, d'après la population que la
- * clôture vient de fixer (celle de la configuration pour une classe pas encore née) et la configuration jouée.
+ * Clôture quotidienne du moteur du jour `day`, jouée à son instant de jeu. Le banc compte ensuite le revenu public
+ * qu'elle a versé (`publicIncomeDue`, le calcul du moteur), sur la population qu'elle vient de fixer et la
+ * configuration jouée : le banc clôt chaque jour avant ses ticks, si bien que c'est elle qui le verse.
  */
 export async function closeDay(city: City, day: number) {
   const closed = await runDailyClose(city.db, {
@@ -363,36 +368,10 @@ export async function closeDay(city: City, day: number) {
     steps: CLOSE_STEPS,
     now: new Date(closeOf(city, day).getTime() + 1000),
   });
-  const { npcClasses, clock, cities } = city.played;
-  const [rows, living] = await Promise.all([
-    city.db
-      .selectFrom('game.cities')
-      .select(['id', 'slug'])
-      .where('world_id', '=', city.worldId)
-      .execute(),
-    city.db
-      .selectFrom('game.npc_population')
-      .select(['city_id', 'class_id', 'population'])
-      .where('world_id', '=', city.worldId)
-      .execute(),
-  ]);
-  let due = 0;
-  for (const row of rows) {
-    const initial = cities.find((entry) => entry.id === row.slug)?.population;
-    if (!initial) continue;
-    const population = (classId: string) =>
-      living.find((one) => one.city_id === row.id && one.class_id === classId)?.population ??
-      initial[classId] ??
-      0;
-    due += dailyPublicIncome(
-      npcClasses.map((npcClass) => ({
-        incomePerThousand: npcClass.incomePerThousand,
-        publicIncomeBps: npcPublicIncomeBps(npcClass),
-        population: population(npcClass.id),
-      })),
-      1440 / clock.tickMinutes,
-    );
-  }
+  const due = (await publicIncomeDue(city.db, city.worldId, city.played)).reduce(
+    (sum, row) => sum + row.oboles,
+    0,
+  );
   publicIncome.set(city.worldId, (publicIncome.get(city.worldId) ?? 0) + due);
   return closed;
 }

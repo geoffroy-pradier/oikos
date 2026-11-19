@@ -442,6 +442,34 @@ describe('demande des PNJ au tick', () => {
     expect(rows.map((row) => Number(row.balance))).toEqual([3]);
   });
 
+  it('bourse courte et fête (#632) : la hausse ne fait jamais dépenser plus que la bourse, vidée jusqu’à zéro', async () => {
+    // Revenu du tick : 300 oboles, que la bourse couvre tout juste (300, sans revenu public) : budget inchangé, mais
+    // la fête au plus fort le double (600). La dépense s'arrête à ce que la bourse contient : 50 blés à 6.
+    const world = await newWorld('kalliste', 300);
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const decrees = (INITIAL_CONFIG as GameConfig).decrees;
+    const model = decrees?.models.festival;
+    if (!decrees || !model) throw new Error('festival expected in the initial configuration');
+    const base = economy(100);
+    const config = {
+      ...base,
+      npcClasses: base.npcClasses.map((npcClass) => ({ ...npcClass, publicIncomeBps: 0 })),
+      decrees: {
+        ...decrees,
+        models: { festival: { ...model, goodIds: ['wheat'], demandBoostBps: 10_000 } },
+      },
+    };
+    const clock = active.config.clock;
+    const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+    const params = { amountOboles: model.maxOboles, days: 1, goodIds: ['wheat'] };
+    await festival(world, seller.houseId, params, day);
+    const outcome = await runTick(db, request(world.worldId, config));
+    expect(outcome.summary).toMatchObject({ npcDemand: { units: 50, spent: 300 } });
+    const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
+      where city_id = ${world.cityId}`.execute(db);
+    expect([await balanceOf(seller.houseId), Number(rows[0]?.balance)]).toEqual([300, 0]);
+  });
+
   it('n’achète pas au-delà du prix de réserve', async () => {
     const world = await newWorld();
     const greedy = await newSeller(world, 10, [[10, 19]]);

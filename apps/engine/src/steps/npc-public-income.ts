@@ -94,10 +94,11 @@ export async function creditPublicIncome(
 }
 
 /**
- * Revenu public des PNJ à la clôture (5.2, 5.5 ; #632) : chaque cité de la configuration reçoit son revenu du jour
- * qui s'ouvre (`publicIncomeDue`), sur la population que l'étape de la population vient de fixer, par le robinet
- * `faucet_npc_public_income`, si un tick de demande de ce jour ne l'a pas déjà versé (`creditPublicIncome`).
- * Verrous dans l'ordre de l'entretien : l'agora du monde, les puits de l'entretien, puis les bourses.
+ * Revenu public des PNJ à la clôture (5.2, 5.5 ; #632), en secours : en production, le moteur joue les ticks avant
+ * les clôtures, si bien que le premier tick du jour l'a presque toujours déjà versé, sur la population de la veille
+ * (`creditPublicIncome` : rien de plus ici). Sinon, chaque cité de la configuration reçoit son revenu du jour qui
+ * s'ouvre (`publicIncomeDue`), sur la population que l'étape de la population vient de fixer, par le robinet
+ * `faucet_npc_public_income`. Verrous dans l'ordre de l'entretien : l'agora du monde, les puits, puis les bourses.
  */
 export const npcPublicIncome: CloseStep = {
   name: 'npcPublicIncome',

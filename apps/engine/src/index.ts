@@ -15,6 +15,7 @@ export { advanceAllWorlds, advanceWorld, dueTicks, MAX_CATCH_UP_TICKS } from './
 export { decreeApplication } from './steps/decree-application';
 export { npcDemand } from './steps/npc-demand';
 export { npcPopulation } from './steps/npc-population';
+export { publicIncomeDue } from './steps/npc-public-income';
 export { observedPricesStep } from './steps/observed-prices';
 export { priceCandlesStep } from './steps/price-candles';
 export { siteUpkeep } from './steps/site-upkeep';
