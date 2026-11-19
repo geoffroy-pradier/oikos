@@ -5,3 +5,5 @@
  */
 export type { IllustrationProps } from './svg';
 export { GOOD_ICON_IDS, GoodIcon, type GoodIconProps } from './goods';
+export { GOD_EMBLEM_IDS, GodEmblem, type GodEmblemProps } from './gods';
+export { CITY_VIGNETTE_IDS, CityVignette } from './cities';

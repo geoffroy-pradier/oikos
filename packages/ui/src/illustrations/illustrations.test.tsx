@@ -6,7 +6,14 @@ import { fileURLToPath } from 'node:url';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
-import { GOOD_ICON_IDS, GoodIcon } from '.';
+import {
+  CITY_VIGNETTE_IDS,
+  CityVignette,
+  GOD_EMBLEM_IDS,
+  GodEmblem,
+  GOOD_ICON_IDS,
+  GoodIcon,
+} from '.';
 import { paths } from './svg';
 
 afterEach(cleanup);
@@ -16,15 +23,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 const config = JSON.parse(
   readFileSync(join(HERE, '../../../config/src/values/initial.json'), 'utf8'),
-) as { goods: { id: string }[] };
+) as Record<'goods' | 'gods' | 'cities', { id: string }[]>;
+const ids = (key: keyof typeof config) => config[key].map((entry) => entry.id).sort();
 
 /** Chaque dessin, repli compris, tel que le navigateur le reçoit. */
-const ALL: [string, ReactElement][] = [
-  ...[...GOOD_ICON_IDS, 'unknown'].map((id): [string, ReactElement] => [
-    `GoodIcon ${id}`,
-    <GoodIcon goodId={id} size={48} />,
-  ]),
-];
+const ALL = [
+  ...[...GOOD_ICON_IDS, 'unknown'].map((id) => <GoodIcon key={id} goodId={id} size={48} />),
+  ...[...GOD_EMBLEM_IDS, 'unknown'].map((id) => <GodEmblem key={id} godId={id} />),
+  ...[...CITY_VIGNETTE_IDS, 'unknown'].map((id) => <CityVignette key={id} cityId={id} />),
+].map((element): [string, ReactElement] => [`${element.type.name} ${element.key}`, element]);
 
 /** Ce qu'une illustration dessinée dans le dépôt ne contient jamais : image, lien, ressource externe. */
 const FORBIDDEN = [/<image/i, /href/i, /url\(/i, /data:/i, /https?:/i];
@@ -58,7 +65,7 @@ describe('illustrations dessinées à la main', () => {
 
 describe('GoodIcon', () => {
   it('dessine chaque bien de la configuration', () => {
-    expect([...GOOD_ICON_IDS].sort()).toEqual(config.goods.map((good) => good.id).sort());
+    expect([...GOOD_ICON_IDS].sort()).toEqual(ids('goods'));
   });
 
   it('est décoratif par défaut, nommé quand l’appelant fournit un nom', () => {
@@ -83,5 +90,38 @@ describe('GoodIcon', () => {
     // Chaque bien a son propre dessin.
     const drawings = GOOD_ICON_IDS.map((id) => renderToStaticMarkup(<GoodIcon goodId={id} />));
     expect(new Set([...drawings, unknown]).size).toBe(GOOD_ICON_IDS.length + 1);
+  });
+});
+
+describe.each([
+  ['GodEmblem', GOD_EMBLEM_IDS, 'gods', (id: string) => <GodEmblem godId={id} label={id} />],
+  ['CityVignette', CITY_VIGNETTE_IDS, 'cities', (id: string) => <CityVignette cityId={id} />],
+] as const)('%s', (_name, drawn, key, draw) => {
+  it('dessine chaque entrée de la configuration, chacune autrement', () => {
+    expect([...drawn].sort()).toEqual(ids(key));
+    const markups = [...drawn, 'unknown'].map((id) => renderToStaticMarkup(draw(id)));
+    expect(new Set(markups.map((m) => m.replace(/aria-label="[^"]*"/, ''))).size).toBe(
+      drawn.length + 1,
+    );
+  });
+
+  it('a un repli neutre pour une entrée inconnue', () => {
+    const strip = (id: string) => renderToStaticMarkup(draw(id)).replace(/aria-label="[^"]*"/, '');
+    expect(strip('constructor')).toBe(strip('unknown'));
+  });
+});
+
+describe('GodEmblem et CityVignette', () => {
+  it('sont décoratifs par défaut, nommés sur demande', () => {
+    render(
+      <>
+        <GodEmblem godId="athena" label="Athéna" size={96} />
+        <CityVignette cityId="halos" label="Halos" className="w-full" />
+        <CityVignette cityId="elaia" />
+      </>,
+    );
+    expect(screen.getByRole('img', { name: 'Athéna' }).getAttribute('width')).toBe('96');
+    expect(screen.getByRole('img', { name: 'Halos' }).getAttribute('class')).toContain('w-full');
+    expect(screen.getAllByRole('img')).toHaveLength(2);
   });
 });

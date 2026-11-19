@@ -102,6 +102,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Illustrations : le trait porte la forme et se détache des aplats doux et neutre (seuil graphique).
   ['foreground', 'primary-subtle', AA_UI],
   ['foreground', 'muted', AA_UI],
+  // Vignettes des cités : le trait de l'île et de son motif sur la mer et sur la terre.
+  ['foreground', 'sea', AA_UI],
+  ['foreground', 'land', AA_UI],
   ['border', 'background', AA_UI],
   ['border', 'surface', AA_UI],
   ['border', 'surface-raised', AA_UI],

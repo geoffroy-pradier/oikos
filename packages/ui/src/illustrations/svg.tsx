@@ -5,7 +5,7 @@ import { cn } from '../cn';
  * Un dessin s'écrit ligne à ligne : un code de ton, une espace, un tracé SVG (`d`).
  * Il ne peut contenir que des tracés : ni image, ni lien, ni ressource externe.
  * Le trait est `currentColor` ; les aplats viennent des jetons de `theme.css`, le dessin suit donc le
- * thème. Un dessin n'emploie que deux aplats au plus en plus du trait.
+ * thème. Un dessin n'emploie que deux aplats au plus en plus du trait, hors paysages (cités, accueil).
  */
 const TONES: Record<string, SVGProps<SVGPathElement>> = {
   /** Trait seul. */
@@ -18,6 +18,14 @@ const TONES: Record<string, SVGProps<SVGPathElement>> = {
   m: { style: { fill: 'var(--muted)' } },
   /** Accent décoratif, en aplat sans trait. */
   A: { style: { fill: 'var(--accent-decorative)' }, stroke: 'none' },
+  /** Aplat doux sans trait : le fond d'un emblème. */
+  S: { style: { fill: 'var(--primary-subtle)' }, stroke: 'none' },
+  /** Mer sans trait ; trait de côte, pour la seule texture des vagues (il ne porte aucune forme). */
+  E: { style: { fill: 'var(--sea)' }, stroke: 'none' },
+  c: { style: { stroke: 'var(--coast)' } },
+  /** Terre et mer cernées du trait (un houppier, un bassin). */
+  t: { style: { fill: 'var(--land)' } },
+  e: { style: { fill: 'var(--sea)' } },
   /** Plein de la couleur du trait, sans trait (un œil, un point). */
   I: { fill: 'currentColor', stroke: 'none' },
   /** Trait de l'accent décoratif. */
