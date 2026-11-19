@@ -218,13 +218,14 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 
 | Création de drachmes | Destruction de drachmes |
 | --- | --- |
-| Achats des PNJ aux joueurs | Salaires versés aux travailleurs PNJ |
-| Prêts du Trésor du temple | Entretien des bâtiments et navires |
-| Récompenses de quêtes et de Jeux | Taxes de marché et droits de port (part détruite) |
-| Dotation de départ | Offrandes, liturgies et fêtes de la cité |
-|  | Intérêts payés au Trésor du temple |
-|  | Grands travaux et merveilles |
-| Rachat du stock d'un bien à retirer (Olympe, 5.1) | Acquisition de sites et achat de navires |
+| Achats des PNJ aux joueurs | Entretien des bâtiments et navires |
+| Prêts du Trésor du temple | Taxes de marché et droits de port (part détruite) |
+| Récompenses de quêtes et de Jeux | Offrandes, liturgies et fêtes de la cité |
+| Dotation de départ | Intérêts payés au Trésor du temple |
+| Rachat du stock d'un bien à retirer (Olympe, 5.1) | Grands travaux et merveilles |
+|  | Acquisition de sites et achat de navires |
+
+Salaires et hébergement versés aux PNJ (#632) : ni création ni destruction, mais un transfert des maisons à la bourse des PNJ de la cité, que la masse monétaire compte.
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.
@@ -239,8 +240,9 @@ Les biens se louent et se revendent entre maisons (#257, 4.5) : le loyer (`lease
 La revente paie la taxe de marché de la cité du bien, comme un échange de l'agora : sa part détruite va au puits `sink_market_tax`, le reste au trésor de la cité.
 Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix d'achat et la rénovation sont les deux premiers puits de l'immobilier en jeu.
 
-Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pas coûte chaque jour une nuit chez les PNJ, au prix du jour de la cité, détruite par le puits `sink_npc_lodging`.
-Il n'y a aucun robinet en face ; le prix de base entre à zéro dans la configuration initiale.
+Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pas coûte chaque jour une nuit chez les PNJ, au prix du jour de la cité.
+Depuis #632, elle est versée à la bourse des PNJ de la cité du site, comme les salaires : c'est un transfert, pas un puits ; le puits `sink_npc_lodging` reste au catalogue pour l'historique, sans mouvement nouveau.
+Le prix de base entre à zéro dans la configuration initiale.
 
 Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par une cité sont payés par son trésor, à la clôture qui les applique, au puits `sink_public_works` (écriture `city.public_works`) ou `sink_festivals` (écriture `city.festival`).
 Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
@@ -299,9 +301,9 @@ Il n'y a pas d'arriéré : un jour passé à l'arrêt ne crée aucune dette.
 Deux exceptions : un site acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, même si la clôture est jouée en retard ;
 un site dont la recette n'est plus dans la configuration n'a plus de type, donc pas de tarif — il ne doit rien, n'est pas arrêté, et repart sans payer s'il était à l'arrêt.
 Le prélèvement d'une maison est une seule écriture du grand livre (`upkeep.daily`) qui porte la maison, le jour de jeu et les sites payés, avec le dû de chacun par nature, puis les navires payés (4.6), puis les biens immobiliers payés (`meta.properties`, 4.5) ;
-elle a une ligne de débit de la trésorerie par nature, marquée (4.1) : l'entretien vers le puits « entretien » (`sink_upkeep`), les salaires vers le puits « salaires » (`sink_npc_wages`), et une part nulle n'a pas de ligne ;
-les intendants payés (4.4, #278) y ont chacun leur dû avec son site (`meta.stewards`), et leur somme une ligne `wages` vers `sink_npc_wages`, examinés après les biens immobiliers ;
-l'hébergement des sites payés va au puits `sink_npc_lodging` par une écriture à part, `lodging.daily`, de la même transaction, une par maison et par jour (`meta.sites` : chaque site, ses non logés et leur hébergement), de nature 4.1 `lodging` ;
+elle a une ligne de débit de la trésorerie par nature, marquée (4.1), et une part nulle n'a pas de ligne : l'entretien va au puits « entretien » (`sink_upkeep`), les salaires à la bourse des PNJ de la cité de chaque site (#632 ; avant, au puits `sink_npc_wages`), une ligne de crédit par bourse ;
+les intendants payés (4.4, #278) y ont chacun leur dû avec son site (`meta.stewards`), et leur somme une ligne `wages`, versée à la bourse de la cité du site de chacun, examinés après les biens immobiliers ;
+l'hébergement des sites payés va à la bourse des PNJ de la cité de chaque site par une écriture à part, `lodging.daily`, de la même transaction, une par maison et par jour (`meta.sites` : chaque site, ses non logés et leur hébergement), de nature 4.1 `lodging` ;
 une maison qui ne paie rien n'a pas d'écriture. Chaque maison à qui la clôture a demandé quelque chose reçoit un événement de domaine `UpkeepSettled` : ce qui a été payé, au total et par nature, ce qui ne l'a pas été, les sites arrêtés et les sites relancés.
 
 Maison qui ne peut pas tout payer : ses sites sont examinés par date de création, puis par identifiant.
@@ -323,8 +325,10 @@ le refuser casserait les clients restés en cache (application installée) jusqu
 Le prix envoyé est retenu avec la clé d'une relance restée sans réponse, et un nouvel essai renvoie ce prix sous cette clé, même si le tarif affiché a changé entre-temps : une clé neuve au nouveau prix pourrait payer une seconde fois une commande déjà aboutie, et la même clé avec un autre prix serait refusée.
 Si le premier envoi avait abouti, l'API rejoue sa réponse ; sinon elle refuse ce prix, et le joueur confirme le nouveau d'un nouvel essai, sous une clé neuve ;
 son paiement est une écriture du grand livre d'une nature à part (`upkeep.restart`), avec une ligne marquée par nature comme à la clôture, annoncée par un événement de domaine `SiteRestarted` qui distingue entretien et salaires.
-Depuis #258, la relance paie le salaire du jour de la cité et, au prix du même jour, une nuit d'hébergement pour chaque travailleur du site que les logements de sa maison, lus à l'instant de la commande, ne logent pas ; l'hébergement part au puits `sink_npc_lodging` par une écriture `lodging.restart`, et le prix vu (`expectedUpkeepOboles`) le comprend.
+Depuis #258, la relance paie le salaire du jour de la cité et, au prix du même jour, une nuit d'hébergement pour chaque travailleur du site que les logements de sa maison, lus à l'instant de la commande, ne logent pas ; l'hébergement part par une écriture `lodging.restart`, et le prix vu (`expectedUpkeepOboles`) le comprend.
+Depuis #632, les salaires et l'hébergement d'une relance vont à la bourse des PNJ de la cité du site, et l'entretien seul au puits.
 Les relances et l'entretien de la clôture verrouillent les puits dans le même ordre (entretien, puis salaires, puis hébergement), puis la trésorerie, puis le site ; la clôture prend ceux des navires et des biens entre les salaires et l'hébergement.
+Les puits des salaires et de l'hébergement restent verrouillés à leur place depuis #632, sans rien recevoir ; juste après eux, la relance verrouille la bourse des PNJ de la cité du site, et la clôture toutes les bourses du monde, par cité, avant toute trésorerie.
 La clôture verrouille en plus, après ces deux puits, ceux de l'entretien des navires et des biens immobiliers, qu'elle seule prélève, et, après les sites d'une maison, ses navires (4.6) puis ses biens (4.5).
 Elle prend avant tout le verrou de l'agora du monde, et la vétusté des biens le prend juste avant l'entretien : l'achat et la rénovation d'un bien le prennent aussi d'abord, si bien qu'aucun d'eux ne verrouille un bien que la clôture attendrait.
 Les loyers des baux (#257), avant la vétusté, prennent le verrou de l'agora, puis les puits de l'entretien dans le même ordre (cinq depuis l'hébergement, #258), sans les mouvementer, puis les trésoreries des parties par identifiant : la relance d'un site, qui verrouille ses puits avant sa trésorerie sans prendre l'agora, ne peut donc pas attendre une trésorerie que la clôture tient pendant que la clôture attend ses puits.

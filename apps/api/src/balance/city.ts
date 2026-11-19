@@ -398,15 +398,24 @@ export const wagesDue = (city: City, houses: readonly House[], day: number, wage
     .flatMap((house) => house.sites)
     .filter((site) => site.createdAt < closeOf(city, day))
     .reduce((sum, site) => sum + recipeOf(site.recipeId).workers * wage, 0);
-/** Monnaie en circulation (`supply`, comptes hors système) ; soldes des comptes système et du trésor. */
+/**
+ * Monnaie en circulation (`supply`, comptes hors système) ; soldes des comptes système, du trésor et des bourses
+ * des PNJ (`npc_purse`, #632, lues par la fonction de la base : le service ne les voit pas dans la table).
+ */
 export async function accounts(city: City) {
   const rows = await city.db
     .selectFrom('game.accounts')
     .select(['kind', 'system_key', 'balance'])
     .where('world_id', '=', city.worldId)
     .execute();
+  const purses = await sql<{ balance: string }>`select balance from game.npc_purses()
+    where world_id = ${city.worldId}`.execute(city.db);
   const system = new Map<string, number>();
   let supply = 0;
+  for (const { balance } of purses.rows) {
+    supply += Number(balance);
+    system.set('npc_purse', (system.get('npc_purse') ?? 0) + Number(balance));
+  }
   for (const row of rows) {
     if (row.kind !== 'system') supply += Number(row.balance);
     // Les trésors de plusieurs cités sont une même ligne : leur somme.
@@ -424,7 +433,8 @@ const nonZero = (balances: Record<string, number>) =>
  * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons, achats
  * des PNJ (échanges sans ordre d'achat), taxe recalculée échange par échange par `marketTax` (règle des
  * commandes et du moteur), autres puits comptés par le banc (`counted`), dépenses de décrets tirées des trésors
- * (`drawn`, par cité). Rend les soldes non nuls des
+ * (`drawn`, par cité), ce que les maisons ont versé aux bourses des PNJ (`purses` : salaires et hébergement, #632),
+ * qui reste en circulation. Rend les soldes non nuls des
  * comptes système et du trésor (`actual`), ce que les flux font attendre (`expected`), la monnaie en
  * circulation et la masse attendue : dotation et achats des PNJ, moins tous les puits.
  */
@@ -433,6 +443,7 @@ export async function reconcile(
   founded: number,
   counted: Record<string, number>,
   drawn: ReadonlyMap<string, number> = new Map(),
+  purses = 0,
 ) {
   const trades = await city.db
     .selectFrom('game.trades as t')
@@ -461,7 +472,7 @@ export async function reconcile(
   const sinks = Object.values(counted).reduce((sum, sink) => sum + sink, flows.sink_market_tax);
   return {
     actual: nonZero(Object.fromEntries(system)),
-    expected: nonZero({ faucet_starting_grant: -grant, ...counted, ...flows }),
+    expected: nonZero({ faucet_starting_grant: -grant, ...counted, ...flows, npc_purse: purses }),
     supply,
     mass: grant - flows.faucet_npc_purchases - sinks,
     /** Trésor attendu de chaque cité (par identifiant) : le banc en compare les soldes à `treasuryOf`. */

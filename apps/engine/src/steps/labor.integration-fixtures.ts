@@ -151,3 +151,18 @@ export async function laborMarketOf(db: Db, cityId: string) {
     lodging: Number(row.lodging_oboles),
   }));
 }
+
+/**
+ * Ce que les bourses des PNJ du monde ont reçu des maisons (#632) : les salaires (écritures d'entretien) et
+ * l'hébergement, par nature d'écriture, clôtures et relances confondues. Lu par la fonction de la base : le
+ * service ne voit pas les bourses dans la table.
+ */
+export async function purseCredits(db: Db, worldId: string) {
+  const { rows } = await sql<{ wages: string; lodging: string }>`select
+      coalesce(sum(l.amount) filter (where e.kind in ('upkeep.daily', 'upkeep.restart')), 0) as wages,
+      coalesce(sum(l.amount) filter (where e.kind in ('lodging.daily', 'lodging.restart')), 0) as lodging
+    from game.npc_purses() p join game.ledger_lines l on l.account_id = p.account_id
+    join game.ledger_entries e on e.id = l.entry_id
+    where p.world_id = ${worldId}`.execute(db);
+  return { wages: Number(rows[0]?.wages), lodging: Number(rows[0]?.lodging) };
+}

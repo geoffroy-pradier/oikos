@@ -174,15 +174,15 @@ it(
         sink_upkeep: upkeep,
         sink_site_acquisition: acquisitions,
         sink_ship_purchase: ships,
-        sink_npc_wages: wages,
         sink_property_purchase: housing.purchased,
         sink_property_works: housing.works,
         sink_property_upkeep: estateUpkeep,
-        sink_npc_lodging: lodging,
         sink_public_works: paidFor('public_works'),
         sink_festivals: paidFor('festival'),
       },
       drawn,
+      // Salaires (intendants compris) et hébergement vont aux bourses des PNJ (#632), sans rien détruire.
+      wages + lodging,
     );
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -281,7 +281,7 @@ it(
     // que le rapprochement tire des flux comptés.
     const expectedNet = Object.fromEntries(
       Object.entries(ledger.expected)
-        .filter(([key]) => key !== 'treasury')
+        .filter(([key]) => key !== 'treasury' && key !== 'npc_purse')
         .map(([key, balance]) => [key, 0 - balance]),
     );
     expect(measured).toEqual(expectedNet);
@@ -289,7 +289,7 @@ it(
     // Chaque puits qui revient chaque jour a sa part dans la monnaie détruite des jours mesurés (les achats de biens,
     // faits surtout pendant la mise en route, sont comptés par le rapprochement ci-dessus).
     const shares = sinkShares(days)['world'] ?? {};
-    for (const key of ['sink_property_upkeep', 'sink_npc_lodging', ...PUBLIC_SINKS])
+    for (const key of ['sink_property_upkeep', ...PUBLIC_SINKS])
       expect(shares[key] ?? 0, `part de ${key}`).toBeGreaterThan(0);
     expect(shares['estate'], 'part des puits immobiliers').toBeGreaterThan(0);
     expect(shares['public'], 'part des puits publics').toBeGreaterThan(0);

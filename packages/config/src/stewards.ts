@@ -25,8 +25,8 @@ export const stewardsSchema = z
      */
     limitByHeadquartersLevel: z.array(z.number().int().min(0).max(100)).min(1).max(10),
     /**
-     * Salaire d'un intendant par jour de jeu, en oboles, payé à la clôture et détruit (puits
-     * `sink_npc_wages`, 5.5). Nul : pas de salaire.
+     * Salaire d'un intendant par jour de jeu, en oboles, payé à la clôture à la bourse des PNJ de la cité de son
+     * site (#632, 5.5). Nul : pas de salaire.
      */
     dailyWageOboles: z.number().int().min(0).max(1_000_000_000),
     /** Règles au plus par intendant ; plafond technique de 20, celui du contrat (`MAX_STEWARD_RULES`). */

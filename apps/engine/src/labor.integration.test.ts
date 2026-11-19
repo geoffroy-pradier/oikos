@@ -14,6 +14,7 @@ import { closeWorld } from './scheduler';
 import {
   laborMarketOf,
   laborWorld,
+  purseCredits,
   type LaborWorld,
   type LaborWorldSpec,
 } from './steps/labor.integration-fixtures';
@@ -92,10 +93,12 @@ const outcome = async ({ worldId, houses }: LaborWorld) => {
     Number(rows.find(match)?.balance ?? Number.NaN);
   const halted = await sql<{ n: string }>`select count(*) as n from game.sites
     where world_id = ${worldId} and halted_at is not null`.execute(db);
+  // Salaires et hébergement vont aux bourses des PNJ (#632) : ce qu'elles ont reçu.
+  const { wages, lodging } = await purseCredits(db, worldId);
   return {
     treasuries: houses.map(({ houseId }) => of((row) => row.house_id === houseId)),
-    wages: of((row) => row.system_key === 'sink_npc_wages'),
-    lodging: of((row) => row.system_key === 'sink_npc_lodging'),
+    wages,
+    lodging,
     halted: Number(halted.rows[0]?.n),
   };
 };
