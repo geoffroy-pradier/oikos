@@ -101,6 +101,7 @@ it(
     const operations = { acted: 0, refused: 0, failed: 0 };
     let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
     let [wages, estateUpkeep, lodging] = [0, 0, 0];
+    let measuredFrom = new Date(0);
     for (let day = 0; day < WARMUP + MEASURED; day++) {
       upkeep += upkeepDue(world, houses, day);
       estateUpkeep += propertyUpkeepDue(world, housing, day);
@@ -153,6 +154,7 @@ it(
         prices.set(slug, known);
       }
       if (day >= WARMUP) days.push(measure);
+      if (day === WARMUP - 1) measuredFrom = at;
     }
 
     // Décrets de dépense réglés par les clôtures jouées : leur montant sort du trésor de leur cité, vers son puits.
@@ -195,11 +197,18 @@ it(
     const minutes = (Date.now() - startedAt) / 60_000;
     expect(minutes).toBeLessThan(MAX_MINUTES);
 
-    // Chaque cité a tourné : des achats de PNJ sur son marché, une population qui ne s'est pas vidée.
+    // Chaque cité a tourné : des achats de PNJ sur son marché pendant les jours mesurés, payés par sa bourse (#632),
+    // une population qui ne s'est pas vidée.
+    const bought = await sql<{
+      city_id: string;
+      gross: string;
+    }>`select o.city_id, sum(t.price * t.quantity) as gross
+      from game.trades t join game.orders o on o.id = t.sell_order_id
+      where t.world_id = ${world.worldId} and t.buy_order_id is null and t.created_at > ${measuredFrom}
+      group by o.city_id`.execute(world.db);
     for (const { city } of settlements) {
-      const net = (key: string) =>
-        days.reduce((sum, day) => sum + (day.flows[city.slug]?.[key] ?? 0), 0);
-      expect(net('faucet_npc_purchases'), `${city.slug} : achats des PNJ`).toBeGreaterThan(0);
+      const gross = Number(bought.rows.find((row) => row.city_id === city.cityId)?.gross ?? 0);
+      expect(gross, `${city.slug} : achats des PNJ`).toBeGreaterThan(0);
       expect(days.at(-1)?.population[city.slug] ?? 0, `${city.slug} : population`).toBeGreaterThan(
         0,
       );

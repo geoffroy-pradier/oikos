@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   createConfigLoader,
+  DEFAULT_NPC_PUBLIC_INCOME_BPS,
   ensureInitialConfig,
   INITIAL_CONFIG,
   validateConfig,
@@ -15,6 +16,7 @@ import { CLOSE_STEPS } from '../close-steps';
 import { advanceWorld, closeWorld } from '../scheduler';
 import { dryRunTick, runTick, type TickRequest, type TickStep } from '../tick';
 import { npcDemand } from './npc-demand';
+import { FUNDED, fundPurses } from './labor.integration-fixtures';
 import { npcPopulation } from './npc-population';
 
 // Tests d'intégration de la demande des PNJ contre Supabase local. Chaque test a son monde, sa cité
@@ -67,8 +69,8 @@ const request = (worldId: string, config: GameConfig, tick = index): TickRequest
   };
 };
 
-// Le robinet des achats de PNJ naît avec le monde, comme tous les comptes système.
-async function newWorld(slug = 'kalliste') {
+// Les comptes système et la bourse des PNJ de chaque cité naissent avec le monde et la cité.
+async function newWorld(slug = 'kalliste', oboles = FUNDED) {
   const [worldId, cityId] = [randomUUID(), randomUUID()];
   await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`n-${worldId.slice(0, 12)}`}, 'Test')`.execute(
     owner,
@@ -76,6 +78,7 @@ async function newWorld(slug = 'kalliste') {
   await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, 'Agora')`.execute(
     owner,
   );
+  if (oboles > 0) await fundPurses(owner, worldId, oboles);
   return { worldId, cityId };
 }
 type World = Awaited<ReturnType<typeof newWorld>>;
@@ -158,17 +161,14 @@ const balanceOf = async (houseId: string) =>
         .executeTakeFirstOrThrow()
     ).balance,
   );
-const faucetOf = async (worldId: string) =>
-  Number(
-    (
-      await db
-        .selectFrom('game.accounts')
-        .select('balance')
-        .where('world_id', '=', worldId)
-        .where('system_key', '=', 'faucet_npc_purchases')
-        .executeTakeFirstOrThrow()
-    ).balance,
-  );
+/** Ce que les bourses des PNJ du monde ont payé depuis qu'elles ont été créditées, en négatif. */
+const paidOf = async (worldId: string) => {
+  const { rows } = await sql<{ held: string; received: string }>`select
+      (select coalesce(sum(balance), 0) from game.npc_purses() where world_id = ${worldId}) as held,
+      (select -balance from game.accounts where world_id = ${worldId}
+         and system_key = 'faucet_npc_public_income') as received`.execute(db);
+  return Number(rows[0]?.held) - Number(rows[0]?.received);
+};
 const stockOf = async (houseId: string) => {
   const row = await db
     .selectFrom('game.inventories')
@@ -349,8 +349,8 @@ describe('demande des PNJ au tick', () => {
     ]);
     expect(await balanceOf(cheap.houseId)).toBe(40);
     expect(await balanceOf(dear.houseId)).toBe(60);
-    // La monnaie vient du robinet, et de lui seul.
-    expect(await faucetOf(world.worldId)).toBe(-100);
+    // La monnaie vient de la bourse des PNJ de la cité (#632), et d'elle seule.
+    expect(await paidOf(world.worldId)).toBe(-100);
     // Le blé vendu est consommé ; le reste de l'ordre ouvert reste réservé.
     expect(await stockOf(cheap.houseId)).toEqual({ quantity: 0, reserved: 0 });
     expect(await stockOf(dear.houseId)).toEqual({ quantity: 20, reserved: 10 });
@@ -401,7 +401,73 @@ describe('demande des PNJ au tick', () => {
     const outcome = await runTick(db, request(world.worldId, economy(20, 50)));
     expect(outcome.summary).toMatchObject({ npcDemand: { units: 8, spent: 48 } });
     expect(await balanceOf(seller.houseId)).toBe(48);
-    expect(await faucetOf(world.worldId)).toBe(-48);
+    expect(await paidOf(world.worldId)).toBe(-48);
+  });
+
+  it('monde neuf, aucune clôture (#632) : le premier tick verse le revenu public du jour, puis les PNJ achètent', async () => {
+    // Bourse vide, comme celle de Kallistè dans le seed ou au déploiement : rien n'attend la clôture. Revenu public
+    // de la version (part absente : celle d'une version publiée avant le paramètre), sur 1 000 thètes.
+    const world = await newWorld('kalliste', 0);
+    const seller = await newSeller(world, 100, [[20, 6]]);
+    const first = await runTick(db, request(world.worldId, economy()));
+    expect(first.summary).toMatchObject({ npcDemand: { units: 20, spent: 120 } });
+    expect(await balanceOf(seller.houseId)).toBe(120);
+    // 300 oboles par tick pour 1 000 thètes, un jour de ticks, à la part par défaut ; moins les 120 payées.
+    const day = Math.floor(
+      (300 * 1_440 * DEFAULT_NPC_PUBLIC_INCOME_BPS) / economy().clock.tickMinutes / 10_000,
+    );
+    const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
+      where city_id = ${world.cityId}`.execute(db);
+    expect(rows.map((row) => Number(row.balance))).toEqual([day - 120]);
+  });
+
+  it('bourse courte (#632) : budget réduit au prorata, bourse vidée jusqu’à zéro, jamais débitrice ; vide, rien n’est acheté', async () => {
+    // Revenu du tick : 300 oboles ; la bourse n'en a que 63, sans revenu public : budget 300 × 63 ÷ 300 = 63, soit
+    // 10 blés à 6.
+    const world = await newWorld('kalliste', 63);
+    const seller = await newSeller(world, 100, [[100, 6]]);
+    const base = economy();
+    const config = {
+      ...base,
+      npcClasses: base.npcClasses.map((npcClass) => ({ ...npcClass, publicIncomeBps: 0 })),
+    };
+    const first = await runTick(db, request(world.worldId, config));
+    expect(first.summary).toMatchObject({ npcDemand: { units: 10, spent: 60 } });
+    expect([await balanceOf(seller.houseId), await paidOf(world.worldId)]).toEqual([60, -60]);
+    // Il reste 3 oboles : pas de quoi payer un blé. Le tick suivant n'achète rien, la bourse garde ses 3 oboles.
+    const second = await runTick(db, request(world.worldId, config, index + 1));
+    expect(second.summary).toMatchObject({ npcDemand: { units: 0, spent: 0 } });
+    const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
+      where city_id = ${world.cityId}`.execute(db);
+    expect(rows.map((row) => Number(row.balance))).toEqual([3]);
+  });
+
+  it('bourse courte et fête (#632) : la hausse ne fait jamais dépenser plus que la bourse, vidée jusqu’à zéro', async () => {
+    // Revenu du tick : 300 oboles, que la bourse couvre tout juste (300, sans revenu public) : budget inchangé, mais
+    // la fête au plus fort le double (600). La dépense s'arrête à ce que la bourse contient : 50 blés à 6.
+    const world = await newWorld('kalliste', 300);
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const decrees = (INITIAL_CONFIG as GameConfig).decrees;
+    const model = decrees?.models.festival;
+    if (!decrees || !model) throw new Error('festival expected in the initial configuration');
+    const base = economy(100);
+    const config = {
+      ...base,
+      npcClasses: base.npcClasses.map((npcClass) => ({ ...npcClass, publicIncomeBps: 0 })),
+      decrees: {
+        ...decrees,
+        models: { festival: { ...model, goodIds: ['wheat'], demandBoostBps: 10_000 } },
+      },
+    };
+    const clock = active.config.clock;
+    const day = gameDayAt(tickStart(index, clock.tickMinutes), clock);
+    const params = { amountOboles: model.maxOboles, days: 1, goodIds: ['wheat'] };
+    await festival(world, seller.houseId, params, day);
+    const outcome = await runTick(db, request(world.worldId, config));
+    expect(outcome.summary).toMatchObject({ npcDemand: { units: 50, spent: 300 } });
+    const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
+      where city_id = ${world.cityId}`.execute(db);
+    expect([await balanceOf(seller.houseId), Number(rows[0]?.balance)]).toEqual([300, 0]);
   });
 
   it('n’achète pas au-delà du prix de réserve', async () => {
@@ -454,6 +520,7 @@ describe('demande des PNJ au tick', () => {
     await sql`insert into game.cities (id, world_id, slug, name) values (${other}, ${world.worldId}, 'elaia', 'E')`.execute(
       owner,
     );
+    await fundPurses(owner, world.worldId);
     await festival(
       world,
       seller.houseId,
@@ -554,6 +621,7 @@ describe('demande des PNJ au tick', () => {
     await sql`insert into game.cities (id, world_id, slug, name) values (${elaia}, ${world.worldId}, 'elaia', 'E')`.execute(
       owner,
     );
+    await fundPurses(owner, world.worldId);
     // Caravanes de blé au plus fort : à Elaia dès le lendemain, à Kallistè le surlendemain ; une fête au
     // maximum d'un seul jour (+100 %) le troisième jour.
     await planCaravans(world, day, [
@@ -617,6 +685,7 @@ describe('demande des PNJ au tick', () => {
     await sql`insert into game.cities (id, world_id, slug, name) values (${delos.cityId}, ${delos.worldId}, 'delos', 'Agora')`.execute(
       owner,
     );
+    await fundPurses(owner, delos.worldId);
     // Kallistè, blé : une vente annulée à 1 obole, deux ventes à 6 (la plus ancienne d'abord), une à 16.
     const first = await newSeller(kalliste, 60, [
       [5, 1],
@@ -669,7 +738,7 @@ describe('demande des PNJ au tick', () => {
     ]);
     expect(await balanceOf(first.houseId)).toBe(60 + 60);
     expect(await balanceOf(second.houseId)).toBe(30 + 180);
-    expect(await faucetOf(kalliste.worldId)).toBe(-330);
+    expect(await paidOf(kalliste.worldId)).toBe(-330);
   });
 
   it('une demande inférieure à une unité s’accumule jusqu’à l’unité', async () => {
@@ -747,7 +816,7 @@ describe('demande des PNJ au tick', () => {
     expect(shrunk.summary).toMatchObject({ npcDemand: { units: 15, spent: 90 } });
     expect(await balanceOf(seller.houseId)).toBe(240 + 132);
     expect(await balanceOf(late.houseId)).toBe(90);
-    expect(await faucetOf(starved.worldId)).toBe(-90);
+    expect(await paidOf(starved.worldId)).toBe(-90);
     // La mesure du nouveau jour repart de zéro et suit la population courante, pas celle de la configuration.
     expect((await measureOf(fed.cityId)).at(-1)).toEqual([22, 22]);
     expect((await measureOf(starved.cityId)).at(-1)).toEqual([15, 18]);
@@ -812,7 +881,7 @@ describe('demande des PNJ au tick', () => {
     expect((await measureOf(world.cityId)).at(-1)).toEqual([20, 20]);
   });
 
-  it('taxe de marché : le robinet paie le brut, le vendeur reçoit le net, le reste va au puits et au trésor de la cité', async () => {
+  it('taxe de marché : la bourse paie le brut, le vendeur reçoit le net, le reste va au puits et au trésor de la cité', async () => {
     const world = await newWorld();
     // 20 unités demandées, 300 oboles de budget : 10 à 5 (taxe ⌈2,5⌉ = 3, dont 2 détruites), 10 à 6 (3, dont 2).
     const seller = await newSeller(world, 100, [
@@ -824,20 +893,22 @@ describe('demande des PNJ au tick', () => {
     // Le budget des PNJ se compte en brut : la taxe ne leur fait rien acheter de plus ni de moins.
     expect(outcome.summary['npcDemand']).toMatchObject({ units: 20, spent: 110 });
     const lines = await sql<{ lines: string }>`
-      select string_agg(coalesce(a.system_key, a.kind) || ':' || l.amount, ' ' order by l.amount, a.kind) as lines
+      select string_agg(case when a.npc_purse then 'npc_purse' else coalesce(a.system_key, a.kind) end
+        || ':' || l.amount, ' ' order by l.amount, a.kind) as lines
       from game.trades t join game.ledger_lines l on l.entry_id = t.ledger_entry_id
       join game.accounts a on a.id = l.account_id
-      where t.world_id = ${world.worldId} group by t.id, t.price order by t.price`.execute(db);
+      where t.world_id = ${world.worldId} group by t.id, t.price order by t.price`.execute(owner);
     expect(lines.rows.map((row) => row.lines)).toEqual([
-      'faucet_npc_purchases:-50 treasury:1 sink_market_tax:2 house:47',
-      'faucet_npc_purchases:-60 treasury:1 sink_market_tax:2 house:57',
+      'npc_purse:-50 treasury:1 sink_market_tax:2 house:47',
+      'npc_purse:-60 treasury:1 sink_market_tax:2 house:57',
     ]);
-    expect([await balanceOf(seller.houseId), await faucetOf(world.worldId)]).toEqual([104, -110]);
-    // Rien ne se crée au-delà du robinet : tous les soldes du monde s'annulent, et égalent leurs lignes.
+    expect([await balanceOf(seller.houseId), await paidOf(world.worldId)]).toEqual([104, -110]);
+    // Rien ne se crée au-delà des robinets : tous les soldes du monde, bourse comprise, s'annulent et égalent leurs
+    // lignes. Lu par le propriétaire : le service ne voit pas la bourse.
     const check = await sql<{ total: string; broken: string }>`
       select sum(a.balance) as total, count(*) filter (where not c.ok) as broken
       from game.accounts a join game.account_balance_check c on c.account_id = a.id
-      where a.world_id = ${world.worldId}`.execute(db);
+      where a.world_id = ${world.worldId}`.execute(owner);
     expect(check.rows).toEqual([{ total: '0', broken: '0' }]);
   });
 
@@ -934,6 +1005,7 @@ describe('demande des PNJ au tick', () => {
       await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, ${slug}, 'Agora')`.execute(
         owner,
       );
+    await fundPurses(owner, kalliste.worldId);
     // Le même blé au prix de référence dans chaque cité, y compris Délos, absente de la configuration.
     for (const city of [kalliste, ...others]) await newSeller(city, 100, [[100, 6]]);
 

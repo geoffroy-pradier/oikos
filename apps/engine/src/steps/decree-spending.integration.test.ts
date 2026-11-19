@@ -16,6 +16,7 @@ import { decreeApplication } from './decree-application';
 import { decreeSpending } from './decree-spending';
 import { decreeTally } from './decree-tally';
 import { npcDemand } from './npc-demand';
+import { fundPurses } from './labor.integration-fixtures';
 
 // Règlement des décrets de dépense à la clôture (#263), contre Supabase local. Chaque test a son monde.
 const DATABASE_URL =
@@ -119,6 +120,8 @@ async function newWorld(treasury: number) {
     ]);
     return decreeId;
   };
+  // La bourse des PNJ paie leurs achats (#632) : assez pour qu'elle ne borne rien.
+  await fundPurses(owner, worldId ?? '');
   return { worldId: worldId ?? '', cityId: cityId ?? '', houseId: houseId ?? '', decree };
 }
 /** État de chaque décret : `état:jour du règlement:appliqué maintenant`. */

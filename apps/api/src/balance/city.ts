@@ -9,7 +9,14 @@ import {
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { CLOSE_STEPS, npcDemand, runDailyClose, runTick, type TickStep } from '@oikos/engine';
+import {
+  CLOSE_STEPS,
+  npcDemand,
+  publicIncomeDue,
+  runDailyClose,
+  runTick,
+  type TickStep,
+} from '@oikos/engine';
 import {
   accrueProduction,
   accrueWorkshop,
@@ -345,9 +352,15 @@ export async function harvest(city: City, house: House, now: Date) {
   }
 }
 
-/** Clôture quotidienne du moteur, jouée à son instant de jeu. */
-export const closeDay = (city: City, day: number) =>
-  runDailyClose(city.db, {
+/** Revenu public des PNJ versé par les clôtures jouées, par monde (#632), compté par `closeDay`. */
+const publicIncome = new Map<string, number>();
+/**
+ * Clôture quotidienne du moteur du jour `day`, jouée à son instant de jeu. Le banc compte ensuite le revenu public
+ * qu'elle a versé (`publicIncomeDue`, le calcul du moteur), sur la population qu'elle vient de fixer et la
+ * configuration jouée : le banc clôt chaque jour avant ses ticks, si bien que c'est elle qui le verse.
+ */
+export async function closeDay(city: City, day: number) {
+  const closed = await runDailyClose(city.db, {
     worldId: city.worldId,
     gameDay: city.firstDay + day,
     closeAt: closeOf(city, day),
@@ -355,6 +368,13 @@ export const closeDay = (city: City, day: number) =>
     steps: CLOSE_STEPS,
     now: new Date(closeOf(city, day).getTime() + 1000),
   });
+  const due = (await publicIncomeDue(city.db, city.worldId, city.played)).reduce(
+    (sum, row) => sum + row.oboles,
+    0,
+  );
+  publicIncome.set(city.worldId, (publicIncome.get(city.worldId) ?? 0) + due);
+  return closed;
+}
 /**
  * Ticks de demande des PNJ du jour `day`, à leur instant de jeu, du premier qui commence à sa clôture ou
  * juste après (il ouvre le jour pour le moteur : `isDailyClose`) à la clôture suivante ; rend leur nombre.
@@ -431,13 +451,15 @@ export async function accounts(city: City) {
 const nonZero = (balances: Record<string, number>) =>
   Object.fromEntries(Object.entries(balances).filter(([, value]) => value !== 0));
 /**
- * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons, achats
- * des PNJ (échanges sans ordre d'achat), taxe recalculée échange par échange par `marketTax` (règle des
+ * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons, revenu public
+ * des PNJ compté à chaque clôture (`closeDay`, #632), achats des PNJ (échanges sans ordre d'achat, payés par les
+ * bourses des PNJ), taxe recalculée échange par échange par `marketTax` (règle des
  * commandes et du moteur), autres puits comptés par le banc (`counted`), dépenses de décrets tirées des trésors
  * (`drawn`, par cité), ce que les maisons ont versé aux bourses des PNJ (`purses` : salaires et hébergement, #632),
  * qui reste en circulation. Rend les soldes non nuls des
  * comptes système et du trésor (`actual`), ce que les flux font attendre (`expected`), la monnaie en
- * circulation et la masse attendue : dotation et achats des PNJ, moins tous les puits.
+ * circulation et la masse attendue : dotation et revenu public, moins tous les puits ; `npcPurchases` : le brut des
+ * achats des PNJ.
  */
 export async function reconcile(
   city: City,
@@ -455,11 +477,12 @@ export async function reconcile(
   // Trésor de chaque cité : la part de la taxe des échanges de son marché.
   const treasuries = new Map<string, number>();
   const grant = founded * config.starting.grantOboles;
-  const flows = { faucet_npc_purchases: 0, sink_market_tax: 0, treasury: 0 };
+  const flows = { sink_market_tax: 0, treasury: 0 };
+  let npcPurchases = 0;
   for (const trade of trades) {
     const gross = Number(trade.price) * Number(trade.quantity);
     const tax = marketTax(gross, config.marketTax);
-    if (trade.buy_order_id === null) flows.faucet_npc_purchases -= gross;
+    if (trade.buy_order_id === null) npcPurchases += gross;
     flows.sink_market_tax += tax.burned;
     flows.treasury += tax.treasury;
     treasuries.set(trade.city_id, (treasuries.get(trade.city_id) ?? 0) + tax.treasury);
@@ -470,12 +493,20 @@ export async function reconcile(
     flows.treasury -= amount;
   }
   const { supply, system } = await accounts(city);
+  const income = publicIncome.get(city.worldId) ?? 0;
   const sinks = Object.values(counted).reduce((sum, sink) => sum + sink, flows.sink_market_tax);
   return {
     actual: nonZero(Object.fromEntries(system)),
-    expected: nonZero({ faucet_starting_grant: -grant, ...counted, ...flows, npc_purse: purses }),
+    expected: nonZero({
+      faucet_starting_grant: -grant,
+      faucet_npc_public_income: -income,
+      ...counted,
+      ...flows,
+      npc_purse: purses + income - npcPurchases,
+    }),
     supply,
-    mass: grant - flows.faucet_npc_purchases - sinks,
+    mass: grant + income - sinks,
+    npcPurchases,
     /** Trésor attendu de chaque cité (par identifiant) : le banc en compare les soldes à `treasuryOf`. */
     treasuries,
   };

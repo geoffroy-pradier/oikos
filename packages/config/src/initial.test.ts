@@ -3,6 +3,7 @@ import {
   cityStartingRecipeId,
   cityTerroirAdmits,
   DEFAULT_LABOR,
+  DEFAULT_NPC_PUBLIC_INCOME_BPS,
   INITIAL_CONFIG,
   validateConfig,
 } from './index';
@@ -154,8 +155,10 @@ describe('jeu de valeurs initial', () => {
     expect(Object.values(config.staff.dailyWageOboles).every((wage) => wage === 0)).toBe(true);
   });
 
-  it('le revenu public des PNJ entre neutre : aucune part publique, en attendant le calibrage (#632, #283)', () => {
-    expect(config.npcClasses.every((npcClass) => (npcClass.publicIncomeBps ?? 0) === 0)).toBe(true);
+  it('le revenu public des PNJ entre au revenu d’un jour entier, comme l’ancien robinet, en attendant le calibrage (#632, #283)', () => {
+    for (const npcClass of config.npcClasses) expect(npcClass.publicIncomeBps).toBe(10_000);
+    // Une version publiée avant le paramètre garde le même comportement.
+    expect(DEFAULT_NPC_PUBLIC_INCOME_BPS).toBe(10_000);
   });
 
   it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {

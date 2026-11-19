@@ -66,8 +66,8 @@ it('3 jours : tous les ticks du jour, grand livre rapproché', { timeout: 120_00
   const ledger = await reconcile(city, houses.length, { sink_upkeep: upkeep });
   expect(ledger.actual).toEqual(ledger.expected);
   expect(ledger.supply).toBe(ledger.mass);
-  // Des PNJ ont acheté du blé, taxé ; l'entretien a été prélevé.
-  expect(ledger.expected['faucet_npc_purchases']).toBeLessThan(0);
+  // Des PNJ ont acheté du blé, payé par la bourse de la cité (#632), taxé ; l'entretien a été prélevé.
+  expect(ledger.npcPurchases).toBeGreaterThan(0);
   expect(ledger.expected['sink_market_tax']).toBeGreaterThan(0);
   expect(upkeep).toBeGreaterThan(0);
 });
@@ -208,7 +208,7 @@ it(
     });
 
     // Le marché a réellement tourné : des achats de PNJ, la taxe, l'entretien, des sites acquis.
-    expect(ledger.expected['faucet_npc_purchases']).toBeLessThan(0);
+    expect(ledger.npcPurchases).toBeGreaterThan(0);
     expect(ledger.expected['sink_market_tax']).toBeGreaterThan(0);
     expect(upkeep).toBeGreaterThan(0);
     expect(acquisitions).toBeGreaterThan(0);

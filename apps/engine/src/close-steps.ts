@@ -22,8 +22,9 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), la vétusté des biens immobiliers (4.5),
  * le marché du travail du jour (4.4, #258), le revenu public des PNJ (5.5, #632), puis l'entretien.
- * Le revenu public suit la population du jour et prend, avant l'entretien, les mêmes verrous que lui : l'agora,
- * les puits, puis les bourses des PNJ.
+ * Le revenu public n'est ici qu'un secours : le moteur jouant les ticks avant les clôtures, le premier tick du jour
+ * l'a presque toujours versé (sur la population de la veille). S'il ne l'a pas fait, la clôture le verse sur la
+ * population du jour, avec les verrous de l'entretien, avant lui : l'agora, les puits, puis les bourses des PNJ.
  * Les décrets de taux s'appliquent avant tout ce qui taxe ou paie, sous le verrou de l'agora, qu'ils ne
  * prennent qu'avec un décret à appliquer : placés juste avant les loyers, qui le prennent de toute façon.
  * Les dépenses des décrets, qui ne touchent que les trésors des cités et leurs puits, prennent les mêmes
