@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { initI18n } from '../i18n';
 import { ECONOMY } from '../test/fakes';
 import { Economy } from './Economy';
@@ -313,4 +314,23 @@ it('une clé de compte inconnue et longue peut passer à la ligne n’importe o�
   const labels = screen.getAllByText(`${key} (puits)`);
   expect(labels.map((label) => label.tagName)).toEqual(['TH', 'DT']);
   for (const label of labels) expect(label.classList).toContain('wrap-anywhere');
+});
+
+it('le tableau des cumuls montre chaque robinet et chaque puits du catalogue, même sans mouvement, en français et en anglais', async () => {
+  const everything = SYSTEM_ACCOUNT_KEYS.map((key) => ({
+    key,
+    kind: key.startsWith('faucet_') ? ('faucet' as const) : ('sink' as const),
+    total: 0,
+    days: [],
+  }));
+  await showAll([{ ...WORLD, systemAccounts: everything }]);
+  for (const language of ['fr', 'en']) {
+    await i18n.changeLanguage(language);
+    const shown = rows(/^(Robinets et puits|Faucets and sinks)/).map((row) => row[0] ?? '');
+    // Une ligne par compte du catalogue, jamais le libellé de repli (la clé brute).
+    expect(shown).toHaveLength(SYSTEM_ACCOUNT_KEYS.length);
+    for (const key of SYSTEM_ACCOUNT_KEYS)
+      expect(shown.some((label) => label.includes(key))).toBe(false);
+    expect(new Set(shown).size).toBe(SYSTEM_ACCOUNT_KEYS.length);
+  }
 });
