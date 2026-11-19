@@ -677,12 +677,14 @@ export interface GameDatabase {
     finished_at: ColumnType<Date, never, never>;
   };
 
-  /** Fraction de demande des PNJ reportée d'un tick au suivant, par cité et par bien. */
+  /** Fraction de demande et budget non dépensé des PNJ reportés d'un tick au suivant, par cité et par bien. */
   'game.npc_demand_carry': {
     world_id: string;
     city_id: string;
     good_id: string;
     carry: number;
+    /** Oboles non dépensées du budget du tick, au plus deux unités au prix de réserve du bien (#675). */
+    budget_carry: ColumnType<string, number | undefined, number>;
     updated_at: Generated<Date>;
   };
   /** Population courante d'une classe de PNJ dans une cité ; une clôture la fait évoluer une fois. */

@@ -1,6 +1,14 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { classDemand, matchNpcDemand, npcGoodBudget, wholeUnits, type Ask } from './demand';
+import {
+  budgetCarryCap,
+  classDemand,
+  matchNpcDemand,
+  nextBudgetCarry,
+  npcGoodBudget,
+  wholeUnits,
+  type Ask,
+} from './demand';
 
 describe('demande des PNJ (formule 5.2)', () => {
   const bread = {
@@ -242,6 +250,137 @@ describe('achats des PNJ dans le carnet', () => {
         carry: 0,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('report du budget non dépensé (5.2, #675)', () => {
+  /**
+   * Ticks successifs d'un carnet à un seul prix, d'offre illimitée : chaque tick offre son budget plus le report
+   * du précédent, et reporte ce qu'il n'a pas dépensé. Sans prix de réserve (`null`), rien ne se reporte : c'est
+   * l'ancien comportement.
+   */
+  function run(
+    ticks: number,
+    price: number,
+    perTick: number,
+    tickBudget: number,
+    reserve: number | null,
+  ) {
+    let [carry, budgetCarry, served, spent, income, maxSpent] = [0, 0, 0, 0, 0, 0];
+    let [overspent, overCap] = [false, false];
+    const cap = budgetCarryCap(reserve ?? 0);
+    for (let tick = 0; tick < ticks; tick++) {
+      const budget = tickBudget + budgetCarry;
+      income += tickBudget;
+      const purchase = matchNpcDemand({
+        asks: [{ orderId: 'a', price, quantity: 1_000_000 }],
+        demandAt: () => perTick,
+        budget,
+        carry,
+      });
+      carry = purchase.carry;
+      budgetCarry = reserve === null ? 0 : nextBudgetCarry(budget, purchase.spent, reserve);
+      served += purchase.fills.reduce((sum, fill) => sum + fill.quantity, 0);
+      spent += purchase.spent;
+      maxSpent = Math.max(maxSpent, purchase.spent);
+      // Revenu cumulé : jamais dépassé, à aucun tick ; le report n'est que ce qui en reste.
+      overspent ||= spent + budgetCarry > income;
+      overCap ||= budgetCarry > cap;
+    }
+    expect([overspent, overCap]).toEqual([false, false]);
+    return { served, spent, income, maxSpent, budgetCarry };
+  }
+
+  it('reporte ce qui reste du budget offert, au plus deux unités au prix de réserve', () => {
+    expect(budgetCarryCap(21)).toBe(42);
+    expect(nextBudgetCarry(13, 7, 21)).toBe(6);
+    expect(nextBudgetCarry(19, 14, 21)).toBe(5);
+    expect(nextBudgetCarry(60, 0, 21)).toBe(42);
+    expect(nextBudgetCarry(42, 0, 21)).toBe(42);
+    expect(nextBudgetCarry(13, 13, 21)).toBe(0);
+    expect(nextBudgetCarry(0, 0, 0)).toBe(0);
+  });
+
+  it('refuse des montants non entiers ou négatifs, et une dépense au-delà du budget', () => {
+    expect(() => nextBudgetCarry(13, 14, 21)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(-1, 0, 21)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(13, -1, 21)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(13, 7, -1)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(13.5, 7, 21)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(13, 7, Number.NaN)).toThrow(RangeError);
+    expect(() => nextBudgetCarry(Number.MAX_SAFE_INTEGER + 1, 0, 21)).toThrow(RangeError);
+  });
+
+  it('non-régression du sel de Kallistè : 13 oboles par tick, sel à 7, besoin de 1,52 unité', () => {
+    // Sans report, deux unités voulues un tick sur deux, une seule payée : 1 000 servies pour 1 520 (66 %).
+    expect(run(1000, 7, 1.52, 13, null).served).toBe(1000);
+    // Avec le report (prix de réserve 3 × 7) : tout le besoin est servi, pour 10 640 oboles sur 13 000.
+    const after = run(1000, 7, 1.52, 13, 21);
+    expect(after.served).toBe(1520);
+    expect(after.spent).toBe(10_640);
+    // Jamais plus de deux sels en un tick.
+    expect(after.maxSpent).toBe(14);
+    // Un jour de jeu (144 ticks) : 218 unités servies pour 218,88, contre 144 sans report.
+    expect(run(144, 7, 1.52, 13, null).served).toBe(144);
+    expect(run(144, 7, 1.52, 13, 21).served).toBe(218);
+  });
+
+  it('un bien dont le budget du tick ne paie pas une unité s’achète quand même, au rythme du revenu', () => {
+    // Amphore à 40 oboles, 6 oboles par tick, besoin de 0,124 unité par tick : sans report, jamais rien.
+    expect(run(1000, 40, 0.124, 6, null).served).toBe(0);
+    expect(run(1000, 40, 0.124, 6, 120).served).toBe(124);
+    // Vendue au prix de réserve, la demande dépasse le revenu : tout le budget se dépense, à une unité près.
+    const dear = run(1000, 40, 0.18, 6, 40);
+    expect(dear.spent + dear.budgetCarry).toBe(6000);
+    expect(dear.budgetCarry).toBeLessThan(40);
+  });
+
+  it('propriété : à offre suffisante au prix de référence, la quantité servie tend vers le besoin', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 60 }),
+        fc.double({ min: 1, max: 2, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.integer({ min: 1, max: 3 }),
+        (price, budgetInPrices, share, reserveFactor) => {
+          // Budget du tick d'un à deux prix unitaires, besoin qu'il couvre.
+          const tickBudget = Math.floor(price * budgetInPrices);
+          const perTick = (share * tickBudget) / price;
+          const ticks = 600;
+          const { served } = run(ticks, price, perTick, tickBudget, price * reserveFactor);
+          // Seule la fraction de demande reportée (moins d'une unité) reste à servir.
+          expect(served).toBeLessThanOrEqual(perTick * ticks + 1e-6);
+          expect(served).toBeGreaterThan(perTick * ticks - 1 - 1e-6);
+        },
+      ),
+    );
+  });
+
+  it('propriété : si le budget ne couvre pas le besoin, il est dépensé en entier sur la durée, jamais plus', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 60 }),
+        fc.double({ min: 0, max: 2, noNaN: true }),
+        fc.double({ min: 1.01, max: 3, noNaN: true }),
+        fc.integer({ min: 1, max: 3 }),
+        (price, budgetInPrices, excess, reserveFactor) => {
+          // Budget du tick jusqu'à deux prix unitaires, au moins une obole ; vendu jusqu'au prix de réserve.
+          const tickBudget = Math.max(1, Math.floor(price * budgetInPrices));
+          const perTick = (excess * tickBudget) / price;
+          const reserve = price * reserveFactor;
+          const { spent, income, maxSpent, budgetCarry } = run(
+            1000,
+            price,
+            perTick,
+            tickBudget,
+            reserve,
+          );
+          // Rien ne se perd : ce qui n'est pas dépensé est dans le dernier report, que la borne ne rogne jamais.
+          expect(spent + budgetCarry).toBe(income);
+          expect(maxSpent).toBeLessThanOrEqual(tickBudget + budgetCarryCap(reserve));
+        },
+      ),
+    );
   });
 });
 

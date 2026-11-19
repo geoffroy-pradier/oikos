@@ -4,6 +4,7 @@ import {
   addBoosts,
   boostedBudget,
   boostedDemand,
+  budgetCarryCap,
   caravanDemandBoosts,
   classDemand,
   festivalDemandBoosts,
@@ -11,6 +12,7 @@ import {
   marketTax,
   matchNpcDemand,
   NEUTRAL_QUALITY,
+  nextBudgetCarry,
   npcGoodBudget,
   purseBudget,
   tickIncome,
@@ -50,6 +52,10 @@ const CONSUMPTION = 'npc_consumption';
  * La bourse borne la dépense (#632) : si elle ne couvre pas le revenu du tick des classes (`tickIncome`), chaque
  * budget est réduit dans la même proportion (`purseBudget`) ; et la dépense du tick d'une cité, hausses comprises,
  * ne dépasse jamais ce qui reste dans sa bourse, si bien qu'aucun achat ne la rend débitrice.
+ *
+ * Ce qu'un tick ne dépense pas de son budget se reporte au suivant (#675), au plus deux unités au prix de réserve
+ * du bien (`nextBudgetCarry`) : un budget de 13 oboles paie alors deux sels à 7 un tick sur deux, comme la demande
+ * le veut.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -185,15 +191,25 @@ export const npcDemand: TickStep = {
           .orderBy('seq')
           .forUpdate()
           .execute();
-        // Rien à acheter : la demande non servie faute d'offre n'est pas reportée, le report ne bouge pas.
+        // Rien à acheter : la demande non servie faute d'offre n'est pas reportée, les reports ne bougent pas.
         if (asks.length === 0) continue;
 
         const carried = await trx
           .selectFrom('game.npc_demand_carry')
-          .select('carry')
+          .select(['carry', 'budget_carry'])
           .where('city_id', '=', city.id)
           .where('good_id', '=', goodId)
           .executeTakeFirst();
+        // Budget du tick, plus ce que les ticks précédents n'ont pas dépensé (#675), à sa borne d'aujourd'hui (un
+        // report écrit sous un prix de réserve plus haut ne le prolonge pas) ; jamais plus que la bourse.
+        const budget = Math.min(
+          purseBudget(
+            boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
+            purse.balance,
+            income,
+          ) + Math.min(Number(carried?.budget_carry ?? 0), budgetCarryCap(reserve)),
+          remaining,
+        );
         const purchase = matchNpcDemand({
           asks: asks.map((ask) => ({
             orderId: ask.id,
@@ -218,14 +234,7 @@ export const npcDemand: TickStep = {
                 })
               );
             }, 0),
-          budget: Math.min(
-            purseBudget(
-              boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
-              purse.balance,
-              income,
-            ),
-            remaining,
-          ),
+          budget,
           carry: carried?.carry ?? 0,
         });
 
@@ -306,13 +315,22 @@ export const npcDemand: TickStep = {
             })
             .execute();
         }
+        const budgetCarry = nextBudgetCarry(budget, purchase.spent, reserve);
         await trx
           .insertInto('game.npc_demand_carry')
-          .values({ world_id: worldId, city_id: city.id, good_id: goodId, carry: purchase.carry })
+          .values({
+            world_id: worldId,
+            city_id: city.id,
+            good_id: goodId,
+            carry: purchase.carry,
+            budget_carry: budgetCarry,
+          })
           .onConflict((conflict) =>
-            conflict
-              .columns(['city_id', 'good_id'])
-              .doUpdateSet({ carry: purchase.carry, updated_at: sql`now()` }),
+            conflict.columns(['city_id', 'good_id']).doUpdateSet({
+              carry: purchase.carry,
+              budget_carry: budgetCarry,
+              updated_at: sql`now()`,
+            }),
           )
           .execute();
         remaining -= purchase.spent;

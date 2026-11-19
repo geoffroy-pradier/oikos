@@ -54,7 +54,8 @@ export interface BudgetClass {
 /**
  * Budget des PNJ d'une cité pour un bien et un tick, en oboles entières (5.2). Le revenu de chaque classe
  * est réparti entre les biens de son panier au prorata de leur dépense de référence (Q0 × prix de
- * référence). L'arrondi est fait vers le bas : les PNJ ne dépensent jamais plus que leur revenu.
+ * référence). L'arrondi est fait vers le bas : les PNJ ne dépensent jamais plus que leur revenu. Ce que le
+ * tick ne dépense pas se reporte, borné (`nextBudgetCarry`).
  */
 export function npcGoodBudget(
   classes: readonly BudgetClass[],
@@ -163,4 +164,31 @@ export function matchNpcDemand({ asks, demandAt, budget, carry }: NpcPurchaseInp
     if (affordable <= Math.min(wanted, ask.quantity)) break;
   }
   return { fills, spent, carry: nextCarry };
+}
+
+/**
+ * Budget non dépensé d'un tick, reporté au tick suivant (5.2, #675). Les biens s'achètent par unités entières :
+ * un budget de 13 oboles ne paie qu'un sel à 7, et sans report les 6 oboles restantes seraient perdues alors que
+ * la demande en veut deux un tick sur deux. Le report est ce qui reste du budget offert au tick (`budget`, report
+ * précédent compris), au plus `budgetCarryCap(reservePrice)`. Le budget offert ne vient que du revenu des ticks
+ * déjà joués : sur la durée, les PNJ ne dépensent jamais plus que leur revenu cumulé.
+ */
+export function nextBudgetCarry(budget: number, spent: number, reservePrice: number): number {
+  for (const value of [budget, spent, reservePrice])
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new RangeError('Budget, spending and reserve price must be non-negative integers');
+  if (spent > budget) throw new RangeError('Spending exceeds the budget');
+  return Math.min(budget - spent, budgetCarryCap(reservePrice));
+}
+
+/**
+ * Borne du report de budget : deux unités au prix de réserve du bien, le plus haut prix que les PNJ paient. Le
+ * report ne devient pas une épargne qui grossit pendant une pénurie, et une dépense d'un tick ne dépasse jamais son
+ * budget de plus de deux unités. Une seule unité ne suffirait pas : quand le budget d'un tick ne paie pas une
+ * unité, la demande d'une unité arrivée avant que le report puisse la payer est perdue (5.2, unités entières), et
+ * un report déjà plafonné attendrait la suivante sans plus rien accumuler. Ce n'est pas un réglage de l'équilibre :
+ * sur la durée, la dépense est celle que permettent le revenu et la demande, quelle que soit la borne.
+ */
+export function budgetCarryCap(reservePrice: number): number {
+  return 2 * reservePrice;
 }

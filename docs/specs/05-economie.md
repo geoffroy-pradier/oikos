@@ -56,10 +56,19 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Depuis #632, ce revenu par tick est un plafond : les achats des PNJ d'une cité sont payés par sa bourse (5.5, 12), que remplissent les salaires et l'hébergement versés par les maisons et le revenu public.
   Si la bourse ne couvre pas le revenu du tick de toutes ses classes (somme des revenus × populations ÷ 1 000, arrondie à l'obole supérieure, `tickIncome`), le budget de chaque bien est réduit dans la proportion bourse ÷ revenu, arrondi à l'obole inférieure (`purseBudget`).
   La dépense d'un tick d'une cité, hausses des fêtes et des caravanes comprises, ne dépasse jamais ce qui reste dans sa bourse : aucun achat ne la rend débitrice, et une bourse vide n'achète rien.
+  Ce qu'un tick ne dépense pas du budget d'un bien se reporte au tick suivant (#675), par cité et par bien (table `npc_demand_carry`).
+  Sans ce report, l'arrondi aux unités entières perdrait de la demande : à Kallistè, un budget de 13 oboles par tick ne paie qu'un sel à 7 quand la demande (1,52 unité par tick) en veut deux un tick sur deux, et au plus 66 % du besoin vital en sel serait servi, quelle que soit l'offre.
+  Avec le report, 13 oboles en paient un, les 6 restantes et 13 de plus en paient deux au tick suivant, et tout le besoin est servi.
+  Le budget offert à un tick est donc son budget, réduit par la bourse comme ci-dessus, plus le report, le tout ramené à ce qui reste dans la bourse ; le report suivant est ce qui n'en a pas été dépensé.
+  Il est borné à deux unités au prix de réserve du bien (`nextBudgetCarry`, `budgetCarryCap`) : le report ne devient pas une épargne qui grossit pendant une pénurie, et la dépense d'un tick ne dépasse jamais son budget de plus de deux unités.
+  Une seule unité ne suffirait pas : quand le budget d'un tick ne paie pas une unité, la demande d'une unité arrivée avant que le report puisse la payer est perdue (voir « Unités entières »), et un report déjà plafonné attendrait la suivante sans plus rien accumuler.
+  Le report ne vient que du revenu des ticks déjà joués : sur la durée, les PNJ ne dépensent jamais plus que leur revenu cumulé, et un budget qui ne couvre pas la demande est dépensé en entier.
 - **Unités entières.** La demande est un nombre réel et les biens se comptent en unités : la fraction non servie d'un tick est reportée au tick suivant.
   La demande non servie faute d'offre, elle, n'est pas reportée.
   Le report est toujours inférieur à une unité ; il est celui de la demande au dernier niveau de prix examiné.
   Un tick sans aucune vente au prix de réserve ou en dessous laisse le report tel quel : sans prix offert, la demande n'a pas de valeur.
+  Il laisse de même le report du budget non dépensé (« Budget »).
+  Une unité voulue que le budget du tick ne paie pas ne se reporte pas comme demande, puisque le report reste inférieur à une unité : c'est le budget non dépensé, reporté, qui paie une unité suivante.
 - **Population.** À chaque clôture quotidienne, la population de chaque classe de chaque cité évolue d'après la couverture du jour de ses besoins vitaux : quantités servies sur quantités demandées, en points de base.
   Au-dessus du seuil de couverture, la classe croît, en proportion de l'excédent, jusqu'au taux de croissance quand la couverture est complète (exactement au seuil, elle ne bouge pas ;
   un seuil de 100 % ne fait croître qu'à couverture complète, au taux plein) ;

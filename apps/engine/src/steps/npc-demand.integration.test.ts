@@ -213,6 +213,15 @@ const carryOf = async (cityId: string) =>
       .where('city_id', '=', cityId)
       .executeTakeFirst()
   )?.carry;
+/** Budget non dépensé reporté au tick suivant (#675), en oboles. */
+const budgetCarryOf = async (cityId: string) => {
+  const row = await db
+    .selectFrom('game.npc_demand_carry')
+    .select('budget_carry')
+    .where('city_id', '=', cityId)
+    .executeTakeFirst();
+  return row && Number(row.budget_carry);
+};
 /** Seuil à 90 % et ±10 % par jour, pour que l'effet se lise en unités entières dès la première clôture. */
 const populationDynamics = {
   vitalCoverageThresholdBps: 9_000,
@@ -435,8 +444,12 @@ describe('demande des PNJ au tick', () => {
     expect(first.summary).toMatchObject({ npcDemand: { units: 10, spent: 60 } });
     expect([await balanceOf(seller.houseId), await paidOf(world.worldId)]).toEqual([60, -60]);
     // Il reste 3 oboles : pas de quoi payer un blé. Le tick suivant n'achète rien, la bourse garde ses 3 oboles.
+    // Les 3 oboles du budget non dépensé se reportent (#675), mais la bourse borne toujours la dépense : 3 + 3
+    // oboles de budget, ramenées aux 3 de la bourse, et rien de plus à reporter.
+    expect(await budgetCarryOf(world.cityId)).toBe(3);
     const second = await runTick(db, request(world.worldId, config, index + 1));
     expect(second.summary).toMatchObject({ npcDemand: { units: 0, spent: 0 } });
+    expect(await budgetCarryOf(world.cityId)).toBe(3);
     const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
       where city_id = ${world.cityId}`.execute(db);
     expect(rows.map((row) => Number(row.balance))).toEqual([3]);
@@ -499,6 +512,40 @@ describe('demande des PNJ au tick', () => {
     expect(second.summary).toMatchObject({ npcDemand: { units: 3 } });
     expect(await carryOf(world.cityId)).toBeCloseTo(0, 9);
     expect(await balanceOf(seller.houseId)).toBe(30);
+  });
+
+  it('reporte le budget non dépensé (#675) : deux unités payées un tick sur deux, report borné', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    // 1,5 blé de besoin par tick et 11 oboles de budget : sans report, un seul blé payé à chaque tick.
+    const config = economy(1.5, 11);
+    const played = [];
+    for (const offset of [0, 1, 2, 3]) {
+      const { summary } = await runTick(db, request(world.worldId, config, index + offset));
+      played.push([
+        (summary['npcDemand'] as { units: number }).units,
+        await budgetCarryOf(world.cityId),
+      ]);
+    }
+    // 11 − 6 = 5 reportées ; 16 paient deux blés, 4 reportées ; 15 en paient un, 9 ; 20 en paient deux, 8.
+    expect(played).toEqual([
+      [1, 5],
+      [2, 4],
+      [1, 9],
+      [2, 8],
+    ]);
+    expect(await balanceOf(seller.houseId)).toBe(36);
+    expect(await paidOf(world.worldId)).toBe(-36);
+    // Un budget large ne s'épargne pas : le report s'arrête à deux unités au prix de réserve, 2 × 18 oboles.
+    await runTick(db, request(world.worldId, economy(1.5, 300), index + 4));
+    expect(await budgetCarryOf(world.cityId)).toBe(36);
+    // Tick sans offre au prix de réserve ou en dessous : les deux reports restent tels quels.
+    await sql`update game.orders set status = 'cancelled' where id = ${seller.orderIds[0] ?? ''}`.execute(
+      owner,
+    );
+    const carried = await carryOf(world.cityId);
+    await runTick(db, request(world.worldId, config, index + 5));
+    expect([await carryOf(world.cityId), await budgetCarryOf(world.cityId)]).toEqual([carried, 36]);
   });
 
   it('fête sur deux jours (#263) : demande et budget de ses biens relevés ces jours-là, besoin mesuré inchangé', async () => {
@@ -637,7 +684,8 @@ describe('demande des PNJ au tick', () => {
     const tick = (later: number) =>
       tickIndexAt(dailyCloseAt(day + later, clock), clock.tickMinutes) + 1;
     const units = [];
-    // 50 oboles de revenu : 8 unités à 6 oboles, puis, budget doublé par la caravane de Kallistè, 16.
+    // 50 oboles de revenu : 8 unités à 6 oboles, et 2 oboles reportées (#675) ; puis, budget doublé par la caravane
+    // de Kallistè, 100 oboles plus ces 2 : 17 unités.
     for (const later of [1, 2])
       units.push(
         (await runTick(db, request(world.worldId, economy(20, 50), tick(later)))).summary[
@@ -649,12 +697,12 @@ describe('demande des PNJ au tick', () => {
     units.push((await runTick(db, request(world.worldId, festive, tick(3)))).summary['npcDemand']);
     expect(units).toMatchObject([
       { units: 8, spent: 48 },
-      { units: 16, spent: 96 },
+      { units: 17, spent: 102 },
       { units: 60, spent: 360 },
     ]);
     expect(await measureOf(world.cityId)).toEqual([
       [8, 20],
-      [16, 20],
+      [17, 20],
       [60, 20],
     ]);
   });
