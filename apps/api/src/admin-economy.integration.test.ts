@@ -62,13 +62,19 @@ const get = (user: string, query = '') =>
  * Écriture posée par le propriétaire, datée de `ms` millisecondes après le début du jour de jeu
  * `today + day`. `lines` : montant par compte (clé d'un compte système, `treasury`, `npc_purse`, ou maison).
  */
-async function entry(kind: string, day: number, ms: number, lines: Record<string, number>) {
+async function entry(
+  kind: string,
+  day: number,
+  ms: number,
+  lines: Record<string, number>,
+  meta: Record<string, unknown> = {},
+) {
   const at = new Date(dailyCloseAt(today + day, config.clock).getTime() + ms);
   await owner.transaction().execute(async (trx) => {
     const { rows } = await sql<{
       id: string;
-    }>`insert into game.ledger_entries (world_id, kind, created_at)
-      values (${WORLD}, ${kind}, ${at}) returning id`.execute(trx);
+    }>`insert into game.ledger_entries (world_id, kind, created_at, meta)
+      values (${WORLD}, ${kind}, ${at}, ${JSON.stringify(meta)}::jsonb) returning id`.execute(trx);
     for (const [ref, amount] of Object.entries(lines)) {
       await sql`insert into game.ledger_lines (entry_id, account_id, amount)
         select ${rows[0]?.id}, a.id, ${amount} from game.accounts a where a.world_id = ${WORLD}
@@ -131,7 +137,13 @@ beforeAll(async () => {
   await entry('temple.loan', -5, HOUR, { faucet_temple_loans: -200, [a]: 200 });
   await entry('temple.repay', -5, 2 * HOUR, { faucet_temple_loans: 200, [a]: -200 });
   // Revenu public des PNJ (#632) : la bourse de la cité compte dans la masse, à part.
-  await entry('npc.public_income', -1, HOUR, { faucet_npc_public_income: -60, npc_purse: 60 });
+  await entry(
+    'npc.public_income',
+    -1,
+    HOUR,
+    { faucet_npc_public_income: -60, npc_purse: 60 },
+    { cityId: CITY, gameDay: today - 1 },
+  );
 });
 
 async function read(id: string, query = '') {

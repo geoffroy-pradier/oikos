@@ -230,6 +230,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 
 Salaires et hébergement versés aux PNJ (#632) : ni création ni destruction, mais un transfert des maisons à la bourse des PNJ de la cité, que la masse monétaire compte.
 Les achats des PNJ aux joueurs, payés par cette bourse, sont le transfert inverse : depuis #632, ils ne créent plus de monnaie, et le robinet `faucet_npc_purchases` reste au catalogue pour l'historique, sans mouvement nouveau.
+La base n'admet au crédit d'une bourse que ces natures d'écriture (#651) : les salaires des sites et des intendants (`upkeep.daily`, `upkeep.restart`), l'hébergement (`lodging.daily`, `lodging.restart`) et le revenu public de sa propre cité (`npc.public_income`) ; toute autre écriture qui la crédite, droit de port, revente ou taxe d'un échange, est refusée, quel que soit le rôle.
 La boucle se ferme ainsi : sans robinet ni puits, la masse d'un monde ne change pas, quels que soient les ticks et les clôtures (propriété testée dans `packages/sim`).
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
@@ -254,6 +255,7 @@ Le premier tick de demande du jour la verse, avant les achats ; la clôture, apr
 En production, le moteur joue les ticks avant les clôtures à chaque passage (`apps/engine/src/main.ts`) : c'est donc presque toujours le premier tick du jour qui verse, sur la population de la veille, et la clôture n'est qu'un secours.
 Une bourse n'attend ainsi jamais la clôture (déploiement après la clôture du jour, monde neuf, cité ajoutée après la clôture).
 Le premier des deux qui passe verse, sur la population qu'il lit ; l'autre ne fait rien : la base tient une seule écriture `npc.public_income` par cité et par jour de jeu (index unique `ledger_entries_npc_public_income_once`), même en concurrence.
+Elle exige pour cela la cité et le jour de jeu sous une seule forme, comme pour l'entretien (#651) : un identifiant en minuscules, un jour entier sans zéro de tête ni décimale.
 Son montant est, pour chaque classe, le revenu d'un jour de la classe (revenu par tick × ticks d'un jour de 24 heures × population ÷ 1 000) fois sa part publique (`npcClasses[].publicIncomeBps`, de 0 à 10 000 points), sommé sur les classes puis arrondi une fois à l'obole inférieure (`dailyPublicIncome`, `packages/sim`).
 La population est la population courante lue par celui qui verse (celle de la veille pour le premier tick, celle que la clôture vient de fixer pour la clôture), ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
 Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), 10 000 points : le revenu d'un jour entier, de quoi payer exactement les achats que payait le robinet d'avant #632.
