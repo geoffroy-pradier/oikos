@@ -411,10 +411,14 @@ Depuis #668, il compte les salaires et l'hébergement que ses maisons versent au
 Décision : ce démarrage à froid, où les besoins vitaux d'une classe restent sous 98 % pendant environ deux jours, est connu et accepté ; la mise en route est une fenêtre de mesure choisie, et les bornes ne valent que pour les 30 jours mesurés.
 Des ateliers moins gourmands laissent des olives, du raisin, de l'argile et de la laine sans preneur : ces matières premières s'y vendent un peu moins cher, sans toucher au panier.
 Depuis #668, la configuration initiale paie une drachme par travailleur et par jour : un atelier de deux travailleurs paie 12 oboles de salaires par jour, et les marges, salaires et hébergement déduits, restent dans leur borne (de 495 oboles pour le charbon à 1 120 pour le moulin, le chai à 448, borne basse 425).
+Depuis #669, la configuration initiale retire la laine au terroir de Kallistè (6.1).
+Le banc à une cité, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario, pour que ses tisserands tondent leurs moutons sur place.
+Ses mesures n'en changent pas, ni ses bornes : hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236.
 
 Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps/api/src/balance-world.bench.ts`, graine fixe, 10 jours de mise en route puis 30 jours mesurés) :
 
 - **Configuration.** Le banc joue la configuration initiale, salaires, marché du travail, transport, entretien et vétusté des biens et événements du monde compris (#668) ; il n'en remplace que la population des cités (divisée par huit), la dotation des maisons de son scénario (15 000 oboles, de quoi acquérir leurs sites et un navire dès les premiers jours), le prix d'achat et de rénovation des logements (divisés par cinq, rénovation au blé), et le simulateur le dit.
+  Kallistè y joue le terroir de la configuration initiale, sans laine depuis #669 : aucune de ses maisons scriptées n'en tondait, et les mesures ci-dessous n'ont pas bougé.
 - **Événements (#668).** Le banc planifie après chaque clôture les événements qu'elle aurait planifiés, sur sa graine fixe : sept en 40 jours, une bonne année à Elaia, deux tempêtes (Elaia–Halos, Elaia–Kallistè), deux sécheresses (Kallistè, pendant la mise en route ; Ampélos, qui n'a pas de champ) et deux caravanes (tissu à Elaia, vin à Halos).
 - **Approvisionnement.** Kallistè et Elaia produisent pour elles et pour Ampélos et Halos, qui pêchent leur poisson ; trois armateurs par cité importatrice la ravitaillent par caboteur, un autre porte le vin de Kallistè à Elaia, un à Halos.
   Un armateur affiche ses prix : il vend les biens du panier à leur référence, le vin 52 oboles (ce qu'un tick du revenu des PNJ d'Ampélos ou d'Halos en paie), et n'achète jamais au-dessus de la référence.

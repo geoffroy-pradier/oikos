@@ -125,13 +125,13 @@ test('onglet Cité : identité, population de la cité et couverture de ses beso
   await nav.getByRole('link', { name: 'Cité' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Cité de Kallistè', level: 1 })).toBeVisible();
-  // Identité de la cité (6.1) : Kallistè, cité fondatrice, garde toutes ses matières premières.
+  // Identité de la cité (6.1) : Kallistè a toutes les matières premières de la phase 1, sauf la laine (#669).
   const identity = page.getByRole('heading', { name: 'Identité de la cité', level: 2 });
   await expect(identity).toBeVisible();
   await expect(page.getByRole('listitem')).toContainText([
     'Protégée par Déméter',
     'Cité portuaire',
-    "Terroir : Champ de blé, Oliveraie, Vigne, Coupe de bois, Carrière d'argile, Pâturage à moutons, Pêcherie et Saline",
+    "Terroir : Champ de blé, Oliveraie, Vigne, Coupe de bois, Carrière d'argile, Pêcherie et Saline",
     'Premier site : Champ de blé',
   ]);
   await expect(page.getByRole('heading', { name: 'Population', level: 2 })).toBeVisible();
@@ -757,6 +757,9 @@ test('sites : acquisition au clavier, changement de production, limite du siège
 
   // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
   const offer = page.getByLabel('Site à acquérir');
+  // Le pâturage à moutons n'est plus du terroir de Kallistè (#669) : il n'est pas proposé, l'oliveraie l'est.
+  await expect(offer.locator('option[value="grow_olives"]')).toHaveCount(1);
+  await expect(offer.locator('option[value="shear_wool"]')).toHaveCount(0);
   // La région vivante du formulaire est là, vide, avant toute annonce : le message y paraît ensuite.
   const region = page.getByRole('form', { name: 'Acquérir un site' }).getByRole('status');
   await expect(region).toHaveCount(1);

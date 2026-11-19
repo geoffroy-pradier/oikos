@@ -183,7 +183,7 @@ Ajouts de la phase 2 :
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
   La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
-  Kallistè garde toutes ses matières premières jusqu'au calibrage à quatre cités (#283).
+  Depuis #669, Kallistè n'a plus de laine : aucune cité n'a toutes les matières premières du panier de ses PNJ.
 - **Passerelle IA** (#268, ADR 0005) : `packages/ai` rend toujours un résultat, la sortie du modèle si elle est conforme à son schéma, sinon le repli.
   Plafond mensuel par usage, journal `telemetry.ai_calls` sans texte, tableau dans la Vigie.
   La chronique (#271) et les oracles (#270) l'appellent, et tous les usages sont coupés dans la configuration initiale ; le fournisseur réel attend #269 (`needs-human`).

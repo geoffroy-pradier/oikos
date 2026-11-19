@@ -15,13 +15,17 @@ Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce te
 
 | Cité | Dieu protecteur | Terroir | Premier site |
 | --- | --- | --- | --- |
-| Kallistè | Déméter | Toutes les matières premières de la phase 1 | Champ de blé |
+| Kallistè | Déméter | Blé, olives, raisin, bois, argile, poisson, sel | Champ de blé |
 | Elaia | Athéna | Olives, blé, sel, bois | Champ de blé |
 | Ampelos | Dionysos | Raisin, poisson, laine, argile | Vigne |
 | Halos | Poséidon | Poisson, sel, argile, bois, laine | Pêcherie |
 
-Aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
-Kallistè, cité fondatrice, les garde toutes, pour que le banc d'équilibrage de la phase 1 et ses tests restent tels quels ; resserrer son terroir revient à une version de configuration éprouvée par le banc à quatre cités (#283).
+Aucune cité n'a toutes les matières premières du panier de ses PNJ, en comptant celles des intrants de ses ateliers.
+Kallistè, cité fondatrice, les a d'abord toutes gardées, pour que le banc d'équilibrage de la phase 1 et ses tests restent tels quels.
+Depuis #669, la configuration initiale lui retire la laine : son tissu vient d'Ampelos ou d'Halos, qui tondent leurs moutons.
+Décision (#669) : c'est le resserrement le plus petit qui rende Kallistè dépendante du commerce ; le banc à quatre cités n'y fait pas tondre de moutons, et ses mesures n'en bougent pas.
+Le banc à une cité de #78, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario (5.5).
+Un resserrement plus fort, du poisson ou du sel par exemple, demanderait d'abord des armateurs qui en ravitaillent Kallistè dans le banc à quatre cités.
 Décision (ambiguïté de cette section) : les quatre cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte.
 Chaque cité a la population de la cité prototype (5.5), et la demande des PNJ y est jouée comme à Kallistè.
 Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les quatre cités, et l'onglet Cité celle de la maison.
