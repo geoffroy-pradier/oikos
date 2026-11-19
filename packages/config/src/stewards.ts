@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 /**
+ * Conservation des opérations d'intendant pour une version publiée avant ce paramètre, ou sans intendants : 30 jours.
+ * FIGÉE, pour la même raison que `DEFAULT_SITES`.
+ */
+export const DEFAULT_STEWARD_OPERATIONS_RETENTION_DAYS = 30;
+
+/**
  * Intendants (docs/specs/04-systemes-gestion.md, 4.4 ; #278) : chaque site d'une maison peut avoir le sien, qui
  * mène ses règles de gestion. Lue par les joueurs (vue `public.site_rules`, clé `stewards` de la colonne
  * `sites`, sans les noms) : n'y ranger aucun paramètre qui doive rester caché.
@@ -24,6 +30,17 @@ export const stewardsSchema = z
      * publiée avant l'exécution des règles : une, la valeur de départ.
      */
     operationsPerTick: z.number().int().min(1).max(20).default(1),
+    /**
+     * Conservation des opérations d'intendant (#561), en jours : au-delà, le moteur les supprime, sauf la dernière de
+     * chaque intendant et celles du dernier tick de son monde. Au moins un jour, comme la purge de la base. Absent
+     * d'une version publiée avant elle : `DEFAULT_STEWARD_OPERATIONS_RETENTION_DAYS`.
+     */
+    operationsRetentionDays: z
+      .number()
+      .int()
+      .min(1)
+      .max(3650)
+      .default(DEFAULT_STEWARD_OPERATIONS_RETENTION_DAYS),
     /** Noms que reçoit un intendant à son embauche, tirés au hasard : du contenu, pas de l'équilibrage. */
     names: z
       .array(
@@ -71,4 +88,9 @@ export function stewardRulesLimit(config: WithStewards): number {
 /** Opérations au plus par intendant et par tick : aucune avant les intendants. */
 export function stewardOperationsPerTick(config: WithStewards): number {
   return config.stewards?.operationsPerTick ?? 0;
+}
+
+/** Conservation des opérations d'intendant, en jours : celle d'avant le paramètre pour une version sans intendants. */
+export function stewardOperationsRetentionDays(config: WithStewards): number {
+  return config.stewards?.operationsRetentionDays ?? DEFAULT_STEWARD_OPERATIONS_RETENTION_DAYS;
 }

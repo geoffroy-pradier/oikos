@@ -4,6 +4,7 @@ import {
   stewardDailyWageOboles,
   stewardLimit,
   stewardOperationsPerTick,
+  stewardOperationsRetentionDays,
   stewardRulesLimit,
   validateConfig,
   type StewardsRules,
@@ -90,5 +91,28 @@ describe('intendants (4.4, #278)', () => {
     const none = validateConfig(without);
     if (!none.ok) throw new Error(none.errors.join('\n'));
     expect(stewardOperationsPerTick(none.config)).toBe(0);
+  });
+
+  it('conservation des opérations (#561) : 30 jours au départ et pour une version publiée avant elle, entier de 1 à 3650', () => {
+    const initial = validateConfig(INITIAL_CONFIG);
+    if (!initial.ok) throw new Error(initial.errors.join('\n'));
+    expect(stewardOperationsRetentionDays(initial.config)).toBe(30);
+    const older: Record<string, unknown> = { ...base().stewards };
+    delete older['operationsRetentionDays'];
+    const result = validateConfig({ ...base(), stewards: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(stewardOperationsRetentionDays(result.config)).toBe(30);
+    const stewards = base().stewards;
+    for (const value of [0, 3651, 1.5, '30'])
+      expect(fieldsOf({ ...stewards, operationsRetentionDays: value })).toEqual([
+        'stewards.operationsRetentionDays',
+      ]);
+    expect(fieldsOf({ ...stewards, operationsRetentionDays: 1 })).toEqual([]);
+    // Sans intendants, les opérations d'une version antérieure se purgent encore, à la valeur d'avant le paramètre.
+    const without: Record<string, unknown> = base();
+    delete without['stewards'];
+    const none = validateConfig(without);
+    if (!none.ok) throw new Error(none.errors.join('\n'));
+    expect(stewardOperationsRetentionDays(none.config)).toBe(30);
   });
 });

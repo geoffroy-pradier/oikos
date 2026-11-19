@@ -214,6 +214,7 @@
     "dailyWageOboles": 0,
     "rulesPerSteward": 5,
     "operationsPerTick": 1,
+    "operationsRetentionDays": 30,
     "names": [
       "Nikias",
       "Lysandros",
