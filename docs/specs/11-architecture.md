@@ -71,3 +71,6 @@ Chaque action de jeu est une commande nommée (`market.placeOrder`, `site.startR
 Une commande porte une clé d'idempotence, s'exécute dans une seule transaction et produit des événements de domaine (`OrderMatched`, `ShipArrived`) qui alimentent le temps réel, la télémétrie et la chronique.
 Le tick en produit aussi, sans commande, dans sa propre transaction : un `TradeExecuted` par achat des PNJ, par exemple.
 Le lancement compte environ 90 commandes.
+Une commande, comme une lecture d'Olympe, exige un jeton de Supabase Auth valide dont le compte existe encore : un jeton signé reste valide jusqu'à son expiration, même si son compte a été effacé depuis (remise à zéro de la base, suppression, effacement en douceur).
+Un compte absent est refusé en `UNAUTHENTICATED`, comme un jeton invalide, avant la limite de débit et le journal des commandes : rien n'est écrit, la clé d'idempotence n'est pas consommée (#565).
+Le rôle de service n'a aucun droit sur le schéma `auth` : il ne lit que la réponse de `game.auth_user_exists`, un booléen, et aucun joueur n'exécute cette fonction.

@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import { newAccount, TEST_CONFIG, testConfig, testVerifier } from './test-config';
 
 // Candidature, retrait et vote à l'élection de l'archonte, contre Supabase local. Chaque test a son
 // monde, avec Kallistè et Elaia : la base n'admet qu'une élection ouverte par cité.
@@ -171,7 +171,9 @@ describe('city.standForElection et city.withdrawCandidacy', () => {
     expect((await stand(metic.user, world.electionId)).body.error?.code).toBe('NOT_CITIZEN');
     expect((await stand(foreigner.user, world.electionId)).body.error?.code).toBe('NOT_CITIZEN');
     expect((await stand(citizen.user, randomUUID())).body.error?.code).toBe('ELECTION_NOT_FOUND');
-    expect((await stand(randomUUID(), world.electionId)).body.error?.code).toBe('HOUSE_NOT_FOUND');
+    expect((await stand(await newAccount(owner), world.electionId)).body.error?.code).toBe(
+      'HOUSE_NOT_FOUND',
+    );
     const filed = await stand(citizen.user, world.electionId);
     await world.startVoting();
     expect((await stand(foreigner.user, world.electionId)).body.error?.code).toBe('NOT_CITIZEN');

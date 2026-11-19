@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { codeOf, db, newWorld, openDirect, owner, rows } from './chat-test-world';
+import { newAccount } from './test-config';
 
 // Conversations privées (6.6), contre Supabase local.
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
@@ -51,7 +52,10 @@ describe('chat.openDirect', () => {
       404,
       'RECIPIENT_NOT_FOUND',
     ]);
-    expect(codeOf(await openDirect(randomUUID(), alice.houseId))).toEqual([404, 'HOUSE_NOT_FOUND']);
+    expect(codeOf(await openDirect(await newAccount(owner), alice.houseId))).toEqual([
+      404,
+      'HOUSE_NOT_FOUND',
+    ]);
     expect(
       await rows(
         sql`select id from game.channels where ${alice.houseId} in (house_low, house_high)`,

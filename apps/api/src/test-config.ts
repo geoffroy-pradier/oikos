@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { INITIAL_CONFIG, validateConfig, type LoadedConfig } from '@oikos/config';
+import type { Db } from '@oikos/db';
 import { nextDailyClose, type ClockSettings } from '@oikos/sim';
+import { sql } from 'kysely';
 import type { TokenVerifier } from './auth';
 import type { ConfigSource } from './registry';
 
@@ -55,3 +58,15 @@ export const testVerifier: TokenVerifier = async (token) => {
     : (['aal1', token] as const);
   return userId.length === 36 ? { userId, aal } : null;
 };
+
+/**
+ * Compte de Supabase Auth sans maison, posé par le propriétaire (`owner`) : le jeton d'un compte absent de
+ * `auth.users` est refusé avant toute commande (#565), si bien qu'un « compte sans maison » doit exister.
+ */
+export async function newAccount(owner: Db): Promise<string> {
+  const id = randomUUID();
+  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(
+    owner,
+  );
+  return id;
+}
