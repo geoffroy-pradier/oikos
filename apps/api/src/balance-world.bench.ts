@@ -141,6 +141,17 @@ it(
     ).rows[0];
     expect(Number(sailed?.voyages), 'voyages arrivés').toBeGreaterThan(0);
     expect(Number(sailed?.units), 'unités transportées').toBeGreaterThan(0);
+    // Chaque voyage est daté à l'heure de jeu (#663), comme les sites : parti et arrivé entre le jour 0 et la fin
+    // du banc, jamais à l'instant réel de la base, qui est des mois après.
+    const undated = (
+      await sql<{ n: string }>`select count(*) as n from game.voyages
+        where world_id = ${world.worldId}
+          and not (departed_at between ${closeOf(world, 0)} and ${closeOf(world, lastDay + 1)}
+            and arrives_at between departed_at and ${closeOf(world, lastDay + 1)})`.execute(
+        world.db,
+      )
+    ).rows[0];
+    expect(Number(undated?.n), 'voyages datés hors de l’heure de jeu').toBe(0);
 
     // Les flux mesurés (mise en route comprise), sommés sur tous les jours, rendent ceux du grand livre : le net de
     // chaque robinet et de chaque puits, relevé sur les lignes du grand livre, est l'opposé du solde de son compte,
