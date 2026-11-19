@@ -110,11 +110,15 @@ async function arrive(houseName: string) {
   );
 }
 
-/** Les sites de la maison sont à l'arrêt depuis une heure, faute d'entretien payé (garde levée le temps de l'écriture). */
+/**
+ * Les sites de la maison sont à l'arrêt depuis une heure, faute d'entretien payé, ou depuis le début de leur cycle s'il
+ * est plus récent : un cycle ne commence jamais après l'arrêt (`sites_cycle_not_after_halt`). Garde levée le temps de
+ * l'écriture.
+ */
 async function halt(houseName: string) {
   await db.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
-    await sql`update game.sites set halted_at = now() - interval '1 hour'
+    await sql`update game.sites set halted_at = greatest(cycle_started_at, now() - interval '1 hour')
       where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
     await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
   });
