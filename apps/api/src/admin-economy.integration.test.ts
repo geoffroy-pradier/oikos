@@ -225,8 +225,11 @@ it('le tableau de bord porte chaque robinet et chaque puits du catalogue des com
   expect(catalog).toEqual([...SYSTEM_ACCOUNT_KEYS].sort());
   const { world } = await read(WORLD);
   expect(world.systemAccounts.map((row) => row.key).sort()).toEqual(catalog);
-  // Puits et robinets de la phase 2 : transport, immobilier, décrets de dépense, offrandes, revenu public.
+  // Puits et robinets de la phase 2 : transport, immobilier, salaires et hébergement, décrets de dépense, offrandes,
+  // revenu public.
   const phase2 = new Map([
+    ['sink_npc_wages', 'sink'],
+    ['sink_npc_lodging', 'sink'],
     ['sink_ship_purchase', 'sink'],
     ['sink_voyage_provisions', 'sink'],
     ['sink_port_dues', 'sink'],

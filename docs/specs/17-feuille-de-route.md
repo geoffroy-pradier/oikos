@@ -36,6 +36,30 @@ Le critère est atteint par le code.
 Il reste à l'éprouver avec des joueurs réels, ce qui attend le serveur.
 La phase 1 se ferme quand ses derniers tickets de suivi le sont ; le passage en phase 2 ne demande pas de serveur (exception ci-dessus).
 
+- **Phase 2** : critère retenu par délégation du propriétaire et écrit en tête de `docs/tickets/phase-2.md` (parcours de l'alpha IA coupée, économie à quatre cités, pilotage, communauté, IA).
+
+Vérification du critère de la phase 2, le 19 novembre 2026 :
+
+- Parcours de l'alpha : `apps/web/e2e/alpha-journey.spec.ts`, à 360 px, deux joueurs dans deux cités (Kallistè et Elaia), les trois usages d'IA coupés et aucun appel journalisé (#671).
+  Il enchaîne chaque étape du point 1 : relance d'un site et salaires payés (#685), achat d'un navire, voyage et vente à l'agora de l'autre cité (#673), achat, location et rénovation d'un logement, intendant par formulaire, candidature et vote à l'élection, vote d'un décret, canal de cité et message privé, signalement, offrande, grâce, Pythie et chronique.
+  Le parcours pose en base ce qui demanderait des jours de jeu (fonds, temps écoulé, usure, arrêt, citoyenneté, calendrier de l'élection, chronique et oracle du jour).
+  La production des chroniques et des oracles de repli, IA coupée, est vérifiée par les tests d'intégration du moteur (#270, #271).
+  Le clavier est vérifié écran par écran par les autres tests de bout en bout (`city-assembly`, `temple`, `city-chronicle`, `first-slice`, `messages`), à 360 px et 1 440 px ; la proposition d'un décret par l'archonte l'est par `city-assembly`.
+- Économie à quatre cités : banc `apps/api/src/balance-world.bench.ts` (#281 à #283), job `balance` de `ci`, 10 jours de mise en route et 30 mesurés.
+  Il tient dans chaque cité le coût du panier de 0 à 2 %, les besoins vitaux couverts à 98 % au moins et une population qui ne baisse pas ; la masse monétaire croît de moins de 200 % et la création nette des dix derniers jours ne dépasse pas 110 % de celle des dix premiers (5.5).
+  La marge des ateliers reste entre la moitié et le double de la médiane des matières premières (#285).
+  Il joue la configuration initiale calibrée par #283 et #668, à trois paramètres de scénario près, écrits dans `apps/api/src/balance/world.ts` : population divisée par huit, dotation de départ multipliée par cinq (15 000 oboles) et prix des logements divisés par cinq (5.5).
+  La borne de −5 % à +25 % de la masse monétaire passe en phase 3, avec les liturgies.
+- Pilotage : le tableau de bord d'Olympe porte chaque robinet et chaque puits du catalogue des comptes système, un test le compare au catalogue de la base et nomme ceux de la phase 2 (#670).
+  Le simulateur (`pnpm --filter @oikos/api simulate`, #284) compare sur 30 jours une configuration candidate à la configuration de référence : inflation, masse monétaire, robinets et puits, couverture des besoins, population et marges par filière ; son module dans Olympe attend le serveur.
+- Communauté : chaque étape d'un signalement est vérifiée contre la base, signalement, file d'Olympe, masquage, classement, sanction graduée, double validation d'une exclusion, appel et décision (#275 à #277), et l'écran de modération l'est au clavier.
+  L'API refuse la discussion à un joueur réduit au silence et toute commande de jeu, sauf l'appel, à un joueur suspendu.
+- IA : chaque usage (oracle, chronique, consigne d'intendant) a son repli, testé IA coupée ; celui de la consigne est le formulaire de règles (#268, #270, #271, #280).
+  Le plafond mensuel se déduit du budget par joueur actif et par mois, au plus 0,10 €, et du nombre de joueurs actifs attendu ; un usage qui l'atteint est coupé jusqu'au mois suivant, ce que vérifie un test sur le fournisseur factice (#268).
+
+Le critère est atteint par le code.
+Il reste à l'éprouver avec des joueurs réels, ce qui attend le serveur (#33), comme le fournisseur d'IA réel (#269).
+
 ## Ce qui est volontairement hors de la 1.0
 
 Bourse des sociétés, tribunaux de joueurs, application native distincte, 3D, combat. Chacun de ces sujets doublerait un chantier ; ils attendent que l'économie de base soit stable.
