@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Button } from './Button';
+import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 
 afterEach(cleanup);
@@ -74,5 +76,59 @@ describe('Stepper', () => {
     expect(screen.getByText('20 amphores · 280 ob.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
     expect(onConfirm).toHaveBeenCalledOnce();
+  });
+
+  it('bloque Confirmer tant que le récapitulatif n’est pas valable', () => {
+    const onConfirm = vi.fn();
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={onConfirm}
+        steps={[
+          { id: 'quantity', title: 'Quantité', content: <p>20</p> },
+          {
+            id: 'summary',
+            title: 'Récapitulatif',
+            valid: false,
+            content: <p>Fonds insuffisants</p>,
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    const confirm = screen.getByRole('button', { name: 'Confirmer' }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('dans une feuille : la tabulation boucle, Échap ferme et rend le foyer', () => {
+    function InSheet() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Button onClick={() => setOpen(true)}>Vendre</Button>
+          <Sheet open={open} onClose={() => setOpen(false)} title="Vendre" closeLabel="Fermer">
+            <Harness onConfirm={() => undefined} />
+          </Sheet>
+        </>
+      );
+    }
+    render(<InSheet />);
+    const trigger = screen.getByRole('button', { name: 'Vendre' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.change(screen.getByLabelText('Amphores'), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    const close = screen.getByRole('button', { name: 'Fermer' });
+    const next = screen.getByRole('button', { name: 'Continuer' });
+    next.focus();
+    fireEvent.keyDown(next, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(next);
+    fireEvent.keyDown(next, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });
