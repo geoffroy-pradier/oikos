@@ -1063,6 +1063,13 @@
         "AMBIGUOUS": "This instruction is ambiguous: it lacks a good, a price or a quantity written in digits, or a price is not whole in a single unit (not “12.5 drachmas” nor “1 drachma 3 obols”). Make it precise, or give the rules with the form."
       }
     },
+    "orders": {
+      "title": "Steward's open orders",
+      "none": "No open order.",
+      "sell": "Selling {{good}}: {{remaining}} of {{quantity}} left, at {{price}} each or more",
+      "buy": "Buying {{good}}: {{remaining}} of {{quantity}} left, at {{price}} each or less",
+      "note": "Giving {{name}} new rules, or dismissing them, cancels these orders: reserved stock is freed and the escrow of purchases returns to the treasury."
+    },
     "ops": {
       "title": "Latest operations",
       "none": "No operation yet.",

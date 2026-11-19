@@ -1063,6 +1063,13 @@
         "AMBIGUOUS": "Cette consigne est ambiguë : il y manque un bien, un prix ou une quantité écrits en chiffres, ou un prix n'y est pas entier dans une seule unité (pas « 12,5 drachmes » ni « 1 drachme 3 oboles »). Précisez-la, ou donnez les règles par le formulaire."
       }
     },
+    "orders": {
+      "title": "Ordres ouverts de l'intendant",
+      "none": "Aucun ordre ouvert.",
+      "sell": "Vente de {{good}} : reste {{remaining}} sur {{quantity}}, à {{price}} l'unité ou plus",
+      "buy": "Achat de {{good}} : reste {{remaining}} sur {{quantity}}, à {{price}} l'unité ou moins",
+      "note": "Donner de nouvelles règles à {{name}}, ou le renvoyer, annule ces ordres : le stock réservé est libéré et le séquestre des achats revient à la trésorerie."
+    },
     "ops": {
       "title": "Dernières opérations",
       "none": "Aucune opération pour l'instant.",

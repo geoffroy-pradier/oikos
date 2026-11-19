@@ -9,6 +9,7 @@ import type { SiteRecipe } from '../site-rules';
 import { blankRule, draftOf, goodsFor, hireIntent, moveUp } from '../stewards';
 import { rulesIntent, rulesOf, staleIntents, type RuleDraft, type Steward } from '../stewards';
 import type { StewardActivity, StewardInstruction, StewardOperation } from '../stewards';
+import type { StewardOrder } from '../stewards';
 import { instructionIntent } from '../stewards';
 import type { StewardRule } from '@oikos/contracts';
 import { SiteStewardInstruction } from './SiteStewardInstruction';
@@ -31,6 +32,8 @@ export function SiteSteward(props: {
   activity?: StewardActivity | undefined;
   /** Dernière consigne de l'intendant et sa réponse (#280) ; absente sans consigne ou tant qu'elle n'est pas lue. */
   instruction?: StewardInstruction | undefined;
+  /** Ordres ouverts posés par l'intendant (#562) ; absents tant qu'ils ne sont pas lus. */
+  orders?: StewardOrder[] | undefined;
   /** Postes du siège, salaire d'un jour et règles au plus (`site_rules`, clé `stewards`) ; zéro sans eux. */
   rules: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
   /** Intendants en poste de la maison. */
@@ -214,6 +217,34 @@ export function SiteSteward(props: {
                 <p className="break-words font-semibold text-danger">
                   {t('steward.ops.lastRefusal', { text: line(props.activity.lastRefusal) })}
                 </p>
+              )}
+            </section>
+          )}
+          {props.orders !== undefined && (
+            <section aria-labelledby={`${labelId}-orders`} className="flex flex-col gap-1 text-sm">
+              <h5 id={`${labelId}-orders`} className="font-semibold">
+                {t('steward.orders.title')}
+              </h5>
+              {props.orders.length === 0 ? (
+                <p className="text-muted-foreground">{t('steward.orders.none')}</p>
+              ) : (
+                <>
+                  <ul className="flex flex-col gap-1">
+                    {props.orders.map((order) => (
+                      <li key={order.id} className="break-words">
+                        {t(`steward.orders.${order.side}`, {
+                          remaining: order.remaining,
+                          quantity: order.quantity,
+                          good: goodName(order.goodId),
+                          price: money(order.price),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-muted-foreground">
+                    {t('steward.orders.note', { name: steward.name })}
+                  </p>
+                </>
               )}
             </section>
           )}

@@ -8,6 +8,7 @@ import {
   moveUp,
   parseInstructions,
   parseStewardActivity,
+  parseStewardOrders,
   parseStewards,
   rulesIntent,
   rulesOf,
@@ -179,6 +180,35 @@ describe('intendants de la maison (#278)', () => {
     expect(activity.get('st2')?.recent).toHaveLength(1);
     expect(activity.get('st2')?.lastRefusal).toBe(activity.get('st2')?.recent[0]);
     expect(parseStewardActivity([]).size).toBe(0);
+  });
+});
+
+describe('ordres ouverts d’un intendant (#562)', () => {
+  const order = (id: string, stewardId: string, createdAt: string, extra = {}) => ({
+    id,
+    steward_id: stewardId,
+    side: 'sell',
+    good_id: 'flour',
+    price: '14',
+    quantity: 30,
+    remaining: '12',
+    created_at: createdAt,
+    ...extra,
+  });
+  it('par intendant, les plus anciens d’abord, montants en nombres ; une ligne illisible est ignorée', () => {
+    const orders = parseStewardOrders([
+      order('o2', 'st1', '2026-11-18T11:00:00.000Z', { side: 'buy', good_id: 'wheat' }),
+      order('o1', 'st1', '2026-11-18T10:00:00.000Z'),
+      order('o3', 'st2', '2026-11-18T10:30:00.000Z'),
+      order('o4', 'st2', '2026-11-18T10:40:00.000Z', { side: 'hold' }),
+      order('o5', 'st2', '2026-11-18T10:50:00.000Z', { remaining: '-1' }),
+    ]);
+    expect(orders.get('st1')).toEqual([
+      { id: 'o1', side: 'sell', goodId: 'flour', price: 14, quantity: 30, remaining: 12 },
+      { id: 'o2', side: 'buy', goodId: 'wheat', price: 14, quantity: 30, remaining: 12 },
+    ]);
+    expect(orders.get('st2')?.map((o) => o.id)).toEqual(['o3']);
+    expect(parseStewardOrders([]).size).toBe(0);
   });
 });
 

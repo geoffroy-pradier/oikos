@@ -6,7 +6,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
-import type { Steward, StewardActivity } from '../stewards';
+import type { Steward, StewardActivity, StewardOrder } from '../stewards';
 
 // Section Intendant de la fiche d'un site (#278) : commandes espionnées, aucune lecture.
 const api = vi.hoisted(() => ({ stewardCommand: vi.fn() }));
@@ -28,7 +28,12 @@ const nikias: Steward = {
 const onChanged = vi.fn(() => Promise.resolve());
 async function show(
   steward: Steward | undefined,
-  options: { posted?: number; rules?: typeof posts; activity?: StewardActivity } = {},
+  options: {
+    posted?: number;
+    rules?: typeof posts;
+    activity?: StewardActivity;
+    orders?: StewardOrder[];
+  } = {},
 ) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -46,6 +51,7 @@ async function show(
           recipe={mill ?? null}
           steward={steward}
           activity={options.activity}
+          orders={options.orders}
           rules={options.rules ?? posts}
           posted={options.posted ?? (steward ? 1 : 0)}
           onChanged={onChanged}
@@ -250,5 +256,28 @@ describe('section Intendant (#278)', () => {
     // Lecture en cours ou en échec : la section n'est pas montrée.
     await show(nikias);
     expect(screen.queryByText('Dernières opérations')).toBeNull();
+  });
+
+  it('ordres ouverts de l’intendant (#562) : chacun et son reste, et ce que des règles nouvelles ou le renvoi en font', async () => {
+    const orders: StewardOrder[] = [
+      { id: 'o1', side: 'sell', goodId: 'flour', price: 14, quantity: 30, remaining: 12 },
+      { id: 'o2', side: 'buy', goodId: 'wheat', price: 7, quantity: 50, remaining: 50 },
+    ];
+    await show(nikias, { orders });
+    const list = screen.getByRole('region', { name: "Ordres ouverts de l'intendant" });
+    const items = [...list.querySelectorAll('li')].map((item) => item.textContent);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatch(/^Vente de Farine : reste 12 sur 30, à .+ l'unité ou plus$/);
+    expect(items[1]).toMatch(/^Achat de Blé : reste 50 sur 50, à .+ l'unité ou moins$/);
+    expect(list.textContent).toContain(
+      'Donner de nouvelles règles à Nikias, ou le renvoyer, annule ces ordres',
+    );
+    cleanup();
+    await show(nikias, { orders: [] });
+    expect(screen.getByText('Aucun ordre ouvert.')).toBeTruthy();
+    cleanup();
+    // Lecture en cours ou en échec : la section n'est pas montrée.
+    await show(nikias);
+    expect(screen.queryByText("Ordres ouverts de l'intendant")).toBeNull();
   });
 });

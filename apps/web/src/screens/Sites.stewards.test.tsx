@@ -93,6 +93,19 @@ describe('fiche de site : section Intendant (#278)', () => {
           },
         },
       ],
+      // Ordres ouverts de son intendant (#562), sur la fiche de son site.
+      my_steward_orders: [
+        {
+          id: 'o1',
+          steward_id: 'st1',
+          side: 'buy',
+          good_id: 'wheat',
+          price: '7',
+          quantity: '50',
+          remaining: '30',
+          created_at: hired,
+        },
+      ],
     };
     const html = await render();
     expect(html.match(/<h4[^>]*>Intendant<\/h4>/g)).toHaveLength(2);
@@ -101,6 +114,7 @@ describe('fiche de site : section Intendant (#278)', () => {
     expect(html).toContain('value="50"');
     // Ses opérations (#279) : son dernier refus, avec sa raison.
     expect(html).toContain('rachat de Blé refusé : Trésorerie insuffisante.');
+    expect(html).toMatch(/Achat de Blé : reste 30 sur 50, à .+ l(&#x27;|')unité ou moins/);
     // Un poste reste libre : le champ de blé peut embaucher.
     expect(html).toContain('aria-label="Embaucher un intendant pour Champ de blé"');
   });

@@ -205,6 +205,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   La sanction est relue sous le verrou d'agora, à l'heure de cette lecture (#528) : une suspension ou une exclusion validée pendant que l'intendant attendait ce verrou l'arrête aussi, sans rien noter.
   Un rachat garde le bien de sa règle même si la recette du site a changé depuis : les règles sont celles du joueur.
   La fiche du site montre les cinq dernières opérations de son intendant et son dernier refus (vue `my_steward_operations`), privées comme ses règles.
+  Elle montre aussi les ordres ouverts qu'il a posés et leur reste (vue `my_steward_orders`, #562), privés de même, et dit que des règles nouvelles ou son renvoi les annulent.
   Conservation (#561) : le moteur supprime les opérations plus anciennes que `stewards.operationsRetentionDays` jours (30 au départ, et pour une version publiée avant ce paramètre ; au moins un jour), par une fonction du propriétaire (ADR 0002).
   Restent, quel que soit leur âge, la dernière opération de chaque intendant, d'où repart la file de ses règles, et celles du dernier tick de son monde, que le moteur relit pour ne mener aucun rang deux fois.
   La fiche peut donc montrer moins de cinq opérations, ou aucun refus, quand les plus anciennes sont échues.
