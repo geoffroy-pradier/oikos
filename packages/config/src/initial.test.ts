@@ -154,6 +154,10 @@ describe('jeu de valeurs initial', () => {
     expect(Object.values(config.staff.dailyWageOboles).every((wage) => wage === 0)).toBe(true);
   });
 
+  it('le revenu public des PNJ entre neutre : aucune part publique, en attendant le calibrage (#632, #283)', () => {
+    expect(config.npcClasses.every((npcClass) => (npcClass.publicIncomeBps ?? 0) === 0)).toBe(true);
+  });
+
   it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {
     expect(config.labor).toEqual(DEFAULT_LABOR);
   });
