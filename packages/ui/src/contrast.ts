@@ -105,4 +105,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['focus', 'background', AA_UI],
   ['focus', 'surface', AA_UI],
   ['focus', 'surface-raised', AA_UI],
+  // Pastille active (onglets, choix segmentés) : fond plein du texte, texte couleur du fond.
+  ['background', 'foreground', AA_TEXT],
+  // Interrupteur allumé sur une fiche relevée (éteint : sa bordure, et sa pastille sur la piste, sont
+  // déjà tenues ; bord accent ou danger des champs aussi, au seuil du texte).
+  ['primary', 'surface-raised', AA_UI],
 ];
