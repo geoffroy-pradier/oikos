@@ -119,7 +119,10 @@ export interface Seller extends House {
 }
 export const seller = (house: House): Seller => ({ ...house, asks: new Map(), listed: new Map() });
 
-/** Ordres ouverts de la maison, annulés ; rend, par bien, ce qui a été vendu la veille. */
+/**
+ * Ordres ouverts de la maison, annulés, sauf les ventes de son intendant (`delegated`) : retirées chaque matin, elles
+ * manqueraient au carnet jusqu'à ce qu'il les remette ; rend, par bien, ce qui a été vendu la veille.
+ */
 export async function cancelOpen(city: City, house: Seller) {
   const open = await city.db
     .selectFrom('game.orders')
@@ -133,6 +136,7 @@ export async function cancelOpen(city: City, house: Seller) {
   const sold = new Map(house.listed);
   house.listed.clear();
   for (const order of open) {
+    if (order.side === 'sell' && house.delegated?.has(order.good_id)) continue;
     if (order.side === 'sell')
       sold.set(order.good_id, (sold.get(order.good_id) ?? 0) - Number(order.remaining));
     const cancelled = await city.send(house.user, 'market.cancelOrder', { orderId: order.id });
