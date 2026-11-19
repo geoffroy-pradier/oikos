@@ -121,9 +121,12 @@ describe('parseSiteRules', () => {
     expect(parseSiteRules(raw({ sites: { ...config.sites, clock } }))?.tickMinutes).toBe(10);
     expect(parseSiteRules(raw())?.tickMinutes).toBeNull();
     expect(parseSiteRules(raw({ sites: null }))?.tickMinutes).toBeNull();
-    expect(
-      parseSiteRules(raw({ sites: { ...config.sites, clock: { tickMinutes: 0 } } })),
-    ).toBeNull();
+    // Une durée illisible tait l'heure, sans rendre les règles des sites illisibles.
+    for (const clock of [{ tickMinutes: 0 }, { tickMinutes: 'dix' }, 10, null]) {
+      const rules = parseSiteRules(raw({ sites: { ...config.sites, clock } }));
+      expect(rules?.tickMinutes).toBeNull();
+      expect(rules?.limit).toBe(config.sites.limitByHeadquartersLevel[0]);
+    }
   });
 
   it('prix d’une relance au marché du travail du jour (#258) : son salaire, et l’hébergement des non logés', () => {

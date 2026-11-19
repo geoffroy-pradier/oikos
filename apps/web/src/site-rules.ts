@@ -62,8 +62,9 @@ const siteRulesSchema = z.object({
             .default(DEFAULT_STEWARD_REFUSAL_REST_TICKS),
         })
         .optional(),
-      // Durée du tick (`clock.tickMinutes`, #640), pour dater un tick ; absente : aucune heure n'est annoncée.
-      clock: z.object({ tickMinutes: positiveInt }).optional(),
+      // Durée du tick (`clock.tickMinutes`, #640), pour dater un tick ; absente ou illisible : aucune heure n'est
+      // annoncée, et le reste des règles reste lisible.
+      clock: z.object({ tickMinutes: positiveInt }).optional().catch(undefined),
     })
     .nullable()
     .transform((sites) => sites ?? DEFAULT_SITES),

@@ -214,6 +214,7 @@ describe('intendants de la maison (#278)', () => {
       [steward, refusal, { ...rules, tickMinutes: null }], // sans durée du tick, pas d'heure
       [steward, null, rules], // refus purgé ou jamais lu
       [steward, refusal && { ...refusal, revision: null }], // vue d'avant la révision
+      [steward, refusal && { ...refusal, tick: 1e15 }], // tick hors des dates représentables
     ] as const)
       expect(refusalRestUntil(who, what ?? null, how ?? rules, before)).toBeNull();
   });

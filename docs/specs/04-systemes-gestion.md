@@ -225,6 +225,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Un tick est le rang de l'intervalle depuis l'époque Unix : son heure est ce rang fois la durée du tick.
   Rien n'est annoncé pour un refus d'une autre révision que celle en vigueur, sans repos, pour un intendant qui n'agit pas (en attente de paie, impayé), une fois l'heure passée, ou quand le refus n'est plus lu (purgé).
   Seul le dernier refus est lu : une autre règle refusée plus tôt peut encore se reposer sans que la fiche le dise.
+  L'annonce peut être fausse si une version nouvelle baisse `stewards.rulesPerSteward` sous la position de la règle refusée : le moteur ne mène plus cette règle, et ne la retente donc pas à l'heure annoncée.
   Décision (#621) : ce repos plutôt que le partitionnement des journaux, pour la raison et aux conditions de l'ADR 0002.
   Le journal des commandes et les événements des refus inscrits se purgent avec ces journaux, au partitionnement (ADR 0002).
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).

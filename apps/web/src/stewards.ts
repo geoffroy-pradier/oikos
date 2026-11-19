@@ -9,6 +9,7 @@ import {
   type StewardRule,
   type StewardSimulationStep,
 } from '@oikos/contracts';
+import { tickStart } from '@oikos/sim';
 import { z } from 'zod';
 
 /** Intendant en poste d'un site de la maison (vues `my_stewards` et `my_steward_rules`, #278). */
@@ -176,8 +177,9 @@ export function refusalRestUntil(
   const { refusalRestTicks: rest, tickMinutes } = rules;
   if (!refusal || rest <= 0 || tickMinutes === null || steward.state !== 'active') return null;
   if (refusal.status !== 'rejected' || refusal.revision !== steward.revision) return null;
-  const at = (refusal.tick + rest + 1) * tickMinutes * 60_000;
-  return Number.isSafeInteger(at) && at <= 8.64e15 && at > now.getTime() ? new Date(at) : null;
+  const at = tickStart(refusal.tick + rest + 1, tickMinutes);
+  // Un tick hors des dates représentables donne une date invalide (`NaN`), qui n'est jamais à venir.
+  return at.getTime() > now.getTime() ? at : null;
 }
 
 /**
