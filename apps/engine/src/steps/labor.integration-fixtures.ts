@@ -171,14 +171,19 @@ export async function purseCredits(db: Db, worldId: string) {
 export const FUNDED = 1_000_000;
 /**
  * Crédite de `oboles` la bourse des PNJ de chaque cité du monde encore vide (#632), par le robinet du revenu
- * public, pour que les PNJ achètent. Posé par le propriétaire : le service ne voit pas les bourses.
+ * public, pour que les PNJ achètent. Posé par le propriétaire : le service ne voit pas les bourses. Une écriture
+ * par cité, au jour de jeu 0 : la base n'admet un revenu public qu'à la bourse de sa cité, une fois par jour
+ * (migrations 1120 et 1200), et le jour 0 ne prend jamais la place du versement d'un jour réel.
  */
 export async function fundPurses(owner: Db, worldId: string, oboles = FUNDED) {
-  await sql`with purses as (select id from game.accounts where world_id = ${worldId} and npc_purse and balance = 0),
-      entry as (insert into game.ledger_entries (world_id, kind)
-        select ${worldId}, 'npc.public_income' where exists (select 1 from purses) returning id)
-    insert into game.ledger_lines (entry_id, account_id, amount)
-    select entry.id, purses.id, ${oboles}::bigint from entry, purses
-    union all select entry.id, a.id, -${oboles}::bigint * (select count(*) from purses) from entry, game.accounts a
-    where a.world_id = ${worldId} and a.system_key = 'faucet_npc_public_income'`.execute(owner);
+  const { rows } = await sql<{ city_id: string; id: string }>`select city_id, id from game.accounts
+    where world_id = ${worldId} and npc_purse and balance = 0 order by city_id`.execute(owner);
+  for (const purse of rows)
+    await sql`with entry as (insert into game.ledger_entries (world_id, kind, meta)
+        values (${worldId}, 'npc.public_income', ${JSON.stringify({ cityId: purse.city_id, gameDay: 0 })}::jsonb)
+        returning id)
+      insert into game.ledger_lines (entry_id, account_id, amount)
+      select entry.id, ${purse.id}::uuid, ${oboles}::bigint from entry
+      union all select entry.id, a.id, -${oboles}::bigint from entry, game.accounts a
+      where a.world_id = ${worldId} and a.system_key = 'faucet_npc_public_income'`.execute(owner);
 }

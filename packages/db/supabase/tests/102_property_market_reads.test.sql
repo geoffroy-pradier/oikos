@@ -27,7 +27,7 @@ create function pg_temp.h(name text) returns uuid language sql as $$ select ('00
 create function pg_temp.f(n integer) returns uuid language sql as $$ select ('00000000-0000-7000-8000-0000000102f' || n)::uuid $$;
 create function pg_temp.acc(key text) returns uuid language sql as $$
   select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001'
-    and (system_key = key or house_id::text = key or (kind = 'treasury' and city_id::text = key)) $$;
+    and (system_key = key or house_id::text = key or (kind = 'treasury' and not npc_purse and city_id::text = key)) $$;
 create function pg_temp.post(kind text, accounts uuid[], amounts bigint[], meta jsonb default '{}') returns uuid language sql as $$
   with entry as (insert into game.ledger_entries (world_id, kind, meta) values ('01900000-0000-7000-8000-000000000001', kind, meta) returning id),
   lines as (insert into game.ledger_lines (entry_id, account_id, amount) select entry.id, u.account, u.amount from entry, unnest(accounts, amounts) u (account, amount))

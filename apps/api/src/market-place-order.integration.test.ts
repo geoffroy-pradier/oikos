@@ -67,7 +67,10 @@ async function newCity(slug = `c-${letters()}`): Promise<string> {
 let kalliste: Promise<string> | undefined;
 const kallisteCity = () =>
   (kalliste ??= newCity('kalliste').then(async (cityId) => {
-    await sql`with entry as (insert into game.ledger_entries (world_id, kind) values (${WORLD}, 'npc.public_income') returning id)
+    // Au jour de jeu 0 : la base n'admet un revenu public qu'avec sa cité et son jour (migration 1200).
+    const meta = JSON.stringify({ cityId, gameDay: 0 });
+    await sql`with entry as (insert into game.ledger_entries (world_id, kind, meta)
+        values (${WORLD}, 'npc.public_income', ${meta}::jsonb) returning id)
       insert into game.ledger_lines (entry_id, account_id, amount)
       select entry.id, a.id, case when a.npc_purse then 1000000 else -1000000 end from entry, game.accounts a
       where (a.npc_purse and a.city_id = ${cityId})

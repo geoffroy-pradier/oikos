@@ -41,7 +41,10 @@ create function pg_temp.fund(amount bigint) returns void language plpgsql as $$
 declare
   entry uuid;
 begin
-  insert into game.ledger_entries (world_id, kind) values ('00000000-0000-7000-8000-00000000e520', 'npc.public_income')
+  -- Un jour de jeu de plus par versement (migration 1200 : la cité et le jour, une fois chacun, migration 1120).
+  insert into game.ledger_entries (world_id, kind, meta) values ('00000000-0000-7000-8000-00000000e520', 'npc.public_income',
+    jsonb_build_object('cityId', '00000000-0000-7000-8000-00000000c520', 'gameDay', (select count(*) from game.ledger_entries
+      where kind = 'npc.public_income' and meta ->> 'cityId' = '00000000-0000-7000-8000-00000000c520')))
     returning id into entry;
   insert into game.ledger_lines (entry_id, account_id, amount) values
     (entry, (select account_id from game.npc_purses() where city_id = '00000000-0000-7000-8000-00000000c520'), amount),
@@ -94,7 +97,9 @@ create function pg_temp.foreign_line() returns void language plpgsql as $$
 declare
   entry uuid;
 begin
-  insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', 'test') returning id into entry;
+  -- Une écriture qui peut créditer cette bourse (migration 1200) : seul le monde de ses comptes la fait refuser.
+  insert into game.ledger_entries (world_id, kind, meta) values ('01900000-0000-7000-8000-000000000001', 'npc.public_income',
+    '{"cityId": "00000000-0000-7000-8000-00000000c520", "gameDay": 999}') returning id into entry;
   insert into game.ledger_lines (entry_id, account_id, amount) values
     (entry, (select account_id from game.npc_purses() where city_id = '00000000-0000-7000-8000-00000000c520'), 5),
     (entry, (select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001'

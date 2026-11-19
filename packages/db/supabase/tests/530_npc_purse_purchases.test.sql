@@ -28,15 +28,17 @@ create function pg_temp.acc(name text) returns uuid language sql as $$
     else (select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001' and system_key = name)
   end
 $$;
--- Écriture `kind` (comptes nommés, montants), et, si `quantity` n'est pas nul, l'échange de la vente 530 à 8 qu'elle
+-- Écriture `kind` (comptes nommés, montants, méta facultative), et, si `quantity` n'est pas nul, l'échange de la vente 530 à 8 qu'elle
 -- règle, sans ordre d'achat ; puis contrôles différés validés. Sous le service.
-create function pg_temp.post(kind text, names text[], amounts bigint[], quantity bigint default null) returns void
+create function pg_temp.post(kind text, names text[], amounts bigint[], quantity bigint default null, meta jsonb default '{}')
+returns void
 language plpgsql as $$
 declare
   entry uuid;
 begin
   perform set_config('role', 'oikos_service', true);
-  insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', kind) returning id into entry;
+  insert into game.ledger_entries (world_id, kind, meta) values ('01900000-0000-7000-8000-000000000001', kind, meta)
+    returning id into entry;
   insert into game.ledger_lines (entry_id, account_id, amount)
     select entry, pg_temp.acc(n), m from unnest(names, amounts) u (n, m);
   if quantity is not null then
@@ -47,14 +49,16 @@ begin
   set constraints all deferred;
   perform set_config('role', 'none', true);
 end $$;
-grant execute on function pg_temp.acc(text), pg_temp.post(text, text[], bigint[], bigint) to oikos_service;
+grant execute on function pg_temp.acc(text), pg_temp.post(text, text[], bigint[], bigint, jsonb) to oikos_service;
 create function pg_temp.balance(name text) returns bigint language sql as $$
   select balance from game.accounts where id = pg_temp.acc(name)
 $$;
 
 -- Revenu public : 104 à la bourse de Kallistè, 50 à celle d'Elaia.
-select pg_temp.post('npc.public_income', array['faucet_npc_public_income', 'purse:101'], array[-104, 104]);
-select pg_temp.post('npc.public_income', array['faucet_npc_public_income', 'purse:103'], array[-50, 50]);
+select pg_temp.post('npc.public_income', array['faucet_npc_public_income', 'purse:101'], array[-104, 104], null,
+  '{"cityId": "01900000-0000-7000-8000-000000000101", "gameDay": 20771}');
+select pg_temp.post('npc.public_income', array['faucet_npc_public_income', 'purse:103'], array[-50, 50], null,
+  '{"cityId": "01900000-0000-7000-8000-000000000103", "gameDay": 20771}');
 
 select lives_ok($$select pg_temp.post('npc.purchase', array['purse:101', 'bob', 'sink_market_tax', 'treasury'],
   array[-40, 36, 2, 2], 5)$$, 'la bourse de Kallistè paie un achat des PNJ de son marché, taxe comprise');
