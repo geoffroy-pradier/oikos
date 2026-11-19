@@ -65,6 +65,17 @@ describe('opération suivante d’un intendant', () => {
     expect(nextStewardOperation([], 0, sight, MAX)).toBeNull();
   });
 
+  it('passe une règle au repos comme une règle qui n’a rien à faire (#621)', () => {
+    const rules = [collect, sell, buy];
+    const sight = sightOf(true, { flour: 30 }, { wheat: 0 });
+    expect(nextStewardOperation(rules, 0, sight, MAX, new Set([0]))?.position).toBe(1);
+    expect(nextStewardOperation(rules, 2, sight, MAX, new Set([2]))?.position).toBe(0);
+    expect(nextStewardOperation(rules, 2, sight, MAX, new Set([2, 0]))?.position).toBe(1);
+    expect(nextStewardOperation(rules, 0, sight, MAX, new Set([0, 1, 2]))).toBeNull();
+    // Une position hors des règles ne change rien.
+    expect(nextStewardOperation(rules, 0, sight, MAX, new Set([7]))?.position).toBe(0);
+  });
+
   const rule: fc.Arbitrary<StewardPlanRule> = fc.oneof(
     fc.constant(collect),
     fc.record({
@@ -82,7 +93,7 @@ describe('opération suivante d’un intendant', () => {
   );
   const stock = fc.record({ a: fc.nat(80), b: fc.nat(80) });
 
-  it('propriété : la règle choisie est la première, à partir du départ, qui a quelque chose à faire', () => {
+  it('propriété : la règle choisie est la première, à partir du départ, qui a quelque chose à faire et ne se repose pas', () => {
     fc.assert(
       fc.property(
         fc.array(rule, { maxLength: 20 }),
@@ -91,10 +102,16 @@ describe('opération suivante d’un intendant', () => {
         stock,
         stock,
         fc.integer({ min: 1, max: 100 }),
-        (rules, start, collectable, free, incoming, max) => {
+        fc.uniqueArray(fc.nat(20), { maxLength: 20 }),
+        (rules, start, collectable, free, incoming, max, rest) => {
           const sight = sightOf(collectable, free, incoming);
-          const next = nextStewardOperation(rules, start, sight, max);
-          const active = rules.map((candidate) => ruleAction(candidate, sight, max) !== null);
+          const resting = new Set(rest);
+          const next = nextStewardOperation(rules, start, sight, max, resting);
+          // Une règle au repos (#621) compte comme une règle qui n'a rien à faire.
+          const active = rules.map(
+            (candidate, position) =>
+              !resting.has(position) && ruleAction(candidate, sight, max) !== null,
+          );
           if (!active.includes(true)) return next === null;
           if (!next) return false;
           const first = start % rules.length;

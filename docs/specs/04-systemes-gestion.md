@@ -210,9 +210,16 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Conservation (#561) : le moteur supprime les opérations plus anciennes que `stewards.operationsRetentionDays` jours (30 au départ, et pour une version publiée avant ce paramètre ; au moins un jour), par une fonction du propriétaire (ADR 0002).
   Restent, quel que soit leur âge, la dernière opération de chaque intendant, d'où repart la file de ses règles, et celles du dernier tick de son monde, que le moteur relit pour ne mener aucun rang deux fois.
   La fiche peut donc montrer moins de cinq opérations, ou aucun refus, quand les plus anciennes sont échues.
-  Décision (#561) : un refus identique au précédent reste inscrit à chaque tick ; c'est cette conservation qui borne la table.
+  Décision (#561) : un refus tenté est inscrit en entier, même identique au précédent ; c'est cette conservation qui borne la table.
   L'opération inscrite est la position de la file et la clé d'idempotence de son rang : ne pas l'inscrire ferait reprendre la file à la règle refusée, qui retiendrait alors les suivantes, ou demanderait un état de plus à l'intendant.
-  Le journal des commandes et les événements de ces refus se purgent avec ces journaux, au partitionnement (ADR 0002).
+  Repos d'une règle refusée (#621) : une règle refusée sous la révision en vigueur se repose `stewards.refusalRestTicks` ticks (5 au départ, et pour une version publiée avant ce paramètre ; de 0 à 1000).
+  Refusée au tick t, elle est passée comme une règle qui n'a rien à faire jusqu'au tick t + repos compris, aux rangs suivants du tick t aussi, puis retentée ; 0 la retente à chaque opération.
+  Pendant son repos elle n'est pas tentée : rien n'est inscrit, ni opération, ni ligne du journal des commandes, ni événement.
+  Un refus durable n'écrit donc qu'une opération tous les repos + 1 ticks, au lieu d'une par tick, et chacune garde sa ligne du journal et sa clé.
+  Les règles suivantes agissent pendant ce repos, et des règles nouvelles, même identiques, repartent sans repos.
+  Une règle se repose même si ce qui l'a refusée a changé entre-temps (trésorerie renflouée) : elle agit au tick qui suit son repos.
+  Décision (#621) : ce repos plutôt que le partitionnement des journaux, pour la raison et aux conditions de l'ADR 0002.
+  Le journal des commandes et les événements des refus inscrits se purgent avec ces journaux, au partitionnement (ADR 0002).
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).
   La fiche de chaque site a sa section Intendant : embaucher, l'état de l'intendant (actif, en attente de la clôture qui le paie, impayé), ses règles par le formulaire, le renvoyer.
   Consigne en langage naturel (#280) : le joueur écrit une consigne à son intendant (`steward.submitInstruction`, 500 caractères au plus), qui n'est qu'une demande de traduction ; il valide toujours les règles par `steward.setRules`.
