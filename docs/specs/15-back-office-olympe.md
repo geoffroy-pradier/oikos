@@ -103,6 +103,12 @@ Déclenchement manuel, création d'événements et propositions du maître du je
 
 1. **Brouillon** : un concepteur modifie des valeurs ; le schéma refuse les valeurs hors bornes.
 2. **Simulation** : le simulateur compare 30 jours simulés avant et après (inflation, marges par filière, temps de progression).
+   En phase 2, le simulateur est une commande locale (`pnpm --filter @oikos/api simulate`, décision de #284) : le banc d'équilibrage (`apps/api/src/balance/`), rendu réutilisable, joue la configuration de référence et la candidate sur deux mondes neufs de la base locale, avec des agents automates, les vrais ticks, clôtures et commandes.
+   La candidate est un fichier JSON ou une version enregistrée ; le schéma la refuse avant toute simulation, en désignant le champ.
+   Le rapport, en JSON et en tableaux Markdown, donne pour la référence et pour la candidate, et l'écart de chacun : inflation du panier, masse monétaire, net de chaque robinet et de chaque puits, couverture par classe et par cité, population, marge nette quotidienne par filière.
+   Mêmes graine et configuration, même rapport.
+   Une demande de fusion ou une note de version qui change l'équilibrage joint le rapport du simulateur (30 jours, la graine par défaut).
+   Le module Simulateur d'Olympe, sur une copie du monde réel, attend le serveur ; le temps de progression n'est pas encore mesuré.
 3. **Revue** : une seconde personne approuve le différentiel.
 4. **Programmation** : activation à la prochaine clôture quotidienne, annoncée aux joueurs dans la chronique.
 5. **Suivi** : alerte automatique si un indicateur sort de sa plage dans les 72 heures ; retour arrière en un clic.
