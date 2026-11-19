@@ -18,9 +18,9 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
   Son critère de sortie, retenu par délégation du propriétaire (en tête de `docs/tickets/phase-2.md`), est vérifié par le code : parcours de l'alpha de bout en bout à 360 px, banc d'équilibrage à quatre cités et tableau de bord d'Olympe.
   Il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
   Le propriétaire a reporté tout serveur : la phase s'est développée et testée en local, et seul #269 (fournisseur d'IA réel) est `needs-human`, avec #33.
-- **Refonte graphique** : à venir, avant la phase 3 (ADR 0011, décidée le 19 novembre 2026).
+- **Refonte graphique** : en cours, avant la phase 3 (ADR 0011, décidée le 19 novembre 2026) ; #687 (jetons et thèmes) est fusionné.
   Tickets #687 à #700, dans `docs/tickets/refonte.md`.
-- **Phase 3** : ses tickets sont en cours de rédaction dans `docs/tickets/phase-3.md`.
+- **Phase 3 (bêta ouverte)** : ses tickets sont rédigés dans `docs/tickets/phase-3.md` et ouverts sur GitHub (#703 à #769, dont trois `needs-human`) ; elle commence après la refonte graphique.
 
 ## Ce qui est jouable aujourd'hui
 
