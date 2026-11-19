@@ -131,6 +131,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
 ## 5.3 Les marchés
 
 - **Agora** : un carnet d'ordres par cité et par bien (ordres à cours limité, exécution immédiate, historique des prix en chandeliers). Taxe de marché fixée par la cité.
+  L'écran Agora affiche une cité à la fois : la cité d'origine de la maison par défaut, ou une autre cité où elle a un stock ou un site (vues `my_inventories` et `my_sites`).
+  Carnet, historique des prix et ordres en attente suivent la cité choisie ; un ordre à distance dans une cité où la maison n'a rien reste hors périmètre.
   Dans la première version : un ordre s'exécute à son arrivée contre le côté opposé du carnet, du mieux placé au moins bien placé (la vente la moins chère pour un achat, l'achat le plus offrant pour une vente), puis par ancienneté à prix égal ;
   chaque échange se fait au prix de l'ordre qui attendait. Le reste attend dans le carnet.
   Un ordre de vente réserve le stock qu'il propose (ce stock ne peut plus sortir par un autre chemin tant que l'ordre est ouvert).

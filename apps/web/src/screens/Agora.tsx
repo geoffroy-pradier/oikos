@@ -46,8 +46,24 @@ export function AgoraScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const [goodId, setGoodId] = useState(DEFAULT_GOOD);
+  // Cités où la maison a un stock ou un site (lectures existantes) ; sa cité d'origine d'abord et par défaut.
+  const stockCities = useRows<{ city_id: string }>('my_inventories', 'city_id', 'city_id');
+  const siteCities = useRows<{ city_id: string }>('my_sites', 'city_id', 'id');
+  const cityIds = [
+    house.cityId,
+    ...new Set(
+      [...(stockCities.rows ?? []), ...(siteCities.rows ?? [])]
+        .map((row) => row.city_id)
+        .filter((id) => id !== house.cityId),
+    ),
+  ];
+  const [chosenCity, setChosenCity] = useState(house.cityId);
+  // Une cité qui n'est plus proposée (stock vendu, site perdu) ramène à la cité d'origine.
+  const cityId = cityIds.includes(chosenCity) ? chosenCity : house.cityId;
+  const nameOf = (id: string) => house.cityNames[id] ?? (id === house.cityId ? house.cityName : id);
+  const cityName = nameOf(cityId);
   const book = useRows<Level>('order_book', 'side, price, quantity', 'price', {
-    city_id: house.cityId,
+    city_id: cityId,
     good_id: goodId,
   });
   // Ventes de la moins chère à la plus chère ; achats du plus offrant au moins offrant.
@@ -59,7 +75,7 @@ export function AgoraScreen() {
     'id, side, good_id, price, quantity, remaining',
     'created_at',
     {
-      city_id: house.cityId,
+      city_id: cityId,
       status: 'open',
     },
   );
@@ -72,7 +88,7 @@ export function AgoraScreen() {
   );
   // Taux de la cité du marché (5.6) : il remplace celui du monde dès qu'un décret y est appliqué.
   const cityRate = useRows<unknown>('city_rates', 'market_tax_rate_bps', 'city_id', {
-    city_id: house.cityId,
+    city_id: cityId,
   });
   const tax =
     rules.rows && cityRate.rows
@@ -109,7 +125,7 @@ export function AgoraScreen() {
     // Entiers écrits en chiffres seulement : `Number` accepterait aussi « 1e3 » ou « 0x10 ».
     const digits = /^\d+$/;
     const input = marketPlaceOrderInputSchema.safeParse({
-      cityId: house.cityId,
+      cityId,
       goodId,
       side,
       price: Number(price.trim()),
@@ -176,8 +192,32 @@ export function AgoraScreen() {
           {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
           <h1 className="text-2xl">
             <Store aria-hidden="true" className="mr-2 inline size-6 align-[-0.15em] text-accent" />
-            {t('agora.title', { city: house.cityName })}
+            {t('agora.title', { city: cityName })}
           </h1>
+          {cityIds.length > 1 && (
+            <>
+              <label htmlFor="city" className={LABEL}>
+                {t('agora.city')}
+              </label>
+              <select
+                className={CONTROL}
+                id="city"
+                value={cityId}
+                // Comme le bien : pas de changement de marché pendant qu'une commande est en route.
+                disabled={busy}
+                onChange={(event) => {
+                  setChosenCity(event.target.value);
+                  setNotice(null);
+                }}
+              >
+                {cityIds.map((id) => (
+                  <option key={id} value={id}>
+                    {nameOf(id)}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <label htmlFor="good" className={LABEL}>
             {t('agora.good')}
           </label>
@@ -215,7 +255,7 @@ export function AgoraScreen() {
       )}
 
       {candleSeconds && (
-        <PriceHistory cityId={house.cityId} goodId={goodId} periodSeconds={candleSeconds} />
+        <PriceHistory cityId={cityId} goodId={goodId} periodSeconds={candleSeconds} />
       )}
 
       <Card className="flex flex-col gap-3">

@@ -156,6 +156,7 @@
     "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it."
   },
   "agora": {
+    "city": "Market city",
     "title": "Agora of {{city}}",
     "book": "Order book: {{good}}",
     "bookCaption": "Resting sell orders, cheapest first",

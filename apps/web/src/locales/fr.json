@@ -156,6 +156,7 @@
     "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir."
   },
   "agora": {
+    "city": "Cité du marché",
     "title": "Agora de {{city}}",
     "book": "Carnet d'ordres : {{good}}",
     "bookCaption": "Ventes en attente, de la moins chère à la plus chère",
