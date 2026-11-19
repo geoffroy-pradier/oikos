@@ -9,6 +9,7 @@ import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
+import { npcPublicIncome } from './steps/npc-public-income';
 import { propertyWear } from './steps/property-wear';
 import { siteUpkeep } from './steps/site-upkeep';
 import { worldEventPlanning } from './steps/world-event-planning';
@@ -20,7 +21,9 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * les siens, sans autre verrou que celui de la clôture du monde, le déclin de la Charis (7.1, #265),
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), la vétusté des biens immobiliers (4.5),
- * le marché du travail du jour (4.4, #258), puis l'entretien.
+ * le marché du travail du jour (4.4, #258), le revenu public des PNJ (5.5, #632), puis l'entretien.
+ * Le revenu public suit la population du jour et prend, avant l'entretien, les mêmes verrous que lui : l'agora,
+ * les puits, puis les bourses des PNJ.
  * Les décrets de taux s'appliquent avant tout ce qui taxe ou paie, sous le verrou de l'agora, qu'ils ne
  * prennent qu'avec un décret à appliquer : placés juste avant les loyers, qui le prennent de toute façon.
  * Les dépenses des décrets, qui ne touchent que les trésors des cités et leurs puits, prennent les mêmes
@@ -50,5 +53,6 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   leaseRent,
   propertyWear,
   laborMarket,
+  npcPublicIncome,
   siteUpkeep,
 ];

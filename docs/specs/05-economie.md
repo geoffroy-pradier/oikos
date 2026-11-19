@@ -244,6 +244,12 @@ Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pa
 Depuis #632, elle est versée à la bourse des PNJ de la cité du site, comme les salaires : c'est un transfert, pas un puits ; le puits `sink_npc_lodging` reste au catalogue pour l'historique, sans mouvement nouveau.
 Le prix de base entre à zéro dans la configuration initiale.
 
+Revenu public des PNJ (#632) : chaque clôture, après la population et avant l'entretien, crédite la bourse des PNJ de chaque cité de la configuration par le robinet `faucet_npc_public_income`, une écriture `npc.public_income` par cité (`meta` : la cité et le jour de jeu).
+Son montant est, pour chaque classe, le revenu d'un jour de la classe (revenu par tick × ticks d'un jour de 24 heures × population ÷ 1 000) fois sa part publique (`npcClasses[].publicIncomeBps`, de 0 à 10 000 points), sommé sur les classes puis arrondi une fois à l'obole inférieure (`dailyPublicIncome`, `packages/sim`).
+La population est celle que la clôture vient de fixer, ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
+Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), nulle tant que les achats des PNJ sont payés par le robinet `faucet_npc_purchases`.
+C'est le plancher qui fait encore acheter une cité sans emploi, et le levier « revenu des classes PNJ » de cette section ; son calibrage est celui de #283.
+
 Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par une cité sont payés par son trésor, à la clôture qui les applique, au puits `sink_public_works` (écriture `city.public_works`) ou `sink_festivals` (écriture `city.festival`).
 Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
 Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des offrandes et des liturgies.
