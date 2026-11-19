@@ -121,7 +121,7 @@ export async function cancelOpen(city: City, house: Seller) {
     .select(['id', 'good_id', 'side', 'quantity', 'remaining'])
     .where('house_id', '=', house.houseId)
     .where('status', '=', 'open')
-    .orderBy('id')
+    .orderBy('seq')
     .execute();
   // Vendu la veille, par bien : ce qui a été mis en vente, moins ce qui reste ouvert.
   const listed = new Map(house.listed);

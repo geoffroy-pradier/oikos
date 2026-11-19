@@ -37,14 +37,19 @@ const RENOVATION_LEAD_DAYS = 3;
 /** Prix d'achat maximal des biens de rénovation, en multiple du prix de référence. */
 const RENOVATION_BID = 1.5;
 
+/** Place d'un bien dans sa cité, unique (`properties_lot_unique`) et la même d'une partie à l'autre, au contraire de son identifiant. */
+export interface Lot {
+  sizeId: string;
+  lot: number;
+}
 /** Bien offert à la location. */
-export interface LeaseOffer {
+export interface LeaseOffer extends Lot {
   propertyId: string;
   units: number;
   rentOboles: number;
 }
 /** Bien que la cité détient encore. */
-export interface Vacant {
+export interface Vacant extends Lot {
   propertyId: string;
   units: number;
   priceOboles: number;
@@ -58,8 +63,12 @@ export type Move =
 export const rentOf = (units: number, lodgingOboles: number) =>
   Math.floor((units * lodgingOboles * RENT_SHARE_BPS) / 10_000);
 
-const byId = <T extends { propertyId: string }>(a: T, b: T) =>
-  a.propertyId < b.propertyId ? -1 : 1;
+/**
+ * Biens d'une même cité par taille puis par lot : les ex aequo se départagent ainsi de la même façon à chaque
+ * partie de même graine, quand un tri par identifiant, tiré à chaque monde, désignerait un autre bien.
+ */
+const byLot = (a: Lot, b: Lot) =>
+  a.sizeId < b.sizeId ? -1 : a.sizeId > b.sizeId ? 1 : a.lot - b.lot;
 
 /**
  * Choix d'une maison qui emploie `unhoused` travailleurs sans logement, à `lodging` oboles la nuit chacun :
@@ -75,7 +84,7 @@ export function chooseTenancy(input: {
 }): Move | undefined {
   const saved = (units: number) => Math.min(units, input.unhoused) * input.lodging;
   const lease = [...input.leases]
-    .sort(byId)
+    .sort(byLot)
     .map((offer) => ({ offer, gain: saved(offer.units) - offer.rentOboles }))
     .filter(({ gain }) => gain > 0)
     .sort((a, b) => b.gain - a.gain)[0];
@@ -86,7 +95,7 @@ export function chooseTenancy(input: {
       rentOboles: lease.offer.rentOboles,
     };
   const buy = [...input.vacant]
-    .sort(byId)
+    .sort(byLot)
     .filter((property) => property.priceOboles <= input.spendable)
     .map((property) => ({
       property,
@@ -113,7 +122,7 @@ export function chooseInvestment(input: {
   spendable: number;
 }): Move | undefined {
   const best = [...input.vacant]
-    .sort(byId)
+    .sort(byLot)
     .filter((property) => property.priceOboles <= input.spendable)
     .map((property) => ({
       property,
@@ -132,14 +141,14 @@ export function chooseInvestment(input: {
   );
 }
 
-/** Biens que la maison n'utilise pas pour loger ses travailleurs, à louer : les premiers (par identifiant) les logent. */
+/** Biens que la maison n'utilise pas pour loger ses travailleurs, à louer : les premiers (par taille puis lot) les logent. */
 export function spareProperties(
-  owned: readonly { id: string; units: number; leased: boolean }[],
+  owned: readonly (Lot & { id: string; units: number; leased: boolean })[],
   workers: number,
 ) {
   let housed = 0;
   const spare: string[] = [];
-  for (const property of [...owned].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+  for (const property of [...owned].sort(byLot)) {
     if (property.leased) continue;
     if (housed < workers) housed += property.units;
     else spare.push(property.id);
@@ -235,7 +244,14 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
     .leftJoin('game.property_listings as o', (join) =>
       join.onRef('o.property_id', '=', 'p.id').on('o.closed_at', 'is', null),
     )
-    .select(['p.id', 'p.size_id', 'p.condition', 'l.id as lease', 'o.price_oboles as listed'])
+    .select([
+      'p.id',
+      'p.size_id',
+      'p.lot',
+      'p.condition',
+      'l.id as lease',
+      'o.price_oboles as listed',
+    ])
     .where('p.owner_house_id', '=', house.houseId)
     .orderBy('p.size_id')
     .orderBy('p.lot')
@@ -282,6 +298,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
     spareProperties(
       owned.map((property) => ({
         id: property.id,
+        sizeId: property.size_id,
+        lot: property.lot,
         units: sizeOf(property.size_id).housingUnits,
         leased: property.lease !== null,
       })),
@@ -324,7 +342,7 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
   const vacant: Vacant[] = (
     await city.db
       .selectFrom('game.properties')
-      .select(['id', 'size_id'])
+      .select(['id', 'size_id', 'lot'])
       .where('city_id', '=', city.cityId)
       .where('owner_house_id', 'is', null)
       .orderBy('size_id')
@@ -332,6 +350,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
       .execute()
   ).map((row) => ({
     propertyId: row.id,
+    sizeId: row.size_id,
+    lot: row.lot,
     units: sizeOf(row.size_id).housingUnits,
     priceOboles: sizeOf(row.size_id).purchasePriceOboles,
     upkeepOboles: sizeOf(row.size_id).dailyUpkeepOboles,
@@ -347,7 +367,7 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
             await city.db
               .selectFrom('game.property_listings as o')
               .innerJoin('game.properties as p', 'p.id', 'o.property_id')
-              .select(['p.id', 'p.size_id', 'o.price_oboles'])
+              .select(['p.id', 'p.size_id', 'p.lot', 'o.price_oboles'])
               .where('p.city_id', '=', city.cityId)
               .where('o.kind', '=', 'lease')
               .where('o.house_id', '!=', house.houseId)
@@ -357,6 +377,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
               .execute()
           ).map((row) => ({
             propertyId: row.id,
+            sizeId: row.size_id,
+            lot: row.lot,
             units: sizeOf(row.size_id).housingUnits,
             rentOboles: Number(row.price_oboles),
           })),
