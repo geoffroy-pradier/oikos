@@ -22,3 +22,6 @@ export const datePurchase = (city: City, propertyId: string, at: Date) =>
 /** Date de signature d'un bail : le premier loyer est celui de la clôture suivante. */
 export const dateLease = (city: City, leaseId: string, at: Date) =>
   recalled(city, 'game.leases', 'leases_guard', 'started_at', leaseId, at);
+/** Date d'achat d'un navire : son entretien est dû dès la clôture suivante (4.6). */
+export const dateShip = (city: City, shipId: string, at: Date) =>
+  recalled(city, 'game.ships', 'ships_guard', 'created_at', shipId, at);

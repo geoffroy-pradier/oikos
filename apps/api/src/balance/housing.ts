@@ -10,6 +10,7 @@ import {
   wageOf,
   worstLodging,
   type City,
+  type House,
 } from './city';
 import { dateLease, datePurchase } from './dates';
 import { place, upkeepOf, type Seller } from './strategy';
@@ -201,16 +202,17 @@ export const propertyUpkeepDue = (city: City, housing: Housing, day: number) =>
  */
 export async function lodgingDue(
   world: City,
-  residents: readonly { city: City; house: Seller }[],
+  residents: readonly { city: City; house: House }[],
   day: number,
 ) {
+  const { sizes } = world.played.properties;
   const units = new Map<string, number>();
   for (const row of await readHousing(world.db, { worldId: world.worldId })) {
-    const worn = wornCondition(row.condition, sizeOf(row.sizeId).dailyWear);
+    const size = sizes.find((candidate) => candidate.id === row.sizeId);
+    const worn = wornCondition(row.condition, size?.dailyWear ?? 0);
     units.set(
       row.houseId,
-      (units.get(row.houseId) ?? 0) +
-        holdingUnits({ ...row, condition: worn }, worldConfig.properties.sizes),
+      (units.get(row.houseId) ?? 0) + holdingUnits({ ...row, condition: worn }, sizes),
     );
   }
   const cities = new Map<string, { workers: number; unhoused: number }>();
@@ -223,7 +225,7 @@ export async function lodgingDue(
     total.unhoused += Math.max(0, workers - (units.get(house.houseId) ?? 0));
     cities.set(city.cityId, total);
   }
-  const { baseOboles, ...curve } = worldConfig.labor.lodging;
+  const { baseOboles, ...curve } = world.played.labor.lodging;
   return [...cities.values()].reduce(
     (sum, city) => sum + city.unhoused * lodgingPrice({ baseOboles, ...city, curve }),
     0,

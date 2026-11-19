@@ -22,7 +22,14 @@ import { dateCitizens, dateMetics } from './calendar';
 import { newPolitics, politicsMorning, settled } from './politics';
 import { morning, seller, type Seller } from './strategy';
 import { actAfterTick, hireSteward, type Steward } from './steward';
-import { carrierMorning, carrierStep, type Carrier } from './carrier';
+import {
+  carrierMorning,
+  carrierStep,
+  newVoyageCosts,
+  shipUpkeepDue,
+  type Carrier,
+} from './carrier';
+import { planEvents } from './events';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
   CARRIER,
@@ -94,6 +101,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
           [source.cityId, shares(source, spec.toSource)],
         ]),
         waitedHours: 0,
+        paid: newVoyageCosts(),
       });
   }
   // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
@@ -125,18 +133,24 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   const stewards: Steward[] = [];
   const operations = { acted: 0, refused: 0, failed: 0 };
   let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
-  let [wages, estateUpkeep, lodging] = [0, 0, 0];
+  let [wages, estateUpkeep, lodging, shipUpkeep] = [0, 0, 0, 0];
+  /** Événements du monde planifiés par le banc (7.4), par modèle. */
+  const events: Record<string, number> = {};
   let measuredFrom = new Date(0);
   /** Monnaie en circulation à la fin de la mise en route, par cité et pour le monde : la base des jours mesurés. */
   let supplyBefore: Record<string, number> = {};
   for (let day = 0; day < warmup + measuredDays; day++) {
     upkeep += upkeepDue(world, houses, day);
     estateUpkeep += propertyUpkeepDue(world, housing, day);
+    for (const carrier of carriers) shipUpkeep += shipUpkeepDue(carrier, closeOf(world, day));
     lodging += await lodgingDue(world, residents, day);
     // Salaires de la clôture : les travailleurs des sites, et les intendants embauchés avant elle (payés d'avance).
     for (const { city, house } of residents) wages += wagesDue(world, [house], day, wageOf(city));
     wages += stewards.filter((steward) => steward.hiredDay < day).length * stewardWageOf(world);
     await closeDay(world, day);
+    // Événements que cette clôture aurait planifiés si elle était jouée à son heure (7.3).
+    for (const event of await planEvents(world, cities, day))
+      events[event.model] = (events[event.model] ?? 0) + 1;
     await dateCitizens(world, closeOf(world, day));
     const now = new Date(closeOf(world, day).getTime() + MINUTE);
     for (const { city, houses: own } of settlements)
@@ -187,6 +201,14 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   const drawn = new Map<string, number>();
   for (const decree of paid)
     drawn.set(decree.cityId, (drawn.get(decree.cityId) ?? 0) + decree.amountOboles);
+  // Coûts des voyages (4.6) : provisions et part détruite du droit de port, part versée au trésor d'arrivée.
+  const voyages = newVoyageCosts();
+  for (const { paid: costs } of carriers) {
+    voyages.provisions += costs.provisions;
+    voyages.portDuesBurned += costs.portDuesBurned;
+    for (const [cityId, oboles] of costs.treasuries)
+      voyages.treasuries.set(cityId, (voyages.treasuries.get(cityId) ?? 0) + oboles);
+  }
   const paidFor = (model: string) =>
     paid
       .filter((decree) => decree.model === model)
@@ -200,6 +222,9 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       sink_upkeep: upkeep,
       sink_site_acquisition: acquisitions,
       sink_ship_purchase: ships,
+      sink_ship_upkeep: shipUpkeep,
+      sink_voyage_provisions: voyages.provisions,
+      sink_port_dues: voyages.portDuesBurned,
       sink_property_purchase: housing.purchased,
       sink_property_works: housing.works,
       sink_property_upkeep: estateUpkeep,
@@ -209,6 +234,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     drawn,
     // Salaires (intendants compris) et hébergement vont aux bourses des PNJ (#632), sans rien détruire.
     wages + lodging,
+    voyages.treasuries,
   );
   return {
     world,
@@ -231,6 +257,9 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     acquisitions,
     wages,
     lodging,
+    shipUpkeep,
+    voyages,
+    events,
     minutes: (Date.now() - startedAt) / 60_000,
   };
 }

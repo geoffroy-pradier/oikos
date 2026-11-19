@@ -36,6 +36,7 @@ import { createApp } from '../app';
 import { unlimited } from '../rate-limit';
 import { createTelemetry } from '../telemetry';
 import { testVerifier } from '../test-config';
+import { yieldOf } from './events';
 
 /*
  * Banc d'équilibrage de la cité prototype (#78), au service de `balance.integration.test.ts` : un monde
@@ -200,10 +201,9 @@ export async function createWorld(
   if (dailyCloseAt(firstDay + days + 1, config.clock).getTime() > Date.now())
     throw new Error(`Bench of ${days} days does not end in the past`);
   const worldId = randomUUID();
-  // Graine fixée (#267), pour que ses tirages soient reproductibles. Le banc ne joue pourtant aucun événement :
-  // ils sont à probabilité nulle dans la configuration initiale. Avec une probabilité non nulle, ses clôtures, qui
-  // sont celles de jours passés, réussiraient, mais ne planifieraient que les événements qui commencent après
-  // l'heure de la base (7.3), donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
+  // Graine fixée (#267), pour que ses tirages soient reproductibles. Ses clôtures, celles de jours passés, ne
+  // planifient aucun événement (7.3) : le banc des quatre cités les planifie lui-même (`balance/events.ts`), celui de
+  // la cité prototype n'en joue aucun.
   await sql`insert into game.worlds (id, slug, name, seed)
     values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', ${seed})`.execute(
     bench.owner,
@@ -358,16 +358,20 @@ export async function harvest(city: City, house: House, now: Date) {
             maxCycles: recipe.maxAccruedCycles,
             inputs,
           });
+    const started = site.since;
     site.since = since;
     if (cycles === 0) continue;
     for (const stack of recipe.inputs)
       await move(city, house.houseId, stack.goodId, -cycles * stack.quantity);
     for (const stack of recipe.outputs) {
-      await move(city, house.houseId, stack.goodId, cycles * stack.quantity);
-      house.produced.set(
-        stack.goodId,
-        (house.produced.get(stack.goodId) ?? 0) + cycles * stack.quantity,
-      );
+      // Sécheresse et bonne année (7.4) : rendement cycle par cycle, comme `site.collect`.
+      const quantity = await yieldOf(city, recipe.siteType, started, {
+        cycleMinutes: recipe.durationMinutes,
+        cycles,
+        outputPerCycle: stack.quantity,
+      });
+      if (quantity > 0) await move(city, house.houseId, stack.goodId, quantity);
+      house.produced.set(stack.goodId, (house.produced.get(stack.goodId) ?? 0) + quantity);
     }
   }
 }
@@ -476,7 +480,7 @@ const nonZero = (balances: Record<string, number>) =>
  * bourses des PNJ), taxe recalculée échange par échange par `marketTax` (règle des
  * commandes et du moteur), autres puits comptés par le banc (`counted`), dépenses de décrets tirées des trésors
  * (`drawn`, par cité), ce que les maisons ont versé aux bourses des PNJ (`purses` : salaires et hébergement, #632),
- * qui reste en circulation. Rend les soldes non nuls des
+ * qui reste en circulation, et la part du droit de port versée aux trésors (`dues`, par cité). Rend les soldes non nuls des
  * comptes système et du trésor (`actual`), ce que les flux font attendre (`expected`), la monnaie en
  * circulation et la masse attendue : dotation et revenu public, moins tous les puits ; `npcPurchases` : le brut des
  * achats des PNJ.
@@ -487,6 +491,7 @@ export async function reconcile(
   counted: Record<string, number>,
   drawn: ReadonlyMap<string, number> = new Map(),
   purses = 0,
+  dues: ReadonlyMap<string, number> = new Map(),
 ) {
   const trades = await city.db
     .selectFrom('game.trades as t')
@@ -511,6 +516,11 @@ export async function reconcile(
   for (const [cityId, amount] of drawn) {
     treasuries.set(cityId, (treasuries.get(cityId) ?? 0) - amount);
     flows.treasury -= amount;
+  }
+  // Droit de port (4.6, 5.6) : la part qui n'est pas détruite va au trésor de la cité d'arrivée.
+  for (const [cityId, amount] of dues) {
+    treasuries.set(cityId, (treasuries.get(cityId) ?? 0) + amount);
+    flows.treasury += amount;
   }
   const { supply, system } = await accounts(city);
   const income = publicIncome.get(city.worldId) ?? 0;
