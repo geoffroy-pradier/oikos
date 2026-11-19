@@ -1,12 +1,14 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '../cn';
+import { moveTo, PILL_LIST, pillClass } from './pills';
 
 export interface TabItem {
   id: string;
   label: ReactNode;
   /** Icône décorative avant le libellé. */
   icon?: ReactNode;
-  content: ReactNode;
+  /** Panneau de l'onglet ; sans panneau (sous-sections routées), seule la liste s'affiche. */
+  content?: ReactNode;
 }
 
 export interface TabsProps {
@@ -20,14 +22,10 @@ export interface TabsProps {
   className?: string;
 }
 
-const KEYS: Record<string, (index: number, count: number) => number> = {
-  ArrowRight: (i, n) => (i + 1) % n,
-  ArrowLeft: (i, n) => (i - 1 + n) % n,
-  Home: () => 0,
-  End: (_i, n) => n - 1,
-};
-
-/** Onglets WAI-ARIA : un seul arrêt de tabulation, flèches, Début et Fin ; activation au foyer. */
+/**
+ * Onglets en pastilles dans une gélule (WAI-ARIA) : un seul arrêt de tabulation, flèches, Début et
+ * Fin ; activation au foyer.
+ */
 export function Tabs({ label, items, value, defaultValue, onValueChange, className }: TabsProps) {
   const base = useId();
   const [own, setOwn] = useState(defaultValue ?? items[0]?.id);
@@ -39,15 +37,11 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
     onValueChange?.(id);
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    const move = KEYS[event.key];
-    if (!move) return;
+    const index = items.findIndex((item) => item.id === selected);
+    const next = moveTo(event.key, index, items.length);
+    const item = next === undefined ? undefined : items[next];
+    if (next === undefined || !item) return;
     event.preventDefault();
-    const next = move(
-      items.findIndex((item) => item.id === selected),
-      items.length,
-    );
-    const item = items[next];
-    if (!item) return;
     select(item.id);
     refs.current[next]?.focus();
   };
@@ -58,7 +52,7 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
         role="tablist"
         aria-label={label}
         onKeyDown={onKeyDown}
-        className="flex gap-1 self-start overflow-x-auto rounded-lg bg-muted p-1"
+        className={cn(PILL_LIST, 'self-start')}
       >
         {items.map((item, index) => {
           const active = item.id === selected;
@@ -72,16 +66,10 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
               role="tab"
               id={`${base}-tab-${item.id}`}
               aria-selected={active}
-              aria-controls={`${base}-panel-${item.id}`}
+              aria-controls={item.content === undefined ? undefined : `${base}-panel-${item.id}`}
               tabIndex={active ? 0 : -1}
               onClick={() => select(item.id)}
-              className={cn(
-                'inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap',
-                'transition-[background-color,color,box-shadow] duration-(--motion-base) ease-out [&_svg]:size-4',
-                active
-                  ? 'bg-surface-raised text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+              className={pillClass(active)}
             >
               {item.icon}
               {item.label}
@@ -90,7 +78,7 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
         })}
       </div>
       {items.map((item) =>
-        item.id === selected ? (
+        item.id === selected && item.content !== undefined ? (
           <div
             key={item.id}
             role="tabpanel"
@@ -106,3 +94,7 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
     </div>
   );
 }
+
+/** Nom de la refonte (ADR 0011) : les sous-sections d'un onglet sont des onglets en pastilles. */
+export const PillTabs = Tabs;
+export type PillTabsProps = TabsProps;

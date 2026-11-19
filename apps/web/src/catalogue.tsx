@@ -14,14 +14,17 @@ import {
   EmptyState,
   IconButton,
   Moon,
+  Package,
+  PillTabs,
   Plus,
+  SegmentedControl,
   Select,
   Settings,
   Ship,
   Skeleton,
   Stat,
   Sun,
-  Tabs,
+  Switch,
   TextField,
   Wheat,
   X,
@@ -136,7 +139,10 @@ function Catalogue() {
           <TextField label="TextField · disabled" disabled defaultValue="value" />
         </Section>
 
-        <Section title="Badge">
+        <Section title="Switch · Badge">
+          <Switch label="Switch" hint="hint" defaultChecked />
+          <Switch label="Switch · off" />
+          <Switch label="Switch · disabled" disabled />
           <div className="flex flex-wrap gap-2">
             {TONES.map((tone) => (
               <Badge key={tone} tone={tone}>
@@ -146,9 +152,9 @@ function Catalogue() {
           </div>
         </Section>
 
-        <Section title="Tabs">
-          <Tabs
-            label="Tabs"
+        <Section title="PillTabs · SegmentedControl">
+          <PillTabs
+            label="PillTabs"
             items={['Agora', 'Contrats', 'Fret'].map((id) => ({
               id,
               label: id,
@@ -156,6 +162,13 @@ function Catalogue() {
                 <p className="text-muted-foreground">Panneau {id} : flèches, Début et Fin.</p>
               ),
             }))}
+          />
+          <SegmentedControl
+            label="SegmentedControl"
+            options={[
+              { value: 'sell', label: 'Vendre', icon: <Coins /> },
+              { value: 'buy', label: 'Acheter', icon: <Package /> },
+            ]}
           />
         </Section>
 
