@@ -29,8 +29,13 @@ export const moderationAppeal = defineCommand({
     const sanction = await trx
       .selectFrom('admin.sanctions')
       .select(['id', 'appealed_at'])
-      // À l'horloge de la base, comme la garde `sanctions_appeal_in_force` : pas à `now`, tronqué (#611).
-      .select(sql<boolean>`ends_at is not null and ends_at <= now()`.as('ended'))
+      // À l'horloge de la base, comme la garde `sanctions_appeal_in_force` : pas à `now`, tronqué (#611). Une
+      // sanction levée est finie, même si sa levée est datée après cet instant (#616).
+      .select(
+        sql<boolean>`lifted_at is not null or (ends_at is not null and ends_at <= now())`.as(
+          'ended',
+        ),
+      )
       .where('id', '=', input.sanctionId)
       .where('user_id', '=', userId)
       // Une exclusion pas encore validée n'est pas annoncée au compte : elle n'existe pas pour lui.
