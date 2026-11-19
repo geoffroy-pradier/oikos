@@ -71,7 +71,7 @@ export function AccountsScreen() {
   const money = (amount: number) => formatMoney(amount, t, i18n.language);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Card elevation="raised" className="overflow-hidden p-0">
         <Frieze tone="accent" />
         <div className="flex flex-col gap-1 p-4">

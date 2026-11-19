@@ -39,7 +39,9 @@ export function Stat({ label, value, delta, hint, icon, className }: StatProps) 
         )}
         <span className="eyebrow">{label}</span>
       </div>
-      <p className="font-display text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
+      <p className="font-display text-3xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]">
+        {value}
+      </p>
       {(delta || hint) && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {delta && Arrow && (

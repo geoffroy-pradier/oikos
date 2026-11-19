@@ -608,7 +608,7 @@ export function SitesCard({
   // d'accessibilité : l'espacement de la carte ne bouge pas.
   const announce = (target: string) =>
     (['status', 'alert'] as const).map((kind) => (
-      <div key={kind} role={kind} className="empty:absolute">
+      <div key={kind} role={kind} className="empty:sr-only">
         {notice?.target === target && notice.kind === kind && (
           <p
             ref={noticeElement}

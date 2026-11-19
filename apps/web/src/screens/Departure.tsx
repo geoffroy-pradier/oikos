@@ -22,7 +22,7 @@ interface Inventory {
 export type DepartureNotice = { kind: 'status' | 'alert'; text: string };
 /** Ligne d'option : cible tactile de 44 px, dans un cadre qui se remplit au survol. */
 const ROW =
-  'flex min-h-11 items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 ' +
+  'flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 py-1 rounded-lg border border-border-subtle bg-surface-raised px-3 ' +
   'transition-colors duration-(--motion-fast) hover:bg-muted';
 const WARNING = 'rounded-lg bg-danger-subtle p-3 font-semibold text-danger';
 
@@ -186,8 +186,8 @@ export function Departure(props: {
   }
 
   const heading = (
-    <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-      <Anchor aria-hidden="true" className="size-5 shrink-0 text-accent" />
+    <h2 ref={title} tabIndex={-1} className="text-xl">
+      <Anchor aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
       {t('departure.title')}
     </h2>
   );
@@ -201,7 +201,7 @@ export function Departure(props: {
   return (
     <form onSubmit={(event) => void depart(event)} className="flex flex-col gap-3">
       {heading}
-      <fieldset className="flex flex-col gap-1.5">
+      <fieldset className="flex min-w-0 flex-col gap-1.5">
         <legend className="mb-1 font-semibold">{t('departure.destination')}</legend>
         {destinations.map(({ cityId, quote, longer, shorter, stormy, seconds }) => (
           <label key={cityId} className={ROW}>
@@ -223,7 +223,7 @@ export function Departure(props: {
           </label>
         ))}
       </fieldset>
-      <fieldset className="flex flex-col gap-1.5">
+      <fieldset className="flex min-w-0 flex-col gap-1.5">
         <legend className="mb-1 font-semibold">
           {t('departure.cargo', {
             loaded: number.format(loaded),
@@ -239,7 +239,7 @@ export function Departure(props: {
               min={0}
               max={available}
               step={1}
-              className="min-h-9 w-24 rounded-md border border-border bg-surface-raised px-2 tabular-nums"
+              className="min-h-9 w-24 max-w-full rounded-md border border-border bg-surface-raised px-2 tabular-nums"
               value={quantities[goodId] ?? ''}
               onChange={(event) =>
                 setQuantities((before) => ({ ...before, [goodId]: event.target.value }))
@@ -263,7 +263,7 @@ export function Departure(props: {
         </p>
       )}
       {/* Région toujours présente : la durée est provisoire tant que les tempêtes et les vents se lisent. */}
-      <p role="status" className="empty:absolute">
+      <p role="status" className="empty:sr-only">
         {[
           storms.events === null && !storms.failed && t('departure.stormsLoading'),
           uses === null && !windsFailed && t('departure.windsLoading'),
