@@ -52,6 +52,8 @@ it(
       lodging,
       minutes,
       supplyBefore,
+      events,
+      wages,
     } = run;
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -80,8 +82,9 @@ it(
       );
     }
     expect(acquisitions).toBeGreaterThan(0);
-    // Les maisons ont payé les salaires de la configuration (nuls dans la configuration initiale), leurs intendants
-    // compris, que le rapprochement de la bourse des PNJ compte, et leurs intendants ont exécuté leurs règles.
+    // Les maisons ont payé les salaires de la configuration, leurs intendants compris, que le rapprochement de la
+    // bourse des PNJ compte, et leurs intendants ont exécuté leurs règles.
+    expect(wages, 'salaires payés').toBeGreaterThan(0);
     expect(stewards.length).toBeGreaterThan(0);
     expect(operations.acted, 'opérations des intendants').toBeGreaterThan(0);
     expect(operations.failed).toBe(0);
@@ -162,6 +165,11 @@ it(
       )
     ).rows[0];
     expect(Number(undated?.n), 'voyages datés hors de l’heure de jeu').toBe(0);
+    // Les événements du monde de la configuration ont été planifiés sur la graine du banc, et joués (7.4).
+    expect(
+      Object.values(events).reduce((a, b) => a + b, 0),
+      'événements planifiés',
+    ).toBeGreaterThan(0);
 
     // Les flux mesurés (mise en route comprise), sommés sur tous les jours, rendent ceux du grand livre : le net de
     // chaque robinet et de chaque puits, relevé sur les lignes du grand livre, est l'opposé du solde de son compte,
@@ -176,7 +184,13 @@ it(
     // Chaque puits qui revient chaque jour a sa part dans la monnaie détruite des jours mesurés (les achats de biens,
     // faits surtout pendant la mise en route, sont comptés par le rapprochement ci-dessus).
     const shares = sinkShares(days)['world'] ?? {};
-    for (const key of ['sink_property_upkeep', ...PUBLIC_SINKS])
+    for (const key of [
+      'sink_property_upkeep',
+      'sink_ship_upkeep',
+      'sink_voyage_provisions',
+      'sink_port_dues',
+      ...PUBLIC_SINKS,
+    ])
       expect(shares[key] ?? 0, `part de ${key}`).toBeGreaterThan(0);
     expect(shares['estate'], 'part des puits immobiliers').toBeGreaterThan(0);
     expect(shares['public'], 'part des puits publics').toBeGreaterThan(0);
@@ -204,6 +218,7 @@ it(
       minutes: Math.round(minutes * 10) / 10,
       stewards: stewards.length,
       stewardOperations: operations,
+      events,
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
     });

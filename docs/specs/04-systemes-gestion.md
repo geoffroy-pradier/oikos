@@ -189,7 +189,8 @@ Raisons des choix :
 
 - **Travailleurs** : salariés recrutés sur le marché du travail de la cité, dont le salaire d'équilibre dépend de l'offre et de la demande locales. Moral influencé par salaire, logement, fêtes et cadence.
   Dans la première version (ticket 255), les travailleurs sont attachés à leur site : sa recette dit combien il en faut (`workers`), et il n'y a pas de commande d'embauche.
-  Chacun est payé chaque jour le salaire du jour de la cité du site, un paramètre du back-office par cité (`staff.dailyWageOboles`), nul dans la configuration initiale ; une version publiée avant le personnel, ou une cité qu'elle ne nomme pas, ne paie aucun salaire.
+  Chacun est payé chaque jour le salaire du jour de la cité du site, un paramètre du back-office par cité (`staff.dailyWageOboles`), une drachme (6 oboles) dans chaque cité de la configuration initiale (#668) ; une version publiée avant le personnel, ou une cité qu'elle ne nomme pas, ne paie aucun salaire.
+  Décision : ce salaire est inférieur à la dépense de référence d'un thète (8 oboles par jour) ; un travailleur n'est pas un ménage, et la bourse de sa classe a d'autres revenus que les salaires des maisons.
   Une section `staff` non vide nomme chaque cité de la configuration, et elles seules.
   Salaires d'un site pour un jour = travailleurs × salaire du jour, en oboles, sans arrondi.
   Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et versés à la bourse des PNJ de la cité du site (#632, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.
@@ -207,7 +208,7 @@ Raisons des choix :
   Chaque travailleur sans logement lui coûte chaque jour une nuit d'hébergement chez les PNJ, versée à la bourse des PNJ de la cité du site (#632, 5.5 ; avant, détruite par le puits `sink_npc_lodging`) : son prix du jour, fixé avec le salaire, est le prix de base de la configuration (`labor.lodging.baseOboles`) multiplié par une courbe de la pénurie de logements de la cité (non logés ÷ employés), bornée de même (`lodgingPrice`).
   La pénurie fait donc monter le coût du travail, ce qui donne un sens économique aux baux.
   Le marché du travail du jour de chaque cité est public (vue `labor_market` : offre, employés, non logés, salaire et hébergement) ; une maison lit ses travailleurs, site par site, logés ou non (vue `my_workforce`, calculée à la lecture comme la relance les compte).
-  La configuration initiale est neutre : aucune classe travailleuse (offre sans limite), courbe du salaire à ×1, hébergement nul.
+  Configuration initiale (#668) : les thètes travaillent pour 30 % d'entre eux, les zeugites pour 10 %, si bien que chaque cité, même réduite de moitié, offre de quoi faire tourner trente maisons de quatre sites ; la courbe du salaire reste à ×1 ; une nuit d'hébergement coûte 1 obole quand tous les travailleurs de la cité sont logés, jusqu'à 3 (×3, un demi-salaire) quand aucun ne l'est.
   Le moral, les artisans, le débauchage et la migration des travailleurs entre cités viendront ensuite.
 - **Artisans** : personnages nommés, avec métier, niveau, traits et prétentions. Ils se forment, se débauchent et peuvent partir.
 - **Intendants** : PNJ animés par IA qui gèrent un site selon des consignes en langage naturel (« vends l'huile au-dessus de 12 drachmes, sinon stocke »), traduites en règles vérifiables. Un intendant = une file d'opérations parallèle.
@@ -216,7 +217,7 @@ Raisons des choix :
   récolter le site dès que possible (`collect`) ;
   vendre un bien à un prix plancher l'unité ou plus, en gardant une réserve en stock (`sell`) ;
   racheter un intrant de la recette du site à un prix plafond l'unité ou moins, jusqu'à un stock visé (`buy`).
-  La configuration fixe les postes par niveau de siège, le salaire d'un intendant par jour (nul au départ, paramètres neutres) et le nombre de règles par intendant (section `stewards`, publique dans `site_rules` sans sa liste de noms) ; une version publiée avant les intendants n'ouvre aucun poste.
+  La configuration fixe les postes par niveau de siège, le salaire d'un intendant par jour (deux salaires d'un travailleur dans la configuration initiale, #668) et le nombre de règles par intendant (section `stewards`, publique dans `site_rules` sans sa liste de noms) ; une version publiée avant les intendants n'ouvre aucun poste.
   `steward.hire` embauche un intendant pour un site de la maison, un par site, dans la limite des postes ; il ne coûte rien, et reçoit un nom tiré de la liste de la configuration, parmi ceux que la maison n'emploie pas encore quand il en reste.
   `steward.setRules` remplace toutes ses règles, dans l'ordre où il les mènera, par une révision nouvelle : rien n'est effacé, et une liste vide est admise (il ne fait rien).
   La commande refuse un bien que la configuration ne connaît pas et un rachat qui ne vise pas un intrant de la recette du site au moment où les règles sont données.
@@ -305,7 +306,7 @@ Phase 2, première version (#256) :
 - **Configuration** (section `properties`, publique) : par taille, le prix d'achat à la cité, la capacité en logements, l'entretien quotidien, la vétusté perdue à chaque clôture, le seuil d'état sous lequel le bien ne loge plus personne, et le coût de la rénovation, en oboles (toujours positif) et en biens ;
   par cité, le nombre de biens de chaque taille (`countsByCity`).
   L'état d'un bien va de 0 à 10 000 (neuf).
-  Entretien et vétusté entrent à zéro dans la configuration initiale (paramètres neutres) ; une version publiée avant l'immobilier n'a aucun bien.
+  Configuration initiale (#668) : une maison de ville coûte 1 obole d'entretien par jour, un immeuble 3, moins que l'hébergement qu'ils évitent ; tous deux perdent 300 points d'état par jour et passent sous leur seuil en 24 jours, d'où une rénovation par mois environ ; une version publiée avant l'immobilier n'a aucun bien.
 - **Parc** : chaque cité a un parc fini, d'abord détenu par elle, que le moteur crée au premier tick qui la connaît (comme sa population, 5.2) et complète jusqu'au nombre de la configuration ;
   baisser ce nombre ne retire aucun bien.
 - **Achat** (`property.buy`, bien et prix vu) : une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde (investir ailleurs comme métèque, 6).
@@ -373,7 +374,7 @@ Le fret peut être vendu à d'autres joueurs.
 Navires, dans la phase 2 (#251) :
 
 - Une classe de navire (`ships.classes`) a une capacité en unités de biens, tous biens confondus, une vitesse en points de base (10 000 tient la durée de référence d'une route), un prix d'achat et un entretien par jour de jeu, en oboles.
-  L'entretien entre à zéro dans la configuration initiale (paramètres neutres) ; la clôture le prélève (voyages, ci-dessous).
+  Dans la configuration initiale (#668), l'entretien d'un jour est le salaire de l'équipage : trois marins pour un caboteur (18 oboles), huit pour un navire rond (48) ; la clôture le prélève (voyages, ci-dessous).
   Une version de configuration publiée avant le transport se lit sans aucune classe : aucun navire ne s'y achète.
 - La commande `ship.acquire` (classe, prix vu) achète un navire neuf : il naît armé, à quai dans la cité de la maison, et son prix est détruit (puits `sink_ship_purchase`, 5.5) par une écriture `ship.acquire`, annoncée par un événement de domaine `ShipAcquired`.
   Elle est refusée sans rien payer si la classe n'est pas dans la configuration en vigueur, si la cité de la maison n'a pas de port (6.1), si la trésorerie ne couvre pas le prix, ou si le prix en vigueur n'est pas celui que le joueur a vu (« le prix a changé », comme pour `site.acquire`).
@@ -396,7 +397,7 @@ Voyages, dans la phase 2 (#252) :
 - Le droit de port de la cité d'arrivée (`ships.portDues`, 5.6) est un forfait par classe, multiplié par le coefficient de la cité (10 000 = ×1 ; une cité sans coefficient est à ×1), arrondi à l'obole supérieure, et payé au départ.
   Ce coefficient est celui du dernier décret appliqué de la cité, sinon celui de la configuration (#262) ; l'écran de départ le lit dans la vue `city_rates` et n'annonce aucun coût avant de l'avoir lu.
   Sa part détruite (`burnShareBps`, arrondie à l'obole supérieure) va au puits `sink_port_dues`, le reste au trésor de la cité d'arrivée, comme la taxe de marché.
-  Provisions et droit de port entrent à zéro dans la configuration initiale (paramètres neutres).
+  Configuration initiale (#668) : les provisions sont les vivres de l'équipage pendant le trajet de sa classe, à 8 oboles par marin et par jour (la dépense de référence d'un thète), arrondies à l'obole supérieure (un caboteur, une obole par heure de route) ; le droit de port est 1 % d'une soute pleine de blé à son prix de référence (18 oboles pour un caboteur, 54 pour un navire rond).
   Une version publiée avant les voyages se lit sans route ni droit de port : aucun départ n'y est possible.
 - La commande `voyage.depart` (navire, cité de départ vue, cité d'arrivée, cargaison, coût vu) fait partir un navire armé de la maison, à quai dans la cité de départ, vers une cité reliée par une route.
   La cargaison est une liste de biens et de quantités prise dans le stock libre de la maison dans la cité de départ (quantité moins ce que réservent ses ventes en attente), dans la capacité de la classe, tous biens confondus.

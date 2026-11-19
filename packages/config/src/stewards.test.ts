@@ -19,12 +19,13 @@ const fieldsOf = (stewards: unknown) => {
 };
 
 describe('intendants (4.4, #278)', () => {
-  it('la configuration initiale ouvre des postes, sans salaire, avec des noms à tirer', () => {
+  it('la configuration initiale ouvre des postes, au salaire de deux travailleurs, avec des noms à tirer', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
     expect(stewardLimit(result.config)).toBeGreaterThan(0);
-    // Paramètres neutres (#278) : le salaire entre à zéro, en attendant le calibrage.
-    expect(stewardDailyWageOboles(result.config)).toBe(0);
+    // Calibrage (#668) : un intendant, qui mène un site et ses ventes, est payé le double d'un travailleur de chaque cité.
+    for (const wage of Object.values(result.config.staff.dailyWageOboles))
+      expect(stewardDailyWageOboles(result.config)).toBe(2 * wage);
     expect(stewardRulesLimit(result.config)).toBeGreaterThanOrEqual(3);
     expect(result.config.stewards?.names.length).toBeGreaterThan(stewardLimit(result.config));
   });

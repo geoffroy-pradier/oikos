@@ -158,10 +158,8 @@ La configuration (`worldEvents.models`) donne à chaque modèle une probabilité
 Chaque jour planifié, chaque modèle tire de son propre générateur (graine du jour et nom du modèle) : s'il survient, puis sa portée (cité, route ou bien, uniformes), sa durée et son ampleur, uniformes entre leurs bornes.
 Changer les règles d'un modèle ne change donc pas les tirages des autres ; au plus un événement par modèle et par jour de début.
 La cité est tirée parmi celles du monde connues de la configuration, la route parmi les routes entre elles, le bien d'une caravane parmi `goodIds`, des biens achetés par au moins une classe de PNJ.
-Décision (paramètres neutres) : toutes les probabilités sont nulles dans la configuration initiale, si bien que le banc de #78 ne joue aucun événement.
-Limite connue : le banc de #78 clôt des jours passés, et une clôture ne planifie pas un jour dont le début est déjà atteint (7.3).
-Avec une probabilité non nulle, ses clôtures réussiraient, mais ne planifieraient que des événements qui commencent après l'heure de la base, donc après tous les jours qu'il joue : aucun n'agirait sur sa simulation.
-Pour calibrer les événements (#283), il faudra que le banc joue ses jours à venir, ou les planifie autrement.
+Configuration initiale (#668) : chaque modèle a une chance sur trente par jour (333 points de base), soit environ un événement de chaque modèle par mois dans le monde ; durées et ampleurs restent celles du catalogue.
+Les bancs closent des jours passés, et une clôture ne planifie pas un jour dont le début est déjà atteint (7.3) : le banc à quatre cités planifie donc lui-même, après chaque clôture, ce qu'elle aurait planifié, avec le même tirage et sa graine fixe, et en joue les effets (`apps/api/src/balance/events.ts`) ; le banc à une cité de #78 n'en joue aucun.
 Décision : une tempête retarde, elle ne fait rien perdre.
 Des événements d'un même modèle qui se chevauchent sur une même portée ne s'ajoutent pas : seul le plus fort agit, et à égalité celui du plus petit identifiant, soit la planification la plus ancienne.
 Les identifiants sont des UUID v7, croissants dans le temps, et une clôture ne planifie qu'un jour : deux événements d'un même modèle viennent de deux clôtures, dans l'ordre de leurs identifiants.
