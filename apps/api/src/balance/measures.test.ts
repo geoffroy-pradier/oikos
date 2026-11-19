@@ -138,9 +138,7 @@ describe('basketDriftBps', () => {
   it('écart du coût du panier des derniers jours sur les premiers, chaque fenêtre au prix moyen de ses échanges', () => {
     expect(basketDriftBps([at(1), at(1), at(1), at(1)], 'a', 2)).toBe(0);
     // Fenêtre de début : 1 et 1,1 (1,05 en moyenne) ; de fin : 1,1 et 1,1.
-    expect(basketDriftBps([at(1), at(1.1), at(1.1), at(1.1)], 'a', 2)).toBe(
-      Math.round((1.1 / 1.05) * 10_000) - 10_000,
-    );
+    expect(basketDriftBps([at(1), at(1.1), at(1.1), at(1.1)], 'a', 2)).toBe(476);
     expect(basketDriftBps([at(1.1), at(1), at(1), at(1)], 'a', 2)).toBeLessThan(0);
   });
 

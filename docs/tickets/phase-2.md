@@ -1265,7 +1265,7 @@ Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 ## Critères d'acceptation
 
 - [ ] Le banc lit les salaires dans la configuration ; aucune constante d'équilibrage dans le code.
-- [ ] Le scénario du banc approvisionne les cités importatrices (négociants, armateurs) : chaque bien du panier s'échange dans chaque cité, et aucun site ne s'arrête.
+- [ ] Le scénario du banc approvisionne les cités importatrices (armateurs) : chaque bien du panier s'échange dans chaque cité, et aucun site ne s'arrête.
 - [ ] Bornes écrites à la main dans le banc à quatre cités, pas recalculées par le code testé, dans chaque cité : coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
 - [ ] Borne de masse contre l'emballement, écrite à la main : variation sur les 30 jours mesurés sous un plafond fixé d'après la mesure et justifié, et création nette quotidienne des dix derniers jours au plus 110 % de celle des dix premiers.
 - [ ] La borne des marges de #285 reste verte.
@@ -1387,7 +1387,7 @@ Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 
 ## Critères d'acceptation
 
-- [ ] Configuration initiale ajustée : offre de travail, hébergement, entretien des navires et des logements, vétusté, salaire des intendants, droits de port, provisions et probabilité des événements activés ; chaque valeur justifiée dans la demande de fusion ; aucune constante d'équilibrage dans le code.
+- [ ] Configuration initiale ajustée : salaires des travailleurs, offre de travail, hébergement, entretien des navires et des logements, vétusté, salaire des intendants, droits de port, provisions et probabilité des événements activés ; chaque valeur justifiée dans la demande de fusion ; aucune constante d'équilibrage dans le code.
 - [ ] Grâces offertes dans la configuration initiale, au moins une par dieu concerné (7.1, #266), et déclin et poids de la Charis de cité calibrés ; chaque valeur justifiée.
 - [ ] Le banc à quatre cités joue les événements, avec sa graine fixe, et ses bornes (#283) restent vertes ; la borne des marges de #285 aussi.
 - [ ] Spécification 5.5 : part de chaque puits à quatre cités.

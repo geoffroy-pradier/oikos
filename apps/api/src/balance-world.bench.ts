@@ -140,7 +140,7 @@ it(
     expect(Number(unhoused.rows[0]?.unhoused), 'travailleurs non logés').toBeLessThan(
       Number(unhoused.rows[0]?.employed),
     );
-    // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
+    // Les armateurs ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
     const sailed = (
       await sql<{ voyages: string; units: string }>`select count(*) as voyages,
         coalesce(sum(c.units), 0) as units
@@ -230,12 +230,17 @@ it(
       expect(drift[slug], `${slug} : coût du panier`).not.toBeNull();
       expect(drift[slug], `${slug} : coût du panier`).toBeGreaterThanOrEqual(0);
       expect(drift[slug], `${slug} : coût du panier`).toBeLessThanOrEqual(200);
-      for (const day of days)
+      for (const day of days) {
+        expect(
+          Object.keys(day.coverage[slug] ?? {}),
+          `${slug} : couverture mesurée, jour ${day.day}`,
+        ).not.toHaveLength(0);
         for (const [classId, coverage] of Object.entries(day.coverage[slug] ?? {}))
           expect(
             coverage,
             `${slug} : couverture de ${classId}, jour ${day.day}`,
           ).toBeGreaterThanOrEqual(9_800);
+      }
       expect(days.at(-1)?.population[slug], `${slug} : population`).toBeGreaterThanOrEqual(
         days[0]?.population[slug] ?? Infinity,
       );
