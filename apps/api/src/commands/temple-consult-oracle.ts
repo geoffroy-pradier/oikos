@@ -7,6 +7,7 @@ import { offeringCharis } from '@oikos/sim';
 import { sql } from 'kysely';
 import { charisOf, lockOffering, writeOffering } from '../offering';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -35,7 +36,7 @@ export const templeConsultOracle = defineCommand({
     const house = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
-      .where('user_id', '=', userId)
+      .where('id', '=', accountHouseId(userId))
       .forNoKeyUpdate()
       .executeTakeFirst();
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');

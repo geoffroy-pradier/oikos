@@ -6,6 +6,7 @@ import {
 import { defineCommand } from '../registry';
 import { accountHasHouse } from './chat-open-direct';
 import { refuse } from './city-election';
+import { accountHouseId } from '@oikos/operations';
 
 /**
  * Signalement (docs/specs/18-indicateurs-risques-conformite.md, contenus ; #275) : une maison signale un message
@@ -39,7 +40,7 @@ export const chatReport = defineCommand({
       .selectFrom('game.messages as msg')
       .innerJoin('game.channels as c', 'c.id', 'msg.channel_id')
       .innerJoin('game.houses as h', (join) =>
-        join.onRef('h.world_id', '=', 'c.world_id').on('h.user_id', '=', userId),
+        join.onRef('h.world_id', '=', 'c.world_id').on('h.id', '=', accountHouseId(userId)),
       )
       .innerJoin('game.citizenships as z', 'z.house_id', 'h.id')
       .select(['msg.id as messageId', 'msg.house_id as authorId', 'msg.hidden_at as hiddenAt'])

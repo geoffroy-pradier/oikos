@@ -9,6 +9,7 @@ import {
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { lockHouseProperty, openListingOf, refuse } from './property-offer';
+import { accountHouseId } from '@oikos/operations';
 
 const NOT_FOR_LEASE = {
   code: 'PROPERTY_NOT_FOR_LEASE',
@@ -87,7 +88,7 @@ export const propertyEndLease = defineCommand({
     const house = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
-      .where('user_id', '=', userId)
+      .where('id', '=', accountHouseId(userId))
       .executeTakeFirst();
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
     // Le verrou de l'agora, comme les autres commandes de l'immobilier et la clôture qui met fin au bail.

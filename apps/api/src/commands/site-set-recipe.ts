@@ -9,6 +9,7 @@ import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -39,7 +40,7 @@ export const siteSetRecipe = defineCommand({
         .select('city_id')
         .where('id', '=', input.siteId)
         .where('house_id', 'in', (houses) =>
-          houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
+          houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
         )
         .executeTakeFirst();
       if (located) await lockCityLabor(trx, located.city_id);
@@ -52,7 +53,7 @@ export const siteSetRecipe = defineCommand({
       .select(sql<boolean>`coalesce(halted_at > now(), false)`.as('haltMoved'))
       .where('id', '=', input.siteId)
       .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
+        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
       )
       .forUpdate()
       .executeTakeFirst();

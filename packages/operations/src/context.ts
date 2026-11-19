@@ -1,7 +1,7 @@
 import type { GameConfig } from '@oikos/config';
 import type { CommandError, DomainEvent } from '@oikos/contracts';
 import type { Db, GameDatabase } from '@oikos/db';
-import type { SelectQueryBuilder } from 'kysely';
+import { sql, type SelectQueryBuilder } from 'kysely';
 
 /** Issue d'une opération : ses données, ou un refus métier dont l'appelant annule les effets. */
 export type OperationResult<T> = { ok: true; data: T } | { ok: false; error: CommandError };
@@ -29,13 +29,22 @@ export interface OperationContext {
  */
 export type Actor = { userId: string } | { houseId: string; stewardId?: string };
 
+/**
+ * Identifiant de la maison d'un compte, en sous-requête. Un compte ne fonde qu'une maison dans tout le jeu (#604) ; un
+ * compte qui en a hérité plusieurs d'avant cette règle agit par la plus ancienne (création, puis identifiant). Toute
+ * commande désigne la maison du compte par elle, jamais par `user_id` seul, qui en choisirait une au hasard.
+ */
+export const accountHouseId = (userId: string) =>
+  sql<string>`(select account_house.id from game.houses as account_house
+    where account_house.user_id = ${userId} order by account_house.created_at, account_house.id limit 1)`;
+
 /** Restreint une lecture de `game.houses` à la maison de l'acteur. */
 export const houseOf = <O>(
   houses: SelectQueryBuilder<GameDatabase, 'game.houses', O>,
   actor: Actor,
 ) =>
   'userId' in actor
-    ? houses.where('user_id', '=', actor.userId)
+    ? houses.where('id', '=', accountHouseId(actor.userId))
     : houses.where('id', '=', actor.houseId);
 
 /** Une opération de jeu : son nom (celui de la commande du joueur) et son cœur transactionnel. */

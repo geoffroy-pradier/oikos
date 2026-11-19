@@ -15,6 +15,7 @@ import {
 } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -53,7 +54,7 @@ export const voyageDepart = defineCommand({
       .select(['id', 'world_id', 'house_id', 'class_id'])
       .where('id', '=', input.shipId)
       .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
+        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
       )
       .executeTakeFirst();
     // Le navire d'un autre joueur est indiscernable d'un navire inexistant.
