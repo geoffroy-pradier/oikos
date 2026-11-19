@@ -29,10 +29,7 @@ export interface OperationContext {
  */
 export type Actor = { userId: string } | { houseId: string; stewardId?: string };
 
-/**
- * Restreint une lecture de `game.houses` à la maison de l'acteur : un compte n'en a qu'une dans tout le jeu
- * (contrainte `houses_one_per_user`, #604), la lecture par compte ne choisit donc jamais entre plusieurs.
- */
+/** Restreint une lecture de `game.houses` à la maison de l'acteur. */
 export const houseOf = <O>(
   houses: SelectQueryBuilder<GameDatabase, 'game.houses', O>,
   actor: Actor,

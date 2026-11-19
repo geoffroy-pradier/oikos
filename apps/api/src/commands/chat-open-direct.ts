@@ -14,7 +14,7 @@ import { refuse } from './city-election';
  * ouverture relit la première.
  */
 
-/** Vrai si le compte a sa maison, dans quelque monde que ce soit : départage `HOUSE_NOT_FOUND` d'un autre refus. */
+/** Vrai si le compte a une maison, dans quelque monde que ce soit : départage `HOUSE_NOT_FOUND` d'un autre refus. */
 export const accountHasHouse = async (trx: Db, userId: string) =>
   !!(await trx
     .selectFrom('game.houses')
@@ -29,7 +29,7 @@ export const chatOpenDirect = defineCommand({
   output: chatOpenDirectOutputSchema,
   errors: CHAT_OPEN_DIRECT_ERROR_CODES,
   async handler({ trx, userId, emit }, input) {
-    // La maison du compte (une seule dans tout le jeu, #604), si elle est du monde de la maison désignée.
+    // La maison du compte dans le monde de la maison désignée : un compte peut avoir une maison par monde.
     const other = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])

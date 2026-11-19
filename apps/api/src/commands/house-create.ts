@@ -49,8 +49,8 @@ export const houseCreate = defineCommand({
       .where('id', '=', input.cityId)
       .executeTakeFirst();
     if (!city) return { ok: false, error: { code: 'CITY_NOT_FOUND', message: 'Unknown city.' } };
-    // Un compte n'a qu'une maison dans tout le jeu, quel qu'en soit le monde (#604) : il l'apprend avant tout
-    // contrôle des travailleurs (la contrainte `houses_one_per_user` reste le garde-fou sous concurrence).
+    // Un compte ne fonde qu'une maison dans tout le jeu, quel qu'en soit le monde (#604) : il l'apprend avant tout
+    // contrôle des travailleurs (le déclencheur `houses_one_per_account` reste le garde-fou sous concurrence).
     const existing = await trx
       .selectFrom('game.houses')
       .select('id')

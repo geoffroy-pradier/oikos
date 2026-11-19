@@ -1,27 +1,36 @@
 begin;
-select plan(7);
+select plan(13);
 
--- Un compte n'a qu'une maison dans tout le jeu (#604) : Alice a sa maison dans l'Archipel, puis tente d'en fonder une
--- dans un second monde ; Bob, sans maison, fonde la sienne dans ce second monde.
+-- Un compte ne fonde qu'une maison dans tout le jeu (#604) : Alice a sa maison dans l'Archipel et tente d'en fonder une
+-- dans un second monde ; Bob, sans maison, fonde la sienne dans ce second monde ; Chloé a hérité deux maisons d'avant
+-- la règle (posées ici en contournant le déclencheur).
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000460a1', 'one-house-alice@example.test'),
-  ('00000000-0000-4000-8000-0000000460b2', 'one-house-bob@example.test');
+  ('00000000-0000-4000-8000-0000000460b2', 'one-house-bob@example.test'),
+  ('00000000-0000-4000-8000-0000000460c3', 'one-house-chloe@example.test');
 insert into game.worlds (id, slug, name) values
   ('00000000-0000-7000-8000-000000046002', 'one-house-second', 'Second');
 insert into game.houses (id, world_id, user_id, name, blazon) values
   ('00000000-0000-7000-8000-0000000460a1', '01900000-0000-7000-8000-000000000001',
    '00000000-0000-4000-8000-0000000460a1', 'Unique Alcmène', '{}');
+alter table game.houses disable trigger houses_one_per_account;
+insert into game.houses (id, world_id, user_id, name, blazon) values
+  ('00000000-0000-7000-8000-0000000460c1', '01900000-0000-7000-8000-000000000001',
+   '00000000-0000-4000-8000-0000000460c3', 'Ancienne Cléo', '{}'),
+  ('00000000-0000-7000-8000-0000000460c2', '00000000-0000-7000-8000-000000046002',
+   '00000000-0000-4000-8000-0000000460c3', 'Seconde Cléo', '{}');
+alter table game.houses enable trigger houses_one_per_account;
 
--- Forme : la contrainte garde son nom, que l'API traduit en `HOUSE_ALREADY_EXISTS`, et ne porte plus que le compte.
+-- Forme : l'unicité par monde reste, le déclencheur s'y ajoute, sans privilège du propriétaire.
 select is(
   (select pg_get_constraintdef(oid) from pg_constraint
    where conrelid = 'game.houses'::regclass and conname = 'houses_one_per_user'),
-  'UNIQUE (user_id)', 'une maison par compte, tous mondes confondus');
-select is(
-  (select count(*)::int from pg_constraint
-   where conrelid = 'game.houses'::regclass and contype = 'u' and conkey @> array[
-     (select attnum from pg_attribute where attrelid = 'game.houses'::regclass and attname = 'user_id')]),
-  1, 'aucune autre unicité portant sur le compte');
+  'UNIQUE (world_id, user_id)', 'l''unicité par monde et par compte est gardée');
+select ok(
+  not (select prosecdef from pg_proc where oid = 'game.houses_one_per_account()'::regprocedure),
+  'le déclencheur s''exécute au nom de l''appelant');
+select ok(not has_function_privilege('oikos_service', 'game.houses_one_per_account()', 'execute'),
+  'le service n''attache pas la fonction ailleurs');
 
 -- Écritures sous le rôle de service, comme l'API : chaque issue est relevée, puis comparée sous le propriétaire
 -- (pgTAP vit dans `extensions`, que le service ne voit pas).
@@ -29,45 +38,62 @@ set local role oikos_service;
 do $$
 declare
   hit text;
+  attempt record;
 begin
-  -- Alice, dans un autre monde : refusée par la contrainte.
-  begin
-    insert into game.houses (world_id, user_id, name, blazon) values
-      ('00000000-0000-7000-8000-000000046002', '00000000-0000-4000-8000-0000000460a1', 'Seconde Alcmène', '{}');
-    hit := 'inserted';
-  exception when unique_violation then
-    get stacked diagnostics hit = constraint_name;
-  end;
-  perform set_config('one_house.other_world', hit, true);
-  -- Alice, dans son propre monde : refusée de même.
-  begin
-    insert into game.houses (world_id, user_id, name, blazon) values
-      ('01900000-0000-7000-8000-000000000001', '00000000-0000-4000-8000-0000000460a1', 'Autre Alcmène', '{}');
-    hit := 'inserted';
-  exception when unique_violation then
-    get stacked diagnostics hit = constraint_name;
-  end;
-  perform set_config('one_house.same_world', hit, true);
-  -- Bob, sans maison, fonde la sienne dans le second monde.
-  insert into game.houses (id, world_id, user_id, name, blazon) values
-    ('00000000-0000-7000-8000-0000000460b2', '00000000-0000-7000-8000-000000046002',
-     '00000000-0000-4000-8000-0000000460b2', 'Unique Bérénice', '{}');
-  perform set_config('one_house.bob', 'inserted', true);
+  for attempt in
+    select * from (values
+      ('other_world', $q$insert into game.houses (world_id, user_id, name, blazon) values
+        ('00000000-0000-7000-8000-000000046002', '00000000-0000-4000-8000-0000000460a1', 'Seconde Alcmène', '{}')$q$),
+      ('same_world', $q$insert into game.houses (world_id, user_id, name, blazon) values
+        ('01900000-0000-7000-8000-000000000001', '00000000-0000-4000-8000-0000000460a1', 'Autre Alcmène', '{}')$q$),
+      ('bob', $q$insert into game.houses (id, world_id, user_id, name, blazon) values
+        ('00000000-0000-7000-8000-0000000460b2', '00000000-0000-7000-8000-000000046002',
+         '00000000-0000-4000-8000-0000000460b2', 'Unique Bérénice', '{}')$q$),
+      ('chloe_third', $q$insert into game.houses (world_id, user_id, name, blazon)
+        select id, '00000000-0000-4000-8000-0000000460c3', 'Troisième Cléo', '{}' from game.worlds
+        where id = '00000000-0000-7000-8000-000000046002'$q$),
+      ('chloe_rename', $q$update game.houses set name = 'Renommée Cléo'
+        where id = '00000000-0000-7000-8000-0000000460c2'$q$)
+    ) as t (label, statement)
+  loop
+    begin
+      execute attempt.statement;
+      hit := 'done';
+    exception when unique_violation then
+      get stacked diagnostics hit = constraint_name;
+    end;
+    perform set_config('one_house.' || attempt.label, hit, true);
+  end loop;
 end $$;
 reset role;
 select is(current_setting('one_house.other_world'), 'houses_one_per_user',
-  'une seconde maison dans un autre monde est refusée');
+  'une seconde maison dans un autre monde est refusée, sous le nom que l''API traduit');
 select is(current_setting('one_house.same_world'), 'houses_one_per_user',
   'une seconde maison dans le même monde est refusée');
-select is(current_setting('one_house.bob'), 'inserted',
-  'un compte sans maison fonde la sienne dans le second monde');
-select throws_ok(
-  $$update game.houses set user_id = '00000000-0000-4000-8000-0000000460a1'
-    where id = '00000000-0000-7000-8000-0000000460b2'$$,
-  '23505', null, 'une maison ne passe pas à un compte qui en a déjà une');
+select is(current_setting('one_house.bob'), 'done', 'un compte sans maison fonde la sienne dans le second monde');
+select is(current_setting('one_house.chloe_third'), 'houses_one_per_user',
+  'un compte hérité à deux maisons n''en fonde pas une troisième');
+select is(current_setting('one_house.chloe_rename'), 'done', 'une maison héritée se renomme');
+
+-- Le compte d'une maison ne change que sous le propriétaire (le service n'a pas ce droit de colonne).
+select throws_ok($$update game.houses set user_id = '00000000-0000-4000-8000-0000000460a1'
+  where id = '00000000-0000-7000-8000-0000000460b2'$$, '23505', null,
+  'une maison ne passe pas à un compte qui en a déjà une');
+select lives_ok($$update game.houses set user_id = user_id where id = '00000000-0000-7000-8000-0000000460c2'$$,
+  'une maison héritée qui reste à son compte n''est pas revérifiée');
 select is(
-  (select count(*)::int from game.houses where user_id = '00000000-0000-4000-8000-0000000460a1'),
-  1, 'Alice n''a toujours qu''une maison');
+  (select array_agg(name order by name) from game.houses
+   where user_id in ('00000000-0000-4000-8000-0000000460a1', '00000000-0000-4000-8000-0000000460c3')),
+  array['Ancienne Cléo', 'Renommée Cléo', 'Unique Alcmène'], 'aucune maison ajoutée ni retirée');
+
+-- Défense en profondeur : attachée par le propriétaire à une autre table, la fonction refuse de s'exécuter.
+create temporary table owner_houses (id uuid, user_id uuid);
+create trigger t before insert on owner_houses for each row execute function game.houses_one_per_account();
+select throws_ok($$insert into owner_houses values (gen_random_uuid(), gen_random_uuid())$$, '42501',
+  't only runs on game.houses', 'houses_one_per_account ne s''exécute que sur les maisons');
+select ok(
+  exists (select 1 from pg_indexes where schemaname = 'game' and indexname = 'houses_user_id_idx'),
+  'la maison d''un compte se lit par index');
 
 select * from finish();
 rollback;

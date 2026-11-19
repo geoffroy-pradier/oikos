@@ -1,36 +1,42 @@
--- Un compte a au plus une maison dans tout le jeu, tous mondes confondus (#604, docs/specs/11-architecture.md, 11.4).
--- Les commandes agissent pour « la » maison du compte authentifié : la base garantit qu'elle est unique.
--- La contrainte garde son nom, `houses_one_per_user`, que l'API traduit déjà en `HOUSE_ALREADY_EXISTS` : la version
--- précédente du code refuse donc une seconde maison dans un autre monde sous le même code.
--- Rejouable : sans effet si la contrainte porte déjà sur le seul compte. Aucune maison n'est supprimée : si un compte
--- en a déjà plusieurs, la migration échoue et ne change rien, et un humain décide de leur sort (`needs-human`).
-do $$
-declare
-  user_col smallint := (
-    select attnum from pg_catalog.pg_attribute
-    where attrelid = 'game.houses'::regclass and attname = 'user_id'
-  );
-  accounts bigint;
+-- Un compte ne fonde qu'une maison dans tout le jeu, tous mondes confondus (#604, docs/specs/11-architecture.md, 11.4).
+-- L'unicité par monde et par compte (`houses_one_per_user`) reste en place. Un déclencheur refuse en plus toute maison
+-- nouvelle, ou passée à un autre compte, d'un compte qui en a déjà une, quel qu'en soit le monde. Il ne vérifie pas les
+-- lignes déjà là : un compte qui a hérité plusieurs maisons d'avant cette règle les garde, et la migration passe
+-- toujours, sans rien supprimer. Ce compte agit par la plus ancienne (création, puis identifiant), que l'API désigne.
+-- Le refus prend le nom `houses_one_per_user`, que l'API traduit déjà en `HOUSE_ALREADY_EXISTS`, version précédente
+-- comprise. Rejouable.
+
+-- Au nom de l'appelant : seuls le propriétaire et le service écrivent une maison, et tous deux les lisent toutes.
+create or replace function game.houses_one_per_account() returns trigger
+language plpgsql
+set search_path = ''
+as $$
 begin
-  if exists (
-    select 1 from pg_catalog.pg_constraint
-    where conrelid = 'game.houses'::regclass and conname = 'houses_one_per_user'
-      and contype = 'u' and conkey = array[user_col]
-  ) then
-    return;
+  if tg_relid <> 'game.houses'::regclass then
+    raise exception '% only runs on game.houses', tg_name using errcode = 'insufficient_privilege';
   end if;
-
-  -- Aucune maison ne se fonde pendant le contrôle et le changement de contrainte.
-  lock table game.houses in access exclusive mode;
-  select count(*) into accounts
-  from (select 1 from game.houses group by user_id having count(*) > 1) as several;
-  if accounts > 0 then
-    raise exception 'houses_one_per_user: % account(s) own several houses', accounts
-      using errcode = 'unique_violation',
-            hint = 'No house is deleted: decide which house each of these accounts keeps, then deploy again.';
+  -- Une maison qui reste à son compte, même hérité avec plusieurs maisons, n'est pas une maison nouvelle du compte.
+  if tg_op = 'UPDATE' and new.user_id = old.user_id then
+    return new;
   end if;
+  -- Deux fondations simultanées du même compte se suivent : la seconde, au niveau READ COMMITTED des commandes, lit
+  -- la première une fois celle-ci validée.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('game.houses_one_per_account:' || new.user_id::text, 0));
+  if exists (select 1 from game.houses h where h.user_id = new.user_id and h.id <> new.id) then
+    raise exception 'duplicate key value violates unique constraint "houses_one_per_user"'
+      using errcode = 'unique_violation', constraint = 'houses_one_per_user', schema = 'game', table = 'houses',
+            detail = 'This account already has a house, in this world or another.';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function game.houses_one_per_account() from public, anon, authenticated, oikos_service;
 
-  -- L'unicité par compte implique l'ancienne, par monde et par compte, dont l'index ne sert plus.
-  alter table game.houses drop constraint if exists houses_one_per_user;
-  alter table game.houses add constraint houses_one_per_user unique (user_id);
-end $$;
+drop trigger if exists houses_one_per_account on game.houses;
+create trigger houses_one_per_account
+  before insert or update of user_id on game.houses
+  for each row execute function game.houses_one_per_account();
+
+-- Maison d'un compte, lue par l'API et par le déclencheur : par compte, la plus ancienne d'abord.
+create index if not exists houses_user_id_idx on game.houses (user_id, created_at, id);
