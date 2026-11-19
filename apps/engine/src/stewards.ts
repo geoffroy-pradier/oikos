@@ -35,7 +35,7 @@ export interface StewardRun {
 async function attempt<I, O>(
   operation: OperationDefinition<I, O>,
   context: OperationContext,
-  actor: { houseId: string },
+  actor: { houseId: string; stewardId?: string },
   input: I,
 ): Promise<OperationResult<O>> {
   try {
@@ -58,7 +58,8 @@ export interface Performed {
  * Mène l'action d'une règle par le cœur de la commande du joueur (ADR 0009), pour la maison de l'intendant, dans la
  * cité de son site. Les effets restent dans la transaction du contexte : à l'appelant de les garder ou de les annuler.
  * `onTry` reçoit la commande tentée avant qu'elle ne soit menée : une panne la laisse connue de l'appelant.
- * Partagé par l'opération du moteur et la simulation à blanc des règles proposées (#280).
+ * Partagé par l'opération du moteur et la simulation à blanc des règles proposées (#280). `signedBy`, l'intendant en
+ * poste qui mène l'opération, signe les ordres posés (#562) ; la simulation, toujours annulée, n'en nomme aucun.
  */
 export async function perform(
   context: OperationContext,
@@ -66,8 +67,12 @@ export async function perform(
   cityId: string,
   action: StewardAction,
   onTry: (tried: Performed['tried']) => void = () => {},
+  signedBy?: string,
 ): Promise<Performed> {
-  const actor = { houseId: steward.house_id };
+  const actor = {
+    houseId: steward.house_id,
+    ...(signedBy !== undefined && { stewardId: signedBy }),
+  };
   if (action.kind === 'collect') {
     const input = siteCollectInputSchema.parse({ siteId: steward.site_id });
     onTry({ command: collectSite.name, input });
@@ -187,9 +192,16 @@ async function operate(
       config: tick.config,
       now,
     };
-    const performed = await perform(context, steward, chosen.cityId, action, (t) => {
-      tried = t;
-    });
+    const performed = await perform(
+      context,
+      steward,
+      chosen.cityId,
+      action,
+      (t) => {
+        tried = t;
+      },
+      steward.id,
+    );
     const { result, summary } = performed;
     if (!result.ok) {
       // Un refus ne laisse aucun effet ni événement de la commande : seulement sa trace et son événement.

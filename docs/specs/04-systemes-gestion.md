@@ -178,6 +178,14 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   `steward.setRules` remplace toutes ses règles, dans l'ordre où il les mènera, par une révision nouvelle : rien n'est effacé, et une liste vide est admise (il ne fait rien).
   La commande refuse un bien que la configuration ne connaît pas et un rachat qui ne vise pas un intrant de la recette du site au moment où les règles sont données.
   `steward.dismiss` le renvoie : son poste et son site se libèrent, rien n'est remboursé, et l'intendant renvoyé ne change plus.
+  Décision (#562) : un ordre posé par un intendant le nomme (`steward_id` de `game.orders`, d'un intendant de la maison en poste à la pose).
+  `steward.setRules` et `steward.dismiss` annulent, dans leur transaction, les ordres encore ouverts qu'il a posés, chacun comme par `market.cancelOrder` : ce qui a été servi reste acquis, la réservation d'une vente est levée, le séquestre d'un achat revient à la trésorerie par le grand livre (`market.escrow_release`, marquée de l'intendant et de la commande).
+  Les laisser aurait gardé au carnet des ventes au prix d'avant et du séquestre retenu pour des règles qui n'existent plus.
+  Des règles nouvelles, même identiques, repartent donc d'un carnet vide : l'intendant repose ses ordres aux opérations suivantes, derrière ceux déjà au carnet à leur prix.
+  Ces deux commandes prennent d'abord le verrou d'agora du monde, comme une opération d'intendant : une opération en cours finit avant elles, et l'ordre qu'elle a posé est annulé ; une opération qui attend relit ensuite l'intendant, renvoyé ou sous ses règles nouvelles.
+  La migration rattache à leur intendant les ordres ouverts posés avant cette version, tant que le journal des commandes et les opérations les nomment encore (ADR 0002).
+  Un ordre ouvert d'un intendant déjà renvoyé avant la migration y est rattaché, mais n'est jamais annulé ni montré sur la fiche du site : le joueur l'annule à l'agora.
+  La migration, l'API et le moteur de cette version se déploient ensemble : un ordre que le moteur précédent poserait entre-temps resterait sans intendant, et seul le joueur l'annulerait, à l'agora.
   Salaire : chaque clôture examine les intendants d'une maison après ses sites, ses navires et ses biens, dans l'ordre de leur embauche, avec ce qui reste de la trésorerie ; chacun, en poste et embauché avant l'instant de la clôture, doit le salaire d'un jour, payé en entier ou pas du tout (5.5).
   Un intendant impayé est inactif jusqu'à la clôture qui le paie.
   Décision (#278) : un intendant embauché est impayé jusqu'à la première clôture, qui paie d'avance la journée qui commence ; il n'agit donc jamais sans qu'une clôture ait payé son jour, et embaucher puis renvoyer entre deux clôtures n'évite aucun salaire.
