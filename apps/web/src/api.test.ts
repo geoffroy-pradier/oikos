@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { consultOracle, invokeGrace, makeOffering, sendCommand } from './api';
+import { SESSION_ENDED_EVENT } from './session';
 
 const respond = (body: unknown, status = 200) =>
   vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status }));
@@ -132,6 +133,36 @@ it('un refus pour une sanction est rendu tel quel, et signalé à la fenêtre qu
     expect(dispatchEvent.mock.calls.map(([event]) => (event as Event).type)).toEqual([
       'oikos:sanctioned',
     ]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('annonce la fin de la session sur UNAUTHENTICATED seulement (#565)', async () => {
+  const target = new EventTarget();
+  const ended = vi.fn();
+  target.addEventListener(SESSION_ENDED_EVENT, ended);
+  vi.stubGlobal('window', target);
+  try {
+    for (const [code, status] of [
+      ['HOUSE_NAME_TAKEN', 409],
+      ['INTERNAL', 500],
+      ['FORBIDDEN', 403],
+    ] as const) {
+      await sendCommand(
+        'house.create',
+        {},
+        't',
+        'k',
+        respond({ ok: false, error: { code, message: '' } }, status),
+      );
+    }
+    expect(ended).not.toHaveBeenCalled();
+    const error = { code: 'UNAUTHENTICATED', message: 'Missing or invalid token.' };
+    expect(
+      await sendCommand('house.create', {}, 't', 'k', respond({ ok: false, error }, 401)),
+    ).toEqual({ ok: false, error });
+    expect(ended).toHaveBeenCalledOnce();
   } finally {
     vi.unstubAllGlobals();
   }

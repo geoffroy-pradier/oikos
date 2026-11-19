@@ -42,6 +42,7 @@ import {
 } from '@oikos/contracts';
 import { SANCTIONED_EVENT } from './moderation';
 import { serverClock } from './server-clock';
+import { announceSessionEnded } from './session';
 
 /** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
 export type CommandResponse<T> =
@@ -86,6 +87,8 @@ export async function sendCommand<T>(
       const sanctioned = error.data.code === 'SUSPENDED' || error.data.code === 'SILENCED';
       if (sanctioned && typeof window !== 'undefined')
         window.dispatchEvent(new Event(SANCTIONED_EVENT));
+      // Jeton refusé, ou compte effacé (#565) : l'application ferme la session et revient à la connexion.
+      if (error.data.code === 'UNAUTHENTICATED') announceSessionEnded(accessToken);
       return { ok: false, error: error.data };
     }
   } catch {

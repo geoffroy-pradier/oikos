@@ -1,10 +1,18 @@
 import { Button, Field } from '@oikos/ui';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
 
-export function SignIn() {
+/** `sessionEnded` : la session précédente a été fermée sur un refus de l'API (#565) ; l'écran dit pourquoi. */
+export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
   const { t } = useTranslation();
+  const noticeId = useId();
+  const emailId = useId();
+  // Après une session fermée, le foyer va au champ : la page a changé sous l'utilisateur. Posé par un effet, car
+  // l'avis peut arriver après l'écran (fermeture annoncée par Supabase Auth avant la nôtre).
+  useEffect(() => {
+    if (sessionEnded) document.getElementById(emailId)?.focus();
+  }, [sessionEnded, emailId]);
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
 
@@ -21,9 +29,16 @@ export function SignIn() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <h1 className="text-2xl">{t('signIn.title')}</h1>
+      {sessionEnded && (
+        <p id={noticeId} role="status" className="rounded-md bg-muted/40 p-3">
+          {t('signIn.sessionEnded')}
+        </p>
+      )}
       <p className="text-muted-foreground">{t('signIn.intro')}</p>
       <Field
         label={t('signIn.email')}
+        id={emailId}
+        aria-describedby={sessionEnded ? noticeId : undefined}
         type="email"
         autoComplete="email"
         required

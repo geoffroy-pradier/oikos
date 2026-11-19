@@ -19,7 +19,8 @@
     "email": "Adresse e-mail",
     "submit": "Recevoir le lien",
     "sent": "Lien envoyé à {{email}}. Ouvrez-le sur cet appareil pour continuer.",
-    "failed": "L'envoi a échoué. Réessayez dans un instant."
+    "failed": "L'envoi a échoué. Réessayez dans un instant.",
+    "sessionEnded": "Votre session a pris fin : ce compte n'est plus reconnu, ou sa connexion a expiré. Reconnectez-vous pour continuer."
   },
   "createHouse": {
     "title": "Fonder votre maison",
@@ -277,7 +278,7 @@
     }
   },
   "errors": {
-    "UNAUTHENTICATED": "Votre session a expiré. Reconnectez-vous.",
+    "UNAUTHENTICATED": "Votre session doit être renouvelée : réessayez dans un instant.",
     "VALIDATION_FAILED": "Certaines valeurs ne sont pas valides. Vérifiez votre saisie.",
     "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
     "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
