@@ -109,6 +109,7 @@ Déclenchement manuel, création d'événements et propositions du maître du je
    Le scénario du banc remplace l'hébergement du travail, les tailles de biens immobiliers, les salaires du personnel et des intendants et la population des cités par ses constantes.
    Un de ces champs de la candidate qui diffère de la référence n'est pas simulé : la commande le dit avant de jouer et le rapport le liste dans une section « non simulé », pour qu'un écart nul ne soit pas pris pour une absence d'effet.
    Mêmes graine et configuration, même rapport.
+   Le premier jour d'un monde du banc est fixé (le lundi 5 janvier 2026, dans l'horloge de la configuration), et non tiré de l'heure réelle du lancement : deux parties jouent les mêmes jours de jeu.
    Une demande de fusion ou une note de version qui change l'équilibrage joint le rapport du simulateur (30 jours, la graine par défaut).
    Le module Simulateur d'Olympe, sur une copie du monde réel, attend le serveur ; le temps de progression n'est pas encore mesuré.
 3. **Revue** : une seconde personne approuve le différentiel.
