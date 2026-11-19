@@ -178,6 +178,7 @@
       "houses": "House treasuries",
       "escrow": "Agora escrow",
       "cityTreasuries": "City treasuries",
+      "npcPurses": "NPC purses",
       "other": "Other accounts",
       "total": "Total"
     },
@@ -627,6 +628,7 @@
           "id": "identifier",
           "qualitySensitivity": "quality sensitivity",
           "incomePerThousand": "income per 1,000 inhabitants (obols per tick)",
+          "publicIncomeBps": "daily public income (basis points of a day's income)",
           "basket": "basket",
           "goodId": "good",
           "need": "need",

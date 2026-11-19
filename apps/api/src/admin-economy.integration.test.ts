@@ -60,7 +60,7 @@ const get = (user: string, query = '') =>
   app.request(`/api/admin/economy${query}`, { headers: { authorization: `Bearer aal2:${user}` } });
 /**
  * Écriture posée par le propriétaire, datée de `ms` millisecondes après le début du jour de jeu
- * `today + day`. `lines` : montant par compte (clé d'un compte système, `treasury`, ou maison).
+ * `today + day`. `lines` : montant par compte (clé d'un compte système, `treasury`, `npc_purse`, ou maison).
  */
 async function entry(kind: string, day: number, ms: number, lines: Record<string, number>) {
   const at = new Date(dailyCloseAt(today + day, config.clock).getTime() + ms);
@@ -72,8 +72,8 @@ async function entry(kind: string, day: number, ms: number, lines: Record<string
     for (const [ref, amount] of Object.entries(lines)) {
       await sql`insert into game.ledger_lines (entry_id, account_id, amount)
         select ${rows[0]?.id}, a.id, ${amount} from game.accounts a where a.world_id = ${WORLD}
-          and ${ref} in (a.system_key, a.house_id::text, a.kind) and a.kind <> 'escrow'
-          and not a.npc_purse`.execute(trx);
+          and ${ref} in (a.system_key, a.house_id::text, case when a.npc_purse then 'npc_purse' else a.kind end)
+          and a.kind <> 'escrow'`.execute(trx);
     }
   });
 }
@@ -130,6 +130,8 @@ beforeAll(async () => {
   // Prêt remboursé le même jour : net nul, aucun mouvement ce jour-là, cumul nul.
   await entry('temple.loan', -5, HOUR, { faucet_temple_loans: -200, [a]: 200 });
   await entry('temple.repay', -5, 2 * HOUR, { faucet_temple_loans: 200, [a]: -200 });
+  // Revenu public des PNJ (#632) : la bourse de la cité compte dans la masse, à part.
+  await entry('npc.public_income', -1, HOUR, { faucet_npc_public_income: -60, npc_purse: 60 });
 });
 
 async function read(id: string, query = '') {
@@ -177,10 +179,11 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
   const { data, world } = await read(WORLD);
   expect(data.windowDays).toBe(30);
   expect(world.moneySupply).toEqual({
-    total: 2 * GRANT - ORCHARD + 524,
+    total: 2 * GRANT - ORCHARD + 584,
     houses: 2 * GRANT - ORCHARD + 452,
     escrow: 70,
     cityTreasuries: 2,
+    npcPurses: 60,
     other: 0,
   });
   expect(moved(world)).toEqual({
@@ -189,6 +192,7 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
     sink_site_acquisition: [ORCHARD, [0, ORCHARD]],
     sink_upkeep: [30, [-3, 30]],
     sink_market_tax: [3, [-3, 3]],
+    faucet_npc_public_income: [60, [-1, 60]],
   });
   for (const row of world.systemAccounts) expect(row.key.startsWith(`${row.kind}_`)).toBe(true);
   // Monde sans maison ni écriture : tout est nul, rien n'est absent.
@@ -233,9 +237,9 @@ it('dans chaque monde, la masse affichée est la somme des soldes et le net des 
   expect(data.worlds.length).toBeGreaterThanOrEqual(3);
   for (const world of data.worlds) {
     const held = rows.find((row) => row.world_id === world.worldId);
-    const { total, houses, escrow, cityTreasuries, other } = world.moneySupply;
+    const { total, houses, escrow, cityTreasuries, npcPurses, other } = world.moneySupply;
     expect([Number(held?.held ?? 0), Number(held?.lines ?? 0)]).toEqual([total, total]);
-    expect(houses + escrow + cityTreasuries + other).toBe(total);
+    expect(houses + escrow + cityTreasuries + npcPurses + other).toBe(total);
     const net = (kind: string) =>
       world.systemAccounts.reduce((sum, row) => sum + (row.kind === kind ? row.total : 0), 0);
     expect(net('faucet') - net('sink')).toBe(total);
@@ -472,7 +476,7 @@ it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même inst
     },
   });
   const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
-  expect(queries).toBe(5);
+  expect(queries).toBe(6);
   expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
   const { world } = await read(WORLD);
   expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);

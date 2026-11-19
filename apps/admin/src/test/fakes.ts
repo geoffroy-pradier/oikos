@@ -179,7 +179,14 @@ export const ECONOMY: AdminEconomy = {
     {
       worldId: '01900000-0000-7000-8000-000000000001',
       slug: 'archipel',
-      moneySupply: { total: 5615, houses: 5543, escrow: 70, cityTreasuries: 2, other: 0 },
+      moneySupply: {
+        total: 5615,
+        houses: 5543,
+        escrow: 70,
+        cityTreasuries: 2,
+        npcPurses: 0,
+        other: 0,
+      },
       systemAccounts: [
         account('faucet_starting_grant', 6000, [20772, 6000]),
         account('faucet_temple_loans', -200, [20771, -200]),
