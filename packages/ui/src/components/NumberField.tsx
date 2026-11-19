@@ -93,7 +93,8 @@ export function NumberField({
   const percent = new Intl.NumberFormat(locale, { style: 'percent' });
 
   return (
-    <FieldFrame ids={ids} label={label} hint={hint} error={shown}>
+    // Un problème repéré à la frappe s'annonce poliment ; l'erreur du parent reste une alerte.
+    <FieldFrame ids={ids} label={label} hint={hint} error={shown} polite={error === undefined}>
       <div className="flex gap-2">
         <IconButton
           label={labels.decrement}

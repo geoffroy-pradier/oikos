@@ -77,10 +77,14 @@ describe('NumberField', () => {
     expect(onValueChange).toHaveBeenLastCalledWith(1_250);
   });
 
-  it('dit le problème à la saisie, relié au champ ; l’erreur du parent l’emporte', () => {
+  it('dit le problème à la saisie, poliment, relié au champ ; l’erreur du parent l’emporte, en alerte', () => {
     const messages = { unreadable: 'Illisible.', aboveMax: 'Au plus 10.', notInteger: 'Entier.' };
     const { input, rerender } = setup({ max: 10, messages });
-    const alert = screen.getByRole('alert');
+    fireEvent.change(input, { target: { value: 'abc' } });
+    const alert = document.getElementById(input.getAttribute('aria-describedby') ?? '');
+    if (!alert) throw new Error('message non relié');
+    expect(alert.getAttribute('aria-live')).toBe('polite');
+    expect(screen.queryByRole('alert')).toBeNull();
     for (const [typed, message] of [
       ['abc', 'Illisible.'],
       ['12', 'Au plus 10.'],
@@ -97,6 +101,8 @@ describe('NumberField', () => {
       <NumberField label="Quantité" locale="fr" labels={LABELS} max={10} error="Stock vide." />,
     );
     expect(alert.textContent).toBe('Stock vide.');
+    expect(screen.getByRole('alert')).toBe(alert);
+    expect(alert.hasAttribute('aria-live')).toBe(false);
   });
 
   it('raccourcis 25 %, 50 % et tout quand la borne est connue, arrondis au pas', () => {

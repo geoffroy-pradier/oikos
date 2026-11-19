@@ -49,14 +49,22 @@ export function useFieldIds(
   };
 }
 
-/** Libellé au-dessus, aide et erreur au-dessous ; l'erreur est une région vivante présente avant elle. */
+/**
+ * Libellé au-dessus, aide et erreur au-dessous ; l'erreur est une région vivante présente avant elle,
+ * `alert` par défaut, polie (`polite`) pour un message qui suit la frappe et ne doit pas la couper.
+ */
 export function FieldFrame({
   ids,
   label,
   hint,
   error,
+  polite = false,
   children,
-}: FieldTextProps & { ids: ReturnType<typeof useFieldIds>; children: ReactNode }) {
+}: FieldTextProps & {
+  ids: ReturnType<typeof useFieldIds>;
+  polite?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col">
       <label htmlFor={ids.inputId} className="mb-1.5 font-medium">
@@ -71,7 +79,8 @@ export function FieldFrame({
       {/* L'erreur n'est jamais portée par la couleur seule : texte explicite, annoncé. */}
       <p
         id={ids.errorId}
-        role="alert"
+        role={polite ? undefined : 'alert'}
+        aria-live={polite ? 'polite' : undefined}
         className={cn('text-sm font-semibold text-danger', error ? 'mt-1.5' : undefined)}
       >
         {error}
