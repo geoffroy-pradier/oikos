@@ -1088,7 +1088,8 @@
         "sell": "vente de {{good}} refusée : {{reason}}",
         "buy": "rachat de {{good}} refusé : {{reason}}"
       },
-      "lastRefusal": "Dernier refus, {{text}}"
+      "lastRefusal": "Dernier refus, {{text}}",
+      "resting": "La règle refusée se repose : {{name}} la retentera à partir du {{date}}."
     }
   }
 }

@@ -66,7 +66,7 @@ async function show(instruction?: StewardInstruction) {
           recipe={mill ?? null}
           steward={nikias}
           instruction={instruction}
-          rules={{ limit: 2, dailyWageOboles: 8, rulesPerSteward: 3 }}
+          rules={{ limit: 2, dailyWageOboles: 8, rulesPerSteward: 3, refusalRestTicks: 0 }}
           posted={1}
           onChanged={onChanged}
         />

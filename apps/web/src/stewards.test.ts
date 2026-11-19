@@ -10,6 +10,7 @@ import {
   parseStewardActivity,
   parseStewardOrders,
   parseStewards,
+  refusalRestUntil,
   rulesIntent,
   rulesOf,
   staleIntents,
@@ -180,6 +181,42 @@ describe('intendants de la maison (#278)', () => {
     expect(activity.get('st2')?.recent).toHaveLength(1);
     expect(activity.get('st2')?.lastRefusal).toBe(activity.get('st2')?.recent[0]);
     expect(parseStewardActivity([]).size).toBe(0);
+  });
+
+  it('repos (#640) : retentée au tick du refus plus le repos plus un, sous la révision en vigueur seulement', () => {
+    const [refusal] =
+      parseStewardActivity([
+        {
+          steward_id: 'st1',
+          tick_index: '2948000',
+          rank: 0,
+          created_at: hired,
+          status: 'rejected',
+          error_code: 'INSUFFICIENT_FUNDS',
+          kind: 'collect',
+          good_id: null,
+          summary: { command: 'site.collect' },
+          rules_revision: 3,
+        },
+      ]).get('st1')?.recent ?? [];
+    expect(refusal).toMatchObject({ tick: 2_948_000, revision: 3 });
+    const steward = { state: 'active', revision: 3 } as const;
+    const rules = { refusalRestTicks: 5, tickMinutes: 10 };
+    const resumes = new Date((2_948_000 + 6) * 600_000);
+    const before = new Date(resumes.getTime() - 1);
+    expect(refusalRestUntil(steward, refusal ?? null, rules, before)).toEqual(resumes);
+    // À l'instant de la reprise, ou après, le repos est fini.
+    expect(refusalRestUntil(steward, refusal ?? null, rules, resumes)).toBeNull();
+    for (const [who, what, how] of [
+      [{ ...steward, revision: 4 }, refusal, rules], // règles nouvelles : la reprise est immédiate
+      [{ ...steward, state: 'unpaid' }, refusal, rules], // il n'agit pas : rien n'est promis
+      [steward, refusal, { ...rules, refusalRestTicks: 0 }], // aucun repos, ou version publiée sans lui
+      [steward, refusal, { ...rules, tickMinutes: null }], // sans durée du tick, pas d'heure
+      [steward, null, rules], // refus purgé ou jamais lu
+      [steward, refusal && { ...refusal, revision: null }], // vue d'avant la révision
+      [steward, refusal && { ...refusal, tick: 1e15 }], // tick hors des dates représentables
+    ] as const)
+      expect(refusalRestUntil(who, what ?? null, how ?? rules, before)).toBeNull();
   });
 });
 

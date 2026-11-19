@@ -9,6 +9,7 @@ import {
   type StewardRule,
   type StewardSimulationStep,
 } from '@oikos/contracts';
+import { tickStart } from '@oikos/sim';
 import { z } from 'zod';
 
 /** Intendant en poste d'un site de la maison (vues `my_stewards` et `my_steward_rules`, #278). */
@@ -101,6 +102,10 @@ export function parseStewards(
 /** Une opération menée par un intendant (vue `my_steward_operations`, #279). */
 export interface StewardOperation {
   at: Date;
+  /** Tick de l'opération : rang de l'intervalle depuis l'époque Unix. */
+  tick: number;
+  /** Révision des règles sous laquelle elle a été menée ; `null` si la vue ne la rend pas. */
+  revision: number | null;
   /** `ok` : la commande a eu son effet ; `rejected` : refusée, sans effet, pour la raison `code`. */
   status: 'ok' | 'rejected';
   code: string | null;
@@ -126,6 +131,7 @@ const operationRow = z.object({
   kind: z.enum(['collect', 'sell', 'buy']),
   good_id: z.string().nullable(),
   summary: stewardOperationSummarySchema,
+  rules_revision: z.number().int().nonnegative().nullish(),
 });
 
 /** Activité de chaque intendant de la maison ; une ligne illisible est ignorée. */
@@ -139,6 +145,8 @@ export function parseStewardActivity(rows: readonly unknown[]): Map<string, Stew
   for (const row of parsed) {
     const operation: StewardOperation = {
       at: new Date(row.created_at),
+      tick: row.tick_index,
+      revision: row.rules_revision ?? null,
       status: row.status,
       code: row.error_code,
       kind: row.kind,
@@ -151,6 +159,27 @@ export function parseStewardActivity(rows: readonly unknown[]): Map<string, Stew
     activity.set(row.steward_id, own);
   }
   return activity;
+}
+
+/**
+ * Instant à partir duquel la règle du dernier refus sera retentée (#621, #640), ou `null` si elle ne se repose pas.
+ * Le moteur passe une règle refusée sous la révision en vigueur jusqu'au tick du refus plus le repos : elle est
+ * retentée au tick suivant, qui commence à son rang fois la durée du tick depuis l'époque Unix. Rien n'est annoncé
+ * sans repos, pour un intendant qui n'agit pas, après des règles nouvelles, sans durée du tick, ou une fois l'instant
+ * passé.
+ */
+export function refusalRestUntil(
+  steward: Pick<Steward, 'state' | 'revision'>,
+  refusal: StewardOperation | null,
+  rules: { refusalRestTicks: number; tickMinutes: number | null },
+  now: Date,
+): Date | null {
+  const { refusalRestTicks: rest, tickMinutes } = rules;
+  if (!refusal || rest <= 0 || tickMinutes === null || steward.state !== 'active') return null;
+  if (refusal.status !== 'rejected' || refusal.revision !== steward.revision) return null;
+  const at = tickStart(refusal.tick + rest + 1, tickMinutes);
+  // Un tick hors des dates représentables donne une date invalide (`NaN`), qui n'est jamais à venir.
+  return at.getTime() > now.getTime() ? at : null;
 }
 
 /**

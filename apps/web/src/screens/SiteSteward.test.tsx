@@ -15,7 +15,7 @@ const { SiteSteward } = await import('./SiteSteward');
 
 // Le moulin de la configuration initiale : du blé en intrant, de la farine en extrant.
 const mill = (INITIAL_CONFIG as GameConfig).recipes.find((recipe) => recipe.id === 'mill_flour');
-const posts = { limit: 2, dailyWageOboles: 8, rulesPerSteward: 3 };
+const posts = { limit: 2, dailyWageOboles: 8, rulesPerSteward: 3, refusalRestTicks: 0 };
 const nikias: Steward = {
   id: 'st1',
   siteId: 's1',
@@ -31,6 +31,7 @@ async function show(
   options: {
     posted?: number;
     rules?: typeof posts;
+    tickMinutes?: number | null;
     activity?: StewardActivity;
     orders?: StewardOrder[];
   } = {},
@@ -53,6 +54,7 @@ async function show(
           activity={options.activity}
           orders={options.orders}
           rules={options.rules ?? posts}
+          tickMinutes={options.tickMinutes}
           posted={options.posted ?? (steward ? 1 : 0)}
           onChanged={onChanged}
         />
@@ -177,10 +179,11 @@ describe('section Intendant (#278)', () => {
 
   it('opérations (#279) : les dernières, en phrases, et le dernier refus avec sa raison', async () => {
     const at = new Date('2026-11-18T10:00:00Z');
+    const when = { at, tick: 2_948_000, revision: 1 };
     const activity: StewardActivity = {
       recent: [
         {
-          at,
+          ...when,
           status: 'ok',
           code: null,
           kind: 'sell',
@@ -196,7 +199,7 @@ describe('section Intendant (#278)', () => {
           },
         },
         {
-          at,
+          ...when,
           status: 'ok',
           code: null,
           kind: 'collect',
@@ -208,7 +211,7 @@ describe('section Intendant (#278)', () => {
           },
         },
         {
-          at,
+          ...when,
           status: 'ok',
           code: null,
           kind: 'buy',
@@ -225,7 +228,7 @@ describe('section Intendant (#278)', () => {
         },
       ],
       lastRefusal: {
-        at,
+        ...when,
         status: 'rejected',
         code: 'INSUFFICIENT_FUNDS',
         kind: 'buy',
@@ -256,6 +259,46 @@ describe('section Intendant (#278)', () => {
     // Lecture en cours ou en échec : la section n'est pas montrée.
     await show(nikias);
     expect(screen.queryByText('Dernières opérations')).toBeNull();
+  });
+
+  it('repos (#640) : la règle du dernier refus sera retentée au tick du refus plus le repos plus un, dit en heure', async () => {
+    // Refus au tick en cours : 10 minutes par tick, 5 de repos, retenté au début du sixième tick suivant.
+    const tick = Math.floor(Date.now() / 600_000);
+    const refusal = {
+      at: new Date(),
+      tick,
+      revision: 1,
+      status: 'rejected',
+      code: 'INSUFFICIENT_FUNDS',
+      kind: 'collect',
+      goodId: null,
+      summary: { command: 'site.collect' },
+    } as const;
+    const resting = { ...posts, refusalRestTicks: 5 };
+    const shown = async (options: Parameters<typeof show>[1]) => {
+      cleanup();
+      await show(nikias, { rules: resting, tickMinutes: 10, ...options });
+      return screen.getByRole('region', { name: 'Dernières opérations' }).textContent ?? '';
+    };
+    const until = new Intl.DateTimeFormat('fr', { dateStyle: 'short', timeStyle: 'short' }).format(
+      new Date((tick + 6) * 600_000),
+    );
+    const activity = { recent: [refusal], lastRefusal: refusal };
+    expect(await shown({ activity })).toContain(
+      `La règle refusée se repose : Nikias la retentera à partir du ${until}.`,
+    );
+    // Des règles nouvelles (autre révision), aucun repos, une version sans durée du tick, un refus purgé, ou un repos
+    // fini : rien n'est annoncé.
+    const other = { ...refusal, revision: 0 };
+    const over = { ...refusal, tick: tick - 6 };
+    for (const options of [
+      { activity: { recent: [other], lastRefusal: other } },
+      { activity, rules: posts },
+      { activity, tickMinutes: null },
+      { activity: { recent: [], lastRefusal: null } },
+      { activity: { recent: [over], lastRefusal: over } },
+    ])
+      expect(await shown(options)).not.toContain('se repose');
   });
 
   it('ordres ouverts de l’intendant (#562) : chacun et son reste, et ce que des règles nouvelles ou le renvoi en font', async () => {

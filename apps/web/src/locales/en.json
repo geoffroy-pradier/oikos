@@ -1088,7 +1088,8 @@
         "sell": "sale of {{good}} refused: {{reason}}",
         "buy": "purchase of {{good}} refused: {{reason}}"
       },
-      "lastRefusal": "Last refusal, {{text}}"
+      "lastRefusal": "Last refusal, {{text}}",
+      "resting": "The refused rule is resting: {{name}} will retry it from {{date}}."
     }
   }
 }

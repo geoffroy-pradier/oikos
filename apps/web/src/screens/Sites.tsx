@@ -145,7 +145,7 @@ export function SitesCard({
   // Dernières opérations de chaque intendant et son dernier refus (#279), menées par le moteur.
   const operationRows = useRows<unknown>(
     'my_steward_operations',
-    'steward_id, tick_index, rank, created_at, status, error_code, kind, good_id, summary',
+    'steward_id, tick_index, rank, created_at, status, error_code, kind, good_id, summary, rules_revision',
     'created_at',
   );
   const activity = useMemo(
@@ -929,6 +929,7 @@ export function SitesCard({
                       : undefined
                   }
                   rules={rules.stewards}
+                  tickMinutes={rules.tickMinutes}
                   posted={stewards.size}
                   onChanged={() =>
                     Promise.all([
