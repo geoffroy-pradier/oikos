@@ -218,6 +218,8 @@ export interface GameDatabase {
     remaining: ColumnType<string, number, never>;
     status: ColumnType<'open' | 'filled' | 'cancelled', undefined, 'cancelled'>;
     created_at: Generated<Date>;
+    /** Intendant qui a posé l'ordre, de la même maison et en poste à la pose ; nul pour un ordre du joueur. */
+    steward_id: ColumnType<string | null, string | null | undefined, never>;
   };
   'game.trades': {
     id: Generated<string>;
