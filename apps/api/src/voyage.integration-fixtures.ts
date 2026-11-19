@@ -23,21 +23,6 @@ export const [KALLISTE, ELAIA, HALOS] = [
   '01900000-0000-7000-8000-000000000105',
 ] as const;
 
-/** L'API servie par la configuration de test, modifiée par `change`, sur la connexion `connection` (le service). */
-export const appWithConfig = (
-  change: (config: GameConfig) => GameConfig = (config) => config,
-  connection = db,
-) =>
-  createApp({
-    db: connection,
-    telemetry: createTelemetry(connection),
-    verifyToken: testVerifier,
-    rateLimiter: unlimited,
-    loadConfig: async () => ({ ...TEST_CONFIG, config: change(TEST_CONFIG.config) }),
-  });
-export type App = ReturnType<typeof appWithConfig>;
-export const app = appWithConfig();
-
 /** Tarifs du transport : `provisions` par voyage, droit de port `dues` à ×`elaiaBps` à Elaia, moitié détruite. */
 export const pricedConfig =
   (provisions: number, dues = 0, elaiaBps = 10_000) =>
@@ -56,6 +41,27 @@ export const pricedConfig =
       },
     },
   });
+
+/**
+ * L'API servie par la configuration de test au transport gratuit (provisions et droit de port nuls, comme avant #668 :
+ * un test règle ses tarifs par `pricedConfig`), modifiée par `change`, sur la connexion `connection` (le service).
+ */
+export const appWithConfig = (
+  change: (config: GameConfig) => GameConfig = (config) => config,
+  connection = db,
+) =>
+  createApp({
+    db: connection,
+    telemetry: createTelemetry(connection),
+    verifyToken: testVerifier,
+    rateLimiter: unlimited,
+    loadConfig: async () => ({
+      ...TEST_CONFIG,
+      config: change(pricedConfig(0)(TEST_CONFIG.config)),
+    }),
+  });
+export type App = ReturnType<typeof appWithConfig>;
+export const app = appWithConfig();
 
 export interface Reply {
   status: number;

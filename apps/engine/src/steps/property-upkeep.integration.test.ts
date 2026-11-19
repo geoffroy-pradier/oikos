@@ -13,6 +13,7 @@ import { runDailyClose } from '../close';
 import { closeWorld } from '../scheduler';
 import { propertyWear } from './property-wear';
 import { siteUpkeep } from './site-upkeep';
+import { neutralEconomy } from '../neutral.integration-fixtures';
 
 // Vétusté et entretien des biens immobiliers à la clôture (#256), contre Supabase local. Chaque test a son
 // monde, sa maison et ses biens, achetés il y a dix jours (gardes levées le temps d'antidater l'achat).
@@ -20,7 +21,8 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
-const initial = INITIAL_CONFIG as GameConfig;
+/** La configuration initiale, à paramètres économiques neutres : chaque essai règle le tarif qu'il éprouve (#668). */
+const initial = neutralEconomy(INITIAL_CONFIG as GameConfig);
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
 /** Maison de ville : 12 par jour, 400 points de vétusté. Immeuble de rapport : 30 par jour, aucune vétusté. */
 const [TOWNHOUSE, TENEMENT, WEAR] = [12, 30, 400];

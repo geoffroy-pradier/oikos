@@ -5,19 +5,40 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
-import { testConfig, TEST_CONFIG, testVerifier } from './test-config';
+import { TEST_CONFIG, testVerifier } from './test-config';
 
 // Départ d'un voyage, contre Supabase local. Le test fonde sa maison et achète son navire.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
+/**
+ * Transport gratuit (#668) : le départ ne coûte rien, donc n'a pas d'écriture ; les tarifs sont éprouvés par
+ * `voyage-depart-rules.integration.test.ts`.
+ */
+const { ships } = TEST_CONFIG.config;
+const free = (byClass: Record<string, number>) =>
+  Object.fromEntries(Object.keys(byClass).map((id) => [id, 0]));
+const FREE_TRANSPORT = {
+  ...TEST_CONFIG,
+  config: {
+    ...TEST_CONFIG.config,
+    ships: {
+      ...ships,
+      routes: ships.routes.map((route) => ({
+        ...route,
+        provisionsOboles: free(route.provisionsOboles),
+      })),
+      portDues: { ...ships.portDues, byClassOboles: free(ships.portDues.byClassOboles) },
+    },
+  },
+};
 const owner = createDb(DATABASE_URL);
 const app = createApp({
   db,
   telemetry: createTelemetry(db),
   verifyToken: testVerifier,
   rateLimiter: unlimited,
-  loadConfig: testConfig,
+  loadConfig: async () => FREE_TRANSPORT,
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 const [KALLISTE, ELAIA] = [
@@ -92,7 +113,7 @@ describe('voyage.depart', () => {
       body: { data: { shipId, fromCityId: KALLISTE, toCityId: ELAIA, cargo } },
     });
     const { portDuesOboles, costOboles, ...departure } = sailed.body.data;
-    // Paramètres neutres : rien à payer, donc aucune écriture ; Kallistè–Elaia, 4 heures pour un caboteur.
+    // Transport gratuit : rien à payer, donc aucune écriture ; Kallistè–Elaia, 4 heures pour un caboteur.
     expect([departure.provisionsOboles, portDuesOboles, costOboles]).toEqual([0, 0, 0]);
     expect(await balance()).toEqual(before);
     expect(Date.parse(departure.arrivesAt) - Date.parse(departure.departedAt)).toBe(4 * 3_600_000);

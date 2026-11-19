@@ -9,11 +9,16 @@ import type { ConfigSource } from './registry';
 const validation = validateConfig(INITIAL_CONFIG);
 if (!validation.ok) throw new Error(validation.errors.join('\n'));
 
-/** Configuration fixe pour les tests : indépendante des versions publiées dans la base partagée. */
+/**
+ * Configuration fixe pour les tests : indépendante des versions publiées dans la base partagée. C'est la
+ * configuration initiale, à l'offre de travail près (#668) : les tests fondent leurs maisons dans des cités qu'ils
+ * créent, inconnues de la configuration, donc sans population ni travailleur ; sans classe travailleuse, l'offre y
+ * est sans limite (4.4). Les tests du marché du travail donnent la leur.
+ */
 export const TEST_CONFIG: LoadedConfig = {
   id: '00000000-0000-7000-8000-00000000c0f1',
   number: 1,
-  config: validation.config,
+  config: { ...validation.config, labor: { ...validation.config.labor, workingShareBps: {} } },
 };
 export const testConfig: ConfigSource = async () => TEST_CONFIG;
 

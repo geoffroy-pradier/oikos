@@ -13,13 +13,15 @@ import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeWorld } from '../scheduler';
 import { siteUpkeep } from './site-upkeep';
+import { neutralEconomy } from '../neutral.integration-fixtures';
 
 // Entretien des sites à la clôture, contre Supabase local. Chaque test a son monde et son puits.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
-const initial = INITIAL_CONFIG as GameConfig;
+/** La configuration initiale, à paramètres économiques neutres : chaque essai règle le tarif qu'il éprouve (#668). */
+const initial = neutralEconomy(INITIAL_CONFIG as GameConfig);
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
 /** Champ 30, carrière 60, verger 45, coefficient ×1,25 : 38 (37,5), 75 et 57 (56,25) oboles par jour. */
 const [FIELD, QUARRY, ORCHARD] = [38, 75, 57];
