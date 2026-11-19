@@ -215,6 +215,7 @@
     "rulesPerSteward": 5,
     "operationsPerTick": 1,
     "operationsRetentionDays": 30,
+    "refusalRestTicks": 5,
     "names": [
       "Nikias",
       "Lysandros",

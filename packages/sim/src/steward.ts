@@ -62,19 +62,22 @@ export function ruleAction(
  * Opération suivante : la première règle qui a quelque chose à faire, en partant de la position `start` et en
  * revenant au début de la liste (une file circulaire). L'appelant fait partir chaque opération de la règle qui
  * suit celle de l'opération précédente : une règle refusée à chaque tick ne retient pas les suivantes, et une
- * règle qui n'a rien à faire est passée sans compter. `null` : aucune règle n'a rien à faire.
+ * règle qui n'a rien à faire est passée sans compter. Une règle au repos (`resting`, positions refusées depuis
+ * moins de `stewards.refusalRestTicks` ticks, #621) est passée de même. `null` : aucune règle n'a rien à faire.
  */
 export function nextStewardOperation(
   rules: readonly StewardPlanRule[],
   start: number,
   sight: StewardSight,
   maxQuantity: number,
+  resting: ReadonlySet<number> = new Set(),
 ): { position: number; action: StewardAction } | null {
   const count = rules.length;
   if (count === 0) return null;
   const first = ((Math.trunc(start) % count) + count) % count;
   for (let offset = 0; offset < count; offset += 1) {
     const position = (first + offset) % count;
+    if (resting.has(position)) continue;
     const rule = rules[position];
     const action = rule && ruleAction(rule, sight, maxQuantity);
     if (action) return { position, action };

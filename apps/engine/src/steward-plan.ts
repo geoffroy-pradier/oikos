@@ -1,4 +1,4 @@
-import { stewardRulesLimit, type GameConfig } from '@oikos/config';
+import { stewardRefusalRestTicks, stewardRulesLimit, type GameConfig } from '@oikos/config';
 import { MAX_ORDER_QUANTITY } from '@oikos/contracts';
 import { notSanctioned, type Db } from '@oikos/db';
 import {
@@ -51,7 +51,9 @@ export const candidates = (db: Db, tick: StewardTick, perTick: number) =>
 /**
  * Opération suivante d'un intendant, lue dans la transaction : ses règles en vigueur (les premières que la
  * configuration admet), le site et les stocks de sa maison dans la cité du site. La file repart de la règle qui suit
- * celle de sa dernière opération sous la même révision (`nextStewardOperation`).
+ * celle de sa dernière opération sous la même révision (`nextStewardOperation`). Une règle refusée sous cette révision
+ * à ce tick ou dans les `stewards.refusalRestTicks` précédents se repose (#621) : elle est passée sans être tentée,
+ * donc sans rien inscrire, et un refus durable n'écrit qu'une opération par repos au lieu d'une par tick.
  */
 export async function plan(
   trx: Db,
@@ -86,8 +88,22 @@ export async function plan(
     .limit(1)
     .executeTakeFirst();
   const start = last && last.rules_revision === revision ? last.rule_position + 1 : 0;
+  const rest = stewardRefusalRestTicks(tick.config);
+  const refused =
+    rest === 0
+      ? []
+      : await trx
+          .selectFrom('game.steward_operations')
+          .select('rule_position')
+          .distinct()
+          .where('steward_id', '=', steward.id)
+          .where('status', '=', 'rejected')
+          .where('tick_index', '>=', String(tick.index - rest))
+          .where('rules_revision', '=', revision)
+          .execute();
+  const resting = new Set(refused.map((row) => row.rule_position));
   const { sight, cityId } = await sightOf(trx, tick.config, steward, rules, now);
-  const next = nextStewardOperation(rules, start, sight, MAX_ORDER_QUANTITY);
+  const next = nextStewardOperation(rules, start, sight, MAX_ORDER_QUANTITY, resting);
   const rule = next && rules[next.position];
   return next && rule ? { ...next, rule, revision, cityId } : null;
 }

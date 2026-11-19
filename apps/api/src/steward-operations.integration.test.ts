@@ -261,12 +261,103 @@ describe('opérations des intendants', () => {
     expect(await orders()).toEqual([]);
     expect(await balanceOf({ houseId: alice.houseId })).toBe(0);
     expect((await operationsOf(bobId)).map((op) => op.status)).toEqual(['ok']);
-    // Le refus ne retient pas la règle suivante : faute de farine, elle n'a rien à faire, et la file revient au rachat.
-    await runStewards(db, tick());
+    // Le refus ne retient pas la règle suivante : faute de farine, elle n'a rien à faire, et la file revient au rachat,
+    // retenté au tick suivant sans repos (#621).
+    await runStewards(
+      db,
+      tick(() => ({ refusalRestTicks: 0 })),
+    );
     expect((await operationsOf(aliceId)).map((op) => [op.rule_position, op.error_code])).toEqual([
       [0, 'INSUFFICIENT_FUNDS'],
       [0, 'INSUFFICIENT_FUNDS'],
     ]);
+  });
+
+  it('refus durable (#621) : la règle refusée se repose sans rien inscrire, la file continue, des règles nouvelles la retentent', async () => {
+    const alice = await newPlayer();
+    const rules = [
+      { kind: 'buy', goodId: 'wheat', maxPriceOboles: 7, targetUnits: 5_000 },
+      { kind: 'sell', goodId: 'flour', minPriceOboles: 900, keepUnits: 0 },
+    ] as const;
+    const id = await steward(alice.user, alice.mill, [...rules]);
+    await fund(alice.houseId, -(await balanceOf({ houseId: alice.houseId })));
+    const rested = (change: (stewards: typeof STEWARDS) => Partial<typeof STEWARDS> = () => ({})) =>
+      tick((stewards) => ({ refusalRestTicks: 2, ...change(stewards) }));
+    const trace = async () => ({
+      operations: (await operationsOf(id)).map((op) => [
+        Number(op.tick_index),
+        op.rank,
+        op.rule_position,
+        op.status,
+      ]),
+      // Tout ce qu'un refus écrit ailleurs : sa ligne du journal des commandes et son événement.
+      commands: (
+        await db
+          .selectFrom('game.command_log')
+          .select(sql<string>`count(*)`.as('n'))
+          .where('steward_id', '=', id)
+          .executeTakeFirstOrThrow()
+      ).n,
+      failures: (
+        await db
+          .selectFrom('game.domain_events')
+          .select(sql<string>`count(*)`.as('n'))
+          .where('type', '=', 'StewardActionFailed')
+          .where(sql<boolean>`payload->>'stewardId' = ${id}`)
+          .executeTakeFirstOrThrow()
+      ).n,
+    });
+
+    // Deux opérations par tick : le rachat refusé au rang 0 se repose dès le rang 1, et la vente n'a rien à faire.
+    const t1 = rested(() => ({ operationsPerTick: 2 }));
+    expect(await runStewards(db, t1)).toMatchObject({ acted: 0, refused: 1, failed: 0 });
+    // Deux ticks de repos : ni opération, ni journal, ni événement ; rejouer le tick ne change rien non plus.
+    const [t2, t3] = [rested(), rested()];
+    for (const t of [t1, t2, t3]) await runStewards(db, t);
+    expect(await trace()).toEqual({
+      operations: [[t1.index, 0, 0, 'rejected']],
+      commands: '1',
+      failures: '1',
+    });
+    // Le repos fini, le rachat est retenté, et refusé de nouveau.
+    const t4 = rested();
+    expect(await runStewards(db, t4)).toMatchObject({ refused: 1 });
+    // La règle suivante agit pendant le repos de la refusée : la file passe de l'une à l'autre.
+    await give(alice.houseId, 'flour', 10, await cityOf(alice.mill));
+    const t5 = rested();
+    expect(await runStewards(db, t5)).toMatchObject({ acted: 1 });
+    const t6 = rested();
+    expect(await runStewards(db, t6)).toEqual({ acted: 0, refused: 0, failed: 0 });
+    expect((await trace()).operations).toEqual([
+      [t1.index, 0, 0, 'rejected'],
+      [t4.index, 0, 0, 'rejected'],
+      [t5.index, 0, 1, 'ok'],
+    ]);
+    // Des règles nouvelles, même identiques, repartent de la première sans repos.
+    expect(code(await send(alice.user, 'steward.setRules', { stewardId: id, rules }))).toBe('ok');
+    const t7 = rested();
+    expect(await runStewards(db, t7)).toMatchObject({ refused: 1 });
+    // Sept ticks, quatre opérations, chacune avec sa ligne du journal et sa clé ; un événement par refus.
+    const after = await trace();
+    expect(after).toEqual({
+      operations: [
+        [t1.index, 0, 0, 'rejected'],
+        [t4.index, 0, 0, 'rejected'],
+        [t5.index, 0, 1, 'ok'],
+        [t7.index, 0, 0, 'rejected'],
+      ],
+      commands: '4',
+      failures: '3',
+    });
+    const keys = await db
+      .selectFrom('game.command_log')
+      .select('idempotency_key')
+      .where('steward_id', '=', id)
+      .orderBy('created_at')
+      .execute();
+    expect(keys.map((row) => row.idempotency_key)).toEqual(
+      [t1, t4, t5, t7].map((t) => `steward:${id}:${t.index}:0`),
+    );
   });
 
   it('inactif impayé ; une configuration qui réduit les règles ne mène que les premières ; plusieurs opérations par tick', async () => {
