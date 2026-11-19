@@ -90,8 +90,7 @@ export function unsimulatedFields(candidate: Json, reference: Json): string[] {
   const check = (path: string, parts: readonly string[], from: Json, to: Json) => {
     if (JSON.stringify(at(from, parts)) !== JSON.stringify(at(to, parts))) out.push(path);
   };
-  for (const path of ['labor.lodging', 'staff.dailyWageOboles', 'stewards.dailyWageOboles'])
-    check(path, path.split('.'), candidate, reference);
+  for (const path of ['labor.lodging']) check(path, path.split('.'), candidate, reference);
   const sizes = at(candidate, ['properties', 'sizes']);
   for (const size of Array.isArray(sizes) ? (sizes as { id: string }[]) : [])
     for (const field of ['purchasePriceOboles', 'dailyUpkeepOboles', 'dailyWear', 'renovation'])

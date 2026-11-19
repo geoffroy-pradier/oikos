@@ -10,6 +10,8 @@ import {
   tickDay,
   upkeepDue,
   wagesDue,
+  stewardWageOf,
+  wageOf,
   type Bench,
   type City,
 } from './city';
@@ -27,7 +29,6 @@ import {
   STEWARD_ROLES,
   TRADER,
   TRADER_HOMES,
-  WAGES,
   WARMUP,
   WORLD_SEED,
   WORLD_STEPS,
@@ -96,8 +97,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     estateUpkeep += propertyUpkeepDue(world, housing, day);
     lodging += await lodgingDue(world, residents, day);
     // Salaires de la clôture : les travailleurs des sites, et les intendants embauchés avant elle (payés d'avance).
-    wages += wagesDue(world, houses, day, WAGES.workerOboles);
-    wages += stewards.filter((steward) => steward.hiredDay < day).length * WAGES.stewardOboles;
+    for (const { city, house } of residents) wages += wagesDue(world, [house], day, wageOf(city));
+    wages += stewards.filter((steward) => steward.hiredDay < day).length * stewardWageOf(world);
     await closeDay(world, day);
     await dateCitizens(world, closeOf(world, day));
     const now = new Date(closeOf(world, day).getTime() + MINUTE);

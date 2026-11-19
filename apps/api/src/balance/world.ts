@@ -23,19 +23,12 @@ export const MEASURED = 30;
 export const WINDOW = 10;
 
 /**
- * Salaires du scénario, en oboles par jour : nuls dans la configuration initiale, ils sont posés pour que le banc
- * exerce le paiement des travailleurs PNJ et des intendants (4.4). Ce sont des paramètres du banc, pas du jeu.
- */
-export const WAGES = { workerOboles: 4, stewardOboles: 10 };
-
-/**
  * Logement du scénario (4.5, #258), neutre dans la configuration initiale : une nuit chez les PNJ coûte 1 obole,
- * jusqu'à trois fois plus quand aucun travailleur n'est logé (le salaire du banc est de 4) ; un bien a un entretien
+ * jusqu'à trois fois plus quand aucun travailleur n'est logé ; un bien a un entretien
  * et perd 3 % d'état par jour de jeu, donc passe sous son seuil d'habitabilité en 23 jours et se rénove dans le
  * banc. Les prix d'achat et de rénovation de la configuration initiale (3 000 oboles une maison de ville, 20 bois et 30 argile
  * pour la rénover) ne s'amortiraient jamais au prix d'une nuit que les maisons du banc peuvent payer, et dépasseraient
- * la production de bois et d'argile de leurs cités, déjà déficitaires : le banc divise les prix par cinq, comme il pose ses
- * salaires, et rénove avec du blé, que toutes ses maisons récoltent. Ce sont des paramètres du banc, pas du jeu ; leur calibrage est l'affaire de #283.
+ * la production de bois et d'argile de leurs cités, déjà déficitaires : le banc divise les prix par cinq, et rénove avec du blé, que toutes ses maisons récoltent. Ce sont des paramètres du banc, pas du jeu ; leur calibrage est l'affaire de #668.
  */
 export const HOUSING = {
   lodging: { baseOboles: 1, minBps: 10_000, maxBps: 30_000, slopeBps: 20_000 },
@@ -45,7 +38,10 @@ export const HOUSING = {
   renovationWheat: { townhouse: 50, tenement: 150 } as Record<string, number>,
 };
 
-/** Configuration jouée : celle du banc, à la population près de chaque cité et aux salaires du scénario. */
+/**
+ * Configuration jouée : celle du banc, à la population près de chaque cité et au logement du scénario. Les salaires des
+ * travailleurs et des intendants sont ceux de la configuration (4.4, #283).
+ */
 export const worldConfig = {
   ...config,
   labor: { ...config.labor, lodging: HOUSING.lodging },
@@ -62,10 +58,6 @@ export const worldConfig = {
       },
     })),
   },
-  staff: { dailyWageOboles: Object.fromEntries(SLUGS.map((slug) => [slug, WAGES.workerOboles])) },
-  ...(config.stewards && {
-    stewards: { ...config.stewards, dailyWageOboles: WAGES.stewardOboles },
-  }),
   cities: config.cities.map((city) => ({
     ...city,
     population: Object.fromEntries(

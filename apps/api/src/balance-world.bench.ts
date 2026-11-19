@@ -47,7 +47,6 @@ it(
       lastDay,
       measuredFrom,
       acquisitions,
-      wages,
       lodging,
       minutes,
     } = run;
@@ -78,8 +77,8 @@ it(
       );
     }
     expect(acquisitions).toBeGreaterThan(0);
-    // Les maisons ont payé leurs salaires, leurs intendants compris, et leurs intendants ont exécuté leurs règles.
-    expect(wages).toBeGreaterThan(0);
+    // Les maisons ont payé les salaires de la configuration (nuls dans la configuration initiale), leurs intendants
+    // compris, que le rapprochement de la bourse des PNJ compte, et leurs intendants ont exécuté leurs règles.
     expect(stewards.length).toBeGreaterThan(0);
     expect(operations.acted, 'opérations des intendants').toBeGreaterThan(0);
     expect(operations.failed).toBe(0);

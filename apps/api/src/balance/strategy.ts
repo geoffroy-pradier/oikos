@@ -1,3 +1,4 @@
+import { dailyUpkeep } from '@oikos/sim';
 import {
   backdate,
   cash,
@@ -6,6 +7,7 @@ import {
   harvest,
   recipeOf,
   referenceOf,
+  wageOf,
   worstLodging,
   type City,
   type House,
@@ -33,14 +35,17 @@ const SOLD_SHARE_PRODUCED = 0.9;
 const SOLD_SHARE_RESOLD = 0.5;
 /** Jours d'intrants gardés en stock, hors vente. */
 const INPUT_DAYS_KEPT = 2;
-/** Jours d'entretien de tous ses sites, et de l'hébergement chez les PNJ de tous leurs travailleurs au pire prix, qu'une maison garde après l'acquisition d'un site. */
+/** Jours d'entretien de tous ses sites, et des salaires et de l'hébergement chez les PNJ (au pire prix) de tous leurs travailleurs, qu'une maison garde après l'acquisition d'un site. */
 const UPKEEP_DAYS_KEPT = 3;
 /** Mêmes dépenses, en jours, qu'une maison garde hors séquestre quand elle achète ses intrants. */
 const UPKEEP_DAYS_BEFORE_BUYING = 2;
 
-/** Entretien quotidien d'un site, en oboles. */
+/** Entretien quotidien d'un site, en oboles, coefficient d'entretien compris (5.5). */
 export const upkeepOf = (recipeId: string) =>
-  config.sites.upkeep.dailyOboles[recipeOf(recipeId).siteType] ?? 0;
+  dailyUpkeep(
+    config.sites.upkeep.dailyOboles[recipeOf(recipeId).siteType] ?? 0,
+    config.sites.upkeep.coefficientBps,
+  );
 
 /**
  * Maisons scriptées : un portefeuille de sites, acquis dans l'ordre dès que la trésorerie couvre le
@@ -169,7 +174,7 @@ export function assertAdmitted(reply: Reply, shortOfFundsAllowed: boolean, comma
  * Site suivant du portefeuille, s'il laisse `UPKEEP_DAYS_KEPT` jours d'entretien de tous les sites. Rend le
  * coût, d'après la configuration, du site acquis (0 sans acquisition).
  */
-async function acquireNext(city: City, house: Seller, now: Date, lodging: number) {
+async function acquireNext(city: City, house: Seller, now: Date, perWorker: number) {
   const next = house.role.sites[house.sites.length];
   if (next) {
     const type = recipeOf(next).siteType;
@@ -177,7 +182,7 @@ async function acquireNext(city: City, house: Seller, now: Date, lodging: number
     const reserve =
       UPKEEP_DAYS_KEPT *
       [...house.sites.map((site) => site.recipeId), next].reduce(
-        (sum, id) => sum + upkeepOf(id) + recipeOf(id).workers * lodging,
+        (sum, id) => sum + upkeepOf(id) + recipeOf(id).workers * perWorker,
         0,
       );
     if ((await cash(city, house.houseId)) >= cost + reserve) {
@@ -202,9 +207,10 @@ async function acquireNext(city: City, house: Seller, now: Date, lodging: number
 export async function morning(city: City, house: Seller, now: Date) {
   await harvest(city, house, now);
   const { listed, sold } = await cancelOpen(city, house);
-  // Acquisition d'abord : un achat d'intrants mettrait sous séquestre la monnaie du site suivant.
-  const lodging = worstLodging(city);
-  const acquired = await acquireNext(city, house, now, lodging);
+  // Acquisition d'abord : un achat d'intrants mettrait sous séquestre la monnaie du site suivant. Ce qu'un
+  // travailleur coûte chaque jour : son salaire et, au pire, son hébergement chez les PNJ.
+  const perWorker = wageOf(city) + worstLodging(city);
+  const acquired = await acquireNext(city, house, now, perWorker);
   // Intrants : une journée de production, achetée au plus à `INPUT_BID` fois le prix de référence.
   const needs = new Map<string, number>();
   for (const site of house.sites) {
@@ -220,7 +226,7 @@ export async function morning(city: City, house: Seller, now: Date) {
   const reserve =
     UPKEEP_DAYS_BEFORE_BUYING *
     house.sites.reduce(
-      (sum, site) => sum + upkeepOf(site.recipeId) + recipeOf(site.recipeId).workers * lodging,
+      (sum, site) => sum + upkeepOf(site.recipeId) + recipeOf(site.recipeId).workers * perWorker,
       0,
     );
   for (const [goodId, need] of needs) {
