@@ -1,12 +1,10 @@
 # État du projet
 
-Point d'étape au 18 novembre 2026, vers 19 h (heure de Paris).
-La phase 1 est terminée : ses derniers tickets, #78 (équilibrage), #229 (rachat d'un bien à retirer) et #234 (confirmation de ce que la version retire), sont fermés (demandes de fusion #242 à #249).
-Les tickets de la phase 2 sont rédigés dans `docs/tickets/phase-2.md` et ouverts sur GitHub (#250 à #286, plus les suivis #291 et #333).
-Vingt-neuf sont fermés : #250 (quatre cités), #251 à #254 (transport complet : navires, départ, arrivée, écran Carte), #255 et #258 (salaires, marché du travail et logement), #256, #257 et #259 (immobilier : parc, baux, revente et écrans), #260 (citoyenneté et élection de l'archonte), #261 à #264 (décrets : vote, taux, dépenses, trésor public et écran Cité), #265 (Charis), #266 (grâces), #267 (événements du monde), #268 (passerelle IA), #270 (Pythie), #271 (chronique), #272 (écran Temple), #273 et #274 (discussion, puis temps réel et onglet Messages), #275 à #277 (modération : signalement et sanctions, commandes d'administration, module Olympe), #278 (intendants, 1/3) et #291 (écran Sites filtré par terroir).
-Les suivis #333, #354, #403, #404, #417, #420, #441, #444, #456, #463, #477, #484, #485, #489, #527, #530 et #532 sont fermés eux aussi.
-Des suivis restent ouverts :
-- #541, de #276 (durées de sanction proposées lisibles par l'écran de modération).
+Point d'étape au 19 novembre 2026, vers 23 h 50 (heure de Paris).
+La phase 1 est terminée depuis le 15 novembre, la phase 2 depuis le 19 novembre : le code vérifie son critère de sortie (`docs/specs/17-feuille-de-route.md`, « Vérification du critère de la phase 2 »).
+Tous les tickets de la phase 2 (#250 à #286) sont fermés, avec leurs suivis, sauf #269 (fournisseur d'IA réel, `needs-human`) ; #286 se ferme avec la demande de fusion qui porte ce fichier.
+Aucun suivi n'est ouvert : #541 est fermé (#620).
+Restent ouverts #33 et #269 (`needs-human`) et les tickets de la refonte graphique (#687 à #700).
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -16,11 +14,13 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
   Rien n'est donc déployé : le jeu ne tourne qu'en local et en intégration continue.
 - **Phase 1 (prototype « une cité »)** : terminée le 15 novembre 2026.
   Son critère de sortie est vérifié par le code (`docs/specs/17-feuille-de-route.md`) ; il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
-- **Phase 2 (alpha fermée)** : en cours.
-  Fermés : #250 à #268, #270 à #278, #291.
-  Restent les intendants 2/3 et 3/3 (#279, #280), puis l'équilibrage (#281 à #286, bloqué par #279), et les suivis ouverts ci-dessus.
-  Critère de sortie en tête de `docs/tickets/phase-2.md`, retenu par délégation du propriétaire.
-  Le propriétaire a reporté tout serveur : la phase se développe et se teste en local, et seul #269 (fournisseur d'IA réel) est `needs-human`.
+- **Phase 2 (alpha fermée)** : terminée le 19 novembre 2026.
+  Son critère de sortie, retenu par délégation du propriétaire (en tête de `docs/tickets/phase-2.md`), est vérifié par le code : parcours de l'alpha de bout en bout à 360 px, banc d'équilibrage à quatre cités et tableau de bord d'Olympe.
+  Il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
+  Le propriétaire a reporté tout serveur : la phase s'est développée et testée en local, et seul #269 (fournisseur d'IA réel) est `needs-human`, avec #33.
+- **Refonte graphique** : à venir, avant la phase 3 (ADR 0011, décidée le 19 novembre 2026).
+  Tickets #687 à #700, dans `docs/tickets/refonte.md`.
+- **Phase 3** : ses tickets sont en cours de rédaction dans `docs/tickets/phase-3.md`.
 
 ## Ce qui est jouable aujourd'hui
 
@@ -59,8 +59,10 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
   La moitié est détruite, l'autre va au trésor de la cité, que les décrets de dépense peuvent dépenser (#263).
   Le formulaire de vente annonce le net attendu.
 - **Demande des PNJ.** Toutes les dix minutes, le moteur fait acheter les habitants de la cité aux ventes
-  en attente, des moins chères aux plus chères, jusqu'à trois fois le prix de référence du bien. C'est la
-  seule création de monnaie en jeu, avec la dotation de départ ; le vendeur en reçoit le net de taxe.
+  en attente, des moins chères aux plus chères, jusqu'à trois fois le prix de référence du bien. Depuis #632, ils sont payés par
+  la bourse des PNJ de la cité, que remplissent les salaires et l'hébergement des maisons et un revenu public
+  créé chaque jour par un robinet ; le vendeur en reçoit le net de taxe.
+  Ce que le tick ne dépense pas d'un bien se reporte au tick suivant (#675).
 - **Historique des prix.** À chaque tick, le moteur résume les échanges de chaque bien en chandeliers
   d'une heure (ouverture, plus haut, plus bas, clôture, volume) et recalcule un prix moyen observé sur
   24 heures. L'agora affiche pour le bien choisi le dernier prix, la variation sur 24 heures, ce prix
@@ -112,7 +114,7 @@ Ajouts de la phase 2 :
   L'entretien des navires est prélevé à la clôture, après celui des sites ; un navire impayé est désarmé jusqu'à la clôture qui le paie.
   L'onglet Carte montre l'archipel, ses routes et la flotte, doublés d'une liste au clavier, avec le chantier naval, la fiche de chaque navire et le départ en deux touches.
   La Vigie compte les voyages en retard de déchargement.
-  Provisions, droit de port et entretien des navires sont à zéro dans la configuration initiale (paramètres neutres) jusqu'au calibrage (#283).
+  Provisions, droit de port et entretien des navires sont réglés dans la configuration initiale, calibrés avec le banc à quatre cités (#283, #668).
 - **Immobilier** (#256, 4.5) : chaque cité a un parc fini de logements en deux tailles, maison de ville et immeuble de rapport, créé par le moteur au premier tick qui la connaît.
   Une maison achète à la cité un bien qu'elle détient encore, dans n'importe quelle cité de son monde ; le prix est détruit par un puits.
   Elle le rénove en payant en oboles et en consommant des biens de son stock dans la cité du bien ; le bien redevient neuf.
@@ -120,17 +122,17 @@ Ajouts de la phase 2 :
   Un bien impayé est marqué ; il ne loge plus personne à partir du lendemain (#258).
   La base garantit qu'un bien ne change de propriétaire que par une écriture d'achat, et que son état ne remonte que par une rénovation.
   Vues : règles et parc publics, sans nom de propriétaire, et biens de sa maison.
-  Entretien et vétusté sont à zéro dans la configuration initiale.
+  Entretien et vétusté sont réglés dans la configuration initiale (#668) : un à trois oboles d'entretien par jour et 3 % de vétusté par jour.
 - **Baux et revente entre maisons** (#257, 4.5) : une maison offre un bien qu'elle possède à la vente ou à la location, à un prix qu'elle fixe.
   Une autre maison l'achète au prix affiché, taxé comme à l'agora, ou le prend à bail, sans durée ni paiement à la signature.
   À la clôture, avant la vétusté et l'entretien, chaque bail paie le loyer d'un jour en entier ; sinon il prend fin, impayé.
   Une fin de bail demandée par l'une des parties prend effet à la clôture suivante, sans loyer.
   Loyers et reventes entrent dans les comptes de la maison ; les offres ouvertes sont publiques, sans le nom de la maison qui offre.
-- **Salaires** (#255, 4.4) : chaque site paie chaque jour ses travailleurs à la clôture, avec son entretien, à un puits ; à zéro dans la configuration initiale.
+- **Salaires** (#255, 4.4) : chaque site paie chaque jour ses travailleurs à la clôture, avec son entretien, à la bourse des PNJ de la cité (#632) ; une drachme (6 oboles) par travailleur et par jour dans chaque cité de la configuration initiale (#668).
 - **Marché du travail et logement** (#258, 4.4, 4.5) : chaque clôture fixe, par cité, l'offre de travail, le salaire du jour selon le taux d'emploi et le prix d'une nuit chez les habitants selon la pénurie de logements.
   Les biens d'une maison, possédés ou pris à bail, logent d'abord les travailleurs de ses sites les plus anciens ; chaque travailleur sans logement coûte une nuit, payée avec l'entretien par une écriture à part, en entier ou site à l'arrêt.
   Une cité qui n'a plus de travailleurs refuse un nouveau site (`NO_WORKERS_AVAILABLE`), sans rien arrêter.
-  Configuration initiale neutre : offre sans limite, hébergement gratuit.
+  Configuration initiale (#668) : la part des habitants qui travaillent est de 30 % chez les thètes et de 10 % chez les zeugites, et une nuit coûte une obole de base, jusqu'à trois fois selon la pénurie de logements.
 - **Écrans Personnel et Immobilier** (#259, 10) : fiche de site (travailleurs logés ou non, coût d'un jour), écran Personnel, écran Immobilier (offres, achat, location, rénovation, mise en vente ou en location, fin de bail, au prix vu), marché du travail et parc dans l'onglet Cité, et alertes du tableau de bord.
 - **Citoyenneté et élection de l'archonte** (#260, ADR 0007) : une maison devient citoyenne de sa cité selon les règles de la configuration ; l'archonte est élu à date fixe, au vote secret entre joueurs.
 - **Décrets, proposition et vote** (#261, 6.3) : l'archonte propose un décret pris dans un catalogue fermé de quatre modèles aux paramètres bornés ; les citoyens votent, une voix par maison.
@@ -148,14 +150,14 @@ Ajouts de la phase 2 :
 - **Événements du monde** (#267, 7.3, 7.4) : chaque monde a une graine secrète ; la clôture planifie, quelques jours à l'avance et de façon reproductible, sécheresses, bonnes années, tempêtes et caravanes étrangères.
   Une sécheresse réduit et une bonne année accroît la récolte des cycles qui se terminent pendant elle (dans le temps du site, gelé pendant un arrêt) ; une tempête allonge le trajet d'un navire qui part pendant elle ; une caravane relève la demande des PNJ pour son bien.
   Chaque écart est expliqué dans `event_effects` ; les joueurs ne lisent un événement qu'une fois commencé, et Olympe montre aussi ceux à venir (module Animation).
-  Toutes les probabilités sont nulles dans la configuration initiale : rien ne change tant qu'une version ne les active pas.
+  Chaque modèle d'événement a une probabilité de 3,33 % par jour dans la configuration initiale (#668).
   Le joueur voit les événements en cours de sa cité, et l'effet d'un événement sur une récolte ou un trajet est expliqué sur la fiche concernée (#417, #456).
 - **Discussion, côté serveur** (#273, 6.6) : un canal par cité, ouvert aux maisons de la cité (citoyennes ou métèques), et des conversations privées entre deux maisons d'un même monde.
   Commandes `chat.openDirect` et `chat.post`, limite de débit propre à la discussion, messages purgés après 30 jours (configuration).
   Le texte d'un message n'entre ni dans le journal des commandes ni dans les événements ; un message masqué ne rend plus son texte aux joueurs.
 - **Grâces** (#266, 7.1) : une maison invoque, contre de la Charis, une grâce (`temple.invokeGrace`) d'un catalogue fermé de trois effets : récolte bénie, atelier inspiré, vent favorable.
   La grâce s'applique à la prochaine action admise de la maison, une seule fois, avec une ampleur bornée par effet, puis se recharge en jours de jeu.
-  Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) ; lectures `temple_rules.graces` et `my_graces`, montrées par l'écran Temple (#272, #477).
+  La configuration initiale offre trois grâces, une par effet, d'après la Charis calibrée (#668) ; lectures `temple_rules.graces` et `my_graces`, montrées par l'écran Temple (#272, #477).
 - **Chronique quotidienne** (#271, 6.6) : à chaque clôture, une chronique par cité raconte, à partir des seuls journaux, la population, les échanges, les arrivées de navires, les élections, les décrets, les événements qui commencent et la nouvelle version de configuration.
   Elle est composée par des gabarits `fr` et `en`, puis réécrite par l'IA si elle est allumée ; une réécriture qui cite un nombre absent des faits, ou écrit un nombre autrement qu'en chiffres latins, est rejetée au profit des gabarits.
   L'onglet Cité la montre.
@@ -177,7 +179,24 @@ Ajouts de la phase 2 :
   Il permet l'offrande, l'invocation d'une grâce et la consultation de la Pythie, chacune au taux ou au prix vu, et relit les oracles consultés.
 - **Intendants, 1/3** (#278, 4.4) : une maison embauche un intendant par site, dans la limite des postes de son siège (`steward.hire`), le renvoie (`steward.dismiss`) et lui fixe des règles à grammaire fermée (`steward.setRules`).
   La clôture paie son salaire après les sites, les navires et les biens ; la fiche du site porte une section Intendant.
-  L'intendant n'exécute pas encore ses règles : c'est l'objet de #279 et #280.
+  Il agit depuis #279 et #280, décrits plus bas.
+- **Intendants, 2/3 : exécution des règles** (#279, 4.4, 13) : après chaque passage du moteur, chaque intendant actif mène au plus `stewards.operationsPerTick` opérations, chacune dans sa transaction : récolte (`site.collect`) ou ordre d'agora (`market.placeOrder`), par le même cœur que l'API (ADR 0009).
+  Les règles forment une file circulaire ; une règle refusée se repose quelques ticks (#621).
+  La fiche du site montre ses dernières opérations, son dernier refus, le moment où une règle refusée sera retentée (#640) et ses ordres ouverts (#562) ; changer ses règles ou le renvoyer annule ces ordres.
+  Un intendant d'un compte suspendu ou exclu n'agit pas.
+- **Intendants, 3/3 : consigne en langue naturelle** (#280, 4.4, 8.4, ADR 0005) : le joueur écrit une consigne sur la fiche du site ; la passerelle IA la traduit en règles à grammaire fermée, que le moteur simule à blanc avant de les proposer.
+  Le joueur les accepte ou non ; l'IA ne décide d'aucun chiffre et n'écrit jamais en base.
+  Le repli est le formulaire de règles (`steward.setRules`) : le jeu reste entièrement jouable IA coupée.
+  Le texte de la consigne est effacé à la conservation.
+- **Banc à quatre cités** (#281 à #283, 5.5) : le job `balance` de `ci` joue 10 jours de mise en route et 30 jours mesurés dans les quatre cités, avec des armateurs qui transportent les biens par mer.
+  Il tient pour chaque cité le coût du panier de 0 à 2 %, les besoins vitaux couverts à 98 % au moins et une population qui ne baisse pas, et borne la masse monétaire et les puits immobiliers et publics.
+  Il joue la configuration initiale, à trois paramètres de scénario près (population, dotation et prix des logements).
+- **Simulateur d'équilibrage** (#284, 15.2) : `pnpm --filter @oikos/api simulate --candidate config.json` rejoue ce banc avec une configuration candidate (ou `--version <numéro>` pour une version enregistrée), à graine égale, et écrit un rapport d'écarts en Markdown et en JSON.
+  Une candidate que le schéma refuse l'est avant toute simulation, et le rapport dit les champs que le scénario écrase.
+- **Marges des ateliers** (#285, 5.5) : le banc mesure la marge nette quotidienne d'un site, intrants au prix payé, salaires et hébergement compris ; elle reste entre la moitié et le double de la médiane des matières premières.
+- **Bourse des PNJ** (#632, 5.5) : chaque cité a une bourse, remplie par les salaires, l'hébergement et un revenu public quotidien ; elle paie les achats des PNJ, qui ne créent plus de monnaie.
+- **Choix de la cité à l'agora** (#672, #673) : l'écran propose les cités où la maison a un stock ou un site, sa cité d'origine par défaut, et un ordre se pose dans la cité choisie.
+- **Parcours de l'alpha** (#286, #671) : un test de bout en bout enchaîne, à 360 px et avec deux joueurs dans deux cités, toutes les étapes du critère de sortie de la phase 2, IA coupée.
 - **Entretien impayé sur les offres** (#403, 4.5) : la vue `property_offers_upkeep` rend l'impayé d'un bien et le jour de jeu de la clôture qui l'a constaté, et l'écran Immobilier l'annonce sur l'offre.
 - **Nouvel essai des commandes** (#333, 13) : l'API rejoue une commande annulée par un interblocage (`40P01`) ou un échec de sérialisation (`40001`), sous la même clé, jusqu'à trois essais au total.
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
@@ -201,6 +220,10 @@ Ajouts de la fin de la phase 1 :
 
 Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises ticket par ticket et sont
 écrites dans les spécifications citées.
+
+- **Refonte graphique** (ADR 0011, 19 novembre 2026) : le propriétaire écarte la direction inspirée de la céramique grecque.
+  L'interface devient épurée, avec deux thèmes (clair et sombre), un seul accent orange, Inter seule, les actions longues en feuilles, une vraie carte et des illustrations SVG dessinées par les agents.
+  Elle remplace en partie l'ADR 0010 ; ses tickets (#687 à #700) passent avant la phase 3.
 
 - **Le client lit par Supabase, écrit par l'API** (ADR 0001). Les règles du jeu qu'il affiche (recettes,
   coûts) viennent de la vue `site_rules`, pas d'une copie de la configuration.
@@ -412,7 +435,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   Le propriétaire peut supprimer toutes les branches sauf `main` : aucune ne porte de travail non fusionné.
 - **Équilibrage (#78)** : décidé par délégation du propriétaire et décrit en 5.5 (demande de fusion #242).
   Le banc joue 10 jours de mise en route puis 30 jours mesurés avec 28 maisons scriptées, et ses bornes sont écrites : coût du panier de 0 à 2 % sur vingt jours, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
-  Limite connue : la masse monétaire croît d'environ 60 000 oboles par jour, faute de puits suffisants ; la phase 2 la borne (#283).
+  Limite connue alors : la masse monétaire croissait d'environ 60 000 oboles par jour, faute de puits suffisants ; le banc à quatre cités la borne depuis (#283, 5.5).
 - **Indice des prix** (relevé par #181) : panier d'un jour de consommation de référence et cible de 0 à 3 %, retenus par délégation avec le calibrage de #78 ;
   l'inflation est annoncée connue dès le 31e jour, sur une fenêtre précédente encore partielle.
 - **PostgreSQL 17** : la pile locale et `ci` l'utilisent ; rien ne l'impose encore sur le futur serveur (#33).
@@ -440,7 +463,7 @@ Défauts connus :
 
 Limites assumées pour l'instant :
 
-- Le transport est en jeu, mais à paramètres neutres : il ne coûte rien tant que le calibrage (#283) n'a pas fixé provisions, droit de port et entretien des navires.
+- La borne de −5 % à +25 % de la masse monétaire n'est pas tenue par le banc : elle passe en phase 3, avec les liturgies (5.5).
 - Temps réel pour la seule discussion (#274) : les autres écrans ne se mettent à jour qu'après une action ou un rechargement ; la carte des sites relit ses sites et ses règles chaque minute (onglet visible), et l'heure du serveur au retour sur l'onglet.
 - La variation sur 24 heures se juge à l'heure du navigateur et sur les 200 derniers chandeliers lus :
   avec des chandeliers très courts sur un marché très actif, elle est annoncée inconnue.
