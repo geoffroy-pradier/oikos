@@ -252,6 +252,7 @@ Rien n'est créé en face : une offrande ne rapporte que de la Charis, qui n'est
 Offrir n'est jamais obligatoire : ce puits ne pèse sur la masse monétaire qu'autant que les joueurs le choisissent.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
+Depuis #632, elle compte aussi les bourses des PNJ des cités (12), une nature à part du tableau de bord (`npcPurses`) : ce que les maisons versent aux PNJ circule encore.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
 

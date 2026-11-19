@@ -6,6 +6,7 @@ export const NPC_CLASS_FIELDS = [
   { key: 'id', kind: 'text' },
   { key: 'qualitySensitivity', kind: 'decimal' },
   { key: 'incomePerThousand', kind: 'integer' },
+  { key: 'publicIncomeBps', kind: 'integer' },
 ] as const;
 /** Champs d'une ligne du panier. */
 export const BASKET_FIELDS = [

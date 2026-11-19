@@ -28,7 +28,7 @@ export async function readEconomy(
 ): Promise<AdminEconomy> {
   const { clock, priceIndex } = config;
   const goodIds = priceIndex.basket.map((entry) => entry.goodId);
-  const [today, accounts, flows, candles, since, windows] = await db
+  const [today, accounts, purses, flows, candles, since, windows] = await db
     .transaction()
     .setIsolationLevel('repeatable read')
     .setAccessMode('read only')
@@ -47,6 +47,11 @@ export async function readEconomy(
         select w.id as world_id, w.slug, a.kind, a.system_key as key, sum(a.balance)::text as n
         from game.worlds w join game.accounts a on a.world_id = w.id
         group by w.id, a.kind, a.system_key order by w.created_at, w.id, a.system_key`.execute(trx);
+      // Bourses des PNJ (#632), que le service ne voit pas dans la table : une nature de la masse à part.
+      const purses = await sql<{ world_id: string; n: string }>`
+        select world_id, sum(balance)::text as n from game.npc_purses() group by world_id`.execute(
+        trx,
+      );
       // Lignes des comptes système datées dans la fenêtre, par jour de jeu (1 : le plus ancien). Une
       // écriture datée après le jour en cours ne compte que dans les cumuls.
       const flows = await sql<{ world_id: string; key: string; bucket: number; n: string }>`
@@ -72,7 +77,7 @@ export async function readEconomy(
         group by world_id, good_id, current`.execute(trx);
       const since = await historyStarts(trx, config.priceHistory.candleMinutes * 60, now);
       const windows = { previousFrom, currentFrom, now };
-      return [today, accounts, flows, candles, since, windows] as const;
+      return [today, accounts, purses, flows, candles, since, windows] as const;
     });
   const listed = config.goods.map((good) => [good.id, BigInt(good.referencePriceOboles)] as const);
   const reference = basketCost(
@@ -122,7 +127,7 @@ export async function readEconomy(
     const world = worlds.get(worldId) ?? {
       worldId,
       slug,
-      moneySupply: { total: 0, houses: 0, escrow: 0, cityTreasuries: 0, other: 0 },
+      moneySupply: { total: 0, houses: 0, escrow: 0, cityTreasuries: 0, npcPurses: 0, other: 0 },
       systemAccounts: [],
       priceIndex: indexOf(worldId),
     };
@@ -148,6 +153,12 @@ export async function readEconomy(
       world.moneySupply[part] += Number(n);
       world.moneySupply.total += Number(n);
     }
+  }
+  for (const { world_id: worldId, n } of purses.rows) {
+    const world = worlds.get(worldId);
+    if (!world) continue;
+    world.moneySupply.npcPurses += Number(n);
+    world.moneySupply.total += Number(n);
   }
   const { windowDays: priceWindowDays, inflationTargetBps } = priceIndex;
   const basketEmpty = priceIndex.basket.length === 0;

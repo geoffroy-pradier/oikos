@@ -66,7 +66,7 @@ it('un « Actualiser » en échec garde les chiffres et dit qu’ils sont ancien
   fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
   expect((await screen.findByRole('alert')).textContent).toMatch(/^Trop de demandes/);
   expect(screen.getByText(stale)).toBeTruthy();
-  expect(rows(SUPPLY)[3]).toEqual(['Total', '5 615']);
+  expect(rows(SUPPLY)[4]).toEqual(['Total', '5 615']);
   await i18n.changeLanguage('en');
   expect(screen.getByText(/^The figures shown come from the previous read/)).toBeTruthy();
   // Une lecture réussie efface l'avertissement.
@@ -89,6 +89,7 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
     ['Trésoreries des maisons', '5 543'],
     ["Séquestres de l'agora", '70'],
     ['Trésors des cités', '2'],
+    ['Bourses des PNJ', '0'],
     ['Total', '5 615'],
   ]);
   // Net négatif affiché avec son signe ; compte inconnu de l'écran : sa clé.
@@ -106,7 +107,7 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
     '14 nov. 2026Prêts du Trésor du temple (robinet)-200Entretien des sites (puits)30',
   ]);
   await show({}, -4);
-  expect(rows(SUPPLY)[3]).toEqual(['Autres comptes', '-4']);
+  expect(rows(SUPPLY)[4]).toEqual(['Autres comptes', '-4']);
   // L'indice garde ses deux décimales.
   await show({ currentBps: 10_000, previousBps: 11_210 });
   expect(figures('dd').slice(0, 2)).toEqual(['100,00', '112,10']);

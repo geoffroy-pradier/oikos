@@ -178,6 +178,7 @@
       "houses": "Trésoreries des maisons",
       "escrow": "Séquestres de l'agora",
       "cityTreasuries": "Trésors des cités",
+      "npcPurses": "Bourses des PNJ",
       "other": "Autres comptes",
       "total": "Total"
     },
@@ -627,6 +628,7 @@
           "id": "identifiant",
           "qualitySensitivity": "sensibilité à la qualité",
           "incomePerThousand": "revenu pour 1 000 habitants (oboles par tick)",
+          "publicIncomeBps": "revenu public par jour (points de base du revenu d'un jour)",
           "basket": "panier",
           "goodId": "bien",
           "need": "besoin",

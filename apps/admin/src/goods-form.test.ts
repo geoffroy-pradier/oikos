@@ -158,8 +158,10 @@ it('une autre table et une liste imbriquée se lisent et s’écrivent de même,
 });
 
 /** Sorte qu'un champ doit avoir d'après son schéma : un « 1e3 » n'écrit un nombre que dans un décimal. */
-const kindOf = (schema: unknown) => {
-  const { def, isInt } = schema as { def: { type: string }; isInt?: boolean };
+const kindOf = (schema: unknown): string => {
+  const { def, isInt } = schema as { def: { type: string; innerType?: unknown }; isInt?: boolean };
+  // Un champ facultatif a la sorte de ce qu'il enveloppe ; vide, il est retiré du texte (`typed`).
+  if (def.type === 'optional') return kindOf(def.innerType);
   if (def.type === 'number') return isInt ? 'integer' : 'decimal';
   return def.type === 'enum' ? 'choice' : 'text';
 };

@@ -63,6 +63,15 @@ export const recipeSchema = z.strictObject({
   maxAccruedCycles: positiveInt,
 });
 
+/**
+ * Part publique d'une classe dont la version de configuration ne la donne pas (#632). Nulle tant que les achats
+ * des PNJ sont payés par le robinet `faucet_npc_purchases` : rien n'est versé à leur bourse.
+ */
+export const DEFAULT_NPC_PUBLIC_INCOME_BPS = 0;
+/** Part publique d'une classe : la sienne, sinon celle d'une version publiée avant le paramètre. */
+export const npcPublicIncomeBps = (npcClass: { publicIncomeBps?: number | undefined }) =>
+  npcClass.publicIncomeBps ?? DEFAULT_NPC_PUBLIC_INCOME_BPS;
+
 /** Une classe de revenu des PNJ et son panier de besoins (5.2). */
 export const npcClassSchema = z.strictObject({
   id,
@@ -73,6 +82,13 @@ export const npcClassSchema = z.strictObject({
    * Réparti entre les biens du panier au prorata de leur dépense de référence (Q0 × prix de référence).
    */
   incomePerThousand: positiveInt,
+  /**
+   * Revenu public de la classe (#632) : ce que le robinet `faucet_npc_public_income` crédite chaque jour, à la
+   * clôture, à la bourse des PNJ de sa cité, en points de base du revenu d'un jour de la classe (revenu par tick ×
+   * ticks d'un jour, sur sa population). Plancher qui fait acheter une cité sans emploi ; levier de calibrage
+   * (#283). Absent d'une version publiée avant lui : `DEFAULT_NPC_PUBLIC_INCOME_BPS` (`npcPublicIncomeBps`).
+   */
+  publicIncomeBps: z.number().int().min(0).max(10_000).optional(),
   basket: z
     .array(
       z.strictObject({
