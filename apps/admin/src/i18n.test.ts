@@ -3,6 +3,7 @@ import {
   ADMIN_CONFIRM_EXCLUSION_ERROR_CODES,
   ADMIN_DECIDE_APPEAL_ERROR_CODES,
   ADMIN_HIDE_MESSAGE_ERROR_CODES,
+  ADMIN_LIFT_SANCTION_ERROR_CODES,
   ADMIN_RESOLVE_REPORT_ERROR_CODES,
   ADMIN_SANCTION_ERROR_CODES,
   ADMIN_GRANT_ROLE_ERROR_CODES,
@@ -10,6 +11,7 @@ import {
   ADMIN_REVOKE_ROLE_ERROR_CODES,
   ADMIN_ROLES,
   ADMIN_SCHEDULE_CONFIG_ERROR_CODES,
+  ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
 } from '@oikos/contracts';
 import { SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { describe, expect, it } from 'vitest';
@@ -65,6 +67,8 @@ describe('traductions du back-office', () => {
       ...ADMIN_HIDE_MESSAGE_ERROR_CODES,
       ...ADMIN_RESOLVE_REPORT_ERROR_CODES,
       ...ADMIN_DECIDE_APPEAL_ERROR_CODES,
+      ...ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
+      ...ADMIN_LIFT_SANCTION_ERROR_CODES,
     ];
     for (const locale of [fr, en])
       expect(keys(locale)).toEqual(

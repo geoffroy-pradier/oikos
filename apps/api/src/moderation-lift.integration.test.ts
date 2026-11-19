@@ -319,4 +319,47 @@ describe('admin.liftSanction', () => {
         where id in (${forAlice}, ${forBob}) order by id = ${forAlice} desc`),
     ).toEqual([{ lifted: true }, { lifted: false }]);
   });
+
+  it('une levée datée après le début de la commande ne se réécrit pas : ni appel, ni nouvelle levée (#616)', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const [author, lifter, other] = [await moderator(), await moderator(), await moderator()];
+    // Levée écrite par une transaction commencée après la commande : son instant suit le `now()` de celle-ci. Posée
+    // par le propriétaire, garde coupée le temps de l'insertion, dans une transaction qui la rétablit.
+    const lifted = (appealed: boolean) =>
+      owner.transaction().execute(async (trx) => {
+        await sql`alter table admin.sanctions disable trigger sanctions_guard`.execute(trx);
+        const {
+          rows: [row],
+        } = await sql<{ id: string; lifted_at: Date }>`
+          insert into admin.sanctions (user_id, kind, starts_at, ends_at, reason, author_id, lifted_by, lifted_at,
+                                       appeal_body, appealed_at)
+          values (${alice.user}, 'suspension', now() - interval '1 hour', now() + interval '1 hour', 'Course',
+                  ${idOf(author)}, ${idOf(lifter)}, now() + interval '1 hour',
+                  ${appealed ? 'Je conteste.' : null}, ${appealed ? sql`now()` : null})
+          returning id, lifted_at`.execute(trx);
+        await sql`alter table admin.sanctions enable trigger sanctions_guard`.execute(trx);
+        if (!row) throw new Error('No sanction');
+        return row;
+      });
+    const [appealed, alone] = [await lifted(true), await lifted(false)];
+    const granted = await send(other, 'admin.decideAppeal', {
+      sanctionId: appealed.id,
+      decision: 'granted',
+    });
+    expect(granted.status).toBe(200);
+    expect(granted.body.data.liftedAt).toBe(appealed.lifted_at.toISOString());
+    expect(
+      await rows(
+        sql<{ lifted_by: string }>`select lifted_by from admin.sanctions where id = ${appealed.id}`,
+      ),
+    ).toEqual([{ lifted_by: idOf(lifter) }]);
+    expect(
+      codeOf(await send(alice.user, 'moderation.appeal', { sanctionId: alone.id, body: 'Tard' })),
+    ).toEqual([409, 'SANCTION_ENDED']);
+    expect(codeOf(await send(other, 'admin.liftSanction', { sanctionId: alone.id }))).toEqual([
+      409,
+      'SANCTION_ENDED',
+    ]);
+  });
 });

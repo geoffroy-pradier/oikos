@@ -217,6 +217,7 @@ export const adminLiftSanction = defineCommand({
         'user_id',
         'kind',
         'ends_at',
+        'lifted_at',
         'validated_by',
         'appeal_body',
         'appeal_decision',
@@ -226,8 +227,10 @@ export const adminLiftSanction = defineCommand({
       .forUpdate()
       .executeTakeFirst();
     if (!sanction) return refuse('SANCTION_NOT_FOUND', 'No such sanction.');
-    // Même instant que celui de la base, qui refuserait de lever une sanction finie.
-    if (sanction.ends_at && sanction.ends_at <= now) return { ok: false, error: SANCTION_ENDED };
+    // Même instant que celui de la base, qui refuserait de lever une sanction finie ; une sanction levée l'est,
+    // même si sa levée est datée après cet instant (#616).
+    if (sanction.lifted_at || (sanction.ends_at && sanction.ends_at <= now))
+      return { ok: false, error: SANCTION_ENDED };
     const ban = sanction.kind === 'ban';
     if (ban && !sanction.validated_by)
       return refuse('NOT_CONFIRMED', 'This exclusion is not confirmed: withdraw it instead.');
@@ -375,8 +378,11 @@ export const adminDecideAppeal = defineCommand({
     const sanction = await trx
       .selectFrom('admin.sanctions')
       .select(['id', 'user_id', 'author_id', 'appeal_body', 'appeal_decision'])
-      // À l'horloge de la base, comme la garde `sanctions_lift_not_ended` : pas à `now`, tronqué (#611).
-      .select(sql<boolean>`ends_at is null or ends_at > now()`.as('inForce'))
+      // À l'horloge de la base, comme la garde `sanctions_lift_not_ended` : pas à `now`, tronqué (#611). Une
+      // sanction levée n'est plus en vigueur, même si sa levée est datée après cet instant (#616).
+      .select(
+        sql<boolean>`lifted_at is null and (ends_at is null or ends_at > now())`.as('inForce'),
+      )
       .where('id', '=', input.sanctionId)
       .forUpdate()
       .executeTakeFirst();
