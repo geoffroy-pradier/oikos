@@ -17,7 +17,12 @@ import {
   referenceOf,
   tickDay,
   upkeepDue,
+  wageOf,
+  wagesDue,
+  type City,
+  type House,
 } from './balance/city';
+import { lodgingDue } from './balance/housing';
 import { morning, ROLES, seller } from './balance/strategy';
 
 /*
@@ -35,12 +40,25 @@ afterAll(() => bench.stop());
 
 const DAYS = 3;
 
+/**
+ * Ce que la clôture du jour `day` verse aux bourses des PNJ (4.4, #632) : les salaires des travailleurs des sites et
+ * leur hébergement, aucun n'étant logé (le banc de la cité prototype n'achète ni ne loue de logement).
+ */
+const pursesDue = async (city: City, houses: readonly House[], day: number) =>
+  wagesDue(city, houses, day, wageOf(city)) +
+  (await lodgingDue(
+    city,
+    houses.map((house) => ({ city, house })),
+    day,
+  ));
+
 it('3 jours : tous les ticks du jour, grand livre rapproché', { timeout: 120_000 }, async () => {
   const city = await createCity(bench, DAYS);
   const houses = await foundHouses(city, [{ name: 'fermier', count: 4, sites: ['grow_wheat'] }]);
-  let upkeep = 0;
+  let [upkeep, purses] = [0, 0];
   for (let day = 0; day < DAYS; day++) {
     upkeep += upkeepDue(city, houses, day);
+    purses += await pursesDue(city, houses, day);
     await closeDay(city, day);
     const now = new Date(closeOf(city, day).getTime() + MINUTE);
     for (const house of houses) {
@@ -63,7 +81,7 @@ it('3 jours : tous les ticks du jour, grand livre rapproché', { timeout: 120_00
   }
 
   // Robinets, puits et trésor de la cité rapprochés des flux comptés ; puis la masse en circulation.
-  const ledger = await reconcile(city, houses.length, { sink_upkeep: upkeep });
+  const ledger = await reconcile(city, houses.length, { sink_upkeep: upkeep }, new Map(), purses);
   expect(ledger.actual).toEqual(ledger.expected);
   expect(ledger.supply).toBe(ledger.mass);
   // Des PNJ ont acheté du blé, payé par la bourse de la cité (#632), taxé ; l'entretien a été prélevé.
@@ -91,9 +109,10 @@ it(
       coverage: Record<string, number | null>;
       population: number;
     }[] = [];
-    let [seq, upkeep, acquisitions] = [await lastSeq(city), 0, 0];
+    let [seq, upkeep, acquisitions, purses] = [await lastSeq(city), 0, 0, 0];
     for (let day = 0; day < WARMUP + MONTH; day++) {
       upkeep += upkeepDue(city, houses, day);
+      purses += await pursesDue(city, houses, day);
       await closeDay(city, day);
       const now = new Date(closeOf(city, day).getTime() + MINUTE);
       for (const house of houses) acquisitions += await morning(city, house, now);
@@ -130,10 +149,13 @@ it(
     }
 
     // Robinets, puits et trésor de la cité rapprochés des flux comptés ; puis la masse en circulation.
-    const ledger = await reconcile(city, houses.length, {
-      sink_upkeep: upkeep,
-      sink_site_acquisition: acquisitions,
-    });
+    const ledger = await reconcile(
+      city,
+      houses.length,
+      { sink_upkeep: upkeep, sink_site_acquisition: acquisitions },
+      new Map(),
+      purses,
+    );
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
 

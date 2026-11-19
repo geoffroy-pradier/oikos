@@ -17,6 +17,8 @@ import {
   worstLodging,
   type City,
 } from './city';
+import { dateShip } from './dates';
+import { stormyDuration } from './events';
 import { assertAdmitted, place, upkeepOf, type Seller } from './strategy';
 import { stewardPrice } from './steward';
 
@@ -64,16 +66,33 @@ export interface Carrier extends Seller {
   /** Biens portés vers chaque port, par identifiant de cité, avec la part de leur demande qui revient à l'armateur. */
   deliver: Map<string, Map<string, number>>;
   shipId?: string;
+  /** Instant de jeu de l'achat du navire : la clôture lui demande son entretien dès qu'elle le suit. */
+  shipBoughtAt?: Date;
   waitedHours: number;
+  /** Coûts des départs payés (4.6) : provisions et part détruite du droit de port, et part de chaque trésor d'arrivée. */
+  paid: VoyageCosts;
 }
+/** Coûts des voyages d'un armateur, d'après la configuration : le banc les rapproche du grand livre. */
+export interface VoyageCosts {
+  provisions: number;
+  portDuesBurned: number;
+  /** Part du droit de port versée au trésor de la cité d'arrivée, par identifiant de cité. */
+  treasuries: Map<string, number>;
+}
+export const newVoyageCosts = (): VoyageCosts => ({
+  provisions: 0,
+  portDuesBurned: 0,
+  treasuries: new Map(),
+});
 
 const shipClassOf = () => {
   const shipClass = config.ships.classes.find((candidate) => candidate.id === SHIP_CLASS);
   if (!shipClass) throw new Error(`Unknown ship class ${SHIP_CLASS}`);
-  // L'entretien des navires n'est pas compté par le banc : il refuse de jouer avec plutôt que de mal rapprocher.
-  if (shipClass.dailyUpkeepOboles > 0) throw new Error('Ship upkeep is not counted by the bench');
   return shipClass;
 };
+/** Entretien de navire dû à la clôture `close` (4.6) : celui de sa classe, s'il a été acheté avant elle. */
+export const shipUpkeepDue = (carrier: Carrier, close: Date) =>
+  carrier.shipBoughtAt && carrier.shipBoughtAt < close ? shipClassOf().dailyUpkeepOboles : 0;
 /** Ordres ouverts de l'armateur dans une cité, annulés (d'un côté seulement si `side` est donné). */
 async function cancelIn(city: City, carrier: Carrier, side?: 'buy' | 'sell') {
   const open = await city.db
@@ -105,33 +124,45 @@ async function stocksIn(city: City, carrier: Carrier, held = false) {
   );
 }
 
-/** Départ d'un voyage : daté de l'instant de jeu (la base date de l'instant réel), arrivée à la même durée. */
-async function backdateVoyage(city: City, voyageId: string, at: Date) {
+/**
+ * Départ d'un voyage : daté de l'instant de jeu (la base date de l'instant réel), arrivée à la même durée, allongée
+ * par la tempête de la route en cours à cet instant (7.4), que la commande, à l'instant réel, n'a pas vue.
+ */
+async function backdateVoyage(city: City, voyageId: string, at: Date, to: City) {
+  const voyage = await city.db
+    .selectFrom('game.voyages')
+    .select(['departed_at', 'arrives_at'])
+    .where('id', '=', voyageId)
+    .executeTakeFirstOrThrow();
+  const seconds = (voyage.arrives_at.getTime() - voyage.departed_at.getTime()) / 1000;
+  const lasting = await stormyDuration(city, city.cityId, to.cityId, at, seconds);
   await city.owner.transaction().execute(async (trx) => {
     await sql`alter table game.voyages disable trigger voyages_guard, disable trigger voyages_settled`.execute(
       trx,
     );
     await sql`update game.voyages set departed_at = ${at},
-      arrives_at = ${at}::timestamptz + (arrives_at - departed_at) where id = ${voyageId}`.execute(
-      trx,
-    );
+      arrives_at = ${new Date(at.getTime() + lasting * 1000)} where id = ${voyageId}`.execute(trx);
     await sql`alter table game.voyages enable trigger voyages_guard, enable trigger voyages_settled`.execute(
       trx,
     );
   });
 }
 
-/** Départ d'un voyage, daté de `now`, avec la cargaison donnée (sur lest si elle est vide). */
-async function depart(carrier: Carrier, from: City, to: City, cargo: CargoLine[], now: Date) {
+/** Coût d'un départ de `from` vers `to` (4.6) : provisions de la route et droit de port de la cité d'arrivée. */
+function departureOf(from: City, to: City) {
   const route = shipRoute(config, from.slug, to.slug);
   if (!route) throw new Error(`No route ${from.slug} ${to.slug}`);
-  const cost = departureCost({
+  return departureCost({
     provisionsOboles: routeProvisionsOboles(route, SHIP_CLASS),
     portDuesBaseOboles: portDuesBaseOboles(config, SHIP_CLASS),
     cityCoefficientBps: cityPortDuesCoefficientBps(config, to.slug),
     burnShareBps: config.ships.portDues.burnShareBps,
   });
-  if (cost.totalOboles > 0) throw new Error('Voyage costs are not counted by the bench');
+}
+
+/** Départ d'un voyage, daté de `now`, avec la cargaison donnée (sur lest si elle est vide). */
+async function depart(carrier: Carrier, from: City, to: City, cargo: CargoLine[], now: Date) {
+  const cost = departureOf(from, to);
   const departed = await from.send(carrier.user, 'voyage.depart', {
     shipId: carrier.shipId,
     fromCityId: from.cityId,
@@ -140,7 +171,13 @@ async function depart(carrier: Carrier, from: City, to: City, cargo: CargoLine[]
     expectedCostOboles: cost.totalOboles,
   });
   assertAdmitted(departed, false, 'voyage.depart');
-  await backdateVoyage(from, departed.data.voyageId, now);
+  await backdateVoyage(from, departed.data.voyageId, now, to);
+  carrier.paid.provisions += cost.provisionsOboles;
+  carrier.paid.portDuesBurned += cost.portDues.burned;
+  carrier.paid.treasuries.set(
+    to.cityId,
+    (carrier.paid.treasuries.get(to.cityId) ?? 0) + cost.portDues.treasury,
+  );
   carrier.waitedHours = 0;
 }
 
@@ -177,7 +214,8 @@ async function buyFor(carrier: Carrier, market: City, needs: ReadonlyMap<string,
         sum +
         upkeepOf(site.recipeId) +
         recipeOf(site.recipeId).workers * (wageOf(carrier.home) + worstLodging(carrier.home)),
-      0,
+      shipClass.dailyUpkeepOboles +
+        departureOf(market, carrier.home === market ? carrier.source : carrier.home).totalOboles,
     );
   const goods = [...needs];
   const missing = goods.map(([goodId, need]) => Math.max(0, need - (here.get(goodId) ?? 0)));
@@ -237,8 +275,11 @@ export async function carrierMorning(carrier: Carrier, now: Date, demandOf: Dema
       expectedCostOboles: shipClass.purchaseCostOboles,
     });
     assertAdmitted(acquired, true, 'ship.acquire');
-    if (acquired.ok)
+    if (acquired.ok) {
       [carrier.shipId, bought] = [acquired.data.shipId, shipClass.purchaseCostOboles];
+      await dateShip(home, acquired.data.shipId, now);
+      carrier.shipBoughtAt = now;
+    }
   }
   await harvest(home, carrier, now);
   await relist(carrier, home);

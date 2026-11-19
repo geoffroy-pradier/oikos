@@ -21,6 +21,7 @@ export { priceCandlesStep } from './steps/price-candles';
 export { siteUpkeep } from './steps/site-upkeep';
 export { runAllStewards, runStewards, type StewardRun, type StewardTick } from './stewards';
 export { voyageArrivals } from './steps/voyage-arrivals';
+export { eventDaySeed } from './steps/world-event-planning';
 export { simulateRules, type SimulatedSteward } from './steward-instruction/simulate';
 export {
   answerAllStewardInstructions,
