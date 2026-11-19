@@ -11,9 +11,10 @@ S'y ajoutent de nouveaux puits de monnaie, un banc d'équilibrage à plusieurs c
    Il paie son personnel, transporte un bien par mer d'une cité à l'autre et l'y vend, achète, loue et rénove un logement, confie un site à un intendant par formulaire, se porte candidat et vote à l'élection de l'archonte, vote un décret, écrit dans le canal de sa cité et à une autre maison, signale un message, fait une offrande, invoque une grâce, consulte la Pythie et lit la chronique de sa cité.
    Chaque étape est couverte par un test de bout en bout de `apps/web`.
 2. **Économie à quatre cités.**
-   Le banc d'équilibrage joue 10 jours de mise en route puis 30 jours mesurés à quatre cités, avec la configuration initiale calibrée par #283.
+   Le banc d'équilibrage joue 10 jours de mise en route puis 30 jours mesurés à quatre cités, avec la configuration initiale calibrée par #283 et #668.
    Il tient dans chaque cité les bornes de la phase 1 (coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas).
-   La masse monétaire varie de −3 % à +3 % sur les 30 jours mesurés, au lieu de croître d'environ 60 000 oboles par jour (limite connue de 5.5).
+   La masse monétaire a une borne contre l'emballement (#283), au lieu de croître sans borne (limite connue de 5.5).
+   Sa borne de −5 % à +25 % sur les 30 jours mesurés attend un puits proportionnel à la richesse, les liturgies, et passe en phase 3 avec elles.
    La marge nette quotidienne d'un site de chaque filière d'atelier se situe entre la moitié et le double de la médiane de celle des sites de matières premières.
    Toutes ces bornes sont écrites à la main dans le test.
 3. **Pilotage.**
@@ -41,7 +42,7 @@ Chaque décision est rappelée dans le ticket qu'elle concerne, et la demande de
 
 - **Paramètres neutres.** Le banc de #78 tourne en `ci` sur la configuration initiale (`INITIAL_CONFIG`), avec des bornes écrites à la main.
   Tout nouveau paramètre économique de la phase entre donc neutre dans la configuration initiale : montant nul (salaires, hébergement, provisions, droit de port, entretien des navires et des logements, vétusté, salaire des intendants), probabilité nulle (événements), taux de la cité égal à celui du monde, offre de travail sans limite, usage d'IA désactivé.
-  #283 les active, par une version de configuration éprouvée par le banc à quatre cités.
+  #668 les active, par une version de configuration éprouvée par le banc à quatre cités (découpe de #283).
   Un montant nul ne prélève rien et n'écrit aucune ligne.
 - **Puits nommés.** Chaque flux de monnaie détruite a son puits, ajouté au catalogue des comptes système (migration), à `SYSTEM_ACCOUNT_KEYS` (`packages/sim/src/ledger.ts`), à la liste figée du test pgTAP 013 et aux libellés `fr` et `en` d'Olympe que vérifie `apps/admin/src/i18n.test.ts`.
 - **Natures des flux de la maison.** `my_cash_flows` (migration 32) classe une ligne selon la nature de son écriture.
@@ -51,7 +52,7 @@ Chaque décision est rappelée dans le ticket qu'elle concerne, et la demande de
   Avant lui, dans cet ordre : loyers (et fin des baux impayés), vétusté des logements, application des décrets, déclin de la Charis, planification des événements, salaire du jour et prix de l'hébergement ; la capacité de logement se lit après la fin des baux impayés.
 - Les liturgies restent en phase 3, où 17 les place ; 06 ne leur donne pas de phase.
 - Un site reste dans la cité de sa maison (4.2, inchangé) ; les autres cités s'atteignent par le transport, l'agora et l'immobilier.
-- Kallistè, cité fondatrice, garde toutes ses matières premières de la phase 1 ; seul #283 resserre son terroir.
+- Kallistè, cité fondatrice, garde toutes ses matières premières de la phase 1 ; seul #669 resserre son terroir.
 - Les quatre cités ont un port ; les caravanes terrestres (4.6) attendent une carte.
 - Le risque en mer de la phase 2 est un retard (tempête, événement planifié), jamais une perte de cargaison ; la perte viendra avec le prêt maritime (phase 3).
 - Le droit de port est un forfait par arrivée et par classe de navire, modulé par la cité, et non un pourcentage de la valeur de la cargaison (5.6) : celle-ci n'a pas de valeur publique sûre.
@@ -76,7 +77,7 @@ Ce ticket ouvre trois cités de plus, sans transport : chacune vit d'abord de sa
 
 Décision (ambiguïté de 6.1) : les quatre cités ont un port, puisque le seul transport de la phase est maritime.
 Décision : un site reste dans la cité de sa maison (4.2) ; le terroir ne fait que restreindre les recettes qu'on peut y lancer.
-Décision : Kallistè, cité fondatrice, garde au départ toutes les matières premières de la phase 1 ; son terroir se resserre par configuration une fois le banc à quatre cités en place (#283).
+Décision : Kallistè, cité fondatrice, garde au départ toutes les matières premières de la phase 1 ; son terroir se resserre par configuration une fois le banc à quatre cités en place (#669).
 Décision : la configuration reçoit ici une liste de dieux, réduite à leurs identifiants, que #265 complète.
 Décision : chaque cité peut avoir sa propre recette de départ, puisque Ampelos et Halos n'ont pas de blé.
 Label : `sensible` (règles par ligne de `city_identity` ; `site.acquire`, `site.setRecipe` et `house.create` touchés).
@@ -89,8 +90,8 @@ Label : `sensible` (règles par ligne de `city_identity` ; `site.acquire`, `site
 
 - [ ] Configuration : liste `gods` (identifiants seuls : Déméter, Athéna, Dionysos, Poséidon, Apollon) ; chaque cité porte son terroir (identifiants des recettes de matière première admises ; les ateliers sont admis partout), son port, son dieu protecteur et, si elle veut, sa recette de départ ; le schéma refuse un dieu, une recette ou une population inconnus.
 - [ ] Le schéma refuse une cité dont la recette de départ (la sienne, sinon `starting.siteRecipeId`) n'est pas dans son terroir.
-- [ ] Valeurs de départ, à ajuster par #283 : Kallistè (Déméter) garde toutes les matières premières de la phase 1, pour que la cité prototype, ses tests de bout en bout et le banc de #78 restent tels quels ; Elaia (Athéna : olives, blé, sel, bois ; départ : blé), Ampelos (Dionysos : raisin, poisson, laine, argile ; départ : raisin), Halos (Poséidon : poisson, sel, argile, bois, laine ; départ : poisson) ; aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
-- [ ] Restreindre le terroir de Kallistè, pour qu'aucune cité ne soit autosuffisante (6.1), revient à #283 : c'est une version de configuration, éprouvée par le banc à quatre cités.
+- [ ] Valeurs de départ, à ajuster par #669 : Kallistè (Déméter) garde toutes les matières premières de la phase 1, pour que la cité prototype, ses tests de bout en bout et le banc de #78 restent tels quels ; Elaia (Athéna : olives, blé, sel, bois ; départ : blé), Ampelos (Dionysos : raisin, poisson, laine, argile ; départ : raisin), Halos (Poséidon : poisson, sel, argile, bois, laine ; départ : poisson) ; aucune des trois nouvelles cités n'a toutes les matières premières du panier de ses PNJ.
+- [ ] Restreindre le terroir de Kallistè, pour qu'aucune cité ne soit autosuffisante (6.1), revient à #669 : c'est une version de configuration, éprouvée par le banc à quatre cités.
 - [ ] Population de chaque cité en configuration, à l'échelle de la cité prototype (5.5), et demande des PNJ jouée pour les quatre.
 - [ ] `seed.sql` crée les trois cités dans le monde de développement ; leurs noms sont dans les fichiers de traduction `fr` et `en`, par identifiant court.
 - [ ] `house.create` lance la recette de départ de la cité choisie.
@@ -1242,37 +1243,41 @@ Calibrage (#283).
 
 ---
 
-# 283. Banc d'équilibrage (3/3) : calibrage et borne sur la masse monétaire
+# 283. Banc d'équilibrage (3/3) : approvisionnement à quatre cités et bornes
 
 ## Contexte
 
 Le banc de #78 a laissé une limite connue en 5.5 : la masse monétaire croît d'environ 60 000 oboles par jour, parce que les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
-Les paramètres économiques de la phase sont entrés neutres dans la configuration initiale ; ce ticket les active et les calibre ensemble, à quatre cités.
+Ce ticket approvisionne les cités importatrices dans le banc à quatre cités et y écrit ses bornes.
 
-Décision : la borne sur la masse monétaire est une variation de −3 % à +3 % sur les 30 jours mesurés, comme la cible d'inflation mensuelle (5.5), écrite à la main dans le test.
-Décision : le terroir de Kallistè se resserre ici, par la même version de configuration, pour qu'aucune cité ne soit autosuffisante (6.1, #250).
+Décision (choix du propriétaire) : la cible pilotée est l'inflation des prix (5.5, spécification 18), pas la masse monétaire ; la borne dure est le coût du panier de chaque cité.
+Décision (découpe après la troisième reprise, voir les commentaires) : la borne de masse de −5 % à +25 % est hors d'atteinte sans un puits proportionnel à la richesse.
+Les robinets des PNJ dépassent les puits d'un ordre de grandeur, et seuls des puits qui prennent sur les bénéfices des maisons (liturgies, impôt sur la fortune) peuvent l'absorber sans faire tomber les marges de #285 ni arrêter les sites.
+La feuille de route place les liturgies en phase 3 : la borne de −5 % à +25 % y passe, avec elles.
+Ici, la masse a une borne contre l'emballement.
+Les autres paramètres et les grâces passent à #668, le terroir de Kallistè à #669.
 Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
 
 ## Spécification liée
 
-`docs/specs/05-economie.md` (5.2, 5.5), `docs/specs/06-cites-politique-communaute.md` (6.1), `docs/specs/18-indicateurs-risques-conformite.md`, `docs/specs/17-feuille-de-route.md`
+`docs/specs/05-economie.md` (5.2, 5.5), `docs/specs/18-indicateurs-risques-conformite.md`, `docs/specs/17-feuille-de-route.md`
 
 ## Critères d'acceptation
 
-- [ ] Configuration initiale ajustée : salaires, offre de travail, hébergement, entretien des navires et des logements, vétusté, salaire des intendants, droits de port, provisions et probabilité des événements activés ; chaque valeur justifiée dans la demande de fusion ; aucune constante d'équilibrage dans le code.
-- [ ] Grâces offertes dans la configuration initiale, au moins une par dieu concerné (7.1, #266), et déclin et poids de la Charis de cité calibrés ; chaque valeur justifiée dans la demande de fusion.
-- [ ] Terroir de Kallistè resserré ; les tests de bout en bout de la cité prototype et le banc à une cité de #78 suivent, leurs bornes inchangées ou leur changement justifié.
-- [ ] Bornes écrites à la main dans le banc à quatre cités, pas recalculées par le code testé : dans chaque cité, celles de la phase 1 (coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas) ; pour le monde, variation de la masse monétaire de −3 % à +3 % sur les 30 jours mesurés.
-- [ ] Le banc joue les événements, avec sa graine fixe.
-- [ ] Spécification 5.5 : calibrage à quatre cités, part de chaque puits, limite connue levée ou redite avec sa nouvelle valeur.
+- [ ] Le banc lit les salaires dans la configuration ; aucune constante d'équilibrage dans le code.
+- [ ] Le scénario du banc approvisionne les cités importatrices (négociants, armateurs) : chaque bien du panier s'échange dans chaque cité, et aucun site ne s'arrête.
+- [ ] Bornes écrites à la main dans le banc à quatre cités, pas recalculées par le code testé, dans chaque cité : coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours mesurés, besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
+- [ ] Borne de masse contre l'emballement, écrite à la main : variation sur les 30 jours mesurés sous un plafond fixé d'après la mesure et justifié, et création nette quotidienne des dix derniers jours au plus 110 % de celle des dix premiers.
+- [ ] La borne des marges de #285 reste verte.
+- [ ] Spécification 5.5 : calibrage à quatre cités et limite connue redite avec sa nouvelle valeur ; liturgies renvoyées en phase 3 ; `docs/tickets/phase-2.md` suit la découpe.
 
 ## Hors périmètre
 
-Marges des ateliers (#285), banques et prêts, qualité.
+Marges des ateliers (#285), paramètres de la phase et grâces (#668), terroir de Kallistè (#669), liturgies et impôt sur la fortune (phase 3), banques et prêts, qualité.
 
 ## Dépendances
 
-#282
+#285, #657
 
 ---
 
@@ -1366,3 +1371,58 @@ Mesures avec des joueurs réels (attendent le serveur, #33).
 ## Dépendances
 
 #254, #259, #264, #271, #272, #274, #277, #279, #280, #285
+
+---
+
+# 668. Calibrage (2/3) : paramètres de la phase activés, grâces et Charis
+
+## Contexte
+
+Découpe de #283, décidée après sa troisième reprise : #283 garde l'approvisionnement des cités importatrices et les bornes du banc à quatre cités ; ce ticket active les paramètres entrés neutres dans la configuration initiale.
+Label : aucun (configuration et test ; aucune écriture de monnaie nouvelle).
+
+## Spécification liée
+
+`docs/specs/05-economie.md` (5.5), `docs/specs/04-systemes-gestion.md`, `docs/specs/07-dieux-faveur-evenements.md` (7.1)
+
+## Critères d'acceptation
+
+- [ ] Configuration initiale ajustée : offre de travail, hébergement, entretien des navires et des logements, vétusté, salaire des intendants, droits de port, provisions et probabilité des événements activés ; chaque valeur justifiée dans la demande de fusion ; aucune constante d'équilibrage dans le code.
+- [ ] Grâces offertes dans la configuration initiale, au moins une par dieu concerné (7.1, #266), et déclin et poids de la Charis de cité calibrés ; chaque valeur justifiée.
+- [ ] Le banc à quatre cités joue les événements, avec sa graine fixe, et ses bornes (#283) restent vertes ; la borne des marges de #285 aussi.
+- [ ] Spécification 5.5 : part de chaque puits à quatre cités.
+
+## Hors périmètre
+
+Terroir de Kallistè (ticket suivant), liturgies et impôt sur la fortune (phase 3).
+
+## Dépendances
+
+#283
+
+---
+
+# 669. Calibrage (3/3) : terroir de Kallistè resserré
+
+## Contexte
+
+Découpe de #283 : le terroir de Kallistè se resserre par une version de configuration, pour qu'aucune cité ne soit autosuffisante (6.1, #250).
+Label : aucun.
+
+## Spécification liée
+
+`docs/specs/06-cites-politique-communaute.md` (6.1), `docs/specs/05-economie.md` (5.5)
+
+## Critères d'acceptation
+
+- [ ] Terroir de Kallistè resserré dans la configuration initiale ; aucune cité n'a toutes les matières premières du panier de ses PNJ.
+- [ ] Les tests de bout en bout de la cité prototype et le banc à une cité de #78 suivent, leurs bornes inchangées ou leur changement justifié.
+- [ ] Le banc à quatre cités reste vert.
+
+## Hors périmètre
+
+Autres paramètres (ticket précédent).
+
+## Dépendances
+
+#283, #668

@@ -3,6 +3,7 @@ import { closeOf, config, openBench, treasuryOf } from './balance/city';
 import { winnerOf } from './balance/politics';
 import { playWorld } from './balance/run';
 import {
+  basketDriftBps,
   isWorkshop,
   median,
   PUBLIC_SINKS,
@@ -17,9 +18,10 @@ import { sql } from 'kysely';
  * Banc d'équilibrage des quatre cités (#281, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à part, sur
  * la graine `WORLD_SEED` : les quatre cités de la configuration initiale, leurs maisons scriptées selon leur
  * terroir et des armateurs qui ravitaillent les cités importatrices (`balance/world.ts`), jouées comme celles du banc
- * d'une cité de #78 (`balance.integration.test.ts`, qui garde ses bornes). Il tourne dans son propre job `ci` (`pnpm test:balance`), pas avec les tests d'intégration.
- * Il ne borne pas l'économie, calibrée par #283 : il vérifie que le grand livre se rapproche des flux comptés
- * et que chaque cité a tourné, et borne les seules marges des ateliers (#285).
+ * d'une cité de #78 (`balance.integration.test.ts`, qui garde ses bornes). Il tourne dans son propre job `ci`
+ * (`pnpm test:balance`), pas avec les tests d'intégration. Il vérifie que le grand livre se rapproche des flux
+ * comptés et que chaque cité a tourné, et borne les marges des ateliers (#285), puis l'économie de chaque cité et la
+ * masse monétaire du monde (#283).
  */
 const bench = openBench({ config: worldConfig });
 beforeAll(() => bench.start());
@@ -49,6 +51,7 @@ it(
       acquisitions,
       lodging,
       minutes,
+      supplyBefore,
     } = run;
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -137,7 +140,7 @@ it(
     expect(Number(unhoused.rows[0]?.unhoused), 'travailleurs non logés').toBeLessThan(
       Number(unhoused.rows[0]?.employed),
     );
-    // Les armateurs ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
+    // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
     const sailed = (
       await sql<{ voyages: string; units: string }>`select count(*) as voyages,
         coalesce(sum(c.units), 0) as units
@@ -180,7 +183,24 @@ it(
 
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW));
+    const drift = Object.fromEntries(
+      SLUGS.map((slug) => [slug, basketDriftBps(days, slug, WINDOW)]),
+    );
+    // Création nette du monde (robinets moins puits), par jour, sur une fenêtre de jours mesurés.
+    const created = (part: typeof days) =>
+      part.reduce(
+        (sum, day) => sum + Object.values(day.flows['world'] ?? {}).reduce((a, b) => a + b, 0),
+        0,
+      ) / part.length;
+    const [before, after] = [supplyBefore['world'] ?? 0, days.at(-1)?.supply['world'] ?? 0];
+    const massBps = Math.round(((after - before) * 10_000) / before);
     await publish(days, margins, {
+      basketDriftBps: drift,
+      massBps,
+      createdPerDay: [
+        Math.round(created(days.slice(0, WINDOW))),
+        Math.round(created(days.slice(-WINDOW))),
+      ],
       minutes: Math.round(minutes * 10) / 10,
       stewards: stewards.length,
       stewardOperations: operations,
@@ -201,5 +221,31 @@ it(
       expect(worldMargins[recipe.id], `marge de ${recipe.id}`).toBeGreaterThanOrEqual(primary / 2);
       expect(worldMargins[recipe.id], `marge de ${recipe.id}`).toBeLessThanOrEqual(primary * 2);
     }
+
+    // Bornes de #283 (5.5), écrites à la main, dans chaque cité, celles de la cité prototype (#78) : le coût du panier
+    // des dix derniers jours mesurés est de 0 à 2 % au-dessus de celui des dix premiers, chaque bien du panier s'y
+    // échangeant ; les besoins vitaux de chaque classe sont couverts à 98 % au moins chaque jour mesuré ; la
+    // population ne baisse pas.
+    for (const slug of SLUGS) {
+      expect(drift[slug], `${slug} : coût du panier`).not.toBeNull();
+      expect(drift[slug], `${slug} : coût du panier`).toBeGreaterThanOrEqual(0);
+      expect(drift[slug], `${slug} : coût du panier`).toBeLessThanOrEqual(200);
+      for (const day of days)
+        for (const [classId, coverage] of Object.entries(day.coverage[slug] ?? {}))
+          expect(
+            coverage,
+            `${slug} : couverture de ${classId}, jour ${day.day}`,
+          ).toBeGreaterThanOrEqual(9_800);
+      expect(days.at(-1)?.population[slug], `${slug} : population`).toBeGreaterThanOrEqual(
+        days[0]?.population[slug] ?? Infinity,
+      );
+    }
+    // Masse du monde, borne contre l'emballement (5.5) : sur les 30 jours mesurés, elle croît de moins de 200 %, ce que
+    // ferait le seul revenu public de 30 jours sans aucun puits ; et sa création nette quotidienne des dix derniers jours
+    // ne dépasse pas 110 % de celle des dix premiers. La borne de −5 % à +25 % attend les liturgies (phase 3).
+    expect(massBps, 'masse du monde').toBeLessThan(20_000);
+    expect(created(days.slice(-WINDOW)), 'création nette').toBeLessThanOrEqual(
+      created(days.slice(0, WINDOW)) * 1.1,
+    );
   },
 );

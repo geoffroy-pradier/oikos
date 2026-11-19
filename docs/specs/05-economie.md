@@ -383,14 +383,28 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
   Croissance de 0,2 % par jour au plus, émigration de 1 % par jour au plus, bornes de 50 % à 200 % de la population initiale : la cité suit l'offre lentement, sans à-coup de prix.
 - **Mesure.** Avec 28 maisons scriptées, dont l'offre couvre d'environ 100 à 110 % de la demande de référence de chaque bien vital (un peu moins pour le pain, que la farine limite), le banc tient sur 30 jours une hausse du coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours, et des besoins vitaux couverts à 98 % au moins pour chaque classe.
 - **Limite connue.** La masse monétaire croît d'environ 60 000 oboles par jour et par cité (mesure du banc, à une cité ; un monde de quatre cités en crée donc à peu près quatre fois plus) : les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
-  Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, versé en entier chaque jour, dépensé ou non ; ce chiffre ne vaut plus et est à recalculer dans #283, avec le calibrage de ce revenu.
-  Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
+  Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, versé en entier chaque jour, dépensé ou non.
+  À quatre cités (#283), la masse du monde croît de 179 % sur les 30 jours mesurés, soit environ 46 800 oboles par jour : le revenu public en crée environ 52 600, les puits n'en détruisent qu'environ 5 800.
+  Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux.
+  Les puits de la phase 2 (immobilier, décrets) ne prennent pas sur les bénéfices des maisons : seul un puits proportionnel à la richesse, les liturgies de la phase 3, peut contenir la masse sans faire tomber les marges des ateliers ni arrêter de sites.
 
 Marges des ateliers (#285, 4.3) : la configuration initiale règle les intrants de quatre recettes d'atelier (pressoir, tissage, poterie, chai) et le prix de référence de l'amphore, pour que chaque atelier rapporte, dans le banc à quatre cités, de la moitié au double de la médiane des sites de matières premières.
 Aucun robinet ni puits n'est réglé : l'entretien des sites, la taxe et le revenu public restent ceux d'avant, et le rapport du simulateur ne voit bouger la masse du monde que de 0,2 % sur 30 jours.
 Le banc à une cité garde ses bornes : hausse du coût du panier de 0,87 % (0,55 % avant), besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
 Des ateliers moins gourmands laissent des olives, du raisin, de l'argile et de la laine sans preneur : ces matières premières s'y vendent un peu moins cher, sans toucher au panier.
-Pour #283 : ces marges portent des salaires plus hauts que ceux du banc (4 oboles) ; à 60 oboles, un atelier de deux travailleurs paierait 112 oboles de plus par jour, et le chai, le plus juste, garderait environ 420 oboles de marge.
+Ces marges portent des salaires plus hauts que ceux de la configuration initiale, nuls, que le banc joue depuis #283 ; à 60 oboles, un atelier de deux travailleurs paierait 112 oboles de plus par jour, et le chai, le plus juste, garderait environ 420 oboles de marge.
+
+Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps/api/src/balance-world.bench.ts`, graine fixe, 10 jours de mise en route puis 30 jours mesurés) :
+
+- **Configuration.** Le banc joue la configuration initiale, salaires compris, nuls au départ ; il n'en remplace que la population des cités (divisée par huit), la dotation des maisons de son scénario (15 000 oboles, de quoi acquérir leurs sites et un navire dès les premiers jours) et le logement, et le simulateur le dit.
+- **Approvisionnement.** Kallistè et Elaia produisent pour elles et pour Ampélos et Halos, qui pêchent leur poisson ; trois armateurs par cité importatrice la ravitaillent par caboteur, un autre porte le vin de Kallistè à Elaia, un à Halos.
+  Un armateur affiche ses prix : il vend les biens du panier à leur référence, le vin 52 oboles (ce qu'un tick du revenu des PNJ d'Ampélos ou d'Halos en paie), et n'achète jamais au-dessus de la référence.
+  Chaque maison confie à un intendant ses récoltes, vendues à 90 % de la référence, et les biens du panier que font ses ateliers, vendus à leur référence.
+  Le blé de Kallistè et d'Elaia couvre de 104 à 121 % de sa demande ; le pain, l'huile et le vin manquent un peu (deux moulins et un pressoir par cité, cinq chais à Kallistè), mais leurs intendants les vendent à la référence, et les armateurs n'en paient pas plus.
+- **Mesure.** Le coût du panier ne bouge dans aucune cité, les besoins vitaux sont couverts à 99,8 % au moins chaque jour, la population croît dans chaque cité (de 1,8 à 2,4 %), aucun site ne s'arrête, et les marges des ateliers restent dans leur borne (#285).
+  Les prix du panier sont donc ceux qu'affichent armateurs et intendants : la borne de 0 à 2 % vérifie que l'approvisionnement les tient et que chaque bien s'échange dans chaque cité à chaque fenêtre ; elle ne mesure pas l'inflation que produirait un marché sans prix affichés.
+- **Masse.** Une borne contre l'emballement : moins de +200 % sur les 30 jours mesurés, ce que ferait le seul revenu public sans aucun puits (+201 % mesuré), et une création nette quotidienne des dix derniers jours d'au plus 110 % de celle des dix premiers (99 % mesuré).
+  La borne de −5 % à +25 % attend un puits proportionnel à la richesse, les liturgies, que la feuille de route place en phase 3 (17).
 
 ## 5.6 Fiscalité
 
