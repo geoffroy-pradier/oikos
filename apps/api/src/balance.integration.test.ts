@@ -91,8 +91,12 @@ it('3 jours : tous les ticks du jour, grand livre rapproché', { timeout: 120_00
 });
 
 const MONTH = 30;
-/** Mise en route, non mesurée : les maisons acquièrent leurs sites et les prix trouvent leur niveau. */
-const WARMUP = 10;
+/**
+ * Mise en route, non mesurée : les maisons acquièrent leurs sites et les prix trouvent leur niveau. Douze jours depuis
+ * que les maisons paient salaires et hébergement (#668) : gardant de quoi les payer, elles acquièrent leurs sites plus
+ * tard, et au dixième jour les besoins vitaux des hippeis ne sont encore couverts qu'à 94 %.
+ */
+const WARMUP = 12;
 
 it(
   '30 jours, 15 biens, maisons scriptées : grand livre rapproché ; mesures publiées',
@@ -115,7 +119,11 @@ it(
       purses += await pursesDue(city, houses, day);
       await closeDay(city, day);
       const now = new Date(closeOf(city, day).getTime() + MINUTE);
-      for (const house of houses) acquisitions += await morning(city, house, now);
+      // Les maisons jouent leur matinée chacune à son tour en premier : à ordre fixe, les premiers meuniers servent
+      // chaque matin les achats de farine des boulangers, et le dernier, qui ne vend rien, ne paie plus ses salaires.
+      const first = day % houses.length;
+      for (const house of [...houses.slice(first), ...houses.slice(0, first)])
+        acquisitions += await morning(city, house, now);
       // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
       const hours =
         (closeOf(city, day + 1).getTime() - closeOf(city, day).getTime()) / (60 * MINUTE);
@@ -233,6 +241,7 @@ it(
     expect(ledger.npcPurchases).toBeGreaterThan(0);
     expect(ledger.expected['sink_market_tax']).toBeGreaterThan(0);
     expect(upkeep).toBeGreaterThan(0);
+    expect(purses, 'salaires et hébergement').toBeGreaterThan(0);
     expect(acquisitions).toBeGreaterThan(0);
     // Bornes d'équilibrage de la cité prototype (#78), écrites à la main. Le coût du panier des dix
     // derniers jours ne dépasse celui des dix premiers que de 0 à 2 % : vingt jours d'écart, soit au plus 3 %

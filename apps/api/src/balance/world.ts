@@ -23,17 +23,14 @@ export const MEASURED = 30;
 export const WINDOW = 10;
 
 /**
- * Logement du scénario (4.5, #258), neutre dans la configuration initiale : une nuit chez les PNJ coûte 1 obole,
- * jusqu'à trois fois plus quand aucun travailleur n'est logé ; un bien a un entretien
- * et perd 3 % d'état par jour de jeu, donc passe sous son seuil d'habitabilité en 23 jours et se rénove dans le
- * banc. Les prix d'achat et de rénovation de la configuration initiale (3 000 oboles une maison de ville, 20 bois et 30 argile
- * pour la rénover) ne s'amortiraient jamais au prix d'une nuit que les maisons du banc peuvent payer, et dépasseraient
- * la production de bois et d'argile de leurs cités, déjà déficitaires : le banc divise les prix par cinq, et rénove avec du blé, que toutes ses maisons récoltent. Ce sont des paramètres du banc, pas du jeu ; leur calibrage est l'affaire de #668.
+ * Logement du scénario (4.5) : l'hébergement, l'entretien et la vétusté sont ceux de la configuration initiale (#668).
+ * Ses prix d'achat et de rénovation (3 000 oboles une maison de ville ; 300 oboles, 20 bois et 30 argile pour la rénover)
+ * s'amortissent en plus de cent jours, au-delà des 40 que joue le banc, et ses cités ne produisent pas assez de bois
+ * et d'argile pour leurs ateliers : le banc divise les prix par cinq, pour que ses maisons achètent, louent et rénovent
+ * pendant la partie, et rénove avec du blé, que toutes ses maisons récoltent. Ce sont des paramètres du banc, pas du
+ * jeu.
  */
 export const HOUSING = {
-  lodging: { baseOboles: 1, minBps: 10_000, maxBps: 30_000, slopeBps: 20_000 },
-  upkeepOboles: { townhouse: 1, tenement: 3 } as Record<string, number>,
-  dailyWear: 300,
   priceDivisor: 5,
   renovationWheat: { townhouse: 50, tenement: 150 } as Record<string, number>,
 };
@@ -48,20 +45,17 @@ export const HOUSING = {
 export const GRANT_OBOLES = 15_000;
 
 /**
- * Configuration jouée : celle du banc, à la population près de chaque cité, à la dotation et au logement du scénario.
- * Les salaires des travailleurs et des intendants sont ceux de la configuration (4.4, #283).
+ * Configuration jouée : celle du banc, à la population près de chaque cité, à la dotation et aux prix des logements
+ * du scénario. Salaires, marché du travail, transport, événements et grâces sont ceux de la configuration (#668).
  */
 export const worldConfig = {
   ...config,
   starting: { ...config.starting, grantOboles: GRANT_OBOLES },
-  labor: { ...config.labor, lodging: HOUSING.lodging },
   properties: {
     ...config.properties,
     sizes: config.properties.sizes.map((size) => ({
       ...size,
       purchasePriceOboles: size.purchasePriceOboles / HOUSING.priceDivisor,
-      dailyUpkeepOboles: HOUSING.upkeepOboles[size.id] ?? 0,
-      dailyWear: HOUSING.dailyWear,
       renovation: {
         oboles: size.renovation.oboles / HOUSING.priceDivisor,
         goods: [{ goodId: 'wheat', quantity: HOUSING.renovationWheat[size.id] ?? 0 }],

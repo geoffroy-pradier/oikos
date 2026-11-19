@@ -148,11 +148,20 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('le salaire entre neutre : nul dans chaque cité, en attendant le calibrage (#283)', () => {
+  /** Salaire d'un jour d'un travailleur, le même dans chaque cité (#668). */
+  const wage = config.staff.dailyWageOboles['kalliste'] ?? NaN;
+
+  it('un salaire d’une drachme par jour, le même dans chaque cité (#668)', () => {
     expect(Object.keys(config.staff.dailyWageOboles).sort()).toEqual(
       config.cities.map((city) => city.id).sort(),
     );
-    expect(Object.values(config.staff.dailyWageOboles).every((wage) => wage === 0)).toBe(true);
+    // Le salaire d'un ouvrier des chantiers de l'Érechthéion (409 av. J.-C.) : une drachme, six oboles.
+    expect(wage).toBe(6);
+    for (const daily of Object.values(config.staff.dailyWageOboles)) expect(daily).toBe(wage);
+    // Un site paie ses travailleurs moins que son entretien : la relance d'un site reste dominée par l'entretien.
+    const { dailyOboles } = config.sites.upkeep;
+    for (const recipe of config.recipes)
+      expect(recipe.workers * wage).toBeLessThan(dailyOboles[recipe.siteType]);
   });
 
   it('le revenu public des PNJ entre au revenu d’un jour entier, comme l’ancien robinet, en attendant le calibrage (#632, #283)', () => {
@@ -167,8 +176,27 @@ describe('jeu de valeurs initial', () => {
     expect(config.market.npcBudgetCarryUnits).toBe(2);
   });
 
-  it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {
-    expect(config.labor).toEqual(DEFAULT_LABOR);
+  it('marché du travail : une offre bornée par la population, un hébergement qui monte avec la pénurie (#668)', () => {
+    const { workingShareBps, wage: curve, lodging } = config.labor;
+    // Thètes et zeugites travaillent : à sa population de départ comme à sa plus basse (`minShareBps`), chaque cité
+    // offre de quoi faire tourner trente maisons de quatre sites, chacun de quatre travailleurs (5.5).
+    const smallest = config.populationDynamics.minShareBps / 10_000;
+    expect(Object.keys(workingShareBps).sort()).toEqual(['thetes', 'zeugitai']);
+    for (const city of config.cities) {
+      const supply = Object.entries(workingShareBps).reduce(
+        (sum, [classId, share]) =>
+          sum + Math.floor(((city.population[classId] ?? 0) * smallest * share) / 10_000),
+        0,
+      );
+      expect(supply).toBeGreaterThanOrEqual(30 * 4 * 4);
+    }
+    // Le salaire reste le salaire de base : la courbe est neutre.
+    expect(curve).toEqual(DEFAULT_LABOR.wage);
+    // Une nuit chez les habitants coûte une obole quand la cité loge tous ses travailleurs, jusqu'à un demi-salaire
+    // quand elle n'en loge aucun : un travailleur sans logement coûte alors un salaire et demi.
+    expect(lodging.baseOboles).toBe(1);
+    expect([lodging.minBps, lodging.minBps + lodging.slopeBps]).toEqual([10_000, lodging.maxBps]);
+    expect((lodging.baseOboles * lodging.maxBps) / 10_000).toBe(wage / 2);
   });
 
   it('chaque recette a une capacité d’accumulation d’un à sept jours', () => {
@@ -189,21 +217,35 @@ describe('jeu de valeurs initial', () => {
     expect(upkeep.coefficientBps).toBeGreaterThan(0);
   });
 
-  it('deux classes de navires, sans entretien au départ (#251, paramètres neutres)', () => {
+  /** Marins de l'équipage de chaque classe de navire : l'entretien d'un jour est leur salaire (#668). */
+  const CREW: Record<string, number> = { coaster: 3, round_ship: 8 };
+
+  it('deux classes de navires, entretenues au salaire de leur équipage (#251, #668)', () => {
     expect(config.ships.classes.map((shipClass) => shipClass.id)).toEqual([
       'coaster',
       'round_ship',
     ]);
-    for (const shipClass of config.ships.classes) expect(shipClass.dailyUpkeepOboles).toBe(0);
+    for (const shipClass of config.ships.classes)
+      expect(shipClass.dailyUpkeepOboles).toBe((CREW[shipClass.id] ?? NaN) * wage);
   });
 
-  it('deux tailles de logement, sans entretien ni vétusté au départ, dans chaque cité (#256, paramètres neutres)', () => {
+  it('deux tailles de logement, entretenues et usées, dans chaque cité (#256, #668)', () => {
     const { sizes, countsByCity } = config.properties;
+    const { baseOboles, maxBps } = config.labor.lodging;
     expect(sizes.map((size) => size.id)).toEqual(['townhouse', 'tenement']);
     for (const size of sizes) {
-      expect([size.id, size.dailyUpkeepOboles, size.dailyWear]).toEqual([size.id, 0, 0]);
       // Une rénovation coûte moins que l'achat.
       expect(size.renovation.oboles).toBeLessThan(size.purchasePriceOboles);
+      // L'entretien coûte moins que l'hébergement que le bien évite, même au plus bas.
+      expect(size.dailyUpkeepOboles).toBeGreaterThan(0);
+      expect(size.dailyUpkeepOboles).toBeLessThan(size.housingUnits * baseOboles);
+      // Neuf, le bien passe sous son seuil d'habitabilité en trois à quatre semaines de jeu : une rénovation par mois.
+      const days = (10_000 - size.minHabitableCondition) / size.dailyWear;
+      expect(days).toBeGreaterThanOrEqual(21);
+      expect(days).toBeLessThanOrEqual(28);
+      // Au plus fort de la pénurie, ce que le bien évite d'hébergement rembourse son prix en moins d'un an de jeu.
+      const saved = (size.housingUnits * baseOboles * maxBps) / 10_000 - size.dailyUpkeepOboles;
+      expect(size.purchasePriceOboles / saved).toBeLessThan(365);
     }
     for (const city of config.cities)
       for (const size of sizes) expect(countsByCity[city.id]?.[size.id]).toBeGreaterThan(0);
@@ -234,17 +276,27 @@ describe('jeu de valeurs initial', () => {
       ).toBe(true);
   });
 
-  it('une route entre chaque paire de cités, sans provisions ni droit de port au départ (#252)', () => {
+  it('une route entre chaque paire de cités, avec ses provisions et le droit de port (#252, #668)', () => {
     const cities = config.cities.map((city) => city.id);
     const pairs = cities.flatMap((a, i) => cities.slice(i + 1).map((b) => [a, b].sort().join(' ')));
     expect(
       config.ships.routes.map(({ cities: pair }) => [...pair].sort().join(' ')).sort(),
     ).toEqual(pairs.sort());
+    // Provisions : les vivres de l'équipage pendant la traversée, au coût de la vie d'un habitant (8 oboles par jour),
+    // sur la durée du trajet de la classe, arrondies à l'obole supérieure.
     for (const route of config.ships.routes)
-      expect(Object.values(route.provisionsOboles).every((oboles) => oboles === 0)).toBe(true);
-    expect(Object.values(config.ships.portDues.byClassOboles).every((oboles) => oboles === 0)).toBe(
-      true,
-    );
+      for (const shipClass of config.ships.classes)
+        expect(route.provisionsOboles[shipClass.id]).toBe(
+          Math.ceil(
+            ((CREW[shipClass.id] ?? NaN) * 8 * route.hours * 10_000) / (24 * shipClass.speedBps),
+          ),
+        );
+    // Droit de port : 1 % de la valeur d'une soute pleine de blé à son prix de référence.
+    const wheat = config.goods.find((good) => good.id === 'wheat')?.referencePriceOboles ?? NaN;
+    for (const shipClass of config.ships.classes)
+      expect(config.ships.portDues.byClassOboles[shipClass.id]).toBe(
+        (shipClass.capacityUnits * wheat) / 100,
+      );
     for (const city of config.cities)
       expect(config.ships.portDues.cityCoefficientBps[city.id]).toBe(10_000);
   });

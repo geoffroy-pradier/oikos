@@ -51,11 +51,12 @@ describe('règles du transport lues par le client', () => {
 
   it('coût d’un départ calculé comme l’API : provisions plus droit de port, arrondis vers le haut', () => {
     const rules = initial();
-    // Paramètres neutres de la configuration initiale : rien à payer ; un navire rond est plus lent.
+    // Configuration initiale (#668) : les provisions de la route et le droit de port d'Elaia ; un navire rond est
+    // plus lent.
     expect(quoteDeparture(rules, 'coaster', 'kalliste', 'elaia')).toEqual({
-      provisionsOboles: 0,
-      portDuesOboles: 0,
-      totalOboles: 0,
+      provisionsOboles: 4,
+      portDuesOboles: 18,
+      totalOboles: 22,
       durationSeconds: 4 * 3600,
     });
     expect(quoteDeparture(rules, 'round_ship', 'elaia', 'kalliste')?.durationSeconds).toBe(19_200);

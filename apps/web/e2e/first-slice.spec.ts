@@ -196,15 +196,16 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   await expect(page.getByRole('button', { name: /Relancer/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeFocused();
 
-  // Relance au clavier : un jour d'entretien quitte la trésorerie, le site repart.
-  const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' });
-  await expect(restart).toHaveText('Relancer (5 drachmes)');
+  // Relance au clavier : un jour d'entretien (5 drachmes) et les salaires de quatre travailleurs (une drachme chacun)
+  // quittent la trésorerie, le site repart.
+  const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' });
+  await expect(restart).toHaveText('Relancer (9 drachmes)');
   await restart.focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
-    "Site relancé : Champ de blé, pour 5 drachmes d'entretien et de salaires.",
+    "Site relancé : Champ de blé, pour 9 drachmes d'entretien et de salaires.",
   );
-  await expect(page.getByText(/^495 drachmes$/)).toBeVisible();
+  await expect(page.getByText(/^491 drachmes$/)).toBeVisible();
   await expect(restart).toHaveCount(0);
   // Le bouton a disparu avec l'arrêt : le foyer est sur le message, pas perdu sur la page.
   await expect(said(page, 'status').locator('p')).toBeFocused();
@@ -295,12 +296,12 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
   );
   await expect(page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\./)).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' }),
+    page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' }),
   ).toBeVisible();
   // Relancé au prix affiché : l'API reçoit ce prix et le prélève.
-  await page.getByRole('button', { name: 'Relancer : Champ de blé, pour 5 drachmes' }).click();
+  await page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' }).click();
   await expect(said(page, 'status')).toContainText(
-    "Site relancé : Champ de blé, pour 5 drachmes d'entretien et de salaires.",
+    "Site relancé : Champ de blé, pour 9 drachmes d'entretien et de salaires.",
   );
   await expectNoHorizontalScroll(page);
 });

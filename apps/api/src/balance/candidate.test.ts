@@ -97,7 +97,7 @@ type Loose = {
   starting: { grantOboles: number };
   staff: { dailyWageOboles: Record<string, number> };
   labor: { lodging: Record<string, unknown> };
-  properties: { sizes: { id: string; dailyWear: number }[] };
+  properties: { sizes: { id: string; dailyWear: number; purchasePriceOboles: number }[] };
   cities: { id: string; population: Record<string, number> }[];
   marketTax: { rateBps: number };
 };
@@ -112,6 +112,8 @@ describe('unsimulatedFields', () => {
     const city = candidate.cities[1];
     if (!size || !city) throw new Error('Initial configuration lacks a size or a second city');
     candidate.starting.grantOboles = 1;
+    size.purchasePriceOboles = 1;
+    // Hébergement, entretien et vétusté des logements sont lus dans la candidate (#668) : simulés.
     candidate.labor.lodging = { ...candidate.labor.lodging, baseOboles: 99 };
     size.dailyWear = 1;
     city.population = { ...city.population, poor: 1 };
@@ -120,8 +122,7 @@ describe('unsimulatedFields', () => {
     candidate.staff.dailyWageOboles = { ...candidate.staff.dailyWageOboles, kalliste: 9 };
     expect(unsimulatedFields(candidate, initial)).toEqual([
       'starting.grantOboles',
-      'labor.lodging',
-      `properties.sizes[${size.id}].dailyWear`,
+      `properties.sizes[${size.id}].purchasePriceOboles`,
       `cities[${city.id}].population`,
     ]);
   });

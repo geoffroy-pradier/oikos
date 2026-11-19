@@ -257,16 +257,16 @@ Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (1
 Achat de navires (`sink_ship_purchase`, #251) : le prix d'un navire neuf, fixé par la configuration pour sa classe, est détruit par une écriture `ship.acquire` (4.6).
 Il n'y a pas de revente, donc aucun robinet en face.
 Voyages (#252, 4.6) : les provisions d'un voyage sont détruites par le puits `sink_voyage_provisions`, la part détruite du droit de port par `sink_port_dues`, l'entretien quotidien des navires par `sink_ship_upkeep`.
-Tous trois entrent à zéro dans la configuration initiale.
+La configuration initiale les règle depuis #668 (4.6) : l'entretien est la solde de l'équipage, les provisions ses vivres pendant le trajet, le droit de port 1 % d'une soute pleine de blé.
 
 Immobilier (#256, 4.5) : le prix d'achat d'un bien à la cité est détruit par le puits `sink_property_purchase` (écriture `property.buy`), son entretien quotidien par `sink_property_upkeep` (dans l'écriture `upkeep.daily` de la clôture) et le prix d'une rénovation par `sink_property_works` (écriture `property.renovate`).
 Les biens se louent et se revendent entre maisons (#257, 4.5) : le loyer (`lease.rent`) et le prix d'une revente (`property.sale`) passent d'une maison à une autre sans création de monnaie, donc sans robinet en face.
 La revente paie la taxe de marché de la cité du bien, comme un échange de l'agora : sa part détruite va au puits `sink_market_tax`, le reste au trésor de la cité.
-Entretien et vétusté entrent à zéro dans la configuration initiale ; le prix d'achat et la rénovation sont les deux premiers puits de l'immobilier en jeu.
+Depuis #668, la configuration initiale règle aussi l'entretien et la vétusté (4.5), si bien que les quatre puits de l'immobilier sont en jeu.
 
 Hébergement (#258, 4.4) : chaque travailleur d'un site que sa maison ne loge pas coûte chaque jour une nuit chez les PNJ, au prix du jour de la cité.
 Depuis #632, elle est versée à la bourse des PNJ de la cité du site, comme les salaires : c'est un transfert, pas un puits ; le puits `sink_npc_lodging` reste au catalogue pour l'historique, sans mouvement nouveau.
-Le prix de base entre à zéro dans la configuration initiale.
+Le prix de base est d'une obole dans la configuration initiale, jusqu'à trois au plus fort de la pénurie (#668, 4.4).
 
 Revenu public des PNJ (#632) : chaque jour de jeu, la bourse des PNJ de chaque cité de la configuration reçoit son revenu public par le robinet `faucet_npc_public_income`, une écriture `npc.public_income` par cité (`meta` : la cité et le jour de jeu).
 Le premier tick de demande du jour la verse, avant les achats ; la clôture, après la population et avant l'entretien, ne la verse que si aucun tick du jour ne l'a fait.
@@ -406,19 +406,25 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
 Marges des ateliers (#285, 4.3) : la configuration initiale règle les intrants de quatre recettes d'atelier (pressoir, tissage, poterie, chai) et le prix de référence de l'amphore, pour que chaque atelier rapporte, dans le banc à quatre cités, de la moitié au double de la médiane des sites de matières premières.
 Aucun robinet ni puits n'est réglé : l'entretien des sites, la taxe et le revenu public restent ceux d'avant, et le rapport du simulateur ne voit bouger la masse du monde que de 0,2 % sur 30 jours.
 Le banc à une cité garde ses bornes : hausse du coût du panier de 0,87 % (0,55 % avant), besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
+Depuis #668, il compte les salaires et l'hébergement que ses maisons versent aux bourses des PNJ ; ses maisons jouent leur matinée chacune à son tour en premier, et sa mise en route dure douze jours au lieu de dix (hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236).
+À ordre fixe, le dernier des trois meuniers ne vendait jamais sa farine, que les deux premiers vendaient chaque matin aux boulangers, et ne payait plus ses salaires dès le sixième jour ; gardant de quoi payer salaires et hébergement, les maisons acquièrent aussi leurs sites plus tard, et au dixième jour les hippeis n'étaient couverts qu'à 94 %.
 Des ateliers moins gourmands laissent des olives, du raisin, de l'argile et de la laine sans preneur : ces matières premières s'y vendent un peu moins cher, sans toucher au panier.
-Ces marges portent des salaires plus hauts que ceux de la configuration initiale, nuls, que le banc joue depuis #283 ; à 60 oboles, un atelier de deux travailleurs paierait 112 oboles de plus par jour, et le chai, le plus juste, garderait environ 420 oboles de marge.
+Depuis #668, la configuration initiale paie une drachme par travailleur et par jour : un atelier de deux travailleurs paie 12 oboles de salaires par jour, et les marges, salaires et hébergement déduits, restent dans leur borne (de 495 oboles pour le charbon à 1 120 pour le moulin, le chai à 448, borne basse 425).
 
 Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps/api/src/balance-world.bench.ts`, graine fixe, 10 jours de mise en route puis 30 jours mesurés) :
 
-- **Configuration.** Le banc joue la configuration initiale, salaires compris, nuls au départ ; il n'en remplace que la population des cités (divisée par huit), la dotation des maisons de son scénario (15 000 oboles, de quoi acquérir leurs sites et un navire dès les premiers jours) et le logement, et le simulateur le dit.
+- **Configuration.** Le banc joue la configuration initiale, salaires, marché du travail, transport, entretien et vétusté des biens et événements du monde compris (#668) ; il n'en remplace que la population des cités (divisée par huit), la dotation des maisons de son scénario (15 000 oboles, de quoi acquérir leurs sites et un navire dès les premiers jours), le prix d'achat et de rénovation des logements (divisés par cinq, rénovation au blé), et le simulateur le dit.
+- **Événements (#668).** Le banc planifie après chaque clôture les événements qu'elle aurait planifiés, sur sa graine fixe : sept en 40 jours, une bonne année à Elaia, deux tempêtes (Elaia–Halos, Elaia–Kallistè), deux sécheresses (Kallistè, pendant la mise en route ; Ampélos, qui n'a pas de champ) et deux caravanes (tissu à Elaia, vin à Halos).
 - **Approvisionnement.** Kallistè et Elaia produisent pour elles et pour Ampélos et Halos, qui pêchent leur poisson ; trois armateurs par cité importatrice la ravitaillent par caboteur, un autre porte le vin de Kallistè à Elaia, un à Halos.
   Un armateur affiche ses prix : il vend les biens du panier à leur référence, le vin 52 oboles (ce qu'un tick du revenu des PNJ d'Ampélos ou d'Halos en paie), et n'achète jamais au-dessus de la référence.
   Chaque maison confie à un intendant ses récoltes, vendues à 90 % de la référence, et les biens du panier que font ses ateliers, vendus à leur référence.
   Le blé de Kallistè et d'Elaia couvre de 104 à 121 % de sa demande ; le pain, l'huile et le vin manquent un peu (deux moulins et un pressoir par cité, cinq chais à Kallistè), mais leurs intendants les vendent à la référence, et les armateurs n'en paient pas plus.
-- **Mesure.** Le coût du panier ne bouge dans aucune cité, les besoins vitaux sont couverts à 99,8 % au moins chaque jour, la population croît dans chaque cité (de 1,8 à 2,4 %), aucun site ne s'arrête, et les marges des ateliers restent dans leur borne (#285).
+- **Mesure.** Le coût du panier ne bouge dans aucune cité, les besoins vitaux sont couverts à 100 % chaque jour, la population croît de 2,4 % dans chaque cité, aucun site ne s'arrête, et les marges des ateliers restent dans leur borne (#285).
   Les prix du panier sont donc ceux qu'affichent armateurs et intendants : la borne de 0 à 2 % vérifie que l'approvisionnement les tient et que chaque bien s'échange dans chaque cité à chaque fenêtre ; elle ne mesure pas l'inflation que produirait un marché sans prix affichés.
 - **Masse.** Une borne contre l'emballement : moins de +200 % sur les 30 jours mesurés, ce que ferait le seul revenu public sans aucun puits (+201 % mesuré), et une création nette quotidienne des dix derniers jours d'au plus 110 % de celle des dix premiers (99 % mesuré).
+  Avec les paramètres de #668, la masse croît de 178 % : le revenu public crée environ 52 700 oboles par jour, les puits en détruisent environ 6 600.
+- **Puits (#668).** Part de chaque puits dans la monnaie détruite des jours mesurés : entretien des sites 41,6 %, taxe de marché 31,9 %, grands travaux 7,8 %, fêtes 7,7 %, droit de port 3,8 %, provisions 2,2 %, entretien des navires 2,2 %, rénovations 1,8 %, entretien des biens 0,9 %.
+  Les achats de sites, de navires et de biens tombent dans la mise en route.
   La borne de −5 % à +25 % attend un puits proportionnel à la richesse, les liturgies, que la feuille de route place en phase 3 (17).
 
 ## 5.6 Fiscalité

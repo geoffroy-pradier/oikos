@@ -148,7 +148,8 @@ export async function measureDay(
     );
   }
   // Robinets et puits : lignes du grand livre sur les comptes système, écrites depuis la dernière mesure, rangées par cité
-  // (marché de l'échange, sinon cité de citoyenneté de la maison, sinon trésor ou bourse des PNJ de la cité). Les
+  // (marché de l'échange, sinon cité de citoyenneté de la maison qui paie, sinon trésor ou bourse des PNJ de la cité :
+  // un départ, qui paie aussi le trésor de la cité d'arrivée, est rangé dans la cité de la maison). Les
   // bourses sont lues par `game.npc_purses()`, et jamais dans la table : le classement ne dépend pas du rôle (#632).
   const flows = await sql<{ city_id: string | null; system_key: string; amount: string }>`
     with purses as (select account_id, city_id from game.npc_purses() where world_id = ${worldId})
@@ -164,7 +165,8 @@ export async function measureDay(
           left join game.accounts b on b.id = k.account_id and b.kind <> 'system' and not b.npc_purse
           left join purses p on p.account_id = k.account_id
           left join game.citizenships c on c.house_id = b.house_id
-        where k.entry_id = e.id and (b.id is not null or p.account_id is not null) limit 1) h on true
+        where k.entry_id = e.id and (b.id is not null or p.account_id is not null)
+        order by c.city_id is null, k.amount limit 1) h on true
     where e.world_id = ${worldId} and e.created_at > ${since.at} group by 1, 2`.execute(db);
   for (const row of flows.rows) {
     const slug = bySlug.get(row.city_id ?? '') ?? 'unassigned';

@@ -123,28 +123,28 @@
     "planningLeadDays": 3,
     "models": {
       "drought": {
-        "probabilityBps": 0,
+        "probabilityBps": 333,
         "minDays": 1,
         "maxDays": 3,
         "minMagnitudeBps": 2000,
         "maxMagnitudeBps": 4000
       },
       "good_year": {
-        "probabilityBps": 0,
+        "probabilityBps": 333,
         "minDays": 2,
         "maxDays": 4,
         "minMagnitudeBps": 1000,
         "maxMagnitudeBps": 3000
       },
       "storm": {
-        "probabilityBps": 0,
+        "probabilityBps": 333,
         "minDays": 1,
         "maxDays": 1,
         "minMagnitudeBps": 2500,
         "maxMagnitudeBps": 5000
       },
       "caravan": {
-        "probabilityBps": 0,
+        "probabilityBps": 333,
         "minDays": 1,
         "maxDays": 3,
         "minMagnitudeBps": 2000,
@@ -160,58 +160,58 @@
         "capacityUnits": 300,
         "speedBps": 10000,
         "purchaseCostOboles": 2400,
-        "dailyUpkeepOboles": 0
+        "dailyUpkeepOboles": 18
       },
       {
         "id": "round_ship",
         "capacityUnits": 900,
         "speedBps": 7500,
         "purchaseCostOboles": 6000,
-        "dailyUpkeepOboles": 0
+        "dailyUpkeepOboles": 48
       }
     ],
     "routes": [
       {
         "cities": ["kalliste", "elaia"],
         "hours": 4,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
       },
       {
         "cities": ["kalliste", "ampelos"],
         "hours": 4,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
       },
       {
         "cities": ["kalliste", "halos"],
         "hours": 6,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 6, "round_ship": 22 }
       },
       {
         "cities": ["elaia", "ampelos"],
         "hours": 6,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 6, "round_ship": 22 }
       },
       {
         "cities": ["elaia", "halos"],
         "hours": 8,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 8, "round_ship": 29 }
       },
       {
         "cities": ["ampelos", "halos"],
         "hours": 5,
-        "provisionsOboles": { "coaster": 0, "round_ship": 0 }
+        "provisionsOboles": { "coaster": 5, "round_ship": 18 }
       }
     ],
     "portDues": {
-      "byClassOboles": { "coaster": 0, "round_ship": 0 },
+      "byClassOboles": { "coaster": 18, "round_ship": 54 },
       "burnShareBps": 5000,
       "cityCoefficientBps": { "kalliste": 10000, "elaia": 10000, "ampelos": 10000, "halos": 10000 }
     }
   },
-  "staff": { "dailyWageOboles": { "kalliste": 0, "elaia": 0, "ampelos": 0, "halos": 0 } },
+  "staff": { "dailyWageOboles": { "kalliste": 6, "elaia": 6, "ampelos": 6, "halos": 6 } },
   "stewards": {
     "limitByHeadquartersLevel": [2],
-    "dailyWageOboles": 0,
+    "dailyWageOboles": 12,
     "rulesPerSteward": 5,
     "operationsPerTick": 1,
     "operationsRetentionDays": 30,
@@ -236,9 +236,9 @@
     ]
   },
   "labor": {
-    "workingShareBps": {},
+    "workingShareBps": { "thetes": 3000, "zeugitai": 1000 },
     "wage": { "minBps": 10000, "maxBps": 10000, "slopeBps": 0 },
-    "lodging": { "baseOboles": 0, "minBps": 10000, "maxBps": 10000, "slopeBps": 0 }
+    "lodging": { "baseOboles": 1, "minBps": 10000, "maxBps": 30000, "slopeBps": 20000 }
   },
   "properties": {
     "sizes": [
@@ -246,8 +246,8 @@
         "id": "townhouse",
         "purchasePriceOboles": 3000,
         "housingUnits": 4,
-        "dailyUpkeepOboles": 0,
-        "dailyWear": 0,
+        "dailyUpkeepOboles": 1,
+        "dailyWear": 300,
         "minHabitableCondition": 3000,
         "renovation": {
           "oboles": 300,
@@ -261,8 +261,8 @@
         "id": "tenement",
         "purchasePriceOboles": 9000,
         "housingUnits": 16,
-        "dailyUpkeepOboles": 0,
-        "dailyWear": 0,
+        "dailyUpkeepOboles": 3,
+        "dailyWear": 300,
         "minHabitableCondition": 3000,
         "renovation": {
           "oboles": 900,

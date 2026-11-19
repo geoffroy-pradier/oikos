@@ -10,13 +10,17 @@ const fieldsOf = (worldEvents: unknown) => {
 const events = () => base().worldEvents;
 
 describe('événements du monde (7.4, #267)', () => {
-  it('la configuration initiale ouvre les quatre modèles, chacun à probabilité nulle', () => {
+  it('la configuration initiale ouvre les quatre modèles, chacun environ une fois par mois de jeu (#668)', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
     const worldEvents = result.config.worldEvents;
     expect(Object.keys(worldEvents?.models ?? {})).toEqual([...WORLD_EVENT_MODELS]);
+    // Une chance sur trente par jour : en moyenne un événement de chaque modèle tous les 30 jours, dans le monde.
     for (const model of WORLD_EVENT_MODELS)
-      expect([model, worldEvents?.models[model]?.probabilityBps]).toEqual([model, 0]);
+      expect([model, worldEvents?.models[model]?.probabilityBps]).toEqual([
+        model,
+        Math.floor(10_000 / 30),
+      ]);
     expect(worldEvents?.planningLeadDays).toBeGreaterThanOrEqual(1);
   });
 
