@@ -79,8 +79,9 @@ it(
     // Bornes de la création de monnaie pour le blé de Kallistè, calculées à la main à partir de la
     // configuration initiale (#78) et non par le code testé. Budget par tick, revenu × population ×
     // part du blé dans la dépense de référence : thètes 6 × 70 × 25,2/56,338 = 187,87 ; zeugites
-    // 2,5 × 73 × 12,6/58,04 = 39,62 ; soit 227 oboles. Prix de réserve : 3 × 6.
-    const [budget, reserve] = [227, 18];
+    // 2,5 × 73 × 12,6/58,04 = 39,62 ; soit 227 oboles. Prix de réserve : 3 × 6. Le budget non dépensé se
+    // reporte, au plus deux unités au prix de réserve (#675) : 36 oboles.
+    const [budget, reserve, carryCap] = [227, 18, 36];
 
     const rng = createRng('simulation-30-jours');
     // Indices pris dans l'espace des ticks de la configuration active (et non d'une heure) : le monde
@@ -130,9 +131,11 @@ it(
         now: () => new Date(scheduledAt.getTime() + 1000),
       });
       const summary = outcome.summary['npcDemand'] as { units: number; spent: number };
-      // À chaque tick, les PNJ ne dépensent jamais plus que leur budget.
-      expect(summary.spent).toBeLessThanOrEqual(budget);
+      // À chaque tick, les PNJ ne dépensent jamais plus que leur budget et son report ; depuis le premier tick,
+      // jamais plus que leur revenu cumulé.
+      expect(summary.spent).toBeLessThanOrEqual(budget + carryCap);
       spent += summary.spent;
+      expect(spent).toBeLessThanOrEqual((tick + 1) * budget);
       units += summary.units;
       busiest = Math.max(busiest, summary.spent);
     }
@@ -140,8 +143,8 @@ it(
     expect(units).toBeGreaterThan(DAYS * 500);
     // Un tick au moins dépense à moins d'une unité au prix de réserve près du budget (227 est premier :
     // l'égalité exacte n'est pas atteignable). Ce n'est pas la preuve que le budget plafonne : une demande
-    // non plafonnée peut aussi tomber dans cet intervalle. La borne elle-même est `spent <= budget`, à
-    // chaque tick, ci-dessus.
+    // non plafonnée peut aussi tomber dans cet intervalle. Les bornes elles-mêmes sont celles de chaque tick,
+    // ci-dessus.
     expect(busiest).toBeGreaterThan(budget - reserve);
 
     const accounts = await db
