@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { INITIAL_CONFIG, publishVersion, type GameConfig } from '@oikos/config';
 import { runAllStewards, runStewards } from '@oikos/engine';
-import { createDb } from '@oikos/db';
+import { createDb, type Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fund } from './property.integration-fixtures';
@@ -104,6 +104,62 @@ const stock = async (houseId: string, goodId: string) => {
     .executeTakeFirst();
   return { quantity: Number(row?.quantity ?? 0), reserved: Number(row?.reserved ?? 0) };
 };
+/**
+ * Dernier refus de l'intendant et durée du tick, lus par le joueur comme le client (#640) : vues
+ * `my_steward_operations`, `my_stewards` et `site_rules`, sous la configuration de test mise en vigueur le temps d'une
+ * transaction annulée. Une autre maison n'en lit rien.
+ */
+async function refusalSeenBy(user: string, stewardId: string) {
+  const stranger = await newPlayer();
+  const asPlayer = (trx: Db, sub: string) =>
+    sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub, role: 'authenticated' })}, true)`.execute(
+      trx,
+    );
+  let seen: { tick: number; revision: number; current: number; tickMinutes: number } | undefined;
+  const rollback = new Error('rollback');
+  await owner
+    .transaction()
+    .execute(async (trx) => {
+      const version = randomUUID();
+      await sql`insert into config.versions (id, payload) values (${version}, ${JSON.stringify(TEST_CONFIG.config)})`.execute(
+        trx,
+      );
+      await sql`insert into config.activations (version_id, activate_at) values (${version}, now())`.execute(
+        trx,
+      );
+      await sql`set local role authenticated`.execute(trx);
+      await asPlayer(trx, user);
+      const { rows } = await sql<{
+        tick: string;
+        revision: number;
+        current: number;
+        minutes: number;
+      }>`
+        select o.tick_index as tick, o.rules_revision as revision, s.rules_revision as current,
+               (r.sites -> 'clock' ->> 'tickMinutes')::int as minutes
+        from public.my_steward_operations o join public.my_stewards s on s.id = o.steward_id
+        cross join public.site_rules r
+        where o.steward_id = ${stewardId} and o.status = 'rejected'
+        order by o.tick_index desc, o.rank desc limit 1`.execute(trx);
+      const [row] = rows;
+      if (row)
+        seen = {
+          tick: Number(row.tick),
+          revision: row.revision,
+          current: row.current,
+          tickMinutes: row.minutes,
+        };
+      await asPlayer(trx, stranger.user);
+      const { rows: other } = await sql`select 1 from public.my_steward_operations
+        where steward_id = ${stewardId}`.execute(trx);
+      expect(other).toEqual([]);
+      throw rollback;
+    })
+    .catch((error: unknown) => {
+      if (error !== rollback) throw error;
+    });
+  return seen;
+}
 const collect = { kind: 'collect' } as const;
 /** Vend tout le blé libre, à une obole ou plus : le carnet est partagé avec les autres tests. */
 const sellWheat = { kind: 'sell', goodId: 'wheat', minPriceOboles: 1, keepUnits: 0 } as const;
@@ -319,8 +375,18 @@ describe('opérations des intendants', () => {
       commands: '1',
       failures: '1',
     });
+    // La fiche du site lit le repos (#640) : refus sous la révision en vigueur, retenté au tick du refus plus le repos
+    // plus un, celui où le moteur le retente ci-dessous.
+    const minutes = TEST_CONFIG.config.clock.tickMinutes;
+    expect(await refusalSeenBy(alice.user, id)).toEqual({
+      tick: t1.index,
+      revision: 1,
+      current: 1,
+      tickMinutes: minutes,
+    });
     // Le repos fini, le rachat est retenté, et refusé de nouveau.
     const t4 = rested();
+    expect(t4.index).toBe(t1.index + 2 + 1);
     expect(await runStewards(db, t4)).toMatchObject({ refused: 1 });
     // La règle suivante agit pendant le repos de la refusée : la file passe de l'une à l'autre.
     await give(alice.houseId, 'flour', 10, await cityOf(alice.mill));
@@ -335,6 +401,13 @@ describe('opérations des intendants', () => {
     ]);
     // Des règles nouvelles, même identiques, repartent de la première sans repos.
     expect(code(await send(alice.user, 'steward.setRules', { stewardId: id, rules }))).toBe('ok');
+    // Le dernier refus est d'une autre révision : la fiche n'annonce plus de repos.
+    expect(await refusalSeenBy(alice.user, id)).toEqual({
+      tick: t4.index,
+      revision: 1,
+      current: 2,
+      tickMinutes: minutes,
+    });
     const t7 = rested();
     expect(await runStewards(db, t7)).toMatchObject({ refused: 1 });
     // Sept ticks, quatre opérations, chacune avec sa ligne du journal et sa clé ; un événement par refus.
