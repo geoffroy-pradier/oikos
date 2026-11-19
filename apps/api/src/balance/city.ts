@@ -179,6 +179,14 @@ export interface City extends Bench {
 
 /** Graine de monde du banc à une cité (#78) ; celle du banc de plusieurs cités est dans `world.ts`. */
 const SEED = 'banc-equilibrage-78';
+/**
+ * Un lundi du passé, fixé : le premier jour de tout monde du banc (#663). Il ne vient pas de l'heure réelle du
+ * lancement, qui ferait jouer à deux parties de part et d'autre de la clôture des jours, donc des saisons et des
+ * changements d'heure, différents. Il reste antérieur à l'instant de la base, qui refuse une clôture datée après lui.
+ */
+const FIRST_DAY_AT = new Date('2026-01-05T12:00:00Z');
+/** Jour de jeu du jour 0 d'un monde du banc : celui de `FIRST_DAY_AT` dans l'horloge de la configuration. */
+export const benchFirstDay = () => gameDayAt(FIRST_DAY_AT, config.clock);
 /** Cités d'un monde neuf, une par identifiant de la configuration ; les `days` jours de jeu sont passés. */
 export async function createWorld(
   bench: Bench,
@@ -186,6 +194,10 @@ export async function createWorld(
   slugs: readonly string[],
   seed = SEED,
 ): Promise<City[]> {
+  const firstDay = benchFirstDay();
+  // La base refuse une clôture datée après son heure : le banc ne joue pas plus de jours que le passé n'en compte.
+  if (dailyCloseAt(firstDay + days + 1, config.clock).getTime() > Date.now())
+    throw new Error(`Bench of ${days} days does not end in the past`);
   const worldId = randomUUID();
   // Graine fixée (#267), pour que ses tirages soient reproductibles. Le banc ne joue pourtant aucun événement :
   // ils sont à probabilité nulle dans la configuration initiale. Avec une probabilité non nulle, ses clôtures, qui
@@ -195,7 +207,6 @@ export async function createWorld(
     values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', ${seed})`.execute(
     bench.owner,
   );
-  const firstDay = gameDayAt(new Date(), config.clock) - days - 2;
   const cities: City[] = [];
   for (const slug of slugs) {
     const cityId = randomUUID();
