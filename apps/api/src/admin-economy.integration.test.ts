@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ADMIN_ROLES, adminEconomySchema, type AdminEconomy } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { dailyCloseAt, gameDayAt } from '@oikos/sim';
+import { dailyCloseAt, gameDayAt, SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { historyStarts, readEconomy } from './admin-economy';
@@ -214,6 +214,36 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
     world.systemAccounts.map((r) => r.key),
   );
   expect(moved(empty)).toEqual({});
+});
+
+it('le tableau de bord porte chaque robinet et chaque puits du catalogue des comptes système', async () => {
+  const { rows } = await sql<{ key: string }>`select key from game.system_account_kinds`.execute(
+    owner,
+  );
+  const catalog = rows.map((row) => row.key).sort();
+  // Le catalogue de la base et la liste du code ne diffèrent pas : un robinet ou un puits ajouté d'un côté seulement échoue ici.
+  expect(catalog).toEqual([...SYSTEM_ACCOUNT_KEYS].sort());
+  const { world } = await read(WORLD);
+  expect(world.systemAccounts.map((row) => row.key).sort()).toEqual(catalog);
+  // Puits et robinets de la phase 2 : transport, immobilier, décrets de dépense, offrandes, revenu public.
+  const phase2 = new Map([
+    ['sink_ship_purchase', 'sink'],
+    ['sink_voyage_provisions', 'sink'],
+    ['sink_port_dues', 'sink'],
+    ['sink_ship_upkeep', 'sink'],
+    ['sink_property_purchase', 'sink'],
+    ['sink_property_upkeep', 'sink'],
+    ['sink_property_works', 'sink'],
+    ['sink_public_works', 'sink'],
+    ['sink_festivals', 'sink'],
+    ['sink_offerings', 'sink'],
+    ['faucet_npc_public_income', 'faucet'],
+  ] as const);
+  const kinds = new Map(world.systemAccounts.map((row) => [row.key, row.kind]));
+  for (const [key, kind] of phase2) expect(kinds.get(key)).toBe(kind);
+  // Aucun mouvement dans le monde vide : tous présents, tous à zéro, les mouvements ne viennent que des écritures.
+  const { world: empty } = await read(EMPTY);
+  expect(empty.systemAccounts.map((row) => row.key).sort()).toEqual(catalog);
 });
 
 it('`days` règle le nombre de jours détaillés, sans toucher aux cumuls', async () => {
