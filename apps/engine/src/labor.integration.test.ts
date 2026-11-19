@@ -18,6 +18,7 @@ import {
   type LaborWorld,
   type LaborWorldSpec,
 } from './steps/labor.integration-fixtures';
+import { neutralEconomy } from './neutral.integration-fixtures';
 
 // Marché du travail et logement de bout en bout (#258) : la clôture entière, contre Supabase local. Chaque
 // test a son monde, à Kallistè ; sans entretien des sites, le dû d'un site est ses salaires et
@@ -26,7 +27,8 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
-const initial = INITIAL_CONFIG as GameConfig;
+/** La configuration initiale, à paramètres économiques neutres : chaque essai règle le tarif qu'il éprouve (#668). */
+const initial = neutralEconomy(INITIAL_CONFIG as GameConfig);
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
 /**
  * Un thète sur mille travaille. Salaire de base 10 : ×0,8 sans emploi, ×1,2 au plein emploi, ×1,5 sous

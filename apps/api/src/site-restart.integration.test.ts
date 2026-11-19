@@ -6,19 +6,34 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import { TEST_CONFIG, testVerifier } from './test-config';
 
 // Tests d'intégration de `site.restart` contre Supabase local. Le champ de départ vient de `house.create`.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
+/**
+ * La configuration de test sans salaire ni hébergement (paramètres d'avant #668) : la relance n'y paie que l'entretien ;
+ * `staffed` y ajoute un salaire.
+ */
+const unstaffed = {
+  ...TEST_CONFIG,
+  config: {
+    ...TEST_CONFIG.config,
+    staff: { dailyWageOboles: { kalliste: 0, elaia: 0, ampelos: 0, halos: 0 } },
+    labor: {
+      ...TEST_CONFIG.config.labor,
+      lodging: { ...TEST_CONFIG.config.labor.lodging, baseOboles: 0 },
+    },
+  },
+};
 const app = createApp({
   db,
   telemetry: createTelemetry(db),
   verifyToken: testVerifier,
   rateLimiter: unlimited,
-  loadConfig: testConfig,
+  loadConfig: async () => unstaffed,
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
@@ -33,9 +48,9 @@ const GRANT = starting.grantOboles;
 /** Salaire du jour de 5 oboles dans chaque cité : le champ de départ (4 travailleurs) doit 30 + 20. */
 const WAGES = 4 * 5;
 const staffed = {
-  ...TEST_CONFIG,
+  ...unstaffed,
   config: {
-    ...TEST_CONFIG.config,
+    ...unstaffed.config,
     staff: { dailyWageOboles: { kalliste: 5, elaia: 5, ampelos: 5, halos: 5 } },
   },
 };
@@ -385,7 +400,7 @@ describe('site.restart', () => {
 
   describe('relance et clôture quotidienne', () => {
     /** Un monde à part : l'étape d'entretien prélève toutes les maisons du monde où elle tourne. */
-    async function newWorld(config = TEST_CONFIG.config) {
+    async function newWorld(config = unstaffed.config) {
       const [worldId, cityId] = [randomUUID(), randomUUID()];
       await sql`with world as (insert into game.worlds (id, slug, name) values (${worldId}, ${`r-${worldId.slice(0, 12)}`}, 'Test'))
         insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Agora')`.execute(

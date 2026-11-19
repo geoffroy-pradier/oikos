@@ -18,13 +18,15 @@ import {
   type LaborWorld,
 } from './labor.integration-fixtures';
 import { siteUpkeep } from './site-upkeep';
+import { neutralEconomy } from '../neutral.integration-fixtures';
 
 // Salaire du jour et hébergement chez les PNJ payés avec l'entretien (#258), contre Supabase local.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
-const initial = INITIAL_CONFIG as GameConfig;
+/** La configuration initiale, à paramètres économiques neutres : chaque essai règle le tarif qu'il éprouve (#668). */
+const initial = neutralEconomy(INITIAL_CONFIG as GameConfig);
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
 /**
  * Sans entretien des sites ni des biens : le dû d'un site est ses salaires (10 par travailleur) et
