@@ -3,7 +3,13 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { CandidateError, parseCandidate, readCandidate } from './balance/candidate';
+import { INITIAL_CONFIG } from '@oikos/config';
+import {
+  CandidateError,
+  parseCandidate,
+  readCandidate,
+  unsimulatedFields,
+} from './balance/candidate';
 import { compare, toMarkdown, type Indicators } from './balance/report';
 import { MEASURED, SETTLEMENTS, SLUGS, WORLD_SEED } from './balance/world';
 
@@ -42,7 +48,11 @@ function play(
         return reject(
           new Error(`Simulation of the ${label} failed (exit ${code}), see the log above`),
         );
-      resolve(JSON.parse(await readFile(output, 'utf8')) as Indicators);
+      try {
+        resolve(JSON.parse(await readFile(output, 'utf8')) as Indicators);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -74,12 +84,18 @@ async function main() {
     throw new CandidateError(['--version: integer']);
   // Refus avant toute simulation : schéma, puis scénario du banc.
   const text = await readCandidate(source);
-  parseCandidate(text, {
+  const parsed = parseCandidate(text, {
     slugs: SLUGS,
     recipes: [
       ...new Set(Object.values(SETTLEMENTS).flatMap((roles) => roles.flatMap((r) => r.sites))),
     ],
   });
+  // Champs que le scénario du banc remplace : dits avant de jouer, et portés par le rapport.
+  const unsimulated = unsimulatedFields(parsed, INITIAL_CONFIG);
+  if (unsimulated.length > 0)
+    console.error(
+      `Not simulated (the bench scenario overrides these candidate fields):\n${unsimulated.map((path) => `  ${path}`).join('\n')}`,
+    );
   const dir = await mkdtemp(join(tmpdir(), 'oikos-simulate-'));
   try {
     const candidateFile = join(dir, 'candidate.json');
@@ -93,7 +109,7 @@ async function main() {
       days,
       seed,
     );
-    const report = compare(reference, candidate, { seed, days });
+    const report = compare(reference, candidate, { seed, days, unsimulated });
     if (values.json) await writeFile(values.json, JSON.stringify(report, null, 1));
     const markdown = toMarkdown(report);
     if (values.markdown) await writeFile(values.markdown, markdown);

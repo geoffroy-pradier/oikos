@@ -27,6 +27,7 @@ export const LABELS = {
   delta: 'Écart',
   deltaPercent: 'Écart (%)',
   none: 'n/d',
+  unsimulated: 'Non simulé (champs de la candidate que le scénario du banc remplace)',
   groups: {
     inflation: 'Inflation du panier (points de base, début à fin de période)',
     supply: 'Masse monétaire (oboles, dernier jour)',
@@ -93,6 +94,8 @@ export function indicatorsOf(
 export interface Report {
   seed: string;
   days: number;
+  /** Champs de la candidate que le scénario du banc écrase : leur écart n'est pas simulé. */
+  unsimulated: string[];
   reference: Indicators;
   candidate: Indicators;
   /** Écart absolu, null quand un des deux côtés n'a pas la valeur. */
@@ -107,7 +110,7 @@ const groupOf = (name: string) => name.slice(0, name.indexOf('/')) as Group;
 export function compare(
   reference: Indicators,
   candidate: Indicators,
-  meta: { seed: string; days: number },
+  meta: { seed: string; days: number; unsimulated?: string[] },
 ): Report {
   const names = [...new Set([...Object.keys(reference), ...Object.keys(candidate)])].sort(
     (a, b) => GROUPS.indexOf(groupOf(a)) - GROUPS.indexOf(groupOf(b)) || a.localeCompare(b),
@@ -130,7 +133,14 @@ export function compare(
         ? null
         : Math.round(((after - before) * 1000) / Math.abs(before)) / 10;
   }
-  return { ...meta, reference: ref, candidate: cand, deltas, deltaPercents };
+  return {
+    ...meta,
+    unsimulated: meta.unsimulated ?? [],
+    reference: ref,
+    candidate: cand,
+    deltas,
+    deltaPercents,
+  };
 }
 
 const cell = (value: number | null) => (value === null ? LABELS.none : String(value));
@@ -145,6 +155,13 @@ export function toMarkdown(report: Report): string {
     `${LABELS.seed} : \`${report.seed}\``,
     `${LABELS.days} : ${report.days}`,
   ];
+  if (report.unsimulated.length > 0)
+    lines.push(
+      '',
+      `## ${LABELS.unsimulated}`,
+      '',
+      ...report.unsimulated.map((path) => `- \`${path}\``),
+    );
   for (const group of GROUPS) {
     const names = Object.keys(report.reference).filter((name) => groupOf(name) === group);
     if (names.length === 0) continue;

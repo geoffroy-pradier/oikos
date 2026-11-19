@@ -106,6 +106,8 @@ Déclenchement manuel, création d'événements et propositions du maître du je
    En phase 2, le simulateur est une commande locale (`pnpm --filter @oikos/api simulate`, décision de #284) : le banc d'équilibrage (`apps/api/src/balance/`), rendu réutilisable, joue la configuration de référence et la candidate sur deux mondes neufs de la base locale, avec des agents automates, les vrais ticks, clôtures et commandes.
    La candidate est un fichier JSON ou une version enregistrée ; le schéma la refuse avant toute simulation, en désignant le champ.
    Le rapport, en JSON et en tableaux Markdown, donne pour la référence et pour la candidate, et l'écart de chacun : inflation du panier, masse monétaire, net de chaque robinet et de chaque puits, couverture par classe et par cité, population, marge nette quotidienne par filière.
+   Le scénario du banc remplace l'hébergement du travail, les tailles de biens immobiliers, les salaires du personnel et des intendants et la population des cités par ses constantes.
+   Un de ces champs de la candidate qui diffère de la référence n'est pas simulé : la commande le dit avant de jouer et le rapport le liste dans une section « non simulé », pour qu'un écart nul ne soit pas pris pour une absence d'effet.
    Mêmes graine et configuration, même rapport.
    Une demande de fusion ou une note de version qui change l'équilibrage joint le rapport du simulateur (30 jours, la graine par défaut).
    Le module Simulateur d'Olympe, sur une copie du monde réel, attend le serveur ; le temps de progression n'est pas encore mesuré.
