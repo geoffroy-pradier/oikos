@@ -1,3 +1,4 @@
+import { npcBudgetCarryUnits } from '@oikos/config';
 import { decreeProposalSchema, tradeExecutedSchema } from '@oikos/contracts';
 import { cityRates, lockNpcPurses, type Db } from '@oikos/db';
 import {
@@ -14,6 +15,7 @@ import {
   NEUTRAL_QUALITY,
   nextBudgetCarry,
   npcGoodBudget,
+  offeredNpcBudget,
   purseBudget,
   tickIncome,
   vitalMeasure,
@@ -53,9 +55,10 @@ const CONSUMPTION = 'npc_consumption';
  * budget est réduit dans la même proportion (`purseBudget`) ; et la dépense du tick d'une cité, hausses comprises,
  * ne dépasse jamais ce qui reste dans sa bourse, si bien qu'aucun achat ne la rend débitrice.
  *
- * Ce qu'un tick ne dépense pas de son budget se reporte au suivant (#675), au plus deux unités au prix de réserve
- * du bien (`nextBudgetCarry`) : un budget de 13 oboles paie alors deux sels à 7 un tick sur deux, comme la demande
- * le veut.
+ * Ce qu'un tick ne dépense pas de son budget se reporte au suivant (#675), au plus `market.npcBudgetCarryUnits` unités
+ * au prix de réserve du bien (`nextBudgetCarry`) : un budget de 13 oboles paie alors deux sels à 7 un tick sur deux,
+ * comme la demande le veut. Le report n'use que l'excédent de la bourse sur les budgets du tick des biens qui restent
+ * à servir (`offeredNpcBudget`) : une bourse courte garde à chaque bien sa part proportionnelle.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -174,7 +177,24 @@ export const npcDemand: TickStep = {
       // Revenu du tick des classes, que la bourse couvre ou non ; ce qui reste de la bourse pendant le tick.
       const income = tickIncome(classes);
       let remaining = purse.balance;
+      // Budget du tick de chaque bien, réduit par la bourse et relevé par les fêtes et caravanes. Le report d'un bien
+      // n'use que l'excédent de la bourse sur les budgets des biens qui restent à servir (#675) : une bourse courte
+      // garde à chacun sa part, quel que soit l'ordre de service.
+      const tickBudgets = new Map(
+        basketGoods.map((goodId) => [
+          goodId,
+          purseBudget(
+            boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boosts.get(goodId) ?? 0),
+            purse.balance,
+            income,
+          ),
+        ]),
+      );
+      let reserved = [...tickBudgets.values()].reduce((sum, budget) => sum + budget, 0);
+      const carryUnits = npcBudgetCarryUnits(config.market);
       for (const goodId of basketGoods) {
+        const tickBudget = tickBudgets.get(goodId) ?? 0;
+        reserved -= tickBudget;
         const good = goods.get(goodId);
         if (!good) continue;
         const boostBps = boosts.get(goodId) ?? 0;
@@ -200,16 +220,11 @@ export const npcDemand: TickStep = {
           .where('city_id', '=', city.id)
           .where('good_id', '=', goodId)
           .executeTakeFirst();
-        // Budget du tick, plus ce que les ticks précédents n'ont pas dépensé (#675), à sa borne d'aujourd'hui (un
-        // report écrit sous un prix de réserve plus haut ne le prolonge pas) ; jamais plus que la bourse.
-        const budget = Math.min(
-          purseBudget(
-            boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
-            purse.balance,
-            income,
-          ) + Math.min(Number(carried?.budget_carry ?? 0), budgetCarryCap(reserve)),
-          remaining,
-        );
+        // Report du budget non dépensé (#675), ramené à la borne de la version en vigueur : un report écrit sous un
+        // prix de réserve ou une borne plus hauts ne les prolonge pas.
+        const cap = budgetCarryCap(reserve, carryUnits);
+        const carry = Math.min(Number(carried?.budget_carry ?? 0), cap);
+        const budget = offeredNpcBudget({ tickBudget, carry, remaining, reserved });
         const purchase = matchNpcDemand({
           asks: asks.map((ask) => ({
             orderId: ask.id,
@@ -315,7 +330,8 @@ export const npcDemand: TickStep = {
             })
             .execute();
         }
-        const budgetCarry = nextBudgetCarry(budget, purchase.spent, reserve);
+        // Ce à quoi le tick avait droit et qu'il n'a pas dépensé, y compris ce que la bourse n'a pas laissé offrir.
+        const budgetCarry = nextBudgetCarry(tickBudget + carry, purchase.spent, cap);
         await trx
           .insertInto('game.npc_demand_carry')
           .values({

@@ -683,7 +683,7 @@ export interface GameDatabase {
     city_id: string;
     good_id: string;
     carry: number;
-    /** Oboles non dépensées du budget du tick, au plus deux unités au prix de réserve du bien (#675). */
+    /** Oboles non dépensées du budget des ticks précédents, bornées par la configuration (#675). */
     budget_carry: ColumnType<string, number | undefined, number>;
     updated_at: Generated<Date>;
   };

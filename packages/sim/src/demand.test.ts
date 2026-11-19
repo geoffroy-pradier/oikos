@@ -6,6 +6,7 @@ import {
   matchNpcDemand,
   nextBudgetCarry,
   npcGoodBudget,
+  offeredNpcBudget,
   wholeUnits,
   type Ask,
 } from './demand';
@@ -256,8 +257,8 @@ describe('achats des PNJ dans le carnet', () => {
 describe('report du budget non dépensé (5.2, #675)', () => {
   /**
    * Ticks successifs d'un carnet à un seul prix, d'offre illimitée : chaque tick offre son budget plus le report
-   * du précédent, et reporte ce qu'il n'a pas dépensé. Sans prix de réserve (`null`), rien ne se reporte : c'est
-   * l'ancien comportement.
+   * du précédent, et reporte ce qu'il n'a pas dépensé, au plus `units` unités au prix de réserve (2, la valeur de
+   * la configuration initiale). Sans prix de réserve (`null`), rien ne se reporte : c'est l'ancien comportement.
    */
   function run(
     ticks: number,
@@ -265,10 +266,11 @@ describe('report du budget non dépensé (5.2, #675)', () => {
     perTick: number,
     tickBudget: number,
     reserve: number | null,
+    units = 2,
   ) {
     let [carry, budgetCarry, served, spent, income, maxSpent] = [0, 0, 0, 0, 0, 0];
     let [overspent, overCap] = [false, false];
-    const cap = budgetCarryCap(reserve ?? 0);
+    const cap = reserve === null ? 0 : budgetCarryCap(reserve, units);
     for (let tick = 0; tick < ticks; tick++) {
       const budget = tickBudget + budgetCarry;
       income += tickBudget;
@@ -279,7 +281,7 @@ describe('report du budget non dépensé (5.2, #675)', () => {
         carry,
       });
       carry = purchase.carry;
-      budgetCarry = reserve === null ? 0 : nextBudgetCarry(budget, purchase.spent, reserve);
+      budgetCarry = nextBudgetCarry(budget, purchase.spent, cap);
       served += purchase.fills.reduce((sum, fill) => sum + fill.quantity, 0);
       spent += purchase.spent;
       maxSpent = Math.max(maxSpent, purchase.spent);
@@ -291,18 +293,62 @@ describe('report du budget non dépensé (5.2, #675)', () => {
     return { served, spent, income, maxSpent, budgetCarry };
   }
 
-  it('reporte ce qui reste du budget offert, au plus deux unités au prix de réserve', () => {
-    expect(budgetCarryCap(21)).toBe(42);
-    expect(nextBudgetCarry(13, 7, 21)).toBe(6);
-    expect(nextBudgetCarry(19, 14, 21)).toBe(5);
-    expect(nextBudgetCarry(60, 0, 21)).toBe(42);
-    expect(nextBudgetCarry(42, 0, 21)).toBe(42);
-    expect(nextBudgetCarry(13, 13, 21)).toBe(0);
+  it('reporte ce qui reste du budget offert, au plus la borne', () => {
+    expect(budgetCarryCap(21, 2)).toBe(42);
+    expect(budgetCarryCap(21, 0)).toBe(0);
+    expect(nextBudgetCarry(13, 7, 42)).toBe(6);
+    expect(nextBudgetCarry(19, 14, 42)).toBe(5);
+    expect(nextBudgetCarry(60, 0, 42)).toBe(42);
+    expect(nextBudgetCarry(42, 0, 42)).toBe(42);
+    expect(nextBudgetCarry(13, 13, 42)).toBe(0);
     expect(nextBudgetCarry(0, 0, 0)).toBe(0);
+    // Borne nulle (version sans le paramètre) : rien ne se reporte.
+    expect(nextBudgetCarry(13, 7, 0)).toBe(0);
+  });
+
+  it('bourse courte : le report n’use que l’excédent sur les budgets du tick des biens restant à servir', () => {
+    // 100 oboles en bourse, 30 de budget pour ce bien, 60 pour les suivants : 10 d'excédent pour le report.
+    expect(offeredNpcBudget({ tickBudget: 30, carry: 36, remaining: 100, reserved: 60 })).toBe(40);
+    // Bourse ample : tout le report.
+    expect(offeredNpcBudget({ tickBudget: 30, carry: 36, remaining: 1000, reserved: 60 })).toBe(66);
+    // Aucun excédent (budgets relevés par une fête au-delà de la bourse) : le budget seul, ramené à la bourse.
+    expect(offeredNpcBudget({ tickBudget: 30, carry: 36, remaining: 80, reserved: 60 })).toBe(30);
+    expect(offeredNpcBudget({ tickBudget: 30, carry: 36, remaining: 20, reserved: 0 })).toBe(20);
+    expect(offeredNpcBudget({ tickBudget: 0, carry: 0, remaining: 0, reserved: 0 })).toBe(0);
+    for (const bad of [-1, 1.5, Number.NaN])
+      expect(() =>
+        offeredNpcBudget({ tickBudget: 30, carry: bad, remaining: 100, reserved: 0 }),
+      ).toThrow(RangeError);
+  });
+
+  it('propriété : jamais plus que la bourse, et les biens restant à servir gardent leur budget du tick', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.record({ budget: fc.nat(500), carry: fc.nat(200) }), { maxLength: 8 }),
+        fc.nat(3000),
+        (goods, purse) => {
+          let remaining = purse;
+          goods.forEach(({ budget, carry }, position) => {
+            const reserved = goods.slice(position + 1).reduce((sum, good) => sum + good.budget, 0);
+            const offered = offeredNpcBudget({ tickBudget: budget, carry, remaining, reserved });
+            expect(offered).toBeLessThanOrEqual(remaining);
+            expect(offered).toBeLessThanOrEqual(budget + carry);
+            // Ce que le report prend ne retire rien aux budgets du tick qui suivent.
+            expect(remaining - offered).toBeGreaterThanOrEqual(
+              Math.min(reserved, Math.max(0, remaining - budget)),
+            );
+            remaining -= offered; // pire cas : tout le budget offert est dépensé
+          });
+        },
+      ),
+    );
   });
 
   it('refuse des montants non entiers ou négatifs, et une dépense au-delà du budget', () => {
     expect(() => nextBudgetCarry(13, 14, 21)).toThrow(RangeError);
+    expect(() => budgetCarryCap(21, -1)).toThrow(RangeError);
+    expect(() => budgetCarryCap(21, 1.5)).toThrow(RangeError);
+    expect(() => budgetCarryCap(Number.MAX_SAFE_INTEGER, 2)).toThrow(RangeError);
     expect(() => nextBudgetCarry(-1, 0, 21)).toThrow(RangeError);
     expect(() => nextBudgetCarry(13, -1, 21)).toThrow(RangeError);
     expect(() => nextBudgetCarry(13, 7, -1)).toThrow(RangeError);
@@ -333,6 +379,8 @@ describe('report du budget non dépensé (5.2, #675)', () => {
     const dear = run(1000, 40, 0.18, 6, 40);
     expect(dear.spent + dear.budgetCarry).toBe(6000);
     expect(dear.budgetCarry).toBeLessThan(40);
+    // Une borne d'une seule unité n'y suffit pas : 34 % du budget perdu, d'où le minimum de deux (configuration).
+    expect(run(1000, 40, 0.18, 6, 40, 1).spent).toBe(3960);
   });
 
   it('propriété : à offre suffisante au prix de référence, la quantité servie tend vers le besoin', () => {
@@ -377,7 +425,7 @@ describe('report du budget non dépensé (5.2, #675)', () => {
           );
           // Rien ne se perd : ce qui n'est pas dépensé est dans le dernier report, que la borne ne rogne jamais.
           expect(spent + budgetCarry).toBe(income);
-          expect(maxSpent).toBeLessThanOrEqual(tickBudget + budgetCarryCap(reserve));
+          expect(maxSpent).toBeLessThanOrEqual(tickBudget + budgetCarryCap(reserve, 2));
         },
       ),
     );

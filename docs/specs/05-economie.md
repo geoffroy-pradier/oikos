@@ -49,7 +49,8 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
 
 - **Prix par niveau.** Le carnet présente plusieurs prix à la fois. Les PNJ achètent de l'offre la moins chère à la plus chère, chaque unité au prix demandé par son vendeur ; à chaque niveau de prix P, la quantité cumulée achetée ne dépasse jamais Q(P). « Le meilleur prix offert » est le cas d'un carnet à un seul niveau.
 - **Budget.** La formule seule ne borne pas la dépense : pour un bien vital (ε inférieur à 1), la recette des vendeurs croît sans limite avec le prix.
-  Chaque classe a donc un revenu par tick, paramètre du back-office, et la dépense des PNJ d'une cité pour un bien ne dépasse jamais le budget que ce revenu lui alloue.
+  Chaque classe a donc un revenu par tick, paramètre du back-office, et la dépense des PNJ d'une cité pour un bien ne dépasse jamais, sur la durée, le budget que ce revenu lui alloue ;
+  à un tick donné, elle peut le dépasser du report du budget non dépensé des ticks précédents (voir plus bas).
   Le revenu d'une classe est réparti entre les biens de son panier au prorata de leur dépense de référence (Q0 × prix de référence) ;
   le budget d'un bien est la somme des parts des classes, arrondie à l'obole inférieure.
   C'est le levier « revenu des classes PNJ » de la section 5.5.
@@ -59,9 +60,14 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Ce qu'un tick ne dépense pas du budget d'un bien se reporte au tick suivant (#675), par cité et par bien (table `npc_demand_carry`).
   Sans ce report, l'arrondi aux unités entières perdrait de la demande : à Kallistè, un budget de 13 oboles par tick ne paie qu'un sel à 7 quand la demande (1,52 unité par tick) en veut deux un tick sur deux, et au plus 66 % du besoin vital en sel serait servi, quelle que soit l'offre.
   Avec le report, 13 oboles en paient un, les 6 restantes et 13 de plus en paient deux au tick suivant, et tout le besoin est servi.
-  Le budget offert à un tick est donc son budget, réduit par la bourse comme ci-dessus, plus le report, le tout ramené à ce qui reste dans la bourse ; le report suivant est ce qui n'en a pas été dépensé.
-  Il est borné à deux unités au prix de réserve du bien (`nextBudgetCarry`, `budgetCarryCap`) : le report ne devient pas une épargne qui grossit pendant une pénurie, et la dépense d'un tick ne dépasse jamais son budget de plus de deux unités.
-  Une seule unité ne suffirait pas : quand le budget d'un tick ne paie pas une unité, la demande d'une unité arrivée avant que le report puisse la payer est perdue (voir « Unités entières »), et un report déjà plafonné attendrait la suivante sans plus rien accumuler.
+  Le report est borné à un nombre d'unités du bien au prix de réserve, paramètre du back-office (`market.npcBudgetCarryUnits`, 2 au départ ; `budgetCarryCap`) : il ne devient pas une épargne qui grossit pendant une pénurie, et la dépense d'un tick ne dépasse jamais son budget de plus de ce nombre d'unités.
+  Le paramètre vaut au moins 2.
+  Une seule unité ne suffirait pas : quand le budget d'un tick ne paie pas une unité, la demande d'une unité arrivée avant que le report puisse la payer est perdue (voir « Unités entières »), et un report déjà plafonné attendrait la suivante sans plus rien accumuler ; avec un bien vendu au prix de réserve, jusqu'à un tiers du budget se perd.
+  Une version de configuration publiée sans ce paramètre ne reporte rien : elle garde son comportement.
+  Le report lu à un tick est ramené à la borne de la version en vigueur : un report écrit sous un prix de réserve ou une borne plus hauts ne les prolonge pas.
+  Le budget offert à un tick pour un bien est son budget du tick, réduit par la bourse et relevé par les fêtes et caravanes comme ci-dessus, plus le report, dans la seule limite de l'excédent de ce qui reste dans la bourse sur les budgets du tick de ce bien et des biens de la cité qui restent à servir (`offeredNpcBudget`) ; le tout ne dépasse jamais ce qui reste dans la bourse.
+  Les biens sont servis dans un ordre fixe : sans cette limite, les reports des premiers prendraient sur une bourse courte la part proportionnelle des suivants, que la règle de la bourse leur garantit.
+  Le report suivant est ce à quoi le tick avait droit, son budget du tick et le report lu, moins ce qu'il a dépensé, borné : ce que la bourse n'a pas laissé offrir reste dû, pour une bourse regarnie.
   Le report ne vient que du revenu des ticks déjà joués : sur la durée, les PNJ ne dépensent jamais plus que leur revenu cumulé, et un budget qui ne couvre pas la demande est dépensé en entier.
 - **Unités entières.** La demande est un nombre réel et les biens se comptent en unités : la fraction non servie d'un tick est reportée au tick suivant.
   La demande non servie faute d'offre, elle, n'est pas reportée.
@@ -128,7 +134,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
 - **Caravanes étrangères** (#267, 7.4). Pendant les jours de jeu d'une caravane de sa cité, la demande des PNJ du bien de la caravane est relevée de son ampleur, comme pour une fête, budget du tick compris.
   Plusieurs caravanes du même bien ne s'ajoutent pas : seule la plus forte compte.
   Décision : la hausse d'une caravane s'ajoute à celle des fêtes du même bien (fêtes bornées ensemble par `demandBoostBps`, lui-même au plus 10 000, caravane par son ampleur, au plus 10 000).
-  Quand les deux se cumulent au plus fort, la demande au prix de référence va donc jusqu'au triple du besoin (+200 %), et le budget du tick de ce bien jusqu'au triple du sien (#446).
+  Quand les deux se cumulent au plus fort, la demande au prix de référence va donc jusqu'au triple du besoin (+200 %), et le budget du tick de ce bien jusqu'au triple du sien (#446), plus le report du budget non dépensé (« Budget »).
   Comme pour une fête, le besoin mesuré ne change pas, et le jour est celui du tick ; une caravane est une demande de plus, que la bourse des PNJ paie si l'offre suit et si elle le peut.
 - **Événements.** Chaque achat des PNJ émet un événement de domaine `TradeExecuted`, le même qu'un échange entre joueurs, sans ordre d'achat (`buyOrderId` nul) et sans commande : il est écrit dans la transaction du tick, donc jamais pour un tick annulé ou simulé à blanc.
 
