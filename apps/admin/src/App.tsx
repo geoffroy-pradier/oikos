@@ -31,6 +31,7 @@ import { Moderation } from './screens/Moderation';
 import { SecondFactor } from './screens/SecondFactor';
 import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
+import { refusedToken, renewOrEnd, SESSION_ENDED_EVENT } from './session';
 import { supabase } from './supabase';
 
 /** Icône au trait de chaque module : décorative, le libellé porte l'information. */
@@ -54,6 +55,8 @@ export function App() {
     failed: boolean;
   } | null>(null);
   const [module, setModule] = useState<AdminModule>('vigie');
+  /** Session fermée sur un refus de l'API (#565) : la connexion dit pourquoi, jusqu'à la suivante. */
+  const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -61,13 +64,26 @@ export function App() {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
       if (!next) {
         setAccess(null);
       }
+      if (event === 'SIGNED_IN') setSessionEnded(false);
     });
     return () => data.subscription.unsubscribe();
+  }, []);
+
+  // L'API refuse le jeton : la session est d'abord renouvelée (jeton expiré au réveil de l'appareil) ; refusée
+  // par Supabase Auth (compte effacé), elle est fermée sur cet appareil et Olympe revient à la connexion. Un jeton
+  // renouvelé que l'API refuse avant son expiration ferme la session : pas de boucle entre `me` et le renouvellement.
+  useEffect(() => {
+    const end = (event: Event) =>
+      void renewOrEnd(supabase.auth, refusedToken(event)).then((outcome) => {
+        if (outcome === 'ended') setSessionEnded(true);
+      });
+    window.addEventListener(SESSION_ENDED_EVENT, end);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, end);
   }, []);
 
   // Relit la session enregistrée (après le second facteur, Supabase Auth en a émis une nouvelle).
@@ -111,7 +127,7 @@ export function App() {
   const current = modules.includes(module) ? module : modules[0];
 
   let screen = <p>{t('app.loading')}</p>;
-  if (session === null) screen = <SignIn />;
+  if (session === null) screen = <SignIn sessionEnded={sessionEnded} />;
   else if (session && level && level !== 'aal2') screen = <SecondFactor onVerified={refresh} />;
   else if (answered?.failed) screen = <p role="alert">{t('app.loadFailed')}</p>;
   else if (granted === null) {

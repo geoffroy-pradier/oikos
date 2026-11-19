@@ -1,4 +1,11 @@
 import { commandErrorSchema, IDEMPOTENCY_HEADER } from '@oikos/contracts';
+import { announceSessionEnded } from './session';
+
+/** Code d'un refus de l'API ; un jeton refusé, ou un compte effacé (#565), ferme la session d'Olympe. */
+function refused(code: string, accessToken: string) {
+  if (code === 'UNAUTHENTICATED') announceSessionEnded(accessToken);
+  return code;
+}
 
 export type AdminReply<T> = { ok: true; data: T } | { ok: false; code: string };
 
@@ -29,7 +36,7 @@ export async function adminGet<T>(
     } | null;
     if (body?.ok === true && body.data !== undefined) return { ok: true, data: body.data as T };
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
-    if (error?.success) return { ok: false, code: error.data.code };
+    if (error?.success) return { ok: false, code: refused(error.data.code, accessToken) };
   } catch {
     // Réponse illisible (page d'erreur d'un relais, par exemple).
   }
@@ -67,7 +74,8 @@ export async function adminCommand<T>(
     } | null;
     if (body?.ok === true && body.data !== undefined) return { ok: true, data: body.data as T };
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
-    if (error?.success) return { ok: false, code: error.data.code, fields: error.data.fields };
+    if (error?.success)
+      return { ok: false, code: refused(error.data.code, accessToken), fields: error.data.fields };
   } catch {
     // Réseau coupé ou réponse illisible : même traitement.
   }

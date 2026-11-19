@@ -4,7 +4,18 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { AdminReply } from './api';
 import { App } from './App';
 import { initI18n } from './i18n';
-import { auth, ECONOMY, held, jwt, resetAuth, sessionOf, setSession, VIGIE } from './test/fakes';
+import { announceSessionEnded, forgetRenewals } from './session';
+import {
+  auth,
+  ECONOMY,
+  held,
+  jwt,
+  resetAuth,
+  sessionOf,
+  setSession,
+  supabase,
+  VIGIE,
+} from './test/fakes';
 
 const adminGet = vi.hoisted(() => vi.fn());
 vi.mock('./api', () => ({ adminGet }));
@@ -53,6 +64,7 @@ beforeAll(async () => {
   await initI18n('fr');
 });
 beforeEach(() => {
+  forgetRenewals();
   resetAuth();
   adminGet.mockReset();
 });
@@ -286,6 +298,135 @@ describe('changement de session', () => {
     expect(nav()).toBeNull();
     expect(screen.queryByText('Maisons fondées')).toBeNull();
     expect(adminGet).not.toHaveBeenCalled();
+  });
+});
+
+describe('session refusée par l’API (#565)', () => {
+  const ENDED =
+    "Votre session a pris fin : ce compte n'est plus reconnu, ou sa connexion a expiré. " +
+    'Reconnectez-vous pour continuer.';
+  /** Comme le vrai client : un refus `UNAUTHENTICATED` annonce la fin de la session, puis rend son code. */
+  /** Lectures faites, avec le nom du jeton qui les porte. */
+  const names = () =>
+    (adminGet.mock.calls as [string, string][]).map(([path, token]) => [path, token.split('.')[0]]);
+  const unauthenticated = (_path: string, token: string): Promise<AdminReply<never>> => {
+    announceSessionEnded(token);
+    return Promise.resolve({ ok: false, code: 'UNAUTHENTICATED' });
+  };
+
+  it('compte effacé : renouvellement refusé, Olympe ferme la session dès la lecture du rôle', async () => {
+    const signOut = vi.spyOn(supabase.auth, 'signOut');
+    adminGet.mockImplementation(unauthenticated);
+    signedIn();
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Connexion à Olympe' })).toBeTruthy();
+    expect(auth.refreshes).toBe(1);
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+    const notice = await screen.findByRole('status');
+    expect(notice.textContent).toBe(ENDED);
+    const email = screen.getByLabelText('Adresse e-mail');
+    expect(document.activeElement).toBe(email);
+    expect(email.getAttribute('aria-describedby')).toBe(notice.id);
+    // Rien de l'ancien accès : ni alerte d'accès refusé, ni identifiant, ni navigation.
+    expect(screen.queryByText('alice')).toBeNull();
+    expect(nav()).toBeNull();
+    signOut.mockRestore();
+  });
+
+  it('jeton expiré mais renouvelable : Olympe reste ouvert et relit le rôle avec le jeton neuf', async () => {
+    const signOut = vi.spyOn(supabase.auth, 'signOut');
+    auth.refresh = 'renewed';
+    adminGet.mockImplementationOnce(unauthenticated);
+    api({ ok: true, data: { role: 'super_admin' } });
+    signedIn();
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Vigie', level: 1 })).toBeTruthy();
+    expect(auth.refreshes).toBe(1);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(names().filter(([path]) => path === 'me')).toEqual([
+      ['me', 'a'],
+      ['me', 'alice-renewed-1'],
+    ]);
+    expect(screen.queryByText(ENDED)).toBeNull();
+    signOut.mockRestore();
+  });
+
+  it('l’API refuse aussi le jeton neuf : un seul renouvellement, puis déconnexion avec l’avis', async () => {
+    const signOut = vi.spyOn(supabase.auth, 'signOut');
+    auth.refresh = 'renewed';
+    adminGet.mockImplementation(unauthenticated);
+    signedIn();
+    render(<App />);
+    expect(await screen.findByText(ENDED)).toBeTruthy();
+    expect(names()).toEqual([
+      ['me', 'a'],
+      ['me', 'alice-renewed-1'],
+    ]);
+    expect(auth.refreshes).toBe(1);
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(auth.refreshes).toBe(1);
+    signOut.mockRestore();
+  });
+
+  it('jeton renouvelé refusé après son expiration : nouveau renouvellement, sans déconnexion', async () => {
+    const signOut = vi.spyOn(supabase.auth, 'signOut');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-19T08:00:00Z'));
+      auth.refresh = 'renewed';
+      adminGet.mockImplementationOnce(unauthenticated);
+      api({ ok: true, data: { role: 'super_admin' } });
+      signedIn();
+      render(<App />);
+      await screen.findByRole('heading', { name: 'Vigie', level: 1 });
+      expect(auth.refreshes).toBe(1);
+
+      // Onglet laissé ouvert deux heures, appareil endormi : le jeton renouvelé a expiré.
+      vi.setSystemTime(new Date('2026-11-19T10:00:00Z'));
+      adminGet.mockImplementationOnce(unauthenticated);
+      fireEvent.click(screen.getByRole('button', { name: 'Économie' }));
+      await waitFor(() => expect(names().at(-1)).toEqual(['me', 'alice-renewed-2']));
+      expect(auth.refreshes).toBe(2);
+      expect(signOut).not.toHaveBeenCalled();
+      expect(nav()).not.toBeNull();
+      expect(screen.queryByText(ENDED)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      signOut.mockRestore();
+    }
+  });
+
+  it('Supabase Auth injoignable : la session reste ouverte, sans avis', async () => {
+    const signOut = vi.spyOn(supabase.auth, 'signOut');
+    auth.refresh = 'unreachable';
+    adminGet.mockImplementation(unauthenticated);
+    signedIn();
+    render(<App />);
+    await waitFor(() => expect(auth.refreshes).toBe(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(signOut).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeTruthy();
+    expect(screen.queryByText(ENDED)).toBeNull();
+    signOut.mockRestore();
+  });
+
+  it('refus pendant l’usage d’un module : retour à la connexion ; la suivante efface l’avis', async () => {
+    api({ ok: true, data: { role: 'super_admin' } });
+    signedIn();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Vigie', level: 1 });
+    adminGet.mockImplementation(unauthenticated);
+    fireEvent.click(screen.getByRole('button', { name: 'Économie' }));
+    expect(await screen.findByText(ENDED)).toBeTruthy();
+    expect(nav()).toBeNull();
+
+    api({ ok: true, data: { role: 'super_admin' } });
+    auth.listener?.('SIGNED_IN', sessionOf('alice', A2));
+    await waitFor(() => expect(nav()).not.toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }));
+    await screen.findByRole('heading', { name: 'Connexion à Olympe' });
+    expect(screen.queryByText(ENDED)).toBeNull();
   });
 });
 

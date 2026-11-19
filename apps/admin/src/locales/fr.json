@@ -36,7 +36,8 @@
     "email": "Adresse e-mail",
     "submit": "Recevoir le lien",
     "sent": "Lien envoyé à {{email}}.",
-    "failed": "L'envoi a échoué. Réessayez dans un instant."
+    "failed": "L'envoi a échoué. Réessayez dans un instant.",
+    "sessionEnded": "Votre session a pris fin : ce compte n'est plus reconnu, ou sa connexion a expiré. Reconnectez-vous pour continuer."
   },
   "mfa": {
     "title": "Double authentification",
