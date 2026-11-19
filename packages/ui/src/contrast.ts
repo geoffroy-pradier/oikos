@@ -68,6 +68,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Pastilles et indicateurs : texte de la teinte sur son fond atténué.
   ['primary', 'primary-subtle', AA_TEXT],
   ['accent', 'accent-subtle', AA_TEXT],
+  // Survol d'un onglet de la barre latérale (`Shell`) : texte accentué sur `muted`.
+  ['primary', 'muted', AA_TEXT],
+  ['accent', 'muted', AA_TEXT],
   ['aegean', 'aegean-subtle', AA_TEXT],
   ['success', 'success-subtle', AA_TEXT],
   ['danger', 'danger-subtle', AA_TEXT],

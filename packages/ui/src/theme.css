@@ -27,11 +27,11 @@
   /* Filet décoratif des surfaces : jamais seul à délimiter une commande. */
   --border-subtle: #e4e6ea;
   /* Accent orange : fond du bouton principal (`primary`), texte et icônes (`accent`). */
-  --primary: #c2410c;
+  --primary: #b93d0b;
   --primary-hover: #9a3412;
   --primary-foreground: #ffffff;
   --primary-subtle: #ffedd5;
-  --accent: #c2410c;
+  --accent: #b93d0b;
   --accent-subtle: #ffedd5;
   /* Accent décoratif (graphiques, repères) : jamais seul à porter un texte ou une commande. */
   --accent-decorative: #f97316;
