@@ -295,7 +295,7 @@
     { "id": "cloth", "tier": "intermediate", "referencePriceOboles": 42, "elasticity": 0.9 },
     { "id": "bread", "tier": "finished", "referencePriceOboles": 15, "elasticity": 0.3 },
     { "id": "wine", "tier": "finished", "referencePriceOboles": 36, "elasticity": 1.1 },
-    { "id": "amphorae", "tier": "finished", "referencePriceOboles": 24, "elasticity": 0.9 }
+    { "id": "amphorae", "tier": "finished", "referencePriceOboles": 36, "elasticity": 0.9 }
   ],
   "recipes": [
     {
@@ -385,7 +385,7 @@
       "durationMinutes": 120,
       "workers": 2,
       "maxAccruedCycles": 36,
-      "inputs": [{ "goodId": "olives", "quantity": 12 }],
+      "inputs": [{ "goodId": "olives", "quantity": 8 }],
       "outputs": [{ "goodId": "olive_oil", "quantity": 4 }]
     },
     {
@@ -403,7 +403,7 @@
       "durationMinutes": 180,
       "workers": 3,
       "maxAccruedCycles": 24,
-      "inputs": [{ "goodId": "wool", "quantity": 6 }],
+      "inputs": [{ "goodId": "wool", "quantity": 3 }],
       "outputs": [{ "goodId": "cloth", "quantity": 3 }]
     },
     {
@@ -425,8 +425,8 @@
       "workers": 2,
       "maxAccruedCycles": 36,
       "inputs": [
-        { "goodId": "clay", "quantity": 8 },
-        { "goodId": "charcoal", "quantity": 2 }
+        { "goodId": "clay", "quantity": 4 },
+        { "goodId": "charcoal", "quantity": 1 }
       ],
       "outputs": [{ "goodId": "amphorae", "quantity": 4 }]
     },
@@ -437,7 +437,7 @@
       "workers": 2,
       "maxAccruedCycles": 9,
       "inputs": [
-        { "goodId": "grapes", "quantity": 12 },
+        { "goodId": "grapes", "quantity": 2 },
         { "goodId": "amphorae", "quantity": 1 }
       ],
       "outputs": [{ "goodId": "wine", "quantity": 5 }]

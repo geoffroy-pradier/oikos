@@ -384,6 +384,12 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
   Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, versé en entier chaque jour, dépensé ou non ; ce chiffre ne vaut plus et est à recalculer dans #283, avec le calibrage de ce revenu.
   Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
 
+Marges des ateliers (#285, 4.3) : la configuration initiale règle les intrants de quatre recettes d'atelier (pressoir, tissage, poterie, chai) et le prix de référence de l'amphore, pour que chaque atelier rapporte, dans le banc à quatre cités, de la moitié au double de la médiane des sites de matières premières.
+Aucun robinet ni puits n'est réglé : l'entretien des sites, la taxe et le revenu public restent ceux d'avant, et le rapport du simulateur ne voit bouger la masse du monde que de 0,2 % sur 30 jours.
+Le banc à une cité garde ses bornes : hausse du coût du panier de 0,87 % (0,55 % avant), besoins vitaux couverts à 98 % au moins, population qui ne baisse pas.
+Des ateliers moins gourmands laissent des olives, du raisin, de l'argile et de la laine sans preneur : ces matières premières s'y vendent un peu moins cher, sans toucher au panier.
+Pour #283 : ces marges portent des salaires plus hauts que ceux du banc (4 oboles) ; à 60 oboles, un atelier de deux travailleurs paierait 112 oboles de plus par jour, et le chai, le plus juste, garderait environ 420 oboles de marge.
+
 ## 5.6 Fiscalité
 
 Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port, taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques.
