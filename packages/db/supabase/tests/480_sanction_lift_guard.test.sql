@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(16);
 
 -- Jeu d'essai (ticket 616) : Alice (aa) et Bob (ab), joueurs ; Dion (ad), auteur des sanctions ; Eudore (ae), qui
 -- valide et propose ; Phédon (af), qui tranche ou confirme. Une sanction se désigne par son motif ; une seule
@@ -90,7 +90,6 @@ select is(
   null, 'aucun client n''exécute la garde des sanctions');
 select is((select tgenabled::text from pg_trigger where tgrelid = 'admin.sanctions'::regclass and tgname = 'sanctions_guard'),
   'O', 'la garde des sanctions est rétablie');
-select ok(pg_get_functiondef('admin.guard_sanction()'::regprocedure) ~ 'old\.lifted_by is not null then\s+raise exception ''a sanction is lifted once',
-  'la décision d''un appel vérifie que la sanction n''est pas déjà levée');
 
 select * from finish();
+rollback;

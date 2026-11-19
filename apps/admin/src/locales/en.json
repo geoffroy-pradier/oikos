@@ -299,6 +299,7 @@
       "upheld": "Uphold the report",
       "dismissed": "Dismiss",
       "confirmExclusion": "Confirm the exclusion of account {{account}}",
+      "liftSanction": "Confirm lifting the exclusion of account {{account}}",
       "granted": "Grant the appeal of account {{account}}",
       "rejected": "Reject the appeal of account {{account}}"
     },
@@ -311,6 +312,7 @@
       "upheld": "The reports on this message will be upheld, with no sanction: pronounce one first if it is due.",
       "dismissed": "The reports on this message will be dismissed.",
       "confirmExclusion": "The exclusion of account {{userId}} will be confirmed: it starts at once. An account other than its author and the excluded account must confirm it.",
+      "liftSanction": "The exclusion of account {{userId}} will be lifted now: it plays again at once, without getting back its cancelled orders. An account other than the one that proposed the lift must confirm it.",
       "granted": "The appeal will be granted: the sanction of account {{userId}} will be lifted now if it is not over.",
       "rejected": "The appeal will be rejected: the sanction of account {{userId}} runs until its end."
     },
@@ -323,6 +325,7 @@
       "upheld": "Confirm: uphold",
       "dismissed": "Confirm: dismiss",
       "confirmExclusion": "Confirm the exclusion",
+      "liftSanction": "Confirm the lift",
       "granted": "Confirm: grant",
       "rejected": "Confirm: reject"
     },
@@ -347,6 +350,7 @@
       "upheld": "Reports upheld.",
       "dismissed": "Reports dismissed.",
       "confirmExclusion": "Exclusion confirmed: it starts.",
+      "liftSanction": "Lift confirmed: the exclusion ends.",
       "granted": "Appeal granted.",
       "rejected": "Appeal rejected."
     },
@@ -373,11 +377,19 @@
       "INTERNAL": "The action did not go through. Try again: it will not run twice.",
       "REFUSED": "The API refused this action (code {{code}})."
     },
+    "liftErrors": {
+      "SECOND_PERSON_REQUIRED": "Neither whoever proposed this lift nor the excluded account confirms it: another moderation account must do so."
+    },
     "exclusions": "Exclusions to confirm",
     "exclusionsEmpty": "No exclusion to confirm.",
     "exclusionOf": "Exclusion proposed for account",
     "proposed": "Proposed on {{date}} by account {{author}}.",
     "sanctionReason": "Reason: {{reason}}",
+    "lifts": "Exclusion lifts to confirm",
+    "liftsEmpty": "No exclusion lift to confirm.",
+    "liftOf": "Lift proposed for the exclusion of account",
+    "liftProposed": "Proposed on {{date}} by account {{proposer}}.",
+    "liftExclusion": "Exclusion in force since {{date}}, pronounced by account {{author}} and confirmed by account {{confirmedBy}}.",
     "appeals": "Appeals to decide",
     "appealsEmpty": "No appeal to decide.",
     "appealOf": "Appeal of a sanction ({{kind}}) of account",

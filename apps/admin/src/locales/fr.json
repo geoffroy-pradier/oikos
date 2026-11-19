@@ -299,6 +299,7 @@
       "upheld": "Retenir le signalement",
       "dismissed": "Classer sans suite",
       "confirmExclusion": "Valider l'exclusion du compte {{account}}",
+      "liftSanction": "Confirmer la levée de l'exclusion du compte {{account}}",
       "granted": "Accueillir l'appel du compte {{account}}",
       "rejected": "Rejeter l'appel du compte {{account}}"
     },
@@ -311,6 +312,7 @@
       "upheld": "Les signalements de ce message seront retenus, sans sanction : prononcez-la avant si elle est due.",
       "dismissed": "Les signalements de ce message seront classés sans suite.",
       "confirmExclusion": "L'exclusion du compte {{userId}} sera validée : elle commence aussitôt. Un autre compte que son auteur et que le compte exclu doit la valider.",
+      "liftSanction": "L'exclusion du compte {{userId}} sera levée à cet instant : il rejouera aussitôt, sans retrouver ses ordres annulés. Un autre compte que celui qui a proposé la levée doit la confirmer.",
       "granted": "L'appel sera accueilli : la sanction du compte {{userId}} sera levée à cet instant si elle n'est pas finie.",
       "rejected": "L'appel sera rejeté : la sanction du compte {{userId}} court jusqu'à sa fin."
     },
@@ -323,6 +325,7 @@
       "upheld": "Confirmer : retenir",
       "dismissed": "Confirmer : classer sans suite",
       "confirmExclusion": "Confirmer l'exclusion",
+      "liftSanction": "Confirmer la levée",
       "granted": "Confirmer : accueillir",
       "rejected": "Confirmer : rejeter"
     },
@@ -347,6 +350,7 @@
       "upheld": "Signalements retenus.",
       "dismissed": "Signalements classés sans suite.",
       "confirmExclusion": "Exclusion validée : elle commence.",
+      "liftSanction": "Levée confirmée : l'exclusion prend fin.",
       "granted": "Appel accueilli.",
       "rejected": "Appel rejeté."
     },
@@ -373,11 +377,19 @@
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.",
       "REFUSED": "L'API a refusé cette action (code {{code}})."
     },
+    "liftErrors": {
+      "SECOND_PERSON_REQUIRED": "Ni qui a proposé cette levée ni le compte exclu ne la confirment : un autre compte de la modération doit le faire."
+    },
     "exclusions": "Exclusions à valider",
     "exclusionsEmpty": "Aucune exclusion à valider.",
     "exclusionOf": "Exclusion proposée du compte",
     "proposed": "Proposée le {{date}} par le compte {{author}}.",
     "sanctionReason": "Motif : {{reason}}",
+    "lifts": "Levées d'exclusion à confirmer",
+    "liftsEmpty": "Aucune levée d'exclusion à confirmer.",
+    "liftOf": "Levée proposée de l'exclusion du compte",
+    "liftProposed": "Proposée le {{date}} par le compte {{proposer}}.",
+    "liftExclusion": "Exclusion en vigueur depuis le {{date}}, prononcée par le compte {{author}} et validée par le compte {{confirmedBy}}.",
     "appeals": "Appels à trancher",
     "appealsEmpty": "Aucun appel à trancher.",
     "appealOf": "Appel d'une sanction ({{kind}}) du compte",

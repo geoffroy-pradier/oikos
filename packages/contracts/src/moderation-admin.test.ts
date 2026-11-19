@@ -82,6 +82,18 @@ describe('GET /api/admin/reports', () => {
     queue: [entry],
     appeals: [],
     pendingExclusions: [],
+    pendingLifts: [
+      {
+        sanctionId: ID,
+        userId: ID,
+        reason: 'Triche',
+        authorId: ID,
+        confirmedBy: ID,
+        startsAt: at,
+        proposedBy: ID,
+        proposedAt: at,
+      },
+    ],
   };
 
   it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
@@ -101,6 +113,9 @@ describe('GET /api/admin/reports', () => {
       { ...reports, queue: [{ ...entry, reports: [{ ...entry.reports[0], houseId: ID }] }] },
       { ...reports, queue: [{ ...entry, reports: [] }] },
       { ...reports, economy: {} },
+      // Une levée proposée ne dit rien de plus que les comptes, le motif et les instants (#616).
+      { ...reports, pendingLifts: [{ ...reports.pendingLifts[0], balance: 10 }] },
+      { ...reports, pendingLifts: [{ ...reports.pendingLifts[0], proposedBy: null }] },
     ])
       expect(adminReportsSchema.safeParse(wrong).success).toBe(false);
   });

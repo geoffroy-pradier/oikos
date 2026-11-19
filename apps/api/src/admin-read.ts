@@ -477,7 +477,8 @@ export function registerAdminReads(
     return c.json({ ok: true, data: adminEventsData(now, events, maxEvents) });
   });
 
-  // File de la modération (#276) : signalements ouverts et leur contexte, appels à trancher, exclusions à valider.
+  // File de la modération (#276) : signalements ouverts et leur contexte, appels à trancher, exclusions à valider,
+  // levées à confirmer (#616).
   // La base la compose (`admin.moderation_queue`, migration 261) et n'y met aucune donnée économique.
   app.get('/api/admin/reports', async (c) => {
     const { rows } = await sql<{ now: Date; queue: Record<string, unknown> }>`
@@ -487,6 +488,29 @@ export function registerAdminReads(
     );
     const [row] = rows;
     if (!row) throw new Error('The database returned no moderation queue');
+    // Levées proposées d'exclusions validées, à confirmer par une seconde personne (#616) : pas celles dont l'appel
+    // attend, qui se lèvent en l'accueillant.
+    const lifts = await db
+      .selectFrom('admin.sanctions')
+      .select([
+        'id',
+        'user_id',
+        'reason',
+        'author_id',
+        'validated_by',
+        'starts_at',
+        'lift_proposed_by',
+        'lift_proposed_at',
+      ])
+      .where('kind', '=', 'ban')
+      .where('validated_by', 'is not', null)
+      .where('lift_proposed_by', 'is not', null)
+      .where('lifted_at', 'is', null)
+      .where((eb) => eb.or([eb('appeal_body', 'is', null), eb('appeal_decision', 'is not', null)]))
+      .orderBy('lift_proposed_at')
+      .orderBy('id')
+      .limit(MAX_REPORT_ENTRIES)
+      .execute();
     // Sans configuration en vigueur lisible, la file reste lisible avec le seuil par défaut de la configuration.
     const moderation = await loadConfig(row.now).then(
       ({ config }) => config.moderation,
@@ -508,6 +532,17 @@ export function registerAdminReads(
         suspension: moderation.sanctionHours.suspension,
       },
       ...row.queue,
+      // Champ ajouté (#616) : l'Olympe précédent ne valide pas la réponse et l'ignore.
+      pendingLifts: lifts.map((lift) => ({
+        sanctionId: lift.id,
+        userId: lift.user_id,
+        reason: lift.reason,
+        authorId: lift.author_id,
+        confirmedBy: lift.validated_by,
+        startsAt: lift.starts_at.toISOString(),
+        proposedBy: lift.lift_proposed_by,
+        proposedAt: lift.lift_proposed_at?.toISOString(),
+      })),
     };
     return c.json({ ok: true, data });
   });

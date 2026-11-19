@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { adminReportsSchema } from '@oikos/contracts';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
-import { codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
+import { appWith, codeOf, db, newWorld, owner, rows, send } from './chat-test-world';
+import { testConfig } from './test-config';
 
 // Retrait d'une exclusion proposée et levée d'une sanction sans appel (#531), contre Supabase local. Les comptes de
 // l'équipe sont inscrits par le test ; leurs rôles sont retirés à la fin.
@@ -361,5 +363,81 @@ describe('admin.liftSanction', () => {
       409,
       'SANCTION_ENDED',
     ]);
+  });
+});
+
+describe('GET /api/admin/reports : levées proposées (#616)', () => {
+  const app = appWith(testConfig);
+  const lifts = async (token: string) => {
+    const res = await app.request('/api/admin/reports', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    return adminReportsSchema.parse(((await res.json()) as { data: unknown }).data).pendingLifts;
+  };
+
+  it('liste les levées à confirmer, sans appel qui attend, et une seconde personne les confirme de là', async () => {
+    const world = await newWorld();
+    const [alice, bob, chloe, dora] = [
+      await world.player(),
+      await world.player(),
+      await world.player(),
+      await world.player(),
+    ];
+    const validator = await moderator();
+    const confirmed = async (user: string) => {
+      const sanctionId = await propose(user);
+      expect((await send(validator, 'admin.confirmExclusion', { sanctionId })).status).toBe(200);
+      return sanctionId;
+    };
+    const [forAlice, forBob, forChloe, forDora] = [
+      await confirmed(alice.user),
+      await confirmed(bob.user),
+      await confirmed(chloe.user),
+      await confirmed(dora.user),
+    ];
+    const [proposer, other] = [await moderator(), await moderator()];
+    // Dora : exclusion validée sans proposition, jamais listée.
+    for (const sanctionId of [forAlice, forBob, forChloe])
+      expect((await send(proposer, 'admin.liftSanction', { sanctionId })).body.data.pending).toBe(
+        true,
+      );
+    expect(
+      (await send(bob.user, 'moderation.appeal', { sanctionId: forBob, body: 'Je conteste.' }))
+        .status,
+    ).toBe(200);
+    // Chloé : son appel, fait après la proposition, est rejeté ; la levée proposée revient dans la file.
+    expect(
+      (await send(chloe.user, 'moderation.appeal', { sanctionId: forChloe, body: 'Je conteste.' }))
+        .status,
+    ).toBe(200);
+    const rejected = await send(other, 'admin.decideAppeal', {
+      sanctionId: forChloe,
+      decision: 'rejected',
+    });
+    expect(rejected.body.data).toMatchObject({ decision: 'rejected', liftedAt: null });
+
+    const listed = (await lifts(other)).filter((lift) =>
+      [forAlice, forBob, forChloe, forDora].includes(lift.sanctionId),
+    );
+    const lift = (sanctionId: string, userId: string) => ({
+      sanctionId,
+      userId,
+      reason: 'Triche avérée',
+      authorId: expect.any(String),
+      confirmedBy: idOf(validator),
+      startsAt: expect.any(String),
+      proposedBy: idOf(proposer),
+      proposedAt: expect.any(String),
+    });
+    expect(listed).toEqual([lift(forAlice, alice.user), lift(forChloe, chloe.user)]);
+    // Sans connaître l'identifiant : la seconde personne le lit dans la file.
+    const [entry] = listed;
+    expect(
+      codeOf(await send(proposer, 'admin.liftSanction', { sanctionId: entry?.sanctionId })),
+    ).toEqual([409, 'SECOND_PERSON_REQUIRED']);
+    const lifted = await send(other, 'admin.liftSanction', { sanctionId: entry?.sanctionId });
+    expect(lifted.body.data).toMatchObject({ sanctionId: forAlice, pending: false });
+    expect((await lifts(other)).some((lift) => lift.sanctionId === forAlice)).toBe(false);
   });
 });

@@ -56,7 +56,9 @@ Une proposition de levée ne se retire ni n'expire : elle reste sans effet jusqu
 Décision (#616) : elle n'expire pas, car une exclusion validée est définitive et sa levée n'a pas d'échéance naturelle ; elle ne se retire pas, car la seconde personne reste libre de ne pas la confirmer, et un retrait serait une commande de plus sans effet sur le compte exclu.
 Décision (#616) : elle compte encore quand son auteur perd son rôle, comme une validation ou une revue de configuration déjà faite ; le rôle est relu à l'instant de chaque geste, et la levée demande toujours le geste d'une seconde personne qui a, elle, un rôle de la modération.
 Un appel fait après la proposition se tranche comme les autres : accueilli, il lève l'exclusion, même par qui en a proposé la levée, et la proposition reste inscrite sans plus rien attendre ; rejeté, il laisse la proposition, qu'une autre personne confirme ensuite.
-La file de la modération ne liste pas encore les levées proposées : sa lecture a des objets stricts, qu'un champ de plus casserait pour la version précédente d'Olympe ; un ticket de suite l'ajoutera avec l'écran.
+La file de la modération liste les levées proposées (#616) : `GET /api/admin/reports` rend `pendingLifts`, les levées proposées d'exclusions validées et pas encore levées, les plus anciennes d'abord (au plus 200), sauf celles dont l'appel attend, qui se lèvent en l'accueillant.
+Chacune dit l'exclusion (compte exclu, motif, auteur, validateur, début) et la proposition (son auteur, son instant), pour qu'une seconde personne la confirme sans connaître l'identifiant.
+Décision (#616) : un champ ajouté à la réponse existante, comme `sanctionHours` (#541) ; la version précédente d'Olympe ne valide pas la réponse et l'ignore, et l'écran tient pour vide la liste d'une API qui ne la rend pas encore.
 Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
 Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'alerte de la Vigie qui le surveille lit son compte dans `GET /api/admin/vigie` (#530).
 Écran du module Modération (ticket #277) : il lit `GET /api/admin/reports` et liste la file, du plus ancien au plus signalé, dans l'ordre de l'API.
@@ -64,8 +66,9 @@ Chaque entrée dit la maison signalée, les motifs et l'ancienneté du plus anci
 Les gestes d'une entrée sont : masquer le message, avertir, réduire au silence, suspendre, proposer une exclusion, retenir le signalement, le classer sans suite.
 Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clavier va au geste sans effet (« Annuler »), et la répétition d'une touche Entrée tenue n'ouvre ni ne confirme rien, comme dans le module Accès (15.3).
 Une sanction à durée demande, dans sa confirmation, l'une des durées proposées et un motif ; une exclusion ne demande que le motif.
-Sous la file, l'écran liste les exclusions proposées à valider et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
-Valider une exclusion, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
+Sous la file, l'écran liste les exclusions proposées à valider, les levées d'exclusion à confirmer (#616) et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
+Valider une exclusion, confirmer une levée, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
+Proposer une levée et retirer une exclusion proposée n'ont pas encore de geste dans l'écran : ils attendent un ticket de suite.
 Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, seulement la décision ; la décision « motivée » du ticket ne l'est donc pas en base, et l'écran n'ajoute pas de champ qui ne mènerait nulle part.
 Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
 Durées proposées (#541) : `GET /api/admin/reports` rend `sanctionHours`, les durées de `moderation.sanctionHours` dans la version en vigueur à l'heure de la base, et rien d'autre de la configuration que ce seuil et ces durées.
@@ -144,7 +147,7 @@ L'écran ne contrôle rien lui-même : `apps/admin` ne dépend de `packages/conf
 | Support | Tickets, fiche joueur, compensation sous plafond |
 | Observateur | Lecture seule des tableaux de bord |
 
-Dans la phase 2 (#276), le modérateur n'a que le module Modération, sans la fiche joueur, qui attend une phase suivante : il ne lit que la file des signalements, les messages signalés et leur contexte, les appels à trancher et les exclusions à valider, jamais une donnée économique ni un tableau de bord (15.4).
+Dans la phase 2 (#276), le modérateur n'a que le module Modération, sans la fiche joueur, qui attend une phase suivante : il ne lit que la file des signalements, les messages signalés et leur contexte, les appels à trancher, les exclusions à valider et les levées d'exclusion à confirmer, jamais une donnée économique ni un tableau de bord (15.4).
 Le responsable communauté et le super-administrateur ont aussi ce module.
 
 Un compte porte un seul rôle : pas de cumul en v0. Une personne qui tient deux fonctions reçoit le rôle le plus large des deux ; le cumul sera rouvert si les modérateurs bénévoles le demandent.
@@ -240,8 +243,9 @@ Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la 
 La file de la modération (`GET /api/admin/reports`, #276) se lit par la même voie, pour les rôles de la modération, et ses lectures sont tracées de même.
 Elle rend une entrée par message qui a des signalements ouverts, la plus ancienne d'abord, puis la plus signalée (au plus 200), avec la maison signalée et son compte, le message, même masqué, ses signalements (motif et date, jamais la maison qui signale) et les cinq messages qui le précèdent et les cinq qui le suivent dans son canal ;
 un signalement dont la purge a emporté le message fait son entrée seul, sans texte ni contexte.
-Elle rend aussi les appels à trancher et les exclusions à valider, les plus anciens d'abord.
+Elle rend aussi les appels à trancher, les exclusions à valider et les levées d'exclusion à confirmer (#616), les plus anciens d'abord.
 La base la compose par une fonction accordée au seul service de l'API (`admin.moderation_queue`) : un modérateur connecté au jeu n'en lit rien par Supabase, et son rôle ne lui ouvre aucune lecture de plus qu'à un joueur.
+Les levées à confirmer, elles, sont lues par l'API dans `admin.sanctions`, sous le même compte de service, qui y lit déjà les sanctions à chaque commande ; aucun droit n'est ouvert de plus (#616).
 Décision (ambiguïté de 15.1) : le pré-tri par l'IA attend une phase suivante.
 Le journal d'audit rend le résultat de chaque commande d'administration, jamais son entrée.
 Il est trié par ordre d'inscription ; l'heure affichée est celle du début de la commande, si bien que deux commandes simultanées peuvent y apparaître dans l'ordre inverse de leurs heures.
