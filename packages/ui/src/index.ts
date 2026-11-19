@@ -2,9 +2,12 @@
 export { cn } from './cn';
 export { Badge, type BadgeProps } from './components/Badge';
 export { Button, type ButtonProps } from './components/Button';
+export { IconButton, type IconButtonProps } from './components/Button';
 export { Card, type CardProps } from './components/Card';
 export { EmptyState, type EmptyStateProps } from './components/EmptyState';
 export { Field, type FieldProps } from './components/Field';
+export { TextField, type TextFieldProps } from './components/Field';
+export { Select, type SelectProps } from './components/Select';
 export { Skeleton } from './components/Skeleton';
 export { Stat, type StatProps } from './components/Stat';
 export { Tabs, type TabItem, type TabsProps } from './components/Tabs';

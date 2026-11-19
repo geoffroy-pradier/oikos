@@ -12,15 +12,19 @@ import {
   Coins,
   COLOR_TOKENS,
   EmptyState,
-  Field,
+  IconButton,
   Moon,
   Plus,
+  Select,
+  Settings,
   Ship,
   Skeleton,
   Stat,
   Sun,
   Tabs,
+  TextField,
   Wheat,
+  X,
 } from '@oikos/ui';
 import { StrictMode, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -98,7 +102,7 @@ function Catalogue() {
       </Card>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Section title="Button">
+        <Section title="Button · IconButton">
           <div className="flex flex-wrap gap-2">
             <Button icon={<Plus />}>primary</Button>
             <Button variant="secondary">secondary</Button>
@@ -108,13 +112,31 @@ function Catalogue() {
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm">sm</Button>
             <Button size="lg">lg</Button>
-            <Button size="icon" variant="secondary" icon={<Ship />} aria-label="icon" />
             <Button loading>loading</Button>
             <Button disabled>disabled</Button>
+            <Button variant="secondary" icon={<Ship />} loading>
+              loading
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <IconButton label="ghost" icon={<X />} />
+            <IconButton label="secondary" variant="secondary" icon={<Settings />} />
+            <IconButton label="primary" variant="primary" icon={<Plus />} />
+            <IconButton label="loading" variant="secondary" icon={<Ship />} loading />
           </div>
         </Section>
 
-        <Section title="Badge · Field">
+        <Section title="TextField · Select">
+          <TextField label="TextField" hint="hint" placeholder="placeholder" />
+          <TextField label="TextField · error" error="error" defaultValue="value" />
+          <Select label="Select" hint="hint" defaultValue="corinth">
+            <option value="athens">Athènes</option>
+            <option value="corinth">Corinthe</option>
+          </Select>
+          <TextField label="TextField · disabled" disabled defaultValue="value" />
+        </Section>
+
+        <Section title="Badge">
           <div className="flex flex-wrap gap-2">
             {TONES.map((tone) => (
               <Badge key={tone} tone={tone}>
@@ -122,8 +144,6 @@ function Catalogue() {
               </Badge>
             ))}
           </div>
-          <Field label="Field" hint="hint" defaultValue="value" />
-          <Field label="Field · error" error="error" defaultValue="value" />
         </Section>
 
         <Section title="Tabs">
