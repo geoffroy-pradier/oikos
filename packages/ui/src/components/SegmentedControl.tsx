@@ -36,6 +36,11 @@ export function SegmentedControl({
 }: SegmentedControlProps) {
   const [own, setOwn] = useState(defaultValue ?? options[0]?.value);
   const selected = value ?? own;
+  // Choix hors des options : la première reste l'arrêt de tabulation du groupe.
+  const focusable = Math.max(
+    0,
+    options.findIndex((option) => option.value === selected),
+  );
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const select = (next: string) => {
@@ -71,7 +76,7 @@ export function SegmentedControl({
             type="button"
             role="radio"
             aria-checked={active}
-            tabIndex={active ? 0 : -1}
+            tabIndex={index === focusable ? 0 : -1}
             disabled={disabled}
             onClick={() => select(option.value)}
             className={cn(pillClass(active), 'flex-1')}

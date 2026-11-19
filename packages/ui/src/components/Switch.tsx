@@ -21,6 +21,8 @@ export function Switch({
   onCheckedChange,
   className,
   id,
+  onClick,
+  'aria-describedby': describedBy,
   ...props
 }: SwitchProps) {
   const generated = useId();
@@ -46,8 +48,11 @@ export function Switch({
         type="button"
         role="switch"
         aria-checked={on}
-        aria-describedby={hintId}
-        onClick={() => {
+        aria-describedby={[describedBy, hintId].filter(Boolean).join(' ') || undefined}
+        onClick={(event) => {
+          // Le clic de l'appelant passe d'abord ; il peut empêcher la bascule (`preventDefault`).
+          onClick?.(event);
+          if (event.defaultPrevented) return;
           setOwn(!on);
           onCheckedChange?.(!on);
         }}

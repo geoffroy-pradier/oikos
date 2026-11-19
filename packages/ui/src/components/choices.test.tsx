@@ -69,6 +69,13 @@ describe('SegmentedControl', () => {
     const checked = screen.getAllByRole('radio', { checked: true });
     expect(checked.map((radio) => radio.textContent)).toEqual(['Opt hold']);
   });
+
+  it('valeur hors des options : aucun choix, la première reste atteignable au clavier', () => {
+    render(<SegmentedControl label="Sens" options={options} value="lend" />);
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1]);
+    expect(screen.queryAllByRole('radio', { checked: true })).toHaveLength(0);
+  });
 });
 
 describe('Switch', () => {
@@ -104,5 +111,33 @@ describe('Switch', () => {
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     expect(onCheckedChange).toHaveBeenCalledOnce();
+  });
+
+  it('compose la description et le clic de l’appelant, qui peut empêcher la bascule', () => {
+    const onClick = vi.fn();
+    const { rerender } = render(
+      <>
+        <p id="extra">Une fois par jour.</p>
+        <Switch label="Avis" hint="Ordres exécutés." aria-describedby="extra" onClick={onClick} />
+      </>,
+    );
+    const toggle = screen.getByRole('switch', { name: 'Avis' });
+    const ids = (toggle.getAttribute('aria-describedby') ?? '').split(' ');
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toEqual([
+      'Une fois par jour.',
+      'Ordres exécutés.',
+    ]);
+    fireEvent.click(toggle);
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    rerender(
+      <>
+        <p id="extra">Une fois par jour.</p>
+        <Switch label="Avis" onClick={(event) => event.preventDefault()} />
+      </>,
+    );
+    expect(screen.getByRole('switch', { name: 'Avis' })).toBe(toggle);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
   });
 });
