@@ -237,7 +237,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
     )
     .select(['p.id', 'p.size_id', 'p.condition', 'l.id as lease', 'o.price_oboles as listed'])
     .where('p.owner_house_id', '=', house.houseId)
-    .orderBy('p.id')
+    .orderBy('p.size_id')
+    .orderBy('p.lot')
     .execute();
   const rented = (
     await city.db
@@ -326,7 +327,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
       .select(['id', 'size_id'])
       .where('city_id', '=', city.cityId)
       .where('owner_house_id', 'is', null)
-      .orderBy('id')
+      .orderBy('size_id')
+      .orderBy('lot')
       .execute()
   ).map((row) => ({
     propertyId: row.id,
@@ -350,6 +352,8 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
               .where('o.kind', '=', 'lease')
               .where('o.house_id', '!=', house.houseId)
               .where('o.closed_at', 'is', null)
+              .orderBy('p.size_id')
+              .orderBy('p.lot')
               .execute()
           ).map((row) => ({
             propertyId: row.id,

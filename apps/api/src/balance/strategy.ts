@@ -121,6 +121,7 @@ export async function cancelOpen(city: City, house: Seller) {
     .select(['id', 'good_id', 'side', 'quantity', 'remaining'])
     .where('house_id', '=', house.houseId)
     .where('status', '=', 'open')
+    .orderBy('id')
     .execute();
   // Vendu la veille, par bien : ce qui a été mis en vente, moins ce qui reste ouvert.
   const listed = new Map(house.listed);
@@ -242,6 +243,7 @@ export async function morning(city: City, house: Seller, now: Date) {
     .selectFrom('game.inventories')
     .select(['good_id', 'quantity', 'reserved'])
     .where('house_id', '=', house.houseId)
+    .orderBy('good_id')
     .execute();
   for (const stock of stocks) {
     if (house.delegated?.has(stock.good_id)) continue;
