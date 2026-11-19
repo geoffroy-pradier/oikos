@@ -1,8 +1,15 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { closeOf, openBench, treasuryOf } from './balance/city';
+import { closeOf, config, openBench, treasuryOf } from './balance/city';
 import { winnerOf } from './balance/politics';
 import { playWorld } from './balance/run';
-import { PUBLIC_SINKS, publish, recipeMargins, sinkShares } from './balance/measures';
+import {
+  isWorkshop,
+  median,
+  PUBLIC_SINKS,
+  publish,
+  recipeMargins,
+  sinkShares,
+} from './balance/measures';
 import { SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
 import { sql } from 'kysely';
 
@@ -12,7 +19,7 @@ import { sql } from 'kysely';
  * terroir (`balance/world.ts`), jouées comme celles du banc d'une cité de #78 (`balance.integration.test.ts`, qui
  * garde ses bornes). Il tourne dans son propre job `ci` (`pnpm test:balance`), pas avec les tests d'intégration.
  * Il ne borne pas l'économie, calibrée par #283 : il vérifie que le grand livre se rapproche des flux comptés
- * et que chaque cité a tourné.
+ * et que chaque cité a tourné, et borne les seules marges des ateliers (#285).
  */
 const bench = openBench({ config: worldConfig });
 beforeAll(() => bench.start());
@@ -180,5 +187,19 @@ it(
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
     });
+
+    // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
+    // quotidienne d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des
+    // sites de matières premières. Aucune voie n'écrase l'autre (01, pilier 2).
+    const worldMargins = margins['world'] ?? {};
+    const primary = median(
+      config.recipes
+        .filter((recipe) => !isWorkshop(recipe))
+        .map((recipe) => worldMargins[recipe.id] ?? 0),
+    );
+    for (const recipe of config.recipes.filter(isWorkshop)) {
+      expect(worldMargins[recipe.id], `marge de ${recipe.id}`).toBeGreaterThanOrEqual(primary / 2);
+      expect(worldMargins[recipe.id], `marge de ${recipe.id}`).toBeLessThanOrEqual(primary * 2);
+    }
   },
 );

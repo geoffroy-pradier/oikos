@@ -151,6 +151,40 @@ Un bien sans échange dans la cité est compté au prix du monde, sinon à son p
 On en retire l'entretien du site (5.5), puis, par travailleur, le salaire moyen de la cité et sa part d'hébergement : le prix d'une nuit fois la part des employés de la cité qui ne sont pas logés (4.4).
 Une matière première n'est comptée que dans le terroir de la cité ; la marge du monde (`world`) compte toutes les recettes, aux prix et au marché du travail de toutes les cités.
 
+Borne des ateliers (#285), écrite à la main dans le banc à quatre cités (`apps/api/src/balance-world.bench.ts`) : la marge du monde d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des sites de matières premières.
+Aucune voie n'écrase ainsi l'autre (01, pilier 2).
+Décision (#285) : la borne porte sur la marge du monde, pas sur celle de chaque cité.
+Cité par cité, le scénario du banc fait passer un bien intermédiaire du plancher au plafond des prix de ses maisons scriptées (70 % et 150 % de la référence) : à Kallistè, le bois manque à la charbonnière, le fournil chôme et le moulin vend sa farine au plancher (201 oboles de marge) ; à Elaia, la farine manque et le fournil la paie au plafond (30 oboles).
+Ces écarts tiennent aux nombres de sites du scénario, que la configuration ne corrige pas sans casser le banc à une cité (essais ci-dessous).
+
+Marges retenues dans la configuration initiale (banc à quatre cités, graine par défaut, salaire du banc de 4 oboles) ; la médiane des matières premières est de 905 oboles avant comme après, d'où une borne de 453 à 1 810 oboles :
+
+| Filière | Avant | Après | Réglage |
+| --- | ---: | ---: | --- |
+| Moulin (`mill_flour`) | 1 130 | 964 | aucun |
+| Fournil (`bake_bread`) | 569 | 570 | aucun |
+| Charbonnière (`burn_charcoal`) | 550 | 550 | aucun |
+| Pressoir (`press_oil`) | 613 | 1 046 | 8 olives par cycle au lieu de 12 |
+| Tissage (`weave_cloth`) | 273 | 609 | 3 laines par cycle au lieu de 6 |
+| Poterie (`throw_amphorae`) | −239 | 643 | 4 argiles et 1 charbon par cycle au lieu de 8 et 2 ; amphore à 36 oboles au lieu de 24 |
+| Chai (`ferment_wine`) | 255 | 531 | 2 raisins par cycle au lieu de 12 |
+
+Raisons des choix :
+
+- Un atelier se règle par ses intrants (son rendement), et non par sa cadence ou ses extrants.
+  Le banc à une cité tient la hausse du coût de son panier sur une offre de pain, d'huile et de vin calée sur la demande, qu'un atelier plus productif ferait déborder.
+- Le prix de référence d'un bien que consomment les PNJ fixe la part de leur revenu qui va à ce bien (5.2) : il ne monte que pour l'amphore.
+  Un vin à 45 oboles portait le chai à 651, mais retirait près de 5 % de couverture vitale aux hippeis et aux pentakosiomedimnoi d'Elaia, qui paient leur poisson au-dessus de sa référence.
+- L'amphore est surproduite dans les deux bancs (à Kallistè, deux poteries pour une dizaine d'amphores demandées par jour) et se vend au plancher des maisons : seule une référence plus haute fait vivre la poterie.
+  C'est un bien de luxe des deux classes riches, et son poids dans leur budget reste faible.
+- Le pressoir tenait déjà la borne dans le banc (613), mais par la seule rareté de l'huile, vendue 41 oboles pour une référence de 30 : aux prix de référence, il rapportait environ 86 oboles, et 518 avec 8 olives.
+- Moulin, fournil et charbonnière tiennent la borne sans réglage.
+  Les essais qui les touchaient ont été écartés : 12 farines par mouture font déborder la farine du banc à une cité, où un moulin s'arrête faute d'entretien payé ;
+  3 bois par fournée de charbon rendent le charbon à Kallistè, dont le fournil manque alors de farine comme à Elaia (154 oboles au monde) ;
+  un charbon à 22 oboles fait monter le pain du banc à une cité, et le coût de son panier de 3 % en vingt jours.
+- Limite connue : le chai doit encore sa marge à la rareté du vin dans le banc à quatre cités (48 oboles pour une référence de 36), et ne rapporterait qu'environ 314 oboles aux prix de référence.
+  Plus de vin par site supposerait moins de chais dans les scénarios des deux bancs (seize chais à une cité, pour 234 vins demandés par jour) : c'est un choix de scénario, pas de configuration.
+
 ## 4.4 Le personnel
 
 - **Travailleurs** : salariés recrutés sur le marché du travail de la cité, dont le salaire d'équilibre dépend de l'offre et de la demande locales. Moral influencé par salaire, logement, fêtes et cadence.
