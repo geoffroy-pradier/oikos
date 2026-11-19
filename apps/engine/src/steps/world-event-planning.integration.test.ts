@@ -153,9 +153,26 @@ describe('planification des événements du monde à la clôture (#267)', () => 
     );
   });
 
-  it('probabilités nulles de la configuration initiale : aucun événement, résumé de même forme', async () => {
+  it('probabilités nulles : aucun événement, résumé de même forme', async () => {
+    // La configuration initiale tire ses événements au hasard depuis #668 : ses probabilités sont mises à zéro ici.
+    const never = <T extends { probabilityBps: number }>(model: T): T => ({
+      ...model,
+      probabilityBps: 0,
+    });
+    const silent: GameConfig = {
+      ...initial,
+      worldEvents: {
+        planningLeadDays: initial.worldEvents?.planningLeadDays ?? NaN,
+        models: {
+          drought: never(drought),
+          good_year: never(good_year),
+          storm: never(storm),
+          caravan: never(caravan),
+        },
+      },
+    };
     const worldId = await newWorld(randomUUID());
-    expect((await close(worldId, initial)).summary).toEqual({
+    expect((await close(worldId, silent)).summary).toEqual({
       worldEventPlanning: {
         startDay: TODAY + (initial.worldEvents?.planningLeadDays ?? NaN),
         planned: 0,
