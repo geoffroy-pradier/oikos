@@ -181,27 +181,25 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
   });
 
   await test.step('Alpha vend ce blé à Elaia, Bêta l’y achète à l’agora', async () => {
-    // L'agora de l'écran est celle de la cité de la maison : la vente à Elaia d'Alpha passe par la commande.
+    // Alpha choisit Elaia, où son blé est arrivé : l'écran propose les cités où la maison a un stock ou un site.
     const price = 19 + Math.floor(Math.random() * 30);
-    const placed = await page.evaluate(
-      async ({ cityId, price }) => {
-        const key = Object.keys(localStorage).find((name) => name.endsWith('-auth-token')) ?? '';
-        const token = (JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token?: string })
-          .access_token;
-        const response = await fetch('/api/commands/market.placeOrder', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${token}`,
-            'Idempotency-Key': crypto.randomUUID(),
-          },
-          body: JSON.stringify({ cityId, goodId: 'wheat', side: 'sell', price, quantity: 30 }),
-        });
-        return (await response.json()) as { ok: boolean; data: { orderId: string } };
-      },
-      { cityId: ELAIA_ID, price },
+    await nav.getByRole('link', { name: 'Agora' }).click();
+    await expect(page.getByRole('heading', { name: 'Agora de Kallistè' })).toBeVisible();
+    await page.getByLabel('Cité du marché').selectOption({ label: 'Elaia' });
+    await expect(page.getByRole('heading', { name: 'Agora de Elaia' })).toBeVisible();
+    await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
+    await page.getByLabel('Quantité', { exact: true }).fill('30');
+    await page.keyboard.press('Enter');
+    await expect(said(page, 'status', /^Vente déposée : 30 × Blé/)).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    // L'ordre d'Alpha à Elaia, retrouvé en base : sa maison n'y en a pas d'autre au même prix.
+    const { rows: orders } = await sql<{ id: string }>`
+      select id from game.orders where side = 'sell' and good_id = 'wheat' and price = ${price}
+        and city_id = ${ELAIA_ID} and house_id = (select id from game.houses where name = ${alpha})`.execute(
+      db,
     );
-    expect(placed.ok).toBe(true);
+    expect(orders).toHaveLength(1);
+    const placed = { data: { orderId: orders[0]?.id } };
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await expect(other.getByRole('heading', { name: 'Agora de Elaia' })).toBeVisible();
     await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
