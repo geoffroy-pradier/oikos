@@ -212,12 +212,14 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   La fiche peut donc montrer moins de cinq opérations, ou aucun refus, quand les plus anciennes sont échues.
   Décision (#561) : un refus tenté est inscrit en entier, même identique au précédent ; c'est cette conservation qui borne la table.
   L'opération inscrite est la position de la file et la clé d'idempotence de son rang : ne pas l'inscrire ferait reprendre la file à la règle refusée, qui retiendrait alors les suivantes, ou demanderait un état de plus à l'intendant.
-  Repos d'une règle refusée (#621) : une règle refusée sous la révision en vigueur se repose `stewards.refusalRestTicks` ticks (5 au départ, et pour une version publiée avant ce paramètre ; de 0 à 1000).
+  Repos d'une règle refusée (#621) : une règle refusée sous la révision en vigueur se repose `stewards.refusalRestTicks` ticks (5 au départ, de 0 à 1000).
+  Une version publiée avant ce paramètre n'en a aucun et garde son comportement : le repos s'active en publiant une version qui le règle.
   Refusée au tick t, elle est passée comme une règle qui n'a rien à faire jusqu'au tick t + repos compris, aux rangs suivants du tick t aussi, puis retentée ; 0 la retente à chaque opération.
   Pendant son repos elle n'est pas tentée : rien n'est inscrit, ni opération, ni ligne du journal des commandes, ni événement.
   Un refus durable n'écrit donc qu'une opération tous les repos + 1 ticks, au lieu d'une par tick, et chacune garde sa ligne du journal et sa clé.
   Les règles suivantes agissent pendant ce repos, et des règles nouvelles, même identiques, repartent sans repos.
   Une règle se repose même si ce qui l'a refusée a changé entre-temps (trésorerie renflouée) : elle agit au tick qui suit son repos.
+  La purge des opérations (`stewards.operationsRetentionDays`) peut abréger un repos plus long que la conservation : le refus purgé ne compte plus, et la règle est retentée plus tôt, sans effet sur l'idempotence, puisque chaque tentative prend la clé d'un rang neuf.
   Décision (#621) : ce repos plutôt que le partitionnement des journaux, pour la raison et aux conditions de l'ADR 0002.
   Le journal des commandes et les événements des refus inscrits se purgent avec ces journaux, au partitionnement (ADR 0002).
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).

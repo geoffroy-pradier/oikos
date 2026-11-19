@@ -117,7 +117,7 @@ describe('intendants (4.4, #278)', () => {
     expect(stewardOperationsRetentionDays(none.config)).toBe(30);
   });
 
-  it('repos d’une règle refusée (#621) : 5 ticks au départ et pour une version publiée avant lui, entier de 0 à 1000', () => {
+  it('repos d’une règle refusée (#621) : 5 ticks au départ, aucun pour une version publiée avant lui, entier de 0 à 1000', () => {
     const initial = validateConfig(INITIAL_CONFIG);
     if (!initial.ok) throw new Error(initial.errors.join('\n'));
     expect(stewardRefusalRestTicks(initial.config)).toBe(5);
@@ -125,7 +125,8 @@ describe('intendants (4.4, #278)', () => {
     delete older['refusalRestTicks'];
     const result = validateConfig({ ...base(), stewards: older });
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(stewardRefusalRestTicks(result.config)).toBe(5);
+    // Une version publiée garde son comportement : le repos s'active en publiant une version qui le règle.
+    expect(stewardRefusalRestTicks(result.config)).toBe(0);
     const stewards = base().stewards;
     for (const value of [-1, 1001, 0.5, '5'])
       expect(fieldsOf({ ...stewards, refusalRestTicks: value })).toEqual([

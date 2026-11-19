@@ -81,9 +81,9 @@ begin
 end $$;
 
 -- Le repos se lit sur l'index des refus : par intendant, du tick le plus récent, refus seuls.
-select is((select pg_get_expr(i.indpred, i.indrelid) from pg_index i
-           where i.indexrelid = 'game.steward_operations_refused_idx'::regclass),
-  '(status = ''rejected''::text)', 'le repos lit les refus récents d''un intendant par un index partiel');
+select is(pg_get_indexdef('game.steward_operations_refused_idx'::regclass),
+  'CREATE INDEX steward_operations_refused_idx ON game.steward_operations USING btree (steward_id, tick_index DESC, rank DESC) WHERE (status = ''rejected''::text)',
+  'le repos lit les refus récents d''un intendant par un index partiel');
 
 -- Le journal des commandes et les événements des refus restent jusqu'au partitionnement : personne n'en efface une
 -- ligne, pas même le propriétaire sous le réglage qui ouvre la purge des opérations.

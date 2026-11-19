@@ -50,7 +50,7 @@ fin, ni être purgé au hasard.
   Les opérations des intendants se suppriment ligne à ligne de même depuis la migration 440, sauf la dernière de chaque intendant (position de la file de ses règles) et celles du dernier tick de son monde (clés d'idempotence que le moteur relit).
   Leur garde n'admet que la suppression d'une opération de plus d'un jour, sous le réglage local de la purge, que seul le propriétaire, qui a le droit de supprimer, pourrait poser hors d'elle.
   Si plusieurs moteurs tournaient en même temps, l'un pourrait voir purgée une opération d'un tick qu'il mène encore ; la contrainte unique du journal des commandes l'arrête alors, sans double effet, tant que ce journal n'est pas purgé.
-  Un refus durable d'intendant n'écrit plus une ligne par tick au journal des commandes et aux événements depuis #621 : une règle refusée se repose `stewards.refusalRestTicks` ticks sans être tentée (spécification 04, 4.4).
+  Un refus durable d'intendant n'écrit plus une ligne par tick au journal des commandes et aux événements depuis #621, dès qu'une version de configuration règle son repos : une règle refusée se repose `stewards.refusalRestTicks` ticks sans être tentée (spécification 04, 4.4).
   Décision (#621) : ce repos plutôt que le partitionnement, qui emporte la clé primaire du journal, la table dédiée des clés et le registre de l'API ; il divise le volume des refus durables sans supprimer aucune ligne de journal.
   Chaque opération inscrite garde sa ligne du journal des commandes et sa clé : la contrainte unique protège ses rangs comme avant, même une fois l'opération purgée.
   Ne pas écrire au journal un refus identique au précédent aurait laissé sans clé une opération que la purge peut supprimer, et que la contrainte n'aurait plus protégée.

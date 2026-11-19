@@ -7,10 +7,10 @@ import { z } from 'zod';
 export const DEFAULT_STEWARD_OPERATIONS_RETENTION_DAYS = 30;
 
 /**
- * Repos d'une règle refusée pour une version publiée avant ce paramètre : 5 ticks. FIGÉE, pour la même raison que
- * `DEFAULT_SITES`.
+ * Repos d'une règle refusée pour une version publiée avant ce paramètre : aucun, comme avant lui. FIGÉE, pour la même
+ * raison que `DEFAULT_UPKEEP` : une version publiée garde son comportement, le repos s'active en en publiant une.
  */
-export const DEFAULT_STEWARD_REFUSAL_REST_TICKS = 5;
+export const DEFAULT_STEWARD_REFUSAL_REST_TICKS = 0;
 
 /**
  * Intendants (docs/specs/04-systemes-gestion.md, 4.4 ; #278) : chaque site d'une maison peut avoir le sien, qui
@@ -50,7 +50,7 @@ export const stewardsSchema = z
     /**
      * Repos d'une règle refusée (#621), en ticks : refusée à un tick, elle est passée comme une règle qui n'a rien à
      * faire jusqu'à ce tick plus ce repos, puis retentée. 0 : retentée à chaque opération. Absent d'une version
-     * publiée avant lui : `DEFAULT_STEWARD_REFUSAL_REST_TICKS`.
+     * publiée avant lui : `DEFAULT_STEWARD_REFUSAL_REST_TICKS`, aucun repos.
      */
     refusalRestTicks: z.number().int().min(0).max(1000).default(DEFAULT_STEWARD_REFUSAL_REST_TICKS),
     /** Noms que reçoit un intendant à son embauche, tirés au hasard : du contenu, pas de l'équilibrage. */
