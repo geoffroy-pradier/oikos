@@ -14,6 +14,7 @@ export * from './orderbook';
 export * from './population';
 export * from './price-index';
 export * from './production';
+export * from './purse';
 export * from './property';
 export * from './rent';
 export * from './rng';
