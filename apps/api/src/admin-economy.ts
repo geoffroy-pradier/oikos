@@ -45,7 +45,7 @@ export async function readEconomy(
       // création (migration 13) : aucun monde n'est absent, même sans maison.
       const accounts = await sql<Balance>`
         select w.id as world_id, w.slug, a.kind, a.system_key as key, sum(a.balance)::text as n
-        from game.worlds w join game.accounts a on a.world_id = w.id
+        from game.worlds w join game.accounts a on a.world_id = w.id and not a.npc_purse
         group by w.id, a.kind, a.system_key order by w.created_at, w.id, a.system_key`.execute(trx);
       // Bourses des PNJ (#632), que le service ne voit pas dans la table : une nature de la masse à part.
       const purses = await sql<{ world_id: string; n: string }>`

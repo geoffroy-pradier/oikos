@@ -78,6 +78,8 @@ export const npcDemand: TickStep = {
         .select('id')
         .where('world_id', '=', worldId)
         .where(column, '=', value)
+        // Le trésor de la cité, jamais sa bourse des PNJ (#632), quel que soit le rôle de la connexion.
+        .where('npc_purse', '=', false)
         .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${value} account`));
       accountIds.set(value, id);
       return id;

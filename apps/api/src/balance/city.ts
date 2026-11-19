@@ -407,6 +407,7 @@ export async function accounts(city: City) {
     .selectFrom('game.accounts')
     .select(['kind', 'system_key', 'balance'])
     .where('world_id', '=', city.worldId)
+    .where('npc_purse', '=', false)
     .execute();
   const purses = await sql<{ balance: string }>`select balance from game.npc_purses()
     where world_id = ${city.worldId}`.execute(city.db);
@@ -495,6 +496,7 @@ export async function treasuryOf(city: City) {
     .select(['city_id', 'balance'])
     .where('world_id', '=', city.worldId)
     .where('kind', '=', 'treasury')
+    .where('npc_purse', '=', false)
     .execute();
   return new Map(rows.map((row) => [row.city_id ?? '', Number(row.balance)]));
 }
