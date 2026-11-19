@@ -496,7 +496,7 @@ export async function reconcile(
     .execute();
   // Trésor de chaque cité : la part de la taxe des échanges de son marché.
   const treasuries = new Map<string, number>();
-  const grant = founded * config.starting.grantOboles;
+  const grant = founded * city.played.starting.grantOboles;
   const flows = { sink_market_tax: 0, treasury: 0 };
   let npcPurchases = 0;
   for (const trade of trades) {

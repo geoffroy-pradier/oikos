@@ -16,8 +16,8 @@ import { sql } from 'kysely';
 /*
  * Banc d'équilibrage des quatre cités (#281, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à part, sur
  * la graine `WORLD_SEED` : les quatre cités de la configuration initiale, leurs maisons scriptées selon leur
- * terroir (`balance/world.ts`), jouées comme celles du banc d'une cité de #78 (`balance.integration.test.ts`, qui
- * garde ses bornes). Il tourne dans son propre job `ci` (`pnpm test:balance`), pas avec les tests d'intégration.
+ * terroir et des armateurs qui ravitaillent les cités importatrices (`balance/world.ts`), jouées comme celles du banc
+ * d'une cité de #78 (`balance.integration.test.ts`, qui garde ses bornes). Il tourne dans son propre job `ci` (`pnpm test:balance`), pas avec les tests d'intégration.
  * Il ne borne pas l'économie, calibrée par #283 : il vérifie que le grand livre se rapproche des flux comptés
  * et que chaque cité a tourné, et borne les seules marges des ateliers (#285).
  */
@@ -137,7 +137,7 @@ it(
     expect(Number(unhoused.rows[0]?.unhoused), 'travailleurs non logés').toBeLessThan(
       Number(unhoused.rows[0]?.employed),
     );
-    // Les négociants ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
+    // Les armateurs ont transporté : leurs navires ont fait des voyages, arrivés avec leur cargaison.
     const sailed = (
       await sql<{ voyages: string; units: string }>`select count(*) as voyages,
         coalesce(sum(c.units), 0) as units
@@ -147,13 +147,14 @@ it(
     ).rows[0];
     expect(Number(sailed?.voyages), 'voyages arrivés').toBeGreaterThan(0);
     expect(Number(sailed?.units), 'unités transportées').toBeGreaterThan(0);
-    // Chaque voyage est daté à l'heure de jeu (#663), comme les sites : parti et arrivé entre le jour 0 et la fin
-    // du banc, jamais à l'instant réel de la base, qui est des mois après.
+    // Chaque voyage est daté à l'heure de jeu (#663), comme les sites : parti entre le jour 0 et la fin du banc, arrivé
+    // au plus un jour après (un caboteur parti le dernier soir est encore en mer), jamais à l'instant réel de la base,
+    // qui est des mois après.
     const undated = (
       await sql<{ n: string }>`select count(*) as n from game.voyages
         where world_id = ${world.worldId}
           and not (departed_at between ${closeOf(world, 0)} and ${closeOf(world, lastDay + 1)}
-            and arrives_at between departed_at and ${closeOf(world, lastDay + 1)})`.execute(
+            and arrives_at between departed_at and ${closeOf(world, lastDay + 2)})`.execute(
         world.db,
       )
     ).rows[0];
