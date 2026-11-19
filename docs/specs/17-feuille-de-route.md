@@ -48,7 +48,7 @@ Vérification du critère de la phase 2, le 19 novembre 2026 :
 - Économie à quatre cités : banc `apps/api/src/balance-world.bench.ts` (#281 à #283), job `balance` de `ci`, 10 jours de mise en route et 30 mesurés.
   Il tient dans chaque cité le coût du panier de 0 à 2 %, les besoins vitaux couverts à 98 % au moins et une population qui ne baisse pas ; la masse monétaire croît de moins de 200 % et la création nette des dix derniers jours ne dépasse pas 110 % de celle des dix premiers (5.5).
   La marge des ateliers reste entre la moitié et le double de la médiane des matières premières (#285).
-  Il joue la configuration initiale calibrée par #283 et #668, à trois paramètres de scénario près, écrits dans le banc : population divisée par huit, dotation de départ et prix des logements divisés par cinq (5.5).
+  Il joue la configuration initiale calibrée par #283 et #668, à trois paramètres de scénario près, écrits dans `apps/api/src/balance/world.ts` : population divisée par huit, dotation de départ multipliée par cinq (15 000 oboles) et prix des logements divisés par cinq (5.5).
   La borne de −5 % à +25 % de la masse monétaire passe en phase 3, avec les liturgies.
 - Pilotage : le tableau de bord d'Olympe porte chaque robinet et chaque puits du catalogue des comptes système, un test le compare au catalogue de la base et nomme ceux de la phase 2 (#670).
   Le simulateur (`pnpm --filter @oikos/api simulate`, #284) compare sur 30 jours une configuration candidate à la configuration de référence : inflation, masse monétaire, robinets et puits, couverture des besoins, population et marges par filière ; son module dans Olympe attend le serveur.

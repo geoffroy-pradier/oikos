@@ -1965,7 +1965,7 @@ Notifications dans l'application native, courriels.
 Le simulateur de #284 est une commande locale ; son module dans Olympe, sur une copie du monde réel, attendait le serveur (15.2).
 Décision : le module lance le simulateur existant sur des mondes neufs d'une base de simulation distincte de celle du jeu (`SIMULATOR_DATABASE_URL`, documentée dans `.env.example`), et refuse de tourner si les deux désignent la même base ; la copie du monde réel attend toujours le serveur.
 Le moteur exécute une simulation à la fois, en tâche de fond, et garde son rapport.
-Label : aucun (aucune écriture dans les tables du jeu ; rôles d'Olympe existants).
+Label : `sensible` (route d'administration réservée par rôle : authentification).
 
 ### Spécification liée
 
