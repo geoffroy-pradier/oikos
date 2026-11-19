@@ -14,7 +14,7 @@ import {
   send,
 } from './steward.integration-fixtures';
 import { TEST_CONFIG } from './test-config';
-import { WORLD } from './voyage.integration-fixtures';
+import { give, WORLD } from './voyage.integration-fixtures';
 
 // Réponse du moteur aux consignes d'intendant (#280), contre Supabase local. D'autres fichiers laissent des consignes
 // en attente dans le même monde : le fournisseur factice répond selon le texte de chaque consigne, et chaque test ne
@@ -124,6 +124,27 @@ describe('réponse aux consignes d’intendant', () => {
     // Une consigne répondue ne l'est plus : le fournisseur n'est pas rappelé.
     await run(provider);
     expect(provider.requests.filter((request) => textOf(request) === text)).toHaveLength(1);
+  });
+
+  it('la simulation mène vraiment une règle qui pose un ordre, sans rien en garder (#562)', async () => {
+    const { player, stewardId, text } = await instructed('vends le blé à 2 drachmes, garde 10');
+    await give(player.houseId, 'wheat', 30);
+    await run(scripted({ [text]: { rules: [sellWheat] } }));
+    expect(await answerOf(stewardId)).toMatchObject({
+      status: 'answered',
+      simulation: [
+        {
+          position: 0,
+          status: 'ok',
+          summary: { command: 'market.placeOrder', side: 'sell', price: 12, quantity: 20 },
+        },
+      ],
+      refusal: null,
+    });
+    // La transaction de la simulation est annulée : aucun ordre ne reste, signé ou non.
+    const orders = await sql<{ n: number }>`
+      select count(*)::int as n from game.orders where house_id = ${player.houseId}`.execute(owner);
+    expect(orders.rows).toEqual([{ n: 0 }]);
   });
 
   it('une consigne qui tente de sortir de la grammaire reçoit un refus, jamais de règle', async () => {

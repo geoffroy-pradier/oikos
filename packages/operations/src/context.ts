@@ -24,9 +24,10 @@ export interface OperationContext {
 
 /**
  * Maison pour le compte de laquelle l'opération agit : celle du compte authentifié (commande du joueur), ou celle
- * que désigne son intendant (moteur). Un site ou un ordre d'une autre maison est indiscernable d'un inexistant.
+ * que désigne son intendant (moteur), qui signe alors les ordres qu'il pose (`stewardId`, #562). Un site ou un ordre
+ * d'une autre maison est indiscernable d'un inexistant.
  */
-export type Actor = { userId: string } | { houseId: string };
+export type Actor = { userId: string } | { houseId: string; stewardId?: string };
 
 /** Restreint une lecture de `game.houses` à la maison de l'acteur. */
 export const houseOf = <O>(

@@ -75,6 +75,8 @@ export const placeOrder = defineOperation({
           price: input.price,
           quantity: input.quantity,
           remaining: input.quantity,
+          // L'intendant qui pose l'ordre : ses règles nouvelles ou son renvoi l'annulent (#562).
+          steward_id: 'stewardId' in actor ? (actor.stewardId ?? null) : null,
         })
         .returning('id')
         .executeTakeFirstOrThrow();
