@@ -10,6 +10,8 @@ const day = (n: number, basket: number | null, extra: Partial<DayMeasure> = {}):
   coverage: { a: { poor: 9000, rich: null } },
   flows: { a: { sink_upkeep: -3 }, world: { sink_upkeep: -3, faucet_x: 5 } },
   traded: {},
+  bought: {},
+  labor: {},
   ...extra,
 });
 
@@ -29,7 +31,12 @@ describe('inflationBps', () => {
 
 describe('indicatorsOf', () => {
   it('somme le net de chaque robinet et puits, et lit le dernier jour pour le reste', () => {
-    const out = indicatorsOf([day(0, 100), day(1, 100)], { a: { grow_wheat: 12 } }, ['a'], 10);
+    const out = indicatorsOf(
+      [day(0, 100), day(1, 100)],
+      { a: { grow_wheat: 12 }, world: { mill_flour: 7 } },
+      ['a'],
+      10,
+    );
     expect(out).toMatchObject({
       'supply/a': 1001,
       'supply/world': 2001,
@@ -39,6 +46,7 @@ describe('indicatorsOf', () => {
       'coverage/a/poor': 9000,
       'coverage/a/rich': null,
       'margin/a/grow_wheat': 12,
+      'margin/world/mill_flour': 7,
       'inflation/a': 0,
     });
   });

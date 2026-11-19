@@ -4,7 +4,7 @@ import { openBench } from './balance/city';
 import { recipeMargins } from './balance/measures';
 import { compare, indicatorsOf, type Indicators } from './balance/report';
 import { playWorld } from './balance/run';
-import { SLUGS, WAGES, WINDOW, worldConfig } from './balance/world';
+import { SLUGS, WINDOW, worldConfig } from './balance/world';
 
 /*
  * Simulateur d'équilibrage (#284) : mêmes graine et configuration, même rapport. Deux parties courtes du banc
@@ -46,7 +46,7 @@ const trace = async (run: Awaited<ReturnType<typeof playWorld>>) => {
 const indicators = async (seed: string): Promise<Indicators> => {
   const run = await playWorld(bench, { warmup: 3, measured: 4, seed });
   await trace(run);
-  const margins = recipeMargins(run.days.slice(-WINDOW), () => WAGES.workerOboles);
+  const margins = recipeMargins(run.days.slice(-WINDOW));
   return indicatorsOf(run.days, margins, SLUGS, WINDOW);
 };
 

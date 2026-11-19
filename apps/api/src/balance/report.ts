@@ -84,9 +84,11 @@ export function indicatorsOf(
     out[key('population', slug)] = last?.population[slug] ?? null;
     for (const [classId, bps] of Object.entries(last?.coverage[slug] ?? {}))
       out[key('coverage', slug, classId)] = bps;
+  }
+  // Marges par cité, puis celles du monde (`world`), aux prix du monde (#285).
+  for (const slug of [...slugs, 'world'])
     for (const [recipeId, margin] of Object.entries(margins[slug] ?? {}))
       out[key('margin', slug, recipeId)] = margin;
-  }
   return out;
 }
 
