@@ -325,5 +325,22 @@ export const adminReportsSchema = z.strictObject({
       proposedAt: instant,
     }),
   ),
+  /**
+   * Levées proposées d'exclusions validées (#616), à confirmer par `admin.liftSanction` par une autre personne que
+   * celle qui les a proposées ; les plus anciennes d'abord, sans celles dont l'appel attend. Absentes d'une API
+   * antérieure à ce champ.
+   */
+  pendingLifts: z.array(
+    z.strictObject({
+      sanctionId: z.uuid(),
+      userId: z.uuid(),
+      reason: z.string(),
+      authorId: z.uuid(),
+      confirmedBy: z.uuid(),
+      startsAt: instant,
+      proposedBy: z.uuid(),
+      proposedAt: instant,
+    }),
+  ),
 });
 export type AdminReports = z.infer<typeof adminReportsSchema>;

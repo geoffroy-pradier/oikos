@@ -58,6 +58,7 @@ const REPORTS: AdminReports = {
   ],
   appeals: [],
   pendingExclusions: [],
+  pendingLifts: [],
 };
 const AFTER: AdminReports = { ...REPORTS, queue: REPORTS.queue.slice(1) };
 
@@ -430,6 +431,18 @@ const WITH_SANCTIONS: AdminReports = {
       proposedAt: '2026-11-17T08:00:00Z',
     },
   ],
+  pendingLifts: [
+    {
+      sanctionId: id(313),
+      userId: id(713),
+      reason: 'Haine',
+      authorId: id(723),
+      confirmedBy: id(733),
+      startsAt: '2026-11-10T09:00:00Z',
+      proposedBy: id(743),
+      proposedAt: '2026-11-18T07:00:00Z',
+    },
+  ],
 };
 async function openedSanctions(commandReplies: object[], after: AdminReports) {
   adminGet.mockResolvedValueOnce({ ok: true, data: WITH_SANCTIONS });
@@ -520,8 +533,58 @@ it('listes vides dites, en français et en anglais', async () => {
   adminGet.mockResolvedValue({ ok: true, data: { ...REPORTS, queue: [] } });
   render(<Moderation accessToken="token" />);
   expect(await screen.findByText('Aucune exclusion à valider.')).toBeTruthy();
+  expect(screen.getByText("Aucune levée d'exclusion à confirmer.")).toBeTruthy();
   expect(screen.getByText('Aucun appel à trancher.')).toBeTruthy();
   await i18n.changeLanguage('en');
   expect(screen.getByText('No exclusion to confirm.')).toBeTruthy();
+  expect(screen.getByText('No exclusion lift to confirm.')).toBeTruthy();
   expect(screen.getByText('No appeal to decide.')).toBeTruthy();
+});
+
+it('liste les levées proposées et en confirme une ; le refus de qui l’a proposée est expliqué (#616)', async () => {
+  await openedSanctions(
+    [
+      { ok: false, code: 'SECOND_PERSON_REQUIRED' },
+      { ok: true, data: { sanctionId: id(313), pending: false, liftedAt: NOW } },
+    ],
+    WITH_SANCTIONS,
+  );
+  const lifts = screen.getByRole('list', { name: "Levées d'exclusion à confirmer" });
+  expect(within(lifts).getByText(id(713))).toBeTruthy();
+  expect(
+    within(lifts).getByText(`Proposée le 18/11/2026 07:00 par le compte ${id(743)}.`),
+  ).toBeTruthy();
+  expect(
+    within(lifts).getByText(
+      `Exclusion en vigueur depuis le 10/11/2026 09:00, prononcée par le compte ${id(723)} et validée par le compte ${id(733)}.`,
+    ),
+  ).toBeTruthy();
+  expect(within(lifts).getByText('Motif : Haine')).toBeTruthy();
+  const lift = () =>
+    screen.getByRole('button', {
+      name: `Confirmer la levée de l'exclusion du compte ${id(713).slice(0, 8)}`,
+    });
+  fireEvent.click(lift());
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer la levée' }));
+  await waitFor(() => expect(notice('alert')).toMatch(/^Un autre compte que l'auteur/));
+  expect(document.activeElement).toBe(lift());
+  // Levée confirmée : relue, la file ne la liste plus.
+  adminGet.mockResolvedValue({ ok: true, data: { ...WITH_SANCTIONS, pendingLifts: [] } });
+  fireEvent.click(lift());
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer la levée' }));
+  await waitFor(() => expect(notice('status')).toBe("Levée confirmée : l'exclusion prend fin."));
+  expect(screen.getByText("Aucune levée d'exclusion à confirmer.")).toBeTruthy();
+  expect(adminCommand.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+    ['admin.liftSanction', { sanctionId: id(313) }],
+    ['admin.liftSanction', { sanctionId: id(313) }],
+  ]);
+});
+
+it('lit la file d’une API antérieure aux levées proposées', async () => {
+  const older: Partial<AdminReports> = { ...REPORTS };
+  delete older.pendingLifts;
+  adminGet.mockResolvedValue({ ok: true, data: older });
+  render(<Moderation accessToken="token" />);
+  expect(await screen.findByText("Aucune levée d'exclusion à confirmer.")).toBeTruthy();
 });

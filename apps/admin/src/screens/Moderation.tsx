@@ -11,7 +11,7 @@ import { useAdmin } from '../useAdmin';
 type Entry = AdminReports['queue'][number];
 type Appeal = AdminReports['appeals'][number];
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
-/** Geste en cours de confirmation : sur un signalement, sur une exclusion proposée, sur un appel. */
+/** Geste en cours de confirmation : sur un signalement, une exclusion proposée, une levée proposée, un appel. */
 export type Gesture =
   | 'hide'
   | 'dismissed'
@@ -21,6 +21,7 @@ export type Gesture =
   | 'suspension'
   | 'ban'
   | 'confirmExclusion'
+  | 'liftSanction'
   | 'granted'
   | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
@@ -165,11 +166,14 @@ export function Moderation({ accessToken }: { accessToken: string }) {
     }
   }
 
-  /** Validation d'une exclusion et décision d'un appel : une sanction désignée par son identifiant. */
+  /**
+   * Validation d'une exclusion, confirmation de la levée proposée d'une exclusion (#616) et décision d'un appel :
+   * une sanction désignée par son identifiant.
+   */
   async function confirmSanction(sanctionId: string, gesture: Gesture) {
     const ok =
-      gesture === 'confirmExclusion'
-        ? await run('admin.confirmExclusion', { sanctionId }, t('moderation.done.confirmExclusion'))
+      gesture === 'confirmExclusion' || gesture === 'liftSanction'
+        ? await run(`admin.${gesture}`, { sanctionId }, t(`moderation.done.${gesture}`))
         : await run(
             'admin.decideAppeal',
             { sanctionId, decision: gesture === 'granted' ? 'granted' : 'rejected' },
@@ -214,6 +218,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
 
   const stale = staleReportHours(data);
   const queue = data?.queue ?? [];
+  // Absentes d'une API antérieure à ce champ (#616) : la liste est alors vide.
+  const lifts = data?.pendingLifts ?? [];
 
   return (
     <>
@@ -427,6 +433,44 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   </p>
                   <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
                     {sanctionGesture(item.sanctionId, item.userId, 'confirmExclusion')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h2 id="moderation-lifts" className="text-xl">
+            {t('moderation.lifts')}
+          </h2>
+          {lifts.length === 0 ? (
+            <p className="text-muted-foreground">{t('moderation.liftsEmpty')}</p>
+          ) : (
+            <ul aria-labelledby="moderation-lifts" className="flex flex-col gap-3">
+              {lifts.map((item) => (
+                <li
+                  key={item.sanctionId}
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                >
+                  <p className="font-semibold wrap-anywhere">
+                    {t('moderation.liftOf')} <code className="break-all">{item.userId}</code>
+                  </p>
+                  <p className="text-sm wrap-anywhere">
+                    {t('moderation.liftProposed', {
+                      date: date.format(new Date(item.proposedAt)),
+                      proposer: item.proposedBy,
+                    })}
+                  </p>
+                  <p className="text-sm wrap-anywhere">
+                    {t('moderation.liftExclusion', {
+                      date: date.format(new Date(item.startsAt)),
+                      author: item.authorId,
+                      confirmedBy: item.confirmedBy,
+                    })}
+                  </p>
+                  <p className="wrap-anywhere">
+                    {t('moderation.sanctionReason', { reason: item.reason })}
+                  </p>
+                  <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
+                    {sanctionGesture(item.sanctionId, item.userId, 'liftSanction')}
                   </div>
                 </li>
               ))}
