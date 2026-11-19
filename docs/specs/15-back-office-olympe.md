@@ -175,7 +175,7 @@ Ses stocks et sa trésorerie restent à la maison : leur saisie attend un ticket
 La réponse de la commande et le journal d'audit ne disent rien de ces ordres ni de ces oboles : un modérateur ne lit aucune donnée économique privée.
 Ordre des verrous : la validation prend le verrou d'agora de chaque monde où le compte a une maison, dans l'ordre des identifiants, avant toute ligne, comme un ordre placé, la demande des PNJ, la clôture et le rachat ;
 puis les ordres, la trésorerie et le séquestre de chaque maison, dans l'ordre de `market.cancelOrder`.
-Le registre lit la sanction au début de la transaction d'une commande ; `market.placeOrder` la relit sous le verrou d'agora, à l'heure de l'instruction, et refuse alors un compte suspendu ou exclu (`SUSPENDED`), sans rien écrire.
+Le registre lit la sanction au début de la transaction d'une commande, par la condition partagée avec les intendants (#563) ; `market.placeOrder` la relit sous le verrou d'agora, à l'heure de l'instruction, et refuse alors un compte suspendu ou exclu (`SUSPENDED`), sans rien écrire.
 Un ordre que le compte place pendant la validation, déjà passé au contrôle du registre, est donc annulé avec les autres s'il a pris le verrou avant elle, et refusé (`SUSPENDED`) s'il le prend après : jamais laissé ouvert ;
 une annulation par le joueur au même instant passe avant ou après, et le séquestre n'est rendu qu'une fois.
 Un intendant du compte relit aussi la sanction sous ce verrou, avant l'opération (4.4) : il ne place pas d'ordre pour un compte exclu pendant qu'il attendait, et rien n'est noté.
@@ -188,6 +188,9 @@ Ce qui est refusé avant d'atteindre ce journal (jeton absent ou invalide, corps
 chaque lecture du back-office par un compte admis est tracée (compte, rôle, route sans ses paramètres, issue).
 La Vigie affiche ces compteurs sur 24 heures, ainsi que les clôtures quotidiennes en échec (nombre, et dernière erreur, qui nomme l'étape et la maison en cause : 3), et le fuseau de la configuration en vigueur, qui vaut pour tous les mondes : s'il est inconnu de la base, elle le nomme et alerte, avec le nombre de mondes concernés et ce qu'il faut faire ;
 elle alerte aussi quand la version en vigueur ne respecte plus le schéma (3).
+Décision (#563) : la Vigie compte à part les opérations des intendants (`stewardOperations24h` : réussies, refusées, en panne), inscrites au journal des commandes au nom du compte avec l'intendant pour acteur.
+Les commandes et les comptes actifs sur 24 heures ne comptent que ce que le joueur a envoyé lui-même.
+Olympe ne liste pas encore une à une les commandes de jeu : le journal d'audit ne rend que les commandes d'administration, qu'un intendant ne mène jamais ; la liste des commandes de la fiche joueur nommera de même l'intendant qui en est l'acteur.
 Elle compte aussi les voyages en retard de déchargement de plus d'un tick (4.6, #253), tous mondes confondus : ceux encore en mer alors que le tick qui devait les décharger, le premier qui commence à leur échéance ou après, est terminé.
 Ce compte n'est pas nul quand le moteur est arrêté ou ses ticks en échec ; il est inconnu sans configuration en vigueur lisible, qui donne la durée du tick.
 Les passages de tick et de clôture sont gardés `telemetry.retentionDays` jours, puis supprimés par le moteur (3).

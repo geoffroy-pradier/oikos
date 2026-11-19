@@ -136,7 +136,8 @@ export function registerAdminReads(
     });
   });
 
-  // Vigie : joueurs, commandes, ticks et clôtures des dernières 24 heures.
+  // Vigie : joueurs, commandes, ticks et clôtures des dernières 24 heures. Une opération d'intendant, journalisée au
+  // nom du compte avec l'intendant pour acteur (`steward_id`), est comptée à part et ne rend pas le compte actif (#563).
   app.get('/api/admin/vigie', async (c) => {
     const totals = await sql<{
       worlds: string;
@@ -145,6 +146,9 @@ export function registerAdminReads(
       commands_ok: string;
       commands_rejected: string;
       commands_failed: string;
+      steward_ok: string;
+      steward_rejected: string;
+      steward_failed: string;
       ticks_failed: string;
       tick_max_ms: number | null;
       closes_failed: string;
@@ -152,10 +156,13 @@ export function registerAdminReads(
     }>`
       select (select count(*) from game.worlds) as worlds,
              (select count(*) from game.houses) as houses,
-             count(distinct l.user_id) as active_accounts,
-             count(*) filter (where l.status = 'ok') as commands_ok,
-             count(*) filter (where l.status = 'rejected') as commands_rejected,
-             count(*) filter (where l.status = 'failed') as commands_failed,
+             count(distinct l.user_id) filter (where l.steward_id is null) as active_accounts,
+             count(*) filter (where l.status = 'ok' and l.steward_id is null) as commands_ok,
+             count(*) filter (where l.status = 'rejected' and l.steward_id is null) as commands_rejected,
+             count(*) filter (where l.status = 'failed' and l.steward_id is null) as commands_failed,
+             count(*) filter (where l.status = 'ok' and l.steward_id is not null) as steward_ok,
+             count(*) filter (where l.status = 'rejected' and l.steward_id is not null) as steward_rejected,
+             count(*) filter (where l.status = 'failed' and l.steward_id is not null) as steward_failed,
              (select count(*) from telemetry.tick_runs
                where status = 'failed' and created_at > now() - interval '24 hours') as ticks_failed,
              (select max(duration_ms) from telemetry.tick_runs
@@ -280,6 +287,12 @@ export function registerAdminReads(
           ok: Number(total?.commands_ok),
           rejected: Number(total?.commands_rejected),
           failed: Number(total?.commands_failed),
+        },
+        // Champ ajouté : l'Olympe précédent l'ignore.
+        stewardOperations24h: {
+          ok: Number(total?.steward_ok),
+          rejected: Number(total?.steward_rejected),
+          failed: Number(total?.steward_failed),
         },
         ticks24h: {
           failed: Number(total?.ticks_failed),

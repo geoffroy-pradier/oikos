@@ -26,8 +26,9 @@ export interface Steward {
 
 /**
  * Intendants actifs du monde (en poste, payés, avec des règles) qui n'ont pas mené toutes leurs opérations du tick,
- * dans l'ordre de leur embauche. Un intendant n'agit pas pour un compte suspendu ou exclu : la même sanction que
- * le registre de l'API relit à chaque commande (13), sans refus inscrit à chaque tick.
+ * dans l'ordre de leur embauche. Un intendant n'agit pas pour un compte suspendu ou exclu, sans refus inscrit à chaque
+ * tick : la condition partagée avec le registre de l'API (`notSanctioned`, #563), qui n'écarte ici qu'une sanction
+ * déjà en vigueur ; l'opération la relit dans sa transaction, sous le verrou d'agora, et c'est cette lecture qui fait foi.
  */
 export const candidates = (db: Db, tick: StewardTick, perTick: number) =>
   db

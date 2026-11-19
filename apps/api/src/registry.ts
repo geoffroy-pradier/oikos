@@ -6,7 +6,13 @@ import {
   type CommandError,
   type DomainEvent,
 } from '@oikos/contracts';
-import { transactionConflict, violatedConstraint, type Db, type GameDatabase } from '@oikos/db';
+import {
+  sanctionRefusal,
+  transactionConflict,
+  violatedConstraint,
+  type Db,
+  type GameDatabase,
+} from '@oikos/db';
 import { sql, type ControlledTransaction } from 'kysely';
 import type { z } from 'zod';
 
@@ -146,10 +152,9 @@ export function canonicalJson(value: unknown): string {
 const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 /**
- * Sanction en vigueur qui refuse une commande au compte, à l'instant de la commande : une suspension ou une
- * exclusion validée (`SUSPENDED`), sinon un silence si la commande écrit dans la discussion (`SILENCED`).
- * Comparée à `now()` dans la base, à la microseconde : une `Date` tronquée à la milliseconde manquerait une
- * sanction posée, finie ou levée dans la même milliseconde que la commande (#611).
+ * Sanction en vigueur qui refuse une commande au compte, lue par la condition partagée avec le moteur
+ * (`sanctionRefusal`, #563) : une suspension ou une exclusion validée (`SUSPENDED`), sinon un silence si la commande
+ * écrit dans la discussion (`SILENCED`).
  */
 async function moderationRefusal(
   trx: Db,
@@ -157,22 +162,9 @@ async function moderationRefusal(
   userId: string,
 ): Promise<CommandResult<never> | null> {
   if (command.admin || command.moderation === 'exempt') return null;
-  const kinds = await trx
-    .selectFrom('admin.sanctions')
-    .select('kind')
-    .where('user_id', '=', userId)
-    .where('kind', 'in', [
-      'suspension',
-      'ban',
-      ...(command.moderation === 'chat' ? ['silence' as const] : []),
-    ])
-    .where('starts_at', '<=', sql<Date>`now()`)
-    .where((eb) => eb.or([eb('ends_at', 'is', null), eb('ends_at', '>', sql<Date>`now()`)]))
-    .where((eb) => eb.or([eb('kind', '<>', 'ban'), eb('validated_by', 'is not', null)]))
-    .execute();
-  if (kinds.some(({ kind }) => kind !== 'silence'))
-    return failure('SUSPENDED', 'This account is suspended.');
-  return kinds.length > 0 ? failure('SILENCED', 'This account is silenced.') : null;
+  const refusal = await sanctionRefusal(trx, userId, { speech: command.moderation === 'chat' });
+  if (refusal === 'SUSPENDED') return failure('SUSPENDED', 'This account is suspended.');
+  return refusal === 'SILENCED' ? failure('SILENCED', 'This account is silenced.') : null;
 }
 
 /** Entrée journalisée à la place d'une entrée que Postgres ne peut pas stocker. */

@@ -403,37 +403,85 @@ describe('opérations des intendants', () => {
       1,
     );
     await give(player.houseId, 'wheat', 10, await cityOf(player.field));
-    const agora = `market:${WORLD}`;
-    const held = await owner.startTransaction().execute();
-    await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(held);
-    // L'intendant a lu la liste des intendants (compte encore libre) et attend le verrou d'agora.
-    const running = runStewards(db, tick());
-    for (let tries = 0; ; tries += 1) {
-      const waiting = await sql<{ n: number }>`
-        select count(*)::int as n from pg_locks, hashtextextended(${agora}, 0) as k
-        where locktype = 'advisory' and not granted
-          and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`.execute(
-        owner,
-      );
-      if ((waiting.rows[0]?.n ?? 0) > 0) break;
-      if (tries > 300) throw new Error('The steward never waited for the agora');
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
     // Une exclusion validée entre-temps, comme par `admin.confirmExclusion` (qui annule alors les ordres du compte).
-    const [author, validator] = [randomUUID(), randomUUID()];
-    for (const user of [author, validator])
-      await sql`insert into auth.users (id, email) values (${user}, ${`${user}@example.test`})`.execute(
-        owner,
-      );
-    await sql`insert into admin.sanctions (user_id, kind, reason, author_id, validated_by)
-      values (${player.user}, 'ban', 'Triche', ${author}, ${validator})`.execute(owner);
-    await held.commit().execute();
+    const [author, validator] = [await account(), await account()];
+    const running = whileAgoraHeld(() => pronounce(player.user, 'ban', 0, null, author, validator));
     expect((await running).failed).toBe(0);
     expect(await operationsOf(id)).toEqual([]);
     expect(await stock(player.houseId, 'wheat')).toEqual({ quantity: 10, reserved: 0 });
     const orders = await sql<{ n: number }>`
       select count(*)::int as n from game.orders where house_id = ${player.houseId}`.execute(owner);
     expect(orders.rows).toEqual([{ n: 0 }]);
+  });
+
+  it('compte suspendu pendant que l’intendant attend : la condition du registre, relue dans sa transaction, arrête aussi une récolte (#563)', async () => {
+    const player = await newPlayer();
+    const id = await steward(player.user, player.field, [collect]);
+    await age(player.field, 1);
+    const before = await stock(player.houseId, 'wheat');
+    const author = await account();
+    let suspension = '';
+    const run = await whileAgoraHeld(async () => {
+      suspension = await pronounce(player.user, 'suspension', 0, 3600, author);
+    });
+    expect(run).toEqual({ acted: 0, refused: 0, failed: 0 });
+    expect(await operationsOf(id)).toEqual([]);
+    expect(await stock(player.houseId, 'wheat')).toEqual(before);
+    // Levée, la sanction cesse d'agir dès l'opération suivante ; le joueur peut alors renvoyer son intendant.
+    await lift(suspension, author);
+    await runStewards(db, tick());
+    expect((await operationsOf(id)).map((op) => op.status)).toEqual(['ok']);
+  });
+
+  it('une même condition décide pour la commande du joueur et pour son intendant (#563)', async () => {
+    const author = await account();
+    /** Verdict de l'API pour une commande de jeu et pour une parole (`house.rename`), et opérations de l'intendant. */
+    const verdict = async (player: Awaited<ReturnType<typeof newPlayer>>, stewardId: string) => {
+      const collected = code(await send(player.user, 'site.collect', { siteId: player.mill }));
+      const letters = [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('');
+      const renamed = code(
+        await send(player.user, 'house.rename', { name: `Sanction ${letters}` }),
+      );
+      await age(player.field, 1);
+      await runStewards(db, tick());
+      const operations = (await operationsOf(stewardId)).length;
+      return {
+        game: collected === 'SUSPENDED' ? 'SUSPENDED' : 'free',
+        speech: renamed,
+        operations,
+      };
+    };
+    const cases = [
+      // Un silence ne retire que la parole : l'intendant agit.
+      { sanctions: [['silence', -60, 3600]], expected: { game: 'free', speech: 'SILENCED' } },
+      // Exclusion proposée, avertissement, suspensions finie et à venir : rien n'arrête personne.
+      {
+        sanctions: [
+          ['ban', 0, null],
+          ['warning', 0, 3600],
+          ['suspension', -7200, -3600],
+          ['suspension', 3600, 7200],
+        ],
+        expected: { game: 'free', speech: 'ok' },
+      },
+      {
+        sanctions: [['suspension', -1, 3600]],
+        expected: { game: 'SUSPENDED', speech: 'SUSPENDED' },
+      },
+    ] as const;
+    for (const { sanctions, expected } of cases) {
+      const player = await newPlayer();
+      const id = await steward(player.user, player.field, [collect]);
+      const pronounced: string[] = [];
+      for (const [kind, from, to] of sanctions)
+        pronounced.push(await pronounce(player.user, kind, from, to, author));
+      const acts = expected.game === 'free' ? 1 : 0;
+      expect(await verdict(player, id)).toEqual({ ...expected, operations: acts });
+      if (acts === 0) {
+        await lift(pronounced[0] ?? '', author);
+        expect(await verdict(player, id)).toEqual({ game: 'free', speech: 'ok', operations: 1 });
+      }
+    }
   });
 
   it('la clé d’une opération est hors de portée du joueur : l’API la refuse, l’intendant la prend', async () => {
@@ -493,6 +541,60 @@ describe('opérations des intendants', () => {
     await unreachable.destroy();
   });
 });
+
+/** Un compte, sans maison : auteur ou validateur d'une sanction. */
+async function account() {
+  const id = randomUUID();
+  await sql`insert into auth.users (id, email) values (${id}, ${`${id}@example.test`})`.execute(
+    owner,
+  );
+  return id;
+}
+/** Sanction de `user`, de `from` à `to` secondes de maintenant (`to` nul : sans fin) ; rend son identifiant. */
+async function pronounce(
+  user: string,
+  kind: 'warning' | 'silence' | 'suspension' | 'ban',
+  from: number,
+  to: number | null,
+  author: string,
+  validatedBy: string | null = null,
+) {
+  const { rows } = await sql<{ id: string }>`insert into admin.sanctions
+      (user_id, kind, starts_at, ends_at, reason, author_id, validated_by)
+    values (${user}, ${kind}, now() + make_interval(secs => ${from}),
+            case when ${to}::int is null then null else now() + make_interval(secs => ${to}::int) end,
+            'Essai', ${author}, ${validatedBy})
+    returning id`.execute(owner);
+  return rows[0]?.id ?? '';
+}
+/** Lève la sanction maintenant, comme `admin.liftSanction`. */
+const lift = (sanctionId: string, by: string) =>
+  sql`update admin.sanctions set lifted_at = now(), lifted_by = ${by}, ends_at = now()
+    where id = ${sanctionId}`.execute(owner);
+/**
+ * Mène les intendants du monde pendant qu'un autre tient le verrou d'agora : `during` agit une fois qu'un intendant,
+ * qui a lu la liste des intendants, attend ce verrou ; le verrou est rendu ensuite.
+ */
+async function whileAgoraHeld(during: () => Promise<unknown>) {
+  const agora = `market:${WORLD}`;
+  const held = await owner.startTransaction().execute();
+  await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(held);
+  const running = runStewards(db, tick());
+  for (let tries = 0; ; tries += 1) {
+    const waiting = await sql<{ n: number }>`
+      select count(*)::int as n from pg_locks, hashtextextended(${agora}, 0) as k
+      where locktype = 'advisory' and not granted
+        and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`.execute(
+      owner,
+    );
+    if ((waiting.rows[0]?.n ?? 0) > 0) break;
+    if (tries > 300) throw new Error('The steward never waited for the agora');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  await during();
+  await held.commit().execute();
+  return running;
+}
 
 const cityOf = async (siteId: string) =>
   (

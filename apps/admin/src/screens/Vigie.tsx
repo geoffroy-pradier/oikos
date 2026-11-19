@@ -8,7 +8,10 @@ import { StaleReportsAlert } from './Moderation';
 interface VigieData {
   houses: number;
   activeAccounts24h: number;
+  /** Commandes des joueurs eux-mêmes, hors opérations de leurs intendants (#563). */
   commands24h: { ok: number; rejected: number; failed: number };
+  /** Opérations des intendants, comptées à part (#563) ; absent d'une API antérieure : rien n'est affiché. */
+  stewardOperations24h?: { ok: number; rejected: number; failed: number };
   ticks24h: { failed: number; maxDurationMs: number | null };
   /**
    * Voyages encore en mer alors que le tick qui devait les décharger est terminé (4.6), tous mondes
@@ -107,6 +110,13 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         [t('vigie.commandsOk'), number.format(data.commands24h.ok)],
         [t('vigie.commandsRejected'), number.format(data.commands24h.rejected)],
         [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
+        ...(data.stewardOperations24h
+          ? ([
+              [t('vigie.stewardOk'), number.format(data.stewardOperations24h.ok)],
+              [t('vigie.stewardRejected'), number.format(data.stewardOperations24h.rejected)],
+              [t('vigie.stewardFailed'), number.format(data.stewardOperations24h.failed)],
+            ] as [string, string][])
+          : []),
         [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
         [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
         ...(data.voyagesOverdue === undefined
