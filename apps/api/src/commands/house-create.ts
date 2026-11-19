@@ -49,13 +49,12 @@ export const houseCreate = defineCommand({
       .where('id', '=', input.cityId)
       .executeTakeFirst();
     if (!city) return { ok: false, error: { code: 'CITY_NOT_FOUND', message: 'Unknown city.' } };
-    // Un compte qui a déjà sa maison dans ce monde l'apprend avant tout contrôle des travailleurs (la
-    // contrainte de la base reste le garde-fou sous concurrence).
+    // Un compte n'a qu'une maison dans tout le jeu, quel qu'en soit le monde (#604) : il l'apprend avant tout
+    // contrôle des travailleurs (la contrainte `houses_one_per_user` reste le garde-fou sous concurrence).
     const existing = await trx
       .selectFrom('game.houses')
       .select('id')
       .where('user_id', '=', userId)
-      .where('world_id', '=', city.world_id)
       .executeTakeFirst();
     if (existing)
       return {

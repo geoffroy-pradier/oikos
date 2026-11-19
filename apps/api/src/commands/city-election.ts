@@ -22,7 +22,7 @@ export const refuse = (code: string, message: string): CommandResult<never> => (
   error: { code, message },
 });
 
-/** La maison du compte, sa cité et son statut. */
+/** La maison du compte (une seule dans tout le jeu, #604), sa cité et son statut. */
 export const houseOf = (trx: Db, userId: string) =>
   trx
     .selectFrom('game.houses as h')

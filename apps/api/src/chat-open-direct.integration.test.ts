@@ -82,22 +82,14 @@ describe('chat.openDirect', () => {
     ).toEqual([{ n: 2 }]);
   });
 
-  it('un compte qui a une maison dans deux mondes converse depuis celle du monde de la maison désignée', async () => {
+  it('une maison d’un autre monde reste hors d’atteinte : un compte n’a qu’une maison dans tout le jeu (#604)', async () => {
     const [first, second] = [await newWorld(), await newWorld()];
     const alice = await first.player();
-    const aliceThere = await second.player(second.kalliste, false, alice.user);
     const bob = await second.player();
-    const opened = await openDirect(alice.user, bob.houseId);
-    expect(opened.body).toMatchObject({ ok: true, data: { houseId: bob.houseId, created: true } });
+    await expect(second.player(second.kalliste, false, alice.user)).rejects.toThrow('409');
+    expect(codeOf(await openDirect(alice.user, bob.houseId))).toEqual([404, 'RECIPIENT_NOT_FOUND']);
     expect(
-      await rows(
-        sql`select house_id from game.channel_members where channel_id = ${opened.body.data.channelId as string} order by house_id`,
-      ),
-    ).toEqual([aliceThere.houseId, bob.houseId].sort().map((house_id) => ({ house_id })));
-    expect(codeOf(await openDirect(alice.user, aliceThere.houseId))).toEqual([
-      409,
-      'SELF_CONVERSATION',
-    ]);
-    expect((await openDirect(alice.user, (await first.player()).houseId)).status).toBe(200);
+      await rows(sql`select count(*)::int as n from game.houses where user_id = ${alice.user}`),
+    ).toEqual([{ n: 1 }]);
   });
 });

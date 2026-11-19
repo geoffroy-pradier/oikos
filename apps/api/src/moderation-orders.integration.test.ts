@@ -141,7 +141,7 @@ describe('market.cancelOrder sous sanction (#528)', () => {
 });
 
 describe('validation d’une exclusion (#528)', () => {
-  it('annule les ordres ouverts de toutes ses maisons, rend le séquestre par le grand livre, dans la même transaction', async () => {
+  it('annule les ordres ouverts de sa maison, rend le séquestre par le grand livre, dans la même transaction', async () => {
     const [w1, w2] = [await newWorld(), await newWorld()];
     const alice = await w1.player();
     const [bob, chloe] = [await w1.player(), await w2.player()];
@@ -152,27 +152,20 @@ describe('validation d’une exclusion (#528)', () => {
     expect((await order(bob, w1.kalliste, 'sell', 5, 2)).status).toBe(200);
     const sell = await placed(order(alice, w1.kalliste, 'sell', 40, 9));
     const elsewhere = await placed(order(alice, w1.elaia, 'buy', 2, 1));
-    // Un compte a une maison par monde, et une commande de jeu agit pour la seule maison de son compte : la
-    // seconde maison d'Alice, dans l'autre monde, place son ordre sous un autre compte, puis lui est rattachée.
-    const aliceThere = await w2.player();
-    const otherWorld = await placed(order(aliceThere, w2.kalliste, 'buy', 11, 3));
-    await sql`update game.houses set user_id = ${alice.user} where id = ${aliceThere.houseId}`.execute(
-      owner,
-    );
+    // Un compte n'a qu'une maison dans tout le jeu (#604) : l'autre monde n'a que la maison de Chloé.
     const bobs = await placed(order(bob, w1.kalliste, 'buy', 4, 1));
     const chloes = await placed(order(chloe, w2.kalliste, 'buy', 1, 1));
 
     const sanctionId = await propose(alice.user);
     // Proposée, l'exclusion n'agit pas : les ordres restent ouverts.
-    expect(await statusOf([partial, sell, elsewhere, otherWorld])).toEqual(Array(4).fill('open'));
+    expect(await statusOf([partial, sell, elsewhere])).toEqual(Array(3).fill('open'));
     const before = {
       here: await money(alice.houseId),
-      there: await money(aliceThere.houseId),
       bob: await money(bob.houseId),
       chloe: await money(chloe.houseId),
       total: await totalOf([w1.worldId, w2.worldId]),
     };
-    expect([before.here.escrow, before.there.escrow]).toEqual([2 * 5 + 2, 33]);
+    expect(before.here.escrow).toBe(2 * 5 + 2);
     expect(await reservedOf(alice.houseId)).toBe(9);
 
     const validator = await moderator();
@@ -181,8 +174,7 @@ describe('validation d’une exclusion (#528)', () => {
     // La réponse, que lit un modérateur, ne dit rien de l'économie du compte exclu (15.4).
     expect(Object.keys(confirmed.body.data).sort()).toEqual(['sanctionId', 'startsAt']);
 
-    expect(await statusOf([partial, sell, elsewhere, otherWorld, bobs, chloes])).toEqual([
-      'cancelled',
+    expect(await statusOf([partial, sell, elsewhere, bobs, chloes])).toEqual([
       'cancelled',
       'cancelled',
       'cancelled',
@@ -197,10 +189,6 @@ describe('validation d’une exclusion (#528)', () => {
       treasury: before.here.treasury + before.here.escrow,
       escrow: 0,
     });
-    expect(await money(aliceThere.houseId)).toEqual({
-      treasury: before.there.treasury + 33,
-      escrow: 0,
-    });
     expect(await reservedOf(alice.houseId)).toBe(0);
     // Le stock reste à la maison : sa saisie est hors de ce ticket.
     expect(
@@ -213,17 +201,14 @@ describe('validation d’une exclusion (#528)', () => {
     expect(await totalOf([w1.worldId, w2.worldId])).toBe(before.total);
     expect(await unbalanced([w1.worldId, w2.worldId])).toEqual([]);
 
-    // Une écriture de retour par maison, de son séquestre à sa trésorerie, inscrite par la commande.
+    // Une écriture de retour, de son séquestre à sa trésorerie, inscrite par la commande.
     const releases = await rows(sql<{ world_id: string; lines: number[] }>`
       select e.world_id, array_agg(l.amount::int order by l.amount) as lines
       from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
       where e.kind = 'market.escrow_release' and e.meta->>'cause' = 'exclusion'
         and e.world_id in (${w1.worldId}, ${w2.worldId})
       group by e.id, e.world_id order by e.world_id = ${w1.worldId} desc`);
-    expect(releases).toEqual([
-      { world_id: w1.worldId, lines: [-12, 12] },
-      { world_id: w2.worldId, lines: [-33, 33] },
-    ]);
+    expect(releases).toEqual([{ world_id: w1.worldId, lines: [-12, 12] }]);
     // Chaque ordre annulé l'est aussi dans les événements, avec la validation, sous la même commande.
     const events = await rows(sql<{ type: string; order_id: string | null }>`
       select e.type, e.payload->>'orderId' as order_id from game.domain_events e
@@ -231,9 +216,7 @@ describe('validation d’une exclusion (#528)', () => {
       where l.user_id = ${validator.slice(5)} and l.command = 'admin.confirmExclusion' order by e.type, e.payload->>'orderId' collate "C"`);
     expect(events).toEqual([
       { type: 'ExclusionConfirmed', order_id: null },
-      ...[partial, sell, elsewhere, otherWorld]
-        .sort()
-        .map((id) => ({ type: 'OrderCancelled', order_id: id })),
+      ...[partial, sell, elsewhere].sort().map((id) => ({ type: 'OrderCancelled', order_id: id })),
     ]);
 
     // Exclue, Alice ne place plus rien ; l'annulation lui reste permise, et ne trouve plus d'ordre ouvert.

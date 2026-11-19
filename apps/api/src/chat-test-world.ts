@@ -74,7 +74,7 @@ export async function newWorld() {
   const channelOf = async (cityId: string) =>
     (await rows(sql<{ id: string }>`select id from game.channels where city_id = ${cityId}`))[0]
       ?.id ?? '';
-  /** `user` : un compte existant, qui fonde ici sa maison de ce monde (un compte a une maison par monde). */
+  /** `user` : un compte existant, sans maison, qui la fonde ici (un compte n'a qu'une maison dans tout le jeu, #604). */
   const player = async (cityId = kalliste, citizen = false, user?: string) => {
     const account = user ?? randomUUID();
     if (!user)

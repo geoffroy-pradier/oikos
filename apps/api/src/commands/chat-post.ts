@@ -35,8 +35,8 @@ export const chatPost = defineCommand({
     messages_body_not_blank: INVALID_BODY,
   },
   async handler({ trx, userId, emit, config }, input) {
-    // Le canal et la maison du compte dans le monde du canal (un compte peut avoir une maison par monde), s'il
-    // peut y écrire : canal de la cité de cette maison, ou conversation dont elle est membre.
+    // Le canal et la maison du compte (une seule dans tout le jeu, #604), si elle est du monde du canal et peut y
+    // écrire : canal de la cité de cette maison, ou conversation dont elle est membre.
     const target = await trx
       .selectFrom('game.channels as c')
       .innerJoin('game.houses as h', (join) =>
