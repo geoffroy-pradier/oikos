@@ -1,6 +1,6 @@
 # ADR 0010 — Système de design : jetons, composants, mouvement
 
-Date : 2026-11-18 · Statut : acceptée
+Date : 2026-11-18 · Statut : acceptée, remplacée en partie par l'ADR 0011 (palette, polices, ornements)
 
 ## Contexte
 

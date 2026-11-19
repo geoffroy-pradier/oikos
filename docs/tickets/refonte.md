@@ -21,9 +21,8 @@ Label : `refonte`.
 ### Critères d'acceptation
 
 - [ ] `packages/ui/src/theme.css` : fond, deux plans de surface, texte en trois niveaux, deux bordures, accent orange, succès, alerte, danger et information avec leurs fonds atténués, mer (pour la carte), dans les deux thèmes.
-- [ ] Rayons, ombres et durées selon l'ADR 0011 ; Inter seule, Fraunces retirée des dépendances et des styles.
-- [ ] Le composant `Frieze` et ses usages sont retirés ; aucun écran ne garde de frise.
-- [ ] Chaque couple texte/fond est déclaré dans `contrast.ts` et passe AA dans les deux thèmes.
+- [ ] Rayons, ombres et durées selon l'ADR 0011 ; Inter seule : `--font-display` et la dépendance `@fontsource-variable/fraunces` sont retirés, l'en-tête de `theme.css` décrit la nouvelle direction.
+- [ ] Le composant `Frieze`, ses tests, ses usages et les utilitaires `meander` et `frieze-wave` sont retirés ; aucun écran ne garde de frise.
 - [ ] Le catalogue (`catalogue.html`) montre la nouvelle palette dans les deux thèmes.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
 - [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
@@ -116,6 +115,7 @@ Label : `refonte`.
 - [ ] Sous 1 024 px : en-tête compact et barre d'onglets en bas, onglet actif marqué par la couleur et un trait.
 - [ ] En-tête de page commun : titre, heure de jeu et prochaine clôture, recherche si l'écran en a une, action principale.
 - [ ] Réglages en feuille : thème (clair, sombre, celui de l'appareil), langue, déconnexion ; Échap rend le foyer.
+- [ ] Les écrans d'erreur de lecture (`LoadProblem`) et de page introuvable (`NotFound`) prennent la nouvelle présentation, avec une illustration quand #691 est fusionné.
 - [ ] Les routes ne changent pas ; les tests de bout en bout naviguent comme avant.
 - [ ] Un contrôle d'accessibilité automatique (axe) tourne dans les tests de bout en bout sur la coquille, sans violation grave.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
@@ -205,7 +205,7 @@ Label : `refonte`.
 ### Critères d'acceptation
 
 - [ ] Tableau de bord comme la maquette : cartes de chiffres clés, courbe de la trésorerie doublée d'un tableau, « À faire aujourd'hui » (alertes existantes), production en cours avec « Récolter » et « Tout récolter ».
-- [ ] Sites : liste en cartes ou tableau ; fiche d'un site avec ses chiffres ; acquisition, changement de production, relance et intendant dans des feuilles, par étapes, au prix vu.
+- [ ] Sites : liste en cartes ou tableau ; fiche d'un site avec ses chiffres ; acquisition, changement de production, relance et intendant (embauche, règles, consigne : `SiteSteward`, `SiteStewardInstruction`) dans des feuilles, par étapes, au prix vu.
 - [ ] Les tests de bout en bout `first-slice` et `alpha-journey` passent avec leurs assertions.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
 - [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
@@ -233,7 +233,7 @@ Label : `refonte`.
 
 ### Critères d'acceptation
 
-- [ ] Personnel et Immobilier : tableaux et fiches, achat, location, rénovation, mise en vente et fin de bail dans des feuilles, au prix vu.
+- [ ] Personnel (`Staff`) et Immobilier (`Property`, `PropertyActions`) : tableaux et fiches, achat, location, rénovation, mise en vente et fin de bail dans des feuilles, au prix vu.
 - [ ] Comptes : bilan en cartes, stocks valorisés et compte de résultat en `DataTable`, flux de trésorerie en barres doublées d'un tableau.
 - [ ] Les tests existants passent avec leurs assertions.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
@@ -247,7 +247,7 @@ Rien de plus que les critères ci-dessus.
 
 ### Dépendances
 
-#690
+#689, #690, #691
 
 ## #695 — Refonte (9) : Agora
 
@@ -292,10 +292,11 @@ Label : `refonte`.
 ### Critères d'acceptation
 
 - [ ] Un dessin SVG fait main de l'archipel : côtes, îles, hauts-fonds, rose des vents et échelle en heures de mer, dans les deux thèmes.
-- [ ] La position de chaque cité sur le dessin vient de la configuration (champ facultatif) ; une cité sans position reste placée par la règle actuelle.
+- [ ] La position de chaque cité sur le dessin vient de la configuration, par un champ facultatif d'affichage qui ne porte aucune valeur d'équilibrage ; une cité sans position reste placée par la règle actuelle.
 - [ ] Déplacement et zoom à la souris, au doigt (pincement) et au clavier, bornés au dessin ; bouton pour recentrer sur la cité de la maison.
 - [ ] Routes (celles de la maison mises en avant), navires en mer à la part du trajet faite, navires à quai ; calques en pastilles.
 - [ ] Panneau de la cité choisie (population, taxe, quelques cours, terroir, lien vers son agora) et de la flotte ; départ en feuille par étapes.
+- [ ] Chantier naval (`Shipyard`) et fiche d'un navire (`Ship`) : achat en feuille au prix vu, voyages en tableau.
 - [ ] La liste accessible des routes et des navires reste ; les tests de bout en bout du transport passent avec leurs assertions.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
 - [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
@@ -354,6 +355,7 @@ Label : `refonte`.
 
 - [ ] Temple : une carte par dieu avec son emblème, sa Charis et son déclin ; offrande et grâce en feuilles ; Pythie et oracles en fil.
 - [ ] Messages : deux panneaux sur ordinateur (canaux et fil), liste puis fil sur téléphone ; compositeur fixé en bas ; signalement en feuille.
+- [ ] Sanctions du joueur : avis en bandeau (`SanctionNotice`) et appel en feuille (`SanctionAppeal`), plus de formulaire ouvert en permanence.
 - [ ] Les tests existants passent avec leurs assertions.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
 - [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
@@ -377,11 +379,11 @@ Label : `refonte`.
 
 ### Spécification liée
 
-`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences), `docs/specs/15-back-office-olympe.md`, `docs/adr/0011-refonte-graphique.md`
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences), `docs/specs/15-back-office-olympe.md`
 
 ### Critères d'acceptation
 
-- [ ] Coquille d'Olympe : barre latérale des modules, en-tête, onglets en pastilles.
+- [ ] Coquille d'Olympe : barre latérale des modules, en-tête, onglets en pastilles ; connexion et second facteur (`SignIn`, `SecondFactor`) en carte centrée.
 - [ ] Vigie et Économie comme la maquette : indicateurs en cartes, graphiques doublés de tableaux, tableaux triables.
 - [ ] Paramètres : sections repliables et édition en panneau, différences avec la version en vigueur avant publication.
 - [ ] Événements, Modération, Accès et Journal d'audit : listes filtrables et actions en feuilles ; double validation inchangée.
@@ -397,7 +399,7 @@ Rien de plus que les critères ci-dessus.
 
 ### Dépendances
 
-#688, #689
+#688, #689, #690
 
 ## #700 — Refonte (14) : contrôle visuel et revue finale
 
