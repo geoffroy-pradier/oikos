@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(23);
 
 -- Une bourse des PNJ n'est créditée que par les salaires, l'hébergement et son propre revenu public (migration 1200 ;
 -- ticket 651). Chaque essai est joué sous le rôle de service, comme le moteur et l'API, puis les contrôles différés
@@ -99,16 +99,28 @@ select throws_like($$select pg_temp.post('npc.public_income', pg_temp.income('01
 select throws_ok($$select pg_temp.post('npc.public_income', '{}', array['faucet_npc_public_income', 'purse:101'], array[-1, 1])$$,
   '23514', 'new row for relation "ledger_entries" violates check constraint "ledger_entries_npc_public_income_meta"',
   'pas de revenu public sans cité ni jour de jeu');
-select throws_ok($$select pg_temp.post('npc.public_income', pg_temp.income('01900000-0000-7000-8000-000000000101', '"20772"'),
-  array['faucet_npc_public_income', 'purse:101'], array[-1, 1])$$, '23514', null, 'ni un jour de jeu écrit en texte');
-select throws_ok($$select pg_temp.post('npc.public_income', pg_temp.income('01900000-0000-7000-8000-000000000101', '20771.0'),
-  array['faucet_npc_public_income', 'purse:101'], array[-1, 1])$$, '23514', null,
+-- Forme des clés : écritures qui ne créditent aucune bourse (le robinet paie Bob), pour que seule la contrainte de
+-- `meta` puisse les refuser, et non la garde des bourses, qui lève le même code. Agora 570 : une cité dont
+-- l'identifiant a des lettres, pour l'écrire aussi en majuscules.
+insert into game.cities (id, world_id, slug, name)
+  values ('0190000a-0000-7000-8000-0000000005a0', '01900000-0000-7000-8000-000000000001', 'agora-570', 'Agora 570');
+create function pg_temp.shaped(city text, day jsonb) returns void language sql as $$
+  select pg_temp.post('npc.public_income', pg_temp.income(city, day), array['faucet_npc_public_income', 'bob'], array[-1, 1])
+$$;
+select lives_ok($$select pg_temp.shaped('0190000a-0000-7000-8000-0000000005a0', '20771')$$,
+  'sous sa forme unique, la clé d''Agora 570 passe la contrainte');
+select throws_ok($$select pg_temp.shaped('0190000a-0000-7000-8000-0000000005a0', '"20772"')$$, '23514',
+  'new row for relation "ledger_entries" violates check constraint "ledger_entries_npc_public_income_meta"',
+  'ni un jour de jeu écrit en texte');
+select throws_ok($$select pg_temp.shaped('0190000a-0000-7000-8000-0000000005a0', '20772.0')$$, '23514',
+  'new row for relation "ledger_entries" violates check constraint "ledger_entries_npc_public_income_meta"',
   'ni un jour décimal, qui serait une autre clé du même jour pour l''index d''unicité');
-select throws_ok($$select pg_temp.post('npc.public_income', pg_temp.income('01900000-0000-7000-8000-000000000101', '-1'),
-  array['faucet_npc_public_income', 'purse:101'], array[-1, 1])$$, '23514', null, 'ni un jour négatif');
-select throws_ok($$select pg_temp.post('npc.public_income', pg_temp.income('0190000A-0000-7000-8000-000000000101', '20772'),
-  array['faucet_npc_public_income', 'purse:101'], array[-1, 1])$$, '23514', null,
-  'ni une cité en majuscules, qui serait une autre clé de la même cité');
+select throws_ok($$select pg_temp.shaped('0190000a-0000-7000-8000-0000000005a0', '-1')$$, '23514',
+  'new row for relation "ledger_entries" violates check constraint "ledger_entries_npc_public_income_meta"',
+  'ni un jour négatif');
+select throws_ok($$select pg_temp.shaped(upper('0190000a-0000-7000-8000-0000000005a0'), '20772')$$, '23514',
+  'new row for relation "ledger_entries" violates check constraint "ledger_entries_npc_public_income_meta"',
+  'ni la même cité en majuscules, qui serait une autre clé de la même cité pour l''index d''unicité');
 
 -- Quel que soit le rôle, sans report possible.
 select throws_like($$select pg_temp.post_as_owner('voyage.departure', '{}', array['bob', 'purse:101'], array[-5, 5])$$,
@@ -116,7 +128,7 @@ select throws_like($$select pg_temp.post_as_owner('voyage.departure', '{}', arra
 select ok((select not tgdeferrable and tgconstraint = 0 from pg_trigger where tgname = 'ledger_lines_npc_purse_credit'),
   'le contrôle n''est pas une contrainte différable');
 select is(array[pg_temp.balance('purse:101'), pg_temp.balance('purse:103'), pg_temp.balance('bob'), pg_temp.balance('cleo')],
-  array[113, 10, 972, 1000]::bigint[], 'aucun essai refusé n''a laissé de trace');
+  array[113, 10, 973, 1000]::bigint[], 'aucun essai refusé n''a laissé de trace (Bob : l''obole d''Agora 570 en plus)');
 select lives_ok($$select pg_temp.post('npc.public_income', pg_temp.income('01900000-0000-7000-8000-000000000103', '20771'),
   array['faucet_npc_public_income', 'purse:103'], array[-1, 1])$$, 'la bourse d''Elaia reçoit son propre revenu public');
 
