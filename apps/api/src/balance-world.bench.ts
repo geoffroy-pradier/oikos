@@ -3,7 +3,7 @@ import { closeOf, openBench, treasuryOf } from './balance/city';
 import { winnerOf } from './balance/politics';
 import { playWorld } from './balance/run';
 import { PUBLIC_SINKS, publish, recipeMargins, sinkShares } from './balance/measures';
-import { SLUGS, WAGES, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
+import { SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
 import { sql } from 'kysely';
 
 /*
@@ -172,7 +172,7 @@ it(
     expect(shares['public'], 'part des puits publics').toBeGreaterThan(0);
 
     // Mesures publiées.
-    const margins = recipeMargins(days.slice(-WINDOW), () => WAGES.workerOboles);
+    const margins = recipeMargins(days.slice(-WINDOW));
     await publish(days, margins, {
       minutes: Math.round(minutes * 10) / 10,
       stewards: stewards.length,

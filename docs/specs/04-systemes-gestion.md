@@ -143,6 +143,14 @@ Un atelier à l'arrêt faute d'entretien payé (5.5) ne consomme aucun intrant :
 Pour un atelier, rien n'est « accumulé » tant que les intrants ne sont pas consommés : les cycles écoulés avant l'arrêt restent dus, dans la limite du plafond, et tournent à la première récolte après la relance.
 Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊quantité × ampleur ÷ 10 000⌋ de chaque extrant, sans intrant de plus.
 
+Marge nette quotidienne d'un site (#285), telle que la mesure le banc à quatre cités (`recipeMargins`, `apps/api/src/balance/measures.ts`), sur ses dix derniers jours mesurés.
+Elle est comptée à pleine cadence : tous les cycles d'un jour, et tous les extrants vendus.
+Ventes : les extrants au prix moyen des échanges de la cité, achats des PNJ compris.
+Intrants : au prix moyen payé par les maisons de la cité (ordres d'achat servis, sans les achats des PNJ), sinon au prix moyen des échanges.
+Un bien sans échange dans la cité est compté au prix du monde, sinon à son prix de référence.
+On en retire l'entretien du site (5.5), puis, par travailleur, le salaire moyen de la cité et sa part d'hébergement : le prix d'une nuit fois la part des employés de la cité qui ne sont pas logés (4.4).
+Une matière première n'est comptée que dans le terroir de la cité ; la marge du monde (`world`) compte toutes les recettes, aux prix et au marché du travail de toutes les cités.
+
 ## 4.4 Le personnel
 
 - **Travailleurs** : salariés recrutés sur le marché du travail de la cité, dont le salaire d'équilibre dépend de l'offre et de la demande locales. Moral influencé par salaire, logement, fêtes et cadence.

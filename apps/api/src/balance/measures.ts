@@ -18,6 +18,10 @@ export interface DayMeasure {
   flows: Record<string, Record<string, number>>;
   /** Échanges du jour par cité et bien, pour les marges. */
   traded: Record<string, Record<string, { turnover: number; volume: number }>>;
+  /** Part de ces échanges achetée par des maisons (un ordre d'achat servi, PNJ exclus) : le prix payé des intrants. */
+  bought: Record<string, Record<string, { turnover: number; volume: number }>>;
+  /** Marché du travail que la clôture du jour a fixé, par cité : salaire, prix d'une nuit, employés et non logés (4.4). */
+  labor: Record<string, { wage: number; lodging: number; employed: number; unhoused: number }>;
 }
 
 /** Relève, jour après jour, les mesures des cités d'un monde ; à appeler à la fin de chaque jour de jeu. */
@@ -38,10 +42,13 @@ export async function measureDay(
     coverage: {},
     flows: {},
     traded: {},
+    bought: {},
+    labor: {},
   };
   for (const slug of [...bySlug.values(), 'world']) {
     measure.flows[slug] = {};
     measure.traded[slug] = {};
+    measure.bought[slug] = {};
   }
   // Monnaie : comptes des maisons (et leur séquestre) par cité de citoyenneté, trésor de chaque cité.
   const balances = await sql<{ city_id: string; balance: string }>`
@@ -60,8 +67,17 @@ export async function measureDay(
     measure.supply['world'] = (measure.supply['world'] ?? 0) + Number(row.balance);
   }
   // Échanges du jour par cité du marché et bien, depuis le rang de la veille : prix, panier.
-  const trades = await sql<{ city_id: string; good_id: string; turnover: string; volume: string }>`
-    select o.city_id, o.good_id, sum(t.price * t.quantity) as turnover, sum(t.quantity) as volume
+  const trades = await sql<{
+    city_id: string;
+    good_id: string;
+    turnover: string;
+    volume: string;
+    bought_turnover: string;
+    bought_volume: string;
+  }>`
+    select o.city_id, o.good_id, sum(t.price * t.quantity) as turnover, sum(t.quantity) as volume,
+      coalesce(sum(t.price * t.quantity) filter (where t.buy_order_id is not null), 0) as bought_turnover,
+      coalesce(sum(t.quantity) filter (where t.buy_order_id is not null), 0) as bought_volume
     from game.trades t join game.orders o on o.id = t.sell_order_id
     where t.world_id = ${worldId} and t.seq > ${since.seq} group by 1, 2`.execute(db);
   const tradedBy = new Map<string, Map<string, Traded>>();
@@ -79,8 +95,44 @@ export async function measureDay(
           volume: (before?.volume ?? 0) + Number(row.volume),
         },
       };
+      if (Number(row.bought_volume) === 0) continue;
+      const paid = measure.bought[key]?.[row.good_id];
+      measure.bought[key] = {
+        ...measure.bought[key],
+        [row.good_id]: {
+          turnover: (paid?.turnover ?? 0) + Number(row.bought_turnover),
+          volume: (paid?.volume ?? 0) + Number(row.bought_volume),
+        },
+      };
     }
   }
+  // Marché du travail : la ligne que la dernière clôture a écrite pour chaque cité.
+  const labor = await sql<{
+    city_id: string;
+    wage_oboles: string;
+    lodging_oboles: string;
+    employed: string;
+    unhoused: string;
+  }>`select distinct on (city_id) city_id, wage_oboles, lodging_oboles, employed, unhoused
+    from game.labor_market where world_id = ${worldId} order by city_id, game_day desc`.execute(db);
+  // `world` : salaire moyen par employé, prix moyen d'une nuit par non logé, totaux des employés et des non logés.
+  const world = { wages: 0, lodging: 0, employed: 0, unhoused: 0 };
+  for (const row of labor.rows) {
+    const [wage, lodging] = [Number(row.wage_oboles), Number(row.lodging_oboles)];
+    const [employed, unhoused] = [Number(row.employed), Number(row.unhoused)];
+    measure.labor[bySlug.get(row.city_id) ?? row.city_id] = { wage, lodging, employed, unhoused };
+    world.wages += wage * employed;
+    world.lodging += lodging * unhoused;
+    world.employed += employed;
+    world.unhoused += unhoused;
+  }
+  if (labor.rows.length > 0)
+    measure.labor['world'] = {
+      wage: world.employed === 0 ? 0 : world.wages / world.employed,
+      lodging: world.unhoused === 0 ? 0 : world.lodging / world.unhoused,
+      employed: world.employed,
+      unhoused: world.unhoused,
+    };
   const population = await db
     .selectFrom('game.npc_population')
     .select(['city_id', 'class_id', 'population', 'coverage_bps'])
@@ -126,50 +178,105 @@ export async function measureDay(
   return measure;
 }
 
-/** Prix moyen d'un bien sur des jours mesurés : de la cité, sinon du monde, sinon le prix de référence. */
-function averagePrice(days: readonly DayMeasure[], slug: string, goodId: string) {
-  const sum = (key: string) =>
-    days.reduce(
-      (total, day) => {
-        const good = day.traded[key]?.[goodId];
-        return {
-          turnover: total.turnover + (good?.turnover ?? 0),
-          volume: total.volume + (good?.volume ?? 0),
-        };
-      },
-      { turnover: 0, volume: 0 },
-    );
+type Sums = Record<string, Record<string, { turnover: number; volume: number }>>;
+/** Prix moyen d'un bien sur des jours mesurés, dans `key` (une cité ou `world`) ; null sans échange. */
+function averageOf(
+  days: readonly DayMeasure[],
+  pick: (day: DayMeasure) => Sums,
+  key: string,
+  goodId: string,
+) {
+  let [turnover, volume] = [0, 0];
+  for (const day of days) {
+    const good = pick(day)[key]?.[goodId];
+    turnover += good?.turnover ?? 0;
+    volume += good?.volume ?? 0;
+  }
+  return volume > 0 ? turnover / volume : null;
+}
+/** Prix de vente : le prix moyen des échanges (PNJ compris) de la cité, sinon du monde, sinon le prix de référence. */
+const salePrice = (days: readonly DayMeasure[], slug: string, goodId: string) =>
+  averageOf(days, (day) => day.traded, slug, goodId) ??
+  averageOf(days, (day) => day.traded, 'world', goodId) ??
+  referenceOf(goodId);
+/**
+ * Prix payé d'un intrant : le prix moyen des achats des maisons de la cité, sinon de ses échanges ; à défaut, de même
+ * pour le monde, puis le prix de référence.
+ */
+function paidPrice(days: readonly DayMeasure[], slug: string, goodId: string) {
   for (const key of [slug, 'world']) {
-    const { turnover, volume } = sum(key);
-    if (volume > 0) return turnover / volume;
+    const price =
+      averageOf(days, (day) => day.bought, key, goodId) ??
+      averageOf(days, (day) => day.traded, key, goodId);
+    if (price !== null) return price;
   }
   return referenceOf(goodId);
 }
+
+/** Recettes d'atelier (une recette à intrants, 4.3) ; les autres sont des productions de matières premières (4.2). */
+export const isWorkshop = (recipe: { inputs: readonly unknown[] }) => recipe.inputs.length > 0;
+
 /**
- * Marge nette quotidienne d'un site par recette et par cité, en oboles : extrants moins intrants, aux prix
- * moyens de la cité sur `days`, par jour de cycles, moins l'entretien du site et les salaires de ses
- * travailleurs (salaire de la cité de la configuration jouée).
+ * Salaire et part d'hébergement d'un travailleur dans une cité sur `days`, en oboles par jour : le salaire
+ * moyen du marché du travail, et le prix d'une nuit fois la part des employés sans logement (4.4).
  */
-export function recipeMargins(days: readonly DayMeasure[], wages: (slug: string) => number) {
+export function laborCost(days: readonly DayMeasure[], slug: string) {
+  let [wages, lodging, employed, known] = [0, 0, 0, 0];
+  for (const day of days) {
+    const labor = day.labor[slug];
+    if (!labor) continue;
+    known += 1;
+    wages += labor.wage;
+    lodging += labor.lodging * labor.unhoused;
+    employed += labor.employed;
+  }
+  return {
+    wage: known === 0 ? 0 : wages / known,
+    lodging: employed === 0 ? 0 : lodging / employed,
+  };
+}
+
+/**
+ * Marge nette quotidienne d'un site par recette et par cité, en oboles (#285) : ses ventes (extrants au prix
+ * moyen de la cité sur `days`), moins ses intrants au prix payé par les maisons de la cité, par jour de cycles, moins
+ * l'entretien du site, les salaires de ses travailleurs et leur part d'hébergement (`laborCost`). Les productions
+ * de matières premières ne sont comptées que dans le terroir de la cité, les ateliers partout ; `world` compte toutes
+ * les recettes, aux prix et au marché du travail du monde : c'est la marge de la filière que borne le banc.
+ */
+export function recipeMargins(days: readonly DayMeasure[]) {
   const margins: Record<string, Record<string, number>> = {};
-  for (const slug of SLUGS) {
-    const city = config.cities.find((candidate) => candidate.id === slug);
+  for (const slug of [...SLUGS, 'world']) {
+    const terroir =
+      slug === 'world' ? null : config.cities.find((city) => city.id === slug)?.terroir;
+    const labor = laborCost(days, slug);
     margins[slug] = {};
     for (const recipe of config.recipes) {
-      if (recipe.inputs.length === 0 && !city?.terroir?.includes(recipe.id)) continue;
-      const value = (stacks: readonly { goodId: string; quantity: number }[]) =>
-        stacks.reduce(
-          (sum, stack) => sum + stack.quantity * averagePrice(days, slug, stack.goodId),
-          0,
-        );
+      if (!isWorkshop(recipe) && terroir !== null && !terroir?.includes(recipe.id)) continue;
+      const value = (
+        stacks: readonly { goodId: string; quantity: number }[],
+        price: typeof salePrice,
+      ) => stacks.reduce((sum, stack) => sum + stack.quantity * price(days, slug, stack.goodId), 0);
       const perDay =
-        (value(recipe.outputs) - value(recipe.inputs)) * (1440 / recipe.durationMinutes);
+        (value(recipe.outputs, salePrice) - value(recipe.inputs, paidPrice)) *
+        (1440 / recipe.durationMinutes);
       const { coefficientBps, dailyOboles } = config.sites.upkeep;
       const upkeep = dailyUpkeep(dailyOboles[recipe.siteType], coefficientBps);
-      margins[slug][recipe.id] = Math.round(perDay - upkeep - recipe.workers * wages(slug));
+      margins[slug][recipe.id] = Math.round(
+        perDay - upkeep - recipe.workers * (labor.wage + labor.lodging),
+      );
     }
   }
   return margins;
+}
+
+/** Médiane d'une liste non vide. */
+export function median(values: readonly number[]) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length === 0) throw new Error('Median of nothing');
+  return sorted.length % 2 === 1
+    ? (sorted[middle] ?? 0)
+    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
 /**
