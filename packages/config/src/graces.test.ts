@@ -3,7 +3,7 @@ import { INITIAL_CONFIG, validateConfig, type Grace } from './index';
 
 const base = () =>
   structuredClone(INITIAL_CONFIG) as Record<string, unknown> & { gods: { id: string }[] };
-/** Grâces d'essai : la configuration initiale n'en offre aucune (#283). */
+/** Grâces d'essai, distinctes de celles de la configuration initiale. */
 const GRACES: Grace[] = [
   {
     id: 'demeter_harvest',
@@ -34,10 +34,43 @@ const fieldsOf = (graces: unknown) => [
 const grace = (patch: Partial<Record<keyof Grace, unknown>>) => [{ ...GRACES[0], ...patch }];
 
 describe('grâces (7.1, #266)', () => {
-  it('la configuration initiale n’offre aucune grâce, jusqu’au calibrage (#283) ; des grâces d’essai sont admises', () => {
+  it('la configuration initiale offre une grâce par dieu concerné, calibrée (#668) ; des grâces d’essai sont admises', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
-    expect(result.config.graces).toEqual([]);
+    const { graces, recipes, ships, clock } = result.config;
+    expect(graces.map((each) => [each.godId, each.effect])).toEqual([
+      ['demeter', 'blessed_harvest'],
+      ['athena', 'inspired_workshop'],
+      ['poseidon', 'fair_wind'],
+    ]);
+    for (const each of graces) {
+      // On dépense la moitié de la Charis requise : invoquer suppose une faveur entretenue, pas une offrande d'un jour.
+      expect(each.charisSpent * 2).toBe(each.charisRequired);
+      // Une grâce ajoute toujours quelque chose (7.1) : au moins une unité au plus petit extrant d'un cycle de son effet,
+      // au moins une seconde au plus court des trajets.
+      const smallest = (workshop: boolean) =>
+        Math.min(
+          ...recipes
+            .filter((recipe) => recipe.inputs.length > 0 === workshop)
+            .flatMap((recipe) => recipe.outputs.map((stack) => stack.quantity)),
+        );
+      const shortest = Math.min(...ships.routes.map((route) => route.hours)) * 3_600;
+      const added =
+        each.effect === 'fair_wind'
+          ? Math.floor((shortest * each.magnitudeBps) / 10_000)
+          : Math.floor(
+              (smallest(each.effect === 'inspired_workshop') * each.magnitudeBps) / 10_000,
+            );
+      expect(added).toBeGreaterThanOrEqual(1);
+    }
+    // Une récolte bénie et un atelier inspiré par saison ; un vent favorable, moins cher, tous les trois jours.
+    const [harvest, workshop, wind] = graces;
+    expect([harvest?.cooldownDays, workshop?.cooldownDays]).toEqual([
+      clock.seasonDays,
+      clock.seasonDays,
+    ]);
+    expect(wind?.cooldownDays).toBeLessThan(clock.seasonDays);
+    expect(wind?.charisSpent).toBeLessThan(harvest?.charisSpent ?? 0);
     expect(errorsOf(GRACES)).toEqual([]);
   });
 

@@ -541,7 +541,35 @@
       "cityCharisWeightBps": 10000
     }
   ],
-  "graces": [],
+  "graces": [
+    {
+      "id": "demeter_blessed_harvest",
+      "godId": "demeter",
+      "effect": "blessed_harvest",
+      "magnitudeBps": 2500,
+      "charisRequired": 600,
+      "charisSpent": 300,
+      "cooldownDays": 7
+    },
+    {
+      "id": "athena_inspired_workshop",
+      "godId": "athena",
+      "effect": "inspired_workshop",
+      "magnitudeBps": 3500,
+      "charisRequired": 600,
+      "charisSpent": 300,
+      "cooldownDays": 7
+    },
+    {
+      "id": "poseidon_fair_wind",
+      "godId": "poseidon",
+      "effect": "fair_wind",
+      "magnitudeBps": 2500,
+      "charisRequired": 300,
+      "charisSpent": 150,
+      "cooldownDays": 3
+    }
+  ],
   "oracle": { "godId": "apollo", "consultationOboles": 60, "maxTextLength": 400 },
   "cities": [
     {

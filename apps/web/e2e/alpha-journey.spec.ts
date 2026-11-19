@@ -110,6 +110,20 @@ async function arrive(houseName: string) {
   );
 }
 
+/**
+ * Les sites de la maison sont à l'arrêt depuis une heure, faute d'entretien payé, ou depuis le début de leur cycle s'il
+ * est plus récent : un cycle ne commence jamais après l'arrêt (`sites_cycle_not_after_halt`). Garde levée le temps de
+ * l'écriture.
+ */
+async function halt(houseName: string) {
+  await db.transaction().execute(async (trx) => {
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`update game.sites set halted_at = greatest(cycle_started_at, now() - interval '1 hour')
+      where house_id = (select id from game.houses where name = ${houseName})`.execute(trx);
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+  });
+}
+
 /** Le bien le plus récent de la maison perd de son état (garde levée le temps de l'écriture). */
 async function wear(houseName: string, condition: number) {
   await db.transaction().execute(async (trx) => {
@@ -256,6 +270,29 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await expectNoHorizontalScroll(page);
   });
 
+  await test.step('Alpha relance son champ arrêté et paie les salaires de ses travailleurs', async () => {
+    // Le dû d'un jour : l'entretien du champ et le salaire de ses quatre travailleurs, logés par son bien (aucun
+    // hébergement à payer). La configuration en vigueur le fixe ; l'écran l'annonce avant le clic.
+    const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    const upkeep = Math.ceil((dailyOboles.field * coefficientBps) / 10_000);
+    const wages = 4 * (config.staff.dailyWageOboles['kalliste'] ?? 0);
+    expect(wages).toBeGreaterThan(0);
+    await halt(alpha);
+    await nav.getByRole('link', { name: 'Maison' }).click();
+    await page.reload();
+    await page
+      .getByRole('button', { name: `Relancer : Champ de blé, pour ${money(upkeep + wages)}` })
+      .click();
+    await expect(said(page, 'status', 'Site relancé')).toContainText(
+      `Site relancé : Champ de blé, pour ${money(upkeep + wages)} d'entretien et de salaires.`,
+    );
+    // Les comptes portent les salaires payés, sous leur nature.
+    await page.getByRole('link', { name: 'Comptes de la maison' }).click();
+    await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
+    await expect(page.getByText(`Salaires : −${money(wages)}`)).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  });
+
   await test.step('Alpha confie son champ à un intendant, par le formulaire', async () => {
     await nav.getByRole('link', { name: 'Maison' }).click();
     await page
@@ -316,14 +353,24 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await expectNoHorizontalScroll(other);
   });
 
-  await test.step('Alpha offre, voit qu’aucune grâce n’est offerte, consulte la Pythie', async () => {
+  await test.step('Alpha offre à Déméter, invoque sa récolte bénie, consulte la Pythie', async () => {
+    // La grâce de Déméter de la configuration en vigueur : Alpha offre de quoi atteindre la Charis qu'elle requiert.
+    const grace = config.graces.find((each) => each.godId === 'demeter');
+    const demeter = config.gods.find((god) => god.id === 'demeter');
+    if (!grace || !demeter) throw new Error('No grace of Demeter in the configuration');
+    const oboles = Math.ceil(grace.charisRequired / demeter.charisPerObole);
     await page.getByRole('link', { name: 'Temple : Charis, offrandes, grâces et oracle' }).click();
     await expect(page.getByRole('heading', { name: 'Temple de Kallistè' })).toBeVisible();
-    await page.getByLabel(/^Oboles offertes/).fill('12');
+    await page.getByLabel(/^Oboles offertes/).fill(String(oboles));
     await page.getByRole('button', { name: /^Offrir à Déméter/ }).click();
     await expect(said(page, 'status', 'Offrande faite à Déméter')).toBeVisible();
+    const name = `Récolte bénie (Déméter)`;
+    await page
+      .getByRole('button', { name: `Invoquer ${name} (−${grace.charisSpent} Charis)` })
+      .click();
+    await expect(said(page, 'status', 'Grâce invoquée')).toContainText(`Grâce invoquée : ${name}.`);
     await expect(
-      page.getByText("Aucune grâce n'est offerte dans la configuration en vigueur."),
+      page.getByText(/En attente : elle s'appliquera à votre prochaine action/),
     ).toBeVisible();
     await page.getByRole('button', { name: /^Consulter la Pythie pour / }).click();
     await expect(

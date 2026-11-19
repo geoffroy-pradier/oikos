@@ -28,7 +28,9 @@ Chaque perte est une ligne `decay` du journal de la Charis (12), une par maison,
 Un dieu sans déclin, ou retiré de la configuration, ne fait rien perdre.
 Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
-Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 : ces valeurs ne touchent ni la monnaie ni les stocks, et seront revues au calibrage (#283).
+Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 ; revus au calibrage (#668), ils restent tels.
+Le déclin coûte à qui garde la Charis requise par une grâce (600) 6 Charis par jour, soit 42 sur la saison de sa recharge, quand une invocation en dépense 300 : l'offrande reste le vrai prix d'une grâce, et une faveur laissée à elle-même perd la moitié en 69 jours.
+Le poids ×1 garde la Charis de cité égale à la somme des Charis de ses citoyennes, la même règle pour les quatre protecteurs : aucune cité n'a d'avance pour les miracles collectifs de la phase 3, qui le régleront.
 Une version publiée avant la Charis se lit sans taux : aucun dieu n'y accepte d'offrande, rien ne décline, et la Charis de cité est nulle.
 Une offrande (`temple.makeOffering`) donne à un dieu des oboles, détruites par le puits `sink_offerings` (5.5), et des biens du stock libre de la maison dans sa cité, hors réservations des ventes, qui partent vers l'extrémité `offering` du journal des stocks.
 Le joueur envoie la Charis qu'il a vue : un autre taux en vigueur est refusé (`CHARIS_CHANGED`), rien n'est offert.
@@ -46,7 +48,9 @@ Décision (ambiguïté de cette section) : trois effets, chacun appliqué à la 
 Le catalogue des effets est fermé : une grâce nouvelle ne demande aucun code, un effet nouveau si.
 La configuration (`graces`) donne à chaque grâce son dieu, son effet, son ampleur en points de base, la Charis requise envers ce dieu pour l'invoquer, la Charis dépensée (au plus la requise) et sa recharge en jours de jeu (de 1 à 366).
 Décision : le tableau ci-dessus prévoit trois grâces par dieu ; la phase 2 n'en vise qu'une par dieu concerné (une récolte bénie pour Déméter, un atelier inspiré pour Athéna, un vent favorable pour Poséidon), et le schéma ne borne pas leur nombre par dieu.
-Aucune grâce n'est offerte dans la configuration initiale, jusqu'au calibrage (#283) : paramètres neutres, comme les probabilités des événements du monde (7.4).
+Configuration initiale (#668) : une récolte bénie de Déméter (+25 %) et un atelier inspiré d'Athéna (+35 %), chacun requérant 600 Charis, en dépensant 300 et se rechargeant en une saison (7 jours) ; un vent favorable de Poséidon (−25 %), requérant 300 Charis, en dépensant 150 et se rechargeant en 3 jours.
+Offertes en monnaie, 300 Charis coûtent 300 oboles, ou 50 blés : la récolte bénie d'un jour de champ (240 blés) en rend 60, soit 360 oboles au prix de référence, celle d'un champ au plafond de son accumulation (720 blés) 180 : elle rapporte un peu plus qu'elle ne coûte, beaucoup plus à qui la garde pour une grosse récolte, une fois par saison.
+Le vent favorable, moins cher et plus fréquent, gagne une heure sur un trajet de quatre : il sert l'armateur qui veut arriver avant les autres plus qu'il ne rapporte de monnaie.
 Décision : en phase 2, l'effet d'une grâce n'est pas limité au domaine de son dieu ; une récolte bénie vaut pour tout site de matière première, quel que soit le dieu qui l'accorde.
 Récolte bénie (`blessed_harvest`) : une récolte d'un site de matière première rend, pour chaque extrant, ⌊quantité × ampleur ÷ 10 000⌋ unités de plus, arrondi vers le bas sur la quantité de toute la récolte (`graceSurplus`, `packages/sim`).
 Atelier inspiré (`inspired_workshop`) : de même pour une récolte d'atelier, sans intrant supplémentaire.
@@ -59,7 +63,7 @@ Décision : une action consomme au plus une grâce, la plus ancienne en attente 
 Décision : une grâce n'est consommée que si elle ajoute quelque chose (au moins une unité à la récolte, au moins une seconde retirée au trajet) ; sinon elle reste en attente, et une grâce plus récente n'est pas essayée à sa place.
 Une grâce qui attend bloque sa réinvocation (`GRACE_PENDING`) et les grâces plus récentes du même effet ; deux causes, distinctes, la font attendre longtemps.
 La première est une ampleur trop faible pour rien ajouter : par exemple, un vent favorable à 1 point de base ne retire une seconde qu'à un trajet d'au moins 10 000 secondes.
-Le calibrage (#283) choisit des ampleurs qui évitent ce cas.
+Le calibrage (#668) choisit des ampleurs qui évitent ce cas : chacune ajoute au moins une unité au plus petit extrant d'un cycle de son effet (3 tissus pour l'atelier inspiré, d'où +35 %) et au moins une seconde au plus court des trajets.
 Limite connue : la seconde est l'absence d'action qui convienne, que le calibrage des ampleurs n'évite pas.
 Un atelier inspiré invoqué par une maison sans atelier attend qu'elle en récolte un, et un vent favorable invoqué par une maison sans navire attend qu'elle en fasse partir un.
 Décision (ordre d'application) : l'événement du monde d'abord, la grâce ensuite.

@@ -58,7 +58,7 @@ describe('jeu de valeurs initial', () => {
       expect(god.charisPerObole).toBe(1);
       for (const [goodId, rate] of Object.entries(god.charisPerUnit))
         expect(rate).toBe(price.get(goodId));
-      // Un déclin lent, de 1 % par jour ; la Charis de cité compte celle des citoyennes telle quelle.
+      // Calibrage (#668) : un déclin lent, de 1 % par jour, et la même Charis de cité pour chaque protecteur.
       expect([god.dailyDecayBps, god.cityCharisWeightBps]).toEqual([100, 10_000]);
     }
   });
