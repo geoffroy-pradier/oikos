@@ -26,8 +26,9 @@ const money = (amount: number) => {
     ...(obols > 0 || drachmas === 0 ? [unit(obols, 'obole')] : []),
   ].join(' ');
 };
-const said = (page: Page, kind: 'status' | 'alert') =>
-  page.getByRole(kind).filter({ hasText: /\S/ });
+/** Message annoncé : les régions vivantes vides ne comptent pas ; `text` désigne la région attendue (mode strict). */
+const said = (page: Page, kind: 'status' | 'alert', text: string | RegExp = /\S/) =>
+  page.getByRole(kind).filter({ hasText: text });
 const navOf = (page: Page) => page.getByRole('navigation', { name: 'Navigation principale' });
 const suffix = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 8).join('');
 
@@ -49,7 +50,7 @@ async function fund(houseName: string, oboles: number) {
     }>`insert into game.ledger_entries (world_id, kind, meta)
       values (${WORLD_ID}, 'e2e.fund', '{}') returning id`.execute(trx);
     await sql`insert into game.ledger_lines (entry_id, account_id, amount)
-      select ${rows[0]?.id}, a.id, case when a.kind = 'system' then ${-oboles} else ${oboles} end
+      select ${rows[0]?.id}, a.id, case when a.kind = 'system' then ${-oboles}::bigint else ${oboles}::bigint end
       from game.accounts a where a.world_id = ${WORLD_ID} and (a.system_key = 'faucet_rewards'
         or a.house_id = (select id from game.houses where name = ${houseName}) and a.kind = 'house')`.execute(
       trx,
@@ -128,8 +129,13 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
   test.skip(testInfo.project.name !== 'mobile-360', 'parcours joué à 360 px');
   test.setTimeout(240_000);
   const { config } = await createConfigLoader(db).at(new Date());
-  // La configuration initiale coupe l'IA : aucune consigne d'intendant, aucune chronique ni aucun oracle de l'IA.
-  expect(config.graces).toEqual([]);
+  // IA coupée : chaque usage est désactivé par la configuration initiale (08), et le journal des appels reste vide.
+  expect(Object.values(config.ai.usages).map((usage) => usage.enabled)).toEqual([
+    false,
+    false,
+    false,
+  ]);
+  const startedAt = new Date();
   await setUpOracle();
   const [chronicle] = await setUpChronicles();
   await cityPark();
@@ -191,7 +197,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
           },
           body: JSON.stringify({ cityId, goodId: 'wheat', side: 'sell', price, quantity: 30 }),
         });
-        return (await response.json()) as { ok: boolean };
+        return (await response.json()) as { ok: boolean; data: { orderId: string } };
       },
       { cityId: ELAIA_ID, price },
     );
@@ -202,9 +208,12 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await other.getByLabel('Prix limite par unité (oboles)').fill(String(price + 1));
     await other.getByLabel('Quantité', { exact: true }).fill('30');
     await other.keyboard.press('Enter');
-    await expect(said(other, 'status')).toContainText(
-      `Achat conclu : 30 × Blé pour ${money(30 * price)}.`,
-    );
+    await expect(said(other, 'status', /^Achat conclu : 30 × Blé pour /)).toBeVisible();
+    // La vente d'Alpha, par son identifiant : d'autres ordres de blé peuvent attendre à Elaia, pas dans ce compte.
+    const { rows } = await sql<{ gross: string; units: string }>`
+      select sum(price * quantity)::text as gross, sum(quantity)::text as units
+      from game.trades where sell_order_id = ${placed.data.orderId}`.execute(db);
+    expect(rows[0]).toEqual({ gross: String(30 * price), units: '30' });
     await expectNoHorizontalScroll(other);
   });
 
@@ -215,10 +224,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Acheter à la cité \(.*\) — Maison de ville n° \d+, Elaia$/ })
       .first()
       .click();
-    await expect(said(other, 'status')).toContainText('Bien acheté.');
+    await expect(said(other, 'status', 'Bien acheté.')).toBeVisible();
     await other.getByRole('textbox', { name: /^Loyer par jour, en oboles — / }).fill(String(rent));
     await other.getByRole('button', { name: /^Mettre en location — / }).click();
-    await expect(said(other, 'status')).toContainText('Bien mis en location.');
+    await expect(said(other, 'status', 'Bien mis en location.')).toBeVisible();
 
     await page.goto('/immobilier');
     await page
@@ -226,7 +235,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
         name: new RegExp(`^Louer \\(${money(rent)} par jour\\) — Maison de ville n° \\d+, Elaia$`),
       })
       .click();
-    await expect(said(page, 'status')).toContainText('Bail signé.');
+    await expect(said(page, 'status', 'Bail signé.')).toBeVisible();
     await expect(page.getByText(`Vous louez ce bien : ${money(rent)} par jour`)).toBeVisible();
 
     await page
@@ -235,7 +244,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       })
       .first()
       .click();
-    await expect(said(page, 'status')).toContainText('Bien acheté.');
+    await expect(said(page, 'status', 'Bien acheté.')).toBeVisible();
     await wear(alpha, 5000);
     const renovation = config.properties.sizes.find((size) => size.id === 'townhouse')?.renovation;
     for (const stack of renovation?.goods ?? [])
@@ -244,7 +253,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page
       .getByRole('button', { name: /^Rénover \(.*\) — Maison de ville n° \d+, Kallistè$/ })
       .click();
-    await expect(said(page, 'status')).toContainText('Bien rénové.');
+    await expect(said(page, 'status', 'Bien rénové.')).toBeVisible();
     await expect(page.getByText('État : 100 %').first()).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
@@ -255,20 +264,18 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Embaucher un intendant pour / })
       .first()
       .click();
-    await expect(said(page, 'status').first()).toContainText('entre à votre service');
+    await expect(said(page, 'status', 'entre à votre service').first()).toBeVisible();
     await page.getByRole('button', { name: /^Ajouter une règle/ }).click();
     await page.getByRole('button', { name: 'Enregistrer les règles' }).click();
-    await expect(said(page, 'status').filter({ hasText: 'suivra 1 règle' })).toBeVisible();
+    await expect(said(page, 'status', 'suivra 1 règle')).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
 
-  await test.step('Alpha, citoyen, se porte candidat, vote le décret, lit la chronique', async () => {
+  await test.step('Alpha, citoyen, vote le décret et lit la chronique', async () => {
     await setUpCity(alpha, 'citizen');
     await nav.getByRole('link', { name: 'Cité' }).click();
     const card = (name: string) => page.getByRole('heading', { name, level: 2 }).locator('..');
-    const [politics, assembly] = [card('Vie politique'), card('Assemblée')];
-    await politics.getByRole('button', { name: 'Me porter candidat' }).click();
-    await expect(politics.getByRole('status')).toHaveText('Candidature déposée.');
+    const assembly = card('Assemblée');
     await assembly
       .getByRole('button', { name: /^Voter pour : Taxe de marché de la cité à / })
       .first()
@@ -284,12 +291,39 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await expectNoHorizontalScroll(page);
   });
 
+  await test.step('Bêta, citoyen d’Elaia, se porte candidat à l’élection de l’archonte et y vote', async () => {
+    await elaiaElection('filing');
+    await db.transaction().execute(async (trx) => {
+      await sql`update game.citizenships set status = 'citizen', since = now()
+        where status = 'metic' and house_id = (select id from game.houses where name = ${beta})`.execute(
+        trx,
+      );
+    });
+    await otherNav.getByRole('link', { name: 'Cité' }).click();
+    const politics = other.getByRole('heading', { name: 'Vie politique', level: 2 }).locator('..');
+    await expect(
+      politics.getByText("Élection de l'archonte : dépôt des candidatures ouvert."),
+    ).toBeVisible();
+    await politics.getByRole('button', { name: 'Me porter candidat' }).click();
+    await expect(politics.getByRole('status')).toHaveText('Candidature déposée.');
+    // Le vote s'ouvre : la maison vote pour sa propre candidature, une seule fois.
+    await elaiaElection('voting');
+    await other.reload();
+    await expect(politics.getByText("Élection de l'archonte : vote ouvert.")).toBeVisible();
+    await politics.getByRole('button', { name: `Voter pour ${beta}` }).click();
+    await expect(
+      politics.getByRole('status').filter({ hasText: 'Vote enregistré.' }),
+    ).toBeVisible();
+    await expect(politics.getByText('Votre maison a voté. Le vote est secret.')).toBeVisible();
+    await expectNoHorizontalScroll(other);
+  });
+
   await test.step('Alpha offre, voit qu’aucune grâce n’est offerte, consulte la Pythie', async () => {
     await page.getByRole('link', { name: 'Temple : Charis, offrandes, grâces et oracle' }).click();
     await expect(page.getByRole('heading', { name: 'Temple de Kallistè' })).toBeVisible();
     await page.getByLabel(/^Oboles offertes/).fill('12');
     await page.getByRole('button', { name: /^Offrir à Déméter/ }).click();
-    await expect(said(page, 'status')).toContainText('Offrande faite à Déméter');
+    await expect(said(page, 'status', 'Offrande faite à Déméter')).toBeVisible();
     await expect(
       page.getByText("Aucune grâce n'est offerte dans la configuration en vigueur."),
     ).toBeVisible();
@@ -327,14 +361,43 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await expect(other.getByText(privateText)).toBeVisible();
     await other.getByRole('button', { name: `Signaler le message de ${alpha}` }).click();
     await other.getByRole('button', { name: 'Envoyer le signalement' }).click();
-    await expect(said(other, 'status')).toContainText(
-      "Message signalé : la modération l'examinera.",
-    );
+    await expect(
+      said(other, 'status', "Message signalé : la modération l'examinera."),
+    ).toBeVisible();
     await expectNoHorizontalScroll(page);
     await expectNoHorizontalScroll(other);
   });
+  await test.step('IA coupée : aucun appel au fournisseur pendant le parcours', async () => {
+    const calls = await sql<{ n: string }>`select count(*)::text as n from telemetry.ai_calls
+      where called_at >= ${startedAt}`.execute(db);
+    expect(calls.rows[0]?.n).toBe('0');
+  });
   await context.close();
 });
+
+/**
+ * Élection de l'archonte d'Elaia, ouverte au dépôt des candidatures ou au vote. Elle est propre à ce parcours (les
+ * autres tests jouent celle de Kallistè) : une base gardée la réutilise, ses fenêtres sont seulement replacées.
+ */
+async function elaiaElection(phase: 'filing' | 'voting') {
+  const [open, vote] =
+    phase === 'filing'
+      ? ["interval '1 hour'", "interval '1 year'"]
+      : ["interval '2 hours'", "interval '-1 minute'"];
+  await db.transaction().execute(async (trx) => {
+    await sql`select pg_advisory_xact_lock(hashtext('e2e:elaia-election'))`.execute(trx);
+    await sql`alter table game.elections disable trigger elections_guard`.execute(trx);
+    await sql`insert into game.elections (world_id, city_id, office, candidacy_opens_at, voting_opens_at, voting_closes_at, term_ends_at)
+      select ${WORLD_ID}, ${ELAIA_ID}, 'archon', now(), now() + interval '1 year', now() + interval '1 year 1 day', now() + interval '1 year 30 days'
+      where not exists (select 1 from game.elections where city_id = ${ELAIA_ID} and office = 'archon' and tallied_at is null)`.execute(
+      trx,
+    );
+    await sql`update game.elections set candidacy_opens_at = now() - ${sql.raw(open)},
+        voting_opens_at = now() + ${sql.raw(vote)}, voting_closes_at = now() + interval '1 year 1 day'
+      where city_id = ${ELAIA_ID} and office = 'archon' and tallied_at is null`.execute(trx);
+    await sql`alter table game.elections enable trigger elections_guard`.execute(trx);
+  });
+}
 
 /** Le parc de logements de chaque cité du monde de test naît comme au premier tick qui la connaît. */
 async function cityPark() {
