@@ -4,10 +4,10 @@ select plan(22);
 -- La cité de test (seed) a son trésor sans qu'aucun script ne l'ouvre : à zéro, jamais débiteur.
 select results_eq(
   $$select world_id, balance, allow_negative, house_id, system_key from game.accounts
-    where kind = 'treasury' and city_id = '01900000-0000-7000-8000-000000000101'$$,
+    where kind = 'treasury' and not npc_purse and city_id = '01900000-0000-7000-8000-000000000101'$$,
   $$values ('01900000-0000-7000-8000-000000000001'::uuid, 0::bigint, false, null::uuid, null::text)$$,
   'la cité de test a un trésor, à zéro, dans son monde');
-select is((select count(*) from game.accounts where kind = 'treasury'), (select count(*) from game.cities),
+select is((select count(*) from game.accounts where kind = 'treasury' and not npc_purse), (select count(*) from game.cities),
   'un trésor par cité, pas un de plus');
 
 -- Une cité naît avec son trésor, dans son monde.
@@ -15,7 +15,7 @@ insert into game.worlds (id, slug, name) values ('00000000-0000-7000-8000-000000
 insert into game.cities (id, world_id, slug, name) values
   ('00000000-0000-7000-8000-00000000c001', '00000000-0000-7000-8000-00000000e001', 'delos', 'Délos');
 select is(
-  (select array_agg(world_id) from game.accounts where kind = 'treasury' and city_id = '00000000-0000-7000-8000-00000000c001'),
+  (select array_agg(world_id) from game.accounts where kind = 'treasury' and not npc_purse and city_id = '00000000-0000-7000-8000-00000000c001'),
   array['00000000-0000-7000-8000-00000000e001'::uuid], 'une cité naît avec un trésor, dans son monde');
 
 -- Forme du compte : un seul par cité, sans maison ni clé système, jamais débiteur, dans le monde de la cité.

@@ -29,7 +29,7 @@ select pg_temp.post('ship.acquire', array['00000000-0000-7000-8000-0000000008a2'
 -- Départ : 30 de provisions, 52 de droit de port dont 26 détruites et 26 au trésor d'Elaia.
 select pg_temp.post('voyage.departure',
   array['00000000-0000-7000-8000-0000000008a2', pg_temp.sys('sink_voyage_provisions'), '00000000-0000-7000-8000-0000000008a2',
-        pg_temp.sys('sink_port_dues'), (select id from game.accounts where city_id = '01900000-0000-7000-8000-000000000103')],
+        pg_temp.sys('sink_port_dues'), (select id from game.accounts where city_id = '01900000-0000-7000-8000-000000000103' and not npc_purse)],
   array[-30, 30, -52, 26, 26]);
 -- Clôture : l'entretien du navire, une ligne marquée `upkeep` vers le puits des navires.
 select pg_temp.post('upkeep.daily', array['00000000-0000-7000-8000-0000000008a2', pg_temp.sys('sink_ship_upkeep')], array[-25, 25],

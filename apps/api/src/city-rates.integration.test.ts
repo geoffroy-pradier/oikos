@@ -51,7 +51,7 @@ const balance = async (where: { houseId: string } | { cityId: string } | { sinkO
         'houseId' in where
           ? sql`house_id = ${where.houseId} and kind = 'house'`
           : 'cityId' in where
-            ? sql`city_id = ${where.cityId}`
+            ? sql`city_id = ${where.cityId} and not npc_purse`
             : sql`world_id = ${where.sinkOf} and system_key = 'sink_market_tax'`
       }`.execute(owner)
     ).rows[0]?.balance,

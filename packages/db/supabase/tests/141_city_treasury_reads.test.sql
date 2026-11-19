@@ -22,7 +22,7 @@ begin
     returning ledger_entries.id into entry_id;
   insert into game.ledger_lines (entry_id, account_id, amount)
   select entry_id, a.id, v.amount from (values
-      ((select t.id from game.accounts t where t.kind = 'treasury' and t.city_id = '01900000-0000-7000-8000-000000000101'), amount),
+      ((select t.id from game.accounts t where t.kind = 'treasury' and not t.npc_purse and t.city_id = '01900000-0000-7000-8000-000000000101'), amount),
       ('00000000-0000-7000-8000-0000000141ac'::uuid, house),
       ((select s.id from game.accounts s where s.world_id = '01900000-0000-7000-8000-000000000001'
          and s.system_key = case when amount > 0 then 'faucet_npc_purchases' else 'sink_public_works' end), -amount - house)

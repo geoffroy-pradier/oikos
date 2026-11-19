@@ -150,7 +150,7 @@ export const balanceOf = async (
   const { rows } = await sql<{
     balance: string;
   }>`select balance from game.accounts where world_id = ${WORLD}
-    and ${'houseId' in account ? sql`house_id = ${account.houseId} and kind = 'house'` : 'key' in account ? sql`system_key = ${account.key}` : sql`city_id = ${account.cityId}`}`.execute(
+    and ${'houseId' in account ? sql`house_id = ${account.houseId} and kind = 'house'` : 'key' in account ? sql`system_key = ${account.key}` : sql`city_id = ${account.cityId} and not npc_purse`}`.execute(
     owner,
   );
   return Number(rows[0]?.balance);

@@ -34,7 +34,7 @@ select '01900000-0000-7000-8000-000000000001', 'wheat', 50, 'production', id, 's
 -- Compte système du monde de test, ou trésor de sa cité (`city`).
 create function pg_temp.sys(key text) returns uuid language sql as $$
   select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001'
-    and (system_key = key or (key = 'city' and city_id = '01900000-0000-7000-8000-000000000101'))
+    and (system_key = key or (key = 'city' and city_id = '01900000-0000-7000-8000-000000000101' and not npc_purse))
 $$;
 -- Une écriture équilibrée datée, de la nature donnée ; rend son identifiant.
 create function pg_temp.post(kind text, at timestamptz, accounts uuid[], amounts bigint[]) returns uuid language plpgsql as $$

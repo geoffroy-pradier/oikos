@@ -51,6 +51,12 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   aucun robinet n'est lié en base à sa mécanique, et les jeux d'essai de la base se servent de celui-ci comme d'un robinet ordinaire.
   Aucun de ces débits ne crée ni ne détruit de monnaie hors des comptes système, et chacun reste dans le grand livre, avec sa nature, pour le tableau de bord (5.5) et la détection des transferts (13).
   Lier chaque compte système aux natures d'écriture qui le mouvementent serait le durcissement suivant, pour tous les robinets et puits à la fois.
+- Bourse des PNJ (#632, 5.2 et 5.5) : chaque cité a, en plus de son trésor, un compte de cité marqué `npc_purse`, créé avec elle (et par la migration pour les cités existantes), jamais débiteur.
+  Ce n'est pas un compte système : il compte dans la masse monétaire.
+  Décision : une marque sur un compte de cité plutôt qu'une nature de compte nouvelle, que la migration 20, rejouée, refuserait (ADR 0004).
+  La règle par ligne du service lui cache les bourses : le code d'avant, qui cherche le trésor d'une cité par sa seule cité, n'en trouve toujours qu'un.
+  Le code les lit et les verrouille par deux fonctions au nom du propriétaire (`game.npc_purses()`, `game.lock_npc_purses(monde, cité)`), et les mouvemente par les journaux.
+  Les comptes publics du trésor (`city_treasury`, `city_treasury_flows`) n'en montrent rien, et le contrôle d'équilibre d'une écriture s'exécute au nom du propriétaire, pour voir aussi les bourses.
 - Rachat du stock d'un bien à retirer (#229, 5.1) : le robinet `faucet_good_buyback` paie, par une écriture `admin.good_buyback` par maison, le stock qui part vers l'extrémité système `good_buyback` du journal des stocks, chaque mouvement rattaché à l'écriture de sa maison.
   Cette extrémité est à sens unique : la base refuse tout mouvement qui en part (contrainte `stock_ledger_buyback_one_way`), si bien qu'un stock racheté ne revient jamais en circulation.
   Les stocks non vides d'un bien se lisent par un index partiel (`inventories_held_by_good_idx`), que le rachat parcourt sous le verrou d'agora de chaque monde concerné.
