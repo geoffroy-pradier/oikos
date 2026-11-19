@@ -139,6 +139,7 @@ export const VIGIE = {
   houses: 12,
   activeAccounts24h: 5,
   commands24h: { ok: 300, rejected: 41, failed: 7 },
+  stewardOperations24h: { ok: 120, rejected: 9, failed: 2 },
   ticks24h: { failed: 2, maxDurationMs: 850 },
   voyagesOverdue: 4,
   staleReports: { afterHours: 24, count: 0, oldestHours: null },

@@ -78,8 +78,10 @@ Dans un jeu à économie ouverte, la triche principale est le transfert de riche
 - Rapprochement des comptes par appareil, réseau et horaires de connexion, visible dans la fiche joueur du back-office.
 - Journal d'audit inaltérable de toutes les commandes, conservé 90 jours ; durées et mode de purge des journaux : `docs/adr/0002-conservation-journaux.md`.
 - Sanctions graduées et annulation des transactions par écritures inverses tracées.
-  Dans la phase 2 (ticket 275), la sanction en vigueur d'un compte est relue en base à chaque commande, dans sa transaction, à l'instant de son début : un avertissement ne bloque rien, un silence refuse `chat.post` (`SILENCED`), une suspension et une exclusion refusent toute commande de jeu (`SUSPENDED`).
+  Dans la phase 2 (ticket 275), la sanction en vigueur d'un compte est relue en base à chaque commande, dans sa transaction, à l'heure de cette lecture : un avertissement ne bloque rien, un silence refuse `chat.post` (`SILENCED`), une suspension et une exclusion refusent toute commande de jeu (`SUSPENDED`).
   Une exclusion n'agit qu'une fois validée par une seconde personne (15.4).
+  Décision (#563) : une seule condition (`packages/db/src/sanctions.ts`) décide qu'un compte sanctionné n'agit pas, pour le registre de l'API, `market.placeOrder` et les intendants du moteur.
+  Elle compare les sanctions à l'heure de l'instruction (`statement_timestamp()`), comme sous le verrou d'agora (#528) : une sanction qui commence pendant que la commande attendait le verrou de sa clé la refuse déjà.
   L'appel (`moderation.appeal`) et les commandes d'administration n'y sont pas soumis ; les lectures non plus : un compte suspendu lit encore ses écrans.
   Le refus est un refus métier, journalisé, qui consomme la clé d'idempotence comme `FORBIDDEN` ; une commande déjà validée se rejoue toujours.
   Une sanction validée pendant qu'une commande s'exécute ne la refuse pas : elle agit dès la commande suivante.

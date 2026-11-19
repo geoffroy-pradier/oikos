@@ -615,6 +615,49 @@ describe('Vigie', () => {
   });
 });
 
+describe('Vigie : joueur et intendant (#563)', () => {
+  it('compte à part les opérations des intendants, qui ne rendent pas le compte actif', async () => {
+    const alice = await newUser();
+    const before = (await get(users.observer, 'vigie')).body.data;
+    // Trois opérations d'un intendant d'Alice, journalisées comme par le moteur : à son nom, l'intendant pour acteur.
+    const stewardId = randomUUID();
+    const response = (ok: boolean) =>
+      JSON.stringify(ok ? { ok, data: {} } : { ok, error: { code: 'X', message: 'x' } });
+    for (const [rank, status] of (['ok', 'rejected', 'failed'] as const).entries())
+      await owner
+        .insertInto('game.command_log')
+        .values({
+          user_id: alice,
+          command: 'site.collect',
+          idempotency_key: status === 'failed' ? null : `steward:${stewardId}:1:${rank}`,
+          input: '{}',
+          status,
+          error_code: status === 'ok' ? null : 'X',
+          response: response(status === 'ok'),
+          duration_ms: 1,
+          steward_id: stewardId,
+        })
+        .execute();
+    const mid = (await get(users.observer, 'vigie')).body.data;
+    for (const field of ['ok', 'rejected', 'failed'] as const) {
+      expect(mid.stewardOperations24h[field]).toBeGreaterThanOrEqual(
+        before.stewardOperations24h[field] + 1,
+      );
+      // Une ligne sortie de la fenêtre de 24 heures entre les deux lectures peut seulement faire baisser ces comptes.
+      expect(mid.commands24h[field]).toBeLessThanOrEqual(before.commands24h[field]);
+    }
+    expect(mid.activeAccounts24h).toBeLessThanOrEqual(before.activeAccounts24h);
+    // Une commande d'Alice elle-même : elle compte au joueur, et Alice devient active.
+    await command(alice, 'admin.scheduleConfig', { versionId: randomUUID() });
+    const after = (await get(users.observer, 'vigie')).body.data;
+    expect(after.commands24h.rejected).toBeGreaterThanOrEqual(mid.commands24h.rejected + 1);
+    expect(after.activeAccounts24h).toBeGreaterThanOrEqual(mid.activeAccounts24h + 1);
+    expect(after.stewardOperations24h.rejected).toBeLessThanOrEqual(
+      mid.stewardOperations24h.rejected,
+    );
+  });
+});
+
 describe('paramètres et journal d’audit', () => {
   it('liste les versions et les activations, rend le contenu d’une version', async () => {
     const config = {

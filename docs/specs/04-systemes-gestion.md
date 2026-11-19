@@ -203,6 +203,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Une opération en panne n'a aucun effet et ne prend pas sa clé : seule une trace sans clé (`failed`) est inscrite au journal des commandes, et l'opération sera retentée sous le même rang au passage suivant du moteur, tant que son tick est le dernier.
   Décision (#279) : un intendant d'un compte suspendu ou exclu n'agit pas, sans refus noté à chaque tick ; il reprend à la levée de la sanction.
   La sanction est relue sous le verrou d'agora, à l'heure de cette lecture (#528) : une suspension ou une exclusion validée pendant que l'intendant attendait ce verrou l'arrête aussi, sans rien noter.
+  C'est la condition du registre de l'API (#563), relue dans la transaction de l'opération, pour une récolte comme pour un ordre ; la liste des intendants à mener n'en écarte d'avance qu'une sanction déjà en vigueur.
   Un rachat garde le bien de sa règle même si la recette du site a changé depuis : les règles sont celles du joueur.
   La fiche du site montre les cinq dernières opérations de son intendant et son dernier refus (vue `my_steward_operations`), privées comme ses règles.
   Elle montre aussi les ordres ouverts qu'il a posés et leur reste (vue `my_steward_orders`, #562), privés de même, et dit que des règles nouvelles ou son renvoi les annulent.

@@ -40,7 +40,7 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expect(page.getByRole('heading', { name: 'Vigie', level: 1 })).toBeVisible();
   await expect(page.getByText('Rôle : Super-administrateur')).toBeVisible();
   await expect(page.getByText('Maisons fondées')).toBeVisible();
-  await expect(page.getByText('Commandes refusées (24 h)')).toBeVisible();
+  await expect(page.getByText('Commandes des joueurs refusées (24 h)')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Dernières exécutions de tick' })).toBeVisible();
   await expectNoHorizontalScroll(page);
 

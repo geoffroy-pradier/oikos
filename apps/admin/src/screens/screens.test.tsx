@@ -134,9 +134,12 @@ describe('Vigie', () => {
     render(<Vigie accessToken="token" />);
     const figure = async (label: string) =>
       (await screen.findByText(label)).parentElement?.querySelector('dd')?.textContent;
-    expect(await figure('Commandes réussies (24 h)')).toBe('300');
-    expect(await figure('Commandes refusées (24 h)')).toBe('41');
-    expect(await figure('Commandes en panne (24 h)')).toBe('7');
+    expect(await figure('Commandes des joueurs réussies (24 h)')).toBe('300');
+    expect(await figure('Commandes des joueurs refusées (24 h)')).toBe('41');
+    expect(await figure('Commandes des joueurs en panne (24 h)')).toBe('7');
+    expect(await figure('Opérations des intendants réussies (24 h)')).toBe('120');
+    expect(await figure('Opérations des intendants refusées (24 h)')).toBe('9');
+    expect(await figure('Opérations des intendants en panne (24 h)')).toBe('2');
     expect(await figure('Ticks en échec (24 h)')).toBe('2');
     expect(await figure('Tick le plus long (24 h)')).toBe('850 ms');
     expect(await figure("Voyages en retard de déchargement (plus d'un tick)")).toBe('4');

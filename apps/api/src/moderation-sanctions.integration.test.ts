@@ -205,6 +205,27 @@ describe('sanctions relues à chaque commande', () => {
     expect(codeOf(reply)).toEqual([409, 'SUSPENDED']);
   });
 
+  it('une suspension qui commence pendant que la commande attend le verrou de sa clé la refuse : heure de l’instruction (#563)', async () => {
+    const world = await newWorld();
+    const alice = await world.player();
+    const author = await moderator();
+    const reply = await atCommandInstant(
+      alice.user,
+      'chat.post',
+      () => ({ channelId: world.kallisteChannel, body: 'Après le début ?' }),
+      async (trx, at) => {
+        // Une milliseconde après le début de la transaction de la commande : `now()` ne la verrait pas encore.
+        await sql`insert into admin.sanctions (user_id, kind, starts_at, ends_at, reason, author_id)
+          select ${alice.user}, 'suspension', t, t + interval '1 hour', 'Essai', ${author}
+          from (select ${at}::timestamptz + interval '1 millisecond' as t) i`.execute(trx);
+        // Le verrou est tenu au-delà de ce début : la commande lit la sanction après lui.
+        await sql`select pg_sleep(0.02)`.execute(trx);
+        return true;
+      },
+    );
+    expect(codeOf(reply)).toEqual([409, 'SUSPENDED']);
+  });
+
   it('une sanction qui finit une microseconde après l’instant de la commande peut encore être contestée (#611)', async () => {
     const world = await newWorld();
     const alice = await world.player();
