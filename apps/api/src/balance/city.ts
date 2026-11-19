@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
   createConfigLoader,
   ensureInitialConfig,
@@ -46,10 +47,17 @@ import { testVerifier } from '../test-config';
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 
-const validation = validateConfig(INITIAL_CONFIG);
+/**
+ * Configuration jouée : la configuration initiale, ou la candidate du simulateur (#284) que
+ * `BALANCE_CONFIG_FILE` désigne (le simulateur joue chaque partie dans son propre processus).
+ */
+const source: unknown = process.env['BALANCE_CONFIG_FILE']
+  ? JSON.parse(readFileSync(process.env['BALANCE_CONFIG_FILE'], 'utf8'))
+  : INITIAL_CONFIG;
+const validation = validateConfig(source);
 if (!validation.ok) throw new Error(validation.errors.join('\n'));
 /**
- * La configuration initiale, jouée en ticks d'une heure plutôt que de dix minutes pour garder le test
+ * La configuration, jouée en ticks d'une heure plutôt que de dix minutes pour garder le test
  * court : la demande de référence et le revenu des PNJ, donnés par tick, sont multipliés d'autant. La
  * demande et la dépense d'une journée, la production, l'entretien, la taxe et la population sont ceux
  * de la configuration telle quelle.
