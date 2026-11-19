@@ -37,9 +37,7 @@ export const marketCancelOrder = defineCommand({
         'status',
       ])
       .where('id', '=', input.orderId)
-      .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-      )
+      .where('house_id', '=', accountHouseId(userId))
       .forUpdate()
       .executeTakeFirst();
     // L'ordre d'un autre joueur est indiscernable d'un ordre inexistant.

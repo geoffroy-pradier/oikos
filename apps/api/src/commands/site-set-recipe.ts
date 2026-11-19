@@ -39,9 +39,7 @@ export const siteSetRecipe = defineCommand({
         .selectFrom('game.sites')
         .select('city_id')
         .where('id', '=', input.siteId)
-        .where('house_id', 'in', (houses) =>
-          houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-        )
+        .where('house_id', '=', accountHouseId(userId))
         .executeTakeFirst();
       if (located) await lockCityLabor(trx, located.city_id);
     }
@@ -52,9 +50,7 @@ export const siteSetRecipe = defineCommand({
       .select(sql<boolean>`cycle_started_at > now()`.as('moved'))
       .select(sql<boolean>`coalesce(halted_at > now(), false)`.as('haltMoved'))
       .where('id', '=', input.siteId)
-      .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-      )
+      .where('house_id', '=', accountHouseId(userId))
       .forUpdate()
       .executeTakeFirst();
     // Le site d'un autre joueur est indiscernable d'un site inexistant.

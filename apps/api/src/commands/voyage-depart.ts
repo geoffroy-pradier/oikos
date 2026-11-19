@@ -53,9 +53,7 @@ export const voyageDepart = defineCommand({
       .selectFrom('game.ships')
       .select(['id', 'world_id', 'house_id', 'class_id'])
       .where('id', '=', input.shipId)
-      .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-      )
+      .where('house_id', '=', accountHouseId(userId))
       .executeTakeFirst();
     // Le navire d'un autre joueur est indiscernable d'un navire inexistant.
     if (!owned) return refuse('SHIP_NOT_FOUND', 'Unknown ship.');

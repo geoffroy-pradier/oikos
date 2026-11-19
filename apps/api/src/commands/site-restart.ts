@@ -48,9 +48,7 @@ export const siteRestart = defineCommand({
         'game.cities.slug',
       ])
       .where('game.sites.id', '=', input.siteId)
-      .where('game.sites.house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-      )
+      .where('game.sites.house_id', '=', accountHouseId(userId))
       .executeTakeFirst();
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!owned) return refuse('SITE_NOT_FOUND', 'Unknown site.');

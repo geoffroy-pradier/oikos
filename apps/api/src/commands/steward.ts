@@ -99,9 +99,7 @@ export async function lockSteward(trx: Db, userId: string, stewardId: string) {
     .select(['id', 'house_id', 'site_id', 'rules_revision'])
     .where('id', '=', stewardId)
     .where('dismissed_at', 'is', null)
-    .where('house_id', 'in', (houses) =>
-      houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-    )
+    .where('house_id', '=', accountHouseId(userId))
     .forUpdate()
     .executeTakeFirst();
 }
@@ -118,9 +116,7 @@ async function holdSteward(trx: Db, userId: string, stewardId: string) {
     .select('world_id')
     .where('id', '=', stewardId)
     .where('dismissed_at', 'is', null)
-    .where('house_id', 'in', (houses) =>
-      houses.selectFrom('game.houses').select('id').where('id', '=', accountHouseId(userId)),
-    )
+    .where('house_id', '=', accountHouseId(userId))
     .executeTakeFirst();
   if (!seen) return undefined;
   await lockAgora(trx, seen.world_id);
