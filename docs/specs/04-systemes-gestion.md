@@ -190,6 +190,7 @@ Raisons des choix :
 - **Travailleurs** : salariés recrutés sur le marché du travail de la cité, dont le salaire d'équilibre dépend de l'offre et de la demande locales. Moral influencé par salaire, logement, fêtes et cadence.
   Dans la première version (ticket 255), les travailleurs sont attachés à leur site : sa recette dit combien il en faut (`workers`), et il n'y a pas de commande d'embauche.
   Chacun est payé chaque jour le salaire du jour de la cité du site, un paramètre du back-office par cité (`staff.dailyWageOboles`), une drachme (6 oboles) dans chaque cité de la configuration initiale (#668) ; une version publiée avant le personnel, ou une cité qu'elle ne nomme pas, ne paie aucun salaire.
+  Décision : ce salaire est inférieur à la dépense de référence d'un thète (8 oboles par jour) ; un travailleur n'est pas un ménage, et la bourse de sa classe a d'autres revenus que les salaires des maisons.
   Une section `staff` non vide nomme chaque cité de la configuration, et elles seules.
   Salaires d'un site pour un jour = travailleurs × salaire du jour, en oboles, sans arrondi.
   Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et versés à la bourse des PNJ de la cité du site (#632, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.

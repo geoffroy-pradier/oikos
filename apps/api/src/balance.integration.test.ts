@@ -94,7 +94,8 @@ const MONTH = 30;
 /**
  * Mise en route, non mesurée : les maisons acquièrent leurs sites et les prix trouvent leur niveau. Douze jours depuis
  * que les maisons paient salaires et hébergement (#668) : gardant de quoi les payer, elles acquièrent leurs sites plus
- * tard, et au dixième jour les besoins vitaux des hippeis ne sont encore couverts qu'à 94 %.
+ * tard, et au dixième jour les besoins vitaux des hippeis ne sont encore couverts qu'à 94 %. C'est une fenêtre de mesure
+ * choisie : ce démarrage à froid sous 98 % est connu et accepté (5.5), les bornes ne valent que pour les jours mesurés.
  */
 const WARMUP = 12;
 
