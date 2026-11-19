@@ -13,7 +13,7 @@ export interface IncomeView {
 }
 /** Choix du nombre de périodes lues : un confort de lecture, sous la limite de 1 000 lignes de l'API. */
 const LIMITS = [7, 30, 90];
-const CONTROL = 'min-h-11 rounded-md border border-border bg-surface px-3';
+const CONTROL = 'min-h-11 max-w-full rounded-md border border-border bg-surface px-3';
 
 /**
  * Compte de résultat de la maison (4.1), par jour de jeu ou par saison : fiches empilées sur téléphone,
@@ -53,7 +53,7 @@ export function IncomeStatement(props: {
       </h2>
       <p className="text-sm text-muted-foreground">{t('accounts.income.intro')}</p>
       <div className="flex flex-wrap gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex min-w-0 max-w-full flex-col gap-1 text-sm">
           {t('accounts.income.groupBy')}
           <select
             className={CONTROL}
@@ -69,7 +69,7 @@ export function IncomeStatement(props: {
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex min-w-0 max-w-full flex-col gap-1 text-sm">
           {t('accounts.income.shown')}
           <select
             className={CONTROL}

@@ -79,6 +79,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   // Fiche du navire : la destination, la cargaison prise dans le stock libre, puis « Partir ».
   await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Caboteur' })).toBeVisible();
+  // Police très agrandie (260 %) : la fiche et son formulaire de départ ne débordent pas de la page.
+  await page.evaluate(() => (document.documentElement.style.fontSize = '260%'));
+  await expectNoHorizontalScroll(page);
+  await page.evaluate(() => (document.documentElement.style.fontSize = ''));
   await page.getByRole('radio', { name: /^Elaia — 4 h de mer/ }).check();
   await page.getByLabel(/Blé \(80 libres\)/).fill('30');
   await page.getByRole('button', { name: /^Partir vers Elaia/ }).click();

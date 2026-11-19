@@ -71,7 +71,7 @@ export function HomeScreen() {
   const titled = atSea.length > 0 || groups.some(({ cityId }) => cityId !== house.cityId);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Card elevation="raised" className="overflow-hidden p-0">
         <Frieze tone="accent" />
         <div className="flex flex-wrap items-center justify-between gap-2 p-4">
