@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basketCost, dailyUpkeep, type Traded } from '@oikos/sim';
 import { sql } from 'kysely';
-import { config, referenceOf } from './city';
+import { config, recipeOf, referenceOf, type City, type Role } from './city';
 import { SLUGS, WORLD_SEED, type Settlement } from './world';
 
 /** Mesures d'un jour de jeu. */
@@ -176,6 +176,44 @@ export async function measureDay(
     }
   }
   return measure;
+}
+
+/** Demande de référence d'un jour des PNJ d'une cité, par bien : Q0 × population ÷ 1 000 × ticks d'un jour de 24 heures. */
+export async function npcDailyDemand(city: City) {
+  const rows = await city.db
+    .selectFrom('game.npc_population')
+    .select(['class_id', 'population'])
+    .where('city_id', '=', city.cityId)
+    .execute();
+  const ticks = (24 * 60) / city.played.clock.tickMinutes;
+  const demand = new Map<string, number>();
+  for (const npcClass of city.played.npcClasses) {
+    const population =
+      rows.find((row) => row.class_id === npcClass.id)?.population ??
+      city.played.cities.find((each) => each.id === city.slug)?.population[npcClass.id] ??
+      0;
+    for (const need of npcClass.basket)
+      demand.set(
+        need.goodId,
+        (demand.get(need.goodId) ?? 0) + (need.quantityPerThousand * population * ticks) / 1000,
+      );
+  }
+  return demand;
+}
+
+/** Intrants d'un jour que des maisons consomment sans les produire elles-mêmes dans leur cité, par bien (cycles pleins). */
+export function netInputs(roles: readonly Role[]) {
+  const net = new Map<string, number>();
+  for (const role of roles)
+    for (const id of role.sites) {
+      const recipe = recipeOf(id);
+      const cycles = (role.count * 1440) / recipe.durationMinutes;
+      for (const stack of recipe.inputs)
+        net.set(stack.goodId, (net.get(stack.goodId) ?? 0) + stack.quantity * cycles);
+      for (const stack of recipe.outputs)
+        net.set(stack.goodId, (net.get(stack.goodId) ?? 0) - stack.quantity * cycles);
+    }
+  return new Map([...net].filter(([, quantity]) => quantity > 0));
 }
 
 type Sums = Record<string, Record<string, { turnover: number; volume: number }>>;
