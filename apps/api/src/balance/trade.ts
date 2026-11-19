@@ -112,6 +112,10 @@ export async function traderMorning(
     .select(['city_id', 'good_id', 'quantity', 'reserved'])
     .where('house_id', '=', trader.houseId)
     .execute();
+  // Les ordres se placent dans un ordre qui ne dépend ni de la base (ordre physique des lignes) ni des identifiants,
+  // tirés à chaque monde : par rang de cité, puis par bien. Le rang des ordres fixe leur priorité à l'agora.
+  const rankOf = (cityId: string) => cities.findIndex((candidate) => candidate.cityId === cityId);
+  stocks.sort((a, b) => rankOf(a.city_id) - rankOf(b.city_id) || (a.good_id < b.good_id ? -1 : 1));
   // Ventes : tout ce qui n'attend pas, à quai ici, d'être transporté.
   const cargoGoods = new Map<string, number>();
   for (const stock of stocks) {

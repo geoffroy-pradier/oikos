@@ -11,6 +11,8 @@ import {
 // Décisions de la stratégie de logement du banc (#282) : fonctions pures, sans base.
 const townhouse = (propertyId: string, over: Partial<Vacant> = {}): Vacant => ({
   propertyId,
+  sizeId: 'townhouse',
+  lot: 1,
   units: 4,
   priceOboles: 3000,
   upkeepOboles: 6,
@@ -23,9 +25,9 @@ describe('chooseTenancy', () => {
       unhoused: 4,
       lodging: 12,
       leases: [
-        { propertyId: 'a', units: 4, rentOboles: 40 },
-        { propertyId: 'b', units: 4, rentOboles: 30 },
-        { propertyId: 'c', units: 4, rentOboles: 48 },
+        { propertyId: 'a', sizeId: 'townhouse', lot: 1, units: 4, rentOboles: 40 },
+        { propertyId: 'b', sizeId: 'townhouse', lot: 2, units: 4, rentOboles: 30 },
+        { propertyId: 'c', sizeId: 'townhouse', lot: 3, units: 4, rentOboles: 48 },
       ],
       vacant: [townhouse('v')],
       spendable: 10_000,
@@ -38,7 +40,7 @@ describe('chooseTenancy', () => {
       chooseTenancy({
         unhoused: 4,
         lodging: 12,
-        leases: [{ propertyId: 'big', units: 16, rentOboles: 49 }],
+        leases: [{ propertyId: 'big', sizeId: 'tenement', lot: 1, units: 16, rentOboles: 49 }],
         vacant: [],
         spendable: 0,
       }),
@@ -57,12 +59,29 @@ describe('chooseTenancy', () => {
     expect(chooseTenancy({ ...input, lodging: 8, spendable: 3000 })).toBeUndefined();
   });
 
+  it('départage les ex aequo par taille puis lot, jamais par identifiant ni par ordre reçu', () => {
+    // Identifiants dans l'ordre inverse des lots : un tri par identifiant choisirait l'autre bien.
+    const leases = [
+      { propertyId: 'b', sizeId: 'townhouse', lot: 2, units: 4, rentOboles: 30 },
+      { propertyId: 'z', sizeId: 'townhouse', lot: 1, units: 4, rentOboles: 30 },
+    ];
+    for (const order of [leases, [...leases].reverse()])
+      expect(
+        chooseTenancy({ unhoused: 4, lodging: 12, leases: order, vacant: [], spendable: 0 }),
+      ).toEqual({ kind: 'lease', propertyId: 'z', rentOboles: 30 });
+    const vacant = [townhouse('b', { lot: 2 }), townhouse('z', { lot: 1 })];
+    for (const order of [vacant, [...vacant].reverse()])
+      expect(
+        chooseTenancy({ unhoused: 4, lodging: 36, leases: [], vacant: order, spendable: 3000 }),
+      ).toMatchObject({ kind: 'buy', propertyId: 'z' });
+  });
+
   it('ne fait rien sans travailleur sans logement', () => {
     expect(
       chooseTenancy({
         unhoused: 0,
         lodging: 36,
-        leases: [{ propertyId: 'a', units: 4, rentOboles: 1 }],
+        leases: [{ propertyId: 'a', sizeId: 'townhouse', lot: 1, units: 4, rentOboles: 1 }],
         vacant: [townhouse('v')],
         spendable: 10_000,
       }),
@@ -79,7 +98,12 @@ describe('chooseInvestment et loyer', () => {
   it('un propriétaire achète le bien le plus rentable de l’horizon, et rien quand l’hébergement est bon marché', () => {
     const vacant = [
       townhouse('t'),
-      townhouse('tenement', { units: 16, priceOboles: 9000, upkeepOboles: 20 }),
+      townhouse('tenement', {
+        sizeId: 'tenement',
+        units: 16,
+        priceOboles: 9000,
+        upkeepOboles: 20,
+      }),
     ];
     expect(chooseInvestment({ lodging: 36, vacant, spendable: 20_000 })).toMatchObject({
       propertyId: 'tenement',
@@ -88,6 +112,18 @@ describe('chooseInvestment et loyer', () => {
       propertyId: 't',
     });
     expect(chooseInvestment({ lodging: 7, vacant, spendable: 20_000 })).toBeUndefined();
+  });
+
+  it('entre biens de même gain, achète le premier lot de la taille, quel que soit son identifiant', () => {
+    const vacant = [
+      townhouse('b', { lot: 3 }),
+      townhouse('z', { lot: 2 }),
+      townhouse('m', { lot: 4 }),
+    ];
+    for (const order of [vacant, [...vacant].reverse()])
+      expect(chooseInvestment({ lodging: 36, vacant: order, spendable: 5000 })).toMatchObject({
+        propertyId: 'z',
+      });
   });
 });
 
@@ -101,17 +137,28 @@ describe('renovationDue', () => {
 });
 
 describe('spareProperties', () => {
+  // Identifiants sans rapport avec la place des biens : seuls la taille et le lot les ordonnent.
   const owned = [
-    { id: 'c', units: 4, leased: false },
-    { id: 'a', units: 4, leased: false },
-    { id: 'b', units: 16, leased: true },
-    { id: 'd', units: 4, leased: false },
+    { id: 'a', sizeId: 'townhouse', lot: 3, units: 4, leased: false },
+    { id: 'c', sizeId: 'townhouse', lot: 1, units: 4, leased: false },
+    { id: 'b', sizeId: 'tenement', lot: 1, units: 16, leased: true },
+    { id: 'd', sizeId: 'townhouse', lot: 7, units: 4, leased: false },
   ];
 
-  it('garde, par identifiant, de quoi loger les travailleurs ; le reste est à louer', () => {
+  it('garde, par taille puis lot, de quoi loger les travailleurs ; le reste est à louer', () => {
     expect(spareProperties(owned, 5)).toEqual(['d']);
-    expect(spareProperties(owned, 4)).toEqual(['c', 'd']);
-    expect(spareProperties(owned, 0)).toEqual(['a', 'c', 'd']);
+    expect(spareProperties(owned, 4)).toEqual(['a', 'd']);
+    expect(spareProperties(owned, 0)).toEqual(['c', 'a', 'd']);
+  });
+
+  it('loge dans le même bien quel que soit l’ordre reçu, entre tailles comme entre lots', () => {
+    const mixed = [
+      { id: 'z', sizeId: 'townhouse', lot: 2, units: 4, leased: false },
+      { id: 'y', sizeId: 'tenement', lot: 5, units: 16, leased: false },
+      { id: 'x', sizeId: 'townhouse', lot: 1, units: 4, leased: false },
+    ];
+    for (const order of [mixed, [...mixed].reverse()])
+      expect(spareProperties(order, 4)).toEqual(['x', 'z']);
   });
 
   it('ne propose pas un bien déjà loué, ni ne le compte dans le logement de la maison', () => {
