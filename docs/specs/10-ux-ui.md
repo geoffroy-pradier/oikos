@@ -156,14 +156,19 @@ L'écran de connexion dit alors pourquoi, en français et en anglais, et donne l
 
 ## Direction artistique
 
-Inspiration de la céramique grecque à figures noires et rouges : aplats terre cuite, noir, ocre et bleu égéen, frises géométriques, icônes au trait. Illustrations fixes en 2D (pas de 3D), carte en vectoriel. Thèmes clair et sombre. Un guide de style unique sert de référence à toutes les images générées pour garder la cohérence.
-
-Ce fonds est traité de façon contemporaine (#574, ADR 0010) : surfaces superposées et ombres douces, coins arrondis, espaces généreux.
-Les titres et les chiffres clés sont dans une serif de titrage (Fraunces), l'interface dans une linéale (Inter), toutes deux servies par l'application.
-Les frises (méandre, vague) ornent sans jamais porter d'information.
-De courtes animations répondent au survol, à l'appui et à l'apparition d'un panneau ; elles sont coupées sous `prefers-reduced-motion`.
-Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi et propose l'action qui la remplit.
+Décidée le 19 novembre 2026 (ADR 0011), elle remplace la direction inspirée de la céramique grecque.
+L'interface est épurée : fond neutre, graphite en thème sombre et gris très clair en thème clair, un seul accent orange pour l'action principale, l'état actif et les données mises en avant.
+Aucun ornement : ni frise, ni texture, ni police de titrage ; Inter seule, avec des chiffres tabulaires pour tout montant ou quantité.
+Les chiffres clés sont en cartes, les sous-sections d'un onglet en onglets à pastilles, les listes en tableaux denses et triables sur ordinateur et en fiches sur téléphone.
+Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
+Aucun formulaire ne reste ouvert en permanence dans un écran.
+Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.
+Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
+La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.
+De courtes animations répondent au survol, à l'appui et à l'apparition d'une feuille ; elles sont coupées sous `prefers-reduced-motion`.
+Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi, avec une illustration et l'action qui la remplit.
 Les jetons et les composants de `@oikos/ui` font foi ; la page `catalogue.html` les montre dans les deux thèmes.
+Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interface ».
 
 ## Exigences
 
