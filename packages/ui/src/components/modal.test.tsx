@@ -8,7 +8,7 @@ import { Sheet } from './Sheet';
 
 afterEach(cleanup);
 
-function SheetHarness() {
+function SheetHarness({ autoFocus = false }: { autoFocus?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -20,7 +20,7 @@ function SheetHarness() {
         closeLabel="Fermer"
         footer={<Button>Confirmer</Button>}
       >
-        <input aria-label="Quantité" />
+        <input aria-label="Quantité" autoFocus={autoFocus} />
       </Sheet>
     </>
   );
@@ -65,29 +65,81 @@ describe('Sheet', () => {
   });
 });
 
+describe('Sheet : enfant en autoFocus', () => {
+  it('lui laisse le foyer, et rend pourtant le foyer au déclencheur à la fermeture', () => {
+    render(<SheetHarness autoFocus />);
+    const trigger = screen.getByRole('button', { name: 'Vendre' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const input = screen.getByLabelText('Quantité');
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
 describe('Dialog', () => {
-  it('pose une question nommée et décrite ; le premier bouton prend le foyer ; Échap annule', () => {
-    let cancelled = 0;
-    render(
-      <Dialog
-        open
-        onClose={() => (cancelled += 1)}
-        title="Démolir l’atelier ?"
-        description="Les stocks restent dans l’entrepôt."
-        actions={
-          <>
-            <Button variant="secondary">Annuler</Button>
-            <Button variant="danger">Démolir</Button>
-          </>
-        }
-      />,
+  function DialogHarness({ onCancel }: { onCancel: () => void }) {
+    const [open, setOpen] = useState(false);
+    const cancel = () => {
+      onCancel();
+      setOpen(false);
+    };
+    return (
+      <>
+        <Button onClick={() => setOpen(true)}>Démolir l’atelier</Button>
+        <Dialog
+          open={open}
+          onClose={cancel}
+          title="Démolir l’atelier ?"
+          description="Les stocks restent dans l’entrepôt."
+          actions={
+            <>
+              <Button variant="secondary" onClick={cancel}>
+                Annuler
+              </Button>
+              <Button variant="danger">Démolir</Button>
+            </>
+          }
+        />
+      </>
     );
-    const dialog = screen.getByRole('alertdialog', { name: 'Démolir l’atelier ?' });
+  }
+  const open = (onCancel = () => undefined) => {
+    render(<DialogHarness onCancel={onCancel} />);
+    const trigger = screen.getByRole('button', { name: 'Démolir l’atelier' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    return { trigger, dialog: screen.getByRole('alertdialog', { name: 'Démolir l’atelier ?' }) };
+  };
+
+  it('pose une question nommée et décrite ; le premier bouton prend le foyer, qui reste piégé', () => {
+    const { dialog } = open();
     expect(dialog.getAttribute('aria-describedby')).toBe(
       screen.getByText('Les stocks restent dans l’entrepôt.').id,
     );
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+    const cancel = screen.getByRole('button', { name: 'Annuler' });
+    const confirm = screen.getByRole('button', { name: 'Démolir' });
+    expect(document.activeElement).toBe(cancel);
+    fireEvent.keyDown(cancel, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(confirm);
+    fireEvent.keyDown(confirm, { key: 'Tab' });
+    expect(document.activeElement).toBe(cancel);
+  });
+
+  it('ne se ferme pas au clic sur le voile ; Échap et Annuler annulent et rendent le foyer', () => {
+    let cancelled = 0;
+    const { trigger, dialog } = open(() => (cancelled += 1));
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('alertdialog')).toBe(dialog);
     fireEvent.keyDown(dialog, { key: 'Escape' });
-    expect(cancelled).toBe(1);
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(cancelled).toBe(2);
   });
 });

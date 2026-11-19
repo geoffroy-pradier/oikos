@@ -20,6 +20,8 @@ export interface ModalProps {
   labelledBy: string;
   describedBy?: string | undefined;
   role?: 'dialog' | 'alertdialog';
+  /** Un clic sur le voile ferme ; `false` pour une confirmation, qui ne se ferme que par un choix ou Échap. */
+  closeOnScrim?: boolean;
   /** Classes du panneau : sa place et sa forme. */
   className?: string;
   children: ReactNode;
@@ -36,15 +38,24 @@ export function Modal({
   labelledBy,
   describedBy,
   role = 'dialog',
+  closeOnScrim = true,
   className,
   children,
 }: ModalProps) {
   const panel = useRef<HTMLDivElement>(null);
+  // Le déclencheur se lit au rendu qui ouvre, avant que les enfants montent : un enfant en
+  // `autoFocus` prend le foyer au commit, avant tout effet, et ne doit pas passer pour lui.
+  const trigger = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) {
+    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  wasOpen.current = open;
 
   useEffect(() => {
     const current = panel.current;
     if (!open || !current) return;
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = trigger.current;
     const root = document.documentElement;
     // Valeur précédente gardée : deux fenêtres empilées se referment dans l'ordre inverse.
     const overflow = root.style.overflow;
@@ -52,7 +63,7 @@ export function Modal({
     if (!current.contains(document.activeElement)) (focusables(current)[0] ?? current).focus();
     return () => {
       root.style.overflow = overflow;
-      if (trigger?.isConnected) trigger.focus();
+      if (opener?.isConnected) opener.focus();
     };
   }, [open]);
 
@@ -84,7 +95,7 @@ export function Modal({
       <div
         aria-hidden="true"
         className="absolute inset-0 animate-fade bg-scrim"
-        onClick={onClose}
+        onClick={closeOnScrim ? onClose : undefined}
       />
       <div
         ref={panel}

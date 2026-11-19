@@ -3,7 +3,7 @@ import { Modal } from './Modal';
 
 export interface DialogProps {
   open: boolean;
-  /** Échap et le voile valent l'annulation. */
+  /** Échap vaut l'annulation ; le voile ne ferme pas une confirmation. */
   onClose: () => void;
   title: ReactNode;
   description?: ReactNode;
@@ -24,6 +24,7 @@ export function Dialog({ open, onClose, title, description, actions }: DialogPro
       labelledBy={`${id}-title`}
       describedBy={description ? `${id}-text` : undefined}
       role="alertdialog"
+      closeOnScrim={false}
       className="relative m-auto w-full max-w-md animate-rise gap-2 rounded-2xl p-6"
     >
       <h2 id={`${id}-title`} className="text-lg">
