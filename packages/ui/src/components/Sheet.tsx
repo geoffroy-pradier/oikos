@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '../cn';
-import { Button } from './Button';
+import { IconButton } from './Button';
 import { Modal } from './Modal';
 
 export interface SheetProps {
@@ -55,13 +55,7 @@ export function Sheet({
           </h2>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          icon={<X />}
-          aria-label={closeLabel}
-          onClick={onClose}
-        />
+        <IconButton icon={<X />} label={closeLabel} onClick={onClose} />
       </header>
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5">{children}</div>
       {footer && (

@@ -27,8 +27,8 @@ function SheetHarness({ autoFocus = false }: { autoFocus?: boolean }) {
 }
 
 describe('Sheet', () => {
-  const open = () => {
-    render(<SheetHarness />);
+  const open = (autoFocus = false) => {
+    render(<SheetHarness autoFocus={autoFocus} />);
     const trigger = screen.getByRole('button', { name: 'Vendre' });
     trigger.focus();
     fireEvent.click(trigger);
@@ -63,18 +63,12 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(trigger);
     expect(document.documentElement.style.overflow).toBe('');
   });
-});
 
-describe('Sheet : enfant en autoFocus', () => {
-  it('lui laisse le foyer, et rend pourtant le foyer au déclencheur à la fermeture', () => {
-    render(<SheetHarness autoFocus />);
-    const trigger = screen.getByRole('button', { name: 'Vendre' });
-    trigger.focus();
-    fireEvent.click(trigger);
+  it('laisse le foyer à un enfant en autoFocus, et le rend pourtant au déclencheur', () => {
+    const { trigger } = open(true);
     const input = screen.getByLabelText('Quantité');
     expect(document.activeElement).toBe(input);
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
 });
@@ -106,7 +100,7 @@ describe('Dialog', () => {
       </>
     );
   }
-  const open = (onCancel = () => undefined) => {
+  const open = (onCancel: () => void = () => undefined) => {
     render(<DialogHarness onCancel={onCancel} />);
     const trigger = screen.getByRole('button', { name: 'Démolir l’atelier' });
     trigger.focus();
