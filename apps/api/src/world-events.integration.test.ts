@@ -433,8 +433,10 @@ describe('tempête et départ (#267)', () => {
     const strong = await storm(kalliste, elaia, 3_000, 1_100);
     // Kallistè – Halos : deux tempêtes de 20 %, l'une dans chaque sens ; la première planifiée (plus petit
     // identifiant) commence la dernière : ni l'ordre des débuts ni celui des sens ne la désigneraient.
+    // Chaque début se compte depuis l'heure de la base à sa planification : l'écart de 800 ms laisse à la
+    // seconde planification le temps de se faire sans renverser l'ordre des débuts, même sur une machine lente.
     const twins = [
-      await storm(halos, kalliste, 2_000, 1_300),
+      await storm(halos, kalliste, 2_000, 2_000),
       await storm(kalliste, halos, 2_000, 1_200),
     ];
     const first = twins.map((twin) => twin.eventId).sort()[0];
