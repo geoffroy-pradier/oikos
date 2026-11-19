@@ -180,12 +180,13 @@ describe('revenu public des PNJ (#632)', () => {
   });
 
   it('multiplicateur de chaque cité, à la clôture comme au premier tick du jour, arrondi une fois (#657)', async () => {
-    // 1 008 oboles pour 1 000 thètes à 10 % : Kallistè 5 000 thètes à ×1,2345 (6 221,88), Elaia 6 000 à ×0, Ampélos
-    // 6 000 à ×2, Halos 6 000 sans multiplicateur (×1, version publiée avant lui).
+    // 1 008 oboles pour 1 000 thètes à 10 %. Kallistè : 999 thètes, 1 006,992 à ×1 ; à ×1,2345, 1 243,12 : 1 243,
+    // là où deux arrondis (1 006 × 1,2345 = 1 241,9) donneraient 1 241. Elaia 6 000 à ×0, Ampélos 6 000 à ×2,
+    // Halos 6 000 sans multiplicateur (×1, version publiée avant lui).
     const cities = { kalliste: 12_345, elaia: 0, ampelos: 20_000 };
     const expected = {
-      purses: { kalliste: 6_221, elaia: 0, ampelos: 12_096, halos: 6_048 },
-      faucet: -(6_221 + 12_096 + 6_048),
+      purses: { kalliste: 1_243, elaia: 0, ampelos: 12_096, halos: 6_048 },
+      faucet: -(1_243 + 12_096 + 6_048),
       entries: [
         ['ampelos', TODAY],
         ['halos', TODAY],
@@ -194,7 +195,7 @@ describe('revenu public des PNJ (#632)', () => {
     };
     const spec = {
       cities: ['kalliste', 'elaia', 'ampelos', 'halos'],
-      population: { kalliste: { thetes: 5_000 } },
+      population: { kalliste: { thetes: 999 } },
       houses: [],
     };
     const closed = await laborWorld(owner, spec);

@@ -264,8 +264,7 @@ L'équivalence ne vaut que pour les achats : la bourse reçoit le revenu d'un jo
 Décision (#632, règle de #621) : « neutre » veut dire ici « comportement inchangé » ; un monde en service sur une version publiée avant le paramètre continue d'acheter comme avant, et la configuration initiale écrit cette même valeur pour chaque classe.
 Ce qu'ils ne dépensent pas reste dans la bourse et compte dans la masse ; le calibrage de #283 baissera cette part à mesure que les salaires et l'hébergement remplissent les bourses.
 C'est le plancher qui fait encore acheter une cité sans emploi, et le levier « revenu des classes PNJ » de cette section ; son calibrage est celui de #283.
-Ce levier se règle aussi par cité (#657) : les salaires vont à la bourse de la cité du site, si bien que l'argent qu'une cité importatrice dépense en biens des autres cités ne lui revient pas ;
-le multiplicateur de cette cité comble son déficit sans gonfler la masse ni les prix des cités exportatrices, comme le ferait une part de classe plus haute partout.
+Ce levier se règle aussi par cité (#657) : les salaires vont à la bourse de la cité du site, si bien que l'argent qu'une cité importatrice dépense en biens des autres cités ne lui revient pas ; le multiplicateur de cette cité comble son déficit sans gonfler la masse ni les prix des cités exportatrices, comme le ferait une part de classe plus haute partout.
 Une cité dont la version de configuration ne donne pas ce multiplicateur prend ×1 (`DEFAULT_CITY_PUBLIC_INCOME_BPS`) : une version publiée avant lui garde son revenu public (règle de #621), et la configuration initiale écrit cette même valeur pour chaque cité.
 Il ne transfère rien d'une bourse à l'autre : c'est le même robinet, plus ou moins ouvert selon la cité ; ses valeurs sont celles du calibrage de #283.
 
