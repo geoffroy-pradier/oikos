@@ -66,9 +66,16 @@ describe('jeu de valeurs initial', () => {
   it('terroirs et recettes de départ des quatre cités (#250)', () => {
     const terroir = (cityId: string) =>
       [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])].sort();
-    const primary = config.recipes.filter((recipe) => recipe.siteType !== 'workshop');
-    // Kallistè garde toutes les matières premières de la phase 1 : le banc de #78 reste tel quel.
-    expect(terroir('kalliste')).toEqual(primary.map((recipe) => recipe.id).sort());
+    // Kallistè (#669) : toutes les matières premières de la phase 1 sauf la laine, qu'Ampelos et Halos produisent.
+    expect(terroir('kalliste')).toEqual([
+      'catch_fish',
+      'dig_clay',
+      'fell_wood',
+      'grow_grapes',
+      'grow_olives',
+      'grow_wheat',
+      'rake_salt',
+    ]);
     expect(terroir('elaia')).toEqual(['fell_wood', 'grow_olives', 'grow_wheat', 'rake_salt']);
     expect(terroir('ampelos')).toEqual(['catch_fish', 'dig_clay', 'grow_grapes', 'shear_wool']);
     expect(terroir('halos')).toEqual([
@@ -86,7 +93,7 @@ describe('jeu de valeurs initial', () => {
     ]);
   });
 
-  it('aucune des trois nouvelles cités n’a toutes les matières premières du panier de ses PNJ (6.1)', () => {
+  it('aucune cité n’a toutes les matières premières du panier de ses PNJ (6.1, #669)', () => {
     // Matières premières d'un bien : lui-même s'il est produit sans intrant, sinon celles de ses intrants.
     const rawOf = (goodId: string, seen = new Set<string>()): string[] => {
       if (seen.has(goodId)) return [];
@@ -111,9 +118,7 @@ describe('jeu de valeurs initial', () => {
           .flatMap((recipe) => recipe.outputs.map((output) => output.goodId)),
       );
       const missing = [...wanted].filter((goodId) => !grown.has(goodId));
-      // Kallistè, cité fondatrice, reste autosuffisante jusqu'à #283.
-      if (city.id === 'kalliste') expect(missing).toEqual([]);
-      else expect(missing.length).toBeGreaterThan(0);
+      expect(missing.length, city.id).toBeGreaterThan(0);
     }
   });
 

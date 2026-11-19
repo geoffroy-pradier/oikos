@@ -1,3 +1,4 @@
+import { isWorkshop } from '@oikos/config';
 import { basketCost, costRatioBps, type Traded } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -34,7 +35,26 @@ import { morning, ROLES, seller } from './balance/strategy';
  * la demande des PNJ et la clôture quotidienne (population, entretien) sont celles du moteur. Les prix
  * sont relevés jour par jour, d'après le rang des échanges.
  */
-const bench = openBench();
+/**
+ * Terroir du scénario : depuis #669, la configuration initiale retire la laine à Kallistè (6.1), mais la cité
+ * prototype de #78 est une cité seule, sans armateur, dont les tisserands tondent leurs moutons sur place. Le banc lui
+ * rend donc toutes les matières premières, et ne change rien d'autre : bornes, recettes et prix sont ceux de `config`.
+ * C'est un paramètre du banc, pas du jeu.
+ */
+const prototype = {
+  ...config,
+  cities: config.cities.map((city) =>
+    city.id === 'kalliste'
+      ? {
+          ...city,
+          terroir: config.recipes
+            .filter((recipe) => !isWorkshop(recipe))
+            .map((recipe) => recipe.id),
+        }
+      : city,
+  ),
+};
+const bench = openBench({ config: prototype });
 beforeAll(() => bench.start());
 afterAll(() => bench.stop());
 
