@@ -23,11 +23,14 @@ export const [KALLISTE, ELAIA, HALOS] = [
   '01900000-0000-7000-8000-000000000105',
 ] as const;
 
-/** L'API servie par la configuration de test, modifiée par `change`. */
-export const appWithConfig = (change: (config: GameConfig) => GameConfig = (config) => config) =>
+/** L'API servie par la configuration de test, modifiée par `change`, sur la connexion `connection` (le service). */
+export const appWithConfig = (
+  change: (config: GameConfig) => GameConfig = (config) => config,
+  connection = db,
+) =>
   createApp({
-    db,
-    telemetry: createTelemetry(db),
+    db: connection,
+    telemetry: createTelemetry(connection),
     verifyToken: testVerifier,
     rateLimiter: unlimited,
     loadConfig: async () => ({ ...TEST_CONFIG, config: change(TEST_CONFIG.config) }),

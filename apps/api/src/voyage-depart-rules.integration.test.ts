@@ -84,6 +84,25 @@ describe('voyage.depart : coût, refus et concurrence', () => {
     ]);
   });
 
+  it('sur la connexion du propriétaire, qui voit les bourses (#632) : le droit de port va au trésor, jamais à la bourse', async () => {
+    const player = await newShipowner();
+    const purse = async () =>
+      Number(
+        (
+          await sql<{ balance: string }>`select balance from game.npc_purses()
+            where city_id = ${ELAIA}`.execute(owner)
+        ).rows[0]?.balance,
+      );
+    const before = { elaia: await balanceOf({ cityId: ELAIA }), purse: await purse() };
+    const priced = appWithConfig(pricedConfig(30, 41, 12_500), owner);
+    const sailed = await depart(player, { expectedCostOboles: 82 }, undefined, priced);
+    expect(sailed.status).toBe(200);
+    expect([await balanceOf({ cityId: ELAIA }), await purse()]).toEqual([
+      before.elaia + 26,
+      before.purse,
+    ]);
+  });
+
   it('refus sans effet : navire, cité, bien, route, classe, capacité, stock libre, trésorerie, désarmement', async () => {
     const [player, other] = [await newShipowner(), await newShipowner()];
     const balance = await balanceOf({ houseId: player.houseId });

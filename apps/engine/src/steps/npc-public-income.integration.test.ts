@@ -6,11 +6,13 @@ import {
   type GameConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { dailyCloseAt, gameDayAt } from '@oikos/sim';
+import { dailyCloseAt, gameDayAt, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeWorld } from '../scheduler';
+import { runTick } from '../tick';
 import { laborWorld } from './labor.integration-fixtures';
+import { npcDemand } from './npc-demand';
 import { npcPublicIncome } from './npc-public-income';
 
 // Revenu public des PNJ à la clôture (#632), contre Supabase local. Chaque test a son monde.
@@ -49,6 +51,19 @@ const close = (worldId: string, bps?: number, day = TODAY) =>
     config: settings(bps),
     steps: [npcPublicIncome],
   });
+/** Tick de demande des PNJ de rang `rank` après l'ouverture du jour de jeu `day`, joué à son heure. */
+const tick = (worldId: string, bps?: number, rank = 1, day = TODAY) => {
+  const index = tickIndexAt(dailyCloseAt(day, clock), clock.tickMinutes) + rank;
+  const scheduledAt = tickStart(index, clock.tickMinutes);
+  return runTick(db, {
+    worldId,
+    index,
+    scheduledAt,
+    config: { ...settings(bps), byId: async () => loaded },
+    steps: [npcDemand],
+    now: () => new Date(scheduledAt.getTime() + 1000),
+  });
+};
 /** Solde de chaque bourse du monde, par slug de cité, et du robinet ; écritures du revenu public. */
 async function ledgerOf(world: { worldId: string; cityIds: Record<string, string> }) {
   const slugOf = new Map(Object.entries(world.cityIds).map(([slug, id]) => [id, slug]));
@@ -101,6 +116,43 @@ describe('revenu public des PNJ (#632)', () => {
     // Rejouée, la clôture du jour n'écrit rien de plus.
     expect(await close(world.worldId, 1_000)).toEqual([]);
     expect(await ledgerOf(world)).toEqual(after);
+  });
+
+  it('le tick verse le revenu du jour s’il ne l’a pas été, sans attendre la clôture ; une fois par cité et par jour, même en concurrence', async () => {
+    const expected = {
+      purses: { kalliste: 5_040, elaia: 6_048 },
+      faucet: -(5_040 + 6_048),
+      entries: [
+        ['elaia', TODAY],
+        ['kalliste', TODAY],
+      ],
+    };
+    const spec = {
+      cities: ['kalliste', 'elaia'],
+      population: { kalliste: { thetes: 5_000 } },
+      houses: [],
+    };
+    // Monde déjà clos ce jour-là, ou déployé après la clôture : le premier tick du jour verse, la clôture rejouée et
+    // les ticks suivants ne versent rien de plus.
+    const late = await laborWorld(owner, spec);
+    await tick(late.worldId, 1_000);
+    expect(await ledgerOf(late)).toEqual(expected);
+    await tick(late.worldId, 1_000, 2);
+    expect(await close(late.worldId, 1_000)).toEqual([TODAY]);
+    expect(await ledgerOf(late)).toEqual(expected);
+    // Clôture d'abord : le tick ne verse rien de plus.
+    const early = await laborWorld(owner, spec);
+    await close(early.worldId, 1_000);
+    await tick(early.worldId, 1_000);
+    expect(await ledgerOf(early)).toEqual(expected);
+    // Clôture et ticks en même temps : un seul versement par cité.
+    const racing = await laborWorld(owner, spec);
+    await Promise.all([
+      close(racing.worldId, 1_000),
+      tick(racing.worldId, 1_000),
+      tick(racing.worldId, 1_000, 2),
+    ]);
+    expect(await ledgerOf(racing)).toEqual(expected);
   });
 
   it('part absente : celle d’une version publiée avant le paramètre ; part nulle : rien, sans écriture', async () => {

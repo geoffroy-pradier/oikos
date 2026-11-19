@@ -259,4 +259,45 @@ describe('salaires des intendants à la clôture (#278)', () => {
     ]);
     expect(await activeOf(house)).toEqual([true]);
   });
+
+  it('deux cités (#632) : salaires des sites et des intendants versés chacun à la bourse de la cité de son site', async () => {
+    // Champ et premier moulin à Kallistè (salaire de 3), second moulin à Elaia (salaire de 5), un intendant par moulin.
+    const staff = { dailyWageOboles: { kalliste: 3, elaia: 5 } };
+    const house = await newHouse(200, ['active', 'active']);
+    const elaia = randomUUID();
+    await owner.transaction().execute(async (trx) => {
+      await sql`insert into game.cities (id, world_id, slug, name) values (${elaia}, ${house.worldId}, 'elaia', 'Elaia')`.execute(
+        trx,
+      );
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await sql`update game.sites set city_id = ${elaia} where id = ${house.mills[1] ?? ''}`.execute(
+        trx,
+      );
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+    });
+    await close(
+      house.worldId,
+      TODAY,
+      paying(8, (config) => ({ ...config, staff })),
+    );
+    // Kallistè : champ 4 × 3, moulin 2 × 3, intendant 8 = 26 ; Elaia : moulin 2 × 5, intendant 8 = 18.
+    const { rows } = await sql<{ slug: string; balance: string }>`select c.slug, p.balance
+      from game.npc_purses() p join game.cities c on c.id = p.city_id
+      where p.world_id = ${house.worldId} order by c.slug`.execute(db);
+    expect(rows.map((row) => [row.slug, Number(row.balance)])).toEqual([
+      ['elaia', 18],
+      ['kalliste', 26],
+    ]);
+    // Toujours un débit de la trésorerie par nature, et une ligne de crédit par bourse.
+    expect((await entriesOf(house)).map((entry) => entry.lines)).toEqual([
+      [
+        'treasury -30 upkeep',
+        'treasury -28 wages',
+        'treasury -16 wages',
+        'npc_purse 18 -',
+        'npc_purse 26 -',
+        'sink_upkeep 30 -',
+      ],
+    ]);
+  });
 });
