@@ -5,20 +5,20 @@ import type { GameDatabase } from '@oikos/db';
 import { afterAll, describe, expect, it } from 'vitest';
 import { db, owner } from './chat-test-world';
 
-// Migration 600 (#604) contre Supabase local, jouée comme par un déploiement sur une base d'avant elle où un compte a
+// Migration 750 (#604) contre Supabase local, jouée comme par un déploiement sur une base d'avant elle où un compte a
 // déjà une maison dans deux mondes, dans une transaction annulée à la fin.
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 const MIGRATION = readFileSync(
   new URL(
-    '../../../packages/db/supabase/migrations/20261118000600_houses_one_per_account.sql',
+    '../../../packages/db/supabase/migrations/20261118000750_houses_one_per_account.sql',
     import.meta.url,
   ),
   'utf8',
 );
 const ROLLBACK = new Error('rollback');
 
-describe('migration 600 : une maison par compte (#604)', () => {
+describe('migration 750 : une maison par compte (#604)', () => {
   it('passe sur un compte qui a déjà deux maisons, sans en retirer ; rejouée, ne change rien ; refuse la troisième', async () => {
     const run = owner.transaction().execute(async (trx: Transaction<GameDatabase>) => {
       // La base telle qu'avant la migration ; le troisième monde n'a aucune maison d'Alice.

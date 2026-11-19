@@ -29,8 +29,11 @@ select is(
 select ok(
   not (select prosecdef from pg_proc where oid = 'game.houses_one_per_account()'::regprocedure),
   'le déclencheur s''exécute au nom de l''appelant');
-select ok(not has_function_privilege('oikos_service', 'game.houses_one_per_account()', 'execute'),
-  'le service n''attache pas la fonction ailleurs');
+select is(
+  (select array_agg(a.grantee::regrole::text || ':' || a.privilege_type order by a.grantee)
+   from pg_proc p, aclexplode(p.proacl) a where p.oid = 'game.houses_one_per_account()'::regprocedure),
+  (select array[proowner::regrole::text || ':EXECUTE'] from pg_proc where oid = 'game.houses_one_per_account()'::regprocedure),
+  'seul le propriétaire exécute la fonction : ni public, ni anon, ni joueur, ni service');
 
 -- Écritures sous le rôle de service, comme l'API : chaque issue est relevée, puis comparée sous le propriétaire
 -- (pgTAP vit dans `extensions`, que le service ne voit pas).
@@ -91,9 +94,10 @@ create temporary table owner_houses (id uuid, user_id uuid);
 create trigger t before insert on owner_houses for each row execute function game.houses_one_per_account();
 select throws_ok($$insert into owner_houses values (gen_random_uuid(), gen_random_uuid())$$, '42501',
   't only runs on game.houses', 'houses_one_per_account ne s''exécute que sur les maisons');
-select ok(
-  exists (select 1 from pg_indexes where schemaname = 'game' and indexname = 'houses_user_id_idx'),
-  'la maison d''un compte se lit par index');
+select is(
+  (select pg_get_indexdef('game.houses_user_id_idx'::regclass)),
+  'CREATE INDEX houses_user_id_idx ON game.houses USING btree (user_id, created_at, id)',
+  'la maison d''un compte se lit par index, la plus ancienne d''abord');
 
 select * from finish();
 rollback;

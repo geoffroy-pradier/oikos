@@ -19,8 +19,13 @@ begin
   if tg_op = 'UPDATE' and new.user_id = old.user_id then
     return new;
   end if;
-  -- Deux fondations simultanées du même compte se suivent : la seconde, au niveau READ COMMITTED des commandes, lit
-  -- la première une fois celle-ci validée.
+  -- Deux fondations simultanées du même compte se suivent : la seconde lit la première une fois celle-ci validée, ce
+  -- qu'un instantané pris en début de transaction (REPEATABLE READ, SERIALIZABLE) ne ferait pas. Ces niveaux sont donc
+  -- refusés, en échec de sérialisation, que l'appelant peut rejouer en READ COMMITTED.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'houses_one_per_account requires READ COMMITTED'
+      using errcode = 'serialization_failure', schema = 'game', table = 'houses';
+  end if;
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('game.houses_one_per_account:' || new.user_id::text, 0));
   if exists (select 1 from game.houses h where h.user_id = new.user_id and h.id <> new.id) then
