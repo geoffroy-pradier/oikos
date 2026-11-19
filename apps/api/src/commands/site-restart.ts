@@ -8,6 +8,7 @@ import { readHousing, type Db } from '@oikos/db';
 import { allocateWorkforce, holdingUnits, siteDailyDue } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -47,9 +48,7 @@ export const siteRestart = defineCommand({
         'game.cities.slug',
       ])
       .where('game.sites.id', '=', input.siteId)
-      .where('game.sites.house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-      )
+      .where('game.sites.house_id', '=', accountHouseId(userId))
       .executeTakeFirst();
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!owned) return refuse('SITE_NOT_FOUND', 'Unknown site.');

@@ -11,6 +11,7 @@ import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import type { z } from 'zod';
 import { defineCommand } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 export const refuse = (code: string, message: string) => ({
   ok: false as const,
@@ -26,7 +27,7 @@ export async function lockHouseProperty(trx: Db, userId: string, propertyId: str
   const house = await trx
     .selectFrom('game.houses')
     .select(['id', 'world_id'])
-    .where('user_id', '=', userId)
+    .where('id', '=', accountHouseId(userId))
     .executeTakeFirst();
   if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
   const known = await trx

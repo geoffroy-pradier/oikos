@@ -4,6 +4,7 @@ import {
   marketCancelOrderOutputSchema,
 } from '@oikos/contracts';
 import { defineCommand } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 /**
  * Annule un ordre ouvert de sa propre maison : ce qui a déjà été servi reste acquis, seul le reste est
@@ -36,9 +37,7 @@ export const marketCancelOrder = defineCommand({
         'status',
       ])
       .where('id', '=', input.orderId)
-      .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-      )
+      .where('house_id', '=', accountHouseId(userId))
       .forUpdate()
       .executeTakeFirst();
     // L'ordre d'un autre joueur est indiscernable d'un ordre inexistant.

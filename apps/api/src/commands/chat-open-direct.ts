@@ -6,6 +6,7 @@ import {
 import type { Db } from '@oikos/db';
 import { defineCommand } from '../registry';
 import { refuse } from './city-election';
+import { accountHouseId } from '@oikos/operations';
 
 /**
  * Conversation privée (docs/specs/06-cites-politique-communaute.md, 6.6) : une maison l'ouvre avec une autre
@@ -14,7 +15,7 @@ import { refuse } from './city-election';
  * ouverture relit la première.
  */
 
-/** Vrai si le compte a une maison, dans quelque monde que ce soit : départage `HOUSE_NOT_FOUND` d'un autre refus. */
+/** Vrai si le compte a sa maison, dans quelque monde que ce soit : départage `HOUSE_NOT_FOUND` d'un autre refus. */
 export const accountHasHouse = async (trx: Db, userId: string) =>
   !!(await trx
     .selectFrom('game.houses')
@@ -29,7 +30,7 @@ export const chatOpenDirect = defineCommand({
   output: chatOpenDirectOutputSchema,
   errors: CHAT_OPEN_DIRECT_ERROR_CODES,
   async handler({ trx, userId, emit }, input) {
-    // La maison du compte dans le monde de la maison désignée : un compte peut avoir une maison par monde.
+    // La maison du compte (la plus ancienne d'un compte hérité, #604), si elle est du monde de la maison désignée.
     const other = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
@@ -40,7 +41,7 @@ export const chatOpenDirect = defineCommand({
       (await trx
         .selectFrom('game.houses')
         .select(['id', 'world_id'])
-        .where('user_id', '=', userId)
+        .where('id', '=', accountHouseId(userId))
         .where('world_id', '=', other.world_id)
         .executeTakeFirst());
     if (!other || !house)

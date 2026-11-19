@@ -4,6 +4,7 @@ import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { accountHasHouse } from './chat-open-direct';
 import { refuse } from './city-election';
+import { accountHouseId } from '@oikos/operations';
 
 /**
  * Message (docs/specs/06-cites-politique-communaute.md, 6.6) : une maison écrit dans le canal de sa cité,
@@ -35,12 +36,12 @@ export const chatPost = defineCommand({
     messages_body_not_blank: INVALID_BODY,
   },
   async handler({ trx, userId, emit, config }, input) {
-    // Le canal et la maison du compte dans le monde du canal (un compte peut avoir une maison par monde), s'il
+    // Le canal et la maison du compte (la plus ancienne d'un compte hérité, #604), si elle est du monde du canal et
     // peut y écrire : canal de la cité de cette maison, ou conversation dont elle est membre.
     const target = await trx
       .selectFrom('game.channels as c')
       .innerJoin('game.houses as h', (join) =>
-        join.onRef('h.world_id', '=', 'c.world_id').on('h.user_id', '=', userId),
+        join.onRef('h.world_id', '=', 'c.world_id').on('h.id', '=', accountHouseId(userId)),
       )
       .innerJoin('game.citizenships as z', 'z.house_id', 'h.id')
       .select(['c.id as channelId', 'h.id as houseId'])

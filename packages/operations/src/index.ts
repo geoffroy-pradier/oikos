@@ -3,6 +3,7 @@
  * #279), sans entrée-sortie hors de la transaction reçue (ADR 0009).
  */
 export {
+  accountHouseId,
   defineOperation,
   houseOf,
   type Actor,

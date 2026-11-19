@@ -73,8 +73,10 @@ Le tick en produit aussi, sans commande, dans sa propre transaction : un `TradeE
 Le lancement compte environ 90 commandes.
 Une commande de jeu agit pour la maison du compte authentifié, sans désigner de monde ni de maison : un compte a au plus une maison dans tout le jeu, tous mondes confondus (décision de #604).
 La base le garantit par un déclencheur (`houses_one_per_account`), qui sérialise les fondations d'un même compte et refuse sous le nom `houses_one_per_user` ; `house.create` refuse donc en `HOUSE_ALREADY_EXISTS` un compte qui a déjà sa maison, dans ce monde ou dans un autre.
-Le déclencheur ne revérifie pas les maisons déjà là : un compte qui en a hérité plusieurs d'avant cette règle les garde, et la migration passe sans rien supprimer.
+Le déclencheur ne revérifie pas les maisons déjà là : un compte qui en a hérité plusieurs d'avant cette règle les garde, et agit par la plus ancienne (date de création, puis identifiant).
 Il ne lit une fondation concurrente validée qu'au niveau READ COMMITTED des commandes : sous REPEATABLE READ ou SERIALIZABLE, il refuse toute maison nouvelle ou changeant de compte en échec de sérialisation (`40001`).
+Toute lecture de *la* maison du compte passe par `accountHouseId` (`@oikos/operations`), jamais par `user_id` seul.
+Seuls lisent toutes les maisons d'un compte des tests d'existence (`house.create`, `accountHasHouse`), l'exclusion d'un compte, qui annule les ordres de chacune, et la récusation d'un modérateur.
 Raison : le jeu vise un seul monde, un Âge sur un serveur, avant tout découpage (01), et une saison ne recommence pas le monde (03) ; c'est l'option la plus simple qui ne laisse aucune commande choisir une maison au hasard.
 Le jour où un second Âge accueillera des comptes déjà joueurs, chaque commande devra désigner sa maison, et une migration nouvelle retirera ce déclencheur.
 Une commande, comme une lecture d'Olympe, exige un jeton de Supabase Auth valide dont le compte existe encore : un jeton signé reste valide jusqu'à son expiration, même si son compte a été effacé depuis (remise à zéro de la base, suppression, effacement en douceur).

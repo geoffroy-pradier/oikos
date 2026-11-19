@@ -5,6 +5,7 @@ import {
 } from '@oikos/contracts';
 import { findBannedTerm } from '@oikos/config';
 import { defineCommand } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 /** Renomme la maison du joueur. Commande d'exemple du cadre : une transaction, un événement. */
 export const houseRename = defineCommand({
@@ -36,7 +37,7 @@ export const houseRename = defineCommand({
     const house = await trx
       .selectFrom('game.houses')
       .select(['id', 'name'])
-      .where('user_id', '=', userId)
+      .where('id', '=', accountHouseId(userId))
       .forUpdate()
       .executeTakeFirst();
     if (!house) {

@@ -17,6 +17,7 @@ import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
 import { cancelLockedOrders, lockAgora } from './cancel-orders';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -46,7 +47,7 @@ export const stewardHire = defineCommand({
     const house = await trx
       .selectFrom('game.houses')
       .select('id')
-      .where('user_id', '=', userId)
+      .where('id', '=', accountHouseId(userId))
       .forNoKeyUpdate()
       .executeTakeFirst();
     const site =
@@ -98,9 +99,7 @@ export async function lockSteward(trx: Db, userId: string, stewardId: string) {
     .select(['id', 'house_id', 'site_id', 'rules_revision'])
     .where('id', '=', stewardId)
     .where('dismissed_at', 'is', null)
-    .where('house_id', 'in', (houses) =>
-      houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-    )
+    .where('house_id', '=', accountHouseId(userId))
     .forUpdate()
     .executeTakeFirst();
 }
@@ -117,9 +116,7 @@ async function holdSteward(trx: Db, userId: string, stewardId: string) {
     .select('world_id')
     .where('id', '=', stewardId)
     .where('dismissed_at', 'is', null)
-    .where('house_id', 'in', (houses) =>
-      houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-    )
+    .where('house_id', '=', accountHouseId(userId))
     .executeTakeFirst();
   if (!seen) return undefined;
   await lockAgora(trx, seen.world_id);

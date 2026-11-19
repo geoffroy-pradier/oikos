@@ -5,6 +5,7 @@ import {
 } from '@oikos/contracts';
 import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -36,7 +37,7 @@ export const templeInvokeGrace = defineCommand({
     const house = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
-      .where('user_id', '=', userId)
+      .where('id', '=', accountHouseId(userId))
       .forNoKeyUpdate()
       .executeTakeFirst();
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');

@@ -9,6 +9,7 @@ import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { laborIsLimited, lockCityLabor, workersAvailable } from '../labor';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,
@@ -38,9 +39,7 @@ export const siteSetRecipe = defineCommand({
         .selectFrom('game.sites')
         .select('city_id')
         .where('id', '=', input.siteId)
-        .where('house_id', 'in', (houses) =>
-          houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-        )
+        .where('house_id', '=', accountHouseId(userId))
         .executeTakeFirst();
       if (located) await lockCityLabor(trx, located.city_id);
     }
@@ -51,9 +50,7 @@ export const siteSetRecipe = defineCommand({
       .select(sql<boolean>`cycle_started_at > now()`.as('moved'))
       .select(sql<boolean>`coalesce(halted_at > now(), false)`.as('haltMoved'))
       .where('id', '=', input.siteId)
-      .where('house_id', 'in', (houses) =>
-        houses.selectFrom('game.houses').select('id').where('user_id', '=', userId),
-      )
+      .where('house_id', '=', accountHouseId(userId))
       .forUpdate()
       .executeTakeFirst();
     // Le site d'un autre joueur est indiscernable d'un site inexistant.

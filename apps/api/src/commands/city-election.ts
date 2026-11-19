@@ -9,6 +9,7 @@ import {
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
+import { accountHouseId } from '@oikos/operations';
 
 /**
  * Élection de l'archonte (docs/specs/06-cites-politique-communaute.md, 6.2). Les citoyens d'une cité se
@@ -22,13 +23,13 @@ export const refuse = (code: string, message: string): CommandResult<never> => (
   error: { code, message },
 });
 
-/** La maison du compte, sa cité et son statut. */
+/** La maison du compte (la plus ancienne d'un compte hérité, #604), sa cité et son statut. */
 export const houseOf = (trx: Db, userId: string) =>
   trx
     .selectFrom('game.houses as h')
     .innerJoin('game.citizenships as c', 'c.house_id', 'h.id')
     .select(['h.id', 'h.world_id', 'c.city_id', 'c.status'])
-    .where('h.user_id', '=', userId)
+    .where('h.id', '=', accountHouseId(userId))
     .executeTakeFirst();
 
 /** Une élection du monde de la maison. */
