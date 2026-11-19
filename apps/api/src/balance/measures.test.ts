@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { config, recipeOf } from './city';
-import { laborCost, median, netInputs, recipeMargins, type DayMeasure } from './measures';
+import {
+  basketDriftBps,
+  laborCost,
+  median,
+  netInputs,
+  recipeMargins,
+  type DayMeasure,
+} from './measures';
 
 const day = (extra: Partial<DayMeasure> = {}): DayMeasure => ({
   day: 0,
@@ -110,6 +117,37 @@ describe('median', () => {
     expect(median([3, 1, 2])).toBe(2);
     expect(median([4, 1, 3, 2])).toBe(2.5);
     expect(() => median([])).toThrow();
+  });
+});
+
+describe('basketDriftBps', () => {
+  // Chaque bien du panier échangé à son prix de référence, un jour sur deux à un prix plus haut d'un dixième.
+  const at = (factor: number) =>
+    day({
+      traded: {
+        a: Object.fromEntries(
+          config.priceIndex.basket.map(({ goodId }) => {
+            const price =
+              config.goods.find((good) => good.id === goodId)?.referencePriceOboles ?? 0;
+            return [goodId, { turnover: Math.round(price * factor * 100), volume: 100 }];
+          }),
+        ),
+      },
+    });
+
+  it('écart du coût du panier des derniers jours sur les premiers, chaque fenêtre au prix moyen de ses échanges', () => {
+    expect(basketDriftBps([at(1), at(1), at(1), at(1)], 'a', 2)).toBe(0);
+    // Fenêtre de début : 1 et 1,1 (1,05 en moyenne) ; de fin : 1,1 et 1,1.
+    expect(basketDriftBps([at(1), at(1.1), at(1.1), at(1.1)], 'a', 2)).toBe(476);
+    expect(basketDriftBps([at(1.1), at(1), at(1), at(1)], 'a', 2)).toBeLessThan(0);
+  });
+
+  it('null quand un bien du panier ne s’est pas échangé dans une des deux fenêtres', () => {
+    const [first] = config.priceIndex.basket;
+    const missing = at(1);
+    delete missing.traded['a']?.[first?.goodId ?? ''];
+    expect(basketDriftBps([missing, missing, at(1), at(1)], 'a', 2)).toBeNull();
+    expect(basketDriftBps([at(1), at(1)], 'b', 1)).toBeNull();
   });
 });
 

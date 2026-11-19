@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { basketCost, dailyUpkeep, type Traded } from '@oikos/sim';
+import { basketCost, costRatioBps, dailyUpkeep, type Traded } from '@oikos/sim';
 import { sql } from 'kysely';
 import { config, recipeOf, referenceOf, type City, type Role } from './city';
 import { SLUGS, WORLD_SEED, type Settlement } from './world';
@@ -176,6 +176,28 @@ export async function measureDay(
     }
   }
   return measure;
+}
+
+/**
+ * Hausse du coût du panier de l'indice dans une cité (ou le monde), en points de base, entre les `window` premiers et
+ * les `window` derniers jours mesurés : chaque fenêtre au prix moyen de ses échanges, pondéré par les volumes, comme
+ * le banc à une cité (#78). Null quand un bien du panier ne s'est pas échangé dans une des deux fenêtres.
+ */
+export function basketDriftBps(days: readonly DayMeasure[], slug: string, window: number) {
+  const level = (part: readonly DayMeasure[]) => {
+    const traded = new Map<string, Traded>();
+    for (const day of part)
+      for (const [goodId, good] of Object.entries(day.traded[slug] ?? {})) {
+        const sum = traded.get(goodId) ?? { turnover: 0n, volume: 0n };
+        traded.set(goodId, {
+          turnover: sum.turnover + BigInt(good.turnover),
+          volume: sum.volume + BigInt(good.volume),
+        });
+      }
+    return basketCost(config.priceIndex.basket, traded);
+  };
+  const ratio = costRatioBps(level(days.slice(-window)), level(days.slice(0, window)));
+  return ratio === null ? null : ratio - 10_000;
 }
 
 /** Demande de référence d'un jour des PNJ d'une cité, par bien : Q0 × population ÷ 1 000 × ticks d'un jour de 24 heures. */
