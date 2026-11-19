@@ -11,6 +11,7 @@ import { Button, cn } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
+import { CITIES_TABLE } from '../cities-form';
 import { diffConfigs } from '../diff';
 import { ignoreHeldEnter, SHIFT_GUARD_MS } from '../keyboard';
 import { LoadError } from '../LoadError';
@@ -568,7 +569,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             {invalid && t('config.invalidJson')}
           </p>
           <GoodsForm config={parsed} readOnly={!canEdit} onChange={edit} />
-          {[RECIPES_TABLE, NPC_CLASSES_TABLE].map((spec) => (
+          {[RECIPES_TABLE, NPC_CLASSES_TABLE, CITIES_TABLE].map((spec) => (
             <NestedTableForm
               key={spec.table}
               spec={spec}

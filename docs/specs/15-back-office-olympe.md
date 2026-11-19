@@ -136,7 +136,7 @@ Après le rachat, la version qui retire le bien se programme, si rien n'a été 
 
 Quand le schéma refuse une configuration, l'écran désigne chaque valeur fautive en clair, dans la langue de l'écran : la table, la ligne et le champ (« Biens › wheat › élasticité »), suivis du chemin rendu par l'API, qui situe la valeur dans le texte JSON, et de son diagnostic (en anglais).
 Une ligne est désignée par son identifiant tel qu'il figure dans la configuration envoyée (pas dans le texte du moment, qui a pu changer depuis le refus), sinon par sa position comptée à partir de 1 : identifiant absent ou illisible, ou programmation refusée d'une version enregistrée, que l'écran n'a pas.
-Toutes les tables ont un libellé ; les champs des biens, des recettes et des classes de PNJ aussi, les autres gardent leur clé.
+Toutes les tables ont un libellé ; les champs des biens, des recettes, des classes de PNJ et des cités aussi, les autres gardent leur clé.
 Un chemin que l'écran ne sait pas découper est rendu tel quel.
 L'écran ne contrôle rien lui-même : `apps/admin` ne dépend de `packages/config` que dans ses tests, qui vérifient que ces libellés suivent le schéma (une table ou un champ ajouté sans libellé les fait échouer).
 
@@ -337,6 +337,11 @@ Les classes s'ajoutent et se retirent au formulaire comme dans le texte, avec le
 Une classe ajoutée ou retirée doit l'être aussi dans la population de chaque cité, sinon le schéma refuse l'enregistrement en nommant chaque cité.
 Les lignes de panier s'ajoutent et se retirent comme les intrants (« Ajouter une ligne (panier de plebs) », « Retirer bread (panier de plebs) ») ;
 un panier vidé est refusé par le schéma à l'enregistrement.
+
+Formulaire des cités (#657). Sous celui des classes, replié de même (bouton « Cités »), un groupe par cité, nommé par son identifiant (sinon par son rang), porte un seul champ : le multiplicateur du revenu public de ses PNJ (`npcPublicIncomeBps`, entier, écrit comme le prix ; vidé, la clé est retirée et la cité revient à ×1, 5.5).
+Le reste d'une cité (population, terroir, port, dieu protecteur, recette de départ) ne s'édite que dans le texte.
+Le formulaire n'a ni bouton d'ajout ni bouton de retrait : une cité s'ajoute ou se retire dans le texte, avec sa population et son identité, que le formulaire ne montre pas.
+Quand le texte n'est pas un objet dont `cities` est une liste d'objets, le formulaire le dit et ne montre aucun champ.
 
 ## 15.5 Indicateurs d'alerte par défaut
 

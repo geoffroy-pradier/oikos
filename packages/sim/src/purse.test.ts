@@ -12,22 +12,25 @@ const klass = fc.record({
   population: fc.oneof(fc.constantFrom(0, 1, 999), fc.integer({ min: 0, max: 100_000_000 })),
 });
 
+/** Multiplicateur neutre d'une cité (×1, #657). */
+const X1 = 10_000;
+
 describe('revenu public d’un jour d’une cité (#632)', () => {
   it('exemples : revenu d’un jour × part, sommé sur les classes, arrondi une fois à l’obole inférieure', () => {
     // 70 oboles par tick pour 1 000 habitants, 144 ticks, 3 000 habitants : 30 240 par jour, à 100 %.
     const thetes = { incomePerThousand: 70, publicIncomeBps: 10_000, population: 3_000 };
-    expect(dailyPublicIncome([thetes], 144)).toBe(30_240);
+    expect(dailyPublicIncome([thetes], 144, X1)).toBe(30_240);
     // À 2,5 % : 756. Onze classes à 0,099 obole chacune donnent 1, pas 0 : l'arrondi se fait sur la somme.
-    expect(dailyPublicIncome([{ ...thetes, publicIncomeBps: 250 }], 144)).toBe(756);
+    expect(dailyPublicIncome([{ ...thetes, publicIncomeBps: 250 }], 144, X1)).toBe(756);
     const tiny = { incomePerThousand: 99, publicIncomeBps: 1, population: 1_000 };
-    expect(dailyPublicIncome([tiny], 1)).toBe(0);
+    expect(dailyPublicIncome([tiny], 1, X1)).toBe(0);
     expect(
-      dailyPublicIncome([tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny], 10),
+      dailyPublicIncome([tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny, tiny], 10, X1),
     ).toBe(1);
     // Part nulle, classe vide, aucune classe : rien.
-    expect(dailyPublicIncome([{ ...thetes, publicIncomeBps: 0 }], 144)).toBe(0);
-    expect(dailyPublicIncome([{ ...thetes, population: 0 }], 144)).toBe(0);
-    expect(dailyPublicIncome([], 144)).toBe(0);
+    expect(dailyPublicIncome([{ ...thetes, publicIncomeBps: 0 }], 144, X1)).toBe(0);
+    expect(dailyPublicIncome([{ ...thetes, population: 0 }], 144, X1)).toBe(0);
+    expect(dailyPublicIncome([], 144, X1)).toBe(0);
   });
 
   it('propriétés : entier, jamais au-dessus du revenu exact, à moins d’une obole de lui ; croissant en part et en population', () => {
@@ -36,7 +39,7 @@ describe('revenu public d’un jour d’une cité (#632)', () => {
         fc.array(klass, { maxLength: 6 }),
         fc.integer({ min: 1, max: 1_440 }),
         (classes, ticks) => {
-          const income = dailyPublicIncome(classes, ticks);
+          const income = dailyPublicIncome(classes, ticks, X1);
           const exact = classes.reduce(
             (sum, c) =>
               sum +
@@ -56,7 +59,7 @@ describe('revenu public d’un jour d’une cité (#632)', () => {
               population: first.population + 1,
               publicIncomeBps: first.publicIncomeBps + 1,
             };
-            expect(dailyPublicIncome([more, ...rest], ticks)).toBeGreaterThanOrEqual(income);
+            expect(dailyPublicIncome([more, ...rest], ticks, X1)).toBeGreaterThanOrEqual(income);
           }
         },
       ),
@@ -70,8 +73,59 @@ describe('revenu public d’un jour d’une cité (#632)', () => {
       { ...ok, publicIncomeBps: 0.5 },
       { ...ok, incomePerThousand: Number.NaN },
     ])
-      expect(() => dailyPublicIncome([bad], 144)).toThrow(RangeError);
-    expect(() => dailyPublicIncome([ok], -1)).toThrow(RangeError);
+      expect(() => dailyPublicIncome([bad], 144, X1)).toThrow(RangeError);
+    expect(() => dailyPublicIncome([ok], -1, X1)).toThrow(RangeError);
+    for (const city of [-1, 0.5, Number.NaN, Infinity])
+      expect(() => dailyPublicIncome([ok], 144, city)).toThrow(RangeError);
+  });
+});
+
+describe('multiplicateur de la part publique d’une cité (#657)', () => {
+  it('exemples : ×1 inchangé, ×0 rien, ×2 le double ; un seul arrondi, après le multiplicateur', () => {
+    const thetes = { incomePerThousand: 70, publicIncomeBps: 10_000, population: 3_000 };
+    expect(dailyPublicIncome([thetes], 144, 0)).toBe(0);
+    expect(dailyPublicIncome([thetes], 144, 20_000)).toBe(60_480);
+    // 30 240 × 0,1234 = 3 731,616 : 3 731.
+    expect(dailyPublicIncome([thetes], 144, 1_234)).toBe(3_731);
+    // 0,999 obole à ×1 : rien ; à ×2, 1,998 : une obole, que deux arrondis (0 × 2) auraient perdue.
+    const tiny = { incomePerThousand: 1, publicIncomeBps: 10_000, population: 999 };
+    expect(dailyPublicIncome([tiny], 1, X1)).toBe(0);
+    expect(dailyPublicIncome([tiny], 1, 20_000)).toBe(1);
+  });
+
+  it('propriétés : ⌊exact × multiplicateur⌋, jamais sous deux arrondis successifs ; croissant en multiplicateur', () => {
+    const city = fc.oneof(fc.constantFrom(0, 1, 9_999, 10_000, 10_001, 20_000), fc.nat(20_000));
+    fc.assert(
+      fc.property(
+        fc.array(klass, { maxLength: 6 }),
+        fc.integer({ min: 1, max: 1_440 }),
+        city,
+        city,
+        (classes, ticks, cityBps, other) => {
+          const income = dailyPublicIncome(classes, ticks, cityBps);
+          const exact = classes.reduce(
+            (sum, c) =>
+              sum +
+              BigInt(c.incomePerThousand) *
+                BigInt(c.population) *
+                BigInt(c.publicIncomeBps) *
+                BigInt(ticks),
+            0n,
+          );
+          const scaled = exact * BigInt(cityBps);
+          // Arrondi unique à l'obole inférieure du produit exact.
+          expect(Number.isSafeInteger(income)).toBe(true);
+          expect(BigInt(income) * 100_000_000_000n <= scaled).toBe(true);
+          expect(scaled - BigInt(income) * 100_000_000_000n < 100_000_000_000n).toBe(true);
+          // Deux arrondis (revenu à ×1, puis multiplicateur) ne donnent jamais plus.
+          const twice = (BigInt(dailyPublicIncome(classes, ticks, X1)) * BigInt(cityBps)) / 10_000n;
+          expect(BigInt(income) >= twice).toBe(true);
+          if (cityBps === X1) expect(BigInt(income)).toBe(twice);
+          if (other >= cityBps)
+            expect(dailyPublicIncome(classes, ticks, other)).toBeGreaterThanOrEqual(income);
+        },
+      ),
+    );
   });
 });
 

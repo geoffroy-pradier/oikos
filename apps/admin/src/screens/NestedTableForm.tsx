@@ -31,6 +31,7 @@ export function NestedTableForm(props: {
 }) {
   const { t } = useTranslation();
   const { table, texts, fields, lists } = props.spec;
+  const reshapes = !props.readOnly && props.spec.fixedRows !== true;
   const rows = readNested(
     props.config,
     table,
@@ -162,7 +163,7 @@ export function NestedTableForm(props: {
                 </fieldset>
               );
             })}
-            {!props.readOnly && (
+            {reshapes && (
               <Button
                 variant="secondary"
                 className="col-span-full justify-self-start"
@@ -182,7 +183,7 @@ export function NestedTableForm(props: {
           </fieldset>
         );
       })}
-      {rows && !props.readOnly && (
+      {rows && reshapes && (
         <Button
           id={`${table}-add`}
           variant="secondary"
