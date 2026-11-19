@@ -7,12 +7,13 @@ import {
   lodgingOf,
   recipeOf,
   referenceOf,
+  wageOf,
   worstLodging,
   type City,
 } from './city';
 import { dateLease, datePurchase } from './dates';
 import { place, upkeepOf, type Seller } from './strategy';
-import { WAGES, worldConfig } from './world';
+import { worldConfig } from './world';
 
 /*
  * Stratégie de logement du banc des quatre cités (#282, docs/specs/04-systemes-gestion.md 4.5) : une maison
@@ -330,7 +331,7 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
   if (lodging <= 0) return;
   const outgoings =
     house.sites.reduce((sum, site) => sum + upkeepOf(site.recipeId), 0) +
-    workers * (WAGES.workerOboles + worstLodging(city)) +
+    workers * (wageOf(city) + worstLodging(city)) +
     owned.reduce((sum, property) => sum + sizeOf(property.size_id).dailyUpkeepOboles, 0) +
     rented;
   const spendable = (await cash(city, house.houseId)) - RESERVE_DAYS * outgoings;

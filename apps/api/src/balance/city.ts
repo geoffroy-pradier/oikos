@@ -5,6 +5,7 @@ import {
   ensureInitialConfig,
   INITIAL_CONFIG,
   validateConfig,
+  cityDailyWageOboles,
   cityStartingRecipeId,
   type GameConfig,
   type LoadedConfig,
@@ -562,6 +563,19 @@ export async function lodgingOf(city: City) {
     .executeTakeFirst();
   return Number(row?.lodging_oboles ?? 0);
 }
+/**
+ * Salaire du jour d'un travailleur de la cité, d'après la configuration jouée (4.4). Le banc ne joue que la courbe
+ * neutre du salaire (`labor.wage`), qui laisse ce salaire de base tel quel : il refuse une autre courbe plutôt que de
+ * mal compter les salaires.
+ */
+export function wageOf(city: City) {
+  const { minBps, maxBps } = city.played.labor.wage;
+  if (minBps !== 10_000 || maxBps !== 10_000)
+    throw new Error('The bench plays a neutral wage curve');
+  return cityDailyWageOboles(city.played, city.slug);
+}
+/** Salaire du jour d'un intendant, d'après la configuration jouée (4.4, #278). */
+export const stewardWageOf = (city: City) => city.played.stewards?.dailyWageOboles ?? 0;
 /** Prix d'une nuit chez les PNJ au pire (tous les travailleurs de la cité sans logement), d'après la configuration jouée. */
 export const worstLodging = (city: City) =>
   lodgingPrice({

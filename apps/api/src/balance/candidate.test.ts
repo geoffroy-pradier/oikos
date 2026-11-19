@@ -94,6 +94,7 @@ describe('commande simulate', () => {
 });
 
 type Loose = {
+  staff: { dailyWageOboles: Record<string, number> };
   labor: { lodging: Record<string, unknown> };
   properties: { sizes: { id: string; dailyWear: number }[] };
   cities: { id: string; population: Record<string, number> }[];
@@ -113,6 +114,8 @@ describe('unsimulatedFields', () => {
     size.dailyWear = 1;
     city.population = { ...city.population, poor: 1 };
     candidate.marketTax.rateBps = 700; // simulé : pas dans la liste
+    // Les salaires sont lus dans la candidate (#283) : simulés, pas dans la liste.
+    candidate.staff.dailyWageOboles = { ...candidate.staff.dailyWageOboles, kalliste: 9 };
     expect(unsimulatedFields(candidate, initial)).toEqual([
       'labor.lodging',
       `properties.sizes[${size.id}].dailyWear`,
