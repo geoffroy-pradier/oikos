@@ -69,7 +69,7 @@ export function CityTreasury() {
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {balance !== null && days && rate && (
         <>
-          <p className="font-display text-2xl font-semibold tracking-tight break-words tabular-nums">
+          <p className="text-2xl font-semibold tracking-tight break-words tabular-nums">
             {t('treasury.balance', { amount: money(balance) })}
           </p>
           <ul className="flex list-inside list-disc flex-col gap-1 marker:text-accent">

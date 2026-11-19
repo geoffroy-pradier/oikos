@@ -110,7 +110,7 @@ export function Shipyard(props: {
             className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-3"
           >
             <span>
-              <span className="font-display font-semibold">
+              <span className="font-semibold">
                 {t(`shipClasses.${shipClass.id}`, { defaultValue: shipClass.id })}
               </span>{' '}
               {t('map.classLine', {

@@ -80,7 +80,7 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
       {summary && (
         <>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <strong className="font-display text-lg">
+            <strong className="text-lg">
               {t('agora.lastPrice', {
                 price: number.format(summary.last),
                 date: date(summary.lastAt),

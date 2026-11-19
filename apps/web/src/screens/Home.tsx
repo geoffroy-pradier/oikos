@@ -1,14 +1,4 @@
-import {
-  Badge,
-  Card,
-  Coins,
-  EmptyState,
-  Frieze,
-  Landmark,
-  Package,
-  Stat,
-  Warehouse,
-} from '@oikos/ui';
+import { Badge, Card, Coins, EmptyState, Landmark, Package, Stat, Warehouse } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -73,7 +63,6 @@ export function HomeScreen() {
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Card elevation="raised" className="overflow-hidden p-0">
-        <Frieze tone="accent" />
         <div className="flex flex-wrap items-center justify-between gap-2 p-4">
           <h1 className="text-2xl">{t('home.title', { name: house.name })}</h1>
           <Badge

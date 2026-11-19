@@ -1,4 +1,4 @@
-import { Amphora, Card, Frieze, Landmark, Sparkles } from '@oikos/ui';
+import { Amphora, Card, Landmark, Sparkles } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows, useTempleRules } from '../data';
@@ -49,7 +49,6 @@ export function TempleScreen() {
   return (
     <div className="flex flex-col gap-4">
       <Card elevation="raised" className="overflow-hidden p-0">
-        <Frieze tone="accent" />
         <div className="flex flex-col gap-1 p-4">
           {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
           <h1 className="text-2xl">

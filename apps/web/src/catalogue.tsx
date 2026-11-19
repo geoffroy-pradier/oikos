@@ -10,10 +10,9 @@ import {
   Button,
   Card,
   Coins,
-  CONTRAST_PAIRS,
+  COLOR_TOKENS,
   EmptyState,
   Field,
-  Frieze,
   Moon,
   Plus,
   Ship,
@@ -27,11 +26,10 @@ import { StrictMode, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
-const TOKENS = [...new Set(CONTRAST_PAIRS.flatMap(([fg, bg]) => [fg, bg]))];
 const ICONS = Object.entries(ui).filter(
   (entry): entry is [string, ui.Icon] => typeof entry[1] === 'object' && 'render' in entry[1],
 );
-const TONES = ['neutral', 'primary', 'accent', 'aegean', 'success', 'danger'] as const;
+const TONES = ['neutral', 'primary', 'success', 'warning', 'danger', 'info'] as const;
 
 function Section({
   title,
@@ -61,17 +59,15 @@ function Catalogue() {
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">@oikos/ui · ADR 0010</p>
+          <p className="eyebrow">@oikos/ui · ADR 0011</p>
           <h1 className="text-4xl sm:text-5xl">Oikos, maison d’Athènes</h1>
-          <p className="mt-2 text-muted-foreground">
-            Fraunces pour les titres, Inter pour le reste.
-          </p>
+          <p className="mt-2 text-foreground-secondary">Inter seule, un seul accent orange.</p>
+          <p className="text-muted-foreground tabular-nums">0123456789 · 1 248 dr. 5 ob.</p>
         </div>
         <Button variant="secondary" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggle}>
           {theme === 'dark' ? 'light' : 'dark'}
         </Button>
       </header>
-      <Frieze />
 
       <Card elevation="raised" className="grid grid-cols-2 gap-6 p-6 md:grid-cols-4">
         <Stat
@@ -163,7 +159,7 @@ function Catalogue() {
           />
         </Section>
 
-        <Section title="Icons · Frieze">
+        <Section title="Icons">
           <ul className="grid grid-cols-8 gap-3 text-muted-foreground">
             {ICONS.map(([name, Icon]) => (
               <li key={name} title={name}>
@@ -171,23 +167,38 @@ function Catalogue() {
               </li>
             ))}
           </ul>
-          <Frieze tone="foreground" />
-          <Frieze pattern="wave" tone="aegean" />
-          <Frieze tone="accent" />
         </Section>
 
         <Section title="Tokens" wide>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-            {TOKENS.map((token) => (
-              <li key={token} className="text-xs text-muted-foreground">
-                <span
-                  className="mb-1.5 block h-10 rounded-md ring-1 ring-border-subtle"
-                  style={{ background: `var(--${token})` }}
-                />
-                {token}
-              </li>
+          {/* Les deux thèmes côte à côte, quel que soit celui de la page. */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {['light', 'dark'].map((name) => (
+              <div
+                key={name}
+                data-theme={name}
+                className="flex flex-col gap-4 rounded-xl border border-border-subtle bg-background p-4 text-foreground"
+              >
+                <h3 className="eyebrow">{name}</h3>
+                {Object.entries(COLOR_TOKENS).map(([group, tokens]) => (
+                  <ul
+                    key={group}
+                    aria-label={group}
+                    className="grid grid-cols-3 gap-3 sm:grid-cols-4"
+                  >
+                    {tokens.map((token) => (
+                      <li key={token} className="text-xs break-words text-muted-foreground">
+                        <span
+                          className="mb-1.5 block h-10 rounded-md ring-1 ring-border-subtle"
+                          style={{ background: `var(--${token})` }}
+                        />
+                        {token}
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+              </div>
             ))}
-          </ul>
+          </div>
         </Section>
       </div>
     </main>
