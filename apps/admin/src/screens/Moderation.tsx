@@ -22,6 +22,8 @@ export type Gesture =
   | 'ban'
   | 'confirmExclusion'
   | 'liftSanction'
+  | 'withdrawExclusion'
+  | 'proposeLift'
   | 'granted'
   | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
@@ -171,18 +173,28 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   }
 
   /**
-   * Validation d'une exclusion, confirmation de la levée proposée d'une exclusion (#616) et décision d'un appel :
-   * une sanction désignée par son identifiant.
+   * Validation d'une exclusion, retrait d'une exclusion proposée (#636), confirmation de la levée proposée d'une
+   * exclusion (#616), proposition d'une levée (#636) et décision d'un appel : une sanction désignée par son identifiant.
    */
   async function confirmSanction(sanctionId: string, gesture: Gesture) {
     const ok =
-      gesture === 'confirmExclusion' || gesture === 'liftSanction'
+      gesture === 'confirmExclusion' ||
+      gesture === 'liftSanction' ||
+      gesture === 'proposeLift' ||
+      gesture === 'withdrawExclusion'
         ? await run(
-            `admin.${gesture}`,
+            // Proposer la levée et la confirmer sont la même commande, à deux personnes (15.4).
+            gesture === 'proposeLift' ? 'admin.liftSanction' : `admin.${gesture}`,
             { sanctionId },
             t(`moderation.done.${gesture}`),
-            // Le refus de la seconde personne a son message pour une levée (#616).
-            gesture === 'liftSanction' ? 'moderation.liftErrors' : undefined,
+            // Le refus de la seconde personne, ou du compte exclu, a son message propre au geste.
+            gesture === 'liftSanction'
+              ? 'moderation.liftErrors'
+              : gesture === 'proposeLift'
+                ? 'moderation.proposeErrors'
+                : gesture === 'withdrawExclusion'
+                  ? 'moderation.withdrawErrors'
+                  : undefined,
           )
         : await run(
             'admin.decideAppeal',
@@ -228,8 +240,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
 
   const stale = staleReportHours(data);
   const queue = data?.queue ?? [];
-  // Absentes d'une API antérieure à ce champ (#616) : la liste est alors vide.
+  // Absentes d'une API antérieure à ces champs (#616, #636) : les listes sont alors vides.
   const lifts = data?.pendingLifts ?? [];
+  const active = data?.activeExclusions ?? [];
 
   return (
     <>
@@ -443,6 +456,39 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   </p>
                   <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
                     {sanctionGesture(item.sanctionId, item.userId, 'confirmExclusion')}
+                    {sanctionGesture(item.sanctionId, item.userId, 'withdrawExclusion')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h2 id="moderation-active" className="text-xl">
+            {t('moderation.active')}
+          </h2>
+          {active.length === 0 ? (
+            <p className="text-muted-foreground">{t('moderation.activeEmpty')}</p>
+          ) : (
+            <ul aria-labelledby="moderation-active" className="flex flex-col gap-3">
+              {active.map((item) => (
+                <li
+                  key={item.sanctionId}
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                >
+                  <p className="font-semibold wrap-anywhere">
+                    {t('moderation.activeOf')} <code className="break-all">{item.userId}</code>
+                  </p>
+                  <p className="text-sm wrap-anywhere">
+                    {t('moderation.liftExclusion', {
+                      date: date.format(new Date(item.startsAt)),
+                      author: item.authorId,
+                      confirmedBy: item.confirmedBy,
+                    })}
+                  </p>
+                  <p className="wrap-anywhere">
+                    {t('moderation.sanctionReason', { reason: item.reason })}
+                  </p>
+                  <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
+                    {sanctionGesture(item.sanctionId, item.userId, 'proposeLift')}
                   </div>
                 </li>
               ))}

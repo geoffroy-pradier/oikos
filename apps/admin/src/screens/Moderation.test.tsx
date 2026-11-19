@@ -59,6 +59,7 @@ const REPORTS: AdminReports = {
   appeals: [],
   pendingExclusions: [],
   pendingLifts: [],
+  activeExclusions: [],
 };
 const AFTER: AdminReports = { ...REPORTS, queue: REPORTS.queue.slice(1) };
 
@@ -431,6 +432,16 @@ const WITH_SANCTIONS: AdminReports = {
       proposedAt: '2026-11-17T08:00:00Z',
     },
   ],
+  activeExclusions: [
+    {
+      sanctionId: id(314),
+      userId: id(714),
+      reason: 'Fraude',
+      authorId: id(724),
+      confirmedBy: id(734),
+      startsAt: '2026-11-09T09:00:00Z',
+    },
+  ],
   pendingLifts: [
     {
       sanctionId: id(313),
@@ -585,10 +596,131 @@ it('liste les levées proposées et en confirme une ; le refus de qui l’a prop
   ]);
 });
 
+it('retire une exclusion proposée après confirmation ; chaque refus est expliqué, le foyer revient au bouton (#636)', async () => {
+  await openedSanctions(
+    [
+      { ok: false, code: 'SECOND_PERSON_REQUIRED' },
+      { ok: false, code: 'ALREADY_CONFIRMED' },
+      { ok: true, data: { sanctionId: id(312), withdrawnAt: NOW } },
+    ],
+    WITH_SANCTIONS,
+  );
+  const withdraw = () =>
+    screen.getByRole('button', { name: `Retirer l'exclusion du compte ${id(712).slice(0, 8)}` });
+  // Ouvrir ne lance rien ; le foyer va à « Annuler » et Entrée tenue ne confirme pas.
+  withdraw().focus();
+  enter(true);
+  expect(screen.queryByRole('button', { name: 'Annuler' })).toBeNull();
+  enter();
+  const cancel = screen.getByRole('button', { name: 'Annuler' });
+  expect(document.activeElement).toBe(cancel);
+  expect(
+    document.getElementById(cancel.getAttribute('aria-describedby') ?? '')?.textContent,
+  ).toMatch(new RegExp(`^L'exclusion proposée du compte ${id(712)} sera retirée`));
+  enter(true);
+  expect(adminCommand).not.toHaveBeenCalled();
+  fireEvent.click(cancel);
+  expect(document.activeElement).toBe(withdraw());
+  const attempt = () => {
+    fireEvent.click(withdraw());
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer le retrait' }));
+  };
+  attempt();
+  await waitFor(() => expect(notice('alert')).toMatch(/^Le compte exclu ne retire pas/));
+  expect(document.activeElement).toBe(withdraw());
+  attempt();
+  await waitFor(() =>
+    expect(notice('alert')).toMatch(/^Cette exclusion est déjà validée : elle ne se retire plus/),
+  );
+  expect(document.activeElement).toBe(withdraw());
+  // Retirée : relue, la file ne la liste plus.
+  adminGet.mockResolvedValue({ ok: true, data: { ...WITH_SANCTIONS, pendingExclusions: [] } });
+  attempt();
+  await waitFor(() => expect(notice('status')).toBe('Exclusion retirée : elle quitte la file.'));
+  expect(screen.getByText('Aucune exclusion à valider.')).toBeTruthy();
+  expect(adminCommand.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+    ['admin.withdrawExclusion', { sanctionId: id(312) }],
+    ['admin.withdrawExclusion', { sanctionId: id(312) }],
+    ['admin.withdrawExclusion', { sanctionId: id(312) }],
+  ]);
+});
+
+it('le retrait est proposé en anglais, avec ses refus propres (#636)', async () => {
+  await openedSanctions([{ ok: false, code: 'SECOND_PERSON_REQUIRED' }], WITH_SANCTIONS);
+  await i18n.changeLanguage('en');
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: `Withdraw the exclusion of account ${id(712).slice(0, 8)}`,
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm the withdrawal' }));
+  await waitFor(() => expect(notice('alert')).toMatch(/^The excluded account does not withdraw/));
+});
+
+it('propose la levée d’une exclusion en vigueur ; chaque refus est expliqué ; la file relue la montre à confirmer (#636)', async () => {
+  const proposed = { ...WITH_SANCTIONS.pendingLifts[0], sanctionId: id(314), userId: id(714) };
+  await openedSanctions(
+    [
+      { ok: false, code: 'SECOND_PERSON_REQUIRED' },
+      { ok: false, code: 'APPEAL_PENDING' },
+      { ok: false, code: 'SANCTION_ENDED' },
+      { ok: false, code: 'NOT_CONFIRMED' },
+      { ok: true, data: { sanctionId: id(314), pending: true, liftedAt: null } },
+    ],
+    WITH_SANCTIONS,
+  );
+  const active = screen.getByRole('list', { name: 'Exclusions en vigueur' });
+  expect(within(active).getByText(id(714))).toBeTruthy();
+  expect(within(active).getByText('Motif : Fraude')).toBeTruthy();
+  const propose = () =>
+    screen.getByRole('button', {
+      name: `Proposer la levée de l'exclusion du compte ${id(714).slice(0, 8)}`,
+    });
+  propose().focus();
+  enter(true);
+  expect(screen.queryByRole('button', { name: 'Annuler' })).toBeNull();
+  enter();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+  enter(true);
+  expect(adminCommand).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+  expect(document.activeElement).toBe(propose());
+  for (const refusal of [
+    /^Le compte exclu ne lève pas/,
+    /^Un appel attend/,
+    /^Cette sanction est déjà finie/,
+    /^Cette exclusion n'est pas encore validée/,
+  ]) {
+    fireEvent.click(propose());
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer la proposition' }));
+    await waitFor(() => expect(notice('alert')).toMatch(refusal));
+    expect(document.activeElement).toBe(propose());
+  }
+  adminGet.mockResolvedValue({
+    ok: true,
+    data: {
+      ...WITH_SANCTIONS,
+      activeExclusions: [],
+      pendingLifts: [...WITH_SANCTIONS.pendingLifts, proposed],
+    },
+  });
+  fireEvent.click(propose());
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer la proposition' }));
+  await waitFor(() => expect(notice('status')).toMatch(/^Levée proposée/));
+  expect(screen.getByText('Aucune exclusion en vigueur dont proposer la levée.')).toBeTruthy();
+  const lifts = screen.getByRole('list', { name: "Levées d'exclusion à confirmer" });
+  expect(within(lifts).getByText(id(714))).toBeTruthy();
+  expect(adminCommand.mock.calls.map((call) => call.slice(0, 2))).toEqual(
+    Array(5).fill(['admin.liftSanction', { sanctionId: id(314) }]),
+  );
+});
+
 it('lit la file d’une API antérieure aux levées proposées', async () => {
   const older: Partial<AdminReports> = { ...REPORTS };
   delete older.pendingLifts;
+  delete older.activeExclusions;
   adminGet.mockResolvedValue({ ok: true, data: older });
   render(<Moderation accessToken="token" />);
   expect(await screen.findByText("Aucune levée d'exclusion à confirmer.")).toBeTruthy();
+  expect(screen.getByText('Aucune exclusion en vigueur dont proposer la levée.')).toBeTruthy();
 });
