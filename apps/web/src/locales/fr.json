@@ -1092,5 +1092,16 @@
       "lastRefusal": "Dernier refus, {{text}}",
       "resting": "La règle refusée se repose : {{name}} la retentera à partir du {{date}}."
     }
+  },
+  "controls": {
+    "decrement": "Diminuer",
+    "increment": "Augmenter",
+    "all": "Tout",
+    "shortcuts": "Raccourcis",
+    "unreadable": "Nombre illisible : écrivez un nombre sans unité, par exemple 30 000.",
+    "ambiguous": "Nombre ambigu : écrivez les milliers avec une espace, par exemple 30 000.",
+    "notInteger": "Nombre entier attendu.",
+    "belowMin": "Au moins {{min}}.",
+    "aboveMax": "Au plus {{max}}."
   }
 }

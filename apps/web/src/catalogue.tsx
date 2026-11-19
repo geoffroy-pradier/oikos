@@ -14,6 +14,7 @@ import {
   EmptyState,
   IconButton,
   Moon,
+  NumberField,
   Package,
   PillTabs,
   Plus,
@@ -31,6 +32,7 @@ import {
 } from '@oikos/ui';
 import { StrictMode, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import fr from './locales/fr.json';
 import './styles.css';
 
 const ICONS = Object.entries(ui).filter(
@@ -137,6 +139,25 @@ function Catalogue() {
             <option value="corinth">Corinthe</option>
           </Select>
           <TextField label="TextField · disabled" disabled defaultValue="value" />
+        </Section>
+
+        <Section title="NumberField">
+          <NumberField
+            label="NumberField"
+            hint="0 – 1 250"
+            locale="fr"
+            defaultValue={300}
+            min={0}
+            max={1_250}
+            step={10}
+            labels={fr.controls}
+            messages={{
+              ...fr.controls,
+              belowMin: fr.controls.belowMin.replace('{{min}}', '0'),
+              aboveMax: fr.controls.aboveMax.replace('{{max}}', '1 250'),
+            }}
+          />
+          <NumberField label="NumberField · error" locale="fr" labels={fr.controls} error="error" />
         </Section>
 
         <Section title="Switch · Badge">
