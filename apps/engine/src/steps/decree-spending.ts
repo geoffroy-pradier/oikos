@@ -54,6 +54,7 @@ export const decreeSpending: CloseStep = {
       .selectFrom('game.accounts')
       .select(['id', 'city_id', 'balance'])
       .where('kind', '=', 'treasury')
+      .where('npc_purse', '=', false)
       .where('city_id', 'in', [...new Set(due.map((row) => row.city_id))])
       .orderBy('id')
       .forUpdate()

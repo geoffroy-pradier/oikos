@@ -47,7 +47,9 @@ export async function measureDay(
   const balances = await sql<{ city_id: string; balance: string }>`
     select coalesce(c.city_id, a.city_id) as city_id, sum(a.balance) as balance
     from game.accounts a left join game.citizenships c on c.house_id = a.house_id
-    where a.world_id = ${worldId} and a.kind <> 'system' group by 1`.execute(db);
+    where a.world_id = ${worldId} and a.kind <> 'system' and not a.npc_purse group by 1`.execute(
+    db,
+  );
   // Bourses des PNJ de chaque cité (#632), que le service lit par la fonction de la base.
   const purses = await sql<{ city_id: string; balance: string }>`select city_id, balance
     from game.npc_purses() where world_id = ${worldId}`.execute(db);
