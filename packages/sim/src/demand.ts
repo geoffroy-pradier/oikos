@@ -54,7 +54,8 @@ export interface BudgetClass {
 /**
  * Budget des PNJ d'une cité pour un bien et un tick, en oboles entières (5.2). Le revenu de chaque classe
  * est réparti entre les biens de son panier au prorata de leur dépense de référence (Q0 × prix de
- * référence). L'arrondi est fait vers le bas : les PNJ ne dépensent jamais plus que leur revenu.
+ * référence). L'arrondi est fait vers le bas : les PNJ ne dépensent jamais plus que leur revenu. Ce que le
+ * tick ne dépense pas se reporte, borné (`nextBudgetCarry`, `offeredNpcBudget`).
  */
 export function npcGoodBudget(
   classes: readonly BudgetClass[],
@@ -163,4 +164,57 @@ export function matchNpcDemand({ asks, demandAt, budget, carry }: NpcPurchaseInp
     if (affordable <= Math.min(wanted, ask.quantity)) break;
   }
   return { fills, spent, carry: nextCarry };
+}
+
+/**
+ * Budget non dépensé d'un tick, reporté au tick suivant (5.2, #675). Les biens s'achètent par unités entières :
+ * un budget de 13 oboles ne paie qu'un sel à 7, et sans report les 6 oboles restantes seraient perdues alors que
+ * la demande en veut deux un tick sur deux. `allowance` est ce à quoi le tick avait droit (son budget et le report
+ * précédent), `cap` la borne du report (`budgetCarryCap`). Le report ne vient que du revenu des ticks déjà joués :
+ * sur la durée, les PNJ ne dépensent jamais plus que leur revenu cumulé.
+ */
+export function nextBudgetCarry(allowance: number, spent: number, cap: number): number {
+  for (const value of [allowance, spent, cap])
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new RangeError('Allowance, spending and cap must be non-negative integers');
+  if (spent > allowance) throw new RangeError('Spending exceeds the allowance');
+  return Math.min(allowance - spent, cap);
+}
+
+/**
+ * Borne du report de budget : `units` unités au prix de réserve du bien, le plus haut prix que les PNJ paient
+ * (`market.npcBudgetCarryUnits` ; zéro, aucun report). Le report ne devient pas une épargne qui grossit pendant
+ * une pénurie, et la dépense d'un tick ne dépasse jamais son budget de plus de `units` unités.
+ */
+export function budgetCarryCap(reservePrice: number, units: number): number {
+  if (![reservePrice, units].every((value) => Number.isSafeInteger(value) && value >= 0))
+    throw new RangeError('Reserve price and units must be non-negative integers');
+  const cap = reservePrice * units;
+  if (!Number.isSafeInteger(cap)) throw new RangeError('Budget carry cap is too large');
+  return cap;
+}
+
+export interface OfferedBudgetInput {
+  /** Budget du tick pour le bien, déjà réduit par la bourse et relevé par les fêtes et caravanes. */
+  tickBudget: number;
+  /** Report du budget non dépensé, déjà ramené à sa borne. */
+  carry: number;
+  /** Ce qui reste dans la bourse de la cité à ce point du tick. */
+  remaining: number;
+  /** Somme des budgets du tick des biens de la cité qui restent à servir après celui-ci. */
+  reserved: number;
+}
+
+/**
+ * Budget offert aux PNJ d'une cité pour un bien, à un tick (5.2, #632, #675) : son budget du tick, plus le report
+ * dans la seule limite de l'excédent de la bourse sur les budgets du tick de ce bien et des biens qui restent à
+ * servir. Une bourse courte garde ainsi à chaque bien sa part proportionnelle, quel que soit l'ordre de service ;
+ * jamais plus que ce qui reste dans la bourse.
+ */
+export function offeredNpcBudget({ tickBudget, carry, remaining, reserved }: OfferedBudgetInput) {
+  for (const value of [tickBudget, carry, remaining, reserved])
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new RangeError('Budgets, carry and purse must be non-negative integers');
+  const surplus = Math.max(0, remaining - reserved - tickBudget);
+  return Math.min(tickBudget + Math.min(carry, surplus), remaining);
 }

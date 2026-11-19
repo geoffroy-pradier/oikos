@@ -163,6 +163,10 @@ describe('jeu de valeurs initial', () => {
     for (const city of config.cities) expect(city.npcPublicIncomeBps).toBe(10_000);
   });
 
+  it('le budget non dépensé des PNJ se reporte, au plus deux unités au prix de réserve (#675)', () => {
+    expect(config.market.npcBudgetCarryUnits).toBe(2);
+  });
+
   it('le marché du travail entre neutre : offre sans limite, salaire de base, hébergement nul (#258)', () => {
     expect(config.labor).toEqual(DEFAULT_LABOR);
   });

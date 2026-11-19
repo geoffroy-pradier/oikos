@@ -201,7 +201,17 @@ export const marketSchema = z.strictObject({
    * Sans lui, un vendeur seul capterait tout le budget d'un bien avec une unité vendue à prix démesuré.
    */
   npcMaxPriceFactor: z.number().min(1).max(100),
+  /**
+   * Borne du budget non dépensé des PNJ reporté d'un tick au suivant (#675), en unités du bien au prix de réserve.
+   * Au moins deux : à une seule, un budget de tick qui ne paie pas une unité perd la demande arrivée avant lui.
+   * Absent d'une version publiée avant lui : aucun report, comme avant (`npcBudgetCarryUnits`).
+   */
+  npcBudgetCarryUnits: z.number().int().min(2).max(100).optional(),
 });
+
+/** Borne du report de budget des PNJ, en unités au prix de réserve : celle de la version, sinon aucun report (#675). */
+export const npcBudgetCarryUnits = (market: { npcBudgetCarryUnits?: number | undefined }) =>
+  market.npcBudgetCarryUnits ?? 0;
 
 /** Dotation d'une maison à sa fondation (docs/specs/03-boucles-progression.md). */
 export const startingSchema = z.strictObject({

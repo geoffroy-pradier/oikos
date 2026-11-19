@@ -43,7 +43,7 @@ select is(
   'accounts.balance api_refusals.count candidacies.withdrawn_at citizenships.since citizenships.status decrees.applied_at decrees.electorate decrees.settled_day decrees.status decrees.tallied_at '
     || 'decrees.votes_against decrees.votes_for elections.tallied_at favor.charis '
     || 'graces_used.consumed_at graces_used.saved_seconds graces_used.site_id graces_used.voyage_id '
-    || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day messages.hidden_at npc_demand_carry.carry '
+    || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day messages.hidden_at npc_demand_carry.budget_carry npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
     || 'oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '

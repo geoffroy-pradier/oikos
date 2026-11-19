@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aiMonthlyCapMicroEuros,
+  npcBudgetCarryUnits,
   cityPortDuesCoefficientBps,
   portDuesBaseOboles,
   routeProvisionsOboles,
@@ -380,6 +381,27 @@ describe('une configuration invalide est refusée avec un message précis', () =
       const config = clone();
       config.market.npcMaxPriceFactor = bad;
       expect(errorsOf(config)).toEqual([expect.stringMatching(/^market\.npcMaxPriceFactor: /)]);
+    }
+  });
+
+  it('borne du report de budget des PNJ : entier de 2 à 100 unités, absente aucun report (#675)', () => {
+    // Absente d'une version publiée avant elle : aucun report, les achats des PNJ ne changent pas.
+    expect(npcBudgetCarryUnits(clone().market)).toBe(0);
+    for (const units of [2, 3, 100]) {
+      const config = clone();
+      const result = validateConfig({
+        ...config,
+        market: { ...config.market, npcBudgetCarryUnits: units },
+      });
+      if (!result.ok) throw new Error(result.errors.join('\n'));
+      expect(npcBudgetCarryUnits(result.config.market)).toBe(units);
+    }
+    // Une seule unité perdrait de la demande (5.2) ; zéro se dit en omettant le paramètre.
+    for (const bad of [-1, 0, 1, 2.5, 101, Number.NaN]) {
+      const config = clone();
+      expect(
+        errorsOf({ ...config, market: { ...config.market, npcBudgetCarryUnits: bad } }),
+      ).toEqual([expect.stringMatching(/^market\.npcBudgetCarryUnits: /)]);
     }
   });
 

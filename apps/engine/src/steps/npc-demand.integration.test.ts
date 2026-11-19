@@ -39,11 +39,12 @@ afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 /**
  * Une classe de 1 000 habitants qui ne veut que du blé : prix de référence 6, élasticité 0,4, prix de
- * réserve 18. Par défaut, 20 unités demandées par tick au prix de référence et 300 oboles de budget.
+ * réserve 18. Par défaut, 20 unités demandées par tick au prix de référence et 300 oboles de budget. Le budget non
+ * dépensé se reporte, au plus deux unités au prix de réserve (#675), comme dans la configuration initiale.
  */
 const economy = (quantityPerThousand = 20, incomePerThousand = 300): GameConfig => ({
   ...(INITIAL_CONFIG as GameConfig),
-  market: { npcMaxPriceFactor: 3 },
+  market: { npcMaxPriceFactor: 3, npcBudgetCarryUnits: 2 },
   // Les cas ci-dessous se lisent en montants bruts ; la taxe a son propre test, en fin de fichier.
   marketTax: { rateBps: 0, burnShareBps: 0 },
   npcClasses: [
@@ -213,6 +214,15 @@ const carryOf = async (cityId: string) =>
       .where('city_id', '=', cityId)
       .executeTakeFirst()
   )?.carry;
+/** Budget non dépensé reporté au tick suivant (#675), en oboles. */
+const budgetCarryOf = async (cityId: string) => {
+  const row = await db
+    .selectFrom('game.npc_demand_carry')
+    .select('budget_carry')
+    .where('city_id', '=', cityId)
+    .executeTakeFirst();
+  return row && Number(row.budget_carry);
+};
 /** Seuil à 90 % et ±10 % par jour, pour que l'effet se lise en unités entières dès la première clôture. */
 const populationDynamics = {
   vitalCoverageThresholdBps: 9_000,
@@ -394,7 +404,7 @@ describe('demande des PNJ au tick', () => {
     expect(await carryOf(world.cityId)).toBeCloseTo(20 * (7 / 6) ** -0.4 - 18, 9);
   });
 
-  it('ne dépense jamais plus que le budget du tick', async () => {
+  it('premier tick, sans report : ne dépense jamais plus que le budget du tick', async () => {
     const world = await newWorld();
     const seller = await newSeller(world, 100, [[100, 6]]);
     // 20 unités demandées, mais 50 oboles de revenu : 8 unités à 6 oboles.
@@ -435,8 +445,13 @@ describe('demande des PNJ au tick', () => {
     expect(first.summary).toMatchObject({ npcDemand: { units: 10, spent: 60 } });
     expect([await balanceOf(seller.houseId), await paidOf(world.worldId)]).toEqual([60, -60]);
     // Il reste 3 oboles : pas de quoi payer un blé. Le tick suivant n'achète rien, la bourse garde ses 3 oboles.
+    // Les 3 oboles du budget non dépensé se reportent (#675), mais la bourse borne toujours la dépense : le budget du
+    // tick (3, réduit par la bourse) prend toute la bourse, le report n'a aucun excédent à user. Il garde les 6 oboles
+    // auxquelles les PNJ avaient droit, pour une bourse regarnie.
+    expect(await budgetCarryOf(world.cityId)).toBe(3);
     const second = await runTick(db, request(world.worldId, config, index + 1));
     expect(second.summary).toMatchObject({ npcDemand: { units: 0, spent: 0 } });
+    expect(await budgetCarryOf(world.cityId)).toBe(6);
     const { rows } = await sql<{ balance: string }>`select balance from game.npc_purses()
       where city_id = ${world.cityId}`.execute(db);
     expect(rows.map((row) => Number(row.balance))).toEqual([3]);
@@ -499,6 +514,105 @@ describe('demande des PNJ au tick', () => {
     expect(second.summary).toMatchObject({ npcDemand: { units: 3 } });
     expect(await carryOf(world.cityId)).toBeCloseTo(0, 9);
     expect(await balanceOf(seller.houseId)).toBe(30);
+  });
+
+  it('reporte le budget non dépensé (#675) : deux unités payées un tick sur deux, report borné', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    // 1,5 blé de besoin par tick et 11 oboles de budget : sans report, un seul blé payé à chaque tick.
+    const config = economy(1.5, 11);
+    const played = [];
+    for (const offset of [0, 1, 2, 3]) {
+      const { summary } = await runTick(db, request(world.worldId, config, index + offset));
+      played.push([
+        (summary['npcDemand'] as { units: number }).units,
+        await budgetCarryOf(world.cityId),
+      ]);
+    }
+    // 11 − 6 = 5 reportées ; 16 paient deux blés, 4 reportées ; 15 en paient un, 9 ; 20 en paient deux, 8.
+    expect(played).toEqual([
+      [1, 5],
+      [2, 4],
+      [1, 9],
+      [2, 8],
+    ]);
+    expect(await balanceOf(seller.houseId)).toBe(36);
+    expect(await paidOf(world.worldId)).toBe(-36);
+    // Un budget large ne s'épargne pas : le report s'arrête à deux unités au prix de réserve, 2 × 18 oboles.
+    await runTick(db, request(world.worldId, economy(1.5, 300), index + 4));
+    expect(await budgetCarryOf(world.cityId)).toBe(36);
+    // Tick sans offre au prix de réserve ou en dessous : les deux reports restent tels quels.
+    await sql`update game.orders set status = 'cancelled' where id = ${seller.orderIds[0] ?? ''}`.execute(
+      owner,
+    );
+    const carried = await carryOf(world.cityId);
+    await runTick(db, request(world.worldId, config, index + 5));
+    expect([await carryOf(world.cityId), await budgetCarryOf(world.cityId)]).toEqual([carried, 36]);
+  });
+
+  it('report de budget (#675) : ramené à la borne de la version en vigueur, absent d’une version sans le paramètre', async () => {
+    const world = await newWorld();
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    // 36 oboles reportées sous la configuration d'avant (2 unités au prix de réserve 18).
+    await sql`insert into game.npc_demand_carry (world_id, city_id, good_id, carry, budget_carry)
+      values (${world.worldId}, ${world.cityId}, 'wheat', 0, 36)`.execute(owner);
+    // Prix de réserve ramené à 6 (facteur 1) : borne de 12 oboles. 11 + 12 = 23 oboles, 3 blés sur 20 voulus, et
+    // 11 + 12 − 18 = 5 oboles reportées.
+    const lower = { ...economy(20, 11), market: { npcMaxPriceFactor: 1, npcBudgetCarryUnits: 2 } };
+    const first = await runTick(db, request(world.worldId, lower));
+    expect(first.summary).toMatchObject({ npcDemand: { units: 3, spent: 18 } });
+    expect(await budgetCarryOf(world.cityId)).toBe(5);
+    // Version publiée avant le paramètre : aucun report, le budget du tick seul (11 oboles, un blé), comme avant #675.
+    const before = { ...economy(20, 11), market: { npcMaxPriceFactor: 3 } };
+    const second = await runTick(db, request(world.worldId, before, index + 1));
+    expect(second.summary).toMatchObject({ npcDemand: { units: 1, spent: 6 } });
+    expect(await budgetCarryOf(world.cityId)).toBe(0);
+    expect(await balanceOf(seller.houseId)).toBe(24);
+  });
+
+  it('bourse courte et report (#675) : le report d’un bien servi tôt ne prend rien de la part des suivants', async () => {
+    // Pain (servi d'abord, ordre alphabétique) et blé : 10 pains à 15 et 20 blés à 6 de besoin, 300 oboles de revenu,
+    // soit 166 et 133 oboles de budget. La bourse n'a que 150 oboles, sans revenu public : 83 et 66.
+    const world = await newWorld('kalliste', 150);
+    const seller = await newSeller(world, 100, [[100, 6]]);
+    await offer({ ...world, houseId: seller.houseId }, 'bread', 100, [[100, 15]]);
+    const config: GameConfig = {
+      ...economy(),
+      npcClasses: [
+        {
+          id: 'thetes',
+          qualitySensitivity: 0.1,
+          incomePerThousand: 300,
+          publicIncomeBps: 0,
+          basket: [
+            { goodId: 'bread', need: 'vital', quantityPerThousand: 10 },
+            { goodId: 'wheat', need: 'vital', quantityPerThousand: 20 },
+          ],
+        },
+      ],
+    };
+    // Report plein sur le pain : 2 unités au prix de réserve 45, 90 oboles.
+    await sql`insert into game.npc_demand_carry (world_id, city_id, good_id, carry, budget_carry)
+      values (${world.worldId}, ${world.cityId}, 'bread', 0, 90)`.execute(owner);
+    const outcome = await runTick(db, request(world.worldId, config));
+    // Le pain n'use de son report que l'excédent de la bourse sur les deux budgets (150 − 83 − 66 = 1) : 84 oboles,
+    // 5 pains. Le blé garde ses 66 oboles : 11 blés. Sans cette règle, le pain aurait pris 150 oboles, et le blé rien.
+    const markets = (outcome.summary['npcDemand'] as { markets: object[] }).markets;
+    expect(markets).toEqual([
+      { city: 'kalliste', goodId: 'bread', units: 5, spent: 75 },
+      { city: 'kalliste', goodId: 'wheat', units: 11, spent: 66 },
+    ]);
+    // Le pain garde son report : 83 + 90 − 75, borné à 90.
+    const rows = await db
+      .selectFrom('game.npc_demand_carry')
+      .select(['good_id', 'budget_carry'])
+      .where('city_id', '=', world.cityId)
+      .orderBy('good_id')
+      .execute();
+    expect(rows.map((row) => [row.good_id, Number(row.budget_carry)])).toEqual([
+      ['bread', 90],
+      ['wheat', 0],
+    ]);
   });
 
   it('fête sur deux jours (#263) : demande et budget de ses biens relevés ces jours-là, besoin mesuré inchangé', async () => {
@@ -637,7 +751,8 @@ describe('demande des PNJ au tick', () => {
     const tick = (later: number) =>
       tickIndexAt(dailyCloseAt(day + later, clock), clock.tickMinutes) + 1;
     const units = [];
-    // 50 oboles de revenu : 8 unités à 6 oboles, puis, budget doublé par la caravane de Kallistè, 16.
+    // 50 oboles de revenu : 8 unités à 6 oboles, et 2 oboles reportées (#675) ; puis, budget doublé par la caravane
+    // de Kallistè, 100 oboles plus ces 2 : 17 unités.
     for (const later of [1, 2])
       units.push(
         (await runTick(db, request(world.worldId, economy(20, 50), tick(later)))).summary[
@@ -649,12 +764,12 @@ describe('demande des PNJ au tick', () => {
     units.push((await runTick(db, request(world.worldId, festive, tick(3)))).summary['npcDemand']);
     expect(units).toMatchObject([
       { units: 8, spent: 48 },
-      { units: 16, spent: 96 },
+      { units: 17, spent: 102 },
       { units: 60, spent: 360 },
     ]);
     expect(await measureOf(world.cityId)).toEqual([
       [8, 20],
-      [16, 20],
+      [17, 20],
       [60, 20],
     ]);
   });
@@ -663,7 +778,7 @@ describe('demande des PNJ au tick', () => {
     // Blé : 15 unités pour 1 000 habitants, prix de réserve 15 (6 × 2,6). Poisson : 5 unités, réserve 31.
     const config: GameConfig = {
       ...economy(15),
-      market: { npcMaxPriceFactor: 2.6 },
+      market: { npcMaxPriceFactor: 2.6, npcBudgetCarryUnits: 2 },
       npcClasses: [
         {
           id: 'thetes',
