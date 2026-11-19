@@ -54,7 +54,7 @@ export default defineConfig({
   envDir: '../..',
   build: {
     rollupOptions: {
-      // Le catalogue de composants n'est servi qu'en développement (`/catalogue.html`).
+      // Les catalogues (`/catalogue.html`, `/illustrations.html`) ne sont servis qu'en développement.
       input: 'index.html',
       output: {
         // Bibliothèques stables à part : elles restent en cache d'une version du jeu à l'autre.

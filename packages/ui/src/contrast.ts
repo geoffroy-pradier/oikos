@@ -99,6 +99,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Carte : les noms se lisent sur la mer comme sur les terres.
   ['foreground', 'sea', AA_TEXT],
   ['foreground', 'land', AA_TEXT],
+  // Illustrations : le trait porte la forme et se détache des aplats doux et neutre (seuil graphique).
+  ['foreground', 'primary-subtle', AA_UI],
+  ['foreground', 'muted', AA_UI],
   ['border', 'background', AA_UI],
   ['border', 'surface', AA_UI],
   ['border', 'surface-raised', AA_UI],
