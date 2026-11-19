@@ -11,6 +11,7 @@ import {
   Card,
   Coins,
   COLOR_TOKENS,
+  DataTable,
   EmptyState,
   IconButton,
   Moon,
@@ -41,6 +42,11 @@ import './styles.css';
 const ICONS = Object.entries(ui).filter(
   (entry): entry is [string, ui.Icon] => typeof entry[1] === 'object' && 'render' in entry[1],
 );
+const STOCKS = [
+  { good: 'Huile', quantity: 120, value: 2_400 },
+  { good: 'Blé', quantity: 800, value: 1_600 },
+  { good: 'Vin', quantity: 45, value: null },
+];
 const TONES = ['neutral', 'primary', 'success', 'warning', 'danger', 'info'] as const;
 
 function Section({
@@ -133,6 +139,33 @@ function Catalogue() {
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
+        <Section title="DataTable" wide>
+          <DataTable
+            caption="DataTable"
+            rows={STOCKS}
+            rowKey={(row) => row.good}
+            defaultSort={{ column: 'value', direction: 'descending' }}
+            sortAnnouncement={(header, direction) => `${header} · ${direction}`}
+            columns={[
+              { id: 'good', header: 'Bien', cell: (r) => r.good, sortValue: (r) => r.good },
+              {
+                id: 'quantity',
+                header: 'Quantité',
+                numeric: true,
+                cell: (r) => r.quantity,
+                sortValue: (r) => r.quantity,
+              },
+              {
+                id: 'value',
+                header: 'Valeur',
+                numeric: true,
+                cell: (r) => (r.value === null ? '—' : `${r.value} ob.`),
+                sortValue: (r) => r.value,
+              },
+            ]}
+          />
+        </Section>
+
         <Section title="Progress · StatusRegion">
           <Progress label="Moisson" value={3} max={5} valueText="3 jours sur 5" />
           <StatusRegion tone="success">Ordre passé : 20 amphores de vin.</StatusRegion>
