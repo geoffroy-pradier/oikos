@@ -94,4 +94,11 @@ describe('toMarkdown', () => {
     expect(md).toContain('| world/sink_x | -10 | -10 | 0 | 0 |');
     expect(md).not.toContain('## Population');
   });
+  it('porte la liste des champs non simulés dans une section', () => {
+    const report = compare({}, {}, { seed: 's', days: 1, unsimulated: ['labor.lodging'] });
+    expect(report.unsimulated).toEqual(['labor.lodging']);
+    expect(toMarkdown(report)).toContain('## Non simulé');
+    expect(toMarkdown(report)).toContain('- `labor.lodging`');
+    expect(toMarkdown(compare({}, {}, { seed: 's', days: 1 }))).not.toContain('Non simulé');
+  });
 });

@@ -74,3 +74,40 @@ export async function readCandidate(
     await db.destroy();
   }
 }
+
+type Json = unknown;
+const at = (value: Json, path: readonly string[]): Json =>
+  path.reduce<Json>((node, part) => (node as Record<string, Json> | undefined)?.[part], value);
+const byId = (list: Json, id: string): Json =>
+  Array.isArray(list) ? list.find((item: { id?: string }) => item?.id === id) : undefined;
+
+/**
+ * Champs de la candidate que le scénario du banc remplace par ses constantes (`worldConfig`, `world.ts`) et qui
+ * diffèrent de la référence : la simulation ne les joue pas, leur écart serait nul. Un chemin par champ.
+ */
+export function unsimulatedFields(candidate: Json, reference: Json): string[] {
+  const out: string[] = [];
+  const check = (path: string, parts: readonly string[], from: Json, to: Json) => {
+    if (JSON.stringify(at(from, parts)) !== JSON.stringify(at(to, parts))) out.push(path);
+  };
+  for (const path of ['labor.lodging', 'staff.dailyWageOboles', 'stewards.dailyWageOboles'])
+    check(path, path.split('.'), candidate, reference);
+  const sizes = at(candidate, ['properties', 'sizes']);
+  for (const size of Array.isArray(sizes) ? (sizes as { id: string }[]) : [])
+    for (const field of ['purchasePriceOboles', 'dailyUpkeepOboles', 'dailyWear', 'renovation'])
+      check(
+        `properties.sizes[${size.id}].${field}`,
+        [field],
+        size,
+        byId(at(reference, ['properties', 'sizes']), size.id),
+      );
+  const cities = at(candidate, ['cities']);
+  for (const city of Array.isArray(cities) ? (cities as { id: string }[]) : [])
+    check(
+      `cities[${city.id}].population`,
+      ['population'],
+      city,
+      byId(at(reference, ['cities']), city.id),
+    );
+  return out;
+}

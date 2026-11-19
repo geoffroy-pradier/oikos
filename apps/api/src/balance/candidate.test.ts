@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { CandidateError, parseCandidate } from './candidate';
+import { CandidateError, parseCandidate, unsimulatedFields } from './candidate';
 import { SETTLEMENTS, SLUGS } from './world';
 
 const scenario = {
@@ -91,4 +91,32 @@ describe('commande simulate', () => {
     expect(failure?.code).toBe(1);
     expect(failure?.stderr).toContain('goods[2].elasticity');
   }, 60_000);
+});
+
+type Loose = {
+  labor: { lodging: Record<string, unknown> };
+  properties: { sizes: { id: string; dailyWear: number }[] };
+  cities: { id: string; population: Record<string, number> }[];
+  marketTax: { rateBps: number };
+};
+
+describe('unsimulatedFields', () => {
+  it('ne dit rien d’une candidate identique à la référence', () => {
+    expect(unsimulatedFields(structuredClone(initial), initial)).toEqual([]);
+  });
+  it('liste chaque champ que le scénario écrase et qui diffère, et eux seuls', () => {
+    const candidate = structuredClone(initial) as unknown as Loose;
+    const [size] = candidate.properties.sizes;
+    const city = candidate.cities[1];
+    if (!size || !city) throw new Error('Initial configuration lacks a size or a second city');
+    candidate.labor.lodging = { ...candidate.labor.lodging, baseOboles: 99 };
+    size.dailyWear = 1;
+    city.population = { ...city.population, poor: 1 };
+    candidate.marketTax.rateBps = 700; // simulé : pas dans la liste
+    expect(unsimulatedFields(candidate, initial)).toEqual([
+      'labor.lodging',
+      `properties.sizes[${size.id}].dailyWear`,
+      `cities[${city.id}].population`,
+    ]);
+  });
 });
