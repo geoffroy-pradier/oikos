@@ -1,5 +1,5 @@
 import { decreeProposalSchema, tradeExecutedSchema } from '@oikos/contracts';
-import { cityRates, type Db } from '@oikos/db';
+import { cityRates, lockNpcPurses, type Db } from '@oikos/db';
 import {
   addBoosts,
   boostedBudget,
@@ -17,6 +17,7 @@ import {
 } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { TickStep } from '../tick';
+import { creditPublicIncome, publicIncomeDue } from './npc-public-income';
 
 /** Compte système qui crée la monnaie des achats de PNJ (docs/specs/05-economie.md, 5.5). */
 const FAUCET: SystemAccountKey = 'faucet_npc_purchases';
@@ -68,6 +69,22 @@ export const npcDemand: TickStep = {
     );
     // Taxe de chaque cité (5.6), lue sous ce verrou : celui que prend la clôture qui applique un décret.
     const rates = await cityRates(trx, worldId, config);
+    // Bourses des PNJ du monde (#632), sous le même verrou et avant toute trésorerie de vendeur, comme la clôture. Le
+    // revenu public du jour de jeu du tick leur est versé d'abord, s'il ne l'a pas encore été (par la clôture qui
+    // ouvre ce jour, ou par un tick précédent) : une bourse n'attend jamais la clôture (déploiement, monde neuf,
+    // cité ajoutée après la clôture du jour).
+    const purses = await lockNpcPurses(trx, worldId);
+    const today = gameDayAt(scheduledAt, config.clock);
+    for (const [cityId, oboles] of await creditPublicIncome(
+      trx,
+      worldId,
+      today,
+      await publicIncomeDue(trx, worldId, config),
+      purses,
+    )) {
+      const purse = purses.get(cityId);
+      if (purse) purse.balance += oboles;
+    }
     // Comptes du monde lus au premier besoin : le robinet, le puits de la taxe, le trésor de chaque cité.
     const accountIds = new Map<string, string>();
     const accountOf = async (column: 'system_key' | 'city_id', value: string) => {
@@ -115,7 +132,7 @@ export const npcDemand: TickStep = {
             })),
           )
           .execute();
-      const gameDay = gameDayAt(scheduledAt, config.clock);
+      const gameDay = today;
       const caravans = await trx
         .selectFrom('game.world_events')
         .select(['good_id', 'start_day', 'end_day', 'magnitude_bps'])
