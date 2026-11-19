@@ -11,6 +11,7 @@ import {
 import pg from 'pg';
 
 export * from './city-rates';
+export * from './npc-purses';
 export * from './sanctions';
 
 /** Issue de l'essai de réécriture d'un oracle par l'IA (7.3, #270) : celle de la passerelle, hors usage coupé. */
@@ -89,8 +90,13 @@ export interface GameDatabase {
     kind: 'house' | 'system' | 'escrow' | 'treasury';
     house_id: string | null;
     system_key: string | null;
-    /** Trésor de la cité (`kind = 'treasury'`) : sa cité ; nul pour tout autre compte. */
+    /** Trésor ou bourse des PNJ de la cité (`kind = 'treasury'`) : sa cité ; nul pour tout autre compte. */
     city_id: Generated<string | null>;
+    /**
+     * Bourse des PNJ de la cité (#632), invisible au service : il la lit par `lockNpcPurses` ou
+     * `game.npc_purses()`.
+     */
+    npc_purse: Generated<boolean>;
     allow_negative: Generated<boolean>;
     /** `bigint` : lu en texte. */
     balance: ColumnType<string, never, never>;

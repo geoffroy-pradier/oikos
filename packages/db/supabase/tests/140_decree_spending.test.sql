@@ -35,7 +35,7 @@ alter table game.decrees enable trigger decrees_guard;
 with e as (insert into game.ledger_entries (world_id, kind) values ('01900000-0000-7000-8000-000000000001', 'test.treasury') returning id)
 insert into game.ledger_lines (entry_id, account_id, amount)
 select e.id, a.id, case when a.kind = 'treasury' then 1000 else -1000 end from e, game.accounts a
-where (a.kind = 'treasury' and a.city_id = '01900000-0000-7000-8000-000000000101')
+where (a.kind = 'treasury' and not a.npc_purse and a.city_id = '01900000-0000-7000-8000-000000000101')
    or (a.world_id = '01900000-0000-7000-8000-000000000001' and a.system_key = 'faucet_npc_purchases');
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-0000000140c1', '{}');
 
@@ -52,7 +52,7 @@ create function pg_temp.pay(decree text, amount bigint, kind text default 'city.
       values ('01900000-0000-7000-8000-000000000001', %L, jsonb_build_object('decreeId', %L)) returning id)
     insert into game.ledger_lines (entry_id, account_id, amount)
     select e.id, a.id, case when a.kind = 'treasury' then -%s else %s end from e, game.accounts a
-    where (a.kind = 'treasury' and a.city_id = %L) or (a.world_id = '01900000-0000-7000-8000-000000000001' and a.system_key = %L);$f$,
+    where (a.kind = 'treasury' and not a.npc_purse and a.city_id = %L) or (a.world_id = '01900000-0000-7000-8000-000000000001' and a.system_key = %L);$f$,
     kind, '00000000-0000-7000-8000-0000000140d' || decree, amount, amount, city, sink)
 $$;
 -- Règlement d'un décret au jour de jeu `day`, puis, si `close`, la clôture de ce jour.
@@ -71,7 +71,7 @@ create function pg_temp.refused() returns text language sql as $$
 $$;
 create function pg_temp.balance(account text) returns bigint language sql as $$
   select balance from game.accounts where world_id = '01900000-0000-7000-8000-000000000001'
-    and (system_key = account or (kind = 'treasury' and city_id::text = account))
+    and (system_key = account or (kind = 'treasury' and not npc_purse and city_id::text = account))
 $$;
 
 -- Catalogue : le puits des fêtes existe dans chaque monde.

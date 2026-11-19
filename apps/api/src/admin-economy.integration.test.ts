@@ -72,9 +72,8 @@ async function entry(kind: string, day: number, ms: number, lines: Record<string
     for (const [ref, amount] of Object.entries(lines)) {
       await sql`insert into game.ledger_lines (entry_id, account_id, amount)
         select ${rows[0]?.id}, a.id, ${amount} from game.accounts a where a.world_id = ${WORLD}
-          and ${ref} in (a.system_key, a.house_id::text, a.kind) and a.kind <> 'escrow'`.execute(
-        trx,
-      );
+          and ${ref} in (a.system_key, a.house_id::text, a.kind) and a.kind <> 'escrow'
+          and not a.npc_purse`.execute(trx);
     }
   });
 }

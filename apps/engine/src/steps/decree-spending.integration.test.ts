@@ -96,7 +96,7 @@ async function newWorld(treasury: number) {
       insert into game.ledger_lines (entry_id, account_id, amount)
       select e.id, a.id, case when a.kind = 'treasury' then ${amount}::bigint else -${amount}::bigint end
       from e, game.accounts a where a.world_id = ${worldId}
-        and (a.kind = 'treasury' or a.system_key = 'faucet_npc_purchases')`,
+        and ((a.kind = 'treasury' and not a.npc_purse) or a.system_key = 'faucet_npc_purchases')`,
       ),
     ...guards(false),
     sql`with e as (insert into game.elections (world_id, city_id, office, candidacy_opens_at, voting_opens_at,
@@ -142,7 +142,7 @@ const balancesOf = async (worldId: string) =>
         .where('world_id', '=', worldId)
         .where((eb) =>
           eb.or([
-            eb('kind', '=', 'treasury'),
+            eb.and([eb('kind', '=', 'treasury'), eb('npc_purse', '=', false)]),
             eb('system_key', 'in', ['sink_public_works', 'sink_festivals']),
           ]),
         )

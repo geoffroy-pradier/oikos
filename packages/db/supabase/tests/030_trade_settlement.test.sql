@@ -29,7 +29,7 @@ insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inve
 create function pg_temp.sys(key text) returns uuid language plpgsql as $$
 begin
   if key ~ '^[0-9]{3}$' then
-    return (select id from game.accounts where kind = 'treasury' and city_id = ('01900000-0000-7000-8000-000000000' || key)::uuid);
+    return (select id from game.accounts where kind = 'treasury' and not npc_purse and city_id = ('01900000-0000-7000-8000-000000000' || key)::uuid);
   end if;
   return (select id from game.accounts where world_id = '01900000-0000-7000-8000-000000000001' and system_key = key);
 end $$;
