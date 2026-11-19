@@ -7,8 +7,10 @@ import { RouterProvider } from '@tanstack/react-router';
 import { HouseProvider } from './house';
 import { LanguageSelect } from './LanguageSelect';
 import { router } from './router';
+import { serverClock } from './server-clock';
 import { CreateHouse, type City } from './screens/CreateHouse';
 import { SignIn } from './screens/SignIn';
+import { refusedToken, renewOrEnd, SESSION_ENDED_EVENT } from './session';
 import { supabase } from './supabase';
 
 interface House {
@@ -28,6 +30,8 @@ export function App() {
   const [house, setHouse] = useState<House | null | undefined>(undefined);
   const [cities, setCities] = useState<City[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
+  /** Session fermée sur un refus de l'API (#565) : la connexion dit pourquoi, jusqu'à la suivante. */
+  const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -35,8 +39,28 @@ export function App() {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      setSession(next);
+      if (event === 'SIGNED_IN') setSessionEnded(false);
+    });
     return () => data.subscription.unsubscribe();
+  }, []);
+
+  // L'API refuse le jeton : la session est d'abord renouvelée (jeton expiré au réveil de l'appareil) ; refusée
+  // par Supabase Auth (compte effacé), elle est fermée sur cet appareil et l'adresse revient à l'accueil, comme à
+  // la déconnexion (`Shell`). Renouvelée, le joueur renvoie sa commande, sous la même clé ; un jeton renouvelé que
+  // l'API refuse encore ferme la session sans nouveau renouvellement (`renewOrEnd`).
+  useEffect(() => {
+    const end = async (event: Event) => {
+      // Heure de l'API, si connue : l'expiration du jeton refusé se juge malgré une horloge fausse.
+      const now = serverClock.now().getTime();
+      if ((await renewOrEnd(supabase.auth, refusedToken(event), now)) !== 'ended') return;
+      setSessionEnded(true);
+      void router.navigate({ to: '/' });
+    };
+    const listener = (event: Event) => void end(event);
+    window.addEventListener(SESSION_ENDED_EVENT, listener);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, listener);
   }, []);
 
   const userId = session?.user.id;
@@ -106,7 +130,7 @@ export function App() {
       <Skeleton className="h-11 w-full" />
     </div>
   );
-  if (session === null) screen = <SignIn />;
+  if (session === null) screen = <SignIn sessionEnded={sessionEnded} />;
   else if (session && loadFailed) {
     screen = (
       <EmptyState

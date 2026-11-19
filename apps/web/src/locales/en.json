@@ -19,7 +19,8 @@
     "email": "Email address",
     "submit": "Send me the link",
     "sent": "Link sent to {{email}}. Open it on this device to continue.",
-    "failed": "The email could not be sent. Try again in a moment."
+    "failed": "The email could not be sent. Try again in a moment.",
+    "sessionEnded": "Your session has ended: this account is no longer recognised, or its sign-in has expired. Sign in again to continue."
   },
   "createHouse": {
     "title": "Found your house",
@@ -277,7 +278,7 @@
     }
   },
   "errors": {
-    "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
+    "UNAUTHENTICATED": "Your session needs to be renewed. Please try again in a moment.",
     "VALIDATION_FAILED": "Some values are not valid. Check your input.",
     "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
     "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
