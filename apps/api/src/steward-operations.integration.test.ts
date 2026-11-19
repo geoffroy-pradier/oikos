@@ -580,19 +580,24 @@ async function whileAgoraHeld(during: () => Promise<unknown>) {
   const held = await owner.startTransaction().execute();
   await sql`select pg_advisory_xact_lock(hashtextextended(${agora}, 0))`.execute(held);
   const running = runStewards(db, tick());
-  for (let tries = 0; ; tries += 1) {
-    const waiting = await sql<{ n: number }>`
-      select count(*)::int as n from pg_locks, hashtextextended(${agora}, 0) as k
-      where locktype = 'advisory' and not granted
-        and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`.execute(
-      owner,
-    );
-    if ((waiting.rows[0]?.n ?? 0) > 0) break;
-    if (tries > 300) throw new Error('The steward never waited for the agora');
-    await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    for (let tries = 0; ; tries += 1) {
+      const waiting = await sql<{ n: number }>`
+        select count(*)::int as n from pg_locks, hashtextextended(${agora}, 0) as k
+        where locktype = 'advisory' and not granted
+          and classid::bigint = (k >> 32) & 4294967295 and objid::bigint = k & 4294967295`.execute(
+        owner,
+      );
+      if ((waiting.rows[0]?.n ?? 0) > 0) break;
+      if (tries > 300) throw new Error('The steward never waited for the agora');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await during();
+    await held.commit().execute();
+  } finally {
+    // Verrou toujours rendu, même si `during` lève : l'intendant et les tests suivants ne restent pas bloqués.
+    if (!held.isCommitted && !held.isRolledBack) await held.rollback().execute();
   }
-  await during();
-  await held.commit().execute();
   return running;
 }
 
