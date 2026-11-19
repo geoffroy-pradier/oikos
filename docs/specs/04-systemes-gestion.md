@@ -220,6 +220,11 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Les règles suivantes agissent pendant ce repos, et des règles nouvelles, même identiques, repartent sans repos.
   Une règle se repose même si ce qui l'a refusée a changé entre-temps (trésorerie renflouée) : elle agit au tick qui suit son repos.
   La purge des opérations (`stewards.operationsRetentionDays`) peut abréger un repos plus long que la conservation : le refus purgé ne compte plus, et la règle est retentée plus tôt, sans effet sur l'idempotence, puisque chaque tentative prend la clé d'un rang neuf.
+  La fiche du site dit, sous le dernier refus, que la règle refusée se repose et l'heure à partir de laquelle l'intendant la retentera (#640) : le début du tick t + repos + 1.
+  Elle lit pour cela la révision des règles de chaque opération (`rules_revision` de `my_steward_operations`), et la durée du tick sous la clé `clock` de la colonne `sites` de `site_rules`, comme le repos sous `stewards`.
+  Un tick est le rang de l'intervalle depuis l'époque Unix : son heure est ce rang fois la durée du tick.
+  Rien n'est annoncé pour un refus d'une autre révision que celle en vigueur, sans repos, pour un intendant qui n'agit pas (en attente de paie, impayé), une fois l'heure passée, ou quand le refus n'est plus lu (purgé).
+  Seul le dernier refus est lu : une autre règle refusée plus tôt peut encore se reposer sans que la fiche le dise.
   Décision (#621) : ce repos plutôt que le partitionnement des journaux, pour la raison et aux conditions de l'ADR 0002.
   Le journal des commandes et les événements des refus inscrits se purgent avec ces journaux, au partitionnement (ADR 0002).
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).

@@ -1,5 +1,6 @@
 import {
   DEFAULT_SITES,
+  DEFAULT_STEWARD_REFUSAL_REST_TICKS,
   DEFAULT_UPKEEP,
   staffDailyWageObolesSchema,
   upkeepCoefficientBpsSchema,
@@ -53,8 +54,16 @@ const siteRulesSchema = z.object({
           limitByHeadquartersLevel: z.array(z.number().int().nonnegative()).min(1),
           dailyWageOboles: staffDailyWageObolesSchema,
           rulesPerSteward: z.number().int().nonnegative(),
+          // Repos d'une règle refusée (#621) ; absent d'une version publiée avant lui : aucun, comme pour le moteur.
+          refusalRestTicks: z
+            .number()
+            .int()
+            .nonnegative()
+            .default(DEFAULT_STEWARD_REFUSAL_REST_TICKS),
         })
         .optional(),
+      // Durée du tick (`clock.tickMinutes`, #640), pour dater un tick ; absente : aucune heure n'est annoncée.
+      clock: z.object({ tickMinutes: positiveInt }).optional(),
     })
     .nullable()
     .transform((sites) => sites ?? DEFAULT_SITES),
@@ -65,8 +74,13 @@ export type SiteRecipe = RawRules['recipes'][number];
 export interface SiteRules {
   /** Nombre de sites qu'une maison peut exploiter (premier niveau de siège, le seul pour l'instant). */
   limit: number;
-  /** Intendants (#278) : postes du premier niveau de siège, salaire d'un jour, règles au plus ; zéro sans eux. */
-  stewards: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
+  /**
+   * Intendants (#278) : postes du premier niveau de siège, salaire d'un jour, règles au plus, repos d'une règle refusée
+   * en ticks (#621) ; zéro sans eux.
+   */
+  stewards: StewardRules;
+  /** Durée du tick en minutes (#640), `null` si la configuration lue ne la donne pas. */
+  tickMinutes: number | null;
   /** Recettes qu'un site peut recevoir, avec le prix d'un site de leur type. */
   offers: { recipe: SiteRecipe; costOboles: number }[];
   /** Type de site d'une recette, connue ou non du client. */
@@ -97,6 +111,14 @@ export interface SiteRules {
     day?: DayLabor,
     unhoused?: number,
   ): number | null;
+}
+
+/** Ce que la fiche d'un site lit des règles des intendants (`site_rules`, clé `stewards`). */
+export interface StewardRules {
+  limit: number;
+  dailyWageOboles: number;
+  rulesPerSteward: number;
+  refusalRestTicks: number;
 }
 
 /** Salaire et hébergement du jour d'une cité (vue `labor_market`, #258). */
@@ -168,6 +190,7 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
   const { recipes, sites } = parsed.data;
   const staff = 'staff' in sites ? sites.staff : undefined;
   const stewards = 'stewards' in sites ? sites.stewards : undefined;
+  const clock = 'clock' in sites ? sites.clock : undefined;
   // `Map` : un type de site nommé comme une propriété d'objet (« constructor ») n'a pas de prix.
   const costs = new Map(Object.entries(sites.acquisitionCostOboles));
   const typeOf = (recipeId: string) =>
@@ -182,7 +205,9 @@ export function parseSiteRules(raw: unknown): SiteRules | null {
       limit: stewards?.limitByHeadquartersLevel[0] ?? 0,
       dailyWageOboles: stewards?.dailyWageOboles ?? 0,
       rulesPerSteward: stewards?.rulesPerSteward ?? 0,
+      refusalRestTicks: stewards?.refusalRestTicks ?? DEFAULT_STEWARD_REFUSAL_REST_TICKS,
     },
+    tickMinutes: clock?.tickMinutes ?? null,
     offers: recipes.flatMap((recipe) => {
       const costOboles = costs.get(recipe.siteType);
       return costOboles === undefined ? [] : [{ recipe, costOboles }];

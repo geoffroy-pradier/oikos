@@ -5,12 +5,12 @@ import { stewardCommand, type StewardCommandInputs } from '../api';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
-import type { SiteRecipe } from '../site-rules';
+import type { SiteRecipe, StewardRules } from '../site-rules';
 import { blankRule, draftOf, goodsFor, hireIntent, moveUp } from '../stewards';
 import { rulesIntent, rulesOf, staleIntents, type RuleDraft, type Steward } from '../stewards';
 import type { StewardActivity, StewardInstruction, StewardOperation } from '../stewards';
 import type { StewardOrder } from '../stewards';
-import { instructionIntent } from '../stewards';
+import { instructionIntent, refusalRestUntil } from '../stewards';
 import type { StewardRule } from '@oikos/contracts';
 import { SiteStewardInstruction } from './SiteStewardInstruction';
 import { useCommandNotice } from './CommandNotice';
@@ -34,8 +34,10 @@ export function SiteSteward(props: {
   instruction?: StewardInstruction | undefined;
   /** Ordres ouverts posés par l'intendant (#562) ; absents tant qu'ils ne sont pas lus. */
   orders?: StewardOrder[] | undefined;
-  /** Postes du siège, salaire d'un jour et règles au plus (`site_rules`, clé `stewards`) ; zéro sans eux. */
-  rules: { limit: number; dailyWageOboles: number; rulesPerSteward: number };
+  /** Postes du siège, salaire d'un jour, règles au plus et repos d'un refus (`site_rules`, clé `stewards`). */
+  rules: StewardRules;
+  /** Durée du tick (`site_rules`, clé `clock`) : sans elle, la fin du repos d'une règle refusée n'est pas annoncée. */
+  tickMinutes?: number | null | undefined;
   /** Intendants en poste de la maison. */
   posted: number;
   onChanged: () => Promise<unknown>;
@@ -70,7 +72,7 @@ export function SiteSteward(props: {
   const checked = rulesOf(rows);
   const labelId = `steward-${siteId}`;
   /** Une opération en une phrase : ce qu'elle a fait, ou ce qui a été refusé et pourquoi. */
-  const describe = (operation: StewardOperation) => {
+  const describe = (operation: Omit<StewardOperation, 'tick' | 'revision'>) => {
     const good = operation.goodId ? goodName(operation.goodId) : '';
     const { summary } = operation;
     if (operation.status === 'rejected')
@@ -94,6 +96,16 @@ export function SiteSteward(props: {
       traded: t(`steward.ops.${exchanged}`, { count: summary.traded ?? 0 }),
     });
   };
+  // Repos de la règle du dernier refus (#640) : la fiche dit quand l'intendant la retentera.
+  const restUntil =
+    steward && props.activity
+      ? refusalRestUntil(
+          steward,
+          props.activity.lastRefusal,
+          { refusalRestTicks: rules.refusalRestTicks, tickMinutes: props.tickMinutes ?? null },
+          new Date(),
+        )
+      : null;
   const line = (operation: StewardOperation) =>
     t('steward.ops.line', { date: date.format(operation.at), text: describe(operation) });
 
@@ -216,6 +228,11 @@ export function SiteSteward(props: {
               {props.activity.lastRefusal && (
                 <p className="break-words font-semibold text-danger">
                   {t('steward.ops.lastRefusal', { text: line(props.activity.lastRefusal) })}
+                </p>
+              )}
+              {restUntil && (
+                <p className="break-words">
+                  {t('steward.ops.resting', { name: steward.name, date: date.format(restUntil) })}
                 </p>
               )}
             </section>

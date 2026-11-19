@@ -4,6 +4,8 @@ import { graceSchema, gracesIssues } from './graces';
 import { filterForm } from './moderation';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
+// Lu aussi par le client (`site_rules`, clé `stewards`), qui n'importe que ce module.
+export { DEFAULT_STEWARD_REFUSAL_REST_TICKS } from './stewards';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
 
 /** Identifiant stable d'une ligne de configuration : minuscules, chiffres, tirets bas. */

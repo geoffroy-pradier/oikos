@@ -11,8 +11,14 @@ const views = vi.hoisted(() => ({ rows: {} as Record<string, object[] | null> })
 vi.mock('../data', async () => {
   const { parseSiteRules } = await import('../site-rules');
   const config = INITIAL_CONFIG as { sites: object; recipes: unknown };
-  const stewards = { limitByHeadquartersLevel: [2], dailyWageOboles: 8, rulesPerSteward: 3 };
-  const rules = parseSiteRules({ recipes: config.recipes, sites: { ...config.sites, stewards } });
+  const stewards = {
+    limitByHeadquartersLevel: [2],
+    dailyWageOboles: 8,
+    rulesPerSteward: 3,
+    refusalRestTicks: 5,
+  };
+  const sites = { ...config.sites, stewards, clock: { tickMinutes: 10 } };
+  const rules = parseSiteRules({ recipes: config.recipes, sites });
   const reload = () => Promise.resolve(null);
   return {
     useRows: (view: string) => ({
@@ -114,9 +120,28 @@ describe('fiche de site : section Intendant (#278)', () => {
     expect(html).toContain('value="50"');
     // Ses opérations (#279) : son dernier refus, avec sa raison.
     expect(html).toContain('rachat de Blé refusé : Trésorerie insuffisante.');
+    // Refus d'il y a longtemps, sans révision lue : aucun repos annoncé (#640).
+    expect(html).not.toContain('se repose');
     expect(html).toMatch(/Achat de Blé : reste 30 sur 50, à .+ l(&#x27;|')unité ou moins/);
     // Un poste reste libre : le champ de blé peut embaucher.
     expect(html).toContain('aria-label="Embaucher un intendant pour Champ de blé"');
+  });
+
+  it('repos (#640) : la révision du dernier refus et la durée du tick lues, la fiche dit quand il sera retenté', async () => {
+    const operations = views.rows['my_steward_operations'] ?? [];
+    expect(operations).toHaveLength(1);
+    const tick = Math.floor(Date.now() / 600_000);
+    views.rows = {
+      ...views.rows,
+      my_steward_operations: operations.map((row) => ({
+        ...row,
+        tick_index: String(tick),
+        rules_revision: 1,
+      })),
+    };
+    expect(await render()).toContain(
+      'La règle refusée se repose : Nikias la retentera à partir du ',
+    );
   });
 
   it('sans les intendants lus, aucune section : rien n’est proposé sur une lecture incomplète', async () => {

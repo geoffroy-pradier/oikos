@@ -15,7 +15,7 @@ export function SiteStewardInstruction(props: {
   instruction: StewardInstruction | undefined;
   busy: boolean;
   /** Une opération en une phrase, comme les dernières opérations de la fiche. */
-  describe: (operation: StewardOperation) => string;
+  describe: (operation: Omit<StewardOperation, 'tick' | 'revision'>) => string;
   /** Envoie la consigne ; vrai si elle est mise en file. */
   onSubmit: (text: string) => Promise<boolean>;
   onValidate: (rules: StewardRule[]) => void;
