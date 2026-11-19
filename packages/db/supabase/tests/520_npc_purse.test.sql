@@ -55,8 +55,20 @@ grant execute on function pg_temp.fund(bigint) to oikos_service;
 select lives_ok('select pg_temp.fund(500)', 'le robinet crédite la bourse');
 select throws_ok('select pg_temp.fund(-501)', '23514',
   'new row for relation "accounts" violates check constraint "accounts_no_overdraft"', 'une bourse ne devient pas débitrice');
--- Une bourse ne paie que des achats des PNJ (migration 1110, test 530).
-select throws_like('select pg_temp.fund(-500); set constraints all immediate',
+-- Une bourse ne paie que des achats des PNJ (migration 1110, test 530). Hors du revenu public, que seul son robinet
+-- débite (migration 1300, test 580).
+create function pg_temp.spend(amount bigint) returns void language sql as $$
+  with entry as (insert into game.ledger_entries (world_id, kind) values ('00000000-0000-7000-8000-00000000e520', 'test.spend')
+                 returning id)
+  insert into game.ledger_lines (entry_id, account_id, amount)
+  select entry.id, (select account_id from game.npc_purses() where city_id = '00000000-0000-7000-8000-00000000c520'), -amount
+    from entry
+  union all
+  select entry.id, (select id from game.accounts where world_id = '00000000-0000-7000-8000-00000000e520'
+                      and system_key = 'faucet_npc_public_income'), amount
+    from entry
+$$;
+select throws_like('select pg_temp.spend(500); set constraints all immediate',
   'the NPC purse of city % pays only NPC purchases', 'une bourse ne paie rien d''autre');
 
 -- Service : il ne voit aucune bourse dans la table, ne les ouvre ni ne les modifie, mais les lit et les verrouille par

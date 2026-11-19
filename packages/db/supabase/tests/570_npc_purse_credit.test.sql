@@ -14,6 +14,10 @@ insert into game.houses (id, world_id, user_id, name, blazon) values
 insert into game.accounts (id, world_id, kind, house_id) values
   ('00000000-0000-7000-8000-0000000005bb', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000005b1'),
   ('00000000-0000-7000-8000-0000000005cc', '01900000-0000-7000-8000-000000000001', 'house', '00000000-0000-7000-8000-0000000005c1');
+-- Bob paie des salaires aux bourses des cités de ses sites (migration 1300, test 580 : qui paie un crédit).
+insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
+  ('00000000-0000-7000-8000-0000000005b2', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000005b1', '01900000-0000-7000-8000-000000000101', 'grow_wheat'),
+  ('00000000-0000-7000-8000-0000000005b3', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000005b1', '01900000-0000-7000-8000-000000000103', 'grow_wheat');
 
 -- Compte par nom : clé d'un compte système, `bob`, `cleo`, `treasury` (de Kallistè), ou `purse:101`, `purse:103`.
 create function pg_temp.acc(name text) returns uuid language sql as $$
