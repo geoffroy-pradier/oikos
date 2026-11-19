@@ -15,6 +15,7 @@ import { runTick } from '../tick';
 import { decreeApplication } from './decree-application';
 import { decreeTally } from './decree-tally';
 import { npcDemand } from './npc-demand';
+import { fundPurses } from './labor.integration-fixtures';
 
 // Application des décrets de taux à la clôture (#262), contre Supabase local. Chaque test a son monde.
 const DATABASE_URL =
@@ -112,6 +113,8 @@ async function newWorld() {
           values (${worldId}, ${houseId}, ${cityId}, 'wheat', 'sell', ${price}, 10, 10)`,
       ),
     ]);
+  // La bourse des PNJ paie leurs achats (#632) : assez pour qu'elle ne borne rien.
+  await fundPurses(owner, ids.worldId);
   return { ...ids, decree, sell };
 }
 const stateOf = async (decreeId: string) =>

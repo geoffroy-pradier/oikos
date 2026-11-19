@@ -448,6 +448,7 @@
       "id": "thetes",
       "qualitySensitivity": 0.1,
       "incomePerThousand": 70,
+      "publicIncomeBps": 10000,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 4.2 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.333 },
@@ -461,6 +462,7 @@
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
       "incomePerThousand": 73,
+      "publicIncomeBps": 10000,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 2.1 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.533 },
@@ -475,6 +477,7 @@
       "id": "hippeis",
       "qualitySensitivity": 0.6,
       "incomePerThousand": 82,
+      "publicIncomeBps": 10000,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.733 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.667 },
@@ -489,6 +492,7 @@
       "id": "pentakosiomedimnoi",
       "qualitySensitivity": 0.9,
       "incomePerThousand": 120,
+      "publicIncomeBps": 10000,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.6 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.8 },

@@ -188,7 +188,7 @@
       "sink": "{{name}} (puits)"
     },
     "accounts": {
-      "faucet_npc_purchases": "Achats des PNJ",
+      "faucet_npc_purchases": "Achats des PNJ (avant leur bourse)",
       "faucet_temple_loans": "Prêts du Trésor du temple",
       "faucet_rewards": "Récompenses de quêtes et de Jeux",
       "faucet_starting_grant": "Dotation de départ",

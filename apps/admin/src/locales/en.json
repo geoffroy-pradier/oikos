@@ -188,7 +188,7 @@
       "sink": "{{name}} (sink)"
     },
     "accounts": {
-      "faucet_npc_purchases": "NPC purchases",
+      "faucet_npc_purchases": "NPC purchases (before their purse)",
       "faucet_temple_loans": "Temple Treasury loans",
       "faucet_rewards": "Quest and Games rewards",
       "faucet_starting_grant": "Starting grant",

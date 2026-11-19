@@ -53,6 +53,9 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Le revenu d'une classe est réparti entre les biens de son panier au prorata de leur dépense de référence (Q0 × prix de référence) ;
   le budget d'un bien est la somme des parts des classes, arrondie à l'obole inférieure.
   C'est le levier « revenu des classes PNJ » de la section 5.5.
+  Depuis #632, ce revenu par tick est un plafond : les achats des PNJ d'une cité sont payés par sa bourse (5.5, 12), que remplissent les salaires et l'hébergement versés par les maisons et le revenu public.
+  Si la bourse ne couvre pas le revenu du tick de toutes ses classes (somme des revenus × populations ÷ 1 000, arrondie à l'obole supérieure, `tickIncome`), le budget de chaque bien est réduit dans la proportion bourse ÷ revenu, arrondi à l'obole inférieure (`purseBudget`).
+  La dépense d'un tick d'une cité, hausses des fêtes et des caravanes comprises, ne dépasse jamais ce qui reste dans sa bourse : aucun achat ne la rend débitrice, et une bourse vide n'achète rien.
 - **Unités entières.** La demande est un nombre réel et les biens se comptent en unités : la fraction non servie d'un tick est reportée au tick suivant.
   La demande non servie faute d'offre, elle, n'est pas reportée.
   Le report est toujours inférieur à une unité ; il est celui de la demande au dernier niveau de prix examiné.
@@ -108,16 +111,16 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Le calcul est pur (`festivalDemandBoosts`, `packages/sim`).
   La hausse se calcule à chaque tick sur le montant voté, ramené au maximum du modèle en vigueur à ce tick, et non sur le montant payé à la clôture : les deux ne diffèrent que si la configuration a changé entre-temps.
   Un tick du jour de jeu D joué avant la validation de la clôture qui ouvre D (clôture en retard, ou en cours) ne voit pas encore la fête : la fête commence pour lui au tick suivant.
-  Une fête est un puits, mais la demande qu'elle crée fait payer des achats par le robinet des PNJ.
-  Ordre de grandeur : sur toute sa durée, une fête fait payer au robinet au plus `demandBoostBps` ÷ 10 000 × (dépense de référence d'un jour de ses biens) ÷ `maxOboles` fois son montant, quels que soient son montant et sa durée, et seulement si l'offre suit.
+  Une fête est un puits, mais la demande qu'elle crée fait payer des achats par la bourse des PNJ de la cité (avant #632, par le robinet des PNJ).
+  Ordre de grandeur : sur toute sa durée, une fête fait payer à la bourse au plus `demandBoostBps` ÷ 10 000 × (dépense de référence d'un jour de ses biens) ÷ `maxOboles` fois son montant, quels que soient son montant et sa durée, et seulement si l'offre suit.
   Avec la configuration initiale (Kallistè, 144 ticks par jour), la dépense de référence d'un jour vaut environ 31 000 oboles pour le pain, 8 400 pour le vin, 8 200 pour le poisson et 7 200 pour l'huile : la fête la plus favorable (pain, vin, poisson) en mobilise environ 47 700, soit 1,6 fois `maxOboles` (30 000).
-  À 5 000 points, le robinet induit vaudrait donc jusqu'à 0,8 fois le montant de la fête, qui ne serait presque plus un puits ; la valeur initiale est de 2 500 points, soit au plus 0,4 fois le montant environ.
+  À 5 000 points, la dépense induite vaudrait donc jusqu'à 0,8 fois le montant de la fête, qui ne serait presque plus un puits ; la valeur initiale est de 2 500 points, soit au plus 0,4 fois le montant environ.
   Ce réglage, comme les bornes des fêtes, se fait dans Olympe par une version de configuration.
 - **Caravanes étrangères** (#267, 7.4). Pendant les jours de jeu d'une caravane de sa cité, la demande des PNJ du bien de la caravane est relevée de son ampleur, comme pour une fête, budget du tick compris.
   Plusieurs caravanes du même bien ne s'ajoutent pas : seule la plus forte compte.
   Décision : la hausse d'une caravane s'ajoute à celle des fêtes du même bien (fêtes bornées ensemble par `demandBoostBps`, lui-même au plus 10 000, caravane par son ampleur, au plus 10 000).
   Quand les deux se cumulent au plus fort, la demande au prix de référence va donc jusqu'au triple du besoin (+200 %), et le budget du tick de ce bien jusqu'au triple du sien (#446).
-  Comme pour une fête, le besoin mesuré ne change pas, et le jour est celui du tick ; une caravane est une demande de plus, que le robinet des PNJ paie si l'offre suit.
+  Comme pour une fête, le besoin mesuré ne change pas, et le jour est celui du tick ; une caravane est une demande de plus, que la bourse des PNJ paie si l'offre suit et si elle le peut.
 - **Événements.** Chaque achat des PNJ émet un événement de domaine `TradeExecuted`, le même qu'un échange entre joueurs, sans ordre d'achat (`buyOrderId` nul) et sans commande : il est écrit dans la transaction du tick, donc jamais pour un tick annulé ou simulé à blanc.
 
 **Prix de réserve des PNJ.** Les PNJ n'achètent pas un bien au-delà d'un multiple de son prix de référence (paramètre du back-office, 3 au départ).
@@ -141,7 +144,7 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Une maison n'échange pas avec elle-même : son ordre ignore ses propres ordres du côté opposé, même mieux placés, et peut donc attendre à côté d'eux à un prix qui les croise.
   Les autres joueurs ne voient du carnet que la quantité par côté et par niveau de prix, jamais l'identité des maisons.
   Taxe de marché : chaque échange, entre joueurs comme avec les PNJ, prélève sur le vendeur une taxe proportionnelle à son montant brut (prix × quantité), dans la même écriture que le paiement ;
-  l'acheteur paie le brut, le vendeur reçoit le net. Règlement d'un échange, tenu par la base : son écriture débite le brut, prix × quantité, en une seule ligne, du compte de l'acheteur (le robinet des achats des PNJ pour eux ;
+  l'acheteur paie le brut, le vendeur reçoit le net. Règlement d'un échange, tenu par la base : son écriture débite le brut, prix × quantité, en une seule ligne, du compte de l'acheteur (pour les PNJ, la bourse des PNJ de la cité du marché depuis #632, le robinet des achats des PNJ avant ;
   pour un joueur, son séquestre si son ordre attendait dans le carnet, sa trésorerie s'il arrive), et le crédite en entier, réparti entre la trésorerie du vendeur (le net), le puits de la taxe de marché du monde (la part détruite) et le trésor de la cité du marché (le reste de la taxe) ;
   une part nulle n'a pas de ligne. Un échange de 5 unités à 8 réglé par une écriture de 30 est donc refusé.
   La base ne lit pas la configuration : le taux appliqué, lui, est vérifié par la commande, qui calcule la taxe.
@@ -218,7 +221,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 
 | Création de drachmes | Destruction de drachmes |
 | --- | --- |
-| Achats des PNJ aux joueurs | Entretien des bâtiments et navires |
+| Revenu public des PNJ (#632) | Entretien des bâtiments et navires |
 | Prêts du Trésor du temple | Taxes de marché et droits de port (part détruite) |
 | Récompenses de quêtes et de Jeux | Offrandes, liturgies et fêtes de la cité |
 | Dotation de départ | Intérêts payés au Trésor du temple |
@@ -226,6 +229,8 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 |  | Acquisition de sites et achat de navires |
 
 Salaires et hébergement versés aux PNJ (#632) : ni création ni destruction, mais un transfert des maisons à la bourse des PNJ de la cité, que la masse monétaire compte.
+Les achats des PNJ aux joueurs, payés par cette bourse, sont le transfert inverse : depuis #632, ils ne créent plus de monnaie, et le robinet `faucet_npc_purchases` reste au catalogue pour l'historique, sans mouvement nouveau.
+La boucle se ferme ainsi : sans robinet ni puits, la masse d'un monde ne change pas, quels que soient les ticks et les clôtures (propriété testée dans `packages/sim`).
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.
@@ -249,7 +254,9 @@ Une bourse n'attend jamais la clôture : un tick de demande dont le revenu publi
 Le premier des deux qui passe verse, sur la population qu'il lit ; l'autre ne fait rien : la base tient une seule écriture `npc.public_income` par cité et par jour de jeu (index unique `ledger_entries_npc_public_income_once`), même en concurrence.
 Son montant est, pour chaque classe, le revenu d'un jour de la classe (revenu par tick × ticks d'un jour de 24 heures × population ÷ 1 000) fois sa part publique (`npcClasses[].publicIncomeBps`, de 0 à 10 000 points), sommé sur les classes puis arrondi une fois à l'obole inférieure (`dailyPublicIncome`, `packages/sim`).
 La population est celle que la clôture vient de fixer, ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
-Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), nulle tant que les achats des PNJ sont payés par le robinet `faucet_npc_purchases`.
+Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), 10 000 points : le revenu d'un jour entier, l'équivalent exact du robinet des achats des PNJ d'avant #632.
+Décision (#632, règle de #621) : « neutre » veut dire ici « comportement inchangé » ; un monde en service sur une version publiée avant le paramètre continue d'acheter comme avant, et la configuration initiale écrit cette même valeur pour chaque classe.
+Ce qu'ils ne dépensent pas reste dans la bourse et compte dans la masse ; le calibrage de #283 baissera cette part à mesure que les salaires et l'hébergement remplissent les bourses.
 C'est le plancher qui fait encore acheter une cité sans emploi, et le levier « revenu des classes PNJ » de cette section ; son calibrage est celui de #283.
 
 Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par une cité sont payés par son trésor, à la clôture qui les applique, au puits `sink_public_works` (écriture `city.public_works`) ou `sink_festivals` (écriture `city.festival`).
@@ -365,6 +372,7 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
   Croissance de 0,2 % par jour au plus, émigration de 1 % par jour au plus, bornes de 50 % à 200 % de la population initiale : la cité suit l'offre lentement, sans à-coup de prix.
 - **Mesure.** Avec 28 maisons scriptées, dont l'offre couvre d'environ 100 à 110 % de la demande de référence de chaque bien vital (un peu moins pour le pain, que la farine limite), le banc tient sur 30 jours une hausse du coût du panier de 0 à 2 % entre les dix premiers et les dix derniers jours, et des besoins vitaux couverts à 98 % au moins pour chaque classe.
 - **Limite connue.** La masse monétaire croît d'environ 60 000 oboles par jour et par cité (mesure du banc, à une cité ; un monde de quatre cités en crée donc à peu près quatre fois plus) : les achats des PNJ créent plus de monnaie que l'entretien, la taxe et l'acquisition de sites n'en détruisent.
+  Depuis #632, ils n'en créent plus : la monnaie vient du revenu public, dont le calibrage, comme celui de la masse, est celui de #283.
   Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux ; des puits nouveaux (immobilier, liturgies, décrets) sont prévus en phase 2.
 
 ## 5.6 Fiscalité

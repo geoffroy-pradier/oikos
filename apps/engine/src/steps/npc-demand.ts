@@ -12,6 +12,8 @@ import {
   matchNpcDemand,
   NEUTRAL_QUALITY,
   npcGoodBudget,
+  purseBudget,
+  tickIncome,
   vitalMeasure,
   type SystemAccountKey,
 } from '@oikos/sim';
@@ -19,8 +21,6 @@ import { sql } from 'kysely';
 import type { TickStep } from '../tick';
 import { creditPublicIncome, publicIncomeDue } from './npc-public-income';
 
-/** Compte système qui crée la monnaie des achats de PNJ (docs/specs/05-economie.md, 5.5). */
-const FAUCET: SystemAccountKey = 'faucet_npc_purchases';
 /** Puits de la part détruite de la taxe de marché (5.3). */
 const TAX_SINK: SystemAccountKey = 'sink_market_tax';
 /** Puits de stock : ce que les PNJ achètent est consommé. */
@@ -30,7 +30,7 @@ const CONSUMPTION = 'npc_consumption';
  * Demande finale des PNJ (5.2). Pour chaque cité du monde connue de la configuration et chaque bien d'un
  * panier, les PNJ achètent dans le carnet de la moins chère à la plus chère des ventes en attente, dans la
  * limite de leur demande à ce prix, de leur budget du tick et de leur prix de réserve. Chaque achat est
- * payé par le robinet au grand livre, enregistré comme échange sans ordre d'achat, annoncé par un événement
+ * payé au grand livre par la bourse des PNJ de la cité (#632), enregistré comme échange sans ordre d'achat, annoncé par un événement
  * de domaine `TradeExecuted`, puis consommé par le
  * journal des stocks. La même écriture prélève la taxe de marché de la cité sur le vendeur, comme entre joueurs : le
  * budget des PNJ se compte en brut, le vendeur reçoit le net. L'étape ne tire aucun hasard : même état, même configuration, mêmes achats.
@@ -46,6 +46,10 @@ const CONSUMPTION = 'npc_consumption';
  * que `festivalDemandBoosts` calcule pour le jour de jeu du tick ; le besoin mesuré, lui, ne change pas.
  * Pendant une caravane étrangère de la cité (7.4, #267), celle de son bien monte en plus de l'ampleur de la plus
  * forte caravane du bien : les deux hausses s'ajoutent, chacune bornée par sa propre règle.
+ *
+ * La bourse borne la dépense (#632) : si elle ne couvre pas le revenu du tick des classes (`tickIncome`), chaque
+ * budget est réduit dans la même proportion (`purseBudget`) ; et la dépense du tick d'une cité, hausses comprises,
+ * ne dépasse jamais ce qui reste dans sa bourse, si bien qu'aucun achat ne la rend débitrice.
  */
 export const npcDemand: TickStep = {
   name: 'npcDemand',
@@ -85,7 +89,8 @@ export const npcDemand: TickStep = {
       const purse = purses.get(cityId);
       if (purse) purse.balance += oboles;
     }
-    // Comptes du monde lus au premier besoin : le robinet, le puits de la taxe, le trésor de chaque cité.
+    // Comptes du monde lus au premier besoin : le puits de la taxe, le trésor de chaque cité (le service ne voit
+    // que lui parmi les comptes de la cité).
     const accountIds = new Map<string, string>();
     const accountOf = async (column: 'system_key' | 'city_id', value: string) => {
       const known = accountIds.get(value);
@@ -107,6 +112,8 @@ export const npcDemand: TickStep = {
       const rateBps = rates.get(city.id)?.marketTaxRateBps;
       if (rateBps === undefined) throw new Error(`No market tax rate for city ${city.id}`);
       const rule = { rateBps, burnShareBps: config.marketTax.burnShareBps };
+      const purse = purses.get(city.id);
+      if (!purse) throw new Error(`City ${city.id} has no NPC purse`);
       const state = await trx
         .selectFrom('game.npc_population')
         .select(['class_id', 'population'])
@@ -158,6 +165,9 @@ export const npcDemand: TickStep = {
         ),
       );
       const bought = new Map<string, number>();
+      // Revenu du tick des classes, que la bourse couvre ou non ; ce qui reste de la bourse pendant le tick.
+      const income = tickIncome(classes);
+      let remaining = purse.balance;
       for (const goodId of basketGoods) {
         const good = goods.get(goodId);
         if (!good) continue;
@@ -208,14 +218,20 @@ export const npcDemand: TickStep = {
                 })
               );
             }, 0),
-          budget: boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
+          budget: Math.min(
+            purseBudget(
+              boostedBudget(npcGoodBudget(classes, goodId, referencePrice), boostBps),
+              purse.balance,
+              income,
+            ),
+            remaining,
+          ),
           carry: carried?.carry ?? 0,
         });
 
         const sellers = new Map(asks.map((ask) => [ask.id, ask.house_id]));
         for (const fill of purchase.fills) {
           const sellerId = sellers.get(fill.orderId) ?? '';
-          const faucet = await accountOf('system_key', FAUCET);
           const account = await trx
             .selectFrom('game.accounts')
             .select('id')
@@ -232,7 +248,7 @@ export const npcDemand: TickStep = {
           const amount = fill.price * fill.quantity;
           const tax = marketTax(amount, rule);
           // Une ligne nulle n'est pas une ligne : part nulle, ou vente d'une obole que la taxe prend entière.
-          const lines = [{ account_id: faucet, amount: -amount }];
+          const lines = [{ account_id: purse.accountId, amount: -amount }];
           if (tax.net > 0) lines.push({ account_id: account.id, amount: tax.net });
           if (tax.burned > 0)
             lines.push({ account_id: await accountOf('system_key', TAX_SINK), amount: tax.burned });
@@ -299,6 +315,7 @@ export const npcDemand: TickStep = {
               .doUpdateSet({ carry: purchase.carry, updated_at: sql`now()` }),
           )
           .execute();
+        remaining -= purchase.spent;
         if (purchase.fills.length > 0) {
           const units = purchase.fills.reduce((sum, fill) => sum + fill.quantity, 0);
           bought.set(goodId, units);

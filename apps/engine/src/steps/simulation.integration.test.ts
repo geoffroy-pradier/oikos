@@ -11,10 +11,12 @@ import { createRng, marketTax, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { runTick } from '../tick';
+import { FUNDED, fundPurses } from './labor.integration-fixtures';
 import { npcDemand } from './npc-demand';
 
 // Simulation de 30 jours de jeu contre Supabase local (ticket 9) : des maisons produisent du blé et le
-// vendent, les PNJ achètent à chaque tick. La masse monétaire ne doit bouger que par le robinet prévu.
+// vendent, les PNJ achètent à chaque tick, payés par la bourse de la cité (#632), remplie d'emblée par le robinet
+// du revenu public. La masse monétaire ne doit bouger que par ce robinet et le puits de la taxe.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
@@ -39,7 +41,7 @@ beforeAll(async () => {
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 it(
-  '30 jours de production, de ventes et d’achats de PNJ : la monnaie ne vient que du robinet',
+  '30 jours de production, de ventes et d’achats de PNJ : la monnaie ne vient que de la bourse des PNJ',
   { timeout: 120_000 },
   async () => {
     const [worldId, cityId] = [randomUUID(), randomUUID()];
@@ -49,6 +51,7 @@ it(
     await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Simulation')`.execute(
       owner,
     );
+    await fundPurses(owner, worldId);
     const houses: { houseId: string; inventoryId: string }[] = [];
     for (let n = 0; n < HOUSES; n++) {
       const userId = randomUUID();
@@ -166,17 +169,25 @@ it(
         .reduce((sum, tax) => sum + tax[part], 0);
     expect(sumOf('burned')).toBeGreaterThan(0);
     expect(sumOf('treasury')).toBeGreaterThan(0);
-    // Ce que le robinet des achats de PNJ a créé est chez les maisons, au trésor de la cité, ou détruit.
+    // Ce que la bourse des PNJ a payé est chez les maisons, au trésor de la cité, ou détruit ; le reste y est encore.
     expect(total('house') + total('treasury') + sumOf('burned')).toBe(spent);
+    // Elle a reçu sa dotation d'essai, puis, du premier tick de chaque jour de jeu, le revenu public du jour.
+    const received = -Number(
+      accounts.find((account) => account.system_key === 'faucet_npc_public_income')?.balance,
+    );
+    expect(received).toBeGreaterThan(FUNDED);
+    const purse = await sql<{ balance: string }>`select balance from game.npc_purses()
+      where city_id = ${cityId}`.execute(db);
+    expect(Number(purse.rows[0]?.balance)).toBe(received - spent);
     expect(total('treasury')).toBe(sumOf('treasury'));
-    // Seuls ce robinet et le puits de la taxe ont bougé : les autres comptes système sont restés à zéro.
+    // Seuls le robinet du revenu public et le puits de la taxe ont bougé : les autres comptes système sont restés à zéro.
     expect(
       accounts
         .filter((account) => account.kind === 'system' && Number(account.balance) !== 0)
         .map((account) => [account.system_key, Number(account.balance)])
         .sort(),
     ).toEqual([
-      ['faucet_npc_purchases', -spent],
+      ['faucet_npc_public_income', -received],
       ['sink_market_tax', sumOf('burned')],
     ]);
     // Aucune écriture d'une autre nature, et les soldes égalent la somme de leurs lignes.
@@ -184,7 +195,7 @@ it(
       select kind, count(*) as n from game.ledger_entries where world_id = ${worldId} group by kind`.execute(
       db,
     );
-    expect(kinds.rows.map((row) => row.kind)).toEqual(['npc.purchase']);
+    expect(kinds.rows.map((row) => row.kind).sort()).toEqual(['npc.public_income', 'npc.purchase']);
     const checks = await sql<{
       accounts: string;
       stocks: string;

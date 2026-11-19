@@ -64,10 +64,11 @@ export const recipeSchema = z.strictObject({
 });
 
 /**
- * Part publique d'une classe dont la version de configuration ne la donne pas (#632). Nulle tant que les achats
- * des PNJ sont payés par le robinet `faucet_npc_purchases` : rien n'est versé à leur bourse.
+ * Part publique d'une classe dont la version de configuration ne la donne pas (#632) : le revenu d'un jour entier,
+ * soit, pour un monde en service, le comportement d'avant la bourse (décision de #632, comme la règle de #621 : une
+ * version publiée garde son comportement). Le calibrage de #283 baissera cette part par une version nouvelle.
  */
-export const DEFAULT_NPC_PUBLIC_INCOME_BPS = 0;
+export const DEFAULT_NPC_PUBLIC_INCOME_BPS = 10_000;
 /** Part publique d'une classe : la sienne, sinon celle d'une version publiée avant le paramètre. */
 export const npcPublicIncomeBps = (npcClass: { publicIncomeBps?: number | undefined }) =>
   npcClass.publicIncomeBps ?? DEFAULT_NPC_PUBLIC_INCOME_BPS;

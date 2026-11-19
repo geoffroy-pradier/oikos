@@ -166,3 +166,19 @@ export async function purseCredits(db: Db, worldId: string) {
     where p.world_id = ${worldId}`.execute(db);
   return { wages: Number(rows[0]?.wages), lodging: Number(rows[0]?.lodging) };
 }
+
+/** Ce que reçoit d'emblée la bourse des PNJ d'une cité d'essai : assez pour qu'elle ne borne aucun achat. */
+export const FUNDED = 1_000_000;
+/**
+ * Crédite de `oboles` la bourse des PNJ de chaque cité du monde encore vide (#632), par le robinet du revenu
+ * public, pour que les PNJ achètent. Posé par le propriétaire : le service ne voit pas les bourses.
+ */
+export async function fundPurses(owner: Db, worldId: string, oboles = FUNDED) {
+  await sql`with purses as (select id from game.accounts where world_id = ${worldId} and npc_purse and balance = 0),
+      entry as (insert into game.ledger_entries (world_id, kind)
+        select ${worldId}, 'npc.public_income' where exists (select 1 from purses) returning id)
+    insert into game.ledger_lines (entry_id, account_id, amount)
+    select entry.id, purses.id, ${oboles}::bigint from entry, purses
+    union all select entry.id, a.id, -${oboles}::bigint * (select count(*) from purses) from entry, game.accounts a
+    where a.world_id = ${worldId} and a.system_key = 'faucet_npc_public_income'`.execute(owner);
+}

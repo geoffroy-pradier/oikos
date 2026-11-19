@@ -60,9 +60,20 @@ async function newCity(slug = `c-${letters()}`): Promise<string> {
   return id;
 }
 
-/** Cité qui porte l'identifiant de la configuration : les PNJ y achètent du blé à chaque tick. Une par monde. */
+/**
+ * Cité qui porte l'identifiant de la configuration : les PNJ y achètent du blé à chaque tick, payé par la bourse
+ * des PNJ de la cité (#632), créditée d'emblée par le robinet du revenu public. Une par monde.
+ */
 let kalliste: Promise<string> | undefined;
-const kallisteCity = () => (kalliste ??= newCity('kalliste'));
+const kallisteCity = () =>
+  (kalliste ??= newCity('kalliste').then(async (cityId) => {
+    await sql`with entry as (insert into game.ledger_entries (world_id, kind) values (${WORLD}, 'npc.public_income') returning id)
+      insert into game.ledger_lines (entry_id, account_id, amount)
+      select entry.id, a.id, case when a.npc_purse then 1000000 else -1000000 end from entry, game.accounts a
+      where (a.npc_purse and a.city_id = ${cityId})
+         or (a.world_id = ${WORLD} and a.system_key = 'faucet_npc_public_income')`.execute(owner);
+    return cityId;
+  }));
 
 /** Un tick de demande des PNJ, dans sa propre transaction. */
 const npcTick = () =>
@@ -1057,7 +1068,7 @@ describe('taxe de marché', () => {
     expect(await ledgersAreConsistent([buyer, seller])).toBe(0);
   });
 
-  it('ticks des PNJ et ordres taxés en même temps : aucun interblocage sur le puits et le trésor, rien ne se crée hors du robinet', async () => {
+  it('ticks des PNJ et ordres taxés en même temps : aucun interblocage sur le puits, le trésor et la bourse, rien ne se crée hors de la bourse', async () => {
     const cityId = await kallisteCity();
     const traders = await Promise.all(Array.from({ length: 4 }, () => newPlayer(cityId, 400)));
     const before = (await balanceOf({ city_id: cityId })) + (await sinkOf());
