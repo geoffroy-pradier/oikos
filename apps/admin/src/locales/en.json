@@ -300,6 +300,7 @@
       "dismissed": "Dismiss",
       "confirmExclusion": "Confirm the exclusion of account {{account}}",
       "liftSanction": "Confirm lifting the exclusion of account {{account}}",
+      "withdrawExclusion": "Withdraw the exclusion of account {{account}}",
       "granted": "Grant the appeal of account {{account}}",
       "rejected": "Reject the appeal of account {{account}}"
     },
@@ -313,6 +314,7 @@
       "dismissed": "The reports on this message will be dismissed.",
       "confirmExclusion": "The exclusion of account {{userId}} will be confirmed: it starts at once. An account other than its author and the excluded account must confirm it.",
       "liftSanction": "The exclusion of account {{userId}} will be lifted now: it plays again at once, without getting back its cancelled orders. An account other than the one that proposed the lift must confirm it.",
+      "withdrawExclusion": "The proposed exclusion of account {{userId}} will be withdrawn: it never took effect and leaves the queue. Any moderation account may withdraw it, its author included, except the excluded account.",
       "granted": "The appeal will be granted: the sanction of account {{userId}} will be lifted now if it is not over.",
       "rejected": "The appeal will be rejected: the sanction of account {{userId}} runs until its end."
     },
@@ -326,6 +328,7 @@
       "dismissed": "Confirm: dismiss",
       "confirmExclusion": "Confirm the exclusion",
       "liftSanction": "Confirm the lift",
+      "withdrawExclusion": "Confirm the withdrawal",
       "granted": "Confirm: grant",
       "rejected": "Confirm: reject"
     },
@@ -351,6 +354,7 @@
       "dismissed": "Reports dismissed.",
       "confirmExclusion": "Exclusion confirmed: it starts.",
       "liftSanction": "Lift confirmed: the exclusion ends.",
+      "withdrawExclusion": "Exclusion withdrawn: it leaves the queue.",
       "granted": "Appeal granted.",
       "rejected": "Appeal rejected."
     },
@@ -379,6 +383,10 @@
     },
     "liftErrors": {
       "SECOND_PERSON_REQUIRED": "Neither whoever proposed this lift nor the excluded account confirms it: another moderation account must do so."
+    },
+    "withdrawErrors": {
+      "SECOND_PERSON_REQUIRED": "The excluded account does not withdraw its own exclusion: another moderation account must do so.",
+      "ALREADY_CONFIRMED": "This exclusion is already confirmed: it can no longer be withdrawn, it is lifted instead (lift proposed, then confirmed by another person)."
     },
     "exclusions": "Exclusions to confirm",
     "exclusionsEmpty": "No exclusion to confirm.",

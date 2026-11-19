@@ -300,6 +300,7 @@
       "dismissed": "Classer sans suite",
       "confirmExclusion": "Valider l'exclusion du compte {{account}}",
       "liftSanction": "Confirmer la levée de l'exclusion du compte {{account}}",
+      "withdrawExclusion": "Retirer l'exclusion du compte {{account}}",
       "granted": "Accueillir l'appel du compte {{account}}",
       "rejected": "Rejeter l'appel du compte {{account}}"
     },
@@ -313,6 +314,7 @@
       "dismissed": "Les signalements de ce message seront classés sans suite.",
       "confirmExclusion": "L'exclusion du compte {{userId}} sera validée : elle commence aussitôt. Un autre compte que son auteur et que le compte exclu doit la valider.",
       "liftSanction": "L'exclusion du compte {{userId}} sera levée à cet instant : il rejouera aussitôt, sans retrouver ses ordres annulés. Un autre compte que celui qui a proposé la levée doit la confirmer.",
+      "withdrawExclusion": "L'exclusion proposée du compte {{userId}} sera retirée : elle n'a jamais agi et quitte la file. Tout compte de la modération peut la retirer, son auteur compris, sauf le compte exclu.",
       "granted": "L'appel sera accueilli : la sanction du compte {{userId}} sera levée à cet instant si elle n'est pas finie.",
       "rejected": "L'appel sera rejeté : la sanction du compte {{userId}} court jusqu'à sa fin."
     },
@@ -326,6 +328,7 @@
       "dismissed": "Confirmer : classer sans suite",
       "confirmExclusion": "Confirmer l'exclusion",
       "liftSanction": "Confirmer la levée",
+      "withdrawExclusion": "Confirmer le retrait",
       "granted": "Confirmer : accueillir",
       "rejected": "Confirmer : rejeter"
     },
@@ -351,6 +354,7 @@
       "dismissed": "Signalements classés sans suite.",
       "confirmExclusion": "Exclusion validée : elle commence.",
       "liftSanction": "Levée confirmée : l'exclusion prend fin.",
+      "withdrawExclusion": "Exclusion retirée : elle quitte la file.",
       "granted": "Appel accueilli.",
       "rejected": "Appel rejeté."
     },
@@ -379,6 +383,10 @@
     },
     "liftErrors": {
       "SECOND_PERSON_REQUIRED": "Ni qui a proposé cette levée ni le compte exclu ne la confirment : un autre compte de la modération doit le faire."
+    },
+    "withdrawErrors": {
+      "SECOND_PERSON_REQUIRED": "Le compte exclu ne retire pas sa propre exclusion : un autre compte de la modération doit le faire.",
+      "ALREADY_CONFIRMED": "Cette exclusion est déjà validée : elle ne se retire plus, elle se lève (levée proposée, puis confirmée par une autre personne)."
     },
     "exclusions": "Exclusions à valider",
     "exclusionsEmpty": "Aucune exclusion à valider.",

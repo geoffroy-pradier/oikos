@@ -22,6 +22,7 @@ export type Gesture =
   | 'ban'
   | 'confirmExclusion'
   | 'liftSanction'
+  | 'withdrawExclusion'
   | 'granted'
   | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
@@ -171,18 +172,24 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   }
 
   /**
-   * Validation d'une exclusion, confirmation de la levée proposée d'une exclusion (#616) et décision d'un appel :
-   * une sanction désignée par son identifiant.
+   * Validation d'une exclusion, retrait d'une exclusion proposée (#636), confirmation de la levée proposée d'une
+   * exclusion (#616) et décision d'un appel : une sanction désignée par son identifiant.
    */
   async function confirmSanction(sanctionId: string, gesture: Gesture) {
     const ok =
-      gesture === 'confirmExclusion' || gesture === 'liftSanction'
+      gesture === 'confirmExclusion' ||
+      gesture === 'liftSanction' ||
+      gesture === 'withdrawExclusion'
         ? await run(
             `admin.${gesture}`,
             { sanctionId },
             t(`moderation.done.${gesture}`),
-            // Le refus de la seconde personne a son message pour une levée (#616).
-            gesture === 'liftSanction' ? 'moderation.liftErrors' : undefined,
+            // Le refus de la seconde personne, ou du compte exclu, a son message propre au geste.
+            gesture === 'liftSanction'
+              ? 'moderation.liftErrors'
+              : gesture === 'withdrawExclusion'
+                ? 'moderation.withdrawErrors'
+                : undefined,
           )
         : await run(
             'admin.decideAppeal',
@@ -443,6 +450,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   </p>
                   <div className="flex flex-wrap gap-2" onKeyDown={ignoreHeldEnter}>
                     {sanctionGesture(item.sanctionId, item.userId, 'confirmExclusion')}
+                    {sanctionGesture(item.sanctionId, item.userId, 'withdrawExclusion')}
                   </div>
                 </li>
               ))}

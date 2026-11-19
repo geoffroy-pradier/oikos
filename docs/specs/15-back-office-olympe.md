@@ -68,7 +68,8 @@ Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clav
 Une sanction à durée demande, dans sa confirmation, l'une des durées proposées et un motif ; une exclusion ne demande que le motif.
 Sous la file, l'écran liste les exclusions proposées à valider, les levées d'exclusion à confirmer (#616) et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
 Valider une exclusion, confirmer une levée, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
-Proposer une levée et retirer une exclusion proposée n'ont pas encore de geste dans l'écran : ils attendent un ticket de suite.
+Retirer une exclusion proposée est un geste de la liste des exclusions à valider (#636), ouvert à tout compte de la modération sauf le compte exclu, avec la même confirmation.
+Proposer une levée n'a pas encore de geste dans l'écran : la lecture `GET /api/admin/reports` ne rend pas les exclusions validées et pas encore levées, il attend un ticket de suite qui les ajoute.
 Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, seulement la décision ; la décision « motivée » du ticket ne l'est donc pas en base, et l'écran n'ajoute pas de champ qui ne mènerait nulle part.
 Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
 Durées proposées (#541) : `GET /api/admin/reports` rend `sanctionHours`, les durées de `moderation.sanctionHours` dans la version en vigueur à l'heure de la base, et rien d'autre de la configuration que ce seuil et ces durées.
