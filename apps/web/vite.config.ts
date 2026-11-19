@@ -32,7 +32,8 @@ export default defineConfig({
         lang: 'fr',
         start_url: '/',
         display: 'standalone',
-        background_color: '#f5f6f8',
+        // Écran de lancement : le graphite de l'icône.
+        background_color: '#17191c',
         theme_color: '#b93d0b',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

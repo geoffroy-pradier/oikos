@@ -9,10 +9,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CITY_VIGNETTE_IDS,
   CityVignette,
+  EMPTY_ILLUSTRATION_IDS,
+  EmptyIllustration,
   GOD_EMBLEM_IDS,
   GodEmblem,
   GOOD_ICON_IDS,
   GoodIcon,
+  WelcomeScene,
 } from '.';
 import { paths } from './svg';
 
@@ -31,6 +34,8 @@ const ALL = [
   ...[...GOOD_ICON_IDS, 'unknown'].map((id) => <GoodIcon key={id} goodId={id} size={48} />),
   ...[...GOD_EMBLEM_IDS, 'unknown'].map((id) => <GodEmblem key={id} godId={id} />),
   ...[...CITY_VIGNETTE_IDS, 'unknown'].map((id) => <CityVignette key={id} cityId={id} />),
+  ...[...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) => <EmptyIllustration key={id} kind={id} />),
+  <WelcomeScene key="welcome" />,
 ].map((element): [string, ReactElement] => [`${element.type.name} ${element.key}`, element]);
 
 /** Ce qu'une illustration dessinée dans le dépôt ne contient jamais : image, lien, ressource externe. */
@@ -123,5 +128,19 @@ describe('GodEmblem et CityVignette', () => {
     expect(screen.getByRole('img', { name: 'Athéna' }).getAttribute('width')).toBe('96');
     expect(screen.getByRole('img', { name: 'Halos' }).getAttribute('class')).toContain('w-full');
     expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+});
+
+describe('WelcomeScene et EmptyIllustration', () => {
+  it('montrent les quatre états vides, chacun autrement, et la scène d’accueil', () => {
+    expect(EMPTY_ILLUSTRATION_IDS).toEqual(['noSite', 'noShip', 'noMessage', 'noOrder']);
+    const markups = [...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) =>
+      renderToStaticMarkup(<EmptyIllustration kind={id} />),
+    );
+    expect(new Set(markups).size).toBe(markups.length);
+    // Un état inconnu ne garde que le disque.
+    expect(markups.at(-1)?.match(/<path/g)).toHaveLength(1);
+    render(<WelcomeScene label="Port au lever du jour" className="w-full" />);
+    expect(screen.getByRole('img', { name: 'Port au lever du jour' })).toBeTruthy();
   });
 });

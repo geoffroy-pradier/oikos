@@ -164,6 +164,8 @@ Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas 
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
+Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.
+L'icône de l'application est le soleil levant de la scène d'accueil, orange sur graphite ; ses PNG se régénèrent par `apps/web/scripts/render-icons.mjs`.
 La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.
 De courtes animations répondent au survol, à l'appui et à l'apparition d'une feuille ; elles sont coupées sous `prefers-reduced-motion`.
 Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi, avec une illustration et l'action qui la remplit.
