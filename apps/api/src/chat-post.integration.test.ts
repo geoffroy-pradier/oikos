@@ -157,23 +157,12 @@ describe('chat.post', () => {
     ).toEqual([{ n: 1 }]);
   });
 
-  it('un compte qui a une maison dans deux mondes écrit depuis celle du monde du canal', async () => {
+  it('le canal d’un autre monde reste fermé : un compte n’a qu’une maison dans tout le jeu (#604)', async () => {
     const [first, second] = [await newWorld(), await newWorld()];
     const alice = await first.player();
-    const aliceThere = await second.player(second.elaia, false, alice.user);
-    for (const [channelId, houseId] of [
-      [first.kallisteChannel, alice.houseId],
-      [second.elaiaChannel, aliceThere.houseId],
-    ] as const) {
-      const posted = await post(alice.user, channelId, 'Deux mondes');
-      expect(posted.status).toBe(200);
-      expect(
-        await rows(
-          sql`select house_id from game.messages where id = ${posted.body.data.messageId as string}`,
-        ),
-      ).toEqual([{ house_id: houseId }]);
-    }
-    expect(codeOf(await post(alice.user, second.kallisteChannel, 'Pas ma cité là-bas'))).toEqual([
+    await expect(second.player(second.elaia, false, alice.user)).rejects.toThrow('409');
+    expect((await post(alice.user, first.kallisteChannel, 'Mon monde')).status).toBe(200);
+    expect(codeOf(await post(alice.user, second.elaiaChannel, 'Pas mon monde'))).toEqual([
       404,
       'CHANNEL_NOT_FOUND',
     ]);

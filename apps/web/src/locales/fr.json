@@ -281,7 +281,7 @@
     "UNAUTHENTICATED": "Votre session doit être renouvelée : réessayez dans un instant.",
     "VALIDATION_FAILED": "Certaines valeurs ne sont pas valides. Vérifiez votre saisie.",
     "CITY_NOT_FOUND": "Cette cité n'existe plus. Choisissez-en une autre.",
-    "HOUSE_ALREADY_EXISTS": "Vous avez déjà fondé une maison dans cet Âge.",
+    "HOUSE_ALREADY_EXISTS": "Votre compte a déjà fondé sa maison : un compte n'en a qu'une.",
     "HOUSE_NAME_TAKEN": "Ce nom est déjà porté par une autre maison.",
     "SITE_HAS_STEWARD": "Ce site a déjà son intendant.",
     "STEWARD_LIMIT_REACHED": "Tous vos postes d'intendant sont pris.",

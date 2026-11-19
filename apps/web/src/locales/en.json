@@ -281,7 +281,7 @@
     "UNAUTHENTICATED": "Your session needs to be renewed. Please try again in a moment.",
     "VALIDATION_FAILED": "Some values are not valid. Check your input.",
     "CITY_NOT_FOUND": "This city no longer exists. Pick another one.",
-    "HOUSE_ALREADY_EXISTS": "You have already founded a house in this Age.",
+    "HOUSE_ALREADY_EXISTS": "Your account has already founded its house: an account has only one.",
     "HOUSE_NAME_TAKEN": "Another house already bears this name.",
     "SITE_HAS_STEWARD": "This site already has its steward.",
     "STEWARD_LIMIT_REACHED": "All your steward posts are taken.",

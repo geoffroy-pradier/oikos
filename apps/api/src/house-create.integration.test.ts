@@ -322,3 +322,52 @@ describe('house.create', () => {
     expect(await endowmentOf(house?.id ?? '')).toMatchObject({ balance: [GRANT] });
   });
 });
+
+describe('house.create : une maison par compte dans tout le jeu (#604)', () => {
+  /** Un monde neuf et sa cité de Kallistè. */
+  const newWorldCity = async () => {
+    const [worldId, cityId] = [randomUUID(), randomUUID()];
+    await sql`with world as (insert into game.worlds (id, slug, name) values (${worldId}, ${`h-${worldId.slice(0, 12)}`}, 'Test'))
+      insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'K')`.execute(
+      owner,
+    );
+    return { worldId, cityId };
+  };
+  /** Dotations versées dans un monde, en oboles. */
+  const grantedIn = async (worldId: string) =>
+    Number(
+      (
+        await sql<{ total: string }>`select coalesce(sum(l.amount), 0) as total
+          from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
+          where e.world_id = ${worldId} and e.kind = 'house.starting_grant' and l.amount > 0`.execute(
+          owner,
+        )
+      ).rows[0]?.total,
+    );
+
+  it('refuse une seconde maison dans un autre monde, sans rien y écrire', async () => {
+    const user = await newUser();
+    const elsewhere = await newWorldCity();
+    expect((await post(user, input(`Ici ${suffix}`))).status).toBe(200);
+    const res = await post(user, { ...input(`Ailleurs ${suffix}`), cityId: elsewhere.cityId });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: { code: 'HOUSE_ALREADY_EXISTS' } });
+    expect(await housesOf(user)).toHaveLength(1);
+    expect(await grantedIn(elsewhere.worldId)).toBe(0);
+  });
+
+  it('deux créations simultanées du même compte dans deux mondes : une seule maison, l’autre refusée par la base', async () => {
+    const user = await newUser();
+    const [first, second] = [await newWorldCity(), await newWorldCity()];
+    const results = await Promise.all([
+      post(user, { ...input(`Course c ${suffix}`), cityId: first.cityId }),
+      post(user, { ...input(`Course d ${suffix}`), cityId: second.cityId }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const refused = results.find((r) => r.status === 409);
+    expect(await refused?.json()).toMatchObject({ error: { code: 'HOUSE_ALREADY_EXISTS' } });
+    expect(await housesOf(user)).toHaveLength(1);
+    // La dotation n'a été versée qu'une fois, dans le monde de la maison fondée.
+    expect((await grantedIn(first.worldId)) + (await grantedIn(second.worldId))).toBe(GRANT);
+  });
+});

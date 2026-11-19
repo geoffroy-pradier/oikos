@@ -152,13 +152,17 @@ describe('validation d’une exclusion (#528)', () => {
     expect((await order(bob, w1.kalliste, 'sell', 5, 2)).status).toBe(200);
     const sell = await placed(order(alice, w1.kalliste, 'sell', 40, 9));
     const elsewhere = await placed(order(alice, w1.elaia, 'buy', 2, 1));
-    // Un compte a une maison par monde, et une commande de jeu agit pour la seule maison de son compte : la
-    // seconde maison d'Alice, dans l'autre monde, place son ordre sous un autre compte, puis lui est rattachée.
+    // Compte hérité d'avant #604 : la seconde maison d'Alice, dans l'autre monde, place son ordre sous un autre compte,
+    // puis lui est rattachée en contournant le déclencheur, qui le refuserait aujourd'hui.
     const aliceThere = await w2.player();
     const otherWorld = await placed(order(aliceThere, w2.kalliste, 'buy', 11, 3));
-    await sql`update game.houses set user_id = ${alice.user} where id = ${aliceThere.houseId}`.execute(
-      owner,
-    );
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.houses disable trigger houses_one_per_account`.execute(trx);
+      await sql`update game.houses set user_id = ${alice.user} where id = ${aliceThere.houseId}`.execute(
+        trx,
+      );
+      await sql`alter table game.houses enable trigger houses_one_per_account`.execute(trx);
+    });
     const bobs = await placed(order(bob, w1.kalliste, 'buy', 4, 1));
     const chloes = await placed(order(chloe, w2.kalliste, 'buy', 1, 1));
 
