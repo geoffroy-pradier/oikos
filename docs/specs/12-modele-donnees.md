@@ -44,7 +44,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Éviter le contrôle d'une ligne écrite avant l'échange supposerait de savoir dans quel ordre l'une et l'autre ont été écrites ;
   ni le rang de commande ni la date ne le disent (une instruction peut appeler une fonction qui insère l'échange, puis écrire ses lignes après son contrôle), et un tel saut laissait des lignes ajoutées sans contrôle.
   Le coût reste borné par échange.
-- Débits que la base accepte hors d'un échange (décision du ticket 205) : la trésorerie d'une maison qui paie celle d'une autre, un séquestre alimenté par la trésorerie d'une autre maison, et le robinet des achats des PNJ débité par une écriture sans échange.
+- Débits que la base accepte hors d'un échange (décision du ticket 205) : la trésorerie d'une maison qui paie celle d'une autre, un séquestre alimenté par la trésorerie d'une autre maison, et le robinet des achats des PNJ débité par une écriture sans échange (la bourse des PNJ, elle, ne paie que des échanges, #632).
   La base ne les refuse pas ; seul le code des commandes et du moteur les exclut, comme l'antidatage des activations avant le ticket 130.
   Raisons : les transferts entre maisons seront des mécaniques du jeu (contrats, prêts, banque, 5.4), et la base ne peut pas en tenir la liste sans devenir un second moteur de règles ;
   un séquestre payé par une autre maison revient au même transfert, puisqu'il ne rend qu'à la trésorerie de sa propre maison, et ses deux contrôles (montant retenu, à qui il paie) tiennent ;
@@ -57,6 +57,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La règle par ligne du service lui cache les bourses : le code d'avant, qui cherche le trésor d'une cité par sa seule cité, n'en trouve toujours qu'un.
   Le code les lit et les verrouille par deux fonctions au nom du propriétaire (`game.npc_purses()`, `game.lock_npc_purses(monde, cité)`), et les mouvemente par les journaux.
   Les comptes publics du trésor (`city_treasury`, `city_treasury_flows`) n'en montrent rien, et le contrôle d'équilibre d'une écriture s'exécute au nom du propriétaire, pour voir aussi les bourses.
+  La bourse ne paie que des achats des PNJ de sa cité : une écriture `npc.purchase` qui règle un échange de son marché (garde `check_treasury_debit` et contrôle du règlement) ; elle ne reçoit jamais la taxe d'un échange.
+  Pour le code précédent, le contrôle du règlement admet encore le robinet `faucet_npc_purchases` comme payeur d'un achat des PNJ ; une migration ultérieure pourra le retirer quand plus aucun moteur déployé ne l'écrira.
 - Rachat du stock d'un bien à retirer (#229, 5.1) : le robinet `faucet_good_buyback` paie, par une écriture `admin.good_buyback` par maison, le stock qui part vers l'extrémité système `good_buyback` du journal des stocks, chaque mouvement rattaché à l'écriture de sa maison.
   Cette extrémité est à sens unique : la base refuse tout mouvement qui en part (contrainte `stock_ledger_buyback_one_way`), si bien qu'un stock racheté ne revient jamais en circulation.
   Les stocks non vides d'un bien se lisent par un index partiel (`inventories_held_by_good_idx`), que le rachat parcourt sous le verrou d'agora de chaque monde concerné.

@@ -136,7 +136,7 @@ select lives_ok(pg_temp.arriving(array['00000000-0000-7000-8000-0000000000aa', '
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('513', 'npc.purchase', array[pg_temp.sys('faucet_starting_grant'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-16, 16])
     || pg_temp.trade('414', '303', null, 8, 2, '513')),
-  '23514', 'trade 00000000-0000-7000-8000-000000000414 must be paid 16 oboles in a single debit of the NPC purchases faucet',
+  '23514', 'trade 00000000-0000-7000-8000-000000000414 must be paid 16 oboles in a single debit of the NPC purse of its city or the NPC purchases faucet',
   'un achat des PNJ n''est payé par aucun autre robinet');
 select throws_ok(format($$select pg_temp.as_service(%L)$$,
     pg_temp.entry('513', 'market.trade', array[pg_temp.sys('faucet_npc_purchases'), '00000000-0000-7000-8000-0000000000bb']::uuid[], array[-16, 16])
@@ -175,7 +175,7 @@ select throws_ok(format($$select pg_temp.as_service(%L)$$,
        insert into game.ledger_lines (entry_id, account_id, amount) values
          ('00000000-0000-7000-8000-000000000526', '00000000-0000-7000-8000-0000000000bb', -8),
          ('00000000-0000-7000-8000-000000000526', '00000000-0000-7000-8000-0000000000cc', 8);$s$),
-  '23514', 'trade 00000000-0000-7000-8000-000000000423 must be paid 8 oboles in a single debit of the NPC purchases faucet',
+  '23514', 'trade 00000000-0000-7000-8000-000000000423 must be paid 8 oboles in a single debit of the NPC purse of its city or the NPC purchases faucet',
   'forcer le contrôle de l''échange avant d''ajouter une ligne ne la soustrait pas au contrôle');
 
 -- Achat qui attendait (301) servi par une vente arrivée après lui (302, 10 à 8 : brut 80) : payé par le séquestre.

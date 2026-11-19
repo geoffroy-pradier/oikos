@@ -52,9 +52,9 @@ grant execute on function pg_temp.fund(bigint) to oikos_service;
 select lives_ok('select pg_temp.fund(500)', 'le robinet crédite la bourse');
 select throws_ok('select pg_temp.fund(-501)', '23514',
   'new row for relation "accounts" violates check constraint "accounts_no_overdraft"', 'une bourse ne devient pas débitrice');
--- Rien ne débite encore une bourse : la garde des trésors (migration 170) refuse tout débit hors d'un décret.
-select throws_ok('select pg_temp.fund(-500); set constraints all immediate', '23514', null,
-  'une bourse ne paie rien d''autre');
+-- Une bourse ne paie que des achats des PNJ (migration 1110, test 530).
+select throws_like('select pg_temp.fund(-500); set constraints all immediate',
+  'the NPC purse of city % pays only NPC purchases', 'une bourse ne paie rien d''autre');
 
 -- Service : il ne voit aucune bourse dans la table, ne les ouvre ni ne les modifie, mais les lit et les verrouille par
 -- les fonctions, et les mouvemente par les journaux.
