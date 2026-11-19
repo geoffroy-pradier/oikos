@@ -440,4 +440,69 @@ describe('GET /api/admin/reports : levées proposées (#616)', () => {
     expect(lifted.body.data).toMatchObject({ sanctionId: forAlice, pending: false });
     expect((await lifts(other)).some((lift) => lift.sanctionId === forAlice)).toBe(false);
   });
+
+  const active = async (token: string) => {
+    const res = await app.request('/api/admin/reports', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return adminReportsSchema.parse(((await res.json()) as { data: unknown }).data)
+      .activeExclusions;
+  };
+
+  it('liste les exclusions en vigueur : pas celles dont l’appel attend, ni dont la levée est proposée (#636)', async () => {
+    const world = await newWorld();
+    const [alice, bob, chloe, dora] = [
+      await world.player(),
+      await world.player(),
+      await world.player(),
+      await world.player(),
+    ];
+    const validator = await moderator();
+    const confirmed = async (user: string) => {
+      const sanctionId = await propose(user);
+      expect((await send(validator, 'admin.confirmExclusion', { sanctionId })).status).toBe(200);
+      return sanctionId;
+    };
+    const [forAlice, forBob, forChloe] = [
+      await confirmed(alice.user),
+      await confirmed(bob.user),
+      await confirmed(chloe.user),
+    ];
+    // Dora : exclusion seulement proposée, jamais listée.
+    const forDora = await propose(dora.user);
+    const [proposer, other] = [await moderator(), await moderator()];
+    expect(
+      (await send(bob.user, 'moderation.appeal', { sanctionId: forBob, body: 'Je conteste.' }))
+        .status,
+    ).toBe(200);
+    const mine = async () =>
+      (await active(other)).filter((item) =>
+        [forAlice, forBob, forChloe, forDora].includes(item.sanctionId),
+      );
+    expect((await mine()).map((item) => item.sanctionId)).toEqual([forAlice, forChloe]);
+    expect((await mine())[0]).toEqual({
+      sanctionId: forAlice,
+      userId: alice.user,
+      reason: 'Triche avérée',
+      authorId: expect.any(String),
+      confirmedBy: idOf(validator),
+      startsAt: expect.any(String),
+    });
+    // La levée proposée passe dans « levées à confirmer » : elle quitte la liste.
+    expect(
+      (await send(proposer, 'admin.liftSanction', { sanctionId: forChloe })).body.data.pending,
+    ).toBe(true);
+    expect((await mine()).map((item) => item.sanctionId)).toEqual([forAlice]);
+    // Appel accueilli : l'exclusion est levée, elle quitte aussi la liste.
+    expect(
+      (await send(other, 'admin.decideAppeal', { sanctionId: forBob, decision: 'granted' })).status,
+    ).toBe(200);
+    expect(await send(other, 'admin.liftSanction', { sanctionId: forAlice })).toMatchObject({
+      status: 200,
+    });
+    expect((await send(validator, 'admin.liftSanction', { sanctionId: forAlice })).status).toBe(
+      200,
+    );
+    expect(await mine()).toEqual([]);
+  });
 });

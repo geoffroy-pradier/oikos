@@ -478,7 +478,7 @@ export function registerAdminReads(
   });
 
   // File de la modération (#276) : signalements ouverts et leur contexte, appels à trancher, exclusions à valider,
-  // levées à confirmer (#616).
+  // levées à confirmer (#616), exclusions en vigueur dont proposer la levée (#636).
   // La base la compose (`admin.moderation_queue`, migration 261) et n'y met aucune donnée économique.
   app.get('/api/admin/reports', async (c) => {
     const { rows } = await sql<{ now: Date; queue: Record<string, unknown> }>`
@@ -508,6 +508,20 @@ export function registerAdminReads(
       .where('lifted_at', 'is', null)
       .where((eb) => eb.or([eb('appeal_body', 'is', null), eb('appeal_decision', 'is not', null)]))
       .orderBy('lift_proposed_at')
+      .orderBy('id')
+      .limit(MAX_REPORT_ENTRIES)
+      .execute();
+    // Exclusions validées et pas encore levées (#636), où poser la première commande de levée : ni celles dont
+    // l'appel attend, qui se lèvent en l'accueillant, ni celles dont la levée est déjà proposée (ci-dessus).
+    const active = await db
+      .selectFrom('admin.sanctions')
+      .select(['id', 'user_id', 'reason', 'author_id', 'validated_by', 'starts_at'])
+      .where('kind', '=', 'ban')
+      .where('validated_by', 'is not', null)
+      .where('lift_proposed_by', 'is', null)
+      .where('lifted_at', 'is', null)
+      .where((eb) => eb.or([eb('appeal_body', 'is', null), eb('appeal_decision', 'is not', null)]))
+      .orderBy('starts_at')
       .orderBy('id')
       .limit(MAX_REPORT_ENTRIES)
       .execute();
@@ -542,6 +556,15 @@ export function registerAdminReads(
         startsAt: lift.starts_at.toISOString(),
         proposedBy: lift.lift_proposed_by,
         proposedAt: lift.lift_proposed_at?.toISOString(),
+      })),
+      // Champ ajouté (#636), de même.
+      activeExclusions: active.map((item) => ({
+        sanctionId: item.id,
+        userId: item.user_id,
+        reason: item.reason,
+        authorId: item.author_id,
+        confirmedBy: item.validated_by,
+        startsAt: item.starts_at.toISOString(),
       })),
     };
     return c.json({ ok: true, data });

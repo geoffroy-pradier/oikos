@@ -94,6 +94,9 @@ describe('GET /api/admin/reports', () => {
         proposedAt: at,
       },
     ],
+    activeExclusions: [
+      { sanctionId: ID, userId: ID, reason: 'Triche', authorId: ID, confirmedBy: ID, startsAt: at },
+    ],
   };
 
   it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
@@ -116,6 +119,8 @@ describe('GET /api/admin/reports', () => {
       // Une levée proposée ne dit rien de plus que les comptes, le motif et les instants (#616).
       { ...reports, pendingLifts: [{ ...reports.pendingLifts[0], balance: 10 }] },
       { ...reports, pendingLifts: [{ ...reports.pendingLifts[0], proposedBy: null }] },
+      { ...reports, activeExclusions: [{ ...reports.activeExclusions[0], balance: 10 }] },
+      { ...reports, activeExclusions: [{ ...reports.activeExclusions[0], confirmedBy: null }] },
     ])
       expect(adminReportsSchema.safeParse(wrong).success).toBe(false);
   });

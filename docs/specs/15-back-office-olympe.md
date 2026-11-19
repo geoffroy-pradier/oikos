@@ -58,6 +58,8 @@ Décision (#616) : elle compte encore quand son auteur perd son rôle, comme une
 Un appel fait après la proposition se tranche comme les autres : accueilli, il lève l'exclusion, même par qui en a proposé la levée, et la proposition reste inscrite sans plus rien attendre ; rejeté, il laisse la proposition, qu'une autre personne confirme ensuite.
 La file de la modération liste les levées proposées (#616) : `GET /api/admin/reports` rend `pendingLifts`, les levées proposées d'exclusions validées et pas encore levées, les plus anciennes d'abord (au plus 200), sauf celles dont l'appel attend, qui se lèvent en l'accueillant.
 Chacune dit l'exclusion (compte exclu, motif, auteur, validateur, début) et la proposition (son auteur, son instant), pour qu'une seconde personne la confirme sans connaître l'identifiant.
+`GET /api/admin/reports` rend aussi `activeExclusions` (#636), les exclusions validées, pas encore levées, sans levée proposée et sans appel qui attend, les plus anciennes d'abord (au plus 200).
+Chacune dit le compte exclu, le motif, l'auteur, le validateur et le début ; l'écran tient la liste pour vide si le champ manque.
 Décision (#616) : un champ ajouté à la réponse existante, comme `sanctionHours` (#541) ; la version précédente d'Olympe ne valide pas la réponse et l'ignore, et l'écran tient pour vide la liste d'une API qui ne la rend pas encore.
 Décision (relecture de #275) : une sanction ne retire pas ses commandes d'administration à un compte de l'équipe, que son rôle seul ouvre ou ferme (`admin.revokeRole`) ; sans cela, un modérateur pourrait suspendre tous les super-administrateurs et fermer Olympe.
 Décision (relecture de #275) : un message signalé est purgé avec les autres, au bout de `chat.retentionDays` jours (18) ; la file garde alors le signalement et la maison signalée, sans texte ni contexte, et le seuil d'alerte de 24 heures (15.5) le veut traité bien avant ; l'alerte de la Vigie qui le surveille lit son compte dans `GET /api/admin/vigie` (#530).
@@ -66,10 +68,11 @@ Chaque entrée dit la maison signalée, les motifs et l'ancienneté du plus anci
 Les gestes d'une entrée sont : masquer le message, avertir, réduire au silence, suspendre, proposer une exclusion, retenir le signalement, le classer sans suite.
 Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clavier va au geste sans effet (« Annuler »), et la répétition d'une touche Entrée tenue n'ouvre ni ne confirme rien, comme dans le module Accès (15.3).
 Une sanction à durée demande, dans sa confirmation, l'une des durées proposées et un motif ; une exclusion ne demande que le motif.
-Sous la file, l'écran liste les exclusions proposées à valider, les levées d'exclusion à confirmer (#616) et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
+Sous la file, l'écran liste les exclusions proposées à valider, les exclusions en vigueur, les levées d'exclusion à confirmer (#616) et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
 Valider une exclusion, confirmer une levée, accueillir ou rejeter un appel passent par la même confirmation que les gestes de la file.
 Retirer une exclusion proposée est un geste de la liste des exclusions à valider (#636), ouvert à tout compte de la modération sauf le compte exclu, avec la même confirmation.
-Proposer une levée n'a pas encore de geste dans l'écran : la lecture `GET /api/admin/reports` ne rend pas les exclusions validées et pas encore levées, il attend un ticket de suite qui les ajoute.
+Proposer la levée d'une exclusion validée est un geste de la liste des exclusions en vigueur (#636), avec la même confirmation ; la commande est `admin.liftSanction`, la même que celle qui confirme la levée.
+Une fois la levée proposée, l'exclusion quitte cette liste et la file la montre dans les levées à confirmer, où une autre personne la confirme.
 Décision (ambiguïté du ticket) : `admin.decideAppeal` ne porte pas de motif, seulement la décision ; la décision « motivée » du ticket ne l'est donc pas en base, et l'écran n'ajoute pas de champ qui ne mènerait nulle part.
 Un ticket de suite, qui touche à l'API et à la base, ajoutera le motif de décision si la modération le veut.
 Durées proposées (#541) : `GET /api/admin/reports` rend `sanctionHours`, les durées de `moderation.sanctionHours` dans la version en vigueur à l'heure de la base, et rien d'autre de la configuration que ce seuil et ces durées.
