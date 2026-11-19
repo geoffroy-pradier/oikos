@@ -220,9 +220,7 @@ export function Vigie({ accessToken }: { accessToken: string }) {
               className="min-w-0 rounded-lg border border-border-subtle bg-muted/40 p-3 shadow-sm"
             >
               <dt className="eyebrow">{label}</dt>
-              <dd className="mt-1 font-display text-2xl font-semibold tabular-nums wrap-anywhere">
-                {value}
-              </dd>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums wrap-anywhere">{value}</dd>
             </div>
           ))}
         </dl>

@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Button, Card, EmptyState, Frieze, House, Inbox, ScrollText } from '@oikos/ui';
+import { Button, Card, EmptyState, House, Inbox, ScrollText } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -251,7 +251,6 @@ export function PropertyScreen() {
   return (
     <div className="flex flex-col gap-4">
       <Card elevation="raised" className="flex flex-col gap-2 overflow-hidden p-0">
-        <Frieze tone="accent" />
         <div className="flex flex-col gap-2 p-4">
           <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
             <House aria-hidden="true" className="size-6 text-accent" />

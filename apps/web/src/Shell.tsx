@@ -1,4 +1,4 @@
-import { cn, Frieze, House, Landmark, MapIcon, MessagesSquare, Store, type Icon } from '@oikos/ui';
+import { cn, House, Landmark, MapIcon, MessagesSquare, Store, type Icon } from '@oikos/ui';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -52,11 +52,10 @@ export function Shell() {
         aria-label={t('shell.navigation')}
         className="fixed inset-x-0 bottom-0 z-10 border-t border-border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-lg backdrop-blur lg:sticky lg:inset-x-auto lg:top-0 lg:h-dvh lg:border-t-0 lg:border-r lg:pb-0 lg:shadow-none"
       >
-        <p className="hidden items-center gap-2 p-4 font-display text-2xl font-semibold text-primary lg:flex">
+        <p className="hidden items-center gap-2 p-4 text-2xl font-semibold text-primary lg:flex">
           <Landmark aria-hidden="true" className="size-6" />
           {t('app.title')}
         </p>
-        <Frieze className="hidden lg:block" />
         <ul className="grid grid-cols-5 lg:flex lg:flex-col lg:gap-1 lg:p-3">
           {TABS.map((tab) => {
             const Icon = ICONS[tab.id];
@@ -96,7 +95,6 @@ export function Shell() {
 
       <div className="min-w-0 pb-20 lg:pb-0">
         <ShellHeader dark={theme === 'dark'} onToggleTheme={toggleTheme} onSignOut={signOut} />
-        <Frieze />
         {/* Clé sur le chemin : chaque écran paraît par une courte montée (coupée sous reduced-motion). */}
         <main id="main" tabIndex={-1} className="mx-auto max-w-5xl p-4 lg:p-8">
           <div key={pathname} className="animate-rise">

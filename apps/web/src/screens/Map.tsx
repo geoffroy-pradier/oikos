@@ -1,4 +1,4 @@
-import { Card, Frieze, MapIcon, Ship, Waves } from '@oikos/ui';
+import { Card, MapIcon, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -61,7 +61,6 @@ export function MapScreen() {
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Card elevation="raised" className="overflow-hidden p-0">
-        <Frieze tone="aegean" pattern="wave" />
         <div className="flex flex-col gap-1 p-4">
           <h1 className="flex items-center gap-2 text-2xl">
             <MapIcon aria-hidden="true" className="size-6 shrink-0 text-aegean" />

@@ -1,44 +1,59 @@
 /*
- * Thème OIKOS (docs/specs/10-ux-ui.md, ADR 0010) : céramique grecque à figures noires et rouges,
- * traitée en surfaces superposées. Terre cuite, noir, ocre, bleu égéen ; thèmes clair et sombre.
+ * Thème OIKOS (docs/specs/10-ux-ui.md, ADR 0011) : interface épurée, fond neutre (graphite en sombre,
+ * gris très clair en clair), deux plans de surface, un seul accent orange pour l'action principale,
+ * l'état actif et les données mises en avant. Aucun ornement ; Inter seule, chiffres tabulaires
+ * (`tabular-nums`) pour tout montant ou quantité. Ombres discrètes en clair, bordures en sombre.
  * Les couples texte/fond déclarés dans `src/contrast.ts` sont vérifiés AA par les tests.
- * Polices auto-hébergées (@fontsource), jamais chargées depuis un service tiers.
+ * Police auto-hébergée (@fontsource), jamais chargée depuis un service tiers.
  */
 @import 'tailwindcss';
-@import '@fontsource-variable/fraunces';
 @import '@fontsource-variable/inter';
 @source '.';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* `data-theme='light'` aussi : un bloc clair peut s'afficher dans une page sombre (catalogue). */
+[data-theme='light'],
 :root {
   color-scheme: light;
-  --background: #f6f0e6;
-  --foreground: #1f1a17;
-  --surface: #fffdf9;
-  --surface-raised: #ffffff;
-  --muted: #ede4d6;
-  --muted-foreground: #5c5248;
-  --border: #8f8172;
+  --background: #f5f6f8;
+  --foreground: #111317;
+  --foreground-secondary: #4b5159;
+  --surface: #ffffff;
+  --surface-raised: #eef0f3;
+  --muted: #e9ecef;
+  --muted-foreground: #5d636b;
+  --border: #848a93;
   /* Filet décoratif des surfaces : jamais seul à délimiter une commande. */
-  --border-subtle: #e2d6c4;
-  --primary: #a33a17;
-  --primary-hover: #872e10;
+  --border-subtle: #e4e6ea;
+  /* Accent orange : fond du bouton principal (`primary`), texte et icônes (`accent`). */
+  --primary: #c2410c;
+  --primary-hover: #9a3412;
   --primary-foreground: #ffffff;
-  --primary-subtle: #f8e2d6;
-  --accent: #865408;
-  --accent-subtle: #f6e7c6;
-  --aegean: #1d4f86;
-  --aegean-subtle: #dfe9f5;
-  --success: #3f6212;
-  --success-subtle: #e5edd2;
-  --danger: #9f1d1d;
-  --danger-subtle: #f9dfdb;
-  --focus: #1d4ed8;
-  --glow: rgb(163 58 23 / 0.09);
-  --elevation-1: 0 1px 2px rgb(68 38 18 / 0.06), 0 1px 3px rgb(68 38 18 / 0.08);
-  --elevation-2: 0 2px 4px rgb(68 38 18 / 0.05), 0 8px 20px -4px rgb(68 38 18 / 0.12);
-  --elevation-3: 0 4px 8px rgb(68 38 18 / 0.06), 0 20px 40px -8px rgb(68 38 18 / 0.18);
+  --primary-subtle: #ffedd5;
+  --accent: #c2410c;
+  --accent-subtle: #ffedd5;
+  /* Accent décoratif (graphiques, repères) : jamais seul à porter un texte ou une commande. */
+  --accent-decorative: #f97316;
+  --success: #067647;
+  --success-subtle: #ecfdf3;
+  --warning: #b54708;
+  --warning-subtle: #fff1e8;
+  --danger: #b42318;
+  --danger-subtle: #fef3f2;
+  --info: #175cd3;
+  --info-subtle: #eff8ff;
+  /* Ancien nom de l'information, gardé tant que des écrans l'emploient. */
+  --aegean: #175cd3;
+  --aegean-subtle: #eff8ff;
+  --focus: #175cd3;
+  /* Carte seulement : la mer, les terres, le trait de côte (décoratif, doublé d'une liste). */
+  --sea: #dcebf5;
+  --land: #f3efe7;
+  --coast: #b9c2cb;
+  --elevation-1: 0 1px 2px rgb(16 24 40 / 0.05);
+  --elevation-2: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px -2px rgb(16 24 40 / 0.06);
+  --elevation-3: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 32px -8px rgb(16 24 40 / 0.12);
   /* Mouvement : court et amorti, coupé sous prefers-reduced-motion. */
   --motion-fast: 120ms;
   --motion-base: 200ms;
@@ -47,36 +62,46 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --background: #13100e;
-  --foreground: #f4ede3;
-  --surface: #1d1916;
-  --surface-raised: #26211d;
-  --muted: #2d2723;
-  --muted-foreground: #bcb0a2;
-  --border: #8a7c6d;
-  --border-subtle: #352e29;
-  --primary: #ee8f62;
-  --primary-hover: #f4a881;
-  --primary-foreground: #1a1210;
-  --primary-subtle: #3a2219;
-  --accent: #e3b45e;
-  --accent-subtle: #33270f;
-  --aegean: #8abbeb;
-  --aegean-subtle: #172738;
-  --success: #a8c972;
-  --success-subtle: #1f2a14;
-  --danger: #f39088;
-  --danger-subtle: #3a1a18;
-  --focus: #93c5fd;
-  --glow: rgb(238 143 98 / 0.08);
-  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --elevation-2: 0 4px 12px -2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --elevation-3: 0 16px 40px -8px rgb(0 0 0 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --background: #0e0f11;
+  --foreground: #f2f3f5;
+  --foreground-secondary: #c9cdd2;
+  --surface: #17191c;
+  --surface-raised: #1d2024;
+  --muted: #24272c;
+  --muted-foreground: #9ba1a9;
+  --border: #686d75;
+  --border-subtle: #26292e;
+  --primary: #ff7a1a;
+  --primary-hover: #ff8f40;
+  --primary-foreground: #121212;
+  --primary-subtle: #2e1d10;
+  --accent: #ff8a3d;
+  --accent-subtle: #2e1d10;
+  --accent-decorative: #ff7a1a;
+  --success: #3dd68c;
+  --success-subtle: #10261b;
+  --warning: #ff9a52;
+  --warning-subtle: #2a1c10;
+  --danger: #ff7b7b;
+  --danger-subtle: #2b1a1a;
+  --info: #6cb8ff;
+  --info-subtle: #10202e;
+  --aegean: #6cb8ff;
+  --aegean-subtle: #10202e;
+  --focus: #6cb8ff;
+  --sea: #0b1520;
+  --land: #1e262d;
+  --coast: #3a4651;
+  /* Aucune ombre en sombre : les plans se séparent par leurs bordures. */
+  --elevation-1: 0 0 #0000;
+  --elevation-2: 0 0 #0000;
+  --elevation-3: 0 0 #0000;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-muted: var(--muted);
@@ -89,21 +114,31 @@
   --color-primary-subtle: var(--primary-subtle);
   --color-accent: var(--accent);
   --color-accent-subtle: var(--accent-subtle);
+  --color-accent-decorative: var(--accent-decorative);
   --color-aegean: var(--aegean);
   --color-aegean-subtle: var(--aegean-subtle);
   --color-success: var(--success);
   --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
   --color-danger: var(--danger);
   --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+  --color-sea: var(--sea);
+  --color-land: var(--land);
+  --color-coast: var(--coast);
   --color-focus: var(--focus);
   --shadow-sm: var(--elevation-1);
   --shadow-md: var(--elevation-2);
   --shadow-lg: var(--elevation-3);
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Fraunces Variable', 'Iowan Old Style', Palatino, Georgia, ui-serif, serif;
+  /* Rayons de 10 à 24 px selon la taille de l'élément : commande, pastille, fiche, feuille. */
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
-  --radius-xl: 1.25rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-rise: rise var(--motion-slow) var(--ease-out) both;
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
@@ -128,17 +163,15 @@
   html {
     /* La taille de police suit le réglage du navigateur : tout est exprimé en rem. */
     font-family: var(--font-sans);
-    background: radial-gradient(60rem 30rem at 15% -10%, var(--glow), transparent 70%) no-repeat
-      var(--background);
+    background: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
   }
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
     line-height: 1.15;
     text-wrap: balance;
   }
@@ -164,20 +197,4 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-}
-
-/* Frises : motif décoratif à la couleur du texte (terre cuite par défaut), jamais porteur d'information. */
-@utility meander {
-  height: 0.75rem;
-  color: var(--primary);
-  background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 11h12M9 11V1H2v7h5V4H5' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
-    0 0 / auto 100% repeat-x;
-}
-@utility frieze-wave {
-  height: 0.75rem;
-  color: var(--primary);
-  background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 9c3 0 3-6 6-6s3 6 6 6' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
-    0 0 / auto 100% repeat-x;
 }

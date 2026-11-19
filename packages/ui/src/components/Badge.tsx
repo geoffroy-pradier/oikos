@@ -7,7 +7,9 @@ const TONES = {
   accent: 'bg-accent-subtle text-accent',
   aegean: 'bg-aegean-subtle text-aegean',
   success: 'bg-success-subtle text-success',
+  warning: 'bg-warning-subtle text-warning',
   danger: 'bg-danger-subtle text-danger',
+  info: 'bg-info-subtle text-info',
 } as const;
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

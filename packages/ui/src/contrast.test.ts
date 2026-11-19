@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CONTRAST_PAIRS, contrastRatio } from './contrast';
+import { COLOR_TOKENS, CONTRAST_PAIRS, contrastRatio } from './contrast';
 
 /** Lit les variables de couleur d'un bloc de `theme.css`. */
 function tokens(selector: string): Record<string, string> {
@@ -36,5 +36,13 @@ describe.each([
     const [fg, bg] = [theme[foreground], theme[background]];
     if (!fg || !bg) throw new Error(`Jeton manquant : ${foreground} ou ${background}`);
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(threshold);
+  });
+});
+
+describe('COLOR_TOKENS', () => {
+  it('nomme chaque jeton de couleur du thème, une seule fois', () => {
+    const listed = Object.values(COLOR_TOKENS).flat();
+    expect(new Set(listed).size).toBe(listed.length);
+    expect([...listed].sort()).toEqual(Object.keys(tokens(':root')).sort());
   });
 });

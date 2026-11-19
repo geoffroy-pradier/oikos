@@ -1,5 +1,5 @@
 import { marketPlaceOrderInputSchema } from '@oikos/contracts';
-import { Badge, Button, Card, CircleAlert, Frieze, Info, Scale, Store } from '@oikos/ui';
+import { Badge, Button, Card, CircleAlert, Info, Scale, Store } from '@oikos/ui';
 import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -187,7 +187,6 @@ export function AgoraScreen() {
   return (
     <div className="flex flex-col gap-4">
       <Card elevation="raised" className="flex flex-col gap-3 overflow-hidden p-0">
-        <Frieze tone="accent" />
         <div className="flex flex-col gap-3 p-4">
           {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
           <h1 className="text-2xl">

@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, CircleAlert, Frieze, Info } from '@oikos/ui';
+import { Anchor, Badge, Button, Card, CircleAlert, Info } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -74,7 +74,6 @@ export function ShipScreen() {
       )}
       {ship && (
         <Card elevation="raised" className="flex flex-col gap-3 overflow-hidden p-0">
-          <Frieze tone="aegean" pattern="wave" />
           <div className="flex flex-col gap-3 p-4">
             <h1 className="text-2xl">{shipName(ship)}</h1>
             <p>

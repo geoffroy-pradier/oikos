@@ -5,7 +5,6 @@ import {
   Card,
   Coins,
   Eye,
-  Frieze,
   Gavel,
   KeyRound,
   Landmark,
@@ -140,7 +139,7 @@ export function App() {
         >
           <ShieldAlert />
         </span>
-        <p role="alert" className="font-display text-xl font-semibold">
+        <p role="alert" className="text-xl font-semibold">
           {t('app.forbidden')}
         </p>
         <p className="text-muted-foreground">{t('app.forbiddenNext')}</p>
@@ -172,7 +171,7 @@ export function App() {
     <div className="min-h-dvh bg-background text-foreground">
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border-subtle bg-surface px-4 py-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 font-display text-3xl font-semibold text-primary">
+          <p className="flex items-center gap-2 text-3xl font-semibold text-primary">
             <Landmark aria-hidden="true" className="size-7 shrink-0" />
             {t('app.title')}
           </p>
@@ -211,7 +210,6 @@ export function App() {
           )}
         </div>
       </header>
-      <Frieze />
       <div className={modules.length > 0 ? 'lg:grid lg:grid-cols-[14rem_1fr]' : undefined}>
         {modules.length > 0 && (
           <nav

@@ -49,14 +49,14 @@ export function ShellHeader({ dark, onToggleTheme, onSignOut }: Props) {
       <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
         {house.blazon && <Blazon blazon={house.blazon} />}
         <div className="min-w-0">
-          <p className="truncate font-display text-lg leading-tight font-semibold">
+          <p className="truncate text-lg leading-tight font-semibold">
             {t('shell.house', { name: house.name })}
           </p>
           <p className="truncate text-sm text-muted-foreground">{house.cityName}</p>
         </div>
       </div>
       {/* Libellé et montant dans un seul élément : le montant seul reste celui de l'écran Maison. */}
-      <p className="order-1 flex flex-col font-display text-lg font-semibold tabular-nums sm:order-none">
+      <p className="order-1 flex flex-col text-lg font-semibold tabular-nums sm:order-none">
         <span className="eyebrow">{t('shell.balance')}</span>
         {balance !== undefined ? (
           money(balance)

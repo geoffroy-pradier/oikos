@@ -1,4 +1,4 @@
-import { Button, Card, EmptyState, Frieze, Scale, TriangleAlert } from '@oikos/ui';
+import { Button, Card, EmptyState, Scale, TriangleAlert } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -73,7 +73,6 @@ export function AccountsScreen() {
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <Card elevation="raised" className="overflow-hidden p-0">
-        <Frieze tone="accent" />
         <div className="flex flex-col gap-1 p-4">
           <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
             <Scale aria-hidden="true" className="size-6 text-accent" />
@@ -108,7 +107,7 @@ export function AccountsScreen() {
                 key={line}
                 className={
                   line === 'total'
-                    ? `${LINE} mt-2 border-t border-border pt-2 font-display text-xl`
+                    ? `${LINE} mt-2 border-t border-border pt-2 text-xl`
                     : `${LINE} py-1`
                 }
               >

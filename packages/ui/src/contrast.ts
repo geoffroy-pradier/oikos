@@ -19,12 +19,46 @@ function luminance(hex: string): number {
 export const AA_TEXT = 4.5;
 export const AA_UI = 3;
 
+/** Jetons de couleur de `theme.css`, par rôle, dans l'ordre où le catalogue les montre. */
+export const COLOR_TOKENS = {
+  surfaces: ['background', 'surface', 'surface-raised', 'muted', 'border', 'border-subtle'],
+  text: ['foreground', 'foreground-secondary', 'muted-foreground'],
+  accent: [
+    'primary',
+    'primary-hover',
+    'primary-foreground',
+    'primary-subtle',
+    'accent',
+    'accent-subtle',
+    'accent-decorative',
+    'focus',
+  ],
+  states: [
+    'success',
+    'success-subtle',
+    'warning',
+    'warning-subtle',
+    'danger',
+    'danger-subtle',
+    'info',
+    'info-subtle',
+    'aegean',
+    'aegean-subtle',
+  ],
+  map: ['sea', 'land', 'coast'],
+} as const;
+
 /** Couples (premier plan, fond) utilisés par les composants ; chacun doit tenir son seuil dans les deux thèmes. */
 export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['foreground', 'background', AA_TEXT],
   ['foreground', 'surface', AA_TEXT],
   ['foreground', 'surface-raised', AA_TEXT],
   ['foreground', 'muted', AA_TEXT],
+  // Trois niveaux de texte : principal, secondaire, atténué.
+  ['foreground-secondary', 'background', AA_TEXT],
+  ['foreground-secondary', 'surface', AA_TEXT],
+  ['foreground-secondary', 'surface-raised', AA_TEXT],
+  ['foreground-secondary', 'muted', AA_TEXT],
   ['muted-foreground', 'background', AA_TEXT],
   ['muted-foreground', 'surface', AA_TEXT],
   ['muted-foreground', 'surface-raised', AA_TEXT],
@@ -37,6 +71,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['aegean', 'aegean-subtle', AA_TEXT],
   ['success', 'success-subtle', AA_TEXT],
   ['danger', 'danger-subtle', AA_TEXT],
+  ['warning', 'warning-subtle', AA_TEXT],
+  ['info', 'info-subtle', AA_TEXT],
   ['success', 'surface', AA_TEXT],
   ['primary', 'background', AA_TEXT],
   ['primary', 'surface', AA_TEXT],
@@ -46,9 +82,24 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['aegean', 'surface', AA_TEXT],
   ['danger', 'background', AA_TEXT],
   ['danger', 'surface', AA_TEXT],
+  // Teintes en texte sur la fiche surélevée et sur le fond, pour les états.
+  ['accent', 'surface-raised', AA_TEXT],
+  ['danger', 'surface-raised', AA_TEXT],
+  ['success', 'background', AA_TEXT],
+  ['success', 'surface-raised', AA_TEXT],
+  ['warning', 'background', AA_TEXT],
+  ['warning', 'surface', AA_TEXT],
+  ['warning', 'surface-raised', AA_TEXT],
+  ['info', 'background', AA_TEXT],
+  ['info', 'surface', AA_TEXT],
+  ['info', 'surface-raised', AA_TEXT],
+  // Carte : les noms se lisent sur la mer comme sur les terres.
+  ['foreground', 'sea', AA_TEXT],
+  ['foreground', 'land', AA_TEXT],
   ['border', 'background', AA_UI],
   ['border', 'surface', AA_UI],
   ['border', 'surface-raised', AA_UI],
   ['focus', 'background', AA_UI],
   ['focus', 'surface', AA_UI],
+  ['focus', 'surface-raised', AA_UI],
 ];
