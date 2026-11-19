@@ -143,8 +143,10 @@ const restartLinesOf = async ({ houseId }: Player) =>
       account: string;
       amount: string;
       nature: string | null;
-    }>`select coalesce(a.system_key, 'treasury') as account, l.amount, l.nature
-      from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+    }>`select case when p.account_id is null then coalesce(a.system_key, 'treasury') else 'npc_purse' end as account,
+        l.amount, l.nature
+      from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
+      left join game.accounts a on a.id = l.account_id left join game.npc_purses() p on p.account_id = l.account_id
       where e.kind = 'upkeep.restart' and e.meta->>'houseId' = ${houseId} order by e.created_at, l.nature, a.system_key`.execute(
       db,
     )
@@ -352,8 +354,8 @@ describe('site.restart', () => {
     expect(await restartLinesOf(player)).toEqual([
       { account: 'treasury', amount: '-30', nature: 'upkeep' },
       { account: 'treasury', amount: '-20', nature: 'wages' },
-      { account: 'sink_npc_wages', amount: '20', nature: null },
       { account: 'sink_upkeep', amount: '30', nature: null },
+      { account: 'npc_purse', amount: '20', nature: null },
     ]);
     const events = await sql<{ payload: unknown }>`select payload from game.domain_events
       where type = 'SiteRestarted' and payload->>'siteId' = ${player.siteId}`.execute(db);

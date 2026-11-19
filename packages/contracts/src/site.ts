@@ -180,11 +180,11 @@ export const siteRestartOutputSchema = z.object({
   siteId: z.uuid(),
   /** Entretien payé, en oboles, détruit par le puits `sink_upkeep`. */
   upkeepOboles: z.number().int().nonnegative(),
-  /** Salaires payés, en oboles, détruits par le puits `sink_npc_wages` (4.4). */
+  /** Salaires payés, en oboles, versés à la bourse des PNJ de la cité du site (4.4, #632). */
   wagesOboles: z.number().int().nonnegative(),
   /**
-   * Hébergement payé pour les travailleurs du site sans logement, en oboles, détruit par le puits
-   * `sink_npc_lodging` (#258). Absent d'une réponse antérieure : rien.
+   * Hébergement payé pour les travailleurs du site sans logement, en oboles, versé à la bourse des PNJ de la
+   * cité du site (#258, #632). Absent d'une réponse antérieure : rien.
    */
   lodgingOboles: z.number().int().nonnegative().optional(),
   /** Début du cycle repris : celui d'avant l'arrêt, décalé de la durée de l'arrêt (ISO 8601). */

@@ -97,22 +97,28 @@ const credit = ({ worldId, houseId }: House, oboles: number) =>
     owner,
   );
 const rows = async <T>(query: ReturnType<typeof sql<T>>) => (await query.execute(db)).rows;
-/** Trésorerie, puits de l'entretien et puits des salaires, et leur somme, que la clôture ne change pas. */
+/**
+ * Trésorerie, puits de l'entretien et bourses des PNJ du monde, qui reçoivent les salaires (#632), et leur
+ * somme, que la clôture ne change pas.
+ */
 const balances = async ({ worldId, houseId }: House) => {
   const found = await rows(sql<{
     key: string;
     balance: string;
   }>`select coalesce(system_key, 'treasury') as key, balance
     from game.accounts where world_id = ${worldId}
-      and ((kind = 'house' and house_id = ${houseId}) or system_key in ('sink_upkeep', 'sink_npc_wages'))`);
+      and ((kind = 'house' and house_id = ${houseId}) or system_key = 'sink_upkeep')
+    union all select 'npc_purse', sum(balance) from game.npc_purses() where world_id = ${worldId}`);
   const of = (key: string) => Number(found.find((row) => row.key === key)?.balance);
-  return [of('treasury'), of('sink_upkeep'), of('sink_npc_wages')];
+  return [of('treasury'), of('sink_upkeep'), of('npc_purse')];
 };
 /** Écritures d'entretien de la maison : leur méta et leurs lignes (compte, montant, nature). */
 const entriesOf = ({ houseId }: House) =>
   rows(sql<{ meta: Record<string, unknown>; lines: string[] }>`select e.meta,
-      array_agg(coalesce(a.system_key, 'treasury') || ' ' || l.amount || ' ' || coalesce(l.nature, '-') order by l.amount, a.system_key) as lines
-    from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+      array_agg(case when p.account_id is null then coalesce(a.system_key, 'treasury') else 'npc_purse' end
+        || ' ' || l.amount || ' ' || coalesce(l.nature, '-') order by l.amount, a.system_key) as lines
+    from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
+    left join game.accounts a on a.id = l.account_id left join game.npc_purses() p on p.account_id = l.account_id
     where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId} group by e.id order by e.created_at`);
 /** Intendants actifs (payés par la dernière clôture), dans l'ordre de leur embauche. */
 const activeOf = async ({ stewardIds }: House) =>
@@ -159,12 +165,7 @@ describe('salaires des intendants à la clôture (#278)', () => {
           sites: [{ siteId: house.siteId, oboles: 30, upkeepOboles: 30, wagesOboles: 0 }],
           stewards: [wage(fresh), wage(active)],
         },
-        lines: [
-          'treasury -30 upkeep',
-          'treasury -16 wages',
-          'sink_npc_wages 16 -',
-          'sink_upkeep 30 -',
-        ],
+        lines: ['treasury -30 upkeep', 'treasury -16 wages', 'npc_purse 16 -', 'sink_upkeep 30 -'],
       },
     ]);
     // Le nouvel intendant est actif, payé pour la première fois ; les autres ne changent pas.
@@ -252,8 +253,7 @@ describe('salaires des intendants à la clôture (#278)', () => {
         'treasury -30 upkeep',
         'treasury -18 wages',
         'treasury -8 wages',
-        'sink_npc_wages 8 -',
-        'sink_npc_wages 18 -',
+        'npc_purse 26 -',
         'sink_upkeep 30 -',
       ],
     ]);

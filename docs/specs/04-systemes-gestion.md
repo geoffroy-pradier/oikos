@@ -150,7 +150,8 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Chacun est payé chaque jour le salaire du jour de la cité du site, un paramètre du back-office par cité (`staff.dailyWageOboles`), nul dans la configuration initiale ; une version publiée avant le personnel, ou une cité qu'elle ne nomme pas, ne paie aucun salaire.
   Une section `staff` non vide nomme chaque cité de la configuration, et elles seules.
   Salaires d'un site pour un jour = travailleurs × salaire du jour, en oboles, sans arrondi.
-  Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et détruits (puits `sink_npc_wages`, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.
+  Ils sont payés à la clôture avec l'entretien du site, en entier ou pas du tout, et versés à la bourse des PNJ de la cité du site (#632, 5.5) ; un site dont les salaires sont impayés est à l'arrêt comme un site dont l'entretien l'est.
+  Avant #632, ils étaient détruits (puits `sink_npc_wages`, gardé au catalogue pour l'historique, sans mouvement nouveau).
   Le salaire du jour est une règle publique, lue par les joueurs avec les règles des sites (vue `site_rules`, clé `staff` de la colonne `sites`).
   Marché du travail (#258) : l'offre de travail d'une cité est la part de la population de ses classes que la configuration désigne comme travailleuses (`labor.workingShareBps`, arrondie à l'habitant inférieur, sur la population courante ; celle de la configuration pour une classe que le moteur n'a pas encore fait naître).
   Sans classe travailleuse, l'offre est sans limite.
@@ -161,7 +162,7 @@ Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊q
   Ces commandes se suivent par cité (verrou consultatif `labor:<cité>`, pris avant la trésorerie et les sites, que la clôture peut tenir) : deux acquisitions simultanées ne prennent pas les mêmes travailleurs.
   La clôture et la relance paient le salaire du jour fixé par la dernière clôture de la cité du site ; sans lui (avant la première clôture qui le fixe), le salaire de base.
   Logement (#258) : une maison loge ses travailleurs dans les logements qu'elle possède ou loue dans la cité de ses sites (4.5), les sites les plus anciens d'abord.
-  Chaque travailleur sans logement lui coûte chaque jour une nuit d'hébergement chez les PNJ, dont la monnaie est détruite (puits `sink_npc_lodging`, 5.5) : son prix du jour, fixé avec le salaire, est le prix de base de la configuration (`labor.lodging.baseOboles`) multiplié par une courbe de la pénurie de logements de la cité (non logés ÷ employés), bornée de même (`lodgingPrice`).
+  Chaque travailleur sans logement lui coûte chaque jour une nuit d'hébergement chez les PNJ, versée à la bourse des PNJ de la cité du site (#632, 5.5 ; avant, détruite par le puits `sink_npc_lodging`) : son prix du jour, fixé avec le salaire, est le prix de base de la configuration (`labor.lodging.baseOboles`) multiplié par une courbe de la pénurie de logements de la cité (non logés ÷ employés), bornée de même (`lodgingPrice`).
   La pénurie fait donc monter le coût du travail, ce qui donne un sens économique aux baux.
   Le marché du travail du jour de chaque cité est public (vue `labor_market` : offre, employés, non logés, salaire et hébergement) ; une maison lit ses travailleurs, site par site, logés ou non (vue `my_workforce`, calculée à la lecture comme la relance les compte).
   La configuration initiale est neutre : aucune classe travailleuse (offre sans limite), courbe du salaire à ×1, hébergement nul.

@@ -11,7 +11,7 @@ import {
   sumDailyDues,
   type SystemAccountKey,
 } from '@oikos/sim';
-import { readHousing, type Db } from '@oikos/db';
+import { lockNpcPurses, readHousing, type Db } from '@oikos/db';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 
@@ -19,7 +19,9 @@ import type { CloseStep } from '../close';
  * Puits du dû quotidien des sites (docs/specs/05-economie.md, 5.5), dans l'ordre où ils sont verrouillés :
  * l'entretien, puis les salaires (4.4), puis l'entretien des navires (4.6) et celui des biens immobiliers
  * (4.5), que seule la clôture prélève, puis l'hébergement chez les PNJ (#258). La relance d'un site prend
- * l'entretien, les salaires et l'hébergement, dans le même ordre.
+ * l'entretien, les salaires et l'hébergement, dans le même ordre. Depuis #632, salaires et hébergement vont
+ * aux bourses des PNJ : leurs deux puits ne reçoivent plus rien, mais restent verrouillés, à leur place, pour
+ * garder l'ordre des verrous (la clôture et la relance prennent les bourses juste après eux).
  */
 const SINKS = [
   'sink_upkeep',
@@ -57,7 +59,8 @@ export async function lockUpkeepSinks(trx: Db, worldId: string) {
  * recette, à l'arrêt ou non. Par maison, `settleUpkeep` décide de ce que la trésorerie paie, chaque site
  * en entier ou pas du tout ; le tout part aux puits par une seule écriture du grand livre, qui enregistre
  * la décision (maison, jour de jeu, sites payés) et porte une ligne de débit de la trésorerie par nature
- * (`upkeep`, `wages`, 4.1), chacune vers son puits. Une part nulle n'a pas de ligne. Un site impayé
+ * (`upkeep`, `wages`, 4.1) ; l'entretien va à son puits, les salaires à la bourse des PNJ de la cité de
+ * chaque site (#632), une ligne par bourse. Une part nulle n'a pas de ligne. Un site impayé
  * s'arrête, un site à l'arrêt qui est payé repart. Un site dont la recette n'est plus dans la
  * configuration n'a plus de type ni de travailleurs, donc rien à payer.
  * Ses navires (4.6, #252) sont examinés ensuite, avec ce qui reste de la trésorerie : chacun doit
@@ -72,11 +75,11 @@ export async function lockUpkeepSinks(trx: Db, worldId: string) {
  * d'enregistrer (4.4, #258) ; sans eux (étape jouée seule), le salaire de base de la configuration, et
  * aucun hébergement. Les travailleurs d'un site que les logements de sa maison dans sa cité ne logent pas
  * (les sites les plus anciens d'abord) coûtent chacun une nuit d'hébergement, comptée dans le dû du site,
- * payé en entier ou pas du tout ; elle part au puits `sink_npc_lodging` par une écriture `lodging.daily`
- * de la même transaction, de nature 4.1 `lodging`.
+ * payé en entier ou pas du tout ; elle part à la bourse des PNJ de la cité du site (#632) par une écriture
+ * `lodging.daily` de la même transaction, de nature 4.1 `lodging`.
  * Ses intendants (4.4, #278) enfin, en poste et embauchés avant l'instant de la clôture, dans l'ordre de leur
  * embauche : chacun doit le salaire d'un jour de la configuration, payé en entier ou pas du tout, par une ligne
- * `wages` vers le puits `sink_npc_wages` de la même écriture, qui nomme son site. Un intendant impayé est
+ * `wages` de la même écriture, versée à la bourse des PNJ de la cité de son site (#632). Un intendant impayé est
  * inactif jusqu'à la clôture qui le paie ; un salaire nul est payé, et rend actif l'intendant tout juste embauché.
  * Une version sans section `stewards` les tient tous impayés, sans rien prélever.
  * Chaque maison concernée reçoit un événement de domaine `UpkeepSettled`.
@@ -92,10 +95,14 @@ export const siteUpkeep: CloseStep = {
     await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
       trx,
     );
-    const [upkeepSink, wagesSink, shipSink, propertySink, lodgingSink] = await lockUpkeepSinks(
-      trx,
-      worldId,
-    );
+    const [upkeepSink, , shipSink, propertySink] = await lockUpkeepSinks(trx, worldId);
+    // Les bourses des PNJ du monde (#632), après les puits et avant toute trésorerie, comme la relance.
+    const purses = await lockNpcPurses(trx, worldId);
+    const purseOf = (cityId: string) => {
+      const purse = purses.get(cityId);
+      if (!purse) throw new Error(`City ${cityId} has no NPC purse`);
+      return purse.accountId;
+    };
     const propertyUpkeepOf = new Map(
       config.properties.sizes.map((size) => [size.id, size.dailyUpkeepOboles]),
     );
@@ -302,6 +309,17 @@ export const siteUpkeep: CloseStep = {
         .orderBy('id')
         .forUpdate()
         .execute();
+      // Cité du site de chaque intendant : la bourse qui reçoit son salaire.
+      const cityOf = new Map(sites.map((site) => [site.id, site.city_id]));
+      const stewardSites = stewards.map((row) => row.site_id).filter((id) => !cityOf.has(id));
+      if (stewardSites.length > 0)
+        for (const row of await trx
+          .selectFrom('game.sites')
+          .select(['id', 'city_id'])
+          .where('id', 'in', stewardSites)
+          .execute())
+          cityOf.set(row.id, row.city_id);
+      const purseOfSite = (siteId: string) => purseOf(cityOf.get(siteId) ?? '');
       const wage = stewardDailyWageOboles(config);
       const wageDues = stewards.map((row) => ({
         stewardId: row.id,
@@ -366,28 +384,39 @@ export const siteUpkeep: CloseStep = {
           })
           .returning('id')
           .executeTakeFirstOrThrow();
+        // Débits de la trésorerie par nature, comme avant #632 ; crédits : l'entretien à ses puits, les salaires
+        // des sites et des intendants à la bourse de la cité de leur site, une ligne par compte crédité.
         const parts = [
-          { nature: 'upkeep', sink: upkeepSink, oboles: lines.upkeepOboles },
-          { nature: 'wages', sink: wagesSink, oboles: lines.wagesOboles },
-          { nature: 'upkeep', sink: shipSink, oboles: fleet.total },
-          { nature: 'upkeep', sink: propertySink, oboles: estate.total },
-          { nature: 'wages', sink: wagesSink, oboles: staff.total },
+          { nature: 'upkeep', oboles: lines.upkeepOboles },
+          { nature: 'wages', oboles: lines.wagesOboles },
+          { nature: 'upkeep', oboles: fleet.total },
+          { nature: 'upkeep', oboles: estate.total },
+          { nature: 'wages', oboles: staff.total },
         ] as const;
+        const credits = sumByAccount([
+          [upkeepSink, lines.upkeepOboles],
+          [shipSink, fleet.total],
+          [propertySink, estate.total],
+          ...paid.map((due) => [purseOfSite(due.siteId), due.wagesOboles] as const),
+          ...paidStewards.map((due) => [purseOfSite(due.siteId), due.oboles] as const),
+        ]);
         await trx
           .insertInto('game.ledger_lines')
-          .values(
-            parts
+          .values([
+            ...parts
               .filter((part) => part.oboles > 0)
-              .flatMap((part) => [
-                {
-                  entry_id: entry.id,
-                  account_id: account.id,
-                  amount: -part.oboles,
-                  nature: part.nature,
-                },
-                { entry_id: entry.id, account_id: part.sink, amount: part.oboles },
-              ]),
-          )
+              .map((part) => ({
+                entry_id: entry.id,
+                account_id: account.id,
+                amount: -part.oboles,
+                nature: part.nature,
+              })),
+            ...credits.map(([accountId, oboles]) => ({
+              entry_id: entry.id,
+              account_id: accountId,
+              amount: oboles,
+            })),
+          ])
           .execute();
       }
       if (lines.lodgingOboles > 0) {
@@ -408,11 +437,18 @@ export const siteUpkeep: CloseStep = {
           })
           .returning('id')
           .executeTakeFirstOrThrow();
+        const credits = sumByAccount(
+          paid.map((due) => [purseOfSite(due.siteId), due.lodgingOboles ?? 0] as const),
+        );
         await trx
           .insertInto('game.ledger_lines')
           .values([
             { entry_id: entry.id, account_id: account.id, amount: -lines.lodgingOboles },
-            { entry_id: entry.id, account_id: lodgingSink, amount: lines.lodgingOboles },
+            ...credits.map(([accountId, oboles]) => ({
+              entry_id: entry.id,
+              account_id: accountId,
+              amount: oboles,
+            })),
           ])
           .execute();
       }
@@ -541,3 +577,11 @@ export const siteUpkeep: CloseStep = {
     return totals;
   },
 };
+
+/** Montants par compte, dans l'ordre de leur première apparition ; un compte au total nul n'a pas de ligne. */
+function sumByAccount(amounts: readonly (readonly [string, number])[]): [string, number][] {
+  const totals = new Map<string, number>();
+  for (const [accountId, oboles] of amounts)
+    totals.set(accountId, (totals.get(accountId) ?? 0) + oboles);
+  return [...totals].filter(([, oboles]) => oboles > 0);
+}

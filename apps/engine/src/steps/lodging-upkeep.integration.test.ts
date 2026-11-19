@@ -11,7 +11,12 @@ import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeWorld } from '../scheduler';
 import { laborMarket } from './labor-market';
-import { laborMarketOf, laborWorld, type LaborWorld } from './labor.integration-fixtures';
+import {
+  laborMarketOf,
+  laborWorld,
+  purseCredits,
+  type LaborWorld,
+} from './labor.integration-fixtures';
 import { siteUpkeep } from './site-upkeep';
 
 // Salaire du jour et hébergement chez les PNJ payés avec l'entretien (#258), contre Supabase local.
@@ -52,7 +57,7 @@ beforeAll(async () => {
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
-/** Soldes du monde : trésorerie de chaque maison, puis puits des salaires et de l'hébergement. */
+/** Soldes du monde : trésorerie de chaque maison, puis salaires et hébergement reçus par les bourses des PNJ. */
 const balances = async ({ worldId, houses }: LaborWorld) => {
   const { rows } = await sql<{
     house_id: string | null;
@@ -64,11 +69,9 @@ const balances = async ({ worldId, houses }: LaborWorld) => {
   );
   const of = (match: (row: (typeof rows)[number]) => boolean) =>
     Number(rows.find(match)?.balance ?? Number.NaN);
-  return [
-    ...houses.map(({ houseId }) => of((row) => row.house_id === houseId)),
-    of((row) => row.system_key === 'sink_npc_wages'),
-    of((row) => row.system_key === 'sink_npc_lodging'),
-  ];
+  // Salaires et hébergement vont aux bourses des PNJ (#632) : ce qu'elles ont reçu.
+  const { wages, lodging } = await purseCredits(db, worldId);
+  return [...houses.map(({ houseId }) => of((row) => row.house_id === houseId)), wages, lodging];
 };
 /** Écritures de la maison : nature, puis montants de ses lignes. */
 const entriesOf = async (houseId: string) =>
@@ -225,9 +228,8 @@ describe('hébergement des travailleurs sans logement (#258)', () => {
       (
         await sql<{ amount: string }>`select coalesce(sum(l.amount), 0) as amount
           from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
-          join game.accounts a on a.id = l.account_id
-          where e.kind = 'lodging.daily' and a.system_key = 'sink_npc_lodging'
-            and e.meta->>'houseId' = ${houseId}`.execute(db)
+          join game.npc_purses() p on p.account_id = l.account_id
+          where e.kind = 'lodging.daily' and e.meta->>'houseId' = ${houseId}`.execute(db)
       ).rows.map((row) => Number(row.amount))[0];
     const unpaidSince = async (world: LaborWorld) =>
       (

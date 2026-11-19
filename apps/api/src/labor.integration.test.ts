@@ -225,19 +225,20 @@ describe('relance d’un site : salaire et hébergement du jour (#258)', () => {
     return { user, houseId, siteId };
   }
   const UPKEEP = TEST_CONFIG.config.sites.upkeep.dailyOboles['field'] ?? 0;
-  /** Écritures de relance de la maison : nature, montant de la trésorerie, puits. */
+  /** Écritures de relance de la maison : nature, montant de la trésorerie, puits ou bourse des PNJ (#632). */
   const entriesOf = async (houseId: string) =>
     (
       await sql<{
         kind: string;
         amount: string;
         sink: string;
-      }>`select e.kind, l.amount, s.system_key as sink
+      }>`select e.kind, l.amount, coalesce(s.system_key, 'npc_purse') as sink
         from game.ledger_entries e
         join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
-        join game.ledger_lines ls on ls.entry_id = e.id join game.accounts s on s.id = ls.account_id
+        join game.ledger_lines ls on ls.entry_id = e.id left join game.accounts s on s.id = ls.account_id
+        left join game.npc_purses() p on p.account_id = ls.account_id
         where e.kind in ('upkeep.restart', 'lodging.restart') and e.meta->>'houseId' = ${houseId}
-          and a.kind = 'house' and s.kind = 'system' and ls.amount = -l.amount
+          and a.kind = 'house' and (s.kind = 'system' or p.account_id is not null) and ls.amount = -l.amount
         order by e.kind, l.amount`.execute(db)
     ).rows.map((row) => [row.kind, Number(row.amount), row.sink]);
 
@@ -253,9 +254,9 @@ describe('relance d’un site : salaire et hébergement du jour (#258)', () => {
       body: { data: { upkeepOboles: UPKEEP, wagesOboles: 28, lodgingOboles: 12 } },
     });
     expect(await entriesOf(houseId)).toEqual([
-      ['lodging.restart', -12, 'sink_npc_lodging'],
+      ['lodging.restart', -12, 'npc_purse'],
       ['upkeep.restart', -UPKEEP, 'sink_upkeep'],
-      ['upkeep.restart', -28, 'sink_npc_wages'],
+      ['upkeep.restart', -28, 'npc_purse'],
     ]);
     const { rows } = await sql<{ payload: unknown }>`select payload from game.domain_events
       where type = 'SiteRestarted' and payload->>'siteId' = ${siteId}`.execute(db);
@@ -269,7 +270,7 @@ describe('relance d’un site : salaire et hébergement du jour (#258)', () => {
     ).toMatchObject({ status: 200, body: { data: { lodgingOboles: 0 } } });
     expect(await entriesOf(houseId)).toEqual([
       ['upkeep.restart', -UPKEEP, 'sink_upkeep'],
-      ['upkeep.restart', -28, 'sink_npc_wages'],
+      ['upkeep.restart', -28, 'npc_purse'],
     ]);
   });
 });

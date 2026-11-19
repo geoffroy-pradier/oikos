@@ -7,7 +7,7 @@ import { SLUGS, WORLD_SEED, type Settlement } from './world';
 /** Mesures d'un jour de jeu. */
 export interface DayMeasure {
   day: number;
-  /** Monnaie en circulation, par cité (comptes des maisons qui y sont citoyennes, trésor) ; `world` : tout. */
+  /** Monnaie en circulation, par cité (maisons qui y sont citoyennes, trésor, bourse des PNJ) ; `world` : tout. */
   supply: Record<string, number>;
   /** Coût du panier de l'indice, par cité, en oboles (arrondi) ; null sans échange du jour. */
   basket: Record<string, number | null>;
@@ -48,10 +48,13 @@ export async function measureDay(
     select coalesce(c.city_id, a.city_id) as city_id, sum(a.balance) as balance
     from game.accounts a left join game.citizenships c on c.house_id = a.house_id
     where a.world_id = ${worldId} and a.kind <> 'system' group by 1`.execute(db);
+  // Bourses des PNJ de chaque cité (#632), que le service lit par la fonction de la base.
+  const purses = await sql<{ city_id: string; balance: string }>`select city_id, balance
+    from game.npc_purses() where world_id = ${worldId}`.execute(db);
   measure.supply['world'] = 0;
-  for (const row of balances.rows) {
+  for (const row of [...balances.rows, ...purses.rows]) {
     const slug = bySlug.get(row.city_id) ?? row.city_id;
-    measure.supply[slug] = Number(row.balance);
+    measure.supply[slug] = (measure.supply[slug] ?? 0) + Number(row.balance);
     measure.supply['world'] = (measure.supply['world'] ?? 0) + Number(row.balance);
   }
   // Échanges du jour par cité du marché et bien, depuis le rang de la veille : prix, panier.
@@ -163,12 +166,14 @@ export function recipeMargins(days: readonly DayMeasure[], wages: (slug: string)
   return margins;
 }
 
-/** Puits immobiliers (4.5, 5.5) et publics (6.3), dont le banc mesure la part de la monnaie détruite par les puits. */
+/**
+ * Puits immobiliers (4.5, 5.5) et publics (6.3), dont le banc mesure la part de la monnaie détruite par les puits.
+ * L'hébergement n'en est plus un depuis #632 : il va à la bourse des PNJ.
+ */
 export const ESTATE_SINKS = [
   'sink_property_purchase',
   'sink_property_works',
   'sink_property_upkeep',
-  'sink_npc_lodging',
 ] as const;
 export const PUBLIC_SINKS = ['sink_public_works', 'sink_festivals'] as const;
 

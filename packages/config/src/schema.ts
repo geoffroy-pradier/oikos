@@ -360,8 +360,8 @@ export const staffDailyWageObolesSchema = z.number().int().min(0).max(1_000_000_
 
 /**
  * Personnel des sites (docs/specs/04-systemes-gestion.md, 4.4) : chaque site emploie les travailleurs
- * de sa recette (`workers`), que sa maison paie à la clôture avec son entretien (puits `sink_npc_wages`,
- * 5.5). Lue par les joueurs (vue `public.site_rules`) : n'y ranger aucun paramètre qui doive rester caché.
+ * de sa recette (`workers`), que sa maison paie à la clôture avec son entretien, à la bourse des PNJ de la
+ * cité du site (#632, 5.5). Lue par les joueurs (vue `public.site_rules`) : n'y ranger aucun paramètre qui doive rester caché.
  */
 export const staffSchema = z.strictObject({
   /**
@@ -404,7 +404,7 @@ export const DEFAULT_LABOR = deepFreeze({
  * Marché du travail et logement des travailleurs (docs/specs/04-systemes-gestion.md, 4.4 et 4.5 ; #258).
  * Chaque clôture fixe, par cité, le salaire du jour (salaire de base de `staff` × courbe du salaire au
  * taux d'emploi) et le prix d'une nuit d'hébergement chez les PNJ pour un travailleur sans logement (prix
- * de base × courbe de l'hébergement à la pénurie de logements), détruit par le puits `sink_npc_lodging`.
+ * de base × courbe de l'hébergement à la pénurie de logements), versé à la bourse des PNJ de la cité (#632).
  */
 export const laborSchema = z.strictObject({
   /**

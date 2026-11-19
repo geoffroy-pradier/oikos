@@ -4,7 +4,7 @@ import {
   siteRestartInputSchema,
   siteRestartOutputSchema,
 } from '@oikos/contracts';
-import { readHousing, type Db } from '@oikos/db';
+import { lockNpcPurses, readHousing, type Db } from '@oikos/db';
 import { allocateWorkforce, holdingUnits, siteDailyDue } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
@@ -18,12 +18,12 @@ const refuse = (code: string, message: string): CommandResult<never> => ({
 /**
  * Relance un site à l'arrêt sans attendre la clôture (docs/specs/05-economie.md, 5.5) : la maison paie le
  * dû d'un jour du site, au tarif de la configuration en vigueur, en entier ou pas du tout : l'entretien,
- * détruit par le puits `sink_upkeep`, et les salaires de ses travailleurs (4.4), détruits par le puits
- * `sink_npc_wages`, chacun par sa ligne marquée de l'écriture `upkeep.restart`. Le salaire est celui du
+ * détruit par le puits `sink_upkeep`, et les salaires de ses travailleurs (4.4), versés à la bourse des PNJ
+ * de la cité du site (#632), chacun par sa ligne marquée de l'écriture `upkeep.restart`. Le salaire est celui du
  * jour, fixé par la dernière clôture pour la cité du site (salaire de base de la configuration sans elle) ;
  * les travailleurs du site que les logements de sa maison dans la cité ne logent pas (sites les plus
  * anciens d'abord, logements lus maintenant) paient chacun une nuit d'hébergement au prix de ce même jour,
- * détruite par le puits `sink_npc_lodging` dans une écriture `lodging.restart` (#258). Le site repart à
+ * versée à la même bourse dans une écriture `lodging.restart` (#258). Le site repart à
  * cet instant, son cycle gelé décalé de la durée de l'arrêt. La clôture suivante lui demandera son dû
  * normalement.
  */
@@ -53,8 +53,7 @@ export const siteRestart = defineCommand({
     // Le site d'un autre joueur est indiscernable d'un site inexistant.
     if (!owned) return refuse('SITE_NOT_FOUND', 'Unknown site.');
     // Ordre des verrous, le même que l'entretien à la clôture : les puits (entretien, salaires, puis
-    // hébergement), la
-    // trésorerie, puis le site. Dans un autre ordre, une relance et une clôture s'attendraient l'une
+    // hébergement), la bourse des PNJ, la trésorerie, puis le site. Dans un autre ordre, une relance et une clôture s'attendraient l'une
     // l'autre. Le verrou du premier puits met en file toutes les relances d'un monde ; quand une clôture a
     // commencé à prélever l'entretien, elles attendent la validation de toute sa transaction, puisque ce
     // verrou est tenu jusqu'au bout.
@@ -69,8 +68,12 @@ export const siteRestart = defineCommand({
           .executeTakeFirstOrThrow()
       ).id;
     const upkeepSink = await lockSink('sink_upkeep');
-    const wagesSink = await lockSink('sink_npc_wages');
-    const lodgingSink = await lockSink('sink_npc_lodging');
+    // Les puits des salaires et de l'hébergement ne reçoivent plus rien (#632) : verrouillés à leur place, pour
+    // l'ordre des verrous, puis la bourse des PNJ de la cité du site, avant la trésorerie, comme la clôture.
+    await lockSink('sink_npc_wages');
+    await lockSink('sink_npc_lodging');
+    const purse = (await lockNpcPurses(trx, owned.world_id, owned.city_id)).get(owned.city_id);
+    if (!purse) throw new Error(`City ${owned.city_id} has no NPC purse`);
     const account = await trx
       .selectFrom('game.accounts')
       .select(['id', 'balance'])
@@ -134,10 +137,10 @@ export const siteRestart = defineCommand({
         })
         .returning('id')
         .executeTakeFirstOrThrow();
-      // Une ligne de débit de la trésorerie par nature (4.1), chacune vers son puits ; une part nulle n'en a pas.
+      // Une ligne de débit de la trésorerie par nature (4.1), chacune vers son compte ; une part nulle n'en a pas.
       const parts = [
-        { nature: 'upkeep', sink: upkeepSink, oboles: upkeepOboles },
-        { nature: 'wages', sink: wagesSink, oboles: wagesOboles },
+        { nature: 'upkeep', to: upkeepSink, oboles: upkeepOboles },
+        { nature: 'wages', to: purse.accountId, oboles: wagesOboles },
       ] as const;
       await trx
         .insertInto('game.ledger_lines')
@@ -151,7 +154,7 @@ export const siteRestart = defineCommand({
                 amount: -part.oboles,
                 nature: part.nature,
               },
-              { entry_id: entry.id, account_id: part.sink, amount: part.oboles },
+              { entry_id: entry.id, account_id: part.to, amount: part.oboles },
             ]),
         )
         .execute();
@@ -170,7 +173,7 @@ export const siteRestart = defineCommand({
         .insertInto('game.ledger_lines')
         .values([
           { entry_id: entry.id, account_id: account.id, amount: -lodgingOboles },
-          { entry_id: entry.id, account_id: lodgingSink, amount: lodgingOboles },
+          { entry_id: entry.id, account_id: purse.accountId, amount: lodgingOboles },
         ])
         .execute();
     }

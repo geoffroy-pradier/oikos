@@ -99,12 +99,18 @@ const due = (siteId: string | undefined, upkeepOboles: number, wagesOboles = 0) 
   upkeepOboles,
   wagesOboles,
 });
-/** Lignes des écritures d'entretien de la maison : compte (puits ou trésorerie), montant, nature. */
-const linesOf = ({ houseId }: House) =>
-  one(sql<{ account: string; amount: string; nature: string | null }>`select
-      coalesce(a.system_key, 'treasury') as account, l.amount, l.nature
+/**
+ * Lignes des écritures d'entretien de la maison : compte (puits, trésorerie ou bourse des PNJ), montant, nature.
+ * Lues par le propriétaire : le service ne voit pas les bourses.
+ */
+const linesOf = async ({ houseId }: House) =>
+  (
+    await sql<{ account: string; amount: string; nature: string | null }>`select
+      case when a.npc_purse then 'npc_purse' else coalesce(a.system_key, 'treasury') end as account, l.amount, l.nature
     from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
-    where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId} order by e.created_at, l.nature, a.system_key`);
+    where e.kind = 'upkeep.daily' and e.meta->>'houseId' = ${houseId}
+    order by e.created_at, l.nature, a.npc_purse, a.system_key`.execute(owner)
+  ).rows;
 const one = async <T>(query: ReturnType<typeof sql<T>>) => (await query.execute(db)).rows;
 /** Trésorerie de la maison et solde du puits de son monde. */
 const balances = async ({ worldId, houseId }: House) =>
@@ -112,12 +118,13 @@ const balances = async ({ worldId, houseId }: House) =>
     await one(sql<{ balance: string }>`select balance from game.accounts where world_id = ${worldId}
       and ((kind = 'house' and house_id = ${houseId}) or system_key = 'sink_upkeep') order by kind`)
   ).map((row) => Number(row.balance));
-/** Solde du puits des salaires du monde de la maison. */
-const wagesSink = async ({ worldId }: House) =>
+/** Solde de la bourse des PNJ de la cité de la maison, qui reçoit ses salaires (#632). */
+const purseOf = async ({ cityId }: House) =>
   Number(
     (
-      await one(sql<{ balance: string }>`select balance from game.accounts
-        where world_id = ${worldId} and system_key = 'sink_npc_wages'`)
+      await one(
+        sql<{ balance: string }>`select balance from game.npc_purses() where city_id = ${cityId}`,
+      )
     )[0]?.balance,
   );
 /** État de chaque site, dans l'ordre de création : à l'arrêt ou non, et secondes de cycle écoulées. */
@@ -426,14 +433,14 @@ describe('entretien des sites à la clôture quotidienne', () => {
     await close(house.worldId, TODAY - 1, withWages(5));
     // 140 : champ payé (reste 82) ; la carrière doit 90 : son entretien seul (75) tiendrait, mais rien
     // n'est payé en partie, elle s'arrête ; verger payé (reste 5).
-    expect([await balances(house), await wagesSink(house)]).toEqual([[5, 95], 40]);
+    expect([await balances(house), await purseOf(house)]).toEqual([[5, 95], 40]);
     expect((await sitesOf(house)).map((site) => site.halted)).toEqual([false, true, false]);
-    // Une seule écriture : un débit de la trésorerie par nature, chacun vers son puits.
+    // Une seule écriture : un débit de la trésorerie par nature ; l'entretien au puits, les salaires à la bourse.
     expect(await linesOf(house)).toEqual([
       { account: 'treasury', amount: '-95', nature: 'upkeep' },
       { account: 'treasury', amount: '-40', nature: 'wages' },
-      { account: 'sink_npc_wages', amount: '40', nature: null },
       { account: 'sink_upkeep', amount: '95', nature: null },
+      { account: 'npc_purse', amount: '40', nature: null },
     ]);
     const [paid, unpaid] = [[due(a, FIELD, 20), due(c, ORCHARD, 20)], [due(b, QUARRY, 15)]];
     expect((await entriesOf(house)).map((entry) => entry.meta)).toEqual([
@@ -456,7 +463,7 @@ describe('entretien des sites à la clôture quotidienne', () => {
     // Le lendemain, à l'obole juste pour tout : la carrière repart, la trésorerie tombe à zéro.
     await credit(house, 220);
     await close(house.worldId, TODAY, withWages(5));
-    expect([await balances(house), await wagesSink(house)]).toEqual([[0, 95 + 170], 40 + 55]);
+    expect([await balances(house), await purseOf(house)]).toEqual([[0, 95 + 170], 40 + 55]);
     expect((await sitesOf(house)).map((site) => site.halted)).toEqual([false, false, false]);
     // Comptes de la maison (4.1) : salaires et entretien distincts ; la somme des flux est le solde.
     // Lu par le propriétaire du schéma : la vue est réservée aux joueurs, le service ne la lit pas.
@@ -480,7 +487,7 @@ describe('entretien des sites à la clôture quotidienne', () => {
     await close(before.worldId, TODAY, withWages(0, DEFAULT_STAFF));
     await close(elsewhere.worldId, TODAY, withWages(5));
     for (const house of [zero, before, elsewhere]) {
-      expect([await balances(house), await wagesSink(house)]).toEqual([[100 - FIELD, FIELD], 0]);
+      expect([await balances(house), await purseOf(house)]).toEqual([[100 - FIELD, FIELD], 0]);
       expect(await linesOf(house)).toEqual([
         { account: 'treasury', amount: `${-FIELD}`, nature: 'upkeep' },
         { account: 'sink_upkeep', amount: `${FIELD}`, nature: null },
@@ -507,10 +514,10 @@ describe('entretien des sites à la clôture quotidienne', () => {
     for (const each of [house, broke]) await close(each.worldId, TODAY, config);
     expect(await linesOf(house)).toEqual([
       { account: 'treasury', amount: '-20', nature: 'wages' },
-      { account: 'sink_npc_wages', amount: '20', nature: null },
+      { account: 'npc_purse', amount: '20', nature: null },
     ]);
-    expect([await balances(house), await wagesSink(house)]).toEqual([[0, 0], 20]);
-    expect([await balances(broke), await wagesSink(broke), await linesOf(broke)]).toEqual([
+    expect([await balances(house), await purseOf(house)]).toEqual([[0, 0], 20]);
+    expect([await balances(broke), await purseOf(broke), await linesOf(broke)]).toEqual([
       [19, 0],
       0,
       [],
