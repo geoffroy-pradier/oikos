@@ -233,9 +233,16 @@ export async function lodgingDue(
 /**
  * Matinée de logement d'une maison, après sa matinée de production : rénovation des biens qui s'usent
  * (biens achetés au marché, gardés hors vente), loyers réalignés pour un propriétaire, puis un bail ou un
- * achat. Les commandes sont celles du jeu ; les dates de l'achat et du bail sont ramenées à `now`.
+ * achat (un bail seulement si `buys` est faux). Les commandes sont celles du jeu ; les dates de l'achat et du bail
+ * sont ramenées à `now`.
  */
-export async function housingMorning(city: City, house: Seller, now: Date, housing: Housing) {
+export async function housingMorning(
+  city: City,
+  house: Seller,
+  now: Date,
+  housing: Housing,
+  buys = true,
+) {
   const lodging = await lodgingOf(city);
   const owned = await city.db
     .selectFrom('game.properties as p')
@@ -334,7 +341,7 @@ export async function housingMorning(city: City, house: Seller, now: Date, housi
     workers * (wageOf(city) + worstLodging(city)) +
     owned.reduce((sum, property) => sum + sizeOf(property.size_id).dailyUpkeepOboles, 0) +
     rented;
-  const spendable = (await cash(city, house.houseId)) - RESERVE_DAYS * outgoings;
+  const spendable = buys ? (await cash(city, house.houseId)) - RESERVE_DAYS * outgoings : 0;
   const holdings = await readHousing(city.db, { houseId: house.houseId });
   const housed = holdings.reduce(
     (sum, row) => sum + holdingUnits(row, worldConfig.properties.sizes),

@@ -1,7 +1,9 @@
+import { tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import {
   closeDay,
   closeOf,
+  config,
   createWorld,
   foundHouses,
   lastSeq,
@@ -18,15 +20,17 @@ import {
 import { housingMorning, lodgingDue, newHousing, propertyUpkeepDue } from './housing';
 import { dateCitizens, dateMetics } from './calendar';
 import { newPolitics, politicsMorning, settled } from './politics';
-import { morning, seller } from './strategy';
+import { morning, seller, type Seller } from './strategy';
 import { actAfterTick, hireSteward, type Steward } from './steward';
 import { traderMorning, type Prices, type Trader } from './trade';
-import { measureDay, type DayMeasure } from './measures';
+import { carrierMorning, carrierStep, type Carrier } from './carrier';
+import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
+  CARRIER,
+  CARRIERS,
   MEASURED,
   SETTLEMENTS,
   SLUGS,
-  STEWARD_ROLES,
   TRADER,
   TRADER_HOMES,
   WARMUP,
@@ -46,7 +50,7 @@ export interface PlayOptions {
 }
 
 /**
- * Joue un monde neuf des quatre cités (maisons scriptées par terroir, négociants, intendants, logement, vie
+ * Joue un monde neuf des quatre cités (maisons scriptées par terroir, négociants, armateurs, intendants, logement, vie
  * civique) avec la configuration du banc, jour après jour, et rend tout ce que le banc de `ci` vérifie et que
  * le simulateur publie. Aucune vérification d'équilibrage ici : seules les gardes de la mécanique du banc lèvent.
  */
@@ -73,11 +77,59 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     for (const house of await foundHouses(home, [TRADER]))
       traders.push({ ...seller(house), home, waitedDays: 0 });
   }
-  const houses = [...settlements.flatMap((settlement) => settlement.houses), ...traders];
+  // Armateurs : des maisons de leur cité d'attache, avec le site de départ de la cité ; chacun porte une part de la
+  // demande de chaque bien vers chaque port, partagée entre tous ceux qui l'y portent.
+  const carriers: Carrier[] = [];
+  const carriedBy = new Map<string, number>();
+  for (const spec of CARRIERS)
+    for (const [slug, goods] of [
+      [spec.home, spec.toHome],
+      [spec.source, spec.toSource],
+    ] as const)
+      for (const goodId of goods)
+        carriedBy.set(`${slug}/${goodId}`, (carriedBy.get(`${slug}/${goodId}`) ?? 0) + spec.count);
+  for (const spec of CARRIERS) {
+    const [home, source] = [spec.home, spec.source].map((slug) =>
+      cities.find((city) => city.slug === slug),
+    );
+    if (!home || !source) throw new Error(`No city ${spec.home} or ${spec.source}`);
+    const shares = (city: City, goods: readonly string[]) =>
+      new Map(goods.map((goodId) => [goodId, 1 / (carriedBy.get(`${city.slug}/${goodId}`) ?? 1)]));
+    for (const house of await foundHouses(home, [{ ...CARRIER, count: spec.count }]))
+      carriers.push({
+        ...seller(house),
+        home,
+        source,
+        deliver: new Map([
+          [home.cityId, shares(home, spec.toHome)],
+          [source.cityId, shares(source, spec.toSource)],
+        ]),
+        waitedHours: 0,
+      });
+  }
+  // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
+  const inputs = new Map(
+    cities.map((city) => [
+      city.cityId,
+      netInputs(SETTLEMENTS[city.slug as (typeof SLUGS)[number]]),
+    ]),
+  );
+  const demandOf = async (city: City) => {
+    const demand = await npcDailyDemand(city);
+    for (const [goodId, quantity] of inputs.get(city.cityId) ?? [])
+      demand.set(goodId, (demand.get(goodId) ?? 0) + quantity);
+    return demand;
+  };
+  const houses = [
+    ...settlements.flatMap((settlement) => settlement.houses),
+    ...traders,
+    ...carriers,
+  ];
   // Maisons et leur cité.
   const residents = [
     ...settlements.flatMap(({ city, houses: own }) => own.map((house) => ({ city, house }))),
     ...traders.map((trader) => ({ city: trader.home, house: trader })),
+    ...carriers.map((carrier) => ({ city: carrier.home, house: carrier as Seller })),
   ];
   const housing = newHousing();
   const politics = newPolitics();
@@ -92,6 +144,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   let [seq, at, upkeep, acquisitions, ships] = [await lastSeq(world), new Date(0), 0, 0, 0];
   let [wages, estateUpkeep, lodging] = [0, 0, 0];
   let measuredFrom = new Date(0);
+  /** Monnaie en circulation à la fin de la mise en route, par cité et pour le monde : la base des jours mesurés. */
+  let supplyBefore: Record<string, number> = {};
   for (let day = 0; day < warmup + measuredDays; day++) {
     upkeep += upkeepDue(world, houses, day);
     estateUpkeep += propertyUpkeepDue(world, housing, day);
@@ -105,25 +159,34 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     for (const { city, houses: own } of settlements)
       for (const house of own) acquisitions += await morning(city, house, now);
     for (const { city, houses: own } of settlements)
-      for (const house of own.filter((each) => STEWARD_ROLES.includes(each.role.name))) {
+      for (const house of own) {
         const hired = await hireSteward(city, house, day, now, stewards);
         if (hired) stewards.push(hired);
       }
-    for (const { city, house } of residents) await housingMorning(city, house, now, housing);
+    // Logement : un armateur loue pour ses travailleurs, il n'achète pas ; sa trésorerie sert à ses cargaisons.
+    for (const { city, house } of residents)
+      await housingMorning(city, house, now, housing, !carriers.includes(house as Carrier));
     for (const { city, houses: own } of settlements)
       await politicsMorning(
         city,
-        [...own, ...traders.filter((trader) => trader.home.cityId === city.cityId)],
+        [
+          ...own,
+          ...[...traders, ...carriers].filter((trader) => trader.home.cityId === city.cityId),
+        ],
         now,
         politics,
       );
     for (const trader of traders) ships += await traderMorning(cities, trader, now, prices);
+    for (const carrier of carriers) ships += await carrierMorning(carrier, now, demandOf);
     // Un tick d'une heure par heure du jour de jeu : 24, sauf au changement d'heure.
     const hours =
       (closeOf(world, day + 1).getTime() - closeOf(world, day).getTime()) / (60 * MINUTE);
     const ticks = await tickDay(world, day, WORLD_STEPS, async (index) => {
       const run = await actAfterTick(world, await bench.loader.at(), index);
       for (const key of ['acted', 'refused', 'failed'] as const) operations[key] += run[key];
+      // Armateurs : un pas à mi-chemin du tick suivant.
+      const at = new Date(tickStart(index, config.clock.tickMinutes).getTime() + 30 * MINUTE);
+      for (const carrier of carriers) await carrierStep(carrier, at, demandOf);
     });
     if (ticks !== hours) throw new Error(`Day ${day}: ${ticks} ticks played, ${hours} expected`);
     // Mesures du jour ; la mise en route n'est pas publiée, mais le rang et l'instant avancent.
@@ -143,7 +206,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       prices.set(slug, known);
     }
     if (day >= warmup) days.push(measure);
-    if (day === warmup - 1) measuredFrom = at;
+    if (day === warmup - 1) [measuredFrom, supplyBefore] = [at, measure.supply];
   }
 
   // Décrets de dépense réglés par les clôtures jouées : leur montant sort du trésor de leur cité, vers son puits.
@@ -181,6 +244,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     settlements,
     houses,
     traders,
+    carriers,
     stewards,
     operations,
     housing,
@@ -192,6 +256,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     paidFor,
     lastDay,
     measuredFrom,
+    supplyBefore,
     acquisitions,
     wages,
     lodging,
