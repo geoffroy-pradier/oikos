@@ -22,3 +22,6 @@ export { PillTabs, type PillTabsProps } from './components/Tabs';
 export { AA_TEXT, AA_UI, COLOR_TOKENS, CONTRAST_PAIRS, contrastRatio } from './contrast';
 export * from './icons';
 export { numberProblem, readTypedNumber, typedIntegerProblem, type NumberProblem } from './numbers';
+export { Progress, type ProgressProps } from './components/Progress';
+export { StatCard, type StatCardProps } from './components/StatCard';
+export { StatusRegion, type StatusRegionProps } from './components/StatusRegion';

@@ -18,12 +18,15 @@ import {
   Package,
   PillTabs,
   Plus,
+  Progress,
   SegmentedControl,
   Select,
   Settings,
   Ship,
   Skeleton,
   Stat,
+  StatCard,
+  StatusRegion,
   Sun,
   Switch,
   TextField,
@@ -106,7 +109,38 @@ function Catalogue() {
         />
       </Card>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Trésorerie"
+          icon={<Coins />}
+          value="1 248 dr."
+          delta={{ value: '+4,2 %', trend: 'up' }}
+          hint="depuis hier"
+        />
+        <StatCard
+          label="Production"
+          icon={<Wheat />}
+          value="312"
+          delta={{ value: '−8 %', trend: 'down' }}
+        />
+        <StatCard label="Navires en mer" icon={<Ship />} value="4" />
+        <StatCard
+          label="Charges"
+          icon={<Amphora />}
+          value="96 dr."
+          delta={{ value: '+3 %', trend: 'up', tone: 'negative' }}
+        />
+      </div>
+
       <div className="grid items-start gap-6 lg:grid-cols-2">
+        <Section title="Progress · StatusRegion">
+          <Progress label="Moisson" value={3} max={5} valueText="3 jours sur 5" />
+          <StatusRegion tone="success">Ordre passé : 20 amphores de vin.</StatusRegion>
+          <StatusRegion role="alert" tone="danger">
+            Trésorerie insuffisante.
+          </StatusRegion>
+        </Section>
+
         <Section title="Button · IconButton">
           <div className="flex flex-wrap gap-2">
             <Button icon={<Plus />}>primary</Button>

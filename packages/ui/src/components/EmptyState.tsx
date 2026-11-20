@@ -4,6 +4,8 @@ import { cn } from '../cn';
 export interface EmptyStateProps {
   /** Icône décorative, au trait. */
   icon?: ReactNode;
+  /** Illustration SVG décorative (`packages/ui/src/illustrations`), à la place de l'icône. */
+  illustration?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   /** Action qui sort de l'état vide (un bouton ou un lien). */
@@ -16,6 +18,7 @@ export interface EmptyStateProps {
 /** Rien à montrer : dire pourquoi, et proposer l'action qui y remédie. */
 export function EmptyState({
   icon,
+  illustration,
   title,
   description,
   action,
@@ -31,7 +34,15 @@ export function EmptyState({
         className,
       )}
     >
-      {icon && (
+      {illustration && (
+        <div
+          aria-hidden="true"
+          className="w-40 max-w-full text-accent-decorative [&_svg]:h-auto [&_svg]:w-full"
+        >
+          {illustration}
+        </div>
+      )}
+      {icon && !illustration && (
         <div
           aria-hidden="true"
           className="grid size-14 place-items-center rounded-full bg-primary-subtle text-primary ring-8 ring-primary-subtle/40 [&_svg]:size-7"
