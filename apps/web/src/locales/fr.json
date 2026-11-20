@@ -1457,5 +1457,28 @@
     "back": "Retour",
     "next": "Continuer",
     "stepOf": "Étape {{current}} sur {{total}}"
+  },
+  "houseProfile": {
+    "back": "Retour",
+    "status": {
+      "citizen": "Citoyenne de {{city}}",
+      "metic": "Métèque à {{city}}"
+    },
+    "statusOnly": {
+      "citizen": "Citoyenne",
+      "metic": "Métèque"
+    },
+    "city": "Cité",
+    "noCity": "Cité inconnue",
+    "honor": "Timè",
+    "mandates": "Mandats",
+    "noMandate": "Cette maison n'a tenu aucun mandat.",
+    "offices": {
+      "archon": "Archonte"
+    },
+    "mandateOf": "à {{city}}, du {{from}} au {{to}}",
+    "inOffice": "En cours",
+    "past": "Terminé",
+    "view": "Voir la fiche de {{house}}"
   }
 }
