@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -18,9 +18,11 @@ vi.mock('../data', () => ({
     const rows = view in state.views ? (state.views[view] ?? null) : [];
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
+  useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  useRouterState: () => '/immobilier',
 }));
 const { PropertyScreen } = await import('./Property');
 
@@ -91,6 +93,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const sent = () => api.propertyCommand.mock.calls.map((call) => [call[0], call[1], call[3]]);
+const inTable = (name: string) => within(screen.getByRole('table', { name }));
 
 describe('écran Immobilier (#259)', () => {
   it('achat à la cité et location d’une offre, chacun au prix vu', async () => {
@@ -186,10 +189,13 @@ describe('écran Immobilier (#259)', () => {
       },
     ];
     await showProperty();
-    expect(screen.getByText(fr.property.ending)).toBeTruthy();
-    expect(screen.getByText(fr.property.ended.unpaid)).toBeTruthy();
+    // Le tableau des baux (les fiches sur téléphone portent les mêmes valeurs).
+    const leases = inTable(fr.property.leases);
+    expect(leases.getByText(fr.property.ending)).toBeTruthy();
+    expect(leases.getByText(fr.property.ended.unpaid)).toBeTruthy();
+    expect(leases.getAllByText(fr.property.tenant)).toHaveLength(3);
     // Un seul bail en cours sans fin demandée : un seul bouton.
-    const end = screen.getAllByRole('button', { name: /^Mettre fin au bail/ });
+    const end = leases.getAllByRole('button', { name: /^Mettre fin au bail/ });
     expect(end).toHaveLength(1);
     fireEvent.click(end[0] as HTMLElement);
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));

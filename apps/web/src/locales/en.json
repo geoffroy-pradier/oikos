@@ -769,7 +769,6 @@
   "staff": {
     "title": "Staff",
     "intro": "The workers of your sites, city by city. Your properties in a city house the workers of your oldest sites in that city first; the others lodge with the inhabitants, one night a day, at the city's price of the day.",
-    "back": "Back to the house",
     "empty": "No site, no worker.",
     "lodgingUnknown": "Lodging price not set yet: it will be at the next close.",
     "figures": "Staff key figures",
@@ -830,8 +829,6 @@
     },
     "leases": "My leases",
     "noLeases": "No lease.",
-    "asTenant": "You lease this property: {{cost}} a day",
-    "asLandlord": "You lease this property to a house: {{cost}} a day",
     "ending": "End requested: the lease ends at the next close.",
     "ended": {
       "requested": "Lease ended at the request of a party.",
@@ -847,6 +844,15 @@
       "offerLease": "Property offered for lease.",
       "withdrawOffer": "Offer withdrawn.",
       "endLease": "End of lease requested."
+    },
+    "perDay": "{{cost}} a day",
+    "tenant": "Tenant",
+    "landlord": "Landlord",
+    "columns": {
+      "property": "Property",
+      "role": "You are",
+      "rent": "Rent",
+      "status": "Lease"
     }
   },
   "alerts": {

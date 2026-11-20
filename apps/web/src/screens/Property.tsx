@@ -1,11 +1,11 @@
 import { gameDayDate } from '@oikos/sim';
-import { Button, Card, EmptyState, House, Inbox, ScrollText } from '@oikos/ui';
-import { Link } from '@tanstack/react-router';
+import { Button, Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { propertyCommand, type PropertyCommandInputs } from '../api';
+import { propertyCommand } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { HouseNav } from '../HouseNav';
 import { cityMarketTax, parseMarketTax } from '../market-rules';
 import { useMoney } from '../money';
 import {
@@ -17,8 +17,11 @@ import {
   type Offer,
 } from '../property';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
+import { ScreenHeader } from '../ScreenHeader';
 import { LoadProblem, Loading } from './LoadProblem';
 import { ownerIntents, PropertyActions } from './PropertyActions';
+import { endIntent, PropertyLeases } from './PropertyLeases';
+import type { RunCommand } from './PropertySheet';
 
 type Command = Parameters<typeof propertyCommand>[0];
 /** Carte où s'annonce le résultat d'une commande : celle de l'action qui l'a lancée. */
@@ -39,7 +42,6 @@ const ROW =
   'flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm';
 /** L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve. */
 const offerIntent = (offer: Offer) => `${offer.kind}:${offer.propertyId}:${offer.priceOboles}`;
-const endIntent = (leaseId: string) => `end:${leaseId}`;
 
 /**
  * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
@@ -112,10 +114,10 @@ export function PropertyScreen() {
   );
   // Le contrôle qui a lancé la commande a pu disparaître (offre achetée, bail fini) ou devenir inactif :
   // le foyer, retombé sur la page, va au résultat, annoncé près de l'action.
-  const noticeElement = useRef<HTMLParagraphElement>(null);
+  const noticeElement = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  async function run<N extends Command>(intent: string, name: N, input: PropertyCommandInputs[N]) {
+  const run: RunCommand = async (intent, name, input) => {
     if (busy) return;
     setBusy(true);
     setNotice(null);
@@ -144,26 +146,28 @@ export function PropertyScreen() {
     } finally {
       setBusy(false);
     }
-  }
+  };
 
   useEffect(() => {
     const active = document.activeElement;
     if (notice && (active === document.body || active?.getAttribute('aria-disabled') === 'true'))
       noticeElement.current?.focus();
   }, [notice]);
-  // Toujours présente dans chaque carte : une région vivante annonce le résultat dès qu'il paraît.
-  const said = (place: Place) => (
-    <p
-      ref={notice?.place === place ? noticeElement : undefined}
-      tabIndex={-1}
-      role={notice?.place === place ? notice.kind : 'status'}
-      className={
-        notice?.place === place && notice.kind === 'alert' ? 'font-semibold text-danger' : ''
-      }
-    >
-      {notice?.place === place ? notice.text : ''}
-    </p>
-  );
+  // Toujours présente dans chaque carte : une région vivante annonce le résultat dès qu'il paraît. Une
+  // alerte remonte la région sous son rôle (fixé au montage), annoncée dès qu'elle paraît.
+  const said = (place: Place) => {
+    const here = notice?.place === place ? notice : null;
+    return (
+      <StatusRegion
+        key={here?.kind ?? 'status'}
+        ref={here ? noticeElement : null}
+        role={here?.kind ?? 'status'}
+        tone={here?.kind === 'alert' ? 'danger' : 'success'}
+      >
+        {here?.text}
+      </StatusRegion>
+    );
+  };
 
   const number = new Intl.NumberFormat(i18n.language);
   const percent = new Intl.NumberFormat(i18n.language, {
@@ -249,19 +253,10 @@ export function PropertyScreen() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card elevation="raised" className="flex flex-col gap-2 overflow-hidden p-0">
-        <div className="flex flex-col gap-2 p-4">
-          <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
-            <House aria-hidden="true" className="size-6 text-accent" />
-            {t('property.title')}
-          </h1>
-          <p className="text-muted-foreground">{t('property.intro')}</p>
-          <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">
-            {t('staff.back')}
-          </Link>
-        </div>
-      </Card>
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
+      <ScreenHeader title={t('property.title')} titleRef={title} />
+      <HouseNav />
+      <p className="max-w-3xl text-sm text-muted-foreground">{t('property.intro')}</p>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {!loading && !failed && (
@@ -333,39 +328,17 @@ export function PropertyScreen() {
               })}
             </ul>
           </Card>
-          <Card className="flex flex-col gap-3">
-            <h2 className="text-xl">{t('property.leases')}</h2>
+          <Card className="flex flex-col gap-3" aria-labelledby="property-leases">
+            <h2 id="property-leases" className="flex items-center gap-2 text-lg font-semibold">
+              <ScrollText aria-hidden="true" className="size-5 shrink-0 text-accent" />
+              {t('property.leases')}
+            </h2>
             {said('leases')}
-            {leases?.length === 0 && (
+            {leases?.length === 0 ? (
               <EmptyState icon={<ScrollText />} title={t('property.noLeases')} headingLevel={3} />
+            ) : (
+              <PropertyLeases leases={leases ?? []} describe={describe} busy={busy} run={run} />
             )}
-            <ul className="flex flex-col gap-3">
-              {(leases ?? []).map((lease) => (
-                <li key={lease.id} className={ROW}>
-                  <h3 className="font-semibold">{describe(lease)}</h3>
-                  <p>
-                    {t(lease.asTenant ? 'property.asTenant' : 'property.asLandlord', {
-                      cost: money(lease.rentOboles),
-                    })}
-                  </p>
-                  {lease.endReason && <p>{t(`property.ended.${lease.endReason}`)}</p>}
-                  {lease.ending && <p>{t('property.ending')}</p>}
-                  {!lease.endedAt && !lease.ending && (
-                    <Button
-                      variant="secondary"
-                      className={WAITING}
-                      aria-disabled={busy}
-                      aria-label={`${t('property.endLease')} — ${describe(lease)}`}
-                      onClick={() =>
-                        void run(endIntent(lease.id), 'property.endLease', { leaseId: lease.id })
-                      }
-                    >
-                      {t('property.endLease')}
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
           </Card>
         </>
       )}

@@ -769,7 +769,6 @@
   "staff": {
     "title": "Personnel",
     "intro": "Les travailleurs de vos sites, cité par cité. Vos biens d'une cité logent d'abord les travailleurs de vos sites les plus anciens de cette cité ; les autres sont hébergés chez les habitants, une nuit par jour, au prix du jour de la cité.",
-    "back": "Retour à la maison",
     "empty": "Aucun site, aucun travailleur.",
     "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture.",
     "figures": "Chiffres clés du personnel",
@@ -830,8 +829,6 @@
     },
     "leases": "Mes baux",
     "noLeases": "Aucun bail.",
-    "asTenant": "Vous louez ce bien : {{cost}} par jour",
-    "asLandlord": "Vous louez ce bien à une maison : {{cost}} par jour",
     "ending": "Fin demandée : le bail prend fin à la prochaine clôture.",
     "ended": {
       "requested": "Bail terminé à la demande d’une partie.",
@@ -847,6 +844,15 @@
       "offerLease": "Bien mis en location.",
       "withdrawOffer": "Offre retirée.",
       "endLease": "Fin du bail demandée."
+    },
+    "perDay": "{{cost}} par jour",
+    "tenant": "Locataire",
+    "landlord": "Bailleur",
+    "columns": {
+      "property": "Bien",
+      "role": "Vous êtes",
+      "rent": "Loyer",
+      "status": "Bail"
     }
   },
   "alerts": {
