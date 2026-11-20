@@ -138,13 +138,14 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
       // `aria-describedby`, reprend en texte les lignes que l'œil lit en dieu, terroir et port.
       <label
         key={city.id}
-        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
+        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
       >
         <input
           type="radio"
           name="city"
           required
-          className="sr-only"
+          // Invisible mais sur toute la carte : le clic, le toucher et le foyer (anneau sur la carte) l'atteignent.
+          className="absolute inset-0 size-full cursor-pointer opacity-0"
           value={city.id}
           checked={cityId === city.id}
           onChange={() => {
