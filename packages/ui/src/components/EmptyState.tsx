@@ -45,9 +45,10 @@ export function EmptyState({
   );
   if (compact) {
     return (
-      <div className={cn('flex animate-rise items-center gap-4', className)}>
+      // Police très agrandie : la raison passe sous le dessin plutôt que de déborder de la page.
+      <div className={cn('flex animate-rise flex-wrap items-center gap-x-4 gap-y-2', className)}>
         {art}
-        <div className="flex min-w-0 flex-col items-start gap-2">
+        <div className="flex flex-1 basis-40 flex-col items-start gap-2">
           <p className="text-muted-foreground">{title}</p>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
           {action}
