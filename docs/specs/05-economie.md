@@ -61,8 +61,7 @@ Décision (#709) : les recettes de la phase 2 ne changent pas.
 Le vin reste fait de raisin et d'amphores, le tissu de laine : les marges de #285 et les mesures des bancs restent celles d'avant.
 Le moût et la toile de lin sont de nouveaux biens à côté du vin et du tissu, pas leurs intrants.
 Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
-Chaque intermédiaire est l'intrant d'au moins une recette, ou le sera : le fil l'est de la toile de lin, les autres attendent les biens finis des tickets suivants.
-Depuis #711, la liste d'attente de cette règle est vide : voir plus bas.
+Chaque intermédiaire et chaque matière première est l'intrant d'au moins une recette, sans exception depuis #711 : voir plus bas.
 Comme pour les matières de #708, aucun intermédiaire nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
 Depuis #710, la configuration initiale compte dix biens finis : aux trois de la phase 2 (pain, vin, amphores) s'ajoutent sept biens du quotidien, chacun avec la recette d'un atelier (4.3).
 
