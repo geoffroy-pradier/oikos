@@ -758,6 +758,7 @@
   "map": {
     "title": "Map of the archipelago",
     "intro": "The cities, the sea routes and your ships. A route's duration is that of a ship of ordinary speed; a slower ship takes longer.",
+    "depart": "Send a ship out",
     "drawing": "Map of the archipelago: {{cities}} cities, {{routes}} routes; the list below gives the details.",
     "hours_one": "{{number}} h",
     "hours_other": "{{number}} h",

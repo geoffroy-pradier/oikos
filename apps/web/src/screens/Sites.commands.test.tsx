@@ -126,3 +126,51 @@ describe('état local périmé : l’API reste l’arbitre de la récolte d’un
     },
   );
 });
+
+describe('le résultat suit la fiche que les relectures agrandissent', () => {
+  it('rendu dans la fenêtre à chaque changement de taille de la page, pendant une seconde', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const observers: { callback: () => void; disconnected: boolean }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        entry: { callback: () => void; disconnected: boolean };
+        constructor(callback: () => void) {
+          this.entry = { callback, disconnected: false };
+          observers.push(this.entry);
+        }
+        observe() {}
+        disconnect() {
+          this.entry.disconnected = true;
+        }
+      },
+    );
+    const scrolled: string[] = [];
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (
+      this: Element,
+    ) {
+      scrolled.push(this.textContent ?? '');
+    });
+    api.collectSite.mockResolvedValueOnce(collected);
+    await show();
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: fr.home.collectSite.replace('{{site}}', fr.recipes.grow_wheat),
+      }),
+    );
+    await waitFor(() => expect(statuses()).toMatch(/Récolte engrangée/));
+    const live = () => observers.filter((observer) => !observer.disconnected);
+    await waitFor(() => expect(live()).toHaveLength(1));
+    const [observer] = live();
+    expect(scrolled.filter((text) => /Récolte engrangée/.test(text))).toHaveLength(1);
+    // Une fiche grandit au-dessus du message : il est rendu à nouveau dans la fenêtre.
+    observer?.callback();
+    expect(scrolled.filter((text) => /Récolte engrangée/.test(text))).toHaveLength(2);
+    // Passé une seconde, la page ne suit plus : le joueur reste libre de faire défiler.
+    vi.advanceTimersByTime(1000);
+    expect(observer?.disconnected).toBe(true);
+    scroll.mockRestore();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+});

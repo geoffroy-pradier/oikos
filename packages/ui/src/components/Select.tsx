@@ -6,6 +6,8 @@ import { CONTROL, FieldFrame, useFieldIds, type FieldTextProps } from './field-p
 export interface SelectProps extends ComponentProps<'select'>, FieldTextProps {
   /** Sans région d'erreur : pour un choix qui n'en a jamais (langue de l'en-tête). */
   quiet?: boolean | undefined;
+  /** Libellé lu par les lecteurs d'écran seulement : choix d'en-tête de page, aligné sur le titre. */
+  hideLabel?: boolean | undefined;
 }
 
 /** Liste de choix native (clavier et lecteurs d'écran du système), habillée comme les champs. */
@@ -14,6 +16,7 @@ export function Select({
   hint,
   error,
   quiet,
+  hideLabel,
   className,
   id,
   children,
@@ -21,7 +24,14 @@ export function Select({
 }: SelectProps) {
   const ids = useFieldIds({ hint, error }, id, props['aria-describedby']);
   return (
-    <FieldFrame ids={ids} label={label} hint={hint} error={error} quiet={quiet}>
+    <FieldFrame
+      ids={ids}
+      label={label}
+      hint={hint}
+      error={error}
+      quiet={quiet}
+      hideLabel={hideLabel}
+    >
       <div className="relative">
         <select
           {...props}

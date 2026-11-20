@@ -758,6 +758,7 @@
   "map": {
     "title": "Carte de l'archipel",
     "intro": "Les cités, les routes maritimes et vos navires. La durée d'une route est celle d'un navire de vitesse ordinaire ; un navire plus lent met plus longtemps.",
+    "depart": "Faire partir un navire",
     "drawing": "Carte de l'archipel : {{cities}} cités, {{routes}} routes ; la liste qui suit en donne le détail.",
     "hours_one": "{{number}} h",
     "hours_other": "{{number}} h",
