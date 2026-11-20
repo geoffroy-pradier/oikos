@@ -60,8 +60,11 @@ export function FieldFrame({
   error,
   quiet = false,
   polite = false,
+  hideLabel = false,
   children,
 }: FieldTextProps & {
+  /** Libellé lu mais non affiché : un choix d'en-tête de page, que sa valeur suffit à montrer. */
+  hideLabel?: boolean | undefined;
   /** Champ qui n'a jamais d'erreur (langue dans l'en-tête) : pas de région vivante vide à côté. */
   quiet?: boolean | undefined;
   ids: ReturnType<typeof useFieldIds>;
@@ -70,7 +73,7 @@ export function FieldFrame({
 }) {
   return (
     <div className="flex flex-col">
-      <label htmlFor={ids.inputId} className="mb-1.5 font-medium">
+      <label htmlFor={ids.inputId} className={hideLabel ? 'sr-only' : 'mb-1.5 font-medium'}>
         {label}
       </label>
       {children}

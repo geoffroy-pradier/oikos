@@ -251,10 +251,13 @@ export function AgoraScreen() {
         action={
           // Pas de changement de marché pendant qu'une commande est en route : son résultat et le carnet
           // relu ensuite portent sur le bien et la cité affichés.
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-flow-col sm:auto-cols-[12rem]">
+          // Libellés lus seulement : la valeur choisie suffit à l'œil, et la liste (48 px) reste centrée sur la
+          // ligne du titre au lieu de monter au-dessus de lui.
+          <div className="grid w-full gap-3 sm:-mt-1 sm:w-auto sm:grid-flow-col sm:auto-cols-[12rem]">
             <Select
               id="good"
               label={t('agora.good')}
+              hideLabel
               quiet
               value={goodId}
               disabled={busy}
@@ -273,6 +276,7 @@ export function AgoraScreen() {
               <Select
                 id="city"
                 label={t('agora.city')}
+                hideLabel
                 quiet
                 value={cityId}
                 disabled={busy}

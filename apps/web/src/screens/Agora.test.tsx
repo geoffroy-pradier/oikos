@@ -100,10 +100,13 @@ describe('choix de la cité de l’agora', () => {
     const title = screen.getByRole('heading', { level: 1, name: 'Agora de Kallistè' });
     const header = title.closest<HTMLElement>('[data-slot="page-header"]');
     if (!header) throw new Error('en-tête');
-    for (const label of [fr.agora.good, 'Cité du marché'])
+    for (const label of [fr.agora.good, 'Cité du marché']) {
       expect(
         within(header).getByLabelText(label).closest('[data-slot="page-header-action"]'),
       ).toBeTruthy();
+      // Libellé lu, pas affiché : la liste reste sur la ligne du titre.
+      expect(within(header).getByText(label).className).toBe('sr-only');
+    }
   });
 
   it('propose les cités du stock et des sites, sans doublon, l’origine par défaut', async () => {
