@@ -848,11 +848,18 @@
     "perDay": "{{cost}} par jour",
     "tenant": "Locataire",
     "landlord": "Bailleur",
+    "endNote": "Une fin demandée est définitive : le bail prend fin à la prochaine clôture, qui ne demande plus de loyer.",
     "columns": {
       "property": "Bien",
       "role": "Vous êtes",
       "rent": "Loyer",
       "status": "Bail"
+    },
+    "sheet": {
+      "endLease": "Mettre fin au bail : {{name}}"
+    },
+    "confirm": {
+      "endLease": "Confirmer la fin du bail"
     }
   },
   "alerts": {

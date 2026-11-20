@@ -2,13 +2,14 @@ import { Button, type DataColumn } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
 import type { Lease } from '../property';
-import { PropertyTable, type RunCommand } from './PropertySheet';
+import { PropertySheet, PropertyTable, useSheet, type RunCommand } from './PropertySheet';
 
 export const endIntent = (leaseId: string) => `end:${leaseId}`;
 
 /**
  * Baux de la maison (4.5), en tableau (fiches sur téléphone) : le bien, son rôle, le loyer d'un jour et
- * l'état du bail, avec « Mettre fin au bail » pour un bail en cours sans fin demandée.
+ * l'état du bail. Un bail en cours sans fin demandée se finit depuis une feuille qui rappelle le loyer et
+ * que la fin demandée est définitive.
  */
 export function PropertyLeases(props: {
   leases: Lease[];
@@ -19,6 +20,7 @@ export function PropertyLeases(props: {
   const { leases, describe, busy, run } = props;
   const { t } = useTranslation();
   const money = useMoney();
+  const { opened: ending, open, refusal, outcome } = useSheet<Lease>();
   const role = (lease: Lease) => t(lease.asTenant ? 'property.tenant' : 'property.landlord');
   const rent = (lease: Lease) => t('property.perDay', { cost: money(lease.rentOboles) });
   const columns: DataColumn<Lease>[] = [
@@ -43,12 +45,9 @@ export function PropertyLeases(props: {
           <Button
             size="sm"
             variant="secondary"
-            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-            aria-disabled={busy}
+            disabled={busy}
             aria-label={`${t('property.endLease')} — ${describe(lease)}`}
-            onClick={() =>
-              void run(endIntent(lease.id), 'property.endLease', { leaseId: lease.id })
-            }
+            onClick={() => open(lease)}
           >
             {t('property.endLease')}
           </Button>
@@ -56,11 +55,34 @@ export function PropertyLeases(props: {
     },
   ];
   return (
-    <PropertyTable
-      caption={t('property.leases')}
-      columns={columns}
-      rows={leases}
-      rowKey={(lease) => lease.id}
-    />
+    <>
+      <PropertyTable
+        caption={t('property.leases')}
+        columns={columns}
+        rows={leases}
+        rowKey={(lease) => lease.id}
+      />
+      <PropertySheet
+        open={ending !== null}
+        onClose={outcome.close}
+        busy={busy}
+        title={ending ? t('property.sheet.endLease', { name: describe(ending) }) : ''}
+        facts={
+          ending
+            ? [
+                [t('property.columns.role'), role(ending)],
+                [t('property.columns.rent'), rent(ending)],
+              ]
+            : []
+        }
+        note={t('property.endNote')}
+        confirm={t('property.confirm.endLease')}
+        refusal={refusal}
+        onConfirm={() =>
+          ending &&
+          void run(endIntent(ending.id), 'property.endLease', { leaseId: ending.id }, outcome)
+        }
+      />
+    </>
   );
 }
