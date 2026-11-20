@@ -216,6 +216,8 @@ describe('commandes du propriétaire (#259)', () => {
     // Le récapitulatif reprend le net, avant la confirmation.
     click(fr.stepper.next);
     expect(sheet().getByText('95 drachmes')).toBeTruthy();
+    // Le net suit la liste des faits, hors du `<dl>`, qui n'admet que des termes et des définitions.
+    expect(screen.getByRole('dialog').querySelector('dl p, dl > :not(div, dt, dd)')).toBeNull();
     // Le loyer n'est pas une vente : aucun net sous sa saisie.
     click(fr.property.backToActions);
     click(/^Mettre en location — /);

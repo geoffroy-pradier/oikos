@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Button } from './Button';
@@ -40,6 +40,9 @@ describe('Sheet', () => {
     expect(sheet.getAttribute('aria-modal')).toBe('true');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Fermer' }));
     expect(document.documentElement.style.overflow).toBe('hidden');
+    // Ni bannière ni pied de page dans la feuille : ces repères restent ceux de la coquille (axe).
+    expect(within(sheet).queryByRole('banner')).toBeNull();
+    expect(within(sheet).queryByRole('contentinfo')).toBeNull();
   });
 
   it('garde le foyer à la tabulation, dans les deux sens', () => {

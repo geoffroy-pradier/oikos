@@ -82,6 +82,7 @@
     "stockReserved": "of which {{reserved}} for sale",
     "atSea": "At sea, bound for {{city}}",
     "sites": "Sites",
+    "sitesList": "Your sites",
     "sitesEmpty": "No site.",
     "siteSince": "Current cycle started on {{date}}",
     "collect": "Collect",

@@ -371,6 +371,8 @@ it('durée retirée entre-temps : le refus est expliqué, les durées relues, le
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suspension' }));
   await waitFor(() => expect(notice('alert')).toMatch(/^Cette durée n'est plus proposée/));
+  // Le refus paraît dans la feuille, une seule fois : pas aussi sous elle, dans la page.
+  expect(screen.getAllByText(/^Cette durée n'est plus proposée/)).toHaveLength(1);
   // La confirmation reste ouverte, avec les durées relues ; aucune n'est choisie, le motif reste.
   expect(
     screen

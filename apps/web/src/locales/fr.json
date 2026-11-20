@@ -82,6 +82,7 @@
     "stockReserved": "dont {{reserved}} en vente",
     "atSea": "En mer, vers {{city}}",
     "sites": "Sites",
+    "sitesList": "Vos sites",
     "sitesEmpty": "Aucun site.",
     "siteSince": "Cycle en cours depuis le {{date}}",
     "collect": "Récolter",

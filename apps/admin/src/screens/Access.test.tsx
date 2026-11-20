@@ -129,7 +129,7 @@ const fill = (field: HTMLInputElement, value: string, role = 'moderator') => {
   fireEvent.click(screen.getByRole('button', { name: 'Accorder le rôle' }));
 };
 const notice = (role: 'status' | 'alert') =>
-  screen.getAllByRole(role).find((node) => node.tagName === 'DIV')?.textContent;
+  screen.getAllByRole(role).findLast((node) => node.tagName === 'DIV')?.textContent;
 const keyOf = (call: number) => adminCommand.mock.calls[call]?.[3] as string;
 
 it('accorde un rôle par identifiant : saisie contrôlée à l’envoi, liste relue, champ vidé', async () => {
@@ -162,6 +162,8 @@ it('accorde un rôle par identifiant : saisie contrôlée à l’envoi, liste re
   // Espaces et majuscules d'un copier-coller : l'identifiant part sous sa forme canonique.
   fill(field, ` ${NEW.toUpperCase()} `);
   await waitFor(() => expect(notice('status')).toBe('Rôle Modérateur accordé.'));
+  // Le résultat paraît dans la feuille restée ouverte, une seule fois : pas aussi sous elle, dans la page.
+  expect(screen.getAllByText('Rôle Modérateur accordé.')).toHaveLength(1);
   expect(adminCommand.mock.calls[0]?.slice(0, 3)).toEqual([
     'admin.grantRole',
     { userId: NEW, role: 'moderator' },

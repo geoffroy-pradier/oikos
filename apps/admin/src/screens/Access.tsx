@@ -237,8 +237,8 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
           </div>
         </>
       )}
-      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
-      <Notice notice={notice} />
+      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. Feuille ouverte : il y paraît, pas ici. */}
+      <Notice notice={granting ? null : notice} />
       <Sheet
         open={granting}
         // Commande en vol : ni Échap ni le voile ne referment la feuille (doc de `Sheet`).

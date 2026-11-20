@@ -51,7 +51,9 @@ export function Sheet({
         aria-hidden="true"
         className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border lg:hidden"
       />
-      <header className="flex items-start gap-3 px-5 pt-3 pb-2 lg:pt-5">
+      {/* En-tête et pied sans `header` ni `footer` : hors d'une section, ils seraient des repères de page
+          (bannière, pied) en double de ceux de la coquille. */}
+      <div className="flex items-start gap-3 px-5 pt-3 pb-2 lg:pt-5">
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-2">
           <h2 id={`${id}-title`} className="text-lg">
             {title}
@@ -59,12 +61,12 @@ export function Sheet({
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
         <IconButton icon={<X />} label={closeLabel} onClick={onClose} disabled={closeDisabled} />
-      </header>
+      </div>
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5">{children}</div>
       {footer && (
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-border-subtle px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border-subtle px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {footer}
-        </footer>
+        </div>
       )}
     </Modal>
   );

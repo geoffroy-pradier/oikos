@@ -223,15 +223,17 @@ export function PropertyActions({
               id: 'recap',
               title: t('property.steps.recap'),
               content: (
-                <dl className="grid grid-cols-2 gap-2.5">
-                  {facts.map(([fact, value]) => (
-                    <div key={fact} className="rounded-xl bg-surface-raised p-3">
-                      <dt className="text-xs text-muted-foreground">{fact}</dt>
-                      <dd className="mt-1 font-bold tabular-nums">{value}</dd>
-                    </div>
-                  ))}
-                  {net && <p className="col-span-2 text-sm text-muted-foreground">{net}</p>}
-                </dl>
+                <div className="flex flex-col gap-2.5">
+                  <dl className="grid grid-cols-2 gap-2.5">
+                    {facts.map(([fact, value]) => (
+                      <div key={fact} className="rounded-xl bg-surface-raised p-3">
+                        <dt className="text-xs text-muted-foreground">{fact}</dt>
+                        <dd className="mt-1 font-bold tabular-nums">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {net && <p className="text-sm text-muted-foreground">{net}</p>}
+                </div>
               ),
             },
           ]}
