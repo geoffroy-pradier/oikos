@@ -575,6 +575,8 @@ export interface GameDatabase {
     election_id: ColumnType<string, string, never>;
     starts_at: ColumnType<Date, Date, never>;
     ends_at: ColumnType<Date, Date, never>;
+    /** Charge quittée avant son terme par un archonte ostracisé (#722), datée par la base, une fois. */
+    vacated_at: ColumnType<Date | null, never, Date>;
   };
   /**
    * Décrets (6.3) : proposés par l'archonte en charge, dépouillés une fois par la clôture, qui écrit l'état,

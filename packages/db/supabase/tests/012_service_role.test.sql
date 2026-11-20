@@ -46,7 +46,7 @@ select is(
     || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day messages.hidden_at npc_demand_carry.budget_carry npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
-    || 'oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '
+    || 'offices.vacated_at oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '
     || 'orders.status ostracisms.ballots ostracisms.electorate ostracisms.ends_at ostracisms.ostracized_house_id '
     || 'ostracisms.outcome ostracisms.tallied_at price_candles.close price_candles.high price_candles.low price_candles.open '
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
@@ -106,7 +106,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.auth_user_exists game.city_rates game.lock_npc_purses game.npc_purses game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
+  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.auth_user_exists game.city_rates game.house_ostracized game.lock_npc_purses game.npc_purses game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');
