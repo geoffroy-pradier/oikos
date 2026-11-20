@@ -12,6 +12,7 @@ import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
 import { npcPublicIncome } from './steps/npc-public-income';
+import { ostracismOpening } from './steps/ostracism-opening';
 import { propertyWear } from './steps/property-wear';
 import { siteUpkeep } from './steps/site-upkeep';
 import { worldEventPlanning } from './steps/world-event-planning';
@@ -32,12 +33,14 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // prélève son salaire et son hébergement ; le revenu public des PNJ (#632) entre les deux, après la population.
     // La planification des événements (#267) puis le déclin de la Charis
     // (#265), sans monnaie ni stock ni agora, passent avant tout ce qui peut prendre l'agora.
+    // L'ouverture du vote d'ostracisme (#722) juste après le dépouillement des décrets, qui l'adopte.
     const order = [
       citizenship,
       archonTally,
       archonHonor,
       archonOpening,
       decreeTally,
+      ostracismOpening,
       npcPopulation,
       worldEventPlanning,
       favorDecay,
@@ -58,6 +61,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
+    expect(CLOSE_STEPS.indexOf(ostracismOpening)).toBe(CLOSE_STEPS.indexOf(decreeTally) + 1);
     const names = CLOSE_STEPS.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
   });
