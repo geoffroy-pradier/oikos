@@ -15,6 +15,7 @@ import {
   GOOD_ICON_IDS,
   GOOD_TIER_IDS,
   GoodIcon,
+  OlympusScene,
   WelcomeScene,
 } from '@oikos/ui';
 import { StrictMode, type ReactNode } from 'react';
@@ -106,6 +107,7 @@ function Scenes() {
   return (
     <div className="flex flex-col gap-4">
       <WelcomeScene className="h-auto w-full rounded-lg" />
+      <OlympusScene className="h-auto w-full" />
       <ul className="grid grid-cols-2 gap-3">
         {EMPTY_ILLUSTRATION_IDS.map((id) => (
           <li key={id} className="flex flex-col items-center gap-1 text-center">
@@ -137,7 +139,7 @@ function Catalogue() {
       <Section title="CityVignette · 240 × 160 · 120 × 80">
         <Cities />
       </Section>
-      <Section title="WelcomeScene · EmptyIllustration">
+      <Section title="WelcomeScene · OlympusScene · EmptyIllustration">
         <Scenes />
       </Section>
       <Section title="Archipelago · 1 000 × 700">

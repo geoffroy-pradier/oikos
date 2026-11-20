@@ -9,6 +9,7 @@ import {
   IconButton,
   KeyRound,
   Landmark,
+  LanguageSelect,
   LogOut,
   Moon,
   ScrollText,
@@ -204,7 +205,12 @@ export function App() {
             'lg:sticky lg:top-0 lg:h-dvh lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:px-3.5 lg:py-5',
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:flex-none lg:px-1.5">
+        <div
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2.5',
+            shell && 'lg:flex-none lg:px-1.5',
+          )}
+        >
           <span
             aria-hidden="true"
             className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground text-background"
@@ -222,28 +228,23 @@ export function App() {
             <Badge>{t('app.role', { role: t(`roles.${granted}`) })}</Badge>
           </p>
         )}
+        {/* Langue à droite de l'en-tête, comme sur la connexion du jeu ; en bas de la barre latérale sur ordinateur. */}
         <div className="flex items-center gap-1 lg:order-3 lg:mt-auto">
-          <label htmlFor="language" className="sr-only">
-            {t('app.language')}
-          </label>
-          <select
-            id="language"
-            className="min-h-11 min-w-0 rounded-lg border border-border bg-surface-raised px-2 text-sm lg:flex-1"
-            value={i18n.language}
-            onChange={(event) => void i18n.changeLanguage(event.target.value)}
-          >
-            {LANGUAGES.map((language) => (
-              <option key={language} value={language} lang={language}>
-                {t(`languages.${language}`)}
-              </option>
-            ))}
-          </select>
           <IconButton
             label={t('app.darkTheme')}
             icon={<Moon />}
             aria-pressed={theme === 'dark'}
             className="aria-pressed:bg-muted"
             onClick={() => toggleTheme()}
+          />
+          <LanguageSelect
+            languages={LANGUAGES}
+            value={i18n.language}
+            onChange={(language) => void i18n.changeLanguage(language)}
+            label={t('app.language')}
+            nameOf={(language) => t(`languages.${language}`)}
+            compact={shell}
+            className="lg:flex-1"
           />
           {session && (
             <IconButton
