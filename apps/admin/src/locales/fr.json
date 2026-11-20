@@ -225,7 +225,19 @@
     },
     "byDay_one": "Robinets et puits : net par jour de jeu (jour lu : 1)",
     "byDay_other": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",
-    "noDays": "Aucun mouvement sur la période."
+    "noDays": "Aucun mouvement sur la période.",
+    "chart": {
+      "title": "Robinets et puits par jour",
+      "faucets": "Robinets",
+      "sinks": "Puits",
+      "net": "Création nette",
+      "day": "Jour de jeu",
+      "summary_one": "Sur 1 jour, les robinets vont de {{faucets.min}} à {{faucets.max}} oboles, les puits de {{sinks.min}} à {{sinks.max}} ; le tableau qui suit donne les valeurs.",
+      "summary_other": "Sur {{count}} jours, les robinets vont de {{faucets.min}} à {{faucets.max}} oboles par jour, les puits de {{sinks.min}} à {{sinks.max}} ; le tableau qui suit donne les valeurs."
+    },
+    "shares": "Part de chaque puits, depuis l'origine",
+    "noShares": "Aucun puits n'a encore détruit de monnaie.",
+    "dayDetail": "Détail par compte, jour par jour"
   },
   "access": {
     "title": "Accès",
