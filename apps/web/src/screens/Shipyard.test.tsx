@@ -87,9 +87,10 @@ describe('achat d’un navire, comme l’acquisition d’un site', () => {
     await mount([]);
     buy();
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('déjà abouti'));
-    // La feuille fermée, le foyer va au message qui dit l'issue.
+    // La feuille fermée, le foyer va au message qui dit l'issue. Il y va par un effet passif, après celui qui rend
+    // le foyer à l'ouvreur en fermant la feuille : le texte peut paraître un instant avant lui.
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole('status'));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('status')));
     expect(sent.keys).toHaveLength(2);
     expect(sent.keys[1]).toBe(sent.keys[0]);
   });
