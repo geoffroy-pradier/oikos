@@ -813,6 +813,7 @@
     "city": {
       "choose": "City",
       "population": "Population",
+      "populationUnknown": "Not known yet",
       "tax": "Market tax",
       "price": "{{good}}, per unit",
       "noPrices": "No price observed at its agora yet.",
@@ -852,6 +853,7 @@
     "title": "Send the ship out",
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h at sea, cost {{cost}}",
+    "optionLine": "{{hours}} h · {{cost}}",
     "optionStorm": "{{city}} — {{hours}} h at sea in a storm ({{calm}} h in calm weather), cost {{cost}}",
     "optionWind": "{{city}} — {{hours}} h at sea with a fair wind ({{stormy}} h without it), cost {{cost}}",
     "optionStormWind": "{{city}} — {{hours}} h at sea in a storm with a fair wind ({{stormy}} h without the wind, {{calm}} h in calm weather), cost {{cost}}",

@@ -13,6 +13,7 @@ import { countedIntent, countedIntentBelow, pendingKeys, sendUnderKey } from '..
 import { destinationsFrom, quoteDeparture, type ShipRules } from '../ship-rules';
 import { describeWorldEvent, stormOn, useWorldEvents } from '../world-events';
 import { LoadProblem } from './LoadProblem';
+import { dateTimeFormat } from '../game-time';
 
 interface Inventory {
   city_id: string;
@@ -51,7 +52,7 @@ export function Departure(props: {
   const house = useHouse();
   const money = useMoney();
   const number = new Intl.NumberFormat(i18n.language);
-  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const time = dateTimeFormat(i18n.language);
   const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
   // Secondes retirées par un vent favorable ; arrondies à « 0 h », elles sont dites « quelques minutes au plus ».
   const saved = (seconds: number, key: 'fairWind' | 'sailedWind', god?: string) =>
@@ -209,27 +210,48 @@ export function Departure(props: {
   const destinationStep = (
     <fieldset className="flex min-w-0 flex-col gap-1.5">
       <legend className="sr-only">{t('departure.destination')}</legend>
-      {destinations.map(({ cityId, quote, longer, shorter, stormy, seconds }) => (
-        <label key={cityId} className={cn(ROW, 'flex-nowrap items-start py-2.5')}>
-          <input
-            type="radio"
-            className="mt-1 size-4 shrink-0 accent-primary"
-            name="destination"
-            value={cityId}
-            checked={to === cityId}
-            onChange={() => setTo(cityId)}
-          />
-          <span className="min-w-0">
-            {t(`departure.option${longer ? 'Storm' : ''}${shorter ? 'Wind' : ''}`, {
-              city: house.cityNames[cityId] ?? cityId,
-              hours: hours(seconds),
-              stormy: hours(stormy),
-              calm: hours(quote.durationSeconds),
-              cost: money(quote.totalOboles),
-            })}
-          </span>
-        </label>
-      ))}
+      {destinations.map(({ cityId, quote, longer, shorter, stormy, seconds }) => {
+        const sentence = t(`departure.option${longer ? 'Storm' : ''}${shorter ? 'Wind' : ''}`, {
+          city: house.cityNames[cityId] ?? cityId,
+          hours: hours(seconds),
+          stormy: hours(stormy),
+          calm: hours(quote.durationSeconds),
+          cost: money(quote.totalOboles),
+        });
+        return (
+          <label key={cityId} className={cn(ROW, 'flex-nowrap items-start py-2.5')}>
+            <input
+              type="radio"
+              className="mt-1 size-4 shrink-0 accent-primary"
+              name="destination"
+              value={cityId}
+              checked={to === cityId}
+              onChange={() => setTo(cityId)}
+            />
+            {longer || shorter ? (
+              <span className="min-w-0">{sentence}</span>
+            ) : (
+              // Par temps ordinaire, une ligne (#869) : la cité, puis la durée et le coût ; la phrase entière
+              // reste le nom de l'option.
+              <span className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+                <span className="sr-only">{sentence}</span>
+                <span aria-hidden="true" className="truncate font-medium">
+                  {house.cityNames[cityId] ?? cityId}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 text-sm text-muted-foreground tabular-nums"
+                >
+                  {t('departure.optionLine', {
+                    hours: hours(seconds),
+                    cost: money(quote.totalOboles),
+                  })}
+                </span>
+              </span>
+            )}
+          </label>
+        );
+      })}
     </fieldset>
   );
   const cargoStep = (

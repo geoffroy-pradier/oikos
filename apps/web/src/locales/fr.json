@@ -813,6 +813,7 @@
     "city": {
       "choose": "Cité",
       "population": "Population",
+      "populationUnknown": "Pas encore connue",
       "tax": "Taxe de marché",
       "price": "{{good}}, l'unité",
       "noPrices": "Aucun cours observé à son agora pour l'instant.",
@@ -852,6 +853,7 @@
     "title": "Faire partir le navire",
     "destination": "Destination",
     "option": "{{city}} — {{hours}} h de mer, coût {{cost}}",
+    "optionLine": "{{hours}} h · {{cost}}",
     "optionStorm": "{{city}} — {{hours}} h de mer par tempête ({{calm}} h par temps calme), coût {{cost}}",
     "optionWind": "{{city}} — {{hours}} h de mer par vent favorable ({{stormy}} h sans lui), coût {{cost}}",
     "optionStormWind": "{{city}} — {{hours}} h de mer par tempête et vent favorable ({{stormy}} h sans le vent, {{calm}} h par temps calme), coût {{cost}}",

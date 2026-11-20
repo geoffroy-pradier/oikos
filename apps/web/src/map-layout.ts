@@ -91,20 +91,56 @@ const inside = (box: Box, bounds: Box) =>
   box.x + box.width <= bounds.x + bounds.width &&
   box.y + box.height <= bounds.y + bounds.height;
 
+/** Un trait du dessin (une route), d'un point à l'autre. */
+export interface Segment {
+  a: Point;
+  b: Point;
+}
+
+/** Le trait coupe-t-il le rectangle, ou y entre-t-il ? Découpage de Liang et Barsky ; un bord touché compte. */
+export function crosses({ a, b }: Segment, box: Box): boolean {
+  const [dx, dy] = [b.x - a.x, b.y - a.y];
+  let [enter, leave] = [0, 1];
+  for (const [p, q] of [
+    [-dx, a.x - box.x],
+    [dx, box.x + box.width - a.x],
+    [-dy, a.y - box.y],
+    [dy, box.y + box.height - a.y],
+  ] as const) {
+    if (Math.abs(p) < EPSILON) {
+      if (q < 0) return false;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) enter = Math.max(enter, r);
+    else leave = Math.min(leave, r);
+    if (enter > leave) return false;
+  }
+  return true;
+}
+
+/** Place candidate ; `loose` : elle peut couper un trait (dernier recours d'un nom de cité). */
+export type Spot = Box & { loose?: boolean };
+
 /**
  * Pose chaque étiquette à la première de ses places candidates qui reste dans `bounds` sans chevaucher les
- * `obstacles` ni une étiquette déjà posée. `null` : aucune place.
+ * `obstacles` ni une étiquette déjà posée, ni couper un des `lines` (#869) sauf place `loose`. `null` : aucune place.
  */
 export function placeBoxes(
-  spots: readonly (readonly Box[])[],
+  spots: readonly (readonly Spot[])[],
   obstacles: readonly Box[],
   bounds: Box,
+  lines: readonly Segment[] = [],
 ): (Box | null)[] {
   const taken = [...obstacles];
   return spots.map((candidates) => {
-    const fits = candidates.find(
-      (box) => inside(box, bounds) && !taken.some((other) => overlaps(box, other)),
+    const found = candidates.find(
+      (spot) =>
+        inside(spot, bounds) &&
+        !taken.some((other) => overlaps(spot, other)) &&
+        (spot.loose === true || !lines.some((line) => crosses(line, spot))),
     );
+    const fits = found && { x: found.x, y: found.y, width: found.width, height: found.height };
     if (fits) taken.push(fits);
     return fits ?? null;
   });
@@ -121,6 +157,7 @@ export function placeLabels(
   obstacles: readonly Box[],
   bounds: Box,
   gap: number,
+  lines: readonly Segment[] = [],
 ): (Box | null)[] {
   const spots = marks.map(({ at, width, height }) => {
     const [left, right, up, down] = [
@@ -136,7 +173,7 @@ export function placeLabels(
       { x: left, y: down, width, height },
     ];
   });
-  return placeBoxes(spots, obstacles, bounds);
+  return placeBoxes(spots, obstacles, bounds, lines);
 }
 
 /**
@@ -157,23 +194,26 @@ export const cityDot = (at: Point, unit: number): Box => ({
 /**
  * Nom de chaque cité sur le dessin (#707) : au-dessus de son point, sinon au-dessous, à droite ou à gauche,
  * la première place qui reste dans le dessin sans chevaucher un autre nom, un point de cité ni les `reserved`
- * (boutons de la carte). Les cités du nord sont posées d'abord, d'ouest en est. Sans place libre, le nom
- * reste au-dessus : il chevauche, mais se lit encore. `unit` : unités du dessin par pixel CSS.
+ * (boutons de la carte), et sans couper une route (`lines`, #869) ; à défaut, les mêmes places en coupant une
+ * route. Les cités du nord sont posées d'abord, d'ouest en est. Sans place libre, le nom reste au-dessus : il
+ * chevauche, mais se lit encore. `unit` : unités du dessin par pixel CSS.
  */
 export function cityLabels(
   cities: readonly { at: Point; name: string }[],
   unit: number,
   reserved: readonly Box[] = [],
+  lines: readonly Segment[] = [],
 ): Box[] {
   const { perChar, height, dot } = CITY_LABEL;
   const spots = cities.map(({ at, name }) => {
     const [w, h, d] = [name.length * perChar * unit, height * unit, dot * unit];
-    return [
+    const around: Box[] = [
       { x: at.x - w / 2, y: at.y - d - h, width: w, height: h },
       { x: at.x - w / 2, y: at.y + d, width: w, height: h },
       { x: at.x + d, y: at.y - h / 2, width: w, height: h },
       { x: at.x - d - w, y: at.y - h / 2, width: w, height: h },
     ];
+    return [...around, ...around.map((box) => ({ ...box, loose: true }))];
   });
   const order = cities
     .map((city, index) => ({ ...city.at, index }))
@@ -183,6 +223,7 @@ export function cityLabels(
     order.map((index) => spots[index] ?? []),
     [...reserved, ...cities.map(({ at }) => cityDot(at, unit))],
     FULL,
+    lines,
   );
   const byCity = new Map(order.map((index, rank) => [index, placed[rank]]));
   return spots.map((candidates, index) => byCity.get(index) ?? (candidates[0] as Box));

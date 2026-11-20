@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Help } from './Help';
 import type { ValuedStock } from '../accounts';
 import { formatMoney } from '../money';
+import { dateTimeFormat } from '../game-time';
 
 /**
  * Stocks valorisés de la maison (4.1) : tableau triable sur ordinateur, fiches empilées sur téléphone
@@ -14,7 +15,7 @@ export function ValuedStocks({ stocks }: { stocks: ValuedStock[] }) {
   const { t, i18n } = useTranslation();
   const money = (amount: number) => formatMoney(amount, t, i18n.language);
   const number = new Intl.NumberFormat(i18n.language);
-  const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const date = dateTimeFormat(i18n.language);
   const goodName = (stock: ValuedStock) =>
     t(`goods.${stock.goodId}`, { defaultValue: stock.goodId });
   const columns: DataColumn<ValuedStock>[] = [

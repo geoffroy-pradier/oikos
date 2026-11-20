@@ -169,10 +169,7 @@ export function CityScreen() {
         }))}
       />
       {/* Téléphone : la vignette à côté du titre, la liste dessous ; ordinateur : la vignette à gauche du tout. */}
-      <Card
-        elevation="raised"
-        className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4"
-      >
+      <Card className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4">
         <CityVignette
           cityId={slug}
           className="h-auto w-full shrink-0 rounded-xl bg-muted p-1 text-foreground sm:w-48 sm:p-1.5"
@@ -211,7 +208,8 @@ export function CityScreen() {
           )}
         </div>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+      {/* Trois cartes de même hauteur sur ordinateur, quel que soit leur contenu (#869). */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col gap-3">
           <CardTitle icon={<Users />} title={title}>
             {t('city.population')}

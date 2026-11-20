@@ -61,7 +61,7 @@ export function CityChronicle() {
       )}
       {articles?.length === 0 && <EmptyState illustration="noEvent" title={t('chronicle.none')} />}
       {latest && (
-        <Card elevation="raised" className="flex flex-col gap-3 break-words sm:p-6">
+        <Card className="flex flex-col gap-3 break-words sm:p-6">
           <article className="flex max-w-prose flex-col gap-3 leading-relaxed">
             <h3 className="text-lg font-semibold">{heading(latest)}</h3>
             {body(latest)}

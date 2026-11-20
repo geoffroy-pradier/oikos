@@ -11,6 +11,7 @@ import {
 } from '@oikos/ui';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { acquireShip } from '../api';
 import type { ShipRow } from '../fleet';
 import { useHouse } from '../house';
@@ -122,10 +123,9 @@ export function Shipyard(props: {
 
   return (
     <Card className="flex flex-col gap-3">
-      <h2 id="shipyard" tabIndex={-1} className="flex items-center gap-2 text-xl">
-        <Hammer aria-hidden="true" className="size-5 shrink-0 text-accent" />
+      <SectionTitle id="shipyard" tabIndex={-1} icon={<Hammer />}>
         {t('map.shipyard')}
-      </h2>
+      </SectionTitle>
       <p className="text-muted-foreground">{t('map.shipyardIntro', { city: house.cityName })}</p>
       {rules?.classes.length === 0 && (
         <EmptyState compact illustration="noShip" title={t('map.noClasses')} />

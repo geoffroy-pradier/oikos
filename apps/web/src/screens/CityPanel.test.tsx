@@ -69,7 +69,8 @@ describe('panneau de la cité choisie sur la carte', () => {
     const html = (await render()).replace(/[\u202f\u00a0]/g, ' ');
     for (const view of ['city_population', 'city_rates', 'observed_prices'])
       expect(views.filters[view]).toEqual({ city_id: 'e' });
-    expect(html).toContain('<h2 class="text-lg font-bold">Elaia</h2>');
+    // Titre de section, son icône décorative devant le nom (#869).
+    expect(html).toMatch(/<h2[^>]*><span aria-hidden="true">.*?<\/span>Elaia<\/h2>/);
     expect(html).toMatch(/Population<\/dt><dd[^>]*>7 200</);
     expect(html).toMatch(/Taxe de marché<\/dt><dd[^>]*>2,5 %</);
     expect(html.match(/, l&#x27;unité/g)).toHaveLength(3);
@@ -83,7 +84,9 @@ describe('panneau de la cité choisie sur la carte', () => {
   it('rien encore lu : des tirets, jamais un chiffre inventé', async () => {
     views.rows = {};
     const html = await render();
-    expect(html.match(/<dd[^>]*>—<\/dd>/g)).toHaveLength(2);
+    // La taxe en tiret ; la population inconnue dite par un texte, jamais « Population — » (#869).
+    expect(html.match(/<dd[^>]*>—<\/dd>/g)).toHaveLength(1);
+    expect(html).toContain(`>${fr.map.city.populationUnknown}</dd>`);
     expect(html).not.toContain(fr.map.city.noPrices);
   });
 

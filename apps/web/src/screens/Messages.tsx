@@ -14,6 +14,7 @@ import { LoadProblem, Loading } from './LoadProblem';
 import { MessageComposer } from './MessageComposer';
 import { NewConversation } from './NewConversation';
 import { ReportMessage } from './ReportMessage';
+import { dateTimeFormat } from '../game-time';
 
 /**
  * Onglet Messages (6.6, #274) : le canal de la cité et les conversations privées de la maison, chacun avec ses
@@ -47,7 +48,7 @@ export function MessagesScreen() {
       : null;
   const total = unread ? [...unread.values()].reduce((sum, count) => sum + count.count, 0) : 0;
   const atLeast = unread ? [...unread.values()].some((count) => count.atLeast) : false;
-  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const time = dateTimeFormat(i18n.language);
 
   // Message reçu annoncé poliment, sans déplacer le foyer (spécification 10, écran 8), hors première lecture
   // d'un canal ; une annonce qui nomme une maison attend son nom, au plus `chatPollSeconds` secondes.
@@ -168,7 +169,9 @@ export function MessagesScreen() {
     total > 0 ? t(atLeast ? 'messages.unreadAtLeast' : 'messages.unread', { count: total }) : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    // Téléphone : l'écran remplit la fenêtre entre l'en-tête compact et la barre d'onglets, pour que la saisie
+    // du fil reste collée en bas même quand le fil est court (#869) ; un fil long la garde par `sticky`.
+    <div className="flex flex-col gap-4 max-lg:min-h-[calc(100dvh-11rem-env(safe-area-inset-bottom))]">
       <ScreenHeader
         title={t('tabs.messages.label')}
         titleRef={title}
@@ -204,7 +207,7 @@ export function MessagesScreen() {
       {chat.failed && <LoadProblem heading={title} onRetry={chat.reload} />}
       {channels === null && !chat.failed && <Loading />}
       {channels && (
-        <div className="lg:grid lg:h-[calc(100dvh-12rem)] lg:min-h-[30rem] lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:overflow-hidden lg:rounded-xl lg:border lg:border-border-subtle lg:bg-surface lg:shadow-sm">
+        <div className="max-lg:flex max-lg:flex-1 max-lg:flex-col lg:grid lg:h-[calc(100dvh-12rem)] lg:min-h-[30rem] lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:overflow-hidden lg:rounded-xl lg:border lg:border-border-subtle lg:bg-surface lg:shadow-sm">
           <section
             aria-labelledby="channels-title"
             className={`flex min-h-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface p-3 shadow-sm lg:rounded-none lg:border-0 lg:border-r lg:shadow-none ${pane === 'thread' ? 'max-lg:hidden' : ''}`}
@@ -260,7 +263,7 @@ export function MessagesScreen() {
           {open && (
             <section
               aria-labelledby="thread-title"
-              className={`flex min-h-0 min-w-0 flex-col rounded-xl border border-border-subtle bg-surface shadow-sm lg:rounded-none lg:border-0 lg:shadow-none ${pane === 'list' ? 'max-lg:hidden' : ''}`}
+              className={`flex min-h-0 min-w-0 flex-col rounded-xl border border-border-subtle bg-surface shadow-sm max-lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none ${pane === 'list' ? 'max-lg:hidden' : ''}`}
             >
               <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-2.5 lg:px-5 lg:py-3.5">
                 <Button
@@ -290,7 +293,7 @@ export function MessagesScreen() {
                 </h2>
               </div>
               <div
-                className="flex flex-col gap-3 p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:p-5"
+                className="flex flex-1 flex-col gap-3 p-3 lg:min-h-0 lg:overflow-y-auto lg:p-5"
                 onScroll={(event) => {
                   const list = event.currentTarget;
                   atBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
