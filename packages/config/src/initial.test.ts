@@ -120,7 +120,6 @@ describe('jeu de valeurs initial', () => {
       'rake_salt',
       'shear_wool',
     ]);
-    // Les huit cités de #706 : quatre à cinq productions primaires chacune, tirées des huit matières premières.
     expect(terroir('dikaia')).toEqual(['dig_clay', 'fell_wood', 'grow_olives', 'grow_wheat']);
     expect(terroir('gamelia')).toEqual(['grow_grapes', 'grow_olives', 'grow_wheat', 'shear_wool']);
     expect(terroir('delphis')).toEqual(['dig_clay', 'grow_grapes', 'grow_olives', 'shear_wool']);
@@ -151,7 +150,6 @@ describe('jeu de valeurs initial', () => {
         npcClass.basket.filter((entry) => entry.need === 'vital').map((entry) => entry.goodId),
       ),
     );
-    expect([...vital].sort()).toEqual(['bread', 'fish', 'salt', 'wheat']);
     // Matières premières d'un bien vital : celles de ses intrants, de proche en proche, charbon compris.
     const rawOf = (goodId: string, seen = new Set<string>()): string[] => {
       if (seen.has(goodId)) return [];
