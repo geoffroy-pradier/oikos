@@ -2,10 +2,14 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fr from '../locales/fr.json';
-import { ScreenHeader } from '../ScreenHeader';
-import { LoadProblem } from './LoadProblem';
+
+// Horloge du monde lue : clôture à 4 h à Paris, ou inconnue.
+const clock = vi.hoisted(() => ({ rules: null as object | null }));
+vi.mock('../data', () => ({ useClockRules: () => ({ rules: clock.rules }) }));
+const { ScreenHeader } = await import('../ScreenHeader');
+const { LoadProblem } = await import('./LoadProblem');
 
 const i18n = i18next.createInstance();
 await i18n.use(initReactI18next).init({
@@ -50,9 +54,16 @@ describe('LoadProblem : nouvelle présentation', () => {
 });
 
 describe('ScreenHeader', () => {
-  it('donne l’heure de jeu en sous-titre du titre de la page', () => {
+  it('donne l’heure de jeu et la prochaine clôture en sous-titre du titre de la page', () => {
+    clock.rules = { clock: { dailyCloseHour: 4, timezone: 'Europe/Paris' } };
     show(<ScreenHeader title="Maison Alcméonides" />);
     expect(screen.getByRole('heading', { level: 1, name: 'Maison Alcméonides' })).toBeTruthy();
+    expect(screen.getByText(/^Il est \d{2}:\d{2} · prochaine clôture à \d{2}:\d{2}$/)).toBeTruthy();
+  });
+
+  it('horloge du monde inconnue : l’heure seule', () => {
+    clock.rules = null;
+    show(<ScreenHeader title="Maison Alcméonides" />);
     expect(screen.getByText(/^Il est \d{2}:\d{2}$/)).toBeTruthy();
   });
 });
