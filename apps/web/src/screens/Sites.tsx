@@ -25,6 +25,7 @@ import {
   yieldGaps,
 } from '../harvest-events';
 import {
+  cycleProgress,
   freeStockIn,
   parseLaborMarket,
   parseSiteStaff,
@@ -45,6 +46,7 @@ import {
   sendUnderKey,
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
+import { ProductionList, type ProductionItem } from './HomeProduction';
 import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
 import { SiteSteward } from './SiteSteward';
@@ -88,6 +90,7 @@ export function SitesCard({
   onChanged,
   titleRef,
   figures,
+  variant = 'full',
 }: {
   /** Stock de la maison (`null` tant qu'il n'est pas lu) : intrants disponibles des ateliers. */
   stock: StockLine[] | null;
@@ -96,6 +99,8 @@ export function SitesCard({
   titleRef?: RefObject<HTMLHeadingElement | null>;
   /** Chiffres clés de l'écran, rangés avant celui des sites (trésorerie). */
   figures?: ReactNode;
+  /** `production` : la production en cours du tableau de bord, avec les mêmes commandes de récolte. */
+  variant?: 'full' | 'production';
 }) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
@@ -570,6 +575,43 @@ export function SitesCard({
   /** Sites qui ont quelque chose à récolter maintenant, d'après le calcul affiché. */
   const harvestable = rows.filter((site) => (stateOf(site).harvest?.cycles ?? 0) > 0);
 
+  /** Un site tel que le tableau de bord le montre : avancement du cycle en cours, ce qui est prêt. */
+  const twoDigits = new Intl.NumberFormat(i18n.language, { minimumIntegerDigits: 2 });
+  const productionOf = (site: Site): ProductionItem => {
+    const recipe = rules?.recipe(site.recipe_id);
+    const { halted, harvest, estimate, alerts } = stateOf(site);
+    const cycle =
+      recipe && now && cycleProgress(recipe, new Date(site.cycle_started_at), now, halted);
+    const left = cycle?.minutesLeft ?? 0;
+    const text = halted
+      ? t('production.halted')
+      : cycle?.full
+        ? t('production.full')
+        : t('production.left', {
+            hours: number.format(Math.floor(left / 60)),
+            minutes: twoDigits.format(left % 60),
+            context: left < 60 ? 'minutes' : 'hours',
+          });
+    return {
+      id: site.id,
+      name: siteName(site),
+      city: house.cityNames[site.city_id] ?? site.city_id,
+      goodId: recipe?.outputs[0]?.goodId ?? null,
+      progress: cycle
+        ? { done: cycle.done, text, tone: halted ? 'danger' : cycle.full ? 'success' : 'primary' }
+        : null,
+      // Sans production, rien ; tant que l'heure, le stock ou les événements manquent, pas encore estimé.
+      ready: alerts.includes('retired')
+        ? null
+        : harvest && estimate
+          ? harvest.cycles > 0
+            ? list(estimate.outputs.map(stackText))
+            : null
+          : undefined,
+      retired: alerts.includes('retired'),
+    };
+  };
+
   /** « Tout récolter » : une commande par site récoltable ; le résultat dit ce qui a échoué, et où. */
   async function collectEverything() {
     if (running.current || harvestable.length === 0) return;
@@ -655,6 +697,33 @@ export function SitesCard({
       </div>
     ));
 
+  const problem = (sites.failed || rulesFailed || eventRows.failed) && (
+    <LoadProblem
+      heading={title}
+      onRetry={() =>
+        Promise.all([sites.reload(), reloadRules(), reloadIdentities(), reloadEvents()])
+      }
+    />
+  );
+  if (variant === 'production')
+    return (
+      <ProductionList
+        titleRef={title}
+        items={sites.rows && rows.map(productionOf)}
+        harvestable={harvestable.length}
+        busy={busy}
+        onCollect={(id) => {
+          const site = rows.find((candidate) => candidate.id === id);
+          if (site) void collect(site);
+        }}
+        onCollectAll={() => void collectEverything()}
+        announce={announce}
+        status={problem || (sites.rows === null && !sites.failed && <Loading />)}
+        // Une acquisition sans réponse a ajouté un site : rappelé ici aussi, tant qu'on n'a pas vérifié la liste.
+        warning={pending.warning.get() ? t('home.acquireUnanswered') : null}
+      />
+    );
+
   return (
     <Card className="flex flex-col gap-3">
       {titleRef && (
@@ -704,14 +773,7 @@ export function SitesCard({
         </Button>
       )}
       {announce(ALL)}
-      {(sites.failed || rulesFailed || eventRows.failed) && (
-        <LoadProblem
-          heading={title}
-          onRetry={() =>
-            Promise.all([sites.reload(), reloadRules(), reloadIdentities(), reloadEvents()])
-          }
-        />
-      )}
+      {problem}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && (
         <EmptyState icon={<Wheat />} title={t('home.sitesEmpty')} headingLevel={3} />

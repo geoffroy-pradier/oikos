@@ -29,7 +29,7 @@ interface Inventory {
   reserved: number;
 }
 
-/** Onglet Maison, vue d'ensemble : trésorerie, alertes, entrepôt et sites de la maison (`SitesCard`). */
+/** Onglet Maison, vue d'ensemble : trésorerie, alertes, production en cours (`SitesCard`) et entrepôt. */
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
@@ -119,6 +119,12 @@ export function HomeScreen() {
         )}
       </Card>
 
+      <SitesCard
+        variant="production"
+        stock={stock.rows}
+        onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
+      />
+
       <Card>
         <h2 className="flex items-center gap-2 text-xl">
           <Warehouse aria-hidden="true" className="size-5 text-accent" />
@@ -173,11 +179,6 @@ export function HomeScreen() {
           </section>
         ))}
       </Card>
-
-      <SitesCard
-        stock={stock.rows}
-        onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
-      />
     </div>
   );
 }

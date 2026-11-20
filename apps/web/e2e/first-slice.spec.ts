@@ -53,8 +53,11 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expect(page.getByText(/^500 drachmes$/)).toBeVisible();
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toBeVisible();
+  // La fiche du site est sur l'écran Sites ; la production en cours, sur la vue d'ensemble.
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText("Plafond d'accumulation : 18 cycles, soit 720 × Blé")).toBeVisible();
   await expectNoHorizontalScroll(page);
+  await page.getByRole('link', { name: "Vue d'ensemble" }).click();
 
   // Trop tôt : le refus de l'API est affiché, rien n'entre en stock.
   const collect = page.getByRole('button', { name: 'Récolter : Champ de blé' });
@@ -85,6 +88,7 @@ test('à récolter : calé sur l’heure du serveur, même quand le navigateur r
   // L'horloge du navigateur retarde ; le temps y passe ensuite normalement.
   await page.clock.install({ time: new Date(Date.now() - 4 * 3_600_000) });
   const houseName = await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   // Huit heures de jeu, soit deux cycles de quatre heures. À l'heure du navigateur, il n'y en aurait
   // qu'un. Une minute de plus : avec une horloge décalée, l'heure du serveur n'est estimée qu'à une
   // seconde environ près (en-tête `Date`) ; la marge couvre cette erreur, hors du bord d'un cycle.
@@ -150,6 +154,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   page,
 }) => {
   const houseName = await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText('Entretien : 5 drachmes par jour', { exact: false })).toBeVisible();
   await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
 
@@ -225,6 +230,7 @@ test('production retirée de la configuration : site à l’arrêt sans récolte
   page,
 }) => {
   const houseName = await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   // Le champ exploite une recette que la configuration ne connaît pas (retirée par le back-office), et
   // il était à l'arrêt : l'API et l'écran lisent la même configuration, sans cette recette.
   await elapse(houseName, 720);
@@ -283,6 +289,7 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
   page,
 }) => {
   const houseName = await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   // Les sites sont lus (le champ est affiché) avant l'arrêt : c'est une relecture qui le découvre.
   await expect(page.getByRole('button', { name: 'Récolter : Champ de blé' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Relancer/ })).toHaveCount(0);
@@ -757,6 +764,7 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   page,
 }) => {
   await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText('1 sur 4')).toBeVisible();
 
   // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
@@ -820,6 +828,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   page,
 }) => {
   await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   const acquire = page.getByRole('button', { name: 'Acquérir' });
 
   // La commande n'atteint pas le serveur : rien n'est acquis, l'issue reste inconnue pour l'écran.
@@ -846,6 +855,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   const nav = page.getByRole('navigation');
   await nav.getByRole('link', { name: 'Agora' }).click();
   await nav.getByRole('link', { name: 'Maison' }).click();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   // Les sites sont relus avant le clic : l'intention porte leur nombre.
   await expect(page.getByText('1 sur 4')).toBeVisible();
   await acquire.click();
@@ -888,11 +898,13 @@ test('acquisition abandonnée : avertie au retour sur l’onglet et à la réouv
   page,
 }) => {
   await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText('1 sur 4')).toBeVisible();
   const nav = page.getByRole('navigation');
   const reopen = async () => {
     await nav.getByRole('link', { name: 'Agora' }).click();
     await nav.getByRole('link', { name: 'Maison' }).click();
+    await page.getByRole('link', { name: 'Sites', exact: true }).click();
   };
   const warning = page.getByText(/un nouvel essai serait un nouvel achat/);
   // Le serveur achète, la réponse se perd, et les sites ne se relisent plus : l'écran ne voit rien.
@@ -933,6 +945,7 @@ test('acquisition abandonnée : avertie au retour sur l’onglet et à la réouv
   await nav.getByRole('link', { name: 'Agora' }).click();
   await page.unroute(mySites);
   await nav.getByRole('link', { name: 'Maison' }).click();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText('3 sur 4')).toBeVisible();
   await expect(warning).toBeVisible();
   // Deux achats, payés une fois chacun.
@@ -943,6 +956,7 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
   page,
 }) => {
   const houseName = await foundHouse(page);
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   const offer = page.getByLabel('Site à acquérir');
   await offer.selectOption({ label: 'Oliveraie (Verger) : 150 drachmes' });
   for (const count of ['2 sur 4', '3 sur 4']) {
@@ -992,6 +1006,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(page.getByText('Blé : 80')).toBeVisible();
 
   // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await page.getByLabel('Site à acquérir').selectOption('mill_flour');
   await page.getByRole('button', { name: 'Acquérir' }).click();
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
@@ -1009,8 +1024,10 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(mill.getByText('À récolter : 16 × Farine.')).toBeVisible();
   await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
   await expect(said(page, 'status')).toContainText('Récolte engrangée : 16 × Farine.');
+  await page.getByRole('link', { name: "Vue d'ensemble" }).click();
   await expect(page.getByText('Blé : 60', { exact: true })).toBeVisible();
   await expect(page.getByText('Farine : 16', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(mill.getByText('10 × Blé (stock libre : 60)')).toBeVisible();
 
   // Une vente en attente réserve 55 blés : il n'en reste que 5 de libres, pas de quoi moudre.
@@ -1022,6 +1039,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(said(page, 'status')).toContainText('Vente déposée : 55 × Blé');
   await elapse(houseName, 60);
   await nav.getByRole('link', { name: 'Maison' }).click();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(mill.getByText('10 × Blé (stock libre : 5)')).toBeVisible();
   await expect(
     mill.getByText("Rien à récolter pour l'instant. 1 cycle attend des intrants."),
@@ -1031,6 +1049,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await page.getByRole('button', { name: 'Annuler la vente de 55 × Blé à 150 drachmes' }).click();
   await expect(said(page, 'status')).toContainText('Vente annulée');
   await nav.getByRole('link', { name: 'Maison' }).click();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(mill.getByText('À récolter : 8 × Farine.')).toBeVisible();
 
   // Neuf heures de plus (dix cycles dus), du blé pour six moutures : quatre attendent, l'écran le dit.
@@ -1258,6 +1277,7 @@ test('à surveiller : plafond atteint et atelier à court d’intrants ; « Tout
 }) => {
   const houseName = await foundHouse(page);
   // Trois jours : le champ a atteint son plafond (18 cycles de 4 h).
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await elapse(houseName, 18 * 240);
   await page.reload();
   const watch = page.getByRole('region', { name: 'À surveiller' });
