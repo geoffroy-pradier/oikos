@@ -615,7 +615,7 @@
     "sortedDescending": "Trié par {{column}}, ordre décroissant",
     "income": {
       "title": "Compte de résultat",
-      "intro": "Au flux de trésorerie : un produit ou une charge compte le jour où la monnaie change de mains ; une charge est négative. Une journée de jeu commence à la clôture quotidienne.",
+      "intro": "Au flux de trésorerie : un produit ou une charge compte le jour où la monnaie change de mains ; une charge est négative. Une journée de jeu commence à la clôture quotidienne. Les charges courantes sont l'entretien, les salaires, l'hébergement, le transport et les loyers payés ; les acquisitions et cessions portent sur les sites, les navires et les biens.",
       "groupBy": "Regrouper par",
       "day": "Journée",
       "season": "Saison",
@@ -626,11 +626,11 @@
       "sales": "Ventes et loyers reçus",
       "purchases": "Achats",
       "taxes": "Taxes",
-      "upkeep": "Entretien, salaires, hébergement, transport et loyers payés",
+      "upkeep": "Charges courantes",
       "operating_result": "Résultat d'exploitation",
-      "acquisitions": "Acquisitions et cessions (sites, navires, biens)",
+      "acquisitions": "Acquisitions et cessions",
       "grants": "Dotations",
-      "other": "Offrandes et autres mouvements",
+      "other": "Offrandes et divers",
       "non_operating": "Hors exploitation",
       "cash_change": "Variation de la monnaie",
       "escrow_change": "dont séquestre"

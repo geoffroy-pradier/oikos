@@ -86,6 +86,7 @@ export function PropertyOffers(props: {
     },
     {
       id: 'action',
+      action: true,
       header: t('property.columns.action'),
       cell: (offer) =>
         mineIds.has(offer.propertyId) ? (

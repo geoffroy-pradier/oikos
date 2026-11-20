@@ -16,8 +16,27 @@ const LIMITS = [7, 30, 90];
 const TOTALS: readonly IncomeColumn[] = ['operating_result', 'non_operating', 'cash_change'];
 
 /**
+ * Un montant passe à la ligne entre ses parts (« 486 drachmes » puis « 4 oboles »), jamais entre un nombre et son
+ * unité ; le texte reste celui du format unique des montants.
+ */
+function Amount({ text }: { text: string }) {
+  const parts = text.match(/[−-]?[\d\u202f\u00a0.,]+ [^\d\s]+/g);
+  if (!parts || parts.join(' ') !== text) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, index) => (
+        <span key={index}>
+          {index > 0 && ' '}
+          <span className="whitespace-nowrap">{part}</span>
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
  * Compte de résultat de la maison (4.1), par jour de jeu ou par saison (`DataTable`) : tableau triable sur
- * ordinateur, qui défile dans sa carte, fiches sur téléphone, périodes les plus récentes d'abord. Une
+ * ordinateur, qui tient à 1 440 px et défile dans sa carte en dessous, fiches sur téléphone, périodes les plus récentes d'abord. Une
  * période porte la date civile de son jour de jeu (ou de son premier au dernier jour), jamais un rang ; sans
  * horloge, elle est dite inconnue. `rows` : `undefined` tant que rien n'est lu, `null` après un échec,
  * annoncé par l'écran.
@@ -39,19 +58,15 @@ export function IncomeStatement(props: {
     {
       id: 'period',
       header: t(`accounts.income.${view.grouping}`),
-      cell: (row) => <span className="whitespace-nowrap">{period(row)}</span>,
+      cell: period,
       sortValue: (row) => row.firstDay,
     },
     ...INCOME_COLUMNS.map((column) => ({
       id: column,
       header: t(`accounts.income.${column}`),
       cell: (row: IncomeRow) => (
-        <span
-          className={
-            TOTALS.includes(column) ? 'font-semibold whitespace-nowrap' : 'whitespace-nowrap'
-          }
-        >
-          {money(row[column])}
+        <span className={TOTALS.includes(column) ? 'font-semibold' : undefined}>
+          <Amount text={money(row[column])} />
         </span>
       ),
       sortValue: (row: IncomeRow) => row[column],
@@ -60,7 +75,8 @@ export function IncomeStatement(props: {
   ];
 
   return (
-    <Card className="flex flex-col gap-3" aria-labelledby="income-statement">
+    // Douze colonnes : à 1 440 px la carte déborde sur les marges de l'écran, de quoi montrer toutes les colonnes.
+    <Card className="flex flex-col gap-3 min-[90rem]:-mx-22" aria-labelledby="income-statement">
       <h2 id="income-statement" className="flex items-center gap-2 text-lg font-semibold">
         <ScrollText aria-hidden="true" className="size-5 shrink-0 text-accent" />
         {t('accounts.income.title')}
@@ -99,9 +115,9 @@ export function IncomeStatement(props: {
         <EmptyState icon={<ScrollText />} title={t('accounts.income.empty')} headingLevel={3} />
       )}
       {rows && rows.length > 0 && (
-        // Douze colonnes, montants gardés sur une ligne : le tableau défile dans sa carte.
+        // Plus étroit que ses colonnes, le tableau défile dans sa carte, avec un fondu sur le bord.
         <DataTable
-          className="overflow-x-auto [overflow-wrap:normal]"
+          className="[&_tbody_td]:text-[0.8125rem] [&_tbody_th]:text-[0.8125rem]"
           caption={t('accounts.income.title')}
           columns={columns}
           rows={rows}
