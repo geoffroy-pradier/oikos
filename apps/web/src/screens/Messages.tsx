@@ -1,5 +1,5 @@
 import { CLIENT_SETTINGS } from '@oikos/config/client';
-import { ArrowLeft, Badge, Button, Landmark, Users } from '@oikos/ui';
+import { ArrowLeft, Badge, Button, ChevronRight, Landmark, Users } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Channel, Unread } from '../chat';
@@ -8,6 +8,7 @@ import { useHouse } from '../house';
 import { useReports } from '../reports';
 import { ScreenHeader } from '../ScreenHeader';
 import { useWide } from '../wide';
+import { STATUS_BOX } from './CommandNotice';
 import { LoadProblem, Loading } from './LoadProblem';
 import { MessageComposer } from './MessageComposer';
 import { NewConversation } from './NewConversation';
@@ -156,12 +157,37 @@ export function MessagesScreen() {
   useEffect(() => {
     atBottom.current = true;
   }, [open?.id]);
+  // Conversation ouverte : annoncée sous l'en-tête, foyer sur l'annonce (la feuille et son bouton ont disparu).
+  const [opened, setOpened] = useState({ n: 0, text: '' });
+  const openedNotice = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (opened.n > 0) openedNotice.current?.focus();
+  }, [opened]);
   const totalText =
     total > 0 ? t(atLeast ? 'messages.unreadAtLeast' : 'messages.unread', { count: total }) : null;
 
   return (
     <div className="flex flex-col gap-4">
-      <ScreenHeader title={t('tabs.messages.label')} titleRef={title} />
+      <ScreenHeader
+        title={t('tabs.messages.label')}
+        titleRef={title}
+        action={
+          channels?.[0] && (
+            <NewConversation
+              worldId={channels[0].worldId}
+              onOpened={async (channelId, other) => {
+                setOpened((last) => ({
+                  n: last.n + 1,
+                  text: t('messages.opened', { house: other }),
+                }));
+                await chat.reload();
+                setSelected(channelId);
+                show('thread');
+              }}
+            />
+          )
+        }
+      />
       <div aria-live="polite" className="sr-only">
         <p key={announcement.n}>{announcement.text}</p>
       </div>
@@ -170,6 +196,9 @@ export function MessagesScreen() {
         {chat.live === 'polling'
           ? t('messages.polling', { count: CLIENT_SETTINGS.chatPollSeconds })
           : ''}
+      </p>
+      <p ref={openedNotice} role="status" tabIndex={-1} className={STATUS_BOX}>
+        {opened.text}
       </p>
       {chat.failed && <LoadProblem heading={title} onRetry={chat.reload} />}
       {channels === null && !chat.failed && <Loading />}
@@ -217,21 +246,15 @@ export function MessagesScreen() {
                           {count}
                         </Badge>
                       )}
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="size-4 shrink-0 text-muted-foreground lg:hidden"
+                      />
                     </button>
                   </li>
                 );
               })}
             </ul>
-            {channels[0] && (
-              <NewConversation
-                worldId={channels[0].worldId}
-                onOpened={async (channelId) => {
-                  await chat.reload();
-                  setSelected(channelId);
-                  show('thread');
-                }}
-              />
-            )}
           </section>
           {open && (
             <section

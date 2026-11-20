@@ -1,5 +1,5 @@
 import { messageBodySchema } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
+import { Button, Send } from '@oikos/ui';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postMessage } from '../api';
@@ -98,49 +98,52 @@ export function MessageComposer({
   }
 
   return (
+    // Fixée en bas : au-dessus de la barre d'onglets sur téléphone, au pied du fil sur ordinateur.
     <form
-      className="flex flex-col gap-2"
+      className="sticky bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-[1] flex flex-col gap-1.5 rounded-b-xl border-t border-border-subtle bg-surface p-3 lg:static lg:px-5 lg:pb-4"
       onSubmit={(event) => {
         event.preventDefault();
         void send();
       }}
     >
-      <label htmlFor={id} className="font-semibold">
+      <label htmlFor={id} className="sr-only">
         {label}
       </label>
-      <textarea
-        id={id}
-        value={text}
-        rows={3}
-        aria-describedby={`${id}-hint`}
-        className="w-full rounded-lg border border-border bg-surface p-3"
-        onChange={(event) => change(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-            event.preventDefault();
-            void send();
-          }
-        }}
-      />
-      <p id={`${id}-hint`} className="text-sm text-muted-foreground">
-        {t('messages.sendHint')}
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-end gap-2">
+        <textarea
+          id={id}
+          value={text}
+          rows={1}
+          placeholder={t('messages.placeholder')}
+          aria-describedby={`${id}-hint`}
+          className="max-h-40 min-h-11 w-full resize-none rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 [field-sizing:content] placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+          onChange={(event) => change(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+              event.preventDefault();
+              void send();
+            }
+          }}
+        />
         <Button
           type="submit"
+          icon={<Send aria-hidden="true" />}
           aria-disabled={busy}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+          className="min-h-11 shrink-0 aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
         >
-          {t('messages.send')}
+          <span className="max-sm:sr-only">{t('messages.send')}</span>
         </Button>
-        {/* Régions présentes avant leur texte : le résultat est annoncé là où l'action a été faite. */}
-        <p role="status" className={STATUS_BOX}>
-          {notice?.kind === 'status' ? notice.text : ''}
-        </p>
-        <p role="alert" className={ALERT_BOX}>
-          {notice?.kind === 'alert' ? notice.text : ''}
-        </p>
       </div>
+      <p id={`${id}-hint`} className="text-xs text-muted-foreground max-lg:sr-only">
+        {t('messages.sendHint')}
+      </p>
+      {/* Régions présentes avant leur texte : le résultat est annoncé là où l'action a été faite. */}
+      <p role="status" className={STATUS_BOX + ' text-sm'}>
+        {notice?.kind === 'status' ? notice.text : ''}
+      </p>
+      <p role="alert" className={ALERT_BOX + ' text-sm'}>
+        {notice?.kind === 'alert' ? notice.text : ''}
+      </p>
     </form>
   );
 }

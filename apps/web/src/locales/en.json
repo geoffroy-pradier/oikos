@@ -1112,7 +1112,10 @@
     "arrivedMany_one": "{{count}} new message in this channel.",
     "arrivedMany_other": "{{count}} new messages in this channel.",
     "arrivedIn": "New message: {{channel}}.",
-    "backUnread": ", {{unread}}"
+    "backUnread": ", {{unread}}",
+    "placeholder": "Write a message…",
+    "newConversationOpen": "New conversation",
+    "newConversationHint": "A private conversation with a house of your world."
   },
   "temple": {
     "title": "Temple of {{city}}",

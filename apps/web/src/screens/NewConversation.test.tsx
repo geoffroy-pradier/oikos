@@ -89,7 +89,12 @@ const alerts = () => screen.getAllByRole('alert').map((node) => node.textContent
 const live = () => document.querySelector('[aria-live="polite"]')?.textContent;
 
 describe('onglet Messages : nouvelle conversation (#274)', () => {
-  const name = () => screen.getByRole('textbox', { name: fr.messages.newConversation });
+  // Le nom se saisit dans une feuille, ouverte par « Nouvelle conversation » si elle ne l'est pas.
+  const name = () => {
+    if (!screen.queryByRole('dialog'))
+      fireEvent.click(screen.getByRole('button', { name: fr.messages.newConversationOpen }));
+    return screen.getByRole('textbox', { name: fr.messages.newConversation });
+  };
   const open = () => fireEvent.click(screen.getByRole('button', { name: fr.messages.open }));
 
   it('par le nom d’une maison du monde, sans tenir compte de la casse : la conversation s’ouvre et se montre', async () => {
@@ -112,6 +117,9 @@ describe('onglet Messages : nouvelle conversation (#274)', () => {
         .getAllByRole('button', { name: /^Conversation avec Bacchiades/ })[0]
         ?.getAttribute('aria-current'),
     ).toBe('true');
+    // Ouverte, la feuille se ferme et le foyer passe au résultat ; rouverte, la saisie est vide.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement?.textContent).toBe('Conversation ouverte avec Bacchiades.');
     expect((name() as HTMLInputElement).value).toBe('');
   });
 
@@ -129,6 +137,23 @@ describe('onglet Messages : nouvelle conversation (#274)', () => {
     await act(async () => undefined);
     await answer(api.open[0], { ok: false, error: { code: 'SELF_CONVERSATION' } });
     expect(alerts()).toContain(fr.errors.SELF_CONVERSATION);
+  });
+
+  it('refusée, la recherche garde le foyer sur son bouton, jamais inactif pendant l’envoi', async () => {
+    await show();
+    fireEvent.change(name(), { target: { value: 'Bacchiades' } });
+    const submit = screen.getByRole('button', { name: fr.messages.open });
+    submit.focus();
+    fireEvent.click(submit);
+    await act(async () => undefined);
+    // En vol : marqué inactif sans `disabled`, qui ferait tomber le foyer sur la page.
+    expect([submit.hasAttribute('disabled'), submit.getAttribute('aria-disabled')]).toEqual([
+      false,
+      'true',
+    ]);
+    await answer(api.open[0], { ok: false, error: { code: 'INTERNAL' } });
+    expect(alerts()).toContain(fr.errors.INTERNAL);
+    expect(document.activeElement).toBe(submit);
   });
 });
 
