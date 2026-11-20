@@ -1,31 +1,60 @@
 import type { ReactNode } from 'react';
 import { cn } from '../cn';
+import { EmptyIllustration, type EmptyKind } from '../illustrations/scenes';
 
 export interface EmptyStateProps {
-  /** Icône décorative, au trait. */
+  /** Dessin de la famille de la liste vide (`EMPTY_ILLUSTRATION_IDS`), décoratif. */
+  illustration?: EmptyKind;
+  /** Icône au trait, pour un état qui n'est pas une liste vide (une lecture en échec), sans dessin. */
   icon?: ReactNode;
-  /** Illustration SVG décorative (`packages/ui/src/illustrations`), à la place de l'icône. */
-  illustration?: ReactNode;
+  /** La raison : pourquoi la liste est vide. */
   title: ReactNode;
   description?: ReactNode;
-  /** Action qui sort de l'état vide (un bouton ou un lien). */
+  /** L'action qui remplit la liste, quand elle existe (un bouton ou un lien). */
   action?: ReactNode;
   /** Niveau du titre dans la page. */
   headingLevel?: 2 | 3 | 4;
+  /** Dans une section déjà titrée : dessin réduit à côté de la raison, sans cadre, la raison sans titre. */
+  compact?: boolean;
   className?: string;
 }
 
-/** Rien à montrer : dire pourquoi, et proposer l'action qui y remédie. */
+/** Rien à montrer : un dessin, la raison, et l'action qui remplit la liste. */
 export function EmptyState({
-  icon,
   illustration,
+  icon,
   title,
   description,
   action,
   headingLevel = 3,
+  compact = false,
   className,
 }: EmptyStateProps) {
   const Heading = `h${headingLevel}` as const;
+  // Trait neutre, aplats des jetons : le dessin suit le thème (couples dans `contrast.ts`).
+  const art = illustration && (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'shrink-0 text-foreground-secondary [&_svg]:h-auto [&_svg]:w-full',
+        compact ? 'w-24' : 'w-40 max-w-full',
+      )}
+    >
+      <EmptyIllustration kind={illustration} />
+    </div>
+  );
+  if (compact) {
+    return (
+      <div className={cn('flex animate-rise items-center gap-4', className)}>
+        {art}
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <p className="text-muted-foreground">{title}</p>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          {action}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={cn(
@@ -34,14 +63,7 @@ export function EmptyState({
         className,
       )}
     >
-      {illustration && (
-        <div
-          aria-hidden="true"
-          className="w-40 max-w-full text-accent-decorative [&_svg]:h-auto [&_svg]:w-full"
-        >
-          {illustration}
-        </div>
-      )}
+      {art}
       {icon && !illustration && (
         <div
           aria-hidden="true"

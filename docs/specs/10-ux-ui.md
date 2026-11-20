@@ -295,6 +295,9 @@ L'icône de l'application est le soleil levant de la scène d'accueil, orange su
 La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.
 De courtes animations répondent au survol, à l'appui et à l'apparition d'une feuille ; elles sont coupées sous `prefers-reduced-motion`.
 Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi, avec une illustration et l'action qui la remplit.
+Une liste vide du jeu et d'Olympe prend le composant `EmptyState` (#866) : le dessin de sa famille, la raison, et l'action qui la remplit quand elle existe.
+Les familles sont les sites, l'entrepôt, les biens immobiliers, l'agora, la flotte, la cité, les messages, la modération et les registres de comptes.
+Dans une section déjà titrée, l'état vide se réduit à une rangée, un petit dessin à côté de la raison, sans titre de plus.
 Une lecture en échec et une adresse inconnue prennent la même présentation : une icône ou une illustration, le message, et l'action qui en sort (« Réessayer », « Revenir à la maison »).
 Chaque écran s'ouvre sur un en-tête de page commun (`PageHeader`) : titre de 26 px, heure de jeu et prochaine clôture quotidienne en sous-titre atténué, recherche si l'écran en a une, action principale à droite.
 L'heure de clôture et le fuseau du monde sont des règles publiques, lues par les joueurs connectés (vue `clock_rules`, pgTAP 690) ; sans horloge en vigueur, sous un fuseau que la base ou le navigateur ne connaît pas, ou si la lecture échoue, l'en-tête ne donne que l'heure.

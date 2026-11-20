@@ -134,8 +134,11 @@ describe('GodEmblem et CityVignette', () => {
 });
 
 describe('WelcomeScene et EmptyIllustration', () => {
-  it('montrent les quatre états vides, chacun autrement, et la scène d’accueil', () => {
-    expect(EMPTY_ILLUSTRATION_IDS).toEqual(['noSite', 'noShip', 'noMessage', 'noOrder']);
+  it('montrent un état vide par famille de listes, chacun autrement, et la scène d’accueil', () => {
+    expect(EMPTY_ILLUSTRATION_IDS).toEqual([
+      ...['noSite', 'noShip', 'noMessage', 'noOrder'],
+      ...['noStock', 'noProperty', 'noEvent', 'noReport', 'noEntry'],
+    ]);
     const markups = [...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) =>
       renderToStaticMarkup(<EmptyIllustration kind={id} />),
     );

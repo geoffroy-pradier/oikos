@@ -1,4 +1,4 @@
-import { Button, Card, ChevronRight, cn, EmptyIllustration, EmptyState, GoodIcon } from '@oikos/ui';
+import { Button, Card, ChevronRight, cn, EmptyState, GoodIcon } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useId, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -86,7 +86,7 @@ export function ProductionList(props: {
       {items?.length === 0 && (
         <EmptyState
           className="mx-4 mb-2"
-          illustration={<EmptyIllustration kind="noSite" />}
+          illustration="noSite"
           title={t('home.sitesEmpty')}
           action={
             <Link to="/sites" className="font-semibold text-primary underline underline-offset-4">

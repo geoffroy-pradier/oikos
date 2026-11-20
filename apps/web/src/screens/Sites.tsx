@@ -4,7 +4,6 @@ import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
 import {
   Button,
   Coins,
-  EmptyIllustration,
   EmptyState,
   GoodIcon,
   Package,
@@ -877,11 +876,7 @@ export function SitesCard({
       {sites.rows && <h2 className="sr-only">{t('home.sitesList')}</h2>}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && (
-        <EmptyState
-          illustration={<EmptyIllustration kind="noSite" />}
-          title={t('home.sitesEmpty')}
-          headingLevel={3}
-        />
+        <EmptyState illustration="noSite" title={t('home.sitesEmpty')} headingLevel={3} />
       )}
       {watched.length > 0 && (
         <section
