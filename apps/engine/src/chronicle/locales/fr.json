@@ -59,5 +59,18 @@
     "wine": "Vin",
     "amphorae": "Amphores"
   },
-  "cities": { "kalliste": "Kallistè", "elaia": "Elaia", "ampelos": "Ampelos", "halos": "Halos" }
+  "cities": {
+    "kalliste": "Kallistè",
+    "elaia": "Elaia",
+    "ampelos": "Ampelos",
+    "halos": "Halos",
+    "dikaia": "Dikaia",
+    "gamelia": "Gamelia",
+    "delphis": "Delphis",
+    "agrotera": "Agrotera",
+    "phrourion": "Phrourion",
+    "myrrhine": "Myrrhinè",
+    "chalkeia": "Chalkeia",
+    "emporion": "Emporion"
+  }
 }

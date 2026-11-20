@@ -205,10 +205,38 @@
     "portDues": {
       "byClassOboles": { "coaster": 18, "round_ship": 54 },
       "burnShareBps": 5000,
-      "cityCoefficientBps": { "kalliste": 10000, "elaia": 10000, "ampelos": 10000, "halos": 10000 }
+      "cityCoefficientBps": {
+        "kalliste": 10000,
+        "elaia": 10000,
+        "ampelos": 10000,
+        "halos": 10000,
+        "dikaia": 10000,
+        "gamelia": 10000,
+        "delphis": 10000,
+        "agrotera": 10000,
+        "phrourion": 10000,
+        "myrrhine": 10000,
+        "chalkeia": 10000,
+        "emporion": 10000
+      }
     }
   },
-  "staff": { "dailyWageOboles": { "kalliste": 6, "elaia": 6, "ampelos": 6, "halos": 6 } },
+  "staff": {
+    "dailyWageOboles": {
+      "kalliste": 6,
+      "elaia": 6,
+      "ampelos": 6,
+      "halos": 6,
+      "dikaia": 6,
+      "gamelia": 6,
+      "delphis": 6,
+      "agrotera": 6,
+      "phrourion": 6,
+      "myrrhine": 6,
+      "chalkeia": 6,
+      "emporion": 6
+    }
+  },
   "stewards": {
     "limitByHeadquartersLevel": [2],
     "dailyWageOboles": 12,
@@ -277,7 +305,15 @@
       "kalliste": { "townhouse": 20, "tenement": 6 },
       "elaia": { "townhouse": 12, "tenement": 3 },
       "ampelos": { "townhouse": 12, "tenement": 3 },
-      "halos": { "townhouse": 12, "tenement": 3 }
+      "halos": { "townhouse": 12, "tenement": 3 },
+      "dikaia": { "townhouse": 12, "tenement": 3 },
+      "gamelia": { "townhouse": 12, "tenement": 3 },
+      "delphis": { "townhouse": 12, "tenement": 3 },
+      "agrotera": { "townhouse": 12, "tenement": 3 },
+      "phrourion": { "townhouse": 12, "tenement": 3 },
+      "myrrhine": { "townhouse": 12, "tenement": 3 },
+      "chalkeia": { "townhouse": 12, "tenement": 3 },
+      "emporion": { "townhouse": 12, "tenement": 3 }
     }
   },
   "goods": [
@@ -539,6 +575,55 @@
       "charisPerUnit": {},
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "zeus",
+      "charisPerObole": 1,
+      "charisPerUnit": {},
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "hera",
+      "charisPerObole": 1,
+      "charisPerUnit": {},
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "artemis",
+      "charisPerObole": 1,
+      "charisPerUnit": { "wood": 8 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "ares",
+      "charisPerObole": 1,
+      "charisPerUnit": {},
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "aphrodite",
+      "charisPerObole": 1,
+      "charisPerUnit": { "olive_oil": 30, "cloth": 42 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "hephaistos",
+      "charisPerObole": 1,
+      "charisPerUnit": { "clay": 5, "charcoal": 16, "amphorae": 36 },
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
+    },
+    {
+      "id": "hermes",
+      "charisPerObole": 1,
+      "charisPerUnit": {},
+      "dailyDecayBps": 100,
+      "cityCharisWeightBps": 10000
     }
   ],
   "graces": [
@@ -631,6 +716,115 @@
       "terroir": ["catch_fish", "rake_salt", "dig_clay", "fell_wood", "shear_wool"],
       "hasPort": true,
       "patronGodId": "poseidon",
+      "startingRecipeId": "catch_fish",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "dikaia",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_wheat", "grow_olives", "fell_wood", "dig_clay"],
+      "hasPort": true,
+      "patronGodId": "zeus",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "gamelia",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_wheat", "grow_grapes", "grow_olives", "shear_wool"],
+      "hasPort": true,
+      "patronGodId": "hera",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "delphis",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_olives", "grow_grapes", "shear_wool", "dig_clay"],
+      "hasPort": true,
+      "patronGodId": "apollo",
+      "startingRecipeId": "grow_olives",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "agrotera",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["fell_wood", "shear_wool", "grow_wheat", "grow_olives"],
+      "hasPort": true,
+      "patronGodId": "artemis",
+      "startingRecipeId": "fell_wood",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "phrourion",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_wheat", "fell_wood", "shear_wool", "dig_clay"],
+      "hasPort": true,
+      "patronGodId": "ares",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "myrrhine",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["grow_grapes", "grow_olives", "shear_wool", "catch_fish"],
+      "hasPort": true,
+      "patronGodId": "aphrodite",
+      "startingRecipeId": "grow_grapes",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "chalkeia",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["fell_wood", "dig_clay", "rake_salt", "grow_olives"],
+      "hasPort": true,
+      "patronGodId": "hephaistos",
+      "startingRecipeId": "fell_wood",
+      "npcPublicIncomeBps": 10000
+    },
+    {
+      "id": "emporion",
+      "population": {
+        "thetes": 6000,
+        "zeugitai": 2500,
+        "hippeis": 1200,
+        "pentakosiomedimnoi": 300
+      },
+      "terroir": ["catch_fish", "rake_salt", "grow_olives", "shear_wool"],
+      "hasPort": true,
+      "patronGodId": "hermes",
       "startingRecipeId": "catch_fish",
       "npcPublicIncomeBps": 10000
     }

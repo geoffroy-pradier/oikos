@@ -117,12 +117,12 @@ describe('grâces (7.1, #266)', () => {
     expect(errorsOf(grace({ charisRequired: 149, charisSpent: 150 }))).toEqual([
       'graces[0].charisSpent: above the Charis required',
     ]);
-    expect(errorsOf(grace({ godId: 'zeus' }))).toEqual(['graces[0].godId: unknown god "zeus"']);
+    expect(errorsOf(grace({ godId: 'hades' }))).toEqual(['graces[0].godId: unknown god "hades"']);
     expect(errorsOf([...GRACES, { ...GRACES[1], effect: 'blessed_harvest' }])).toEqual([
       'graces: duplicate id "apollo_wind"',
     ]);
-    // Un dieu retiré de la configuration doit l'être aussi de ses grâces (Apollon ne protège aucune cité), et de
-    // la Pythie (#270).
+    // Un dieu retiré de la configuration doit l'être aussi de ses grâces, de la Pythie (#270) et du protectorat
+    // de sa cité (Delphis, #706).
     const godless = {
       ...base(),
       gods: base().gods.filter((god) => god.id !== 'apollo'),
@@ -132,6 +132,7 @@ describe('grâces (7.1, #266)', () => {
     expect(result.ok ? [] : result.errors).toEqual([
       'graces[1].godId: unknown god "apollo"',
       'oracle.godId: unknown god "apollo"',
+      'cities[6].patronGodId: unknown god "apollo"',
     ]);
   });
 });

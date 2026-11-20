@@ -8,12 +8,25 @@ import {
   validateConfig,
 } from './index';
 
+/** Les quatre cités de #250, puis les huit de #706, dans l'ordre de la configuration. */
+const FOUR_CITIES = ['kalliste', 'elaia', 'ampelos', 'halos'];
+const EIGHT_CITIES = [
+  'dikaia',
+  'gamelia',
+  'delphis',
+  'agrotera',
+  'phrourion',
+  'myrrhine',
+  'chalkeia',
+  'emporion',
+];
+
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   const { config } = result;
 
-  it('contient 15 biens, des recettes et les quatre classes de PNJ d’une cité', () => {
+  it('contient 15 biens, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706)', () => {
     expect(config.goods).toHaveLength(15);
     expect(config.recipes).toHaveLength(15);
     expect(config.npcClasses.map((npcClass) => npcClass.id)).toEqual([
@@ -22,22 +35,37 @@ describe('jeu de valeurs initial', () => {
       'hippeis',
       'pentakosiomedimnoi',
     ]);
-    expect(config.cities.map((city) => city.id)).toEqual(['kalliste', 'elaia', 'ampelos', 'halos']);
+    expect(config.cities.map((city) => city.id)).toEqual([...FOUR_CITIES, ...EIGHT_CITIES]);
   });
 
-  it('cinq dieux, dont le protecteur de chaque cité ; toutes les cités ont un port (#250)', () => {
+  it('douze dieux, dont un protecteur distinct pour chacune des douze cités, toutes à port (#250, #706)', () => {
     expect(config.gods.map((god) => god.id)).toEqual([
       'demeter',
       'athena',
       'dionysos',
       'poseidon',
       'apollo',
+      'zeus',
+      'hera',
+      'artemis',
+      'ares',
+      'aphrodite',
+      'hephaistos',
+      'hermes',
     ]);
     expect(config.cities.map((city) => [city.id, city.patronGodId, city.hasPort])).toEqual([
       ['kalliste', 'demeter', true],
       ['elaia', 'athena', true],
       ['ampelos', 'dionysos', true],
       ['halos', 'poseidon', true],
+      ['dikaia', 'zeus', true],
+      ['gamelia', 'hera', true],
+      ['delphis', 'apollo', true],
+      ['agrotera', 'artemis', true],
+      ['phrourion', 'ares', true],
+      ['myrrhine', 'aphrodite', true],
+      ['chalkeia', 'hephaistos', true],
+      ['emporion', 'hermes', true],
     ]);
   });
 
@@ -52,6 +80,13 @@ describe('jeu de valeurs initial', () => {
       dionysos: ['grapes', 'wine'],
       poseidon: ['fish', 'salt'],
       apollo: [],
+      zeus: [],
+      hera: [],
+      artemis: ['wood'],
+      ares: [],
+      aphrodite: ['cloth', 'olive_oil'],
+      hephaistos: ['amphorae', 'charcoal', 'clay'],
+      hermes: [],
     });
     for (const god of config.gods) {
       // Offrir un bien rapporte autant qu'offrir son prix de référence en oboles.
@@ -63,7 +98,7 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('terroirs et recettes de départ des quatre cités (#250)', () => {
+  it('terroirs et recettes de départ des douze cités (#250, #706)', () => {
     const terroir = (cityId: string) =>
       [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])].sort();
     // Kallistè (#669) : toutes les matières premières de la phase 1 sauf la laine, qu'Ampelos et Halos produisent.
@@ -85,16 +120,39 @@ describe('jeu de valeurs initial', () => {
       'rake_salt',
       'shear_wool',
     ]);
+    // Les huit cités de #706 : quatre à cinq productions primaires chacune, tirées des huit matières premières.
+    expect(terroir('dikaia')).toEqual(['dig_clay', 'fell_wood', 'grow_olives', 'grow_wheat']);
+    expect(terroir('gamelia')).toEqual(['grow_grapes', 'grow_olives', 'grow_wheat', 'shear_wool']);
+    expect(terroir('delphis')).toEqual(['dig_clay', 'grow_grapes', 'grow_olives', 'shear_wool']);
+    expect(terroir('agrotera')).toEqual(['fell_wood', 'grow_olives', 'grow_wheat', 'shear_wool']);
+    expect(terroir('phrourion')).toEqual(['dig_clay', 'fell_wood', 'grow_wheat', 'shear_wool']);
+    expect(terroir('myrrhine')).toEqual(['catch_fish', 'grow_grapes', 'grow_olives', 'shear_wool']);
+    expect(terroir('chalkeia')).toEqual(['dig_clay', 'fell_wood', 'grow_olives', 'rake_salt']);
+    expect(terroir('emporion')).toEqual(['catch_fish', 'grow_olives', 'rake_salt', 'shear_wool']);
     expect(config.cities.map((city) => cityStartingRecipeId(config, city.id))).toEqual([
       'grow_wheat',
       'grow_wheat',
       'grow_grapes',
       'catch_fish',
+      'grow_wheat',
+      'grow_wheat',
+      'grow_olives',
+      'fell_wood',
+      'grow_wheat',
+      'grow_grapes',
+      'fell_wood',
+      'catch_fish',
     ]);
   });
 
-  it('aucune cité n’a toutes les matières premières du panier de ses PNJ (6.1, #669)', () => {
-    // Matières premières d'un bien : lui-même s'il est produit sans intrant, sinon celles de ses intrants.
+  it('aucune cité ne produit tous les biens vitaux du panier de ses PNJ : blé, poisson, sel et bois du charbon du pain (6.1, #706)', () => {
+    const vital = new Set(
+      config.npcClasses.flatMap((npcClass) =>
+        npcClass.basket.filter((entry) => entry.need === 'vital').map((entry) => entry.goodId),
+      ),
+    );
+    expect([...vital].sort()).toEqual(['bread', 'fish', 'salt', 'wheat']);
+    // Matières premières d'un bien vital : celles de ses intrants, de proche en proche, charbon compris.
     const rawOf = (goodId: string, seen = new Set<string>()): string[] => {
       if (seen.has(goodId)) return [];
       seen.add(goodId);
@@ -106,19 +164,18 @@ describe('jeu de valeurs initial', () => {
             : recipe.inputs.flatMap((input) => rawOf(input.goodId, seen)),
         );
     };
-    const wanted = new Set(
-      config.npcClasses.flatMap((npcClass) =>
-        npcClass.basket.flatMap((entry) => rawOf(entry.goodId)),
-      ),
-    );
-    for (const city of config.cities) {
+    const needed = new Set([...vital].flatMap((goodId) => rawOf(goodId)));
+    expect([...needed].sort()).toEqual(['fish', 'salt', 'wheat', 'wood']);
+    for (const city of config.cities.filter((each) => EIGHT_CITIES.includes(each.id))) {
       const grown = new Set(
         config.recipes
           .filter((recipe) => recipe.inputs.length === 0 && cityTerroirAdmits(city, recipe))
           .flatMap((recipe) => recipe.outputs.map((output) => output.goodId)),
       );
-      const missing = [...wanted].filter((goodId) => !grown.has(goodId));
-      expect(missing.length, city.id).toBeGreaterThan(0);
+      expect(
+        [...needed].some((goodId) => !grown.has(goodId)),
+        city.id,
+      ).toBe(true);
     }
   });
 
@@ -281,8 +338,8 @@ describe('jeu de valeurs initial', () => {
       ).toBe(true);
   });
 
-  it('une route entre chaque paire de cités, avec ses provisions et le droit de port (#252, #668)', () => {
-    const cities = config.cities.map((city) => city.id);
+  it('une route entre chaque paire des quatre premières cités, avec ses provisions et le droit de port ; aucune pour les huit autres, jusqu’à la carte (#252, #668, #706)', () => {
+    const cities = FOUR_CITIES;
     const pairs = cities.flatMap((a, i) => cities.slice(i + 1).map((b) => [a, b].sort().join(' ')));
     expect(
       config.ships.routes.map(({ cities: pair }) => [...pair].sort().join(' ')).sort(),
