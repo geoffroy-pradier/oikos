@@ -1,18 +1,13 @@
+import { CITY_MAP_POSITIONS } from '@oikos/config/client';
 import { Card, MapIcon, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { useHouse } from '../house';
-import {
-  along,
-  archipelagoLayout,
-  MAP_HEIGHT,
-  MAP_WIDTH,
-  voyageProgress,
-  type Point,
-} from '../map-layout';
+import { archipelagoLayout, voyageProgress, type Point } from '../map-layout';
 import { formatList } from '../lists';
+import { ArchipelagoMap } from './ArchipelagoMap';
 import { LoadProblem, Loading } from './LoadProblem';
 import { Shipyard } from './Shipyard';
 
@@ -30,7 +25,7 @@ export function MapScreen() {
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
   const cityName = (cityId: string) => house.cityNames[cityId] ?? cityId;
   const idOf = useMemo(() => new Map([...slugs].map(([id, slug]) => [slug, id])), [slugs]);
-  const layout = useMemo(() => archipelagoLayout([...slugs.values()]), [slugs]);
+  const layout = useMemo(() => archipelagoLayout([...slugs.values()], CITY_MAP_POSITIONS), [slugs]);
   const pointOf = (cityId: string): Point | undefined => layout.get(slugs.get(cityId) ?? '');
   // Routes entre cités connues de ce monde ; une route vers une cité inconnue n'est pas dessinée.
   const routes = (rules?.routes ?? []).flatMap(({ cities: [a, b], hours }) => {
@@ -42,6 +37,11 @@ export function MapScreen() {
   const unlinked = [...slugs.keys()].filter(
     (cityId) => !routes.some(({ from, to }) => from === cityId || to === cityId),
   );
+  // Navires en mer et leur voyage en cours.
+  const atSea = (ships ?? []).flatMap((ship) => {
+    const voyage = ship.docked_city_id ? undefined : voyageAtSea(voyages, ship.id);
+    return voyage ? [{ ship, voyage }] : [];
+  });
   const hours = (count: number) => t('map.hours', { count, number: number.format(count) });
 
   const stateOf = (ship: ShipRow) => {
@@ -72,95 +72,37 @@ export function MapScreen() {
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
       {loading && !fleet.failed && <Loading />}
 
-      <Card className="flex flex-col gap-3">
-        {/* Dessin schématique : la liste qui suit porte les mêmes informations, au clavier. */}
-        <svg
-          viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-          role="img"
-          aria-label={t('map.drawing', {
+      <Card className="overflow-hidden border-coast p-0">
+        <ArchipelagoMap
+          label={t('map.drawing', {
             cities: number.format(layout.size),
             routes: number.format(routes.length),
           })}
-          className="mx-auto max-h-[32rem] w-full rounded-lg bg-aegean-subtle"
-        >
-          {routes.map(({ from, to, hours: duration }) => {
-            const a = pointOf(from);
-            const b = pointOf(to);
-            if (!a || !b) return null;
-            const middle = along(a, b, 0.5);
-            return (
-              <g key={`${from}-${to}`}>
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  className="stroke-primary"
-                  strokeWidth={0.4}
-                  strokeDasharray="1.5 1"
-                />
-                <text
-                  x={middle.x}
-                  y={middle.y - 1}
-                  textAnchor="middle"
-                  fontSize={3.2}
-                  className="fill-foreground stroke-aegean-subtle"
-                  strokeWidth={1.2}
-                  style={{ paintOrder: 'stroke' }}
-                >
-                  {hours(duration)}
-                </text>
-              </g>
-            );
-          })}
-          {[...slugs].map(([cityId]) => {
-            const point = pointOf(cityId);
-            if (!point) return null;
+          routes={routes.map((route) => ({
+            ...route,
+            ours: atSea.some(
+              ({ voyage }) =>
+                [voyage.from_city_id, voyage.to_city_id].sort().join() ===
+                [route.from, route.to].sort().join(),
+            ),
+          }))}
+          cities={[...slugs.keys()].flatMap((cityId) => {
+            const at = pointOf(cityId);
             const docked = (ships ?? []).filter((ship) => ship.docked_city_id === cityId).length;
-            return (
-              <g key={cityId}>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={2.6}
-                  className="fill-primary stroke-primary/25"
-                  strokeWidth={3}
-                />
-                <text
-                  x={point.x}
-                  y={point.y + 6}
-                  textAnchor="middle"
-                  fontSize={4}
-                  className="fill-foreground stroke-aegean-subtle font-semibold"
-                  strokeWidth={1.2}
-                  style={{ paintOrder: 'stroke' }}
-                >
-                  {cityName(cityId)}
-                  {docked > 0 && ` ⚓${number.format(docked)}`}
-                </text>
-              </g>
-            );
+            const home = cityId === house.cityId;
+            return at ? [{ id: cityId, name: cityName(cityId), at, home, docked }] : [];
           })}
-          {(ships ?? []).map((ship) => {
-            const voyage = ship.docked_city_id ? undefined : voyageAtSea(voyages, ship.id);
-            const a = voyage && pointOf(voyage.from_city_id);
-            const b = voyage && pointOf(voyage.to_city_id);
-            if (!voyage || !a || !b) return null;
-            const at = along(a, b, voyageProgress(voyage.departed_at, voyage.arrives_at, now));
-            return (
-              <circle
-                key={ship.id}
-                cx={at.x}
-                cy={at.y}
-                r={1.4}
-                className="fill-accent stroke-foreground"
-                strokeWidth={0.3}
-              />
-            );
+          ships={atSea.flatMap(({ ship, voyage }) => {
+            const [from, to] = [pointOf(voyage.from_city_id), pointOf(voyage.to_city_id)];
+            const progress = voyageProgress(voyage.departed_at, voyage.arrives_at, now);
+            return from && to ? [{ id: ship.id, name: shipName(ship), from, to, progress }] : [];
           })}
-        </svg>
+          pointOf={pointOf}
+        />
+      </Card>
 
-        <h2 className="mt-1 text-xl">{t('map.routes')}</h2>
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-xl">{t('map.routes')}</h2>
         {rules && routes.length === 0 && (
           <p className="text-muted-foreground">{t('map.noRoutes')}</p>
         )}
