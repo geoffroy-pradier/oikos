@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { PropertyCommandInputs } from '../api';
 import { previewSale } from '../market-rules';
 import { useMoney } from '../money';
-import type { MyProperty, Offer, PropertySize } from '../property';
+import { conditionShare, type MyProperty, type Offer, type PropertySize } from '../property';
 
 type Command = keyof PropertyCommandInputs;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
@@ -94,6 +94,8 @@ export function PropertyActions({
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
   const [salePrice, setSalePrice] = useState('');
   const [rent, setRent] = useState('');
+  // Rénovation ou retrait choisi : récapitulé, puis confirmé.
+  const [confirming, setConfirming] = useState<'renovate' | 'withdraw' | null>(null);
   const saleId = useId();
   const preview = previewSale(tax, 'sell', salePrice, '1');
   const net =
@@ -105,21 +107,70 @@ export function PropertyActions({
     });
   const shown = controls(property, size, offer, leased);
   const renovation = shown.renovation;
-  const renovateText =
+  const renovationCost =
     renovation &&
-    t('property.renovate', {
-      cost: [
-        money(renovation.oboles),
-        ...renovation.goods.map((stack) =>
-          t('property.goodLine', {
-            quantity: number.format(stack.quantity),
-            good: goodName(stack.goodId),
-          }),
-        ),
-      ].join(', '),
-    });
+    [
+      money(renovation.oboles),
+      ...renovation.goods.map((stack) =>
+        t('property.goodLine', {
+          quantity: number.format(stack.quantity),
+          good: goodName(stack.goodId),
+        }),
+      ),
+    ].join(', ');
+  const renovateText = renovationCost && t('property.renovate', { cost: renovationCost });
   const withdrawText =
     offer && t(`property.withdraw.${offer.kind}`, { cost: money(offer.priceOboles) });
+  const percent = new Intl.NumberFormat(i18n.language, { style: 'percent' });
+  const recap =
+    confirming === 'renovate' && renovation
+      ? {
+          facts: [
+            [t('property.columns.cost'), renovationCost ?? ''],
+            [
+              t('property.columns.condition'),
+              `${percent.format(conditionShare(property.condition))} → ${percent.format(1)}`,
+            ],
+          ],
+          confirm: t('property.confirm.renovate'),
+          send: () =>
+            run(renovateIntent(property.id, property.condition, renovation), 'property.renovate', {
+              propertyId: property.id,
+              expectedCostOboles: renovation.oboles,
+              expectedGoods: renovation.goods,
+            }),
+        }
+      : confirming === 'withdraw' && withdrawText
+        ? {
+            facts: [[t('property.columns.offer'), withdrawText]],
+            confirm: t('property.confirm.withdraw'),
+            send: () =>
+              run(`withdraw:${property.id}`, 'property.withdrawOffer', {
+                propertyId: property.id,
+              }),
+          }
+        : null;
+  if (recap)
+    return (
+      <div className="flex flex-col gap-3">
+        <dl className="grid grid-cols-2 gap-2.5">
+          {recap.facts.map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-surface-raised p-3">
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="mt-1 font-bold tabular-nums">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirming(null)}>
+            {t('property.backToActions')}
+          </Button>
+          <Button className="ml-auto" loading={busy} onClick={() => void recap.send()}>
+            {recap.confirm}
+          </Button>
+        </div>
+      </div>
+    );
   return (
     <div className="flex flex-col gap-2">
       {renovation && (
@@ -128,17 +179,7 @@ export function PropertyActions({
           className={WAITING}
           aria-disabled={busy}
           aria-label={`${renovateText} — ${name}`}
-          onClick={() =>
-            void run(
-              renovateIntent(property.id, property.condition, renovation),
-              'property.renovate',
-              {
-                propertyId: property.id,
-                expectedCostOboles: renovation.oboles,
-                expectedGoods: renovation.goods,
-              },
-            )
-          }
+          onClick={() => setConfirming('renovate')}
         >
           {renovateText}
         </Button>
@@ -149,11 +190,7 @@ export function PropertyActions({
           className={WAITING}
           aria-disabled={busy}
           aria-label={`${withdrawText} — ${name}`}
-          onClick={() =>
-            void run(`withdraw:${property.id}`, 'property.withdrawOffer', {
-              propertyId: property.id,
-            })
-          }
+          onClick={() => setConfirming('withdraw')}
         >
           {withdrawText}
         </Button>

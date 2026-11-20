@@ -852,7 +852,9 @@
       "action": "Action",
       "upkeep": "Upkeep",
       "city": "City",
-      "situation": "Status"
+      "situation": "Status",
+      "cost": "Cost",
+      "offer": "Open offer"
     },
     "sheet": {
       "endLease": "End the lease: {{name}}",
@@ -864,7 +866,9 @@
       "endLease": "Confirm the end of the lease",
       "citySale": "Confirm the purchase — {{cost}}",
       "sale": "Confirm the purchase — {{cost}}",
-      "lease": "Sign the lease — {{cost}}"
+      "lease": "Sign the lease — {{cost}}",
+      "renovate": "Confirm the renovation",
+      "withdraw": "Confirm the withdrawal"
     },
     "once": "{{cost}}",
     "unpaidBadge": "Upkeep unpaid",
@@ -885,7 +889,8 @@
     "listed": {
       "sale": "For sale: {{cost}}",
       "lease": "For rent: {{cost}} a day"
-    }
+    },
+    "backToActions": "Other commands for this property"
   },
   "alerts": {
     "title": "To do today",

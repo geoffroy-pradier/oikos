@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -82,6 +82,9 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const sent = () => api.propertyCommand.mock.calls.map((call) => [call[0], call[1], call[3]]);
+/** Confirme, dans la fiche, la commande récapitulée. */
+const confirm = () =>
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Confirmer/ }));
 /** Ouvre la fiche d'un bien (« Gérer »), où sont ses commandes ; une fiche déjà ouverte se ferme d'abord. */
 const manage = (lot = 9) => {
   const opened = screen.queryByRole('dialog');
@@ -95,6 +98,10 @@ describe('commandes du propriétaire (#259)', () => {
     await showProperty();
     manage();
     fireEvent.click(screen.getByRole('button', { name: /^Rénover/ }));
+    // Le récapitulatif dit le coût et l'état rendu : 60 % → 100 %.
+    expect(screen.getByRole('dialog').textContent).toMatch(/60\s%\s→\s100\s%/);
+    expect(api.propertyCommand).not.toHaveBeenCalled();
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual([
       'property.renovate',
@@ -161,6 +168,7 @@ describe('commandes du propriétaire (#259)', () => {
     expect(renovations).toEqual([0, 1]);
     manage(2);
     fireEvent.click(screen.getByRole('button', { name: /^Retirer l'offre de location/ }));
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual(['property.withdrawOffer', { propertyId: 'p2' }]);
   });
@@ -293,6 +301,7 @@ describe('commandes du propriétaire (#259)', () => {
     await waitFor(() => expect(window.sessionStorage.length).toBe(0));
     // La fiche, restée ouverte sur la réponse perdue, propose maintenant le retrait de l'offre lue.
     fireEvent.click(await screen.findByRole('button', { name: /^Retirer l'offre/ }));
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     list();
@@ -332,5 +341,19 @@ describe('commandes du propriétaire (#259)', () => {
     ).toBe('500');
     const [first, again] = sent();
     expect(again?.[2]).toBe(first?.[2]);
+  });
+
+  it('rénovation refusée : le récapitulatif reste ouvert, avec le refus près du bouton', async () => {
+    api.propertyCommand.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'PRICE_CHANGED', message: 'x' },
+    });
+    await showProperty();
+    manage();
+    fireEvent.click(screen.getByRole('button', { name: /^Rénover/ }));
+    confirm();
+    await waitFor(() => expect(screen.getAllByText(fr.errors.PRICE_CHANGED)).toHaveLength(1));
+    expect(screen.getByRole('button', { name: fr.property.confirm.renovate })).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).toMatch(/60\s%\s→\s100\s%/);
   });
 });
