@@ -139,6 +139,13 @@ describe('choix de la cité de l’agora', () => {
 });
 
 describe('feuille d’ordre de l’agora', () => {
+  it('sans ordre en attente : l’état vide ouvre la feuille d’achat (#866)', async () => {
+    await show();
+    expect(screen.getByRole('heading', { name: fr.agora.myOrdersEmpty })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: fr.agora.myOrdersAction }));
+    expect(await screen.findByRole('dialog', { name: 'Acheter : Blé' })).toBeTruthy();
+  });
+
   const sell = async (quantity: string, price: string) => {
     fireEvent.change(screen.getByLabelText('Quantité', { exact: true }), {
       target: { value: quantity },

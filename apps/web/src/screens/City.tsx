@@ -5,6 +5,7 @@ import {
   ChevronRight,
   CityVignette,
   Coins,
+  EmptyState,
   Gavel,
   GodEmblem,
   Hammer,
@@ -316,7 +317,9 @@ export function CityScreen() {
           {(parkRows.failed || park === null) && (
             <LoadProblem heading={parkTitle} onRetry={() => parkRows.reload()} />
           )}
-          {park?.length === 0 && <p className="text-muted-foreground">{t('city.park.empty')}</p>}
+          {park?.length === 0 && (
+            <EmptyState compact illustration="noProperty" title={t('city.park.empty')} />
+          )}
           {park && park.length > 0 && (
             <ul className="flex flex-col divide-y divide-border-subtle text-sm">
               {park.map((size) => (

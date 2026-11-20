@@ -1,4 +1,4 @@
-import { Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
+import { Button, Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { propertyCommand } from '../api';
@@ -206,6 +206,13 @@ export function PropertyScreen() {
     );
   }, [busy, pending, offeredKey]);
 
+  // Un bien s'achète ou se loue parmi les biens offerts : l'état vide y mène, s'il y en a.
+  const toOffers = offers && offers.length > 0 && (
+    <Button variant="secondary" onClick={() => document.getElementById('property-offers')?.focus()}>
+      {t('property.seeOffers')}
+    </Button>
+  );
+
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <ScreenHeader title={t('property.title')} titleRef={title} />
@@ -216,13 +223,17 @@ export function PropertyScreen() {
       {!loading && !failed && (
         <>
           <Card className="flex flex-col gap-3" aria-labelledby="property-offers">
-            <h2 id="property-offers" className="flex items-center gap-2 text-lg font-semibold">
+            <h2
+              id="property-offers"
+              tabIndex={-1}
+              className="flex items-center gap-2 text-lg font-semibold"
+            >
               <Inbox aria-hidden="true" className="size-5 shrink-0 text-accent" />
               {t('property.offers')}
             </h2>
             {said('offers')}
             {offers?.length === 0 ? (
-              <EmptyState icon={<Inbox />} title={t('property.noOffers')} headingLevel={3} />
+              <EmptyState illustration="noProperty" title={t('property.noOffers')} />
             ) : (
               <PropertyOffers
                 offers={offers ?? []}
@@ -242,7 +253,11 @@ export function PropertyScreen() {
             </h2>
             {said('mine')}
             {mine?.length === 0 ? (
-              <EmptyState icon={<House />} title={t('property.noneMine')} headingLevel={3} />
+              <EmptyState
+                illustration="noProperty"
+                title={t('property.noneMine')}
+                action={toOffers}
+              />
             ) : (
               <MyProperties
                 properties={mine ?? []}
@@ -263,7 +278,11 @@ export function PropertyScreen() {
             </h2>
             {said('leases')}
             {leases?.length === 0 ? (
-              <EmptyState icon={<ScrollText />} title={t('property.noLeases')} headingLevel={3} />
+              <EmptyState
+                illustration="noProperty"
+                title={t('property.noLeases')}
+                action={toOffers}
+              />
             ) : (
               <PropertyLeases leases={leases ?? []} describe={describe} busy={busy} run={run} />
             )}

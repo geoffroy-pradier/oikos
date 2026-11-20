@@ -207,7 +207,8 @@
       "net": "Change",
       "high": "highest: {{amount}}",
       "low": "lowest: {{amount}}"
-    }
+    },
+    "stockAction": "Buy at the agora"
   },
   "agora": {
     "city": "Market city",
@@ -287,7 +288,8 @@
     "recapBuyNote": "A purchase never spends more than the treasury; whatever waits in the book has its price held in escrow until it is filled or cancelled.",
     "bestBuy": "Best bid",
     "bestSell": "Best ask",
-    "bestNone": "none"
+    "bestNone": "none",
+    "myOrdersAction": "Place a buy order"
   },
   "goods": {
     "wheat": "Wheat",
@@ -816,7 +818,8 @@
     "buyCapacity": "Cargo, in units",
     "buyUpkeep": "Upkeep per day",
     "buyHome": "In port when built",
-    "terroirHint": "On this small drawing, only the chosen city's terroir is shown: tap a city, or zoom in."
+    "terroirHint": "On this small drawing, only the chosen city's terroir is shown: tap a city, or zoom in.",
+    "toShipyard": "Go to the shipyard"
   },
   "shipClasses": {
     "coaster": "Coaster",
@@ -1006,7 +1009,8 @@
     "steps": {
       "recap": "Summary",
       "price": "Your price"
-    }
+    },
+    "seeOffers": "See the properties on offer"
   },
   "alerts": {
     "title": "To do today",

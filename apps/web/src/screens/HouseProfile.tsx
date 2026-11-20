@@ -5,6 +5,7 @@ import {
   Card,
   Check,
   Crown,
+  EmptyState,
   Info,
   Landmark,
   ScrollText,
@@ -102,7 +103,7 @@ export function HouseProfileScreen() {
               {t('houseProfile.mandates')}
             </h2>
             {read.mandates?.length === 0 && (
-              <p className="text-muted-foreground">{t('houseProfile.noMandate')}</p>
+              <EmptyState compact illustration="noEvent" title={t('houseProfile.noMandate')} />
             )}
             <ul className="flex flex-col gap-2">
               {read.mandates?.map((mandate) => (

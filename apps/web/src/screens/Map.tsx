@@ -1,5 +1,5 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Card, PillTabs, Ship, Waves } from '@oikos/ui';
+import { Button, Card, EmptyState, PillTabs, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -164,7 +164,7 @@ export function MapScreen() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('map.routes')}</h2>
         {rules && routes.length === 0 && (
-          <p className="text-muted-foreground">{t('map.noRoutes')}</p>
+          <EmptyState compact illustration="noShip" title={t('map.noRoutes')} />
         )}
         {unlinked.length > 0 && (
           <p>
@@ -188,9 +188,18 @@ export function MapScreen() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('map.fleet')}</h2>
         {ships?.length === 0 && (
-          <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-            {t('map.noShips')}
-          </p>
+          <EmptyState
+            illustration="noShip"
+            title={t('map.noShips')}
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => document.getElementById('shipyard')?.focus()}
+              >
+                {t('map.toShipyard')}
+              </Button>
+            }
+          />
         )}
         {/* Arrivées vues à la relecture (chaque minute) : annoncées. */}
         {arrivals.map((voyage) => (

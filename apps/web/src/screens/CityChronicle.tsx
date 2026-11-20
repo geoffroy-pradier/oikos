@@ -59,7 +59,7 @@ export function CityChronicle() {
       {(read.failed || (read.rows !== null && articles === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {articles?.length === 0 && <EmptyState icon={<ScrollText />} title={t('chronicle.none')} />}
+      {articles?.length === 0 && <EmptyState illustration="noEvent" title={t('chronicle.none')} />}
       {latest && (
         <Card elevation="raised" className="flex flex-col gap-3 break-words sm:p-6">
           <article className="flex max-w-prose flex-col gap-3 leading-relaxed">

@@ -38,7 +38,7 @@ export function CityEvents() {
       <p className="text-sm text-muted-foreground">{t('worldEvents.intro')}</p>
       {events === null && !failed && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
-      {events?.length === 0 && <EmptyState icon={<Sparkles />} title={t('worldEvents.none')} />}
+      {events?.length === 0 && <EmptyState illustration="noEvent" title={t('worldEvents.none')} />}
       {events && events.length > 0 && (
         <ul className="grid gap-3 lg:grid-cols-2">
           {events.map((event) => (
