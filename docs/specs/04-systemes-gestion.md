@@ -173,6 +173,15 @@ Décision (#285) : la borne porte sur la marge du monde, pas sur celle de chaque
 Cité par cité, le scénario du banc fait passer un bien intermédiaire du plancher au plafond des prix de ses maisons scriptées (70 % et 150 % de la référence) : à Kallistè, le bois manque à la charbonnière, le fournil chôme et le moulin vend sa farine au plancher (201 oboles de marge) ; à Elaia, la farine manque et le fournil la paie au plafond (30 oboles).
 Ces écarts tiennent aux nombres de sites du scénario, que la configuration ne corrige pas sans casser le banc à une cité (essais ci-dessous).
 
+Depuis #709, douze ateliers de plus (5.1) : leur marge du monde, aux prix du banc à quatre cités, est de 681 à 1 017 oboles, dans la borne de 453 à 1 810.
+Aucune maison du banc n'y joue ces ateliers : leurs extrants, que personne n'échange, comptent à leur prix de référence.
+Les marges des sept recettes du tableau ci-dessous et la médiane des matières premières restent celles d'avant, au chiffre près.
+Le négociant des bancs n'enchérit plus que sur les biens que les sites du monde livrent.
+Raison : il place chaque matin, par bien, une offre d'achat d'un huitième de sa trésorerie restante ; avec trente-sept biens, presque toute sa monnaie serait sous séquestre et l'entretien de ses sites ne serait plus payé.
+Ce filtre dépend du nombre de biens produits : le banc à douze cités (#712) devra donner au négociant une réserve d'entretien.
+Avec une offre d'achat sur chacun des trente-sept biens, le banc à une cité arrêtait un moulin faute d'entretien payé ; les offres sur les douze intermédiaires, que personne n'y produit, ne s'y remplissaient jamais.
+Le banc à une cité garde ses bornes, avec des écarts de quelques millièmes (10 236 habitants au dernier jour au lieu de 10 253).
+
 Marges retenues dans la configuration initiale (banc à quatre cités, graine par défaut, salaire du banc de 4 oboles) ; la médiane des matières premières est de 905 oboles avant comme après, d'où une borne de 453 à 1 810 oboles :
 
 | Filière | Avant | Après | Réglage |

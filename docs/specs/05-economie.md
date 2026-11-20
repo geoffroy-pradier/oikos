@@ -29,7 +29,7 @@ une version qui rend le bien rend le marché. Le client joueur n'a de nom tradui
 | Niveau | Exemples | Nombre |
 | --- | --- | --- |
 | Matières | Blé, orge, olives, raisin, figues, bois, miel, argile, marbre, cuivre, étain, fer, argent, laine, peaux, lin, poisson, sel | 18 |
-| Intermédiaires | Farine, huile, moût, planches, bronze, fer forgé, fil, tissu, cuir, charbon, pigments | 16 |
+| Intermédiaires | Farine, farine d'orge, huile, moût, planches, bronze, fer forgé, fil, tissu, toile de lin, cuir, charbon, pigments, cire, lingots d'argent, blocs de marbre | 16 |
 | Finis | Pain, vin, amphores, céramique peinte, outils, vêtements, parfums, bijoux, meubles, statues, navires | 20 |
 | Services | Fret, logement, spectacle, banquet, crédit, escorte | 6 |
 
@@ -39,7 +39,32 @@ Leur prix de référence et leur élasticité sont dans la configuration.
 Au prix de référence, entretien et salaires déduits, la marge nette quotidienne de chacune de leurs recettes est entre la moitié et le double de la médiane des huit matières premières de la phase 2 (899 oboles) : un test de la configuration le vérifie, bornes écrites à la main.
 Décision (paramètres neutres, #708) : aucun bien nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu ; #713 règle les paniers.
 D'ici les ateliers de #709 et ces paniers, ils ne s'échangent qu'entre maisons.
-Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
+Depuis #709, la configuration initiale compte les seize intermédiaires : aux quatre de la phase 2 (farine, huile d'olive, charbon de bois, tissu) s'ajoutent douze biens, chacun avec la recette d'un atelier (4.3).
+Le tableau donne l'atelier, ses intrants et son extrant par cycle, la durée du cycle et la marge nette quotidienne au prix de référence, entretien et salaires déduits.
+
+| Bien (prix de référence) | Atelier | Intrants par cycle | Extrant par cycle | Cycle | Marge |
+| --- | --- | --- | --- | ---: | ---: |
+| Farine d'orge (9) | `mill_barley` | 10 orges | 9 | 60 min | 682 |
+| Moût (30) | `press_must` | 10 raisins | 6 | 120 min | 898 |
+| Planches (20) | `saw_planks` | 8 bois | 6 | 90 min | 834 |
+| Bronze (32) | `smelt_bronze` | 6 cuivres, 1 étain, 1 charbon | 9 | 180 min | 924 |
+| Fer forgé (42) | `forge_iron` | 6 fers, 2 charbons | 5 | 120 min | 916 |
+| Fil (24) | `spin_thread` | 10 lins | 8 | 120 min | 922 |
+| Cuir (55) | `tan_leather` | 6 peaux, 2 sels | 5 | 240 min | 856 |
+| Toile de lin (60) | `weave_linen` | 3 fils | 3 | 180 min | 796 |
+| Pigments (30) | `grind_pigments` | 8 argiles, 2 cuivres | 6 | 180 min | 770 |
+| Cire (48) | `render_wax` | 6 miels, 1 charbon | 7 | 240 min | 778 |
+| Lingots d'argent (150) | `cast_silver` | 4 argents, 2 charbons | 4 | 360 min | 924 |
+| Blocs de marbre (56) | `cut_marble` | 8 marbres | 6 | 240 min | 886 |
+
+Décision (#709) : les recettes de la phase 2 ne changent pas.
+Le vin reste fait de raisin et d'amphores, le tissu de laine : les marges de #285 et les mesures des bancs restent celles d'avant.
+Le moût et la toile de lin sont de nouveaux biens à côté du vin et du tissu, pas leurs intrants.
+Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
+Chaque intermédiaire est l'intrant d'au moins une recette, ou le sera : le fil l'est de la toile de lin, les autres attendent les biens finis des tickets suivants.
+Un test de la configuration en tient la liste d'attente, et elle doit être vide à la fin des biens finis (« P9 »).
+Comme pour les matières de #708, aucun intermédiaire nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
+Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
 Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
 
 ## 5.2 La demande finale
