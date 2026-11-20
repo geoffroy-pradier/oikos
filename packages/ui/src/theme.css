@@ -51,6 +51,9 @@
   --sea: #dcebf5;
   --land: #f3efe7;
   --coast: #b9c2cb;
+  /* Hauts-fonds autour des terres ; routes que la maison ne parcourt pas (celles qu'elle parcourt : accent). */
+  --shoal: #ebf5fb;
+  --route: #6b7682;
   /* Voile derrière une feuille ou une boîte de dialogue. */
   --scrim: rgb(16 24 40 / 0.45);
   --elevation-1: 0 1px 2px rgb(16 24 40 / 0.05);
@@ -94,6 +97,8 @@
   --sea: #0b1520;
   --land: #1e262d;
   --coast: #3a4651;
+  --shoal: #13304a;
+  --route: #748190;
   --scrim: rgb(0 0 0 / 0.65);
   /* Aucune ombre en sombre : les plans se séparent par leurs bordures. */
   --elevation-1: 0 0 #0000;
@@ -131,6 +136,8 @@
   --color-sea: var(--sea);
   --color-land: var(--land);
   --color-coast: var(--coast);
+  --color-shoal: var(--shoal);
+  --color-route: var(--route);
   --color-focus: var(--focus);
   --color-scrim: var(--scrim);
   --shadow-sm: var(--elevation-1);
