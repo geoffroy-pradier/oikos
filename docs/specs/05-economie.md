@@ -30,7 +30,7 @@ une version qui rend le bien rend le marché. Le client joueur n'a de nom tradui
 | --- | --- | --- |
 | Matières | Blé, orge, olives, raisin, figues, bois, miel, argile, marbre, cuivre, étain, fer, argent, laine, peaux, lin, poisson, sel | 18 |
 | Intermédiaires | Farine, farine d'orge, huile, moût, planches, bronze, fer forgé, fil, tissu, toile de lin, cuir, charbon, pigments, cire, lingots d'argent, blocs de marbre | 16 |
-| Finis | Pain, vin, amphores, galettes d'orge, poisson salé, garum, lampes à huile, sandales, outils, vêtements, céramique peinte, parfums, bijoux, meubles, statues, navires | 20 |
+| Finis | Pain, vin, amphores, galettes d'orge, poisson salé, garum, lampes à huile, sandales, outils, vêtements, céramique peinte, parfums, bijoux, meubles, statues, armes, voiles, bougies, mosaïques, gâteaux de figues | 20 |
 | Services | Fret, logement, spectacle, banquet, crédit, escorte | 6 |
 
 Décision (#708, ambiguïté de cette section) : les soixante biens sont les 54 biens stockables du catalogue (18 matières, 16 intermédiaires, 20 finis) et les six services, qui sont des mécaniques et non des lignes du catalogue.
@@ -62,7 +62,7 @@ Le vin reste fait de raisin et d'amphores, le tissu de laine : les marges de #28
 Le moût et la toile de lin sont de nouveaux biens à côté du vin et du tissu, pas leurs intrants.
 Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
 Chaque intermédiaire est l'intrant d'au moins une recette, ou le sera : le fil l'est de la toile de lin, les autres attendent les biens finis des tickets suivants.
-Un test de la configuration en tient la liste d'attente, et elle doit être vide à la fin des biens finis (« P9 »).
+Depuis #711, la liste d'attente de cette règle est vide : voir plus bas.
 Comme pour les matières de #708, aucun intermédiaire nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
 Depuis #710, la configuration initiale compte dix biens finis : aux trois de la phase 2 (pain, vin, amphores) s'ajoutent sept biens du quotidien, chacun avec la recette d'un atelier (4.3).
 
@@ -83,10 +83,44 @@ Les recettes de la phase 2 ne changent pas, et aucun bien fini nouveau n'est l'i
 Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
 Décision (#710) : chaque atelier livre au moins trois unités par cycle.
 Raison : l'atelier inspiré (7.1) ajoute ⌊extrant × 35 % ⌋ unités, et le test des grâces exige qu'il en ajoute au moins une au plus petit extrant d'un atelier.
-Les cuirs, fers forgés, planches et farines d'orge trouvent preneur : la liste d'attente de #709 ne garde plus que les sept intermédiaires des biens finis de #711, et la figue.
+Les cuirs, fers forgés, planches et farines d'orge trouvent preneur : la liste d'attente de #709 ne garde plus que sept intermédiaires et la figue, que #711 consomme.
 Décision (paramètres neutres, #710) : aucun des sept biens n'entre encore dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu ; #713 règle les paniers.
-Un test de la configuration en tient la liste d'attente, comme pour les intermédiaires, et elle doit être vide à la fin des biens finis (« P9 »).
-Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 et les sept biens finis de #710 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
+Un test de la configuration tient la liste des biens finis que les paniers n'achètent pas encore, comme pour les intermédiaires.
+Depuis #711, la configuration initiale compte vingt biens finis : aux dix de la phase 2 et de #710 s'ajoutent dix biens de luxe et d'ouvrage, chacun avec la recette d'un atelier (4.3).
+
+| Bien (prix de référence) | Atelier | Intrants par cycle | Extrant par cycle | Cycle | Marge |
+| --- | --- | --- | --- | ---: | ---: |
+| Céramique peinte (55) | `paint_ceramics` | 6 argiles, 1 pigment, 1 charbon | 4 | 240 min | 802 |
+| Parfums (125) | `blend_perfumes` | 4 huiles d'olive, 1 cire | 3 | 360 min | 766 |
+| Bijoux (200) | `craft_jewelry` | 2 lingots d'argent, 2 bronzes | 3 | 360 min | 876 |
+| Meubles (140) | `build_furniture` | 8 planches, 2 cuirs | 3 | 240 min | 832 |
+| Statues (200) | `carve_statues` | 5 blocs de marbre, 1 bronze | 3 | 480 min | 796 |
+| Armes (175) | `forge_weapons` | 6 bronzes, 3 fers forgés | 3 | 360 min | 760 |
+| Voiles (130) | `sew_sails` | 3 toiles de lin, 3 fils | 3 | 240 min | 760 |
+| Bougies (32) | `dip_candles` | 2 cires, 1 fil | 6 | 120 min | 802 |
+| Mosaïques (190) | `lay_mosaics` | 4 blocs de marbre, 4 pigments | 3 | 360 min | 836 |
+| Gâteaux de figues (42) | `press_fig_cakes` | 8 figues, 2 moûts | 6 | 180 min | 834 |
+
+Décision (#711) : les navires n'entrent pas au catalogue.
+Ils restent achetés à la cité (4.6, `ship.acquire`) : un bien échangeable à l'agora en ferait un second marché de navires, que la flotte ne prévoit pas.
+Les voiles prennent leur place parmi les vingt biens finis.
+Décision (#711) : la liste de départ du ticket est ajustée sur un point.
+Les cordages sont remplacés par les gâteaux de figues.
+Raison : la liste ne donnait de débouché ni à la figue ni au moût, et les gâteaux de figues les consomment tous deux.
+Le lin, lui, est déjà l'intrant du fil.
+Les intrants sont les suivants.
+Les bijoux consomment l'argent et le bronze, les armes le bronze et le fer forgé, les statues et les mosaïques le marbre taillé, les voiles la toile de lin et le fil, les meubles les planches et le cuir.
+La céramique prend l'argile et les pigments, les parfums l'huile d'olive et la cire, les bougies la cire et le fil.
+Aucun bien fini nouveau n'est l'intrant d'un autre, et les recettes d'avant ne changent pas.
+Chaque atelier livre au moins trois unités par cycle, pour la même raison qu'en #710.
+Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
+Décision (#711) : les soixante biens sont au complet, et plus aucune liste d'attente d'intrant ne reste.
+Chaque matière première et chaque intermédiaire est l'intrant d'au moins une recette : un test de la configuration initiale nomme le bien sans débouché, sans aucune exception.
+La figue, le moût, le bronze, la toile de lin, les pigments, la cire, les lingots d'argent et les blocs de marbre y entrent avec #711.
+Seuls restent en attente les dix-sept biens finis de #710 et #711, que les paniers des PNJ n'achètent pas encore.
+Cette liste est bornée à ces dix-sept biens et se vide avec #713, qui règle les paniers (5.2) ; un test la tient, et le test des impasses en retire tout bien qui a trouvé preneur.
+Décision (paramètres neutres, #711) : aucun des dix biens n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
+Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 et les dix-sept biens finis de #710 et #711 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
 Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
 
 ## 5.2 La demande finale
