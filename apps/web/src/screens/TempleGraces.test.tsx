@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -173,5 +173,30 @@ describe('grâces du temple (#272)', () => {
     state.uses = null;
     await show({});
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('refusée, l’invocation garde le foyer sur sa confirmation, jamais inactive pendant l’envoi', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    api.invokeGrace.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    await show({ demeter: 210 });
+    fireEvent.click(screen.getByRole('button', { name: /^Invoquer Récolte bénie/ }));
+    const confirmation = screen.getByRole('button', { name: /^Confirmer l'invocation/ });
+    confirmation.focus();
+    fireEvent.click(confirmation);
+    // En vol : marquée inactive sans `disabled`, qui ferait tomber le foyer sur la page.
+    expect([
+      confirmation.hasAttribute('disabled'),
+      confirmation.getAttribute('aria-disabled'),
+    ]).toEqual([false, 'true']);
+    fireEvent.click(confirmation);
+    expect(api.invokeGrace).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      answer({ ok: false, error: { code: 'INSUFFICIENT_CHARIS', message: '' } }),
+    );
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe(
+      fr.errors.INSUFFICIENT_CHARIS,
+    );
+    expect(document.activeElement).toBe(confirmation);
+    expect(document.activeElement).not.toBe(document.body);
   });
 });
