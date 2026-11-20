@@ -2,7 +2,7 @@
 -- La clôture qui trouve un décret `ostracism` adopté ouvre son vote, avec les règles de sa configuration ; chaque
 -- citoyen de la cité y inscrit, par l'API, le nom d'un citoyen de la même cité ; la clôture qui suit la fin du vote
 -- dépouille. Le plus nommé, seul en tête et si les bulletins atteignent le quorum, est ostracisé jusqu'à `ends_at`.
--- Effets sur les charges : migration 7222 ; lectures des joueurs : migration 7223.
+-- Effets sur les charges : migration 9222 ; lectures des joueurs : migration 9223.
 -- Rejouable ; le code précédent n'écrit ni ne lit ces tables.
 
 create table if not exists game.ostracisms (
