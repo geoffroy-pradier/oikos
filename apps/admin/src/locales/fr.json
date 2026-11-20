@@ -273,7 +273,10 @@
       "RATE_LIMITED": "Trop de demandes en peu de temps. Patientez un instant.",
       "VALIDATION_FAILED": "Demande refusée : identifiant ou rôle mal formé.",
       "INTERNAL": "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois."
-    }
+    },
+    "close": "Fermer",
+    "filter": "Filtrer par rôle",
+    "allRoles": "Tous les rôles"
   },
   "audit": {
     "title": "Journal d'audit",

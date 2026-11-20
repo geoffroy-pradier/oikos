@@ -161,9 +161,15 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await expect(
     page.getByRole('row', { name: /\(vous\) Super-administrateur Inscrit en base/ }),
   ).toBeVisible();
-  await page.getByLabel('Identifiant du compte').fill(randomUUID());
+  // Accorder un rôle se fait dans une feuille, refermée par Échap.
+  await page.getByRole('button', { name: 'Accorder un rôle' }).click();
+  const grant = page.getByRole('dialog', { name: 'Accorder un rôle' });
+  await grant.getByLabel('Identifiant du compte').fill(randomUUID());
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Aucun compte ne porte cet identifiant.')).toBeVisible();
+  await expect(grant.getByText('Aucun compte ne porte cet identifiant.')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.keyboard.press('Escape');
+  await expect(grant).toHaveCount(0);
   // Entrée tenue sur « Retirer le rôle » : la confirmation s'ouvre, foyer sur « Annuler », rien n'est validé.
   const mine = page.getByRole('row', { name: /\(vous\) Super-administrateur Inscrit en base/ });
   await mine.getByRole('button', { name: /^Retirer le rôle de / }).focus();

@@ -11,7 +11,7 @@ import { useAdmin } from '../useAdmin';
 
 type Entry = AdminReports['queue'][number];
 type Appeal = AdminReports['appeals'][number];
-type Notice = { kind: 'status' | 'alert'; text: string } | null;
+export type Notice = { kind: 'status' | 'alert'; text: string } | null;
 /** Geste en cours de confirmation : sur un signalement, une exclusion proposée, une levée proposée, un appel. */
 export type Gesture =
   | 'hide'
@@ -637,7 +637,7 @@ const CARD = 'flex flex-col gap-2 rounded-xl border border-border-subtle bg-surf
  * Résultat du dernier geste. Toujours présent : un lecteur d'écran l'annonce dès qu'il paraît. La feuille d'un
  * geste en porte une copie, seule lue tant qu'elle est ouverte (le reste de la page est alors inerte).
  */
-function Notice({ notice }: { notice: Notice }) {
+export function Notice({ notice }: { notice: Notice }) {
   return (
     <div
       role={notice?.kind ?? 'status'}
