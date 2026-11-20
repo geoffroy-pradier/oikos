@@ -184,6 +184,10 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       // Refus d'un geste simple : le foyer revient à son bouton. Une sanction refusée garde ses champs à corriger.
       setOpen(null);
       setReturnTo(`${open?.scope}:${gesture}`);
+    } else {
+      // Sanction refusée : la feuille reste ouverte, ses champs à corriger ; le foyer revient à « Confirmer »,
+      // inactif pendant l'envoi, par l'effet qui suit le rendu.
+      setReturnTo(`${open?.scope}:confirm`);
     }
   }
 
@@ -234,6 +238,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       <Confirmation
         key={gesture}
         id={`confirm-${sanctionId}`}
+        scope={sanctionId}
         sentence={t(`moderation.confirm.${gesture}`, { userId })}
         confirmLabel={t(`moderation.confirmLabel.${gesture}`)}
         busy={busy}
@@ -304,7 +309,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                 <input
                   id="moderation-filter"
                   type="search"
-                  className={`${CONTROL} min-h-10 pl-9 text-sm`}
+                  className={`${CONTROL} min-h-11 pl-9 text-sm`}
                   placeholder={t('moderation.filter')}
                   value={filter}
                   onChange={(event) => setFilter(event.target.value)}
@@ -408,7 +413,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                       )}
                       <Sheet
                         open={asked !== null}
-                        onClose={cancel}
+                        // Commande en vol : ni Échap ni le voile ne referment la feuille (doc de `Sheet`).
+                        onClose={() => !busy && cancel()}
                         closeDisabled={busy}
                         closeLabel={t('moderation.close')}
                         title={asked && t(`moderation.act.${asked}`)}
@@ -423,6 +429,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                         {asked && (
                           <Confirmation
                             id={`confirm-${scope}`}
+                            scope={scope}
                             sentence={t(`moderation.confirm.${asked}`, { house })}
                             confirmLabel={t(`moderation.confirmLabel.${asked}`)}
                             busy={busy}
@@ -721,6 +728,7 @@ export function Confirmation({
   fields,
   onConfirm,
   onCancel,
+  scope,
   children,
 }: {
   id: string;
@@ -730,6 +738,8 @@ export function Confirmation({
   fields: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Entrée de la file ou sanction visée : nomme le bouton de confirmation, qui peut reprendre le foyer. */
+  scope: string;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -745,7 +755,12 @@ export function Confirmation({
       </p>
       {children}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy} aria-describedby={id} onClick={onConfirm}>
+        <Button
+          id={`gesture-${scope}:confirm`}
+          disabled={busy}
+          aria-describedby={id}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
         <Button

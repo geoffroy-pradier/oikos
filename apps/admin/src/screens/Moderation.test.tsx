@@ -399,6 +399,30 @@ it('durée retirée entre-temps : le refus est expliqué, les durées relues, le
   });
 });
 
+it('pendant l’envoi, Échap ne referme pas la feuille ; un refus garde les champs et rend le foyer à « Confirmer »', async () => {
+  const sent = held<unknown>();
+  await opened([sent.promise], REPORTS);
+  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
+  fireEvent.click(radio('7 jours (168 h)'));
+  fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
+  const confirm = screen.getByRole('button', { name: 'Confirmer la suspension' });
+  fireEvent.click(confirm);
+  await waitFor(() => expect(confirm.hasAttribute('disabled')).toBe(true));
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
+  expect(screen.getByRole('dialog', { name: 'Suspendre' })).toBeTruthy();
+  sent.release({ ok: false, code: 'RATE_LIMITED' });
+  await waitFor(() => expect(notice('alert')).toBeTruthy());
+  expect(screen.getByRole('dialog', { name: 'Suspendre' })).toBeTruthy();
+  expect(radio('7 jours (168 h)').checked).toBe(true);
+  expect((screen.getByLabelText('Motif') as HTMLTextAreaElement).value).toBe('Récidive');
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Confirmer la suspension' }),
+    ),
+  );
+});
+
 it('une panne garde l’intention : le renvoi réutilise la clé d’idempotence', async () => {
   const sent = held<unknown>();
   await opened([{ ok: false, code: 'INTERNAL' }, sent.promise], REPORTS);
