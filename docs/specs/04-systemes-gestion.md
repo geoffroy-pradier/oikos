@@ -188,6 +188,12 @@ Aucune maison du banc ne les joue : leurs extrants, que personne n'échange, com
 Les marges des quatorze recettes d'avant, et celles de #709, restent celles d'avant, au chiffre près ; le banc à une cité reste identique, au chiffre près (10 236 habitants au dernier jour).
 Le filtre du négociant les laisse de côté pour la même raison que les douze de #709.
 
+Depuis #711, dix ateliers de biens finis de plus (5.1), jusqu'à cinquante-quatre recettes : les soixante biens du lancement sont au complet.
+Leur marge du monde, aux prix du banc à quatre cités, est de 759 à 875 oboles, dans la borne de 453 à 1 810.
+Aucune maison du banc ne les joue, et le filtre du négociant les laisse de côté pour la même raison.
+Les marges des quarante-quatre recettes d'avant restent celles d'avant, au chiffre près.
+Le banc à une cité reste identique, au chiffre près (10 236 habitants au dernier jour), et le banc à quatre cités n'a pas d'autre écart que les dix colonnes nouvelles.
+
 Marges retenues dans la configuration initiale (banc à quatre cités, graine par défaut, salaire du banc de 4 oboles) ; la médiane des matières premières est de 905 oboles avant comme après, d'où une borne de 453 à 1 810 oboles :
 
 | Filière | Avant | Après | Réglage |
@@ -401,6 +407,8 @@ Un trajet a une durée (2 à 20 heures réelles), un coût, une capacité et un 
 Trois classes de navires au lancement : caboteur, navire rond de commerce, galère d'escorte.
 La phase 2 n'en a que deux, le caboteur et le navire rond : la galère d'escorte et l'escorte attendent les conflits de la phase 3 (décision du ticket #251).
 Le fret peut être vendu à d'autres joueurs.
+Décision (#711) : un navire n'est pas un bien du catalogue (5.1).
+Il reste acheté à la cité (`ship.acquire`, ci-dessous), jamais échangé à l'agora.
 
 Navires, dans la phase 2 (#251) :
 

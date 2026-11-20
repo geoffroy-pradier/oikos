@@ -46,9 +46,10 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
   La maison reçoit 3 000 oboles et le premier site de sa cité (champ de blé, vigne ou pêcherie). La commande de renommage existe dans l'API, sans écran.
 - **Sites.** Jusqu'à quatre sites par maison. Acquisition contre monnaie (de 600 à 1 200 oboles selon le
   type), changement de production d'un site.
-  Quarante-quatre productions pour quarante-quatre biens.
+  Cinquante-quatre productions pour cinquante-quatre biens.
   Dix-huit matières premières : blé, olives, raisin, bois, argile, laine, poisson, sel, puis depuis #708 orge, lin, figues, peaux, miel, marbre, cuivre, étain, fer et argent.
-  Vingt-six transformations en atelier : farine, huile, charbon de bois, tissu, pain, amphores, vin, puis depuis #709 farine d'orge, moût, planches, bronze, fer forgé, fil, cuir, toile de lin, pigments, cire, lingots d'argent et blocs de marbre, puis depuis #710 galettes d'orge, poisson salé, garum, lampes à huile, sandales, outils et vêtements.
+  Trente-six transformations en atelier : farine, huile, charbon de bois, tissu, pain, amphores, vin, puis depuis #709 farine d'orge, moût, planches, bronze, fer forgé, fil, cuir, toile de lin, pigments, cire, lingots d'argent et blocs de marbre, puis depuis #710 galettes d'orge, poisson salé, garum, lampes à huile, sandales, outils et vêtements, puis depuis #711 céramique peinte, parfums, bijoux, meubles, statues, armes, voiles, bougies, mosaïques et gâteaux de figues.
+  Les soixante biens du lancement sont au complet : cinquante-quatre biens stockables et six services.
 - **Production.** Elle s'accumule avec le temps, jusqu'à un plafond, et se récolte à la demande. Un atelier
   consomme ses intrants dans le stock libre de sa cité ; à court d'intrants, il attend. La fiche d'un
   site affiche son entretien, son plafond, les intrants par cycle, le stock libre et ce qui est
