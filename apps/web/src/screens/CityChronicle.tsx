@@ -6,6 +6,7 @@ import { chronicleParagraphs, parseChronicle, type ChronicleArticle } from '../c
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PANEL_TITLE } from './city-section';
 
 /** Chroniques montrées, la plus récente d'abord : un choix d'affichage, pas une règle du jeu. */
 const SHOWN_ARTICLES = 7;
@@ -49,7 +50,7 @@ export function CityChronicle() {
       <h2
         ref={title}
         tabIndex={-1}
-        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+        className={`${PANEL_TITLE} flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent`}
       >
         <ScrollText aria-hidden="true" />
         {t('chronicle.title')}

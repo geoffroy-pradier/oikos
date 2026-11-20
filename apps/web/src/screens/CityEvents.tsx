@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
 import { describeWorldEvent, useWorldEvents } from '../world-events';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PANEL_TITLE } from './city-section';
 
 // Événements d'une cité (7.4) : une tempête, elle, touche une route ; elle est dite au départ d'un navire.
 const MODELS = ['drought', 'good_year', 'caravan'];
@@ -29,7 +30,7 @@ export function CityEvents() {
       <h2
         ref={title}
         tabIndex={-1}
-        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+        className={`${PANEL_TITLE} flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent`}
       >
         <Sparkles aria-hidden="true" />
         {t('worldEvents.title')}

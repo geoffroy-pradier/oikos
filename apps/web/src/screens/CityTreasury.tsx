@@ -12,6 +12,7 @@ import {
   TREASURY_NATURES,
 } from '../treasury';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PANEL_TITLE } from './city-section';
 
 /** Jours où le trésor a bougé, montrés les plus récents d'abord : un choix d'affichage, pas une règle du jeu. */
 const SHOWN_DAYS = 7;
@@ -91,7 +92,7 @@ export function CityTreasury() {
       <h2
         ref={title}
         tabIndex={-1}
-        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+        className={`${PANEL_TITLE} flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent`}
       >
         <Coins aria-hidden="true" />
         {t('treasury.title')}

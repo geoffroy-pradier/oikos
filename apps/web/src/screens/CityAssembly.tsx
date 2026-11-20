@@ -12,6 +12,7 @@ import { parseVoted } from '../politics';
 import { DecreeForm } from './DecreeForm';
 import { noticeClass } from './CommandNotice';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PANEL_TITLE } from './city-section';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
@@ -180,7 +181,7 @@ export function CityAssembly() {
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 ref={title} tabIndex={-1} className={TITLE}>
+      <h2 ref={title} tabIndex={-1} className={`${PANEL_TITLE} ${TITLE}`}>
         <Gavel aria-hidden="true" />
         {t('assembly.title')}
       </h2>
