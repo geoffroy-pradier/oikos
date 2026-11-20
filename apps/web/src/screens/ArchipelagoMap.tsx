@@ -1,7 +1,8 @@
 import { Archipelago } from '@oikos/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { along, MAP_HEIGHT, MAP_WIDTH, placeLabels, scaleBar, type Point } from '../map-layout';
+import { useMapView } from '../map-view';
 
 export interface MapRoute {
   from: string;
@@ -27,20 +28,19 @@ export interface MapShip {
   progress: number;
 }
 
-/** Unités du dessin par pixel CSS, d'après la largeur affichée : les noms gardent leur taille à l'écran. */
-function useUnitsPerPixel() {
-  const frame = useRef<HTMLDivElement>(null);
-  const [unit, setUnit] = useState(MAP_WIDTH / 760);
+/** Largeur affichée de la carte, en pixels CSS : les noms y gardent leur taille quel que soit le zoom. */
+function useWidth(frame: RefObject<HTMLDivElement | null>) {
+  const [width, setWidth] = useState(760);
   useEffect(() => {
     const element = frame.current;
     if (!element || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
-      if (element.clientWidth > 0) setUnit(MAP_WIDTH / element.clientWidth);
+      if (element.clientWidth > 0) setWidth(element.clientWidth);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
-  return { frame, unit };
+  }, [frame]);
+  return width;
 }
 
 /**
@@ -54,9 +54,13 @@ export function ArchipelagoMap(props: {
   cities: readonly MapCity[];
   ships: readonly MapShip[];
   pointOf: (cityId: string) => Point | undefined;
+  /** Cité de la maison : le recentrage y mène. */
+  home: Point | undefined;
 }) {
   const { t, i18n } = useTranslation();
-  const { frame, unit } = useUnitsPerPixel();
+  const map = useMapView(props.home);
+  const { box } = map;
+  const unit = box.width / useWidth(map.frame);
   const number = new Intl.NumberFormat(i18n.language);
   const hours = (count: number) => t('map.hours', { count, number: number.format(count) });
   const px = (size: number) => size * unit;
@@ -84,14 +88,25 @@ export function ArchipelagoMap(props: {
       width: px(name.length * 9),
       height: px(36),
     })),
-    { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT },
+    box,
     px(13),
   );
 
   return (
-    <div ref={frame} className="relative w-full">
+    // Arrêt de tabulation de la carte : flèches, + et −, 0 ; glisser, pincer, molette.
+    <div
+      ref={map.frame}
+      role="group"
+      tabIndex={0}
+      aria-label={t('map.pan')}
+      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + - 0"
+      className={`relative cursor-grab rounded-[inherit] outline-offset-[-3px] active:cursor-grabbing ${map.zoomed ? 'touch-none' : 'touch-pan-y'}`}
+      {...map.handlers}
+    >
       <svg
-        viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+        viewBox={[box.x, box.y, box.width, box.height]
+          .map((n) => Math.round(n * 1000) / 1000)
+          .join(' ')}
         role="img"
         aria-label={props.label}
         className="block h-auto w-full select-none"

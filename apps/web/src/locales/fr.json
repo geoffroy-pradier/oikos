@@ -611,7 +611,8 @@
     "arrived": "Un navire est arrivé à {{city}} : sa cargaison est dans votre stock.",
     "dockedCount_one": "{{number}} navire à quai",
     "dockedCount_other": "{{number}} navires à quai",
-    "scale": "{{duration}} de mer"
+    "scale": "{{duration}} de mer",
+    "pan": "Carte de l'archipel : flèches pour la déplacer, + et − pour zoomer, 0 pour recentrer sur votre cité"
   },
   "shipClasses": {
     "coaster": "Caboteur",
