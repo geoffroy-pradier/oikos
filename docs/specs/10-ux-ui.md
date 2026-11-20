@@ -75,8 +75,13 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.
-   Les cités y sont placées sur une ellipse, dans l'ordre de leurs identifiants de configuration : un schéma stable, qui ne prétend à aucune distance, la durée d'une route venant de la configuration.
-   Le dessin montre les routes et leur durée de référence, les navires de la maison à quai près de leur cité et ceux en mer sur leur route, à la part du trajet faite à l'heure du serveur.
+   Refonte (#696) : l'archipel est un dessin fait à la main (`Archipelago`, `packages/ui/src/illustrations`) : mer et quadrillage discret, deux continents, une île par cité et des îlots, hauts-fonds autour des terres, rose des vents.
+   Chaque cité est posée sur son île par sa place dans `CITY_MAP_POSITIONS` (`packages/config/src/client.ts`), en millièmes du dessin : une valeur d'affichage, sans rien d'équilibrage, qui ne prétend à aucune distance, la durée d'une route venant de la configuration.
+   Décision : ces places sont un réglage du client, non versionné en base, parce que le dessin des îles est lui-même dans le client.
+   Une cité sans place (ajoutée par Olympe avant que le client ne dessine son île) est posée par la règle de la première version : sur une ellipse, dans l'ordre des identifiants de configuration de toutes les cités.
+   Le dessin montre les routes en pointillés et leur durée de référence (en accent celles où un navire de la maison est en mer), la cité de la maison en accent, le nombre de navires de la maison à quai sous chaque cité, et ceux en mer sur leur route, à la part du trajet faite à l'heure du serveur, voile tournée vers leur destination et nommés quand la place le permet.
+   Une échelle en heures de mer en donne l'ordre de grandeur : la longueur médiane d'une heure de route sur le dessin, pour 1, 2, 4 ou 8 heures.
+   Les noms gardent leur taille à l'écran ; sur un dessin petit (téléphone), les durées et les navires à quai ne sont dits que par la liste.
    Il est doublé d'une liste au clavier qui porte les mêmes informations : les routes, puis chaque navire et son état (à quai, en mer vers sa destination avec l'arrivée prévue, désarmé).
    Le chantier naval propose chaque classe à son prix, en drachmes et oboles ; l'achat suit l'acquisition d'un site (4.2) : un achat resté sans réponse garde sa clé jusqu'à la relecture qui montre un navire de plus.
    Sans réponse mais un navire de plus à la relecture, la même clé repart une fois pour connaître l'issue ; un navire de plus après une issue inconnue prévient le joueur, rappelé à chaque ouverture de l'écran tant qu'il n'a pas dit avoir vérifié sa flotte.

@@ -608,7 +608,10 @@
     "withLaidUp": "{{state}} (désarmé : entretien impayé)",
     "buyChecked": "J'ai vérifié ma flotte",
     "noRouteFor": "Sans route : {{cities}}.",
-    "arrived": "Un navire est arrivé à {{city}} : sa cargaison est dans votre stock."
+    "arrived": "Un navire est arrivé à {{city}} : sa cargaison est dans votre stock.",
+    "dockedCount_one": "{{number}} navire à quai",
+    "dockedCount_other": "{{number}} navires à quai",
+    "scale": "{{duration}} de mer"
   },
   "shipClasses": {
     "coaster": "Caboteur",

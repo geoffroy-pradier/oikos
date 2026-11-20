@@ -94,6 +94,9 @@ describe('carte de l’archipel', () => {
     expect(html).toContain('Navire rond</a> : à quai à Elaia (désarmé');
     // Un navire en mer est dessiné sur sa route, en plus des quatre cités.
     expect(html.match(/<circle /g)).toHaveLength(5);
+    // La route du navire en mer est mise en avant, les cinq autres non.
+    expect(html.match(/<line [^>]*class="stroke-primary"/g)).toHaveLength(1);
+    expect(html.match(/<line [^>]*class="stroke-route"/g)).toHaveLength(5);
   });
 
   it('chantier : chaque classe à son prix de la configuration, en drachmes ; rien avant la flotte', async () => {

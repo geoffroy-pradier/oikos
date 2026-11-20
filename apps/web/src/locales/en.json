@@ -608,7 +608,10 @@
     "withLaidUp": "{{state}} (laid up: upkeep unpaid)",
     "buyChecked": "I have checked my fleet",
     "noRouteFor": "No route: {{cities}}.",
-    "arrived": "A ship arrived at {{city}}: its cargo is in your stock."
+    "arrived": "A ship arrived at {{city}}: its cargo is in your stock.",
+    "dockedCount_one": "{{number}} ship in port",
+    "dockedCount_other": "{{number}} ships in port",
+    "scale": "{{duration}} at sea"
   },
   "shipClasses": {
     "coaster": "Coaster",
