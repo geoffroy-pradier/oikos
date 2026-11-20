@@ -225,11 +225,13 @@ it(
 
     // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
     // quotidienne d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des
-    // sites de matières premières. Aucune voie n'écrase l'autre (01, pilier 2).
+    // sites de matières premières. Aucune voie n'écrase l'autre (01, pilier 2). Celles du terroir des cités du
+    // scénario : les matières premières de #708 ne s'y produisent pas, et n'auraient que leur prix de référence.
     const worldMargins = margins['world'] ?? {};
     const primary = median(
       config.recipes
         .filter((recipe) => !isWorkshop(recipe))
+        .filter((recipe) => worldConfig.cities.some((city) => city.terroir?.includes(recipe.id)))
         .map((recipe) => worldMargins[recipe.id] ?? 0),
     );
     for (const recipe of config.recipes.filter(isWorkshop)) {

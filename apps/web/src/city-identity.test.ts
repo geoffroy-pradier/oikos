@@ -84,7 +84,7 @@ describe('identité des cités', () => {
           terroir: null,
           hasPort: false,
           patronGodId: null,
-          startingRecipeId: 'grow_barley',
+          startingRecipeId: 'grow_spelt',
         },
         t,
         'fr',
@@ -93,7 +93,7 @@ describe('identité des cités', () => {
       god: 'Sans dieu protecteur',
       port: 'Sans port',
       terroir: 'Terroir : toutes les productions',
-      start: 'Premier site : grow_barley',
+      start: 'Premier site : grow_spelt',
     });
   });
 });
