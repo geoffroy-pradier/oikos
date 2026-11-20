@@ -306,6 +306,20 @@
     "filteredEmpty": "Aucune entrée chargée n'a cette issue.",
     "showAll": "Voir toutes les entrées"
   },
+  "cities": {
+    "kalliste": "Kallistè",
+    "elaia": "Elaia",
+    "ampelos": "Ampelos",
+    "halos": "Halos",
+    "dikaia": "Dikaia",
+    "gamelia": "Gamelia",
+    "delphis": "Delphis",
+    "agrotera": "Agrotera",
+    "phrourion": "Phrourion",
+    "myrrhine": "Myrrhinè",
+    "chalkeia": "Chalkeia",
+    "emporion": "Emporion"
+  },
   "moderation": {
     "title": "Modération",
     "queue": "Signalements à traiter",
@@ -330,6 +344,7 @@
     "reportedTag": "(signalé)",
     "purged": "Message purgé : le signalement reste, sans texte ni contexte.",
     "actions": "Actions sur la maison {{house}}",
+    "more": "Autres gestes",
     "act": {
       "hide": "Masquer le message",
       "warning": "Avertir",
@@ -463,6 +478,7 @@
     "appealBody": "Appel du {{date}} : {{body}}",
     "line": "{{date}} · {{house}} :",
     "reportLine": "{{reason}} ({{date}})",
+    "reports": "Motifs des signalements",
     "sinceChannel": "{{since}} · {{channel}}",
     "close": "Fermer",
     "filter": "Filtrer par maison",

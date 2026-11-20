@@ -1,5 +1,22 @@
 import { SANCTION_REASON_MAX_CHARS, type AdminReports } from '@oikos/contracts';
-import { Button, cn, EmptyState, PageHeader, RefreshCw, Search, Sheet } from '@oikos/ui';
+import {
+  Archive,
+  Badge,
+  Ban,
+  Button,
+  cn,
+  EmptyState,
+  EyeOff,
+  Flag,
+  Hourglass,
+  Menu,
+  MessageSquareOff,
+  PageHeader,
+  RefreshCw,
+  Search,
+  Sheet,
+  TriangleAlert,
+} from '@oikos/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
@@ -28,6 +45,17 @@ export type Gesture =
   | 'granted'
   | 'rejected';
 const SANCTIONS: readonly Gesture[] = ['warning', 'silence', 'suspension', 'ban'];
+/** Gestes d'une entrée de la file, dans leur ordre, chacun avec son icône (décorative). */
+const QUEUE_GESTURES = {
+  hide: EyeOff,
+  warning: TriangleAlert,
+  silence: MessageSquareOff,
+  suspension: Hourglass,
+  ban: Ban,
+  upheld: Flag,
+  dismissed: Archive,
+} as const;
+type QueueGesture = keyof typeof QUEUE_GESTURES;
 
 /**
  * Durées proposées pour une sanction (#541) : celles que rend l'API, lues dans la version en vigueur. Aucune sans
@@ -335,17 +363,18 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   );
                   const house = entry.reportedHouse.name;
                   const asked = open?.scope === scope ? open.gesture : null;
-                  const ask = (gesture: Gesture, label: string, variant?: 'secondary') => (
-                    <Button
-                      id={`gesture-${scope}:${gesture}`}
-                      variant={variant ?? 'secondary'}
-                      aria-haspopup="dialog"
-                      disabled={busy}
-                      onClick={() => begin(scope, gesture)}
-                    >
-                      {label}
-                    </Button>
+                  // Masquer le message, s'il est encore lu, est l'action principale ; sinon, retenir le signalement.
+                  // Les autres gestes vont dans le menu, où le foyer revient après une feuille annulée ou refusée.
+                  const main: QueueGesture =
+                    entry.message && !entry.message.hiddenAt ? 'hide' : 'upheld';
+                  const MainIcon = QUEUE_GESTURES[main];
+                  const others = (Object.keys(QUEUE_GESTURES) as QueueGesture[]).filter(
+                    (gesture) => gesture !== 'hide' && gesture !== main,
                   );
+                  const firstResolution = others.find((gesture) => !SANCTIONS.includes(gesture));
+                  const returning = returnTo?.startsWith(`${scope}:`)
+                    ? `gesture-${returnTo}`
+                    : null;
                   // Le message, remis à sa place dans la conversation.
                   const thread = [
                     ...entry.context.filter((m) => m.id !== entry.message?.id),
@@ -359,7 +388,11 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   });
                   const channel = entry.channel
                     ? entry.channel.kind === 'city'
-                      ? t('moderation.channelCity', { city: entry.channel.city })
+                      ? t('moderation.channelCity', {
+                          city: t(`cities.${entry.channel.city}`, {
+                            defaultValue: entry.channel.city,
+                          }),
+                        })
                       : t('moderation.channelDirect')
                     : null;
                   return (
@@ -370,15 +403,19 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                       <p className="text-sm text-muted-foreground">
                         {channel ? t('moderation.sinceChannel', { since, channel }) : since}
                       </p>
-                      <ul className="list-disc pl-5 text-sm">
+                      <ul aria-label={t('moderation.reports')} className="flex flex-wrap gap-1.5">
                         {entry.reports.map((report) => (
-                          <li key={report.id} className="wrap-anywhere">
-                            {t('moderation.reportLine', {
-                              reason: t(`moderation.reasons.${report.reason}`, {
-                                defaultValue: report.reason,
-                              }),
-                              date: date.format(new Date(report.createdAt)),
-                            })}
+                          <li key={report.id} className="max-w-full">
+                            <Badge icon={<Flag aria-hidden="true" />}>
+                              <span className="wrap-anywhere">
+                                {t('moderation.reportLine', {
+                                  reason: t(`moderation.reasons.${report.reason}`, {
+                                    defaultValue: report.reason,
+                                  }),
+                                  date: date.format(new Date(report.createdAt)),
+                                })}
+                              </span>
+                            </Badge>
                           </li>
                         ))}
                       </ul>
@@ -482,15 +519,32 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                         className="flex flex-wrap gap-2"
                         onKeyDown={ignoreHeldEnter}
                       >
-                        {entry.message &&
-                          !entry.message.hiddenAt &&
-                          ask('hide', t('moderation.act.hide'))}
-                        {ask('warning', t('moderation.act.warning'))}
-                        {ask('silence', t('moderation.act.silence'))}
-                        {ask('suspension', t('moderation.act.suspension'))}
-                        {ask('ban', t('moderation.act.ban'))}
-                        {ask('upheld', t('moderation.act.upheld'))}
-                        {ask('dismissed', t('moderation.act.dismissed'))}
+                        <Button
+                          id={`gesture-${scope}:${main}`}
+                          icon={<MainIcon aria-hidden="true" />}
+                          aria-haspopup="dialog"
+                          disabled={busy}
+                          onClick={() => begin(scope, main)}
+                        >
+                          {t(`moderation.act.${main}`)}
+                        </Button>
+                        <Menu
+                          id={`gesture-${scope}:more`}
+                          label={t('moderation.more')}
+                          disabled={busy}
+                          reopenOn={returning}
+                          items={others.map((gesture) => {
+                            const GestureIcon = QUEUE_GESTURES[gesture];
+                            return {
+                              id: `gesture-${scope}:${gesture}`,
+                              label: t(`moderation.act.${gesture}`),
+                              icon: <GestureIcon />,
+                              danger: gesture === 'ban',
+                              separated: gesture === firstResolution,
+                              onSelect: () => begin(scope, gesture),
+                            };
+                          })}
+                        />
                       </div>
                     </li>
                   );

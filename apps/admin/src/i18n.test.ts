@@ -14,6 +14,7 @@ import {
   ADMIN_WITHDRAW_EXCLUSION_ERROR_CODES,
 } from '@oikos/contracts';
 import { SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { detectLanguage } from './i18n';
 import en from './locales/en.json';
@@ -35,6 +36,18 @@ describe('traductions du back-office', () => {
     const labels = SYSTEM_ACCOUNT_KEYS.map((key) => `economy.accounts.${key}`);
     expect(keys(fr)).toEqual(expect.arrayContaining(labels));
     expect(keys(en)).toEqual(expect.arrayContaining(labels));
+  });
+
+  it('chaque cité de la configuration initiale a un nom, pour les canaux de la modération', () => {
+    const initial = JSON.parse(
+      readFileSync(
+        new URL('../../../packages/config/src/values/initial.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { cities: { id: string }[] };
+    const names = initial.cities.map((city) => `cities.${city.id}`);
+    expect(names.length).toBeGreaterThan(0);
+    for (const locale of [fr, en]) expect(keys(locale)).toEqual(expect.arrayContaining(names));
   });
 
   it('chaque rôle du contrat a un nom', () => {

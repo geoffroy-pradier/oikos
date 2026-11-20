@@ -88,6 +88,14 @@ const entryOf = (house: string) =>
   screen.getByRole('listitem', { name: new RegExp(`^Message de la maison ${house} :`) });
 const findEntry = (house: string) =>
   screen.findByRole('listitem', { name: new RegExp(`^Message de la maison ${house} :`) });
+/** Geste d'une entrée : l'action principale, ou un geste du menu « Autres gestes », ouvert au besoin. */
+function gesture(house: string, name: string) {
+  const entry = within(entryOf(house));
+  const shown = entry.queryByRole('button', { name }) ?? entry.queryByRole('menuitem', { name });
+  if (shown) return shown;
+  fireEvent.click(entry.getByRole('button', { name: 'Autres gestes' }));
+  return entry.getByRole('menuitem', { name });
+}
 const notice = (role: 'status' | 'alert') =>
   screen.getAllByRole(role).find((node) => node.tagName === 'DIV')?.textContent;
 const enter = (repeat = false) => {
@@ -132,6 +140,95 @@ it('liste la file dans l’ordre de l’API, avec motifs, ancienneté et convers
   expect(within(entryOf('Delta')).queryByRole('button', { name: 'Masquer le message' })).toBeNull();
 });
 
+it('une action principale par entrée, les autres gestes au menu ; motifs en pastilles, canal traduit', async () => {
+  const kalliste = {
+    ...REPORTS,
+    queue: REPORTS.queue.map((entry, n) =>
+      n === 0
+        ? { ...entry, channel: { id: id(601), kind: 'city' as const, city: 'kalliste' } }
+        : entry,
+    ),
+  };
+  adminGet.mockResolvedValue({ ok: true, data: kalliste });
+  render(<Moderation accessToken="token" />);
+  const alpha = within(await findEntry('Alpha'));
+  expect(alpha.getByText(/· canal de la cité Kallistè$/)).toBeTruthy();
+  // Les motifs : une liste nommée, sans puces natives.
+  const reasons = alpha.getByRole('list', { name: 'Motifs des signalements' });
+  expect(reasons.className).not.toContain('list-disc');
+  expect(
+    within(reasons)
+      .getAllByRole('listitem')
+      .map((node) => node.textContent),
+  ).toEqual([expect.stringMatching(/^Harcèlement \(/), expect.stringMatching(/^Pourriel \(/)]);
+  // Message lisible : « Masquer » en action principale, seule à côté du menu ; chaque geste a son icône.
+  const group = within(alpha.getByRole('group', { name: 'Actions sur la maison Alpha' }));
+  expect(group.getAllByRole('button').map((node) => node.textContent)).toEqual([
+    'Masquer le message',
+    'Autres gestes',
+  ]);
+  fireEvent.click(group.getByRole('button', { name: 'Autres gestes' }));
+  expect(group.getAllByRole('menuitem').map((node) => node.textContent)).toEqual([
+    'Avertir',
+    'Réduire au silence',
+    'Suspendre',
+    "Proposer l'exclusion",
+    'Retenir le signalement',
+    'Classer sans suite',
+  ]);
+  for (const node of [group.getByRole('button', { name: 'Masquer le message' })].concat(
+    group.getAllByRole('menuitem'),
+  ))
+    expect(node.querySelector('svg')?.closest('[aria-hidden="true"]')).toBeTruthy();
+  // Message purgé : « Retenir » devient l'action principale, et le menu n'a rien à masquer.
+  const delta = within(entryOf('Delta'));
+  fireEvent.click(delta.getByRole('button', { name: 'Autres gestes' }));
+  expect(delta.getByRole('button', { name: 'Retenir le signalement' })).toBeTruthy();
+  expect(delta.getAllByRole('menuitem').map((node) => node.textContent)).toEqual([
+    'Avertir',
+    'Réduire au silence',
+    'Suspendre',
+    "Proposer l'exclusion",
+    'Classer sans suite',
+  ]);
+  await i18n.changeLanguage('en');
+  expect(alpha.getByText(/· channel of the city Kallistè$/)).toBeTruthy();
+  expect(alpha.getByRole('button', { name: 'More actions' })).toBeTruthy();
+});
+
+it('menu des gestes au clavier : ↓ l’ouvre, les flèches le parcourent, Entrée ouvre la feuille, Échap y ramène', async () => {
+  await opened();
+  const alpha = within(entryOf('Alpha'));
+  const more = alpha.getByRole('button', { name: 'Autres gestes' });
+  more.focus();
+  fireEvent.keyDown(more, { key: 'ArrowDown' });
+  const item = (name: string) => alpha.getByRole('menuitem', { name });
+  expect(document.activeElement).toBe(item('Avertir'));
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowUp' });
+  expect(document.activeElement).toBe(item('Classer sans suite'));
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Home' });
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowDown' });
+  expect(document.activeElement).toBe(item('Réduire au silence'));
+  // Échap referme le menu et rend le foyer au bouton.
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+  expect(alpha.queryByRole('menu')).toBeNull();
+  expect(document.activeElement).toBe(more);
+  // Entrée sur un geste : la feuille du geste s'ouvre, foyer sur sa première durée.
+  fireEvent.keyDown(more, { key: 'ArrowDown' });
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowDown' });
+  enter();
+  const sheet = screen.getByRole('dialog', { name: 'Réduire au silence' });
+  expect(document.activeElement).toBe(radio('1 heure'));
+  // Échap dans la feuille : elle se referme, le menu se rouvre sur le geste.
+  fireEvent.keyDown(sheet, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(item('Réduire au silence'));
+  // Entrée tenue sur un geste du menu n'ouvre rien.
+  enter(true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(adminCommand).not.toHaveBeenCalled();
+});
+
 it('une file vide le dit ; l’anglais est complet', async () => {
   adminGet.mockResolvedValue({ ok: true, data: { ...REPORTS, queue: [] } });
   render(<Moderation accessToken="token" />);
@@ -166,7 +263,7 @@ it('une lecture en échec le dit et se relance', async () => {
 
 it('masque un message après confirmation qui nomme la maison ; annuler ne fait rien', async () => {
   await opened([{ ok: true, data: { messageId: id(1), hiddenAt: NOW } }]);
-  const hide = () => within(entryOf('Alpha')).getByRole('button', { name: 'Masquer le message' });
+  const hide = () => gesture('Alpha', 'Masquer le message');
   fireEvent.click(hide());
   const cancel = screen.getByRole('button', { name: 'Annuler' });
   expect(document.activeElement).toBe(cancel);
@@ -194,7 +291,7 @@ it('masque un message après confirmation qui nomme la maison ; annuler ne fait 
 
 it('chaque geste de la file s’ouvre dans une feuille nommée, qui rappelle l’entrée et le message', async () => {
   await opened();
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
+  fireEvent.click(gesture('Alpha', 'Suspendre'));
   const sheet = screen.getByRole('dialog', { name: 'Suspendre' });
   expect(within(sheet).getByText('Message de la maison Alpha : 2 signalements')).toBeTruthy();
   expect(within(sheet).getByText('Tu es nul')).toBeTruthy();
@@ -203,10 +300,10 @@ it('chaque geste de la file s’ouvre dans une feuille nommée, qui rappelle l�
   fireEvent.keyDown(sheet, { key: 'Escape' });
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(document.activeElement).toBe(
-    within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }),
+    within(entryOf('Alpha')).getByRole('menuitem', { name: 'Suspendre' }),
   );
   // Un geste sans champ n'en montre aucun.
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Masquer le message' }));
+  fireEvent.click(gesture('Alpha', 'Masquer le message'));
   expect(within(screen.getByRole('dialog')).queryByLabelText('Motif')).toBeNull();
   expect(within(screen.getByRole('dialog')).queryByRole('group', { name: 'Durée' })).toBeNull();
   expect(adminCommand).not.toHaveBeenCalled();
@@ -222,7 +319,7 @@ it('la file se filtre par maison, et le compte affiché le dit', async () => {
 
 it('Entrée tenue ou redoublée sur un geste n’envoie rien ; seul un appui franc sur « Confirmer » agit', async () => {
   await opened([{ ok: true, data: { messageId: id(1), hiddenAt: NOW } }]);
-  within(entryOf('Alpha')).getByRole('button', { name: 'Masquer le message' }).focus();
+  gesture('Alpha', 'Masquer le message').focus();
   enter();
   for (let n = 0; n < 3; n += 1) enter(true);
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
@@ -237,14 +334,14 @@ it('Entrée tenue ou redoublée sur un geste n’envoie rien ; seul un appui fra
 
 it('classe sans suite et retient : la commande désigne le premier signalement de l’entrée', async () => {
   await opened([{ ok: true, data: { reportIds: [id(501), id(502)], decision: 'dismissed' } }]);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }));
+  fireEvent.click(gesture('Alpha', 'Classer sans suite'));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer : classer sans suite' }));
   await waitFor(() => expect(notice('status')).toBe('Signalements classés sans suite.'));
   expect(adminCommand.mock.calls[0]?.slice(0, 2)).toEqual([
     'admin.resolveReport',
     { reportId: id(501), decision: 'dismissed' },
   ]);
-  fireEvent.click(within(entryOf('Delta')).getByRole('button', { name: 'Retenir le signalement' }));
+  fireEvent.click(gesture('Delta', 'Retenir le signalement'));
   adminCommand.mockResolvedValueOnce({
     ok: true,
     data: { reportIds: [id(503)], decision: 'upheld' },
@@ -256,7 +353,7 @@ it('classe sans suite et retient : la commande désigne le premier signalement d
 
 it('un refus de l’API est expliqué et le foyer revient au bouton du geste', async () => {
   await opened([{ ok: false, code: 'SECOND_PERSON_REQUIRED' }], REPORTS);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }));
+  fireEvent.click(gesture('Alpha', 'Classer sans suite'));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer : classer sans suite' }));
   await waitFor(() =>
     expect(notice('alert')).toBe(
@@ -267,7 +364,7 @@ it('un refus de l’API est expliqué et le foyer revient au bouton du geste', a
   // fermeture de la feuille : l'avis peut paraître un instant avant.
   await waitFor(() =>
     expect(document.activeElement).toBe(
-      within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }),
+      within(entryOf('Alpha')).getByRole('menuitem', { name: 'Classer sans suite' }),
     ),
   );
 });
@@ -281,7 +378,7 @@ it('réduit au silence : une durée proposée et un motif, puis commande avec la
       data: { sanctionId: id(301), kind: 'silence', startsAt: NOW, endsAt: NOW, pending: false },
     },
   ]);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Réduire au silence' }));
+  fireEvent.click(gesture('Alpha', 'Réduire au silence'));
   // Les durées de la configuration en vigueur, rendues par l'API ; aucun champ libre.
   const group = screen.getByRole('group', { name: 'Durée' });
   expect(
@@ -320,14 +417,14 @@ it('une seule durée proposée est choisie d’office ; les libellés existent e
       data: { sanctionId: id(303), kind: 'warning', startsAt: NOW, endsAt: NOW, pending: false },
     },
   ]);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Avertir' }));
+  fireEvent.click(gesture('Alpha', 'Avertir'));
   expect(radio('7 jours (168 h)').checked).toBe(true);
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Ton agressif' } });
   fireEvent.click(screen.getByRole('button', { name: "Confirmer l'avertissement" }));
   await waitFor(() => expect(adminCommand).toHaveBeenCalledTimes(1));
   expect(adminCommand.mock.calls[0]?.[1]).toMatchObject({ kind: 'warning', hours: 168 });
   await waitFor(() => expect(notice('status')).toBe('Avertissement prononcé à la maison Alpha.'));
-  fireEvent.click(within(entryOf('Delta')).getByRole('button', { name: 'Réduire au silence' }));
+  fireEvent.click(gesture('Delta', 'Réduire au silence'));
   await i18n.changeLanguage('en');
   expect(screen.getByRole('group', { name: 'Duration' })).toBeTruthy();
   expect(radio('1 hour').checked).toBe(false);
@@ -341,7 +438,8 @@ it('sans durée lisible, la sanction à durée ne part pas ; l’exclusion, si',
   for (const data of [{ ...REPORTS, sanctionHours: null }, older]) {
     adminGet.mockResolvedValue({ ok: true, data });
     render(<Moderation accessToken="token" />);
-    fireEvent.click(within(await findEntry('Alpha')).getByRole('button', { name: 'Suspendre' }));
+    await findEntry('Alpha');
+    fireEvent.click(gesture('Alpha', 'Suspendre'));
     const group = screen.getByRole('group', { name: 'Durée' });
     expect(within(group).queryByRole('radio')).toBeNull();
     const unavailable = within(group).getByText(/^Aucune durée proposée n'a pu être lue/);
@@ -368,7 +466,7 @@ it('durée retirée entre-temps : le refus est expliqué, les durées relues, le
     ],
     changed,
   );
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
+  fireEvent.click(gesture('Alpha', 'Suspendre'));
   fireEvent.click(radio('30 jours (720 h)'));
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suspension' }));
@@ -389,7 +487,7 @@ it('durée retirée entre-temps : le refus est expliqué, les durées relues, le
   expect(adminCommand).toHaveBeenCalledTimes(1);
   expect(screen.getByText("Choisissez l'une des durées proposées.")).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: "Proposer l'exclusion" }));
+  fireEvent.click(gesture('Alpha', "Proposer l'exclusion"));
   expect(screen.queryByRole('group', { name: 'Durée' })).toBeNull();
   expect(document.activeElement).toBe(screen.getByLabelText('Motif'));
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
@@ -409,7 +507,7 @@ it('durée retirée entre-temps : le refus est expliqué, les durées relues, le
 it('pendant l’envoi, Échap ne referme pas la feuille ; un refus garde les champs et rend le foyer à « Confirmer »', async () => {
   const sent = held<unknown>();
   await opened([sent.promise], REPORTS);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
+  fireEvent.click(gesture('Alpha', 'Suspendre'));
   fireEvent.click(radio('7 jours (168 h)'));
   fireEvent.change(screen.getByLabelText('Motif'), { target: { value: 'Récidive' } });
   const confirm = screen.getByRole('button', { name: 'Confirmer la suspension' });
@@ -433,8 +531,7 @@ it('pendant l’envoi, Échap ne referme pas la feuille ; un refus garde les cha
 it('une panne garde l’intention : le renvoi réutilise la clé d’idempotence', async () => {
   const sent = held<unknown>();
   await opened([{ ok: false, code: 'INTERNAL' }, sent.promise], REPORTS);
-  const dismiss = () =>
-    within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' });
+  const dismiss = () => gesture('Alpha', 'Classer sans suite');
   fireEvent.click(dismiss());
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer : classer sans suite' }));
   await waitFor(() => expect(notice('alert')).toMatch(/ne sera pas exécutée deux fois/));
@@ -452,7 +549,7 @@ it('une panne garde l’intention : le renvoi réutilise la clé d’idempotence
 
 it('un refus que l’écran ne connaît pas est dit avec son code, sans passer pour une panne rejouable', async () => {
   await opened([{ ok: false, code: 'SOMETHING_NEW' }], REPORTS);
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }));
+  fireEvent.click(gesture('Alpha', 'Classer sans suite'));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer : classer sans suite' }));
   await waitFor(() =>
     expect(notice('alert')).toBe("L'API a refusé cette action (code SOMETHING_NEW)."),
@@ -460,7 +557,7 @@ it('un refus que l’écran ne connaît pas est dit avec son code, sans passer p
   expect(screen.queryByText(/exécutée deux fois/)).toBeNull();
   // L'issue est connue : l'intention n'est pas gardée, le renvoi reçoit une clé neuve.
   adminCommand.mockResolvedValueOnce({ ok: false, code: 'SOMETHING_NEW' });
-  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }));
+  fireEvent.click(gesture('Alpha', 'Classer sans suite'));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmer : classer sans suite' }));
   await waitFor(() => expect(adminCommand).toHaveBeenCalledTimes(2));
   expect(adminCommand.mock.calls[1]?.[3]).not.toBe(adminCommand.mock.calls[0]?.[3]);
