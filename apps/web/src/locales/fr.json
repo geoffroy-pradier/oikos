@@ -1015,6 +1015,19 @@
     "portDues": "Droit de port en vigueur : coefficient {{factor}}",
     "flows": "Recettes et dépenses des derniers jours où le trésor a bougé",
     "noFlows": "Aucun mouvement du trésor pour l'instant.",
+    "figures": {
+      "balance": "Solde",
+      "marketTax": "Taxe de marché",
+      "portDues": "Droit de port",
+      "factor": "× {{factor}}"
+    },
+    "chart_one": "Recettes et dépenses du trésor sur {{count}} jour : {{income}} de recettes, {{spending}} de dépenses.",
+    "chart_other": "Recettes et dépenses du trésor sur {{count}} jours : {{income}} de recettes, {{spending}} de dépenses.",
+    "income": "Recettes",
+    "spending": "Dépenses",
+    "net": "Net",
+    "dayColumn": "Jour",
+    "table": "Tableau des recettes et dépenses",
     "day": "{{date}} : net {{net}}",
     "noDay": "Jour inconnu",
     "natures": {

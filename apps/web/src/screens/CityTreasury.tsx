@@ -1,6 +1,6 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card, Coins } from '@oikos/ui';
-import { useRef } from 'react';
+import { Anchor, Card, ChevronRight, Coins, Landmark, StatCard, Store } from '@oikos/ui';
+import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
@@ -58,56 +58,188 @@ export function CityTreasury() {
   });
   const factor = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
   const dates = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeZone: 'UTC' });
+  const short = new Intl.DateTimeFormat(i18n.language, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+
+  const shown = days?.slice(0, SHOWN_DAYS) ?? [];
+  // Recettes et dépenses de chaque jour, du plus ancien au plus récent, pour les barres et leur tableau.
+  const bars = [...shown].reverse().map((day) => ({
+    day,
+    income: day.flows.reduce((sum, flow) => sum + Math.max(flow.amount, 0), 0),
+    spending: day.flows.reduce((sum, flow) => sum - Math.min(flow.amount, 0), 0),
+  }));
+  const highest = Math.max(1, ...bars.flatMap((bar) => [bar.income, bar.spending]));
+  const height = (amount: number) => `${Math.round((amount / highest) * 100)}%`;
+  const dayName = (day: number | null) =>
+    day === null ? t('treasury.noDay') : dates.format(gameDayDate(day));
+  const total = (key: 'income' | 'spending') => bars.reduce((sum, bar) => sum + bar[key], 0);
+  // Chiffre clé en carte ; la phrase entière est ce que lit un lecteur d'écran.
+  const figure = (label: string, value: string, sentence: string, icon: ReactNode) => (
+    <div key={label}>
+      <div aria-hidden="true" className="h-full">
+        <StatCard label={label} value={value} icon={icon} className="h-full" />
+      </div>
+      <p className="sr-only">{sentence}</p>
+    </div>
+  );
 
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 ref={title} tabIndex={-1} className="text-xl">
-        <Coins aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+    <section className="flex flex-col gap-4">
+      <h2
+        ref={title}
+        tabIndex={-1}
+        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+      >
+        <Coins aria-hidden="true" />
         {t('treasury.title')}
       </h2>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {balance !== null && days && rate && (
         <>
-          <p className="text-2xl font-semibold tracking-tight break-words tabular-nums">
-            {t('treasury.balance', { amount: money(balance) })}
-          </p>
-          <ul className="flex list-inside list-disc flex-col gap-1 marker:text-accent">
-            <li>
-              {t('treasury.marketTax', { rate: percent.format(rate.marketTaxRateBps / BPS) })}
-            </li>
-            <li>
-              {t('treasury.portDues', { factor: factor.format(rate.portDuesCoefficientBps / BPS) })}
-            </li>
-          </ul>
-          <h3 className="eyebrow">{t('treasury.flows')}</h3>
-          {days.length === 0 && <p className="text-muted-foreground">{t('treasury.noFlows')}</p>}
-          <ul className="flex flex-col gap-2">
-            {days.slice(0, SHOWN_DAYS).map((day) => (
-              <li
-                key={day.day ?? 'none'}
-                className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3"
-              >
-                <h4 className="font-medium">
-                  {day.day === null
-                    ? t('treasury.noDay')
-                    : t('treasury.day', {
-                        date: dates.format(gameDayDate(day.day)),
-                        net: money(day.net),
-                      })}
-                </h4>
-                <ul className="flex flex-col text-muted-foreground">
-                  {day.flows.map((flow) => (
-                    <li key={flow.nature}>
-                      {t(`treasury.natures.${flow.nature}`, { amount: money(flow.amount) })}
-                    </li>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>:first-child]:col-span-2 sm:[&>:first-child]:col-span-1">
+            {figure(
+              t('treasury.figures.balance'),
+              money(balance),
+              t('treasury.balance', { amount: money(balance) }),
+              <Landmark />,
+            )}
+            {figure(
+              t('treasury.figures.marketTax'),
+              percent.format(rate.marketTaxRateBps / BPS),
+              t('treasury.marketTax', { rate: percent.format(rate.marketTaxRateBps / BPS) }),
+              <Store />,
+            )}
+            {figure(
+              t('treasury.figures.portDues'),
+              t('treasury.figures.factor', {
+                factor: factor.format(rate.portDuesCoefficientBps / BPS),
+              }),
+              t('treasury.portDues', { factor: factor.format(rate.portDuesCoefficientBps / BPS) }),
+              <Anchor />,
+            )}
+          </div>
+          <Card className="flex flex-col gap-3">
+            <h3 className="font-semibold">{t('treasury.flows')}</h3>
+            {days.length === 0 && <p className="text-muted-foreground">{t('treasury.noFlows')}</p>}
+            {bars.length > 0 && (
+              <>
+                {/* Recettes au-dessus de la ligne, dépenses dessous : la place dit le sens, pas la couleur. */}
+                <div
+                  role="img"
+                  aria-label={t('treasury.chart', {
+                    count: bars.length,
+                    income: money(total('income')),
+                    spending: money(total('spending')),
+                  })}
+                  className="grid h-44 auto-cols-fr grid-flow-col gap-1.5 sm:gap-3"
+                >
+                  {bars.map((bar) => (
+                    <div key={bar.day.day ?? 'none'} className="grid grid-rows-[1fr_1fr_auto]">
+                      <div className="flex items-end justify-center border-b border-border">
+                        <span
+                          className="w-full max-w-10 rounded-t-md bg-primary"
+                          style={{ height: height(bar.income) }}
+                        />
+                      </div>
+                      <div className="flex items-start justify-center">
+                        <span
+                          className="w-full max-w-10 rounded-b-md bg-muted-foreground"
+                          style={{ height: height(bar.spending) }}
+                        />
+                      </div>
+                      <span className="pt-1 text-center text-xs leading-tight text-muted-foreground">
+                        {bar.day.day === null ? '—' : short.format(gameDayDate(bar.day.day))}
+                      </span>
+                    </div>
                   ))}
+                </div>
+                <ul
+                  aria-hidden="true"
+                  className="flex flex-wrap gap-x-4 text-xs text-muted-foreground"
+                >
+                  <li className="flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-primary" />
+                    {t('treasury.income')}
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-muted-foreground" />
+                    {t('treasury.spending')}
+                  </li>
                 </ul>
+                <details className="group">
+                  <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium hover:text-primary">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-muted-foreground transition-transform duration-(--motion-fast) group-open:rotate-90"
+                    />
+                    {t('treasury.table')}
+                  </summary>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm tabular-nums">
+                      <caption className="sr-only">{t('treasury.flows')}</caption>
+                      <thead>
+                        <tr className="text-xs text-muted-foreground">
+                          {(['day', 'income', 'spending', 'net'] as const).map((column) => (
+                            <th
+                              key={column}
+                              scope="col"
+                              className={`py-1 pr-3 font-medium ${column === 'day' ? '' : 'text-right'}`}
+                            >
+                              {t(`treasury.${column === 'day' ? 'dayColumn' : column}`)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...bars].reverse().map((bar) => (
+                          <tr key={bar.day.day ?? 'none'} className="border-t border-border-subtle">
+                            <th scope="row" className="py-1.5 pr-3 font-normal whitespace-nowrap">
+                              {dayName(bar.day.day)}
+                            </th>
+                            <td className="py-1.5 pr-3 text-right">{money(bar.income)}</td>
+                            <td className="py-1.5 pr-3 text-right">{money(bar.spending)}</td>
+                            <td className="py-1.5 pr-3 text-right font-medium">
+                              {money(bar.day.net)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </>
+            )}
+          </Card>
+          {/* Le détail de chaque jour, par nature. */}
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((day) => (
+              <li key={day.day ?? 'none'}>
+                <Card className="flex h-full flex-col gap-2">
+                  <h4 className="font-semibold">
+                    {day.day === null
+                      ? t('treasury.noDay')
+                      : t('treasury.day', {
+                          date: dates.format(gameDayDate(day.day)),
+                          net: money(day.net),
+                        })}
+                  </h4>
+                  <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+                    {day.flows.map((flow) => (
+                      <li key={flow.nature}>
+                        {t(`treasury.natures.${flow.nature}`, { amount: money(flow.amount) })}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
               </li>
             ))}
           </ul>
         </>
       )}
-    </Card>
+    </section>
   );
 }
