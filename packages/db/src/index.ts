@@ -1,5 +1,5 @@
 /** Accès typé à la base pour l'API de jeu et le moteur (Kysely). */
-import type { Blazon, DecreeModel } from '@oikos/contracts';
+import type { Blazon, DecreeModel, HonorReason } from '@oikos/contracts';
 import {
   Kysely,
   PostgresDialect,
@@ -184,6 +184,26 @@ export interface GameDatabase {
     /** Invocation d'une ligne `grace` ; nulle pour toute autre. */
     grace_use_id: ColumnType<string | null, string | null | undefined, never>;
     game_day: ColumnType<number | null, number | null | undefined, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Timè d'une maison (4.1, #704) : le cumul de `game.honor_ledger`, jamais écrite à la main. */
+  'game.honor': {
+    house_id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, never, never>;
+    honor: ColumnType<string, never, never>;
+  };
+  /**
+   * Journal de la Timè, en ajout seul : une ligne au plus par motif et par référence (`honor_ledger_once`). Qui
+   * l'écrit prend d'abord le verrou consultatif `honor:<maison>`, puis lit la Timè pour la tenir dans ses bornes.
+   */
+  'game.honor_ledger': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    amount: ColumnType<string, number, never>;
+    reason: ColumnType<HonorReason, HonorReason, never>;
+    reference: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /**

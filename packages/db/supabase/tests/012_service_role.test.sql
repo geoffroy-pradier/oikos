@@ -75,7 +75,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and p.prosecdef),
-  'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade game.auth_user_exists game.broadcast_message '
+  'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_honor_movement game.apply_ledger_line game.apply_order_reservation game.apply_stock_movement game.apply_trade game.auth_user_exists game.broadcast_message '
     || 'game.check_decree_settled_on_close game.check_entry_balanced game.check_escrow_debit game.check_escrow_matches_orders game.check_grace_settled game.check_npc_purse_credit game.check_npc_purse_payer game.check_offering_settled game.check_property_listing_settled '
     || 'game.check_trade_settled game.check_trade_settlement game.check_treasury_debit '
     || 'game.check_voyage_settled game.check_voyage_stock_movement '

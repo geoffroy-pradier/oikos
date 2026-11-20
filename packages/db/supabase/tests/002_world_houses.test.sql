@@ -47,6 +47,7 @@ select is(
     || 'decrees(applied_at,city_id,electorate,id,model,params,proposed_at,proposed_by,quorum_bps,settled_day,status,tallied_at,votes_against,votes_for,voting_closes_at,world_id) '
     || 'elections(candidacy_opens_at,city_id,id,office,tallied_at,term_ends_at,voting_closes_at,voting_opens_at,world_id) '
     || 'favor(charis,god_id,house_id) graces_used(charis_spent,consumed_at,effect,god_id,grace_id,house_id,id,invoked_at,magnitude_bps,ready_at) '
+    || 'honor(honor,house_id) honor_ledger(amount,created_at,game_day,house_id,id,reason,reference) '
     || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
     || 'labor_market(city_id,employed,game_day,lodging_oboles,supply,unhoused,wage_oboles) '
