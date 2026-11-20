@@ -1,5 +1,5 @@
 import { Button, Card, TextField, WelcomeScene } from '@oikos/ui';
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useId, useLayoutEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
 
@@ -9,8 +9,10 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
   const noticeId = useId();
   const emailId = useId();
   // Après une session fermée, le foyer va au champ : la page a changé sous l'utilisateur. Posé par un effet, car
-  // l'avis peut arriver après l'écran (fermeture annoncée par Supabase Auth avant la nôtre).
-  useEffect(() => {
+  // l'avis peut arriver après l'écran (fermeture annoncée par Supabase Auth avant la nôtre). Effet de mise en page :
+  // le foyer est posé dans le même rendu que l'écran, jamais un instant après (un effet passif pouvait courir après
+  // l'apparition de l'écran quand le rendu partait d'une promesse hors `act`).
+  useLayoutEffect(() => {
     if (sessionEnded) document.getElementById(emailId)?.focus();
   }, [sessionEnded, emailId]);
   const [email, setEmail] = useState('');
