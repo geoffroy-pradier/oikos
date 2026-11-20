@@ -5,12 +5,15 @@ on:
   push:
     branches: [main]
 
+# Un nouveau commit sur une demande de fusion annule le `ci` périmé de la même branche. Chaque envoi sur `main` a son
+# propre groupe : il n'est jamais annulé, ni remplacé en attente par l'envoi suivant.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Les contrôles tournent en parallèle, chacun dans son propre runner : vérifications statiques, base de
-# données, tests d'intégration (un job par groupe de paquets, chacun sur sa base), bout en bout, images.
+# données, tests d'intégration, banc d'équilibrage et bout en bout (découpés en morceaux, chacun avec sa propre
+# pile Supabase, #900), images.
 # Le job `ci`, en dernier, est le seul contrôle requis : il est vert si tous les autres le sont, ou si ceux
 # qui ne concernent pas le changement ont été sautés (documents seuls).
 jobs:
@@ -103,7 +106,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+        run: bash infra/ci-supabase-start.sh
       - name: Test database
         run: pnpm db:reset && pnpm test:db
       # Identifie, dans le journal de Postgres, la session qui tient un verrou plus d'une seconde (ticket #489).
@@ -122,10 +125,14 @@ jobs:
           MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: pnpm test:db:deploy
 
-  # Tests d'intégration, un job par groupe de paquets, chacun sur sa propre base : l'API d'un côté, le
-  # moteur, la configuration et la passerelle IA de l'autre. Dans un job, les paquets passent l'un après
-  # l'autre, comme en local.
+  # Tests d'intégration, un job par morceau, chacun sur sa propre base. L'API se découpe en deux : le banc
+  # d'une cité (#78, deux minutes à lui seul) et tous ses autres fichiers ; le moteur, la configuration et la
+  # passerelle IA forment le troisième morceau. Dans un morceau, les fichiers et les paquets passent l'un après
+  # l'autre, comme en local (`--concurrency=1`, `fileParallelism: false`) : ils partagent une base. Le banc d'une
+  # cité joue son propre monde et ne lit rien des autres fichiers. Eux restent ensemble, sans `--shard` :
+  # `balance/candidate` lit la version de configuration n° 1, qu'un fichier passé avant lui a enregistrée.
   integration:
+    name: integration (${{ matrix.part }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -133,11 +140,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Le second groupe prend tous les autres paquets, y compris ceux qui recevront plus tard des tests
-        # d'intégration.
-        filter:
-          - '@oikos/api'
-          - '!@oikos/api'
+        # Le dernier morceau prend tous les autres paquets, et le deuxième tous les autres fichiers de l'API,
+        # y compris ceux qui viendront.
+        include:
+          - part: '@oikos/api, banc d’une cité'
+            filter: '@oikos/api'
+            args: src/balance.integration.test.ts
+          - part: '@oikos/api'
+            filter: '@oikos/api'
+            args: --exclude=src/balance.integration.test.ts
+          - part: '!@oikos/api'
+            filter: '!@oikos/api'
+            args: ''
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
@@ -149,11 +163,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+        run: bash infra/ci-supabase-start.sh
       - name: Integration tests
         env:
           FILTER: ${{ matrix.filter }}
-        run: pnpm exec turbo run test:integration --concurrency=1 "--filter=$FILTER"
+          ARGS: ${{ matrix.args }}
+        run: pnpm exec turbo run test:integration --concurrency=1 "--filter=$FILTER" ${ARGS:+-- "$ARGS"}
       # Un déploiement arrête l'API et le moteur avant de migrer. De même, aucune connexion laissée par les
       # tests (une requête encore en cours quand vitest s'arrête) ne doit croiser le rejeu : elle peut tenir
       # un verrou que le rejeu attend, et attendre une ligne que le rejeu tient (interblocage vu sur #308,
@@ -188,14 +203,22 @@ jobs:
         if: failure()
         run: docker logs supabase_db_oikos 2>&1 | grep -iE 'lock|deadlock' | tail -n 50 || true
 
-  # Banc d'équilibrage des quatre cités (#281, README, « Banc d'équilibrage ») : un job à part, car il dure
-  # plusieurs minutes. Son échec rend `ci` rouge. Sa durée est bornée par le test (`MAX_MINUTES`) et par ce délai,
-  # et notée dans le résumé du job.
+  # Banc d'équilibrage des quatre cités (#281, README, « Banc d'équilibrage ») et simulateur (#284) : à part, car ils
+  # durent plusieurs minutes. Un morceau par fichier `.bench.ts` (`vitest --shard`, #900) : chacun joue son propre
+  # monde neuf (`openBench`) et ne lit rien de l'autre. Un banc ajouté sans morceau de plus tourne quand même, dans
+  # un morceau existant ; on ajoute alors un morceau. Un échec rend `ci` rouge. La durée de chaque banc est bornée
+  # par son test (`MAX_MINUTES`) et par ce délai, et notée dans le résumé du job.
   balance:
+    name: balance (${{ matrix.shard }}/${{ matrix.shards }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+        shards: [2]
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
@@ -207,30 +230,45 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+        run: bash infra/ci-supabase-start.sh
       - name: Balance bench
         env:
           BALANCE_REPORT: ${{ github.workspace }}/balance-report/measures.json
+          SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
         run: |
           started="$(date +%s)"
           status=0
-          pnpm test:balance || status=$?
+          pnpm exec turbo run test:balance --filter=@oikos/api -- "--shard=$SHARD" || status=$?
           echo "Banc d'équilibrage : $(( $(date +%s) - started )) s" | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$status"
-      # Mesures du banc (monnaie, panier, couverture, population, net des robinets et des puits, marges), pour #283.
+      # Mesures du banc (monnaie, panier, couverture, population, net des robinets et des puits, marges), pour #283,
+      # dans l'artefact du morceau qui a joué le banc des quatre cités.
       - name: Upload balance measures
         if: always() && hashFiles('balance-report/measures.json') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: balance-measures
+          name: balance-measures-${{ matrix.shard }}
           path: balance-report/measures.json
           retention-days: 90
 
+  # Bout en bout, un job par morceau (#900), chacun avec sa propre pile Supabase, son API et sa construction : Olympe
+  # d'un côté, le jeu en trois de l'autre (`playwright --shard`). Playwright découpe par fichier et par projet, sans
+  # jamais séparer les tests d'un même fichier (pas de `fullyParallel`), qui gardent leur ordre. Les fichiers
+  # tournent déjà en parallèle sur une même base (deux workers) : ils ne dépendent pas les uns des autres.
   e2e:
+    name: e2e (${{ matrix.app }} ${{ matrix.shard }}/${{ matrix.shards }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { app: web, shard: 1, shards: 3 }
+          - { app: web, shard: 2, shards: 3 }
+          - { app: web, shard: 3, shards: 3 }
+          - { app: admin, shard: 1, shards: 1 }
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
@@ -242,19 +280,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
-        run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+        run: bash infra/ci-supabase-start.sh
       # Navigateur du contrôle visuel (#700, `apps/web/e2e/visual-browser.ts`) : l'image Docker de Playwright, à la
       # version du dépôt, téléchargée à part (environ 1,2 Go) pour que sa durée ne pèse pas sur le délai des tests.
       - name: Pull Playwright image
         run: docker pull "mcr.microsoft.com/playwright:v$(node -p "require('@playwright/test/package.json').version")-noble"
       - name: End-to-end tests
-        run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
+        env:
+          APP: ${{ matrix.app }}
+          SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
+        run: pnpm exec playwright install --with-deps chromium && pnpm --filter "@oikos/$APP" test:e2e "--shard=$SHARD"
       # Traces des tests rejoués (échec puis nouvel essai), à ouvrir avec `playwright show-trace`.
       - name: Upload end-to-end traces
         if: always() && hashFiles('apps/web/test-results/**/trace.zip') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-traces
+          name: e2e-traces-${{ matrix.app }}-${{ matrix.shard }}
           path: apps/web/test-results/**/trace.zip
           retention-days: 14
       # Écarts du contrôle visuel (#700) : image attendue, image obtenue et différence, rendues par le navigateur
@@ -263,7 +304,7 @@ jobs:
         if: always() && hashFiles('apps/*/test-results/**/*-diff.png') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-visual
+          name: e2e-visual-${{ matrix.app }}-${{ matrix.shard }}
           path: |
             apps/*/test-results/**/*-expected.png
             apps/*/test-results/**/*-actual.png
@@ -301,7 +342,9 @@ jobs:
 
   # Seul contrôle à attendre avant une fusion (CLAUDE.md, boucle de travail, étapes 7 et 8). Il n'est créé
   # qu'à la fin de l'exécution : tant qu'il est absent, rien n'est fusionné. Tout job ajouté à ce fichier
-  # doit être ajouté à `needs` et à la liste `expected` ci-dessous.
+  # doit être ajouté à `needs` et à la liste `expected` ci-dessous. Un job en matrice (`integration`, `balance`,
+  # `e2e`) y figure une fois, sous son identifiant : son résultat n'est `success` que si chacun de ses morceaux l'est,
+  # et un morceau ajouté à sa matrice n'a rien à changer ici.
   ci:
     if: always()
     needs: [changes, static, database, integration, balance, e2e, build]
