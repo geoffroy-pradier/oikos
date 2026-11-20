@@ -573,6 +573,7 @@
     "title": "City of {{city}}",
     "intro": "The city's inhabitants buy at the agora. At each daily close, the population grows if its vital needs were well enough covered the day before; otherwise some of them emigrate.",
     "population": "Population",
+    "byClass": "Breakdown by class",
     "empty": "The city's population is not known yet: it will be from the city's first market day.",
     "total_one": "{{number}} inhabitant in all",
     "total_other": "{{number}} inhabitants in all",
@@ -597,6 +598,7 @@
       "size": "{{size}}: {{total}} in all, {{forSale}} still for sale by the city"
     },
     "templeLink": "Temple: Charis, offerings, graces and oracle",
+    "temple": "Temple",
     "sections": {
       "label": "City sections",
       "politics": "Politics",

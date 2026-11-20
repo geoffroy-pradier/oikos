@@ -573,6 +573,7 @@
     "title": "Cité de {{city}}",
     "intro": "Les habitants de la cité achètent à l'agora. À chaque clôture quotidienne, la population croît si ses besoins vitaux ont été suffisamment couverts la veille ; sinon une partie émigre.",
     "population": "Population",
+    "byClass": "Détail par classe",
     "empty": "La population de la cité n'est pas encore connue : elle le sera dès la première journée de marché de la cité.",
     "total_one": "{{number}} habitant au total",
     "total_other": "{{number}} habitants au total",
@@ -597,6 +598,7 @@
       "size": "{{size}} : {{total}} au total, dont {{forSale}} encore à vendre par la cité"
     },
     "templeLink": "Temple : Charis, offrandes, grâces et oracle",
+    "temple": "Temple",
     "sections": {
       "label": "Rubriques de la cité",
       "politics": "Vie politique",
