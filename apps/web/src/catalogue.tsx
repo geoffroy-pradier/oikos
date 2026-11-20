@@ -15,6 +15,8 @@ import {
   Dialog,
   EmptyState,
   IconButton,
+  LanguageSelect,
+  Menu,
   Moon,
   NumberField,
   Package,
@@ -297,6 +299,9 @@ function Catalogue() {
             <Button size="lg">lg</Button>
             <Button loading>loading</Button>
             <Button disabled>disabled</Button>
+            <Button variant="secondary" inactive>
+              inactive
+            </Button>
             <Button variant="secondary" icon={<Ship />} loading>
               loading
             </Button>
@@ -317,6 +322,33 @@ function Catalogue() {
             <option value="corinth">Corinthe</option>
           </Select>
           <TextField label="TextField · disabled" disabled defaultValue="value" />
+        </Section>
+
+        <Section title="Menu · LanguageSelect">
+          <div className="flex flex-wrap items-start gap-2">
+            <Button icon={<Ship />}>primary</Button>
+            <Menu
+              label="Menu"
+              items={[
+                { id: 'menu-coins', label: 'item', icon: <Coins />, onSelect: () => {} },
+                { id: 'menu-x', label: 'danger', icon: <X />, danger: true, onSelect: () => {} },
+                {
+                  id: 'menu-store',
+                  label: 'separated',
+                  icon: <Store />,
+                  separated: true,
+                  onSelect: () => {},
+                },
+              ]}
+            />
+            <LanguageSelect
+              languages={['fr', 'en']}
+              value="fr"
+              onChange={() => {}}
+              label="LanguageSelect"
+              nameOf={(code) => fr.languages[code as keyof typeof fr.languages]}
+            />
+          </div>
         </Section>
 
         <Section title="NumberField">
@@ -384,11 +416,12 @@ function Catalogue() {
 
         <Section title="EmptyState">
           <EmptyState
-            icon={<Ship />}
+            illustration="noShip"
             title="Aucun navire au port"
             description="Le chantier naval vend chaque classe à son prix."
             action={<Button icon={<Plus />}>Ouvrir le chantier</Button>}
           />
+          <EmptyState compact illustration="noOrder" title="Aucun ordre en attente." />
         </Section>
 
         <Section title="Icons">

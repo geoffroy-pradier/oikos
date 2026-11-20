@@ -16,6 +16,7 @@ import {
   GodEmblem,
   GOOD_ICON_IDS,
   GoodIcon,
+  OlympusScene,
   WelcomeScene,
 } from '.';
 import { paths } from './svg';
@@ -37,6 +38,7 @@ const ALL = [
   ...[...CITY_VIGNETTE_IDS, 'unknown'].map((id) => <CityVignette key={id} cityId={id} />),
   ...[...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) => <EmptyIllustration key={id} kind={id} />),
   <WelcomeScene key="welcome" />,
+  <OlympusScene key="olympus" />,
   <Archipelago key="archipelago" />,
 ].map((element): [string, ReactElement] => [`${element.type.name} ${element.key}`, element]);
 
@@ -134,8 +136,11 @@ describe('GodEmblem et CityVignette', () => {
 });
 
 describe('WelcomeScene et EmptyIllustration', () => {
-  it('montrent les quatre états vides, chacun autrement, et la scène d’accueil', () => {
-    expect(EMPTY_ILLUSTRATION_IDS).toEqual(['noSite', 'noShip', 'noMessage', 'noOrder']);
+  it('montrent un état vide par famille de listes, chacun autrement, et la scène d’accueil', () => {
+    expect(EMPTY_ILLUSTRATION_IDS).toEqual([
+      ...['noSite', 'noShip', 'noMessage', 'noOrder'],
+      ...['noStock', 'noProperty', 'noEvent', 'noReport', 'noEntry'],
+    ]);
     const markups = [...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) =>
       renderToStaticMarkup(<EmptyIllustration kind={id} />),
     );
@@ -144,5 +149,19 @@ describe('WelcomeScene et EmptyIllustration', () => {
     expect(markups.at(-1)?.match(/<path/g)).toHaveLength(1);
     render(<WelcomeScene label="Port au lever du jour" className="w-full" />);
     expect(screen.getByRole('img', { name: 'Port au lever du jour' })).toBeTruthy();
+  });
+});
+
+describe('OlympusScene', () => {
+  it('dessine la connexion d’Olympe, autrement que l’accueil du jeu, aux tons du thème', () => {
+    const markup = renderToStaticMarkup(<OlympusScene />);
+    expect(markup).not.toBe(renderToStaticMarkup(<WelcomeScene />));
+    expect(markup).toMatch(/viewBox="0 0 360 160"/);
+    // Halo, soleil, montagnes, temple et nuages : des aplats de jetons, aucune couleur écrite en dur.
+    for (const token of ['primary-subtle', 'accent-decorative', 'muted', 'land'])
+      expect(markup).toContain(`fill:var(--${token})`);
+    expect(markup).not.toMatch(/#[0-9a-f]{3,6}\b|rgb\(/i);
+    render(<OlympusScene label="Le temple de l’Olympe" />);
+    expect(screen.getByRole('img', { name: 'Le temple de l’Olympe' })).toBeTruthy();
   });
 });

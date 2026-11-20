@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG } from '@oikos/config';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -84,6 +84,60 @@ describe('écran Sites', () => {
     );
     expect(screen.getByText(fr.sites.daily)).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Champ de blé' }));
+    // Quelque chose à récolter : « Récolter », action principale du site, est actif.
+    const collect = screen.getByRole('button', { name: 'Récolter : Champ de blé' });
+    expect(collect.getAttribute('aria-disabled')).toBe('false');
+    expect(collect.className).toContain('bg-primary');
+  });
+
+  it('« Acquérir un site » est l’action principale de l’en-tête, à droite du titre', async () => {
+    const instance = i18next.createInstance();
+    await instance
+      .use(initReactI18next)
+      .init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+    const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
+    render(
+      <I18nextProvider i18n={instance}>
+        <HouseProvider
+          value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'metic' }}
+        >
+          <SitesScreen />
+        </HouseProvider>
+      </I18nextProvider>,
+    );
+    const title = screen.getByRole('heading', { level: 1, name: fr.home.sites });
+    const header = title.closest<HTMLElement>('[data-slot="page-header"]');
+    if (!header) throw new Error('en-tête');
+    const acquire = await within(header).findByRole('button', { name: fr.home.acquire });
+    expect(acquire.closest('[data-slot="page-header-action"]')).toBeTruthy();
+    // Une seule fois sur l'écran : plus de bouton flottant entre les chiffres clés et les fiches.
+    expect(screen.getAllByRole('button', { name: fr.home.acquire })).toHaveLength(1);
+  });
+
+  it('cycle à peine commencé : « Récolter » inactif, décrit par « Rien à récolter » (#864)', async () => {
+    const field = views['my_sites']?.[0];
+    views['my_sites'] = [{ ...field, cycle_started_at: new Date().toISOString() }];
+    window.location.hash = '';
+    const instance = i18next.createInstance();
+    await instance
+      .use(initReactI18next)
+      .init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+    const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
+    render(
+      <I18nextProvider i18n={instance}>
+        <HouseProvider
+          value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'metic' }}
+        >
+          <SitesScreen />
+        </HouseProvider>
+      </I18nextProvider>,
+    );
+    const collect = await screen.findByRole('button', { name: 'Récolter : Champ de blé' });
+    await screen.findByText(fr.home.harvestNone);
+    expect(collect.getAttribute('aria-disabled')).toBe('true');
+    const why = document.getElementById(collect.getAttribute('aria-describedby') ?? '');
+    expect(why?.textContent).toBe(fr.home.harvestNone);
+    views['my_sites'] = [field ?? {}];
   });
 
   it('heure du serveur pas encore lue : « Prêts à récolter » dit « — », jamais zéro', async () => {

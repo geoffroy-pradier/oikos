@@ -1,10 +1,11 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Card, PillTabs, Ship, Waves } from '@oikos/ui';
-import { Link } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { Anchor, Button, Card, EmptyState, PillTabs, Ship, Waves } from '@oikos/ui';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { parseCityIdentities } from '../city-identity';
+import { useCash } from '../cash';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { archipelagoLayout, voyageProgress, type Point } from '../map-layout';
@@ -68,6 +69,19 @@ export function MapScreen() {
     return ship.laid_up_at ? t('map.withLaidUp', { state }) : state;
   };
   const loading = ships === null || rules === null;
+  // Action principale : faire partir un navire à quai et armé. Un seul : sa fiche, où le départ se prépare ;
+  // plusieurs : la flotte, qui les nomme chacun.
+  const navigate = useNavigate();
+  const fleetTitle = useRef<HTMLHeadingElement>(null);
+  const ready = (ships ?? []).filter((ship) => ship.docked_city_id && !ship.laid_up_at);
+  const depart = () => {
+    const [only, other] = ready;
+    if (only && !other) void navigate({ to: '/carte/navire/$shipId', params: { shipId: only.id } });
+    else {
+      fleetTitle.current?.scrollIntoView({ block: 'start' });
+      fleetTitle.current?.focus();
+    }
+  };
   // Cité du panneau (celle de la maison d'abord) et calque de la carte.
   const [chosen, setChosen] = useState(house.cityId);
   const [layer, setLayer] = useState<'routes' | 'terroirs'>('routes');
@@ -80,6 +94,7 @@ export function MapScreen() {
   );
   const identities = identityRows.rows ? parseCityIdentities(identityRows.rows) : null;
   const siteRules = useSiteRules().rules;
+  const cash = useCash();
   // Biens du terroir d'une cité : le premier extrant de chaque recette admise.
   const goodsOf = (cityId: string) =>
     (identities?.get(cityId)?.terroir ?? []).flatMap((recipeId) => {
@@ -92,15 +107,22 @@ export function MapScreen() {
       <ScreenHeader
         title={t('map.title')}
         action={
-          <PillTabs
-            label={t('map.layers')}
-            value={layer}
-            onValueChange={(id) => setLayer(id === 'terroirs' ? 'terroirs' : 'routes')}
-            items={[
-              { id: 'routes', label: t('map.layer.routes') },
-              { id: 'terroirs', label: t('map.layer.terroirs') },
-            ]}
-          />
+          <>
+            <PillTabs
+              label={t('map.layers')}
+              value={layer}
+              onValueChange={(id) => setLayer(id === 'terroirs' ? 'terroirs' : 'routes')}
+              items={[
+                { id: 'routes', label: t('map.layer.routes') },
+                { id: 'terroirs', label: t('map.layer.terroirs') },
+              ]}
+            />
+            {ready.length > 0 && fleet.departureRules && (
+              <Button icon={<Anchor aria-hidden="true" />} onClick={depart}>
+                {t('map.depart')}
+              </Button>
+            )}
+          </>
         }
       >
         <p className="text-sm text-muted-foreground">{t('map.intro')}</p>
@@ -162,7 +184,7 @@ export function MapScreen() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('map.routes')}</h2>
         {rules && routes.length === 0 && (
-          <p className="text-muted-foreground">{t('map.noRoutes')}</p>
+          <EmptyState compact illustration="noShip" title={t('map.noRoutes')} />
         )}
         {unlinked.length > 0 && (
           <p>
@@ -184,11 +206,22 @@ export function MapScreen() {
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('map.fleet')}</h2>
+        <h2 ref={fleetTitle} tabIndex={-1} className="text-xl">
+          {t('map.fleet')}
+        </h2>
         {ships?.length === 0 && (
-          <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-            {t('map.noShips')}
-          </p>
+          <EmptyState
+            illustration="noShip"
+            title={t('map.noShips')}
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => document.getElementById('shipyard')?.focus()}
+              >
+                {t('map.toShipyard')}
+              </Button>
+            }
+          />
         )}
         {/* Arrivées vues à la relecture (chaque minute) : annoncées. */}
         {arrivals.map((voyage) => (
@@ -222,8 +255,9 @@ export function MapScreen() {
       <Shipyard
         ships={ships}
         rules={rules}
+        balance={cash.balance}
         reloadShips={fleet.ships.reload}
-        reloadFleet={fleet.reload}
+        reloadFleet={() => Promise.all([fleet.reload(), cash.reload()])}
       />
     </div>
   );

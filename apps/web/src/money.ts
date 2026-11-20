@@ -54,3 +54,11 @@ export function formatMoney(amount: number, t: TFunction, language: string): str
   ].join(' ');
   return negative ? t('money.negative', { amount: parts }) : parts;
 }
+
+/**
+ * Ce qui manque à la trésorerie pour payer `price` d'un coup : un achat certainement refusé par l'API.
+ * `null` quand la trésorerie suffit ou n'est pas connue : l'écran laisse alors l'API juger.
+ */
+export function shortfall(balance: number | null, price: number): number | null {
+  return balance !== null && balance < price ? price - balance : null;
+}

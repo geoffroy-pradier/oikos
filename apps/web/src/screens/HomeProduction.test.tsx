@@ -77,15 +77,26 @@ describe('production en cours du tableau de bord', () => {
   });
 
   it('rien de prêt : « Récolter » reste proposé, sans « Tout récolter » ; non estimé : « — » ; aucun site : l’acquisition', async () => {
-    await show([{ ...field, ready: null }]);
+    const onCollect = await show([{ ...field, ready: null }]);
     expect(screen.getByText(fr.production.nothing)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Récolter : Champ de blé' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Tout récolter/ })).toBeNull();
-    // Pas encore estimé : un tiret, jamais « rien de prêt ».
+    // Rien de prêt d'après le calcul : inactif, la raison à côté et reliée, le clic sans effet (#864).
+    const idle = screen.getByRole('button', { name: 'Récolter : Champ de blé' });
+    expect(idle.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById(idle.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      fr.production.nothing,
+    );
+    fireEvent.click(idle);
+    expect(onCollect).not.toHaveBeenCalled();
+    // Pas encore estimé : un tiret, jamais « rien de prêt » ; l'API juge, le bouton reste actif.
     cleanup();
     await show([{ ...field, ready: undefined }]);
     expect(screen.queryByText(fr.production.nothing)).toBeNull();
     expect(screen.getByText(fr.production.unknown)).toBeTruthy();
+    const unknown = screen.getByRole('button', { name: 'Récolter : Champ de blé' });
+    expect(unknown.getAttribute('aria-disabled')).toBe('false');
+    expect(unknown.hasAttribute('aria-describedby')).toBe(false);
     cleanup();
     await show([]);
     expect(screen.getByRole('heading', { name: fr.home.sitesEmpty })).toBeTruthy();

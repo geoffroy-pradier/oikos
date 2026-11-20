@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,11 +11,14 @@ const views = vi.hoisted(() => ({
   rows: {} as Record<string, object[]>,
   rules: null as unknown,
   filters: {} as Record<string, unknown>,
+  reload: (() => Promise.resolve(null)) as () => Promise<unknown>,
 }));
+// Une référence stable : `useFleet` relance son effet (et l'heure) à chaque nouvelle référence.
+const stableReload = () => views.reload();
 vi.mock('../data', () => ({
   useRows: (view: string, _columns: string, _order: string, filters?: unknown) => {
     views.filters[view] = filters;
-    return { rows: views.rows[view] ?? [], failed: false, reload: () => Promise.resolve(null) };
+    return { rows: views.rows[view] ?? [], failed: false, reload: stableReload };
   },
   useShipRules: () => ({ rules: views.rules, failed: false, reload: () => Promise.resolve() }),
 }));
@@ -169,5 +172,47 @@ describe('fiche d’un navire', () => {
     fireEvent.keyDown(sheet, { key: 'Escape' });
     expect(screen.getByRole('dialog')).toBe(sheet);
     views.rules = null;
+  });
+
+  it('« Relire la flotte » : bouton occupé qui garde le foyer, puis issue annoncée sans changement', async () => {
+    state(false);
+    const pending: ((rows: unknown) => void)[] = [];
+    const done = (rows: unknown) => pending.splice(0).forEach((resolve) => resolve(rows));
+    let calls = 0;
+    views.reload = () => {
+      calls++;
+      return new Promise((resolve) => pending.push(resolve));
+    };
+    await screenOf();
+    const before = calls;
+    const button = screen.getByRole('button', { name: fr.ship.reload });
+    button.focus();
+    fireEvent.click(button);
+    expect(calls).toBeGreaterThan(before);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(button);
+    const during = calls;
+    fireEvent.click(button);
+    expect(calls).toBe(during);
+    await act(async () => done([]));
+    await screen.findByText(fr.ship.reloaded);
+    expect(button.getAttribute('aria-disabled')).toBe('false');
+    expect(announced()).toEqual([fr.ship.reloaded]);
+    fireEvent.click(button);
+    expect(announced()).toEqual([]);
+    await act(async () => done([]));
+    await screen.findByText(fr.ship.reloaded);
+    expect(announced()).toEqual([fr.ship.reloaded]);
+    views.reload = () => Promise.resolve(null);
+  });
+
+  it('« Relire la flotte » en échec : dit comme les autres échecs de lecture', async () => {
+    state(false);
+    views.reload = () => Promise.resolve(null);
+    await screenOf();
+    fireEvent.click(screen.getByRole('button', { name: fr.ship.reload }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe(fr.app.loadFailed);
+    expect(announced()).toEqual([]);
   });
 });

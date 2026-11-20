@@ -79,6 +79,7 @@ export function MyProperties(props: {
     { id: 'situation', header: t('property.columns.situation'), cell: situation },
     {
       id: 'action',
+      action: true,
       header: t('property.columns.action'),
       cell: (property) => (
         <Button

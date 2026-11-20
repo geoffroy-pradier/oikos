@@ -2,13 +2,14 @@ import {
   Button,
   cn,
   DataTable,
+  EmptyState,
   Hourglass,
   PageHeader,
   RefreshCw,
+  type SortDirection,
   Sparkles,
   StatCard,
   StatGrid,
-  type SortDirection,
 } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
@@ -335,7 +336,7 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         <section aria-labelledby="recent-ticks" className="flex flex-col gap-3">
           {caption('recent-ticks', t('vigie.recentTicks'), Hourglass)}
           {data.recentTicks.length === 0 ? (
-            <p className="text-muted-foreground">{t('vigie.noTicks')}</p>
+            <EmptyState compact illustration="noEntry" title={t('vigie.noTicks')} />
           ) : (
             <DataTable
               caption={t('vigie.recentTicks')}

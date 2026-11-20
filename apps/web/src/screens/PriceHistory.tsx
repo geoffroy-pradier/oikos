@@ -1,4 +1,13 @@
-import { ArrowDownRight, ArrowUpRight, Badge, Card, Minus, ScrollText } from '@oikos/ui';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Badge,
+  Card,
+  EmptyState,
+  Minus,
+  ScrollText,
+  TableScroll,
+} from '@oikos/ui';
 import { useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -137,9 +146,7 @@ export function PriceChart({ history }: { history: PriceHistoryReads }) {
       {history.failed && <LoadProblem heading={title} onRetry={history.reload} />}
       {history.loading && <Loading />}
       {series?.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-          {t('agora.priceEmpty')}
-        </p>
+        <EmptyState compact illustration="noOrder" title={t('agora.priceEmpty')} />
       )}
       {summary && (
         <>
@@ -225,14 +232,18 @@ export function PriceChart({ history }: { history: PriceHistoryReads }) {
               <ScrollText aria-hidden="true" className="size-4 shrink-0 text-accent" />
               {t('agora.priceTable')}
             </summary>
-            <div className="overflow-x-auto">
+            <TableScroll label={t('agora.priceTitle', { good })}>
               <table className="w-full text-left tabular-nums">
                 <caption className="sr-only">{t('agora.priceTitle', { good })}</caption>
                 <thead>
                   <tr>
                     {(['period', 'open', 'high', 'low', 'close', 'volume'] as const).map(
                       (column) => (
-                        <th key={column} scope="col" className="eyebrow py-1 pr-3 font-semibold">
+                        <th
+                          key={column}
+                          scope="col"
+                          className="py-1 pr-3 text-xs font-semibold text-muted-foreground"
+                        >
                           {t(`agora.${column}`)}
                         </th>
                       ),
@@ -256,7 +267,7 @@ export function PriceChart({ history }: { history: PriceHistoryReads }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </details>
         </>
       )}

@@ -118,6 +118,21 @@ it('le calendrier se filtre par état, à l’heure du serveur', async () => {
   expect(screen.queryByText(/ sur 4 événements/)).toBeNull();
 });
 
+it('aucun événement dans l’état choisi : l’état vide ramène à tout le calendrier (#866)', async () => {
+  adminGet.mockResolvedValue({
+    ok: true,
+    data: { now: NOW, pastDays: 7, events: EVENTS.slice(0, 2), truncated: false },
+  });
+  render(<Events accessToken="token" />);
+  await screen.findByRole('table');
+  fireEvent.click(screen.getByRole('radio', { name: 'Passé' }));
+  expect(screen.getByRole('heading', { name: 'Aucun événement dans cet état.' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Voir tous les événements' }));
+  expect(screen.getByRole('radio', { name: 'Tous' }).getAttribute('aria-checked')).toBe('true');
+  expect(screen.getAllByRole('row')).toHaveLength(3);
+  expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
+});
+
 it('liste coupée à la limite de l’API : l’écran le dit, et le tableau s’y réfère', async () => {
   adminGet.mockResolvedValue({
     ok: true,

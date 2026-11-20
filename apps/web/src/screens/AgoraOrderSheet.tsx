@@ -1,6 +1,6 @@
 import { marketPlaceOrderInputSchema, type MarketPlaceOrderInput } from '@oikos/contracts';
 import type { MarketTaxRule } from '@oikos/sim';
-import { Button, NumberField, Sheet, StatusRegion, Stepper } from '@oikos/ui';
+import { Button, EmptyState, NumberField, Sheet, StatusRegion, Stepper } from '@oikos/ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewSale } from '../market-rules';
@@ -170,9 +170,11 @@ export function AgoraOrderSheet(props: AgoraOrderSheetProps) {
           </Button>
         </div>
       ) : (
-        <p className="-mt-2 text-sm text-muted-foreground">
-          {t(selling ? 'agora.bidsEmpty' : 'agora.bookEmpty')}
-        </p>
+        <EmptyState
+          compact
+          illustration="noOrder"
+          title={t(selling ? 'agora.bidsEmpty' : 'agora.bookEmpty')}
+        />
       )}
       {/* Description des deux champs et du dépôt : lue en y arrivant, pas annoncée à chaque frappe. */}
       <p id="expected-net" className="rounded-lg bg-info-subtle p-3 text-sm empty:hidden">

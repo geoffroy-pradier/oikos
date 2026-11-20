@@ -207,7 +207,8 @@
       "net": "Change",
       "high": "highest: {{amount}}",
       "low": "lowest: {{amount}}"
-    }
+    },
+    "stockAction": "Buy at the agora"
   },
   "agora": {
     "city": "Market city",
@@ -287,7 +288,8 @@
     "recapBuyNote": "A purchase never spends more than the treasury; whatever waits in the book has its price held in escrow until it is filled or cancelled.",
     "bestBuy": "Best bid",
     "bestSell": "Best ask",
-    "bestNone": "none"
+    "bestNone": "none",
+    "myOrdersAction": "Place a buy order"
   },
   "goods": {
     "wheat": "Wheat",
@@ -615,7 +617,7 @@
     "sortedDescending": "Sorted by {{column}}, descending order",
     "income": {
       "title": "Income statement",
-      "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close.",
+      "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close. Running costs are upkeep, wages, lodging, transport and rents paid; acquisitions and disposals cover sites, ships and properties.",
       "groupBy": "Group by",
       "day": "Day",
       "season": "Season",
@@ -626,11 +628,11 @@
       "sales": "Sales and rents received",
       "purchases": "Purchases",
       "taxes": "Taxes",
-      "upkeep": "Upkeep, wages, lodging, transport and rents paid",
+      "upkeep": "Running costs",
       "operating_result": "Operating result",
-      "acquisitions": "Acquisitions and disposals (sites, ships, properties)",
+      "acquisitions": "Acquisitions and disposals",
       "grants": "Grants",
-      "other": "Offerings and other movements",
+      "other": "Offerings and other",
       "non_operating": "Non-operating",
       "cash_change": "Change in money",
       "escrow_change": "of which escrow"
@@ -687,6 +689,8 @@
       "employment_other": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
       "unlimited_one": "{{employed}} employed; unlimited labour",
       "unlimited_other": "{{employed}} employed; unlimited labour",
+      "noWorkers_one": "No worker available; {{employed}} employed",
+      "noWorkers_other": "No worker available; {{employed}} employed",
       "lodging": "Lodging with the inhabitants: {{cost}} a night",
       "unhoused": "Unhoused workers in the city: {{number}}"
     },
@@ -754,6 +758,7 @@
   "map": {
     "title": "Map of the archipelago",
     "intro": "The cities, the sea routes and your ships. A route's duration is that of a ship of ordinary speed; a slower ship takes longer.",
+    "depart": "Send a ship out",
     "drawing": "Map of the archipelago: {{cities}} cities, {{routes}} routes; the list below gives the details.",
     "hours_one": "{{number}} h",
     "hours_other": "{{number}} h",
@@ -814,7 +819,8 @@
     "buyCapacity": "Cargo, in units",
     "buyUpkeep": "Upkeep per day",
     "buyHome": "In port when built",
-    "terroirHint": "On this small drawing, only the chosen city's terroir is shown: tap a city, or zoom in."
+    "terroirHint": "On this small drawing, only the chosen city's terroir is shown: tap a city, or zoom in.",
+    "toShipyard": "Go to the shipyard"
   },
   "shipClasses": {
     "coaster": "Coaster",
@@ -825,6 +831,7 @@
     "ballast": "in ballast, no cargo",
     "arrived": "Ship arrived at {{city}}: {{cargo}}, unloaded into your stock.",
     "reload": "Reload the fleet",
+    "reloaded": "Fleet re-read: up to date.",
     "voyages": "Voyages",
     "noVoyages": "This ship has not sailed yet.",
     "voyage": "{{from}} → {{to}}",
@@ -1003,7 +1010,8 @@
     "steps": {
       "recap": "Summary",
       "price": "Your price"
-    }
+    },
+    "seeOffers": "See the properties on offer"
   },
   "alerts": {
     "title": "To do today",
@@ -1480,7 +1488,8 @@
     "ambiguous": "Ambiguous number: write thousands with a comma, for example 30,000.",
     "notInteger": "Whole number expected.",
     "belowMin": "At least {{min}}.",
-    "aboveMax": "At most {{max}}."
+    "aboveMax": "At most {{max}}.",
+    "shortfall": "Your treasury is {{missing}} short."
   },
   "production": {
     "title": "Production in progress",

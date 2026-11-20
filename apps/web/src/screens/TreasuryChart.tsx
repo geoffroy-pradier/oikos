@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card, cn, ScrollText } from '@oikos/ui';
+import { Card, cn, ScrollText, TableScroll } from '@oikos/ui';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BalancePoint } from '../balance-history';
@@ -126,7 +126,7 @@ export function TreasuryChart({
           {t('home.chart.table')}
         </summary>
         {open && (
-          <div className="overflow-x-auto">
+          <TableScroll label={t('home.chart.title', { count: points.length })}>
             <table className="w-full text-left text-sm tabular-nums">
               <caption className="sr-only">
                 {t('home.chart.title', { count: points.length })}
@@ -158,7 +158,7 @@ export function TreasuryChart({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         )}
       </details>
     </Card>

@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { formatMoney, formatOboles } from './money';
+import { formatMoney, formatOboles, shortfall } from './money';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
 
@@ -41,5 +41,11 @@ describe('montants en oboles', () => {
     expect(text).toBe(
       "Achat en attente : 1 × Blé à 1 obole. Le séquestre retient 1 drachme 1 obole jusqu'à l'exécution ou l'annulation.",
     );
+  });
+
+  it('ce qui manque pour payer d’un coup : rien si la trésorerie suffit ou n’est pas lue', () => {
+    expect(shortfall(2_918, 6_000)).toBe(3_082);
+    expect(shortfall(6_000, 6_000)).toBeNull();
+    expect(shortfall(null, 6_000)).toBeNull();
   });
 });

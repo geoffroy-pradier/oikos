@@ -91,4 +91,32 @@ describe('DataTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /Valeur/ }));
     expect(order()).toEqual(['Vin', 'Écorce', 'Lot 9', 'Lot 10', 'Argile']);
   });
+
+  it('une colonne d’action ferme la fiche sans ligne « Action », et reste un en-tête du tableau', () => {
+    const withAction: DataColumn<Row>[] = [
+      ...columns.slice(0, 2),
+      {
+        id: 'act',
+        header: 'Action',
+        action: true,
+        cell: (row) => <button>{`Voir ${row.good}`}</button>,
+      },
+    ];
+    const { container } = render(
+      <DataTable
+        caption="Stocks"
+        columns={withAction}
+        rows={rows}
+        rowKey={(row) => row.good}
+        sortAnnouncement={() => ''}
+      />,
+    );
+    const cards = container.querySelector('ul') as HTMLElement;
+    expect(within(cards).queryByText('Action')).toBeNull();
+    const card = within(cards).getAllByRole('listitem')[0] as HTMLElement;
+    expect(within(card).getByRole('button', { name: 'Voir Vin' })).toBeTruthy();
+    expect(within(card).getByText('Valeur')).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'Stocks', hidden: true });
+    expect(within(table).getByRole('columnheader', { name: 'Action', hidden: true })).toBeTruthy();
+  });
 });

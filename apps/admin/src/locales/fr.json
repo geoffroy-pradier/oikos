@@ -303,7 +303,8 @@
     },
     "filtered_one": "{{shown}} sur {{count}} entrée lue : le filtre ne porte que sur les entrées déjà chargées.",
     "filtered_other": "{{shown}} sur {{count}} entrées lues : le filtre ne porte que sur les entrées déjà chargées.",
-    "filteredEmpty": "Aucune entrée chargée n'a cette issue."
+    "filteredEmpty": "Aucune entrée chargée n'a cette issue.",
+    "showAll": "Voir toutes les entrées"
   },
   "moderation": {
     "title": "Modération",
@@ -503,7 +504,8 @@
     "all": "Tous",
     "filtered_one": "{{shown}} sur {{count}} événement.",
     "filtered_other": "{{shown}} sur {{count}} événements.",
-    "filteredEmpty": "Aucun événement dans cet état."
+    "filteredEmpty": "Aucun événement dans cet état.",
+    "showAll": "Voir tous les événements"
   },
   "config": {
     "title": "Paramètres",

@@ -1,4 +1,4 @@
-import { Bird, Button, GodEmblem, LoaderCircle, Sheet, StatusRegion } from '@oikos/ui';
+import { Bird, Button, EmptyState, GodEmblem, LoaderCircle, Sheet, StatusRegion } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invokeGrace } from '../api';
@@ -133,7 +133,9 @@ export function TempleGraces(props: {
       {(read.failed || (read.rows !== null && uses === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {items?.length === 0 && <p className="text-muted-foreground">{t('temple.graces.none')}</p>}
+      {items?.length === 0 && (
+        <EmptyState compact illustration="noEvent" title={t('temple.graces.none')} />
+      )}
       {items && items.length > 0 && (
         <ul className="flex flex-col divide-y divide-border-subtle sm:gap-3 sm:divide-y-0">
           {items.map(({ grace, state }) => (

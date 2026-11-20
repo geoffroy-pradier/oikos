@@ -1,5 +1,5 @@
 import { CLIENT_SETTINGS } from '@oikos/config/client';
-import { ArrowLeft, Badge, Button, ChevronRight, Landmark, Users } from '@oikos/ui';
+import { ArrowLeft, Badge, Button, ChevronRight, EmptyState, Landmark, Users } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Channel, Unread } from '../chat';
@@ -298,7 +298,12 @@ export function MessagesScreen() {
               >
                 {messages === null && !chat.failed && <Loading />}
                 {messages?.length === 0 && (
-                  <p className="m-auto text-muted-foreground">{t('messages.none')}</p>
+                  <EmptyState
+                    compact
+                    illustration="noMessage"
+                    className="m-auto"
+                    title={t('messages.none')}
+                  />
                 )}
                 {messages && messages.length > 0 && (
                   <ol

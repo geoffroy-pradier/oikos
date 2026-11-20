@@ -1,4 +1,4 @@
-import { Amphora, Button, Card, GodEmblem, Sparkles, TrendingDown } from '@oikos/ui';
+import { Amphora, Button, Card, EmptyState, GodEmblem, Sparkles, TrendingDown } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows, useTempleRules } from '../data';
@@ -61,7 +61,9 @@ export function TempleScreen() {
         </h2>
         {loading && <Loading />}
         {failed && <LoadProblem heading={title} onRetry={reload} />}
-        {gods?.length === 0 && <p className="text-muted-foreground">{t('temple.charis.none')}</p>}
+        {gods?.length === 0 && (
+          <EmptyState compact illustration="noEvent" title={t('temple.charis.none')} />
+        )}
         {gods && gods.length > 0 && (
           // Fiches sur ordinateur, liste séparée de filets sur téléphone : pas de carte dans la carte.
           <ul className="grid divide-y divide-border-subtle sm:grid-cols-2 sm:gap-3 sm:divide-y-0 xl:grid-cols-3">

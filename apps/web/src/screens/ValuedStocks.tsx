@@ -1,4 +1,5 @@
 import { Card, DataTable, EmptyState, Package, type DataColumn } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { ValuedStock } from '../accounts';
 import { formatMoney } from '../money';
@@ -54,7 +55,15 @@ export function ValuedStocks({ stocks }: { stocks: ValuedStock[] }) {
       </h2>
       <p className="text-sm text-muted-foreground">{t('accounts.stocksIntro')}</p>
       {stocks.length === 0 ? (
-        <EmptyState icon={<Package />} title={t('accounts.stocksEmpty')} headingLevel={3} />
+        <EmptyState
+          illustration="noStock"
+          title={t('accounts.stocksEmpty')}
+          action={
+            <Link to="/agora" className="font-semibold text-primary underline underline-offset-4">
+              {t('home.stockAction')}
+            </Link>
+          }
+        />
       ) : (
         <DataTable
           caption={t('accounts.stocks')}

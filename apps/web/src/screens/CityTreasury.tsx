@@ -1,5 +1,15 @@
 import { gameDayDate } from '@oikos/sim';
-import { Anchor, Card, ChevronRight, Coins, Landmark, StatCard, Store } from '@oikos/ui';
+import {
+  Anchor,
+  Card,
+  ChevronRight,
+  Coins,
+  EmptyState,
+  Landmark,
+  StatCard,
+  Store,
+  TableScroll,
+} from '@oikos/ui';
 import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -125,7 +135,9 @@ export function CityTreasury() {
           </div>
           <Card className="flex flex-col gap-3">
             <h3 className="font-semibold">{t('treasury.flows')}</h3>
-            {days.length === 0 && <p className="text-muted-foreground">{t('treasury.noFlows')}</p>}
+            {days.length === 0 && (
+              <EmptyState compact illustration="noEntry" title={t('treasury.noFlows')} />
+            )}
             {bars.length > 0 && (
               <>
                 {/* Recettes au-dessus de la ligne, dépenses dessous : la place dit le sens, pas la couleur. */}
@@ -179,7 +191,7 @@ export function CityTreasury() {
                     />
                     {t('treasury.table')}
                   </summary>
-                  <div className="overflow-x-auto">
+                  <TableScroll label={t('treasury.flows')}>
                     <table className="w-full text-left text-sm tabular-nums">
                       <caption className="sr-only">{t('treasury.flows')}</caption>
                       <thead>
@@ -210,7 +222,7 @@ export function CityTreasury() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </TableScroll>
                 </details>
               </>
             )}

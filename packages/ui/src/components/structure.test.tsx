@@ -232,13 +232,11 @@ describe('StatusRegion', () => {
 describe('EmptyState', () => {
   it('montre une illustration décorative à la place de l’icône', () => {
     const { container } = render(
-      <EmptyState
-        icon={<Ship data-testid="icon" />}
-        illustration={<svg data-testid="art" />}
-        title="Rien"
-      />,
+      <EmptyState icon={<Ship data-testid="icon" />} illustration="noShip" title="Rien" />,
     );
-    expect(screen.getByTestId('art').parentElement?.getAttribute('aria-hidden')).toBe('true');
+    // Le dessin de la famille, par son identifiant (`EMPTY_ILLUSTRATION_IDS`).
+    const art = container.querySelector('svg[viewBox="0 0 160 120"]');
+    expect(art?.parentElement?.getAttribute('aria-hidden')).toBe('true');
     expect(container.querySelector('[data-testid="icon"]')).toBeNull();
   });
 });
@@ -265,6 +263,29 @@ describe('PageHeader', () => {
       if (!before) throw new Error('ordre');
       expect(before.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
+  });
+
+  it('action à droite du titre, alignée sur son haut, et sous lui quand la place manque', () => {
+    render(
+      <PageHeader
+        title="Sites"
+        subtitle="Il est 14:05"
+        action={<button type="button">Acquérir</button>}
+      />,
+    );
+    const header = screen.getByRole('heading', { level: 1 }).closest('[data-slot="page-header"]');
+    const slot = screen.getByRole('button').closest('[data-slot="page-header-action"]');
+    // Deux colonnes d'une même rangée : le titre, puis l'action.
+    expect(slot?.parentElement).toBe(header);
+    expect(header?.children).toHaveLength(2);
+    expect(header?.lastElementChild).toBe(slot);
+    expect(header?.firstElementChild?.contains(screen.getByText('Il est 14:05'))).toBe(true);
+    // Le titre ne descend pas quand l'action est plus haute que lui ; la rangée passe à la ligne au besoin.
+    expect(header?.className).toContain('items-start');
+    expect(header?.className).toContain('flex-wrap');
+    expect(header?.className).not.toContain('items-end');
+    // La colonne du titre garde 16 rem avant que l'action ne passe dessous : le titre n'est pas coupé pour elle.
+    expect(header?.firstElementChild?.className).toContain('basis-64');
   });
 
   it('sans référence, le titre n’est pas focalisable ; sans action, aucune colonne vide', () => {
