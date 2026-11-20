@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Cité du monde de test (`seed.sql`). D'autres suites créent des cités : on la choisit par son identifiant. */
@@ -22,6 +23,19 @@ async function magicLink(email: string): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Aucun lien magique reçu pour ${email}`);
+}
+
+/** Violations graves (sérieuses ou critiques) des règles WCAG A et AA relevées par axe sur la page. */
+export async function seriousViolations(page: Page) {
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  return violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+    .map((violation) => ({
+      rule: violation.id,
+      targets: violation.nodes.map((node) => node.target.join(' ')),
+    }));
 }
 
 export async function expectNoHorizontalScroll(page: Page) {
