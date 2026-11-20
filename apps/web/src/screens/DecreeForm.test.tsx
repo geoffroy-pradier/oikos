@@ -65,9 +65,23 @@ async function show(lng: 'fr' | 'en' = 'fr') {
       </HouseProvider>
     </I18nextProvider>,
   );
+  // Archonte : la feuille de proposition s'ouvre (#697).
+  const open = screen.queryByRole('button', { name: (lng === 'en' ? en : fr).decreeForm.open });
+  if (open) fireEvent.click(open);
   return done;
 }
-const submit = () => screen.getByRole('button', { name: fr.decreeForm.submit });
+/** Continuer, qui mène au récapitulatif : inactif tant que la saisie sort des bornes (#697). */
+const next = (lng: typeof fr = fr) => screen.getByRole('button', { name: lng.stepper.next });
+/** Choisit un modèle, puis passe à ses paramètres. */
+const pick = (name: string, lng: typeof fr = fr) => {
+  fireEvent.click(screen.getByRole('radio', { name }));
+  fireEvent.click(next(lng));
+};
+/** Passe au récapitulatif, puis propose au vote. */
+const propose = (lng: typeof fr = fr) => {
+  fireEvent.click(next(lng));
+  fireEvent.click(screen.getByRole('button', { name: lng.decreeForm.submit }));
+};
 const goodsGroup = () => screen.getByRole('group', { name: /^Biens de la fête/ });
 /** Texte de la région qui décrit les biens de la fête, toujours présente. */
 const goodsMessage = () =>
@@ -96,16 +110,16 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     state.views = { decree_rules: rules, offices: [archon] };
     const done = await show();
     expect(screen.getByText(/^Vote de 2 jours ; quorum de 20\s?% des citoyens/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    pick(fr.decreeForm.models.market_tax_rate);
     expect(screen.getByText(/^Entre 2\s?% et 10\s?%$/)).toBeTruthy();
     const rate = screen.getByLabelText(fr.decreeForm.rate);
     fireEvent.change(rate, { target: { value: '12' } });
     expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
-    expect(submit().getAttribute('aria-disabled')).toBe('true');
-    fireEvent.click(submit());
+    expect(next()).toHaveProperty('disabled', true);
+    fireEvent.click(next());
     expect(api.cityCommand).not.toHaveBeenCalled();
     fireEvent.change(rate, { target: { value: '7,5' } });
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.slice(0, 3)).toEqual([
       'city.proposeDecree',
@@ -123,13 +137,13 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     });
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    pick(fr.decreeForm.models.festival);
     fireEvent.change(screen.getByLabelText(fr.decreeForm.amount), { target: { value: '600' } });
     fireEvent.change(screen.getByLabelText(fr.decreeForm.days), { target: { value: '2' } });
-    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    expect(next()).toHaveProperty('disabled', true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pain' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Vin' }));
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'festival',
@@ -140,7 +154,7 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('chaque champ jugé seul : un montant de fête hors bornes est dit sous le montant, pas sous la durée', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    pick(fr.decreeForm.models.festival);
     expect(
       screen.getByText(/^Entre 300 et 30\s000 oboles \(50 drachmes à 5\s?000 drachmes\)\.$/),
     ).toBeTruthy();
@@ -157,13 +171,13 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: good }));
     expect(goodsMessage()).toBe(fr.decreeForm.tooManyGoods);
     expect(goodsGroup().getAttribute('aria-invalid')).toBe('true');
-    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    expect(next()).toHaveProperty('disabled', true);
   });
 
   it('fête sans bien coché : dit dans la région des biens, toujours présente et reliée au groupe', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    pick(fr.decreeForm.models.festival);
     // Formulaire vierge : la région existe déjà, vide, et le groupe n'est pas fautif.
     expect(goodsMessage()).toBe('');
     expect(goodsGroup().getAttribute('aria-invalid')).toBeNull();
@@ -171,22 +185,25 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     fireEvent.change(screen.getByLabelText(fr.decreeForm.days), { target: { value: '2' } });
     expect(goodsMessage()).toBe(fr.decreeForm.noGoods);
     expect(goodsGroup().getAttribute('aria-invalid')).toBe('true');
-    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    expect(next()).toHaveProperty('disabled', true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pain' }));
     expect(goodsMessage()).toBe('');
     expect(goodsGroup().getAttribute('aria-invalid')).toBeNull();
-    expect(submit().getAttribute('aria-disabled')).toBe('false');
+    expect(next()).toHaveProperty('disabled', false);
   });
 
   it('fête proposée : montant, durée et biens cochés remis à zéro', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    pick(fr.decreeForm.models.festival);
     fireEvent.change(screen.getByLabelText(fr.decreeForm.amount), { target: { value: '600' } });
     fireEvent.change(screen.getByLabelText(fr.decreeForm.days), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pain' }));
-    fireEvent.click(submit());
+    propose();
     expect(await screen.findByText(fr.decreeForm.done)).toBeTruthy();
+    // La feuille fermée se rouvre vierge.
+    fireEvent.click(screen.getByRole('button', { name: fr.decreeForm.open }));
+    pick(fr.decreeForm.models.festival);
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Pain' }).checked).toBe(false);
     expect(screen.getByLabelText<HTMLInputElement>(fr.decreeForm.amount).value).toBe('');
     expect(screen.getByLabelText<HTMLInputElement>(fr.decreeForm.days).value).toBe('');
@@ -203,15 +220,15 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     );
     state.views = { decree_rules: wide, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    pick(fr.decreeForm.models.market_tax_rate);
     const rate = screen.getByLabelText(fr.decreeForm.rate);
     fireEvent.change(rate, { target: { value: '55' } });
-    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    expect(next()).toHaveProperty('disabled', true);
     expect(rate.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
     fireEvent.change(rate, { target: { value: '45' } });
     expect(rate.getAttribute('aria-invalid')).toBeNull();
-    expect(submit().getAttribute('aria-disabled')).toBe('false');
+    expect(next()).toHaveProperty('disabled', false);
   });
 
   it('lecture des charges ou des règles en échec : annoncée, sans formulaire', async () => {
@@ -255,14 +272,14 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('montant saisi avec séparateur des milliers, comme l’aide l’affiche : accepté (#456)', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.public_works }));
+    pick(fr.decreeForm.models.public_works);
     const amount = screen.getByLabelText(fr.decreeForm.amount);
     // Tel que l'aide l'écrit (espace fine insécable), puis avec une espace ordinaire.
     fireEvent.change(amount, { target: { value: new Intl.NumberFormat('fr').format(1_500) } });
     expect(amount.getAttribute('aria-invalid')).toBeNull();
     expect(screen.getByText(/Soit 250 drachmes\.$/)).toBeTruthy();
     fireEvent.change(amount, { target: { value: '1 500' } });
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'public_works',
@@ -273,13 +290,13 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('saisie illisible : son propre message, pas « Hors des bornes » ; rien ne part (#456)', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    pick(fr.decreeForm.models.market_tax_rate);
     const rate = screen.getByLabelText(fr.decreeForm.rate);
     fireEvent.change(rate, { target: { value: '5 %' } });
     expect(screen.getByText(fr.decreeForm.unreadable)).toBeTruthy();
     expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
     expect(rate.getAttribute('aria-invalid')).toBe('true');
-    fireEvent.click(submit());
+    fireEvent.click(next());
     expect(api.cityCommand).not.toHaveBeenCalled();
     fireEvent.change(rate, { target: { value: '12' } });
     expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
@@ -295,7 +312,7 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     );
     state.views = { decree_rules: wide, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.public_works }));
+    pick(fr.decreeForm.models.public_works);
     const amount = screen.getByLabelText(fr.decreeForm.amount);
     for (const typed of ['30,000', '30.000', '1 234,500']) {
       fireEvent.change(amount, { target: { value: typed } });
@@ -303,13 +320,13 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
       expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
       expect(amount.getAttribute('aria-invalid')).toBe('true');
       expect(screen.queryByText(/^Soit /)).toBeNull();
-      expect(submit().getAttribute('aria-disabled')).toBe('true');
-      fireEvent.click(submit());
+      expect(next()).toHaveProperty('disabled', true);
+      fireEvent.click(next());
     }
     expect(api.cityCommand).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '30 000' } });
     expect(screen.queryByText(fr.decreeForm.ambiguous)).toBeNull();
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'public_works',
@@ -320,7 +337,7 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('montant et durée entiers : une saisie décimale dit « nombre entier attendu », pas « Hors des bornes » (#463)', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.festival }));
+    pick(fr.decreeForm.models.festival);
     const amount = screen.getByLabelText(fr.decreeForm.amount);
     const days = screen.getByLabelText(fr.decreeForm.days);
     fireEvent.change(amount, { target: { value: '300,5' } });
@@ -330,14 +347,14 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
     expect(screen.queryByText(fr.decreeForm.outOfBounds)).toBeNull();
     expect(amount.getAttribute('aria-invalid')).toBe('true');
     expect(days.getAttribute('aria-invalid')).toBe('true');
-    fireEvent.click(submit());
+    fireEvent.click(next());
     expect(api.cityCommand).not.toHaveBeenCalled();
     // Au-delà des bornes, un nombre entier reste « Hors des bornes ».
     fireEvent.change(days, { target: { value: '30' } });
     expect(screen.getByText(fr.decreeForm.outOfBounds)).toBeTruthy();
     fireEvent.change(amount, { target: { value: '300' } });
     fireEvent.change(days, { target: { value: '2' } });
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'festival',
@@ -348,10 +365,10 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('champs décimaux inchangés : un taux « 7,500 » se lit 7,5 % (#463)', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show();
-    fireEvent.click(screen.getByRole('radio', { name: fr.decreeForm.models.market_tax_rate }));
+    pick(fr.decreeForm.models.market_tax_rate);
     fireEvent.change(screen.getByLabelText(fr.decreeForm.rate), { target: { value: '7,500' } });
     expect(screen.queryByText(fr.decreeForm.ambiguous)).toBeNull();
-    fireEvent.click(submit());
+    propose();
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'market_tax_rate',
@@ -362,20 +379,40 @@ describe('proposition d’un décret par l’archonte (#264)', () => {
   it('en anglais : « 30.000 » ambigu, « 30,000 » lu comme trente mille ; messages en anglais (#463)', async () => {
     state.views = { decree_rules: rules, offices: [archon] };
     await show('en');
-    fireEvent.click(screen.getByRole('radio', { name: en.decreeForm.models.public_works }));
+    pick(en.decreeForm.models.public_works, en);
     const amount = screen.getByLabelText(en.decreeForm.amount);
     fireEvent.change(amount, { target: { value: '30.000' } });
     expect(screen.getByText(en.decreeForm.ambiguous)).toBeTruthy();
     fireEvent.change(amount, { target: { value: '600.5' } });
     expect(screen.getByText(en.decreeForm.notInteger)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: en.decreeForm.submit }));
+    fireEvent.click(next(en));
     expect(api.cityCommand).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '30,000' } });
-    fireEvent.click(screen.getByRole('button', { name: en.decreeForm.submit }));
+    propose(en);
     await waitFor(() => expect(api.cityCommand).toHaveBeenCalledTimes(1));
     expect(api.cityCommand.mock.calls[0]?.[1]).toEqual({
       model: 'public_works',
       params: { amountOboles: 30_000 },
     });
+  });
+
+  it('feuille par étapes : modèle décrit, paramètres, récapitulatif chiffré ; Retour garde la saisie (#697)', async () => {
+    state.views = { decree_rules: rules, offices: [archon] };
+    await show();
+    const works = screen.getByRole('radio', { name: fr.decreeForm.models.public_works });
+    const about = document.getElementById(works.getAttribute('aria-describedby') ?? '');
+    expect(about?.textContent).toBe(fr.decreeForm.about.public_works);
+    pick(fr.decreeForm.models.public_works);
+    expect(screen.getByRole('heading', { name: /Paramètres$/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(fr.decreeForm.amount), { target: { value: '1 500' } });
+    fireEvent.click(next());
+    expect(screen.getByRole('heading', { name: /Récapitulatif$/ })).toBeTruthy();
+    const recap = screen.getByText(fr.decreeForm.recap.amountOboles, {
+      selector: 'dt',
+    }).parentElement;
+    expect(recap?.querySelector('dd')?.textContent).toBe('250 drachmes');
+    fireEvent.click(screen.getByRole('button', { name: fr.stepper.back }));
+    expect(screen.getByLabelText<HTMLInputElement>(fr.decreeForm.amount).value).toBe('1 500');
+    expect(api.cityCommand).not.toHaveBeenCalled();
   });
 });

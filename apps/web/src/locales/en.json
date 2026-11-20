@@ -974,7 +974,25 @@
     "betweenOboles": "Between {{min}} and {{max}} obols ({{minMoney}} to {{maxMoney}}).",
     "amountIs": "That is {{amount}}.",
     "tooManyGoods": "Too many goods for this festival.",
-    "noGoods": "Tick at least one good for this festival."
+    "noGoods": "Tick at least one good for this festival.",
+    "open": "New decree",
+    "intro": "Archon of {{city}}: a model, its parameters within the stated bounds, then the summary.",
+    "stepModel": "Decree model",
+    "stepParams": "Parameters",
+    "stepRecap": "Summary",
+    "recap": {
+      "rateBps": "Rate",
+      "coefficientBps": "Coefficient",
+      "amountOboles": "Amount",
+      "days": "Duration, in game days",
+      "goodIds": "Festival goods"
+    },
+    "about": {
+      "market_tax_rate": "The share the city keeps on every trade at its agora.",
+      "port_dues": "The multiple of the dues paid by every ship leaving the port.",
+      "public_works": "A treasury expense for the city's works.",
+      "festival": "A treasury expense that raises the inhabitants' demand for the chosen goods while the festival lasts."
+    }
   },
   "chronicle": {
     "title": "City chronicle",

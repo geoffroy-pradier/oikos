@@ -94,20 +94,27 @@ test('l’archonte en charge propose un décret dans les bornes annoncées', asy
   await citySection(page, 'Assemblée');
   await expect(assembly.getByRole('heading', { name: 'Proposer un décret' })).toBeVisible();
   await expect(assembly.getByText(/^Vote d.+ ; quorum de .+ des citoyens ;/)).toBeVisible();
-  await assembly.getByLabel('Taux de la taxe de marché').check();
-  const rate = assembly.getByLabel('Taux, en pour cent');
-  const hint = assembly.getByText(/^Entre [\d,]+\s% et [\d,]+\s%$/);
+  // La proposition se fait dans une feuille par étapes (#697) : le modèle, puis ses paramètres.
+  await assembly.getByRole('button', { name: 'Nouveau décret' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Proposer un décret' });
+  await sheet.getByLabel('Taux de la taxe de marché').check();
+  await sheet.getByRole('button', { name: 'Continuer' }).click();
+  const rate = sheet.getByLabel('Taux, en pour cent');
+  const hint = sheet.getByText(/^Entre [\d,]+\s% et [\d,]+\s%$/);
   await expect(rate).toHaveAccessibleDescription(/^Entre [\d,]+\s% et [\d,]+\s%/);
-  const submit = assembly.getByRole('button', { name: 'Proposer au vote' });
-  await expect(submit).toHaveAttribute('aria-disabled', 'true');
+  // Le récapitulatif, puis « Proposer au vote », ne s'atteignent que dans les bornes.
+  const submit = sheet.getByRole('button', { name: 'Continuer' });
+  await expect(submit).toBeDisabled();
   // Hors des bornes, rien ne part ; à la borne basse annoncée, le bouton s'active. Rien n'est soumis : la
   // base garde ses décrets d'un passage à l'autre, et la cité en limite le nombre au vote.
   await rate.fill('99');
-  await expect(assembly.getByRole('alert')).toHaveText('Hors des bornes du décret.');
-  await expect(submit).toHaveAttribute('aria-disabled', 'true');
+  await expect(sheet.getByRole('alert')).toHaveText('Hors des bornes du décret.');
+  await expect(submit).toBeDisabled();
   const min = /^Entre ([\d,]+)/.exec((await hint.textContent()) ?? '')?.[1] ?? '';
   await rate.fill(min);
-  await expect(assembly.getByRole('alert')).toHaveText('');
-  await expect(submit).toHaveAttribute('aria-disabled', 'false');
+  await expect(sheet.getByRole('alert')).toHaveText('');
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  await expect(sheet.getByRole('button', { name: 'Proposer au vote' })).toBeEnabled();
   await expectNoHorizontalScroll(page);
 });

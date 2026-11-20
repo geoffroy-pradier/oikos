@@ -1,9 +1,19 @@
 import type { DecreeModel } from '@oikos/contracts';
-import { Button, Field, ScrollText as Scroll } from '@oikos/ui';
+import {
+  Button,
+  Coins,
+  Field,
+  Hammer,
+  PartyPopper,
+  Ship,
+  ScrollText as Scroll,
+  Sheet,
+  StatusRegion,
+  Stepper,
+} from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
-import { noticeClass } from './CommandNotice';
 import { useRows } from '../data';
 import {
   checkDecreeParams,
@@ -17,7 +27,9 @@ import { parseOffices } from '../politics';
 import { LoadProblem } from './LoadProblem';
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
-const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
+/** Choix en carte (modèle, bien d'une fête) : la case cochée la met en avant. */
+const CHOICE =
+  'flex cursor-pointer gap-3 rounded-xl border border-border-subtle p-3 transition-colors duration-(--motion-fast) hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary-subtle';
 const BPS = 10_000;
 /** Paramètre du décret que porte chaque champ saisi. */
 const PARAMS = { rate: 'rateBps', factor: 'coefficientBps', amount: 'amountOboles', days: 'days' };
@@ -66,13 +78,15 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const goodsError = useId();
   const title = useRef<HTMLHeadingElement>(null);
   const keys = useRef(new Map<string, string>());
-  const noticeElement = useRef<HTMLParagraphElement>(null);
+  const noticeElement = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  // Feuille de proposition ouverte ; un refus de l'API s'y dit, à l'étape du récapitulatif.
+  const [open, setOpen] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  // Proposé, la feuille se ferme : son bouton disparu, le foyer passe sur le résultat.
   useEffect(() => {
-    const active = document.activeElement;
-    if (notice && (active === document.body || active?.getAttribute('aria-disabled') === 'true'))
-      noticeElement.current?.focus();
+    if (notice) noticeElement.current?.focus();
   }, [notice]);
   // Une lecture en échec est dite : l'archonte ne perd pas son formulaire sans savoir pourquoi.
   const officesFailed = officeRows.failed || (officeRows.rows !== null && !offices);
@@ -136,22 +150,20 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
     if (busy || !proposal) return;
     setBusy(true);
     setNotice(null);
+    setRefusal(null);
     const intent = JSON.stringify(proposal);
     const key = keys.current.get(intent) ?? crypto.randomUUID();
     keys.current.set(intent, key);
     try {
       const result = await cityCommand('city.proposeDecree', proposal, house.accessToken, key);
       if (result.ok || result.error.code !== 'INTERNAL') keys.current.delete(intent);
+      await props.onDone();
       if (result.ok) {
         setFields({});
         setGoods(null);
-      }
-      setNotice(
-        result.ok
-          ? { kind: 'status', text: t('decreeForm.done') }
-          : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
-      );
-      await props.onDone();
+        setOpen(false);
+        setNotice({ kind: 'status', text: t('decreeForm.done') });
+      } else setRefusal(t([`errors.${result.error.code}`, 'errors.INTERNAL']));
     } finally {
       setBusy(false);
     }
@@ -160,38 +172,68 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const tax = bounds.market_tax_rate;
   const port = bounds.port_dues;
   const festival = bounds.festival;
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised p-4 shadow-sm">
-      <h3 ref={title} tabIndex={-1} className="font-semibold">
-        <Scroll aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-        {t('decreeForm.title')}
-      </h3>
-      <p className="text-muted-foreground">
-        {t('decreeForm.rules', {
-          count: rules.votingDays,
-          quorum: percent.format(rules.quorumBps / BPS),
-          open: rules.maxOpenPerCity,
-          cap: percent.format(rules.spendingCapShareBps / BPS),
-        })}
-      </p>
-      <fieldset className="flex flex-col gap-1">
-        <legend className="mb-1 font-medium">{t('decreeForm.model')}</legend>
-        {rules.models.map((option) => (
-          <label
-            key={option}
-            className="flex min-h-11 items-center gap-3 rounded-lg border border-border-subtle px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
-          >
-            <input
-              className="size-5 accent-primary"
-              type="radio"
-              name="decree-model"
-              checked={option === chosen}
-              onChange={() => setModel(option)}
-            />
-            {t(`decreeForm.models.${option}`)}
-          </label>
-        ))}
-      </fieldset>
+  const rulesText = t('decreeForm.rules', {
+    count: rules.votingDays,
+    quorum: percent.format(rules.quorumBps / BPS),
+    open: rules.maxOpenPerCity,
+    cap: percent.format(rules.spendingCapShareBps / BPS),
+  });
+  const named = (good: string) => t(`goods.${good}`, { defaultValue: good });
+  // Récapitulatif chiffré : le modèle, puis chaque paramètre tel qu'il partira.
+  const shown = (param: string, value: unknown) =>
+    Array.isArray(value)
+      ? new Intl.ListFormat(i18n.language).format(value.map((good) => named(String(good))))
+      : param === 'rateBps' || param === 'coefficientBps'
+        ? (param === 'rateBps' ? percent : factor).format(Number(value) / BPS)
+        : param === 'amountOboles'
+          ? money(Number(value))
+          : number.format(Number(value));
+  const recap = proposal
+    ? [
+        [t('decreeForm.model'), t(`decreeForm.models.${proposal.model}`)],
+        ...Object.entries(proposal.params).map(([param, value]) => [
+          t(`decreeForm.recap.${param}`),
+          shown(param, value),
+        ]),
+      ]
+    : [];
+  const icons = {
+    market_tax_rate: <Coins />,
+    port_dues: <Ship />,
+    public_works: <Hammer />,
+    festival: <PartyPopper />,
+  };
+  const modelStep = (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="sr-only">{t('decreeForm.model')}</legend>
+      {rules.models.map((option) => (
+        <label key={option} className={CHOICE}>
+          <input
+            className="mt-1 size-5 shrink-0 accent-primary"
+            type="radio"
+            name="decree-model"
+            checked={option === chosen}
+            onChange={() => setModel(option)}
+            aria-labelledby={`${goodsError}-${option}`}
+            aria-describedby={`${goodsError}-${option}-about`}
+          />
+          <span aria-hidden="true" className="mt-0.5 text-accent [&_svg]:size-5">
+            {icons[option]}
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span id={`${goodsError}-${option}`} className="font-medium">
+              {t(`decreeForm.models.${option}`)}
+            </span>
+            <span id={`${goodsError}-${option}-about`} className="text-sm text-muted-foreground">
+              {t(`decreeForm.about.${option}`)}
+            </span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+  const paramsStep = (
+    <div className="flex flex-col gap-4">
       {chosen === 'market_tax_rate' && tax && (
         <Field
           label={t('decreeForm.rate')}
@@ -252,7 +294,7 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
             onChange={set('days')}
           />
           <fieldset
-            className="flex flex-col gap-1"
+            className="grid grid-cols-2 gap-2"
             aria-describedby={goodsError}
             aria-invalid={goodsInvalid ? true : undefined}
           >
@@ -260,10 +302,7 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
               {t('decreeForm.goods', { count: festival.maxGoods })}
             </legend>
             {festival.goodIds.map((good) => (
-              <label
-                key={good}
-                className="flex min-h-11 items-center gap-3 rounded-lg border border-border-subtle px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
-              >
+              <label key={good} className={`${CHOICE} min-h-11 items-center py-0`}>
                 <input
                   className="size-5 accent-primary"
                   type="checkbox"
@@ -278,27 +317,84 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
               </label>
             ))}
             {/* Région toujours présente : le message qui y paraît est annoncé. */}
-            <p id={goodsError} role="alert" className="text-sm font-semibold text-danger">
+            <p
+              id={goodsError}
+              role="alert"
+              className="col-span-2 text-sm font-semibold text-danger"
+            >
               {goodsInvalid}
             </p>
           </fieldset>
         </>
       )}
-      <Button
-        className={`self-start ${WAITING}`}
-        aria-disabled={busy || proposal === null}
-        onClick={() => void propose()}
-      >
-        {t('decreeForm.submit')}
+    </div>
+  );
+  const recapStep = (
+    <div className="flex flex-col gap-3">
+      <dl className="divide-y divide-border-subtle rounded-lg border border-border-subtle px-3 tabular-nums">
+        {recap.map(([term = '', value]) => (
+          <div key={term} className="flex flex-wrap justify-between gap-x-4 py-2">
+            <dt className="text-muted-foreground">{term}</dt>
+            <dd className="font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <StatusRegion role="alert" tone="danger">
+        {refusal}
+      </StatusRegion>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border-subtle bg-surface-raised p-4 shadow-sm">
+      <div className="flex min-w-0 flex-1 basis-64 flex-col gap-1">
+        <h3 ref={title} tabIndex={-1} className="flex items-center gap-2 font-semibold">
+          <Scroll aria-hidden="true" className="size-5 shrink-0 text-accent" />
+          {t('decreeForm.title')}
+        </h3>
+        <p className="text-sm text-muted-foreground">{rulesText}</p>
+      </div>
+      <Button icon={<Scroll />} onClick={() => setOpen(true)}>
+        {t('decreeForm.open')}
       </Button>
-      <p
-        ref={noticeElement}
-        tabIndex={-1}
-        role={notice?.kind ?? 'status'}
-        className={noticeClass(notice?.kind)}
+      <StatusRegion ref={noticeElement} tone="success" className="-mt-3 basis-full has-[p]:mt-0">
+        {notice?.text}
+      </StatusRegion>
+      <Sheet
+        open={open}
+        onClose={() => {
+          if (busy) return;
+          setRefusal(null);
+          setOpen(false);
+        }}
+        closeDisabled={busy}
+        title={t('decreeForm.title')}
+        description={t('decreeForm.intro', { city: house.cityName })}
+        closeLabel={t('shell.close')}
       >
-        {notice?.text ?? ''}
-      </p>
+        <Stepper
+          confirming={busy}
+          onConfirm={() => void propose()}
+          labels={{
+            progress: t('stepper.progress'),
+            back: t('stepper.back'),
+            next: t('stepper.next'),
+            confirm: t('decreeForm.submit'),
+            stepOf: (current, total) =>
+              t('stepper.stepOf', { current: number.format(current), total: number.format(total) }),
+          }}
+          steps={[
+            { id: 'model', title: t('decreeForm.stepModel'), content: modelStep },
+            {
+              id: 'params',
+              title: t('decreeForm.stepParams'),
+              content: paramsStep,
+              valid: proposal !== null,
+            },
+            { id: 'recap', title: t('decreeForm.stepRecap'), content: recapStep },
+          ]}
+        />
+      </Sheet>
     </div>
   );
 }

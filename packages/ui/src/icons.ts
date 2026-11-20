@@ -38,6 +38,7 @@ export {
   MonitorSmartphone,
   Moon,
   Package,
+  PartyPopper,
   Plus,
   RefreshCw,
   Scale,

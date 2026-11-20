@@ -974,7 +974,25 @@
     "betweenOboles": "Entre {{min}} et {{max}} oboles ({{minMoney}} à {{maxMoney}}).",
     "amountIs": "Soit {{amount}}.",
     "tooManyGoods": "Trop de biens pour cette fête.",
-    "noGoods": "Cochez au moins un bien pour cette fête."
+    "noGoods": "Cochez au moins un bien pour cette fête.",
+    "open": "Nouveau décret",
+    "intro": "Archonte de {{city}} : un modèle, ses paramètres dans les bornes annoncées, puis le récapitulatif.",
+    "stepModel": "Modèle du décret",
+    "stepParams": "Paramètres",
+    "stepRecap": "Récapitulatif",
+    "recap": {
+      "rateBps": "Taux",
+      "coefficientBps": "Coefficient",
+      "amountOboles": "Montant",
+      "days": "Durée, en jours de jeu",
+      "goodIds": "Biens de la fête"
+    },
+    "about": {
+      "market_tax_rate": "La part que la cité garde sur chaque échange de son agora.",
+      "port_dues": "Le multiple du droit payé par chaque navire qui quitte le port.",
+      "public_works": "Une dépense du trésor pour les ouvrages de la cité.",
+      "festival": "Une dépense du trésor qui relève la demande des habitants pour les biens choisis, le temps de la fête."
+    }
   },
   "chronicle": {
     "title": "Chronique de la cité",
