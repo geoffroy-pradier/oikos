@@ -98,6 +98,7 @@ export function MapScreen() {
             return from && to ? [{ id: ship.id, name: shipName(ship), from, to, progress }] : [];
           })}
           pointOf={pointOf}
+          home={pointOf(house.cityId)}
         />
       </Card>
 

@@ -616,7 +616,8 @@
     "arrived": "A ship arrived at {{city}}: its cargo is in your stock.",
     "dockedCount_one": "{{number}} ship in port",
     "dockedCount_other": "{{number}} ships in port",
-    "scale": "{{duration}} at sea"
+    "scale": "{{duration}} at sea",
+    "pan": "Map of the archipelago: arrow keys to move it, + and − to zoom, 0 to centre on your city"
   },
   "shipClasses": {
     "coaster": "Coaster",
