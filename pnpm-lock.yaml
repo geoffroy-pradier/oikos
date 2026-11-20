@@ -361,6 +361,9 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
     devDependencies:
+      '@oikos/config':
+        specifier: workspace:*
+        version: link:../config
       '@testing-library/dom':
         specifier: ^10.4.2
         version: 10.4.2
