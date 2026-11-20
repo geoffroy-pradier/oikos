@@ -257,6 +257,11 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Confirmer l'achat/ })
       .click();
     await expect(said(other, 'status', 'Bien acheté.')).toBeVisible();
+    // Les commandes du propriétaire sont dans la fiche du bien.
+    await other
+      .getByRole('button', { name: /^Gérer — / })
+      .filter({ visible: true })
+      .click();
     await other.getByRole('textbox', { name: /^Loyer par jour, en oboles — / }).fill(String(rent));
     await other.getByRole('button', { name: /^Mettre en location — / }).click();
     await expect(said(other, 'status', 'Bien mis en location.')).toBeVisible();
@@ -296,10 +301,21 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       await give(alpha, stack.goodId, stack.quantity, KALLISTE_ID);
     await page.reload();
     await page
+      .getByRole('button', { name: /^Gérer — .*, Kallistè$/ })
+      .filter({ visible: true })
+      .click();
+    await page
       .getByRole('button', { name: /^Rénover \(.*\) — Maison de ville n° \d+, Kallistè$/ })
       .click();
     await expect(said(page, 'status', 'Bien rénové.')).toBeVisible();
-    await expect(page.getByText('État : 100 %').first()).toBeVisible();
+    // L'état, en tableau sur ordinateur, en fiche sur téléphone : la mise en page affichée.
+    const owned = page.getByRole('region', { name: 'Mes biens' });
+    await expect(
+      owned
+        .getByText(/^100\s%$/)
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
 

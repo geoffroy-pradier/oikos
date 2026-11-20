@@ -161,8 +161,9 @@ describe('écran Immobilier (#259)', () => {
       { ...mine, id: 'p2', lot: 2, upkeep_unpaid_since: '2026-11-16T03:00:00Z' },
     ];
     await showProperty();
-    expect(screen.getByText('État : 60 %')).toBeTruthy();
-    expect(screen.getByText(/^Entretien impayé depuis le/)).toBeTruthy();
+    const row = within(inTable(fr.property.mine).getByRole('row', { name: /n° 2, Kallistè/ }));
+    expect(row.getAllByRole('cell')[0]?.textContent).toMatch(/^60\s%$/);
+    expect(row.getByText(/^Entretien impayé depuis le/)).toBeTruthy();
     expect(inTable(fr.property.offers).getByText(fr.property.yourOffer)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Louer/ })).toBeNull();
     cleanup();

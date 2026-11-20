@@ -6,18 +6,12 @@ import { useRows } from '../data';
 import { useHouse } from '../house';
 import { HouseNav } from '../HouseNav';
 import { cityMarketTax, parseMarketTax } from '../market-rules';
-import { useMoney } from '../money';
-import {
-  conditionShare,
-  parseLeases,
-  parseMyProperties,
-  parseOffers,
-  parsePropertyRules,
-} from '../property';
+import { parseLeases, parseMyProperties, parseOffers, parsePropertyRules } from '../property';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
 import { ScreenHeader } from '../ScreenHeader';
 import { LoadProblem, Loading } from './LoadProblem';
-import { ownerIntents, PropertyActions } from './PropertyActions';
+import { MyProperties } from './MyProperties';
+import { ownerIntents } from './PropertyActions';
 import { endIntent, PropertyLeases } from './PropertyLeases';
 import { offerIntent, PropertyOffers } from './PropertyOffers';
 import type { RunCommand } from './PropertySheet';
@@ -36,8 +30,6 @@ const PLACE: Record<Command, Place> = {
   'property.withdrawOffer': 'mine',
   'property.endLease': 'leases',
 };
-const ROW =
-  'flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm';
 
 /**
  * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
@@ -48,7 +40,6 @@ const ROW =
 export function PropertyScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
-  const money = useMoney();
   const title = useRef<HTMLHeadingElement>(null);
   const rulesRows = useRows<unknown>('property_rules', 'properties', 'properties');
   const world = { city_id: Object.keys(house.cityNames) };
@@ -167,21 +158,12 @@ export function PropertyScreen() {
   };
 
   const number = new Intl.NumberFormat(i18n.language);
-  const percent = new Intl.NumberFormat(i18n.language, {
-    style: 'percent',
-    maximumFractionDigits: 0,
-  });
-  const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const describe = (property: { sizeId: string; lot: number; cityId: string }) =>
     t('property.describe', {
       size: t(`propertySizes.${property.sizeId}`, { defaultValue: property.sizeId }),
       lot: number.format(property.lot),
       city: house.cityNames[property.cityId] ?? property.cityId,
     });
-  const condition = (value: number | null) =>
-    value === null
-      ? null
-      : t('property.condition', { percent: percent.format(conditionShare(value)) });
   const mineIds = new Set((mine ?? []).map((property) => property.id));
   const openOffer = (propertyId: string) =>
     (offers ?? []).find((offer) => offer.kind !== 'citySale' && offer.propertyId === propertyId);
@@ -249,43 +231,26 @@ export function PropertyScreen() {
               />
             )}
           </Card>
-          <Card className="flex flex-col gap-3">
-            <h2 className="text-xl">{t('property.mine')}</h2>
+          <Card className="flex flex-col gap-3" aria-labelledby="property-mine">
+            <h2 id="property-mine" className="flex items-center gap-2 text-lg font-semibold">
+              <House aria-hidden="true" className="size-5 shrink-0 text-accent" />
+              {t('property.mine')}
+            </h2>
             {said('mine')}
-            {mine?.length === 0 && (
+            {mine?.length === 0 ? (
               <EmptyState icon={<House />} title={t('property.noneMine')} headingLevel={3} />
+            ) : (
+              <MyProperties
+                properties={mine ?? []}
+                sizes={sizes}
+                taxIn={taxIn}
+                offerOf={openOffer}
+                rentOf={(id) => leasedOut(id)?.rentOboles}
+                describe={describe}
+                busy={busy}
+                run={run}
+              />
             )}
-            <ul className="flex flex-col gap-3">
-              {(mine ?? []).map((property) => {
-                const size = sizes?.get(property.sizeId);
-                const lease = leasedOut(property.id);
-                return (
-                  <li key={property.id} className={ROW}>
-                    <h3 className="font-semibold">{describe(property)}</h3>
-                    <p>{condition(property.condition)}</p>
-                    {size && <p>{t('property.upkeep', { cost: money(size.dailyUpkeepOboles) })}</p>}
-                    {property.unpaidSince && (
-                      <p className="font-semibold text-danger">
-                        {t('property.unpaid', {
-                          date: date.format(new Date(property.unpaidSince)),
-                        })}
-                      </p>
-                    )}
-                    {lease && <p>{t('property.leasedOut', { cost: money(lease.rentOboles) })}</p>}
-                    <PropertyActions
-                      property={property}
-                      size={size}
-                      tax={taxIn(property.cityId)}
-                      offer={openOffer(property.id)}
-                      leased={lease !== undefined}
-                      name={describe(property)}
-                      busy={busy}
-                      run={run}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
           </Card>
           <Card className="flex flex-col gap-3" aria-labelledby="property-leases">
             <h2 id="property-leases" className="flex items-center gap-2 text-lg font-semibold">

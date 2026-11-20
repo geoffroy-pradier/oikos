@@ -794,7 +794,6 @@
     "title": "Property",
     "intro": "The archipelago's housing: buy it from the city or from a house, lease it, renovate it. A property houses your workers in its city while it is in good repair; rent is paid every day at the close.",
     "describe": "{{size}} no. {{lot}}, {{city}}",
-    "condition": "Condition: {{percent}}",
     "offers": "Properties on offer",
     "noOffers": "No property on offer for now.",
     "take": {
@@ -807,8 +806,6 @@
     "offerUnpaidUndated": "Upkeep unpaid: this property houses no one until a close pays its upkeep.",
     "mine": "My properties",
     "noneMine": "You own no property.",
-    "upkeep": "Upkeep: {{cost}} a day, charged at the close",
-    "unpaid": "Upkeep unpaid since {{date}}: this property houses no one until it is paid.",
     "leasedOut": "Leased out: {{cost}} a day",
     "renovate": "Renovate ({{cost}})",
     "goodLine": "{{quantity}} {{good}}",
@@ -854,7 +851,8 @@
       "condition": "Condition",
       "action": "Action",
       "upkeep": "Upkeep",
-      "city": "City"
+      "city": "City",
+      "situation": "Status"
     },
     "sheet": {
       "endLease": "End the lease: {{name}}",
@@ -879,6 +877,14 @@
       "citySale": "Buy",
       "sale": "Buy",
       "lease": "Rent"
+    },
+    "manage": "Manage",
+    "unpaidSince": "Upkeep unpaid since {{date}}",
+    "unpaidNote": "This property houses no one until its upkeep is paid, at a close.",
+    "free": "Neither leased nor offered",
+    "listed": {
+      "sale": "For sale: {{cost}}",
+      "lease": "For rent: {{cost}} a day"
     }
   },
   "alerts": {

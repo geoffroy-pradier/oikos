@@ -794,7 +794,6 @@
     "title": "Immobilier",
     "intro": "Les logements de l'archipel : achetez-les à la cité ou à une maison, louez-les, rénovez-les. Un bien loge vos travailleurs de sa cité tant qu'il est en état ; un loyer se paie chaque jour à la clôture.",
     "describe": "{{size}} n° {{lot}}, {{city}}",
-    "condition": "État : {{percent}}",
     "offers": "Biens offerts",
     "noOffers": "Aucun bien offert pour l'instant.",
     "take": {
@@ -807,8 +806,6 @@
     "offerUnpaidUndated": "Entretien impayé : ce bien ne loge personne jusqu'à ce qu'une clôture paie son entretien.",
     "mine": "Mes biens",
     "noneMine": "Vous n'avez aucun bien.",
-    "upkeep": "Entretien : {{cost}} par jour, prélevé à la clôture",
-    "unpaid": "Entretien impayé depuis le {{date}} : ce bien ne loge personne jusqu'au paiement.",
     "leasedOut": "Loué : {{cost}} par jour",
     "renovate": "Rénover ({{cost}})",
     "goodLine": "{{quantity}} {{good}}",
@@ -854,7 +851,8 @@
       "condition": "État",
       "action": "Action",
       "upkeep": "Entretien",
-      "city": "Cité"
+      "city": "Cité",
+      "situation": "Situation"
     },
     "sheet": {
       "endLease": "Mettre fin au bail : {{name}}",
@@ -879,6 +877,14 @@
       "citySale": "Acheter",
       "sale": "Acheter",
       "lease": "Louer"
+    },
+    "manage": "Gérer",
+    "unpaidSince": "Entretien impayé depuis le {{date}}",
+    "unpaidNote": "Ce bien ne loge personne jusqu'au paiement de son entretien, à une clôture.",
+    "free": "Ni loué, ni offert",
+    "listed": {
+      "sale": "En vente : {{cost}}",
+      "lease": "À louer : {{cost}} par jour"
     }
   },
   "alerts": {
