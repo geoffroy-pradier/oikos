@@ -210,7 +210,6 @@
     "price": "Price (obols)",
     "offered": "Quantity offered",
     "bookEmpty": "No resting sell order.",
-    "place": "Place an order: {{good}}",
     "sell": "Sell",
     "buy": "Buy",
     "limitPrice": "Limit price per unit (obols)",
@@ -278,7 +277,10 @@
     "escrow": "Escrow",
     "escrowUpTo": "up to {{amount}}",
     "recapSellNote": "Whatever finds no buyer waits in the book; the stock offered stays reserved there until it is sold or cancelled.",
-    "recapBuyNote": "A purchase never spends more than the treasury; whatever waits in the book has its price held in escrow until it is filled or cancelled."
+    "recapBuyNote": "A purchase never spends more than the treasury; whatever waits in the book has its price held in escrow until it is filled or cancelled.",
+    "bestBuy": "Best bid",
+    "bestSell": "Best ask",
+    "bestNone": "none"
   },
   "goods": {
     "wheat": "Wheat",

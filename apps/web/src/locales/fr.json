@@ -210,7 +210,6 @@
     "price": "Prix (oboles)",
     "offered": "Quantité offerte",
     "bookEmpty": "Aucune vente en attente.",
-    "place": "Déposer un ordre : {{good}}",
     "sell": "Vendre",
     "buy": "Acheter",
     "limitPrice": "Prix limite par unité (oboles)",
@@ -278,7 +277,10 @@
     "escrow": "Séquestre",
     "escrowUpTo": "jusqu'à {{amount}}",
     "recapSellNote": "Ce qui ne trouve pas d'acheteur attend dans le carnet ; le stock proposé y reste réservé jusqu'à la vente ou l'annulation.",
-    "recapBuyNote": "L'achat ne dépense jamais plus que la trésorerie ; ce qui attend dans le carnet a son prix retenu au séquestre jusqu'à l'exécution ou l'annulation."
+    "recapBuyNote": "L'achat ne dépense jamais plus que la trésorerie ; ce qui attend dans le carnet a son prix retenu au séquestre jusqu'à l'exécution ou l'annulation.",
+    "bestBuy": "Meilleur achat",
+    "bestSell": "Meilleure vente",
+    "bestNone": "aucun"
   },
   "goods": {
     "wheat": "Blé",

@@ -702,7 +702,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
 
   // Une vente de blé, à un prix que les PNJ n'atteignent pas : elle attend dans le carnet.
   await good.selectOption({ label: 'Blé' });
-  await expect(page.getByRole('heading', { name: 'Déposer un ordre : Blé' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Blé', exact: true })).toBeVisible();
   await fillOrder(page, 'Vendre', 30, 900);
   await page.keyboard.press('Enter');
   await placeOrder(page);

@@ -1,5 +1,5 @@
 import type { MarketPlaceOrderInput } from '@oikos/contracts';
-import { Badge, Button, Card, Scale, StatusRegion, Store } from '@oikos/ui';
+import { Badge, Button, Card, GoodIcon, Select, StatusRegion } from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -12,8 +12,9 @@ import fr from '../locales/fr.json';
 import { parseCandleSeconds } from '../price-history';
 import { AgoraOrderSheet, type Side } from './AgoraOrderSheet';
 import { PriceChart, PriceQuote, usePriceHistory } from './PriceHistory';
-import { useMoney } from '../money';
+import { formatOboles, useMoney } from '../money';
 import { bestOpposite } from '../order-book';
+import { ScreenHeader } from '../ScreenHeader';
 
 /**
  * Biens proposés : ceux qui ont un nom (un test tient les traductions alignées sur la configuration).
@@ -21,10 +22,6 @@ import { bestOpposite } from '../order-book';
  */
 const GOOD_IDS = Object.keys(fr.goods);
 const DEFAULT_GOOD = 'wheat';
-const CONTROL =
-  'min-h-11 w-full rounded-md border border-border bg-surface-raised px-3 text-foreground ' +
-  'transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground/60';
-const LABEL = 'text-sm font-medium';
 /** Part de la quantité du niveau le plus fourni, en pourcentage : la profondeur du carnet, en fond de ligne. */
 const depthOf = (quantity: number, deepest: number) => Math.round((quantity / deepest) * 100);
 
@@ -163,6 +160,11 @@ export function AgoraScreen() {
       (side === 'sell' ? bids : asks) ?? [],
       (mine.rows ?? []).filter((order) => order.good_id === goodId && order.side !== side),
     );
+  // En tête de la fiche du bien : le premier niveau de chaque côté du carnet public.
+  const tops = [
+    ['bestBuy', bids?.[0]],
+    ['bestSell', asks?.[0]],
+  ] as const;
   const reloadAll = () =>
     Promise.all([
       book.reload(),
@@ -235,23 +237,35 @@ export function AgoraScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card elevation="raised" className="flex flex-col gap-3 overflow-hidden p-0">
-        <div className="flex flex-col gap-3 p-4">
-          {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
-          <h1 className="text-2xl">
-            <Store aria-hidden="true" className="mr-2 inline size-6 align-[-0.15em] text-accent" />
-            {t('agora.title', { city: cityName })}
-          </h1>
-          {cityIds.length > 1 && (
-            <>
-              <label htmlFor="city" className={LABEL}>
-                {t('agora.city')}
-              </label>
-              <select
-                className={CONTROL}
+      <ScreenHeader
+        title={t('agora.title', { city: cityName })}
+        action={
+          // Pas de changement de marché pendant qu'une commande est en route : son résultat et le carnet
+          // relu ensuite portent sur le bien et la cité affichés.
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-flow-col sm:auto-cols-[12rem]">
+            <Select
+              id="good"
+              label={t('agora.good')}
+              quiet
+              value={goodId}
+              disabled={busy}
+              onChange={(event) => {
+                setGoodId(event.target.value);
+                setNotice(null);
+              }}
+            >
+              {GOOD_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {t(`goods.${id}`)}
+                </option>
+              ))}
+            </Select>
+            {cityIds.length > 1 && (
+              <Select
                 id="city"
+                label={t('agora.city')}
+                quiet
                 value={cityId}
-                // Comme le bien : pas de changement de marché pendant qu'une commande est en route.
                 disabled={busy}
                 onChange={(event) => {
                   setChosenCity(event.target.value);
@@ -263,33 +277,11 @@ export function AgoraScreen() {
                     {nameOf(id)}
                   </option>
                 ))}
-              </select>
-            </>
-          )}
-          <label htmlFor="good" className={LABEL}>
-            {t('agora.good')}
-          </label>
-          <select
-            className={CONTROL}
-            id="good"
-            value={goodId}
-            // Pas de changement de bien pendant qu'une commande est en route : son résultat et le carnet
-            // relu ensuite portent sur le bien affiché.
-            disabled={busy}
-            onChange={(event) => {
-              setGoodId(event.target.value);
-              setNotice(null);
-            }}
-          >
-            {GOOD_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t(`goods.${id}`)}
-              </option>
-            ))}
-          </select>
-          <PriceQuote history={history} />
-        </div>
-      </Card>
+              </Select>
+            )}
+          </div>
+        }
+      />
       {(book.failed ||
         mine.failed ||
         rules.failed ||
@@ -300,93 +292,171 @@ export function AgoraScreen() {
         <LoadProblem heading={bookTitle} onRetry={reloadAll} />
       )}
 
-      {candleSeconds && <PriceChart history={history} />}
-
-      <Card className="flex flex-col gap-3">
-        <h2 ref={bookTitle} tabIndex={-1} className="text-xl">
-          {t('agora.book', { good })}
-        </h2>
-        {book.rows === null && !book.failed && <Loading />}
-        {book.rows !== null && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {(
-              [
-                ['asks', asks, 'bookCaption', 'offered', 'bookEmpty', 'danger'],
-                ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty', 'success'],
-              ] as const
-            ).map(([key, levels, caption, column, empty, tone]) => {
-              const deepest = Math.max(1, ...(levels ?? []).map((level) => level.quantity));
-              return levels?.length === 0 ? (
-                <p
-                  key={key}
-                  className="rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground"
-                >
-                  {t(`agora.${empty}`)}
-                </p>
-              ) : (
-                // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
-                // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-                <div key={key} className="overflow-x-auto rounded-lg bg-muted/40 p-2">
-                  <table className="w-full text-left tabular-nums">
-                    <caption className="px-2 pb-2 text-left text-sm text-muted-foreground">
-                      {t(`agora.${caption}`)}
-                    </caption>
-                    <thead>
-                      <tr className="border-b border-border-subtle">
-                        <th scope="col" className="eyebrow px-2 py-1 font-semibold">
-                          {t('agora.price')}
-                        </th>
-                        <th scope="col" className="eyebrow px-2 py-1 text-right font-semibold">
-                          {t(`agora.${column}`)}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {levels?.map((level) => (
-                        <tr key={level.price} className="border-b border-border-subtle/60">
-                          <td className="px-2 py-1.5 font-semibold whitespace-nowrap">
-                            {number.format(level.price)}
-                          </td>
-                          <td
-                            className="px-2 py-1.5 text-right whitespace-nowrap"
-                            // Profondeur du niveau : une barre qui part de la droite, sous le chiffre.
-                            style={{
-                              backgroundImage: `linear-gradient(to left, var(--${tone}-subtle) ${depthOf(level.quantity, deepest)}%, transparent ${depthOf(level.quantity, deepest)}%)`,
-                            }}
-                          >
-                            {number.format(level.quantity)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+      {/* Téléphone : une colonne. Ordinateur : bien et carnet à gauche, chandeliers et ordres à droite. */}
+      <div className="grid grid-cols-1 gap-4 [overflow-wrap:anywhere] lg:grid-cols-2">
+        <Card elevation="raised" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <GoodIcon goodId={goodId} size={48} className="size-14 rounded-2xl bg-muted p-1" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <h2 className="text-xl font-bold">{good}</h2>
+              <p className="text-sm text-muted-foreground">
+                {stock.rows === null
+                  ? cityName
+                  : t('agora.freeStock', {
+                      quantity: number.format(freeOf(stock.rows)),
+                      good,
+                      city: cityName,
+                    })}
+              </p>
+            </div>
+          </div>
+          <PriceQuote history={history} />
+          <div className="mt-auto">
+            <dl className="mb-3 flex flex-wrap gap-2 text-sm *:flex-1 *:basis-32">
+              {tops.map(([key, level]) => (
+                <div key={key} className="rounded-lg bg-muted px-3 py-2">
+                  <dt className="text-muted-foreground">{t(`agora.${key}`)}</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {level ? formatOboles(level.price, t, i18n.language) : t('agora.bestNone')}
+                  </dd>
                 </div>
+              ))}
+            </dl>
+            <div className="flex flex-wrap gap-2 *:flex-1 *:basis-32">
+              {(['sell', 'buy'] as const).map((choice) => (
+                <Button
+                  key={choice}
+                  variant={choice === 'sell' ? 'primary' : 'secondary'}
+                  disabled={busy}
+                  onClick={() => void openSheet(choice)}
+                >
+                  {t(`agora.${choice}`)}
+                </Button>
+              ))}
+            </div>
+            <Notices notice={notice} where="place" status={placed} />
+          </div>
+        </Card>
+
+        {candleSeconds && <PriceChart history={history} />}
+
+        <Card className="@container flex flex-col gap-3">
+          <h2 ref={bookTitle} tabIndex={-1} className="text-lg">
+            {t('agora.book', { good })}
+          </h2>
+          {book.rows === null && !book.failed && <Loading />}
+          {book.rows !== null && (
+            <div className="grid gap-3 @md:grid-cols-2">
+              {(
+                [
+                  ['asks', asks, 'bookCaption', 'offered', 'bookEmpty', 'danger'],
+                  ['bids', bids, 'bidsCaption', 'wanted', 'bidsEmpty', 'success'],
+                ] as const
+              ).map(([key, levels, caption, column, empty, tone]) => {
+                const deepest = Math.max(1, ...(levels ?? []).map((level) => level.quantity));
+                return levels?.length === 0 ? (
+                  <p
+                    key={key}
+                    className="rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground"
+                  >
+                    {t(`agora.${empty}`)}
+                  </p>
+                ) : (
+                  // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
+                  // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
+                  <div key={key} className="overflow-x-auto rounded-lg bg-muted/40 p-2">
+                    <table className="w-full text-left tabular-nums">
+                      <caption className="px-2 pb-2 text-left text-sm text-muted-foreground">
+                        {t(`agora.${caption}`)}
+                      </caption>
+                      <thead>
+                        <tr className="border-b border-border-subtle">
+                          <th scope="col" className="eyebrow px-2 py-1 font-semibold">
+                            {t('agora.price')}
+                          </th>
+                          <th scope="col" className="eyebrow px-2 py-1 text-right font-semibold">
+                            {t(`agora.${column}`)}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {levels?.map((level) => (
+                          <tr key={level.price} className="border-b border-border-subtle/60">
+                            <td className="px-2 py-1.5 font-semibold whitespace-nowrap">
+                              {number.format(level.price)}
+                            </td>
+                            <td
+                              className="px-2 py-1.5 text-right whitespace-nowrap"
+                              // Profondeur du niveau : une barre qui part de la droite, sous le chiffre.
+                              style={{
+                                backgroundImage: `linear-gradient(to left, var(--${tone}-subtle) ${depthOf(level.quantity, deepest)}%, transparent ${depthOf(level.quantity, deepest)}%)`,
+                              }}
+                            >
+                              {number.format(level.quantity)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-lg">{t('agora.myOrders')}</h2>
+          {mine.rows === null && !mine.failed && <Loading />}
+          {mine.rows?.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
+              {t('agora.myOrdersEmpty')}
+            </p>
+          )}
+          <ul className="flex flex-col divide-y divide-border-subtle">
+            {mine.rows?.map((order) => {
+              const values = {
+                good: t(`goods.${order.good_id}`),
+                remaining: number.format(order.remaining),
+                quantity: number.format(order.quantity),
+                price: money(order.price),
+                held: money(order.price * order.remaining),
+              };
+              const buying = order.side === 'buy';
+              return (
+                <li key={order.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+                  <GoodIcon goodId={order.good_id} className="text-muted-foreground" />
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                    <Badge tone={buying ? 'success' : 'primary'}>
+                      {t(buying ? 'agora.sideBuy' : 'agora.sideSell')}
+                    </Badge>
+                    <span className="tabular-nums">
+                      {t('agora.myOrder', values)}
+                      {buying && (
+                        <span className="block text-sm text-muted-foreground">
+                          {` (${t('agora.myOrderHeld', values)})`}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    aria-label={t(buying ? 'agora.cancelBuyOrder' : 'agora.cancelOrder', values)}
+                    onClick={() => void cancel(order)}
+                  >
+                    {t('agora.cancel')}
+                  </Button>
+                </li>
               );
             })}
+          </ul>
+          <div className="-mt-3">
+            <Notices notice={notice} where="cancel" status={cancelled} />
           </div>
-        )}
-      </Card>
-
-      <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">
-          <Scale aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-          {t('agora.place', { good })}
-        </h2>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          {(['sell', 'buy'] as const).map((choice) => (
-            <Button
-              key={choice}
-              size="lg"
-              variant={choice === 'sell' ? 'primary' : 'secondary'}
-              disabled={busy}
-              onClick={() => void openSheet(choice)}
-            >
-              {t(`agora.${choice}`)}
-            </Button>
-          ))}
-        </div>
-        <Notices notice={notice} where="place" status={placed} />
-      </Card>
+        </Card>
+      </div>
       <AgoraOrderSheet
         // Saisie propre à un marché : un autre bien ou une autre cité repart d'une feuille vide.
         key={`${cityId}:${goodId}`}
@@ -401,56 +471,12 @@ export function AgoraScreen() {
         best={best}
         onPlace={place}
       />
-
-      <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('agora.myOrders')}</h2>
-        {mine.rows === null && !mine.failed && <Loading />}
-        {mine.rows?.length === 0 && (
-          <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-            {t('agora.myOrdersEmpty')}
-          </p>
-        )}
-        <ul className="flex flex-col gap-2">
-          {mine.rows?.map((order) => {
-            const values = {
-              good: t(`goods.${order.good_id}`),
-              remaining: number.format(order.remaining),
-              quantity: number.format(order.quantity),
-              price: money(order.price),
-              held: money(order.price * order.remaining),
-            };
-            const buying = order.side === 'buy';
-            return (
-              <li
-                key={order.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 p-3"
-              >
-                <span className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Badge tone={buying ? 'success' : 'primary'}>
-                    {t(buying ? 'agora.sideBuy' : 'agora.sideSell')}
-                  </Badge>
-                  <span>
-                    {t('agora.myOrder', values)}
-                    {buying && ` (${t('agora.myOrderHeld', values)})`}
-                  </span>
-                </span>
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  aria-label={t(buying ? 'agora.cancelBuyOrder' : 'agora.cancelOrder', values)}
-                  onClick={() => void cancel(order)}
-                >
-                  {t('agora.cancel')}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-        <Notices notice={notice} where="cancel" status={cancelled} />
-      </Card>
     </div>
   );
 }
+
+/** Une région vide ne prend pas de place ; remplie, elle se détache de ce qui la précède. */
+const SPACED = 'has-[p]:mt-3 [overflow-wrap:anywhere]';
 
 /** Régions vivantes d'un endroit, présentes avant tout résultat : succès poli, refus en alerte. */
 function Notices(props: {
@@ -461,10 +487,10 @@ function Notices(props: {
   const here = props.notice?.where === props.where ? props.notice : null;
   return (
     <>
-      <StatusRegion ref={props.status} tone="success">
+      <StatusRegion ref={props.status} tone="success" className={SPACED}>
         {here?.kind === 'status' && here.text}
       </StatusRegion>
-      <StatusRegion role="alert" tone="danger">
+      <StatusRegion role="alert" tone="danger" className={SPACED}>
         {here?.kind === 'alert' && here.text}
       </StatusRegion>
     </>
