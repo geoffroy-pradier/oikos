@@ -73,6 +73,7 @@ const navigate = vi.hoisted(() => vi.fn());
 vi.mock('./router', () => ({ router: { navigate } }));
 vi.mock('./data', () => ({
   useRows: () => ({ rows: null, failed: false, reload: () => undefined }),
+  useSiteRules: () => ({ rules: null }),
 }));
 const { App } = await import('./App');
 const { forgetRenewals } = await import('./session');

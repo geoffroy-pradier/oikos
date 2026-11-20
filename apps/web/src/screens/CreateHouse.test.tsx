@@ -14,6 +14,7 @@ vi.mock('../api', () => ({
 }));
 vi.mock('../data', () => ({
   useRows: () => ({ rows: null, failed: false, reload: () => undefined }),
+  useSiteRules: () => ({ rules: null }),
 }));
 const { CreateHouse } = await import('./CreateHouse');
 

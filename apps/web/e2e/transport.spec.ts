@@ -153,3 +153,55 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   );
   await expect(page.getByText('à quai à Elaia')).toBeVisible();
 });
+
+test('fonder dans une cité nouvelle, choisie par son dieu, puis partir vers une voisine (#707)', async ({
+  page,
+}) => {
+  const id = randomUUID();
+  const houseName = `Messagers ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
+  await signIn(page, `e2e-${id}@example.test`);
+  const name = page.getByLabel('Nom de la maison');
+  await name.fill(houseName);
+  await name.press('Enter');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  // La liste des douze cités se filtre par dieu protecteur : Hermès protège Emporion seule.
+  const cities = page.getByRole('group', { name: "Cité d'accueil" }).getByRole('radio');
+  await expect(cities).toHaveCount(12);
+  await page.getByLabel('Dieu protecteur').selectOption({ label: 'Hermès' });
+  await expect(cities).toHaveCount(1);
+  await expect(page.getByText('1 cité sur 12')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.getByRole('radio', { name: 'Emporion', exact: true }).check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Fonder la maison' }).click();
+  await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
+
+  // Un caboteur à quai à Emporion : la feuille de départ ne propose que ses quatre voisines.
+  await page
+    .getByRole('navigation', { name: 'Navigation principale' })
+    .getByRole('link', { name: 'Carte' })
+    .click();
+  await page.getByRole('button', { name: 'Acheter — 400 drachmes' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: "Confirmer l'achat — 400 drachmes" })
+    .click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'à quai à Emporion' })).toBeVisible();
+  await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
+  await page.getByRole('button', { name: 'Préparer un départ' }).click();
+  const destinations = page.getByRole('group', { name: 'Destination' }).locator('label');
+  await expect(destinations).toHaveCount(4);
+  expect((await destinations.allTextContents()).map((text) => text.split(' — ')[0])).toEqual([
+    'Halos',
+    'Kallistè',
+    'Elaia',
+    'Gamelia',
+  ]);
+  await page.getByRole('radio', { name: /^Gamelia — 4 h de mer/ }).check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: /^Partir vers Gamelia/ }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Caboteur est parti vers Gamelia' }),
+  ).toBeVisible();
+});

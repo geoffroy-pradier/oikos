@@ -55,7 +55,17 @@
     "summaryIntro": "Relisez avant de fonder : vous pouvez encore revenir en arrière.",
     "summaryName": "Maison",
     "summaryBlazon": "Blason",
-    "summaryCity": "Cité d'accueil"
+    "summaryCity": "Cité d'accueil",
+    "filterGod": "Dieu protecteur",
+    "filterRaw": "Matière première",
+    "allGods": "Tous les dieux",
+    "allRaws": "Toutes les matières premières",
+    "cityCount_one": "{{count}} cité",
+    "cityCount_other": "{{count}} cités",
+    "cityShown_one": "{{count}} cité sur {{total}}",
+    "cityShown_other": "{{count}} cités sur {{total}}",
+    "clearFilters": "Retirer les filtres",
+    "cityShown_zero": "Aucune cité ne répond à ces filtres."
   },
   "home": {
     "title": "Maison {{name}}",

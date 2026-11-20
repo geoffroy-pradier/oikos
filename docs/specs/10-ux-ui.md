@@ -39,6 +39,8 @@ Tout autre refus reste affiché sur le récapitulatif.
 Sous 768 px la vignette se place à gauche du texte, au-delà elle le surmonte.
 La carte choisie se reconnaît à sa bordure de 2 px, son fond léger et sa coche ; le foyer clavier s'affiche sur la carte.
 Le nom accessible de la carte est celui de la cité seule, et sa description reprend en texte dieu, port, terroir et premier site.
+Douze cités (#707) : au-dessus des cartes, deux listes de choix filtrent les cités par dieu protecteur et par matière première du terroir (nommée par son bien), et une région polie dit combien de cités sont montrées.
+Sans cité qui réponde, un bouton retire les filtres ; une cité choisie puis cachée par un filtre reste choisie, et le récapitulatif la nomme.
 Le récapitulatif reprend le nom, le blason, la cité et son dieu protecteur.
 Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres commandes.
 
