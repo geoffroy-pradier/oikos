@@ -1256,6 +1256,29 @@
     "readyHint_one": "site prêt",
     "readyHint_other": "sites prêts",
     "daily": "Coût d'un jour",
-    "dailyHint": "des sites qui tournent, prélevé à la clôture"
+    "dailyHint": "des sites qui tournent, prélevé à la clôture",
+    "acquire": {
+      "choose": "Production",
+      "summary": "Récapitulatif",
+      "site": "Site",
+      "cycle": "Un cycle ({{duration}})",
+      "hours_one": "{{number}} heure",
+      "hours_other": "{{number}} heures",
+      "minutes": "{{number}} minutes",
+      "workers": "Travailleurs",
+      "upkeep": "Entretien par jour",
+      "cost": "Prix",
+      "after": "Trésorerie après l'achat",
+      "confirm": "Acquérir pour {{cost}}",
+      "description_one": "Votre maison exploite {{number}} site sur {{limit}}. Le prix est celui affiché.",
+      "description_other": "Votre maison exploite {{number}} sites sur {{limit}}. Le prix est celui affiché.",
+      "inputs": "Intrants par cycle"
+    }
+  },
+  "steps": {
+    "progress": "Étapes",
+    "back": "Retour",
+    "next": "Continuer",
+    "stepOf": "Étape {{current}} sur {{total}}"
   }
 }

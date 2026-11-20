@@ -1256,6 +1256,29 @@
     "readyHint_one": "site ready",
     "readyHint_other": "sites ready",
     "daily": "Daily cost",
-    "dailyHint": "of running sites, taken at the daily close"
+    "dailyHint": "of running sites, taken at the daily close",
+    "acquire": {
+      "choose": "Production",
+      "summary": "Summary",
+      "site": "Site",
+      "cycle": "One cycle ({{duration}})",
+      "hours_one": "{{number}} hour",
+      "hours_other": "{{number}} hours",
+      "minutes": "{{number}} minutes",
+      "workers": "Workers",
+      "upkeep": "Upkeep per day",
+      "cost": "Price",
+      "after": "Treasury after purchase",
+      "confirm": "Acquire for {{cost}}",
+      "description_one": "Your house runs {{number}} of {{limit}} sites. The price is the one shown.",
+      "description_other": "Your house runs {{number}} of {{limit}} sites. The price is the one shown.",
+      "inputs": "Inputs per cycle"
+    }
+  },
+  "steps": {
+    "progress": "Steps",
+    "back": "Back",
+    "next": "Continue",
+    "stepOf": "Step {{current}} of {{total}}"
   }
 }
