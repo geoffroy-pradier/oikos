@@ -449,7 +449,11 @@
     "appealBody": "Appel du {{date}} : {{body}}",
     "line": "{{date}} · {{house}} :",
     "reportLine": "{{reason}} ({{date}})",
-    "sinceChannel": "{{since}} · {{channel}}"
+    "sinceChannel": "{{since}} · {{channel}}",
+    "close": "Fermer",
+    "filter": "Filtrer par maison",
+    "filtered_one": "{{count}} affiché.",
+    "filtered_other": "{{count}} affichés."
   },
   "events": {
     "title": "Calendrier des événements",

@@ -87,6 +87,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Carnet d'ordres de l'agora : quantité d'un niveau sur la barre de profondeur de son côté.
   ['foreground', 'success-subtle', AA_TEXT],
   ['foreground', 'danger-subtle', AA_TEXT],
+  // Olympe : le message signalé, sur fond de danger, garde sa date et sa maison en texte atténué.
+  ['muted-foreground', 'danger-subtle', AA_TEXT],
   ['success', 'surface', AA_TEXT],
   ['primary', 'background', AA_TEXT],
   ['primary', 'surface', AA_TEXT],

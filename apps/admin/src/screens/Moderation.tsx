@@ -1,12 +1,12 @@
 import { SANCTION_REASON_MAX_CHARS, type AdminReports } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
-import { useRef, useState, type ReactNode } from 'react';
+import { Button, cn, PageHeader, RefreshCw, Search, Sheet } from '@oikos/ui';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
 import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { hoursSince, staleReportHours } from '../moderation-age';
-import { ALERT } from '../ui';
+import { ALERT, CONTROL } from '../ui';
 import { useAdmin } from '../useAdmin';
 
 type Entry = AdminReports['queue'][number];
@@ -71,6 +71,20 @@ export function Moderation({ accessToken }: { accessToken: string }) {
   const [notice, setNotice] = useState<Notice>(null);
   // Intention en attente de réponse : le même geste renvoyé après une panne réutilise sa clé.
   const pending = useRef<{ intent: string; key: string } | null>(null);
+  /** Maison cherchée dans la file : seules les entrées dont le nom la contient restent affichées. */
+  const [filter, setFilter] = useState('');
+  /**
+   * Geste réussi : le foyer va au titre. Posé par un effet, après la fermeture de la feuille, qui rend sinon
+   * le foyer au bouton qui l'a ouverte.
+   */
+  const [toTitle, setToTitle] = useState(0);
+  useEffect(() => {
+    if (toTitle > 0) title.current?.focus();
+  }, [toTitle]);
+  // Geste de la file annulé ou refusé : son bouton reprend le foyer, après la fermeture de la feuille.
+  useEffect(() => {
+    if (returnTo) document.getElementById(`gesture-${returnTo}`)?.focus();
+  }, [returnTo]);
 
   /** `refusals` : messages propres au geste, lus avant ceux de la modération (`moderation.errors`). */
   async function run(name: string, input: unknown, done: string, refusals?: string) {
@@ -165,11 +179,15 @@ export function Moderation({ accessToken }: { accessToken: string }) {
     }
     if (ok) {
       setOpen(null);
-      title.current?.focus();
+      setToTitle((count) => count + 1);
     } else if (!SANCTIONS.includes(gesture)) {
       // Refus d'un geste simple : le foyer revient à son bouton. Une sanction refusée garde ses champs à corriger.
       setOpen(null);
       setReturnTo(`${open?.scope}:${gesture}`);
+    } else {
+      // Sanction refusée : la feuille reste ouverte, ses champs à corriger ; le foyer revient à « Confirmer »,
+      // inactif pendant l'envoi, par l'effet qui suit le rendu.
+      setReturnTo(`${open?.scope}:confirm`);
     }
   }
 
@@ -220,6 +238,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       <Confirmation
         key={gesture}
         id={`confirm-${sanctionId}`}
+        scope={sanctionId}
         sentence={t(`moderation.confirm.${gesture}`, { userId })}
         confirmLabel={t(`moderation.confirmLabel.${gesture}`)}
         busy={busy}
@@ -241,46 +260,74 @@ export function Moderation({ accessToken }: { accessToken: string }) {
 
   const stale = staleReportHours(data);
   const queue = data?.queue ?? [];
+  const needle = filter.trim().toLocaleLowerCase(i18n.language);
+  const shown = queue.filter((entry) =>
+    entry.reportedHouse.name.toLocaleLowerCase(i18n.language).includes(needle),
+  );
   // Absentes d'une API antérieure à ces champs (#616, #636) : les listes sont alors vides.
   const lifts = data?.pendingLifts ?? [];
   const active = data?.activeExclusions ?? [];
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 ref={title} tabIndex={-1} className="text-2xl">
-          {t('moderation.title')}
-        </h1>
-        <Button variant="secondary" disabled={busy} onClick={() => void reload()}>
-          {t('app.refresh')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('moderation.title')}
+        titleRef={title}
+        action={
+          <Button
+            variant="secondary"
+            icon={<RefreshCw aria-hidden="true" />}
+            disabled={busy}
+            onClick={() => void reload()}
+          >
+            {t('app.refresh')}
+          </Button>
+        }
+      />
       {error && (
         <LoadError code={error} onRetry={() => void reload().then(() => title.current?.focus())} />
       )}
       {!data && !error && <p>{t('app.loading')}</p>}
       <StaleReportsAlert hours={stale} limit={data?.staleAfterHours ?? 0} />
       {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
-      <div
-        role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
-      >
-        {notice?.text}
-      </div>
+      <Notice notice={notice} />
       {data && (
         <>
-          <h2 id="moderation-queue" className="text-xl">
-            {t('moderation.queue')}
-          </h2>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <h2 id="moderation-queue" className="text-lg">
+              {t('moderation.queue')}
+            </h2>
+            {queue.length > 0 && (
+              <div className="relative w-full sm:w-64">
+                <label htmlFor="moderation-filter" className="sr-only">
+                  {t('moderation.filter')}
+                </label>
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  id="moderation-filter"
+                  type="search"
+                  className={`${CONTROL} min-h-11 pl-9 text-sm`}
+                  placeholder={t('moderation.filter')}
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                />
+              </div>
+            )}
+          </div>
           {queue.length === 0 ? (
             <p className="text-muted-foreground">{t('moderation.queueEmpty')}</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 {t('moderation.queueCaption', { count: queue.length })}
+                {shown.length < queue.length &&
+                  ` ${t('moderation.filtered', { count: shown.length })}`}
               </p>
               <ol aria-labelledby="moderation-queue" className="flex flex-col gap-4">
-                {queue.map((entry) => {
+                {shown.map((entry) => {
                   const scope = entry.reports[0]?.id ?? '';
                   const oldest = entry.reports.reduce(
                     (min, report) => (report.createdAt < min ? report.createdAt : min),
@@ -290,8 +337,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                   const asked = open?.scope === scope ? open.gesture : null;
                   const ask = (gesture: Gesture, label: string, variant?: 'secondary') => (
                     <Button
+                      id={`gesture-${scope}:${gesture}`}
                       variant={variant ?? 'secondary'}
-                      autoFocus={returnTo === `${scope}:${gesture}`}
+                      aria-haspopup="dialog"
                       disabled={busy}
                       onClick={() => begin(scope, gesture)}
                     >
@@ -315,12 +363,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                       : t('moderation.channelDirect')
                     : null;
                   return (
-                    <li
-                      key={scope}
-                      aria-labelledby={`entry-${scope}`}
-                      className="flex flex-col gap-2 rounded-md border border-border p-3"
-                    >
-                      <h3 id={`entry-${scope}`} className="text-lg font-semibold wrap-anywhere">
+                    <li key={scope} aria-labelledby={`entry-${scope}`} className={CARD}>
+                      <h3 id={`entry-${scope}`} className="text-base font-semibold wrap-anywhere">
                         {t('moderation.entry', { house, count: entry.reports.length })}
                       </h3>
                       <p className="text-sm text-muted-foreground">
@@ -341,14 +385,14 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                       {entry.message ? (
                         <ol
                           aria-label={t('moderation.conversation')}
-                          className="flex flex-col gap-1 rounded-md bg-surface p-2 text-sm"
+                          className="flex flex-col gap-1 rounded-lg bg-surface-raised p-3 text-sm"
                         >
                           {thread.map((m) => (
                             <li
                               key={m.id}
                               className={
                                 m.id === entry.message?.id
-                                  ? 'border-l-4 border-danger pl-2 font-semibold wrap-anywhere'
+                                  ? 'rounded-r-md border-l-4 border-danger bg-danger-subtle py-1 pl-2 font-semibold wrap-anywhere'
                                   : 'pl-3 wrap-anywhere'
                               }
                             >
@@ -367,71 +411,94 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                       ) : (
                         <p className="text-sm text-muted-foreground">{t('moderation.purged')}</p>
                       )}
-                      {asked ? (
-                        <Confirmation
-                          id={`confirm-${scope}`}
-                          sentence={t(`moderation.confirm.${asked}`, { house })}
-                          confirmLabel={t(`moderation.confirmLabel.${asked}`)}
-                          busy={busy}
-                          fields={SANCTIONS.includes(asked)}
-                          onConfirm={() => void confirm(entry, asked)}
-                          onCancel={cancel}
-                        >
-                          {asked !== 'ban' && (
-                            <Durations
-                              hours={offeredHours(data, asked)}
-                              value={duration}
-                              invalid={invalid.hours === true}
-                              onChange={setDuration}
-                            />
-                          )}
-                          <label htmlFor="moderation-reason" className="font-medium">
-                            {t('moderation.reason')}
-                          </label>
-                          <textarea
-                            id="moderation-reason"
-                            className="min-h-24 w-full rounded-md border border-border bg-surface p-2"
-                            maxLength={SANCTION_REASON_MAX_CHARS}
-                            autoFocus={asked === 'ban'}
-                            aria-invalid={invalid.reason ? true : undefined}
-                            aria-describedby="moderation-reason-hint"
-                            value={reason}
-                            onChange={(event) => setReason(event.target.value)}
-                          />
-                          <p id="moderation-reason-hint" className="text-sm text-muted-foreground">
-                            {t('moderation.reasonHint')}
-                          </p>
-                          {invalid.reason && (
-                            <p role="alert" className="text-sm font-semibold text-danger">
-                              {t('moderation.reasonInvalid')}
-                            </p>
-                          )}
-                        </Confirmation>
-                      ) : (
-                        <div
-                          role="group"
-                          aria-label={t('moderation.actions', { house })}
-                          className="flex flex-wrap gap-2"
-                          onKeyDown={ignoreHeldEnter}
-                        >
-                          {entry.message &&
-                            !entry.message.hiddenAt &&
-                            ask('hide', t('moderation.act.hide'))}
-                          {ask('warning', t('moderation.act.warning'))}
-                          {ask('silence', t('moderation.act.silence'))}
-                          {ask('suspension', t('moderation.act.suspension'))}
-                          {ask('ban', t('moderation.act.ban'))}
-                          {ask('upheld', t('moderation.act.upheld'))}
-                          {ask('dismissed', t('moderation.act.dismissed'))}
-                        </div>
-                      )}
+                      <Sheet
+                        open={asked !== null}
+                        // Commande en vol : ni Échap ni le voile ne referment la feuille (doc de `Sheet`).
+                        onClose={() => !busy && cancel()}
+                        closeDisabled={busy}
+                        closeLabel={t('moderation.close')}
+                        title={asked && t(`moderation.act.${asked}`)}
+                        description={t('moderation.entry', { house, count: entry.reports.length })}
+                      >
+                        {entry.message && (
+                          <blockquote className="mb-4 rounded-lg border-l-4 border-danger bg-danger-subtle px-3 py-2 text-sm wrap-anywhere">
+                            {entry.message.body}
+                          </blockquote>
+                        )}
+                        {asked && <Notice notice={notice} />}
+                        {asked && (
+                          <Confirmation
+                            id={`confirm-${scope}`}
+                            scope={scope}
+                            sentence={t(`moderation.confirm.${asked}`, { house })}
+                            confirmLabel={t(`moderation.confirmLabel.${asked}`)}
+                            busy={busy}
+                            fields={SANCTIONS.includes(asked)}
+                            onConfirm={() => void confirm(entry, asked)}
+                            onCancel={cancel}
+                          >
+                            {SANCTIONS.includes(asked) && asked !== 'ban' && (
+                              <Durations
+                                hours={offeredHours(data, asked)}
+                                value={duration}
+                                invalid={invalid.hours === true}
+                                onChange={setDuration}
+                              />
+                            )}
+                            {SANCTIONS.includes(asked) && (
+                              <>
+                                <label htmlFor="moderation-reason" className="font-medium">
+                                  {t('moderation.reason')}
+                                </label>
+                                <textarea
+                                  id="moderation-reason"
+                                  className={`${CONTROL} min-h-28 py-2.5`}
+                                  maxLength={SANCTION_REASON_MAX_CHARS}
+                                  autoFocus={asked === 'ban'}
+                                  aria-invalid={invalid.reason ? true : undefined}
+                                  aria-describedby="moderation-reason-hint"
+                                  value={reason}
+                                  onChange={(event) => setReason(event.target.value)}
+                                />
+                                <p
+                                  id="moderation-reason-hint"
+                                  className="text-sm text-muted-foreground"
+                                >
+                                  {t('moderation.reasonHint')}
+                                </p>
+                                {invalid.reason && (
+                                  <p role="alert" className="text-sm font-semibold text-danger">
+                                    {t('moderation.reasonInvalid')}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </Confirmation>
+                        )}
+                      </Sheet>
+                      <div
+                        role="group"
+                        aria-label={t('moderation.actions', { house })}
+                        className="flex flex-wrap gap-2"
+                        onKeyDown={ignoreHeldEnter}
+                      >
+                        {entry.message &&
+                          !entry.message.hiddenAt &&
+                          ask('hide', t('moderation.act.hide'))}
+                        {ask('warning', t('moderation.act.warning'))}
+                        {ask('silence', t('moderation.act.silence'))}
+                        {ask('suspension', t('moderation.act.suspension'))}
+                        {ask('ban', t('moderation.act.ban'))}
+                        {ask('upheld', t('moderation.act.upheld'))}
+                        {ask('dismissed', t('moderation.act.dismissed'))}
+                      </div>
                     </li>
                   );
                 })}
               </ol>
             </>
           )}
-          <h2 id="moderation-exclusions" className="text-xl">
+          <h2 id="moderation-exclusions" className="text-lg">
             {t('moderation.exclusions')}
           </h2>
           {data.pendingExclusions.length === 0 ? (
@@ -439,10 +506,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
           ) : (
             <ul aria-labelledby="moderation-exclusions" className="flex flex-col gap-3">
               {data.pendingExclusions.map((item) => (
-                <li
-                  key={item.sanctionId}
-                  className="flex flex-col gap-2 rounded-md border border-border p-3"
-                >
+                <li key={item.sanctionId} className={CARD}>
                   <p className="font-semibold wrap-anywhere">
                     {t('moderation.exclusionOf')} <code className="break-all">{item.userId}</code>
                   </p>
@@ -463,7 +527,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-active" className="text-xl">
+          <h2 id="moderation-active" className="text-lg">
             {t('moderation.active')}
           </h2>
           {active.length === 0 ? (
@@ -471,10 +535,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
           ) : (
             <ul aria-labelledby="moderation-active" className="flex flex-col gap-3">
               {active.map((item) => (
-                <li
-                  key={item.sanctionId}
-                  className="flex flex-col gap-2 rounded-md border border-border p-3"
-                >
+                <li key={item.sanctionId} className={CARD}>
                   <p className="font-semibold wrap-anywhere">
                     {t('moderation.activeOf')} <code className="break-all">{item.userId}</code>
                   </p>
@@ -495,7 +556,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-lifts" className="text-xl">
+          <h2 id="moderation-lifts" className="text-lg">
             {t('moderation.lifts')}
           </h2>
           {lifts.length === 0 ? (
@@ -503,10 +564,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
           ) : (
             <ul aria-labelledby="moderation-lifts" className="flex flex-col gap-3">
               {lifts.map((item) => (
-                <li
-                  key={item.sanctionId}
-                  className="flex flex-col gap-2 rounded-md border border-border p-3"
-                >
+                <li key={item.sanctionId} className={CARD}>
                   <p className="font-semibold wrap-anywhere">
                     {t('moderation.liftOf')} <code className="break-all">{item.userId}</code>
                   </p>
@@ -533,7 +591,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-appeals" className="text-xl">
+          <h2 id="moderation-appeals" className="text-lg">
             {t('moderation.appeals')}
           </h2>
           {data.appeals.length === 0 ? (
@@ -541,10 +599,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
           ) : (
             <ul aria-labelledby="moderation-appeals" className="flex flex-col gap-3">
               {data.appeals.map((item) => (
-                <li
-                  key={item.sanctionId}
-                  className="flex flex-col gap-2 rounded-md border border-border p-3"
-                >
+                <li key={item.sanctionId} className={CARD}>
                   <p className="font-semibold wrap-anywhere">
                     {t('moderation.appealOf', { kind: sanctionKind(item.kind) })}{' '}
                     <code className="break-all">{item.userId}</code>
@@ -572,6 +627,29 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         </>
       )}
     </>
+  );
+}
+
+/** Fiche d'une entrée de la file ou d'une sanction. */
+const CARD = 'flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm';
+
+/**
+ * Résultat du dernier geste. Toujours présent : un lecteur d'écran l'annonce dès qu'il paraît. La feuille d'un
+ * geste en porte une copie, seule lue tant qu'elle est ouverte (le reste de la page est alors inerte).
+ */
+function Notice({ notice }: { notice: Notice }) {
+  return (
+    <div
+      role={notice?.kind ?? 'status'}
+      className={cn(
+        notice?.text && 'rounded-lg px-4 py-3 text-sm font-medium',
+        notice?.kind === 'alert'
+          ? 'bg-danger-subtle text-danger'
+          : 'bg-success-subtle text-success',
+      )}
+    >
+      {notice?.text}
+    </div>
   );
 }
 
@@ -607,7 +685,7 @@ function Durations({
           {hours.map((count, index) => (
             <label
               key={count}
-              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-subtle"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-border px-4 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-subtle has-[:checked]:font-semibold"
             >
               <input
                 type="radio"
@@ -650,6 +728,7 @@ export function Confirmation({
   fields,
   onConfirm,
   onCancel,
+  scope,
   children,
 }: {
   id: string;
@@ -659,6 +738,8 @@ export function Confirmation({
   fields: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Entrée de la file ou sanction visée : nomme le bouton de confirmation, qui peut reprendre le foyer. */
+  scope: string;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -666,7 +747,7 @@ export function Confirmation({
     <div
       role="group"
       aria-labelledby={id}
-      className="flex flex-col gap-2 rounded-md border border-danger p-3"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-3"
       onKeyDown={ignoreHeldEnter}
     >
       <p id={id} className="font-semibold wrap-anywhere">
@@ -674,7 +755,12 @@ export function Confirmation({
       </p>
       {children}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy} aria-describedby={id} onClick={onConfirm}>
+        <Button
+          id={`gesture-${scope}:confirm`}
+          disabled={busy}
+          aria-describedby={id}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
         <Button
