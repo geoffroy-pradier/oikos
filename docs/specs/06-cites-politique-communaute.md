@@ -82,7 +82,9 @@ Une élection sans candidat laisse la charge vacante jusqu'au mandat suivant.
 Une maison qui a tenu la charge aux `maxConsecutiveTerms` derniers mandats de sa cité (2) ne se présente pas au suivant ; un mandat vacant ou tenu par une autre maison interrompt la suite.
 Une maison ostracisée (6.4) ne se présente à aucune élection jusqu'à la fin de son ostracisme (`OSTRACIZED`), et le dépouillement d'une élection l'écarte même candidate d'avant : la charge va alors à la candidature suivante.
 Archonte en charge, elle la quitte à la clôture qui l'ostracise, et la charge est vacante jusqu'au mandat suivant.
-Décision (ticket 722) : un mandat ainsi quitté n'est pas mené à son terme et ne rapporte pas la Timè `archon_term` ; il compte toutefois parmi les mandats consécutifs de sa maison.
+Décision (ticket 722) : un mandat ainsi quitté n'est pas mené à son terme et ne rapporte pas la Timè `archon_term`.
+Décision (ticket 722) : il compte toutefois parmi les mandats consécutifs de sa maison.
+Décision (ticket 722) : seul le moteur écarte ce mandat de la Timè (`archonHonor`) ; la garde de la Timè en base ne refuse pas une charge quittée.
 Les joueurs connectés lisent le calendrier de chaque cité, les candidatures, les résultats après dépouillement et les magistrats, en charge ou passés (12).
 
 ## 6.3 Décrets
@@ -126,7 +128,9 @@ Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décr
 
 Ostracisme (ticket 722).
 Décision : l'ostracisme est un modèle de décret (`ostracism`), sans paramètre, que l'archonte en charge propose et que l'assemblée vote comme tout décret (6.3).
-Adopté, il ouvre à la clôture de son dépouillement un vote où chaque citoyen de la cité inscrit une fois le nom d'un citoyen de la même cité, le sien compris (`city.castOstracon`).
+Adopté, il ouvre à la clôture de son dépouillement un vote où chaque citoyen de la cité inscrit une fois le nom d'un citoyen de la même cité (`city.castOstracon`).
+Décision (ticket 722, la règle la plus simple) : une maison peut inscrire son propre nom.
+Décision (ticket 722) : le décret d'ostracisme reste `adopted` ; son effet est le vote qu'il ouvre, lié par `decree_id`, et il ne passe pas à `applied`.
 Ses règles viennent de `decrees.models.ostracism` : durée du vote (`votingDays`, en jours de jeu pleins), quorum (`quorumBps`), durée de l'ostracisme (`ostracismDays`) et écart entre deux ostracismes (`intervalDays`).
 Le modèle est fermé au départ ; les règles du vote sont fixées à son ouverture, et un décret adopté pendant que la configuration ne règle pas le modèle attend, sans effet, qu'elle le rouvre.
 Une cité n'a qu'un ostracisme à la fois, de la proposition au dépouillement de son vote, et n'en propose pas d'autre moins de `intervalDays` jours de jeu après l'ouverture du précédent (`OSTRACISM_TOO_SOON`) ; un décret rejeté ne compte pas.

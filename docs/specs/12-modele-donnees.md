@@ -127,6 +127,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 - Timè (4.1, #704) : `honor` porte la Timè entière d'une maison, dans les entiers sûrs des clients ; elle n'est que le cumul d'un journal en ajout seul, `honor_ledger`, appliqué par un déclencheur du propriétaire, et une maison sans ligne a une Timè nulle.
   Une ligne porte la maison, une variation non nulle, un motif d'une liste fermée, une référence et un jour de jeu ; un index unique n'en admet qu'une par motif et par référence, si bien qu'un crédit rejoué ne s'écrit pas deux fois.
   Une ligne `archon_term` est un gain, pour une charge (`offices`) de la même maison dont le mandat a pris fin.
+  La garde ne refuse pas une charge quittée par un archonte ostracisé (#722) : seul le moteur l'écarte du gain.
   À son insertion, aucune clôture de son jour ou d'un jour postérieur n'est enregistrée pour le monde (verrou de la clôture du monde) ; à la validation, la clôture de son jour l'est (déclencheur différé `honor_ledger_on_close`) : elle est donc écrite dans la transaction qui enregistre cette clôture, comme le déclin de la Charis.
   Tout autre motif est refusé : chaque mécanique qui touche la Timè remplace la garde pour y ajouter le sien.
   La base ne lit pas les bornes de la configuration : qui écrit prend le verrou consultatif `honor:<maison>` de sa transaction, lit la Timè et la tient dans ses bornes (`honorChange`).
