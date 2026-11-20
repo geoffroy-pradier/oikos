@@ -8,12 +8,19 @@ export interface Step {
   content: ReactNode;
   /** `false` tant que la saisie de l'étape n'est pas valable : Continuer reste inactif. */
   valid?: boolean;
+  /**
+   * Appelé avant de quitter l'étape par Continuer ou Entrée ; `false` la garde, l'écran ayant affiché
+   * pourquoi. Pour une saisie dont le refus doit s'expliquer, ce que `valid` (bouton inactif) ne fait pas.
+   */
+  check?: () => boolean;
 }
 
 export interface StepperProps {
   /** La dernière étape est le récapitulatif chiffré, confirmé par `onConfirm`. */
   steps: readonly Step[];
   onConfirm: () => void;
+  /** Étape par laquelle commencer (identifiant) : l'écran qui doit ramener le joueur à une étape remonte le Stepper. */
+  initialStep?: string | undefined;
   /** Commande en cours : Confirmer est marqué occupé. */
   confirming?: boolean;
   labels: {
@@ -32,8 +39,19 @@ export interface StepperProps {
  * (`aria-current="step"`, foyer sur son titre), Retour et Continuer en bas. Les étapes passées restent
  * montées, cachées : revenir en arrière ne perd aucune saisie.
  */
-export function Stepper({ steps, onConfirm, confirming = false, labels }: StepperProps) {
-  const [index, setIndex] = useState(0);
+export function Stepper({
+  steps,
+  onConfirm,
+  initialStep,
+  confirming = false,
+  labels,
+}: StepperProps) {
+  const [index, setIndex] = useState(() =>
+    Math.max(
+      0,
+      steps.findIndex((s) => s.id === initialStep),
+    ),
+  );
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   const step = steps[index];
@@ -45,6 +63,11 @@ export function Stepper({ steps, onConfirm, confirming = false, labels }: Steppe
   const go = (next: number) => {
     moved.current = true;
     setIndex(next);
+  };
+  const advance = () => {
+    if (step?.valid === false || step?.check?.() === false) return;
+    if (last) onConfirm();
+    else go(index + 1);
   };
 
   return (
@@ -70,7 +93,19 @@ export function Stepper({ steps, onConfirm, confirming = false, labels }: Steppe
         {step?.title}
       </h3>
       {steps.map((item, i) => (
-        <div key={item.id} hidden={i !== index} className={i === index ? 'animate-rise' : ''}>
+        <div
+          key={item.id}
+          hidden={i !== index}
+          className={i === index ? 'animate-rise' : ''}
+          onKeyDown={(event) => {
+            // Entrée dans un champ de saisie vaut Continuer ; ni sur un bouton, ni sur un choix.
+            const target = event.target;
+            if (event.key !== 'Enter' || !(target instanceof HTMLInputElement)) return;
+            if (!['text', 'email', 'search', 'number', 'tel'].includes(target.type)) return;
+            event.preventDefault();
+            advance();
+          }}
+        >
           {item.content}
         </div>
       ))}
@@ -84,7 +119,7 @@ export function Stepper({ steps, onConfirm, confirming = false, labels }: Steppe
           className="ml-auto"
           disabled={step?.valid === false}
           loading={last && confirming}
-          onClick={last ? onConfirm : () => go(index + 1)}
+          onClick={advance}
         >
           {last ? labels.confirm : labels.next}
         </Button>
