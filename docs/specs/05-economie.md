@@ -561,6 +561,13 @@ Calibrage à douze cités (#712), éprouvé par le même banc avec `BALANCE_SCEN
   Les marges des ateliers vont de 437 oboles (le chai) à 1 169 (le moulin), dans la borne de 421 à 1 685 : la médiane des dix-huit matières premières, toutes au terroir d'une cité, est de 842,5 oboles.
 - **Masse.** Elle croît de 170 % sur les 30 jours mesurés, sous la borne de 200 % ; la création nette quotidienne des dix derniers jours vaut 99,5 % de celle des dix premiers (environ 137 000 oboles par jour).
 
+Paniers des classes aisées (#713, 5.2) : aucune maison des bancs ne fait encore les biens finis nouveaux, et la part publique des classes aisées garde leur revenu public d'un jour.
+Les trois bancs gardent leurs mesures et leurs bornes, avant comme après.
+À une cité : hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236.
+À quatre cités : coût du panier inchangé, besoins vitaux couverts à 100 %, masse +177,6 %.
+À douze cités : coût du panier inchangé, besoins vitaux couverts à 98,4 % au moins, masse +169,6 %, création nette des dix derniers jours à 99,5 % de celle des dix premiers.
+Seul l'arrondi de la part publique au point inférieur bouge la masse : 208 oboles de moins dans les douze cités au dernier jour (rapport du simulateur).
+
 ## 5.6 Fiscalité
 
 Chaque cité vote ses taux dans des bornes fixées par le monde : droit de port, taxe de marché, impôt sur la fortune levé en cas de crise, taxe de résidence des métèques.
