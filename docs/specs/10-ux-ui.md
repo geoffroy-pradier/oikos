@@ -297,3 +297,21 @@ Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interfac
   Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ;
   si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
 - Accueil : 15 minutes guidées qui mènent à une première vente, puis objectifs quotidiens du mentor pendant 7 jours.
+
+## Contrôle visuel
+
+Les écrans clés du jeu et d'Olympe sont comparés à des images de référence, dans les deux thèmes, à 360 et à 1 440 px de large (#700).
+Jeu : connexion, Maison, Sites, Personnel, Immobilier, Comptes, Carte, Agora et sa feuille d'ordre, Cité, Temple, Messages (`apps/web/e2e/visual.spec.ts`).
+Olympe : connexion, Vigie, Économie, Paramètres, Modération (`apps/admin/e2e/visual.spec.ts`).
+Chaque écran capturé passe aussi le contrôle axe, sans violation grave (sérieuse ou critique) des règles WCAG A et AA.
+Les données sont figées.
+Côté jeu, une maison par format, au nom fixe, seule dans une cité qu'aucune autre suite n'emploie (Dikaia, Gamelia), avec un achat en attente et un message ; un nouvel essai la retrouve sans rien doubler.
+Le parc de logements et la population des PNJ de cette cité, que d'autres suites remplissent pour tout le monde, sont lus figés ; les abonnements en direct sont acceptés sans pile Realtime.
+Côté Olympe, les lectures de l'API, qui portent sur tous les mondes, sont remplacées par des valeurs fixes.
+Ce que l'horloge fait varier (heure, dates, durées) est masqué ; animations et curseur sont figés ; la page est prise entière, le pointeur hors de tout survol.
+Le navigateur est le Chromium de l'image Docker officielle de Playwright, à la version du dépôt, que la configuration de Playwright lance (`run-server`, réseau de l'hôte, Linux).
+Les références sont ainsi produites et comparées dans le même environnement de rendu en local et en `ci` : le Chromium de l'hôte rend le texte autrement d'une machine à l'autre, selon les réglages de fontconfig.
+La tolérance est faible : au plus 0,1 % de pixels différents.
+Une référence se met à jour sur une base neuve, par `pnpm --filter @oikos/web exec playwright test visual --update-snapshots` (de même pour `@oikos/admin`), et la nouvelle image se relit dans la demande de fusion.
+Hors `ci`, le contrôle du jeu est sauté sur une base où sa maison a plus d'une heure.
+En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual`.
