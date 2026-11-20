@@ -5,7 +5,13 @@ import { z } from 'zod';
  * paramétrés : l'archonte en charge propose, les citoyens votent, la clôture dépouille. Les bornes de
  * chaque paramètre viennent de la configuration en vigueur (section `decrees`).
  */
-export const DECREE_MODELS = ['market_tax_rate', 'port_dues', 'public_works', 'festival'] as const;
+export const DECREE_MODELS = [
+  'market_tax_rate',
+  'port_dues',
+  'public_works',
+  'festival',
+  'ostracism',
+] as const;
 export type DecreeModel = (typeof DECREE_MODELS)[number];
 
 const goodId = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
@@ -30,6 +36,10 @@ export interface DecreeModelBounds {
         maxGoods: number;
       }
     | undefined;
+  /** Règles du vote d'ostracisme (6.4, #722) : le décret lui-même n'a aucun paramètre. */
+  ostracism?:
+    | { votingDays: number; quorumBps: number; ostracismDays: number; intervalDays: number }
+    | undefined;
 }
 
 const distinct = (values: readonly string[]) => new Set(values).size === values.length;
@@ -50,6 +60,8 @@ export const decreeProposalSchema = z.discriminatedUnion('model', [
       goodIds: z.array(goodId).min(1).max(20).refine(distinct, 'each good once'),
     }),
   ),
+  /** Ostracisme : adopté, il ouvre un vote où chaque citoyen inscrit un nom (#722). */
+  proposal('ostracism', z.strictObject({})),
 ]);
 export type DecreeProposal = z.infer<typeof decreeProposalSchema>;
 
@@ -90,6 +102,7 @@ export function boundedDecreeParamsSchemas(bounds: DecreeModelBounds): BoundedDe
         .max(festival.maxGoods)
         .refine(distinct, 'each good once'),
     });
+  if (bounds.ostracism) schemas.ostracism = z.strictObject({});
   return schemas;
 }
 
@@ -138,6 +151,13 @@ export const CITY_PROPOSE_DECREE_ERROR_CODES = [
   'SPENDING_CAP_EXCEEDED',
   /** La cité a déjà autant de décrets au vote que la configuration en admet (`maxOpenPerCity`). */
   'TOO_MANY_OPEN_DECREES',
+  /** La maison est ostracisée (6.4, #722). */
+  'OSTRACIZED',
+  /**
+   * Ostracisme : la cité a déjà un ostracisme au vote ou à ouvrir, ou en a ouvert un depuis moins de
+   * `intervalDays` jours de jeu.
+   */
+  'OSTRACISM_TOO_SOON',
 ] as const;
 export const CITY_VOTE_DECREE_ERROR_CODES = [
   'HOUSE_NOT_FOUND',

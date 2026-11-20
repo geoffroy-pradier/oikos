@@ -36,6 +36,12 @@ import {
   sanctionPronouncedSchema,
 } from './moderation-admin';
 import { orderCancelledSchema, orderPlacedSchema, tradeExecutedSchema } from './market';
+import {
+  houseOstracizedSchema,
+  ostracismOpenedSchema,
+  ostracismTalliedSchema,
+  ostraconCastSchema,
+} from './ostracism';
 import { propertyBoughtSchema, propertyRenovatedSchema } from './property';
 import {
   leaseEndedSchema,
@@ -116,6 +122,10 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   decreeRejectedSchema,
   decreeAppliedSchema,
   decreeLapsedSchema,
+  ostracismOpenedSchema,
+  ostraconCastSchema,
+  ostracismTalliedSchema,
+  houseOstracizedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   directChannelOpenedSchema,

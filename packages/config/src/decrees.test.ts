@@ -88,6 +88,25 @@ describe('décrets (6.3)', () => {
     expect(with_({ festival: { ...festival, demandBoostBps: 0 } })).toEqual([]);
   });
 
+  it('ostracisme : fermé au départ ; durées en jours de jeu et quorum bornés (6.4 ; #722)', () => {
+    expect(decrees().models.ostracism).toBeUndefined();
+    const ostracism = { votingDays: 3, quorumBps: 3000, ostracismDays: 7, intervalDays: 28 };
+    const with_ = (patch: Partial<typeof ostracism>) =>
+      fieldsOf({ ...decrees(), models: { ostracism: { ...ostracism, ...patch } } });
+    expect(with_({})).toEqual([]);
+    expect(with_({ quorumBps: 0, votingDays: 1, ostracismDays: 366, intervalDays: 1 })).toEqual([]);
+    for (const [key, value] of [
+      ['votingDays', 0],
+      ['quorumBps', 10_001],
+      ['ostracismDays', 367],
+      ['intervalDays', 1.5],
+    ] as const)
+      expect(with_({ [key]: value })).toEqual([`decrees.models.ostracism.${key}`]);
+    expect(fieldsOf({ ...decrees(), models: { ostracism: { ...ostracism, target: 1 } } })).toEqual([
+      'decrees.models.ostracism',
+    ]);
+  });
+
   it('biens d’une fête : connus de la configuration, chacun une fois, au moins un', () => {
     const models = decrees().models;
     const festival = models.festival;

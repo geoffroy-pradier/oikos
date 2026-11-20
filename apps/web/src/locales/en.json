@@ -487,6 +487,10 @@
     "DECREE_PARAMS_OUT_OF_BOUNDS": "A parameter of the decree is out of bounds.",
     "SPENDING_CAP_EXCEEDED": "This spending exceeds the share of the treasury a decree may commit.",
     "TOO_MANY_OPEN_DECREES": "The city already has as many decrees under vote as it allows.",
+    "OSTRACIZED": "Your house is ostracized: it stands for no election and proposes no decree until its ostracism ends.",
+    "OSTRACISM_TOO_SOON": "The city already has an ostracism under way, or held one too recently.",
+    "OSTRACISM_NOT_FOUND": "This ostracism vote does not exist.",
+    "TARGET_NOT_CITIZEN": "Only a citizen of the city can be named.",
     "DECREE_NOT_FOUND": "This decree cannot be found.",
     "RECIPIENT_NOT_FOUND": "This house cannot be found.",
     "SELF_CONVERSATION": "Your house cannot hold a conversation with itself.",
@@ -1101,7 +1105,8 @@
       "port_dues": "City port dues multiplied by {{factor}}",
       "public_works": "Public works: {{amount}}",
       "festival_one": "Festival of {{count}} day: {{amount}}, for {{goods}}",
-      "festival_other": "Festival of {{count}} days: {{amount}}, for {{goods}}"
+      "festival_other": "Festival of {{count}} days: {{amount}}, for {{goods}}",
+      "ostracism": "Ostracism: a vote to bar a citizen from public office"
     },
     "unreadable": "Unreadable decree ({{model}})"
   },

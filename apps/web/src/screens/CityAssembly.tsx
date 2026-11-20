@@ -65,6 +65,8 @@ export function useDescribeDecree() {
             .map((good) => t(`goods.${good}`, { defaultValue: good }))
             .join(', '),
         });
+      case 'ostracism':
+        return t('assembly.models.ostracism');
     }
   };
 }

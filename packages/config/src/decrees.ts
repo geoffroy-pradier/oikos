@@ -58,6 +58,19 @@ export const decreesSchema = z.strictObject({
         demandBoostBps: z.number().int().min(0).max(10_000).optional(),
       })
       .optional(),
+    /**
+     * Ostracisme (6.4, #722) : adopté, le décret ouvre un vote où chaque citoyen inscrit un nom. Le plus nommé,
+     * seul en tête et si les bulletins atteignent `quorumBps` des citoyens, est écarté des charges publiques
+     * `ostracismDays` jours de jeu ; une cité n'ouvre pas deux votes à moins de `intervalDays` jours d'écart.
+     */
+    ostracism: z
+      .strictObject({
+        votingDays: days,
+        quorumBps: z.number().int().min(0).max(10_000),
+        ostracismDays: days,
+        intervalDays: days,
+      })
+      .optional(),
   }),
 });
 export type Decrees = z.infer<typeof decreesSchema>;

@@ -13,6 +13,7 @@ export * from './house';
 export * from './market';
 export * from './moderation';
 export * from './moderation-admin';
+export * from './ostracism';
 export * from './property';
 export * from './property-market';
 export * from './ship';

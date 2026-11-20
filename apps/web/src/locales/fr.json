@@ -487,6 +487,10 @@
     "DECREE_PARAMS_OUT_OF_BOUNDS": "Un paramètre du décret sort de ses bornes.",
     "SPENDING_CAP_EXCEEDED": "Cette dépense dépasse la part du trésor qu'un décret peut engager.",
     "TOO_MANY_OPEN_DECREES": "La cité a déjà autant de décrets au vote qu'elle en admet.",
+    "OSTRACIZED": "Votre maison est ostracisée : elle ne se présente à aucune élection et ne propose aucun décret d'ici la fin de son ostracisme.",
+    "OSTRACISM_TOO_SOON": "La cité a déjà un ostracisme en cours, ou en a tenu un depuis trop peu de temps.",
+    "OSTRACISM_NOT_FOUND": "Ce vote d'ostracisme est introuvable.",
+    "TARGET_NOT_CITIZEN": "Seul un citoyen de la cité peut être nommé.",
     "DECREE_NOT_FOUND": "Ce décret est introuvable.",
     "RECIPIENT_NOT_FOUND": "Cette maison est introuvable.",
     "SELF_CONVERSATION": "Votre maison ne peut pas converser avec elle-même.",
@@ -1101,7 +1105,8 @@
       "port_dues": "Droit de port de la cité multiplié par {{factor}}",
       "public_works": "Grands travaux : {{amount}}",
       "festival_one": "Fête d'{{count}} jour : {{amount}}, pour {{goods}}",
-      "festival_other": "Fête de {{count}} jours : {{amount}}, pour {{goods}}"
+      "festival_other": "Fête de {{count}} jours : {{amount}}, pour {{goods}}",
+      "ostracism": "Ostracisme : un vote pour écarter un citoyen des charges publiques"
     },
     "unreadable": "Décret illisible ({{model}})"
   },

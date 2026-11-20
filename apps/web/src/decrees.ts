@@ -133,9 +133,12 @@ const boundsSchemas = {
 };
 
 /** Règles des décrets en vigueur (vue `decree_rules`, une ligne par modèle ouvert). */
+/** Modèles que le formulaire sait saisir ; l'ostracisme (#722) attend son écran. */
+export type FormDecreeModel = keyof typeof boundsSchemas;
+
 export interface DecreeRules {
   bounds: DecreeModelBounds;
-  models: DecreeModel[];
+  models: FormDecreeModel[];
   votingDays: number;
   quorumBps: number;
   maxOpenPerCity: number;
@@ -159,10 +162,10 @@ export function parseDecreeRules(rows: unknown): DecreeRules | null {
   const parsed = z.array(ruleRow).safeParse(rows);
   if (!parsed.success) return null;
   const bounds: Record<string, unknown> = {};
-  const models: DecreeModel[] = [];
+  const models: FormDecreeModel[] = [];
   for (const row of parsed.data) {
     if (!(row.model in boundsSchemas)) continue;
-    const model = row.model as DecreeModel;
+    const model = row.model as FormDecreeModel;
     const read = boundsSchemas[model].safeParse(row.bounds);
     if (!read.success) return null;
     bounds[model] = read.data;
