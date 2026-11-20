@@ -10,6 +10,7 @@ import {
   removeRow,
 } from '../goods-form';
 import { FieldControl } from './FieldControl';
+import { SECTION, SUMMARY } from '../ui';
 import { useReshape } from './useReshape';
 
 /**
@@ -30,8 +31,8 @@ export function GoodsForm(props: {
   const { guard, reshape, announcement } = useReshape(props.onChange);
   return (
     // Nommé par son résumé, comme les autres formulaires de table.
-    <details className="space-y-3" aria-labelledby="goods-form">
-      <summary id="goods-form" className="min-h-11 text-lg">
+    <details className={SECTION} aria-labelledby="goods-form">
+      <summary id="goods-form" className={SUMMARY}>
         {t('config.schemaPath.tables.goods')}
       </summary>
       {(!goods || !props.readOnly) && (
@@ -49,7 +50,7 @@ export function GoodsForm(props: {
           // Par rang : un identifiant peut manquer, se répéter ou être en cours de frappe.
           <fieldset
             key={row}
-            className="grid min-w-0 gap-2 rounded-md border border-border p-3 wrap-anywhere sm:grid-cols-2 lg:grid-cols-4"
+            className="grid min-w-0 gap-2 rounded-lg border border-border-subtle p-3 wrap-anywhere sm:grid-cols-2 lg:grid-cols-4"
           >
             <legend className="px-1 font-medium">{name}</legend>
             {GOOD_FIELDS.map((field) => (

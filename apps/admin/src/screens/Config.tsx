@@ -7,7 +7,7 @@ import {
   type BuybackTotals,
   type RetiredUsage,
 } from '@oikos/contracts';
-import { Button, cn } from '@oikos/ui';
+import { Badge, Button, cn, PageHeader } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
@@ -18,6 +18,7 @@ import { LoadError } from '../LoadError';
 import { NPC_CLASSES_TABLE } from '../npc-classes-form';
 import { RECIPES_TABLE } from '../recipes-form';
 import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
+import { CONTROL } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { GoodsForm } from './GoodsForm';
 import { NestedTableForm } from './NestedTableForm';
@@ -57,7 +58,6 @@ type Notice = {
   fields?: string[] | undefined;
   refused?: unknown;
 } | null;
-const CONTROL = 'w-full rounded-md border border-border bg-surface px-3';
 
 /**
  * Module Paramètres (15.1, 15.2) : versions de configuration, comparaison avec la version en vigueur,
@@ -302,18 +302,19 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
 
   return (
     <>
-      <h1 ref={title} tabIndex={-1} className="text-2xl">
-        {t('config.title')}
-      </h1>
+      <PageHeader
+        title={t('config.title')}
+        titleRef={title}
+        subtitle={canEdit ? t('config.subtitle') : t('config.readOnly')}
+      />
       {listing.error && <LoadError code={listing.error} onRetry={() => void listing.reload()} />}
       {!listing.data && !listing.error && <p>{t('app.loading')}</p>}
-      {!canEdit && <p className="text-muted-foreground">{t('config.readOnly')}</p>}
 
-      <h2 className="text-xl">{t('config.versions')}</h2>
+      <h2 className="text-base font-semibold">{t('config.versions')}</h2>
       {/* Déjà absentes de la version en vigueur, encore en usage : dites une fois, en tête, rien à
           confirmer (#234). Sous la version en vigueur, la lecture les donne toutes. */}
       {already && already.recipes.length + already.npcClasses.length > 0 && (
-        <div className="text-sm wrap-break-word">
+        <div className="rounded-xl bg-surface-raised p-3 text-sm wrap-break-word">
           <p className="font-semibold">{t('config.alreadyRetired')}</p>
           <UsageList {...already} />
         </div>
@@ -348,15 +349,23 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
             .filter(Boolean)
             .join(' ');
           return (
-            <li key={version.id} className="rounded-md border border-border p-3">
-              <h3 className="text-lg">
+            <li
+              key={version.id}
+              className={cn(
+                'flex flex-col gap-1.5 rounded-xl border bg-surface p-4 shadow-sm',
+                opened?.id === version.id ? 'border-primary' : 'border-border-subtle',
+              )}
+            >
+              <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
                 {t('config.version', { number: version.number })}
                 {version.id === listing.data?.activeVersionId && (
-                  <strong className="ml-2 text-primary">{t('config.active')}</strong>
+                  <Badge tone="primary">
+                    <strong>{t('config.active')}</strong>
+                  </Badge>
                 )}
               </h3>
-              <p>{version.note || t('config.noNote')}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm">{version.note || t('config.noNote')}</p>
+              <p className="text-xs text-muted-foreground">
                 {t('config.by', {
                   account: version.createdBy?.slice(0, 8) ?? '—',
                   date: date.format(new Date(version.createdAt)),
@@ -389,8 +398,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   const key = `${version.id}-${goodId}`;
                   const warningId = `config-buyback-warning-${key}`;
                   return buying === key ? (
-                    <div key={key} className="mt-2 flex flex-wrap items-center gap-2">
-                      <p id={warningId} className="text-sm wrap-break-word">
+                    <div key={key} className={CONFIRM}>
+                      <p id={warningId} className="basis-full wrap-break-word">
                         {t('config.buybackWarning', {
                           good: goodId,
                           units: count.format(preview.totals.units),
@@ -456,7 +465,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   )}
                 </div>
               )}
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-1.5 flex flex-wrap gap-2">
                 {/* Reste affiché pendant sa confirmation, qui s'ouvre sous la rangée sans la déplacer. */}
                 <Button
                   id={`config-open-${version.id}`}
@@ -489,8 +498,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 )}
               </div>
               {replacing === version.id && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p id="config-replace-warning">
+                <div className={CONFIRM}>
+                  <p id="config-replace-warning" className="basis-full">
                     {t('config.replaceWarning', { opened: opened?.number, number: version.number })}
                   </p>
                   <Button
@@ -511,8 +520,10 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 </div>
               )}
               {canEdit && next && cancelling === next.id && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p id="config-cancel-warning">{t('config.cancelWarning')}</p>
+                <div className={CONFIRM}>
+                  <p id="config-cancel-warning" className="basis-full">
+                    {t('config.cancelWarning')}
+                  </p>
                   <Button
                     disabled={busy}
                     aria-describedby="config-cancel-warning"
@@ -538,17 +549,21 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
         })}
       </ul>
 
+      {/* Une version ouverte s'édite dans un panneau, fixé à droite sur ordinateur (la page lui fait place). */}
       {opened && (
-        <>
-          <h2 ref={openedTitle} tabIndex={-1} className="text-xl">
+        <section data-side-panel aria-labelledby="config-editing" className={PANEL}>
+          <h2 id="config-editing" ref={openedTitle} tabIndex={-1} className="text-lg font-semibold">
             {t('config.editing', { number: opened.number })}
           </h2>
-          <label htmlFor="config-json">{t('config.content')}</label>
+          <label htmlFor="config-json" className="-mb-1 text-sm font-medium">
+            {t('config.content')}
+          </label>
           <textarea
             ref={editor}
             id="config-json"
-            className={cn(CONTROL, 'min-h-80 py-2 font-mono text-sm', invalid && 'border-danger')}
+            className={cn(CONTROL, 'min-h-72 py-3 font-mono text-sm', invalid && 'border-danger')}
             spellCheck={false}
+            wrap="off"
             readOnly={!canEdit}
             aria-invalid={invalid}
             aria-describedby={invalid ? 'config-json-error' : undefined}
@@ -578,44 +593,57 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
               onChange={edit}
             />
           ))}
-          <h3 className="text-lg">
+          {/* Différences avec la version en vigueur, juste avant l'enregistrement : on publie ce qu'on a lu. */}
+          <h3 className="mt-2 text-base font-semibold">
             {active ? t('config.diff', { number: active.number }) : t('config.diffPending')}
           </h3>
           {changes?.length === 0 && (
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t('config.noDiff', { number: active?.number })}
             </p>
           )}
-          <ul className="text-sm break-all">
+          <ul className="divide-y divide-border-subtle rounded-xl bg-surface-raised px-3 text-sm wrap-anywhere empty:hidden">
             {changes?.map((change) => (
-              <li key={change.path}>
-                <code className="break-all">{change.path}</code> :{' '}
-                {change.before === undefined ? t('config.added') : show(change.before)} →{' '}
-                {change.after === undefined ? t('config.removed') : show(change.after)}
+              <li key={change.path} className="py-2">
+                <code className="font-semibold break-all">{change.path}</code> :{' '}
+                <span className="text-foreground-secondary">
+                  {change.before === undefined ? t('config.added') : show(change.before)}
+                </span>{' '}
+                →{' '}
+                <span className="font-semibold">
+                  {change.after === undefined ? t('config.removed') : show(change.after)}
+                </span>
               </li>
             ))}
           </ul>
           {canEdit && (
             <>
-              <label htmlFor="config-note">{t('config.note')}</label>
+              <label htmlFor="config-note" className="-mb-1 text-sm font-medium">
+                {t('config.note')}
+              </label>
               <input
                 id="config-note"
-                className={`${CONTROL} min-h-11`}
+                className={CONTROL}
                 maxLength={200}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />
-              <Button disabled={busy} onClick={() => void publish()}>
+              <Button className="self-end" disabled={busy} onClick={() => void publish()}>
                 {t('config.publish')}
               </Button>
             </>
           )}
-        </>
+        </section>
       )}
       {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
       <div
         role={notice?.kind ?? 'status'}
-        className={notice?.kind === 'alert' ? 'font-semibold text-danger' : ''}
+        className={cn(
+          notice?.text && 'rounded-lg px-4 py-3 text-sm font-medium',
+          notice?.kind === 'alert'
+            ? 'bg-danger-subtle text-danger'
+            : 'bg-success-subtle text-success',
+        )}
       >
         {notice?.text}
         {notice?.fields && (
@@ -641,6 +669,15 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
     </>
   );
 }
+
+/** Confirmation ouverte sous la rangée de boutons d'une version : la phrase, puis les deux choix. */
+const CONFIRM =
+  'mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-raised p-3 text-sm';
+/** Panneau d'édition : dans le flux sur téléphone, fixé à droite à partir de 1 024 px, défilant seul. */
+const PANEL =
+  'flex min-w-0 flex-col gap-3 rounded-2xl border border-border-subtle bg-surface p-4 shadow-md ' +
+  'lg:fixed lg:inset-y-0 lg:right-0 lg:z-10 lg:w-[min(42rem,46vw)] lg:overflow-y-auto lg:rounded-none ' +
+  'lg:border-y-0 lg:border-r-0 lg:p-6 lg:shadow-lg';
 
 /** Recettes et classes de PNJ en usage, une ligne chacune (#200, #234). */
 function UsageList({ recipes, npcClasses }: AlreadyRetiredUsage) {

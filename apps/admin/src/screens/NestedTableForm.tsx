@@ -14,9 +14,10 @@ import {
   type Row,
 } from '../goods-form';
 import { FieldControl } from './FieldControl';
+import { SECTION, SUMMARY } from '../ui';
 import { useReshape } from './useReshape';
 
-const GROUP = 'grid min-w-0 gap-2 rounded-md border border-border p-3 wrap-anywhere';
+const GROUP = 'grid min-w-0 gap-2 rounded-lg border border-border-subtle p-3 wrap-anywhere';
 
 /**
  * Formulaire d'une table dont les lignes portent des listes imbriquées (15.4) : recettes et leurs intrants
@@ -54,8 +55,8 @@ export function NestedTableForm(props: {
   const suggestions = `${table}-good-ids`;
   return (
     // Nommé par son résumé : deux lignes de même nom (« élément 2 ») dans deux formulaires se distinguent.
-    <details className="space-y-3" aria-labelledby={`${table}-form`}>
-      <summary id={`${table}-form`} className="min-h-11 text-lg">
+    <details className={SECTION} aria-labelledby={`${table}-form`}>
+      <summary id={`${table}-form`} className={SUMMARY}>
         {t(`config.schemaPath.tables.${table}`)}
       </summary>
       {(!rows || !props.readOnly) && (

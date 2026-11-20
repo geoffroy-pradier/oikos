@@ -672,6 +672,7 @@
           "npcPublicIncomeBps": "NPC public income multiplier (basis points, 10,000 = ×1)"
         }
       }
-    }
+    },
+    "subtitle": "Balance configuration versions: open and compare with the version in force, save, schedule for the next close."
   }
 }

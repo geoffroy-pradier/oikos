@@ -2,8 +2,8 @@ import { cn } from '@oikos/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { shown, type TableField } from '../goods-form';
+import { CONTROL } from '../ui';
 
-const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 const INPUT_MODE = { text: undefined, integer: 'numeric', decimal: 'decimal' } as const;
 
 /**
@@ -30,7 +30,7 @@ export function FieldControl(props: {
   const known = props.choices?.some((choice) => choice.value === value) === true;
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <label htmlFor={props.id} className="first-letter:uppercase">
+      <label htmlFor={props.id} className="text-sm first-letter:uppercase">
         {props.label}
       </label>
       {field.kind === 'choice' ? (

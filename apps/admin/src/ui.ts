@@ -15,3 +15,11 @@ export const ALERT =
 /** Cadre d'un tableau de données sur ordinateur ; sous 1 024 px, ses fiches s'empilent sans cadre. */
 export const FRAME =
   'lg:rounded-xl lg:border lg:border-border-subtle lg:bg-surface lg:px-2 lg:shadow-sm';
+
+/** Section repliable d'un panneau (tables des Paramètres) : résumé en rangée, chevron qui pivote à l'ouverture. */
+export const SECTION =
+  'group rounded-xl border border-border-subtle px-3 py-2 open:pb-4 [&>*+*]:mt-3';
+export const SUMMARY =
+  'flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg font-semibold ' +
+  "before:size-2 before:shrink-0 before:rotate-45 before:border-t-2 before:border-r-2 before:border-current before:content-[''] " +
+  'before:transition-transform group-open:before:rotate-135 [&::-webkit-details-marker]:hidden';
