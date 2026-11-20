@@ -283,7 +283,7 @@ export function CityScreen() {
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <span>
                     {employment === null
-                      ? t('city.labor.unlimited', {
+                      ? t(labor.supply === 0 ? 'city.labor.noWorkers' : 'city.labor.unlimited', {
                           count: labor.employed,
                           employed: number.format(labor.employed),
                         })
@@ -291,7 +291,7 @@ export function CityScreen() {
                           count: labor.employed,
                           percent: percent.format(employment),
                           employed: number.format(labor.employed),
-                          supply: number.format(labor.supply),
+                          supply: number.format(labor.supply ?? 0),
                         })}
                   </span>
                   {employment !== null && <Meter share={employment} />}
