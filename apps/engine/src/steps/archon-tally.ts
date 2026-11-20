@@ -7,8 +7,8 @@ import type { CloseStep } from '../close';
  * élection du monde dont le vote est clos à l'instant de jeu de la clôture. L'élection est d'abord marquée
  * dépouillée, ce qui la verrouille : un bulletin en cours, qui la tient en partage, est attendu et compté,
  * et un bulletin plus tardif est refusé par la base. La charge va à la candidature maintenue qui a le plus
- * de bulletins, la plus ancienne en cas d'égalité (la base le vérifie) ; sans candidature, elle reste
- * vacante jusqu'au mandat suivant. Une élection dépouillée ne l'est plus jamais, même si l'étape est
+ * de bulletins, la plus ancienne en cas d'égalité, parmi les maisons qui ne sont pas ostracisées à cet instant
+ * (#722) : la base le vérifie. Sans candidature, elle reste vacante jusqu'au mandat suivant. Une élection dépouillée ne l'est plus jamais, même si l'étape est
  * rejouée. Les élections ouvertes sont dépouillées à leurs dates, quelle que soit la configuration.
  */
 export const archonTally: CloseStep = {
@@ -37,6 +37,7 @@ export const archonTally: CloseStep = {
           select c.house_id, count(b.id)::int as votes
           from game.candidacies c left join game.ballots b on b.candidacy_id = c.id
           where c.election_id = ${election.id} and c.withdrawn_at is null
+            and not game.house_ostracized(c.house_id, now())
           group by c.id, c.house_id, c.created_at
           order by count(b.id) desc, c.created_at, c.id
           limit 1`.execute(trx)

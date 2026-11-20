@@ -30,6 +30,8 @@ export const archonHonor: CloseStep = {
       .select(['id', 'house_id'])
       .where('world_id', '=', worldId)
       .where('ends_at', '<=', closeAt)
+      // Une charge quittée par un archonte ostracisé (#722) n'est pas un mandat mené à son terme.
+      .where('vacated_at', 'is', null)
       .$if(since !== null, (query) => query.where('ends_at', '>', since as Date))
       .orderBy('house_id')
       .orderBy('id')
