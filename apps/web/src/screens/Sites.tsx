@@ -1,7 +1,17 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
 import type { SiteCollectOutput } from '@oikos/contracts';
 import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
-import { Button, Card, Coins, EmptyState, StatCard, TriangleAlert, Wheat } from '@oikos/ui';
+import {
+  Button,
+  Coins,
+  EmptyIllustration,
+  EmptyState,
+  GoodIcon,
+  Package,
+  StatCard,
+  TriangleAlert,
+  Wheat,
+} from '@oikos/ui';
 import {
   useEffect,
   useLayoutEffect,
@@ -368,6 +378,17 @@ export function SitesCard({
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [reloadSites, reloadRules, reloadIdentities, reloadLaborDays, reloadWorkforce, reloadEvents]);
+  // Fiche demandée par l'adresse (`/sites#site-…`, « Détails » du tableau de bord) : une fois les sites lus,
+  // elle vient dans la fenêtre et son titre prend le foyer.
+  const reached = useRef(false);
+  useEffect(() => {
+    const target = window.location.hash.slice(1);
+    if (reached.current || variant !== 'full' || !sites.rows || !target.startsWith('site-')) return;
+    reached.current = true;
+    const card = document.getElementById(target);
+    card?.scrollIntoView({ block: 'start' });
+    card?.querySelector<HTMLElement>('h3')?.focus();
+  }, [sites.rows, variant]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
   // En activité : ni à l'arrêt, ni sans production (4.2, 5.5).
@@ -745,41 +766,57 @@ export function SitesCard({
       />
     );
 
+  // Coût d'un jour de tous les sites qui tournent : ce que la prochaine clôture prélèvera (`null` : inconnu).
+  const costs = rows
+    .filter((site) => !site.halted_at && rules?.recipe(site.recipe_id))
+    .map((site) =>
+      rules && laborDays
+        ? rules.restartCostOf(
+            site.recipe_id,
+            identities?.get(site.city_id)?.slug ?? null,
+            laborDays.get(site.city_id),
+            unhousedOf?.get(site.id),
+          )
+        : null,
+    );
+  const known = sites.rows !== null && costs.every((cost) => cost !== null);
   return (
-    <Card className="flex flex-col gap-3">
-      {titleRef && (
-        <div className="grid grid-cols-2 gap-3">
-          {figures}
-          <StatCard
-            label={t('home.sites')}
-            icon={<Wheat />}
-            value={
-              rules && sites.rows
-                ? t('home.sitesCount', {
-                    count: number.format(sites.rows.length),
-                    limit: number.format(rules.limit),
-                  })
-                : '—'
-            }
-          />
-        </div>
-      )}
-      {!titleRef && (
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-            <Wheat aria-hidden="true" className="size-5 text-accent" />
-            {t('home.sites')}
-          </h2>
-          {rules && sites.rows && (
-            <p className="text-sm text-muted-foreground">
-              {t('home.sitesCount', {
-                count: number.format(sites.rows.length),
-                limit: number.format(rules.limit),
-              })}
-            </p>
-          )}
-        </div>
-      )}
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {figures}
+        <StatCard
+          dense
+          label={t('home.sites')}
+          icon={<Wheat />}
+          value={
+            rules && sites.rows
+              ? t('home.sitesCount', {
+                  count: number.format(sites.rows.length),
+                  limit: number.format(rules.limit),
+                })
+              : '—'
+          }
+        />
+        <StatCard
+          dense
+          label={t('sites.ready')}
+          icon={<Package />}
+          // Tant que l'heure du serveur ou le stock ne sont pas lus, rien n'est compté prêt : « — », pas zéro.
+          value={sites.rows && now && stock ? number.format(harvestable.length) : '—'}
+          hint={
+            sites.rows && now && stock
+              ? t('sites.readyHint', { count: harvestable.length })
+              : undefined
+          }
+        />
+        <StatCard
+          dense
+          label={t('sites.daily')}
+          icon={<Coins />}
+          value={known ? money(costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0)) : '—'}
+          hint={t('sites.dailyHint')}
+        />
+      </div>
       {harvestable.length > 0 && (
         <Button
           className={`self-start ${WAITING}`}
@@ -797,7 +834,11 @@ export function SitesCard({
       {problem}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && (
-        <EmptyState icon={<Wheat />} title={t('home.sitesEmpty')} headingLevel={3} />
+        <EmptyState
+          illustration={<EmptyIllustration kind="noSite" />}
+          title={t('home.sitesEmpty')}
+          headingLevel={3}
+        />
       )}
       {watched.length > 0 && (
         <section
@@ -857,57 +898,28 @@ export function SitesCard({
           return (
             <li
               key={site.id}
-              className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
+              id={`site-${site.id}`}
+              className="flex scroll-mt-4 flex-col gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="text-lg">{name}</h3>
-                  <div className="text-sm text-muted-foreground">
-                    {type && <p>{t('home.siteType', { type: typeName(type) })}</p>}
-                    {!retired && (
-                      <p>
-                        {t('home.siteSince', {
-                          date: date.format(new Date(site.cycle_started_at)),
-                        })}
-                      </p>
-                    )}
-                    {upkeep !== null && upkeep > 0 && (
-                      <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
-                    )}
-                    {staff && staff.workers > 0 && (
-                      <p>
-                        {t('home.siteStaff', {
-                          count: staff.workers,
-                          workers: number.format(staff.workers),
-                          housed: number.format(staff.housed),
-                          unhoused: number.format(staff.unhoused),
-                        })}
-                      </p>
-                    )}
-                    {day && recipe && recipe.workers > 0 && (
-                      <p>{t('home.wageOfDay', { cost: money(day.wageOboles) })}</p>
-                    )}
-                    {/* Le dû d'un jour est le prix d'une relance : entretien, salaires et hébergement. */}
-                    {!retired && restartCost !== null && restartCost > 0 && (
-                      <p>{t('home.dailyCost', { cost: money(restartCost) })}</p>
-                    )}
-                    {recipe && (
-                      <p>
-                        {t('home.cap', {
-                          count: recipe.maxAccruedCycles,
-                          cycles: number.format(recipe.maxAccruedCycles),
-                          list: list(
-                            recipe.outputs.map((stack) =>
-                              stackText({
-                                goodId: stack.goodId,
-                                quantity: stack.quantity * recipe.maxAccruedCycles,
-                              }),
-                            ),
-                          ),
-                        })}
-                      </p>
-                    )}
-                  </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-subtle text-primary"
+                >
+                  {recipe?.outputs[0] && <GoodIcon goodId={recipe.outputs[0].goodId} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 tabIndex={-1} className="text-lg font-semibold">
+                    {name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {[
+                      type && t('home.siteType', { type: typeName(type) }),
+                      house.cityNames[site.city_id] ?? site.city_id,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
                 </div>
                 {!retired && (
                   <Button
@@ -949,22 +961,6 @@ export function SitesCard({
                       {t('home.restart', { cost: money(restartCost) })}
                     </Button>
                   )}
-                </div>
-              )}
-              {recipe && recipe.inputs.length > 0 && (
-                <div className="text-sm">
-                  <p>{t('home.inputs')}</p>
-                  <ul>
-                    {recipe.inputs.map((stack) => (
-                      <li key={stack.goodId}>
-                        {t('home.inputLine', {
-                          quantity: number.format(stack.quantity),
-                          good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
-                          free: number.format(freeStockOf(site)(stack.goodId)),
-                        })}
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               )}
               {current.map((event) => (
@@ -1031,6 +1027,67 @@ export function SitesCard({
                 </div>
               )}
               {announce(site.id)}
+              <div className="grid gap-x-6 gap-y-1 text-sm text-muted-foreground sm:grid-cols-2">
+                {!retired && (
+                  <p>
+                    {t('home.siteSince', {
+                      date: date.format(new Date(site.cycle_started_at)),
+                    })}
+                  </p>
+                )}
+                {upkeep !== null && upkeep > 0 && (
+                  <p>{t('home.upkeep', { cost: money(upkeep) })}</p>
+                )}
+                {staff && staff.workers > 0 && (
+                  <p>
+                    {t('home.siteStaff', {
+                      count: staff.workers,
+                      workers: number.format(staff.workers),
+                      housed: number.format(staff.housed),
+                      unhoused: number.format(staff.unhoused),
+                    })}
+                  </p>
+                )}
+                {day && recipe && recipe.workers > 0 && (
+                  <p>{t('home.wageOfDay', { cost: money(day.wageOboles) })}</p>
+                )}
+                {/* Le dû d'un jour est le prix d'une relance : entretien, salaires et hébergement. */}
+                {!retired && restartCost !== null && restartCost > 0 && (
+                  <p>{t('home.dailyCost', { cost: money(restartCost) })}</p>
+                )}
+                {recipe && (
+                  <p>
+                    {t('home.cap', {
+                      count: recipe.maxAccruedCycles,
+                      cycles: number.format(recipe.maxAccruedCycles),
+                      list: list(
+                        recipe.outputs.map((stack) =>
+                          stackText({
+                            goodId: stack.goodId,
+                            quantity: stack.quantity * recipe.maxAccruedCycles,
+                          }),
+                        ),
+                      ),
+                    })}
+                  </p>
+                )}
+              </div>
+              {recipe && recipe.inputs.length > 0 && (
+                <div className="text-sm">
+                  <p>{t('home.inputs')}</p>
+                  <ul>
+                    {recipe.inputs.map((stack) => (
+                      <li key={stack.goodId}>
+                        {t('home.inputLine', {
+                          quantity: number.format(stack.quantity),
+                          good: t(`goods.${stack.goodId}`, { defaultValue: stack.goodId }),
+                          free: number.format(freeStockOf(site)(stack.goodId)),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {rules && stewards && (
                 <SiteSteward
                   siteId={site.id}
@@ -1123,7 +1180,7 @@ export function SitesCard({
           )}
         </form>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -1152,6 +1209,7 @@ export function SitesScreen() {
         titleRef={title}
         figures={
           <StatCard
+            dense
             label={t('home.treasury')}
             icon={<Coins />}
             value={balance === undefined ? '—' : money(balance)}

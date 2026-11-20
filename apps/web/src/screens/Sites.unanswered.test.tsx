@@ -2,6 +2,7 @@
 import { INITIAL_CONFIG } from '@oikos/config';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
+import { useRef } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from '../house';
@@ -38,6 +39,19 @@ vi.mock('../server-clock', () => ({
 }));
 const { SitesCard } = await import('./Sites');
 
+/** Titre de l'écran Sites : le foyer y revient quand le joueur dit avoir vérifié la liste. */
+function Screen() {
+  const title = useRef<HTMLHeadingElement>(null);
+  return (
+    <>
+      <h1 ref={title} tabIndex={-1}>
+        {fr.home.sites}
+      </h1>
+      <SitesCard stock={[]} onChanged={() => Promise.resolve()} titleRef={title} />
+    </>
+  );
+}
+
 async function show() {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -49,7 +63,7 @@ async function show() {
   render(
     <I18nextProvider i18n={instance}>
       <HouseProvider value={{ ...house, cityNames: {}, citizenshipStatus: 'metic' }}>
-        <SitesCard stock={[]} onChanged={() => Promise.resolve()} />
+        <Screen />
       </HouseProvider>
     </I18nextProvider>,
   );

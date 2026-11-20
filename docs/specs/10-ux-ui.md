@@ -64,7 +64,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Sous le prix de vente, l'écran annonce le net du vendeur après la taxe de marché de la cité du bien (vue `city_rates`, même calcul et même arrondi que l'API), comme l'agora ; tant que ce taux n'est pas lu, ou s'il est nul, il n'annonce rien.
    Ce net est calculé au taux en vigueur à l'affichage, et le texte le dit : un décret peut changer le taux avant la vente.
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
-   L'écran Sites (`/sites`, #693) porte les fiches des sites de la maison, avec la trésorerie et le nombre de sites sur la limite du siège en chiffres clés.
+   L'écran Sites (`/sites`, #693) porte les fiches des sites de la maison, avec en chiffres clés la trésorerie, le nombre de sites sur la limite du siège, les sites prêts à récolter (« — » tant que l'heure du serveur ou le stock ne sont pas lus) et le coût d'un jour des sites qui tournent (celui de leurs relances, que la clôture prélèvera ; « — » tant qu'un prix manque).
+   Chaque fiche porte le pictogramme de sa production, son type et sa cité ; « Détails » du tableau de bord ouvre l'écran sur elle (`/sites#site-…`) et pose le foyer sur son titre.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    Un champ ou un verger dit la sécheresse ou la bonne année en cours dans sa cité (#417, vue `world_events`), avec sa fin et son ampleur.
    Sa récolte est estimée comme l'API la calculera (`cycleYield`, 4.3 et 7.4), à l'heure du serveur, sous les événements qui finissent après le début de son cycle en cours, et l'écart dû à l'événement est dit.
