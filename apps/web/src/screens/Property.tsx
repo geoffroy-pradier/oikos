@@ -208,7 +208,11 @@ export function PropertyScreen() {
 
   // Un bien s'achète ou se loue parmi les biens offerts : l'état vide y mène, s'il y en a.
   const toOffers = offers && offers.length > 0 && (
-    <Button variant="secondary" onClick={() => document.getElementById('property-offers')?.focus()}>
+    <Button
+      icon={<Inbox aria-hidden="true" />}
+      variant="secondary"
+      onClick={() => document.getElementById('property-offers')?.focus()}
+    >
       {t('property.seeOffers')}
     </Button>
   );

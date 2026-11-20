@@ -47,11 +47,11 @@ export function HouseProfileScreen() {
       <Button
         variant="ghost"
         className="self-start"
+        icon={<ArrowLeft aria-hidden="true" />}
         onClick={() =>
           window.history.length > 1 ? router.history.back() : void router.navigate({ to: '/' })
         }
       >
-        <ArrowLeft aria-hidden="true" />
         {t('houseProfile.back')}
       </Button>
       {read.loading && <Loading />}

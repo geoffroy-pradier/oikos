@@ -1,6 +1,6 @@
 import { marketPlaceOrderInputSchema, type MarketPlaceOrderInput } from '@oikos/contracts';
 import type { MarketTaxRule } from '@oikos/sim';
-import { Button, EmptyState, NumberField, Sheet, StatusRegion, Stepper } from '@oikos/ui';
+import { Button, EmptyState, NumberField, Sheet, StatusRegion, Stepper, Target } from '@oikos/ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewSale } from '../market-rules';
@@ -163,6 +163,7 @@ export function AgoraOrderSheet(props: AgoraOrderSheetProps) {
           <Button
             variant="secondary"
             size="sm"
+            icon={<Target aria-hidden="true" />}
             disabled={price === best.price}
             onClick={() => update({ price: best.price })}
           >

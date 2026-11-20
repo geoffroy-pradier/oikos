@@ -4,6 +4,7 @@ import {
   EmptyState,
   KeyRound,
   Package,
+  RefreshCw,
   Scale,
   StatCard,
   StatGrid,
@@ -94,7 +95,11 @@ export function AccountsScreen() {
         <EmptyState
           icon={<TriangleAlert />}
           title={<span role="alert">{t('app.loadFailed')}</span>}
-          action={<Button onClick={retry}>{t('app.retry')}</Button>}
+          action={
+            <Button icon={<RefreshCw aria-hidden="true" />} onClick={retry}>
+              {t('app.retry')}
+            </Button>
+          }
         />
       ) : (
         !(sheet && stocks) && <Loading />

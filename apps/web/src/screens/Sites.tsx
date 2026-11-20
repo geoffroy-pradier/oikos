@@ -3,6 +3,7 @@ import type { SiteCollectOutput } from '@oikos/contracts';
 import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
 import {
   Button,
+  Check,
   Coins,
   EmptyState,
   GoodIcon,
@@ -859,6 +860,7 @@ export function SitesCard({
       {harvestable.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <Button
+            icon={<Wheat aria-hidden="true" />}
             className={WAITING}
             aria-disabled={busy}
             aria-label={t('home.collectAllLabel', {
@@ -877,6 +879,7 @@ export function SitesCard({
           {announce(ACQUIRE)}
           {notice?.unanswered && (
             <Button
+              icon={<Check aria-hidden="true" />}
               variant="secondary"
               className="self-start"
               onClick={() => {
@@ -982,6 +985,7 @@ export function SitesCard({
                 </div>
                 {!retired && (
                   <Button
+                    icon={<Wheat aria-hidden="true" />}
                     inactive={nothing}
                     aria-describedby={nothing ? `harvest-${site.id}` : undefined}
                     className={nothing ? undefined : WAITING}

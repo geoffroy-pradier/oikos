@@ -1,4 +1,4 @@
-import { Button, Check, TriangleAlert, Vote } from '@oikos/ui';
+import { Button, Check, Flag, FlagOff, TriangleAlert, Vote } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand, type CityCommandInputs } from '../api';
@@ -84,6 +84,7 @@ export function ElectionActions(props: {
             <p className="text-sm text-muted-foreground">{t('cityPolitics.standHint')}</p>
           )}
           <Button
+            icon={mine ? <FlagOff aria-hidden="true" /> : <Flag aria-hidden="true" />}
             variant={mine ? 'secondary' : 'primary'}
             className={`self-start ${WAITING}`}
             aria-disabled={busy}

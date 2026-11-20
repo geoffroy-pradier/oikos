@@ -1,4 +1,4 @@
-import { Button, type DataColumn } from '@oikos/ui';
+import { Ban, Button, type DataColumn } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
 import type { Lease } from '../property';
@@ -43,6 +43,7 @@ export function PropertyLeases(props: {
           t('property.ending')
         ) : (
           <Button
+            icon={<Ban aria-hidden="true" />}
             size="sm"
             variant="secondary"
             disabled={busy}

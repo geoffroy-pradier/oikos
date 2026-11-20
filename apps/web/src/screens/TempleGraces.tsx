@@ -1,4 +1,13 @@
-import { Bird, Button, EmptyState, GodEmblem, LoaderCircle, Sheet, StatusRegion } from '@oikos/ui';
+import {
+  Bird,
+  Button,
+  EmptyState,
+  GodEmblem,
+  LoaderCircle,
+  Sheet,
+  Sparkles,
+  StatusRegion,
+} from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invokeGrace } from '../api';
@@ -165,6 +174,7 @@ export function TempleGraces(props: {
                 )}
                 {state.kind === 'ready' ? (
                   <Button
+                    icon={<Sparkles aria-hidden="true" />}
                     className="mt-1 max-w-full self-start text-wrap wrap-anywhere"
                     aria-haspopup="dialog"
                     disabled={busy}
@@ -211,7 +221,13 @@ export function TempleGraces(props: {
               // Inactif par `aria-disabled` pendant l'envoi : refusée, la confirmation garde le foyer.
               aria-disabled={busy}
               aria-busy={busy || undefined}
-              icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+              icon={
+                busy ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Sparkles aria-hidden="true" />
+                )
+              }
               className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
               disabled={open.state.kind !== 'ready'}
               onClick={() => void invoke(open.grace, open.grace.charisSpent ?? 0)}

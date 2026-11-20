@@ -7,6 +7,7 @@ import {
   DataTable,
   EmptyState,
   Info,
+  RefreshCw,
   Sheet,
 } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
@@ -154,6 +155,7 @@ export function ShipScreen() {
                 </Button>
               )}
               <Button
+                icon={<RefreshCw aria-hidden="true" />}
                 variant="secondary"
                 aria-disabled={rereading}
                 className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"

@@ -1,4 +1,14 @@
-import { Button, Card, CircleAlert, EmptyState, Hammer, Info, Sheet } from '@oikos/ui';
+import {
+  Button,
+  Card,
+  Check,
+  CircleAlert,
+  EmptyState,
+  Hammer,
+  Info,
+  Sheet,
+  ShoppingCart,
+} from '@oikos/ui';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireShip } from '../api';
@@ -137,6 +147,7 @@ export function Shipyard(props: {
             </span>
             <span className="flex w-full flex-col gap-1 sm:w-auto sm:items-end">
               <Button
+                icon={<ShoppingCart aria-hidden="true" />}
                 variant="secondary"
                 inactive={missing(shipClass) !== null}
                 aria-describedby={missing(shipClass) === null ? undefined : `${ids}${shipClass.id}`}
@@ -185,6 +196,7 @@ export function Shipyard(props: {
         footer={
           buying && (
             <Button
+              icon={<Check aria-hidden="true" />}
               loading={busy}
               onClick={() => void buy(buying.id, buying.purchaseCostOboles)}
               className="w-full sm:w-auto"
@@ -212,6 +224,7 @@ export function Shipyard(props: {
       </Sheet>
       {notice?.unanswered && (
         <Button
+          icon={<Check aria-hidden="true" />}
           variant="secondary"
           onClick={() => {
             pending.warning.set(false);

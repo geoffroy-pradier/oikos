@@ -4,6 +4,26 @@
  */
 export type { LucideIcon as Icon, LucideProps as IconProps } from 'lucide-react';
 export {
+  ArrowUp,
+  Clock,
+  Download,
+  FilterX,
+  FlagOff,
+  HandCoins,
+  ListChecks,
+  Pencil,
+  Play,
+  Save,
+  ShoppingCart,
+  SlidersHorizontal,
+  Tag,
+  Target,
+  Trash2,
+  Undo2,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
+export {
   Amphora,
   Anchor,
   Archive,

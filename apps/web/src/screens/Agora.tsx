@@ -5,9 +5,12 @@ import {
   Card,
   EmptyState,
   GoodIcon,
+  HandCoins,
   Select,
+  ShoppingCart,
   StatusRegion,
   TableScroll,
+  X,
 } from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -338,6 +341,13 @@ export function AgoraScreen() {
             <div className="flex flex-wrap gap-2 *:flex-1 *:basis-32">
               {(['sell', 'buy'] as const).map((choice) => (
                 <Button
+                  icon={
+                    choice === 'sell' ? (
+                      <HandCoins aria-hidden="true" />
+                    ) : (
+                      <ShoppingCart aria-hidden="true" />
+                    )
+                  }
                   key={choice}
                   variant={choice === 'sell' ? 'primary' : 'secondary'}
                   disabled={busy}
@@ -436,7 +446,12 @@ export function AgoraScreen() {
               illustration="noOrder"
               title={t('agora.myOrdersEmpty')}
               action={
-                <Button variant="secondary" disabled={busy} onClick={() => void openSheet('buy')}>
+                <Button
+                  icon={<ShoppingCart aria-hidden="true" />}
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void openSheet('buy')}
+                >
                   {t('agora.myOrdersAction')}
                 </Button>
               }
@@ -469,6 +484,7 @@ export function AgoraScreen() {
                     </span>
                   </span>
                   <Button
+                    icon={<X aria-hidden="true" />}
                     variant="secondary"
                     size="sm"
                     disabled={busy}

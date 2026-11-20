@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Clock, Download } from '@oikos/ui';
 import { CLIENT_SETTINGS } from '@oikos/config/client';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,8 +15,10 @@ export function UpdateBanner({ onUpdate, onLater }: { onUpdate: () => void; onLa
       className="flex flex-wrap items-center gap-2 border-b border-border bg-surface p-3"
     >
       <p className="min-w-0 flex-1">{t('app.update.ready')}</p>
-      <Button onClick={onUpdate}>{t('app.update.now')}</Button>
-      <Button variant="ghost" onClick={onLater}>
+      <Button icon={<Download aria-hidden="true" />} onClick={onUpdate}>
+        {t('app.update.now')}
+      </Button>
+      <Button icon={<Clock aria-hidden="true" />} variant="ghost" onClick={onLater}>
         {t('app.update.later')}
       </Button>
     </section>

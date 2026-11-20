@@ -1,5 +1,5 @@
 import { MAX_STEWARD_INSTRUCTION_LENGTH, type StewardRule } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
+import { Button, Check, ListChecks, Pencil, RefreshCw, Send } from '@oikos/ui';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
@@ -75,6 +75,7 @@ export function SiteStewardInstruction(props: {
         <>
           <p>{t('steward.instruction.pending', { name: steward.name })}</p>
           <Button
+            icon={<RefreshCw aria-hidden="true" />}
             type="button"
             variant="secondary"
             className="self-start"
@@ -96,6 +97,7 @@ export function SiteStewardInstruction(props: {
           </label>
           <p className="text-muted-foreground">{t('steward.instruction.hint')}</p>
           <Button
+            icon={<Send aria-hidden="true" />}
             type="submit"
             className="self-start aria-disabled:opacity-60"
             aria-disabled={busy || text.trim() === ''}
@@ -122,6 +124,7 @@ export function SiteStewardInstruction(props: {
           </ol>
           <div className="flex flex-wrap gap-2">
             <Button
+              icon={<Check aria-hidden="true" />}
               type="button"
               className="aria-disabled:opacity-60"
               aria-disabled={busy}
@@ -130,6 +133,7 @@ export function SiteStewardInstruction(props: {
               {t('steward.instruction.validate')}
             </Button>
             <Button
+              icon={<Pencil aria-hidden="true" />}
               type="button"
               variant="secondary"
               onClick={() => current.rules && props.onEdit(current.rules)}
@@ -144,7 +148,13 @@ export function SiteStewardInstruction(props: {
           <p className="break-words font-semibold text-danger">
             {t(`steward.instruction.refusals.${current.refusal}`, { name: steward.name })}
           </p>
-          <Button type="button" variant="secondary" className="self-start" onClick={props.openForm}>
+          <Button
+            icon={<ListChecks aria-hidden="true" />}
+            type="button"
+            variant="secondary"
+            className="self-start"
+            onClick={props.openForm}
+          >
             {t('steward.instruction.toForm')}
           </Button>
         </div>

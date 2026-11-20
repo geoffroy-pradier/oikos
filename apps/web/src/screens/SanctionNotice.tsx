@@ -1,4 +1,4 @@
-import { Button, ShieldAlert } from '@oikos/ui';
+import { Button, EyeOff, ShieldAlert } from '@oikos/ui';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -168,6 +168,7 @@ function SanctionItem({
       <div className="mt-1 flex flex-col">
         {ended ? (
           <Button
+            icon={<EyeOff aria-hidden="true" />}
             type="button"
             variant="ghost"
             size="sm"
