@@ -1043,7 +1043,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
 
   // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
-  await acquireSite(page, /^Moulin/);
+  await acquireSite(page, /^Moulin Atelier/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   const mill = page
     .getByRole('listitem')
@@ -1321,7 +1321,7 @@ test('à surveiller : plafond atteint et atelier à court d’intrants ; « Tout
     'Champ de blé — plafond de production atteint',
   ]);
   // Un moulin, acquis ensuite, sans blé libre : une heure plus tard, son premier cycle attend.
-  await acquireSite(page, /^Moulin/);
+  await acquireSite(page, /^Moulin Atelier/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   await db.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
