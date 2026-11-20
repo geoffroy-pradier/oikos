@@ -13,8 +13,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HouseProvider } from './house';
 import fr from './locales/fr.json';
 
+// Lectures simulées par vue ; sans message d'une autre maison, aucun non lu.
+const views = vi.hoisted(() => ({ rows: {} as Record<string, object[]> }));
 vi.mock('./data', () => ({
-  useRows: () => ({ rows: [{ balance: 600 }], failed: false, reload: () => Promise.resolve(null) }),
+  useRows: (view: string) => ({
+    rows: views.rows[view] ?? [{ balance: 600 }],
+    failed: false,
+    reload: () => Promise.resolve(null),
+  }),
 }));
 vi.mock('./supabase', () => ({ supabase: { auth: { signOut: vi.fn() } } }));
 vi.mock('./screens/SanctionNotice', () => ({ SanctionNotice: () => null }));
@@ -69,6 +75,7 @@ async function mount(path: string) {
 }
 afterEach(() => {
   cleanup();
+  views.rows = {};
   window.localStorage.clear();
   delete document.documentElement.dataset['theme'];
 });
@@ -126,6 +133,41 @@ describe('coquille : navigation', () => {
       /^Kallistè · \d{2}:\d{2}$/,
     );
     expect(within(header).getByRole('button', { name: 'Réglages' })).toBeTruthy();
+  });
+});
+
+describe('coquille : non lus', () => {
+  it('l’onglet Messages porte le nombre de non lus, dit en clair, sans rien marquer lu', async () => {
+    const at = '2026-11-20T10:00:00Z';
+    views.rows = {
+      my_channels: [
+        {
+          id: 'c',
+          kind: 'city',
+          world_id: 'w',
+          city_id: 'k',
+          other_house_id: null,
+          created_at: at,
+        },
+      ],
+      channel_messages: ['m1', 'm2', 'm3'].map((id, index) => ({
+        id,
+        channel_id: 'c',
+        house_id: index === 2 ? 'h' : 'autre',
+        body: 'Salut',
+        created_at: at,
+        hidden_at: null,
+      })),
+    };
+    await mount('/');
+    const link = within(nav()).getByRole('link', { name: 'Messages, 2 messages non lus' });
+    expect(link.textContent).toContain('2');
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('sans non lu, ni pastille ni texte', async () => {
+    await mount('/');
+    expect(within(nav()).getByRole('link', { name: 'Messages' }).textContent).toBe('Messages');
   });
 });
 

@@ -12,6 +12,7 @@ import {
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useUnreadTotal } from './chat-unread';
 import { chooseTheme, storedThemeChoice, type ThemeChoice } from './preferences';
 import { SanctionNotice } from './screens/SanctionNotice';
 import { router, TABS, tabOf, type TabId } from './router';
@@ -41,6 +42,7 @@ export function Shell() {
   const active = tabOf(pathname);
   const [theme, setTheme] = useState<ThemeChoice>(storedThemeChoice);
   const [settings, setSettings] = useState(false);
+  const unread = useUnreadTotal(pathname);
 
   // Thème de l'appareil : suivi en direct tant que c'est le choix du joueur.
   useEffect(() => {
@@ -126,6 +128,29 @@ export function Shell() {
                     strokeWidth={current ? 2.25 : 1.75}
                   />
                   <span>{t(`tabs.${tab.id}.label`)}</span>
+                  {tab.id === 'messages' && unread && unread.count > 0 && (
+                    <>
+                      {/* Téléphone : un point contre l'icône, en pixels pour ne pas déborder sous une police
+                          agrandie ; ordinateur : le nombre, en bout de ligne. */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-2 left-[calc(50%+8px)] size-2.5 rounded-full bg-primary lg:hidden"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="hidden min-w-5 rounded-full bg-primary px-1.5 text-center text-[0.6875rem] leading-5 font-semibold text-primary-foreground tabular-nums lg:ml-auto lg:inline-block"
+                      >
+                        {unread.count > 99 ? '99+' : `${unread.count}${unread.atLeast ? '+' : ''}`}
+                      </span>
+                      {/* Virgule : le nom de l'onglet et le compte ne se collent pas à la lecture. */}
+                      <span className="sr-only">
+                        {', '}
+                        {t(unread.atLeast ? 'messages.unreadAtLeast' : 'messages.unread', {
+                          count: unread.count,
+                        })}
+                      </span>
+                    </>
+                  )}
                 </Link>
               </li>
             );

@@ -12,6 +12,7 @@ import {
   unreadSince,
 } from './chat';
 import { chatTopics, useChatLive } from './chat-live';
+import { CHAT_READ_EVENT } from './chat-unread';
 import { CITED_HOUSES_PER_READ, useCitedHouses } from './cited-houses';
 import { useRows } from './data';
 import { useHouse } from './house';
@@ -93,6 +94,8 @@ export function useChat(selectedId: string | null) {
       if (document.visibilityState !== 'visible') return;
       const next = markRead(house.id, openId, newestAt);
       setMarks((before) => (before[openId] === next[openId] ? before : next));
+      // La pastille de la navigation (`useUnreadTotal`) relit les marques.
+      window.dispatchEvent(new Event(CHAT_READ_EVENT));
     };
     mark();
     document.addEventListener('visibilitychange', mark);
