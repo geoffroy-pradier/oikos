@@ -182,6 +182,9 @@ pnpm test:balance       # banc d'équilibrage des quatre cités, contre Supabase
 pnpm test:e2e           # Playwright : parcours web complet, sur la construction de production
 ```
 
+Le contrôle visuel (`e2e/visual.spec.ts` du jeu et d'Olympe, #700) demande Docker : ses captures sont rendues par le Chromium de l'image Docker de Playwright, que le test lance lui-même ; les autres tests de bout en bout s'en passent.
+Ses images de référence sont donc celles de Linux (suffixe `-linux`), sous Windows et macOS comme en `ci` : on les produit et on les compare sur une machine Linux, ou sous WSL 2.
+
 ### Banc d'équilibrage
 
 Le banc d'équilibrage joue des maisons scriptées dans un monde à part, avec les vraies commandes et le moteur, pour mesurer l'économie.

@@ -1,20 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
-
-/** Violations graves (sérieuses ou critiques) des règles WCAG A et AA relevées par axe sur la page. */
-async function seriousViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
-  return violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .map((violation) => ({
-      rule: violation.id,
-      targets: violation.nodes.map((node) => node.target.join(' ')),
-    }));
-}
+import { expect, test } from '@playwright/test';
+import { expectNoHorizontalScroll, foundHouseForm, seriousViolations, signIn } from './helpers';
 
 test('coquille : sans violation grave (axe) dans les deux thèmes, Réglages au clavier', async ({
   page,
