@@ -1,6 +1,7 @@
-import { Card, EmptyState, Select, Store } from '@oikos/ui';
+import { Card, EmptyState, Landmark, Select, Store } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { describeCity, type CityIdentity } from '../city-identity';
 import { useRows } from '../data';
 import { useMoney } from '../money';
@@ -68,10 +69,13 @@ export function CityPanel(props: {
     [...stocks.rows, ...sites.rows].some((row) => row.city_id === cityId);
   const agoraCity = offered ? cityId : props.homeId;
   const lines = props.identity && describeCity(props.identity, t, i18n.language);
-  const tile = (label: string, value: string) => (
+  // `said` : une valeur absente dite par une phrase, plus petite qu'un chiffre (#869).
+  const tile = (label: string, value: string, said = false) => (
     <div key={label} className="rounded-xl bg-surface-raised p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-lg font-bold tabular-nums">{value}</dd>
+      <dd className={said ? 'mt-1 text-sm font-medium' : 'mt-1 text-lg font-bold tabular-nums'}>
+        {value}
+      </dd>
     </div>
   );
 
@@ -89,11 +93,13 @@ export function CityPanel(props: {
         ))}
       </Select>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <h2 className="text-lg font-bold">{props.cityName(cityId)}</h2>
+        <SectionTitle icon={<Landmark />}>{props.cityName(cityId)}</SectionTitle>
         {lines && <p className="text-xs text-muted-foreground">{lines.god}</p>}
       </div>
       <dl className="grid grid-cols-2 gap-2.5">
-        {tile(t('map.city.population'), population ? number.format(population.total) : '—')}
+        {population
+          ? tile(t('map.city.population'), number.format(population.total))
+          : tile(t('map.city.population'), t('map.city.populationUnknown'), true)}
         {tile(t('map.city.tax'), tax === undefined ? '—' : percent.format(tax / 10_000))}
         {quotes.map((quote) =>
           tile(

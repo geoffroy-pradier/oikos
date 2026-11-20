@@ -72,6 +72,7 @@ import {
 import { serverClock, syncServerClock } from '../server-clock';
 import { keepInView } from '../keep-in-view';
 import { describeWorldEvent, inForce, useCoveredEvents } from '../world-events';
+import { dateTimeFormat } from '../game-time';
 
 interface Site {
   id: string;
@@ -303,7 +304,7 @@ export function SitesCard({
   const number = new Intl.NumberFormat(i18n.language);
   const list = (items: string[]) => formatList(i18n.language, items);
   const money = useMoney();
-  const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const date = dateTimeFormat(i18n.language);
   // Une recette ou un type ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const recipeName = (id: string) => t(`recipes.${id}`, { defaultValue: id });
   const stackText = (stack: { goodId: string; quantity: number }) =>

@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Check,
+  cn,
   Coins,
   EmptyState,
   Gavel,
@@ -167,7 +168,8 @@ export function CityAssembly() {
   // Une carte par décret : son modèle illustré, ce qu'il dit, puis ce que l'écran en sait.
   const card = (decree: Decree, children: ReactNode, open = false) => (
     <li key={decree.id}>
-      <Card elevation={open ? 'raised' : 'flat'} className="flex h-full gap-3 break-words">
+      {/* Même fond que les autres cartes de la Cité (#869) ; un décret au vote se distingue par sa bordure. */}
+      <Card className={cn('flex h-full gap-3 break-words', open && 'border-primary/40')}>
         <span aria-hidden="true" className={ICON}>
           {icon(decree.model)}
         </span>

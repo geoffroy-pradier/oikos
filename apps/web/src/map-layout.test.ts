@@ -3,6 +3,7 @@ import { CITY_MAP_POSITIONS } from '@oikos/config/client';
 import { describe, expect, it } from 'vitest';
 import fr from './locales/fr.json';
 import {
+  crosses,
   along,
   archipelagoLayout,
   cityDot,
@@ -177,5 +178,47 @@ describe('dessin de l’archipel', () => {
       box(4),
       null,
     ]);
+  });
+});
+
+describe('rien ne coupe une route (#869)', () => {
+  const route = { a: { x: 0, y: 0 }, b: { x: 10, y: 10 } };
+
+  it('un trait coupe un rectangle qu’il traverse ou touche, pas un rectangle à côté', () => {
+    expect(crosses(route, { x: 4, y: 4, width: 2, height: 2 })).toBe(true);
+    expect(crosses(route, { x: 4, y: 0, width: 2, height: 2 })).toBe(false);
+    // Un trait vertical, et un rectangle qui touche son bout.
+    expect(
+      crosses({ a: { x: 5, y: 0 }, b: { x: 5, y: 10 } }, { x: 4, y: 3, width: 2, height: 1 }),
+    ).toBe(true);
+    expect(crosses(route, { x: 10, y: 10, width: 1, height: 1 })).toBe(true);
+    expect(crosses(route, { x: 11, y: 11, width: 1, height: 1 })).toBe(false);
+  });
+
+  it('une étiquette prend la première place qui ne coupe aucune route ; sans place, aucune', () => {
+    const bounds = { x: 0, y: 0, width: 20, height: 20 };
+    const onRoute = { x: 4, y: 4, width: 2, height: 2 };
+    const beside = { x: 6, y: 1, width: 2, height: 2 };
+    expect(placeBoxes([[onRoute, beside]], [], bounds, [route])).toEqual([beside]);
+    expect(placeBoxes([[onRoute]], [], bounds, [route])).toEqual([null]);
+    // Sans route, la première place.
+    expect(placeBoxes([[onRoute, beside]], [], bounds)).toEqual([onRoute]);
+  });
+
+  it('un nom de cité évite les routes, puis les coupe plutôt que de chevaucher un autre nom', () => {
+    // Une cité au centre, une route qui passe juste au-dessus d'elle : le nom passe dessous.
+    const at = { x: 50, y: 35 };
+    const above = { a: { x: 0, y: 33 }, b: { x: 100, y: 33 } };
+    const [name] = cityLabels([{ at, name: 'Elaia' }], 0.1, [], [above]);
+    expect(name && name.y).toBeGreaterThan(at.y);
+    // Des routes tout autour : le nom reprend la première place, au-dessus.
+    const around = [
+      above,
+      { a: { x: 0, y: 37 }, b: { x: 100, y: 37 } },
+      { a: { x: 47, y: 0 }, b: { x: 47, y: 70 } },
+      { a: { x: 53, y: 0 }, b: { x: 53, y: 70 } },
+    ];
+    const [crowded] = cityLabels([{ at, name: 'Elaia' }], 0.1, [], around);
+    expect(crowded && crowded.y + crowded.height).toBeLessThanOrEqual(at.y);
   });
 });

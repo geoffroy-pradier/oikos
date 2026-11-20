@@ -18,6 +18,7 @@ import { useHouse } from '../house';
 import { formatList } from '../lists';
 import { Departure, type DepartureNotice } from './Departure';
 import { LoadProblem, Loading } from './LoadProblem';
+import { dateTimeFormat } from '../game-time';
 
 /** Fiche d'un navire : où il est, ses voyages (départ, arrivée prévue, cargaison), et son départ (#254). */
 export function ShipScreen() {
@@ -76,7 +77,7 @@ export function ShipScreen() {
     if (notice) noticeElement.current?.focus();
   }, [notice]);
   const number = new Intl.NumberFormat(i18n.language);
-  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const time = dateTimeFormat(i18n.language);
   const cityName = (cityId: string) => house.cityNames[cityId] ?? cityId;
   const place = ship?.docked_city_id
     ? t('map.docked', { city: cityName(ship.docked_city_id) })

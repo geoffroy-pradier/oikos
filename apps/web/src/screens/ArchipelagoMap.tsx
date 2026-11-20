@@ -116,18 +116,38 @@ export function ArchipelagoMap(props: {
       ? [{ x: at.x - px(40), y: at.y + px(10), width: px(80), height: px(14) }]
       : [];
   });
-  const names = cityLabels(props.cities, unit, [...(map.zoomed ? [] : [controls]), ...below]).map(
-    (box, index) => {
-      const at = props.cities[index]?.at ?? { x: 0, y: 0 };
-      // Nom à droite du point : aligné à gauche ; à gauche : aligné à droite ; dessus ou dessous : centré.
-      const [start, end] = [box.x >= at.x, box.x + box.width <= at.x];
-      const x = start ? box.x : end ? box.x + box.width : box.x + box.width / 2;
-      const anchor = start ? 'start' : end ? 'end' : 'middle';
-      return { box, x, y: box.y + px(CITY_LABEL.baseline), anchor } as const;
-    },
-  );
+  // Routes tracées : ni durée ni étiquette ne les coupe, un nom de cité seulement s'il n'a pas d'autre place.
+  const lines = routesShown ? legs.map(({ a, b }) => ({ a, b })) : [];
+  // Légende, en haut à gauche du cadre quand il est assez large pour la porter.
+  const legend = width >= 512 ? [{ x: box.x, y: box.y, width: px(250), height: px(50) }] : [];
+  const ships = (routesShown ? props.ships : []).map((ship) => ({
+    ...ship,
+    at: along(ship.from, ship.to, ship.progress),
+    width: px(ship.name.length * 7 + 16),
+    height: px(20),
+  }));
+  const hulls = ships.map(({ at }) => ({
+    x: at.x - px(13),
+    y: at.y - px(13),
+    width: px(26),
+    height: px(26),
+  }));
+  const names = cityLabels(
+    props.cities,
+    unit,
+    [...(map.zoomed ? [] : [controls]), ...below],
+    lines,
+  ).map((box, index) => {
+    const at = props.cities[index]?.at ?? { x: 0, y: 0 };
+    // Nom à droite du point : aligné à gauche ; à gauche : aligné à droite ; dessus ou dessous : centré.
+    const [start, end] = [box.x >= at.x, box.x + box.width <= at.x];
+    const x = start ? box.x : end ? box.x + box.width : box.x + box.width / 2;
+    const anchor = start ? 'start' : end ? 'end' : 'middle';
+    return { box, x, y: box.y + px(CITY_LABEL.baseline), anchor } as const;
+  });
   const dots = props.cities.map(({ at }) => cityDot(at, unit));
-  // Durée de chaque route au-dessus de son milieu, sinon au-dessous ; sans place, la liste la dit.
+  // Durée de chaque route au-dessus de son milieu, sinon au-dessous, à droite ou à gauche, sans couper une
+  // route ni couvrir un navire, les boutons ou la légende (#869) ; sans place, la liste la dit.
   const durations = placeBoxes(
     legs.map(({ a, b, hours: h }) => {
       const middle = along(a, b, 0.5);
@@ -135,17 +155,21 @@ export function ArchipelagoMap(props: {
       return [
         { x: middle.x - width / 2, y: middle.y - px(4) - height, width, height },
         { x: middle.x - width / 2, y: middle.y + px(4), width, height },
+        { x: middle.x + px(4), y: middle.y - height / 2, width, height },
+        { x: middle.x - px(4) - width, y: middle.y - height / 2, width, height },
       ];
     }),
-    [...names.map(({ box }) => box), ...dots, ...below],
+    [
+      ...names.map(({ box }) => box),
+      ...dots,
+      ...below,
+      ...hulls,
+      ...(map.zoomed ? [] : [controls]),
+      ...legend,
+    ],
     { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT },
+    lines,
   );
-  const ships = (routesShown ? props.ships : []).map((ship) => ({
-    ...ship,
-    at: along(ship.from, ship.to, ship.progress),
-    width: px(ship.name.length * 7 + 16),
-    height: px(20),
-  }));
   // Les étiquettes des navires évitent les noms des cités, les unes les autres et le bord du dessin.
   const labels = placeLabels(
     ships,
@@ -153,18 +177,14 @@ export function ArchipelagoMap(props: {
       ...names.map(({ box }) => box),
       ...dots,
       ...(dense ? [] : durations.flatMap((duration) => (duration ? [duration] : []))),
-      ...ships.map(({ at }) => ({
-        x: at.x - px(13),
-        y: at.y - px(13),
-        width: px(26),
-        height: px(26),
-      })),
+      ...hulls,
       // Les boutons de zoom, en haut à droite ; la légende, en haut à gauche.
       controls,
-      ...(width >= 512 ? [{ x: box.x, y: box.y, width: px(250), height: px(50) }] : []),
+      ...legend,
     ],
     box,
     px(13),
+    lines,
   );
 
   return (

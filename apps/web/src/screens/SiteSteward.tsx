@@ -28,6 +28,7 @@ import { instructionIntent, refusalRestUntil } from '../stewards';
 import type { StewardRule } from '@oikos/contracts';
 import { SiteStewardInstruction } from './SiteStewardInstruction';
 import { useCommandNotice } from './CommandNotice';
+import { dateTimeFormat } from '../game-time';
 
 const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 const KINDS = ['collect', 'sell', 'buy'] as const;
@@ -59,7 +60,7 @@ export function SiteSteward(props: {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const money = useMoney();
-  const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const date = dateTimeFormat(i18n.language);
   const { steward, rules, siteId } = props;
   const scope = `steward.${house.id}`;
   const keys = useMemo(() => pendingKeys(scope, () => window.sessionStorage), [scope]);

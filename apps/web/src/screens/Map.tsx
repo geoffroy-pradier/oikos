@@ -3,6 +3,7 @@ import { Anchor, Button, Card, EmptyState, Hammer, PillTabs, Ship, Waves } from 
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { Help } from './Help';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { parseCityIdentities } from '../city-identity';
@@ -17,6 +18,7 @@ import { AtSea } from './AtSea';
 import { CityPanel } from './CityPanel';
 import { LoadProblem, Loading } from './LoadProblem';
 import { Shipyard } from './Shipyard';
+import { dateTimeFormat } from '../game-time';
 
 /** Onglet Carte : l'archipel, ses routes et les navires de la maison, la liste qui les dit, le chantier. */
 export function MapScreen() {
@@ -29,7 +31,7 @@ export function MapScreen() {
   const shipName = useShipName(ships ?? []);
   const arrivals = useArrivals(fleet.voyages.rows);
   const number = new Intl.NumberFormat(i18n.language);
-  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
+  const time = dateTimeFormat(i18n.language);
   const cityName = (cityId: string) => house.cityNames[cityId] ?? cityId;
   const idOf = useMemo(() => new Map([...slugs].map(([id, slug]) => [slug, id])), [slugs]);
   const layout = useMemo(() => archipelagoLayout([...slugs.values()], CITY_MAP_POSITIONS), [slugs]);
@@ -183,7 +185,7 @@ export function MapScreen() {
       </div>
 
       <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('map.routes')}</h2>
+        <SectionTitle icon={<Waves />}>{t('map.routes')}</SectionTitle>
         {rules && routes.length === 0 && (
           <EmptyState compact illustration="noShip" title={t('map.noRoutes')} />
         )}
@@ -207,9 +209,9 @@ export function MapScreen() {
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <h2 ref={fleetTitle} tabIndex={-1} className="text-xl">
+        <SectionTitle ref={fleetTitle} tabIndex={-1} icon={<Anchor />}>
           {t('map.fleet')}
-        </h2>
+        </SectionTitle>
         {ships?.length === 0 && (
           <EmptyState
             illustration="noShip"

@@ -13,6 +13,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { LoadProblem, Loading } from './LoadProblem';
 import { candleMarks, observedAverage, parsePriceSeries, priceSummary } from '../price-history';
+import { dateTimeFormat } from '../game-time';
 
 /** Lignes lues : de quoi couvrir plus d'une semaine de chandeliers d'une heure. */
 const HISTORY_ROWS = 200;
@@ -59,10 +60,7 @@ export type PriceHistoryReads = ReturnType<typeof usePriceHistory>;
 
 function useFormats() {
   const { t, i18n } = useTranslation();
-  const date = (instant?: number) =>
-    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(
-      instant,
-    );
+  const date = (instant?: number) => dateTimeFormat(i18n.language).format(instant);
   return { t, number: new Intl.NumberFormat(i18n.language), date };
 }
 

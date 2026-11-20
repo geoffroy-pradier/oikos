@@ -140,6 +140,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Les noms gardent leur taille à l'écran ; sur un dessin petit (téléphone), les durées et les navires à quai ne sont dits que par la liste.
    Douze cités (#707) : le nom d'une cité se pose au-dessus de son point, sinon au-dessous, à droite ou à gauche, la première place qui ne chevauche ni un autre nom, ni un point de cité, ni les boutons de la carte non zoomée, ni ses navires à quai ou son terroir ; les cités du nord se posent d'abord.
    La durée d'une route se pose au-dessus de son milieu, sinon au-dessous ; sans place libre, seule la liste la dit.
+   Finitions (#869) : la durée se pose aussi à droite ou à gauche du milieu, et ni elle ni l'étiquette d'un navire ne coupe une route, ne couvre un navire, les boutons de zoom ou la légende ; un nom de cité évite d'abord les routes, et ne les coupe qu'à défaut d'une autre place.
    Sur un dessin petit, le calque Terroirs ne montre que le terroir de la cité choisie, et le dit sous la carte ; une cité au bas du dessin a son terroir au-dessus d'elle.
    La liste des routes est triée par cité de départ puis d'arrivée, en colonnes sur un écran large.
    La carte se déplace et se zoome (de ×1 à ×4), bornée au dessin : en glissant à la souris ou au doigt, à la molette, en pinçant, au clavier (un arrêt de tabulation : flèches, + et −, 0) et par trois boutons (zoomer, dézoomer, recentrer).
@@ -147,7 +148,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Un appui ne devient un glisser qu'au-delà de 4 pixels : en deçà, c'est un clic sur sa cible ; un glisser ne choisit rien. Tant que la carte n'est pas zoomée, le doigt y fait défiler la page verticalement, et pincer zoome.
    Une légende distingue les routes de la maison des autres (couleur et épaisseur, et la liste les dit) ; elle est sur la carte, ou sous elle quand la carte est étroite.
    Deux calques en pastilles, dans l'en-tête : Routes (routes et navires) et Terroirs (sous chaque cité, les biens de son terroir, d'après `city_identity` et les recettes de `site_rules`).
-   Un panneau donne la cité choisie, celle de la maison d'abord, choisie par sa liste ou d'un clic sur la carte : population (vue `city_population` ; sans ligne, inconnue), taxe de marché en vigueur (`city_rates`), le prix moyen observé des trois biens les plus échangés à son agora (`observed_prices`), dieu protecteur et terroir, et un lien qui ouvre l'agora sur elle (`/agora?cite=`) quand l'agora la propose (cités où la maison a un stock ou un site) ; sinon il ouvre l'agora de la cité de la maison, la nomme, et le panneau dit pourquoi.
+   Un panneau donne la cité choisie, celle de la maison d'abord, choisie par sa liste ou d'un clic sur la carte : population (vue `city_population` ; sans ligne, « Pas encore connue », #869), taxe de marché en vigueur (`city_rates`), le prix moyen observé des trois biens les plus échangés à son agora (`observed_prices`), dieu protecteur et terroir, et un lien qui ouvre l'agora sur elle (`/agora?cite=`) quand l'agora la propose (cités où la maison a un stock ou un site) ; sinon il ouvre l'agora de la cité de la maison, la nomme, et le panneau dit pourquoi.
    À côté de la carte (dessous sur téléphone), « Vos navires en mer » donne pour chaque voyage en cours sa route, sa cargaison, son arrivée prévue et une barre de la part du trajet faite, écrite en pourcentage.
    Il est doublé d'une liste au clavier qui porte les mêmes informations : les routes, puis chaque navire et son état (à quai, en mer vers sa destination avec l'arrivée prévue, désarmé).
    Le chantier naval propose chaque classe à son prix, en drachmes et oboles ; l'achat suit l'acquisition d'un site (4.2) : un achat resté sans réponse garde sa clé jusqu'à la relecture qui montre un navire de plus.
@@ -157,6 +158,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Refonte (#696) : ces voyages sont un tableau triable sur ordinateur, des fiches sur téléphone (`DataTable`), du plus récent au plus ancien ; l'arrivée dit « Arrivée prévue » ou « Arrivé » avec sa date.
    Le départ se fait depuis la fiche, dans une feuille (ADR 0011), par étapes : la destination, qui dit la durée pour la classe du navire et le coût, la cargaison, puis un récapitulatif (destination, durée, cargaison, tempête, vent et coût vus) et « Partir ».
    Décision (#696) : la refonte remplace les deux touches de la première version par ces étapes, une étape qui ne se valide pas (cargaison au-delà de la cale ou du stock libre) n'ouvrant pas la suivante.
+   Par temps ordinaire, chaque destination tient sur une ligne : la cité, puis la durée et le coût ; son nom accessible reste la phrase entière (#869).
    Un départ fait ferme la feuille et son issue s'annonce sur la fiche, où va le foyer ; un refus ou une réponse perdue se dit dans la feuille, près de « Partir », qui reste ouverte.
    Tant que la requête est en vol, la feuille ne se ferme pas (Fermer inactif, Échap et le voile sans effet) et le dit : son issue y est toujours lue.
    Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
@@ -180,6 +182,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Les panneaux des pastilles quittées restent montés, cachés : une commande en vol garde sa clé, une saisie survit au changement de pastille.
    Les pastilles sont sous l'en-tête de page, qui porte le lien du temple, comme sur Maison (#862).
    Après le panneau viennent la vignette et l'identité de la cité et trois cartes : population (détail par classe replié), marché du travail et parc de logements.
+   Sur ordinateur, ces trois cartes ont la même hauteur ; toutes les cartes de l'onglet Cité ont le même fond, un décret au vote se distinguant par sa bordure (#869).
    La vie politique tient en cartes : statut, archonte en charge, élection en cours (calendrier en trois étapes, l'étape en cours marquée, candidatures en cartes), puis la dernière élection dépouillée, dont les voix sont doublées de barres.
    Dans la carte de l'élection, la candidature et le bulletin sont des cartes d'action : le bulletin a un bouton par candidature, qui nomme la maison.
    L'archonte propose un décret dans une feuille par étapes, ouverte par « Nouveau décret » sous les règles du vote : le modèle (une carte par modèle ouvert, décrite), ses paramètres aux bornes annoncées, puis un récapitulatif chiffré confirmé par « Proposer au vote ».
@@ -258,6 +261,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Sur téléphone, la liste des canaux vient d'abord, puis le fil du canal choisi, avec un retour à la liste qui dit le total des non lus.
    Décision (#698) : sur téléphone, aucun canal n'est marqué lu tant que la liste est montrée ; le foyer passe au titre du fil à son ouverture, et revient au canal quitté au retour.
    Chaque canal a sa saisie, envoyée par son bouton, par Ctrl+Entrée ou par Cmd+Entrée.
+   Sur téléphone, la saisie reste collée en bas de l'écran, au-dessus de la barre d'onglets, même quand le fil est court ; un message est daté au format des autres écrans (date et heure courtes, #869).
    Son brouillon survit au changement de canal, d'onglet et au rechargement (stockage de session), à un refus et à une réponse perdue ; il n'est effacé que si le texte envoyé est encore celui de la saisie.
    Sans stockage de session, il est gardé en mémoire : il survit au changement de canal et d'onglet, pas au rechargement.
    La même saisie restée sans réponse repart sous la même clé ; un autre texte est une autre demande, sous une clé neuve.

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useRows } from './data';
 import { serverClock, syncServerClock } from './server-clock';
+import { dateTimeFormat } from './game-time';
 
 /** Un événement du monde commencé (vue `world_events`, 7.4) : seuls ceux-là sont lisibles par les joueurs. */
 export interface WorldEvent {
@@ -182,7 +183,7 @@ export function describeWorldEvent(
   language: string,
   cityNames: Readonly<Record<string, string>>,
 ) {
-  const date = new Intl.DateTimeFormat(language, { dateStyle: 'short', timeStyle: 'short' });
+  const date = dateTimeFormat(language);
   const percent = new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 2 });
   const city = (id: string) => cityNames[id] ?? id;
   return t(`worldEvents.${event.model}`, {

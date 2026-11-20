@@ -172,7 +172,7 @@ export function CityPolitics() {
               </div>
             </Card>
           </div>
-          <Card elevation="raised" className="flex flex-col gap-4">
+          <Card className="flex flex-col gap-4">
             <h3 className={`${TITLE} text-base`}>
               <CalendarClock aria-hidden="true" />
               {t('cityPolitics.election')}
