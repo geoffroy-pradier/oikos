@@ -1,5 +1,5 @@
 /** Accès typé à la base pour l'API de jeu et le moteur (Kysely). */
-import type { Blazon, DecreeModel, HonorReason } from '@oikos/contracts';
+import type { Blazon, DecreeModel, HonorReason, OstracismOutcome } from '@oikos/contracts';
 import {
   Kysely,
   PostgresDialect,
@@ -615,6 +615,36 @@ export interface GameDatabase {
     decree_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     approve: ColumnType<boolean, boolean, never>;
+    cast_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Votes d'ostracisme (6.4, #722), ouverts par un décret `ostracism` adopté, avec les règles de la clôture qui
+   * les ouvre ; dépouillés une fois par la clôture, dont la base recompte l'issue (garde).
+   */
+  'game.ostracisms': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    decree_id: ColumnType<string, string, never>;
+    /** Ouverture, datée par la base : base de l'écart entre deux ostracismes d'une cité. */
+    opened_at: ColumnType<Date, never, never>;
+    voting_closes_at: ColumnType<Date, Date, never>;
+    quorum_bps: ColumnType<number, number, never>;
+    ostracism_days: ColumnType<number, number, never>;
+    tallied_at: ColumnType<Date | null, never, Date>;
+    electorate: ColumnType<number | null, never, number>;
+    ballots: ColumnType<number | null, never, number>;
+    outcome: ColumnType<OstracismOutcome | null, never, OstracismOutcome>;
+    ostracized_house_id: ColumnType<string | null, never, string>;
+    /** Fin de l'ostracisme : la clôture `ostracism_days` jours de jeu après celle du dépouillement. */
+    ends_at: ColumnType<Date | null, never, Date>;
+  };
+  /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */
+  'game.ostraca': {
+    id: ColumnType<string, never, never>;
+    ostracism_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    target_house_id: ColumnType<string, string, never>;
     cast_at: ColumnType<Date, never, never>;
   };
   /**
