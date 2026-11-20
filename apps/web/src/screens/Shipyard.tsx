@@ -1,4 +1,4 @@
-import { Button, Card, CircleAlert, Hammer, Info } from '@oikos/ui';
+import { Button, Card, CircleAlert, Hammer, Info, Sheet } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireShip } from '../api';
@@ -6,7 +6,7 @@ import type { ShipRow } from '../fleet';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
 import { countedIntent, countedIntentBelow, pendingKeys, sendUnderKey } from '../pending-keys';
-import type { ShipRules } from '../ship-rules';
+import type { ShipClassRule, ShipRules } from '../ship-rules';
 
 type Notice = { kind: 'status' | 'alert'; text: string; unanswered?: true } | null;
 
@@ -33,13 +33,18 @@ export function Shipyard(props: {
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  // Classe dont la feuille d'achat est ouverte.
+  const [buying, setBuying] = useState<ShipClassRule | null>(null);
   const recalled = useRef(false);
-  // Le bouton qui a lancé l'achat a pu devenir inactif : le foyer, retombé sur la page, va au message.
+  // L'achat confirmé ferme sa feuille, et son bouton avec elle : le foyer va au message qui dit l'issue.
+  // À l'ouverture de l'écran, un rappel ne le prend que s'il est retombé sur la page.
+  const purchased = useRef(false);
   const noticeElement = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     const active = document.activeElement;
-    if (active === document.body || active?.matches(':disabled') === true)
+    if (purchased.current || active === document.body || active?.matches(':disabled') === true)
       noticeElement.current?.focus();
+    purchased.current = false;
   }, [notice]);
   useLayoutEffect(() => {
     if (running.current || !ships) return;
@@ -78,6 +83,8 @@ export function Shipyard(props: {
         if (read !== null && read.length > before) result = await send();
       }
       await props.reloadFleet();
+      purchased.current = true;
+      setBuying(null);
       setNotice(
         result.ok
           ? {
@@ -121,7 +128,7 @@ export function Shipyard(props: {
             <Button
               className="w-full sm:w-auto"
               disabled={busy || ships === null}
-              onClick={() => void buy(shipClass.id, shipClass.purchaseCostOboles)}
+              onClick={() => setBuying(shipClass)}
             >
               {t('map.buy', { cost: money(shipClass.purchaseCostOboles) })}
             </Button>
@@ -148,6 +155,42 @@ export function Shipyard(props: {
           {notice.text}
         </p>
       )}
+      <Sheet
+        open={buying !== null}
+        onClose={() => setBuying(null)}
+        title={t('map.buyTitle', {
+          ship: t(`shipClasses.${buying?.id ?? ''}`, { defaultValue: buying?.id }),
+        })}
+        description={t('map.shipyardIntro', { city: house.cityName })}
+        closeLabel={t('shell.close')}
+        footer={
+          buying && (
+            <Button
+              loading={busy}
+              onClick={() => void buy(buying.id, buying.purchaseCostOboles)}
+              className="w-full sm:w-auto"
+            >
+              {t('map.buyConfirm', { cost: money(buying.purchaseCostOboles) })}
+            </Button>
+          )
+        }
+      >
+        {buying && (
+          <dl className="grid grid-cols-2 gap-2.5">
+            {[
+              [t('map.buyPrice'), money(buying.purchaseCostOboles)],
+              [t('map.buyCapacity'), number.format(buying.capacityUnits)],
+              [t('map.buyUpkeep'), money(buying.dailyUpkeepOboles)],
+              [t('map.buyHome'), house.cityName],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-surface-raised p-3">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="mt-1 font-bold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Sheet>
       {notice?.unanswered && (
         <Button
           variant="secondary"

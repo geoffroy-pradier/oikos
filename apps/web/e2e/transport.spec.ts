@@ -84,6 +84,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(chosen).toBeVisible();
   await page.getByRole('button', { name: 'Acheter — 400 drachmes' }).focus();
   await page.keyboard.press('Enter');
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: "Confirmer l'achat — 400 drachmes" })
+    .click();
   await expect(page.getByRole('status')).toHaveText('Caboteur acheté pour 400 drachmes.');
   await expect(page.getByRole('listitem').filter({ hasText: 'à quai à Kallistè' })).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -106,8 +110,9 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(
     page.getByRole('status').filter({ hasText: 'Caboteur est parti vers Elaia' }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Kallistè → Elaia' })).toBeVisible();
-  await expect(page.getByText('30 × Blé')).toBeVisible();
+  // Voyages en fiches sur téléphone, en tableau sur ordinateur : la mise en page affichée.
+  await expect(page.getByText('Kallistè → Elaia').filter({ visible: true })).toBeVisible();
+  await expect(page.getByText('30 × Blé').filter({ visible: true })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // Entrepôt : le stock à quai et la cargaison en mer, sous sa cité d'arrivée.
@@ -118,7 +123,7 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   // Arrivée jouée par le moteur, annoncée à la relecture de la fiche.
   await nav.getByRole('link', { name: 'Carte' }).click();
   await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
-  await expect(page.getByText('Arrivée prévue')).toBeVisible();
+  await expect(page.getByText('Arrivée prévue').filter({ visible: true })).toBeVisible();
   await arrive(houseName);
   await page.getByRole('button', { name: 'Relire la flotte' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Navire arrivé à Elaia' })).toHaveText(

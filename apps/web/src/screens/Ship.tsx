@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, CircleAlert, Info, Sheet } from '@oikos/ui';
+import { Anchor, Badge, Button, Card, CircleAlert, DataTable, Info, Sheet } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -159,26 +159,57 @@ export function ShipScreen() {
               {t('ship.noVoyages')}
             </p>
           )}
-          <ul className="flex flex-col gap-3">
-            {voyages.map((voyage) => (
-              <li key={voyage.id} className="rounded-lg bg-muted/40 p-3">
-                <h3 className="font-semibold">
-                  {t('ship.voyage', {
-                    from: cityName(voyage.from_city_id),
-                    to: cityName(voyage.to_city_id),
-                  })}
-                </h3>
-                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 [&>dt]:text-muted-foreground">
-                  <dt>{t('ship.departedAt')}</dt>
-                  <dd>{time.format(new Date(voyage.departed_at))}</dd>
-                  <dt>{voyage.arrived_at ? t('ship.arrivedAt') : t('ship.arrivesAt')}</dt>
-                  <dd>{time.format(new Date(voyage.arrived_at ?? voyage.arrives_at))}</dd>
-                  <dt>{t('ship.cargo')}</dt>
-                  <dd>{cargoText(voyage)}</dd>
-                </dl>
-              </li>
-            ))}
-          </ul>
+          {voyages.length > 0 && (
+            <DataTable
+              caption={t('ship.voyages')}
+              rows={voyages}
+              rowKey={(voyage) => voyage.id}
+              locale={i18n.language}
+              defaultSort={{ column: 'departed', direction: 'descending' }}
+              sortAnnouncement={(column, direction) =>
+                t(
+                  direction === 'ascending'
+                    ? 'accounts.sortedAscending'
+                    : 'accounts.sortedDescending',
+                  {
+                    column,
+                  },
+                )
+              }
+              columns={[
+                {
+                  id: 'route',
+                  header: t('ship.route'),
+                  cell: (voyage) =>
+                    t('ship.voyage', {
+                      from: cityName(voyage.from_city_id),
+                      to: cityName(voyage.to_city_id),
+                    }),
+                },
+                {
+                  id: 'departed',
+                  header: t('ship.departedAt'),
+                  cell: (voyage) => time.format(new Date(voyage.departed_at)),
+                  sortValue: (voyage) => voyage.departed_at,
+                },
+                {
+                  id: 'arrival',
+                  header: t('ship.arrival'),
+                  // « Arrivée prévue » ou « Arrivé » : l'état se lit avec la date, pas à la couleur.
+                  cell: (voyage) => (
+                    <>
+                      <span className="text-muted-foreground">
+                        {voyage.arrived_at ? t('ship.arrivedAt') : t('ship.arrivesAt')}
+                      </span>{' '}
+                      {time.format(new Date(voyage.arrived_at ?? voyage.arrives_at))}
+                    </>
+                  ),
+                  sortValue: (voyage) => voyage.arrived_at ?? voyage.arrives_at,
+                },
+                { id: 'cargo', header: t('ship.cargo'), cell: cargoText },
+              ]}
+            />
+          )}
         </Card>
       )}
     </div>

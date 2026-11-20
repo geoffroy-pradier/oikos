@@ -178,6 +178,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await nav.getByRole('link', { name: 'Carte' }).click();
     await page.getByRole('button', { name: 'Acheter — 400 drachmes' }).focus();
     await page.keyboard.press('Enter');
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: "Confirmer l'achat — 400 drachmes" })
+      .click();
     await expect(page.getByRole('status')).toHaveText('Caboteur acheté pour 400 drachmes.');
     await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
     await page.getByRole('button', { name: 'Préparer un départ' }).click();
@@ -186,7 +190,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page.getByLabel(/Blé \(80 libres\)/).fill('30');
     await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: /^Partir vers Elaia/ }).click();
-    await expect(page.getByRole('heading', { name: 'Kallistè → Elaia' })).toBeVisible();
+    await expect(page.getByText('Kallistè → Elaia').filter({ visible: true })).toBeVisible();
     await arrive(alpha);
     await page.getByRole('button', { name: 'Relire la flotte' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Navire arrivé à Elaia' })).toHaveText(

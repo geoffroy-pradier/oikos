@@ -642,7 +642,13 @@
       "noPrices": "No price observed at its agora yet.",
       "agora": "Open the agora — {{city}}",
       "notAtAgora": "{{city}} is not offered at the agora: your house has no stock or site there. The link opens your city's agora."
-    }
+    },
+    "buyTitle": "Buy: {{ship}}",
+    "buyConfirm": "Confirm the purchase — {{cost}}",
+    "buyPrice": "Price, paid once",
+    "buyCapacity": "Cargo, in units",
+    "buyUpkeep": "Upkeep per day",
+    "buyHome": "In port when built"
   },
   "shipClasses": {
     "coaster": "Coaster",
@@ -659,7 +665,9 @@
     "departedAt": "Departure",
     "arrivesAt": "Due",
     "arrivedAt": "Arrived",
-    "cargo": "Cargo"
+    "cargo": "Cargo",
+    "route": "Route",
+    "arrival": "Arrival"
   },
   "departure": {
     "title": "Send the ship out",
