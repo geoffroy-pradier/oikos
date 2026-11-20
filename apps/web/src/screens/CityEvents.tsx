@@ -1,5 +1,5 @@
-import { Card, Sparkles } from '@oikos/ui';
-import { useRef } from 'react';
+import { Card, EmptyState, Package, Sparkles, TriangleAlert, Wheat } from '@oikos/ui';
+import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
 import { describeWorldEvent, useWorldEvents } from '../world-events';
@@ -7,6 +7,13 @@ import { LoadProblem, Loading } from './LoadProblem';
 
 // Événements d'une cité (7.4) : une tempête, elle, touche une route ; elle est dite au départ d'un navire.
 const MODELS = ['drought', 'good_year', 'caravan'];
+/** Pictogramme décoratif de chaque événement ; le texte dit tout. */
+const ICONS: Record<string, ReactNode> = {
+  drought: <TriangleAlert />,
+  good_year: <Wheat />,
+  caravan: <Package />,
+  storm: <Sparkles />,
+};
 
 /**
  * Événements en cours dans la cité de la maison (vue `world_events`, 7.4) : sécheresse, bonne année,
@@ -18,24 +25,38 @@ export function CityEvents() {
   const title = useRef<HTMLHeadingElement>(null);
   const { events, failed, reload } = useWorldEvents({ city_id: house.cityId, model: MODELS });
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 ref={title} tabIndex={-1} className="text-xl">
-        <Sparkles aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+    <section className="flex flex-col gap-4">
+      <h2
+        ref={title}
+        tabIndex={-1}
+        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+      >
+        <Sparkles aria-hidden="true" />
         {t('worldEvents.title')}
       </h2>
-      <p className="text-muted-foreground">{t('worldEvents.intro')}</p>
+      <p className="text-sm text-muted-foreground">{t('worldEvents.intro')}</p>
       {events === null && !failed && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
-      {events?.length === 0 && <p className="text-muted-foreground">{t('worldEvents.none')}</p>}
+      {events?.length === 0 && <EmptyState icon={<Sparkles />} title={t('worldEvents.none')} />}
       {events && events.length > 0 && (
-        <ul className="flex flex-col gap-1">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {events.map((event) => (
-            <li key={event.id} className="rounded-lg bg-accent-subtle/60 px-3 py-2 break-words">
-              {describeWorldEvent(event, t, i18n.language, house.cityNames)}
+            <li key={event.id}>
+              <Card className="flex h-full items-start gap-3 break-words">
+                <span
+                  aria-hidden="true"
+                  className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-subtle text-accent [&_svg]:size-4.5"
+                >
+                  {ICONS[event.model]}
+                </span>
+                <p className="min-w-0">
+                  {describeWorldEvent(event, t, i18n.language, house.cityNames)}
+                </p>
+              </Card>
             </li>
           ))}
         </ul>
       )}
-    </Card>
+    </section>
   );
 }

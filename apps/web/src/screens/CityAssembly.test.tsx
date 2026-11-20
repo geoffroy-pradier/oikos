@@ -234,4 +234,22 @@ describe('assemblée de la cité (#264)', () => {
     expect(screen.getByRole('button', { name: /^Voter pour : Grands travaux/ })).toBeTruthy();
     expect(screen.queryByText(fr.assembly.meticNotice)).toBeNull();
   });
+
+  it('un décret par carte : ses boutons de vote dans sa carte, son décompte doublé d’une barre (#697)', async () => {
+    state.views = {
+      houses,
+      decrees: [
+        decree('d1', 'proposed', 'public_works', { amountOboles: 600 }),
+        decree('d2', 'rejected', 'public_works', { amountOboles: 1200 }),
+      ],
+    };
+    await show();
+    const open = screen.getByRole('button', { name: /^Voter pour : Grands travaux/ }).closest('li');
+    expect(open?.textContent).toMatch(/^Grands travaux : 100 drachmesProposé par Maison Alpha/);
+    const rejected = screen.getByText(fr.assembly.status.rejected).closest('li');
+    expect(rejected?.querySelector('[aria-hidden="true"] > span')?.getAttribute('style')).toBe(
+      'width: 60%;',
+    );
+    expect(rejected?.textContent).toContain('Pour : 3 ; contre : 1 ; citoyens : 5');
+  });
 });
