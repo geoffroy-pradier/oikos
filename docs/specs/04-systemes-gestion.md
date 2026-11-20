@@ -74,9 +74,9 @@ La carte de chaque cité est découpée en parcelles finies (200 à 600 par cit�
 | --- | --- | --- |
 | Champ | Blé, orge, lin | Cycle saisonnier, rotation des cultures, risque météo |
 | Verger et vigne | Olives, raisin, figues | 2 saisons avant la première récolte, rendement croissant |
-| Pâture | Laine, lait, cuir | Demande du fourrage |
+| Pâture | Laine, peaux, lait | Demande du fourrage |
 | Forêt | Bois, miel, gibier | S'épuise si surexploitée, se régénère |
-| Carrière et mine | Marbre, argile, cuivre, fer, argent | Concession accordée aux enchères par la cité, durée limitée |
+| Carrière et mine | Marbre, argile, cuivre, étain, fer, argent | Concession accordée aux enchères par la cité, durée limitée |
 | Pêcherie et saline | Poisson, sel | Exige un accès côtier |
 
 Dans la première version : une maison acquiert un site dans sa cité en choisissant sa recette ;
@@ -86,6 +86,8 @@ comme pour la relance (5.5), ce prix est facultatif pour un client antérieur, s
 Le nombre de sites d'une maison est borné par le niveau de son siège (toute maison est au premier niveau).
 Un site peut changer de recette parmi celles de son type : ce qu'il a déjà produit doit d'abord être récolté, le cycle entamé est perdu et le nouveau commence à l'instant du changement.
 Il n'y a encore ni carte des parcelles, ni fertilité, ni marché foncier.
+Depuis #708, dix productions de plus : champs d'orge et de lin, figueraie, pâturage à bovins (peaux), rucher (miel), carrière de marbre et mines de cuivre, d'étain, de fer et d'argent ; leurs durées, travailleurs et plafonds sont dans la configuration.
+Décision (#708) : une mine est un site de type carrière, acquis comme les autres, sans enchère de concession.
 Le terroir de la cité (6.1) restreint les productions primaires : un site reste dans la cité de sa maison, et n'y lance qu'une production de son terroir ; un atelier est admis partout.
 Une acquisition ou un changement de recette hors terroir est refusé (« hors du terroir de la cité »), sans rien payer ni changer : le refus passe avant le prix et avant la relance gratuite d'un site sans recette.
 Un site qui exploite une production sortie du terroir (version de configuration qui le resserre) continue de produire, se récolte et se relance comme avant ; une fois qu'il l'a quittée, il n'y revient plus.
@@ -166,6 +168,7 @@ Une matière première n'est comptée que dans le terroir de la cité ; la marge
 
 Borne des ateliers (#285), écrite à la main dans le banc à quatre cités (`apps/api/src/balance-world.bench.ts`) : la marge du monde d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des sites de matières premières.
 Aucune voie n'écrase ainsi l'autre (01, pilier 2).
+Depuis #708, cette médiane ne compte que les matières premières du terroir des cités du banc : celles de #708, qu'aucune n'y produit, n'y vaudraient que leur prix de référence.
 Décision (#285) : la borne porte sur la marge du monde, pas sur celle de chaque cité.
 Cité par cité, le scénario du banc fait passer un bien intermédiaire du plancher au plafond des prix de ses maisons scriptées (70 % et 150 % de la référence) : à Kallistè, le bois manque à la charbonnière, le fournil chôme et le moulin vend sa farine au plancher (201 oboles de marge) ; à Elaia, la farine manque et le fournil la paie au plafond (30 oboles).
 Ces écarts tiennent aux nombres de sites du scénario, que la configuration ne corrige pas sans casser le banc à une cité (essais ci-dessous).

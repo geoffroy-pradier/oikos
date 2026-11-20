@@ -31,8 +31,9 @@ Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour rece
 - **Compte et maison.** Connexion par lien magique (courriel). Création d'une maison : nom, blason, cité.
   La maison reçoit 3 000 oboles et le premier site de sa cité (champ de blé, vigne ou pêcherie). La commande de renommage existe dans l'API, sans écran.
 - **Sites.** Jusqu'à quatre sites par maison. Acquisition contre monnaie (de 600 à 1 200 oboles selon le
-  type), changement de production d'un site. Quinze productions pour quinze biens : huit matières
-  premières (blé, olives, raisin, bois, argile, laine, poisson, sel) et sept transformations en atelier
+  type), changement de production d'un site. Vingt-cinq productions pour vingt-cinq biens : dix-huit matières
+  premières (blé, olives, raisin, bois, argile, laine, poisson, sel, puis depuis #708 orge, lin, figues, peaux,
+  miel, marbre, cuivre, étain, fer et argent) et sept transformations en atelier
   (farine, huile, charbon de bois, tissu, pain, amphores, vin).
 - **Production.** Elle s'accumule avec le temps, jusqu'à un plafond, et se récolte à la demande. Un atelier
   consomme ses intrants dans le stock libre de sa cité ; à court d'intrants, il attend. La fiche d'un

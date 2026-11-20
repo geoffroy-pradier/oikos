@@ -28,10 +28,19 @@ une version qui rend le bien rend le marché. Le client joueur n'a de nom tradui
 
 | Niveau | Exemples | Nombre |
 | --- | --- | --- |
-| Matières | Blé, olives, raisin, bois, argile, cuivre, étain, fer, argent, marbre, laine, lin, poisson, sel, miel | 18 |
+| Matières | Blé, orge, olives, raisin, figues, bois, miel, argile, marbre, cuivre, étain, fer, argent, laine, peaux, lin, poisson, sel | 18 |
 | Intermédiaires | Farine, huile, moût, planches, bronze, fer forgé, fil, tissu, cuir, charbon, pigments | 16 |
 | Finis | Pain, vin, amphores, céramique peinte, outils, vêtements, parfums, bijoux, meubles, statues, navires | 20 |
 | Services | Fret, logement, spectacle, banquet, crédit, escorte | 6 |
+
+Décision (#708, ambiguïté de cette section) : les soixante biens sont les 54 biens stockables du catalogue (18 matières, 16 intermédiaires, 20 finis) et les six services, qui sont des mécaniques et non des lignes du catalogue.
+Depuis #708, la configuration initiale compte les dix-huit matières premières : aux huit de la phase 2 s'ajoutent orge, lin, figues, peaux, miel, marbre, cuivre, étain, fer et argent, chacune avec sa recette (4.2).
+Leur prix de référence et leur élasticité sont dans la configuration.
+Au prix de référence, entretien et salaires déduits, la marge nette quotidienne de chacune de leurs recettes est entre la moitié et le double de la médiane des huit matières premières de la phase 2 (899 oboles) : un test de la configuration le vérifie, bornes écrites à la main.
+Décision (paramètres neutres, #708) : aucun bien nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu ; #713 règle les paniers.
+D'ici les ateliers de #709 et ces paniers, ils ne s'échangent qu'entre maisons.
+Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
+Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
 
 ## 5.2 La demande finale
 

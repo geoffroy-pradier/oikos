@@ -19,19 +19,21 @@ Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce te
 | Elaia | Athéna | Olives, blé, sel, bois | Champ de blé |
 | Ampelos | Dionysos | Raisin, poisson, laine, argile | Vigne |
 | Halos | Poséidon | Poisson, sel, argile, bois, laine | Pêcherie |
-| Dikaia | Zeus | Blé, olives, bois, argile | Champ de blé |
-| Gamelia | Héra | Blé, raisin, olives, laine | Champ de blé |
-| Delphis | Apollon | Olives, raisin, laine, argile | Oliveraie |
-| Agrotera | Artémis | Bois, laine, blé, olives | Coupe de bois |
-| Phrourion | Arès | Blé, bois, laine, argile | Champ de blé |
-| Myrrhinè | Aphrodite | Raisin, olives, laine, poisson | Vigne |
-| Chalkeia | Héphaïstos | Bois, argile, sel, olives | Coupe de bois |
-| Emporion | Hermès | Poisson, sel, olives, laine | Pêcherie |
+| Dikaia | Zeus | Blé, olives, bois, argile, orge, marbre, argent | Champ de blé |
+| Gamelia | Héra | Blé, raisin, olives, laine, lin, figues | Champ de blé |
+| Delphis | Apollon | Olives, raisin, laine, argile, figues, miel, marbre | Oliveraie |
+| Agrotera | Artémis | Bois, laine, blé, olives, orge, peaux, miel | Coupe de bois |
+| Phrourion | Arès | Blé, bois, laine, argile, orge, peaux, cuivre, fer | Champ de blé |
+| Myrrhinè | Aphrodite | Raisin, olives, laine, poisson, lin, figues, miel | Vigne |
+| Chalkeia | Héphaïstos | Bois, argile, sel, olives, cuivre, étain, fer | Coupe de bois |
+| Emporion | Hermès | Poisson, sel, olives, laine, lin, argent | Pêcherie |
 
 Aucune cité n'a toutes les matières premières du panier de ses PNJ, en comptant celles des intrants de ses ateliers.
 Les huit cités de #706 vont plus loin : aucune ne produit tous les biens vitaux de ce panier, c'est-à-dire le blé, le poisson, le sel et le bois du charbon qui cuit le pain.
 Décision (#706) : leurs noms de départ sont ceux du ticket, à ajuster sans code (l'identifiant court est celui de la configuration, le nom affiché vient des fichiers de traduction `fr` et `en`).
 Décision (#706) : chaque terroir tire quatre productions des huit matières premières existantes, selon le domaine du dieu protecteur (2) ; les matières premières nouvelles viendront avec la phase suivante (« P6 »).
+Depuis #708, ces huit cités reçoivent aussi les dix matières premières nouvelles, selon le même domaine, chacune dans le terroir d'une à quatre cités (l'étain à Chalkeia seule).
+Décision (#708) : les quatre premières cités n'en reçoivent aucune, pour que les bancs à une et à quatre cités gardent leurs mesures.
 Décision (#706) : les huit cités ont la population de la cité prototype, son revenu public, le salaire de son personnel et un parc de logements de douze maisons de ville et trois immeubles, comme Elaia.
 Kallistè, cité fondatrice, les a d'abord toutes gardées, pour que le banc d'équilibrage de la phase 1 et ses tests restent tels quels.
 Depuis #669, la configuration initiale lui retire la laine : son tissu vient d'Ampelos ou d'Halos, qui tondent leurs moutons.

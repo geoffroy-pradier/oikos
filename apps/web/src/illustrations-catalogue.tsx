@@ -13,6 +13,7 @@ import {
   GOD_EMBLEM_IDS,
   GodEmblem,
   GOOD_ICON_IDS,
+  GOOD_TIER_IDS,
   GoodIcon,
   WelcomeScene,
 } from '@oikos/ui';
@@ -56,6 +57,15 @@ function Goods() {
             <GoodIcon goodId={id} />
           </div>
           <span className="text-xs text-muted-foreground">{nameOf(texts.goods, id)}</span>
+        </li>
+      ))}
+      {GOOD_TIER_IDS.map((tier) => (
+        <li key={tier} className="flex flex-col items-center gap-1.5 text-center">
+          <div className="flex items-end gap-2">
+            <GoodIcon goodId="unknown" tier={tier} size={48} />
+            <GoodIcon goodId="unknown" tier={tier} />
+          </div>
+          <span className="text-xs text-muted-foreground">? · {tier}</span>
         </li>
       ))}
     </ul>
