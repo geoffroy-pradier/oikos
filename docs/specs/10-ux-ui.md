@@ -47,6 +47,9 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 1. Tableau de bord de la maison : trésorerie, alertes, production en cours, tâches du jour.
    Première version des alertes (#259) : travailleurs sans logement dans les cités où une nuit d'hébergement coûte, bien à rénover (état sous le seuil où il ne loge plus personne) ou dont l'entretien est impayé, bail résilié pour loyer impayé à la dernière clôture du monde de la maison, chacune avec un lien vers l'écran Personnel ou Immobilier.
    Rien à signaler : la carte se tait.
+   La production en cours (#693) range chaque site sur une ligne, en tableau sur ordinateur et en fiche sur téléphone : sa cité, l'avancement de son cycle à l'heure du serveur (ou son plafond atteint, son arrêt), ce qu'une récolte donnerait (« — » tant qu'elle n'est pas estimée), « Récolter » tant que sa production existe, et un lien vers sa fiche dans l'écran Sites.
+   « Récolter » reste proposé quand rien n'est prêt : l'API dit pourquoi ; « Tout récolter » ne compte que les sites prêts, et chaque issue s'annonce sous sa ligne.
+   L'avertissement d'une acquisition restée sans réponse y est rappelé, avec un lien vers l'écran Sites, tant que le joueur n'a pas dit avoir vérifié la liste.
    Le tableau de bord ouvre aussi l'écran Personnel (`/personnel`) : les travailleurs des sites de la maison, cité par cité, logés par ses biens ou hébergés chez les habitants, et le coût d'un jour de cet hébergement au prix du jour de la cité.
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.

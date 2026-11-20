@@ -1171,6 +1171,7 @@
     "retired": "Production withdrawn",
     "details": "Details",
     "detailsOf": "Details: {{site}}",
-    "unknown": "Harvest not estimated yet"
+    "unknown": "Harvest not estimated yet",
+    "checkSites": "Check the list of sites"
   }
 }

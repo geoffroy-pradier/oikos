@@ -42,6 +42,8 @@ export function ProductionList(props: {
   /** Chargement, lecture en échec : ce que la carte montre avant ses lignes. */
   status: ReactNode;
   titleRef: Ref<HTMLHeadingElement>;
+  /** Avertissement d'une acquisition restée sans réponse, à vérifier sur l'écran Sites. */
+  warning?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const number = new Intl.NumberFormat(i18n.language);
@@ -67,6 +69,17 @@ export function ProductionList(props: {
           </Button>
         )}
       </div>
+      {props.warning && (
+        <div className="mx-4 flex flex-col gap-1 rounded-lg bg-warning-subtle p-3 text-sm">
+          <p className="font-semibold text-warning">{props.warning}</p>
+          <Link
+            to="/sites"
+            className="self-start font-semibold text-warning underline underline-offset-4"
+          >
+            {t('production.checkSites')}
+          </Link>
+        </div>
+      )}
       <div className="px-4 empty:hidden">{props.announce('all')}</div>
       <div className="px-4 empty:hidden">{props.status}</div>
       {items?.length === 0 && (

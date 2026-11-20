@@ -11,6 +11,7 @@ test('une maison d’Ampelos ne se voit proposer que les sites de son terroir', 
   await foundHouseForm(page, houseName, page.getByRole('radio', { name: 'Ampelos', exact: true }));
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Vigne', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Sites', exact: true }).click();
 
   const offers = page.getByLabel('Site à acquérir').locator('option');
   await expect(offers.first()).toHaveAttribute('value', 'grow_grapes');

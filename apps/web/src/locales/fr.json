@@ -1171,6 +1171,7 @@
     "retired": "Production retirée",
     "details": "Détails",
     "detailsOf": "Détails : {{site}}",
-    "unknown": "Récolte pas encore estimée"
+    "unknown": "Récolte pas encore estimée",
+    "checkSites": "Vérifier la liste des sites"
   }
 }

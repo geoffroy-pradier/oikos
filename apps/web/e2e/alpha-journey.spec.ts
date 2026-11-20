@@ -277,6 +277,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     expect(wages).toBeGreaterThan(0);
     await halt(alpha);
     await nav.getByRole('link', { name: 'Maison' }).click();
+    await page.getByRole('link', { name: 'Sites', exact: true }).click();
     await page.reload();
     await page
       .getByRole('button', { name: `Relancer : Champ de blé, pour ${money(upkeep + wages)}` })
@@ -293,6 +294,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
 
   await test.step('Alpha confie son champ à un intendant, par le formulaire', async () => {
     await nav.getByRole('link', { name: 'Maison' }).click();
+    await page.getByRole('link', { name: 'Sites', exact: true }).click();
     await page
       .getByRole('button', { name: /^Embaucher un intendant pour / })
       .first()
