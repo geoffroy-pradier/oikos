@@ -427,7 +427,24 @@
     { "id": "copper", "tier": "raw", "referencePriceOboles": 18, "elasticity": 0.6 },
     { "id": "tin", "tier": "raw", "referencePriceOboles": 40, "elasticity": 0.7 },
     { "id": "iron", "tier": "raw", "referencePriceOboles": 16, "elasticity": 0.5 },
-    { "id": "silver", "tier": "raw", "referencePriceOboles": 80, "elasticity": 1.0 }
+    { "id": "silver", "tier": "raw", "referencePriceOboles": 80, "elasticity": 1.0 },
+    { "id": "barley_flour", "tier": "intermediate", "referencePriceOboles": 9, "elasticity": 0.4 },
+    { "id": "must", "tier": "intermediate", "referencePriceOboles": 30, "elasticity": 0.9 },
+    { "id": "planks", "tier": "intermediate", "referencePriceOboles": 20, "elasticity": 0.6 },
+    { "id": "bronze", "tier": "intermediate", "referencePriceOboles": 32, "elasticity": 0.7 },
+    { "id": "wrought_iron", "tier": "intermediate", "referencePriceOboles": 42, "elasticity": 0.6 },
+    { "id": "thread", "tier": "intermediate", "referencePriceOboles": 24, "elasticity": 0.8 },
+    { "id": "leather", "tier": "intermediate", "referencePriceOboles": 55, "elasticity": 0.7 },
+    { "id": "linen_cloth", "tier": "intermediate", "referencePriceOboles": 60, "elasticity": 1.0 },
+    { "id": "pigments", "tier": "intermediate", "referencePriceOboles": 30, "elasticity": 1.0 },
+    { "id": "wax", "tier": "intermediate", "referencePriceOboles": 48, "elasticity": 0.8 },
+    {
+      "id": "silver_ingots",
+      "tier": "intermediate",
+      "referencePriceOboles": 150,
+      "elasticity": 1.0
+    },
+    { "id": "marble_blocks", "tier": "intermediate", "referencePriceOboles": 56, "elasticity": 0.9 }
   ],
   "recipes": [
     {
@@ -663,6 +680,133 @@
       "maxAccruedCycles": 9,
       "inputs": [],
       "outputs": [{ "goodId": "silver", "quantity": 4 }]
+    },
+    {
+      "id": "mill_barley",
+      "siteType": "workshop",
+      "durationMinutes": 60,
+      "workers": 2,
+      "maxAccruedCycles": 72,
+      "inputs": [{ "goodId": "barley", "quantity": 10 }],
+      "outputs": [{ "goodId": "barley_flour", "quantity": 9 }]
+    },
+    {
+      "id": "press_must",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "maxAccruedCycles": 36,
+      "inputs": [{ "goodId": "grapes", "quantity": 10 }],
+      "outputs": [{ "goodId": "must", "quantity": 6 }]
+    },
+    {
+      "id": "saw_planks",
+      "siteType": "workshop",
+      "durationMinutes": 90,
+      "workers": 2,
+      "maxAccruedCycles": 48,
+      "inputs": [{ "goodId": "wood", "quantity": 8 }],
+      "outputs": [{ "goodId": "planks", "quantity": 6 }]
+    },
+    {
+      "id": "smelt_bronze",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 3,
+      "maxAccruedCycles": 24,
+      "inputs": [
+        { "goodId": "copper", "quantity": 6 },
+        { "goodId": "tin", "quantity": 1 },
+        { "goodId": "charcoal", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "bronze", "quantity": 9 }]
+    },
+    {
+      "id": "forge_iron",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 3,
+      "maxAccruedCycles": 36,
+      "inputs": [
+        { "goodId": "iron", "quantity": 6 },
+        { "goodId": "charcoal", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "wrought_iron", "quantity": 5 }]
+    },
+    {
+      "id": "spin_thread",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "maxAccruedCycles": 36,
+      "inputs": [{ "goodId": "flax", "quantity": 10 }],
+      "outputs": [{ "goodId": "thread", "quantity": 8 }]
+    },
+    {
+      "id": "tan_leather",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 2,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "hides", "quantity": 6 },
+        { "goodId": "salt", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "leather", "quantity": 5 }]
+    },
+    {
+      "id": "weave_linen",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 3,
+      "maxAccruedCycles": 24,
+      "inputs": [{ "goodId": "thread", "quantity": 3 }],
+      "outputs": [{ "goodId": "linen_cloth", "quantity": 3 }]
+    },
+    {
+      "id": "grind_pigments",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 2,
+      "maxAccruedCycles": 24,
+      "inputs": [
+        { "goodId": "clay", "quantity": 8 },
+        { "goodId": "copper", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "pigments", "quantity": 6 }]
+    },
+    {
+      "id": "render_wax",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 2,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "honey", "quantity": 6 },
+        { "goodId": "charcoal", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "wax", "quantity": 7 }]
+    },
+    {
+      "id": "cast_silver",
+      "siteType": "workshop",
+      "durationMinutes": 360,
+      "workers": 3,
+      "maxAccruedCycles": 12,
+      "inputs": [
+        { "goodId": "silver", "quantity": 4 },
+        { "goodId": "charcoal", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "silver_ingots", "quantity": 4 }]
+    },
+    {
+      "id": "cut_marble",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 4,
+      "maxAccruedCycles": 18,
+      "inputs": [{ "goodId": "marble", "quantity": 8 }],
+      "outputs": [{ "goodId": "marble_blocks", "quantity": 6 }]
     }
   ],
   "npcClasses": [

@@ -697,9 +697,9 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Agora' }).click();
 
-  // Les vingt-cinq biens sont proposés (#708) ; le carnet et le formulaire suivent le bien choisi.
+  // Les trente-sept biens sont proposés (#708, #709) ; le carnet et le formulaire suivent le bien choisi.
   const good = page.getByLabel('Bien');
-  await expect(good.getByRole('option')).toHaveCount(25);
+  await expect(good.getByRole('option')).toHaveCount(37);
   await good.selectOption({ label: 'Olives' });
   await expect(page.getByRole('heading', { name: "Carnet d'ordres : Olives" })).toBeVisible();
   await fillOrder(page, 'Vendre', 30, 900);
@@ -1043,7 +1043,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
 
   // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
-  await acquireSite(page, /^Moulin/);
+  await acquireSite(page, /^Moulin Atelier/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   const mill = page
     .getByRole('listitem')
@@ -1321,7 +1321,7 @@ test('à surveiller : plafond atteint et atelier à court d’intrants ; « Tout
     'Champ de blé — plafond de production atteint',
   ]);
   // Un moulin, acquis ensuite, sans blé libre : une heure plus tard, son premier cycle attend.
-  await acquireSite(page, /^Moulin/);
+  await acquireSite(page, /^Moulin Atelier/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   await db.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);

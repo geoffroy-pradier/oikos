@@ -204,6 +204,17 @@ async function acquireNext(city: City, house: Seller, now: Date, perWorker: numb
   return 0;
 }
 
+/** Biens que livrent les recettes des sites du monde de la ville. */
+async function producedGoods(city: City) {
+  const rows = await city.db
+    .selectFrom('game.sites')
+    .select('recipe_id')
+    .distinct()
+    .where('world_id', '=', city.worldId)
+    .execute();
+  return new Set(rows.flatMap((row) => recipeOf(row.recipe_id).outputs.map((out) => out.goodId)));
+}
+
 /**
  * Matinée d'une maison : récolte, ordres de la veille repris, site suivant, achats, prix ajustés, ventes.
  * Rend le coût, d'après la configuration, du site acquis ce matin (0 sans acquisition).
@@ -239,14 +250,17 @@ export async function morning(city: City, house: Seller, now: Date) {
     const affordable = Math.floor(((await cash(city, house.houseId)) - reserve) / price);
     await place(city, house, goodId, 'buy', price, Math.min(missing, affordable));
   }
-  if (house.role.trader)
+  if (house.role.trader) {
     // Le négociant achète ce qui se vend sous `TRADER_BID` du prix de référence, dans la limite de sa
-    // trésorerie.
-    for (const good of config.goods) {
+    // trésorerie. Il n'enchérit que sur les biens que les sites du monde livrent : avec les offres d'achat sur les
+    // douze intermédiaires de #709, que personne n'y produit, le banc à une cité arrête un moulin faute d'entretien payé.
+    const sold = await producedGoods(city);
+    for (const good of config.goods.filter((each) => sold.has(each.id))) {
       const budget = Math.floor((await cash(city, house.houseId)) / TRADER_BUDGET_SHARE);
       const price = Math.floor(good.referencePriceOboles * TRADER_BID);
       if (price > 0) await place(city, house, good.id, 'buy', price, Math.floor(budget / price));
     }
+  }
   const distressed = (await cash(city, house.houseId)) < reserve;
   // Ventes : tout le stock libre, moins `INPUT_DAYS_KEPT` jours d'intrants, au prix demandé du jour.
   const stocks = await city.db

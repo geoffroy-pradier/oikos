@@ -34,16 +34,36 @@ const TEN_RAW: Record<string, string> = {
   silver: 'mine_silver',
 };
 const [TEN_RAW_GOODS, TEN_RAW_RECIPES] = [Object.keys(TEN_RAW), Object.values(TEN_RAW)];
+/**
+ * Biens qui n'attendent encore qu'un atelier ou un acheteur : la figue (#711, #712) et les onze intermédiaires
+ * que les biens finis de #710 et #711 consommeront. La liste se vide au fil de ces tickets ; à la fin des biens finis
+ * (« P9 »), plus aucun intermédiaire n'y figure (5.1).
+ */
+const AWAITING_BUYER = [
+  'figs',
+  'barley_flour',
+  'must',
+  'planks',
+  'bronze',
+  'wrought_iron',
+  'leather',
+  'linen_cloth',
+  'pigments',
+  'wax',
+  'silver_ingots',
+  'marble_blocks',
+];
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   const { config } = result;
 
-  it('contient 25 biens, dont 18 matières premières, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706, #708)', () => {
-    expect(config.goods).toHaveLength(25);
+  it('contient 37 biens, dont 18 matières premières et 16 intermédiaires, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706, #708, #709)', () => {
+    expect(config.goods).toHaveLength(37);
     expect(config.goods.filter((good) => good.tier === 'raw')).toHaveLength(18);
-    expect(config.recipes).toHaveLength(25);
+    expect(config.goods.filter((good) => good.tier === 'intermediate')).toHaveLength(16);
+    expect(config.recipes).toHaveLength(37);
     expect(config.npcClasses.map((npcClass) => npcClass.id)).toEqual([
       'thetes',
       'zeugitai',
@@ -163,11 +183,13 @@ describe('jeu de valeurs initial', () => {
   });
 
   it('dix matières premières de plus (#708), chacune de sa recette sans intrant, au terroir d’une à quatre cités', () => {
-    expect(config.goods.slice(15).map((good) => [good.id, good.tier])).toEqual(
+    expect(config.goods.slice(15, 25).map((good) => [good.id, good.tier])).toEqual(
       TEN_RAW_GOODS.map((id) => [id, 'raw']),
     );
     expect(
-      config.recipes.slice(15).map(({ id, inputs, outputs }) => [id, inputs, outputs[0]?.goodId]),
+      config.recipes
+        .slice(15, 25)
+        .map(({ id, inputs, outputs }) => [id, inputs, outputs[0]?.goodId]),
     ).toEqual(TEN_RAW_RECIPES.map((id, i) => [id, [], TEN_RAW_GOODS[i]]));
     for (const recipeId of TEN_RAW_RECIPES) {
       const cities = config.cities.filter((city) => city.terroir?.includes(recipeId));
@@ -252,9 +274,11 @@ describe('jeu de valeurs initial', () => {
       ...config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)),
       ...config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
     ]);
-    // Sauf les matières premières de #708, en attendant leurs ateliers et leurs acheteurs (#709 à #713).
-    const checked = config.goods.filter((good) => !TEN_RAW_GOODS.includes(good.id));
+    // Sauf les biens qui attendent leurs acheteurs (#710 à #713) : liste écrite à la main plus haut.
+    const checked = config.goods.filter((good) => !AWAITING_BUYER.includes(good.id));
     expect(checked.filter((good) => !used.has(good.id))).toEqual([]);
+    // La liste ne retient que de vrais impasses : un bien qui a trouvé preneur en sort.
+    expect(AWAITING_BUYER.filter((id) => used.has(id))).toEqual([]);
   });
 
   it('le revenu de chaque classe couvre son panier au prix de référence, sans le dépasser de beaucoup', () => {
