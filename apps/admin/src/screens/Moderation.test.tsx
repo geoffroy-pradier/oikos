@@ -190,6 +190,34 @@ it('masque un message après confirmation qui nomme la maison ; annuler ne fait 
   expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
 });
 
+it('chaque geste de la file s’ouvre dans une feuille nommée, qui rappelle l’entrée et le message', async () => {
+  await opened();
+  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }));
+  const sheet = screen.getByRole('dialog', { name: 'Suspendre' });
+  expect(within(sheet).getByText('Message de la maison Alpha : 2 signalements')).toBeTruthy();
+  expect(within(sheet).getByText('Tu es nul')).toBeTruthy();
+  expect(within(sheet).getByLabelText('Motif')).toBeTruthy();
+  // Échap vaut « Annuler » : rien n'est envoyé, le foyer revient au bouton du geste.
+  fireEvent.keyDown(sheet, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(
+    within(entryOf('Alpha')).getByRole('button', { name: 'Suspendre' }),
+  );
+  // Un geste sans champ n'en montre aucun.
+  fireEvent.click(within(entryOf('Alpha')).getByRole('button', { name: 'Masquer le message' }));
+  expect(within(screen.getByRole('dialog')).queryByLabelText('Motif')).toBeNull();
+  expect(within(screen.getByRole('dialog')).queryByRole('group', { name: 'Durée' })).toBeNull();
+  expect(adminCommand).not.toHaveBeenCalled();
+});
+
+it('la file se filtre par maison, et le compte affiché le dit', async () => {
+  await opened();
+  fireEvent.change(screen.getByLabelText('Filtrer par maison'), { target: { value: 'del' } });
+  const entries = screen.getAllByRole('listitem', { name: /^Message de la maison/ });
+  expect(entries).toEqual([entryOf('Delta')]);
+  expect(screen.getByText(/^2 messages signalés.* 1 affiché\.$/)).toBeTruthy();
+});
+
 it('Entrée tenue ou redoublée sur un geste n’envoie rien ; seul un appui franc sur « Confirmer » agit', async () => {
   await opened([{ ok: true, data: { messageId: id(1), hiddenAt: NOW } }]);
   within(entryOf('Alpha')).getByRole('button', { name: 'Masquer le message' }).focus();

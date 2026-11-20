@@ -72,7 +72,9 @@ test('un modérateur ne voit que la Modération et traite un signalement au clav
   await entry.getByRole('button', { name: 'Masquer le message' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('button', { name: 'Annuler' })).toBeFocused();
-  await expect(entry.getByText(/sera masqué pour les joueurs/)).toBeVisible();
+  // La confirmation s'ouvre dans une feuille, nommée par le geste, qui rappelle l'entrée visée.
+  const sheet = page.getByRole('dialog', { name: 'Masquer le message' });
+  await expect(sheet.getByText(/sera masqué pour les joueurs/)).toBeVisible();
   await expectNoHorizontalScroll(page);
   expect(sent).toEqual([]);
 
