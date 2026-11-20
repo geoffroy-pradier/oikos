@@ -1,11 +1,17 @@
 import type { AdminEconomy } from '@oikos/contracts';
 import {
   Button,
+  CalendarDays,
+  Card,
   ChevronRight,
   cn,
+  Coins,
   EmptyState,
+  Globe,
+  type Icon,
   PageHeader,
   RefreshCw,
+  Scale,
   StatCard,
   StatGrid,
 } from '@oikos/ui';
@@ -15,6 +21,7 @@ import { TABLE } from '../table';
 import { ALERT } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { DailyFlows, SinkShares } from './EconomyCharts';
+import { SectionTitle } from './SectionTitle';
 
 type World = AdminEconomy['worlds'][number];
 type Account = World['systemAccounts'][number];
@@ -48,12 +55,23 @@ export function Economy({ accessToken }: { accessToken: string }) {
   const name = ({ key, kind }: Account) =>
     t(`economy.kind.${kind}`, { name: t(`economy.accounts.${key}`, { defaultValue: key }) });
   /** Tableau à deux colonnes, intitulé et montant ; `total` met la dernière ligne en avant. */
-  const amounts = (caption: string, slug: string, rows: [string, number][], total = false) => (
-    <div className="rounded-xl border border-border-subtle bg-surface px-3 pt-3 pb-1 shadow-sm lg:px-4 lg:pt-4">
+  const amounts = (
+    caption: string,
+    Glyph: Icon,
+    slug: string,
+    rows: [string, number][],
+    total = false,
+  ) => (
+    <Card className="px-3 pt-3 pb-1 lg:px-4 lg:pt-4">
       <table className={cn(TABLE, '[&_th]:font-normal')}>
-        <caption className="pb-2 text-left text-base font-semibold">
-          {caption}
-          <span className="sr-only">{t('economy.ofWorld', { slug })}</span>
+        <caption className="pb-2 text-left text-lg font-semibold">
+          <span className="flex items-center gap-2">
+            <Glyph aria-hidden="true" className="size-5 shrink-0 text-accent" />
+            <span>
+              {caption}
+              <span className="sr-only">{t('economy.ofWorld', { slug })}</span>
+            </span>
+          </span>
         </caption>
         <tbody>
           {rows.map(([label, amount], row) => (
@@ -71,7 +89,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
   const header = (
     <>
@@ -166,7 +184,11 @@ export function Economy({ accessToken }: { accessToken: string }) {
           }));
         return (
           <section key={worldId} id={`world-${worldId}`} className="flex flex-col gap-4">
-            <h2 className="text-xl wrap-anywhere">{t('economy.world', { slug })}</h2>
+            <Card className="p-3">
+              <SectionTitle icon={<Globe />} className="wrap-anywhere">
+                {t('economy.world', { slug })}
+              </SectionTitle>
+            </Card>
             {outOfTarget(world) && (
               <p role="alert" className={ALERT}>
                 {t('economy.alert', { ...target, inflation, status })}
@@ -209,56 +231,60 @@ export function Economy({ accessToken }: { accessToken: string }) {
             <div className="grid items-start gap-4 lg:grid-cols-2">
               {amounts(
                 t('economy.supply.title'),
+                Coins,
                 slug,
                 supply.map(([part, amount]) => [t(`economy.supply.${part}`), amount]),
                 true,
               )}
               {amounts(
                 t('economy.totals'),
+                Scale,
                 slug,
                 systemAccounts.map((account) => [name(account), account.total]),
               )}
             </div>
-            <h3 className="text-base font-semibold">
-              {t('economy.byDay', { count: data.windowDays })}
-            </h3>
-            {days.length === 0 ? (
-              <EmptyState compact illustration="noEntry" title={t('economy.noDays')} />
-            ) : (
-              // Détail par compte, replié : le dessin et son tableau donnent déjà les totaux du jour.
-              <details className="group">
-                <summary className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg text-sm font-medium text-accent">
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-4 transition-transform duration-(--motion-fast) group-open:rotate-90"
-                  />
-                  {t('economy.dayDetail')}
-                </summary>
-                {/* Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà. */}
-                <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {days.map((day) => (
-                    <li
-                      key={day}
-                      className="rounded-xl border border-border-subtle bg-surface p-4 text-sm shadow-sm"
-                    >
-                      <h4 className="mb-2 font-semibold">{date(day)}</h4>
-                      <dl className="flex flex-col gap-1 tabular-nums [&_dd]:whitespace-nowrap">
-                        {moving
-                          .filter((account) => on(account, day) !== undefined)
-                          .map((account) => (
-                            <div key={account.key} className="flex justify-between gap-x-4">
-                              <dt className="min-w-0 text-foreground-secondary wrap-anywhere">
-                                {name(account)}
-                              </dt>
-                              <dd>{number.format(on(account, day) ?? 0)}</dd>
-                            </div>
-                          ))}
-                      </dl>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
+            <Card className="flex flex-col gap-3 lg:p-5">
+              <SectionTitle as="h3" icon={<CalendarDays />}>
+                {t('economy.byDay', { count: data.windowDays })}
+              </SectionTitle>
+              {days.length === 0 ? (
+                <EmptyState compact illustration="noEntry" title={t('economy.noDays')} />
+              ) : (
+                // Détail par compte, replié : le dessin et son tableau donnent déjà les totaux du jour.
+                <details className="group">
+                  <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg text-sm font-medium text-accent">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-4 transition-transform duration-(--motion-fast) group-open:rotate-90"
+                    />
+                    {t('economy.dayDetail')}
+                  </summary>
+                  {/* Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà. */}
+                  <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {days.map((day) => (
+                      <li
+                        key={day}
+                        className="rounded-xl border border-border-subtle bg-surface-raised p-4 text-sm"
+                      >
+                        <h4 className="mb-2 font-semibold">{date(day)}</h4>
+                        <dl className="flex flex-col gap-1 tabular-nums [&_dd]:whitespace-nowrap">
+                          {moving
+                            .filter((account) => on(account, day) !== undefined)
+                            .map((account) => (
+                              <div key={account.key} className="flex justify-between gap-x-4">
+                                <dt className="min-w-0 text-foreground-secondary wrap-anywhere">
+                                  {name(account)}
+                                </dt>
+                                <dd>{number.format(on(account, day) ?? 0)}</dd>
+                              </div>
+                            ))}
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </Card>
           </section>
         );
       })}

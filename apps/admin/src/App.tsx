@@ -296,7 +296,7 @@ export function App() {
           'mx-auto w-full min-w-0',
           shell
             ? // Un panneau latéral ouvert (Paramètres) est fixé à droite : le contenu lui laisse sa place.
-              'max-w-6xl p-4 lg:p-8 lg:has-[[data-side-panel]]:mr-[min(42rem,46vw)] lg:has-[[data-side-panel]]:ml-0 lg:has-[[data-side-panel]]:w-auto lg:has-[[data-side-panel]]:max-w-none'
+              'max-w-5xl p-4 lg:p-8 lg:has-[[data-side-panel]]:mr-[min(42rem,46vw)] lg:has-[[data-side-panel]]:ml-0 lg:has-[[data-side-panel]]:w-auto lg:has-[[data-side-panel]]:max-w-none'
             : 'flex min-h-[calc(100dvh-4.5rem)] max-w-md items-center p-4',
         )}
       >

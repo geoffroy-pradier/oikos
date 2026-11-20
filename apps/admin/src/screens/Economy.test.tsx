@@ -5,6 +5,7 @@ import { SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { initI18n } from '../i18n';
 import { ECONOMY } from '../test/fakes';
 import { Economy } from './Economy';
+import { SinkShares } from './EconomyCharts';
 
 const adminGet = vi.hoisted(() => vi.fn());
 vi.mock('../api', () => ({ adminGet }));
@@ -349,4 +350,21 @@ it('robinets et puits par jour : dessin résumé, doublé d’un tableau ; part 
   // Un seul puits a détruit de la monnaie : toute la part est à lui, sans libellé de type.
   const shares = screen.getByRole('heading', { name: "Part de chaque puits, depuis l'origine" });
   expect(text(shares.nextElementSibling)).toBe('Entretien des sites100 %');
+});
+
+it('part de chaque puits : la barre se mesure à la plus grande part, des parts proches restent lisibles', () => {
+  render(
+    <SinkShares
+      sinks={[
+        { name: 'A', total: 600 },
+        { name: 'B', total: 300 },
+        { name: 'C', total: 100 },
+      ]}
+    />,
+  );
+  const widths = Array.from(
+    document.querySelectorAll<HTMLElement>('dd[aria-hidden] > div'),
+    (bar) => Math.round(Number.parseFloat(bar.style.width)),
+  );
+  expect(widths).toEqual([100, 50, 17]);
 });

@@ -4,6 +4,7 @@
  */
 export type { LucideIcon as Icon, LucideProps as IconProps } from 'lucide-react';
 export { CircleHelp, Factory, ListTodo } from 'lucide-react';
+export { CalendarDays, ChartPie, Globe, Table2 } from 'lucide-react';
 export {
   ArrowUp,
   Clock,
