@@ -383,7 +383,8 @@ describe('admin.publishConfig', () => {
     expect(refused).toMatchObject({ status: 409, body: { error: { code: 'CONFIG_INVALID' } } });
     expect(refused.body.error?.fields?.join('\n')).toContain('market.npcMaxPriceFactor');
     // Une commande d'administration peut dépasser la taille d'une commande de jeu (16 Ko), dans sa propre limite.
-    const large = { ...candidate(3000), padding: 'x'.repeat(100_000) };
+    // Le rembourrage laisse de la place à la configuration elle-même (32 Ko compacte depuis #713), qui grossit avec le catalogue.
+    const large = { ...candidate(3000), padding: 'x'.repeat(64_000) };
     expect((await send(author, 'admin.publishConfig', { config: large })).status).toBe(409);
     const tooLarge = { ...candidate(3000), padding: 'x'.repeat(200_000) };
     expect((await send(author, 'admin.publishConfig', { config: tooLarge })).status).toBe(413);
