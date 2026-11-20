@@ -230,7 +230,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
@@ -243,6 +243,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
         run: pnpm db:start:ci || (sudo ss -tanp | grep ':5432' || true; pnpm db:stop && sleep 5 && pnpm db:start:ci)
+      # Navigateur du contrôle visuel (#700, `apps/web/e2e/visual-browser.ts`) : l'image Docker de Playwright, à la
+      # version du dépôt, téléchargée à part (environ 1,2 Go) pour que sa durée ne pèse pas sur le délai des tests.
+      - name: Pull Playwright image
+        run: docker pull "mcr.microsoft.com/playwright:v$(node -p "require('@playwright/test/package.json').version")-noble"
       - name: End-to-end tests
         run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
       # Traces des tests rejoués (échec puis nouvel essai), à ouvrir avec `playwright show-trace`.

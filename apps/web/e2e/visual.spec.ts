@@ -1,5 +1,5 @@
 import { createDb } from '@oikos/db';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import {
   expectNoHorizontalScroll,
@@ -9,6 +9,7 @@ import {
   seriousViolations,
   signIn,
 } from './helpers';
+import { test } from './visual-browser';
 
 /**
  * Contrôle visuel de la refonte (#700, ADR 0011) : chaque écran clé, dans les deux thèmes, comparé à son image de
@@ -24,15 +25,32 @@ const FORMATS = {
 const SCHEMES = { clair: 'light', sombre: 'dark' } as const;
 const GREETING = 'Salut à la cité, du port à l’agora.';
 
-/** Heure, date ou durée en cours : le texte change d'un passage à l'autre, sa place non. */
+/** Heure, date ou durée en cours : le texte change d'un passage à l'autre. */
 const CLOCK =
   /\d{1,2}:\d{2}|\d{2}\/\d{2}\/\d{4}|\d+ h \d{2}|\b\d{1,2}(er)? (janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc)/;
 
-// Navigateur de l'image Docker de Playwright (voir `playwright.config.ts`), heure de Paris.
-test.use({
-  connectOptions: { wsEndpoint: process.env['OIKOS_VISUAL_BROWSER'] ?? '' },
-  timezoneId: 'Europe/Paris',
-});
+/**
+ * Fige ce que l'horloge fait varier avant de le masquer : chaque nombre devient des zéros (au moins deux, chiffres
+ * tabulaires, « 1er » compris), chaque mois « nov ». Le masque et ce qui suit sur la ligne gardent la même place d'un jour à l'autre.
+ */
+async function freezeClock(page: Page) {
+  await page.evaluate((source) => {
+    const clock = new RegExp(source, 'g');
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.nodeValue ?? '';
+      const frozen = text.replace(clock, (found) =>
+        found
+          .replace(/(\d+)(er)?/g, (_, digits: string) => '0'.repeat(Math.max(2, digits.length)))
+          .replace(/[a-zéû]{3,4}$/, 'nov'),
+      );
+      if (frozen !== text) node.nodeValue = frozen;
+    }
+  }, CLOCK.source);
+}
+
+// Navigateur de l'image Docker de Playwright (`visual-browser.ts`), heure de Paris.
+test.use({ timezoneId: 'Europe/Paris' });
 test.setTimeout(180_000);
 
 /** Abonnements en direct acceptés sans pile Realtime : l'écran est le même en local et en `ci`. */
@@ -107,6 +125,7 @@ async function capture(
       height: Math.max(viewport.height, height),
     });
     await page.mouse.move(0, Math.round(viewport.height / 2));
+    await freezeClock(page);
     await expect
       .soft(target ?? page)
       .toHaveScreenshot(`${screen}-${suffix}.png`, { mask: [page.getByText(CLOCK)] });
