@@ -439,6 +439,13 @@ hors de la cible, le tableau de bord alerte. Rien du jeu ne se règle sur l'indi
 `GET /api/admin/economy` rend pour chaque monde l'indice des deux fenêtres, l'inflation et sa situation, les biens sans échange par fenêtre (`unpricedByWindow`, et leur réunion `unpricedGoods`) et la fenêtre partielle ;
 elle dit aussi, une fois pour tous les mondes, si le panier est vide (`basketEmpty`) : « pas de panier » se lit dans ce champ, jamais dans une liste de biens vide.
 
+Inégalité des fortunes (#718) : le tableau de bord suit, pour chaque monde et chacune de ses cités, le coefficient de Gini des fortunes des maisons (4.1), en points de base (0 : fortunes égales ; vers 10 000 : une maison a tout).
+Il est calculé en entiers par `giniBps` (`packages/sim`), sur les fortunes triées, arrondi au point le plus proche, le demi-point vers le haut ; une fortune négative (une dette, quand les prêts viendront) y compte pour zéro.
+Une maison compte dans sa cité de citoyenneté, et toujours dans son monde ; les maisons PNJ de secours (8.3) n'entrent dans aucun Gini, comme dans aucun classement de fortune.
+Sans maison, le Gini est inconnu, jamais nul ; toutes les fortunes nulles donnent un Gini nul.
+`GET /api/admin/economy` le rend dans `inequality`, avec le nombre de maisons comptées et celui des stocks sans prix observé, que leurs fortunes ignorent (15.1).
+Aucune borne ne s'y applique encore : c'est une mesure, que les liturgies (#719) et l'Hybris liront.
+
 Entretien des sites, dans la première version : à chaque clôture quotidienne (section 3), chaque site d'une maison doit un entretien, détruit (puits « entretien »).
 Deux paramètres du back-office : un montant de base par jour de jeu et par type de site (`sites.upkeep.dailyOboles`) et un coefficient global en points de base (`sites.upkeep.coefficientBps`, 10 000 = ×1, de ×0 à ×10), qui est le levier « coefficient d'entretien » ci-dessous.
 Dû par site = ⌈base × coefficient ÷ 10 000⌉, arrondi à l'obole supérieure : l'arrondi ne joue jamais en faveur de la monnaie en circulation.
@@ -577,6 +584,12 @@ Les trois bancs gardent leurs mesures et leurs bornes, avant comme après.
 À quatre cités : coût du panier inchangé, besoins vitaux couverts à 100 %, masse +177,6 %.
 À douze cités : coût du panier inchangé, besoins vitaux couverts à 98,4 % au moins, masse +169,6 %, création nette des dix derniers jours à 99,5 % de celle des dix premiers.
 Seul l'arrondi de la part publique au point inférieur bouge la masse : 208 oboles de moins dans les douze cités au dernier jour (rapport du simulateur).
+
+Inégalité des fortunes (#718) : le banc mesure chaque jour le Gini des fortunes de ses maisons, par cité et pour le monde, par `game.house_wealth`, et le rapporte au premier et au dernier jour mesurés, sans borne (journal du test et champ `gini` du fichier `BALANCE_REPORT`).
+Le simulateur le compare de même (groupe `gini`, `gini/<cité>/first` et `gini/<cité>/last`).
+Les mesures et les bornes des bancs ne changent pas : la mesure ne fait que lire.
+À quatre cités, le Gini du monde passe de 2 305 à 3 966 points de base sur les 30 jours mesurés, de 870 à 1 215 à Kallistè et de 1 826 à 4 644 à Ampélos (10,5 minutes en local).
+À douze cités, il passe de 2 476 à 3 886 points dans le monde ; Phrourion reste la plus égale (de 531 à 862), Delphis et Chalkeia finissent au-delà de 6 000 points (de 2 840 à 6 221 et de 2 895 à 6 073) (38 minutes en local, dont une partie en parallèle d'un autre banc).
 
 ## 5.6 Fiscalité
 

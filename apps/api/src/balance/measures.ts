@@ -1,5 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { basketCost, costRatioBps, dailyUpkeep, type Traded } from '@oikos/sim';
+import {
+  basketCost,
+  costRatioBps,
+  dailyUpkeep,
+  type RankedWealth,
+  type Traded,
+  wealthInequality,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import { config, recipeOf, referenceOf, type City, type Role } from './city';
 import { SLUGS, WORLD_SEED, type Settlement } from './world';
@@ -22,6 +29,11 @@ export interface DayMeasure {
   bought: Record<string, Record<string, { turnover: number; volume: number }>>;
   /** Marché du travail que la clôture du jour a fixé, par cité : salaire, prix d'une nuit, employés et non logés (4.4). */
   labor: Record<string, { wage: number; lodging: number; employed: number; unhoused: number }>;
+  /**
+   * Coefficient de Gini des fortunes en fin de jour (4.1, #718), en points de base, par cité de citoyenneté et pour
+   * le monde (`world`), sans les maisons PNJ de secours ; null sans maison. Mesuré, jamais borné.
+   */
+  gini: Record<string, number | null>;
 }
 
 /** Relève, jour après jour, les mesures des cités d'un monde ; à appeler à la fin de chaque jour de jeu. */
@@ -44,6 +56,7 @@ export async function measureDay(
     traded: {},
     bought: {},
     labor: {},
+    gini: {},
   };
   for (const slug of [...bySlug.values(), 'world']) {
     measure.flows[slug] = {};
@@ -177,6 +190,18 @@ export async function measureDay(
       measure.flows[key][row.system_key] = (measure.flows[key][row.system_key] ?? 0) + net;
     }
   }
+  // Fortune de chaque maison (`game.house_wealth`, le même calcul que `houseWealth`), puis Gini par cité et du monde.
+  const wealths = await sql<{ city_id: string | null; npc: boolean; wealth: string }>`
+    select city_id, npc, wealth::text from game.house_wealth(${worldId})`.execute(db);
+  const groups = new Map<string, RankedWealth[]>([['world', []]]);
+  for (const slug of bySlug.values()) groups.set(slug, []);
+  for (const row of wealths.rows) {
+    const house = { npc: row.npc, wealth: BigInt(row.wealth) };
+    groups.get('world')?.push(house);
+    const slug = row.city_id === null ? undefined : bySlug.get(row.city_id);
+    if (slug) groups.get(slug)?.push(house);
+  }
+  for (const [slug, houses] of groups) measure.gini[slug] = wealthInequality(houses).giniBps;
   return measure;
 }
 
@@ -379,6 +404,19 @@ export function sinkShares(days: readonly DayMeasure[]) {
   return shares;
 }
 
+/**
+ * Gini des fortunes au premier et au dernier jour mesurés (#718), par cité et pour le monde ; null sans maison ou
+ * sans jour. Le banc le rapporte sans le borner.
+ */
+export function giniSpan(days: readonly DayMeasure[]) {
+  return Object.fromEntries(
+    [...SLUGS, 'world'].map((slug) => [
+      slug,
+      { first: days[0]?.gini[slug] ?? null, last: days.at(-1)?.gini[slug] ?? null },
+    ]),
+  );
+}
+
 /** Mesures publiées : tableaux dans le journal du test, et fichier JSON (`BALANCE_REPORT`) que le job `ci` conserve. */
 export async function publish(
   days: readonly DayMeasure[],
@@ -404,6 +442,11 @@ export async function publish(
       })),
     );
   }
+  const gini = giniSpan(days);
+  console.log(
+    'Coefficient de Gini des fortunes (points de base), premier et dernier jour mesurés, sans borne',
+  );
+  console.table(gini);
   console.log('Couverture des besoins vitaux (bps), dernier jour mesuré');
   console.table(days.at(-1)?.coverage);
   console.log('Marge nette quotidienne par recette (oboles)');
@@ -416,7 +459,11 @@ export async function publish(
     await mkdir(path.replace(/[^/]*$/, '') || '.', { recursive: true });
     await writeFile(
       path,
-      JSON.stringify({ seed: WORLD_SEED, days, margins, sinkShares: shares, ...extra }, null, 1),
+      JSON.stringify(
+        { seed: WORLD_SEED, days, margins, sinkShares: shares, gini, ...extra },
+        null,
+        1,
+      ),
     );
   }
 }
