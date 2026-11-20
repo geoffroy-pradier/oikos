@@ -1,5 +1,5 @@
 import type { MarketPlaceOrderInput } from '@oikos/contracts';
-import { Badge, Button, Card, GoodIcon, Select, StatusRegion } from '@oikos/ui';
+import { Badge, Button, Card, GoodIcon, Select, StatusRegion, TableScroll } from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -364,17 +364,27 @@ export function AgoraScreen() {
                 ) : (
                   // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
                   // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-                  <div key={key} className="overflow-x-auto rounded-lg bg-muted/40 p-2">
+                  <TableScroll
+                    key={key}
+                    label={t(`agora.${caption}`)}
+                    className="rounded-lg bg-muted/40 p-2"
+                  >
                     <table className="w-full text-left tabular-nums">
                       <caption className="px-2 pb-2 text-left text-sm text-muted-foreground">
                         {t(`agora.${caption}`)}
                       </caption>
                       <thead>
                         <tr className="border-b border-border-subtle">
-                          <th scope="col" className="eyebrow px-2 py-1 font-semibold">
+                          <th
+                            scope="col"
+                            className="px-2 py-1 text-xs font-semibold text-muted-foreground"
+                          >
                             {t('agora.price')}
                           </th>
-                          <th scope="col" className="eyebrow px-2 py-1 text-right font-semibold">
+                          <th
+                            scope="col"
+                            className="px-2 py-1 text-right text-xs font-semibold text-muted-foreground"
+                          >
                             {t(`agora.${column}`)}
                           </th>
                         </tr>
@@ -398,7 +408,7 @@ export function AgoraScreen() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </TableScroll>
                 );
               })}
             </div>

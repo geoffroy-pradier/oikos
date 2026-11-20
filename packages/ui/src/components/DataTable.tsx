@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from '../cn';
+import { TableScroll } from './TableScroll';
 
 export type SortDirection = 'ascending' | 'descending';
 
@@ -12,6 +13,11 @@ export interface DataColumn<Row> {
   sortValue?: (row: Row) => number | string | null;
   /** Montants et quantités : alignés à droite, en chiffres tabulaires. */
   numeric?: boolean;
+  /**
+   * Boutons de la ligne (« Acheter », « Gérer ») : sans libellé dans la fiche, où ils ferment la carte sous un
+   * trait au lieu d'une ligne « Action » à moitié vide, et sans largeur à eux dans le tableau, alignés à droite.
+   */
+  action?: boolean;
 }
 
 export interface DataTableProps<Row> {
@@ -48,8 +54,11 @@ export function DataTable<Row>({
   const [announced, setAnnounced] = useState(false);
   const sortColumn = columns.find((column) => column.id === sort?.column);
   const sorted = sortColumn?.sortValue ? sortRows(rows, sortColumn.sortValue, sort, locale) : rows;
-  const [first, ...details] = columns;
-  const align = (column: DataColumn<Row>) => (column.numeric ? 'text-right tabular-nums' : '');
+  const [first, ...rest] = columns;
+  const details = rest.filter((column) => !column.action);
+  const actions = rest.filter((column) => column.action);
+  const align = (column: DataColumn<Row>) =>
+    column.numeric ? 'text-right tabular-nums' : column.action ? 'w-px text-right' : '';
 
   return (
     <div className={className}>
@@ -65,6 +74,11 @@ export function DataTable<Row>({
                 </div>
               ))}
             </dl>
+            {actions.map((column) => (
+              <div key={column.id} className="mt-3 border-t border-border-subtle pt-3">
+                {column.cell(row)}
+              </div>
+            ))}
           </li>
         ))}
       </ul>
@@ -72,75 +86,82 @@ export function DataTable<Row>({
       <p role="status" className="sr-only max-lg:hidden">
         {announced && sortColumn && sort && sortAnnouncement(sortColumn.header, sort.direction)}
       </p>
-      <table className="hidden w-full border-collapse text-sm lg:table">
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr className="border-b border-border-subtle text-xs text-muted-foreground">
-            {columns.map((column) => {
-              const active = sort?.column === column.id;
-              const label = (
-                <>
-                  {column.header}
-                  {active && sort && (
-                    <span aria-hidden="true">{sort.direction === 'descending' ? '▼' : '▲'}</span>
-                  )}
-                </>
-              );
-              return (
-                <th
-                  key={column.id}
-                  scope="col"
-                  aria-sort={active ? sort?.direction : undefined}
-                  className={cn('px-3 py-2 font-medium', align(column) || 'text-left')}
-                >
-                  {column.sortValue ? (
-                    <button
-                      type="button"
-                      className="inline-flex min-h-9 items-center gap-1 rounded-md hover:text-foreground"
-                      // Même colonne : sens inverse. Autre colonne : textes de A à Z, nombres du plus grand au plus petit.
-                      onClick={() => {
-                        setSort({
-                          column: column.id,
-                          direction: active
-                            ? sort?.direction === 'ascending'
-                              ? 'descending'
-                              : 'ascending'
-                            : column.numeric
-                              ? 'descending'
-                              : 'ascending',
-                        });
-                        setAnnounced(true);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ) : (
-                    label
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((row) => (
-            <tr key={rowKey(row)} className="border-b border-border-subtle last:border-b-0">
-              {columns.map((column, index) => {
-                const Cell = index === 0 ? 'th' : 'td';
+      {/* Plus large que son cadre, le tableau défile et le dit par un fondu sur le bord (#865). */}
+      <TableScroll label={caption} className="max-lg:hidden">
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">{caption}</caption>
+          <thead>
+            {/* En-têtes sur deux lignes au plus, en casse normale : les libellés sont courts, l'alignement en bas. */}
+            <tr className="border-b border-border-subtle align-bottom text-xs leading-tight text-muted-foreground">
+              {columns.map((column) => {
+                const active = sort?.column === column.id;
+                const label = (
+                  <>
+                    {column.header}
+                    {active && sort && (
+                      <span aria-hidden="true">{sort.direction === 'descending' ? '▼' : '▲'}</span>
+                    )}
+                  </>
+                );
                 return (
-                  <Cell
+                  <th
                     key={column.id}
-                    scope={index === 0 ? 'row' : undefined}
-                    className={cn('px-3 py-2.5 text-left font-normal', align(column))}
+                    scope="col"
+                    aria-sort={active ? sort?.direction : undefined}
+                    className={cn('min-w-20 px-1.5 py-2 font-medium', align(column) || 'text-left')}
                   >
-                    {column.cell(row)}
-                  </Cell>
+                    {column.sortValue ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          'inline-flex min-h-9 items-center gap-1 rounded-md hover:text-foreground',
+                          column.numeric ? 'text-right' : 'text-left',
+                        )}
+                        // Même colonne : sens inverse. Autre colonne : textes de A à Z, nombres du plus grand au plus petit.
+                        onClick={() => {
+                          setSort({
+                            column: column.id,
+                            direction: active
+                              ? sort?.direction === 'ascending'
+                                ? 'descending'
+                                : 'ascending'
+                              : column.numeric
+                                ? 'descending'
+                                : 'ascending',
+                          });
+                          setAnnounced(true);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ) : (
+                      label
+                    )}
+                  </th>
                 );
               })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sorted.map((row) => (
+              <tr key={rowKey(row)} className="border-b border-border-subtle last:border-b-0">
+                {columns.map((column, index) => {
+                  const Cell = index === 0 ? 'th' : 'td';
+                  return (
+                    <Cell
+                      key={column.id}
+                      scope={index === 0 ? 'row' : undefined}
+                      className={cn('px-1.5 py-2.5 text-left font-normal', align(column))}
+                    >
+                      {column.cell(row)}
+                    </Cell>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
     </div>
   );
 }

@@ -21,6 +21,7 @@ export { Tabs, type TabItem, type TabsProps } from './components/Tabs';
 export { PillTabs, type PillTabsProps } from './components/Tabs';
 export { PILL_FRAME, PILL_LIST, PILL_ROW, pillClass } from './components/pills';
 export { useScrollRow } from './components/scroll-row';
+export { TableScroll } from './components/TableScroll';
 export { AA_TEXT, AA_UI, COLOR_TOKENS, CONTRAST_PAIRS, contrastRatio } from './contrast';
 export * from './icons';
 export { numberProblem, readTypedNumber, typedIntegerProblem, type NumberProblem } from './numbers';

@@ -615,7 +615,7 @@
     "sortedDescending": "Sorted by {{column}}, descending order",
     "income": {
       "title": "Income statement",
-      "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close.",
+      "intro": "On a cash basis: income or an expense counts on the day money changes hands; an expense is negative. A game day starts at the daily close. Running costs are upkeep, wages, lodging, transport and rents paid; acquisitions and disposals cover sites, ships and properties.",
       "groupBy": "Group by",
       "day": "Day",
       "season": "Season",
@@ -626,11 +626,11 @@
       "sales": "Sales and rents received",
       "purchases": "Purchases",
       "taxes": "Taxes",
-      "upkeep": "Upkeep, wages, lodging, transport and rents paid",
+      "upkeep": "Running costs",
       "operating_result": "Operating result",
-      "acquisitions": "Acquisitions and disposals (sites, ships, properties)",
+      "acquisitions": "Acquisitions and disposals",
       "grants": "Grants",
-      "other": "Offerings and other movements",
+      "other": "Offerings and other",
       "non_operating": "Non-operating",
       "cash_change": "Change in money",
       "escrow_change": "of which escrow"
