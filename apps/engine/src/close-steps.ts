@@ -1,4 +1,5 @@
 import type { CloseStep } from './close';
+import { archonHonor } from './steps/archon-honor';
 import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
 import { citizenship } from './steps/citizenship';
@@ -15,8 +16,9 @@ import { siteUpkeep } from './steps/site-upkeep';
 import { worldEventPlanning } from './steps/world-event-planning';
 
 /**
- * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement puis
- * l'ouverture des élections de l'archonte (6.2), le dépouillement des décrets (6.3), la population des PNJ,
+ * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement des élections de
+ * l'archonte (6.2), la Timè des mandats finis (4.1, #704), qui ne prend que les verrous de la Timè, l'ouverture des
+ * élections suivantes, le dépouillement des décrets (6.3), la population des PNJ,
  * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
  * les siens, sans autre verrou que celui de la clôture du monde, le déclin de la Charis (7.1, #265),
  * l'application des décrets de taux (5.6, #262), le règlement des
@@ -44,6 +46,7 @@ import { worldEventPlanning } from './steps/world-event-planning';
 export const CLOSE_STEPS: readonly CloseStep[] = [
   citizenship,
   archonTally,
+  archonHonor,
   archonOpening,
   decreeTally,
   npcPopulation,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLOSE_STEPS } from './close-steps';
+import { archonHonor } from './steps/archon-honor';
 import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
 import { citizenship } from './steps/citizenship';
@@ -21,7 +22,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS).toContain(npcPopulation);
     expect(CLOSE_STEPS.at(-1)).toBe(siteUpkeep);
     // Avant l'entretien (ordre de clôture de la phase 2), sans monnaie ni stock : la citoyenneté (une
-    // maison promue ce jour vote déjà), puis le dépouillement, puis l'ouverture du mandat suivant ; la
+    // maison promue ce jour vote déjà), puis le dépouillement, la Timè des mandats finis (#704), puis
+    // l'ouverture du mandat suivant ; la
     // vétusté des biens juste avant l'entretien, qu'elle précède sous le verrou de l'agora ; les loyers
     // avant elle, les premiers de ce qui touche la monnaie (#257). Le dépouillement des décrets, sans monnaie
     // ni stock, passe avant les loyers ; l'application des décrets de taux le suit, avant tout ce qui taxe ou
@@ -33,6 +35,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     const order = [
       citizenship,
       archonTally,
+      archonHonor,
       archonOpening,
       decreeTally,
       npcPopulation,

@@ -11,6 +11,7 @@ import {
 import pg from 'pg';
 
 export * from './city-rates';
+export * from './honor';
 export * from './npc-purses';
 export * from './sanctions';
 
