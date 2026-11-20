@@ -131,6 +131,13 @@ Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décr
 - **Parrainage** : un vétéran devient le proxène d'un nouveau ; les deux sont récompensés aux paliers de progression du filleul.
 - **Jeux panhelléniques** : à chaque fin d'Olympiade, épreuves économiques par cité et par maison (meilleure marge, plus belle fête, plus longue route), avec titres permanents.
 
+Dans la phase 3 (ticket 705), la fiche publique d'une maison est l'écran `/maison/<identifiant>`.
+Elle montre le blason, le nom, la cité, le statut de métèque ou de citoyenne, la Timè (4.1), et les mandats en cours puis passés.
+Elle ne lit que des vues publiques : `houses`, `house_honor` et `offices`, jamais une vue `my_*`.
+Décision (ambiguïté du ticket, « mandats passés et en cours ») : seules les charges pourvues sont des mandats, les candidatures n'y figurent pas.
+Décision : une maison absente, d'un autre monde ou désignée par une adresse mal formée mène à l'écran introuvable, sans qu'aucune autre vue soit lue ; la devise, les titres des Jeux, les cosmétiques et les avis des partenaires attendent.
+On y arrive par le nom d'un auteur de message, d'un candidat et de l'archonte en charge.
+
 Dans la phase 2 (ticket 273), la discussion compte deux sortes de canaux.
 Décision (ambiguïté de cette section) : un canal par cité, où écrit et lit toute maison de la cité, citoyenne ou métèque, et des conversations privées entre deux maisons d'un même monde, de la même cité ou non.
 Les canaux de ligue, de confrérie et de marché et le forum de la cité viennent avec les phases suivantes.

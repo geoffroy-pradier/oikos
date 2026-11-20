@@ -1457,5 +1457,28 @@
     "back": "Back",
     "next": "Continue",
     "stepOf": "Step {{current}} of {{total}}"
+  },
+  "houseProfile": {
+    "back": "Back",
+    "status": {
+      "citizen": "Citizen of {{city}}",
+      "metic": "Metic in {{city}}"
+    },
+    "statusOnly": {
+      "citizen": "Citizen",
+      "metic": "Metic"
+    },
+    "city": "City",
+    "noCity": "Unknown city",
+    "honor": "Timè",
+    "mandates": "Mandates",
+    "noMandate": "This house has held no mandate.",
+    "offices": {
+      "archon": "Archon"
+    },
+    "mandateOf": "in {{city}}, from {{from}} to {{to}}",
+    "inOffice": "In office",
+    "past": "Ended",
+    "view": "View the profile of {{house}}"
   }
 }
