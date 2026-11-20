@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { chooseLanguage, expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 test('une lecture en échec n’est pas prise pour « pas de maison » et se réessaie', async ({
   page,
@@ -124,15 +124,19 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
 
   // Thème sombre : appliqué et mémorisé.
   await page.getByRole('button', { name: 'Réglages' }).click();
-  await page.getByRole('button', { name: 'Thème sombre' }).click();
+  await page.getByRole('radio', { name: 'Sombre' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // Échap referme la feuille des Réglages et rend le foyer à leur bouton.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Réglages' })).toBeFocused();
   await nav.getByRole('link', { name: 'Maison' }).click();
 
   // La maison et le thème survivent au rechargement ; l'interface bascule en anglais et s'en souvient.
   await page.reload();
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByRole('heading', { name: `House ${houseName}` })).toBeVisible();
   await expect(page.getByText('Metic in Kallistè')).toBeVisible();
   // L'identité de la cité suit la langue.

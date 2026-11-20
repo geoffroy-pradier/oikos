@@ -1,6 +1,13 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyTheme, initialTheme, storedLanguage, storeLanguage } from './preferences';
+import {
+  applyTheme,
+  chooseTheme,
+  initialTheme,
+  storedLanguage,
+  storedThemeChoice,
+  storeLanguage,
+} from './preferences';
 
 function stubBrowser(initial: Record<string, string> = {}, broken = false) {
   const store = new Map(Object.entries(initial));
@@ -14,6 +21,10 @@ function stubBrowser(initial: Record<string, string> = {}, broken = false) {
       setItem: (key: string, value: string) => {
         if (broken) throw new Error('storage disabled');
         store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        if (broken) throw new Error('storage disabled');
+        store.delete(key);
       },
     },
   });
@@ -42,6 +53,26 @@ describe('préférences du joueur', () => {
     expect([dataset['theme'], store.get('oikos.theme')]).toEqual(['light', 'light']);
   });
 
+  it('Réglages : un thème choisi est appliqué et mémorisé, celui de l’appareil efface la mémoire', () => {
+    const { store, dataset } = stubBrowser();
+    expect(storedThemeChoice()).toBe('system');
+    expect(chooseTheme('dark', false)).toBe('dark');
+    expect([dataset['theme'], store.get('oikos.theme'), storedThemeChoice()]).toEqual([
+      'dark',
+      'dark',
+      'dark',
+    ]);
+    // Appareil en clair : le thème suit le système, et plus rien n'est mémorisé.
+    expect(chooseTheme('system', false)).toBe('light');
+    expect([dataset['theme'], store.has('oikos.theme'), storedThemeChoice()]).toEqual([
+      'light',
+      false,
+      'system',
+    ]);
+    expect(initialTheme(true)).toBe('dark');
+    expect(chooseTheme('system', true)).toBe('dark');
+  });
+
   it('mémorise la langue et ignore une valeur hors liste', () => {
     stubBrowser({ 'oikos.language': 'de' });
     expect(storedLanguage()).toBeNull();
@@ -55,5 +86,7 @@ describe('préférences du joueur', () => {
     expect(initialTheme(false)).toBe('light');
     expect(() => applyTheme('dark')).not.toThrow();
     expect(dataset['theme']).toBe('dark');
+    expect(chooseTheme('system', false)).toBe('light');
+    expect([dataset['theme'], storedThemeChoice()]).toEqual(['light', 'system']);
   });
 });

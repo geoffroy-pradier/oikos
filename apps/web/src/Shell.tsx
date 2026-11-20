@@ -1,10 +1,11 @@
 import { cn, House, Landmark, MapIcon, MessagesSquare, Store, type Icon } from '@oikos/ui';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { applyTheme, initialTheme, type Theme } from './preferences';
+import { chooseTheme, storedThemeChoice, type ThemeChoice } from './preferences';
 import { SanctionNotice } from './screens/SanctionNotice';
 import { router, TABS, tabOf, type TabId } from './router';
+import { SettingsSheet } from './SettingsSheet';
 import { ShellHeader } from './ShellHeader';
 import { supabase } from './supabase';
 
@@ -17,13 +18,23 @@ const ICONS: Record<TabId, Icon> = {
   messages: MessagesSquare,
 };
 
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
 export function Shell() {
   const { t } = useTranslation();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const active = tabOf(pathname);
-  const [theme, setTheme] = useState<Theme>(() =>
-    initialTheme(window.matchMedia('(prefers-color-scheme: dark)').matches),
-  );
+  const [theme, setTheme] = useState<ThemeChoice>(storedThemeChoice);
+  const [settings, setSettings] = useState(false);
+
+  // Thème de l'appareil : suivi en direct tant que c'est le choix du joueur.
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const query = window.matchMedia(DARK_QUERY);
+    const follow = () => chooseTheme('system', query.matches);
+    query.addEventListener('change', follow);
+    return () => query.removeEventListener('change', follow);
+  }, [theme]);
 
   // À la déconnexion, on revient à l'accueil : le compte suivant ne doit pas hériter de l'adresse en cours.
   function signOut() {
@@ -31,9 +42,8 @@ export function Shell() {
     void supabase.auth.signOut();
   }
 
-  function toggleTheme() {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
+  function choose(next: ThemeChoice) {
+    chooseTheme(next, window.matchMedia(DARK_QUERY).matches);
     setTheme(next);
   }
 
@@ -94,7 +104,7 @@ export function Shell() {
       </nav>
 
       <div className="min-w-0 pb-20 lg:pb-0">
-        <ShellHeader dark={theme === 'dark'} onToggleTheme={toggleTheme} onSignOut={signOut} />
+        <ShellHeader settingsOpen={settings} onSettings={() => setSettings(true)} />
         {/* Clé sur le chemin : chaque écran paraît par une courte montée (coupée sous reduced-motion). */}
         <main id="main" tabIndex={-1} className="mx-auto max-w-5xl p-4 lg:p-8">
           <div key={pathname} className="animate-rise">
@@ -103,6 +113,14 @@ export function Shell() {
           </div>
         </main>
       </div>
+
+      <SettingsSheet
+        open={settings}
+        onClose={() => setSettings(false)}
+        theme={theme}
+        onTheme={choose}
+        onSignOut={signOut}
+      />
     </div>
   );
 }
