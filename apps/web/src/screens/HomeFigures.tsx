@@ -49,7 +49,7 @@ export function HomeFigures(props: {
           {props.balance === undefined ? '—' : money(props.balance)}
         </p>
         <div className="flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-0.5 text-[0.8125rem] text-inverse-muted lg:text-muted-foreground">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[0.8125rem] text-inverse-muted lg:text-muted-foreground">
             {week !== null && (
               <p>
                 <span
@@ -157,7 +157,7 @@ function Sparkline({ points }: { points: readonly BalancePoint[] }) {
     <svg
       aria-hidden="true"
       viewBox="-2 0 124 36"
-      className="h-9 w-30 shrink-0 text-accent-decorative lg:hidden"
+      className="h-9 w-24 shrink-0 text-accent-decorative lg:hidden"
     >
       <path
         d={path}

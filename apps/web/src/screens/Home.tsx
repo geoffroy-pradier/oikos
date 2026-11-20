@@ -7,6 +7,7 @@ import { stockByCity } from '../site-rules';
 import { HouseAlerts } from './HouseAlerts';
 import { useHomeFigures } from '../home-figures';
 import { HomeFigures } from './HomeFigures';
+import { TreasuryChart } from './TreasuryChart';
 import { SitesCard, type SitesSummary } from './Sites';
 import { LoadProblem, Loading } from './LoadProblem';
 import { HouseNav } from '../HouseNav';
@@ -101,14 +102,22 @@ export function HomeScreen() {
         sites={sites}
       />
 
-      <HouseAlerts />
-
-      <SitesCard
-        variant="production"
-        stock={stock.rows}
-        onChanged={() => Promise.all([treasury.reload(), stock.reload(), figures.reload()])}
-        onSummary={setSites}
-      />
+      {/* Téléphone : tâches, production, courbe. Ordinateur : courbe et tâches côte à côte, puis la production ;
+          sans tâche, la courbe prend toute la largeur. */}
+      <div className="grid gap-4 lg:has-[[data-todo]]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <HouseAlerts className="lg:col-start-2 lg:row-start-1" />
+        <div className="min-w-0 lg:col-span-full">
+          <SitesCard
+            variant="production"
+            stock={stock.rows}
+            onChanged={() => Promise.all([treasury.reload(), stock.reload(), figures.reload()])}
+            onSummary={setSites}
+          />
+        </div>
+        {figures.history && (
+          <TreasuryChart points={figures.history} className="lg:col-start-1 lg:row-start-1" />
+        )}
+      </div>
 
       <Card>
         <h2 className="flex items-center gap-2 text-xl">

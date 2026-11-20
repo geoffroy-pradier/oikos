@@ -1,18 +1,27 @@
-import { Card, TriangleAlert } from '@oikos/ui';
+import { Card, ChevronRight, cn, Coins, Hammer, KeyRound, Users, type Icon } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { parseCityLabor } from '../labor';
-import { houseAlerts, parseUnhoused } from '../property-alerts';
+import { houseAlerts, parseUnhoused, type HouseAlert } from '../property-alerts';
 import { parseLeases, parseMyProperties, parsePropertyRules } from '../property';
+
+/** Icône et teinte de chaque alerte : un défaut de paiement en danger, un bien à rénover en alerte. */
+const KINDS: Record<HouseAlert['kind'], { icon: Icon; tone: string }> = {
+  unhoused: { icon: Users, tone: 'bg-danger-subtle text-danger' },
+  renovate: { icon: Hammer, tone: 'bg-warning-subtle text-warning' },
+  unpaid: { icon: Coins, tone: 'bg-danger-subtle text-danger' },
+  leaseTerminated: { icon: KeyRound, tone: 'bg-danger-subtle text-danger' },
+};
 
 /**
  * Alertes du tableau de bord (#259) : travailleurs sans logement, bien à rénover ou dont l'entretien est
  * impayé, bail résilié. Rien à signaler, ou une lecture qui n'aboutit pas : la carte se tait, les écrans
- * Personnel et Immobilier disent le détail.
+ * Personnel et Immobilier disent le détail. Carte « À faire aujourd'hui » (#693) : une ligne par alerte, chacune un
+ * lien vers l'écran où y répondre.
  */
-export function HouseAlerts() {
+export function HouseAlerts({ className }: { className?: string }) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const staffRows = useRows<unknown>('my_workforce', 'site_id, city_id, unhoused', 'site_id');
@@ -58,32 +67,56 @@ export function HouseAlerts() {
       lot: number.format(property.lot),
       city: house.cityNames[property.cityId] ?? property.cityId,
     });
-  const LINK = 'underline underline-offset-4';
 
   return (
-    <Card className="flex flex-col gap-2 border-danger/40 bg-danger-subtle/40">
-      <h2 className="flex items-center gap-2 text-xl">
-        <TriangleAlert aria-hidden="true" className="size-5 text-danger" />
-        {t('alerts.title')}
-      </h2>
+    <Card data-todo className={cn('flex flex-col gap-3', className)}>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">{t('alerts.title')}</h2>
+        <span
+          aria-hidden="true"
+          className="min-w-6 rounded-full bg-primary-subtle px-2 text-center text-xs leading-6 font-semibold text-primary tabular-nums"
+        >
+          {number.format(alerts.length)}
+        </span>
+      </div>
       <ul className="flex flex-col gap-2">
         {alerts.map((alert) => {
           const key =
             alert.kind === 'unhoused'
               ? alert.kind
               : `${alert.kind}:${'lease' in alert ? alert.lease.id : alert.property.id}`;
+          const { icon: AlertIcon, tone } = KINDS[alert.kind];
           return (
-            <li key={key} className="rounded-md bg-surface px-3 py-2 font-semibold text-danger">
-              {alert.kind === 'unhoused'
-                ? t('alerts.unhoused', {
-                    count: alert.workers,
-                    number: number.format(alert.workers),
-                  })
-                : t(`alerts.${alert.kind}`, {
-                    property: describe('lease' in alert ? alert.lease : alert.property),
-                  })}{' '}
-              <Link to={alert.kind === 'unhoused' ? '/personnel' : '/immobilier'} className={LINK}>
-                {t(alert.kind === 'unhoused' ? 'alerts.toStaff' : 'alerts.toProperty')}
+            <li key={key}>
+              <Link
+                to={alert.kind === 'unhoused' ? '/personnel' : '/immobilier'}
+                className="flex items-center gap-3 rounded-xl bg-surface-raised p-3 transition-colors duration-(--motion-fast) hover:bg-muted"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tone)}
+                >
+                  <AlertIcon className="size-5" />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-sm font-medium">
+                    {alert.kind === 'unhoused'
+                      ? t('alerts.unhoused', {
+                          count: alert.workers,
+                          number: number.format(alert.workers),
+                        })
+                      : t(`alerts.${alert.kind}`, {
+                          property: describe('lease' in alert ? alert.lease : alert.property),
+                        })}
+                  </span>{' '}
+                  <span className="text-sm text-muted-foreground">
+                    {t(alert.kind === 'unhoused' ? 'alerts.toStaff' : 'alerts.toProperty')}
+                  </span>
+                </span>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-muted-foreground"
+                />
               </Link>
             </li>
           );
