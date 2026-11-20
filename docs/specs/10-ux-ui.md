@@ -33,6 +33,11 @@ La création de maison se fait en quatre étapes : le nom, le blason, la cité d
 Un nom invalide garde l'étape et se dit sous le champ ; continuer sans cité choisie est refusé de même, aucune cité n'étant choisie d'avance.
 Un refus de l'API qui se corrige au nom (nom pris, refusé par la modération, compte réduit au silence) ou à la cité (plus de travailleurs libres) ramène le joueur à cette étape, saisie conservée, le message près du champ.
 Tout autre refus reste affiché sur le récapitulatif.
+À l'étape de la cité, chaque cité est une carte de choix : sa vignette, son nom, l'emblème de son dieu protecteur, son terroir, son port et son premier site, lus dans la configuration.
+Sous 768 px la vignette se place à gauche du texte, au-delà elle le surmonte.
+La carte choisie se reconnaît à sa bordure de 2 px, son fond léger et sa coche ; le foyer clavier s'affiche sur la carte.
+Le nom accessible de la carte est celui de la cité seule, et sa description reprend en texte dieu, port, terroir et premier site.
+Le récapitulatif reprend le nom, le blason, la cité et son dieu protecteur.
 Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres commandes.
 
 ## Écrans clés à maquetter en premier
