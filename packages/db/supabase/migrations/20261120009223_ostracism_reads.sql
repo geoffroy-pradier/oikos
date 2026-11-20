@@ -4,13 +4,12 @@
 -- jamais le nom qu'elle a inscrit, et le bulletin d'aucune autre ; les voix de chaque maison nommée ne sortent
 -- qu'après le dépouillement, par une fonction exécutée au nom du propriétaire.
 -- Rejouable (règles recréées, `create or replace`, droits redonnés) ; le code précédent ne lit ni ces fonctions ni
--- ces vues, créées sous condition (ADR 0006). Le monde du joueur est relu par ses maisons (`current_house_ids()`,
--- migration 2) : `current_world_ids()` vient d'une migration de numéro plus grand (8570), absente d'une base
--- reconstruite dans l'ordre au moment où celle-ci passe.
+-- ces vues, créées sous condition (ADR 0006). Le monde du joueur est celui de ses maisons, `current_world_ids()`
+-- (migration 8570, #857), comme pour les maisons : un ostracisme d'un autre monde est invisible.
 
 drop policy if exists ostracisms_read on game.ostracisms;
 create policy ostracisms_read on game.ostracisms for select to authenticated
-  using (world_id in (select h.world_id from game.houses h where h.id in (select game.current_house_ids())));
+  using (world_id in (select game.current_world_ids()));
 drop policy if exists ostraca_read_own on game.ostraca;
 create policy ostraca_read_own on game.ostraca for select to authenticated
   using (house_id in (select game.current_house_ids()));
@@ -27,8 +26,7 @@ as $$
   select o.id, b.target_house_id, count(*)
   from game.ostracisms o
   join game.ostraca b on b.ostracism_id = o.id
-  where o.tallied_at is not null
-    and o.world_id in (select h.world_id from game.houses h where h.id in (select game.current_house_ids()))
+  where o.tallied_at is not null and o.world_id in (select game.current_world_ids())
   group by o.id, b.target_house_id;
 $$;
 revoke all on function game.ostracism_results() from public;

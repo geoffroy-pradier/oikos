@@ -1,10 +1,12 @@
 begin;
-select plan(19);
+select plan(21);
 
 -- Lectures des joueurs. Monde de test : Alice et Bob, citoyens de Kallistè ; Dion, citoyen d'Elaia. Zénon a sa maison
--- dans un autre monde. Vote O de Kallistè au vote (Alice et Bob ont nommé Bob) ; vote T d'Elaia dépouillé (Dion s'est
--- nommé, il est ostracisé). Décrets et votes posés garde levée.
+-- dans un autre monde, où sa cité a un vote Z dépouillé (Zénon s'est nommé). Vote O de Kallistè au vote (Alice et Bob
+-- ont nommé Bob) ; vote T d'Elaia dépouillé (Dion s'est nommé, il est ostracisé). Décrets et votes posés garde levée.
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000007240f2', 'monde-724', 'Autre monde');
+insert into game.cities (id, world_id, slug, name)
+values ('01900000-0000-7000-8000-0000007240c9', '01900000-0000-7000-8000-0000007240f2', 'eretria-724', 'Érétrie');
 insert into auth.users (id, email)
 select ('00000000-0000-4000-8000-0000007240a' || u)::uuid, 'ostracism-reads-' || u || '@example.test'
 from unnest(array['a', 'b', 'd', 'f']) u;
@@ -46,6 +48,25 @@ insert into game.ostraca (ostracism_id, house_id, target_house_id)
 values ('00000000-0000-7000-8000-0000007240e0', '00000000-0000-7000-8000-0000007240a1', '00000000-0000-7000-8000-0000007240b1'),
        ('00000000-0000-7000-8000-0000007240e0', '00000000-0000-7000-8000-0000007240b1', '00000000-0000-7000-8000-0000007240b1'),
        ('00000000-0000-7000-8000-0000007240e7', '00000000-0000-7000-8000-0000007240d1', '00000000-0000-7000-8000-0000007240d1');
+-- Autre monde : charge, décret et vote Z d'Érétrie, dépouillé.
+insert into game.elections (id, world_id, city_id, office, candidacy_opens_at, voting_opens_at, voting_closes_at, term_ends_at, tallied_at)
+values ('00000000-0000-7000-8000-00000072409a', '01900000-0000-7000-8000-0000007240f2', '01900000-0000-7000-8000-0000007240c9', 'archon',
+  now() - interval '8 days', now() - interval '4 days', now() - interval '1 day', now() + interval '27 days', now());
+insert into game.offices (id, world_id, city_id, office, house_id, election_id, starts_at, ends_at)
+select id, world_id, city_id, office, '00000000-0000-7000-8000-0000007240f1', id, voting_closes_at, term_ends_at
+from game.elections where id = '00000000-0000-7000-8000-00000072409a';
+insert into game.decrees (id, world_id, city_id, model, params, office_id, proposed_by, proposed_at, voting_closes_at, quorum_bps,
+  status, tallied_at, electorate, votes_for, votes_against)
+values ('00000000-0000-7000-8000-0000007240c9', '01900000-0000-7000-8000-0000007240f2', '01900000-0000-7000-8000-0000007240c9',
+  'ostracism', '{}', '00000000-0000-7000-8000-00000072409a', '00000000-0000-7000-8000-0000007240f1',
+  now() - interval '9 days', now() - interval '7 days', 0, 'adopted', now() - interval '7 days', 1, 1, 0);
+insert into game.ostracisms (id, world_id, city_id, decree_id, opened_at, voting_closes_at, quorum_bps, ostracism_days,
+  tallied_at, electorate, ballots, outcome, ostracized_house_id, ends_at)
+values ('00000000-0000-7000-8000-0000007240e9', '01900000-0000-7000-8000-0000007240f2', '01900000-0000-7000-8000-0000007240c9',
+  '00000000-0000-7000-8000-0000007240c9', now() - interval '6 days', now() - interval '3 days', 0, 7,
+  now() - interval '3 days', 1, 1, 'ostracized', '00000000-0000-7000-8000-0000007240f1', now() + interval '4 days');
+insert into game.ostraca (ostracism_id, house_id, target_house_id)
+values ('00000000-0000-7000-8000-0000007240e9', '00000000-0000-7000-8000-0000007240f1', '00000000-0000-7000-8000-0000007240f1');
 alter table game.elections enable trigger elections_guard;
 alter table game.offices enable trigger offices_guard;
 alter table game.decrees enable trigger decrees_guard;
@@ -82,6 +103,10 @@ select is((select string_agg(right(ostracism_id::text, 2) || ':' || right(house_
   'e7:d1:1', 'les voix de chaque nom après le dépouillement, aucune avant');
 select is((select count(*) from game.ostracism_results() where ostracism_id = '00000000-0000-7000-8000-0000007240e0'), 0::bigint,
   'ni par la fonction');
+select is((select count(*) from game.ostracisms where id = '00000000-0000-7000-8000-0000007240e9'), 0::bigint,
+  'une ligne d''un autre monde est invisible, même dans la table');
+select is((select count(*) from game.ostracism_results() where ostracism_id = '00000000-0000-7000-8000-0000007240e9'), 0::bigint,
+  'et son décompte aussi');
 
 -- Bob, Dion, puis Zénon.
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-0000007240ab", "role": "authenticated"}';
@@ -97,10 +122,11 @@ select throws_ok(
   '42501', null, 'un joueur ne vote pas sans l''API');
 select throws_ok($$update game.ostracisms set outcome = 'tie'$$, '42501', null, 'ni ne dépouille');
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-0000007240af", "role": "authenticated"}';
-select is((select count(*) from public.ostracisms where id::text like '00000000-0000-7000-8000-0000007240%'), 0::bigint,
-  'Zénon, d''un autre monde, ne lit aucun de ces votes');
-select is((select count(*) from public.ostracism_results where ostracism_id::text like '00000000-0000-7000-8000-0000007240%'), 0::bigint,
-  'ni leurs décomptes');
+select is((select string_agg(right(id::text, 2), ' ') from public.ostracisms where id::text like '00000000-0000-7000-8000-0000007240%'),
+  'e9', 'Zénon, d''un autre monde, ne lit que le vote du sien');
+select is((select string_agg(right(ostracism_id::text, 2) || ':' || right(house_id::text, 2) || ':' || ostraca, ' ')
+   from public.ostracism_results where ostracism_id::text like '00000000-0000-7000-8000-0000007240%'),
+  'e9:f1:1', 'et son décompte seulement');
 reset role;
 set local role anon;
 select throws_ok('select * from public.ostracisms', '42501', null, 'un visiteur anonyme ne lit rien');
