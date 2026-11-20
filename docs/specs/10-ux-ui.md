@@ -22,6 +22,9 @@ Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appa
 Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
 L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier et Comptes.
 Ce sont des liens, un par écran ; celui de l'écran ouvert est plein et marqué comme la page courante, et la gélule défile quand elle est plus large que l'écran.
+Toute rangée de pastilles ou de navigation plus large que l'écran défile ainsi, celles du jeu comme celle des modules d'Olympe (#862).
+Elle s'ouvre centrée sur son élément actif, se recentre quand il change, et montre en entier l'élément qui prend le foyer.
+Un fondu marque chaque bord où il reste du contenu ; sans débordement, aucun fondu.
 Quand l'API refuse une session (`UNAUTHENTICATED`, #565), le jeu comme Olympe la renouvellent d'abord : un jeton expiré au réveil d'un appareil, ou sous une horloge en retard, ne déconnecte personne.
 Renouvelée, la session reste ouverte et l'écran invite à réessayer dans un instant ; la commande repart sous la même clé, que l'API n'a pas consommée.
 Si Supabase Auth ne répond pas, la session reste aussi ouverte, avec son jeton de renouvellement.

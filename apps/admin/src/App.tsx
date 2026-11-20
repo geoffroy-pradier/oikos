@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Sparkles,
   type Icon,
+  useScrollRow,
 } from '@oikos/ui';
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
@@ -134,6 +135,7 @@ export function App() {
   // Navigation composée d'après la liste des rôles par module partagée avec l'API, qui fait foi.
   const modules = granted ? adminModulesFor(granted) : [];
   const current = modules.includes(module) ? module : modules[0];
+  const modulesRow = useScrollRow<HTMLUListElement>(current);
 
   let screen = <p>{t('app.loading')}</p>;
   if (session === null) screen = <SignIn sessionEnded={sessionEnded} />;
@@ -253,8 +255,12 @@ export function App() {
         </div>
         {shell && (
           <nav aria-label={t('app.navigation')} className="order-2 w-full lg:order-2">
-            {/* Pastilles qui défilent sur téléphone, liste verticale sur ordinateur. */}
-            <ul className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-0">
+            {/* Pastilles qui défilent sur téléphone, centrées sur le module ouvert, un fondu sur les bords ;
+                liste verticale sur ordinateur. */}
+            <ul
+              ref={modulesRow}
+              className="-mx-4 flex scroll-fade gap-1.5 overflow-x-auto px-4 pb-0.5 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-0"
+            >
               {modules.map((id) => {
                 const ModuleIcon = ICONS[id];
                 const here = id === current;
