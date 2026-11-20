@@ -25,6 +25,7 @@ vi.mock('../chat-live', async () => ({
     city === null ? null : [`chat:${city}`, `house:${house}`],
   useChatLive: (await import('../chat-fake')).useFakeChatLive,
 }));
+vi.mock('./HouseLink', () => import('./house-link-mock'));
 const { fake, messageRow, resetFake } = await import('../chat-fake');
 const { MessagesScreen } = await import('./Messages');
 

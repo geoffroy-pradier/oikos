@@ -174,3 +174,26 @@ export const setUpOracle = () =>
     await sql`insert into game.oracles (world_id, event_id, text_fr, text_en)
       values (${WORLD_ID}, ${event.rows[0]?.id}, ${E2E_ORACLE.fr}, ${E2E_ORACLE.en})`.execute(trx);
   });
+
+/** Maison d'un autre monde (#705) : sa fiche n'est pas lisible depuis le monde du seed, comme une maison inconnue. */
+export const FOREIGN_HOUSE_ID = '01900000-0000-7000-8000-00000000e705';
+export const setUpForeignHouse = () =>
+  inTransaction(async (trx) => {
+    const world = '01900000-0000-7000-8000-00000000e700';
+    const city = '01900000-0000-7000-8000-00000000e701';
+    const user = '01900000-0000-7000-8000-00000000e702';
+    await sql`select pg_advisory_xact_lock(hashtext('e2e:foreign-house'))`.execute(trx);
+    await sql`insert into game.worlds (id, slug, name) values (${world}, 'e2e-ailleurs', 'Ailleurs')
+      on conflict do nothing`.execute(trx);
+    await sql`insert into game.cities (id, world_id, slug, name) values (${city}, ${world}, 'ailleurs', 'Ailleurs')
+      on conflict do nothing`.execute(trx);
+    await sql`insert into auth.users (id, email) values (${user}, 'e2e-ailleurs@example.test')
+      on conflict do nothing`.execute(trx);
+    await sql`insert into game.houses (id, world_id, user_id, name, blazon)
+      values (${FOREIGN_HOUSE_ID}, ${world}, ${user}, 'Maison Lointaine',
+        '{"shape":"hoplon","tincture":"aegean","emblem":"owl"}') on conflict do nothing`.execute(
+      trx,
+    );
+    await sql`insert into game.citizenships (house_id, city_id) values (${FOREIGN_HOUSE_ID}, ${city})
+      on conflict do nothing`.execute(trx);
+  });

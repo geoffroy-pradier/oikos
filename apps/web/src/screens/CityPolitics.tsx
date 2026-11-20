@@ -16,6 +16,7 @@ import {
 } from '../politics';
 import { serverClock } from '../server-clock';
 import { ElectionActions } from './ElectionActions';
+import { HouseLink } from './HouseLink';
 import { LoadProblem, Loading } from './LoadProblem';
 
 /** Titre de section, icône en accent. */
@@ -153,14 +154,21 @@ export function CityPolitics() {
               <span aria-hidden="true" className={ROUND}>
                 <Crown />
               </span>
-              <p className="min-w-0 font-medium">
-                {archon
-                  ? t('cityPolitics.archon', {
-                      house: nameOf(archon.houseId),
-                      until: date.format(archon.endsAt),
-                    })
-                  : t('cityPolitics.noArchon')}
-              </p>
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="font-medium">
+                  {archon
+                    ? t('cityPolitics.archon', {
+                        house: nameOf(archon.houseId),
+                        until: date.format(archon.endsAt),
+                      })
+                    : t('cityPolitics.noArchon')}
+                </p>
+                {archon && (
+                  <HouseLink houseId={archon.houseId} className="text-sm">
+                    {t('houseProfile.view', { house: nameOf(archon.houseId) })}
+                  </HouseLink>
+                )}
+              </div>
             </Card>
           </div>
           <Card elevation="raised" className="flex flex-col gap-4">
@@ -213,9 +221,9 @@ export function CityPolitics() {
                       >
                         <Users />
                       </span>
-                      <span className="min-w-0 font-medium break-all">
+                      <HouseLink houseId={candidate.houseId} className="min-w-0 break-all">
                         {nameOf(candidate.houseId)}
-                      </span>
+                      </HouseLink>
                     </li>
                   ))}
                 </ul>
