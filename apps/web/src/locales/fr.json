@@ -854,7 +854,8 @@
       "city": "Cité",
       "situation": "Situation",
       "cost": "Coût",
-      "offer": "Offre ouverte"
+      "offer": "Offre ouverte",
+      "net": "Net attendu"
     },
     "sheet": {
       "endLease": "Mettre fin au bail : {{name}}",
@@ -868,7 +869,9 @@
       "sale": "Confirmer l'achat — {{cost}}",
       "lease": "Signer le bail — {{cost}}",
       "renovate": "Confirmer la rénovation",
-      "withdraw": "Confirmer le retrait"
+      "withdraw": "Confirmer le retrait",
+      "listForSale": "Confirmer l'offre — {{cost}}",
+      "offerLease": "Confirmer l'offre — {{cost}}"
     },
     "once": "{{cost}}",
     "unpaidBadge": "Entretien impayé",
@@ -890,7 +893,12 @@
       "sale": "En vente : {{cost}}",
       "lease": "À louer : {{cost}} par jour"
     },
-    "backToActions": "Autres commandes du bien"
+    "backToActions": "Autres commandes du bien",
+    "leasedNote": "Loué : ce bien ne s'offre ni à la vente ni à la location avant la fin du bail.",
+    "steps": {
+      "recap": "Récapitulatif",
+      "price": "Votre prix"
+    }
   },
   "alerts": {
     "title": "À faire aujourd'hui",

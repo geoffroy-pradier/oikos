@@ -854,7 +854,8 @@
       "city": "City",
       "situation": "Status",
       "cost": "Cost",
-      "offer": "Open offer"
+      "offer": "Open offer",
+      "net": "Expected net"
     },
     "sheet": {
       "endLease": "End the lease: {{name}}",
@@ -868,7 +869,9 @@
       "sale": "Confirm the purchase — {{cost}}",
       "lease": "Sign the lease — {{cost}}",
       "renovate": "Confirm the renovation",
-      "withdraw": "Confirm the withdrawal"
+      "withdraw": "Confirm the withdrawal",
+      "listForSale": "Confirm the offer — {{cost}}",
+      "offerLease": "Confirm the offer — {{cost}}"
     },
     "once": "{{cost}}",
     "unpaidBadge": "Upkeep unpaid",
@@ -890,7 +893,12 @@
       "sale": "For sale: {{cost}}",
       "lease": "For rent: {{cost}} a day"
     },
-    "backToActions": "Other commands for this property"
+    "backToActions": "Other commands for this property",
+    "leasedNote": "Leased: this property is offered neither for sale nor for lease before the lease ends.",
+    "steps": {
+      "recap": "Summary",
+      "price": "Your price"
+    }
   },
   "alerts": {
     "title": "To do today",

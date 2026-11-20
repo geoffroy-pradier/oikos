@@ -262,8 +262,14 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Gérer — / })
       .filter({ visible: true })
       .click();
-    await other.getByRole('textbox', { name: /^Loyer par jour, en oboles — / }).fill(String(rent));
-    await other.getByRole('button', { name: /^Mettre en location — / }).click();
+    // Mise en location par étapes : le loyer, le récapitulatif, la confirmation.
+    const fiche = other.getByRole('dialog');
+    await fiche.getByRole('button', { name: /^Mettre en location — / }).click();
+    await fiche
+      .getByRole('spinbutton', { name: /^Loyer par jour, en oboles — / })
+      .fill(String(rent));
+    await fiche.getByRole('button', { name: 'Continuer' }).click();
+    await fiche.getByRole('button', { name: /^Confirmer l'offre/ }).click();
     await expect(said(other, 'status', 'Bien mis en location.')).toBeVisible();
 
     await page.goto('/immobilier');

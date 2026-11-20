@@ -68,6 +68,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Les offres disent le bien, marqué quand son entretien est impayé, l'offre (cité, maison ou location), le prix et l'état ; « Acheter » ou « Louer » ouvre une feuille qui dit prix, état, entretien d'un jour, cité et, pour un bien impayé, depuis quand, avertissement qui décrit le bouton de confirmation.
    Les biens de la maison disent leur état, leur entretien d'un jour, leur situation (loué, en vente ou à louer, à leur prix) et un entretien impayé ; « Gérer » ouvre la fiche du bien, avec ses commandes.
    Dans la fiche, la rénovation (coût, état rendu) et le retrait de l'offre sont récapitulés avant leur confirmation.
+   La mise en vente ou en location s'y fait par étapes : le prix, saisi avec des boutons ±, refusé à la saisie s'il n'est pas un entier positif d'oboles, puis le récapitulatif, avec le net attendu, avant « Confirmer l'offre ».
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
    Ces clés sont gardées en stockage de session, comme celles des sites et des navires : elles survivent au changement d'onglet et au rechargement.
    Après chaque relecture, l'écran rend les clés des commandes qu'il ne propose plus, parce que leur effet est lu ou qu'elles ne peuvent plus être demandées : la même demande, proposée de nouveau plus tard, part sous une clé neuve.
