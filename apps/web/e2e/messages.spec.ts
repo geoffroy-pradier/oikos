@@ -113,7 +113,8 @@ test('deux joueurs : le canal de la cité et une conversation privée, en direct
   const back = other.getByRole('button', { name: /^Canaux/ });
   const unreadShown = (await back.isVisible()) ? back : direct;
   await expect(unreadShown).toContainText('1 message non lu', { timeout: 10_000 });
-  const phrase = `Nouveau message : Conversation avec ${alpha}.`;
+  // Espace insécable avant les deux-points, comme dans les textes français.
+  const phrase = `Nouveau message\u00a0: Conversation avec ${alpha}.`;
   await expect
     .poll(async () => (await announced(other)).some((text) => text.includes(phrase)))
     .toBe(true);
