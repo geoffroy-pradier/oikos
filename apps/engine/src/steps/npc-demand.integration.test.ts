@@ -4,12 +4,13 @@ import {
   DEFAULT_NPC_PUBLIC_INCOME_BPS,
   ensureInitialConfig,
   INITIAL_CONFIG,
+  npcBudgetCarryUnits,
   validateConfig,
   type GameConfig,
   type LoadedConfig,
 } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { dailyCloseAt, gameDayAt, tickIndexAt, tickStart } from '@oikos/sim';
+import { budgetCarryCap, dailyCloseAt, gameDayAt, tickIndexAt, tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CLOSE_STEPS } from '../close-steps';
@@ -568,6 +569,65 @@ describe('demande des PNJ au tick', () => {
     expect(second.summary).toMatchObject({ npcDemand: { units: 1, spent: 6 } });
     expect(await budgetCarryOf(world.cityId)).toBe(0);
     expect(await balanceOf(seller.houseId)).toBe(24);
+  });
+
+  it('bourse vide puis regarnie (#703) : le report ne grossit que de ce que la bourse a gardé, et le tick suivant ne paie jamais plus que son budget plus la borne', async () => {
+    const world = await newWorld('kalliste', 0);
+    const seller = await newSeller(world, 1_000, [[1_000, 6]]);
+    const base = economy(100, 300);
+    // Sans revenu public : la bourse ne se regarnit que par ce que le test y verse.
+    const config = {
+      ...base,
+      npcClasses: base.npcClasses.map((npcClass) => ({ ...npcClass, publicIncomeBps: 0 })),
+    };
+    const wheat = config.goods.find((good) => good.id === 'wheat');
+    const price = wheat?.referencePriceOboles ?? 0;
+    const cap = budgetCarryCap(
+      Math.floor(price * config.market.npcMaxPriceFactor),
+      npcBudgetCarryUnits(config.market),
+    );
+    // Le budget du tick de blé : le revenu de la classe, sa population et son seul bien.
+    const tickBudget = 300;
+    let tick = index;
+    const play = async () => {
+      const { summary } = await runTick(db, request(world.worldId, config, tick++));
+      return summary['npcDemand'] as { units: number; spent: number };
+    };
+    const pay = async (day: number, oboles: number) => {
+      const { rows } = await sql<{ purse: string; faucet: string }>`select
+        (select account_id from game.npc_purses() where city_id = ${world.cityId}) as purse,
+        (select id from game.accounts where world_id = ${world.worldId}
+           and system_key = 'faucet_npc_public_income') as faucet`.execute(db);
+      const [row] = rows;
+      await sql`with entry as (insert into game.ledger_entries (world_id, kind, meta)
+          values (${world.worldId}, 'npc.public_income', ${JSON.stringify({ cityId: world.cityId, gameDay: day })}::jsonb)
+          returning id)
+        insert into game.ledger_lines (entry_id, account_id, amount)
+        select entry.id, ${row?.purse}::uuid, ${oboles}::bigint from entry
+        union all select entry.id, ${row?.faucet}::uuid, -${oboles}::bigint from entry`.execute(
+        owner,
+      );
+    };
+    // Bourse vide, le carnet offert : rien n'est acheté, rien ne se reporte (son budget du tick est nul).
+    for (let step = 0; step < 3; step++) expect(await play()).toMatchObject({ units: 0, spent: 0 });
+    expect(await budgetCarryOf(world.cityId)).toBe(0);
+    // Une bourse qui ne paie pas une unité : le report grossit de son budget du tick, jusqu'à la borne.
+    await pay(1, price - 1);
+    const grown: number[] = [];
+    for (let step = 0; step * (price - 1) < cap + price; step++) {
+      expect(await play()).toMatchObject({ units: 0, spent: 0 });
+      grown.push((await budgetCarryOf(world.cityId)) ?? -1);
+    }
+    expect(grown.every((carry, step) => carry === Math.min((step + 1) * (price - 1), cap))).toBe(
+      true,
+    );
+    expect(grown.at(-1)).toBe(cap);
+    // Bourse regarnie : le tick qui suit paie son budget plus la borne, pas une obole de plus, puis son seul budget.
+    await pay(2, FUNDED);
+    expect(await play()).toMatchObject({ spent: tickBudget + cap });
+    expect(await budgetCarryOf(world.cityId)).toBe(0);
+    expect(await play()).toMatchObject({ spent: tickBudget });
+    expect(await balanceOf(seller.houseId)).toBe(2 * tickBudget + cap);
   });
 
   it('bourse courte et report (#675) : le report d’un bien servi tôt ne prend rien de la part des suivants', async () => {
