@@ -79,11 +79,53 @@ const TEN_FINISHED: Record<string, string> = {
 };
 const [TEN_GOODS, TEN_RECIPES] = [Object.keys(TEN_FINISHED), Object.values(TEN_FINISHED)];
 /**
- * Biens finis qu'aucun panier de PNJ n'achète encore : les sept de #710 et les dix de #711, que #713 place dans les
- * paniers. Cette liste, bornée à ces dix-sept biens, se vide avec #713 ; il n'y reste ni matière ni intermédiaire
- * (5.1), et le test des impasses en retire tout bien qui a trouvé preneur.
+ * Panier de chaque classe avant #713, écrit à la main : les biens de la phase 2, que #713 ne change pas (5.2).
+ * Les thètes le gardent seul ; les trois classes aisées y ajoutent les biens finis de #710 et #711.
  */
-const AWAITING_BASKET = [...SEVEN_GOODS, ...TEN_GOODS];
+const PHASE_2_BASKETS: Record<string, [string, string, number][]> = {
+  thetes: [
+    ['wheat', 'vital', 4.2],
+    ['bread', 'vital', 1.333],
+    ['fish', 'vital', 0.4],
+    ['salt', 'vital', 0.133],
+    ['olive_oil', 'comfort', 0.1],
+    ['wine', 'comfort', 0.067],
+  ],
+  zeugitai: [
+    ['wheat', 'vital', 2.1],
+    ['bread', 'vital', 1.533],
+    ['fish', 'vital', 0.533],
+    ['salt', 'vital', 0.167],
+    ['olive_oil', 'comfort', 0.2],
+    ['wine', 'comfort', 0.2],
+    ['cloth', 'comfort', 0.04],
+  ],
+  hippeis: [
+    ['bread', 'vital', 1.733],
+    ['fish', 'vital', 0.667],
+    ['salt', 'vital', 0.2],
+    ['olive_oil', 'comfort', 0.333],
+    ['wine', 'comfort', 0.4],
+    ['cloth', 'comfort', 0.1],
+    ['amphorae', 'luxury', 0.053],
+  ],
+  pentakosiomedimnoi: [
+    ['bread', 'vital', 1.6],
+    ['fish', 'vital', 0.8],
+    ['salt', 'vital', 0.2],
+    ['olive_oil', 'comfort', 0.533],
+    ['wine', 'luxury', 0.8],
+    ['cloth', 'luxury', 0.267],
+    ['amphorae', 'luxury', 0.2],
+  ],
+};
+/** Revenu par tick pour 1 000 habitants de chaque classe avant #713 : son revenu public d'un jour reste le même. */
+const PHASE_2_INCOME: Record<string, number> = {
+  thetes: 70,
+  zeugitai: 73,
+  hippeis: 82,
+  pentakosiomedimnoi: 120,
+};
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
@@ -136,24 +178,25 @@ describe('jeu de valeurs initial', () => {
     ]);
   });
 
-  it('Charis (#265) : chaque dieu prend la monnaie et les biens de son domaine à leur prix de référence', () => {
+  it('Charis (#265, #713) : chaque dieu prend la monnaie et les biens de son domaine à leur prix de référence', () => {
     const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
     const domains = Object.fromEntries(
       config.gods.map((god) => [god.id, Object.keys(god.charisPerUnit).sort()]),
     );
+    // Domaines de la phase 2, puis les biens de #708 à #711 que #713 y ajoute (2, 7.1) : chacun des douze dieux en a.
     expect(domains).toEqual({
-      demeter: ['bread', 'flour', 'wheat'],
-      athena: ['cloth', 'olive_oil', 'olives'],
-      dionysos: ['grapes', 'wine'],
-      poseidon: ['fish', 'salt'],
-      apollo: [],
-      zeus: [],
-      hera: [],
-      artemis: ['wood'],
-      ares: [],
-      aphrodite: ['cloth', 'olive_oil'],
-      hephaistos: ['amphorae', 'charcoal', 'clay'],
-      hermes: [],
+      demeter: ['barley', 'barley_cakes', 'barley_flour', 'bread', 'flour', 'wheat'],
+      athena: ['cloth', 'oil_lamps', 'olive_oil', 'olives', 'painted_ceramics', 'tools'],
+      dionysos: ['fig_cakes', 'figs', 'grapes', 'must', 'wine'],
+      poseidon: ['fish', 'garum', 'sails', 'salt', 'salted_fish'],
+      apollo: ['candles', 'mosaics'],
+      zeus: ['marble', 'marble_blocks', 'statues'],
+      hera: ['clothes', 'furniture'],
+      artemis: ['hides', 'honey', 'wood'],
+      ares: ['bronze', 'weapons'],
+      aphrodite: ['cloth', 'jewelry', 'olive_oil', 'perfumes'],
+      hephaistos: ['amphorae', 'charcoal', 'clay', 'copper', 'iron', 'tin', 'wrought_iron'],
+      hermes: ['sandals', 'silver', 'silver_ingots'],
     });
     for (const god of config.gods) {
       // Offrir un bien rapporte autant qu'offrir son prix de référence en oboles.
@@ -436,16 +479,84 @@ describe('jeu de valeurs initial', () => {
     expect(config.goods.filter((good) => !produced.has(good.id))).toEqual([]);
   });
 
-  it('aucun bien n’est une impasse : chacun est demandé par les PNJ ou consommé par une recette', () => {
+  it('chaque bien du catalogue a un usage : intrant, panier, offrande, fête ou rénovation (#713)', () => {
     const used = new Set([
       ...config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)),
       ...config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
+      ...config.gods.flatMap((god) => Object.keys(god.charisPerUnit)),
+      ...(config.decrees?.models.festival?.goodIds ?? []),
+      ...config.properties.sizes.flatMap((size) => size.renovation.goods.map((g) => g.goodId)),
     ]);
-    // Sauf les dix-sept biens finis qui attendent les paniers de #713 : liste écrite à la main plus haut.
-    const checked = config.goods.filter((good) => !AWAITING_BASKET.includes(good.id));
-    expect(checked.filter((good) => !used.has(good.id))).toEqual([]);
-    // La liste ne retient que de vrais impasses : un bien qui a trouvé preneur en sort.
-    expect(AWAITING_BASKET.filter((id) => used.has(id))).toEqual([]);
+    // Aucune liste d'attente : un bien sans usage est nommé ici.
+    expect(config.goods.filter((good) => !used.has(good.id)).map((good) => good.id)).toEqual([]);
+  });
+
+  it('paniers (#713) : les classes aisées ajoutent les biens finis nouveaux en confort et en luxe, le reste inchangé', () => {
+    const added = new Set<string>();
+    for (const npcClass of config.npcClasses) {
+      const before = PHASE_2_BASKETS[npcClass.id] ?? [];
+      const entries = npcClass.basket.map((e) => [e.goodId, e.need, e.quantityPerThousand]);
+      // Le panier de la phase 2 en tête, inchangé : besoins vitaux, confort et luxe d'avant.
+      expect(entries.slice(0, before.length), npcClass.id).toEqual(before);
+      const after = npcClass.basket.slice(before.length);
+      // Les thètes, qui achètent le prix (4.3), n'ajoutent rien ; chaque classe aisée ajoute des biens finis nouveaux.
+      expect(after.length > 0, npcClass.id).toBe(npcClass.id !== 'thetes');
+      for (const { goodId, need } of after) {
+        expect([...SEVEN_GOODS, ...TEN_GOODS], npcClass.id).toContain(goodId);
+        // Aucun besoin vital nouveau : la couverture des besoins vitaux (5.2) ne change pas.
+        expect(['comfort', 'luxury'], `${npcClass.id} ${goodId}`).toContain(need);
+        added.add(goodId);
+      }
+    }
+    expect([...added].sort()).toEqual([...SEVEN_GOODS, ...TEN_GOODS].sort());
+  });
+
+  it('chaque bien fini nouveau a, dans les douze cités, la demande d’au moins un atelier au prix de référence (#713)', () => {
+    const ticksPerDay = 1440 / config.clock.tickMinutes;
+    for (const recipe of config.recipes.filter((each) =>
+      [...SEVEN_RECIPES, ...TEN_RECIPES].includes(each.id),
+    )) {
+      const output = recipe.outputs[0];
+      if (!output) throw new Error(recipe.id);
+      // Demande d'un jour des PNJ des douze cités, à leur population initiale.
+      const demand = config.cities.reduce(
+        (sum, city) =>
+          sum +
+          config.npcClasses.reduce((each, npcClass) => {
+            const entry = npcClass.basket.find((e) => e.goodId === output.goodId);
+            const population = city.population[npcClass.id] ?? 0;
+            return each + ((entry?.quantityPerThousand ?? 0) * population * ticksPerDay) / 1000;
+          }, 0),
+        0,
+      );
+      // Extrant d'un jour d'un atelier : au moins un atelier du monde trouve preneur pour toute sa production.
+      expect(demand, output.goodId).toBeGreaterThanOrEqual(
+        (output.quantity * 1440) / recipe.durationMinutes,
+      );
+    }
+  });
+
+  it('fêtes (#713) : les biens de la phase 2, puis des biens finis nouveaux, chacun acheté par les PNJ', () => {
+    const festival = config.decrees?.models.festival;
+    expect(festival?.goodIds).toEqual([
+      'bread',
+      'wine',
+      'olive_oil',
+      'fish',
+      'barley_cakes',
+      'salted_fish',
+      'garum',
+      'fig_cakes',
+      'oil_lamps',
+      'candles',
+      'perfumes',
+      'clothes',
+    ]);
+    // Une fête relève la demande des PNJ (5.2) : un bien qu'aucune classe n'achète n'y aurait aucun effet.
+    const wanted = new Set(config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)));
+    expect(festival?.goodIds.filter((goodId) => !wanted.has(goodId))).toEqual([]);
+    // Au plus trois biens par fête : les bancs, qui en prennent les trois premiers, gardent leurs fêtes.
+    expect(festival?.maxGoods).toBe(3);
   });
 
   it('le revenu de chaque classe couvre son panier au prix de référence, sans le dépasser de beaucoup', () => {
@@ -458,6 +569,9 @@ describe('jeu de valeurs initial', () => {
       // Assez pour acheter tout le panier au prix de référence ; pas assez pour financer une flambée des prix.
       expect(npcClass.incomePerThousand).toBeGreaterThanOrEqual(reference);
       expect(npcClass.incomePerThousand).toBeLessThanOrEqual(reference * 1.5);
+      // Le revenu d'une classe aisée suit son panier (#713) : 125 % de sa dépense de référence, à l'obole supérieure.
+      if (npcClass.id !== 'thetes')
+        expect(npcClass.incomePerThousand, npcClass.id).toBe(Math.ceil(reference * 1.25));
     }
   });
 
@@ -477,8 +591,16 @@ describe('jeu de valeurs initial', () => {
       expect(recipe.workers * wage).toBeLessThan(dailyOboles[recipe.siteType]);
   });
 
-  it('le revenu public des PNJ entre au revenu d’un jour entier, comme l’ancien robinet, en attendant le calibrage (#632, #283)', () => {
-    for (const npcClass of config.npcClasses) expect(npcClass.publicIncomeBps).toBe(10_000);
+  it('le revenu public d’un jour de chaque classe reste celui d’avant ses paniers nouveaux (#632, #283, #713)', () => {
+    // Revenu d'un jour entier pour les thètes, comme l'ancien robinet ; pour les classes aisées, dont le revenu suit le
+    // panier, la part qui rend le revenu public d'avant #713 (arrondie au point inférieur) : la masse ne croît pas plus vite.
+    for (const npcClass of config.npcClasses) {
+      const before = PHASE_2_INCOME[npcClass.id] ?? NaN;
+      expect(npcClass.publicIncomeBps, npcClass.id).toBe(
+        Math.floor((before * 10_000) / npcClass.incomePerThousand),
+      );
+    }
+    expect(config.npcClasses.find((each) => each.id === 'thetes')?.publicIncomeBps).toBe(10_000);
     // Une version publiée avant le paramètre garde le même comportement.
     expect(DEFAULT_NPC_PUBLIC_INCOME_BPS).toBe(10_000);
     // Et la même dans chaque cité, en attendant que #283 vise les importatrices (#657).
@@ -641,7 +763,8 @@ describe('jeu de valeurs initial', () => {
   it('le panier de l’indice des prix est la consommation de référence de Kallistè (5.5)', () => {
     // Six biens principaux, à la consommation d'un jour de la population initiale arrondie à l'unité
     // (#78 : par tick, elle n'est plus que d'une dizaine d'unités, trop peu pour pondérer le panier),
-    // soit 97 % de la dépense de référence de la cité. Garde-fou : un panier vide rendrait l'indice inconnu.
+    // soit 88 % de la dépense de référence de la cité depuis les paniers de #713, qui ne changent pas l'indice
+    // (97 % avant). Garde-fou : un panier vide rendrait l'indice inconnu.
     const city = config.cities.find((candidate) => candidate.id === 'kalliste');
     if (!city) throw new Error('kalliste missing');
     const consumed = new Map<string, number>();
@@ -669,7 +792,7 @@ describe('jeu de valeurs initial', () => {
     const spend = (entries: [string, number][]) =>
       entries.reduce((sum, [goodId, quantity]) => sum + quantity * (price.get(goodId) ?? 0), 0);
     const share = spend(basket.map((e) => [e.goodId, e.quantity])) / spend([...consumed]);
-    expect(Math.round(share * 100)).toBe(97);
+    expect(Math.round(share * 100)).toBe(88);
   });
 
   it('tous les usages d’IA sont coupés au départ : le jeu se joue sans IA (règle 6, paramètres neutres)', () => {
@@ -679,15 +802,9 @@ describe('jeu de valeurs initial', () => {
 
   it('chaque bien fini est demandé par au moins une classe de PNJ', () => {
     const wanted = new Set(config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)));
-    // Sauf les dix-sept biens de #710 et #711, qui attendent les paniers de #713 (5.1) ; la liste ne retient que des biens
-    // invendus et ne compte que ces dix-sept biens.
-    expect(AWAITING_BASKET).toHaveLength(17);
-    expect(AWAITING_BASKET.filter((id) => wanted.has(id))).toEqual([]);
-    const unsold = config.goods.filter(
-      (good) =>
-        good.tier === 'finished' && !wanted.has(good.id) && !AWAITING_BASKET.includes(good.id),
-    );
-    expect(unsold).toEqual([]);
+    // Sans exception depuis #713 : un bien fini invendu est nommé ici.
+    const unsold = config.goods.filter((good) => good.tier === 'finished' && !wanted.has(good.id));
+    expect(unsold.map((good) => good.id)).toEqual([]);
   });
 
   it('aucune transformation ne détruit de valeur au prix de référence', () => {

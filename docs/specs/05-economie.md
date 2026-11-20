@@ -116,9 +116,11 @@ Un test de la configuration borne la marge de chaque atelier nouveau entre la mo
 Décision (#711) : les soixante biens sont au complet, et plus aucune liste d'attente d'intrant ne reste.
 Chaque matière première et chaque intermédiaire est l'intrant d'au moins une recette : un test de la configuration initiale nomme le bien sans débouché, sans aucune exception.
 La figue, le moût, le bronze, la toile de lin, les pigments, la cire, les lingots d'argent et les blocs de marbre y entrent avec #711.
-Seuls restent en attente les dix-sept biens finis de #710 et #711, que les paniers des PNJ n'achètent pas encore.
-Cette liste est bornée à ces dix-sept biens et se vide avec #713, qui règle les paniers (5.2) ; un test la tient, et le test des impasses en retire tout bien qui a trouvé preneur.
-Décision (paramètres neutres, #711) : aucun des dix biens n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
+Seuls restaient en attente les dix-sept biens finis de #710 et #711, que les paniers des PNJ n'achetaient pas encore : #713 vide cette liste et la retire.
+Décision (paramètres neutres, #711) : jusqu'à #713, aucun des dix biens n'entrait dans un panier des PNJ ni dans le domaine d'un dieu, et aucun n'entre dans l'indice des prix.
+Depuis #713, chaque bien du catalogue a un usage : l'intrant d'une recette, le panier d'une classe de PNJ (5.2), une offrande qu'un dieu accepte (7.1), un bien de fête (7.5) ou de rénovation (4.5).
+Un test de la configuration initiale nomme le bien sans usage, sans aucune exception.
+Les dix-sept biens finis de #710 et #711 entrent dans les paniers des classes aisées, en confort et en luxe, et chacun dans le domaine d'un dieu ; l'indice des prix ne change pas (5.5).
 Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 et les dix-sept biens finis de #710 et #711 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
 Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
 
@@ -235,6 +237,24 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
  Le budget borne la dépense totale ; le prix de réserve empêche qu'un vendeur seul capte ce budget avec une poignée d'unités à prix démesuré.
  Le revenu initial de chaque classe vaut 125 % de la dépense de référence de son panier ;
  un site accumule au plus trois jours de production.
+
+**Paniers des classes aisées (#713).** Les thètes gardent le panier de la phase 2 : le peuple achète le prix (4.3).
+Les zeugites, les hippeis et les pentacosiomédimnes y ajoutent les dix-sept biens finis de #710 et #711, en confort et en luxe, sans besoin vital nouveau.
+
+| Classe | Confort | Luxe | Revenu (avant) | Part publique |
+| --- | --- | --- | ---: | ---: |
+| Zeugites | Galettes d'orge, poisson salé, gâteaux de figues, lampes, bougies, sandales, outils, vêtements | | 84 (73) | 8 690 |
+| Hippeis | Poisson salé, gâteaux de figues, bougies, lampes, sandales, vêtements, garum | Céramique peinte, parfums, meubles, armes | 107 (82) | 7 663 |
+| Pentacosiomédimnes | Bougies, garum | Vêtements, céramique peinte, parfums, bijoux, meubles, statues, mosaïques, armes, voiles | 188 (120) | 6 382 |
+
+Le panier de la phase 2 de chaque classe ne change pas : besoins vitaux, mesure de la couverture et panier de l'indice des prix (5.5) restent ceux d'avant.
+Les quantités sont dans la configuration ; un test vérifie que les PNJ des douze cités, à leur population initiale, demandent chaque jour au prix de référence au moins l'extrant d'un jour d'un atelier de chaque bien nouveau.
+Le revenu d'une classe aisée suit son panier : 125 % de sa dépense de référence, arrondi à l'obole supérieure.
+Décision (#713) : le revenu public d'un jour de chaque classe reste celui d'avant ses biens nouveaux.
+Sa part publique (5.5) est celle qui rend le revenu d'avant, arrondie au point inférieur ; les thètes gardent 10 000 points.
+Raison : avec 10 000 points, le revenu public créerait environ 10 % de monnaie de plus chaque jour, alors que les bancs ne vendent aucun de ces biens, et la masse du banc à quatre cités approcherait sa borne de 200 %.
+Les achats de ces biens sont payés par la bourse de la cité, que remplissent le revenu public, les salaires et l'hébergement (5.5).
+Limite connue : une bourse que ces achats vident réduit le budget de chaque bien de la cité, besoins vitaux compris (« Budget » plus haut) ; le calibrage des ateliers qui font ces biens, et dont les salaires vont à la bourse, en jugera.
 
 ## 5.3 Les marchés
 
@@ -371,7 +391,7 @@ Son montant est, pour chaque classe, le revenu d'un jour de la classe (revenu pa
 La population est la population courante lue par celui qui verse (celle de la veille pour le premier tick, celle que la clôture vient de fixer pour la clôture), ou celle de la configuration pour une classe que le moteur n'a pas encore fait naître ; une cité absente de la configuration ne reçoit rien, et un revenu nul n'a pas d'écriture.
 Une classe dont la version de configuration ne donne pas ce paramètre prend sa valeur par défaut (`DEFAULT_NPC_PUBLIC_INCOME_BPS`), 10 000 points : le revenu d'un jour entier, de quoi payer exactement les achats que payait le robinet d'avant #632.
 L'équivalence ne vaut que pour les achats : la bourse reçoit le revenu d'un jour entier, dépensé ou non, alors que le robinet ne créait que ce qui était acheté ; la masse croît donc plus vite qu'avant.
-Décision (#632, règle de #621) : « neutre » veut dire ici « comportement inchangé » ; un monde en service sur une version publiée avant le paramètre continue d'acheter comme avant, et la configuration initiale écrit cette même valeur pour chaque classe.
+Décision (#632, règle de #621) : « neutre » veut dire ici « comportement inchangé » ; un monde en service sur une version publiée avant le paramètre continue d'acheter comme avant, et la configuration initiale écrivait cette même valeur pour chaque classe jusqu'à #713, qui baisse celle des classes aisées (5.2, « Paniers des classes aisées »).
 Ce qu'ils ne dépensent pas reste dans la bourse et compte dans la masse ; le calibrage de #283 baissera cette part à mesure que les salaires et l'hébergement remplissent les bourses.
 C'est le plancher qui fait encore acheter une cité sans emploi, et le levier « revenu des classes PNJ » de cette section ; son calibrage est celui de #283.
 Ce levier se règle aussi par cité (#657) : les salaires vont à la bourse de la cité du site, si bien que l'argent qu'une cité importatrice dépense en biens des autres cités ne lui revient pas ; le multiplicateur de cette cité comble son déficit sans gonfler la masse ni les prix des cités exportatrices, comme le ferait une part de classe plus haute partout.
@@ -402,7 +422,7 @@ une écriture datée après la fin de ce jour ne compte que dans les cumuls.
 La lecture se fait dans un seul instantané du grand livre, sans agrégat intermédiaire : masse, cumuls et jours se recoupent toujours.
 
 Indice des prix et inflation, dans la première version : l'indice suit le coût d'un panier de référence, quantités fixes de biens (paramètre du back-office `priceIndex.basket` ;
-au départ, la consommation de référence d'un jour de la population initiale de Kallistè pour ses six biens principaux, soit 97 % de sa dépense de référence).
+au départ, la consommation de référence d'un jour de la population initiale de Kallistè pour ses six biens principaux, soit 88 % de sa dépense de référence depuis les paniers de #713, 97 % avant).
 Le prix d'un bien sur une fenêtre est le prix moyen de ses échanges dans toutes les cités du monde, pondéré par les volumes (somme des montants ÷ somme des unités des chandeliers de la série en cours dont la période commence dans la fenêtre : à son début ou après, strictement avant sa fin ;
 un chandelier daté au-delà de l'horloge de la base n'est jamais compté), sans arrondi intermédiaire.
 L'indice est le coût du panier rapporté à son coût aux prix de référence de la configuration en vigueur, en points de base (10 000 : prix de référence).
@@ -540,6 +560,13 @@ Calibrage à douze cités (#712), éprouvé par le même banc avec `BALANCE_SCEN
   Les quatre premières cités gardent leurs mesures de #283 ; la population des douze croît de 1,4 % (Delphis) à 2,4 %.
   Les marges des ateliers vont de 437 oboles (le chai) à 1 169 (le moulin), dans la borne de 421 à 1 685 : la médiane des dix-huit matières premières, toutes au terroir d'une cité, est de 842,5 oboles.
 - **Masse.** Elle croît de 170 % sur les 30 jours mesurés, sous la borne de 200 % ; la création nette quotidienne des dix derniers jours vaut 99,5 % de celle des dix premiers (environ 137 000 oboles par jour).
+
+Paniers des classes aisées (#713, 5.2) : aucune maison des bancs ne fait encore les biens finis nouveaux, et la part publique des classes aisées garde leur revenu public d'un jour.
+Les trois bancs gardent leurs mesures et leurs bornes, avant comme après.
+À une cité : hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236.
+À quatre cités : coût du panier inchangé, besoins vitaux couverts à 100 %, masse +177,6 %.
+À douze cités : coût du panier inchangé, besoins vitaux couverts à 98,4 % au moins, masse +169,6 %, création nette des dix derniers jours à 99,5 % de celle des dix premiers.
+Seul l'arrondi de la part publique au point inférieur bouge la masse : 208 oboles de moins dans les douze cités au dernier jour (rapport du simulateur).
 
 ## 5.6 Fiscalité
 
