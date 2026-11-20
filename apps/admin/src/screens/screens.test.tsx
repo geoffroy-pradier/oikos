@@ -456,6 +456,27 @@ describe("journal d'audit", () => {
     expect(screen.getByRole('table', { name: /Commandes d'administration/ })).toBeTruthy();
   });
 
+  it('le journal se filtre par issue, parmi les entrées lues', async () => {
+    const entries = [entry(1), entry(2, { status: 'rejected', errorCode: 'X' }), entry(3)];
+    adminGet.mockResolvedValue({ ok: true, data: { entries } });
+    render(<Audit accessToken="token" />);
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('radio', { name: 'Refusées' }));
+    expect(commands()).toEqual(['admin.command2']);
+    expect(
+      screen.getByText(
+        '1 sur 3 entrées lues : le filtre ne porte que sur les entrées déjà chargées.',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'En panne' }));
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: "Aucune entrée chargée n'a cette issue." }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Toutes' }));
+    expect(commands()).toHaveLength(3);
+  });
+
   it("chaque issue a son libellé, avec le code d'un refus", async () => {
     adminGet.mockResolvedValue({
       ok: true,

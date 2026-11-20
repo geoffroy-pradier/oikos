@@ -1,4 +1,5 @@
 import type { AdminEventsData, AdminWorldEvent } from '@oikos/contracts';
+import { EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -24,6 +25,8 @@ export function Events({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const [data, setData] = useState<AdminEventsData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** État montré (`all` : tous) ; les autres lignes sont retirées du tableau, pas de la lecture. */
+  const [shown, setShown] = useState<'all' | ReturnType<typeof eventStatus>>('all');
   const title = useRef<HTMLHeadingElement>(null);
   const token = useRef(accessToken);
   token.current = accessToken;
@@ -44,6 +47,10 @@ export function Events({ accessToken }: { accessToken: string }) {
     void load();
   }, [load]);
 
+  const visible =
+    data?.events.filter(
+      (event) => shown === 'all' || eventStatus(event, new Date(data.now)) === shown,
+    ) ?? [];
   // Identifiants de la configuration, comme dans les Paramètres.
   const scope = (event: WorldEventRow) =>
     event.otherCity !== null
@@ -54,14 +61,26 @@ export function Events({ accessToken }: { accessToken: string }) {
 
   return (
     <>
-      <h1 ref={title} tabIndex={-1} className="text-2xl">
-        {t('events.title')}
-      </h1>
+      <PageHeader title={t('events.title')} titleRef={title} />
       {!data && !error && <p>{t('app.loading')}</p>}
       {error && <LoadError code={error} onRetry={() => void load(true)} />}
       {data?.events.length === 0 && <p className="text-muted-foreground">{t('events.empty')}</p>}
       {data && data.events.length > 0 && (
         <>
+          <SegmentedControl
+            label={t('events.filter')}
+            className="self-start"
+            value={shown}
+            onValueChange={(value) => setShown(value as typeof shown)}
+            options={(['all', 'upcoming', 'ongoing', 'past'] as const).map((value) => ({
+              value,
+              label: value === 'all' ? t('events.all') : t(`events.statuses.${value}`),
+            }))}
+          />
+          <p aria-live="polite" className="-mt-3 text-sm text-muted-foreground">
+            {shown !== 'all' &&
+              t('events.filtered', { count: data.events.length, shown: visible.length })}
+          </p>
           <p id="events-caption" className="text-sm text-muted-foreground">
             {t('events.caption', { now: time.format(new Date(data.now)), days: data.pastDays })}
           </p>
@@ -70,8 +89,10 @@ export function Events({ accessToken }: { accessToken: string }) {
               {t('events.truncated', { shown: count.format(data.events.length) })}
             </p>
           )}
+          {visible.length === 0 && <EmptyState title={t('events.filteredEmpty')} />}
           <div
-            className="overflow-x-auto"
+            hidden={visible.length === 0}
+            className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm"
             role="region"
             aria-labelledby="events-caption"
             tabIndex={0}
@@ -93,7 +114,7 @@ export function Events({ accessToken }: { accessToken: string }) {
                 </tr>
               </thead>
               <tbody>
-                {data.events.map((event) => (
+                {visible.map((event) => (
                   <tr key={event.id}>
                     <td>{t(`events.statuses.${eventStatus(event, new Date(data.now))}`)}</td>
                     <td>{t(`events.models.${event.model}`)}</td>

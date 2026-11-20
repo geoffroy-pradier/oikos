@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -23,7 +23,10 @@ export function Audit({ accessToken }: { accessToken: string }) {
   /** Lecture en échec : son code, et la page demandée, pour la relancer telle quelle. */
   const [error, setError] = useState<{ code: string; before?: string | undefined } | null>(null);
   const [more, setMore] = useState(false);
+  /** Issue montrée (`all` : toutes), parmi les entrées déjà lues. */
+  const [shown, setShown] = useState<'all' | Entry['status']>('all');
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'medium' });
+  const visible = entries?.filter((entry) => shown === 'all' || entry.status === shown) ?? [];
   // Le jeton se renouvelle pendant la lecture : les pages déjà affichées restent, et la lecture
   // suivante part avec le jeton du moment. Seul le premier affichage lit la première page.
   const token = useRef(accessToken);
@@ -56,17 +59,34 @@ export function Audit({ accessToken }: { accessToken: string }) {
 
   return (
     <>
-      <h1 ref={title} tabIndex={-1} className="text-2xl">
-        {t('audit.title')}
-      </h1>
+      <PageHeader title={t('audit.title')} titleRef={title} />
       {!entries && !error && <p>{t('app.loading')}</p>}
       {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
       {entries && entries.length > 0 && (
         <>
+          <SegmentedControl
+            label={t('audit.filter')}
+            className="self-start"
+            value={shown}
+            onValueChange={(value) => setShown(value as typeof shown)}
+            options={(['all', 'ok', 'rejected', 'failed'] as const).map((value) => ({
+              value,
+              label: t(`audit.filters.${value}`),
+            }))}
+          />
+          {/* Le filtre ne porte que sur les pages déjà lues : il le dit, avec le compte. */}
+          <p aria-live="polite" className="-mt-3 text-sm text-muted-foreground">
+            {shown !== 'all' &&
+              t('audit.filtered', { count: entries.length, shown: visible.length })}
+          </p>
           <p id="audit-caption" className="text-sm text-muted-foreground">
             {t('audit.caption')}
           </p>
-          <div className="overflow-x-auto">
+          {visible.length === 0 && <EmptyState title={t('audit.filteredEmpty')} />}
+          <div
+            hidden={visible.length === 0}
+            className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm"
+          >
             <table aria-labelledby="audit-caption" className={TABLE}>
               <thead>
                 <tr>
@@ -78,7 +98,7 @@ export function Audit({ accessToken }: { accessToken: string }) {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
+                {visible.map((entry) => (
                   <tr key={entry.id}>
                     <td>{time.format(new Date(entry.createdAt))}</td>
                     <td>

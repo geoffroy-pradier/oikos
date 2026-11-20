@@ -4,6 +4,11 @@ Olympe est une application distincte, sur son propre sous-domaine, d'où l'équi
 
 Olympe partage les jetons, les composants et la coquille du jeu (ADR 0011) : barre latérale des modules à partir de 1 024 px, pastilles qui défilent en dessous, carte centrée pour la connexion et le second facteur.
 Le thème clair ou sombre suit celui de l'appareil ; un bouton de l'en-tête le bascule, et le choix reste mémorisé sur l'appareil.
+Une action à plusieurs choix s'ouvre dans une feuille : chaque geste sur un signalement (Modération), qui rappelle l'entrée et le message visés, et « Accorder un rôle » (Accès).
+Pendant l'envoi d'une commande, ni Échap ni le voile ne referment la feuille ; un refus la laisse ouverte, saisie gardée.
+Une confirmation à un seul choix (retirer un rôle, valider ou lever une exclusion, trancher un appel, programmer ou annuler une version) reste dans sa ligne.
+Dans les Paramètres, la version ouverte s'édite dans un panneau, fixé à droite de la liste des versions à partir de 1 024 px ; ses tables sont des sections repliables, et les différences avec la version en vigueur s'y lisent juste avant l'enregistrement.
+Les listes se filtrent : la file de modération par maison, les comptes de l'Accès par rôle, le calendrier des événements par état, le journal d'audit par issue, parmi les seules entrées déjà chargées.
 
 ## 15.1 Modules
 

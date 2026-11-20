@@ -95,6 +95,29 @@ it('calendrier : modèle, portée, ampleur et état à l’heure du serveur, en 
   expect(screen.getByRole('cell', { name: 'orchard yield +12.5%' })).toBeTruthy();
 });
 
+it('le calendrier se filtre par état, à l’heure du serveur', async () => {
+  adminGet.mockResolvedValue({
+    ok: true,
+    data: { now: NOW, pastDays: 7, events: EVENTS, truncated: false },
+  });
+  render(<Events accessToken="token" />);
+  const table = await screen.findByRole('table');
+  const states = () =>
+    within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.children[0]?.textContent);
+  const filter = screen.getByRole('radiogroup', { name: 'Filtrer par état' });
+  fireEvent.click(within(filter).getByRole('radio', { name: 'En cours' }));
+  expect(states()).toEqual(['En cours']);
+  fireEvent.click(within(filter).getByRole('radio', { name: 'À venir' }));
+  expect(states()).toEqual(['À venir', 'À venir']);
+  expect(screen.getByText('2 sur 4 événements.')).toBeTruthy();
+  fireEvent.click(within(filter).getByRole('radio', { name: 'Tous' }));
+  expect(states()).toHaveLength(4);
+  expect(screen.queryByText(/ sur 4 événements/)).toBeNull();
+});
+
 it('liste coupée à la limite de l’API : l’écran le dit, et le tableau s’y réfère', async () => {
   adminGet.mockResolvedValue({
     ok: true,

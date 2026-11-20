@@ -293,7 +293,17 @@
       "rejected": "Rejected ({{code}})",
       "failed": "Failed"
     },
-    "rejectedNoCode": "Rejected"
+    "rejectedNoCode": "Rejected",
+    "filter": "Filter by outcome",
+    "filters": {
+      "all": "All",
+      "ok": "Succeeded",
+      "rejected": "Refused",
+      "failed": "Failed"
+    },
+    "filtered_one": "{{shown}} of {{count}} entry read: the filter only covers entries already loaded.",
+    "filtered_other": "{{shown}} of {{count}} entries read: the filter only covers entries already loaded.",
+    "filteredEmpty": "No loaded entry has this outcome."
   },
   "moderation": {
     "title": "Moderation",
@@ -488,7 +498,12 @@
       "good_year": "orchard yield +{{value}}",
       "storm": "voyages +{{value}}",
       "caravan": "NPC demand +{{value}}"
-    }
+    },
+    "filter": "Filter by state",
+    "all": "All",
+    "filtered_one": "{{shown}} of {{count}} event.",
+    "filtered_other": "{{shown}} of {{count}} events.",
+    "filteredEmpty": "No event in this state."
   },
   "config": {
     "title": "Parameters",

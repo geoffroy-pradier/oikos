@@ -13,7 +13,7 @@ export function LoadError({ code, onRetry }: { code: string; onRetry: () => void
   const { t } = useTranslation();
   const Glyph = code === 'FORBIDDEN' ? ShieldAlert : CircleAlert;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/40 bg-danger-subtle p-3 text-danger">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-danger/30 bg-danger-subtle px-4 py-3 text-sm text-danger">
       <Glyph aria-hidden="true" className="size-5 shrink-0" />
       <p role="alert" className="min-w-0 flex-1 basis-48 font-medium">
         {t(MESSAGES[code] ?? 'app.loadFailed')}
