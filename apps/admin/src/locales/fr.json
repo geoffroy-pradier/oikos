@@ -16,7 +16,9 @@
     "errors": {
       "network": "L'API ne répond pas. Vérifiez votre connexion, puis réessayez.",
       "rateLimited": "Trop de demandes en peu de temps. Patientez un instant, puis réessayez."
-    }
+    },
+    "skipToContent": "Aller au contenu",
+    "darkTheme": "Thème sombre"
   },
   "languages": {
     "fr": "Français",

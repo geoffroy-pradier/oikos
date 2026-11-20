@@ -1,14 +1,16 @@
 import { adminModulesFor, type AdminModule, type AdminRole } from '@oikos/contracts';
 import {
   Badge,
-  Button,
   Card,
+  cn,
   Coins,
   Eye,
   Gavel,
+  IconButton,
   KeyRound,
   Landmark,
   LogOut,
+  Moon,
   ScrollText,
   Settings,
   ShieldAlert,
@@ -32,6 +34,7 @@ import { SignIn } from './screens/SignIn';
 import { Vigie } from './screens/Vigie';
 import { refusedToken, renewOrEnd, SESSION_ENDED_EVENT } from './session';
 import { supabase } from './supabase';
+import { applyTheme, shownTheme } from './theme';
 
 /** Icône au trait de chaque module : décorative, le libellé porte l'information. */
 const ICONS: Record<AdminModule, Icon> = {
@@ -56,6 +59,13 @@ export function App() {
   const [module, setModule] = useState<AdminModule>('vigie');
   /** Session fermée sur un refus de l'API (#565) : la connexion dit pourquoi, jusqu'à la suivante. */
   const [sessionEnded, setSessionEnded] = useState(false);
+  /** Thème posé par `index.html` (choix mémorisé, sinon celui du système), basculé par l'en-tête. */
+  const [theme, setTheme] = useState(shownTheme);
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    setTheme(next);
+  };
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
@@ -167,29 +177,56 @@ export function App() {
       );
   }
 
+  const shell = modules.length > 0;
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border-subtle bg-surface px-4 py-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-3xl font-semibold text-primary">
-            <Landmark aria-hidden="true" className="size-7 shrink-0" />
-            {t('app.title')}
-          </p>
-          {granted ? (
-            <Badge tone="aegean" className="mt-1">
-              {t('app.role', { role: t(`roles.${granted}`) })}
-            </Badge>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('app.subtitle')}</p>
-          )}
+    // À partir de 1 024 px, barre latérale des modules (ADR 0011) ; sa colonne garde son fond et sa bordure sur
+    // toute la hauteur de la page. Avant l'ouverture d'un module, l'écran tient dans une carte centrée.
+    <div
+      className={cn(
+        'min-h-dvh bg-background text-foreground',
+        shell &&
+          'lg:grid lg:grid-cols-[15rem_1fr] lg:bg-[linear-gradient(to_right,var(--surface)_calc(15rem-1px),var(--border-subtle)_calc(15rem-1px)_15rem,var(--background)_15rem)]',
+      )}
+    >
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:bg-surface focus:p-3"
+      >
+        {t('app.skipToContent')}
+      </a>
+      {/* Un seul jeu de commandes : en haut sur téléphone, réparti dans la barre latérale sur ordinateur. */}
+      <header
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-3 border-b border-border-subtle bg-surface px-4 py-3',
+          shell &&
+            'lg:sticky lg:top-0 lg:h-dvh lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:px-3.5 lg:py-5',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:flex-none lg:px-1.5">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground text-background"
+          >
+            <Landmark className="size-5" strokeWidth={1.8} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-lg leading-tight font-bold tracking-tight">{t('app.title')}</p>
+            {!granted && <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Rôle sur sa propre ligne : sous la marque dans la barre latérale, sous l'en-tête sur téléphone. */}
+        {granted && (
+          <p className="order-1 w-full lg:order-none lg:-mt-3 lg:px-1.5">
+            <Badge>{t('app.role', { role: t(`roles.${granted}`) })}</Badge>
+          </p>
+        )}
+        <div className="flex items-center gap-1 lg:order-3 lg:mt-auto">
           <label htmlFor="language" className="sr-only">
             {t('app.language')}
           </label>
           <select
             id="language"
-            className="min-h-11 rounded-md border border-border bg-surface-raised px-2"
+            className="min-h-10 min-w-0 rounded-lg border border-border bg-surface-raised px-2 text-sm lg:flex-1"
             value={i18n.language}
             onChange={(event) => void i18n.changeLanguage(event.target.value)}
           >
@@ -199,49 +236,71 @@ export function App() {
               </option>
             ))}
           </select>
+          <IconButton
+            label={t('app.darkTheme')}
+            icon={<Moon />}
+            aria-pressed={theme === 'dark'}
+            className="aria-pressed:bg-muted"
+            onClick={() => toggleTheme()}
+          />
           {session && (
-            <Button
-              variant="ghost"
-              icon={<LogOut aria-hidden="true" />}
+            <IconButton
+              label={t('app.signOut')}
+              icon={<LogOut />}
               onClick={() => void supabase.auth.signOut()}
-            >
-              {t('app.signOut')}
-            </Button>
+            />
           )}
         </div>
-      </header>
-      <div className={modules.length > 0 ? 'lg:grid lg:grid-cols-[14rem_1fr]' : undefined}>
-        {modules.length > 0 && (
-          <nav
-            aria-label={t('app.navigation')}
-            className="px-4 pt-4 lg:sticky lg:top-0 lg:self-start lg:pr-0"
-          >
-            <ul className="-mx-1.5 flex gap-2 overflow-x-auto p-1.5 lg:mx-0 lg:flex-col lg:overflow-visible lg:p-0">
+        {shell && (
+          <nav aria-label={t('app.navigation')} className="order-2 w-full lg:order-2">
+            {/* Pastilles qui défilent sur téléphone, liste verticale sur ordinateur. */}
+            <ul className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-0">
               {modules.map((id) => {
                 const ModuleIcon = ICONS[id];
+                const here = id === current;
                 return (
                   <li key={id} className="shrink-0">
-                    <Button
-                      variant={id === current ? 'primary' : 'secondary'}
-                      className="lg:w-full lg:justify-start"
-                      icon={<ModuleIcon aria-hidden="true" />}
-                      aria-current={id === current ? 'page' : undefined}
+                    <button
+                      type="button"
+                      aria-current={here ? 'page' : undefined}
                       onClick={() => setModule(id)}
+                      className={cn(
+                        'flex min-h-10 w-full items-center gap-2 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-fast) ease-out',
+                        'lg:min-h-11 lg:gap-3 lg:rounded-lg lg:px-3 lg:text-[0.9375rem] [&_svg]:size-4.5 [&_svg]:shrink-0',
+                        here
+                          ? 'bg-foreground text-background lg:bg-primary-subtle lg:font-semibold lg:text-primary'
+                          : 'border border-border-subtle text-foreground-secondary hover:bg-muted hover:text-foreground lg:border-0',
+                      )}
                     >
+                      <ModuleIcon aria-hidden="true" strokeWidth={here ? 2.25 : 1.8} />
                       {t(`tabs.${id}`)}
-                    </Button>
+                    </button>
                   </li>
                 );
               })}
             </ul>
           </nav>
         )}
-        <main className={`mx-auto w-full min-w-0 p-4 ${granted ? 'max-w-5xl' : 'max-w-md'}`}>
-          <Card elevation="raised" className="flex animate-rise flex-col gap-3">
+      </header>
+      <main
+        id="main"
+        tabIndex={-1}
+        className={cn(
+          'mx-auto w-full min-w-0',
+          shell
+            ? 'max-w-6xl p-4 lg:p-8'
+            : 'flex min-h-[calc(100dvh-4.5rem)] max-w-md items-center p-4',
+        )}
+      >
+        {shell ? (
+          // Clé sur le module : chaque écran paraît par une courte montée (coupée sous reduced-motion).
+          <div key={current} className="flex animate-rise flex-col gap-6">
             {screen}
-          </Card>
-        </main>
-      </div>
+          </div>
+        ) : (
+          <Card className="flex w-full animate-rise flex-col gap-4 p-6 sm:p-8">{screen}</Card>
+        )}
+      </main>
     </div>
   );
 }

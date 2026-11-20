@@ -1,5 +1,5 @@
-import { Button, Field } from '@oikos/ui';
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { Button, Field, Landmark } from '@oikos/ui';
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
 
@@ -27,14 +27,14 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <h1 className="text-2xl">{t('signIn.title')}</h1>
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <CardHeading icon={<Landmark />} title={t('signIn.title')} />
       {sessionEnded && (
-        <p id={noticeId} role="status" className="rounded-md bg-muted p-3">
+        <p id={noticeId} role="status" className="rounded-lg bg-info-subtle p-3 text-sm text-info">
           {t('signIn.sessionEnded')}
         </p>
       )}
-      <p>{t('signIn.intro')}</p>
+      <p className="text-sm text-foreground-secondary">{t('signIn.intro')}</p>
       <Field
         label={t('signIn.email')}
         id={emailId}
@@ -45,11 +45,34 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
       />
-      <Button type="submit" disabled={state === 'sending'}>
+      <Button type="submit" size="lg" loading={state === 'sending'}>
         {t('signIn.submit')}
       </Button>
-      {state === 'sent' && <p role="status">{t('signIn.sent', { email })}</p>}
-      {state === 'failed' && <p role="alert">{t('signIn.failed')}</p>}
+      {state === 'sent' && (
+        <p role="status" className="rounded-lg bg-success-subtle p-3 text-sm text-success">
+          {t('signIn.sent', { email })}
+        </p>
+      )}
+      {state === 'failed' && (
+        <p role="alert" className="rounded-lg bg-danger-subtle p-3 text-sm text-danger">
+          {t('signIn.failed')}
+        </p>
+      )}
     </form>
+  );
+}
+
+/** En-tête d'une carte de connexion : pictogramme dans un carré arrondi, puis le titre de la page. */
+export function CardHeading({ icon, title }: { icon: ReactNode; title: string }) {
+  return (
+    <div className="flex flex-col items-start gap-4">
+      <span
+        aria-hidden="true"
+        className="grid size-11 place-items-center rounded-xl bg-primary-subtle text-primary [&_svg]:size-5.5"
+      >
+        {icon}
+      </span>
+      <h1 className="text-[1.625rem] leading-tight font-bold">{title}</h1>
+    </div>
   );
 }

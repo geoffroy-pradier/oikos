@@ -440,3 +440,19 @@ it('la langue du document suit la langue choisie', async () => {
   fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
   await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
 });
+
+it('le thème sombre se bascule depuis l’en-tête et reste mémorisé', async () => {
+  resetAuth();
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Connexion à Olympe' });
+  const toggle = screen.getByRole('button', { name: 'Thème sombre' });
+  expect(toggle.getAttribute('aria-pressed')).toBe('false');
+  fireEvent.click(toggle);
+  expect(document.documentElement.dataset['theme']).toBe('dark');
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  expect(localStorage.getItem('oikos.olympe.theme')).toBe('dark');
+  fireEvent.click(toggle);
+  expect(document.documentElement.dataset['theme']).toBe('light');
+  delete document.documentElement.dataset['theme'];
+  localStorage.clear();
+});
