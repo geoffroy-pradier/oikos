@@ -1,6 +1,14 @@
 import { gameDayDate } from '@oikos/sim';
-import { Badge, Button, CircleAlert, KeyRound, ShoppingCart, type DataColumn } from '@oikos/ui';
-import { useId } from 'react';
+import {
+  Badge,
+  Button,
+  CircleAlert,
+  KeyRound,
+  Select,
+  ShoppingCart,
+  type DataColumn,
+} from '@oikos/ui';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
 import { shortfall, useMoney } from '../money';
@@ -36,6 +44,14 @@ export function PropertyOffers(props: {
   const missing = (offer: Offer) =>
     offer.kind === 'lease' ? null : shortfall(props.balance, offer.priceOboles);
   const { opened, open, refusal, outcome } = useSheet<Offer>();
+  // Filtre par cité (#869), proposé dès que les offres viennent de plus d'une cité ; « Toutes » d'abord. Une
+  // cité choisie qui n'a plus d'offre est oubliée : la liste n'est jamais vide par un filtre périmé.
+  const [city, setCity] = useState('');
+  const cityName = (id: string) => house.cityNames[id] ?? id;
+  const cities = [...new Set(offers.map((offer) => offer.cityId))]
+    .map((id) => [id, cityName(id)] as const)
+    .sort(([, a], [, b]) => a.localeCompare(b, i18n.language));
+  const shownCity = cities.some(([id]) => id === city) ? city : '';
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
     maximumFractionDigits: 0,
@@ -142,10 +158,26 @@ export function PropertyOffers(props: {
   };
   return (
     <>
+      {cities.length > 1 && (
+        <Select
+          label={t('property.cityFilter')}
+          className="sm:max-w-xs"
+          quiet
+          value={shownCity}
+          onChange={(event) => setCity(event.target.value)}
+        >
+          <option value="">{t('property.allCities')}</option>
+          {cities.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </Select>
+      )}
       <PropertyTable
         caption={t('property.offers')}
         columns={columns}
-        rows={offers}
+        rows={shownCity ? offers.filter((offer) => offer.cityId === shownCity) : offers}
         rowKey={(row) => `${row.kind}:${row.propertyId}`}
       />
       <PropertySheet

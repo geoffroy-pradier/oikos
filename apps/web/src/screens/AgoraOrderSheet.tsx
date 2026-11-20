@@ -152,14 +152,19 @@ export function AgoraOrderSheet(props: AgoraOrderSheetProps) {
         shortcuts={false}
       />
       {best ? (
-        <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-muted p-3 text-sm">
-          <p className="min-w-0 flex-1 basis-48">
-            {t(selling ? 'agora.bestBid' : 'agora.bestAsk', {
-              quantity: number.format(best.quantity),
-              good,
-              price: oboles(best.price),
-            })}
-          </p>
+        // Meilleur prix mis en avant (#869) : le chiffre en grand, ce qui s'échangerait, puis le raccourci.
+        <div className="-mt-2 flex flex-wrap items-end gap-x-3 gap-y-2 rounded-lg border border-primary/40 bg-primary-subtle p-3 text-sm">
+          <div className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
+            <p className="text-xs font-medium text-foreground-secondary">{t('agora.bestPrice')}</p>
+            <p className="text-xl font-bold text-primary tabular-nums">{oboles(best.price)}</p>
+            <p>
+              {t(selling ? 'agora.bestBid' : 'agora.bestAsk', {
+                quantity: number.format(best.quantity),
+                good,
+                price: oboles(best.price),
+              })}
+            </p>
+          </div>
           <Button
             variant="secondary"
             size="sm"

@@ -239,4 +239,24 @@ describe('Stepper', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it('nomme chaque étape sous sa barre, et Continuer prend la largeur laissée par Retour, avec son icône (#869)', () => {
+    render(<Harness onConfirm={() => undefined} />);
+    const names = screen
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('span:not([aria-hidden])'));
+    expect(names.map((name) => name?.textContent)).toEqual(['Quantité', 'Note', 'Récapitulatif']);
+    expect(names.every((name) => name?.classList.contains('sr-only') === false)).toBe(true);
+    const next = screen.getByRole('button', { name: 'Continuer' });
+    expect(next.className).toMatch(/\bflex-1\b/);
+    expect(next.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    fireEvent.change(screen.getByLabelText('Amphores'), { target: { value: '20' } });
+    fireEvent.click(next);
+    const back = screen.getByRole('button', { name: 'Retour' });
+    expect(back.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    const confirm = screen.getByRole('button', { name: 'Confirmer' });
+    expect(confirm.className).toMatch(/\bflex-1\b/);
+    expect(confirm.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  });
 });

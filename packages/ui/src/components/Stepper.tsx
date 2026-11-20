@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { cn } from '../cn';
 import { Button } from './Button';
 
@@ -84,17 +85,29 @@ export function Stepper({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Étapes nommées (#869) : chaque segment porte le titre de son étape, abrégé s'il manque de place. */}
       <ol aria-label={labels.progress} className="flex gap-1.5">
         {steps.map((item, i) => (
           <li
             key={item.id}
             aria-current={i === index ? 'step' : undefined}
-            className={cn(
-              'h-1.5 flex-1 rounded-full transition-colors duration-(--motion-base)',
-              i <= index ? 'bg-primary' : 'bg-muted',
-            )}
+            className="flex min-w-0 flex-1 flex-col gap-1"
           >
-            <span className="sr-only">{item.title}</span>
+            <span
+              aria-hidden="true"
+              className={cn(
+                'h-1.5 rounded-full transition-colors duration-(--motion-base)',
+                i <= index ? 'bg-primary' : 'bg-muted',
+              )}
+            />
+            <span
+              className={cn(
+                'truncate text-xs',
+                i === index ? 'font-medium text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {item.title}
+            </span>
           </li>
         ))}
       </ol>
@@ -123,22 +136,36 @@ export function Stepper({
           {item.content}
         </div>
       ))}
-      <div className="flex flex-wrap gap-2">
+      {/* Continuer, ou la confirmation, prend toute la largeur laissée par Retour (#869). */}
+      <div className="flex gap-2">
         {index > 0 && (
           // Pas de retour pendant la commande en vol : son issue se dit à cette étape.
-          <Button variant="secondary" disabled={confirming} onClick={() => go(index - 1)}>
+          <Button
+            variant="secondary"
+            icon={<ArrowLeft aria-hidden="true" />}
+            disabled={confirming}
+            onClick={() => go(index - 1)}
+          >
             {labels.back}
           </Button>
         )}
         <Button
           ref={last ? confirmButton : undefined}
-          className="ml-auto"
+          className="min-w-0 flex-1"
+          icon={last ? <Check aria-hidden="true" /> : undefined}
           disabled={step?.valid === false}
           loading={last && confirming}
           aria-describedby={last ? confirmDescribedBy : undefined}
           onClick={advance}
         >
-          {last ? labels.confirm : labels.next}
+          {last ? (
+            labels.confirm
+          ) : (
+            <>
+              {labels.next}
+              <ArrowRight aria-hidden="true" />
+            </>
+          )}
         </Button>
       </div>
     </div>

@@ -275,6 +275,7 @@
     "freeStock": "Stock libre à {{city}} : {{quantity}} × {{good}}.",
     "cash": "Trésorerie : {{amount}}.",
     "overStock": "Stock libre insuffisant : {{free}} × {{good}} seulement à {{city}}.",
+    "bestPrice": "Meilleur prix",
     "bestBid": "Vendu tout de suite : des acheteurs attendent {{quantity}} × {{good}} à {{price}}.",
     "bestAsk": "Acheté tout de suite : des vendeurs proposent {{quantity}} × {{good}} à {{price}}.",
     "useBest": "Choisir {{price}}",
@@ -913,6 +914,8 @@
     "title": "Immobilier",
     "intro": "Les logements de l'archipel : achetez-les à la cité ou à une maison, louez-les, rénovez-les. Un bien loge vos travailleurs de sa cité tant qu'il est en état ; un loyer se paie chaque jour à la clôture.",
     "describe": "{{size}} n° {{lot}}, {{city}}",
+    "cityFilter": "Cité",
+    "allCities": "Toutes les cités",
     "offers": "Biens offerts",
     "noOffers": "Aucun bien offert pour l'instant.",
     "take": {

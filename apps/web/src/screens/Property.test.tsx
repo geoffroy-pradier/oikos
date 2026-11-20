@@ -315,3 +315,31 @@ describe('écran Immobilier (#259)', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });
+
+describe('biens offerts filtrés par cité (#869)', () => {
+  it('une seule cité : pas de filtre ; deux cités : le choix d’une cité ne montre que ses offres', async () => {
+    await showProperty();
+    expect(screen.queryByRole('combobox', { name: fr.property.cityFilter })).toBeNull();
+    cleanup();
+    state.views = {
+      ...state.views,
+      city_properties: [
+        { id: 'p1', city_id: 'c1', size_id: 'townhouse', lot: 1, for_sale: true, condition: 10000 },
+        { id: 'p3', city_id: 'c2', size_id: 'townhouse', lot: 3, for_sale: true, condition: 10000 },
+      ],
+    };
+    await showProperty();
+    const filter = screen.getByRole('combobox', { name: fr.property.cityFilter });
+    const options = within(filter)
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+    // Une cité sans nom connu se dit par son identifiant ; « Toutes les cités » d'abord.
+    expect(options).toEqual([fr.property.allCities, 'c2', 'Kallistè']);
+    const rows = () => inTable(fr.property.offers).getAllByRole('row').length - 1;
+    expect(rows()).toBe(3);
+    fireEvent.change(filter, { target: { value: 'c2' } });
+    expect(rows()).toBe(1);
+    fireEvent.change(filter, { target: { value: '' } });
+    expect(rows()).toBe(3);
+  });
+});
