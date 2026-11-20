@@ -71,6 +71,15 @@ describe('onglet Messages (#274)', () => {
     ]);
   });
 
+  it('« Nouvelle conversation » est l’action de l’en-tête, à droite du titre', async () => {
+    await show();
+    const title = screen.getByRole('heading', { level: 1, name: fr.tabs.messages.label });
+    const header = title.closest<HTMLElement>('[data-slot="page-header"]');
+    if (!header) throw new Error('en-tête');
+    const action = within(header).getByRole('button', { name: fr.messages.newConversationOpen });
+    expect(action.closest('[data-slot="page-header-action"]')?.parentElement).toBe(header);
+  });
+
   it('les non lus de chaque canal et leur total, en texte ; ouvrir une conversation la montre et la lit', async () => {
     await show();
     const direct = channelButton(/^Conversation avec Philaïdes/);

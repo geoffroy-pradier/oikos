@@ -265,6 +265,29 @@ describe('PageHeader', () => {
     });
   });
 
+  it('action à droite du titre, alignée sur son haut, et sous lui quand la place manque', () => {
+    render(
+      <PageHeader
+        title="Sites"
+        subtitle="Il est 14:05"
+        action={<button type="button">Acquérir</button>}
+      />,
+    );
+    const header = screen.getByRole('heading', { level: 1 }).closest('[data-slot="page-header"]');
+    const slot = screen.getByRole('button').closest('[data-slot="page-header-action"]');
+    // Deux colonnes d'une même rangée : le titre, puis l'action.
+    expect(slot?.parentElement).toBe(header);
+    expect(header?.children).toHaveLength(2);
+    expect(header?.lastElementChild).toBe(slot);
+    expect(header?.firstElementChild?.contains(screen.getByText('Il est 14:05'))).toBe(true);
+    // Le titre ne descend pas quand l'action est plus haute que lui ; la rangée passe à la ligne au besoin.
+    expect(header?.className).toContain('items-start');
+    expect(header?.className).toContain('flex-wrap');
+    expect(header?.className).not.toContain('items-end');
+    // La colonne du titre garde 16 rem avant que l'action ne passe dessous : le titre n'est pas coupé pour elle.
+    expect(header?.firstElementChild?.className).toContain('basis-64');
+  });
+
   it('sans référence, le titre n’est pas focalisable ; sans action, aucune colonne vide', () => {
     const { container } = render(<PageHeader title="Carte" />);
     expect(screen.getByRole('heading', { level: 1 }).hasAttribute('tabindex')).toBe(false);

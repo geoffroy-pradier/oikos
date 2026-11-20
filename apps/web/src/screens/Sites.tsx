@@ -109,6 +109,7 @@ export function SitesCard({
   onChanged,
   titleRef,
   figures,
+  header,
   balance,
   variant = 'full',
   onSummary,
@@ -120,6 +121,8 @@ export function SitesCard({
   titleRef?: RefObject<HTMLHeadingElement | null>;
   /** Chiffres clés de l'écran, rangés avant celui des sites (trésorerie). */
   figures?: ReactNode;
+  /** En-tête de l'écran Sites, qui reçoit l'acquisition comme action principale (rendu en tête de la liste). */
+  header?: (action: ReactNode) => ReactNode;
   /** Trésorerie lue, que l'acquisition dit avant et après l'achat. */
   balance?: number | undefined;
   /** `production` : la production en cours du tableau de bord, avec les mêmes commandes de récolte. */
@@ -781,8 +784,27 @@ export function SitesCard({
         : null,
     );
   const known = sites.rows !== null && costs.every((cost) => cost !== null);
+  // Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat).
+  const acquisition =
+    rules && sites.rows ? (
+      full ? (
+        <p className="text-sm text-muted-foreground">{t('home.limitReached')}</p>
+      ) : (
+        <SiteAcquire
+          offers={offers}
+          upkeepOf={rules.upkeepOf}
+          balance={balance}
+          count={sites.rows.length}
+          limit={rules.limit}
+          busy={busy}
+          warning={notice?.unanswered ? notice.text : null}
+          onConfirm={(offer) => void acquire(offer)}
+        />
+      )
+    ) : null;
   return (
     <div className="flex flex-col gap-4">
+      {header?.(acquisition)}
       <StatGrid>
         {figures}
         <StatCard
@@ -818,8 +840,9 @@ export function SitesCard({
           hint={t('sites.dailyHint')}
         />
       </StatGrid>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {harvestable.length > 0 && (
+      {!header && acquisition && <div className="self-end">{acquisition}</div>}
+      {harvestable.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             className={WAITING}
             aria-disabled={busy}
@@ -831,27 +854,8 @@ export function SitesCard({
           >
             {t('home.collectAll')}
           </Button>
-        )}
-        {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
-        {rules && sites.rows && (
-          <div className="ml-auto">
-            {full ? (
-              <p className="text-sm text-muted-foreground">{t('home.limitReached')}</p>
-            ) : (
-              <SiteAcquire
-                offers={offers}
-                upkeepOf={rules.upkeepOf}
-                balance={balance}
-                count={sites.rows.length}
-                limit={rules.limit}
-                busy={busy}
-                warning={notice?.unanswered ? notice.text : null}
-                onConfirm={(offer) => void acquire(offer)}
-              />
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       {announce(ALL)}
       {rules && sites.rows && (
         <div role="group" aria-label={t('home.acquire')} className="flex flex-col gap-2">
@@ -1148,13 +1152,17 @@ export function SitesScreen() {
   );
   const balance = treasury.rows?.[0]?.balance;
   return (
-    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <ScreenHeader title={t('home.sites')} titleRef={title} />
-      <HouseNav />
-      {(treasury.failed || stock.failed) && (
-        <LoadProblem onRetry={() => Promise.all([treasury.reload(), stock.reload()])} />
-      )}
+    <div className="[overflow-wrap:anywhere]">
       <SitesCard
+        header={(action) => (
+          <>
+            <ScreenHeader title={t('home.sites')} titleRef={title} action={action} />
+            <HouseNav />
+            {(treasury.failed || stock.failed) && (
+              <LoadProblem onRetry={() => Promise.all([treasury.reload(), stock.reload()])} />
+            )}
+          </>
+        )}
         stock={stock.rows}
         onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
         titleRef={title}

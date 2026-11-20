@@ -8,7 +8,10 @@ export interface PageHeaderProps {
   subtitle?: ReactNode;
   /** Recherche de l'écran, s'il en a une. */
   search?: ReactNode;
-  /** Action principale (un bouton), à droite sur ordinateur, sous le titre sur téléphone. */
+  /**
+   * Action principale (un bouton), à droite du titre, alignée sur sa ligne ; sous le titre quand la place
+   * manque (téléphone), sans le couper.
+   */
   action?: ReactNode;
   /** Ce qui suit le titre dans l'en-tête (un statut, des pastilles). */
   children?: ReactNode;
@@ -28,7 +31,11 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex flex-wrap items-end gap-x-6 gap-y-3', className)}>
+    // Le titre reste en haut quelle que soit la hauteur de l'action : il est à la même place sur chaque écran.
+    <div
+      data-slot="page-header"
+      className={cn('flex flex-wrap items-start gap-x-6 gap-y-3', className)}
+    >
       <div className="flex min-w-0 flex-1 basis-64 flex-col gap-1 [overflow-wrap:anywhere]">
         <h1
           ref={titleRef}
@@ -41,7 +48,8 @@ export function PageHeader({
         {children}
       </div>
       {(search ?? action) && (
-        <div className="flex flex-wrap items-center gap-2">
+        // Bouton de 40 px centré sur la ligne du titre (26 px, interligne serré) quand il est à sa droite.
+        <div data-slot="page-header-action" className="flex flex-wrap items-center gap-2 sm:-mt-1">
           {search}
           {action}
         </div>
