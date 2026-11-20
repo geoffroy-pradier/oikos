@@ -39,8 +39,8 @@ Décision (#669) : c'est le resserrement le plus petit qui rende Kallistè dépe
 Le banc à une cité de #78, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario (5.5).
 Un resserrement plus fort, du poisson ou du sel par exemple, demanderait d'abord des armateurs qui en ravitaillent Kallistè dans le banc à quatre cités.
 Décision (ambiguïté de cette section) : les douze cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte des routes de terre.
-Les routes maritimes de la configuration ne relient que les quatre premières cités ; celles des huit autres viennent avec la carte (ticket suivant), et aucun navire ne les dessert d'ici là.
-Le banc à quatre cités (5.5) retire les huit cités de #706 de son scénario, comme le banc à une cité rend sa laine à Kallistè : ses mesures et ses bornes ne changent pas, jusqu'au banc à douze cités (« P10 »).
+Depuis #707, les routes maritimes relient les douze cités entre voisines, chacune à au moins deux autres (4.6) ; chaque cité a son île sur la carte de l'archipel.
+Le banc à quatre cités (5.5) retire les huit cités de #706 de son scénario, et leurs routes depuis #707, comme le banc à une cité rend sa laine à Kallistè : ses mesures et ses bornes ne changent pas, jusqu'au banc à douze cités (« P10 »).
 Chaque cité a la population de la cité prototype (5.5), et la demande des PNJ y est jouée comme à Kallistè.
 Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les douze cités, et l'onglet Cité celle de la maison.
 Une version de configuration publiée avant les quatre cités (#250) se lit sans terroir (toute production admise), avec un port et sans dieu protecteur.

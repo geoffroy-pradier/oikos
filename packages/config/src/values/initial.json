@@ -201,6 +201,91 @@
         "cities": ["ampelos", "halos"],
         "hours": 5,
         "provisionsOboles": { "coaster": 5, "round_ship": 18 }
+      },
+      {
+        "cities": ["delphis", "elaia"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["delphis", "dikaia"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["dikaia", "kalliste"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["dikaia", "ampelos"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["emporion", "kalliste"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["emporion", "elaia"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["emporion", "halos"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["emporion", "gamelia"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["gamelia", "halos"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["gamelia", "elaia"],
+        "hours": 5,
+        "provisionsOboles": { "coaster": 5, "round_ship": 18 }
+      },
+      {
+        "cities": ["agrotera", "ampelos"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["agrotera", "phrourion"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["phrourion", "ampelos"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["phrourion", "myrrhine"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["myrrhine", "kalliste"],
+        "hours": 4,
+        "provisionsOboles": { "coaster": 4, "round_ship": 15 }
+      },
+      {
+        "cities": ["myrrhine", "chalkeia"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
+      },
+      {
+        "cities": ["chalkeia", "halos"],
+        "hours": 3,
+        "provisionsOboles": { "coaster": 3, "round_ship": 11 }
       }
     ],
     "portDues": {

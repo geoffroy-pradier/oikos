@@ -337,12 +337,25 @@ describe('jeu de valeurs initial', () => {
       ).toBe(true);
   });
 
-  it('une route entre chaque paire des quatre premières cités, avec ses provisions et le droit de port ; aucune pour les huit autres, jusqu’à la carte (#252, #668, #706)', () => {
+  it('routes : les six des quatre premières cités, puis les huit autres reliées chacune à au moins deux voisines, l’archipel connexe ; provisions et droit de port (#252, #668, #707)', () => {
     const cities = FOUR_CITIES;
     const pairs = cities.flatMap((a, i) => cities.slice(i + 1).map((b) => [a, b].sort().join(' ')));
-    expect(
-      config.ships.routes.map(({ cities: pair }) => [...pair].sort().join(' ')).sort(),
-    ).toEqual(pairs.sort());
+    const keys = config.ships.routes.map(({ cities: pair }) => [...pair].sort().join(' '));
+    // Les six routes de #252 en tête, inchangées : le banc à quatre cités les joue seules (5.5).
+    expect(keys.slice(0, 6).sort()).toEqual(pairs.sort());
+    expect(keys).toHaveLength(23);
+    const neighbours = (id: string) =>
+      config.ships.routes.flatMap(({ cities: [a, b] }) => (a === id ? [b] : b === id ? [a] : []));
+    for (const id of [...FOUR_CITIES, ...EIGHT_CITIES])
+      expect(neighbours(id).length, id).toBeGreaterThanOrEqual(2);
+    // Connexe : de Kallistè, de route en route, on atteint les douze cités.
+    const reached = new Set(['kalliste']);
+    for (let queue = ['kalliste']; queue.length > 0;) {
+      const next = neighbours(queue.shift() ?? '').filter((id) => !reached.has(id));
+      for (const id of next) reached.add(id);
+      queue.push(...next);
+    }
+    expect([...reached].sort()).toEqual([...FOUR_CITIES, ...EIGHT_CITIES].sort());
     // Provisions : les vivres de l'équipage pendant la traversée, au coût de la vie d'un habitant (8 oboles par jour),
     // sur la durée du trajet de la classe, arrondies à l'obole supérieure.
     for (const route of config.ships.routes)

@@ -54,14 +54,17 @@ const ofScenario = <T>(byCity: Record<string, T>): Record<string, T> =>
  * Configuration jouée : celle du banc, à la population près de chaque cité, à la dotation et aux prix des logements
  * du scénario. Salaires, marché du travail, transport, événements et grâces sont ceux de la configuration (#668).
  * Depuis #706, la configuration initiale compte douze cités : le banc n'en joue que quatre et retire les huit autres
- * (cités, salaires, droits de port, parc de logements) jusqu'au banc à douze cités (« P10 ») ; leurs mesures et leurs
- * bornes sont celles d'avant. Ses routes ne relient que ces quatre cités.
+ * (cités, salaires, droits de port, parc de logements, et depuis #707 leurs routes) jusqu'au banc à douze cités
+ * (« P10 ») ; leurs mesures et leurs bornes sont celles d'avant : ses routes sont les six qui relient ces quatre cités.
  */
 export const worldConfig = {
   ...config,
   staff: { ...config.staff, dailyWageOboles: ofScenario(config.staff.dailyWageOboles) },
   ships: {
     ...config.ships,
+    routes: config.ships.routes.filter(({ cities }) =>
+      cities.every((id) => (SLUGS as readonly string[]).includes(id)),
+    ),
     portDues: {
       ...config.ships.portDues,
       cityCoefficientBps: ofScenario(config.ships.portDues.cityCoefficientBps),

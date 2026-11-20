@@ -412,6 +412,12 @@ Voyages, dans la phase 2 (#252) :
   Sa part détruite (`burnShareBps`, arrondie à l'obole supérieure) va au puits `sink_port_dues`, le reste au trésor de la cité d'arrivée, comme la taxe de marché.
   Configuration initiale (#668) : les provisions sont les vivres de l'équipage pendant le trajet de sa classe, à 8 oboles par marin et par jour (la dépense de référence d'un thète), arrondies à l'obole supérieure (un caboteur, une obole par heure de route) ; le droit de port est 1 % d'une soute pleine de blé à son prix de référence (18 oboles pour un caboteur, 54 pour un navire rond).
   Une version publiée avant les voyages se lit sans route ni droit de port : aucun départ n'y est possible.
+- Réseau de l'archipel (#707) : avec douze cités, une route ne relie que deux voisines, et un trajet lointain passe par une escale, ce qui donne au négoce ses carrefours (6.7).
+  La configuration initiale garde les six routes des quatre premières cités, telles quelles, et en ajoute dix-sept, de trois à cinq heures, entre voisines : chaque cité est reliée à au moins deux autres, et l'archipel est connexe.
+  Leurs provisions suivent la règle de #668 (un caboteur, une obole par heure de route ; un navire rond, ⌈heures × 32 ÷ 9⌉).
+  Décision (#707) : « voisines » se lit sur le dessin de la carte, où aucune route ne passe à moins d'un vingtième de sa largeur d'une autre cité ; la durée est réglée à la main dans la configuration, aucune distance n'est tirée du dessin.
+  Décision (#707) : les six routes des quatre premières cités restent, même celles qu'une cité nouvelle borde, pour que le banc à quatre cités, qui ne joue qu'elles, garde ses mesures.
+  Les tempêtes (7.4) se tirent parmi toutes les routes de la configuration entre cités du monde, nouvelles comprises.
 - La commande `voyage.depart` (navire, cité de départ vue, cité d'arrivée, cargaison, coût vu) fait partir un navire armé de la maison, à quai dans la cité de départ, vers une cité reliée par une route.
   La cargaison est une liste de biens et de quantités prise dans le stock libre de la maison dans la cité de départ (quantité moins ce que réservent ses ventes en attente), dans la capacité de la classe, tous biens confondus.
   Décision : une cargaison vide est admise, le navire part sur lest (pour aller acheter ailleurs).

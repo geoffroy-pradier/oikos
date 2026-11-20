@@ -25,7 +25,7 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 ## Ce qui est jouable aujourd'hui
 
 En local (procédure dans le `README.md`), dans douze cités : Kallistè, Elaia, Ampelos et Halos (#250), puis Dikaia, Gamelia, Delphis, Agrotera, Phrourion, Myrrhinè, Chalkeia et Emporion (#706).
-Les huit dernières n'ont pas encore de route maritime ni de place sur la carte (ticket suivant).
+Depuis #707, les douze cités sont reliées par vingt-trois routes maritimes entre voisines, et chacune a son île sur la carte.
 Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour recevoir les nouvelles cités et la configuration qui les décrit.
 
 - **Compte et maison.** Connexion par lien magique (courriel). Création d'une maison : nom, blason, cité.

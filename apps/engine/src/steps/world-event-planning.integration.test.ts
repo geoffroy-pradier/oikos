@@ -90,8 +90,9 @@ beforeAll(async () => {
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
-/** Un monde de graine `seed` et ses cités (les quatre de la configuration, sauf mention). */
-async function newWorld(seed: string, slugs = ['kalliste', 'elaia', 'ampelos', 'halos']) {
+const FOUR = ['kalliste', 'elaia', 'ampelos', 'halos'];
+/** Un monde de graine `seed` et ses cités (les quatre premières de la configuration, sauf mention). */
+async function newWorld(seed: string, slugs = FOUR) {
   const worldId = randomUUID();
   await owner
     .insertInto('game.worlds')
@@ -212,8 +213,10 @@ describe('planification des événements du monde à la clôture (#267)', () => 
       daySeed,
       startDay,
       models: sure.worldEvents?.models ?? {},
-      cities: ['kalliste', 'elaia', 'ampelos', 'halos'],
-      routes: sure.ships.routes.map((route) => route.cities),
+      cities: FOUR,
+      routes: sure.ships.routes
+        .map((route) => route.cities)
+        .filter((pair) => pair.every((slug) => FOUR.includes(slug))),
     });
     expect(
       events.map((event) => ({
@@ -356,5 +359,24 @@ describe('planification des événements du monde à la clôture (#267)', () => 
       const tempest = events.find((event) => event.model === 'storm');
       expect([tempest?.city, tempest?.other]).toEqual(['elaia', 'kalliste']);
     }
+  });
+
+  it('douze cités (#707) : la tempête se tire parmi toutes les routes de la configuration, nouvelles comprises', async () => {
+    const slugs = initial.cities.map((city) => city.id);
+    const key = (a: string | null, b: string | null) => [a, b].sort().join(' ');
+    const configured = new Set(initial.ships.routes.map(({ cities: [a, b] }) => key(a, b)));
+    const drawn = new Set<string>();
+    // Seize mondes aux graines fixes : chacun a sa tempête, certaine, sur l'une des 23 routes.
+    for (let index = 0; index < 16; index += 1) {
+      const worldId = await newWorld(`tempetes-de-l-archipel-${index}`, slugs);
+      await close(worldId, sure);
+      const storms = (await eventsOf(worldId)).filter((event) => event.model === 'storm');
+      expect(storms).toHaveLength(1);
+      for (const storm of storms) drawn.add(key(storm.city, storm.other));
+    }
+    for (const route of drawn) expect(configured).toContain(route);
+    // Les six routes des quatre premières cités ne sont pas les seules tirées.
+    const fourRoutes = (route: string) => route.split(' ').every((slug) => FOUR.includes(slug));
+    expect([...drawn].some((route) => !fourRoutes(route))).toBe(true);
   });
 });

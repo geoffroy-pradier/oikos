@@ -37,14 +37,26 @@ describe('règles du transport lues par le client', () => {
 
   it('destinations : les routes de la cité, dans un sens ou l’autre, des plus courtes aux plus longues', () => {
     expect(destinationsFrom(initial(), 'kalliste')).toEqual([
+      { slug: 'dikaia', hours: 3 },
+      { slug: 'emporion', hours: 3 },
       { slug: 'ampelos', hours: 4 },
       { slug: 'elaia', hours: 4 },
+      { slug: 'myrrhine', hours: 4 },
       { slug: 'halos', hours: 6 },
     ]);
     expect(destinationsFrom(initial(), 'halos').map(({ slug }) => slug)).toEqual([
+      'chalkeia',
+      'emporion',
+      'gamelia',
       'ampelos',
       'kalliste',
       'elaia',
+    ]);
+    // Une cité de #706 n'a que ses voisines (#707) : un trajet lointain passe par une escale.
+    expect(destinationsFrom(initial(), 'gamelia')).toEqual([
+      { slug: 'halos', hours: 3 },
+      { slug: 'emporion', hours: 4 },
+      { slug: 'elaia', hours: 5 },
     ]);
     expect(destinationsFrom(initial(), 'atlantis')).toEqual([]);
   });
