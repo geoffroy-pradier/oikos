@@ -293,7 +293,14 @@
       "rejected": "Refusée ({{code}})",
       "failed": "En panne"
     },
-    "rejectedNoCode": "Refusée"
+    "rejectedNoCode": "Refusée",
+    "filter": "Filtrer par issue",
+    "filters": {
+      "all": "Toutes",
+      "ok": "Réussies",
+      "rejected": "Refusées",
+      "failed": "En panne"
+    }
   },
   "moderation": {
     "title": "Modération",
@@ -488,7 +495,9 @@
       "good_year": "rendement des vergers +{{value}}",
       "storm": "trajets +{{value}}",
       "caravan": "demande des PNJ +{{value}}"
-    }
+    },
+    "filter": "Filtrer par état",
+    "all": "Tous"
   },
   "config": {
     "title": "Paramètres",

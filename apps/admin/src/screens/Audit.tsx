@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -23,6 +23,8 @@ export function Audit({ accessToken }: { accessToken: string }) {
   /** Lecture en échec : son code, et la page demandée, pour la relancer telle quelle. */
   const [error, setError] = useState<{ code: string; before?: string | undefined } | null>(null);
   const [more, setMore] = useState(false);
+  /** Issue montrée (`all` : toutes), parmi les entrées déjà lues. */
+  const [shown, setShown] = useState<'all' | Entry['status']>('all');
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'medium' });
   // Le jeton se renouvelle pendant la lecture : les pages déjà affichées restent, et la lecture
   // suivante part avec le jeton du moment. Seul le premier affichage lit la première page.
@@ -56,17 +58,25 @@ export function Audit({ accessToken }: { accessToken: string }) {
 
   return (
     <>
-      <h1 ref={title} tabIndex={-1} className="text-2xl">
-        {t('audit.title')}
-      </h1>
+      <PageHeader title={t('audit.title')} titleRef={title} />
       {!entries && !error && <p>{t('app.loading')}</p>}
       {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
       {entries && entries.length > 0 && (
         <>
+          <SegmentedControl
+            label={t('audit.filter')}
+            className="self-start"
+            value={shown}
+            onValueChange={(value) => setShown(value as typeof shown)}
+            options={(['all', 'ok', 'rejected', 'failed'] as const).map((value) => ({
+              value,
+              label: t(`audit.filters.${value}`),
+            }))}
+          />
           <p id="audit-caption" className="text-sm text-muted-foreground">
             {t('audit.caption')}
           </p>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm">
             <table aria-labelledby="audit-caption" className={TABLE}>
               <thead>
                 <tr>
@@ -78,27 +88,29 @@ export function Audit({ accessToken }: { accessToken: string }) {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>{time.format(new Date(entry.createdAt))}</td>
-                    <td>
-                      <code className="whitespace-nowrap">{entry.userId.slice(0, 8)}</code>
-                    </td>
-                    <td>
-                      <code>{entry.command}</code>
-                    </td>
-                    <td>
-                      {entry.status === 'rejected' && !entry.errorCode
-                        ? t('audit.rejectedNoCode')
-                        : t(`audit.status.${entry.status}`, { code: entry.errorCode ?? '' })}
-                    </td>
-                    <td>
-                      <code className="break-all">
-                        {entry.result === null ? '' : JSON.stringify(entry.result)}
-                      </code>
-                    </td>
-                  </tr>
-                ))}
+                {entries
+                  .filter((entry) => shown === 'all' || entry.status === shown)
+                  .map((entry) => (
+                    <tr key={entry.id}>
+                      <td>{time.format(new Date(entry.createdAt))}</td>
+                      <td>
+                        <code className="whitespace-nowrap">{entry.userId.slice(0, 8)}</code>
+                      </td>
+                      <td>
+                        <code>{entry.command}</code>
+                      </td>
+                      <td>
+                        {entry.status === 'rejected' && !entry.errorCode
+                          ? t('audit.rejectedNoCode')
+                          : t(`audit.status.${entry.status}`, { code: entry.errorCode ?? '' })}
+                      </td>
+                      <td>
+                        <code className="break-all">
+                          {entry.result === null ? '' : JSON.stringify(entry.result)}
+                        </code>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

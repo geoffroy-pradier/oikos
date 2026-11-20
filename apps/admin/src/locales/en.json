@@ -293,7 +293,14 @@
       "rejected": "Rejected ({{code}})",
       "failed": "Failed"
     },
-    "rejectedNoCode": "Rejected"
+    "rejectedNoCode": "Rejected",
+    "filter": "Filter by outcome",
+    "filters": {
+      "all": "All",
+      "ok": "Succeeded",
+      "rejected": "Refused",
+      "failed": "Failed"
+    }
   },
   "moderation": {
     "title": "Moderation",
@@ -488,7 +495,9 @@
       "good_year": "orchard yield +{{value}}",
       "storm": "voyages +{{value}}",
       "caravan": "NPC demand +{{value}}"
-    }
+    },
+    "filter": "Filter by state",
+    "all": "All"
   },
   "config": {
     "title": "Parameters",
