@@ -29,6 +29,11 @@ L'écran de connexion dit alors pourquoi, en français et en anglais, et donne l
 La connexion tient en une carte centrée : sur téléphone la scène d'accueil la surmonte, sur ordinateur elle se tient à son côté.
 Un envoi refusé s'affiche sous le champ de l'adresse, qu'il décrit et marque invalide.
 Dans un Stepper, Entrée dans un champ de saisie vaut Continuer ; une étape peut garder le joueur sur place (`check`) en expliquant pourquoi, et un refus de l'API qui se corrige à une étape y ramène le joueur (`initialStep`).
+La création de maison se fait en quatre étapes : le nom, le blason, la cité d'accueil, puis un récapitulatif confirmé par « Fonder la maison ».
+Un nom invalide garde l'étape et se dit sous le champ ; continuer sans cité choisie est refusé de même, aucune cité n'étant choisie d'avance.
+Un refus de l'API qui se corrige au nom (nom pris, refusé par la modération, compte réduit au silence) ou à la cité (plus de travailleurs libres) ramène le joueur à cette étape, saisie conservée, le message près du champ.
+Tout autre refus reste affiché sur le récapitulatif.
+Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres commandes.
 
 ## Écrans clés à maquetter en premier
 
