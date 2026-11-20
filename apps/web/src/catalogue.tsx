@@ -12,6 +12,7 @@ import {
   Coins,
   COLOR_TOKENS,
   DataTable,
+  Dialog,
   EmptyState,
   IconButton,
   Moon,
@@ -23,11 +24,14 @@ import {
   SegmentedControl,
   Select,
   Settings,
+  Sheet,
   Ship,
   Skeleton,
   Stat,
   StatCard,
   StatusRegion,
+  Stepper,
+  Store,
   Sun,
   Switch,
   TextField,
@@ -63,6 +67,101 @@ function Section({
       <h2 className="eyebrow">{title}</h2>
       {children}
     </Card>
+  );
+}
+
+/** Feuille et boîte de dialogue, ouvertes par un bouton ; `?sheet` ouvre la feuille d'emblée (captures). */
+function Overlays() {
+  const [sheet, setSheet] = useState(new URLSearchParams(location.search).has('sheet'));
+  const [dialog, setDialog] = useState(false);
+  const [done, setDone] = useState('');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button icon={<Store />} onClick={() => setSheet(true)}>
+        Sheet
+      </Button>
+      <Button variant="secondary" onClick={() => setDialog(true)}>
+        Dialog
+      </Button>
+      <Sheet
+        open={sheet}
+        onClose={() => setSheet(false)}
+        title="Vendre du vin"
+        description="Agora d’Athènes · 45 amphores en stock"
+        closeLabel="Fermer"
+      >
+        <Stepper
+          labels={{
+            progress: 'Étapes',
+            back: 'Retour',
+            next: 'Continuer',
+            confirm: 'Vendre',
+            stepOf: (current, total) => `Étape ${current} sur ${total}`,
+          }}
+          onConfirm={() => setDone('Ordre passé : 20 amphores à 14 oboles.')}
+          steps={[
+            {
+              id: 'quantity',
+              title: 'Quantité',
+              content: (
+                <NumberField
+                  label="Amphores"
+                  locale="fr"
+                  labels={fr.controls}
+                  defaultValue={20}
+                  min={1}
+                  max={45}
+                />
+              ),
+            },
+            {
+              id: 'price',
+              title: 'Prix',
+              content: (
+                <NumberField
+                  label="Prix unitaire (oboles)"
+                  locale="fr"
+                  labels={fr.controls}
+                  defaultValue={14}
+                  min={1}
+                />
+              ),
+            },
+            {
+              id: 'summary',
+              title: 'Récapitulatif',
+              content: (
+                <dl className="grid grid-cols-2 gap-y-1 text-sm tabular-nums">
+                  <dt className="text-muted-foreground">Quantité</dt>
+                  <dd className="text-right">20 amphores</dd>
+                  <dt className="text-muted-foreground">Total</dt>
+                  <dd className="text-right font-semibold">280 oboles</dd>
+                </dl>
+              ),
+            },
+          ]}
+        />
+        <StatusRegion tone="success" className="mt-4">
+          {done}
+        </StatusRegion>
+      </Sheet>
+      <Dialog
+        open={dialog}
+        onClose={() => setDialog(false)}
+        title="Démolir l’atelier ?"
+        description="Les stocks restent dans l’entrepôt. Rien n’est remboursé."
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setDialog(false)}>
+              Annuler
+            </Button>
+            <Button variant="danger" onClick={() => setDialog(false)}>
+              Démolir
+            </Button>
+          </>
+        }
+      />
+    </div>
   );
 }
 
@@ -164,6 +263,10 @@ function Catalogue() {
               },
             ]}
           />
+        </Section>
+
+        <Section title="Sheet · Dialog">
+          <Overlays />
         </Section>
 
         <Section title="Progress · StatusRegion">
