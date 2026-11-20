@@ -147,6 +147,7 @@ export const VIGIE = {
   recentTicks: [
     {
       worldId: '01900000-0000-7000-8000-000000000001',
+      worldSlug: 'archipel',
       tickIndex: 9,
       status: 'done',
       durationMs: 120,

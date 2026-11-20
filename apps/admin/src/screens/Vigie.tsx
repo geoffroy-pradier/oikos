@@ -1,21 +1,30 @@
 import {
+  Ban,
   Button,
+  CircleAlert,
+  CircleCheck,
   cn,
+  Cpu,
   DataTable,
   EmptyState,
+  Gauge,
   Hourglass,
   PageHeader,
   RefreshCw,
+  ShieldCheck,
   type SortDirection,
   Sparkles,
   StatCard,
   StatGrid,
+  Users,
 } from '@oikos/ui';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { ALERT, FRAME } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { StaleReportsAlert } from './Moderation';
+import { SectionTitle } from './SectionTitle';
 
 interface VigieData {
   houses: number;
@@ -39,6 +48,8 @@ interface VigieData {
   closes24h?: { failed: number; lastError: string | null };
   recentTicks: {
     worldId: string;
+    /** Nom du monde ; absent d'une API antérieure, ou monde disparu : l'identifiant abrégé le remplace. */
+    worldSlug?: string | null;
     tickIndex: number;
     status: 'done' | 'skipped' | 'failed';
     durationMs: number;
@@ -92,12 +103,19 @@ const review = (selfReviewAllowed: unknown) =>
       ? 'reviewRequired'
       : 'reviewUnknown';
 
+/** Icône de chaque famille de chiffres. */
+const GROUP_ICONS: Record<string, ReactNode> = {
+  players: <Users />,
+  engine: <Cpu />,
+  api: <ShieldCheck />,
+};
+
 /** Module Vigie : joueurs, commandes, ticks et file de tâches (15.1). */
 export function Vigie({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const { data, error, reload } = useAdmin<VigieData>('vigie', accessToken);
   const number = new Intl.NumberFormat(i18n.language);
-  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'medium' });
+  const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'medium' });
   const euros = new Intl.NumberFormat(i18n.language, {
     style: 'currency',
     currency: 'EUR',
@@ -115,7 +133,15 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         ? t('vigie.timezoneUnknownValue', { timezone: value.timezone })
         : value.timezone;
 
-  type Figure = [label: string, value: string];
+  type State = { tone: 'success' | 'warning' | 'danger'; icon: ReactNode };
+  type Figure = [label: string, value: string, state?: State];
+  // Les cartes d'échecs et de refus portent leur état par une icône et une teinte : à zéro, rien à signaler.
+  const failing = (count: number): State =>
+    count > 0
+      ? { tone: 'danger', icon: <CircleAlert /> }
+      : { tone: 'success', icon: <CircleCheck /> };
+  const refusing = (count: number): State =>
+    count > 0 ? { tone: 'warning', icon: <Ban /> } : { tone: 'success', icon: <CircleCheck /> };
   const none: Figure[] = [];
   const some = <T,>(when: boolean, items: T[]) => (when ? items : []);
   // Chiffres par famille ; l'état du service (dernière erreur, réglages en vigueur) se lit en clair, à part.
@@ -127,13 +153,29 @@ export function Vigie({ accessToken }: { accessToken: string }) {
             [t('vigie.houses'), number.format(data.houses)],
             [t('vigie.activeAccounts'), number.format(data.activeAccounts24h)],
             [t('vigie.commandsOk'), number.format(data.commands24h.ok)],
-            [t('vigie.commandsRejected'), number.format(data.commands24h.rejected)],
-            [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
+            [
+              t('vigie.commandsRejected'),
+              number.format(data.commands24h.rejected),
+              refusing(data.commands24h.rejected),
+            ],
+            [
+              t('vigie.commandsFailed'),
+              number.format(data.commands24h.failed),
+              failing(data.commands24h.failed),
+            ],
             ...(data.stewardOperations24h
               ? ([
                   [t('vigie.stewardOk'), number.format(data.stewardOperations24h.ok)],
-                  [t('vigie.stewardRejected'), number.format(data.stewardOperations24h.rejected)],
-                  [t('vigie.stewardFailed'), number.format(data.stewardOperations24h.failed)],
+                  [
+                    t('vigie.stewardRejected'),
+                    number.format(data.stewardOperations24h.rejected),
+                    refusing(data.stewardOperations24h.rejected),
+                  ],
+                  [
+                    t('vigie.stewardFailed'),
+                    number.format(data.stewardOperations24h.failed),
+                    failing(data.stewardOperations24h.failed),
+                  ],
                 ] as Figure[])
               : none),
           ],
@@ -141,7 +183,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         {
           id: 'engine',
           figures: [
-            [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
+            [
+              t('vigie.ticksFailed'),
+              number.format(data.ticks24h.failed),
+              failing(data.ticks24h.failed),
+            ],
             [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
             ...some<Figure>(data.voyagesOverdue !== undefined, [
               [
@@ -152,7 +198,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
               ],
             ]),
             ...some<Figure>(data.closes24h !== undefined, [
-              [t('vigie.closesFailed'), number.format(data.closes24h?.failed ?? 0)],
+              [
+                t('vigie.closesFailed'),
+                number.format(data.closes24h?.failed ?? 0),
+                failing(data.closes24h?.failed ?? 0),
+              ],
             ]),
             [
               t('vigie.queue'),
@@ -173,10 +223,26 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         {
           id: 'api',
           figures: [
-            [t('vigie.refusedUnauthenticated'), number.format(data.refusals24h.unauthenticated)],
-            [t('vigie.refusedRateLimited'), number.format(data.refusals24h.rateLimited)],
-            [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
-            [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
+            [
+              t('vigie.refusedUnauthenticated'),
+              number.format(data.refusals24h.unauthenticated),
+              refusing(data.refusals24h.unauthenticated),
+            ],
+            [
+              t('vigie.refusedRateLimited'),
+              number.format(data.refusals24h.rateLimited),
+              refusing(data.refusals24h.rateLimited),
+            ],
+            [
+              t('vigie.refusedTooLarge'),
+              number.format(data.refusals24h.payloadTooLarge),
+              refusing(data.refusals24h.payloadTooLarge),
+            ],
+            [
+              t('vigie.refusedForbidden'),
+              number.format(data.refusals24h.forbidden),
+              refusing(data.refusals24h.forbidden),
+            ],
             [t('vigie.adminReads'), number.format(data.adminReads24h)],
           ],
         },
@@ -195,12 +261,6 @@ export function Vigie({ accessToken }: { accessToken: string }) {
     : [];
   const sorted = (header: string, direction: SortDirection) =>
     t('app.sorted', { column: header, direction: t(`app.${direction}`) });
-  const caption = (id: string, text: string, Icon: typeof Hourglass) => (
-    <h2 id={id} className="flex items-center gap-2 text-base font-semibold">
-      <Icon aria-hidden="true" className="size-4.5 text-accent" />
-      {text}
-    </h2>
-  );
 
   return (
     <>
@@ -249,21 +309,21 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       )}
       {groups.map(({ id, figures }) => (
         <section key={id} aria-labelledby={`vigie-${id}`} className="flex flex-col gap-3">
-          <h2 id={`vigie-${id}`} className="text-base font-semibold">
+          <SectionTitle id={`vigie-${id}`} icon={GROUP_ICONS[id]}>
             {t(`vigie.groups.${id}`)}
-          </h2>
+          </SectionTitle>
           <StatGrid as="dl">
-            {figures.map(([label, value]) => (
-              <StatCard key={label} definition dense label={label} value={value} />
+            {figures.map(([label, value, state]) => (
+              <StatCard key={label} definition dense label={label} value={value} state={state} />
             ))}
           </StatGrid>
         </section>
       ))}
       {facts.length > 0 && (
         <section aria-labelledby="vigie-state" className="flex flex-col gap-3">
-          <h2 id="vigie-state" className="text-base font-semibold">
+          <SectionTitle id="vigie-state" icon={<Gauge />}>
             {t('vigie.groups.state')}
-          </h2>
+          </SectionTitle>
           <dl className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-surface px-4 text-sm shadow-sm">
             {facts.map(([label, value]) => (
               <div key={label} className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-3">
@@ -276,7 +336,9 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       )}
       {data?.ai && (
         <section aria-labelledby="ai-gateway" className="flex flex-col gap-3">
-          {caption('ai-gateway', t('vigie.ai.title'), Sparkles)}
+          <SectionTitle id="ai-gateway" icon={<Sparkles />}>
+            {t('vigie.ai.title')}
+          </SectionTitle>
           <DataTable
             caption={t('vigie.ai.title')}
             className={FRAME}
@@ -334,7 +396,9 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       )}
       {data && (
         <section aria-labelledby="recent-ticks" className="flex flex-col gap-3">
-          {caption('recent-ticks', t('vigie.recentTicks'), Hourglass)}
+          <SectionTitle id="recent-ticks" icon={<Hourglass />}>
+            {t('vigie.recentTicks')}
+          </SectionTitle>
           {data.recentTicks.length === 0 ? (
             <EmptyState compact illustration="noEntry" title={t('vigie.noTicks')} />
           ) : (
@@ -355,9 +419,14 @@ export function Vigie({ accessToken }: { accessToken: string }) {
                 {
                   id: 'world',
                   header: t('vigie.world'),
-                  cell: (tick) => (
-                    <code className="whitespace-nowrap">{tick.worldId.slice(0, 8)}</code>
-                  ),
+                  // Le nom du monde ; l'identifiant abrégé seulement quand l'API ne le donne pas.
+                  cell: (tick) =>
+                    tick.worldSlug ? (
+                      <span className="wrap-anywhere">{tick.worldSlug}</span>
+                    ) : (
+                      <code className="whitespace-nowrap">{tick.worldId.slice(0, 8)}</code>
+                    ),
+                  sortValue: (tick) => tick.worldSlug ?? tick.worldId,
                 },
                 {
                   id: 'tick',

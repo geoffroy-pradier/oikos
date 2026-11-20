@@ -174,10 +174,19 @@ export function registerAdminReads(
                order by created_at desc, id desc limit 1) as close_last_error
       from game.command_log l where l.created_at > now() - interval '24 hours'`.execute(db);
     const ticks = await db
-      .selectFrom('telemetry.tick_runs')
-      .select(['world_id', 'tick_index', 'status', 'duration_ms', 'error', 'created_at'])
-      .orderBy('created_at', 'desc')
-      .orderBy('id', 'desc')
+      .selectFrom('telemetry.tick_runs as r')
+      .leftJoin('game.worlds as w', 'w.id', 'r.world_id')
+      .select([
+        'r.world_id',
+        'w.slug as world_slug',
+        'r.tick_index',
+        'r.status',
+        'r.duration_ms',
+        'r.error',
+        'r.created_at',
+      ])
+      .orderBy('r.created_at', 'desc')
+      .orderBy('r.id', 'desc')
       .limit(RECENT_TICKS)
       .execute();
     // Refus avant exécution, comptés par heure : la fenêtre va de l'heure qui suit « il y a 24 heures »
@@ -308,6 +317,7 @@ export function registerAdminReads(
         },
         recentTicks: ticks.map((tick) => ({
           worldId: tick.world_id,
+          worldSlug: tick.world_slug,
           tickIndex: Number(tick.tick_index),
           status: tick.status,
           durationMs: tick.duration_ms,
