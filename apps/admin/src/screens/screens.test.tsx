@@ -305,6 +305,49 @@ describe('Vigie', () => {
     expect(screen.getByRole('status').textContent).toBe('Trié par Durée, décroissant');
   });
 
+  it("le tableau des ticks nomme le monde, l'identifiant ne venant qu'à défaut ; dates en toutes lettres", async () => {
+    const tick = VIGIE.recentTicks[0] as (typeof VIGIE.recentTicks)[number];
+    const unnamed = { ...tick, worldSlug: undefined };
+    adminGet.mockResolvedValue({
+      ok: true,
+      data: { ...VIGIE, recentTicks: [tick, { ...unnamed, tickIndex: 10 }] },
+    });
+    render(<Vigie accessToken="token" />);
+    const table = await screen.findByRole('table', { name: 'Dernières exécutions de tick' });
+    const cells = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => [row.children[0]?.textContent, row.children[1]?.textContent]);
+    expect(cells).toEqual([
+      [expect.stringMatching(/^13 nov\. 2026/), 'archipel'],
+      [expect.stringMatching(/^13 nov\. 2026/), '01900000'],
+    ]);
+  });
+
+  it("les cartes de refus et d'échecs portent leur état, dit par une icône et la teinte", async () => {
+    adminGet.mockResolvedValue({ ok: true, data: VIGIE });
+    render(<Vigie accessToken="token" />);
+    const card = async (label: string) =>
+      (await screen.findByText(label)).closest('[data-stat-card]') as HTMLElement;
+    // Non nul : danger pour une panne, alerte pour un refus ; nul : succès.
+    expect(
+      (await card('Commandes des joueurs en panne (24 h)')).querySelector('.text-danger'),
+    ).toBeTruthy();
+    expect(
+      (await card('Commandes des joueurs refusées (24 h)')).querySelector('.text-warning'),
+    ).toBeTruthy();
+    expect((await card('Maisons fondées')).querySelector('svg')).toBeNull();
+    adminGet.mockResolvedValue({
+      ok: true,
+      data: { ...VIGIE, commands24h: { ok: 1, rejected: 0, failed: 0 } },
+    });
+    cleanup();
+    render(<Vigie accessToken="token" />);
+    expect(
+      (await card('Commandes des joueurs en panne (24 h)')).querySelector('.text-success'),
+    ).toBeTruthy();
+  });
+
   it("un refus de l'API est affiché, sans compteur", async () => {
     adminGet.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
     render(<Vigie accessToken="token" />);

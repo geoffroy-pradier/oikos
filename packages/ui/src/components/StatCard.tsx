@@ -13,6 +13,17 @@ import { Card } from './Card';
 /** Forme d'une `Card` posée, pour la carte qui ne peut pas être une `section` (`definition`). */
 const CARD = 'rounded-xl border border-border-subtle bg-surface p-4 text-foreground shadow-sm';
 
+const STATE_TEXT = {
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+} as const;
+/** Le bord ne prend la teinte que d'un état à regarder : un compte à zéro garde le bord commun. */
+const STATE_BORDER = {
+  success: '',
+  warning: 'border-warning/50',
+  danger: 'border-danger/50',
+} as const;
 const GLYPHS = { up: '▲', down: '▼', flat: '–' } as const;
 const TONES = {
   positive: 'text-success',
@@ -66,6 +77,12 @@ export interface StatCardProps {
   hint?: ReactNode;
   /** Petit graphique décoratif, à droite de la ligne secondaire. */
   chart?: ReactNode;
+  /**
+   * État que la carte signale (échecs ou refus comptés, ou aucun) : une icône au trait, gardée même sur une
+   * petite carte, et un bord à la teinte de l'état. Le libellé dit déjà de quoi il s'agit : la teinte ne porte pas
+   * seule l'information.
+   */
+  state?: { tone: 'success' | 'warning' | 'danger'; icon: ReactNode } | undefined;
   /** Petite carte sous 1 024 px : libellé et valeur seuls, plus petite, sans icône ni ligne secondaire. */
   dense?: boolean;
   /** Carte large : deux colonnes d'une `StatGrid` (qui la lit), pour le chiffre principal d'un écran. */
@@ -93,6 +110,7 @@ export function StatCard({
   hint,
   chart,
   dense,
+  state,
   inverse,
   definition,
   className,
@@ -132,10 +150,16 @@ export function StatCard({
         )}
       >
         {definition ? label : <span>{label}</span>}
-        {icon && (
-          <span aria-hidden="true" className={cn('[&_svg]:size-4', dense && 'max-lg:hidden')}>
-            {icon}
+        {state ? (
+          <span aria-hidden="true" className={cn('[&_svg]:size-4', STATE_TEXT[state.tone])}>
+            {state.icon}
           </span>
+        ) : (
+          icon && (
+            <span aria-hidden="true" className={cn('[&_svg]:size-4', dense && 'max-lg:hidden')}>
+              {icon}
+            </span>
+          )
         )}
       </Label>
       {/* Conteneur de la valeur (`cqi`) : la carte ne peut pas l'être, ses rangées partagées s'y perdraient. Une
@@ -180,6 +204,7 @@ export function StatCard({
     dense && 'max-lg:gap-1 max-lg:p-3',
     inverse &&
       'max-lg:rounded-2xl max-lg:border-inverse max-lg:bg-inverse max-lg:text-inverse-foreground',
+    state && STATE_BORDER[state.tone],
     className,
   );
   return definition ? (

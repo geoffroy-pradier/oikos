@@ -24,6 +24,7 @@ const vigie = {
   closes24h: { failed: 0, lastError: null },
   recentTicks: [0, 1, 2, 3, 4].map((back) => ({
     worldId: WORLD,
+    worldSlug: 'archipel',
     tickIndex: 9_120 - back,
     status: back === 2 ? 'skipped' : 'done',
     durationMs: 3_900 + back * 137,

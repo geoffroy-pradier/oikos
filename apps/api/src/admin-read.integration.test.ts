@@ -607,8 +607,8 @@ describe('Vigie', () => {
     );
     const mine = after.recentTicks.filter((tick: { worldId: string }) => tick.worldId === worldId);
     expect(mine).toMatchObject([
-      { tickIndex: 42, status: 'failed', durationMs: 9999, error: 'panne' },
-      { tickIndex: 41, status: 'done', durationMs: 12, error: null },
+      { tickIndex: 42, worldSlug: null, status: 'failed', durationMs: 9999, error: 'panne' },
+      { tickIndex: 41, worldSlug: null, status: 'done', durationMs: 12, error: null },
     ]);
     expect(after.recentTicks.length).toBeLessThanOrEqual(20);
     expect(after.queuePending === null || Number.isInteger(after.queuePending)).toBe(true);
