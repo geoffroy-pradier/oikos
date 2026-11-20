@@ -1,6 +1,6 @@
 import { PROPERTY_CONDITION_MAX, type MarketTaxRule } from '@oikos/sim';
-import { Button, Field } from '@oikos/ui';
-import { useId, useState } from 'react';
+import { Button, NumberField, Stepper } from '@oikos/ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PropertyCommandInputs } from '../api';
 import { previewSale } from '../market-rules';
@@ -9,11 +9,9 @@ import { conditionShare, type MyProperty, type Offer, type PropertySize } from '
 
 type Command = keyof PropertyCommandInputs;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
-/** Montant saisi en chiffres seulement (`Number` accepterait « 1e3 »), entier sûr et positif. */
-const oboles = (typed: string) => {
-  const value = /^\d+$/.test(typed.trim()) ? Number(typed.trim()) : 0;
-  return Number.isSafeInteger(value) && value > 0 ? value : null;
-};
+/** Prix saisi : un entier sûr et positif d'oboles, sinon rien ne part. */
+const valid = (price: number | null): price is number =>
+  price !== null && Number.isSafeInteger(price) && price > 0;
 
 /** Contrôles proposés pour un bien de la maison : le rendu et les intentions offertes en dépendent. */
 function controls(
@@ -92,12 +90,14 @@ export function PropertyActions({
   const money = useMoney();
   const number = new Intl.NumberFormat(i18n.language);
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
-  const [salePrice, setSalePrice] = useState('');
-  const [rent, setRent] = useState('');
-  // Rénovation ou retrait choisi : récapitulé, puis confirmé.
-  const [confirming, setConfirming] = useState<'renovate' | 'withdraw' | null>(null);
-  const saleId = useId();
-  const preview = previewSale(tax, 'sell', salePrice, '1');
+  // Commande choisie : rénovation ou retrait récapitulés, puis confirmés ; mise en vente ou en
+  // location par étapes, le prix saisi puis récapitulé.
+  const [confirming, setConfirming] = useState<
+    'renovate' | 'withdraw' | 'listForSale' | 'offerLease' | null
+  >(null);
+  const [price, setPrice] = useState<number | null>(null);
+  const sale = confirming === 'listForSale';
+  const preview = sale ? previewSale(tax, 'sell', String(price ?? ''), '1') : null;
   const net =
     preview &&
     t('property.expectedNet', {
@@ -171,6 +171,91 @@ export function PropertyActions({
         </div>
       </div>
     );
+  const back = (
+    <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirming(null)}>
+      {t('property.backToActions')}
+    </Button>
+  );
+  if (shown.list && (confirming === 'listForSale' || confirming === 'offerLease')) {
+    const label = t(sale ? 'property.salePriceLabel' : 'property.rentLabel');
+    const asked = !valid(price)
+      ? ''
+      : sale
+        ? money(price)
+        : t('property.perDay', { cost: money(price) });
+    const facts = [
+      [t(sale ? 'property.columns.price' : 'property.columns.rent'), asked],
+      ...(preview ? [[t('property.columns.net'), money(preview.net)]] : []),
+    ];
+    return (
+      <div className="flex flex-col gap-3">
+        <div>{back}</div>
+        <Stepper
+          steps={[
+            {
+              id: 'price',
+              title: t('property.steps.price'),
+              valid: valid(price),
+              content: (
+                <NumberField
+                  label={label}
+                  aria-label={`${label} — ${name}`}
+                  locale={i18n.language}
+                  min={1}
+                  value={price}
+                  onValueChange={setPrice}
+                  hint={net ?? undefined}
+                  labels={{
+                    decrement: t('controls.decrement'),
+                    increment: t('controls.increment'),
+                    all: t('controls.all'),
+                    shortcuts: t('controls.shortcuts'),
+                  }}
+                  messages={Object.fromEntries(
+                    (['unreadable', 'ambiguous', 'notInteger', 'belowMin'] as const).map(
+                      (problem) => [problem, t('property.priceInvalid')],
+                    ),
+                  )}
+                />
+              ),
+            },
+            {
+              id: 'recap',
+              title: t('property.steps.recap'),
+              content: (
+                <dl className="grid grid-cols-2 gap-2.5">
+                  {facts.map(([fact, value]) => (
+                    <div key={fact} className="rounded-xl bg-surface-raised p-3">
+                      <dt className="text-xs text-muted-foreground">{fact}</dt>
+                      <dd className="mt-1 font-bold tabular-nums">{value}</dd>
+                    </div>
+                  ))}
+                  {net && <p className="col-span-2 text-sm text-muted-foreground">{net}</p>}
+                </dl>
+              ),
+            },
+          ]}
+          confirming={busy}
+          onConfirm={() => {
+            if (!valid(price)) return;
+            const intent = `${confirming}:${property.id}:${price}`;
+            const propertyId = property.id;
+            void (sale
+              ? run(intent, 'property.listForSale', { propertyId, priceOboles: price })
+              : run(intent, 'property.offerLease', { propertyId, rentOboles: price }));
+          }}
+          labels={{
+            progress: t('stepper.progress'),
+            back: t('stepper.back'),
+            next: t('stepper.next'),
+            confirm: t(`property.confirm.${confirming}`, { cost: asked }),
+            stepOf: (current, total) =>
+              t('stepper.stepOf', { current: number.format(current), total: number.format(total) }),
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-2">
       {renovation && (
@@ -196,43 +281,24 @@ export function PropertyActions({
         </Button>
       )}
       {shown.list &&
-        (['listForSale', 'offerLease'] as const).map((action) => {
-          const sale = action === 'listForSale';
-          const [typed, setTyped] = sale ? [salePrice, setSalePrice] : [rent, setRent];
-          const price = oboles(typed);
-          const label = t(sale ? 'property.salePriceLabel' : 'property.rentLabel');
-          return (
-            <div key={action} className="flex flex-col gap-2">
-              <Field
-                id={sale ? saleId : undefined}
-                label={label}
-                aria-label={`${label} — ${name}`}
-                hint={sale ? (net ?? undefined) : undefined}
-                error={typed !== '' && price === null ? t('property.priceInvalid') : undefined}
-                inputMode="numeric"
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-              />
-              <Button
-                variant="secondary"
-                className={WAITING}
-                aria-label={`${t(`property.${action}`)} — ${name}`}
-                aria-describedby={sale && net ? `${saleId}-hint` : undefined}
-                aria-disabled={busy || price === null}
-                onClick={() => {
-                  if (price === null) return;
-                  const intent = `${action}:${property.id}:${price}`;
-                  const propertyId = property.id;
-                  void (sale
-                    ? run(intent, 'property.listForSale', { propertyId, priceOboles: price })
-                    : run(intent, 'property.offerLease', { propertyId, rentOboles: price }));
-                }}
-              >
-                {t(`property.${action}`)}
-              </Button>
-            </div>
-          );
-        })}
+        (['listForSale', 'offerLease'] as const).map((action) => (
+          <Button
+            key={action}
+            variant="secondary"
+            className={WAITING}
+            aria-disabled={busy}
+            aria-label={`${t(`property.${action}`)} — ${name}`}
+            onClick={() => {
+              setPrice(null);
+              setConfirming(action);
+            }}
+          >
+            {t(`property.${action}`)}
+          </Button>
+        ))}
+      {leased && !offer && (
+        <p className="text-sm text-muted-foreground">{t('property.leasedNote')}</p>
+      )}
     </div>
   );
 }

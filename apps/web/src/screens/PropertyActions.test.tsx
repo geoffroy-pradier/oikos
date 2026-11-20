@@ -82,9 +82,18 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const sent = () => api.propertyCommand.mock.calls.map((call) => [call[0], call[1], call[3]]);
-/** Confirme, dans la fiche, la commande récapitulée. */
-const confirm = () =>
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Confirmer/ }));
+const sheet = () => within(screen.getByRole('dialog'));
+const click = (name: RegExp | string) => fireEvent.click(sheet().getByRole('button', { name }));
+const confirm = () => click(/^Confirmer/);
+const field = (name: RegExp) => sheet().getByRole('spinbutton', { name });
+const salePrice = /^Prix de vente, en oboles — /;
+/** Dans la fiche : la commande choisie, le prix saisi, le récapitulatif, la confirmation. */
+const list = (action: RegExp, price: RegExp, value: string) => {
+  click(action);
+  fireEvent.change(field(price), { target: { value } });
+  click(fr.stepper.next);
+  confirm();
+};
 /** Ouvre la fiche d'un bien (« Gérer »), où sont ses commandes ; une fiche déjà ouverte se ferme d'abord. */
 const manage = (lot = 9) => {
   const opened = screen.queryByRole('dialog');
@@ -97,10 +106,9 @@ describe('commandes du propriétaire (#259)', () => {
   it('rénovation au coût en vigueur, en oboles et en biens', async () => {
     await showProperty();
     manage();
-    fireEvent.click(screen.getByRole('button', { name: /^Rénover/ }));
+    click(/^Rénover/);
     // Le récapitulatif dit le coût et l'état rendu : 60 % → 100 %.
     expect(screen.getByRole('dialog').textContent).toMatch(/60\s%\s→\s100\s%/);
-    expect(api.propertyCommand).not.toHaveBeenCalled();
     confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual([
@@ -122,26 +130,27 @@ describe('commandes du propriétaire (#259)', () => {
   it('mise en vente et en location au prix saisi ; sans prix valable, rien ne part', async () => {
     await showProperty();
     manage();
-    const sale = screen.getByRole('button', { name: /^Mettre en vente — Maison de ville n° 9/ });
-    fireEvent.click(sale);
-    const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
-    fireEvent.change(field, { target: { value: '-3' } });
-    fireEvent.click(sale);
+    click(/^Mettre en vente — Maison de ville n° 9/);
+    fireEvent.change(field(salePrice), { target: { value: '-3' } });
+    // Sans prix valable, le récapitulatif ne s'ouvre pas, et la saisie dit pourquoi.
+    click(fr.stepper.next);
+    expect(sheet().getByRole('button', { name: fr.stepper.next }).hasAttribute('disabled')).toBe(
+      true,
+    );
     expect(api.propertyCommand).not.toHaveBeenCalled();
     expect(screen.getByText(fr.property.priceInvalid)).toBeTruthy();
-    fireEvent.change(field, { target: { value: '500' } });
-    fireEvent.click(sale);
+    fireEvent.change(field(salePrice), { target: { value: '500' } });
+    click(fr.stepper.next);
+    click(/^Confirmer l'offre — 83 drachmes 2 oboles$/);
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
-    // La commande a fermé la fiche : on la rouvre.
+    // La commande a fermé la fiche : on la rouvre. Le loyer a sa propre saisie, vide.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     manage();
-    const lease = await screen.findByRole('button', { name: /^Mettre en location — / });
-    // Le loyer a sa propre saisie : le prix de vente ne le remplit pas.
-    fireEvent.click(lease);
-    expect(api.propertyCommand).toHaveBeenCalledTimes(1);
-    const rent = screen.getByRole('textbox', { name: /^Loyer par jour, en oboles — / });
-    fireEvent.change(rent, { target: { value: '12' } });
-    fireEvent.click(lease);
+    click(/^Mettre en location — /);
+    expect((field(/^Loyer par jour, en oboles — /) as HTMLInputElement).value).toBe('');
+    fireEvent.change(field(/^Loyer par jour, en oboles — /), { target: { value: '12' } });
+    click(fr.stepper.next);
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     expect(sent().map(([name, input]) => [name, input])).toEqual([
       ['property.listForSale', { propertyId: 'p9', priceOboles: 500 }],
@@ -162,12 +171,12 @@ describe('commandes du propriétaire (#259)', () => {
     const renovations = [2, 5].map((lot) => {
       manage(lot);
       // Ni l'un ni l'autre ne s'offre : l'un a son offre ouverte, l'autre est loué.
-      expect(screen.queryByRole('textbox')).toBeNull();
+      expect(sheet().queryAllByRole('button', { name: /^Mettre en/ })).toHaveLength(0);
       return screen.queryAllByRole('button', { name: /^Rénover/ }).length;
     });
     expect(renovations).toEqual([0, 1]);
     manage(2);
-    fireEvent.click(screen.getByRole('button', { name: /^Retirer l'offre de location/ }));
+    click(/^Retirer l'offre de location/);
     confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual(['property.withdrawOffer', { propertyId: 'p2' }]);
@@ -195,20 +204,23 @@ describe('commandes du propriétaire (#259)', () => {
     const typed = (lot: number, price: string) => {
       manage(lot);
       expect(screen.queryByText(/^Net attendu/)).toBeNull();
-      const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
-      fireEvent.change(field, { target: { value: price } });
-      return field;
+      click(/^Mettre en vente — /);
+      fireEvent.change(field(salePrice), { target: { value: price } });
+      return field(salePrice);
     };
     expect(described(typed(9, '601'))).toContain(kalliste);
-    expect(screen.getByText(kalliste)).toBeTruthy();
+    // Sous la saisie, et repris au récapitulatif, encore caché.
+    expect(screen.getAllByText(kalliste)).toHaveLength(2);
     typed(4, '600');
-    expect(screen.getByText(thalassa)).toBeTruthy();
-    const sell = screen.getByRole('button', { name: /^Mettre en vente — .* n° 4, Thalassa$/ });
-    expect(described(sell)).toBe(thalassa);
+    expect(screen.getAllByText(thalassa)).toHaveLength(2);
+    // Le récapitulatif reprend le net, avant la confirmation.
+    click(fr.stepper.next);
+    expect(sheet().getByText('95 drachmes')).toBeTruthy();
     // Le loyer n'est pas une vente : aucun net sous sa saisie.
-    const rents = screen.getAllByRole('textbox', { name: /^Loyer par jour/ });
-    fireEvent.change(rents[0] as HTMLElement, { target: { value: '600' } });
-    expect(rents[0]?.getAttribute('aria-describedby')).toBeNull();
+    click(fr.property.backToActions);
+    click(/^Mettre en location — /);
+    fireEvent.change(field(/^Loyer par jour/), { target: { value: '600' } });
+    expect(field(/^Loyer par jour/).getAttribute('aria-describedby')).toBeNull();
   });
 
   it('taux de la cité non lu (ligne absente ou lecture en échec) : aucun net annoncé', async () => {
@@ -217,14 +229,10 @@ describe('commandes du propriétaire (#259)', () => {
       state.views['city_rates'] = rates;
       await showProperty();
       manage();
-      const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
-      fireEvent.change(field, { target: { value: '600' } });
+      click(/^Mettre en vente — /);
+      fireEvent.change(field(salePrice), { target: { value: '600' } });
       expect(screen.queryByText(/^Net attendu/)).toBeNull();
-      expect(
-        screen
-          .getByRole('button', { name: /^Mettre en vente — / })
-          .getAttribute('aria-describedby'),
-      ).toBeNull();
+      expect(field(salePrice).getAttribute('aria-describedby')).toBeNull();
       cleanup();
     }
   });
@@ -237,10 +245,7 @@ describe('commandes du propriétaire (#259)', () => {
     const sell = async (modules?: Parameters<typeof showProperty>[0]) => {
       await showProperty(modules);
       manage();
-      fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
-        target: { value: '500' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+      list(/^Mettre en vente — /, salePrice, '500');
     };
     await sell();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
@@ -287,24 +292,22 @@ describe('commandes du propriétaire (#259)', () => {
       });
     state.views['property_offers_upkeep'] = [];
     await showProperty();
-    const list = () => {
+    const sell = () => {
       manage();
-      fireEvent.change(screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / }), {
-        target: { value: '500' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+      list(/^Mettre en vente — /, salePrice, '500');
     };
-    list();
+    sell();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(fr.errors.INTERNAL)).toBeTruthy();
     // L'effet est lu : la mise en vente n'est plus proposée, sa clé est rendue.
     await waitFor(() => expect(window.sessionStorage.length).toBe(0));
     // La fiche, restée ouverte sur la réponse perdue, propose maintenant le retrait de l'offre lue.
-    fireEvent.click(await screen.findByRole('button', { name: /^Retirer l'offre/ }));
+    await screen.findByRole('button', { name: /^Retirer l'offre/ });
+    click(/^Retirer l'offre/);
     confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    list();
+    sell();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(3));
     const [first, , again] = sent();
     expect(again?.slice(0, 2)).toEqual(first?.slice(0, 2));
@@ -317,27 +320,29 @@ describe('commandes du propriétaire (#259)', () => {
       .mockResolvedValueOnce({ ok: false, error: { code: 'PRICE_CHANGED', message: 'x' } });
     await showProperty();
     manage();
-    const field = screen.getByRole('textbox', { name: /^Prix de vente, en oboles — / });
-    fireEvent.change(field, { target: { value: '500' } });
     // Région d'alerte de la fiche, sous ses commandes, présente avant le refus.
     const alert = [...screen.getByRole('dialog').querySelectorAll('[role="alert"]')].at(-1);
     expect(alert?.textContent).toBe('');
+    click(/^Mettre en vente — /);
+    fireEvent.change(field(salePrice), { target: { value: '500' } });
+    click(fr.stepper.next);
+    const offer = /^Confirmer l'offre — 83 drachmes 2 oboles$/;
     for (const [times, said] of [
       [1, fr.errors.INTERNAL],
       [2, fr.errors.PRICE_CHANGED],
     ] as const) {
       await waitFor(() =>
-        expect(
-          screen.getByRole('button', { name: /^Mettre en vente — / }).getAttribute('aria-disabled'),
-        ).toBe('false'),
+        expect(sheet().getByRole('button', { name: offer }).hasAttribute('disabled')).toBe(false),
       );
-      fireEvent.click(screen.getByRole('button', { name: /^Mettre en vente — / }));
+      click(offer);
       await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(times));
       await waitFor(() => expect(alert?.textContent).toBe(said));
     }
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    // Toujours au récapitulatif, le prix saisi gardé.
+    expect(sheet().getByRole('button', { name: offer })).toBeTruthy();
     expect(
-      (screen.getByRole('textbox', { name: /^Prix de vente/ }) as HTMLInputElement).value,
+      (sheet().getByRole('spinbutton', { hidden: true, name: salePrice }) as HTMLInputElement)
+        .value,
     ).toBe('500');
     const [first, again] = sent();
     expect(again?.[2]).toBe(first?.[2]);
