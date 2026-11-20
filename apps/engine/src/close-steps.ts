@@ -12,15 +12,17 @@ import { leaseRent } from './steps/lease-rent';
 import { npcPopulation } from './steps/npc-population';
 import { npcPublicIncome } from './steps/npc-public-income';
 import { ostracismOpening } from './steps/ostracism-opening';
+import { ostracismTally } from './steps/ostracism-tally';
 import { propertyWear } from './steps/property-wear';
 import { siteUpkeep } from './steps/site-upkeep';
 import { worldEventPlanning } from './steps/world-event-planning';
 
 /**
- * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement des élections de
- * l'archonte (6.2), la Timè des mandats finis (4.1, #704), qui ne prend que les verrous de la Timè, l'ouverture des
- * élections suivantes, le dépouillement des décrets (6.3), l'ouverture du vote des ostracismes adoptés (6.4, #722),
- * la population des PNJ,
+ * Étapes de la clôture quotidienne, dans l'ordre : la citoyenneté des métèques, le dépouillement des ostracismes
+ * (6.4, #722), qui écarte l'ostracisé de l'élection dépouillée ensuite et lui fait quitter sa charge, le
+ * dépouillement des élections de l'archonte (6.2), la Timè des mandats finis (4.1, #704), qui ne prend que les
+ * verrous de la Timè, l'ouverture des élections suivantes, le dépouillement des décrets (6.3), l'ouverture du vote
+ * des ostracismes adoptés, la population des PNJ,
  * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
  * les siens, sans autre verrou que celui de la clôture du monde, le déclin de la Charis (7.1, #265),
  * l'application des décrets de taux (5.6, #262), le règlement des
@@ -47,6 +49,7 @@ import { worldEventPlanning } from './steps/world-event-planning';
  */
 export const CLOSE_STEPS: readonly CloseStep[] = [
   citizenship,
+  ostracismTally,
   archonTally,
   archonHonor,
   archonOpening,

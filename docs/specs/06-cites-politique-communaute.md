@@ -80,6 +80,11 @@ La charge va à la candidature maintenue qui a le plus de bulletins.
 Décision (ticket 260) : une égalité, à zéro bulletin comme ailleurs, est départagée par l'ancienneté de la candidature ; un candidat seul est donc élu même sans voix.
 Une élection sans candidat laisse la charge vacante jusqu'au mandat suivant.
 Une maison qui a tenu la charge aux `maxConsecutiveTerms` derniers mandats de sa cité (2) ne se présente pas au suivant ; un mandat vacant ou tenu par une autre maison interrompt la suite.
+Une maison ostracisée (6.4) ne se présente à aucune élection jusqu'à la fin de son ostracisme (`OSTRACIZED`), et le dépouillement d'une élection l'écarte même candidate d'avant : la charge va alors à la candidature suivante.
+Archonte en charge, elle la quitte à la clôture qui l'ostracise, et la charge est vacante jusqu'au mandat suivant.
+Décision (ticket 722) : un mandat ainsi quitté n'est pas mené à son terme et ne rapporte pas la Timè `archon_term`.
+Décision (ticket 722) : il compte toutefois parmi les mandats consécutifs de sa maison.
+Décision (ticket 722) : seul le moteur écarte ce mandat de la Timè (`archonHonor`) ; la garde de la Timè en base ne refuse pas une charge quittée.
 Les joueurs connectés lisent le calendrier de chaque cité, les candidatures, les résultats après dépouillement et les magistrats, en charge ou passés (12).
 
 ## 6.3 Décrets
@@ -88,6 +93,7 @@ Un décret est un type de loi pris dans un catalogue de 40 modèles paramétrés
 
 Dans la phase 2 (tickets 261 à 263), l'archonte en charge propose seul, sans conseil, et le catalogue n'a que quatre modèles, saisis par formulaire, sans IA : taux de la taxe de marché de la cité, coefficient de son droit de port, grands travaux et fête.
 La conversion d'une intention en langage naturel attend une phase suivante.
+Le ticket 722 ajoute l'ostracisme, un modèle sans paramètre, fermé au départ (6.4).
 Les bornes de chaque paramètre et les règles du vote viennent de la configuration (`decrees`) ; un modèle qu'elle ne borne pas ne se propose pas (`DECREE_MODEL_CLOSED`).
 Taux de la taxe et coefficient du droit de port sont bornés par le monde.
 Une dépense (grands travaux, fête) a un montant borné, et ne dépasse pas à la proposition la part `spendingCapShareBps` du trésor de la cité, arrondie à l'obole inférieure ; elle sera contrôlée de nouveau à son application (ticket 263).
@@ -97,6 +103,7 @@ Le vote dure au moins `votingDays` jours de jeu pleins : il se clôt à la clôt
 Le quorum est fixé à la proposition, comme le calendrier d'une élection à son ouverture : une version de configuration publiée ensuite ne vaut que pour les décrets suivants.
 Un décret proposé reste au vote même si le mandat de son auteur prend fin entre-temps.
 Commandes : `city.proposeDecree` (l'archonte en charge) et `city.voteDecree` (un citoyen de la cité, pour ou contre, une fois par maison, pendant le vote).
+`city.proposeDecree` refuse une maison ostracisée (`OSTRACIZED`), et un archonte qui a quitté sa charge n'est plus en charge (6.4).
 Décision (ambiguïté de cette section, ticket 261) : comme pour l'élection, le vote est secret ; un joueur lit que sa maison a voté, jamais son choix, et le décompte n'est public qu'après le dépouillement.
 Comme pour l'élection de l'archonte (ADR 0007), ce secret vaut envers les joueurs, pas envers l'exploitant : le choix reste lié à la maison dans `decree_votes`, et en clair dans le journal des commandes (entrée de `city.voteDecree`).
 La clôture qui suit la fin du vote dépouille le décret, avant l'entretien, une seule fois même rejouée.
@@ -118,6 +125,25 @@ Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décr
 - **Ostracisme** : une fois par année de jeu, l'assemblée peut écarter un citoyen des charges publiques pour une saison. Ses biens ne sont pas touchés.
 - **Tribunal** (après le lancement) : les litiges de contrat sont jugés par un jury de joueurs tirés au sort, sur dossier résumé par l'IA.
 - **Grands travaux** : merveilles construites collectivement (port monumental, théâtre, sanctuaire), qui donnent un bonus permanent à la cité.
+
+Ostracisme (ticket 722).
+Décision : l'ostracisme est un modèle de décret (`ostracism`), sans paramètre, que l'archonte en charge propose et que l'assemblée vote comme tout décret (6.3).
+Adopté, il ouvre à la clôture de son dépouillement un vote où chaque citoyen de la cité inscrit une fois le nom d'un citoyen de la même cité (`city.castOstracon`).
+Décision (ticket 722, la règle la plus simple) : une maison peut inscrire son propre nom.
+Décision (ticket 722) : le décret d'ostracisme reste `adopted` ; son effet est le vote qu'il ouvre, lié par `decree_id`, et il ne passe pas à `applied`.
+Ses règles viennent de `decrees.models.ostracism` : durée du vote (`votingDays`, en jours de jeu pleins), quorum (`quorumBps`), durée de l'ostracisme (`ostracismDays`) et écart entre deux ostracismes (`intervalDays`).
+Le modèle est fermé au départ ; les règles du vote sont fixées à son ouverture, et un décret adopté pendant que la configuration ne règle pas le modèle attend, sans effet, qu'elle le rouvre.
+Une cité n'a qu'un ostracisme à la fois, de la proposition au dépouillement de son vote, et n'en propose pas d'autre moins de `intervalDays` jours de jeu après l'ouverture du précédent (`OSTRACISM_TOO_SOON`) ; un décret rejeté ne compte pas.
+Décision (ambiguïté de « une fois par année de jeu ») : l'écart se compte de clôture en clôture depuis l'ouverture du vote précédent, sans calendrier d'années commun, comme les mandats de l'archonte (ADR 0007).
+Le vote est secret comme les autres : un joueur lit que sa maison a voté, jamais le nom inscrit, et le décompte par nom n'est public qu'après le dépouillement.
+Ce secret vaut envers les joueurs, pas envers l'exploitant : le nom reste lié à la maison dans `ostraca`, et en clair dans le journal des commandes (entrée de `city.castOstracon`).
+La clôture qui suit la fin du vote le dépouille, avant les élections et l'entretien, une seule fois même rejouée.
+Si les bulletins atteignent `quorumBps` des citoyens devenus citoyens avant la fin du vote, la maison la plus nommée, seule en tête, est ostracisée jusqu'à la clôture `ostracismDays` jours de jeu plus tard (une saison) ; à égalité en tête, aucun bulletin compris, personne ne l'est.
+La fin se compte depuis le jour de jeu de la clôture qui dépouille, non depuis l'heure où elle est jouée : une clôture rattrapée longtemps après peut écrire un ostracisme déjà fini, qui n'écarte personne et ne fait quitter aucune charge.
+Avant d'ouvrir le modèle, vérifier que `ostracismDays` vaut `clock.seasonDays`, la saison du texte, que la configuration n'impose pas.
+Événements : `OstracismOpened`, `OstraconCast` (sans le nom inscrit), `OstracismTallied` (issue `ostracized`, `tie` ou `no_quorum`) et `HouseOstracized`.
+L'ostracisé garde ses biens, sa Timè et son vote ; jusqu'à la fin de son ostracisme, il ne se présente à aucune élection et ne propose aucun décret, et, archonte en charge, il la quitte à cette clôture (6.2).
+Les joueurs connectés lisent les ostracismes des cités de leur monde, leur issue, et le décompte par nom après le dépouillement (12).
 
 ## 6.5 Au-delà de la cité
 

@@ -113,7 +113,7 @@ export async function newWorld(
     );
     if (vote) {
       await sql`insert into game.ostracisms (id, world_id, city_id, decree_id, opened_at, voting_closes_at, quorum_bps, ostracism_days)
-        values (${ostracismId}, ${worldId}, ${cityId}, ${decreeId}, now() - interval '3 days', ${vote.closesAt}, ${vote.quorumBps}, 7)`.execute(
+        values (${ostracismId}, ${worldId}, ${cityId}, ${decreeId}, least(now() - interval '3 days', ${vote.closesAt}::timestamptz - interval '1 day'), ${vote.closesAt}, ${vote.quorumBps}, 7)`.execute(
         trx,
       );
       for (const [voter, target] of vote.ostraca)
