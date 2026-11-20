@@ -628,7 +628,21 @@
     "legend": "Légende",
     "ourRoutes": "vos routes",
     "otherRoutes": "autres routes",
-    "homeCity": "votre cité"
+    "homeCity": "votre cité",
+    "layers": "Calques de la carte",
+    "layer": {
+      "routes": "Routes",
+      "terroirs": "Terroirs"
+    },
+    "city": {
+      "choose": "Cité",
+      "population": "Population",
+      "tax": "Taxe de marché",
+      "price": "{{good}}, l'unité",
+      "noPrices": "Aucun cours observé à son agora pour l'instant.",
+      "agora": "Ouvrir l'agora — {{city}}",
+      "notAtAgora": "{{city}} n'est pas proposée à l'agora : votre maison n'y a ni stock ni site. Le lien ouvre l'agora de votre cité."
+    }
   },
   "shipClasses": {
     "coaster": "Caboteur",

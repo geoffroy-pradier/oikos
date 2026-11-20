@@ -57,7 +57,10 @@ export function AgoraScreen() {
         .filter((id) => id !== house.cityId),
     ),
   ];
-  const [chosenCity, setChosenCity] = useState(house.cityId);
+  // Ouverte depuis le panneau d'une cité de la carte (`?cite=`) : cette cité, si l'agora la propose.
+  const [chosenCity, setChosenCity] = useState(
+    () => new URLSearchParams(window.location.search).get('cite') ?? house.cityId,
+  );
   // Une cité qui n'est plus proposée (stock vendu, site perdu) ramène à la cité d'origine.
   const cityId = cityIds.includes(chosenCity) ? chosenCity : house.cityId;
   const nameOf = (id: string) => house.cityNames[id] ?? (id === house.cityId ? house.cityName : id);
