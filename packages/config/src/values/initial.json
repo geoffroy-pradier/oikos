@@ -114,7 +114,20 @@
         "maxOboles": 30000,
         "minDays": 1,
         "maxDays": 7,
-        "goodIds": ["bread", "wine", "olive_oil", "fish"],
+        "goodIds": [
+          "bread",
+          "wine",
+          "olive_oil",
+          "fish",
+          "barley_cakes",
+          "salted_fish",
+          "garum",
+          "fig_cakes",
+          "oil_lamps",
+          "candles",
+          "perfumes",
+          "clothes"
+        ],
         "maxGoods": 3,
         "demandBoostBps": 2500
       }
@@ -1055,8 +1068,8 @@
     {
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
-      "incomePerThousand": 73,
-      "publicIncomeBps": 10000,
+      "incomePerThousand": 84,
+      "publicIncomeBps": 8690,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 2.1 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.533 },
@@ -1064,14 +1077,22 @@
         { "goodId": "salt", "need": "vital", "quantityPerThousand": 0.167 },
         { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.2 },
         { "goodId": "wine", "need": "comfort", "quantityPerThousand": 0.2 },
-        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.04 }
+        { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.04 },
+        { "goodId": "barley_cakes", "need": "comfort", "quantityPerThousand": 0.1 },
+        { "goodId": "salted_fish", "need": "comfort", "quantityPerThousand": 0.05 },
+        { "goodId": "fig_cakes", "need": "comfort", "quantityPerThousand": 0.03 },
+        { "goodId": "oil_lamps", "need": "comfort", "quantityPerThousand": 0.02 },
+        { "goodId": "candles", "need": "comfort", "quantityPerThousand": 0.02 },
+        { "goodId": "sandals", "need": "comfort", "quantityPerThousand": 0.01 },
+        { "goodId": "tools", "need": "comfort", "quantityPerThousand": 0.01 },
+        { "goodId": "clothes", "need": "comfort", "quantityPerThousand": 0.01 }
       ]
     },
     {
       "id": "hippeis",
       "qualitySensitivity": 0.6,
-      "incomePerThousand": 82,
-      "publicIncomeBps": 10000,
+      "incomePerThousand": 107,
+      "publicIncomeBps": 7663,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.733 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.667 },
@@ -1079,14 +1100,25 @@
         { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.333 },
         { "goodId": "wine", "need": "comfort", "quantityPerThousand": 0.4 },
         { "goodId": "cloth", "need": "comfort", "quantityPerThousand": 0.1 },
-        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.053 }
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.053 },
+        { "goodId": "salted_fish", "need": "comfort", "quantityPerThousand": 0.05 },
+        { "goodId": "fig_cakes", "need": "comfort", "quantityPerThousand": 0.05 },
+        { "goodId": "candles", "need": "comfort", "quantityPerThousand": 0.04 },
+        { "goodId": "oil_lamps", "need": "comfort", "quantityPerThousand": 0.03 },
+        { "goodId": "sandals", "need": "comfort", "quantityPerThousand": 0.02 },
+        { "goodId": "clothes", "need": "comfort", "quantityPerThousand": 0.03 },
+        { "goodId": "garum", "need": "comfort", "quantityPerThousand": 0.01 },
+        { "goodId": "painted_ceramics", "need": "luxury", "quantityPerThousand": 0.03 },
+        { "goodId": "perfumes", "need": "luxury", "quantityPerThousand": 0.02 },
+        { "goodId": "furniture", "need": "luxury", "quantityPerThousand": 0.01 },
+        { "goodId": "weapons", "need": "luxury", "quantityPerThousand": 0.01 }
       ]
     },
     {
       "id": "pentakosiomedimnoi",
       "qualitySensitivity": 0.9,
-      "incomePerThousand": 120,
-      "publicIncomeBps": 10000,
+      "incomePerThousand": 188,
+      "publicIncomeBps": 6382,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.6 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.8 },
@@ -1094,7 +1126,18 @@
         { "goodId": "olive_oil", "need": "comfort", "quantityPerThousand": 0.533 },
         { "goodId": "wine", "need": "luxury", "quantityPerThousand": 0.8 },
         { "goodId": "cloth", "need": "luxury", "quantityPerThousand": 0.267 },
-        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.2 }
+        { "goodId": "amphorae", "need": "luxury", "quantityPerThousand": 0.2 },
+        { "goodId": "candles", "need": "comfort", "quantityPerThousand": 0.1 },
+        { "goodId": "garum", "need": "comfort", "quantityPerThousand": 0.03 },
+        { "goodId": "clothes", "need": "luxury", "quantityPerThousand": 0.05 },
+        { "goodId": "painted_ceramics", "need": "luxury", "quantityPerThousand": 0.05 },
+        { "goodId": "perfumes", "need": "luxury", "quantityPerThousand": 0.05 },
+        { "goodId": "jewelry", "need": "luxury", "quantityPerThousand": 0.04 },
+        { "goodId": "furniture", "need": "luxury", "quantityPerThousand": 0.04 },
+        { "goodId": "statues", "need": "luxury", "quantityPerThousand": 0.02 },
+        { "goodId": "mosaics", "need": "luxury", "quantityPerThousand": 0.025 },
+        { "goodId": "weapons", "need": "luxury", "quantityPerThousand": 0.02 },
+        { "goodId": "sails", "need": "luxury", "quantityPerThousand": 0.04 }
       ]
     }
   ],
@@ -1102,84 +1145,106 @@
     {
       "id": "demeter",
       "charisPerObole": 1,
-      "charisPerUnit": { "wheat": 6, "flour": 10, "bread": 15 },
+      "charisPerUnit": {
+        "wheat": 6,
+        "flour": 10,
+        "bread": 15,
+        "barley": 5,
+        "barley_flour": 9,
+        "barley_cakes": 16
+      },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "athena",
       "charisPerObole": 1,
-      "charisPerUnit": { "olives": 9, "olive_oil": 30, "cloth": 42 },
+      "charisPerUnit": {
+        "olives": 9,
+        "olive_oil": 30,
+        "cloth": 42,
+        "oil_lamps": 40,
+        "tools": 100,
+        "painted_ceramics": 55
+      },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "dionysos",
       "charisPerObole": 1,
-      "charisPerUnit": { "grapes": 10, "wine": 36 },
+      "charisPerUnit": { "grapes": 10, "wine": 36, "figs": 10, "must": 30, "fig_cakes": 42 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "poseidon",
       "charisPerObole": 1,
-      "charisPerUnit": { "fish": 12, "salt": 7 },
+      "charisPerUnit": { "fish": 12, "salt": 7, "salted_fish": 30, "garum": 100, "sails": 130 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "apollo",
       "charisPerObole": 1,
-      "charisPerUnit": {},
+      "charisPerUnit": { "candles": 32, "mosaics": 190 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "zeus",
       "charisPerObole": 1,
-      "charisPerUnit": {},
+      "charisPerUnit": { "marble": 22, "marble_blocks": 56, "statues": 200 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "hera",
       "charisPerObole": 1,
-      "charisPerUnit": {},
+      "charisPerUnit": { "clothes": 110, "furniture": 140 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "artemis",
       "charisPerObole": 1,
-      "charisPerUnit": { "wood": 8 },
+      "charisPerUnit": { "wood": 8, "hides": 18, "honey": 30 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "ares",
       "charisPerObole": 1,
-      "charisPerUnit": {},
+      "charisPerUnit": { "bronze": 32, "weapons": 175 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "aphrodite",
       "charisPerObole": 1,
-      "charisPerUnit": { "olive_oil": 30, "cloth": 42 },
+      "charisPerUnit": { "olive_oil": 30, "cloth": 42, "perfumes": 125, "jewelry": 200 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "hephaistos",
       "charisPerObole": 1,
-      "charisPerUnit": { "clay": 5, "charcoal": 16, "amphorae": 36 },
+      "charisPerUnit": {
+        "clay": 5,
+        "charcoal": 16,
+        "amphorae": 36,
+        "copper": 18,
+        "tin": 40,
+        "iron": 16,
+        "wrought_iron": 42
+      },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     },
     {
       "id": "hermes",
       "charisPerObole": 1,
-      "charisPerUnit": {},
+      "charisPerUnit": { "silver": 80, "silver_ingots": 150, "sandals": 75 },
       "dailyDecayBps": 100,
       "cityCharisWeightBps": 10000
     }

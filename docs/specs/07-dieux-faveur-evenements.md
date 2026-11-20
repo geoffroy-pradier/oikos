@@ -29,9 +29,16 @@ Un dieu sans déclin, ou retiré de la configuration, ne fait rien perdre.
 Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
 Depuis #706, sept dieux s'y ajoutent : Zeus, Héra, Artémis, Arès, Aphrodite, Héphaïstos et Hermès.
 Artémis prend le bois, Aphrodite l'huile d'olive et le tissu, Héphaïstos l'argile, le charbon de bois et les amphores.
-Zeus, Héra, Arès et Hermès n'ont pas de bien du jeu à leur domaine (loi, lignée, escortes, négoce) et ne prennent que la monnaie, comme Apollon.
+Zeus, Héra, Arès et Hermès n'avaient pas de bien du jeu à leur domaine (loi, lignée, escortes, négoce) et ne prenaient que la monnaie, comme Apollon, jusqu'à #713.
 Leurs grâces et leurs paliers viendront avec leurs temples.
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
+Depuis #713, chacun des douze dieux prend aussi des biens de #708 à #711, ceux de son domaine (2), au même taux.
+Déméter prend l'orge, la farine d'orge et les galettes d'orge ; Athéna, patronne des ateliers, les lampes à huile, les outils et la céramique peinte ; Dionysos les figues, le moût et les gâteaux de figues.
+Poséidon prend le poisson salé, le garum et les voiles ; Apollon, dieu de la lumière et des arts, les bougies et les mosaïques ; Zeus le marbre, les blocs de marbre et les statues.
+Héra prend les vêtements et les meubles de la maison ; Artémis les peaux et le miel des terres sauvages ; Arès le bronze et les armes.
+Aphrodite prend les parfums et les bijoux ; Héphaïstos le cuivre, l'étain, le fer et le fer forgé ; Hermès l'argent, les lingots d'argent et les sandales du messager.
+Un bien peut appartenir au domaine de deux dieux, comme l'huile et le tissu à Athéna et à Aphrodite.
+La laine, le lin, le fil, la toile de lin, le cuir, les planches, les pigments et la cire ne sont au domaine d'aucun dieu : ils servent d'intrants.
 Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 ; revus au calibrage (#668), ils restent tels.
 Le déclin coûte à qui garde la Charis requise par une grâce (600) 6 Charis par jour, soit 42 sur la saison de sa recharge, quand une invocation en dépense 300 : l'offrande reste le vrai prix d'une grâce, et une faveur laissée à elle-même perd la moitié en 69 jours.
 Le poids ×1 garde la Charis de cité égale à la somme des Charis de ses citoyennes, la même règle pour les quatre protecteurs : aucune cité n'a d'avance pour les miracles collectifs de la phase 3, qui le régleront.
@@ -184,3 +191,7 @@ Dans la phase 2 (ticket 263), une fête est un décret de la cité (6.3) : un mo
 Décision (ambiguïté de cette section) : la fête paie son montant du trésor de la cité à un puits, qui le détruit (`sink_festivals`, 5.5), à la clôture qui l'applique.
 Elle relève ensuite, pendant ses jours de jeu à compter du jour que cette clôture ouvre, la demande des PNJ de sa cité pour ses biens (5.2) : le pic est annoncé dès le vote, et les commerçants peuvent s'y préparer.
 Son effet sur la Charis de la cité, le concours et le mécénat attendent la phase 3.
+Depuis #713, la liste des biens de fête (`decrees.models.festival.goodIds`) compte, après le pain, le vin, l'huile et le poisson, huit biens finis nouveaux.
+Ce sont ceux d'un banquet : galettes d'orge, poisson salé, garum, gâteaux de figues, lampes à huile, bougies, parfums et vêtements.
+Chacun est au panier d'une classe de PNJ : une fête relève la demande des PNJ (5.2), et n'aurait aucun effet sur un bien qu'aucune classe n'achète.
+Une fête prend toujours au plus trois biens (`maxGoods`).
