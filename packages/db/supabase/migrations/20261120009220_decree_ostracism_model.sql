@@ -1,6 +1,6 @@
 -- Modèle de décret `ostracism` (docs/specs/06-cites-politique-communaute.md, 6.3 et 6.4 ; ticket 722).
 -- L'archonte en charge propose l'ostracisme comme tout décret ; adopté, il ouvre un vote où chaque citoyen
--- inscrit un nom (migration 7221). Le décret n'a aucun paramètre : les règles du vote sont celles de la
+-- inscrit un nom (migration 9221). Le décret n'a aucun paramètre : les règles du vote sont celles de la
 -- configuration de la clôture qui l'ouvre.
 -- Rejouable : la contrainte du catalogue garde son nom (un test d'intégration la compare à `DECREE_MODELS`) et
 -- n'est remplacée que si elle ignore encore le modèle. Le code précédent ne propose pas ce modèle.
