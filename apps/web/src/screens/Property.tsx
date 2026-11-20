@@ -1,5 +1,4 @@
-import { gameDayDate } from '@oikos/sim';
-import { Button, Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
+import { Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { propertyCommand } from '../api';
@@ -14,13 +13,13 @@ import {
   parseMyProperties,
   parseOffers,
   parsePropertyRules,
-  type Offer,
 } from '../property';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
 import { ScreenHeader } from '../ScreenHeader';
 import { LoadProblem, Loading } from './LoadProblem';
 import { ownerIntents, PropertyActions } from './PropertyActions';
 import { endIntent, PropertyLeases } from './PropertyLeases';
+import { offerIntent, PropertyOffers } from './PropertyOffers';
 import type { RunCommand } from './PropertySheet';
 
 type Command = Parameters<typeof propertyCommand>[0];
@@ -37,11 +36,8 @@ const PLACE: Record<Command, Place> = {
   'property.withdrawOffer': 'mine',
   'property.endLease': 'leases',
 };
-const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 const ROW =
   'flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm';
-/** L'intention porte le prix vu : un autre prix est une autre demande, sous une clé neuve. */
-const offerIntent = (offer: Offer) => `${offer.kind}:${offer.propertyId}:${offer.priceOboles}`;
 
 /**
  * Immobilier de la maison (4.5) : biens offerts par la cité et par les maisons, ses biens et ses baux.
@@ -176,9 +172,6 @@ export function PropertyScreen() {
     maximumFractionDigits: 0,
   });
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
-  // Un jour de jeu se lit à sa date civile, rendue à minuit UTC (`gameDayDate`).
-  const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeZone: 'UTC' });
-  const unpaidId = (offer: Offer) => `offer-unpaid-${offer.kind}-${offer.propertyId}`;
   const describe = (property: { sizeId: string; lot: number; cityId: string }) =>
     t('property.describe', {
       size: t(`propertySizes.${property.sizeId}`, { defaultValue: property.sizeId }),
@@ -228,31 +221,6 @@ export function PropertyScreen() {
     );
   }, [busy, pending, offeredKey]);
 
-  const offerAction = (offer: Offer) => {
-    if (mineIds.has(offer.propertyId)) return null;
-    const label = t(`property.take.${offer.kind}`, { cost: money(offer.priceOboles) });
-    const { propertyId, priceOboles } = offer;
-    const intent = offerIntent(offer);
-    const send = () =>
-      offer.kind === 'lease'
-        ? run(intent, 'property.lease', { propertyId, expectedRentOboles: priceOboles })
-        : run(intent, offer.kind === 'citySale' ? 'property.buy' : 'property.buyListed', {
-            propertyId,
-            expectedPriceOboles: priceOboles,
-          });
-    return (
-      <Button
-        className={WAITING}
-        aria-disabled={busy}
-        aria-label={`${label} — ${describe(offer)}`}
-        aria-describedby={offer.unpaid ? unpaidId(offer) : undefined}
-        onClick={() => void send()}
-      >
-        {label}
-      </Button>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <ScreenHeader title={t('property.title')} titleRef={title} />
@@ -262,34 +230,24 @@ export function PropertyScreen() {
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {!loading && !failed && (
         <>
-          <Card className="flex flex-col gap-3">
-            <h2 className="text-xl">{t('property.offers')}</h2>
+          <Card className="flex flex-col gap-3" aria-labelledby="property-offers">
+            <h2 id="property-offers" className="flex items-center gap-2 text-lg font-semibold">
+              <Inbox aria-hidden="true" className="size-5 shrink-0 text-accent" />
+              {t('property.offers')}
+            </h2>
             {said('offers')}
-            {offers?.length === 0 && (
+            {offers?.length === 0 ? (
               <EmptyState icon={<Inbox />} title={t('property.noOffers')} headingLevel={3} />
+            ) : (
+              <PropertyOffers
+                offers={offers ?? []}
+                mineIds={mineIds}
+                sizes={sizes}
+                describe={describe}
+                busy={busy}
+                run={run}
+              />
             )}
-            <ul className="flex flex-col gap-3">
-              {(offers ?? []).map((offer) => (
-                <li key={`${offer.kind}:${offer.propertyId}`} className={ROW}>
-                  <h3 className="font-semibold">{describe(offer)}</h3>
-                  <p>{t(`property.offer.${offer.kind}`, { cost: money(offer.priceOboles) })}</p>
-                  {condition(offer.condition) && <p>{condition(offer.condition)}</p>}
-                  {offer.unpaid && (
-                    <p id={unpaidId(offer)} className="font-semibold text-danger">
-                      {offer.unpaid.day === null
-                        ? t('property.offerUnpaidUndated')
-                        : t('property.offerUnpaid', {
-                            date: day.format(gameDayDate(offer.unpaid.day)),
-                          })}
-                    </p>
-                  )}
-                  {mineIds.has(offer.propertyId) && (
-                    <p className="text-muted-foreground">{t('property.yourOffer')}</p>
-                  )}
-                  {offerAction(offer)}
-                </li>
-              ))}
-            </ul>
           </Card>
           <Card className="flex flex-col gap-3">
             <h2 className="text-xl">{t('property.mine')}</h2>

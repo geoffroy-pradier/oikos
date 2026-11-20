@@ -252,6 +252,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Acheter à la cité \(.*\) — Maison de ville n° \d+, Elaia$/ })
       .first()
       .click();
+    await other
+      .getByRole('dialog')
+      .getByRole('button', { name: /^Confirmer l'achat/ })
+      .click();
     await expect(said(other, 'status', 'Bien acheté.')).toBeVisible();
     await other.getByRole('textbox', { name: /^Loyer par jour, en oboles — / }).fill(String(rent));
     await other.getByRole('button', { name: /^Mettre en location — / }).click();
@@ -262,6 +266,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', {
         name: new RegExp(`^Louer \\(${money(rent)} par jour\\) — Maison de ville n° \\d+, Elaia$`),
       })
+      .click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^Signer le bail/ })
       .click();
     await expect(said(page, 'status', 'Bail signé.')).toBeVisible();
     // Le bail en cours, dans le tableau (ou la fiche) des baux : locataire, à ce loyer.
@@ -276,6 +284,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
         name: /^Acheter à la cité \(.*\) — Maison de ville n° \d+, Kallistè$/,
       })
       .first()
+      .click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^Confirmer l'achat/ })
       .click();
     await expect(said(page, 'status', 'Bien acheté.')).toBeVisible();
     await wear(alpha, 5000);

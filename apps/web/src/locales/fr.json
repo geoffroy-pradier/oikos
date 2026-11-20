@@ -797,11 +797,6 @@
     "condition": "État : {{percent}}",
     "offers": "Biens offerts",
     "noOffers": "Aucun bien offert pour l'instant.",
-    "offer": {
-      "citySale": "Vendu par la cité : {{cost}}",
-      "sale": "Vendu par une maison : {{cost}}",
-      "lease": "À louer : {{cost}} par jour"
-    },
     "take": {
       "citySale": "Acheter à la cité ({{cost}})",
       "sale": "Acheter ({{cost}})",
@@ -853,13 +848,37 @@
       "property": "Bien",
       "role": "Vous êtes",
       "rent": "Loyer",
-      "status": "Bail"
+      "status": "Bail",
+      "kind": "Offre",
+      "price": "Prix",
+      "condition": "État",
+      "action": "Action",
+      "upkeep": "Entretien",
+      "city": "Cité"
     },
     "sheet": {
-      "endLease": "Mettre fin au bail : {{name}}"
+      "endLease": "Mettre fin au bail : {{name}}",
+      "citySale": "Acheter à la cité : {{name}}",
+      "sale": "Acheter : {{name}}",
+      "lease": "Louer : {{name}}"
     },
     "confirm": {
-      "endLease": "Confirmer la fin du bail"
+      "endLease": "Confirmer la fin du bail",
+      "citySale": "Confirmer l'achat — {{cost}}",
+      "sale": "Confirmer l'achat — {{cost}}",
+      "lease": "Signer le bail — {{cost}}"
+    },
+    "once": "{{cost}}",
+    "unpaidBadge": "Entretien impayé",
+    "kind": {
+      "citySale": "Vendu par la cité",
+      "sale": "Vendu par une maison",
+      "lease": "À louer"
+    },
+    "open": {
+      "citySale": "Acheter",
+      "sale": "Acheter",
+      "lease": "Louer"
     }
   },
   "alerts": {
