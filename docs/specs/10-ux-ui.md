@@ -286,6 +286,7 @@ Les cartes d'une rangée ont la même hauteur, et leurs libellés, valeurs et li
 Le chiffre principal d'un écran (la trésorerie sur Maison, Sites et Comptes) est en carte large, sur deux colonnes ; une valeur trop longue pour une colonne fait aussi de sa carte une carte large : dans une rangée, aucune valeur n'est plus petite que celle d'une carte voisine.
 Sous 1 280 px, une carte restée seule sur sa rangée la prend entière.
 Un ratio s'écrit en toutes lettres, « 1 sur 4 » (« 1 of 4 »).
+Plusieurs gestes sur un même objet gardent une action principale ; les autres vont dans un menu d'actions (`Menu`), chacun avec son icône, parcouru aux flèches, refermé par Échap qui rend le foyer à son bouton (#868).
 Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.

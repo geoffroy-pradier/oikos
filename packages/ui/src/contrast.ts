@@ -77,6 +77,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Survol d'un onglet de la barre latérale (`Shell`) : texte accentué sur `muted`.
   ['primary', 'muted', AA_TEXT],
   ['accent', 'muted', AA_TEXT],
+  // Geste lourd d'un menu d'actions (`Menu`), survolé ou au foyer : texte de danger sur `muted`.
+  ['danger', 'muted', AA_TEXT],
   ['aegean', 'aegean-subtle', AA_TEXT],
   ['success', 'success-subtle', AA_TEXT],
   ['danger', 'danger-subtle', AA_TEXT],
