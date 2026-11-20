@@ -1,0 +1,52 @@
+name: balance-nightly
+
+# Banc des douze cités (#712, docs/specs/05-economie.md 5.5) : le banc d'équilibrage, à pleine population (÷8), sur les
+# douze cités de la configuration initiale, et le test du simulateur sur le même scénario. Trop long pour chaque
+# demande de fusion, il joue chaque nuit et à chaque envoi sur `main`, sans bloquer les fusions ; un échec reste visible
+# (job rouge sur `main`). Le banc à quatre cités reste dans le job `balance` de `ci`. Durée mesurée en local : 36 min
+# pour le banc, environ 17 min sur un runner ; avec le test du simulateur, environ 25 min.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un seul banc à la fois : un envoi pendant le banc attend la fin du précédent, sans l'annuler.
+concurrency:
+  group: balance-nightly
+  cancel-in-progress: false
+
+jobs:
+  twelve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Reserve Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Supabase
+        run: bash infra/ci-supabase-start.sh
+      - name: Twelve-city balance bench
+        env:
+          BALANCE_SCENARIO: twelve
+          BALANCE_REPORT: ${{ github.workspace }}/balance-report/measures.json
+        run: |
+          started="$(date +%s)"
+          status=0
+          pnpm test:balance || status=$?
+          echo "Banc des douze cités : $(( $(date +%s) - started )) s" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - name: Upload balance measures
+        if: always() && hashFiles('balance-report/measures.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: balance-twelve-measures
+          path: balance-report/measures.json
+          retention-days: 90

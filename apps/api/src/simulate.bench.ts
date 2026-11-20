@@ -4,7 +4,7 @@ import { openBench } from './balance/city';
 import { recipeMargins } from './balance/measures';
 import { compare, indicatorsOf, type Indicators } from './balance/report';
 import { playWorld } from './balance/run';
-import { SLUGS, WINDOW, worldConfig } from './balance/world';
+import { SCENARIO, SLUGS, WINDOW, worldConfig } from './balance/world';
 
 /*
  * Simulateur d'équilibrage (#284) : mêmes graine et configuration, même rapport. Deux parties courtes du banc
@@ -50,7 +50,10 @@ const indicators = async (seed: string): Promise<Indicators> => {
   return indicatorsOf(run.days, margins, SLUGS, WINDOW);
 };
 
-it('mêmes graine et configuration : même rapport', { timeout: 10 * 60_000 }, async () => {
+/** Durée maximale du test, selon le scénario : 10 minutes à quatre cités, 30 à douze. */
+const TIMEOUT = SCENARIO.simulatorMinutes * 60_000;
+
+it('mêmes graine et configuration : même rapport', { timeout: TIMEOUT }, async () => {
   const [first, second] = [
     await indicators('graine-simulateur-a'),
     await indicators('graine-simulateur-a'),

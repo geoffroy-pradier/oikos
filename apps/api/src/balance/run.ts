@@ -41,7 +41,6 @@ import {
   WORLD_SEED,
   WORLD_STEPS,
   type Settlement,
-  type Slug,
 } from './world';
 
 /** Paramètres d'une partie du banc des quatre cités : les valeurs par défaut sont celles du banc de `ci`. */
@@ -68,7 +67,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   for (const city of cities)
     settlements.push({
       city,
-      houses: (await foundHouses(city, SETTLEMENTS[city.slug as Slug])).map(seller),
+      houses: (await foundHouses(city, SETTLEMENTS[city.slug] ?? [])).map(seller),
     });
   const [world] = cities;
   if (!world) throw new Error('No city created');
@@ -108,7 +107,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   }
   // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
   const inputs = new Map(
-    cities.map((city) => [city.cityId, netInputs(SETTLEMENTS[city.slug as Slug])]),
+    cities.map((city) => [city.cityId, netInputs(SETTLEMENTS[city.slug] ?? [])]),
   );
   const ownDemand = async (city: City) => {
     const demand = await npcDailyDemand(city);

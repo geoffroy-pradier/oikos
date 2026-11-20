@@ -43,6 +43,7 @@ Un resserrement plus fort, du poisson ou du sel par exemple, demanderait d'abord
 Décision (ambiguïté de cette section) : les douze cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte des routes de terre.
 Depuis #707, les routes maritimes relient les douze cités entre voisines, chacune à au moins deux autres (4.6) ; chaque cité a son île sur la carte de l'archipel.
 Le banc à quatre cités (5.5) retire les huit cités de #706 de son scénario, et leurs routes depuis #707, comme le banc à une cité rend sa laine à Kallistè : ses mesures et ses bornes ne changent pas, jusqu'au banc à douze cités (« P10 »).
+Depuis #712, un banc de nuit joue les douze cités et leurs routes, à la population du banc à quatre cités (5.5).
 Chaque cité a la population de la cité prototype (5.5), et la demande des PNJ y est jouée comme à Kallistè.
 Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les douze cités, et l'onglet Cité celle de la maison.
 Une version de configuration publiée avant les quatre cités (#250) se lit sans terroir (toute production admise), avec un port et sans dieu protecteur.

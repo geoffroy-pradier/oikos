@@ -3,14 +3,15 @@ import { config, type City, type Role } from './city';
 import type { Seller } from './strategy';
 
 /*
- * Banc des quatre cités (#281, #283) : paramètres de scénario, maisons par terroir et armateurs. Ce sont des choix
- * du banc, pas de l'équilibrage du jeu, qui reste entièrement dans `packages/config`.
+ * Bancs des quatre et des douze cités (#281, #283, #712) : paramètres de scénario, maisons par terroir et armateurs.
+ * Ce sont des choix du banc, pas de l'équilibrage du jeu, qui reste entièrement dans `packages/config`. Le scénario
+ * joué est celui des quatre cités, ou celui des douze si `BALANCE_SCENARIO` vaut `twelve` (banc de nuit, 5.5).
  */
 /** Graine de monde du banc des quatre cités, fixée pour que ses tirages soient reproductibles (#267). */
 export const WORLD_SEED = 'banc-equilibrage-281';
-/** Les quatre cités de la configuration initiale. */
-export const SLUGS = ['kalliste', 'elaia', 'ampelos', 'halos'] as const;
-export type Slug = (typeof SLUGS)[number];
+/** Les quatre premières cités de la configuration initiale. */
+const FOUR_SLUGS = ['kalliste', 'elaia', 'ampelos', 'halos'] as const;
+export type Slug = string;
 /**
  * Diviseur de la population de chaque cité : une cité de 1 250 habitants, que sept ou huit maisons couvrent, et la
  * demande des quatre cités vaut la moitié de celle de la cité prototype (#78) ; le banc, avec ses armateurs, reste
@@ -48,7 +49,7 @@ export const GRANT_OBOLES = 15_000;
 /** Garde, des tables par cité de la configuration, les entrées des quatre cités du scénario. */
 const ofScenario = <T>(byCity: Record<string, T>): Record<string, T> =>
   Object.fromEntries(
-    Object.entries(byCity).filter(([id]) => (SLUGS as readonly string[]).includes(id)),
+    Object.entries(byCity).filter(([id]) => (FOUR_SLUGS as readonly string[]).includes(id)),
   );
 
 /**
@@ -58,13 +59,13 @@ const ofScenario = <T>(byCity: Record<string, T>): Record<string, T> =>
  * (cités, salaires, droits de port, parc de logements, et depuis #707 leurs routes) jusqu'au banc à douze cités
  * (« P10 ») ; leurs mesures et leurs bornes sont celles d'avant : ses routes sont les six qui relient ces quatre cités.
  */
-export const worldConfig = {
+const fourConfig = {
   ...config,
   staff: { ...config.staff, dailyWageOboles: ofScenario(config.staff.dailyWageOboles) },
   ships: {
     ...config.ships,
     routes: config.ships.routes.filter(({ cities }) =>
-      cities.every((id) => (SLUGS as readonly string[]).includes(id)),
+      cities.every((id) => (FOUR_SLUGS as readonly string[]).includes(id)),
     ),
     portDues: {
       ...config.ships.portDues,
@@ -85,7 +86,7 @@ export const worldConfig = {
     })),
   },
   cities: config.cities
-    .filter((city) => (SLUGS as readonly string[]).includes(city.id))
+    .filter((city) => (FOUR_SLUGS as readonly string[]).includes(city.id))
     .map((city) => ({
       ...city,
       population: Object.fromEntries(
@@ -108,7 +109,7 @@ const role = (name: string, count: number, ...sites: string[]): Role => ({ name,
  * rares. Ampélos et Halos pêchent leur poisson, Halos raffine son sel. Chaque maison confie ses récoltes à un
  * intendant (`balance/steward.ts`). Nombres choisis à la main : une communauté plausible, pas une stratégie optimale.
  */
-export const SETTLEMENTS: Record<(typeof SLUGS)[number], Role[]> = {
+const FOUR_SETTLEMENTS: Record<string, Role[]> = {
   kalliste: [
     role('meunier-boulanger', 1, 'grow_wheat', 'mill_flour', 'mill_flour', 'bake_bread'),
     role('boulanger', 1, 'grow_wheat', 'bake_bread', 'bake_bread', 'bake_bread'),
@@ -141,7 +142,7 @@ export const SETTLEMENTS: Record<(typeof SLUGS)[number], Role[]> = {
  * importatrice, qui en demande près de 900 unités par jour, à quatre ou huit heures de mer ; un pour le vin d'Elaia
  * et d'Halos.
  */
-export const CARRIERS: {
+export interface CarrierSpec {
   home: Slug;
   source: Slug;
   /** Escale entre les deux, sans route directe (#712) : l'armateur n'y vend ni n'achète rien. */
@@ -149,7 +150,8 @@ export const CARRIERS: {
   count: number;
   toHome: string[];
   toSource: string[];
-}[] = [
+}
+const FOUR_CARRIERS: CarrierSpec[] = [
   {
     home: 'ampelos',
     source: 'kalliste',
@@ -168,6 +170,161 @@ export const CARRIERS: {
   { home: 'halos', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
 ];
 export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
+
+/**
+ * Scénario des douze cités (#712) : la configuration initiale entière, ses vingt-trois routes (#707) et la population de
+ * chaque cité divisée par huit, comme celle des quatre premières, qui gardent leurs maisons et leurs armateurs. Dikaia
+ * fait le blé, le pain et le vin de Delphis, Gamelia ceux d'Emporion, Phrourion ceux de Myrrhinè et de Chalkeia, comme
+ * Elaia pour Halos : deux moulins pour deux cités (512 pains par jour pour 518), quatre pour trois (960 pour 777, cinq
+ * fours), 131 % de la demande de blé.
+ * Le boulanger cuit son charbon et le garde : vendu, le surplus d'une charbonnière ferait tomber le prix du charbon du
+ * monde, et la marge de la filière sous sa borne (#285). Delphis, Emporion, Myrrhinè et Chalkeia pressent l'huile, pêchent
+ * ou raffinent le sel de leurs voisines ; Agrotera fait son pain. Une maison de plus pêche à Ampélos, une autre coupe le
+ * bois et tire l'argile de Gamelia à Halos.
+ */
+const TWELVE_SETTLEMENTS: Record<string, Role[]> = {
+  ...FOUR_SETTLEMENTS,
+  ampelos: [role('pêcheur', 2, 'grow_grapes', 'catch_fish', 'catch_fish')],
+  halos: [
+    ...(FOUR_SETTLEMENTS['halos'] ?? []),
+    role('bûcheron-argilier', 1, 'catch_fish', 'fell_wood', 'fell_wood', 'dig_clay'),
+  ],
+  dikaia: [
+    role('meunier', 2, 'grow_wheat', 'mill_flour'),
+    role('boulanger', 1, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'bake_bread'),
+    role('boulanger-potier', 1, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'throw_amphorae'),
+    role('bûcheron-argilier', 1, 'grow_wheat', 'fell_wood', 'fell_wood', 'dig_clay'),
+    role('caviste', 1, 'grow_wheat', 'ferment_wine', 'ferment_wine', 'ferment_wine'),
+    role('fermier', 2, 'grow_wheat'),
+  ],
+  delphis: [
+    role('oléiculteur', 1, 'grow_olives', 'grow_olives', 'press_oil', 'press_oil'),
+    role('vigneron', 1, 'grow_olives', 'grow_grapes'),
+  ],
+  gamelia: [
+    role('meunier', 2, 'grow_wheat', 'mill_flour'),
+    role('boulanger', 1, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'bake_bread'),
+    role('boulanger-potier', 1, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'throw_amphorae'),
+    role('vigneron-caviste', 1, 'grow_wheat', 'grow_grapes', 'ferment_wine', 'ferment_wine'),
+    role('oléiculteur', 1, 'grow_wheat', 'grow_olives', 'press_oil'),
+    role('fermier', 2, 'grow_wheat'),
+  ],
+  emporion: [role('pêcheur-saunier', 1, 'catch_fish', 'catch_fish', 'rake_salt')],
+  phrourion: [
+    role('meunier', 4, 'grow_wheat', 'mill_flour'),
+    role('boulanger', 2, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'bake_bread'),
+    role('boulanger-potier', 1, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'throw_amphorae'),
+    role('caviste', 2, 'grow_wheat', 'ferment_wine', 'ferment_wine', 'ferment_wine'),
+    role('bûcheron-argilier', 2, 'grow_wheat', 'fell_wood', 'fell_wood', 'dig_clay'),
+    role('fermier', 2, 'grow_wheat'),
+  ],
+  myrrhine: [role('pêcheur', 2, 'grow_grapes', 'catch_fish', 'catch_fish')],
+  chalkeia: [
+    role('saunier-oléiculteur', 1, 'fell_wood', 'rake_salt', 'grow_olives', 'press_oil'),
+    role('oléiculteur', 1, 'fell_wood', 'grow_olives', 'grow_olives', 'press_oil'),
+  ],
+  agrotera: [
+    role('meunier', 1, 'fell_wood', 'grow_wheat', 'mill_flour'),
+    role('boulanger', 1, 'fell_wood', 'burn_charcoal', 'bake_bread', 'bake_bread'),
+    role('fermier', 1, 'fell_wood', 'grow_wheat', 'grow_wheat', 'grow_olives'),
+    role('oléiculteur', 1, 'fell_wood', 'grow_wheat', 'grow_olives', 'press_oil'),
+  ],
+};
+/**
+ * Armateurs des douze cités (#712), en plus de ceux des quatre : trois caboteurs pour chaque cité ravitaillée en blé et
+ * en pain, quatre pour Chalkeia, qu'aucune cité à blé ne borde, par une escale à Myrrhinè (4.6), un pour le reste. Un
+ * relais porte pour une autre cité ce qu'un second armateur y apporte (le sel d'Elaia pour Dikaia, par Delphis) : la
+ * demande de la cité de relais compte celle de la cité servie (`run.ts`).
+ */
+const TWELVE_CARRIERS: CarrierSpec[] = [
+  ...FOUR_CARRIERS,
+  {
+    home: 'delphis',
+    source: 'dikaia',
+    count: 3,
+    toHome: ['wheat', 'bread', 'wine', 'fish'],
+    toSource: ['olive_oil', 'grapes', 'salt'],
+  },
+  { home: 'dikaia', source: 'ampelos', count: 1, toHome: ['fish'], toSource: [] },
+  { home: 'delphis', source: 'elaia', count: 1, toHome: ['salt'], toSource: [] },
+  {
+    home: 'emporion',
+    source: 'gamelia',
+    count: 3,
+    toHome: ['wheat', 'bread', 'wine', 'olive_oil'],
+    toSource: ['fish', 'salt'],
+  },
+  { home: 'gamelia', source: 'halos', count: 1, toHome: ['wood', 'clay'], toSource: [] },
+  {
+    home: 'myrrhine',
+    source: 'phrourion',
+    count: 3,
+    toHome: ['wheat', 'bread', 'wine', 'salt', 'olive_oil'],
+    toSource: ['fish', 'grapes'],
+  },
+  {
+    home: 'chalkeia',
+    source: 'phrourion',
+    via: 'myrrhine',
+    count: 4,
+    toHome: ['wheat', 'bread', 'wine', 'fish'],
+    toSource: ['salt', 'olive_oil'],
+  },
+  {
+    home: 'agrotera',
+    source: 'phrourion',
+    count: 1,
+    toHome: ['wine', 'fish', 'salt'],
+    toSource: [],
+  },
+];
+const twelveConfig = {
+  ...fourConfig,
+  staff: config.staff,
+  ships: config.ships,
+  properties: { ...fourConfig.properties, countsByCity: config.properties.countsByCity },
+  cities: config.cities.map((city) => ({
+    ...city,
+    population: Object.fromEntries(
+      Object.entries(city.population).map(([id, count]) => [
+        id,
+        Math.round(count / POPULATION_DIVISOR),
+      ]),
+    ),
+  })),
+};
+
+/**
+ * Un scénario du banc : ses cités, leurs maisons, ses armateurs, sa configuration, et les durées maximales, en minutes,
+ * du banc et du test du simulateur (`simulate.bench.ts`).
+ */
+export const SCENARIOS = {
+  four: {
+    name: 'quatre cités',
+    slugs: FOUR_SLUGS as readonly Slug[],
+    settlements: FOUR_SETTLEMENTS,
+    carriers: FOUR_CARRIERS,
+    config: fourConfig,
+    maxMinutes: 15,
+    simulatorMinutes: 10,
+  },
+  twelve: {
+    name: 'douze cités',
+    slugs: config.cities.map((city) => city.id) as readonly Slug[],
+    settlements: TWELVE_SETTLEMENTS,
+    carriers: TWELVE_CARRIERS,
+    config: twelveConfig,
+    maxMinutes: 45,
+    simulatorMinutes: 30,
+  },
+};
+/** Scénario joué : celui des quatre cités, sauf `BALANCE_SCENARIO=twelve` (banc de nuit). */
+export const SCENARIO =
+  process.env['BALANCE_SCENARIO'] === 'twelve' ? SCENARIOS.twelve : SCENARIOS.four;
+export const SLUGS = SCENARIO.slugs;
+export const SETTLEMENTS = SCENARIO.settlements;
+export const CARRIERS = SCENARIO.carriers;
+export const worldConfig = SCENARIO.config;
 
 /** Une cité du banc et ses maisons scriptées. */
 export interface Settlement {
