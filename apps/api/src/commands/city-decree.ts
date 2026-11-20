@@ -5,10 +5,10 @@ import {
   cityProposeDecreeOutputSchema,
   decreeSpendingOboles,
 } from '@oikos/contracts';
-import { decreeSpendingCapOboles, decreeVotingClosesAt } from '@oikos/sim';
+import { dailyCloseAt, decreeSpendingCapOboles, decreeVotingClosesAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
-import { houseOf, refuse } from './city-election';
+import { houseOf, isOstracized, OSTRACIZED, refuse } from './city-election';
 
 /**
  * Décrets de la cité (docs/specs/06-cites-politique-communaute.md, 6.3). L'archonte en charge propose un
@@ -18,16 +18,25 @@ import { houseOf, refuse } from './city-election';
  */
 
 const NOT_ARCHON = { code: 'NOT_ARCHON', message: 'Only the archon in office proposes decrees.' };
+const OSTRACISM_TOO_SOON = {
+  code: 'OSTRACISM_TOO_SOON',
+  message: 'The city already has an ostracism under way, or held one too recently.',
+};
 
 export const cityProposeDecree = defineCommand({
   name: 'city.proposeDecree',
   input: cityProposeDecreeInputSchema,
   output: cityProposeDecreeOutputSchema,
   errors: CITY_PROPOSE_DECREE_ERROR_CODES,
-  errorByConstraint: { decrees_archon_only: NOT_ARCHON },
+  errorByConstraint: {
+    decrees_archon_only: NOT_ARCHON,
+    decrees_not_ostracized: OSTRACIZED,
+    decrees_one_ostracism_proposed_idx: OSTRACISM_TOO_SOON,
+  },
   async handler({ trx, userId, emit, config, now }, input) {
     const house = await houseOf(trx, userId);
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
+    if (await isOstracized(trx, house.id, now)) return { ok: false, error: OSTRACIZED };
     const office = await trx
       .selectFrom('game.offices')
       .select('id')
@@ -36,6 +45,7 @@ export const cityProposeDecree = defineCommand({
       .where('house_id', '=', house.id)
       .where('starts_at', '<=', now)
       .where('ends_at', '>', now)
+      .where('vacated_at', 'is', null)
       .executeTakeFirst();
     if (!office) return { ok: false, error: NOT_ARCHON };
     // Une version publiée avant les décrets n'ouvre aucun modèle.
@@ -87,6 +97,31 @@ export const cityProposeDecree = defineCommand({
         'TOO_MANY_OPEN_DECREES',
         `At most ${decrees.maxOpenPerCity} decrees at a time.`,
       );
+    // Ostracisme (6.4) : aucun autre au vote, adopté sans vote ouvert, ou au vote d'ostracisme ; et aucun vote
+    // ouvert depuis moins de `intervalDays` jours de jeu, comptés de clôture en clôture.
+    const ostracism = input.model === 'ostracism' ? decrees.models.ostracism : undefined;
+    if (ostracism) {
+      const since = dailyCloseAt(
+        gameDayAt(now, config.clock) - ostracism.intervalDays + 1,
+        config.clock,
+      );
+      const blocking = await trx
+        .selectFrom('game.decrees as d')
+        .leftJoin('game.ostracisms as o', 'o.decree_id', 'd.id')
+        .select('d.id')
+        .where('d.city_id', '=', house.city_id)
+        .where('d.model', '=', 'ostracism')
+        .where((eb) =>
+          eb.or([
+            eb('d.status', '=', 'proposed'),
+            eb.and([eb('d.status', '=', 'adopted'), eb('o.id', 'is', null)]),
+            eb.and([eb('o.id', 'is not', null), eb('o.tallied_at', 'is', null)]),
+            eb('o.opened_at', '>=', since),
+          ]),
+        )
+        .executeTakeFirst();
+      if (blocking) return { ok: false, error: OSTRACISM_TOO_SOON };
+    }
     const decree = { model: input.model, params: params.data } as typeof input;
     const created = await trx
       .insertInto('game.decrees')
