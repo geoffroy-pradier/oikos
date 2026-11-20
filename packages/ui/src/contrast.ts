@@ -81,6 +81,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['danger', 'danger-subtle', AA_TEXT],
   ['warning', 'warning-subtle', AA_TEXT],
   ['info', 'info-subtle', AA_TEXT],
+  // Montant calculé d'après une saisie (net attendu d'une vente à l'agora) : texte courant sur `info-subtle`.
+  ['foreground', 'info-subtle', AA_TEXT],
   ['success', 'surface', AA_TEXT],
   ['primary', 'background', AA_TEXT],
   ['primary', 'surface', AA_TEXT],

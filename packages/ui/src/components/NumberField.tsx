@@ -26,6 +26,8 @@ export interface NumberFieldProps extends FieldTextProps {
   /** Messages des problèmes repérés à la saisie, déjà traduits ; `error` l'emporte sur eux. */
   messages?: Partial<Record<NumberProblem, ReactNode>>;
   id?: string;
+  /** Ce qui décrit aussi le champ (un montant calculé d'après lui), avant son aide et son erreur. */
+  'aria-describedby'?: string | undefined;
   name?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -68,7 +70,7 @@ export function NumberField({
   }
   const problem = numberProblem(text, locale, { min, max, step });
   const shown = error ?? (problem ? messages?.[problem] : undefined);
-  const ids = useFieldIds({ hint, error: shown }, id);
+  const ids = useFieldIds({ hint, error: shown }, id, props['aria-describedby']);
 
   const change = (typed: string) => {
     setText(typed);
