@@ -30,7 +30,7 @@ jeu, le moteur (ticks) et le client web. Ce qui est jouable est décrit dans `do
 Prérequis, à installer une fois :
 
 - **Git** ;
-- **Node.js 22** (la version exacte est dans `.nvmrc`) ;
+- **Node.js 24** (la version exacte est dans `.nvmrc`) ;
 - **Docker Desktop**, démarré, avec le moteur WSL 2 ;
 - **pnpm**, activé par `corepack enable` (la version est épinglée dans `package.json`).
 

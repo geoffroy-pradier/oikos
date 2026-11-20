@@ -23,11 +23,11 @@ jobs:
       matrix:
         app: [api, engine]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
@@ -72,14 +72,14 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Variables VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY absentes : clients statiques non publiés (voir infra/README.md)"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.vars.outputs.present == 'true'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.vars.outputs.present == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.vars.outputs.present == 'true'
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       # Installation et construction sans jeton du registre.
       - name: Build
@@ -111,7 +111,7 @@ jobs:
       group: deploy-preproduction
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check deployment secrets
         env:
