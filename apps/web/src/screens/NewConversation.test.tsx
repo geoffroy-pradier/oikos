@@ -42,7 +42,10 @@ vi.mock('../supabase', async () => {
     },
   };
 });
-vi.mock('../data', async () => ({ useRows: (await import('../chat-fake')).useFakeRows }));
+vi.mock('../data', async () => ({
+  useRows: (await import('../chat-fake')).useFakeRows,
+  useClockRules: () => ({ rules: null }),
+}));
 vi.mock('../chat-live', async () => ({
   chatTopics: (city: string | null, house: string) =>
     city === null ? null : [`chat:${city}`, `house:${house}`],

@@ -6,6 +6,7 @@ export type { LucideIcon as Icon, LucideProps as IconProps } from 'lucide-react'
 export {
   Amphora,
   Anchor,
+  ArrowLeft,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,

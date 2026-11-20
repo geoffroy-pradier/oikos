@@ -16,7 +16,10 @@ vi.mock('../api', () => ({
     new Promise((answer) => api.post.push({ channelId, body, key, answer })),
 }));
 vi.mock('../supabase', () => ({ supabase: {} }));
-vi.mock('../data', async () => ({ useRows: (await import('../chat-fake')).useFakeRows }));
+vi.mock('../data', async () => ({
+  useRows: (await import('../chat-fake')).useFakeRows,
+  useClockRules: () => ({ rules: null }),
+}));
 vi.mock('../chat-live', async () => ({
   chatTopics: (city: string | null, house: string) =>
     city === null ? null : [`chat:${city}`, `house:${house}`],

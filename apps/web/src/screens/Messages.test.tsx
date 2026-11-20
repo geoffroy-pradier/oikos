@@ -13,7 +13,10 @@ vi.mock('../supabase', () => ({ supabase: {} }));
 vi.mock('@oikos/config/client', () => ({
   CLIENT_SETTINGS: { updateCheckMinutes: 60, chatPollSeconds: 42, chatSafetyRereadSeconds: 120 },
 }));
-vi.mock('../data', async () => ({ useRows: (await import('../chat-fake')).useFakeRows }));
+vi.mock('../data', async () => ({
+  useRows: (await import('../chat-fake')).useFakeRows,
+  useClockRules: () => ({ rules: null }),
+}));
 vi.mock('../chat-live', async () => ({
   chatTopics: (city: string | null, house: string) =>
     city === null ? null : [`chat:${city}`, `house:${house}`],
@@ -123,5 +126,30 @@ describe('onglet Messages (#274)', () => {
     await show();
     expect(screen.getByRole('alert').textContent).toBe(fr.app.loadFailed);
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('sur téléphone : la liste d’abord, un canal n’est lu que montré ; le retour rend le foyer au canal', async () => {
+    const wide = window.matchMedia;
+    window.matchMedia = ((media: string) => ({
+      matches: false,
+      media,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      await show();
+      const city = channelButton(/^Canal de Kallistè/);
+      // La liste montrée, le canal de la cité n'est pas marqué lu.
+      expect(city.textContent).toMatch(/non lus?$/);
+      fireEvent.click(city);
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { level: 2, name: 'Canal de Kallistè' }),
+      );
+      expect(city.textContent).toBe('Canal de Kallistè');
+      fireEvent.click(screen.getByRole('button', { name: /^Canaux, 2 messages non lus$/ }));
+      expect(document.activeElement).toBe(city);
+    } finally {
+      window.matchMedia = wide;
+    }
   });
 });

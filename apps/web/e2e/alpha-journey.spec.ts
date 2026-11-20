@@ -448,11 +448,15 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
 
   await test.step('Alpha écrit à la cité et à Bêta ; Bêta signale le message', async () => {
     await nav.getByRole('link', { name: 'Messages' }).click();
+    // Sur téléphone, la liste des canaux d'abord, puis le fil ; son bouton de retour mène à la liste.
+    const back = page.getByRole('button', { name: /^Canaux/ });
+    await page.getByRole('button', { name: /^Canal de Kallistè/ }).click();
     const composer = page.getByRole('textbox', { name: /^Votre message dans/ });
     const cityText = `Khaire ${randomUUID()}`;
     await composer.fill(cityText);
     await composer.press('Control+Enter');
     await expect(page.getByRole('status').filter({ hasText: 'Message envoyé.' })).toBeVisible();
+    if (await back.isVisible()) await back.click();
     await page.getByRole('textbox', { name: 'Écrire à une maison, par son nom' }).fill(beta);
     await page.getByRole('button', { name: 'Ouvrir la conversation' }).click();
     await expect(
