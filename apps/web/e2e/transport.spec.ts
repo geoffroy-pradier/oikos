@@ -74,15 +74,19 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(page.getByRole('listitem').filter({ hasText: 'à quai à Kallistè' })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
-  // Fiche du navire : la destination, la cargaison prise dans le stock libre, puis « Partir ».
+  // Fiche du navire, puis sa feuille de départ par étapes : la destination, la cargaison prise dans le
+  // stock libre, puis « Partir » au coût vu.
   await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Caboteur' })).toBeVisible();
-  // Police très agrandie (260 %) : la fiche et son formulaire de départ ne débordent pas de la page.
+  await page.getByRole('button', { name: 'Préparer un départ' }).click();
+  // Police très agrandie (260 %) : la fiche et sa feuille de départ ne débordent pas de la page.
   await page.evaluate(() => (document.documentElement.style.fontSize = '260%'));
   await expectNoHorizontalScroll(page);
   await page.evaluate(() => (document.documentElement.style.fontSize = ''));
   await page.getByRole('radio', { name: /^Elaia — 4 h de mer/ }).check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel(/Blé \(80 libres\)/).fill('30');
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: /^Partir vers Elaia/ }).click();
   // La fiche porte aussi la région, vide, qui annonce la lecture des tempêtes : on vise l'issue du départ.
   await expect(

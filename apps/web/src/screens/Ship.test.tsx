@@ -129,10 +129,11 @@ describe('fiche d’un navire', () => {
     expect(screen.getByText(fr.ship.arrivedAt)).toBeTruthy();
   });
 
-  it('après un départ, le foyer perdu avec le formulaire va au message qui l’annonce', async () => {
+  it('après un départ, la feuille se ferme et le foyer va au message qui l’annonce', async () => {
     state(true);
     views.rules = { classes: [], routes: [], portDues: {} };
     await screenOf();
+    fireEvent.click(screen.getByRole('button', { name: fr.departure.open }));
     const button = screen.getByRole('button', { name: 'Partir' });
     button.focus();
     fireEvent.click(button);

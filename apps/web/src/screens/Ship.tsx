@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, CircleAlert, Info } from '@oikos/ui';
+import { Anchor, Badge, Button, Card, CircleAlert, Info, Sheet } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -30,13 +30,12 @@ export function ShipScreen() {
     return counts;
   }, [voyageRows]);
   const [notice, setNotice] = useState<DepartureNotice | null>(null);
-  // Un départ réussi retire le formulaire, et son bouton avec lui : le foyer, retombé sur la page, va au
-  // message qui annonce l'issue (comme sur l'écran des sites).
+  const [departing, setDeparting] = useState(false);
+  // Un départ réussi ferme sa feuille, et « Partir » avec elle : le foyer va au message qui annonce
+  // l'issue (comme sur l'écran des sites). Un refus reste dit dans la feuille, ouverte.
   const noticeElement = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
-    const active = document.activeElement;
-    if (active === document.body || active?.matches(':disabled') === true)
-      noticeElement.current?.focus();
+    if (notice) noticeElement.current?.focus();
   }, [notice]);
   const number = new Intl.NumberFormat(i18n.language);
   const time = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' });
@@ -111,14 +110,27 @@ export function ShipScreen() {
                 {notice.text}
               </p>
             )}
-            <Button variant="secondary" className="self-start" onClick={() => void fleet.reload()}>
-              {t('ship.reload')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {ship.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
+                <Button icon={<Anchor aria-hidden="true" />} onClick={() => setDeparting(true)}>
+                  {t('departure.open')}
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => void fleet.reload()}>
+                {t('ship.reload')}
+              </Button>
+            </div>
           </div>
         </Card>
       )}
       {ship?.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
-        <Card className="flex flex-col gap-3">
+        <Sheet
+          open={departing}
+          onClose={() => setDeparting(false)}
+          title={shipName(ship)}
+          description={place}
+          closeLabel={t('shell.close')}
+        >
           <Departure
             ship={{ ...ship, docked_city_id: ship.docked_city_id }}
             shipName={shipName(ship)}
@@ -126,11 +138,14 @@ export function ShipScreen() {
             slugs={fleet.slugs}
             voyageCounts={voyageCounts}
             onDone={(next) => {
-              setNotice(next);
+              if (next.kind === 'status') {
+                setDeparting(false);
+                setNotice(next);
+              }
               return fleet.reload();
             }}
           />
-        </Card>
+        </Sheet>
       )}
       {ship && (
         <Card>

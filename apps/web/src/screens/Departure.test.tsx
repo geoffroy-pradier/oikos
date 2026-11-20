@@ -71,6 +71,8 @@ async function mount() {
     </I18nextProvider>,
   );
 }
+/** Étapes suivantes du départ (destination, cargaison, récapitulatif) : « Continuer ». */
+const next = () => fireEvent.click(screen.getByRole('button', { name: fr.departure.next }));
 const ok = {
   ok: true,
   replayed: false,
@@ -92,6 +94,9 @@ describe('départ d’un navire', () => {
     expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText(/Elaia/));
     expect(screen.getByText(/Coût du départ : 3 drachmes \(provisions 5 oboles/)).toBeTruthy();
+    next();
+    next();
+    expect(screen.getByText('Vers Elaia, 4 h de mer, sur lest.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Partir vers Elaia — 3 drachmes' }));
     await waitFor(() => expect(done).toHaveBeenCalled());
     expect(sent.calls[0]?.input).toEqual({
@@ -108,14 +113,18 @@ describe('départ d’un navire', () => {
     sent.answers.push(ok);
     await mount();
     fireEvent.click(screen.getByLabelText(/Elaia/));
+    next();
     const wheat = screen.getByLabelText(/Blé/);
-    const submit = () => screen.getByRole('button', { name: /Partir vers Elaia/ });
+    // Au-delà du stock libre, l'étape ne se valide pas : « Partir » n'est pas atteignable.
+    const submit = () => screen.getByRole('button', { name: fr.departure.next });
     fireEvent.change(wheat, { target: { value: '81' } });
     expect(screen.getByRole('alert').textContent).toBe(fr.departure.overStock);
     expect((submit() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(wheat, { target: { value: '80' } });
     expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.click(submit());
+    expect(screen.getByText('Vers Elaia, 4 h de mer ; cargaison : 80 × Blé.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Partir vers Elaia/ }));
     await waitFor(() => expect(sent.calls).toHaveLength(1));
     expect(sent.calls[0]?.input).toMatchObject({ cargo: [{ goodId: 'wheat', quantity: 80 }] });
   });
@@ -124,6 +133,8 @@ describe('départ d’un navire', () => {
     sent.answers.push({ ok: false, error: { code: 'INTERNAL', message: '' } }, ok);
     await mount();
     fireEvent.click(screen.getByLabelText(/Halos/));
+    next();
+    next();
     fireEvent.click(screen.getByRole('button', { name: /Partir vers Halos/ }));
     await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByLabelText(/Elaia/));
@@ -141,14 +152,20 @@ describe('départ d’un navire', () => {
     );
     await mount();
     fireEvent.click(screen.getByLabelText(/Elaia/));
+    next();
+    next();
     const submit = () => fireEvent.click(screen.getByRole('button', { name: /Partir vers Elaia/ }));
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       submit();
       await waitFor(() => expect(done).toHaveBeenCalledTimes(attempt));
+      if (attempt === 2)
+        expect(screen.getByRole('alert').textContent).toBe(fr.errors.PRICE_CHANGED);
     }
     const [first, second, third] = sent.calls.map((call) => call.key);
     expect(second).toBe(first);
     expect(third).not.toBe(first);
     expect(done.mock.calls[1]?.[0]).toEqual({ kind: 'alert', text: fr.errors.PRICE_CHANGED });
+    // Un refus reste dit dans la feuille, près de « Partir » ; il s'efface au nouvel envoi.
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

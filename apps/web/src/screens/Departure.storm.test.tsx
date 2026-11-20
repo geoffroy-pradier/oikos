@@ -263,6 +263,8 @@ describe('départ d’un navire : durée raccourcie par un vent favorable en att
     });
     await mount();
     fireEvent.click(screen.getByLabelText(/^Elaia/));
+    fireEvent.click(screen.getByRole('button', { name: fr.departure.next }));
+    fireEvent.click(screen.getByRole('button', { name: fr.departure.next }));
     fireEvent.click(screen.getByRole('button', { name: /^Partir vers Elaia/ }));
     await waitFor(() => expect(api.done).toHaveBeenCalled());
     expect(api.done.mock.calls[0]?.[0]).toMatchObject({
