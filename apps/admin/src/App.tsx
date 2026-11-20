@@ -226,7 +226,7 @@ export function App() {
           </label>
           <select
             id="language"
-            className="min-h-10 min-w-0 rounded-lg border border-border bg-surface-raised px-2 text-sm lg:flex-1"
+            className="min-h-11 min-w-0 rounded-lg border border-border bg-surface-raised px-2 text-sm lg:flex-1"
             value={i18n.language}
             onChange={(event) => void i18n.changeLanguage(event.target.value)}
           >
@@ -265,7 +265,7 @@ export function App() {
                       aria-current={here ? 'page' : undefined}
                       onClick={() => setModule(id)}
                       className={cn(
-                        'flex min-h-10 w-full items-center gap-2 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-fast) ease-out',
+                        'flex min-h-11 w-full items-center gap-2 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-fast) ease-out',
                         'lg:min-h-11 lg:gap-3 lg:rounded-lg lg:px-3 lg:text-[0.9375rem] [&_svg]:size-4.5 [&_svg]:shrink-0',
                         here
                           ? 'bg-foreground text-background lg:bg-primary-subtle lg:font-semibold lg:text-primary'

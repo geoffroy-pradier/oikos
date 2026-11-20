@@ -5,16 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
     <title>Olympe</title>
-    <script>
-      // Thème posé avant le premier affichage, pour éviter un éclair clair. Même clé que `src/theme.ts`.
-      try {
-        var stored = localStorage.getItem('oikos.olympe.theme');
-        var dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      } catch (error) {
-        // Stockage indisponible : thème clair par défaut.
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>
