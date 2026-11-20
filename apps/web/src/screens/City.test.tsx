@@ -14,9 +14,14 @@ vi.mock('../data', () => ({
     const rows = view in state.views ? (state.views[view] ?? null) : [];
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
+  useClockRules: () => ({ rules: null }),
 }));
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  Link: ({ children, ...props }: { children: ReactNode; 'aria-label'?: string }) => (
+    <a href="/" aria-label={props['aria-label']}>
+      {children}
+    </a>
+  ),
 }));
 const { CityScreen } = await import('./City');
 
@@ -102,5 +107,31 @@ describe('onglet Cité : sous-sections en pastilles (#697)', () => {
     const panel = screen.getByRole('tabpanel', { name: 'Trésor' });
     expect(panel.querySelector('h2')?.textContent).toBe(fr.treasury.title);
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+  });
+});
+
+describe('onglet Cité : en-tête et vue d’ensemble (#697)', () => {
+  it('lien du temple nommé en entier, identité illustrée, population détaillée par classe', async () => {
+    state.views = {
+      city_identity: [
+        {
+          city_id: 'c1',
+          terroir: null,
+          has_port: true,
+          patron_god_id: 'demeter',
+          starting_recipe_id: 'wheat_field',
+        },
+      ],
+      city_population: [{ class_id: 'thetes', population: 1200, coverage_bps: 5000 }],
+    };
+    await show(<CityScreen />);
+    // Le libellé visible ouvre le nom accessible (WCAG 2.5.3).
+    const temple = screen.getByRole('link', { name: fr.city.templeLink });
+    expect(temple.textContent).toBe(fr.city.temple);
+    expect(screen.getByText('Protégée par Déméter')).toBeTruthy();
+    expect(screen.getByText(/^1\s200 habitants au total$/)).toBeTruthy();
+    const details = screen.getByText(fr.city.byClass).closest('details');
+    expect(details?.open).toBe(false);
+    expect(details?.textContent).toContain('Thètes');
   });
 });

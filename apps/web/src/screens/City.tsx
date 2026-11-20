@@ -1,20 +1,27 @@
 import {
   Amphora,
-  Bird,
+  Anchor,
   Card,
+  ChevronRight,
+  CityVignette,
   Coins,
   Gavel,
+  GodEmblem,
   Hammer,
   House,
   Landmark,
+  Leaf,
   PillTabs,
   ScrollText,
   Sparkles,
+  TriangleAlert,
   Users,
   Vote,
+  Waves,
+  Wheat,
 } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
-import { useRef } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { describeCity, parseCityIdentities } from '../city-identity';
 import { useRows } from '../data';
@@ -23,6 +30,7 @@ import { employmentShare, parseCityLabor } from '../labor';
 import { useMoney } from '../money';
 import { parkBySize } from '../property';
 import { coverageShare, parseCityPopulation } from '../population';
+import { ScreenHeader } from '../ScreenHeader';
 import { CityAssembly } from './CityAssembly';
 import { CityChronicle } from './CityChronicle';
 import { CityEvents } from './CityEvents';
@@ -30,10 +38,44 @@ import { CityPolitics } from './CityPolitics';
 import { CityTreasury } from './CityTreasury';
 import { LoadProblem, Loading } from './LoadProblem';
 
+/** Ligne d'une liste de chiffres : une icône décorative, le texte qui porte l'information. */
+const ROW = 'flex items-start gap-3 py-2.5 [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0';
+
+/** Titre d'une carte de l'écran : focalisable, le foyer y revient après une relecture réussie. */
+export function CardTitle(props: {
+  icon: ReactNode;
+  title?: RefObject<HTMLHeadingElement | null>;
+  children: ReactNode;
+}) {
+  return (
+    <h2
+      ref={props.title}
+      tabIndex={-1}
+      className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-accent"
+    >
+      <span aria-hidden="true">{props.icon}</span>
+      {props.children}
+    </h2>
+  );
+}
+
+/** Jauge décorative : le texte voisin dit déjà le chiffre. */
+export function Meter({ share }: { share: number }) {
+  return (
+    <span aria-hidden="true" className="block h-1.5 overflow-hidden rounded-full bg-muted">
+      <span
+        className="block h-full rounded-full bg-primary"
+        style={{ width: `${Math.round(Math.min(Math.max(share, 0), 1) * 100)}%` }}
+      />
+    </span>
+  );
+}
+
 /**
- * Onglet Cité : identité de la cité de la maison (6.1, vue `city_identity`), puis sa population, classe
- * par classe, et la couverture de ses besoins vitaux à la dernière clôture (docs/specs/05-economie.md,
- * 5.2, vue `city_population`), sa chronique (6.6), ses événements en cours (7.4). Lecture seule.
+ * Onglet Cité : en tête, l'identité de la cité de la maison (6.1, vue `city_identity`), sa population classe
+ * par classe et la couverture de ses besoins vitaux (5.2, vue `city_population`), son marché du travail (4.4)
+ * et son parc de logements (4.5) ; puis, en pastilles, vie politique, assemblée, trésor, événements (7.4) et
+ * chronique (6.6). Les panneaux restent montés : une commande en vol ou une saisie survit au changement.
  */
 export function CityScreen() {
   const { t, i18n } = useTranslation();
@@ -85,6 +127,8 @@ export function CityScreen() {
   const sizeName = (id: string) => t(`propertySizes.${id}`, { defaultValue: id });
   // Une classe ou un nom ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const className = (id: string) => t(`npcClasses.${id}`, { defaultValue: id });
+  // Vignette de la cité, par son identifiant de configuration ; inconnu : le dessin neutre.
+  const slug = house.citySlugs?.[house.cityId] ?? '';
   // Sous-sections en pastilles (ADR 0011), la vie politique d'abord.
   const sections = [
     ['politics', <Vote key="politics" />, <CityPolitics key="politics" />],
@@ -95,47 +139,186 @@ export function CityScreen() {
   ] as const;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card elevation="raised" className="overflow-hidden p-0">
-        <div className="flex flex-col gap-1 p-4">
-          {/* Icône dans le fil du texte, pas en flex : à police très agrandie, le titre se replie sans déborder. */}
-          <h1 className="text-2xl">
-            <Landmark
-              aria-hidden="true"
-              className="mr-2 inline size-6 align-[-0.15em] text-accent"
-            />
-            {t('city.title', { city: house.cityName })}
-          </h1>
-          <p className="text-muted-foreground">{t('city.intro')}</p>
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
+      <ScreenHeader
+        title={t('city.title', { city: house.cityName })}
+        action={
+          // Nom accessible complet, qui commence par le libellé visible.
           <Link
             to="/cite/temple"
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
+            aria-label={t('city.templeLink')}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface-raised px-4 font-medium shadow-sm transition-colors duration-(--motion-fast) hover:bg-muted [&_svg]:size-[1.15em]"
           >
-            <Amphora aria-hidden="true" className="mr-2 inline size-4" />
-            {t('city.templeLink')}
+            <Amphora aria-hidden="true" className="text-accent" />
+            {t('city.temple')}
           </Link>
+        }
+      />
+      {/* Téléphone : la vignette à côté du titre, la liste dessous ; ordinateur : la vignette à gauche du tout. */}
+      <Card
+        elevation="raised"
+        className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4"
+      >
+        <CityVignette
+          cityId={slug}
+          className="h-auto w-full shrink-0 rounded-xl bg-muted p-1 text-foreground sm:w-48 sm:p-1.5"
+        />
+        <div className="contents min-w-0 flex-1 flex-col gap-3 sm:flex max-sm:[&>*:not(h2)]:col-span-2">
+          <CardTitle icon={<Landmark />} title={identityTitle}>
+            {t('cityIdentity.title')}
+          </CardTitle>
+          {read.rows === null && !read.failed && <Loading />}
+          {(read.failed || (read.rows !== null && identities === null)) && (
+            <LoadProblem heading={identityTitle} onRetry={() => read.reload()} />
+          )}
+          {identities && !lines && (
+            <p className="text-muted-foreground">{t('cityIdentity.missing')}</p>
+          )}
+          {identity && lines && (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  // Sans dieu protecteur, l'emblème neutre.
+                  [lines.god, <GodEmblem key="god" godId={identity.patronGodId ?? ''} size={24} />],
+                  [lines.port, identity.hasPort ? <Anchor /> : <Waves />],
+                  [lines.terroir, <Leaf key="terroir" />],
+                  [lines.start, <Wheat key="start" />],
+                ] as const
+              ).map(([line, icon]) => (
+                <li
+                  key={line}
+                  className="flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-1.5 text-sm sm:py-2 [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-accent"
+                >
+                  <span aria-hidden="true">{icon}</span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Card>
-      <Card className="flex flex-col gap-3">
-        <h2 ref={identityTitle} tabIndex={-1} className="text-xl">
-          <Bird aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-          {t('cityIdentity.title')}
-        </h2>
-        {read.rows === null && !read.failed && <Loading />}
-        {(read.failed || (read.rows !== null && identities === null)) && (
-          <LoadProblem heading={identityTitle} onRetry={() => read.reload()} />
-        )}
-        {identities && !lines && (
-          <p className="text-muted-foreground">{t('cityIdentity.missing')}</p>
-        )}
-        {lines && (
-          <ul className="flex list-inside list-disc flex-col gap-1 marker:text-accent">
-            {[lines.god, lines.port, lines.terroir, lines.start].map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+        <Card className="flex flex-col gap-3">
+          <CardTitle icon={<Users />} title={title}>
+            {t('city.population')}
+          </CardTitle>
+          {rows.rows === null && !rows.failed && <Loading />}
+          {failed && <LoadProblem heading={title} onRetry={() => rows.reload()} />}
+          {city && city.classes.length === 0 && (
+            <p className="text-muted-foreground">{t('city.empty')}</p>
+          )}
+          {city && city.classes.length > 0 && (
+            <>
+              <p className="text-xl font-bold tabular-nums">
+                {t('city.total', { count: city.total, number: number.format(city.total) })}
+              </p>
+              {/* Le détail par classe se replie : l'onglet garde ses pastilles près du haut sur téléphone. */}
+              <details className="group rounded-lg border border-border-subtle px-3">
+                <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium hover:text-primary">
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-muted-foreground transition-transform duration-(--motion-fast) group-open:rotate-90"
+                  />
+                  {t('city.byClass')}
+                </summary>
+                <p className="pb-1 text-sm text-muted-foreground">{t('city.intro')}</p>
+                <ul className="flex flex-col divide-y divide-border-subtle">
+                  {city.classes.map((row) => {
+                    const share = coverageShare(row);
+                    return (
+                      <li key={row.class_id} className="flex flex-col gap-1.5 py-2.5">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <h3 className="font-semibold">{className(row.class_id)}</h3>
+                          <p className="text-sm tabular-nums">
+                            {t('city.inhabitants', {
+                              count: row.population,
+                              number: number.format(row.population),
+                            })}
+                          </p>
+                        </div>
+                        {share !== null && <Meter share={share} />}
+                        <p className="text-sm text-muted-foreground">
+                          {share === null
+                            ? t('city.coverageUnknown')
+                            : t('city.coverage', { percent: percent.format(share) })}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            </>
+          )}
+        </Card>
+        <Card className="flex flex-col gap-3">
+          <CardTitle icon={<Hammer />} title={laborTitle}>
+            {t('city.labor.title')}
+          </CardTitle>
+          {laborRows.rows === null && !laborRows.failed && <Loading />}
+          {(laborRows.failed || laborMap === null) && (
+            <LoadProblem heading={laborTitle} onRetry={() => laborRows.reload()} />
+          )}
+          {laborMap && !labor && <p className="text-muted-foreground">{t('city.labor.none')}</p>}
+          {labor && (
+            <ul className="flex flex-col divide-y divide-border-subtle text-sm [&_svg]:text-muted-foreground">
+              <li className={ROW}>
+                <Coins aria-hidden="true" />
+                {t('city.labor.wage', { cost: money(labor.wageOboles) })}
+              </li>
+              <li className={ROW}>
+                <Users aria-hidden="true" />
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <span>
+                    {employment === null
+                      ? t('city.labor.unlimited', {
+                          count: labor.employed,
+                          employed: number.format(labor.employed),
+                        })
+                      : t('city.labor.employment', {
+                          count: labor.employed,
+                          percent: percent.format(employment),
+                          employed: number.format(labor.employed),
+                          supply: number.format(labor.supply),
+                        })}
+                  </span>
+                  {employment !== null && <Meter share={employment} />}
+                </span>
+              </li>
+              <li className={ROW}>
+                <House aria-hidden="true" />
+                {t('city.labor.lodging', { cost: money(labor.lodgingOboles) })}
+              </li>
+              <li className={ROW}>
+                <TriangleAlert aria-hidden="true" />
+                {t('city.labor.unhoused', { number: number.format(labor.unhoused) })}
+              </li>
+            </ul>
+          )}
+        </Card>
+        <Card className="flex flex-col gap-3">
+          <CardTitle icon={<House />} title={parkTitle}>
+            {t('city.park.title')}
+          </CardTitle>
+          {parkRows.rows === null && !parkRows.failed && <Loading />}
+          {(parkRows.failed || park === null) && (
+            <LoadProblem heading={parkTitle} onRetry={() => parkRows.reload()} />
+          )}
+          {park?.length === 0 && <p className="text-muted-foreground">{t('city.park.empty')}</p>}
+          {park && park.length > 0 && (
+            <ul className="flex flex-col divide-y divide-border-subtle text-sm">
+              {park.map((size) => (
+                <li key={size.sizeId} className="py-2.5">
+                  {t('city.park.size', {
+                    size: sizeName(size.sizeId),
+                    total: number.format(size.total),
+                    forSale: number.format(size.forSale),
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
       <PillTabs
         label={t('city.sections.label')}
         // Panneaux gardés montés : une commande en vol, sa clé ou une saisie survivent au changement.
@@ -147,100 +330,6 @@ export function CityScreen() {
           content,
         }))}
       />
-      <Card className="flex flex-col gap-3">
-        <h2 ref={laborTitle} tabIndex={-1} className="text-xl">
-          <Hammer aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-          {t('city.labor.title')}
-        </h2>
-        {laborRows.rows === null && !laborRows.failed && <Loading />}
-        {(laborRows.failed || laborMap === null) && (
-          <LoadProblem heading={laborTitle} onRetry={() => laborRows.reload()} />
-        )}
-        {laborMap && !labor && <p className="text-muted-foreground">{t('city.labor.none')}</p>}
-        {labor && (
-          <ul className="flex flex-col gap-1">
-            <li>{t('city.labor.wage', { cost: money(labor.wageOboles) })}</li>
-            <li>
-              {employment === null
-                ? t('city.labor.unlimited', {
-                    count: labor.employed,
-                    employed: number.format(labor.employed),
-                  })
-                : t('city.labor.employment', {
-                    count: labor.employed,
-                    percent: percent.format(employment),
-                    employed: number.format(labor.employed),
-                    supply: number.format(labor.supply),
-                  })}
-            </li>
-            <li>{t('city.labor.lodging', { cost: money(labor.lodgingOboles) })}</li>
-            <li>{t('city.labor.unhoused', { number: number.format(labor.unhoused) })}</li>
-          </ul>
-        )}
-      </Card>
-      <Card className="flex flex-col gap-3">
-        <h2 ref={parkTitle} tabIndex={-1} className="text-xl">
-          <House aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-          {t('city.park.title')}
-        </h2>
-        {parkRows.rows === null && !parkRows.failed && <Loading />}
-        {(parkRows.failed || park === null) && (
-          <LoadProblem heading={parkTitle} onRetry={() => parkRows.reload()} />
-        )}
-        {park?.length === 0 && <p className="text-muted-foreground">{t('city.park.empty')}</p>}
-        {park && park.length > 0 && (
-          <ul className="flex flex-col gap-1">
-            {park.map((size) => (
-              <li key={size.sizeId}>
-                {t('city.park.size', {
-                  size: sizeName(size.sizeId),
-                  total: number.format(size.total),
-                  forSale: number.format(size.forSale),
-                })}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-      <Card className="flex flex-col gap-3">
-        <h2 ref={title} tabIndex={-1} className="text-xl">
-          <Users aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-          {t('city.population')}
-        </h2>
-        {rows.rows === null && !rows.failed && <Loading />}
-        {failed && <LoadProblem heading={title} onRetry={() => rows.reload()} />}
-        {city && city.classes.length === 0 && (
-          <p className="text-muted-foreground">{t('city.empty')}</p>
-        )}
-        {city && city.classes.length > 0 && (
-          <>
-            <p className="text-lg font-semibold">
-              {t('city.total', { count: city.total, number: number.format(city.total) })}
-            </p>
-            <ul className="flex flex-col gap-2">
-              {city.classes.map((row) => {
-                const share = coverageShare(row);
-                return (
-                  <li key={row.class_id} className="flex flex-col rounded-lg bg-muted/50 p-3">
-                    <h3 className="font-semibold">{className(row.class_id)}</h3>
-                    <p>
-                      {t('city.inhabitants', {
-                        count: row.population,
-                        number: number.format(row.population),
-                      })}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {share === null
-                        ? t('city.coverageUnknown')
-                        : t('city.coverage', { percent: percent.format(share) })}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-      </Card>
     </div>
   );
 }
