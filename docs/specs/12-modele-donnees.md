@@ -15,7 +15,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Domaine | Tables |
 | --- | --- |
 | Monde | `worlds`, `cities`, `districts`, `parcels`, `routes`, `calendar` |
-| Maison | `houses`, `house_members`, `skills`, `reputation`, `titles` |
+| Maison | `houses`, `house_members`, `skills`, `honor`, `honor_ledger`, `titles` |
 | Sites | `sites`, `buildings`, `recipes_running`, `workers`, `labor_market`, `artisans`, `stewards`, `steward_rules` |
 | Stocks | `inventories`, `stock_ledger`, `warehouses` |
 | Monnaie | `accounts`, `ledger_entries`, `ledger_lines` |
@@ -121,6 +121,14 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La base garantit un seul intendant en poste par site, de la maison du site, qu'il naît maintenant et impayé, que son identité ne change plus, que son impayé et son renvoi sont datés de la transaction qui les écrit, et qu'un intendant renvoyé ne change plus.
   Les règles s'écrivent dans la révision en vigueur d'un intendant en poste, révision qui n'avance que d'un pas à la fois et que la même transaction a ouverte (`rules_revised_at`) ; le service ne les modifie ni ne les supprime.
   Un joueur lit ses intendants en poste et leurs règles en vigueur par `my_stewards` et `my_steward_rules`, jamais ceux d'une autre maison (pgTAP 230).
+- Timè (4.1, #704) : `honor` porte la Timè entière d'une maison, dans les entiers sûrs des clients ; elle n'est que le cumul d'un journal en ajout seul, `honor_ledger`, appliqué par un déclencheur du propriétaire, et une maison sans ligne a une Timè nulle.
+  Une ligne porte la maison, une variation non nulle, un motif d'une liste fermée, une référence et un jour de jeu ; un index unique n'en admet qu'une par motif et par référence, si bien qu'un crédit rejoué ne s'écrit pas deux fois.
+  Une ligne `archon_term` est un gain, pour une charge (`offices`) de la même maison dont le mandat a pris fin.
+  À son insertion, aucune clôture de son jour ou d'un jour postérieur n'est enregistrée pour le monde (verrou de la clôture du monde) ; à la validation, la clôture de son jour l'est (déclencheur différé `honor_ledger_on_close`) : elle est donc écrite dans la transaction qui enregistre cette clôture, comme le déclin de la Charis.
+  Tout autre motif est refusé : chaque mécanique qui touche la Timè remplace la garde pour y ajouter le sien.
+  La base ne lit pas les bornes de la configuration : qui écrit prend le verrou consultatif `honor:<maison>` de sa transaction, lit la Timè et la tient dans ses bornes (`honorChange`).
+  Le service écrit au journal sans en choisir ni l'identifiant ni la date, et ne modifie jamais la Timè ; aucun joueur n'écrit ni l'une ni l'autre.
+  Tout joueur connecté lit la Timè de chaque maison par `public.house_honor` (une ligne par maison), et les seules lignes du journal de sa maison par `public.my_honor_entries` ; un visiteur anonyme ne lit rien (pgTAP 704).
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.
