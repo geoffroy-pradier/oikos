@@ -79,7 +79,14 @@
     "cloth": "Tissu",
     "bread": "Pain",
     "wine": "Vin",
-    "amphorae": "Amphores"
+    "amphorae": "Amphores",
+    "barley_cakes": "Galettes d'orge",
+    "salted_fish": "Poisson salé",
+    "garum": "Garum",
+    "oil_lamps": "Lampes à huile",
+    "sandals": "Sandales",
+    "tools": "Outils",
+    "clothes": "Vêtements"
   },
   "cities": {
     "kalliste": "Kallistè",

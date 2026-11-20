@@ -182,6 +182,12 @@ Ce filtre dépend du nombre de biens produits : le banc à douze cités (#712) d
 Avec une offre d'achat sur chacun des trente-sept biens, le banc à une cité arrêtait un moulin faute d'entretien payé ; les offres sur les douze intermédiaires, que personne n'y produit, ne s'y remplissaient jamais.
 Le banc à une cité garde ses bornes, avec des écarts de quelques millièmes (10 236 habitants au dernier jour au lieu de 10 253).
 
+Depuis #710, sept ateliers de biens finis de plus (5.1), jusqu'à quarante-quatre recettes.
+Leur marge du monde, aux prix du banc à quatre cités, est de 615 à 857 oboles, dans la borne de 453 à 1 810.
+Aucune maison du banc ne les joue : leurs extrants, que personne n'échange, comptent à leur prix de référence.
+Les marges des quatorze recettes d'avant, et celles de #709, restent celles d'avant, au chiffre près ; le banc à une cité reste identique, au chiffre près (10 236 habitants au dernier jour).
+Le filtre du négociant les laisse de côté pour la même raison que les douze de #709.
+
 Marges retenues dans la configuration initiale (banc à quatre cités, graine par défaut, salaire du banc de 4 oboles) ; la médiane des matières premières est de 905 oboles avant comme après, d'où une borne de 453 à 1 810 oboles :
 
 | Filière | Avant | Après | Réglage |

@@ -79,7 +79,14 @@
     "cloth": "Cloth",
     "bread": "Bread",
     "wine": "Wine",
-    "amphorae": "Amphorae"
+    "amphorae": "Amphorae",
+    "barley_cakes": "Barley cakes",
+    "salted_fish": "Salted fish",
+    "garum": "Garum",
+    "oil_lamps": "Oil lamps",
+    "sandals": "Sandals",
+    "tools": "Tools",
+    "clothes": "Clothes"
   },
   "cities": {
     "kalliste": "Kallistè",
