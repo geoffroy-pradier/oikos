@@ -179,6 +179,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    chaque changement de tri est annoncé aux lecteurs d'écran). Un stock sans prix observé est dit tel, non valorisé, et reste en fin de liste quel que soit le tri.
    Refonte (#694) : ces fiches et ce tableau sont ceux du composant `DataTable`.
    Enfin le compte de résultat (4.1), par journée de jeu ou par saison au choix, borné aux 7, 30 ou 90 dernières périodes : mêmes fiches et même tableau triable, périodes les plus récentes d'abord.
+   Refonte (#694) : ce tableau défile dans sa carte, montants sur une ligne, et ses trois soldes (résultat d'exploitation, hors exploitation, variation de la monnaie) sont en gras.
    Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ;
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.

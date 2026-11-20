@@ -1245,7 +1245,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
       // Compte de résultat : rien à l'exploitation (5e montant) ; la dotation de départ (7e) fait toute
       // la variation de la monnaie (10e), à la date de sa journée de jeu : une date, pas un rang.
       const periodOf = (income: Locator) =>
-        wide ? income.getByRole('rowheader') : income.getByRole('heading', { level: 3 });
+        wide ? income.getByRole('rowheader') : income.locator('li > p');
       const income = region('Compte de résultat');
       const amounts = income.locator(wide ? 'td' : 'dd');
       const aDay = /^\d{1,2}\S* \S+ \d{4}$/;

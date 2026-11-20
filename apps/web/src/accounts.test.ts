@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseBalanceSheet, parseIncomeStatement, parseValuedStocks, sortRows } from './accounts';
+import { parseBalanceSheet, parseIncomeStatement, parseValuedStocks } from './accounts';
 
 const sheet = { treasury: 2990, escrow: 10, stock_value: 280, unpriced_stocks: 1 };
 
@@ -91,32 +91,6 @@ describe('stocks valorisés lus par le client', () => {
     } finally {
       parse.mockRestore();
     }
-  });
-});
-
-describe('tri des tableaux de comptes', () => {
-  // Tableau gelé : un tri en place lèverait une erreur au lieu de passer inaperçu.
-  const rows = Object.freeze([
-    { name: 'Blé', value: 30 },
-    { name: 'Argile', value: null },
-    { name: 'Vin', value: 280 },
-    { name: 'Écorce', value: 30 },
-    { name: 'Sel', value: null },
-  ]);
-  const names = (sorted: typeof rows) => sorted.map((row) => row.name);
-
-  it('nombres dans les deux sens : sans valeur à la fin, ordre reçu gardé à égalité', () => {
-    const byValue = (descending: boolean) =>
-      names(sortRows(rows, (r) => r.value, descending, 'fr'));
-    expect(byValue(true)).toEqual(['Vin', 'Blé', 'Écorce', 'Argile', 'Sel']);
-    expect(byValue(false)).toEqual(['Blé', 'Écorce', 'Vin', 'Argile', 'Sel']);
-    expect(names(rows)).toEqual(['Blé', 'Argile', 'Vin', 'Écorce', 'Sel']);
-  });
-
-  it('textes dans l’ordre de la langue : « Écorce » entre « Blé » et « Sel », pas après « Vin »', () => {
-    const byName = (descending: boolean) => names(sortRows(rows, (r) => r.name, descending, 'fr'));
-    expect(byName(false)).toEqual(['Argile', 'Blé', 'Écorce', 'Sel', 'Vin']);
-    expect(byName(true)).toEqual(['Vin', 'Sel', 'Écorce', 'Blé', 'Argile']);
   });
 });
 
