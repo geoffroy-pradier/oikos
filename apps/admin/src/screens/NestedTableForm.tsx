@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Plus, Trash2 } from '@oikos/ui';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -138,6 +138,7 @@ export function NestedTableForm(props: {
                       ))}
                       {!props.readOnly && (
                         <Button
+                          icon={<Trash2 aria-hidden="true" />}
                           variant="secondary"
                           className="col-span-full justify-self-start"
                           {...guard}
@@ -163,6 +164,7 @@ export function NestedTableForm(props: {
                   ))}
                   {!props.readOnly && (
                     <Button
+                      icon={<Plus aria-hidden="true" />}
                       id={addLine}
                       variant="secondary"
                       {...guard}
@@ -176,6 +178,7 @@ export function NestedTableForm(props: {
             })}
             {reshapes && (
               <Button
+                icon={<Trash2 aria-hidden="true" />}
                 variant="secondary"
                 className="col-span-full justify-self-start"
                 {...guard}
@@ -196,6 +199,7 @@ export function NestedTableForm(props: {
       })}
       {rows && reshapes && (
         <Button
+          icon={<Plus aria-hidden="true" />}
           id={`${table}-add`}
           variant="secondary"
           {...guard}

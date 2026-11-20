@@ -1,4 +1,4 @@
-import { Button, EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
+import { Button, ChevronDown, EmptyState, FilterX, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -90,6 +90,7 @@ export function Audit({ accessToken }: { accessToken: string }) {
               title={t('audit.filteredEmpty')}
               action={
                 <Button
+                  icon={<FilterX aria-hidden="true" />}
                   variant="secondary"
                   onClick={() => {
                     setShown('all');
@@ -145,7 +146,11 @@ export function Audit({ accessToken }: { accessToken: string }) {
       {/* Sous le tableau : l'échec d'une page plus ancienne laisse les pages déjà lues à l'écran. */}
       {error && <LoadError code={error.code} onRetry={() => void load(error.before, true)} />}
       {more && !error && (
-        <Button variant="secondary" onClick={() => void load(entries?.at(-1)?.id)}>
+        <Button
+          icon={<ChevronDown aria-hidden="true" />}
+          variant="secondary"
+          onClick={() => void load(entries?.at(-1)?.id)}
+        >
           {t('audit.older')}
         </Button>
       )}

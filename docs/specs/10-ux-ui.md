@@ -309,6 +309,13 @@ Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas 
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.
 Les titres de section d'un écran ont un même style (`SectionTitle`) et portent tous une icône, ou aucun (#869).
+Olympe a les mêmes titres de section, tous avec une icône, et son contenu tient dans la même colonne que celui du jeu (#870).
+Un titre d'Olympe est dans sa carte, jamais seul sur le fond de la page ; le tableau des valeurs d'un graphique se replie sous lui (« Valeurs, jour par jour »).
+La barre d'une part (« Part de chaque puits ») se mesure à la plus grande part : des parts proches restent distinguables, et la part exacte est écrite à côté.
+Une carte de chiffre qui compte des échecs ou des refus (Vigie) porte son état par une icône et la teinte de son bord, jamais par la couleur seule : danger pour une panne, alerte pour un refus, succès à zéro.
+Un tick de la Vigie nomme son monde par son nom, l'identifiant abrégé ne servant que si l'API ne le donne pas.
+Une version sans auteur n'est pas « par — » : sa date seule est dite.
+Chaque bouton d'action d'Olympe porte une icône au trait, ce que vérifie `apps/admin/src/action-icons.test.ts`.
 L'explication d'un écran ou d'une section tient en une ligne, « Comment ça marche ? », qui l'ouvre au clavier comme à la souris (#869).
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
 Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.

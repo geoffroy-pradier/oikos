@@ -11,10 +11,15 @@ import {
   Badge,
   Button,
   CalendarClock,
+  Check,
   CircleCheck,
   cn,
   Eye,
+  HandCoins,
   PageHeader,
+  Pencil,
+  Save,
+  ScrollText,
   Undo2,
   X,
 } from '@oikos/ui';
@@ -39,6 +44,7 @@ import { labelSchemaTarget, parseSchemaError } from '../schema-errors';
 import { CONTROL } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { GoodsForm } from './GoodsForm';
+import { SectionTitle } from './SectionTitle';
 import { NestedTableForm } from './NestedTableForm';
 
 interface Listing {
@@ -333,7 +339,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {listing.error && <LoadError code={listing.error} onRetry={() => void listing.reload()} />}
       {!listing.data && !listing.error && <p>{t('app.loading')}</p>}
 
-      <h2 className="text-base font-semibold">{t('config.versions')}</h2>
+      <SectionTitle icon={<ScrollText />}>{t('config.versions')}</SectionTitle>
       {/* Déjà absentes de la version en vigueur, encore en usage : dites une fois, en tête, rien à
           confirmer (#234). Sous la version en vigueur, la lecture les donne toutes. */}
       {already && already.recipes.length + already.npcClasses.length > 0 && (
@@ -436,6 +442,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                         })}
                       </p>
                       <Button
+                        icon={<Check aria-hidden="true" />}
                         disabled={busy}
                         aria-describedby={warningId}
                         onClick={() => void buyBack(key, preview)}
@@ -444,6 +451,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                       </Button>
                       {/* Foyer initial sur le geste sans effet : Entrée tenue ne rachète jamais. */}
                       <Button
+                        icon={<X aria-hidden="true" />}
                         autoFocus
                         variant="secondary"
                         disabled={busy}
@@ -455,6 +463,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                     </div>
                   ) : (
                     <Button
+                      icon={<HandCoins aria-hidden="true" />}
                       key={key}
                       id={`config-buyback-${key}`}
                       variant="secondary"
@@ -541,6 +550,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                     {t('config.replaceWarning', { opened: opened?.number, number: version.number })}
                   </p>
                   <Button
+                    icon={<Check aria-hidden="true" />}
                     aria-describedby="config-replace-warning"
                     onClick={() => closeReplace(version.id, true)}
                   >
@@ -548,6 +558,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   </Button>
                   {/* Foyer initial sur le geste sans effet, comme pour l'annulation ci-dessous. */}
                   <Button
+                    icon={<X aria-hidden="true" />}
                     autoFocus
                     variant="secondary"
                     aria-describedby="config-replace-warning"
@@ -563,6 +574,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                     {t('config.cancelWarning')}
                   </p>
                   <Button
+                    icon={<Check aria-hidden="true" />}
                     disabled={busy}
                     aria-describedby="config-cancel-warning"
                     onClick={() => void cancel(next, version.number)}
@@ -572,6 +584,7 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   {/* Foyer initial sur le choix sans effet : une touche Entrée maintenue sur le bouton
                       d'annulation ne confirme pas par répétition. L'avertissement est lu à l'arrivée. */}
                   <Button
+                    icon={<X aria-hidden="true" />}
                     autoFocus
                     variant="secondary"
                     disabled={busy}
@@ -590,9 +603,9 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
       {/* Une version ouverte s'édite dans un panneau, fixé à droite sur ordinateur (la page lui fait place). */}
       {opened && (
         <section data-side-panel aria-labelledby="config-editing" className={PANEL}>
-          <h2 id="config-editing" ref={openedTitle} tabIndex={-1} className="text-lg font-semibold">
+          <SectionTitle id="config-editing" ref={openedTitle} tabIndex={-1} icon={<Pencil />}>
             {t('config.editing', { number: opened.number })}
-          </h2>
+          </SectionTitle>
           <label htmlFor="config-json" className="-mb-1 text-sm font-medium">
             {t('config.content')}
           </label>
@@ -675,7 +688,12 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />
-              <Button className="self-end" disabled={busy} onClick={() => void publish()}>
+              <Button
+                icon={<Save aria-hidden="true" />}
+                className="self-end"
+                disabled={busy}
+                onClick={() => void publish()}
+              >
                 {t('config.publish')}
               </Button>
             </>

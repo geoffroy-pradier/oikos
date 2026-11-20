@@ -4,18 +4,24 @@ import {
   Badge,
   Ban,
   Button,
+  Check,
   cn,
   EmptyState,
   EyeOff,
   Flag,
+  Gavel,
   Hourglass,
   Menu,
   MessageSquareOff,
+  MessagesSquare,
   PageHeader,
   RefreshCw,
   Search,
+  Send,
   Sheet,
   TriangleAlert,
+  Undo2,
+  X,
 } from '@oikos/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +63,15 @@ const QUEUE_GESTURES = {
   dismissed: Archive,
 } as const;
 type QueueGesture = keyof typeof QUEUE_GESTURES;
+/** Gestes sur une sanction déjà prononcée ou proposée, chacun avec son icône. */
+const SANCTION_GESTURES = {
+  confirmExclusion: Gavel,
+  withdrawExclusion: Undo2,
+  proposeLift: Send,
+  liftSanction: Check,
+  granted: Check,
+  rejected: X,
+} as const;
 
 /**
  * Durées proposées pour une sanction (#541) : celles que rend l'API, lues dans la version en vigueur. Aucune sans
@@ -262,8 +277,13 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         })
       : t('moderation.periodOpen', { from: date.format(new Date(item.startsAt)) });
   /** Bouton d'un geste sur une sanction, ou sa confirmation si c'est lui qui est demandé. */
-  const sanctionGesture = (sanctionId: string, userId: string, gesture: Gesture) =>
-    open?.scope === sanctionId && open.gesture === gesture ? (
+  const sanctionGesture = (
+    sanctionId: string,
+    userId: string,
+    gesture: keyof typeof SANCTION_GESTURES,
+  ) => {
+    const SanctionIcon = SANCTION_GESTURES[gesture];
+    return open?.scope === sanctionId && open.gesture === gesture ? (
       <Confirmation
         key={gesture}
         id={`confirm-${sanctionId}`}
@@ -277,6 +297,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       />
     ) : (
       <Button
+        icon={<SanctionIcon aria-hidden="true" />}
         key={gesture}
         variant="secondary"
         autoFocus={returnTo === `${sanctionId}:${gesture}`}
@@ -286,6 +307,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
         {t(`moderation.act.${gesture}`, { account: userId.slice(0, 8) })}
       </Button>
     );
+  };
 
   const stale = staleReportHours(data);
   const queue = data?.queue ?? [];
@@ -554,9 +576,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               </ol>
             </>
           )}
-          <h2 id="moderation-exclusions" className="text-lg">
+          <SectionTitle id="moderation-exclusions" icon={<Gavel />}>
             {t('moderation.exclusions')}
-          </h2>
+          </SectionTitle>
           {data.pendingExclusions.length === 0 ? (
             <EmptyState compact illustration="noReport" title={t('moderation.exclusionsEmpty')} />
           ) : (
@@ -583,9 +605,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-active" className="text-lg">
+          <SectionTitle id="moderation-active" icon={<Gavel />}>
             {t('moderation.active')}
-          </h2>
+          </SectionTitle>
           {active.length === 0 ? (
             <EmptyState compact illustration="noReport" title={t('moderation.activeEmpty')} />
           ) : (
@@ -612,9 +634,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-lifts" className="text-lg">
+          <SectionTitle id="moderation-lifts" icon={<Undo2 />}>
             {t('moderation.lifts')}
-          </h2>
+          </SectionTitle>
           {lifts.length === 0 ? (
             <EmptyState compact illustration="noReport" title={t('moderation.liftsEmpty')} />
           ) : (
@@ -647,9 +669,9 @@ export function Moderation({ accessToken }: { accessToken: string }) {
               ))}
             </ul>
           )}
-          <h2 id="moderation-appeals" className="text-lg">
+          <SectionTitle id="moderation-appeals" icon={<MessagesSquare />}>
             {t('moderation.appeals')}
-          </h2>
+          </SectionTitle>
           {data.appeals.length === 0 ? (
             <EmptyState compact illustration="noReport" title={t('moderation.appealsEmpty')} />
           ) : (
@@ -813,6 +835,7 @@ export function Confirmation({
       {children}
       <div className="flex flex-wrap gap-2">
         <Button
+          icon={<Check aria-hidden="true" />}
           id={`gesture-${scope}:confirm`}
           disabled={busy}
           aria-describedby={id}
@@ -821,6 +844,7 @@ export function Confirmation({
           {confirmLabel}
         </Button>
         <Button
+          icon={<X aria-hidden="true" />}
           variant="secondary"
           autoFocus={!fields}
           disabled={busy}

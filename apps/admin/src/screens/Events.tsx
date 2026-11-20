@@ -1,5 +1,5 @@
 import type { AdminEventsData, AdminWorldEvent } from '@oikos/contracts';
-import { Button, EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
+import { Button, EmptyState, FilterX, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -97,6 +97,7 @@ export function Events({ accessToken }: { accessToken: string }) {
               title={t('events.filteredEmpty')}
               action={
                 <Button
+                  icon={<FilterX aria-hidden="true" />}
                   variant="secondary"
                   onClick={() => {
                     setShown('all');

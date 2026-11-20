@@ -1,5 +1,15 @@
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
-import { Button, EmptyState, Field, PageHeader, Plus, Sheet } from '@oikos/ui';
+import {
+  Button,
+  EmptyState,
+  Field,
+  PageHeader,
+  Plus,
+  Sheet,
+  UserMinus,
+  UserPlus,
+  X,
+} from '@oikos/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
@@ -200,6 +210,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                               {t('access.confirm', { ...row, role: t(`roles.${row.role}`) })}
                             </span>
                             <Button
+                              icon={<UserMinus aria-hidden="true" />}
                               disabled={busy}
                               aria-describedby="access-confirm"
                               onClick={() => void revoke(row)}
@@ -208,6 +219,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                             </Button>
                             {/* Le foyer va au geste sans effet : Entrée redoublée ne retire rien. */}
                             <Button
+                              icon={<X aria-hidden="true" />}
                               autoFocus
                               variant="secondary"
                               disabled={busy}
@@ -222,6 +234,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
                           </div>
                         ) : (
                           <Button
+                            icon={<UserMinus aria-hidden="true" />}
                             variant="secondary"
                             autoFocus={returnTo === row.userId}
                             disabled={busy}
@@ -277,7 +290,13 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
               </option>
             ))}
           </select>
-          <Button id="access-grant" type="submit" className="self-end" disabled={busy}>
+          <Button
+            icon={<UserPlus aria-hidden="true" />}
+            id="access-grant"
+            type="submit"
+            className="self-end"
+            disabled={busy}
+          >
             {t('access.grant')}
           </Button>
         </form>
