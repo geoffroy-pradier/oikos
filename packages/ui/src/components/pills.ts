@@ -1,9 +1,17 @@
 import { cn } from '../cn';
 import { TOUCH_TARGET } from './field-parts';
 
-/** Gélule qui porte des pastilles (`PillTabs`, `SegmentedControl`). */
+/** Gélule qui porte des pastilles (`SegmentedControl`). */
 export const PILL_LIST =
   'flex max-w-full gap-1 overflow-x-auto rounded-full border border-border-subtle bg-surface-raised p-1';
+
+/**
+ * Gélule d'une rangée qui défile (`PillTabs`, rubriques de la maison) : le cadre porte la bordure et le fond,
+ * la rangée `PILL_ROW` qu'il contient défile avec un fondu sur ses bords (`useScrollRow`).
+ */
+export const PILL_FRAME =
+  'flex max-w-full self-start rounded-full border border-border-subtle bg-surface-raised';
+export const PILL_ROW = 'flex min-w-0 gap-1 overflow-x-auto p-1 scroll-fade';
 
 /** Pastille de 36 px (44 px de cible) ; l'active est pleine, au contraste le plus fort. */
 export function pillClass(active: boolean) {

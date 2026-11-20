@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '../cn';
-import { moveTo, PILL_LIST, pillClass } from './pills';
+import { moveTo, PILL_FRAME, PILL_ROW, pillClass } from './pills';
+import { useScrollRow } from './scroll-row';
 
 export interface TabItem {
   id: string;
@@ -29,7 +30,7 @@ export interface TabsProps {
 
 /**
  * Onglets en pastilles dans une gélule (WAI-ARIA) : un seul arrêt de tabulation, flèches, Début et
- * Fin ; activation au foyer.
+ * Fin ; activation au foyer. Trop large pour l'écran, la gélule défile, un fondu sur ses bords.
  */
 export function Tabs({
   label,
@@ -44,6 +45,8 @@ export function Tabs({
   const [own, setOwn] = useState(defaultValue ?? items[0]?.id);
   const selected = value ?? own;
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Trop large pour l'écran, la rangée défile, centrée sur l'onglet choisi.
+  const row = useScrollRow<HTMLDivElement>(selected);
 
   const select = (id: string) => {
     setOwn(id);
@@ -61,34 +64,31 @@ export function Tabs({
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      <div
-        role="tablist"
-        aria-label={label}
-        onKeyDown={onKeyDown}
-        className={cn(PILL_LIST, 'self-start')}
-      >
-        {items.map((item, index) => {
-          const active = item.id === selected;
-          return (
-            <button
-              key={item.id}
-              ref={(node) => {
-                refs.current[index] = node;
-              }}
-              type="button"
-              role="tab"
-              id={`${base}-tab-${item.id}`}
-              aria-selected={active}
-              aria-controls={item.content === undefined ? undefined : `${base}-panel-${item.id}`}
-              tabIndex={active ? 0 : -1}
-              onClick={() => select(item.id)}
-              className={pillClass(active)}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          );
-        })}
+      <div className={PILL_FRAME}>
+        <div ref={row} role="tablist" aria-label={label} onKeyDown={onKeyDown} className={PILL_ROW}>
+          {items.map((item, index) => {
+            const active = item.id === selected;
+            return (
+              <button
+                key={item.id}
+                ref={(node) => {
+                  refs.current[index] = node;
+                }}
+                type="button"
+                role="tab"
+                id={`${base}-tab-${item.id}`}
+                aria-selected={active}
+                aria-controls={item.content === undefined ? undefined : `${base}-panel-${item.id}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => select(item.id)}
+                className={pillClass(active)}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {items.map((item) =>
         (item.id === selected || keepMounted) && item.content !== undefined ? (

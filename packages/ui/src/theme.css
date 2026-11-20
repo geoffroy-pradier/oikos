@@ -229,6 +229,31 @@
   }
 }
 
+/*
+ * Rangée qui défile (`useScrollRow`) : un fondu sur chaque bord où il reste du contenu (`data-fade`), et un
+ * élément atteint au clavier s'arrête hors du fondu. Sans débordement, aucun masque.
+ */
+@utility scroll-fade {
+  --fade: 1.5rem;
+  scroll-padding-inline: var(--fade);
+  &[data-fade~='start'] {
+    --fade-start: var(--fade);
+  }
+  &[data-fade~='end'] {
+    --fade-end: var(--fade);
+  }
+  &[data-fade~='start'],
+  &[data-fade~='end'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--fade-start, 0px),
+      #000 calc(100% - var(--fade-end, 0px)),
+      transparent
+    );
+  }
+}
+
 /* Petit titre de rubrique, en capitales espacées. */
 @utility eyebrow {
   font-family: var(--font-sans);

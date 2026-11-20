@@ -2,7 +2,7 @@
 
 Olympe est une application distincte, sur son propre sous-domaine, d'où l'équipe surveille, modère, règle et anime le jeu sans toucher au code ni à la base. Tout ce qui s'y fait est tracé, et les actions sensibles demandent une double validation.
 
-Olympe partage les jetons, les composants et la coquille du jeu (ADR 0011) : barre latérale des modules à partir de 1 024 px, pastilles qui défilent en dessous, carte centrée pour la connexion et le second facteur.
+Olympe partage les jetons, les composants et la coquille du jeu (ADR 0011) : barre latérale des modules à partir de 1 024 px, pastilles qui défilent en dessous (centrées sur le module ouvert, un fondu sur les bords, comme dans le jeu, #862), carte centrée pour la connexion et le second facteur.
 Le thème clair ou sombre suit celui de l'appareil ; un bouton de l'en-tête le bascule, et le choix reste mémorisé sur l'appareil.
 Une action à plusieurs choix s'ouvre dans une feuille : chaque geste sur un signalement (Modération), qui rappelle l'entrée et le message visés, et « Accorder un rôle » (Accès).
 Pendant l'envoi d'une commande, ni Échap ni le voile ne referment la feuille ; un refus la laisse ouverte, saisie gardée.

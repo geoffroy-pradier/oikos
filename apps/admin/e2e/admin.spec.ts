@@ -193,3 +193,25 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Vigie', level: 1 })).toBeVisible();
 });
+
+test('navigation des modules : chaque module atteint au clavier est visible en entier', async ({
+  page,
+}) => {
+  const email = `olympe-${randomUUID()}@example.test`;
+  await signIn(page, email);
+  await grantSuperAdmin(email);
+  await enroll(page);
+  const modules = page.getByRole('navigation', { name: 'Modules' }).getByRole('button');
+  await expect(page.getByRole('heading', { name: 'Vigie', level: 1 })).toBeVisible();
+  // Le dernier module ouvert reste entier à l'arrivée, puis chaque module au clavier.
+  await modules.last().click();
+  await expect(modules.last()).toHaveAttribute('aria-current', 'page');
+  await expect(modules.last()).toBeInViewport({ ratio: 1 });
+  await modules.first().focus();
+  for (let index = 0; index < (await modules.count()); index += 1) {
+    if (index > 0) await page.keyboard.press('Tab');
+    await expect(modules.nth(index)).toBeFocused();
+    await expect(modules.nth(index)).toBeInViewport({ ratio: 1 });
+  }
+  await expectNoHorizontalScroll(page);
+});

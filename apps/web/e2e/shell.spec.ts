@@ -57,3 +57,26 @@ test('coquille : sans violation grave (axe) dans les deux thèmes, Réglages au 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await page.evaluate(() => localStorage.getItem('oikos.theme'))).toBeNull();
 });
+
+test('rangées de pastilles qui défilent : chaque onglet atteint au clavier est visible en entier', async ({
+  page,
+}) => {
+  const id = randomUUID();
+  const houseName = `Rangée ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
+  await signIn(page, `e2e-${id}@example.test`);
+  await foundHouseForm(page, houseName);
+  await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
+
+  // Rubriques de la maison : la pastille de l'écran est entière à l'arrivée, puis chaque lien au clavier.
+  await page.goto('/comptes');
+  const sections = page.getByRole('navigation', { name: 'Rubriques de la maison' });
+  await expect(sections.locator('[aria-current="page"]')).toBeInViewport({ ratio: 1 });
+  const links = sections.getByRole('link');
+  await links.first().focus();
+  for (let index = 0; index < (await links.count()); index += 1) {
+    if (index > 0) await page.keyboard.press('Tab');
+    await expect(links.nth(index)).toBeFocused();
+    await expect(links.nth(index)).toBeInViewport({ ratio: 1 });
+  }
+  await expectNoHorizontalScroll(page);
+});
