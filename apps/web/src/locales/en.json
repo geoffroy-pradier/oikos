@@ -326,7 +326,14 @@
     "cloth": "Cloth",
     "bread": "Bread",
     "wine": "Wine",
-    "amphorae": "Amphorae"
+    "amphorae": "Amphorae",
+    "barley_cakes": "Barley cakes",
+    "salted_fish": "Salted fish",
+    "garum": "Garum",
+    "oil_lamps": "Oil lamps",
+    "sandals": "Sandals",
+    "tools": "Tools",
+    "clothes": "Clothes"
   },
   "recipes": {
     "grow_wheat": "Wheat field",
@@ -365,7 +372,14 @@
     "grind_pigments": "Pigment workshop",
     "render_wax": "Wax works",
     "cast_silver": "Silver foundry",
-    "cut_marble": "Stonecutter's workshop"
+    "cut_marble": "Stonecutter's workshop",
+    "bake_cakes": "Barley bakehouse",
+    "salt_fish": "Salting house",
+    "brew_garum": "Garum works",
+    "mould_lamps": "Lamp workshop",
+    "make_sandals": "Cobbler",
+    "forge_tools": "Toolmaker",
+    "sew_clothes": "Tailor"
   },
   "siteTypes": {
     "field": "Field",

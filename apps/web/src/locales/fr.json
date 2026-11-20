@@ -326,7 +326,14 @@
     "cloth": "Tissu",
     "bread": "Pain",
     "wine": "Vin",
-    "amphorae": "Amphores"
+    "amphorae": "Amphores",
+    "barley_cakes": "Galettes d'orge",
+    "salted_fish": "Poisson salé",
+    "garum": "Garum",
+    "oil_lamps": "Lampes à huile",
+    "sandals": "Sandales",
+    "tools": "Outils",
+    "clothes": "Vêtements"
   },
   "recipes": {
     "grow_wheat": "Champ de blé",
@@ -365,7 +372,14 @@
     "grind_pigments": "Atelier de pigments",
     "render_wax": "Cirerie",
     "cast_silver": "Fonderie d'argent",
-    "cut_marble": "Atelier de taille"
+    "cut_marble": "Atelier de taille",
+    "bake_cakes": "Fournil d'orge",
+    "salt_fish": "Saloir",
+    "brew_garum": "Atelier de garum",
+    "mould_lamps": "Atelier de lampes",
+    "make_sandals": "Cordonnerie",
+    "forge_tools": "Atelier d'outils",
+    "sew_clothes": "Atelier de couture"
   },
   "siteTypes": {
     "field": "Champ",

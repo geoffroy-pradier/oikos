@@ -30,7 +30,7 @@ une version qui rend le bien rend le marché. Le client joueur n'a de nom tradui
 | --- | --- | --- |
 | Matières | Blé, orge, olives, raisin, figues, bois, miel, argile, marbre, cuivre, étain, fer, argent, laine, peaux, lin, poisson, sel | 18 |
 | Intermédiaires | Farine, farine d'orge, huile, moût, planches, bronze, fer forgé, fil, tissu, toile de lin, cuir, charbon, pigments, cire, lingots d'argent, blocs de marbre | 16 |
-| Finis | Pain, vin, amphores, céramique peinte, outils, vêtements, parfums, bijoux, meubles, statues, navires | 20 |
+| Finis | Pain, vin, amphores, galettes d'orge, poisson salé, garum, lampes à huile, sandales, outils, vêtements, céramique peinte, parfums, bijoux, meubles, statues, navires | 20 |
 | Services | Fret, logement, spectacle, banquet, crédit, escorte | 6 |
 
 Décision (#708, ambiguïté de cette section) : les soixante biens sont les 54 biens stockables du catalogue (18 matières, 16 intermédiaires, 20 finis) et les six services, qui sont des mécaniques et non des lignes du catalogue.
@@ -64,7 +64,29 @@ Un test de la configuration borne la marge de chaque atelier nouveau entre la mo
 Chaque intermédiaire est l'intrant d'au moins une recette, ou le sera : le fil l'est de la toile de lin, les autres attendent les biens finis des tickets suivants.
 Un test de la configuration en tient la liste d'attente, et elle doit être vide à la fin des biens finis (« P9 »).
 Comme pour les matières de #708, aucun intermédiaire nouveau n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
-Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
+Depuis #710, la configuration initiale compte dix biens finis : aux trois de la phase 2 (pain, vin, amphores) s'ajoutent sept biens du quotidien, chacun avec la recette d'un atelier (4.3).
+
+| Bien (prix de référence) | Atelier | Intrants par cycle | Extrant par cycle | Cycle | Marge |
+| --- | --- | --- | --- | ---: | ---: |
+| Galettes d'orge (16) | `bake_cakes` | 6 farines d'orge, 1 charbon | 8 | 90 min | 866 |
+| Poisson salé (30) | `salt_fish` | 6 poissons, 2 sels | 5 | 120 min | 706 |
+| Garum (100) | `brew_garum` | 10 poissons, 3 sels, 1 amphore | 3 | 240 min | 676 |
+| Lampes à huile (40) | `mould_lamps` | 1 huile d'olive, 3 argiles | 4 | 180 min | 858 |
+| Sandales (75) | `make_sandals` | 2 cuirs, 2 fils | 3 | 120 min | 742 |
+| Outils (100) | `forge_tools` | 3 fers forgés, 3 planches | 3 | 240 min | 616 |
+| Vêtements (110) | `sew_clothes` | 3 tissus, 3 fils | 3 | 240 min | 724 |
+
+Décision (#710) : la liste de départ du ticket est tenue telle quelle, avec les intrants suivants.
+Les galettes consomment la farine d'orge, les sandales le cuir et le fil, les outils le fer forgé et les planches, les vêtements le tissu et le fil, les lampes l'huile d'olive.
+Le poisson salé et le garum se font de poisson et de sel ; le garum se met en amphore, seul bien fini qui sert d'intrant.
+Les recettes de la phase 2 ne changent pas, et aucun bien fini nouveau n'est l'intrant d'un autre, sauf l'amphore, que consomme l'atelier de garum : pas d'autre chaîne de biens finis.
+Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
+Décision (#710) : chaque atelier livre au moins trois unités par cycle.
+Raison : l'atelier inspiré (7.1) ajoute ⌊extrant × 35 % ⌋ unités, et le test des grâces exige qu'il en ajoute au moins une au plus petit extrant d'un atelier.
+Les cuirs, fers forgés, planches et farines d'orge trouvent preneur : la liste d'attente de #709 ne garde plus que les sept intermédiaires des biens finis de #711, et la figue.
+Décision (paramètres neutres, #710) : aucun des sept biens n'entre encore dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu ; #713 règle les paniers.
+Un test de la configuration en tient la liste d'attente, comme pour les intermédiaires, et elle doit être vide à la fin des biens finis (« P9 »).
+Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 et les sept biens finis de #710 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
 Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
 
 ## 5.2 La demande finale

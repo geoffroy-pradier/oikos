@@ -444,7 +444,19 @@
       "referencePriceOboles": 150,
       "elasticity": 1.0
     },
-    { "id": "marble_blocks", "tier": "intermediate", "referencePriceOboles": 56, "elasticity": 0.9 }
+    {
+      "id": "marble_blocks",
+      "tier": "intermediate",
+      "referencePriceOboles": 56,
+      "elasticity": 0.9
+    },
+    { "id": "barley_cakes", "tier": "finished", "referencePriceOboles": 16, "elasticity": 0.4 },
+    { "id": "salted_fish", "tier": "finished", "referencePriceOboles": 30, "elasticity": 0.5 },
+    { "id": "garum", "tier": "finished", "referencePriceOboles": 100, "elasticity": 1.0 },
+    { "id": "oil_lamps", "tier": "finished", "referencePriceOboles": 40, "elasticity": 0.7 },
+    { "id": "sandals", "tier": "finished", "referencePriceOboles": 75, "elasticity": 0.8 },
+    { "id": "tools", "tier": "finished", "referencePriceOboles": 100, "elasticity": 0.6 },
+    { "id": "clothes", "tier": "finished", "referencePriceOboles": 110, "elasticity": 0.9 }
   ],
   "recipes": [
     {
@@ -807,6 +819,91 @@
       "maxAccruedCycles": 18,
       "inputs": [{ "goodId": "marble", "quantity": 8 }],
       "outputs": [{ "goodId": "marble_blocks", "quantity": 6 }]
+    },
+    {
+      "id": "bake_cakes",
+      "siteType": "workshop",
+      "durationMinutes": 90,
+      "workers": 2,
+      "maxAccruedCycles": 48,
+      "inputs": [
+        { "goodId": "barley_flour", "quantity": 6 },
+        { "goodId": "charcoal", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "barley_cakes", "quantity": 8 }]
+    },
+    {
+      "id": "salt_fish",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "maxAccruedCycles": 36,
+      "inputs": [
+        { "goodId": "fish", "quantity": 6 },
+        { "goodId": "salt", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "salted_fish", "quantity": 5 }]
+    },
+    {
+      "id": "brew_garum",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 2,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "fish", "quantity": 10 },
+        { "goodId": "salt", "quantity": 3 },
+        { "goodId": "amphorae", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "garum", "quantity": 3 }]
+    },
+    {
+      "id": "mould_lamps",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 2,
+      "maxAccruedCycles": 24,
+      "inputs": [
+        { "goodId": "olive_oil", "quantity": 1 },
+        { "goodId": "clay", "quantity": 3 }
+      ],
+      "outputs": [{ "goodId": "oil_lamps", "quantity": 4 }]
+    },
+    {
+      "id": "make_sandals",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "maxAccruedCycles": 36,
+      "inputs": [
+        { "goodId": "leather", "quantity": 2 },
+        { "goodId": "thread", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "sandals", "quantity": 3 }]
+    },
+    {
+      "id": "forge_tools",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 3,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "wrought_iron", "quantity": 3 },
+        { "goodId": "planks", "quantity": 3 }
+      ],
+      "outputs": [{ "goodId": "tools", "quantity": 3 }]
+    },
+    {
+      "id": "sew_clothes",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 3,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "cloth", "quantity": 3 },
+        { "goodId": "thread", "quantity": 3 }
+      ],
+      "outputs": [{ "goodId": "clothes", "quantity": 3 }]
     }
   ],
   "npcClasses": [
