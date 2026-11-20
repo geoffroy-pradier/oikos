@@ -100,7 +100,12 @@ async function foundHouse() {
   fireEvent.change(await screen.findByLabelText('Nom de la maison'), {
     target: { value: 'Alcméonides' },
   });
+  // Nom, blason, cité, récapitulatif : le bouton Continuer mène d'une étape à la suivante.
+  for (let step = 0; step < 2; step++) {
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  }
   fireEvent.click(screen.getByRole('radio', { name: 'Kallistè' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
   fireEvent.click(screen.getByRole('button', { name: 'Fonder la maison' }));
 }
 const ENDED =

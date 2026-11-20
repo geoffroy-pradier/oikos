@@ -54,7 +54,10 @@ export async function chooseLanguage(page: Page, language: 'fr' | 'en') {
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
-/** Fonde la maison depuis l'écran de création. `city` : la carte de cité à choisir, Kallistè par défaut. */
+/**
+ * Fonde la maison par les quatre étapes (nom, blason, cité, récapitulatif), au clavier pour le nom.
+ * `city` : la carte de cité à choisir, Kallistè par défaut.
+ */
 export async function foundHouseForm(
   page: Page,
   houseName: string,
@@ -62,6 +65,9 @@ export async function foundHouseForm(
 ) {
   const name = page.getByLabel('Nom de la maison');
   await name.fill(houseName);
-  await city.check();
   await name.press('Enter');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await city.check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Fonder la maison' }).click();
 }
