@@ -1,5 +1,5 @@
 import { fairWindSeconds, graceToConsume, stormDurationSeconds } from '@oikos/sim';
-import { Anchor, Stepper } from '@oikos/ui';
+import { Anchor, cn, Stepper } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { departVoyage } from '../api';
@@ -206,22 +206,24 @@ export function Departure(props: {
     <fieldset className="flex min-w-0 flex-col gap-1.5">
       <legend className="sr-only">{t('departure.destination')}</legend>
       {destinations.map(({ cityId, quote, longer, shorter, stormy, seconds }) => (
-        <label key={cityId} className={ROW}>
+        <label key={cityId} className={cn(ROW, 'flex-nowrap items-start py-2.5')}>
           <input
             type="radio"
-            className="size-4 accent-primary"
+            className="mt-1 size-4 shrink-0 accent-primary"
             name="destination"
             value={cityId}
             checked={to === cityId}
             onChange={() => setTo(cityId)}
           />
-          {t(`departure.option${longer ? 'Storm' : ''}${shorter ? 'Wind' : ''}`, {
-            city: house.cityNames[cityId] ?? cityId,
-            hours: hours(seconds),
-            stormy: hours(stormy),
-            calm: hours(quote.durationSeconds),
-            cost: money(quote.totalOboles),
-          })}
+          <span className="min-w-0">
+            {t(`departure.option${longer ? 'Storm' : ''}${shorter ? 'Wind' : ''}`, {
+              city: house.cityNames[cityId] ?? cityId,
+              hours: hours(seconds),
+              stormy: hours(stormy),
+              calm: hours(quote.durationSeconds),
+              cost: money(quote.totalOboles),
+            })}
+          </span>
         </label>
       ))}
     </fieldset>
