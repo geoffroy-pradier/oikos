@@ -21,9 +21,10 @@ import { useHouse } from './house';
  * Lectures de l'onglet Messages : canaux du monde de la maison, derniers messages du canal ouvert (celui de la
  * cité par défaut), non lus comptés sur l'appareil, noms des maisons citées, et abonnements Realtime qui
  * relisent le tout à chaque diffusion (ou à intervalle, en repli). Le canal ouvert est marqué lu jusqu'à son
- * dernier message tant que l'onglet est visible.
+ * dernier message tant que l'onglet est visible et que le canal est montré (`reading` : sur téléphone, la liste des
+ * canaux cache le fil).
  */
-export function useChat(selectedId: string | null) {
+export function useChat(selectedId: string | null, reading = true) {
   const house = useHouse();
   const channelRead = useRows<unknown>('my_channels', CHANNEL_COLUMNS, 'created_at');
   const channels = useMemo(
@@ -89,7 +90,7 @@ export function useChat(selectedId: string | null) {
   const openId = open?.id;
   const newestAt = newest && newest.channelId === openId ? newest.createdAt : null;
   useEffect(() => {
-    if (!openId || newestAt === null) return;
+    if (!openId || newestAt === null || !reading) return;
     const mark = () => {
       if (document.visibilityState !== 'visible') return;
       const next = markRead(house.id, openId, newestAt);
@@ -100,7 +101,7 @@ export function useChat(selectedId: string | null) {
     mark();
     document.addEventListener('visibilitychange', mark);
     return () => document.removeEventListener('visibilitychange', mark);
-  }, [openId, newestAt, house.id]);
+  }, [openId, newestAt, house.id, reading]);
 
   const names = useCitedHouses(
     channels === null

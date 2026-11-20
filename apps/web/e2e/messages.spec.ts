@@ -18,8 +18,18 @@ async function foundHouse(page: Page, prefix: string) {
     .getByRole('navigation', { name: 'Navigation principale' })
     .getByRole('link', { name: 'Messages' })
     .click();
+  // Sur téléphone, la liste des canaux d'abord ; sur ordinateur, le canal de la cité est déjà ouvert.
+  await page.getByRole('button', { name: /^Canal de Kallistè/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Canal de Kallistè' })).toBeVisible();
   return name;
+}
+/** Sur téléphone, la liste des canaux est derrière le fil : son bouton de retour y mène, au clavier. */
+async function channelList(page: Page) {
+  const back = page.getByRole('button', { name: /^Canaux/ });
+  if (await back.isVisible()) {
+    await back.focus();
+    await page.keyboard.press('Enter');
+  }
 }
 /**
  * Retient chaque annonce de la région polie de l'écran : l'autre format du test (360 ou 1 440 px) tourne en même
@@ -81,6 +91,7 @@ test('deux joueurs : le canal de la cité et une conversation privée, en direct
   await expect(composer(other)).toBeFocused();
 
   // Alpha ouvre une conversation avec Bêta par son nom, et lui écrit.
+  await channelList(page);
   await page
     .getByRole('textbox', { name: 'Écrire à une maison, par son nom' })
     .fill(beta.toLowerCase());
@@ -98,7 +109,10 @@ test('deux joueurs : le canal de la cité et une conversation privée, en direct
 
   // Chez Bêta, la conversation nouvelle paraît avec son non lu, annoncée sans voler le foyer.
   const direct = other.getByRole('button', { name: new RegExp(`^Conversation avec ${alpha}`) });
-  await expect(direct).toContainText('1 message non lu', { timeout: 10_000 });
+  // Sur téléphone, le fil reste montré : son retour à la liste porte le non lu.
+  const back = other.getByRole('button', { name: /^Canaux/ });
+  const unreadShown = (await back.isVisible()) ? back : direct;
+  await expect(unreadShown).toContainText('1 message non lu', { timeout: 10_000 });
   const phrase = `Nouveau message : Conversation avec ${alpha}.`;
   await expect
     .poll(async () => (await announced(other)).some((text) => text.includes(phrase)))
@@ -107,10 +121,13 @@ test('deux joueurs : le canal de la cité et une conversation privée, en direct
   await expect(other.getByRole('status').filter({ hasText: POLLING })).toHaveCount(0);
 
   // Bêta l'ouvre au clavier : le message s'affiche, le non lu disparaît, son brouillon de la cité l'attend.
+  await channelList(other);
+  await expect(direct).toContainText('1 message non lu');
   await direct.focus();
   await other.keyboard.press('Enter');
-  await expect(direct).toHaveAttribute('aria-current', 'true');
   await expect(shown(other).getByText(privateText)).toBeVisible();
+  await channelList(other);
+  await expect(direct).toHaveAttribute('aria-current', 'true');
   await expect(direct).not.toContainText('non lu');
   await other.getByRole('button', { name: /^Canal de Kallistè/ }).click();
   await expect(composer(other)).toHaveValue('Brouillon de Bêta');
