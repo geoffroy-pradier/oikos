@@ -79,7 +79,7 @@ Depuis #710, la configuration initiale compte dix biens finis : aux trois de la 
 Décision (#710) : la liste de départ du ticket est tenue telle quelle, avec les intrants suivants.
 Les galettes consomment la farine d'orge, les sandales le cuir et le fil, les outils le fer forgé et les planches, les vêtements le tissu et le fil, les lampes l'huile d'olive.
 Le poisson salé et le garum se font de poisson et de sel ; le garum se met en amphore, seul bien fini qui sert d'intrant.
-Les recettes de la phase 2 ne changent pas, et aucun bien fini nouveau n'est l'intrant d'un autre : pas de chaîne de biens finis.
+Les recettes de la phase 2 ne changent pas, et aucun bien fini nouveau n'est l'intrant d'un autre, sauf l'amphore, que consomme l'atelier de garum : pas d'autre chaîne de biens finis.
 Un test de la configuration borne la marge de chaque atelier nouveau entre la moitié et le double de la médiane des matières premières de la phase 2 (899 oboles, écrite à la main).
 Décision (#710) : chaque atelier livre au moins trois unités par cycle.
 Raison : l'atelier inspiré (7.1) ajoute ⌊extrant × 35 % ⌋ unités, et le test des grâces exige qu'il en ajoute au moins une au plus petit extrant d'un atelier.
