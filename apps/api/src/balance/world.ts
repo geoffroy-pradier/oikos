@@ -116,7 +116,7 @@ const FOUR_SETTLEMENTS: Record<string, Role[]> = {
     role('charbonnier-bûcheron', 1, 'grow_wheat', 'burn_charcoal', 'burn_charcoal', 'fell_wood'),
     role('arboriculteur', 1, 'grow_wheat', 'grow_olives', 'grow_olives', 'grow_grapes'),
     role('presseur-caviste', 1, 'grow_wheat', 'press_oil', 'ferment_wine', 'ferment_wine'),
-    role('pêcheur-saunier', 1, 'grow_wheat', 'catch_fish', 'rake_salt', 'ferment_wine'),
+    role('pêcheur', 1, 'grow_wheat', 'catch_fish', 'catch_fish', 'ferment_wine'),
     role('potier', 1, 'grow_wheat', 'throw_amphorae', 'dig_clay', 'ferment_wine'),
     role('fermier-caviste', 1, 'grow_wheat', 'ferment_wine'),
   ],
@@ -156,7 +156,7 @@ const FOUR_CARRIERS: CarrierSpec[] = [
     home: 'ampelos',
     source: 'kalliste',
     count: 3,
-    toHome: ['wheat', 'bread', 'salt', 'olive_oil', 'wine'],
+    toHome: ['wheat', 'bread', 'olive_oil', 'wine'],
     toSource: [],
   },
   {
@@ -168,6 +168,8 @@ const FOUR_CARRIERS: CarrierSpec[] = [
   },
   { home: 'elaia', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
   { home: 'halos', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
+  { home: 'kalliste', source: 'elaia', count: 1, toHome: ['salt'], toSource: [] },
+  { home: 'ampelos', source: 'halos', count: 1, toHome: ['salt'], toSource: [] },
 ];
 export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
 

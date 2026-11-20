@@ -39,6 +39,27 @@ describe.each(Object.values(SCENARIOS))('scénario des $name', (scenario) => {
     }
   });
 
+  it('un armateur ravitaille chaque cité de chaque bien vital que son terroir ne produit pas (6.1, #714)', () => {
+    // Biens vitaux dont la matière première, ou l'intrant, manque au terroir : blé, poisson, sel, bois du charbon.
+    const raw = { wheat: 'grow_wheat', fish: 'catch_fish', salt: 'rake_salt', wood: 'fell_wood' };
+    const carried = (slug: string) =>
+      new Set(
+        scenario.carriers.flatMap((spec) => [
+          ...(spec.home === slug ? spec.toHome : []),
+          ...(spec.source === slug ? spec.toSource : []),
+        ]),
+      );
+    for (const slug of scenario.slugs) {
+      const terroir = config.cities.find((city) => city.id === slug)?.terroir ?? [];
+      const missing = Object.entries(raw).filter(([, recipeId]) => !terroir.includes(recipeId));
+      // Le bois du charbon vient de la cité ou d'un voisin : le banc ne le porte que vers Gamelia (`wood`).
+      for (const [goodId] of missing.filter(([goodId]) => goodId !== 'wood'))
+        expect(carried(slug).has(goodId), `${slug} : aucun armateur ne lui porte ${goodId}`).toBe(
+          true,
+        );
+    }
+  });
+
   it('un armateur navigue sur une route, ou par une escale quand aucune route ne relie ses deux cités', () => {
     for (const { home, source, via } of scenario.carriers)
       if (via) {

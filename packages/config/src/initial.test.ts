@@ -214,7 +214,8 @@ describe('jeu de valeurs initial', () => {
       [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])]
         .filter((recipeId) => !TEN_RAW_RECIPES.includes(recipeId))
         .sort();
-    // Kallistè (#669) : toutes les matières premières de la phase 1 sauf la laine, qu'Ampelos et Halos produisent.
+    // Kallistè (#669, #714) : les matières premières de la phase 1 sauf la laine, qu'Ampelos et Halos produisent, et
+    // le sel, qu'Elaia et Halos raffinent.
     expect(terroir('kalliste')).toEqual([
       'catch_fish',
       'dig_clay',
@@ -222,7 +223,6 @@ describe('jeu de valeurs initial', () => {
       'grow_grapes',
       'grow_olives',
       'grow_wheat',
-      'rake_salt',
     ]);
     expect(terroir('elaia')).toEqual(['fell_wood', 'grow_olives', 'grow_wheat', 'rake_salt']);
     expect(terroir('ampelos')).toEqual(['catch_fish', 'dig_clay', 'grow_grapes', 'shear_wool']);
@@ -435,7 +435,7 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('aucune cité ne produit tous les biens vitaux du panier de ses PNJ : blé, poisson, sel et bois du charbon du pain (6.1, #706)', () => {
+  it('aucune des douze cités ne produit tous les biens vitaux du panier de ses PNJ : blé, poisson, sel et bois du charbon du pain (6.1, #706, #714)', () => {
     const vital = new Set(
       config.npcClasses.flatMap((npcClass) =>
         npcClass.basket.filter((entry) => entry.need === 'vital').map((entry) => entry.goodId),
@@ -456,16 +456,21 @@ describe('jeu de valeurs initial', () => {
     };
     const needed = new Set([...vital].flatMap((goodId) => rawOf(goodId)));
     expect([...needed].sort()).toEqual(['fish', 'salt', 'wheat', 'wood']);
-    for (const city of config.cities.filter((each) => EIGHT_CITIES.includes(each.id))) {
+    expect(config.cities).toHaveLength(12);
+    for (const city of config.cities) {
       const grown = new Set(
         config.recipes
           .filter((recipe) => recipe.inputs.length === 0 && cityTerroirAdmits(city, recipe))
           .flatMap((recipe) => recipe.outputs.map((output) => output.goodId)),
       );
-      expect(
-        [...needed].some((goodId) => !grown.has(goodId)),
-        city.id,
-      ).toBe(true);
+      const missing = [...needed].filter((goodId) => !grown.has(goodId));
+      expect(missing.length, `${city.id} produit tous ses biens vitaux`).toBeGreaterThan(0);
+      // Kallistè (#714) perd au moins le poisson ou le sel, pas seulement la laine.
+      if (city.id === 'kalliste')
+        expect(
+          missing.some((goodId) => goodId === 'fish' || goodId === 'salt'),
+          'kalliste garde son poisson et son sel',
+        ).toBe(true);
     }
   });
 
