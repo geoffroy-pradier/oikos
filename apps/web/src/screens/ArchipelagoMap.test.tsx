@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fr from '../locales/fr.json';
 import { ArchipelagoMap } from './ArchipelagoMap';
 
@@ -11,6 +11,8 @@ const POINTS: Record<string, { x: number; y: number }> = {
   k: { x: 50, y: 36 },
   e: { x: 79, y: 16 },
 };
+
+const select = vi.fn();
 
 async function mount() {
   const instance = i18next.createInstance();
@@ -25,11 +27,21 @@ async function mount() {
         label="Carte"
         routes={[{ from: 'k', to: 'e', hours: 4, ours: false }]}
         cities={[
-          { id: 'k', name: 'Kallistè', at: POINTS.k ?? { x: 0, y: 0 }, home: true, docked: 0 },
+          {
+            id: 'k',
+            name: 'Kallistè',
+            at: POINTS.k ?? { x: 0, y: 0 },
+            home: true,
+            docked: 0,
+            selected: true,
+            goods: [],
+          },
         ]}
         ships={[]}
         pointOf={(id) => POINTS[id]}
         home={POINTS.k}
+        layer="routes"
+        onSelect={select}
       />
     </I18nextProvider>,
   );
@@ -83,5 +95,24 @@ describe('carte déplaçable et zoomable (#696)', () => {
     fireEvent.pointerUp(map, { pointerId: 1 });
     fireEvent.pointerMove(map, { pointerId: 1, clientX: 0, clientY: 0 });
     expect(viewBox()).toBe('5 0 50 35');
+  });
+
+  it('un clic sur une cité la choisit pour le panneau ; un glisser, jamais', async () => {
+    await mount();
+    const city = screen.getByText('Kallistè');
+    // Un glisser de plus de 4 pixels qui revient sur la cité ne la choisit pas.
+    select.mockClear();
+    fireEvent.pointerDown(city, { pointerId: 1, clientX: 250, clientY: 180 });
+    fireEvent.pointerMove(city, { pointerId: 1, clientX: 270, clientY: 180 });
+    fireEvent.pointerMove(city, { pointerId: 1, clientX: 250, clientY: 180 });
+    fireEvent.pointerUp(city, { pointerId: 1 });
+    fireEvent.click(city);
+    expect(select).not.toHaveBeenCalled();
+    // Un appui qui bouge à peine reste un clic.
+    fireEvent.pointerDown(city, { pointerId: 1, clientX: 250, clientY: 180 });
+    fireEvent.pointerMove(city, { pointerId: 1, clientX: 252, clientY: 181 });
+    fireEvent.pointerUp(city, { pointerId: 1 });
+    fireEvent.click(city);
+    expect(select).toHaveBeenCalledWith('k');
   });
 });

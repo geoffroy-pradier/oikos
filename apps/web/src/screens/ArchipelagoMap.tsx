@@ -1,4 +1,4 @@
-import { Archipelago, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
+import { Archipelago, GoodIcon, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { along, MAP_HEIGHT, MAP_WIDTH, placeLabels, scaleBar, type Point } from '../map-layout';
@@ -18,6 +18,10 @@ export interface MapCity {
   home: boolean;
   /** Navires de la maison à quai. */
   docked: number;
+  /** Cité du panneau, cerclée. */
+  selected: boolean;
+  /** Biens de son terroir (calque Terroirs). */
+  goods: readonly string[];
 }
 export interface MapShip {
   id: string;
@@ -56,6 +60,10 @@ export function ArchipelagoMap(props: {
   pointOf: (cityId: string) => Point | undefined;
   /** Cité de la maison : le recentrage y mène. */
   home: Point | undefined;
+  /** Calque : les routes et les navires, ou le terroir de chaque cité. */
+  layer: 'routes' | 'terroirs';
+  /** Un clic sur une cité la choisit pour le panneau (au clavier : la liste du panneau). */
+  onSelect: (cityId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const map = useMapView(props.home);
@@ -74,7 +82,10 @@ export function ArchipelagoMap(props: {
   const scale = scaleBar(legs.map(({ a, b, hours: h }) => ({ a, b, hours: h })));
   // Dessin petit à l'écran (téléphone, sans zoom) : ni durées ni navires à quai, que la liste dit.
   const dense = unit > 0.2;
-  const ships = props.ships.map((ship) => ({
+  const routesShown = props.layer === 'routes';
+  const ring = (at: Point, r: number) =>
+    `M${at.x - px(r)} ${at.y}a${px(r)} ${px(r)} 0 1 0 ${px(2 * r)} 0a${px(r)} ${px(r)} 0 1 0 ${-px(2 * r)} 0Z`;
+  const ships = (routesShown ? props.ships : []).map((ship) => ({
     ...ship,
     at: along(ship.from, ship.to, ship.progress),
     width: px(ship.name.length * 7 + 16),
@@ -124,7 +135,7 @@ export function ArchipelagoMap(props: {
         className="block h-auto w-full select-none"
       >
         <Archipelago width={MAP_WIDTH} height={MAP_HEIGHT} />
-        {legs.map(({ from, to, a, b, ours, hours: duration }) => {
+        {(routesShown ? legs : []).map(({ from, to, a, b, ours, hours: duration }) => {
           const middle = along(a, b, 0.5);
           return (
             <g key={`${from}-${to}`}>
@@ -154,12 +165,14 @@ export function ArchipelagoMap(props: {
           );
         })}
         {props.cities.map((city) => (
-          <g key={city.id}>
-            {city.home && (
+          <g key={city.id} className="cursor-pointer" onClick={() => props.onSelect(city.id)}>
+            {city.home && <path className="fill-primary" opacity={0.25} d={ring(city.at, 12)} />}
+            {city.selected && (
               <path
-                className="fill-primary"
-                opacity={0.25}
-                d={`M${city.at.x - px(12)} ${city.at.y}a${px(12)} ${px(12)} 0 1 0 ${px(24)} 0a${px(12)} ${px(12)} 0 1 0 ${-px(24)} 0Z`}
+                className="stroke-foreground"
+                fill="none"
+                strokeWidth={px(1.5)}
+                d={ring(city.at, 16)}
               />
             )}
             <circle
@@ -180,7 +193,22 @@ export function ArchipelagoMap(props: {
             >
               {city.name}
             </text>
-            {city.docked > 0 && !dense && (
+            {!routesShown &&
+              city.goods.map((good, i) => {
+                // Quatre biens par rangée, centrées sous la cité.
+                const row = Math.min(4, city.goods.length - Math.floor(i / 4) * 4);
+                const x = city.at.x + px(24 * (i % 4) - 12 * row);
+                const y = city.at.y + px(10 + 24 * Math.floor(i / 4));
+                return (
+                  <g key={good} className="text-foreground" transform={`translate(${x} ${y})`}>
+                    <rect width={px(22)} height={px(22)} rx={px(6)} className="fill-surface" />
+                    <g transform={`translate(${px(2)} ${px(2)}) scale(${px(18) / 24})`}>
+                      <GoodIcon goodId={good} />
+                    </g>
+                  </g>
+                );
+              })}
+            {routesShown && city.docked > 0 && !dense && (
               <text
                 x={city.at.x}
                 y={city.at.y + px(20)}
@@ -257,6 +285,7 @@ export function ArchipelagoMap(props: {
         )}
       </svg>
       <ul
+        hidden={!routesShown}
         aria-label={t('map.legend')}
         className="m-2 flex w-fit flex-wrap @lg:absolute @lg:top-3 @lg:left-3 @lg:m-0 gap-x-3 gap-y-1 rounded-lg border border-border-subtle bg-surface/90 px-2.5 py-1.5 text-xs text-foreground-secondary"
       >

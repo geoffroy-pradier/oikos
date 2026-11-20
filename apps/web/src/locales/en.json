@@ -628,7 +628,21 @@
     "legend": "Legend",
     "ourRoutes": "your routes",
     "otherRoutes": "other routes",
-    "homeCity": "your city"
+    "homeCity": "your city",
+    "layers": "Map layers",
+    "layer": {
+      "routes": "Routes",
+      "terroirs": "Land"
+    },
+    "city": {
+      "choose": "City",
+      "population": "Population",
+      "tax": "Market tax",
+      "price": "{{good}}, per unit",
+      "noPrices": "No price observed at its agora yet.",
+      "agora": "Open the agora — {{city}}",
+      "notAtAgora": "{{city}} is not offered at the agora: your house has no stock or site there. The link opens your city's agora."
+    }
   },
   "shipClasses": {
     "coaster": "Coaster",

@@ -22,6 +22,7 @@ vi.mock('../data', async () => {
     useRows: (view: string) => ({ rows: views.rows[view] ?? null, failed: false, reload }),
     useShipRules: () => ({ rules: views.rules ?? rules, failed: false, reload }),
     useClockRules: () => ({ rules: null, failed: false, reload }),
+    useSiteRules: () => ({ rules: null, failed: false, reload }),
   };
 });
 // Liens sans routeur : de simples ancres.

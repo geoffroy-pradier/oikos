@@ -1,15 +1,18 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Card, Ship, Waves } from '@oikos/ui';
+import { Card, PillTabs, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
+import { parseCityIdentities } from '../city-identity';
+import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { archipelagoLayout, voyageProgress, type Point } from '../map-layout';
 import { formatList } from '../lists';
 import { ScreenHeader } from '../ScreenHeader';
 import { ArchipelagoMap } from './ArchipelagoMap';
 import { AtSea } from './AtSea';
+import { CityPanel } from './CityPanel';
 import { LoadProblem, Loading } from './LoadProblem';
 import { Shipyard } from './Shipyard';
 
@@ -59,10 +62,41 @@ export function MapScreen() {
     return ship.laid_up_at ? t('map.withLaidUp', { state }) : state;
   };
   const loading = ships === null || rules === null;
+  // Cité du panneau (celle de la maison d'abord) et calque de la carte.
+  const [chosen, setChosen] = useState(house.cityId);
+  const [layer, setLayer] = useState<'routes' | 'terroirs'>('routes');
+  const cityIds = [...slugs.keys()].sort((a, b) => cityName(a).localeCompare(cityName(b)));
+  const identityRows = useRows<unknown>(
+    'city_identity',
+    'city_id, terroir, has_port, patron_god_id, starting_recipe_id',
+    'city_id',
+    { city_id: [...slugs.keys()].sort() },
+  );
+  const identities = identityRows.rows ? parseCityIdentities(identityRows.rows) : null;
+  const siteRules = useSiteRules().rules;
+  // Biens du terroir d'une cité : le premier extrant de chaque recette admise.
+  const goodsOf = (cityId: string) =>
+    (identities?.get(cityId)?.terroir ?? []).flatMap((recipeId) => {
+      const good = siteRules?.recipe(recipeId)?.outputs[0]?.goodId;
+      return good ? [good] : [];
+    });
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <ScreenHeader title={t('map.title')}>
+      <ScreenHeader
+        title={t('map.title')}
+        action={
+          <PillTabs
+            label={t('map.layers')}
+            value={layer}
+            onValueChange={(id) => setLayer(id === 'terroirs' ? 'terroirs' : 'routes')}
+            items={[
+              { id: 'routes', label: t('map.layer.routes') },
+              { id: 'terroirs', label: t('map.layer.terroirs') },
+            ]}
+          />
+        }
+      >
         <p className="text-sm text-muted-foreground">{t('map.intro')}</p>
       </ScreenHeader>
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
@@ -87,7 +121,9 @@ export function MapScreen() {
               const at = pointOf(cityId);
               const docked = (ships ?? []).filter((ship) => ship.docked_city_id === cityId).length;
               const home = cityId === house.cityId;
-              return at ? [{ id: cityId, name: cityName(cityId), at, home, docked }] : [];
+              const selected = cityId === chosen;
+              const city = { id: cityId, name: cityName(cityId), home, docked, selected };
+              return at ? [{ ...city, at, goods: goodsOf(cityId) }] : [];
             })}
             ships={atSea.flatMap(({ ship, voyage }) => {
               const [from, to] = [pointOf(voyage.from_city_id), pointOf(voyage.to_city_id)];
@@ -96,9 +132,19 @@ export function MapScreen() {
             })}
             pointOf={pointOf}
             home={pointOf(house.cityId)}
+            layer={layer}
+            onSelect={setChosen}
           />
         </Card>
         <aside className="flex flex-col gap-4">
+          <CityPanel
+            cityIds={cityIds}
+            cityId={chosen}
+            onChange={setChosen}
+            cityName={cityName}
+            identity={identities?.get(chosen)}
+            homeId={house.cityId}
+          />
           <AtSea
             voyages={atSea.map(({ ship, voyage }) => ({ ...voyage, name: shipName(ship) }))}
             cityName={cityName}
