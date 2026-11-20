@@ -67,7 +67,7 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.getByRole('button', { name: 'Continuer' }).click();
   await expect(page.getByRole('alert')).toHaveText("Choisissez votre cité d'accueil.");
   await expect(city('Halos')).toHaveAttribute('aria-invalid', 'true');
-  // Choix au clavier : espace sur la première cité, puis les flèches parcourent le groupe.
+  // Choix au clavier : espace sur Ampelos, la deuxième du groupe par ordre alphabétique, puis les flèches parcourent le groupe.
   await city('Ampelos').focus();
   await page.keyboard.press('Space');
   await expect(city('Ampelos')).toBeChecked();
