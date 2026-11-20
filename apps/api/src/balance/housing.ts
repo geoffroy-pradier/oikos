@@ -17,7 +17,7 @@ import { place, upkeepOf, type Seller } from './strategy';
 import { worldConfig } from './world';
 
 /*
- * Stratégie de logement du banc des quatre cités (#282, docs/specs/04-systemes-gestion.md 4.5) : une maison
+ * Stratégie de logement du banc des douze cités (#282, docs/specs/04-systemes-gestion.md 4.5) : une maison
  * qui emploie des travailleurs sans logement paie chaque nuit leur hébergement chez les PNJ ; elle loue un
  * logement offert, ou l'achète à la cité, quand cela lui coûte moins ; elle rénove ses biens avant qu'ils
  * passent sous leur seuil d'habitabilité ; une maison dont les travailleurs sont logés investit ses surplus

@@ -5,7 +5,7 @@ import { config, recipeOf, referenceOf, type City } from './city';
 import type { Seller } from './strategy';
 
 /*
- * Intendants du banc des quatre cités (#281, #283) : une maison embauche un intendant pour son premier site et lui
+ * Intendants du banc des douze cités (#281, #283) : une maison embauche un intendant pour son premier site et lui
  * confie la vente de ses récoltes et des biens du panier que font ses ateliers par `steward.setRules` (règles `sell` à
  * prix fixe) ; le moteur le fait agir après chaque tick, et la maison ne met plus ces biens en vente elle-même, ni ne
  * retire ses ventes. La règle de récolte

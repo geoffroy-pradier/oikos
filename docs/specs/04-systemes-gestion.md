@@ -158,7 +158,7 @@ Un atelier à l'arrêt faute d'entretien payé (5.5) ne consomme aucun intrant :
 Pour un atelier, rien n'est « accumulé » tant que les intrants ne sont pas consommés : les cycles écoulés avant l'arrêt restent dus, dans la limite du plafond, et tournent à la première récolte après la relance.
 Un atelier inspiré en attente (7.1, #266) ajoute à une récolte d'atelier ⌊quantité × ampleur ÷ 10 000⌋ de chaque extrant, sans intrant de plus.
 
-Marge nette quotidienne d'un site (#285), telle que la mesure le banc à quatre cités (`recipeMargins`, `apps/api/src/balance/measures.ts`), sur ses dix derniers jours mesurés.
+Marge nette quotidienne d'un site (#285), telle que la mesure le banc des douze cités (`recipeMargins`, `apps/api/src/balance/measures.ts`), sur ses dix derniers jours mesurés.
 Elle est comptée à pleine cadence : tous les cycles d'un jour, et tous les extrants vendus.
 Ventes : les extrants au prix moyen des échanges de la cité, achats des PNJ compris.
 Intrants : au prix moyen payé par les maisons de la cité (ordres d'achat servis, sans les achats des PNJ), sinon au prix moyen des échanges.
@@ -166,7 +166,7 @@ Un bien sans échange dans la cité est compté au prix du monde, sinon à son p
 On en retire l'entretien du site (5.5), puis, par travailleur, le salaire moyen de la cité et sa part d'hébergement : le prix d'une nuit fois la part des employés de la cité qui ne sont pas logés (4.4).
 Une matière première n'est comptée que dans le terroir de la cité ; la marge du monde (`world`) compte toutes les recettes, aux prix et au marché du travail de toutes les cités.
 
-Borne des ateliers (#285), écrite à la main dans le banc à quatre cités (`apps/api/src/balance-world.bench.ts`) : la marge du monde d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des sites de matières premières.
+Borne des ateliers (#285), écrite à la main dans le banc des douze cités (`apps/api/src/balance-world.bench.ts`) : la marge du monde d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des sites de matières premières.
 Aucune voie n'écrase ainsi l'autre (01, pilier 2).
 Depuis #708, cette médiane ne compte que les matières premières du terroir des cités du banc : celles de #708, qu'aucune n'y produit, n'y vaudraient que leur prix de référence.
 Décision (#285) : la borne porte sur la marge du monde, pas sur celle de chaque cité.
@@ -198,6 +198,7 @@ Leur marge du monde, aux prix du banc à quatre cités, est de 759 à 875 oboles
 Aucune maison du banc ne les joue, et le filtre du négociant les laisse de côté pour la même raison.
 Les marges des quarante-quatre recettes d'avant restent celles d'avant, au chiffre près.
 Le banc à une cité reste identique, au chiffre près (10 236 habitants au dernier jour), et le banc à quatre cités n'a pas d'autre écart que les dix colonnes nouvelles.
+Depuis #712, le banc joue les douze cités (5.5) : les marges des ateliers y sont de 440 à 1 006 oboles, dans la borne de 421 à 1 685 (médiane des matières premières de 842,5 oboles).
 
 Marges retenues dans la configuration initiale (banc à quatre cités, graine par défaut, salaire du banc de 4 oboles) ; la médiane des matières premières est de 905 oboles avant comme après, d'où une borne de 453 à 1 810 oboles :
 

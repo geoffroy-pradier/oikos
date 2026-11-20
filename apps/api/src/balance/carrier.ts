@@ -23,7 +23,7 @@ import { assertAdmitted, place, upkeepOf, type Seller } from './strategy';
 import { stewardPrice } from './steward';
 
 /*
- * Armateurs du banc des quatre cités (#283) : une maison qui arme un caboteur et fait la navette entre sa cité
+ * Armateurs du banc des douze cités (#283, #712) : une maison qui arme un caboteur et fait la navette entre sa cité
  * d'attache et une cité source. Elle affiche ses prix (`postedPrice`) : à chaque bout, elle remet en vente ce qu'elle y
  * a apporté, et achète au plus à son prix ce qui manque à l'autre bout, sa part de `TARGET_DAYS` jours de la demande de
  * la cité (ses PNJ et les intrants de ses maisons) moins ce qu'elle y a déjà. Elle part quand ces achats sont faits, que

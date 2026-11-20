@@ -8,7 +8,7 @@ import { SLUGS, WINDOW, worldConfig } from './balance/world';
 
 /*
  * Simulateur d'équilibrage (#284) : mêmes graine et configuration, même rapport. Deux parties courtes du banc
- * des quatre cités, sur la même graine, rendent les mêmes indicateurs, donc un rapport sans aucun écart ; les
+ * des douze cités, sur la même graine, rendent les mêmes indicateurs, donc un rapport sans aucun écart ; les
  * deux joueraient le même monde neuf chacun, ce que fait la commande pour la référence et la candidate.
  */
 const bench = openBench({ config: worldConfig });
