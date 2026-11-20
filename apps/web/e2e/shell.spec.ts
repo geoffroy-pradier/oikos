@@ -79,4 +79,17 @@ test('rangées de pastilles qui défilent : chaque onglet atteint au clavier est
     await expect(links.nth(index)).toBeInViewport({ ratio: 1 });
   }
   await expectNoHorizontalScroll(page);
+
+  // Onglet Cité : les pastilles sous l'en-tête, chacune atteinte par les flèches.
+  await page.goto('/cite');
+  const tabs = page.getByRole('tablist', { name: 'Rubriques de la cité' }).getByRole('tab');
+  await expect(tabs.first()).toBeInViewport({ ratio: 1 });
+  await tabs.first().focus();
+  for (let index = 0; index < (await tabs.count()); index += 1) {
+    if (index > 0) await page.keyboard.press('ArrowRight');
+    await expect(tabs.nth(index)).toBeFocused();
+    await expect(tabs.nth(index)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(index)).toBeInViewport({ ratio: 1 });
+  }
+  await expectNoHorizontalScroll(page);
 });

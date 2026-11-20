@@ -169,8 +169,10 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 5. Séance de l'assemblée : décrets en cours, vote, débats.
    Première version (#264), dans l'onglet Cité : la vie politique (statut de la maison relu dans sa ligne de la vue `houses`, archonte en charge, élection en cours avec sa phase, son calendrier et ses candidats, résultats de la dernière élection dépouillée), l'assemblée et le trésor public ; les débats attendent la discussion de la cité (#274).
    Refonte (#697) : vie politique, assemblée, trésor, événements et chronique sont des pastilles de l'onglet Cité, la vie politique d'abord.
+   Le titre d'un panneau ne répète pas la pastille active : il n'est lu que par les lecteurs d'écran, et ne paraît que s'il prend le foyer.
    Les panneaux des pastilles quittées restent montés, cachés : une commande en vol garde sa clé, une saisie survit au changement de pastille.
-   Au-dessus des pastilles, l'en-tête de page porte le lien du temple, puis viennent la vignette et l'identité de la cité et trois cartes : population (détail par classe replié), marché du travail et parc de logements.
+   Les pastilles sont sous l'en-tête de page, qui porte le lien du temple, comme sur Maison (#862).
+   Après le panneau viennent la vignette et l'identité de la cité et trois cartes : population (détail par classe replié), marché du travail et parc de logements.
    La vie politique tient en cartes : statut, archonte en charge, élection en cours (calendrier en trois étapes, l'étape en cours marquée, candidatures en cartes), puis la dernière élection dépouillée, dont les voix sont doublées de barres.
    Dans la carte de l'élection, la candidature et le bulletin sont des cartes d'action : le bulletin a un bouton par candidature, qui nomme la maison.
    L'archonte propose un décret dans une feuille par étapes, ouverte par « Nouveau décret » sous les règles du vote : le modèle (une carte par modèle ouvert, décrite), ses paramètres aux bornes annoncées, puis un récapitulatif chiffré confirmé par « Proposer au vote ».

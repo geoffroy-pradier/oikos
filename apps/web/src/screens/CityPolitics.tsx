@@ -18,6 +18,7 @@ import { serverClock } from '../server-clock';
 import { ElectionActions } from './ElectionActions';
 import { HouseLink } from './HouseLink';
 import { LoadProblem, Loading } from './LoadProblem';
+import { PANEL_TITLE } from './city-section';
 
 /** Titre de section, icône en accent. */
 const TITLE =
@@ -120,7 +121,7 @@ export function CityPolitics() {
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 ref={title} tabIndex={-1} className={TITLE}>
+      <h2 ref={title} tabIndex={-1} className={`${PANEL_TITLE} ${TITLE}`}>
         <Vote aria-hidden="true" />
         {t('cityPolitics.title')}
       </h2>

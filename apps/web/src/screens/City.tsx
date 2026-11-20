@@ -72,10 +72,11 @@ export function Meter({ share }: { share: number }) {
 }
 
 /**
- * Onglet Cité : en tête, l'identité de la cité de la maison (6.1, vue `city_identity`), sa population classe
- * par classe et la couverture de ses besoins vitaux (5.2, vue `city_population`), son marché du travail (4.4)
- * et son parc de logements (4.5) ; puis, en pastilles, vie politique, assemblée, trésor, événements (7.4) et
- * chronique (6.6). Les panneaux restent montés : une commande en vol ou une saisie survit au changement.
+ * Onglet Cité : sous l'en-tête, les pastilles (vie politique, assemblée, trésor, événements (7.4) et chronique
+ * (6.6)) et leur panneau, comme sur Maison (#862) ; puis l'identité de la cité de la maison (6.1, vue
+ * `city_identity`), sa population classe par classe et la couverture de ses besoins vitaux (5.2, vue
+ * `city_population`), son marché du travail (4.4) et son parc de logements (4.5). Les panneaux restent montés :
+ * une commande en vol ou une saisie survit au changement.
  */
 export function CityScreen() {
   const { t, i18n } = useTranslation();
@@ -153,6 +154,18 @@ export function CityScreen() {
             {t('city.temple')}
           </Link>
         }
+      />
+      {/* Pastilles sous l'en-tête, comme sur Maison (#862) ; les chiffres de la cité suivent le panneau. */}
+      <PillTabs
+        label={t('city.sections.label')}
+        // Panneaux gardés montés : une commande en vol, sa clé ou une saisie survivent au changement.
+        keepMounted
+        items={sections.map(([id, icon, content]) => ({
+          id,
+          icon,
+          label: t(`city.sections.${id}`),
+          content,
+        }))}
       />
       {/* Téléphone : la vignette à côté du titre, la liste dessous ; ordinateur : la vignette à gauche du tout. */}
       <Card
@@ -319,17 +332,6 @@ export function CityScreen() {
           )}
         </Card>
       </div>
-      <PillTabs
-        label={t('city.sections.label')}
-        // Panneaux gardés montés : une commande en vol, sa clé ou une saisie survivent au changement.
-        keepMounted
-        items={sections.map(([id, icon, content]) => ({
-          id,
-          icon,
-          label: t(`city.sections.${id}`),
-          content,
-        }))}
-      />
     </div>
   );
 }
