@@ -137,13 +137,13 @@ test('onglet Cité : identité, population de la cité et couverture de ses beso
   await nav.getByRole('link', { name: 'Cité' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Cité de Kallistè', level: 1 })).toBeVisible();
-  // Identité de la cité (6.1) : Kallistè a toutes les matières premières de la phase 1, sauf la laine (#669).
+  // Identité de la cité (6.1) : Kallistè a les matières premières de la phase 1, sauf la laine (#669) et le sel (#714).
   const identity = page.getByRole('heading', { name: 'Identité de la cité', level: 2 });
   await expect(identity).toBeVisible();
   await expect(page.getByRole('listitem')).toContainText([
     'Protégée par Déméter',
     'Cité portuaire',
-    "Terroir : Champ de blé, Oliveraie, Vigne, Coupe de bois, Carrière d'argile, Pêcherie et Saline",
+    "Terroir : Champ de blé, Oliveraie, Vigne, Coupe de bois, Carrière d'argile et Pêcherie",
     'Premier site : Champ de blé',
   ]);
   await expect(page.getByRole('heading', { name: 'Population', level: 2 })).toBeVisible();

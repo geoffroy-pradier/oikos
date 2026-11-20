@@ -106,7 +106,8 @@ const role = (name: string, count: number, ...sites: string[]): Role => ({ name,
  * primaires seulement dans le terroir de la cité. Kallistè et Elaia produisent pour elles et pour Ampélos et Halos, que
  * les armateurs ravitaillent : de 104 à 121 % de la demande de blé des PNJ, des moulins et des armateurs, deux moulins
  * pour le pain (512 par jour, un peu sous la demande), un pressoir et, à Kallistè, cinq chais pour l'huile et le vin,
- * rares. Ampélos et Halos pêchent leur poisson, Halos raffine son sel. Chaque maison confie ses récoltes à un
+ * rares. Ampélos, Halos et Kallistè (deux sites, #714) pêchent leur poisson ; Elaia et Halos raffinent le sel, que
+ * Kallistè n'a plus à son terroir. Chaque maison confie ses récoltes à un
  * intendant (`balance/steward.ts`). Nombres choisis à la main : une communauté plausible, pas une stratégie optimale.
  */
 const FOUR_SETTLEMENTS: Record<string, Role[]> = {
@@ -116,7 +117,7 @@ const FOUR_SETTLEMENTS: Record<string, Role[]> = {
     role('charbonnier-bûcheron', 1, 'grow_wheat', 'burn_charcoal', 'burn_charcoal', 'fell_wood'),
     role('arboriculteur', 1, 'grow_wheat', 'grow_olives', 'grow_olives', 'grow_grapes'),
     role('presseur-caviste', 1, 'grow_wheat', 'press_oil', 'ferment_wine', 'ferment_wine'),
-    role('pêcheur-saunier', 1, 'grow_wheat', 'catch_fish', 'rake_salt', 'ferment_wine'),
+    role('pêcheur', 1, 'grow_wheat', 'catch_fish', 'catch_fish', 'ferment_wine'),
     role('potier', 1, 'grow_wheat', 'throw_amphorae', 'dig_clay', 'ferment_wine'),
     role('fermier-caviste', 1, 'grow_wheat', 'ferment_wine'),
   ],
@@ -140,7 +141,7 @@ const FOUR_SETTLEMENTS: Record<string, Role[]> = {
  * chacune un caboteur et font la navette avec leur cité source. Vers leur cité, elles portent ce qu'elle ne produit pas ;
  * vers la source, ce que leur cité produit pour elle (le poisson d'Halos pour Elaia). Trois caboteurs pour chaque cité
  * importatrice, qui en demande près de 900 unités par jour, à quatre ou huit heures de mer ; un pour le vin d'Elaia
- * et d'Halos.
+ * et d'Halos ; un pour le sel, d'Elaia vers Kallistè et d'Halos vers Ampélos (#714).
  */
 export interface CarrierSpec {
   home: Slug;
@@ -156,7 +157,7 @@ const FOUR_CARRIERS: CarrierSpec[] = [
     home: 'ampelos',
     source: 'kalliste',
     count: 3,
-    toHome: ['wheat', 'bread', 'salt', 'olive_oil', 'wine'],
+    toHome: ['wheat', 'bread', 'olive_oil', 'wine'],
     toSource: [],
   },
   {
@@ -168,6 +169,8 @@ const FOUR_CARRIERS: CarrierSpec[] = [
   },
   { home: 'elaia', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
   { home: 'halos', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
+  { home: 'kalliste', source: 'elaia', count: 1, toHome: ['salt'], toSource: [] },
+  { home: 'ampelos', source: 'halos', count: 1, toHome: ['salt'], toSource: [] },
 ];
 export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
 

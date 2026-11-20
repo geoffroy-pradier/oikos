@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import type { LoadedConfig } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
-import { TEST_CONFIG, testConfig, testVerifier } from './test-config';
+import { TEST_CONFIG as BASE_CONFIG, testVerifier } from './test-config';
 
 // Acquisition d'un site et changement de recette, contre Supabase local. Chaque test fonde sa maison.
 const DATABASE_URL =
@@ -13,6 +14,18 @@ const DATABASE_URL =
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
 const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
+// Depuis #714, la cité de ces tests (Kallistè, du jeu d'essai) n'a plus le sel au terroir de la configuration initiale ;
+// ces tests ont besoin d'une pêcherie qui change de recette, donc d'un terroir qui l'y admet.
+const TEST_CONFIG: LoadedConfig = {
+  ...BASE_CONFIG,
+  config: {
+    ...BASE_CONFIG.config,
+    cities: BASE_CONFIG.config.cities.map((city) =>
+      city.id === 'kalliste' ? { ...city, terroir: [...(city.terroir ?? []), 'rake_salt'] } : city,
+    ),
+  },
+};
+const testConfig = async () => TEST_CONFIG;
 const app = createApp({
   db,
   telemetry: createTelemetry(db),

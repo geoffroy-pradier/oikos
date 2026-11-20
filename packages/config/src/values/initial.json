@@ -1294,8 +1294,7 @@
         "grow_grapes",
         "fell_wood",
         "dig_clay",
-        "catch_fish",
-        "rake_salt"
+        "catch_fish"
       ],
       "hasPort": true,
       "patronGodId": "demeter",
