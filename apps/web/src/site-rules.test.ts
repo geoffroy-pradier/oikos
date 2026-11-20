@@ -45,8 +45,14 @@ describe('parseSiteRules', () => {
 
   it('ne propose à un site que les autres recettes de son type', () => {
     const rules = parseSiteRules(raw());
-    expect(rules?.alternatives('grow_olives').map((recipe) => recipe.id)).toEqual(['grow_grapes']);
-    expect(rules?.alternatives('grow_wheat')).toEqual([]);
+    expect(rules?.alternatives('grow_olives').map((recipe) => recipe.id)).toEqual([
+      'grow_grapes',
+      'grow_figs',
+    ]);
+    expect(rules?.alternatives('grow_wheat').map((recipe) => recipe.id)).toEqual([
+      'grow_barley',
+      'grow_flax',
+    ]);
     // Un atelier passe d'une recette d'atelier à une autre, jamais à une culture.
     const workshops = config.recipes
       .filter((recipe) => recipe.siteType === 'workshop' && recipe.id !== 'mill_flour')
@@ -200,7 +206,11 @@ describe('parseSiteRules', () => {
     const rules = parseSiteRules(
       raw({ sites: { ...config.sites, acquisitionCostOboles: { field: 600 } } }),
     );
-    expect(rules?.offers.map((offer) => offer.recipe.id)).toEqual(['grow_wheat']);
+    expect(rules?.offers.map((offer) => offer.recipe.id)).toEqual([
+      'grow_wheat',
+      'grow_barley',
+      'grow_flax',
+    ]);
     const first = config.recipes[0];
     const broken = [
       null,

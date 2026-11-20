@@ -697,9 +697,9 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Agora' }).click();
 
-  // Les quinze biens sont proposés ; le carnet et le formulaire suivent le bien choisi.
+  // Les vingt-cinq biens sont proposés (#708) ; le carnet et le formulaire suivent le bien choisi.
   const good = page.getByLabel('Bien');
-  await expect(good.getByRole('option')).toHaveCount(15);
+  await expect(good.getByRole('option')).toHaveCount(25);
   await good.selectOption({ label: 'Olives' });
   await expect(page.getByRole('heading', { name: "Carnet d'ordres : Olives" })).toBeVisible();
   await fillOrder(page, 'Vendre', 30, 900);

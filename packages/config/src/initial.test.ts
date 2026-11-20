@@ -20,15 +20,30 @@ const EIGHT_CITIES = [
   'chalkeia',
   'emporion',
 ];
+/** Les dix matières premières de #708 et leurs recettes, dans l'ordre de la configuration. */
+const TEN_RAW: Record<string, string> = {
+  barley: 'grow_barley',
+  flax: 'grow_flax',
+  figs: 'grow_figs',
+  hides: 'skin_hides',
+  honey: 'gather_honey',
+  marble: 'quarry_marble',
+  copper: 'mine_copper',
+  tin: 'mine_tin',
+  iron: 'mine_iron',
+  silver: 'mine_silver',
+};
+const [TEN_RAW_GOODS, TEN_RAW_RECIPES] = [Object.keys(TEN_RAW), Object.values(TEN_RAW)];
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   const { config } = result;
 
-  it('contient 15 biens, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706)', () => {
-    expect(config.goods).toHaveLength(15);
-    expect(config.recipes).toHaveLength(15);
+  it('contient 25 biens, dont 18 matières premières, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706, #708)', () => {
+    expect(config.goods).toHaveLength(25);
+    expect(config.goods.filter((good) => good.tier === 'raw')).toHaveLength(18);
+    expect(config.recipes).toHaveLength(25);
     expect(config.npcClasses.map((npcClass) => npcClass.id)).toEqual([
       'thetes',
       'zeugitai',
@@ -98,9 +113,12 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('terroirs et recettes de départ des douze cités (#250, #706)', () => {
+  it('terroirs et recettes de départ des douze cités (#250, #706, #708)', () => {
+    // Productions de la phase 2 ; celles de #708 ont leur propre test.
     const terroir = (cityId: string) =>
-      [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])].sort();
+      [...(config.cities.find((city) => city.id === cityId)?.terroir ?? [])]
+        .filter((recipeId) => !TEN_RAW_RECIPES.includes(recipeId))
+        .sort();
     // Kallistè (#669) : toutes les matières premières de la phase 1 sauf la laine, qu'Ampelos et Halos produisent.
     expect(terroir('kalliste')).toEqual([
       'catch_fish',
@@ -142,6 +160,47 @@ describe('jeu de valeurs initial', () => {
       'fell_wood',
       'catch_fish',
     ]);
+  });
+
+  it('dix matières premières de plus (#708), chacune de sa recette sans intrant, au terroir d’une à quatre cités', () => {
+    expect(config.goods.slice(15).map((good) => [good.id, good.tier])).toEqual(
+      TEN_RAW_GOODS.map((id) => [id, 'raw']),
+    );
+    expect(
+      config.recipes.slice(15).map(({ id, inputs, outputs }) => [id, inputs, outputs[0]?.goodId]),
+    ).toEqual(TEN_RAW_RECIPES.map((id, i) => [id, [], TEN_RAW_GOODS[i]]));
+    for (const recipeId of TEN_RAW_RECIPES) {
+      const cities = config.cities.filter((city) => city.terroir?.includes(recipeId));
+      expect(cities.length, recipeId).toBeGreaterThanOrEqual(1);
+      expect(cities.length, recipeId).toBeLessThanOrEqual(4);
+      // Les bancs jouent les quatre premières cités avec les productions de la phase 2 (5.5).
+      expect(
+        cities.filter((city) => FOUR_CITIES.includes(city.id)),
+        recipeId,
+      ).toEqual([]);
+    }
+  });
+
+  it('marge nette quotidienne de chaque recette de #708, au prix de référence, entre la moitié et le double de la médiane de la phase 2', () => {
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    // Ventes d'un jour au prix de référence, moins l'entretien du site et le salaire de ses travailleurs.
+    const margin = (recipe: (typeof config.recipes)[number]) =>
+      recipe.outputs.reduce((sum, out) => sum + out.quantity * (price.get(out.goodId) ?? NaN), 0) *
+        (1440 / recipe.durationMinutes) -
+      Math.ceil((dailyOboles[recipe.siteType] * coefficientBps) / 10_000) -
+      recipe.workers * (config.staff.dailyWageOboles['kalliste'] ?? NaN);
+    const phase2 = config.recipes
+      .filter((recipe) => recipe.inputs.length === 0 && !TEN_RAW_RECIPES.includes(recipe.id))
+      .map(margin)
+      .sort((a, b) => a - b);
+    // Huit matières premières de la phase 2 : médiane entre la quatrième et la cinquième, bornée à la main.
+    expect(phase2).toHaveLength(8);
+    expect(((phase2[3] ?? NaN) + (phase2[4] ?? NaN)) / 2).toBe(899);
+    for (const recipe of config.recipes.filter((each) => TEN_RAW_RECIPES.includes(each.id))) {
+      expect(margin(recipe), recipe.id).toBeGreaterThanOrEqual(899 / 2);
+      expect(margin(recipe), recipe.id).toBeLessThanOrEqual(899 * 2);
+    }
   });
 
   it('aucune cité ne produit tous les biens vitaux du panier de ses PNJ : blé, poisson, sel et bois du charbon du pain (6.1, #706)', () => {
@@ -193,7 +252,9 @@ describe('jeu de valeurs initial', () => {
       ...config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)),
       ...config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
     ]);
-    expect(config.goods.filter((good) => !used.has(good.id))).toEqual([]);
+    // Sauf les matières premières de #708, en attendant leurs ateliers et leurs acheteurs (#709 à #713).
+    const checked = config.goods.filter((good) => !TEN_RAW_GOODS.includes(good.id));
+    expect(checked.filter((good) => !used.has(good.id))).toEqual([]);
   });
 
   it('le revenu de chaque classe couvre son panier au prix de référence, sans le dépasser de beaucoup', () => {

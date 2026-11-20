@@ -417,7 +417,17 @@
     { "id": "cloth", "tier": "intermediate", "referencePriceOboles": 42, "elasticity": 0.9 },
     { "id": "bread", "tier": "finished", "referencePriceOboles": 15, "elasticity": 0.3 },
     { "id": "wine", "tier": "finished", "referencePriceOboles": 36, "elasticity": 1.1 },
-    { "id": "amphorae", "tier": "finished", "referencePriceOboles": 36, "elasticity": 0.9 }
+    { "id": "amphorae", "tier": "finished", "referencePriceOboles": 36, "elasticity": 0.9 },
+    { "id": "barley", "tier": "raw", "referencePriceOboles": 5, "elasticity": 0.4 },
+    { "id": "flax", "tier": "raw", "referencePriceOboles": 11, "elasticity": 0.7 },
+    { "id": "figs", "tier": "raw", "referencePriceOboles": 10, "elasticity": 0.8 },
+    { "id": "hides", "tier": "raw", "referencePriceOboles": 18, "elasticity": 0.6 },
+    { "id": "honey", "tier": "raw", "referencePriceOboles": 30, "elasticity": 0.9 },
+    { "id": "marble", "tier": "raw", "referencePriceOboles": 22, "elasticity": 0.8 },
+    { "id": "copper", "tier": "raw", "referencePriceOboles": 18, "elasticity": 0.6 },
+    { "id": "tin", "tier": "raw", "referencePriceOboles": 40, "elasticity": 0.7 },
+    { "id": "iron", "tier": "raw", "referencePriceOboles": 16, "elasticity": 0.5 },
+    { "id": "silver", "tier": "raw", "referencePriceOboles": 80, "elasticity": 1.0 }
   ],
   "recipes": [
     {
@@ -563,6 +573,96 @@
         { "goodId": "amphorae", "quantity": 1 }
       ],
       "outputs": [{ "goodId": "wine", "quantity": 5 }]
+    },
+    {
+      "id": "grow_barley",
+      "siteType": "field",
+      "durationMinutes": 240,
+      "workers": 4,
+      "maxAccruedCycles": 18,
+      "inputs": [],
+      "outputs": [{ "goodId": "barley", "quantity": 40 }]
+    },
+    {
+      "id": "grow_flax",
+      "siteType": "field",
+      "durationMinutes": 360,
+      "workers": 4,
+      "maxAccruedCycles": 12,
+      "inputs": [],
+      "outputs": [{ "goodId": "flax", "quantity": 20 }]
+    },
+    {
+      "id": "grow_figs",
+      "siteType": "orchard",
+      "durationMinutes": 360,
+      "workers": 4,
+      "maxAccruedCycles": 12,
+      "inputs": [],
+      "outputs": [{ "goodId": "figs", "quantity": 22 }]
+    },
+    {
+      "id": "skin_hides",
+      "siteType": "pasture",
+      "durationMinutes": 360,
+      "workers": 2,
+      "maxAccruedCycles": 12,
+      "inputs": [],
+      "outputs": [{ "goodId": "hides", "quantity": 10 }]
+    },
+    {
+      "id": "gather_honey",
+      "siteType": "forest",
+      "durationMinutes": 480,
+      "workers": 2,
+      "maxAccruedCycles": 9,
+      "inputs": [],
+      "outputs": [{ "goodId": "honey", "quantity": 9 }]
+    },
+    {
+      "id": "quarry_marble",
+      "siteType": "quarry",
+      "durationMinutes": 360,
+      "workers": 6,
+      "maxAccruedCycles": 12,
+      "inputs": [],
+      "outputs": [{ "goodId": "marble", "quantity": 12 }]
+    },
+    {
+      "id": "mine_copper",
+      "siteType": "quarry",
+      "durationMinutes": 300,
+      "workers": 5,
+      "maxAccruedCycles": 14,
+      "inputs": [],
+      "outputs": [{ "goodId": "copper", "quantity": 12 }]
+    },
+    {
+      "id": "mine_tin",
+      "siteType": "quarry",
+      "durationMinutes": 360,
+      "workers": 5,
+      "maxAccruedCycles": 12,
+      "inputs": [],
+      "outputs": [{ "goodId": "tin", "quantity": 6 }]
+    },
+    {
+      "id": "mine_iron",
+      "siteType": "quarry",
+      "durationMinutes": 300,
+      "workers": 5,
+      "maxAccruedCycles": 14,
+      "inputs": [],
+      "outputs": [{ "goodId": "iron", "quantity": 14 }]
+    },
+    {
+      "id": "mine_silver",
+      "siteType": "quarry",
+      "durationMinutes": 480,
+      "workers": 6,
+      "maxAccruedCycles": 9,
+      "inputs": [],
+      "outputs": [{ "goodId": "silver", "quantity": 4 }]
     }
   ],
   "npcClasses": [
@@ -813,7 +913,15 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["grow_wheat", "grow_olives", "fell_wood", "dig_clay"],
+      "terroir": [
+        "grow_wheat",
+        "grow_olives",
+        "fell_wood",
+        "dig_clay",
+        "grow_barley",
+        "quarry_marble",
+        "mine_silver"
+      ],
       "hasPort": true,
       "patronGodId": "zeus",
       "npcPublicIncomeBps": 10000
@@ -826,7 +934,14 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["grow_wheat", "grow_grapes", "grow_olives", "shear_wool"],
+      "terroir": [
+        "grow_wheat",
+        "grow_grapes",
+        "grow_olives",
+        "shear_wool",
+        "grow_flax",
+        "grow_figs"
+      ],
       "hasPort": true,
       "patronGodId": "hera",
       "npcPublicIncomeBps": 10000
@@ -839,7 +954,15 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["grow_olives", "grow_grapes", "shear_wool", "dig_clay"],
+      "terroir": [
+        "grow_olives",
+        "grow_grapes",
+        "shear_wool",
+        "dig_clay",
+        "grow_figs",
+        "gather_honey",
+        "quarry_marble"
+      ],
       "hasPort": true,
       "patronGodId": "apollo",
       "startingRecipeId": "grow_olives",
@@ -853,7 +976,15 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["fell_wood", "shear_wool", "grow_wheat", "grow_olives"],
+      "terroir": [
+        "fell_wood",
+        "shear_wool",
+        "grow_wheat",
+        "grow_olives",
+        "grow_barley",
+        "skin_hides",
+        "gather_honey"
+      ],
       "hasPort": true,
       "patronGodId": "artemis",
       "startingRecipeId": "fell_wood",
@@ -867,7 +998,16 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["grow_wheat", "fell_wood", "shear_wool", "dig_clay"],
+      "terroir": [
+        "grow_wheat",
+        "fell_wood",
+        "shear_wool",
+        "dig_clay",
+        "grow_barley",
+        "skin_hides",
+        "mine_copper",
+        "mine_iron"
+      ],
       "hasPort": true,
       "patronGodId": "ares",
       "npcPublicIncomeBps": 10000
@@ -880,7 +1020,15 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["grow_grapes", "grow_olives", "shear_wool", "catch_fish"],
+      "terroir": [
+        "grow_grapes",
+        "grow_olives",
+        "shear_wool",
+        "catch_fish",
+        "grow_flax",
+        "grow_figs",
+        "gather_honey"
+      ],
       "hasPort": true,
       "patronGodId": "aphrodite",
       "startingRecipeId": "grow_grapes",
@@ -894,7 +1042,15 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["fell_wood", "dig_clay", "rake_salt", "grow_olives"],
+      "terroir": [
+        "fell_wood",
+        "dig_clay",
+        "rake_salt",
+        "grow_olives",
+        "mine_copper",
+        "mine_tin",
+        "mine_iron"
+      ],
       "hasPort": true,
       "patronGodId": "hephaistos",
       "startingRecipeId": "fell_wood",
@@ -908,7 +1064,14 @@
         "hippeis": 1200,
         "pentakosiomedimnoi": 300
       },
-      "terroir": ["catch_fish", "rake_salt", "grow_olives", "shear_wool"],
+      "terroir": [
+        "catch_fish",
+        "rake_salt",
+        "grow_olives",
+        "shear_wool",
+        "grow_flax",
+        "mine_silver"
+      ],
       "hasPort": true,
       "patronGodId": "hermes",
       "startingRecipeId": "catch_fish",
