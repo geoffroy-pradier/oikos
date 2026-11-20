@@ -36,6 +36,31 @@ const WELCOME = `
   c ${wave(212, 192)}${wave(300, 176)}${wave(196, 134)}${wave(316, 128)}
   - M92 52l6 5 6-5M114 40l5 4 5-4`;
 
+/** Un nuage à fond plat, posé en (x, y), large de 60. */
+const cloud = (x: number, y: number) =>
+  `M${x} ${y}c-6 0-9-7-3-10 0-7 8-10 14-6 3-7 15-8 18 0 7-3 15 2 13 8 6 1 7 8 0 8Z`;
+
+/**
+ * Scène de la connexion d'Olympe, 360 × 160 : le temple au sommet de l'Olympe, devant le soleil, au-dessus des nuages.
+ * En aplats : le halo, le soleil, la montagne, le temple et les nuages ; le trait porte chaque forme, et les colonnes
+ * se détachent sur le mur du temple, jamais sur le soleil (contrastes : `contrast.ts`).
+ */
+const OLYMPUS = `
+  S ${o(180, 62, 58)}
+  a ${o(180, 40, 24)}
+  - M180 11V3M159.5 19.5l-5.7-5.7M200.5 19.5l5.7-5.7M151 40h-8M209 40h8
+  m M-2 152l46-50 26 18 34-34 40 46v20Z
+  m M222 152l40-58 24 18 32-30 44 50v20Z
+  t M60 152l66-60 18 6 18-30h36l18 28 18-8 66 64Z
+  - M148 100l8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6
+  s M158 68h44v-5h-44ZM162 63V42h36v21Z
+  - M166 63V42M173 63V42M180 63V42M187 63V42M194 63V42
+  s M158 42h44v-5h-44ZM160 37l20-11 20 11Z
+  m ${cloud(64, 140)}
+  m ${cloud(250, 126)}
+  - M0 152h360
+  - M62 40l6 5 6-5M82 28l5 4 5-4M286 36l5 4 5-4`;
+
 /** Illustrations d'états vides, 160 × 120, sur un disque doux : une par famille de listes. */
 const EMPTY = {
   // Pas de site : une parcelle piquetée, vide, et son jalon.
@@ -109,6 +134,15 @@ export function WelcomeScene(props: IllustrationProps) {
   return (
     <Svg viewBox="0 0 360 200" width={360} height={200} {...props}>
       {paths(WELCOME)}
+    </Svg>
+  );
+}
+
+/** Connexion d'Olympe, 360 × 160 par défaut ; `className="h-auto w-full"` pour qu'elle suive sa colonne. */
+export function OlympusScene(props: IllustrationProps) {
+  return (
+    <Svg viewBox="0 0 360 160" width={360} height={160} {...props}>
+      {paths(OLYMPUS)}
     </Svg>
   );
 }

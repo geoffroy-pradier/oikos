@@ -1,4 +1,4 @@
-import { Button, Field, Landmark } from '@oikos/ui';
+import { Button, Field, OlympusScene } from '@oikos/ui';
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
@@ -28,7 +28,11 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <CardHeading icon={<Landmark />} title={t('signIn.title')} />
+      <CardHeading
+        icon={<OlympusScene className="h-auto w-full" />}
+        title={t('signIn.title')}
+        wide
+      />
       {sessionEnded && (
         <p id={noticeId} role="status" className="rounded-lg bg-info-subtle p-3 text-sm text-info">
           {t('signIn.sessionEnded')}
@@ -62,13 +66,28 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
   );
 }
 
-/** En-tête d'une carte de connexion : pictogramme dans un carré arrondi, puis le titre de la page. */
-export function CardHeading({ icon, title }: { icon: ReactNode; title: string }) {
+/**
+ * En-tête d'une carte de connexion : pictogramme dans un carré arrondi, ou illustration sur toute la largeur
+ * (`wide`), puis le titre de la page.
+ */
+export function CardHeading({
+  icon,
+  title,
+  wide = false,
+}: {
+  icon: ReactNode;
+  title: string;
+  wide?: boolean;
+}) {
   return (
     <div className="flex flex-col items-start gap-4">
       <span
         aria-hidden="true"
-        className="grid size-11 place-items-center rounded-xl bg-primary-subtle text-primary [&_svg]:size-5.5"
+        className={
+          wide
+            ? 'w-full'
+            : 'grid size-11 place-items-center rounded-xl bg-primary-subtle text-primary [&_svg]:size-5.5'
+        }
       >
         {icon}
       </span>

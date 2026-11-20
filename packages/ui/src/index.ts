@@ -13,6 +13,7 @@ export {
   type SegmentOption,
 } from './components/SegmentedControl';
 export { NumberField, type NumberFieldProps } from './components/NumberField';
+export { LanguageSelect, type LanguageSelectProps } from './components/LanguageSelect';
 export { Select, type SelectProps } from './components/Select';
 export { Skeleton } from './components/Skeleton';
 export { Stat, type StatProps } from './components/Stat';

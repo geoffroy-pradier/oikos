@@ -19,6 +19,7 @@ Hors de l'onglet Messages, ce compte est relu à chaque changement d'écran, au 
 À partir de 1 024 px, la barre latérale porte la marque, la carte de la maison (blason, nom, cité, statut et trésorerie), les cinq onglets et, en bas, un bouton Réglages.
 En dessous, un en-tête compact montre le blason, le nom et la cité de la maison et l'heure de jeu, avec le bouton Réglages réduit à son icône, sous le même nom accessible.
 Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
+Avant la connexion, le jeu et Olympe choisissent la langue au même endroit, à droite de l'en-tête, par un même sélecteur de `@oikos/ui` (`LanguageSelect`) stylé par les jetons, sur une liste native (#868).
 Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
 L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier et Comptes.
 Ce sont des liens, un par écran ; celui de l'écran ouvert est plein et marqué comme la page courante, et la gélule défile quand elle est plus large que l'écran.
@@ -291,6 +292,7 @@ Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) 
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
 Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.
 Un bien sans dessin propre prend celui de son niveau, corbeille, ballot ficelé ou coffre, quand l'appelant donne ce niveau (#708).
+La connexion d'Olympe a sa scène (`OlympusScene`) : le temple au sommet de l'Olympe, devant le soleil, au-dessus des nuages (#868).
 L'icône de l'application est le soleil levant de la scène d'accueil, orange sur graphite ; ses PNG se régénèrent par `apps/web/scripts/render-icons.mjs`.
 La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.
 De courtes animations répondent au survol, à l'appui et à l'apparition d'une feuille ; elles sont coupées sous `prefers-reduced-motion`.
