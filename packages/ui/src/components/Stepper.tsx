@@ -23,6 +23,8 @@ export interface StepperProps {
   initialStep?: string | undefined;
   /** Commande en cours : Confirmer est marqué occupé. */
   confirming?: boolean;
+  /** Identifiant de ce qui décrit Confirmer (le net attendu d'une vente), lu en arrivant sur le bouton. */
+  confirmDescribedBy?: string | undefined;
   labels: {
     /** Nom de la barre d'étapes (« Étapes »). */
     progress: string;
@@ -44,6 +46,7 @@ export function Stepper({
   onConfirm,
   initialStep,
   confirming = false,
+  confirmDescribedBy,
   labels,
 }: StepperProps) {
   const [index, setIndex] = useState(() =>
@@ -53,13 +56,22 @@ export function Stepper({
     ),
   );
   const heading = useRef<HTMLHeadingElement>(null);
+  const confirmButton = useRef<HTMLButtonElement>(null);
   const moved = useRef(false);
+  const wasConfirming = useRef(confirming);
   const step = steps[index];
   const last = index === steps.length - 1;
 
   useEffect(() => {
     if (moved.current) heading.current?.focus();
   }, [index]);
+  // Inactif pendant la commande, Confirmer a perdu le foyer ; resté là après un refus, il le retrouve
+  // (spécification 10, Exigences) : Entrée renvoie la même demande.
+  useEffect(() => {
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (wasConfirming.current && !confirming && lost) confirmButton.current?.focus();
+    wasConfirming.current = confirming;
+  }, [confirming]);
   const go = (next: number) => {
     moved.current = true;
     setIndex(next);
@@ -113,14 +125,17 @@ export function Stepper({
       ))}
       <div className="flex flex-wrap gap-2">
         {index > 0 && (
-          <Button variant="secondary" onClick={() => go(index - 1)}>
+          // Pas de retour pendant la commande en vol : son issue se dit à cette étape.
+          <Button variant="secondary" disabled={confirming} onClick={() => go(index - 1)}>
             {labels.back}
           </Button>
         )}
         <Button
+          ref={last ? confirmButton : undefined}
           className="ml-auto"
           disabled={step?.valid === false}
           loading={last && confirming}
+          aria-describedby={last ? confirmDescribedBy : undefined}
           onClick={advance}
         >
           {last ? labels.confirm : labels.next}

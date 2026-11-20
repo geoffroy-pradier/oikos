@@ -105,6 +105,17 @@ describe('NumberField', () => {
     expect(alert.hasAttribute('aria-live')).toBe(false);
   });
 
+  it('garde la description donnée par l’écran avant son propre message', () => {
+    const { input } = setup({
+      max: 10,
+      'aria-describedby': 'net',
+      messages: { aboveMax: 'Au plus 10.' },
+    });
+    expect(input.getAttribute('aria-describedby')).toBe('net');
+    fireEvent.change(input, { target: { value: '12' } });
+    expect(input.getAttribute('aria-describedby')).toMatch(/^net \S+-error$/);
+  });
+
   it('raccourcis 25 %, 50 % et tout quand la borne est connue, arrondis au pas', () => {
     const { input } = setup({ max: 1_000, step: 3 });
     const group = screen.getByRole('group', { name: 'Raccourcis' });

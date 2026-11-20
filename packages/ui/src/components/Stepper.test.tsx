@@ -78,6 +78,54 @@ describe('Stepper', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
+  it('Confirmer porte la description donnée, les autres boutons non', () => {
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={vi.fn()}
+        confirmDescribedBy="net"
+        steps={[
+          { id: 'quantity', title: 'Quantité', content: <p>20</p> },
+          { id: 'summary', title: 'Récapitulatif', content: <p id="net">Net : 19 ob.</p> },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Continuer' }).hasAttribute('aria-describedby')).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(screen.getByRole('button', { name: 'Confirmer' }).getAttribute('aria-describedby')).toBe(
+      'net',
+    );
+  });
+
+  it('Retour est inactif pendant la commande en vol', () => {
+    const steps = [
+      { id: 'quantity', title: 'Quantité', content: <p>20</p> },
+      { id: 'summary', title: 'Récapitulatif', content: <p>20 amphores</p> },
+    ];
+    const view = render(<Stepper labels={labels} onConfirm={vi.fn()} steps={steps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    const back = screen.getByRole('button', { name: 'Retour' }) as HTMLButtonElement;
+    expect(back.disabled).toBe(false);
+    view.rerender(<Stepper labels={labels} onConfirm={vi.fn()} steps={steps} confirming />);
+    expect(back.disabled).toBe(true);
+    fireEvent.click(back);
+    expect(screen.getByRole('heading', { name: /Récapitulatif/ })).toBeTruthy();
+  });
+
+  it('Confirmer retrouve le foyer perdu pendant la commande, quand elle échoue', () => {
+    const steps = [{ id: 'summary', title: 'Récapitulatif', content: <p>20 amphores</p> }];
+    const view = render(<Stepper labels={labels} onConfirm={vi.fn()} steps={steps} />);
+    const confirm = screen.getByRole('button', { name: 'Confirmer' });
+    confirm.focus();
+    view.rerender(<Stepper labels={labels} onConfirm={vi.fn()} steps={steps} confirming />);
+    // Le navigateur retire le foyer au bouton devenu inactif.
+    confirm.blur();
+    view.rerender(<Stepper labels={labels} onConfirm={vi.fn()} steps={steps} />);
+    expect(document.activeElement).toBe(confirm);
+  });
+
   it('bloque Confirmer tant que le récapitulatif n’est pas valable', () => {
     const onConfirm = vi.fn();
     render(
