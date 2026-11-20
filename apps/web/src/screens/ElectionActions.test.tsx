@@ -16,6 +16,7 @@ vi.mock('../data', () => ({
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
 }));
+vi.mock('./HouseLink', () => import('./house-link-mock'));
 const { CityPolitics } = await import('./CityPolitics');
 
 const day = 86_400_000;

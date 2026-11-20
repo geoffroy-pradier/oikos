@@ -33,6 +33,7 @@ vi.mock('../data', () => ({
 }));
 // Filtres des lectures de maisons du dernier rendu : un nombre fixe de lectures, les vides à `null`.
 const houseReads = () => state.houseFilters.slice(-CITED_HOUSE_READS).filter(Boolean);
+vi.mock('./HouseLink', () => import('./house-link-mock'));
 const { CityPolitics } = await import('./CityPolitics');
 
 const day = 86_400_000;

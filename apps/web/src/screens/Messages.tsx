@@ -9,6 +9,7 @@ import { useReports } from '../reports';
 import { ScreenHeader } from '../ScreenHeader';
 import { useWide } from '../wide';
 import { STATUS_BOX } from './CommandNotice';
+import { HouseLink } from './HouseLink';
 import { LoadProblem, Loading } from './LoadProblem';
 import { MessageComposer } from './MessageComposer';
 import { NewConversation } from './NewConversation';
@@ -313,9 +314,9 @@ export function MessagesScreen() {
                           className={`flex max-w-[88%] flex-col gap-1 rounded-2xl px-3.5 py-2.5 sm:max-w-[75%] ${mine ? 'self-end rounded-br-md bg-primary-subtle' : 'self-start rounded-bl-md bg-muted'}`}
                         >
                           <p className="text-xs text-muted-foreground">
-                            <span className="font-semibold text-foreground">
+                            <HouseLink houseId={message.houseId}>
                               {nameOf(message.houseId)}
-                            </span>{' '}
+                            </HouseLink>{' '}
                             <time dateTime={new Date(message.createdAt).toISOString()}>
                               {time.format(message.createdAt)}
                             </time>

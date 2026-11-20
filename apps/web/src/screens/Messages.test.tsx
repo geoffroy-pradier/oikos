@@ -8,6 +8,7 @@ import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 // Onglet Messages (#274) : lectures et abonnements simulés (`chat-fake.ts`).
+vi.mock('./HouseLink', () => import('./house-link-mock'));
 vi.mock('../supabase', () => ({ supabase: {} }));
 // Un intervalle de relecture réglé autrement que la valeur livrée : l'écran dit celui de la configuration.
 vi.mock('@oikos/config/client', () => ({

@@ -76,6 +76,7 @@ vi.mock('../server-clock', () => ({
   serverClock: { now: () => new Date(Date.now() + 1) },
   syncServerClock: () => Promise.resolve(),
 }));
+vi.mock('./HouseLink', () => import('./house-link-mock'));
 const { CityPolitics } = await import('./CityPolitics');
 const { CityAssembly } = await import('./CityAssembly');
 afterEach(() => {
