@@ -23,6 +23,7 @@ vi.mock('../data', () => ({
     failed: state.rulesFailed,
     reload: () => Promise.resolve(),
   }),
+  useClockRules: () => ({ rules: null }),
 }));
 const { TempleScreen } = await import('./Temple');
 

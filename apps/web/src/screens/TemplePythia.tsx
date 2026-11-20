@@ -1,4 +1,4 @@
-import { Button, ScrollText } from '@oikos/ui';
+import { Button, ScrollText, Sparkles } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { consultOracle } from '../api';
@@ -100,16 +100,16 @@ export function TemplePythia(props: {
 
   return (
     <>
-      <h2 ref={title} tabIndex={-1} className="text-xl">
-        <ScrollText aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+      <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
+        <ScrollText aria-hidden="true" className="size-5 shrink-0 text-accent" />
         {t('temple.pythia.title')}
       </h2>
-      <p className="text-muted-foreground">{t('temple.pythia.intro')}</p>
+      <p className="text-sm text-muted-foreground">{t('temple.pythia.intro')}</p>
       {gain === null ? (
-        <p>{t('temple.pythia.unavailable')}</p>
+        <p className="rounded-xl bg-muted p-4">{t('temple.pythia.unavailable')}</p>
       ) : (
-        <>
-          <p>
+        <div className="flex flex-col gap-3 rounded-xl bg-accent-subtle p-4">
+          <p className="font-medium">
             {t('temple.pythia.price', {
               price: money(price),
               god: godName,
@@ -118,12 +118,14 @@ export function TemplePythia(props: {
           </p>
           <Button
             className="self-start"
+            icon={<Sparkles aria-hidden="true" />}
             disabled={busy || !props.favor}
+            loading={busy}
             onClick={() => void consult()}
           >
             {t('temple.pythia.consult', { price: money(price) })}
           </Button>
-        </>
+        </div>
       )}
       {region}
       <h3 className="eyebrow mt-2">{t('temple.pythia.consulted')}</h3>
@@ -133,14 +135,19 @@ export function TemplePythia(props: {
       )}
       {oracles?.length === 0 && <p className="text-muted-foreground">{t('temple.pythia.none')}</p>}
       {oracles && oracles.length > 0 && (
-        <ul className="flex flex-col gap-2">
+        // Fil des oracles : un trait relie les consultations, la plus récente en haut.
+        <ol className="flex flex-col">
           {oracles.map((oracle) => (
             <li
               key={oracle.id}
-              className="flex flex-col gap-1 rounded-lg border-l-4 border-accent bg-accent-subtle/50 p-3 break-words"
+              className="relative flex flex-col gap-1.5 border-l-2 border-border-subtle pb-5 pl-5 break-words last:border-transparent last:pb-0"
             >
+              <span
+                aria-hidden="true"
+                className="absolute top-1 -left-[7px] size-3 rounded-full border-2 border-surface bg-accent"
+              />
               {/* Texte brut : React l'échappe, rien n'y est interprété. */}
-              <blockquote className="whitespace-pre-line break-words italic">
+              <blockquote className="rounded-xl rounded-tl-sm bg-muted px-4 py-3 whitespace-pre-line break-words italic">
                 {english ? oracle.text_en : oracle.text_fr}
               </blockquote>
               <p className="text-sm text-muted-foreground">
@@ -149,7 +156,7 @@ export function TemplePythia(props: {
               </p>
             </li>
           ))}
-        </ul>
+        </ol>
       )}
     </>
   );
