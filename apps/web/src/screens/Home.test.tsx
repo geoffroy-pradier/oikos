@@ -13,6 +13,7 @@ vi.mock('../data', () => ({
     failed: false,
     reload: () => Promise.resolve(null),
   }),
+  useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('./Sites', () => ({ SitesCard: () => null }));
 // Liens sans routeur : de simples ancres.

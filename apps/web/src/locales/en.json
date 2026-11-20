@@ -402,7 +402,8 @@
     },
     "notFoundHint": "The address may be mistyped, or the page has moved.",
     "clock": {
-      "now": "It is {{time}}"
+      "now": "It is {{time}}",
+      "withClose": "It is {{time}} · next close at {{close}}"
     }
   },
   "languages": {

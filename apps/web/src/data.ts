@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { parseClockRules } from './clock-rules';
 import { parseShipRules } from './ship-rules';
 import { parseSiteRules } from './site-rules';
 import { supabase } from './supabase';
@@ -113,6 +114,10 @@ function useRulesRow<T>(view: string, columns: string, parse: (row: unknown) => 
   useEffect(() => void reload(), [reload]);
   return { rules, failed, reload };
 }
+
+/** Horloge du monde de la configuration en vigueur (vue `clock_rules`, une ligne). */
+export const useClockRules = () =>
+  useRulesRow('clock_rules', 'daily_close_hour, timezone', parseClockRules);
 
 /** Règles des sites de la configuration en vigueur (vue `site_rules`, une ligne). */
 export const useSiteRules = () => useRulesRow('site_rules', 'recipes, sites', parseSiteRules);

@@ -402,7 +402,8 @@
     },
     "notFoundHint": "L'adresse est peut-être mal saisie, ou la page a changé de place.",
     "clock": {
-      "now": "Il est {{time}}"
+      "now": "Il est {{time}}",
+      "withClose": "Il est {{time}} · prochaine clôture à {{close}}"
     }
   },
   "languages": {
