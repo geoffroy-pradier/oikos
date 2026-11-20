@@ -4,7 +4,7 @@
 Décidée par le propriétaire le 19 novembre 2026 : interface épurée et moderne, thèmes clair et sombre, actions en feuilles, icônes, vraie carte, illustrations SVG dessinées par les agents (ADR 0011).
 Maquettes de référence : artefact « OIKOS — nouvelle interface » (Maison, Carte, Olympe, Maison sur téléphone, Agora sur téléphone).
 Aucun de ces tickets n'est `sensible` : ils ne touchent ni la monnaie, ni les stocks, ni l'authentification, ni les règles par ligne.
-Numérotation : celle des tickets GitHub, de #687 à #700.
+Numérotation : celle des tickets GitHub, de #687 à #700, puis de #862 à #870 pour les écarts relevés par la revue finale de #700.
 
 ## #687 — Refonte (1) : jetons et thèmes épurés
 
@@ -429,4 +429,301 @@ Rien de plus que les critères ci-dessus.
 
 ### Dépendances
 
-#692, #693, #694, #695, #696, #697, #698, #699
+#692, #693, #694, #695, #696, #697, #698, #699, et les écarts bloquants de la revue finale : #862, #863, #864, #865, #866, #867, #868
+
+## #862 — Refonte (15) : onglets et navigation qui défilent à 360 px
+
+### Contexte
+
+À 360 px, les rangées d'onglets en pastilles (Maison, Sites, Personnel, Comptes, Cité) et la navigation du haut d'Olympe coupent leurs libellés et cachent les derniers onglets sans le signaler.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Une rangée d'onglets ou de navigation qui ne tient pas défile horizontalement, avec un fondu sur chaque bord où il reste du contenu ; aucun libellé ni icône n'est coupé au repos.
+- [ ] L'onglet actif est entièrement visible à l'arrivée, pour toutes les rangées (le centrage de `HouseNav` est généralisé).
+- [ ] Cité : les pastilles sont sous l'en-tête de page comme sur Maison, et le titre de section ne répète pas la pastille active.
+- [ ] Un test de bout en bout à 360 px atteint chaque onglet au clavier et le trouve visible (`toBeInViewport`), côté jeu et côté Olympe.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #863 — Refonte (16) : cartes de chiffres et montants sur une ligne
+
+### Contexte
+
+La carte « Trésorerie » de la Maison passe son montant sur deux lignes et empile six lignes de détail, ce qui la rend plus haute que ses voisines et écrase sa courbe à 360 px ; les cartes de chiffres n'ont pas la même grille d'un écran à l'autre.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Une carte de chiffre montre sa valeur en grand sur une seule ligne, dans le format unique de la spécification 10 (drachmes et oboles) : la taille du chiffre s'adapte à la largeur de la carte, sans format abrégé.
+- [ ] Une carte de chiffre a au plus une ligne secondaire ; le détail de la trésorerie (séquestre, ordres ouverts) sort de la carte, et la courbe n'est plus écrasée à 360 px.
+- [ ] Les cartes d'une rangée ont la même hauteur, et un libellé sur deux lignes ne décale pas la valeur.
+- [ ] Même grille de cartes sur Maison, Sites, Personnel, Vigie et Économie d'Olympe, et même écriture d'un ratio partout (« 1 sur 4 »).
+- [ ] Tests unitaires du composant, dont un montant long (« 486 drachmes 4 oboles ») ; un test de bout en bout à 360 et 1 440 px vérifie que la valeur tient sur une ligne.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #864 — Refonte (17) : actions impossibles signalées
+
+### Contexte
+
+Des boutons restent actifs alors que l'action est impossible et que l'écran le sait : « Récolter » quand rien n'est prêt, « Acheter » un navire ou un bien au-delà de la trésorerie ; « Récolter » n'a pas la même hiérarchie sur Maison et sur Sites.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Quand l'écran sait qu'une action est impossible (rien à récolter, trésorerie insuffisante), son bouton est inactif (`aria-disabled`, il garde le foyer) et la raison est visible à côté et liée par `aria-describedby` ; l'API reste l'arbitre et ses refus s'affichent comme avant.
+- [ ] Un style inactif distinct d'un bouton secondaire actif, dans les deux thèmes.
+- [ ] Une même action a la même hiérarchie (principale ou secondaire) sur tous les écrans.
+- [ ] La règle est écrite dans la spécification 10, avec la liste des actions concernées.
+- [ ] Tests unitaires : bouton inactif avec sa raison, et actif dès que la condition est remplie.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #865 — Refonte (18) : tableaux larges lisibles
+
+### Contexte
+
+À 1 440 px, le tableau « Compte de résultat » coupe sa dernière colonne sans indice de défilement et ses en-têtes s'étalent sur cinq lignes ; d'autres tableaux ont des en-têtes en capitales sur deux lignes ou une colonne presque vide.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] À 1 440 px, le compte de résultat tient sans coupure ; un tableau qui défile horizontalement le signale par un fondu sur le bord.
+- [ ] Les en-têtes de tableau tiennent sur deux lignes au plus, sans capitales forcées (carnet d'ordres de l'agora compris).
+- [ ] Immobilier : la colonne et la ligne « Action » ne restent plus vides, le bouton y est placé.
+- [ ] Un test de bout en bout vérifie à 1 440 px que la dernière colonne du compte de résultat est visible.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #866 — Refonte (19) : états vides illustrés et utiles
+
+### Contexte
+
+Chaque écran présente une liste vide à sa façon (pastille d'icône, texte dans un cadre pointillé, texte seul), aucune ne propose l'action qui la remplit, et aucune n'utilise d'illustration.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Un composant `EmptyState` de `@oikos/ui` : une illustration SVG dessinée dans le dépôt, la raison, et l'action qui remplit la liste quand elle existe.
+- [ ] Tous les états vides du jeu et d'Olympe l'utilisent (Entrepôt vers l'agora, Immobilier vers l'achat, Agora, Carte, Flotte, Cité, Modération).
+- [ ] Les nouvelles illustrations sont dans `packages/ui/src/illustrations`, couvertes par le test des illustrations (aucune source externe), colorées par les jetons.
+- [ ] Tests unitaires du composant et de l'action proposée sur chaque écran.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #867 — Refonte (20) : action principale dans l'en-tête de page
+
+### Contexte
+
+Plusieurs écrans placent leur action principale hors de `PageHeader`, à l'inverse de la spécification 10 : « Acquérir un site » flotte entre les cartes, le sélecteur de bien de l'agora décale le titre, la carte n'a pas « Faire partir un navire » dans l'en-tête, « Nouvelle conversation » est plus bas que le titre.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Sites, Carte, Agora et Messages portent leur action principale à droite de `PageHeader`, et le titre est à la même hauteur que sur les autres écrans.
+- [ ] À 360 px, l'action reste dans l'en-tête sans pousser le titre sur deux lignes.
+- [ ] Un test unitaire de `PageHeader` couvre l'emplacement de l'action, et chaque écran concerné a un test qui trouve l'action dans l'en-tête.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #868 — Refonte (21) : Olympe, modération, langue et connexion
+
+### Contexte
+
+Olympe garde des éléments bruts : la modération aligne sept boutons secondaires sans hiérarchie ni icône, comme un formulaire ouvert, le sélecteur de langue est le contrôle natif, et la connexion n'a pas d'illustration.
+Écart relevé par la revue finale de #700, qui ne se ferme qu'une fois cet écart corrigé.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Modération : une action principale par signalement, les autres gestes dans un menu ou une feuille, chacun avec son icône ; plus de liste à puces native, et les noms de canaux sont traduits.
+- [ ] Un sélecteur de langue de `@oikos/ui`, stylé par les jetons, partagé par le jeu et Olympe, au même endroit sur les deux connexions.
+- [ ] La connexion d'Olympe a une illustration SVG dessinée dans le dépôt.
+- [ ] Les tests existants de la modération gardent leurs assertions ; des tests couvrent le menu des gestes au clavier.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+Le contrôle visuel de #700 (ses trois demandes de fusion), #707, #708.
+
+## #869 — Refonte (22) : finitions du jeu
+
+### Contexte
+
+Petits écarts entre les écrans du jeu et les maquettes.
+Points mineurs relevés par la revue finale de #700 : ils ne bloquent pas sa fermeture.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Une icône au trait sur chaque action (Récolter, Acheter, Vendre, Annuler, Continuer…), comme le demande la spécification 10 ; les titres de section d'un même écran ont tous une icône, ou aucun.
+- [ ] Maison : pas de nom de maison répété à 360 px ; les libellés « plus haut » et « plus bas » ne chevauchent pas la courbe ; titres de section au même style ; en sombre, le plan inversé se distingue.
+- [ ] Les paragraphes d'explication sous l'en-tête (Personnel, Immobilier, Carte, Temple, Comptes) sont réduits à une ligne ou passent dans une aide ; « Pas encore fixé » n'est dit qu'une fois sur Personnel.
+- [ ] Sites : une barre de progression pour la production en cours ; encart Intendant resserré.
+- [ ] Agora : « Continuer » sur toute la largeur de la feuille, étapes nommées, meilleur prix mis en avant ; Immobilier : liste des offres filtrable par cité.
+- [ ] Temple : le texte du déclin n'est dit qu'une fois ; description des grâces plus petite que leur titre.
+- [ ] Messages : zone de saisie collée en bas à 360 px ; dates au même format qu'ailleurs.
+- [ ] Connexion : bloc centré verticalement à 1 440 px.
+- [ ] Cité : carte « Marché du travail » à la hauteur de ses voisines ; même fond pour toutes les cartes.
+- [ ] Espace insécable avant « : », « ; », « ! » et « ? » dans les textes français, vérifiée par un test sur `fr.json`.
+- [ ] Carte : durées et étiquettes ne recouvrent ni une route, ni un navire, ni les boutons de zoom ; « Population — » remplacé par un texte ; options de départ sur une ligne.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+#862, #863, #864, #865, #866, #867, #868
+
+## #870 — Refonte (23) : finitions d'Olympe
+
+### Contexte
+
+Petits écarts entre les écrans d'Olympe et les maquettes.
+Points mineurs relevés par la revue finale de #700 : ils ne bloquent pas sa fermeture.
+Label : `refonte`.
+
+### Spécification liée
+
+`docs/adr/0011-refonte-graphique.md`, `docs/specs/10-ux-ui.md` (Direction artistique, Exigences)
+
+### Critères d'acceptation
+
+- [ ] Économie : tableau des sept jours replié sous le graphique ; « Part de chaque puits » lisible quand les parts sont proches ; pas de titre hors carte ; même décalage de contenu que le jeu.
+- [ ] Vigie : icône et couleur d'état sur les cartes « en panne » et « refusées » ; nom du monde à la place de son identifiant ; dates lisibles.
+- [ ] Paramètres : la pastille « En vigueur » lisible ; un auteur absent ne s'affiche pas « par — » ; boutons de même largeur à 360 px.
+- [ ] Modération : titre aligné sur celui des autres pages.
+- [ ] Une icône au trait sur chaque action et chaque titre de section.
+- [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
+- [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
+- [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
+- [ ] Textes en `fr` et `en`, aucun texte en dur.
+- [ ] Les comportements de la spécification 10 (clés, régions vivantes, foyer, relectures) ne changent pas ; les tests existants gardent leurs assertions, un nom accessible qui change le fait dans la même demande de fusion.
+
+### Hors périmètre
+
+Rien de plus que les critères ci-dessus.
+
+### Dépendances
+
+#862, #863, #864, #865, #866, #867, #868
