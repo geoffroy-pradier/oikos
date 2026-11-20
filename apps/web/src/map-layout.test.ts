@@ -1,13 +1,18 @@
 // @vitest-environment node
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
 import { describe, expect, it } from 'vitest';
+import fr from './locales/fr.json';
 import {
   along,
   archipelagoLayout,
+  cityDot,
+  cityLabels,
   MAP_HEIGHT,
   MAP_WIDTH,
+  placeBoxes,
   placeLabels,
   scaleBar,
+  type Box,
   voyageProgress,
 } from './map-layout';
 
@@ -114,5 +119,63 @@ describe('dessin de l’archipel', () => {
     expect(placeLabels([mark(95, 30)], [city], bounds, 1)[0]).toMatchObject({ x: 84, y: 31 });
     // Nulle part : sans étiquette.
     expect(placeLabels([mark(5, 2)], [], { x: 0, y: 0, width: 10, height: 4 }, 1)).toEqual([null]);
+  });
+
+  it('noms des douze cités (#707) : sans chevauchement, hors des boutons, à 360 px comme à 1 440 px', () => {
+    const layout = archipelagoLayout(Object.keys(CITY_MAP_POSITIONS), CITY_MAP_POSITIONS);
+    const cities = [...layout].map(([slug, at]) => ({
+      at,
+      name: (fr.cities as Record<string, string>)[slug] ?? slug,
+    }));
+    const overlap = (a: Box, b: Box) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    // Largeur du dessin en pixels CSS : téléphone de 360 px (et plus étroit), puis ordinateur.
+    for (const width of [326, 328, 600, 623, 900]) {
+      const unit = MAP_WIDTH / width;
+      const controls = { x: MAP_WIDTH - 56 * unit, y: 0, width: 56 * unit, height: 148 * unit };
+      const names = cityLabels(cities, unit, [controls]);
+      names.forEach((name, i) => {
+        const label = `${width} px, ${cities[i]?.name}`;
+        expect(name.x, label).toBeGreaterThanOrEqual(0);
+        expect(name.y, label).toBeGreaterThanOrEqual(0);
+        expect(name.x + name.width, label).toBeLessThanOrEqual(MAP_WIDTH);
+        expect(name.y + name.height, label).toBeLessThanOrEqual(MAP_HEIGHT);
+        expect(overlap(name, controls), label).toBe(false);
+        for (const [j, other] of names.entries())
+          if (j !== i) expect(overlap(name, other), `${label} / ${cities[j]?.name}`).toBe(false);
+        for (const { at } of cities) expect(overlap(name, cityDot(at, unit)), label).toBe(false);
+      });
+      // Sur ordinateur, chaque nom est au-dessus de sa cité.
+      if (width >= 600)
+        names.forEach((name, i) => expect(name.y + name.height).toBeLessThan(cities[i]?.at.y ?? 0));
+    }
+  });
+
+  it('un nom sans place au-dessus passe dessous, puis à droite, puis à gauche ; sans place du tout, au-dessus', () => {
+    const unit = 0.1;
+    const at = { x: 50, y: 35 };
+    const name = 'Delos';
+    const [above] = cityLabels([{ at, name }], unit);
+    expect(above).toMatchObject({ y: 35 - 0.8 - 1.7, width: 4.5 });
+    // Un fil à l'emplacement de chaque place, l'une après l'autre.
+    const wire = (x: number, y: number) => ({ x, y, width: 0.1, height: 0.1 });
+    const [under] = cityLabels([{ at, name }], unit, [wire(50, 33)]);
+    expect(under?.y).toBeCloseTo(35.8);
+    const [right] = cityLabels([{ at, name }], unit, [wire(50, 33), wire(50, 37)]);
+    expect(right?.x).toBeCloseTo(50.8);
+    const [left] = cityLabels([{ at, name }], unit, [wire(50, 33), wire(50, 37), wire(53, 35)]);
+    expect(left?.x).toBeCloseTo(50 - 0.8 - 4.5);
+    const everywhere = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+    expect(cityLabels([{ at, name }], unit, [everywhere])).toEqual([above]);
+  });
+
+  it('placeBoxes : la première place libre dans le cadre, sinon rien', () => {
+    const bounds = { x: 0, y: 0, width: 10, height: 10 };
+    const box = (x: number) => ({ x, y: 0, width: 4, height: 2 });
+    expect(placeBoxes([[box(0)], [box(2), box(4)], [box(8), box(1)]], [], bounds)).toEqual([
+      box(0),
+      box(4),
+      null,
+    ]);
   });
 });

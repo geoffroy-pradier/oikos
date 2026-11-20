@@ -116,3 +116,85 @@ describe('carte déplaçable et zoomable (#696)', () => {
     expect(select).toHaveBeenCalledWith('k');
   });
 });
+
+describe('terroirs et noms sur un dessin petit (#707)', () => {
+  async function drawAt(width: number | null) {
+    if (width !== null) {
+      // Un téléphone : le dessin mesure `width` pixels de large.
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(private readonly callback: () => void) {}
+          observe() {
+            this.callback();
+          }
+          disconnect() {}
+        },
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+    }
+    const instance = i18next.createInstance();
+    await instance.use(initReactI18next).init({
+      resources: { fr: { translation: fr } },
+      lng: 'fr',
+      interpolation: { escapeValue: false },
+    });
+    const city = (id: string, name: string, at: { x: number; y: number }, selected: boolean) => ({
+      id,
+      name,
+      at,
+      home: false,
+      docked: 0,
+      selected,
+      goods: ['wheat', 'fish'],
+    });
+    render(
+      <I18nextProvider i18n={instance}>
+        <ArchipelagoMap
+          label="Carte"
+          routes={[]}
+          cities={[
+            city('k', 'Kallistè', { x: 50, y: 36 }, true),
+            // Au bas du dessin : ses biens passent au-dessus d'elle.
+            city('c', 'Chalkeia', { x: 60, y: 69 }, false),
+          ]}
+          ships={[]}
+          pointOf={() => undefined}
+          home={undefined}
+          layer="terroirs"
+          onSelect={select}
+        />
+      </I18nextProvider>,
+    );
+    const drawing = screen.getByRole('img', { name: 'Carte' });
+    return {
+      tiles: () => drawing.querySelectorAll('rect.fill-surface').length,
+      tileTops: () =>
+        [...drawing.querySelectorAll('rect.fill-surface')].map((rect) =>
+          Number(
+            /translate\([\d.]+ ([\d.]+)\)/.exec(
+              rect.parentElement?.getAttribute('transform') ?? '',
+            )?.[1],
+          ),
+        ),
+    };
+  }
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('sur téléphone, seul le terroir de la cité choisie, et l’écran le dit', async () => {
+    const { tiles } = await drawAt(328);
+    expect(tiles()).toBe(2);
+    expect(screen.getByText(fr.map.terroirHint)).toBeTruthy();
+  });
+
+  it('sur ordinateur, le terroir de chaque cité ; au bas du dessin, au-dessus d’elle', async () => {
+    const { tiles, tileTops } = await drawAt(null);
+    expect(tiles()).toBe(4);
+    expect(screen.queryByText(fr.map.terroirHint)).toBeNull();
+    const [, , chalkeia] = tileTops();
+    expect(chalkeia).toBeLessThan(69);
+  });
+});

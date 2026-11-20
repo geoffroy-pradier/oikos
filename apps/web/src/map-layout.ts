@@ -78,8 +78,37 @@ export interface Box {
   width: number;
   height: number;
 }
+// Deux rectangles qui se touchent ne se chevauchent pas, aux erreurs d'arrondi près.
+const EPSILON = 1e-9;
 const overlaps = (a: Box, b: Box) =>
-  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  a.x < b.x + b.width - EPSILON &&
+  b.x < a.x + a.width - EPSILON &&
+  a.y < b.y + b.height - EPSILON &&
+  b.y < a.y + a.height - EPSILON;
+const inside = (box: Box, bounds: Box) =>
+  box.x >= bounds.x &&
+  box.y >= bounds.y &&
+  box.x + box.width <= bounds.x + bounds.width &&
+  box.y + box.height <= bounds.y + bounds.height;
+
+/**
+ * Pose chaque étiquette à la première de ses places candidates qui reste dans `bounds` sans chevaucher les
+ * `obstacles` ni une étiquette déjà posée. `null` : aucune place.
+ */
+export function placeBoxes(
+  spots: readonly (readonly Box[])[],
+  obstacles: readonly Box[],
+  bounds: Box,
+): (Box | null)[] {
+  const taken = [...obstacles];
+  return spots.map((candidates) => {
+    const fits = candidates.find(
+      (box) => inside(box, bounds) && !taken.some((other) => overlaps(box, other)),
+    );
+    if (fits) taken.push(fits);
+    return fits ?? null;
+  });
+}
 
 /**
  * Place l'étiquette de chaque repère (un navire en mer) près de lui : en haut à droite, sinon en haut à
@@ -93,30 +122,68 @@ export function placeLabels(
   bounds: Box,
   gap: number,
 ): (Box | null)[] {
-  const taken = [...obstacles];
-  return marks.map(({ at, width, height }) => {
+  const spots = marks.map(({ at, width, height }) => {
     const [left, right, up, down] = [
       at.x - gap - width,
       at.x + gap,
       at.y - gap - height,
       at.y + gap,
     ];
-    const fits = [
-      { x: right, y: up },
-      { x: left, y: up },
-      { x: right, y: down },
-      { x: left, y: down },
-    ]
-      .map(({ x, y }) => ({ x, y, width, height }))
-      .find(
-        (box) =>
-          box.x >= bounds.x &&
-          box.y >= bounds.y &&
-          box.x + width <= bounds.x + bounds.width &&
-          box.y + height <= bounds.y + bounds.height &&
-          !taken.some((other) => overlaps(box, other)),
-      );
-    if (fits) taken.push(fits);
-    return fits ?? null;
+    return [
+      { x: right, y: up, width, height },
+      { x: left, y: up, width, height },
+      { x: right, y: down, width, height },
+      { x: left, y: down, width, height },
+    ];
   });
+  return placeBoxes(spots, obstacles, bounds);
+}
+
+/**
+ * Nom d'une cité sur le dessin, en pixels CSS : 14 px en gras, environ 9 px par lettre, sa ligne de base à 13 px
+ * du haut de son rectangle ; le point de la cité et son cerne tiennent dans 8 px autour de son centre.
+ */
+export const CITY_LABEL = { font: 14, perChar: 9, height: 17, baseline: 13, dot: 8 } as const;
+const FULL: Box = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+
+/** Rectangle du point d'une cité, `dot` pixels autour de son centre, à `unit` unités du dessin par pixel. */
+export const cityDot = (at: Point, unit: number): Box => ({
+  x: at.x - CITY_LABEL.dot * unit,
+  y: at.y - CITY_LABEL.dot * unit,
+  width: 2 * CITY_LABEL.dot * unit,
+  height: 2 * CITY_LABEL.dot * unit,
+});
+
+/**
+ * Nom de chaque cité sur le dessin (#707) : au-dessus de son point, sinon au-dessous, à droite ou à gauche,
+ * la première place qui reste dans le dessin sans chevaucher un autre nom, un point de cité ni les `reserved`
+ * (boutons de la carte). Les cités du nord sont posées d'abord, d'ouest en est. Sans place libre, le nom
+ * reste au-dessus : il chevauche, mais se lit encore. `unit` : unités du dessin par pixel CSS.
+ */
+export function cityLabels(
+  cities: readonly { at: Point; name: string }[],
+  unit: number,
+  reserved: readonly Box[] = [],
+): Box[] {
+  const { perChar, height, dot } = CITY_LABEL;
+  const spots = cities.map(({ at, name }) => {
+    const [w, h, d] = [name.length * perChar * unit, height * unit, dot * unit];
+    return [
+      { x: at.x - w / 2, y: at.y - d - h, width: w, height: h },
+      { x: at.x - w / 2, y: at.y + d, width: w, height: h },
+      { x: at.x + d, y: at.y - h / 2, width: w, height: h },
+      { x: at.x - d - w, y: at.y - h / 2, width: w, height: h },
+    ];
+  });
+  const order = cities
+    .map((city, index) => ({ ...city.at, index }))
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .map(({ index }) => index);
+  const placed = placeBoxes(
+    order.map((index) => spots[index] ?? []),
+    [...reserved, ...cities.map(({ at }) => cityDot(at, unit))],
+    FULL,
+  );
+  const byCity = new Map(order.map((index, rank) => [index, placed[rank]]));
+  return spots.map((candidates, index) => byCity.get(index) ?? (candidates[0] as Box));
 }

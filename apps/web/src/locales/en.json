@@ -724,7 +724,8 @@
     "buyPrice": "Price, paid once",
     "buyCapacity": "Cargo, in units",
     "buyUpkeep": "Upkeep per day",
-    "buyHome": "In port when built"
+    "buyHome": "In port when built",
+    "terroirHint": "On this small drawing, only the chosen city's terroir is shown: tap a city, or zoom in."
   },
   "shipClasses": {
     "coaster": "Coaster",
