@@ -60,7 +60,11 @@ Trois précisions rendent cette formule applicable à un carnet d'ordres, et bor
   Ce qu'un tick ne dépense pas du budget d'un bien se reporte au tick suivant (#675), par cité et par bien (table `npc_demand_carry`).
   Sans ce report, l'arrondi aux unités entières perdrait de la demande : à Kallistè, un budget de 13 oboles par tick ne paie qu'un sel à 7 quand la demande (1,52 unité par tick) en veut deux un tick sur deux, et au plus 66 % du besoin vital en sel serait servi, quelle que soit l'offre.
   Avec le report, 13 oboles en paient un, les 6 restantes et 13 de plus en paient deux au tick suivant, et tout le besoin est servi.
-  Le report est borné à un nombre d'unités du bien au prix de réserve, paramètre du back-office (`market.npcBudgetCarryUnits`, 2 au départ ; `budgetCarryCap`) : il ne devient pas une épargne qui grossit pendant une pénurie, et la dépense d'un tick ne dépasse jamais son budget de plus de ce nombre d'unités.
+  Le report est borné à un nombre d'unités du bien au prix de réserve, paramètre du back-office (`market.npcBudgetCarryUnits`, 2 au départ ; `budgetCarryCap`).
+  Il grossit à chaque tick de ce que le tick avait le droit de dépenser et n'a pas dépensé, que l'offre du carnet ou la bourse de la cité l'ait empêché.
+  Pendant une pénurie de l'offre comme de la bourse, il grossit donc jusqu'à sa borne, et pas au-delà : il ne devient pas une épargne sans limite, et la dépense d'un tick ne dépasse jamais son budget de plus de ce nombre d'unités.
+  Une bourse vide ne le fait pas grossir : son budget du tick, réduit dans la proportion bourse ÷ revenu, est nul.
+  Un tick sans aucune offre de vente du bien au prix de réserve ou en dessous le laisse tel quel, comme le report de demande.
   Le paramètre vaut au moins 2.
   Une seule unité ne suffirait pas : quand le budget d'un tick ne paie pas une unité, la demande d'une unité arrivée avant que le report puisse la payer est perdue (voir « Unités entières »), et un report déjà plafonné attendrait la suivante sans plus rien accumuler ; avec un bien vendu au prix de réserve, jusqu'à un tiers du budget se perd.
   Une version de configuration publiée sans ce paramètre ne reporte rien : elle garde son comportement.

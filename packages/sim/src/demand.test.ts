@@ -10,6 +10,7 @@ import {
   wholeUnits,
   type Ask,
 } from './demand';
+import { purseBudget } from './purse';
 
 describe('demande des PNJ (formule 5.2)', () => {
   const bread = {
@@ -355,6 +356,56 @@ describe('report du budget non dépensé (5.2, #675)', () => {
     expect(() => nextBudgetCarry(13.5, 7, 21)).toThrow(RangeError);
     expect(() => nextBudgetCarry(13, 7, Number.NaN)).toThrow(RangeError);
     expect(() => nextBudgetCarry(Number.MAX_SAFE_INTEGER + 1, 0, 21)).toThrow(RangeError);
+  });
+
+  it('propriété : à bourse courte, le report ne dépasse jamais sa borne et la dépense cumulée jamais le revenu cumulé', () => {
+    const tick = fc.record({
+      topUp: fc.nat(60),
+      // Aucune offre de vente à ce tick : le report n'est pas touché (5.2).
+      listed: fc.boolean(),
+      perTick: fc.double({ min: 0, max: 8, noNaN: true }),
+    });
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 40 }),
+        fc.integer({ min: 2, max: 10 }),
+        fc.integer({ min: 1, max: 3 }),
+        fc.integer({ min: 0, max: 80 }),
+        fc.integer({ min: 0, max: 40 }),
+        fc.array(tick, { minLength: 1, maxLength: 60 }),
+        (price, units, reserveFactor, budget, shortfall, ticks) => {
+          const cap = budgetCarryCap(price * reserveFactor, units);
+          // Revenu du tick de toutes les classes : le budget du bien, plus ce qui revient aux autres biens.
+          const income = budget + shortfall;
+          let [purse, carry, spent, granted, entitled, topped] = [0, 0, 0, 0, 0, 0];
+          for (const { topUp, listed, perTick } of ticks) {
+            purse += topUp;
+            topped += topUp;
+            const tickBudget = purseBudget(budget, purse, income);
+            entitled += budget;
+            if (!listed) continue;
+            const offered = offeredNpcBudget({ tickBudget, carry, remaining: purse, reserved: 0 });
+            const purchase = matchNpcDemand({
+              asks: [{ orderId: 'a', price, quantity: 1_000_000 }],
+              demandAt: () => perTick,
+              budget: offered,
+              carry: 0,
+            });
+            const next = nextBudgetCarry(tickBudget + carry, purchase.spent, cap);
+            // Sans dépense, le report grossit de ce que la bourse a laissé offrir, jusqu'à la borne.
+            if (purchase.spent === 0) expect(next).toBe(Math.min(tickBudget + carry, cap));
+            expect(next).toBeLessThanOrEqual(cap);
+            expect(purchase.spent).toBeLessThanOrEqual(Math.min(purse, tickBudget + cap));
+            purse -= purchase.spent;
+            [carry, spent, granted] = [next, spent + purchase.spent, granted + tickBudget];
+            expect(spent).toBeLessThanOrEqual(granted);
+            expect(spent).toBeLessThanOrEqual(topped);
+          }
+          expect(granted).toBeLessThanOrEqual(entitled);
+          expect(spent).toBeLessThanOrEqual(entitled);
+        },
+      ),
+    );
   });
 
   it('non-régression du sel de Kallistè : 13 oboles par tick, sel à 7, besoin de 1,52 unité', () => {
