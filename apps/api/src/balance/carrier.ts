@@ -63,6 +63,10 @@ export type Demand = (city: City) => Promise<Map<string, number>>;
 export interface Carrier extends Seller {
   home: City;
   source: City;
+  /** Escale sans commerce entre les deux, quand aucune route ne les relie (4.6). */
+  via?: City;
+  /** Bout vers lequel va le navire, parti d'un bout pour l'escale. */
+  heading?: City;
   /** Biens portés vers chaque port, par identifiant de cité, avec la part de leur demande qui revient à l'armateur. */
   deliver: Map<string, Map<string, number>>;
   shipId?: string;
@@ -148,6 +152,10 @@ async function backdateVoyage(city: City, voyageId: string, at: Date, to: City) 
   });
 }
 
+/** Port suivant d'un navire à quai à un bout : l'escale s'il y en a une, sinon l'autre bout. */
+const nextPort = (carrier: Carrier, from: City) =>
+  carrier.via ?? (from === carrier.home ? carrier.source : carrier.home);
+
 /** Coût d'un départ de `from` vers `to` (4.6) : provisions de la route et droit de port de la cité d'arrivée. */
 function departureOf(from: City, to: City) {
   const route = shipRoute(config, from.slug, to.slug);
@@ -214,8 +222,7 @@ async function buyFor(carrier: Carrier, market: City, needs: ReadonlyMap<string,
         sum +
         upkeepOf(site.recipeId) +
         recipeOf(site.recipeId).workers * (wageOf(carrier.home) + worstLodging(carrier.home)),
-      shipClass.dailyUpkeepOboles +
-        departureOf(market, carrier.home === market ? carrier.source : carrier.home).totalOboles,
+      shipClass.dailyUpkeepOboles + departureOf(market, nextPort(carrier, market)).totalOboles,
     );
   const goods = [...needs];
   const missing = goods.map(([goodId, need]) => Math.max(0, need - (here.get(goodId) ?? 0)));
@@ -289,9 +296,9 @@ export async function carrierMorning(carrier: Carrier, now: Date, demandOf: Dema
 }
 
 /**
- * Un pas d'armateur, à l'instant de jeu `now` : en mer, rien ; à quai dans un port, il y remet en vente ce qu'il a
- * apporté, achète ce qui manque à l'autre bout, et part quand ses achats sont faits, que sa soute est à moitié pleine
- * ou qu'il a assez attendu.
+ * Un pas d'armateur, à l'instant de jeu `now` : en mer, rien ; à l'escale, il repart aussitôt vers le bout où il va,
+ * avec ce qu'il y porte ; à quai à un bout, il y remet en vente ce qu'il a apporté, achète ce qui manque à l'autre bout,
+ * et part quand ses achats sont faits, que sa soute est à moitié pleine ou qu'il a assez attendu.
  */
 export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand) {
   if (!carrier.shipId) return;
@@ -302,6 +309,14 @@ export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand)
       .where('id', '=', carrier.shipId)
       .executeTakeFirstOrThrow()
   ).docked_city_id;
+  const { via, heading } = carrier;
+  if (via && heading && via.cityId === docked) {
+    const stocks = await stocksIn(via, carrier);
+    const cargo = [...(carrier.deliver.get(heading.cityId) ?? new Map<string, number>()).keys()]
+      .map((goodId) => ({ goodId, quantity: stocks.get(goodId) ?? 0 }))
+      .filter((line) => line.quantity > 0);
+    return depart(carrier, via, heading, cargo, now);
+  }
   const here = [carrier.home, carrier.source].find((city) => city.cityId === docked);
   if (!here) return;
   const there = here === carrier.home ? carrier.source : carrier.home;
@@ -322,6 +337,8 @@ export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand)
   }
   carrier.waitedHours += 1;
   const full = cargoUnits(cargo) * LOAD_SHARE >= shipClass.capacityUnits;
-  if (done || full || carrier.waitedHours > MAX_WAIT_HOURS)
-    await depart(carrier, here, there, cargo, now);
+  if (done || full || carrier.waitedHours > MAX_WAIT_HOURS) {
+    await depart(carrier, here, nextPort(carrier, here), cargo, now);
+    carrier.heading = there;
+  }
 }

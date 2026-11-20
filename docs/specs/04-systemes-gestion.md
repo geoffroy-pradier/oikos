@@ -178,7 +178,12 @@ Aucune maison du banc n'y joue ces ateliers : leurs extrants, que personne n'éc
 Les marges des sept recettes du tableau ci-dessous et la médiane des matières premières restent celles d'avant, au chiffre près.
 Le négociant des bancs n'enchérit plus que sur les biens que les sites du monde livrent.
 Raison : il place chaque matin, par bien, une offre d'achat d'un huitième de sa trésorerie restante ; avec trente-sept biens, presque toute sa monnaie serait sous séquestre et l'entretien de ses sites ne serait plus payé.
-Ce filtre dépend du nombre de biens produits : le banc à douze cités (#712) devra donner au négociant une réserve d'entretien.
+Ce filtre dépend du nombre de biens produits : depuis #712, le négociant garde aussi une réserve d'entretien.
+Chaque offre est d'au plus un huitième de sa trésorerie restante, sans l'entamer sous deux jours de l'entretien de ses sites, quel que soit le nombre de biens ; ces paramètres sont ceux de son rôle dans le scénario du banc.
+Décision (#712) : le filtre reste.
+Sans lui, les offres sur les trente-neuf biens que personne ne produit tiendraient chaque matin sa trésorerie à sa réserve, sous ce qu'une maison garde pour ses dépenses : il vendrait alors comme une maison à court, et le coût du panier du banc à une cité baisserait de 1,04 %, sous sa borne.
+Avec le filtre, la réserve ne joue pas dans le banc à une cité, qui reste identique au chiffre près (hausse du coût du panier de 0,08 %, 10 236 habitants au dernier jour).
+Une réserve de deux jours de toutes ses dépenses (salaires et hébergement compris) joue certains matins et fait baisser ce coût de 0,35 %.
 Avec une offre d'achat sur chacun des trente-sept biens, le banc à une cité arrêtait un moulin faute d'entretien payé ; les offres sur les douze intermédiaires, que personne n'y produit, ne s'y remplissaient jamais.
 Le banc à une cité garde ses bornes, avec des écarts de quelques millièmes (10 236 habitants au dernier jour au lieu de 10 253).
 
