@@ -387,11 +387,12 @@ function Catalogue() {
 
         <Section title="EmptyState">
           <EmptyState
-            icon={<Ship />}
+            illustration="noShip"
             title="Aucun navire au port"
             description="Le chantier naval vend chaque classe à son prix."
             action={<Button icon={<Plus />}>Ouvrir le chantier</Button>}
           />
+          <EmptyState compact illustration="noOrder" title="Aucun ordre en attente." />
         </Section>
 
         <Section title="Icons">

@@ -109,7 +109,10 @@ function Scenes() {
       <ul className="grid grid-cols-2 gap-3">
         {EMPTY_ILLUSTRATION_IDS.map((id) => (
           <li key={id} className="flex flex-col items-center gap-1 text-center">
-            <EmptyIllustration kind={id} className="h-auto w-full max-w-40" />
+            <EmptyIllustration
+              kind={id}
+              className="h-auto w-full max-w-40 text-foreground-secondary"
+            />
             <span className="text-xs text-muted-foreground">{id}</span>
           </li>
         ))}

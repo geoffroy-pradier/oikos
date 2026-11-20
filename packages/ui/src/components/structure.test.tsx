@@ -232,13 +232,11 @@ describe('StatusRegion', () => {
 describe('EmptyState', () => {
   it('montre une illustration décorative à la place de l’icône', () => {
     const { container } = render(
-      <EmptyState
-        icon={<Ship data-testid="icon" />}
-        illustration={<svg data-testid="art" />}
-        title="Rien"
-      />,
+      <EmptyState icon={<Ship data-testid="icon" />} illustration="noShip" title="Rien" />,
     );
-    expect(screen.getByTestId('art').parentElement?.getAttribute('aria-hidden')).toBe('true');
+    // Le dessin de la famille, par son identifiant (`EMPTY_ILLUSTRATION_IDS`).
+    const art = container.querySelector('svg[viewBox="0 0 160 120"]');
+    expect(art?.parentElement?.getAttribute('aria-hidden')).toBe('true');
     expect(container.querySelector('[data-testid="icon"]')).toBeNull();
   });
 });

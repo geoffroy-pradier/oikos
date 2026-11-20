@@ -126,6 +126,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Illustrations : le trait porte la forme et se détache des aplats doux et neutre (seuil graphique).
   ['foreground', 'primary-subtle', AA_UI],
   ['foreground', 'muted', AA_UI],
+  // États vides (`EmptyState`) : trait en `foreground-secondary` sur le disque `primary-subtle`, l'aplat `muted`
+  // et la surface ; ces couples tiennent déjà le seuil du texte, plus haut.
   // Vignettes des cités : le trait de l'île et de son motif sur la mer et sur la terre.
   ['foreground', 'sea', AA_UI],
   ['foreground', 'land', AA_UI],
