@@ -288,13 +288,15 @@ export function App() {
         className={cn(
           'mx-auto w-full min-w-0',
           shell
-            ? 'max-w-6xl p-4 lg:p-8'
+            ? // Un panneau latéral ouvert (Paramètres) est fixé à droite : le contenu lui laisse sa place.
+              'max-w-6xl p-4 lg:p-8 lg:has-[[data-side-panel]]:mr-[min(42rem,46vw)] lg:has-[[data-side-panel]]:ml-0 lg:has-[[data-side-panel]]:w-auto lg:has-[[data-side-panel]]:max-w-none'
             : 'flex min-h-[calc(100dvh-4.5rem)] max-w-md items-center p-4',
         )}
       >
         {shell ? (
-          // Clé sur le module : chaque écran paraît par une courte montée (coupée sous reduced-motion).
-          <div key={current} className="flex animate-rise flex-col gap-6">
+          // Clé sur le module : chaque écran paraît en fondu (coupé sous reduced-motion). Un fondu, pas une
+          // montée : une transformation, même finie, ferait de ce bloc le repère du panneau fixé des Paramètres.
+          <div key={current} className="flex animate-fade flex-col gap-6">
             {screen}
           </div>
         ) : (

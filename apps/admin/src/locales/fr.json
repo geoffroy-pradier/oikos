@@ -672,6 +672,7 @@
           "npcPublicIncomeBps": "multiplicateur du revenu public des PNJ (points de base, 10 000 = ×1)"
         }
       }
-    }
+    },
+    "subtitle": "Versions de la configuration d'équilibrage : ouvrir et comparer à la version en vigueur, enregistrer, programmer à la prochaine clôture."
   }
 }
