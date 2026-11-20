@@ -6,7 +6,7 @@ La cité est l'unité sociale du jeu : 12 cités au lancement, 100 à 400 joueur
 
 Chaque cité a un terroir (ressources abondantes et absentes), un port ou non, un dieu protecteur, un trésor, des bâtiments publics et des lois. Aucune n'est autosuffisante : la carte des ressources impose le commerce.
 
-Dans la première version (ticket 250), l'Archipel compte quatre cités, décrites par la configuration sous leur identifiant court.
+Dans la première version (ticket 250), l'Archipel comptait quatre cités ; depuis #706, il en compte douze, décrites par la configuration sous leur identifiant court.
 Chacune y porte son terroir, son port, son dieu protecteur et, si elle le veut, sa propre recette de départ (3, progression) ; à défaut, c'est la recette de départ commune.
 Le terroir est la liste des productions de matière première qu'un site de la cité peut lancer ; les ateliers sont admis partout (4.2).
 Les dieux sont une liste `gods` de la configuration : leur identifiant et leur Charis (7.1, ticket 265).
@@ -19,17 +19,31 @@ Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce te
 | Elaia | Athéna | Olives, blé, sel, bois | Champ de blé |
 | Ampelos | Dionysos | Raisin, poisson, laine, argile | Vigne |
 | Halos | Poséidon | Poisson, sel, argile, bois, laine | Pêcherie |
+| Dikaia | Zeus | Blé, olives, bois, argile | Champ de blé |
+| Gamelia | Héra | Blé, raisin, olives, laine | Champ de blé |
+| Delphis | Apollon | Olives, raisin, laine, argile | Oliveraie |
+| Agrotera | Artémis | Bois, laine, blé, olives | Coupe de bois |
+| Phrourion | Arès | Blé, bois, laine, argile | Champ de blé |
+| Myrrhinè | Aphrodite | Raisin, olives, laine, poisson | Vigne |
+| Chalkeia | Héphaïstos | Bois, argile, sel, olives | Coupe de bois |
+| Emporion | Hermès | Poisson, sel, olives, laine | Pêcherie |
 
 Aucune cité n'a toutes les matières premières du panier de ses PNJ, en comptant celles des intrants de ses ateliers.
+Les huit cités de #706 vont plus loin : aucune ne produit tous les biens vitaux de ce panier, c'est-à-dire le blé, le poisson, le sel et le bois du charbon qui cuit le pain.
+Décision (#706) : leurs noms de départ sont ceux du ticket, à ajuster sans code (l'identifiant court est celui de la configuration, le nom affiché vient des fichiers de traduction `fr` et `en`).
+Décision (#706) : chaque terroir tire quatre productions des huit matières premières existantes, selon le domaine du dieu protecteur (2) ; les matières premières nouvelles viendront avec la phase suivante (« P6 »).
+Décision (#706) : les huit cités ont la population de la cité prototype, son revenu public, le salaire de son personnel et un parc de logements de douze maisons de ville et trois immeubles, comme Elaia.
 Kallistè, cité fondatrice, les a d'abord toutes gardées, pour que le banc d'équilibrage de la phase 1 et ses tests restent tels quels.
 Depuis #669, la configuration initiale lui retire la laine : son tissu vient d'Ampelos ou d'Halos, qui tondent leurs moutons.
 Décision (#669) : c'est le resserrement le plus petit qui rende Kallistè dépendante du commerce ; le banc à quatre cités n'y fait pas tondre de moutons, et ses mesures n'en bougent pas.
 Le banc à une cité de #78, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario (5.5).
 Un resserrement plus fort, du poisson ou du sel par exemple, demanderait d'abord des armateurs qui en ravitaillent Kallistè dans le banc à quatre cités.
-Décision (ambiguïté de cette section) : les quatre cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte.
+Décision (ambiguïté de cette section) : les douze cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte des routes de terre.
+Les routes maritimes de la configuration ne relient que les quatre premières cités ; celles des huit autres viennent avec la carte (ticket suivant), et aucun navire ne les dessert d'ici là.
+Le banc à quatre cités (5.5) retire les huit cités de #706 de son scénario, comme le banc à une cité rend sa laine à Kallistè : ses mesures et ses bornes ne changent pas, jusqu'au banc à douze cités (« P10 »).
 Chaque cité a la population de la cité prototype (5.5), et la demande des PNJ y est jouée comme à Kallistè.
-Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les quatre cités, et l'onglet Cité celle de la maison.
-Une version de configuration publiée avant les quatre cités se lit sans terroir (toute production admise), avec un port et sans dieu protecteur.
+Les joueurs connectés lisent l'identité des cités dans la vue publique `city_identity` ; l'écran de fondation présente les douze cités, et l'onglet Cité celle de la maison.
+Une version de configuration publiée avant les quatre cités (#250) se lit sans terroir (toute production admise), avec un port et sans dieu protecteur.
 Une cité du monde absente de la configuration n'a pas de terroir, donc admet toute production, mais n'a pas de port : on n'y crée rien de plus qu'avant les quatre cités, et aucun navire ne doit pouvoir y accoster tant qu'elle n'est pas décrite.
 
 ## 6.2 Institutions

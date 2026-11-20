@@ -66,10 +66,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Carte' }).click();
   await expect(page.getByRole('heading', { name: "Carte de l'archipel" })).toBeVisible();
-  await expect(page.getByRole('img', { name: /4 cités, 6 routes/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /12 cités, 6 routes/ })).toBeVisible();
   await expect(page.getByText('Kallistè – Elaia : 4 h')).toBeVisible();
   // Un vrai clic sur une cité du dessin la choisit pour le panneau ; un glisser qui revient sur une autre, non.
-  const drawing = page.getByRole('img', { name: /4 cités, 6 routes/ });
+  const drawing = page.getByRole('img', { name: /12 cités, 6 routes/ });
   await drawing.locator('text', { hasText: /^Ampelos$/ }).click();
   const chosen = page.getByRole('heading', { level: 2, name: 'Ampelos' });
   await expect(chosen).toBeVisible();

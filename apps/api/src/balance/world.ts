@@ -44,15 +44,33 @@ export const HOUSING = {
  */
 export const GRANT_OBOLES = 15_000;
 
+/** Garde, des tables par cité de la configuration, les entrées des quatre cités du scénario. */
+const ofScenario = <T>(byCity: Record<string, T>): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(byCity).filter(([id]) => (SLUGS as readonly string[]).includes(id)),
+  );
+
 /**
  * Configuration jouée : celle du banc, à la population près de chaque cité, à la dotation et aux prix des logements
  * du scénario. Salaires, marché du travail, transport, événements et grâces sont ceux de la configuration (#668).
+ * Depuis #706, la configuration initiale compte douze cités : le banc n'en joue que quatre et retire les huit autres
+ * (cités, salaires, droits de port, parc de logements) jusqu'au banc à douze cités (« P10 ») ; leurs mesures et leurs
+ * bornes sont celles d'avant. Ses routes ne relient que ces quatre cités.
  */
 export const worldConfig = {
   ...config,
+  staff: { ...config.staff, dailyWageOboles: ofScenario(config.staff.dailyWageOboles) },
+  ships: {
+    ...config.ships,
+    portDues: {
+      ...config.ships.portDues,
+      cityCoefficientBps: ofScenario(config.ships.portDues.cityCoefficientBps),
+    },
+  },
   starting: { ...config.starting, grantOboles: GRANT_OBOLES },
   properties: {
     ...config.properties,
+    countsByCity: ofScenario(config.properties.countsByCity),
     sizes: config.properties.sizes.map((size) => ({
       ...size,
       purchasePriceOboles: size.purchasePriceOboles / HOUSING.priceDivisor,
@@ -62,15 +80,17 @@ export const worldConfig = {
       },
     })),
   },
-  cities: config.cities.map((city) => ({
-    ...city,
-    population: Object.fromEntries(
-      Object.entries(city.population).map(([id, count]) => [
-        id,
-        Math.round(count / POPULATION_DIVISOR),
-      ]),
-    ),
-  })),
+  cities: config.cities
+    .filter((city) => (SLUGS as readonly string[]).includes(city.id))
+    .map((city) => ({
+      ...city,
+      population: Object.fromEntries(
+        Object.entries(city.population).map(([id, count]) => [
+          id,
+          Math.round(count / POPULATION_DIVISOR),
+        ]),
+      ),
+    })),
 };
 
 /** Maisons d'un rôle : leur nombre, puis leurs sites dans l'ordre d'acquisition. */

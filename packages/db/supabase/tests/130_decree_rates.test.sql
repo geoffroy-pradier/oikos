@@ -132,7 +132,7 @@ select is(pg_temp.rates(pg_temp.rules() - 'decrees'), '500:12000', 'de même san
 select is(pg_temp.rates('{}'), '0:10000', 'version publiée avant la taxe et le transport : taux nul, coefficient ×1');
 select is(pg_temp.rates(pg_temp.rules() || '{"decrees": {"models": {"market_tax_rate": {"minRateBps": 0, "maxRateBps": 0},
   "port_dues": {"minCoefficientBps": 0, "maxCoefficientBps": 0}}}}'), '0:0', 'des bornes nulles donnent un taux nul');
-select is((select count(*) from game.city_rates('01900000-0000-7000-8000-000000000001', pg_temp.rules())), 4::bigint,
+select is((select count(*) from game.city_rates('01900000-0000-7000-8000-000000000001', pg_temp.rules())), 12::bigint,
   'une ligne par cité du monde, et seulement de ce monde');
 select is((select market_tax_rate_bps || ':' || port_dues_coefficient_bps from game.city_rates('00000000-0000-7000-8000-000000013002', pg_temp.rules())),
   '500:12000', 'la cité homonyme d''un autre monde ne lit pas les décrets de Kallistè');

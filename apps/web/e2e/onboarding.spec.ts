@@ -52,10 +52,10 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.getByLabel('Emblème').selectOption('trident');
   await expectNoHorizontalScroll(page);
   await page.getByRole('button', { name: 'Continuer' }).click();
-  // La base de test contient les cités d'autres mondes (tests d'intégration) : seules les quatre de
-  // l'Âge servi par ce client sont proposées, chacune avec son dieu protecteur et son terroir (6.1).
+  // La base de test contient les cités d'autres mondes (tests d'intégration) : seules les douze de
+  // l'Âge servi par ce client sont proposées, par ordre alphabétique, chacune avec son dieu protecteur et son terroir (6.1).
   const cities = page.getByRole('group', { name: "Cité d'accueil" }).getByRole('radio');
-  await expect(cities).toHaveCount(4);
+  await expect(cities).toHaveCount(12);
   // Le nom est celui de la cité seule ; dieu, port, terroir et premier site en sont la description.
   const city = (name: string) => page.getByRole('radio', { name, exact: true });
   await expect(city('Halos')).toHaveAccessibleDescription(
@@ -67,11 +67,17 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.getByRole('button', { name: 'Continuer' }).click();
   await expect(page.getByRole('alert')).toHaveText("Choisissez votre cité d'accueil.");
   await expect(city('Halos')).toHaveAttribute('aria-invalid', 'true');
-  // Choix au clavier : espace sur la première cité, puis les flèches parcourent le groupe.
+  // Choix au clavier : espace sur Ampelos, la deuxième du groupe par ordre alphabétique, puis les flèches parcourent le groupe.
   await city('Ampelos').focus();
   await page.keyboard.press('Space');
   await expect(city('Ampelos')).toBeChecked();
   await page.keyboard.press('ArrowUp');
+  await expect(city('Agrotera')).toBeChecked();
+  // Le groupe boucle : Phrourion, Myrrhinè, puis Kallistè, la cité de la suite du parcours.
+  for (const name of ['Phrourion', 'Myrrhinè', 'Kallistè']) {
+    await page.keyboard.press('ArrowUp');
+    await expect(city(name)).toBeChecked();
+  }
   await expect(page.locator(`input[value="${KALLISTE_ID}"]`)).toBeChecked();
   await expectNoHorizontalScroll(page);
   // Récapitulatif : le nom, le blason et la cité choisis, puis la fondation.

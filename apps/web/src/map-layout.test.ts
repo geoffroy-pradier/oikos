@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { CITY_MAP_POSITIONS } from '@oikos/config/client';
 import { describe, expect, it } from 'vitest';
 import {
   along,
@@ -23,6 +24,32 @@ describe('dessin de l’archipel', () => {
       expect(y).toBeLessThan(MAP_HEIGHT);
     }
     expect(new Set(points.map(({ x, y }) => `${x},${y}`)).size).toBe(4);
+  });
+
+  it('douze cités (#706) : aucune cité de repli ne tombe près d’une cité dessinée, ni d’une autre', () => {
+    const slugs = [
+      ...Object.keys(CITY_MAP_POSITIONS),
+      ...[
+        'dikaia',
+        'gamelia',
+        'delphis',
+        'agrotera',
+        'phrourion',
+        'myrrhine',
+        'chalkeia',
+        'emporion',
+      ],
+    ];
+    const layout = archipelagoLayout(slugs, CITY_MAP_POSITIONS);
+    expect(layout.size).toBe(12);
+    // Les quatre places dessinées ne bougent pas (millièmes du dessin).
+    expect(layout.get('halos')).toEqual({ x: 72, y: 52 });
+    const placed = [...layout.entries()];
+    // Un nom de cité tient en une dizaine d'unités de large, trois de haut : six unités les séparent au moins.
+    for (const [a, p] of placed)
+      for (const [b, q] of placed)
+        if (a < b)
+          expect(Math.hypot(p.x - q.x, p.y - q.y), `${a} / ${b}`).toBeGreaterThanOrEqual(6);
   });
 
   it('une cité seule est au centre ; aucune cité, aucun point', () => {
