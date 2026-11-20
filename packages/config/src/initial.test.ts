@@ -150,6 +150,7 @@ describe('jeu de valeurs initial', () => {
         npcClass.basket.filter((entry) => entry.need === 'vital').map((entry) => entry.goodId),
       ),
     );
+    expect([...vital].sort()).toEqual(['bread', 'fish', 'salt', 'wheat']);
     // Matières premières d'un bien vital : celles de ses intrants, de proche en proche, charbon compris.
     const rawOf = (goodId: string, seen = new Set<string>()): string[] => {
       if (seen.has(goodId)) return [];
