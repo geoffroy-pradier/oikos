@@ -313,7 +313,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .getByRole('button', { name: /^Embaucher un intendant pour / })
       .first()
       .click();
+    await page.getByRole('button', { name: /^Embaucher pour / }).click();
     await expect(said(page, 'status', 'entre à votre service').first()).toBeVisible();
+    // Les règles se donnent dans leur feuille.
+    await page.getByRole('button', { name: /^Règles de .+…$/ }).click();
     await page.getByRole('button', { name: /^Ajouter une règle/ }).click();
     await page.getByRole('button', { name: 'Enregistrer les règles' }).click();
     await expect(said(page, 'status', 'suivra 1 règle')).toBeVisible();

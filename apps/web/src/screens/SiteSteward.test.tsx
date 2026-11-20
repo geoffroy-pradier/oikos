@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -76,6 +76,12 @@ describe('section Intendant (#278)', () => {
     await show(undefined);
     expect(screen.getByText(/Son salaire, 1 drachme 2 oboles par jour/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Embaucher un intendant pour Moulin' }));
+    // La feuille rappelle le salaire et les postes ; l'embauche part de sa confirmation.
+    const sheet = screen.getByRole('dialog', { name: 'Embaucher un intendant' });
+    expect(within(sheet).getByText("Postes d'intendant occupés : 0 sur 2.")).toBeTruthy();
+    fireEvent.click(
+      within(sheet).getByRole('button', { name: 'Embaucher pour 1 drachme 2 oboles par jour' }),
+    );
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(api.stewardCommand).toHaveBeenCalledWith(
       'steward.hire',
@@ -99,6 +105,15 @@ describe('section Intendant (#278)', () => {
     api.stewardCommand.mockResolvedValue(ok({ stewardId: 'st1', rules: [] }));
     await show(nikias);
     expect(screen.getByText(/^Nikias mène ses règles/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Règles de Nikias…' }));
+    expect(document.activeElement).toBe(screen.getByRole('form', { name: 'Règles de Nikias' }));
+    // Le foyer n'est porté sur le formulaire qu'à l'ouverture : une saisie, et le rendu qui la suit, le laissent
+    // sur le champ.
+    const floor = screen.getByLabelText<HTMLInputElement>("Prix plancher (oboles l'unité)");
+    floor.focus();
+    fireEvent.change(floor, { target: { value: '15' } });
+    fireEvent.change(floor, { target: { value: '14' } });
+    expect(document.activeElement).toBe(floor);
     expect(
       (screen.getByLabelText("Prix plancher (oboles l'unité)") as HTMLInputElement).value,
     ).toBe('14');
@@ -158,22 +173,28 @@ describe('section Intendant (#278)', () => {
     const lost = { ok: false, error: { code: 'INTERNAL', message: 'x' } };
     api.stewardCommand.mockResolvedValue(lost);
     const keyOf = (call: number) => api.stewardCommand.mock.calls[call]?.[3] as string;
-    const click = async (name: string, calls: number) => {
-      fireEvent.click(screen.getByRole('button', { name }));
+    // Le bouton de la fiche ouvre la feuille ; le second envoie.
+    const click = async (names: [string, string], calls: number) => {
+      for (const name of names) fireEvent.click(screen.getByRole('button', { name }));
       await waitFor(() => expect(api.stewardCommand).toHaveBeenCalledTimes(calls));
       cleanup();
     };
+    const HIRE: [string, string] = [
+      'Embaucher un intendant pour Moulin',
+      'Embaucher pour 1 drachme 2 oboles par jour',
+    ];
+    const SAVE: [string, string] = ['Règles de Nikias…', 'Enregistrer les règles'];
     await show(undefined);
-    await click('Embaucher un intendant pour Moulin', 1);
+    await click(HIRE, 1);
     // Relue, l'embauche a eu lieu ; renvoyé ensuite, le site réembauche sous une autre clé.
     await show(nikias);
-    await click('Enregistrer les règles', 2);
+    await click(SAVE, 2);
     await show(undefined);
-    await click('Embaucher un intendant pour Moulin', 3);
+    await click(HIRE, 3);
     expect(keyOf(2)).not.toBe(keyOf(0));
     // Les règles relues à une révision plus récente : les mêmes règles repartent sous une clé neuve.
     await show({ ...nikias, revision: 2 });
-    await click('Enregistrer les règles', 4);
+    await click(SAVE, 4);
     expect(keyOf(3)).not.toBe(keyOf(1));
   });
 

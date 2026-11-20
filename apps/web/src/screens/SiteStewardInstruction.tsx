@@ -1,6 +1,6 @@
 import { MAX_STEWARD_INSTRUCTION_LENGTH, type StewardRule } from '@oikos/contracts';
 import { Button } from '@oikos/ui';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
 import type { Steward, StewardInstruction, StewardOperation } from '../stewards';
@@ -18,6 +18,9 @@ export function SiteStewardInstruction(props: {
   describe: (operation: Omit<StewardOperation, 'tick' | 'revision'>) => string;
   /** Envoie la consigne ; vrai si elle est mise en file. */
   onSubmit: (text: string) => Promise<boolean>;
+  /** Brouillon de la consigne, gardé par la fiche : il survit à la feuille refermée et à un échec. */
+  draft: string;
+  onDraft: (text: string) => void;
   onValidate: (rules: StewardRule[]) => void;
   onEdit: (rules: StewardRule[]) => void;
   onRefresh: () => void;
@@ -25,7 +28,7 @@ export function SiteStewardInstruction(props: {
 }) {
   const { t } = useTranslation();
   const money = useMoney();
-  const [text, setText] = useState('');
+  const { draft: text, onDraft: setText } = props;
   const { steward, instruction, busy } = props;
   const current = instruction?.revision === steward.revision ? instruction : undefined;
   const id = `instruction-${steward.id}`;

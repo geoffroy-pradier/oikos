@@ -120,8 +120,8 @@ describe('fiche de site : section Intendant (#278)', () => {
     const html = await render();
     expect(html.match(/<h4[^>]*>Intendant<\/h4>/g)).toHaveLength(2);
     expect(html).toContain('Nikias mène ses règles');
-    expect(html).toContain('aria-label="Règles de Nikias"');
-    expect(html).toContain('value="50"');
+    expect(html).toContain('aria-label="Règles de Nikias…"');
+    expect(html).toContain('Nikias suit 1 règle.');
     // Ses opérations (#279) : son dernier refus, avec sa raison.
     expect(html).toContain('rachat de Blé refusé : Trésorerie insuffisante.');
     expect(html).toMatch(/Achat de Blé : reste 30 sur 50, à .+ l(&#x27;|')unité ou moins/);
