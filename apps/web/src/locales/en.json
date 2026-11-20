@@ -639,13 +639,28 @@
     "athena": "Athena",
     "dionysos": "Dionysus",
     "poseidon": "Poseidon",
-    "apollo": "Apollo"
+    "apollo": "Apollo",
+    "zeus": "Zeus",
+    "hera": "Hera",
+    "artemis": "Artemis",
+    "ares": "Ares",
+    "aphrodite": "Aphrodite",
+    "hephaistos": "Hephaestus",
+    "hermes": "Hermes"
   },
   "cities": {
     "kalliste": "Kallistè",
     "elaia": "Elaia",
     "ampelos": "Ampelos",
-    "halos": "Halos"
+    "halos": "Halos",
+    "dikaia": "Dikaia",
+    "gamelia": "Gamelia",
+    "delphis": "Delphis",
+    "agrotera": "Agrotera",
+    "phrourion": "Phrourion",
+    "myrrhine": "Myrrhinè",
+    "chalkeia": "Chalkeia",
+    "emporion": "Emporion"
   },
   "map": {
     "title": "Map of the archipelago",

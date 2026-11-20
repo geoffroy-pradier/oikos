@@ -51,7 +51,7 @@ describe('la Pythie (7.3, #270)', () => {
   });
 
   it('le dieu de la Pythie est connu et accepte la monnaie', () => {
-    expect(fieldsOf({ ...base().oracle, godId: 'hermes' })).toEqual(['oracle.godId']);
+    expect(fieldsOf({ ...base().oracle, godId: 'hades' })).toEqual(['oracle.godId']);
     const config = base();
     const apollo = config.gods.find((god) => god.id === 'apollo');
     if (!apollo) throw new Error('apollo');

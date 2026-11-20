@@ -1206,8 +1206,8 @@ describe('dieux et identité des cités (6.1)', () => {
     expect(errorsOf({ ...clone(), gods: [{ id: 'demeter', charis: 1 }] })).toEqual([
       expect.stringMatching(/^gods\[0\]: /),
     ]);
-    expect(errorsOf(withCity({ patronGodId: 'zeus' }))).toEqual([
-      'cities[0].patronGodId: unknown god "zeus"',
+    expect(errorsOf(withCity({ patronGodId: 'hades' }))).toEqual([
+      'cities[0].patronGodId: unknown god "hades"',
     ]);
     // Sans liste de dieux, aucun dieu protecteur n'est connu.
     expect(errorsOf({ ...clone(), gods: [] })).toEqual([

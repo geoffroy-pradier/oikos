@@ -3,9 +3,12 @@ import { CITY_MAP_POSITIONS, cityMapPositionSchema } from './client';
 import { INITIAL_CONFIG, type GameConfig } from './index';
 
 describe('place des cités sur le dessin de l’archipel (#696)', () => {
-  it('chaque cité de la configuration initiale a sa place, distincte des autres', () => {
+  it('chaque cité dessinée est de la configuration initiale, à sa place distincte des autres ; les huit cités de #706 attendent leur île', () => {
     const ids = (INITIAL_CONFIG as GameConfig).cities.map((city) => city.id);
-    expect(Object.keys(CITY_MAP_POSITIONS).sort()).toEqual([...ids].sort());
+    expect(Object.keys(CITY_MAP_POSITIONS).sort()).toEqual(
+      ['ampelos', 'elaia', 'halos', 'kalliste'].sort(),
+    );
+    for (const placed of Object.keys(CITY_MAP_POSITIONS)) expect(ids).toContain(placed);
     const places = Object.values(CITY_MAP_POSITIONS).map(({ x, y }) => `${x} ${y}`);
     expect(new Set(places).size).toBe(places.length);
   });

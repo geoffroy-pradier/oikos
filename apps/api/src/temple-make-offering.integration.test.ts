@@ -169,7 +169,7 @@ describe('temple.makeOffering', () => {
         undefined,
         via,
       );
-    expect(codeOf(await reply('zeus', 10, [], 10))).toBe('GOD_NOT_FOUND');
+    expect(codeOf(await reply('hades', 10, [], 10))).toBe('GOD_NOT_FOUND');
     // Déméter ne prend pas le poisson ; Apollon ne prend que la monnaie.
     expect(codeOf(await reply('demeter', 10, fish, 22))).toBe('OFFERING_REFUSED');
     expect(codeOf(await reply('apollo', 0, wheat, 30))).toBe('OFFERING_REFUSED');
