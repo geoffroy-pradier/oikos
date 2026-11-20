@@ -687,6 +687,8 @@
       "employment_other": "Employment rate: {{percent}} ({{employed}} employed for {{supply}} available workers)",
       "unlimited_one": "{{employed}} employed; unlimited labour",
       "unlimited_other": "{{employed}} employed; unlimited labour",
+      "noWorkers_one": "No worker available; {{employed}} employed",
+      "noWorkers_other": "No worker available; {{employed}} employed",
       "lodging": "Lodging with the inhabitants: {{cost}} a night",
       "unhoused": "Unhoused workers in the city: {{number}}"
     },

@@ -86,13 +86,15 @@ describe('onglet Cité : marché du travail et parc (#259)', () => {
     await show(<CityScreen />);
     expect(screen.getByText(fr.city.labor.none)).toBeTruthy();
     cleanup();
-    state.views = { labor_market: [{ ...day, supply: 0 }] };
-    await show(<CityScreen />);
-    expect(screen.getByText('30 employés ; main-d’œuvre sans limite')).toBeTruthy();
-    cleanup();
-    state.views = { labor_market: [{ ...day, supply: 0, employed: 1 }] };
+    state.views = { labor_market: [{ ...day, supply: null, employed: 1 }] };
     await show(<CityScreen />);
     expect(screen.getByText('1 employé ; main-d’œuvre sans limite')).toBeTruthy();
+    cleanup();
+    // Offre de 0 (#896) : des classes travaillent mais n'ont personne à embaucher, pas « sans limite ».
+    state.views = { labor_market: [{ ...day, supply: 0 }] };
+    await show(<CityScreen />);
+    expect(screen.getByText('Aucun travailleur disponible ; 30 employés')).toBeTruthy();
+    expect(screen.queryByText(/sans limite/)).toBeNull();
   });
 });
 

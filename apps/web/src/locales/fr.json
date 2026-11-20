@@ -687,6 +687,8 @@
       "employment_other": "Taux d'emploi : {{percent}} ({{employed}} employés pour {{supply}} travailleurs disponibles)",
       "unlimited_one": "{{employed}} employé ; main-d’œuvre sans limite",
       "unlimited_other": "{{employed}} employés ; main-d’œuvre sans limite",
+      "noWorkers_one": "Aucun travailleur disponible ; {{employed}} employé",
+      "noWorkers_other": "Aucun travailleur disponible ; {{employed}} employés",
       "lodging": "Hébergement chez les habitants : {{cost}} la nuit",
       "unhoused": "Travailleurs sans logement dans la cité : {{number}}"
     },

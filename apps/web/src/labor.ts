@@ -49,7 +49,7 @@ export function parseCityLabor(rows: unknown): Map<string, CityLabor> | null {
 
 /**
  * Taux d'emploi en fraction (0 à 1, au-delà si la population est tombée sous l'emploi), pour
- * `Intl.NumberFormat` en pourcentage. `null` : offre sans limite (ou sans quotient possible), aucun taux à montrer.
+ * `Intl.NumberFormat` en pourcentage. `null` : offre sans limite ou offre nulle (pas de division par zéro), aucun taux à montrer.
  */
 export const employmentShare = (labor: CityLabor) =>
   labor.supply === null || labor.supply === 0 ? null : labor.employed / labor.supply;
