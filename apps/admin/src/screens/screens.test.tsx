@@ -284,6 +284,27 @@ describe('Vigie', () => {
     }
   });
 
+  it('le tableau des ticks se trie au clavier par sa durée, et le tri est annoncé', async () => {
+    const tick = VIGIE.recentTicks[0] as (typeof VIGIE.recentTicks)[number];
+    const recentTicks = [
+      tick,
+      { ...tick, tickIndex: 10, durationMs: 900, createdAt: '2026-11-13T11:00:00Z' },
+      { ...tick, tickIndex: 11, durationMs: 40, createdAt: '2026-11-13T12:00:00Z' },
+    ];
+    adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, recentTicks } });
+    render(<Vigie accessToken="token" />);
+    const table = await screen.findByRole('table', { name: 'Dernières exécutions de tick' });
+    const ticks = () =>
+      within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.children[2]?.textContent);
+    expect(ticks()).toEqual(['9', '10', '11']);
+    fireEvent.click(within(table).getByRole('button', { name: 'Durée' }));
+    expect(ticks()).toEqual(['10', '9', '11']);
+    expect(screen.getByRole('status').textContent).toBe('Trié par Durée, décroissant');
+  });
+
   it("un refus de l'API est affiché, sans compteur", async () => {
     adminGet.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
     render(<Vigie accessToken="token" />);
