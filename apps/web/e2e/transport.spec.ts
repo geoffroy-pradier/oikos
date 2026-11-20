@@ -68,6 +68,20 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(page.getByRole('heading', { name: "Carte de l'archipel" })).toBeVisible();
   await expect(page.getByRole('img', { name: /4 cités, 6 routes/ })).toBeVisible();
   await expect(page.getByText('Kallistè – Elaia : 4 h')).toBeVisible();
+  // Un vrai clic sur une cité du dessin la choisit pour le panneau ; un glisser qui revient sur une autre, non.
+  const drawing = page.getByRole('img', { name: /4 cités, 6 routes/ });
+  await drawing.locator('text', { hasText: /^Ampelos$/ }).click();
+  const chosen = page.getByRole('heading', { level: 2, name: 'Ampelos' });
+  await expect(chosen).toBeVisible();
+  const halos = await drawing.locator('text', { hasText: /^Halos$/ }).boundingBox();
+  if (!halos) throw new Error('Halos absente du dessin');
+  const [x, y] = [halos.x + halos.width / 2, halos.y + halos.height / 2];
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 40, y - 30, { steps: 5 });
+  await page.mouse.move(x, y, { steps: 5 });
+  await page.mouse.up();
+  await expect(chosen).toBeVisible();
   await page.getByRole('button', { name: 'Acheter — 400 drachmes' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toHaveText('Caboteur acheté pour 400 drachmes.');
