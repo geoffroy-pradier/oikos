@@ -1,4 +1,4 @@
-import { Button, ScrollText, Sparkles } from '@oikos/ui';
+import { Button, EmptyState, ScrollText, Sparkles } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { consultOracle } from '../api';
@@ -133,7 +133,9 @@ export function TemplePythia(props: {
       {(read.failed || (read.rows !== null && oracles === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {oracles?.length === 0 && <p className="text-muted-foreground">{t('temple.pythia.none')}</p>}
+      {oracles?.length === 0 && (
+        <EmptyState compact illustration="noEvent" title={t('temple.pythia.none')} />
+      )}
       {oracles && oracles.length > 0 && (
         // Fil des oracles : un trait relie les consultations, la plus récente en haut.
         <ol className="flex flex-col">

@@ -1,4 +1,5 @@
-import { Badge, Card, EmptyState, Landmark, Package, Warehouse } from '@oikos/ui';
+import { Badge, Card, EmptyState, Landmark, Warehouse } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -126,7 +127,15 @@ export function HomeScreen() {
         </h2>
         {stock.rows === null && !stock.failed && <Loading />}
         {stock.rows?.length === 0 && atSea.length === 0 && (
-          <EmptyState icon={<Package />} title={t('home.stockEmpty')} headingLevel={3} />
+          <EmptyState
+            illustration="noStock"
+            title={t('home.stockEmpty')}
+            action={
+              <Link to="/agora" className="font-semibold text-primary underline underline-offset-4">
+                {t('home.stockAction')}
+              </Link>
+            }
+          />
         )}
         {/* Une seule cité, celle de la maison : pas de titre. Sinon chaque cité a le sien. */}
         {groups.map(({ cityId, lines }) => (

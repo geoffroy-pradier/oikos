@@ -1,4 +1,14 @@
-import { Anchor, Badge, Button, Card, CircleAlert, DataTable, Info, Sheet } from '@oikos/ui';
+import {
+  Anchor,
+  Badge,
+  Button,
+  Card,
+  CircleAlert,
+  DataTable,
+  EmptyState,
+  Info,
+  Sheet,
+} from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -196,9 +206,7 @@ export function ShipScreen() {
         <Card>
           <h2 className="mb-3 text-xl">{t('ship.voyages')}</h2>
           {voyages.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-              {t('ship.noVoyages')}
-            </p>
+            <EmptyState compact illustration="noShip" title={t('ship.noVoyages')} />
           )}
           {voyages.length > 0 && (
             <DataTable

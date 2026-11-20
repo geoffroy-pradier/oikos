@@ -1,4 +1,4 @@
-import { Button, Card, CircleAlert, Hammer, Info, Sheet } from '@oikos/ui';
+import { Button, Card, CircleAlert, EmptyState, Hammer, Info, Sheet } from '@oikos/ui';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireShip } from '../api';
@@ -112,12 +112,14 @@ export function Shipyard(props: {
 
   return (
     <Card className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-xl">
+      <h2 id="shipyard" tabIndex={-1} className="flex items-center gap-2 text-xl">
         <Hammer aria-hidden="true" className="size-5 shrink-0 text-accent" />
         {t('map.shipyard')}
       </h2>
       <p className="text-muted-foreground">{t('map.shipyardIntro', { city: house.cityName })}</p>
-      {rules?.classes.length === 0 && <p>{t('map.noClasses')}</p>}
+      {rules?.classes.length === 0 && (
+        <EmptyState compact illustration="noShip" title={t('map.noClasses')} />
+      )}
       <ul className="flex flex-col gap-2">
         {(rules?.classes ?? []).map((shipClass) => (
           <li

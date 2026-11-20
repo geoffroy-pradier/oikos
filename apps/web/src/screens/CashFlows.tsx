@@ -110,9 +110,7 @@ export function CashFlows() {
       {(read.failed || (read.rows !== null && parsed === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {days?.length === 0 && (
-        <EmptyState icon={<Coins />} title={t('accounts.flows.none')} headingLevel={3} />
-      )}
+      {days?.length === 0 && <EmptyState illustration="noEntry" title={t('accounts.flows.none')} />}
       {days && days.length > 0 && span > 0 && (
         <div className="flex flex-col gap-2">
           <ul

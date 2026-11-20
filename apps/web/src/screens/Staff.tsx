@@ -9,6 +9,7 @@ import {
   Users,
   type DataColumn,
 } from '@oikos/ui';
+import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -93,7 +94,16 @@ export function StaffScreen() {
       )}
       {!loading && !failed && cities?.length === 0 && (
         <Card>
-          <EmptyState icon={<Users />} title={t('staff.empty')} headingLevel={2} />
+          <EmptyState
+            illustration="noSite"
+            title={t('staff.empty')}
+            headingLevel={2}
+            action={
+              <Link to="/sites" className="font-semibold text-primary underline underline-offset-4">
+                {t('home.acquire')}
+              </Link>
+            }
+          />
         </Card>
       )}
       {shown && (

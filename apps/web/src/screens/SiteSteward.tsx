@@ -1,4 +1,4 @@
-import { Button, Sheet, Users } from '@oikos/ui';
+import { Button, EmptyState, Sheet, Users } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { stewardCommand, type StewardCommandInputs } from '../api';
@@ -221,7 +221,7 @@ export function SiteSteward(props: {
                 {t('steward.ops.title')}
               </h5>
               {props.activity.recent.length === 0 ? (
-                <p className="text-muted-foreground">{t('steward.ops.none')}</p>
+                <EmptyState compact illustration="noOrder" title={t('steward.ops.none')} />
               ) : (
                 <ol className="flex flex-col gap-1">
                   {props.activity.recent.map((operation, index) => (
@@ -249,7 +249,7 @@ export function SiteSteward(props: {
                 {t('steward.orders.title')}
               </h5>
               {props.orders.length === 0 ? (
-                <p className="text-muted-foreground">{t('steward.orders.none')}</p>
+                <EmptyState compact illustration="noOrder" title={t('steward.orders.none')} />
               ) : (
                 <>
                   <ul className="flex flex-col gap-1">

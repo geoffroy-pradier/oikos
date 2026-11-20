@@ -70,6 +70,15 @@ describe('carte de l’archipel', () => {
     expect(html).toContain('pas encore de navire');
   });
 
+  it('sans navire : l’état vide mène au chantier naval, titre qui prend le foyer (#866)', async () => {
+    const html = await render([]);
+    expect(html).toContain(`>${fr.map.toShipyard}</button>`);
+    expect(html).toMatch(/<h2 id="shipyard" tabindex="-1"[^>]*>.*Chantier naval/);
+    expect(await render([{ id: 's1', class_id: 'coaster', docked_city_id: 'k' }])).not.toContain(
+      fr.map.toShipyard,
+    );
+  });
+
   it('chaque navire dit où il est : à quai, ou en mer avec sa destination', async () => {
     const html = await render(
       [

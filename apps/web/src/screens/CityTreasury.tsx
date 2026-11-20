@@ -4,6 +4,7 @@ import {
   Card,
   ChevronRight,
   Coins,
+  EmptyState,
   Landmark,
   StatCard,
   Store,
@@ -134,7 +135,9 @@ export function CityTreasury() {
           </div>
           <Card className="flex flex-col gap-3">
             <h3 className="font-semibold">{t('treasury.flows')}</h3>
-            {days.length === 0 && <p className="text-muted-foreground">{t('treasury.noFlows')}</p>}
+            {days.length === 0 && (
+              <EmptyState compact illustration="noEntry" title={t('treasury.noFlows')} />
+            )}
             {bars.length > 0 && (
               <>
                 {/* Recettes au-dessus de la ligne, dépenses dessous : la place dit le sens, pas la couleur. */}

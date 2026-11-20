@@ -1,5 +1,17 @@
 import type { DecreeProposal } from '@oikos/contracts';
-import { Button, Card, Check, Coins, Gavel, Hammer, Info, PartyPopper, Ship, X } from '@oikos/ui';
+import {
+  Button,
+  Card,
+  Check,
+  Coins,
+  EmptyState,
+  Gavel,
+  Hammer,
+  Info,
+  PartyPopper,
+  Ship,
+  X,
+} from '@oikos/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
@@ -197,7 +209,7 @@ export function CityAssembly() {
             </p>
           )}
           {groups.open.length === 0 && (
-            <p className="text-muted-foreground">{t('assembly.noOpen')}</p>
+            <EmptyState compact illustration="noEvent" title={t('assembly.noOpen')} />
           )}
           <ul className={GRID}>
             {groups.open.map((decree) => {
@@ -252,7 +264,7 @@ export function CityAssembly() {
           <DecreeForm onDone={reload} />
           <h3 className="eyebrow mt-2">{t('assembly.passed')}</h3>
           {groups.passed.length === 0 && (
-            <p className="text-muted-foreground">{t('assembly.noPassed')}</p>
+            <EmptyState compact illustration="noEvent" title={t('assembly.noPassed')} />
           )}
           <ul className={GRID}>
             {groups.passed.map((decree) =>

@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   Badge,
   Card,
+  EmptyState,
   Minus,
   ScrollText,
   TableScroll,
@@ -145,9 +146,7 @@ export function PriceChart({ history }: { history: PriceHistoryReads }) {
       {history.failed && <LoadProblem heading={title} onRetry={history.reload} />}
       {history.loading && <Loading />}
       {series?.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-          {t('agora.priceEmpty')}
-        </p>
+        <EmptyState compact illustration="noOrder" title={t('agora.priceEmpty')} />
       )}
       {summary && (
         <>

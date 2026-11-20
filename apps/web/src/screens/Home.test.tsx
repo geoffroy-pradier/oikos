@@ -18,15 +18,18 @@ vi.mock('../data', () => ({
 vi.mock('./Sites', () => ({ SitesCard: () => null }));
 // Liens sans routeur : de simples ancres.
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  Link: ({ children, to }: { children: React.ReactNode; to?: string }) => (
+    <a href={to}>{children}</a>
+  ),
   useRouterState: () => '/',
 }));
 const { HomeScreen } = await import('./Home');
 
-async function render(voyages: object[]) {
+const WHEAT = [{ id: 'i1', city_id: 'k', good_id: 'wheat', quantity: 70, reserved: 0 }];
+async function render(voyages: object[], inventories: object[] = WHEAT) {
   views.rows = {
     my_treasury: [{ balance: 600 }],
-    my_inventories: [{ id: 'i1', city_id: 'k', good_id: 'wheat', quantity: 70, reserved: 0 }],
+    my_inventories: inventories,
     my_voyages: voyages,
   };
   const instance = i18next.createInstance();
@@ -65,5 +68,11 @@ describe('entrepôt : le stock par cité, celui en mer compris', () => {
     expect(html).not.toContain('En mer');
     // Une seule cité : pas de titre par cité.
     expect(html).not.toContain('Stock à Kallistè');
+  });
+
+  it('vide : la raison, et le lien qui mène à l’agora pour le remplir (#866)', async () => {
+    const html = await render([], []);
+    expect(html).toContain(`>${fr.home.stockEmpty.replace("'", '&#x27;')}</h3>`);
+    expect(html).toContain(`<a href="/agora">${fr.home.stockAction.replace("'", '&#x27;')}</a>`);
   });
 });

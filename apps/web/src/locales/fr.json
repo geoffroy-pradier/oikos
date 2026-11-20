@@ -207,7 +207,8 @@
       "net": "Mouvement",
       "high": "plus haut : {{amount}}",
       "low": "plus bas : {{amount}}"
-    }
+    },
+    "stockAction": "Acheter à l'agora"
   },
   "agora": {
     "city": "Cité du marché",
@@ -287,7 +288,8 @@
     "recapBuyNote": "L'achat ne dépense jamais plus que la trésorerie ; ce qui attend dans le carnet a son prix retenu au séquestre jusqu'à l'exécution ou l'annulation.",
     "bestBuy": "Meilleur achat",
     "bestSell": "Meilleure vente",
-    "bestNone": "aucun"
+    "bestNone": "aucun",
+    "myOrdersAction": "Passer un ordre d'achat"
   },
   "goods": {
     "wheat": "Blé",
@@ -816,7 +818,8 @@
     "buyCapacity": "Cargaison, en unités",
     "buyUpkeep": "Entretien par jour",
     "buyHome": "À quai à sa naissance",
-    "terroirHint": "Sur ce petit dessin, seul le terroir de la cité choisie est montré : touchez une cité, ou zoomez."
+    "terroirHint": "Sur ce petit dessin, seul le terroir de la cité choisie est montré : touchez une cité, ou zoomez.",
+    "toShipyard": "Voir le chantier naval"
   },
   "shipClasses": {
     "coaster": "Caboteur",
@@ -1006,7 +1009,8 @@
     "steps": {
       "recap": "Récapitulatif",
       "price": "Votre prix"
-    }
+    },
+    "seeOffers": "Voir les biens offerts"
   },
   "alerts": {
     "title": "À faire aujourd'hui",

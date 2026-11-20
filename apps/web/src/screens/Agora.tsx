@@ -1,5 +1,14 @@
 import type { MarketPlaceOrderInput } from '@oikos/contracts';
-import { Badge, Button, Card, GoodIcon, Select, StatusRegion, TableScroll } from '@oikos/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  GoodIcon,
+  Select,
+  StatusRegion,
+  TableScroll,
+} from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -355,12 +364,12 @@ export function AgoraScreen() {
               ).map(([key, levels, caption, column, empty, tone]) => {
                 const deepest = Math.max(1, ...(levels ?? []).map((level) => level.quantity));
                 return levels?.length === 0 ? (
-                  <p
+                  <EmptyState
                     key={key}
-                    className="rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground"
-                  >
-                    {t(`agora.${empty}`)}
-                  </p>
+                    compact
+                    illustration="noOrder"
+                    title={t(`agora.${empty}`)}
+                  />
                 ) : (
                   // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
                   // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
@@ -419,9 +428,15 @@ export function AgoraScreen() {
           <h2 className="text-lg">{t('agora.myOrders')}</h2>
           {mine.rows === null && !mine.failed && <Loading />}
           {mine.rows?.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-              {t('agora.myOrdersEmpty')}
-            </p>
+            <EmptyState
+              illustration="noOrder"
+              title={t('agora.myOrdersEmpty')}
+              action={
+                <Button variant="secondary" disabled={busy} onClick={() => void openSheet('buy')}>
+                  {t('agora.myOrdersAction')}
+                </Button>
+              }
+            />
           )}
           <ul className="flex flex-col divide-y divide-border-subtle">
             {mine.rows?.map((order) => {

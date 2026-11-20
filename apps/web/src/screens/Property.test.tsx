@@ -104,6 +104,22 @@ const confirm = () =>
 const inTable = (name: string) => within(screen.getByRole('table', { name }));
 
 describe('écran Immobilier (#259)', () => {
+  it('sans bien ni bail : les états vides mènent aux biens offerts, foyer sur leur titre (#866)', async () => {
+    state.views = { ...state.views, my_properties: [], my_leases: [] };
+    await showProperty();
+    expect(screen.getByRole('heading', { name: fr.property.noneMine })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: fr.property.noLeases })).toBeTruthy();
+    const [toOffers] = screen.getAllByRole('button', { name: fr.property.seeOffers });
+    fireEvent.click(toOffers as HTMLElement);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: fr.property.offers }));
+    // Sans offre, rien vers quoi mener : la raison seule.
+    cleanup();
+    state.views = { ...state.views, city_properties: [], property_offers_upkeep: [] };
+    await showProperty();
+    expect(screen.getByRole('heading', { name: fr.property.noOffers })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: fr.property.seeOffers })).toBeNull();
+  });
+
   it('achat à la cité et location d’une offre, chacun au prix vu', async () => {
     await showProperty();
     open(/^Acheter à la cité .* n° 1, Kallistè$/);

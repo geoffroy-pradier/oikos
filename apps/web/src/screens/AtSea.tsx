@@ -1,4 +1,4 @@
-import { Card, Progress } from '@oikos/ui';
+import { Card, EmptyState, Progress } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import type { VoyageRow } from '../fleet';
 import { formatList } from '../lists';
@@ -27,7 +27,7 @@ export function AtSea(props: {
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-semibold">{t('map.atSeaTitle')}</h2>
       {props.voyages.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t('map.noneAtSea')}</p>
+        <EmptyState compact illustration="noShip" title={t('map.noneAtSea')} />
       )}
       <ul className="flex flex-col divide-y divide-border-subtle">
         {props.voyages.map((voyage) => {

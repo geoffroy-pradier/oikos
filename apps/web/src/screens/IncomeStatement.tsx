@@ -112,7 +112,7 @@ export function IncomeStatement(props: {
       </div>
       {rows === undefined && <Loading />}
       {rows?.length === 0 && (
-        <EmptyState icon={<ScrollText />} title={t('accounts.income.empty')} headingLevel={3} />
+        <EmptyState illustration="noEntry" title={t('accounts.income.empty')} />
       )}
       {rows && rows.length > 0 && (
         // Plus étroit que ses colonnes, le tableau défile dans sa carte, avec un fondu sur le bord.
