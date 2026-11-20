@@ -1,5 +1,13 @@
-import { Button, Card, EmptyState, Scale, TriangleAlert } from '@oikos/ui';
-import { Link } from '@tanstack/react-router';
+import {
+  Button,
+  Coins,
+  EmptyState,
+  KeyRound,
+  Package,
+  Scale,
+  StatCard,
+  TriangleAlert,
+} from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,14 +18,21 @@ import {
 } from '../accounts';
 import { useRows } from '../data';
 import { useHouse } from '../house';
+import { HouseNav } from '../HouseNav';
 import { formatMoney } from '../money';
+import { ScreenHeader } from '../ScreenHeader';
 import { CashFlows } from './CashFlows';
 import { IncomeStatement, type IncomeView } from './IncomeStatement';
 import { Loading } from './LoadProblem';
 import { ValuedStocks } from './ValuedStocks';
 
-/** Une ligne de libellé et de valeur ; la valeur passe sous le libellé quand la fiche est étroite. */
-const LINE = 'flex flex-wrap items-baseline justify-between gap-x-4';
+/** Lignes du bilan, chacune en carte ; le total, calculé à l'affichage, est mis en avant. */
+const BALANCE = [
+  ['treasury', <Coins key="treasury" />],
+  ['escrow', <KeyRound key="escrow" />],
+  ['stockValue', <Package key="stockValue" />],
+  ['total', <Scale key="total" />],
+] as const;
 
 /**
  * Comptes de la maison (4.1) : bilan, stocks valorisés, compte de résultat et flux de trésorerie, lus
@@ -72,20 +87,8 @@ export function AccountsScreen() {
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <Card elevation="raised" className="overflow-hidden p-0">
-        <div className="flex flex-col gap-1 p-4">
-          <h1 ref={title} tabIndex={-1} className="flex items-center gap-2 text-2xl">
-            <Scale aria-hidden="true" className="size-6 text-accent" />
-            {t('accounts.title', { name: house.name })}
-          </h1>
-          <Link
-            to="/"
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-          >
-            {t('shell.backHome')}
-          </Link>
-        </div>
-      </Card>
+      <ScreenHeader title={t('accounts.title', { name: house.name })} titleRef={title} />
+      <HouseNav />
       {failed ? (
         <EmptyState
           icon={<TriangleAlert />}
@@ -97,31 +100,30 @@ export function AccountsScreen() {
       )}
 
       {sheet && (
-        <Card aria-labelledby="balance-sheet">
-          <h2 id="balance-sheet" className="text-xl">
+        <section aria-labelledby="balance-sheet" className="flex flex-col gap-2">
+          <h2 id="balance-sheet" className="text-lg font-semibold">
             {t('accounts.balanceSheet')}
           </h2>
-          <dl>
-            {(['treasury', 'escrow', 'stockValue', 'total'] as const).map((line) => (
-              <div
-                key={line}
-                className={
-                  line === 'total'
-                    ? `${LINE} mt-2 border-t border-border pt-2 text-xl`
-                    : `${LINE} py-1`
-                }
-              >
-                <dt>{t(`accounts.${line}`)}</dt>
-                <dd className="font-semibold tabular-nums">{money(sheet[line])}</dd>
-              </div>
+          <ul className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+            {BALANCE.map(([line, icon]) => (
+              <li key={line} className="flex">
+                <StatCard
+                  className={
+                    line === 'total' ? 'flex-1 border-primary/40 bg-primary-subtle' : 'flex-1'
+                  }
+                  label={t(`accounts.${line}`)}
+                  icon={icon}
+                  value={money(sheet[line])}
+                  hint={
+                    line === 'stockValue' && sheet.unpricedStocks > 0
+                      ? t('accounts.unpriced', { count: sheet.unpricedStocks })
+                      : undefined
+                  }
+                />
+              </li>
             ))}
-          </dl>
-          {sheet.unpricedStocks > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {t('accounts.unpriced', { count: sheet.unpricedStocks })}
-            </p>
-          )}
-        </Card>
+          </ul>
+        </section>
       )}
       {stocks && <ValuedStocks stocks={stocks} />}
       <IncomeStatement rows={incomeRows.failed ? null : income} view={view} onView={setView} />
