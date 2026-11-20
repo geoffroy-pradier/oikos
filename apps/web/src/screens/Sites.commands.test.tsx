@@ -127,16 +127,18 @@ describe('état local périmé : l’API reste l’arbitre de la récolte d’un
   );
 });
 
-describe('le résultat suit la fiche que les relectures agrandissent', () => {
-  it('rendu dans la fenêtre à chaque changement de taille de la page, pendant une seconde', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const observers: { callback: () => void; disconnected: boolean }[] = [];
+describe('le résultat suit la fiche que les relectures agrandissent, sans retenir le joueur (#869)', () => {
+  const observers: { callback: () => void; disconnected: boolean }[] = [];
+  const scrolled: string[] = [];
+  const live = () => observers.filter((observer) => !observer.disconnected);
+  const harvested = () => scrolled.filter((text) => /Récolte engrangée/.test(text)).length;
+  async function harvest() {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        entry: { callback: () => void; disconnected: boolean };
+        entry = { callback: (): void => undefined, disconnected: false };
         constructor(callback: () => void) {
-          this.entry = { callback, disconnected: false };
+          this.entry.callback = callback;
           observers.push(this.entry);
         }
         observe() {}
@@ -145,10 +147,7 @@ describe('le résultat suit la fiche que les relectures agrandissent', () => {
         }
       },
     );
-    const scrolled: string[] = [];
-    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (
-      this: Element,
-    ) {
+    vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
       scrolled.push(this.textContent ?? '');
     });
     api.collectSite.mockResolvedValueOnce(collected);
@@ -159,18 +158,37 @@ describe('le résultat suit la fiche que les relectures agrandissent', () => {
       }),
     );
     await waitFor(() => expect(statuses()).toMatch(/Récolte engrangée/));
-    const live = () => observers.filter((observer) => !observer.disconnected);
     await waitFor(() => expect(live()).toHaveLength(1));
-    const [observer] = live();
-    expect(scrolled.filter((text) => /Récolte engrangée/.test(text))).toHaveLength(1);
-    // Une fiche grandit au-dessus du message : il est rendu à nouveau dans la fenêtre.
-    observer?.callback();
-    expect(scrolled.filter((text) => /Récolte engrangée/.test(text))).toHaveLength(2);
-    // Passé une seconde, la page ne suit plus : le joueur reste libre de faire défiler.
-    vi.advanceTimersByTime(1000);
-    expect(observer?.disconnected).toBe(true);
-    scroll.mockRestore();
+    expect(harvested()).toBe(1);
+    return live()[0];
+  }
+  afterEach(() => {
+    observers.length = 0;
+    scrolled.length = 0;
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('une fiche qui grandit au-dessus du message le rend de nouveau dans la fenêtre', async () => {
+    const observer = await harvest();
+    observer?.callback();
+    observer?.callback();
+    expect(harvested()).toBe(3);
+  });
+
+  it('le premier geste du joueur arrête le suivi : son défilement n’est jamais interrompu', async () => {
+    const observer = await harvest();
+    fireEvent.wheel(window);
+    expect(observer?.disconnected).toBe(true);
+    // Déconnecté, l'observateur ne rappelle plus : une relecture qui arrive ensuite ne ramène plus la page.
+    expect(live()).toHaveLength(0);
+  });
+
+  it('sans geste, le suivi s’arrête de lui-même, borné dans le temps', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const observer = await harvest();
+    vi.advanceTimersByTime(5_000);
+    expect(observer?.disconnected).toBe(true);
   });
 });

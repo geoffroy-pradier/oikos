@@ -35,7 +35,7 @@ vi.mock('./server-clock', () => ({
   serverClock: { now: () => new Date(Date.now() + ++calls.tick) },
   syncServerClock: () => (calls.syncs++, Promise.resolve()),
 }));
-const { describeWorldEvent, inForce, parseWorldEvents, useWorldEvents } =
+const { describeWorldEvent, inForce, parseWorldEvents, useCoveredEvents, useWorldEvents } =
   await import('./world-events');
 
 const row = {
@@ -150,6 +150,62 @@ describe('événements du monde lus de la vue `world_events` (#417)', () => {
     await act(() => vi.advanceTimersByTimeAsync(2 * 60_000));
     expect(calls.reads).toBe(6);
     expect(new Set(calls.bounds).size).toBe(3);
+    unmount();
+  });
+});
+
+describe('événements lus sous un filtre qui couvre le nouveau (#869)', () => {
+  const since = Date.parse('2026-11-16T00:00:00Z');
+
+  it('une borne avancée (cycle relancé) : les événements lus restent rendus pendant la lecture', async () => {
+    calls.rows = [row];
+    const shown: (WorldEvent[] | null)[] = [];
+    const { result, rerender, unmount } = renderHook(
+      ({ bound }: { bound: number }) => {
+        const read = useCoveredEvents(['c1'], bound, ['drought']);
+        shown.push(read.events);
+        return read;
+      },
+      { initialProps: { bound: since } },
+    );
+    await act(() => Promise.resolve());
+    expect(result.current.events?.map((event) => event.id)).toEqual(['e1']);
+    const loaded = shown.length;
+    rerender({ bound: since + 3_600_000 });
+    await act(() => Promise.resolve());
+    // Une seconde lecture, sous la nouvelle borne ; jamais de rendu sans événements entre les deux.
+    expect(calls.reads).toBe(2);
+    expect(shown.slice(loaded).includes(null)).toBe(false);
+    expect(result.current.events?.map((event) => event.id)).toEqual(['e1']);
+    unmount();
+  });
+
+  it('une cité de plus, ou une borne reculée : rien n’est gardé, la lecture est attendue', async () => {
+    calls.rows = [row];
+    const shown: (WorldEvent[] | null)[] = [];
+    const { rerender, unmount } = renderHook(
+      ({ cities, bound }: { cities: string[]; bound: number }) => {
+        const read = useCoveredEvents(cities, bound, ['drought']);
+        shown.push(read.events);
+        return read;
+      },
+      { initialProps: { cities: ['c1'], bound: since } },
+    );
+    await act(() => Promise.resolve());
+    let loaded = shown.length;
+    rerender({ cities: ['c1', 'c2'], bound: since });
+    expect(shown.slice(loaded)[0]).toBeNull();
+    await act(() => Promise.resolve());
+    loaded = shown.length;
+    rerender({ cities: ['c1', 'c2'], bound: since - 1 });
+    expect(shown.slice(loaded)[0]).toBeNull();
+    unmount();
+  });
+
+  it('sans cité, aucune lecture', () => {
+    const { result, unmount } = renderHook(() => useCoveredEvents([], Infinity, ['drought']));
+    expect(result.current.events).toBeNull();
+    expect(calls.reads).toBe(0);
     unmount();
   });
 });

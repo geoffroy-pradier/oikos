@@ -75,6 +75,33 @@ export function useEventRows(filters: Parameters<typeof useRows>[3]) {
 }
 
 /**
+ * Événements des cités `cities`, des modèles `models`, qui finissent après `since` ; aucune lecture sans cité.
+ * Un cycle relancé avance `since`, une cité nouvelle élargit `cities` : la lecture repart sous un autre filtre.
+ * En attendant, les événements lus sous un filtre qui couvre le nouveau (les mêmes cités ou plus, une borne plus
+ * ancienne ou la même) restent rendus : ce qui en dépend garde sa place sur l'écran au lieu de disparaître
+ * puis de revenir (#869). Ils sont exacts, un événement fini avant la borne ne comptant plus pour personne.
+ */
+export function useCoveredEvents(
+  cities: readonly string[],
+  since: number,
+  models: readonly WorldEventKind[],
+) {
+  const read = useEventRows(
+    cities.length === 0
+      ? null
+      : { city_id: cities, model: models, ends_at: { gt: new Date(since).toISOString() } },
+  );
+  const last = useRef<{ cities: readonly string[]; since: number; events: WorldEvent[] } | null>(
+    null,
+  );
+  if (read.events) last.current = { cities, since, events: read.events };
+  const kept = last.current;
+  const covered =
+    kept !== null && kept.since <= since && cities.every((city) => kept.cities.includes(city));
+  return { ...read, events: read.events ?? (covered ? kept.events : null) };
+}
+
+/**
  * Événements en cours (vue `world_events`) selon `filters`, à l'heure du serveur, relus chaque minute onglet
  * visible et au retour sur l'onglet ; `null` tant que rien n'est lu. Seuls ceux qui finissent après une borne
  * sont lus, la vue gardant le passé : l'heure du serveur à l'ouverture de l'écran (reprise une fois lue),
