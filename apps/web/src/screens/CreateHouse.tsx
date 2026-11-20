@@ -138,7 +138,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
       // `aria-describedby`, reprend en texte les lignes que l'œil lit en dieu, terroir et port.
       <label
         key={city.id}
-        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
+        className="group relative flex cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-raised shadow-sm transition-[border-color,background-color] duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:bg-primary-subtle has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus) md:flex-col"
       >
         <input
           type="radio"
@@ -156,19 +156,21 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
           aria-describedby={`city-${city.id}${cityError ? ' form-error' : ''}`}
           aria-invalid={cityError}
         />
+        <span
+          aria-hidden="true"
+          className="absolute top-2 right-2 z-10 hidden size-6 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm group-has-[:checked]:grid"
+        >
+          <Check className="size-4" strokeWidth={3} />
+        </span>
         <CityVignette
           cityId={city.slug}
-          className="h-auto w-full rounded-none border-b border-border-subtle"
+          className="m-3 mr-0 h-auto w-28 shrink-0 self-start rounded-lg md:m-0 md:w-full md:rounded-none md:border-b md:border-border-subtle"
         />
-        <span className="flex flex-col gap-2 p-3">
+        <span className="flex min-w-0 flex-1 flex-col gap-2 p-3">
           <span className="flex items-center justify-between gap-2">
-            <span id={`city-name-${city.id}`} className="text-lg font-semibold">
+            <span id={`city-name-${city.id}`} className="pr-7 text-lg font-semibold">
               {cityName(city)}
             </span>
-            <Check
-              aria-hidden="true"
-              className="hidden size-5 text-primary group-has-[:checked]:block"
-            />
           </span>
           {lines && (
             <span
@@ -266,7 +268,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
                 {(read.failed || (read.rows !== null && identities === null)) && (
                   <LoadProblem onRetry={() => read.reload()} />
                 )}
-                <div className="grid gap-3 sm:grid-cols-2">{cities.map(cityCard)}</div>
+                <div className="grid gap-3 md:grid-cols-2">{cities.map(cityCard)}</div>
                 <p id="form-error" role="alert" className="font-semibold text-danger">
                   {cityError ? errorText : ''}
                 </p>
