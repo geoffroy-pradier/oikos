@@ -240,6 +240,7 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
   Elle remplace en partie l'ADR 0010 ; ses tickets (#687 à #700) passent avant la phase 3.
 - **Contrôle visuel dans l'image Docker de Playwright** (#700, 10) : les captures de référence sont rendues par le Chromium de l'image officielle, à la version du dépôt, en local comme en `ci`.
   Le Chromium de l'hôte rend le texte autrement selon les réglages de fontconfig de la machine : des références qu'il produirait ne vaudraient que pour elle.
+  Seul le contrôle visuel lance ce conteneur : les autres tests de bout en bout se passent de Docker.
 
 - **Le client lit par Supabase, écrit par l'API** (ADR 0001). Les règles du jeu qu'il affiche (recettes,
   coûts) viennent de la vue `site_rules`, pas d'une copie de la configuration.
@@ -479,7 +480,6 @@ Défauts connus :
   - le panneau d'édition des Paramètres d'Olympe n'a pas de bouton « Fermer » : il se referme en ouvrant une autre version, et un bouton devrait demander la même confirmation qu'elle pour un texte non enregistré ;
   - les biens offerts de l'écran Immobilier couvrent toute l'archipel, sans filtre : avec le parc des douze cités, plus de 300 lignes ; filtrer par cité demande une décision, car un joueur loue aussi ailleurs que chez lui ;
   - les textes français mettent une espace ordinaire avant « : », qui peut ouvrir une ligne ;
-  - à 360 px, sur la carte, les étiquettes de Chalkeia, Delphis, Dikaia et Halos se chevauchent ou passent sous les boutons de zoom ;
   - à 1 440 px, le compte de résultat (dix colonnes) défile à l'horizontale dans sa carte ;
   - la pile locale partagée n'a pas de conteneur Realtime : `messages.spec.ts` n'y passe pas (la `ci` en a un).
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les

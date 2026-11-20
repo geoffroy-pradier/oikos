@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../../web/e2e/visual-browser';
 import { enroll, expectNoHorizontalScroll, grantSuperAdmin, signIn } from './helpers';
 
 /**
@@ -45,10 +46,12 @@ const vigie = {
   })),
 };
 
-type Economy = { worlds: { systemAccounts: { kind: string }[] }[] };
+type Economy = { worlds: { slug: string; systemAccounts: { kind: string }[] }[] };
+/** Le seul monde du jeu : d'autres suites en créent un second (`apps/web/e2e/city-fixtures.ts`). */
+const game = (worlds: Economy['worlds']) => worlds.filter((world) => world.slug === 'archipel');
 const economy = (real: Economy) => ({
   ...real,
-  worlds: real.worlds.map((world) => ({
+  worlds: game(real.worlds).map((world) => ({
     ...world,
     moneySupply: {
       total: 18_604_200,
@@ -202,11 +205,10 @@ async function capture(page: Page, screen: string) {
   await expectNoHorizontalScroll(page);
 }
 
-// Navigateur de l'image Docker de Playwright (voir `playwright.config.ts`), heure de Paris.
-test.use({
-  connectOptions: { wsEndpoint: process.env['OIKOS_VISUAL_BROWSER'] ?? '' },
-  timezoneId: 'Europe/Paris',
-});
+// Navigateur de l'image Docker de Playwright, le même que pour le jeu (`apps/web/e2e/visual-browser.ts`), heure de
+// Paris. Dix captures, dont un enrôlement à second facteur : plus que le délai par défaut.
+test.use({ timezoneId: 'Europe/Paris' });
+test.setTimeout(180_000);
 
 test('Olympe : références visuelles et axe, thèmes clair et sombre', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });

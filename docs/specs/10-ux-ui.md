@@ -308,10 +308,12 @@ Les données sont figées.
 Côté jeu, une maison par format, au nom fixe, seule dans une cité qu'aucune autre suite n'emploie (Dikaia, Gamelia), avec un achat en attente et un message ; un nouvel essai la retrouve sans rien doubler.
 Le parc de logements et la population des PNJ de cette cité, que d'autres suites remplissent pour tout le monde, sont lus figés ; les abonnements en direct sont acceptés sans pile Realtime.
 Côté Olympe, les lectures de l'API, qui portent sur tous les mondes, sont remplacées par des valeurs fixes.
-Ce que l'horloge fait varier (heure, dates, durées) est masqué ; animations et curseur sont figés ; la page est prise entière, le pointeur hors de tout survol.
-Le navigateur est le Chromium de l'image Docker officielle de Playwright, à la version du dépôt, que la configuration de Playwright lance (`run-server`, réseau de l'hôte, Linux).
+Ce que l'horloge fait varier (heure, dates, durées) est figé (des zéros, un même mois), pour garder la mise en page, puis masqué ; animations et curseur sont figés ; la page est prise entière, le pointeur hors de tout survol.
+Le navigateur est le Chromium de l'image Docker officielle de Playwright, à la version du dépôt, que le contrôle visuel lance lui-même (`apps/web/e2e/visual-browser.ts`, `run-server`, réseau de l'hôte, Linux).
 Les références sont ainsi produites et comparées dans le même environnement de rendu en local et en `ci` : le Chromium de l'hôte rend le texte autrement d'une machine à l'autre, selon les réglages de fontconfig.
+Les autres tests de bout en bout ne démarrent pas ce conteneur et se passent de Docker ; la `ci` télécharge l'image dans une étape à part.
 La tolérance est faible : au plus 0,1 % de pixels différents.
+Les références sont celles de Linux (suffixe `-linux`) : elles se produisent et se comparent sur une machine Linux, ou sous WSL 2.
 Une référence se met à jour sur une base neuve, par `pnpm --filter @oikos/web exec playwright test visual --update-snapshots` (de même pour `@oikos/admin`), et la nouvelle image se relit dans la demande de fusion.
 Hors `ci`, le contrôle du jeu est sauté sur une base où sa maison a plus d'une heure.
 En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual`.
