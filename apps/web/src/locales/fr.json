@@ -1253,7 +1253,8 @@
       "hate": "Haine ou discrimination",
       "cheating": "Triche ou arnaque",
       "other": "Autre manquement à la charte"
-    }
+    },
+    "description": "La modération examinera ce message au regard de la charte de conduite."
   },
   "steward": {
     "title": "Intendant",

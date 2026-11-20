@@ -21,6 +21,7 @@ export {
   Compass,
   Crown,
   Eye,
+  Flag,
   Gavel,
   Hammer,
   Hourglass,

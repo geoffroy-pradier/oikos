@@ -1253,7 +1253,8 @@
       "hate": "Hate or discrimination",
       "cheating": "Cheating or scam",
       "other": "Other breach of the code of conduct"
-    }
+    },
+    "description": "Moderation will review this message against the code of conduct."
   },
   "steward": {
     "title": "Steward",
