@@ -300,7 +300,10 @@
       "ok": "Succeeded",
       "rejected": "Refused",
       "failed": "Failed"
-    }
+    },
+    "filtered_one": "{{shown}} of {{count}} entry read: the filter only covers entries already loaded.",
+    "filtered_other": "{{shown}} of {{count}} entries read: the filter only covers entries already loaded.",
+    "filteredEmpty": "No loaded entry has this outcome."
   },
   "moderation": {
     "title": "Moderation",
@@ -497,7 +500,10 @@
       "caravan": "NPC demand +{{value}}"
     },
     "filter": "Filter by state",
-    "all": "All"
+    "all": "All",
+    "filtered_one": "{{shown}} of {{count}} event.",
+    "filtered_other": "{{shown}} of {{count}} events.",
+    "filteredEmpty": "No event in this state."
   },
   "config": {
     "title": "Parameters",

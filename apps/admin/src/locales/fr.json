@@ -300,7 +300,10 @@
       "ok": "Réussies",
       "rejected": "Refusées",
       "failed": "En panne"
-    }
+    },
+    "filtered_one": "{{shown}} sur {{count}} entrée lue : le filtre ne porte que sur les entrées déjà chargées.",
+    "filtered_other": "{{shown}} sur {{count}} entrées lues : le filtre ne porte que sur les entrées déjà chargées.",
+    "filteredEmpty": "Aucune entrée chargée n'a cette issue."
   },
   "moderation": {
     "title": "Modération",
@@ -497,7 +500,10 @@
       "caravan": "demande des PNJ +{{value}}"
     },
     "filter": "Filtrer par état",
-    "all": "Tous"
+    "all": "Tous",
+    "filtered_one": "{{shown}} sur {{count}} événement.",
+    "filtered_other": "{{shown}} sur {{count}} événements.",
+    "filteredEmpty": "Aucun événement dans cet état."
   },
   "config": {
     "title": "Paramètres",

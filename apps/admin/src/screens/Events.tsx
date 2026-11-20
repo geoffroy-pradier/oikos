@@ -1,5 +1,5 @@
 import type { AdminEventsData, AdminWorldEvent } from '@oikos/contracts';
-import { PageHeader, SegmentedControl } from '@oikos/ui';
+import { EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -47,6 +47,10 @@ export function Events({ accessToken }: { accessToken: string }) {
     void load();
   }, [load]);
 
+  const visible =
+    data?.events.filter(
+      (event) => shown === 'all' || eventStatus(event, new Date(data.now)) === shown,
+    ) ?? [];
   // Identifiants de la configuration, comme dans les Paramètres.
   const scope = (event: WorldEventRow) =>
     event.otherCity !== null
@@ -73,6 +77,10 @@ export function Events({ accessToken }: { accessToken: string }) {
               label: value === 'all' ? t('events.all') : t(`events.statuses.${value}`),
             }))}
           />
+          <p aria-live="polite" className="-mt-3 text-sm text-muted-foreground">
+            {shown !== 'all' &&
+              t('events.filtered', { count: data.events.length, shown: visible.length })}
+          </p>
           <p id="events-caption" className="text-sm text-muted-foreground">
             {t('events.caption', { now: time.format(new Date(data.now)), days: data.pastDays })}
           </p>
@@ -81,7 +89,9 @@ export function Events({ accessToken }: { accessToken: string }) {
               {t('events.truncated', { shown: count.format(data.events.length) })}
             </p>
           )}
+          {visible.length === 0 && <EmptyState title={t('events.filteredEmpty')} />}
           <div
+            hidden={visible.length === 0}
             className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm"
             role="region"
             aria-labelledby="events-caption"
@@ -104,27 +114,23 @@ export function Events({ accessToken }: { accessToken: string }) {
                 </tr>
               </thead>
               <tbody>
-                {data.events
-                  .filter(
-                    (event) => shown === 'all' || eventStatus(event, new Date(data.now)) === shown,
-                  )
-                  .map((event) => (
-                    <tr key={event.id}>
-                      <td>{t(`events.statuses.${eventStatus(event, new Date(data.now))}`)}</td>
-                      <td>{t(`events.models.${event.model}`)}</td>
-                      <td>{scope(event)}</td>
-                      <td>{time.format(new Date(event.startsAt))}</td>
-                      <td>{time.format(new Date(event.endsAt))}</td>
-                      <td>
-                        {t(`events.effects.${event.model}`, {
-                          value: percent.format(event.magnitudeBps / 10_000),
-                        })}
-                      </td>
-                      <td>
-                        <code>{event.world}</code>
-                      </td>
-                    </tr>
-                  ))}
+                {visible.map((event) => (
+                  <tr key={event.id}>
+                    <td>{t(`events.statuses.${eventStatus(event, new Date(data.now))}`)}</td>
+                    <td>{t(`events.models.${event.model}`)}</td>
+                    <td>{scope(event)}</td>
+                    <td>{time.format(new Date(event.startsAt))}</td>
+                    <td>{time.format(new Date(event.endsAt))}</td>
+                    <td>
+                      {t(`events.effects.${event.model}`, {
+                        value: percent.format(event.magnitudeBps / 10_000),
+                      })}
+                    </td>
+                    <td>
+                      <code>{event.world}</code>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

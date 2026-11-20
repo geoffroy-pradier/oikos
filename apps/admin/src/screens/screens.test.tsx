@@ -463,8 +463,16 @@ describe("journal d'audit", () => {
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('radio', { name: 'Refusées' }));
     expect(commands()).toEqual(['admin.command2']);
+    expect(
+      screen.getByText(
+        '1 sur 3 entrées lues : le filtre ne porte que sur les entrées déjà chargées.',
+      ),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'En panne' }));
-    expect(commands()).toEqual([]);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: "Aucune entrée chargée n'a cette issue." }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Toutes' }));
     expect(commands()).toHaveLength(3);
   });
