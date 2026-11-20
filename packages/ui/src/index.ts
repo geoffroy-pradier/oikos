@@ -31,3 +31,5 @@ export {
 export { Progress, type ProgressProps } from './components/Progress';
 export { StatCard, type StatCardProps } from './components/StatCard';
 export { StatusRegion, type StatusRegionProps } from './components/StatusRegion';
+export { Dialog, type DialogProps } from './components/Dialog';
+export { Sheet, type SheetProps } from './components/Sheet';

@@ -51,6 +51,8 @@
   --sea: #dcebf5;
   --land: #f3efe7;
   --coast: #b9c2cb;
+  /* Voile derrière une feuille ou une boîte de dialogue. */
+  --scrim: rgb(16 24 40 / 0.45);
   --elevation-1: 0 1px 2px rgb(16 24 40 / 0.05);
   --elevation-2: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px -2px rgb(16 24 40 / 0.06);
   --elevation-3: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 32px -8px rgb(16 24 40 / 0.12);
@@ -92,6 +94,7 @@
   --sea: #0b1520;
   --land: #1e262d;
   --coast: #3a4651;
+  --scrim: rgb(0 0 0 / 0.65);
   /* Aucune ombre en sombre : les plans se séparent par leurs bordures. */
   --elevation-1: 0 0 #0000;
   --elevation-2: 0 0 #0000;
@@ -129,6 +132,7 @@
   --color-land: var(--land);
   --color-coast: var(--coast);
   --color-focus: var(--focus);
+  --color-scrim: var(--scrim);
   --shadow-sm: var(--elevation-1);
   --shadow-md: var(--elevation-2);
   --shadow-lg: var(--elevation-3);
@@ -142,6 +146,25 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-rise: rise var(--motion-slow) var(--ease-out) both;
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  /* Feuilles : montée du bas sur téléphone, glissement depuis la droite sur ordinateur. */
+  --animate-fade: fade var(--motion-base) ease-out both;
+  --animate-sheet-up: sheet-up var(--motion-slow) var(--ease-out) both;
+  --animate-sheet-left: sheet-left var(--motion-slow) var(--ease-out) both;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-left {
+  from {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes rise {
