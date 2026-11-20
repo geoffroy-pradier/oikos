@@ -6,6 +6,16 @@ import { useMoney } from '../money';
 import type { SiteRecipe } from '../site-rules';
 import { useStepperLabels } from '../stepper-labels';
 
+/** Fiche à cocher d'une feuille : tout entière cliquable, cochée en accent, foyer visible. */
+export const CHOICE_CARD = cn(
+  'relative flex cursor-pointer items-center gap-3 rounded-xl border border-border-subtle p-3',
+  'transition-colors duration-(--motion-fast) hover:bg-muted',
+  'has-[:checked]:border-primary has-[:checked]:bg-primary-subtle',
+  'has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)',
+);
+/** Le bouton radio de la fiche : invisible mais sur toute la fiche, un clic n'importe où la coche. */
+export const CHOICE_INPUT = 'absolute inset-0 z-10 size-full cursor-pointer opacity-0';
+
 export interface SiteOffer {
   recipe: SiteRecipe;
   costOboles: number;
@@ -97,23 +107,14 @@ export function SiteAcquire(props: {
                   <fieldset className="flex flex-col gap-2">
                     <legend className="sr-only">{t('home.acquireRecipe')}</legend>
                     {props.offers.map(({ recipe, costOboles }) => (
-                      <label
-                        key={recipe.id}
-                        className={cn(
-                          'relative flex cursor-pointer items-center gap-3 rounded-xl border border-border-subtle p-3',
-                          'transition-colors duration-(--motion-fast) hover:bg-muted',
-                          'has-[:checked]:border-primary has-[:checked]:bg-primary-subtle',
-                          'has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)',
-                        )}
-                      >
+                      <label key={recipe.id} className={CHOICE_CARD}>
                         <input
                           type="radio"
                           name="acquire"
                           value={recipe.id}
                           checked={offer.recipe.id === recipe.id}
                           onChange={() => setWanted(recipe.id)}
-                          // Invisible mais sur toute la fiche : un clic n'importe où la coche.
-                          className="absolute inset-0 z-10 size-full cursor-pointer opacity-0"
+                          className={CHOICE_INPUT}
                         />
                         <span
                           aria-hidden="true"

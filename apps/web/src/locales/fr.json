@@ -1271,6 +1271,15 @@
       "description_one": "Votre maison exploite {{number}} site sur {{limit}}. Le prix est celui affiché.",
       "description_other": "Votre maison exploite {{number}} sites sur {{limit}}. Le prix est celui affiché.",
       "inputs": "Intrants par cycle"
+    },
+    "production": {
+      "open": "Changer la production…",
+      "title": "Production : {{site}}",
+      "description": "Seules les productions que la cité du site admet sont proposées.",
+      "outputs": "Extrants par cycle",
+      "fromTo": "{{before}} → {{after}}",
+      "note": "Un nouveau cycle commence. Récoltez d'abord ce qui est prêt : sinon, le changement est refusé.",
+      "confirm": "Changer la production"
     }
   },
   "steps": {
