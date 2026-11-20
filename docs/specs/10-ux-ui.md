@@ -310,6 +310,14 @@ Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interfac
   sur les chandeliers de l'agora, hausse et baisse se distinguent par la forme (corps vide ou plein).
   Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ;
   si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
+- Actions impossibles (#864) : l'écran ne décide jamais à la place de l'API.
+  Il ne rend un bouton inactif que si ce qu'il a lu rend l'action certainement impossible ; sans cette lecture (en cours, en échec), le bouton reste actif et l'API juge.
+  Le bouton inactif porte `aria-disabled` : il garde le foyer, ignore l'activation et prend un style à part (bordure tiretée, texte atténué sur `muted`), distinct d'un bouton secondaire actif dans les deux thèmes.
+  Sa raison est écrite à côté et reliée par `aria-describedby` ; les refus de l'API s'affichent comme avant.
+  Actions concernées : « Récolter » sur Maison et sur Sites, quand le calcul affiché ne prévoit rien (« Rien de prêt », « Rien à récolter pour l'instant ») ; « Acheter » un navire au chantier naval et « Acheter » un bien à la cité ou à une maison sur Immobilier, quand la trésorerie lue est sous le prix affiché (ce qui manque est dit).
+  Une location n'est pas concernée : rien n'est payé à sa signature.
+  La trésorerie de ces écrans se relit après chaque commande et chaque minute.
+- Un même geste garde la même hiérarchie sur tous les écrans : « Récolter » et « Tout récolter » sont des actions principales sur Maison comme sur Sites ; « Acheter » une offre (navire ou bien) est secondaire, sur la Carte comme sur Immobilier.
 - Accueil : 15 minutes guidées qui mènent à une première vente, puis objectifs quotidiens du mentor pendant 7 jours.
 
 ## Contrôle visuel

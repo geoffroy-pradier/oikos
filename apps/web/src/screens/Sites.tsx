@@ -926,6 +926,8 @@ export function SitesCard({
               : null;
           // Sans recette, ni récolte ni relance : seul le changement de production est proposé.
           const retired = alerts.includes('retired');
+          // Le calcul affiché ne prévoit rien : « Récolter » est inactif, sa raison dite sous l'en-tête (#864).
+          const nothing = harvest !== null && estimate !== null && harvest.cycles === 0;
           // `null` tant que les règles ne sont pas lues : aucun prix n'est annoncé à leur place.
           const upkeep = rules ? rules.upkeepOf(site.recipe_id) : null;
           // Prix d'une relance : l'entretien, les salaires et l'hébergement du site (5.5, #258), au salaire du
@@ -966,7 +968,9 @@ export function SitesCard({
                 </div>
                 {!retired && (
                   <Button
-                    className={WAITING}
+                    inactive={nothing}
+                    aria-describedby={nothing ? `harvest-${site.id}` : undefined}
+                    className={nothing ? undefined : WAITING}
                     aria-disabled={busy}
                     aria-label={t('home.collectSite', { site: name })}
                     onClick={() => void collect(site)}
@@ -1007,7 +1011,7 @@ export function SitesCard({
                 </p>
               ))}
               {harvest && estimate && (
-                <p className="rounded-md bg-muted/60 px-3 py-2 text-sm">
+                <p id={`harvest-${site.id}`} className="rounded-md bg-muted/60 px-3 py-2 text-sm">
                   {harvest.cycles > 0
                     ? t('home.harvestable', { list: list(estimate.outputs.map(stackText)) })
                     : t('home.harvestNone')}

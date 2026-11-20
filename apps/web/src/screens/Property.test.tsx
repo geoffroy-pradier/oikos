@@ -129,6 +129,26 @@ describe('écran Immobilier (#259)', () => {
     expect(document.activeElement?.getAttribute('role')).toBe('status');
   });
 
+  it('achat au-delà de la trésorerie : inactif, ce qui manque dit et relié ; la location reste proposée (#864)', async () => {
+    const price = townhouse?.purchasePriceOboles ?? 0;
+    state.views['my_treasury'] = [{ balance: price - 6 }];
+    await showProperty();
+    const buy = screen.getAllByRole('button', { name: /^Acheter à la cité/ })[0] as HTMLElement;
+    expect(buy.getAttribute('aria-disabled')).toBe('true');
+    const why = document.getElementById(buy.getAttribute('aria-describedby') ?? '');
+    expect(why?.textContent).toBe('Il manque 1 drachme à votre trésorerie.');
+    fireEvent.click(buy);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const rent = screen.getAllByRole('button', { name: /^Louer/ })[0] as HTMLElement;
+    expect(rent.hasAttribute('aria-disabled')).toBe(false);
+    // La trésorerie au prix : l'achat redevient possible.
+    cleanup();
+    state.views['my_treasury'] = [{ balance: price }];
+    await showProperty();
+    open(/^Acheter à la cité/);
+    expect(screen.getByRole('dialog', { name: /^Acheter à la cité/ })).toBeTruthy();
+  });
+
   it('sans réponse : le nouvel essai rejoue la même clé ; un refus est dit, la clé suivante est neuve', async () => {
     api.propertyCommand
       .mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: 'lost' } })

@@ -59,6 +59,7 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await elapse(houseName, 480);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
 

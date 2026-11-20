@@ -101,3 +101,28 @@ describe('une commande qui lève ne bloque pas la carte des sites', () => {
     expect(alerts()).not.toContain(fr.errors.INTERNAL);
   });
 });
+
+describe('état local périmé : l’API reste l’arbitre de la récolte d’un site (#864)', () => {
+  it.each([
+    ['NOTHING_TO_COLLECT', fr.errors.NOTHING_TO_COLLECT],
+    ['MISSING_INPUTS', fr.errors.MISSING_INPUTS],
+  ])(
+    'refus %s : traduit sous le site, le foyer reste sur « Récolter », toujours actif',
+    async (code, text) => {
+      api.collectSite.mockResolvedValueOnce({ ok: false, error: { code, message: code } });
+      await show();
+      // L'écran croit le champ prêt : le bouton est actif et la commande part.
+      const button = await screen.findByRole('button', {
+        name: fr.home.collectSite.replace('{{site}}', fr.recipes.grow_wheat),
+      });
+      expect(button.getAttribute('aria-disabled')).toBe('false');
+      button.focus();
+      fireEvent.click(button);
+      const row = screen.getByRole('heading', { name: fr.recipes.grow_wheat }).closest('li');
+      await waitFor(() => expect(row?.querySelector('[role="alert"]')?.textContent).toBe(text));
+      expect(api.collectSite).toHaveBeenCalledWith('s1', 't');
+      expect(document.activeElement).toBe(button);
+      expect(button.getAttribute('aria-disabled')).toBe('false');
+    },
+  );
+});

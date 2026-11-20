@@ -2,6 +2,7 @@ import { Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { propertyCommand } from '../api';
+import { useCash } from '../cash';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { HouseNav } from '../HouseNav';
@@ -86,7 +87,9 @@ export function PropertyScreen() {
   const loading = reads.some((read) => read.rows === null && !read.failed);
   const failed =
     reads.some((read) => read.failed) || (!loading && [sizes, offers, mine, leases].includes(null));
-  const reload = () => Promise.all([...reads, marketRows, rateRows].map((read) => read.reload()));
+  const cash = useCash();
+  const reload = () =>
+    Promise.all([...reads, marketRows, rateRows, cash].map((read) => read.reload()));
   const worldTax = marketRows.rows && parseMarketTax(marketRows.rows[0] ?? null);
   const taxIn = (cityId: string) =>
     cityMarketTax(
@@ -226,6 +229,7 @@ export function PropertyScreen() {
                 mineIds={mineIds}
                 sizes={sizes}
                 describe={describe}
+                balance={cash.balance}
                 busy={busy}
                 run={run}
               />

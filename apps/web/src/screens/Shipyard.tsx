@@ -1,19 +1,24 @@
 import { Button, Card, CircleAlert, Hammer, Info, Sheet } from '@oikos/ui';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireShip } from '../api';
 import type { ShipRow } from '../fleet';
 import { useHouse } from '../house';
-import { useMoney } from '../money';
+import { shortfall, useMoney } from '../money';
 import { countedIntent, countedIntentBelow, pendingKeys, sendUnderKey } from '../pending-keys';
 import type { ShipClassRule, ShipRules } from '../ship-rules';
 
 type Notice = { kind: 'status' | 'alert'; text: string; unanswered?: true } | null;
 
-/** Chantier naval de l'onglet Carte : chaque classe de navire à son prix, et son achat (4.6). */
+/**
+ * Chantier naval de l'onglet Carte : chaque classe de navire à son prix, et son achat (4.6). « Acheter » est
+ * secondaire, comme sur Immobilier, et inactif sous le prix, ce qui manque à la trésorerie dit à côté (#864).
+ */
 export function Shipyard(props: {
   ships: ShipRow[] | null;
   rules: ShipRules | null;
+  /** Trésorerie de la maison ; `null` tant qu'elle n'est pas connue : l'API juge seule. */
+  balance: number | null;
   reloadShips: () => Promise<ShipRow[] | null>;
   reloadFleet: () => Promise<unknown>;
 }) {
@@ -22,6 +27,9 @@ export function Shipyard(props: {
   const house = useHouse();
   const money = useMoney();
   const number = new Intl.NumberFormat(i18n.language);
+  const ids = useId();
+  const missing = (shipClass: ShipClassRule) =>
+    shortfall(props.balance, shipClass.purchaseCostOboles);
   // Achat d'un navire, comme l'acquisition d'un site (4.2) : la clé d'un achat resté sans réponse est
   // gardée tant qu'aucune relecture ne montre un navire de plus ; s'il en paraît un, le joueur est prévenu
   // à chaque ouverture de l'écran, tant qu'il n'a pas dit avoir vérifié sa flotte. Portée des clés
@@ -125,13 +133,22 @@ export function Shipyard(props: {
                 upkeep: money(shipClass.dailyUpkeepOboles),
               })}
             </span>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={busy || ships === null}
-              onClick={() => setBuying(shipClass)}
-            >
-              {t('map.buy', { cost: money(shipClass.purchaseCostOboles) })}
-            </Button>
+            <span className="flex w-full flex-col gap-1 sm:w-auto sm:items-end">
+              <Button
+                variant="secondary"
+                inactive={missing(shipClass) !== null}
+                aria-describedby={missing(shipClass) === null ? undefined : `${ids}${shipClass.id}`}
+                disabled={busy || ships === null}
+                onClick={() => setBuying(shipClass)}
+              >
+                {t('map.buy', { cost: money(shipClass.purchaseCostOboles) })}
+              </Button>
+              {missing(shipClass) !== null && (
+                <span id={`${ids}${shipClass.id}`} className="text-sm text-muted-foreground">
+                  {t('controls.shortfall', { missing: money(missing(shipClass) ?? 0) })}
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>

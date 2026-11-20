@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { parseCityIdentities } from '../city-identity';
+import { useCash } from '../cash';
 import { useRows, useSiteRules } from '../data';
 import { useHouse } from '../house';
 import { archipelagoLayout, voyageProgress, type Point } from '../map-layout';
@@ -80,6 +81,7 @@ export function MapScreen() {
   );
   const identities = identityRows.rows ? parseCityIdentities(identityRows.rows) : null;
   const siteRules = useSiteRules().rules;
+  const cash = useCash();
   // Biens du terroir d'une cité : le premier extrant de chaque recette admise.
   const goodsOf = (cityId: string) =>
     (identities?.get(cityId)?.terroir ?? []).flatMap((recipeId) => {
@@ -222,8 +224,9 @@ export function MapScreen() {
       <Shipyard
         ships={ships}
         rules={rules}
+        balance={cash.balance}
         reloadShips={fleet.ships.reload}
-        reloadFleet={fleet.reload}
+        reloadFleet={() => Promise.all([fleet.reload(), cash.reload()])}
       />
     </div>
   );

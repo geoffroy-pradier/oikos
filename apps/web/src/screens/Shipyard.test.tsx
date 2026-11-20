@@ -31,7 +31,7 @@ const bought = { ok: true, replayed: true, data: { costOboles: 2400 } };
 let fleet: ShipRow[] = [];
 let houseNumber = 0;
 
-async function mount(ships: ShipRow[]) {
+async function mount(ships: ShipRow[], balance: number | null = null) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
     resources: { fr: { translation: fr } },
@@ -39,7 +39,7 @@ async function mount(ships: ShipRow[]) {
     interpolation: { escapeValue: false },
   });
   const house = { name: 'Test', cityId: 'k', accessToken: 't', cityName: 'Kallistè' };
-  const tree = (rows: ShipRow[]) => (
+  const tree = (rows: ShipRow[], cash = balance) => (
     <I18nextProvider i18n={instance}>
       <HouseProvider
         value={{ ...house, id: `h${houseNumber}`, cityNames: {}, citizenshipStatus: 'metic' }}
@@ -47,6 +47,7 @@ async function mount(ships: ShipRow[]) {
         <Shipyard
           ships={rows}
           rules={RULES}
+          balance={cash}
           reloadShips={() => Promise.resolve(fleet)}
           reloadFleet={() => Promise.resolve()}
         />
@@ -69,6 +70,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('achat d’un navire, comme l’acquisition d’un site', () => {
+  it('au-delà de la trésorerie : « Acheter » inactif, ce qui manque dit et relié ; actif dès qu’elle suffit', async () => {
+    const view = await mount([], 2_918);
+    const big = screen.getByRole('button', { name: /^Acheter — 1.000 drachmes$/ });
+    expect(big.getAttribute('aria-disabled')).toBe('true');
+    expect(big.getAttribute('aria-describedby')).toBeTruthy();
+    const why = document.getElementById(big.getAttribute('aria-describedby') ?? '');
+    expect(why?.textContent).toBe('Il manque 513 drachmes 4 oboles à votre trésorerie.');
+    fireEvent.click(big);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // Le caboteur, payable, reste actif.
+    const small = screen.getByRole('button', { name: /Acheter — 400 drachmes/ });
+    expect(small.hasAttribute('aria-disabled')).toBe(false);
+    view.rerender(view.tree([], 6_000));
+    expect(big.hasAttribute('aria-disabled')).toBe(false);
+    expect(big.hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.click(big);
+    expect(screen.getByRole('dialog', { name: 'Acheter : Navire rond' })).toBeTruthy();
+  });
+
   it('la feuille d’achat dit prix, cale et entretien ; la refermer n’achète rien', async () => {
     await mount([]);
     fireEvent.click(screen.getByRole('button', { name: /Acheter — 400 drachmes/ }));
