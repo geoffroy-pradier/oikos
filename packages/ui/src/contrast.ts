@@ -46,6 +46,7 @@ export const COLOR_TOKENS = {
     'aegean-subtle',
   ],
   map: ['sea', 'land', 'coast', 'shoal', 'route'],
+  inverse: ['inverse', 'inverse-foreground', 'inverse-muted'],
 } as const;
 
 /** Couples (premier plan, fond) utilisés par les composants ; chacun doit tenir son seuil dans les deux thèmes. */
@@ -131,4 +132,10 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Interrupteur allumé sur une fiche relevée (éteint : sa bordure, et sa pastille sur la piste, sont
   // déjà tenues ; bord accent ou danger des champs aussi, au seuil du texte).
   ['primary', 'surface-raised', AA_UI],
+  // Plan inversé (trésorerie du tableau de bord sur téléphone) : deux niveaux de texte, la courbe en accent.
+  ['inverse-foreground', 'inverse', AA_TEXT],
+  ['inverse-muted', 'inverse', AA_TEXT],
+  ['accent-decorative', 'inverse', AA_UI],
+  // Foyer d'un lien de la carte inversée (« Aller à l'agora »).
+  ['focus', 'inverse', AA_UI],
 ];

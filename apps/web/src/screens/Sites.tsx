@@ -67,6 +67,14 @@ interface Site {
   /** Instant de l'arrêt d'un site dont l'entretien n'a pas été payé ; `null` s'il tourne (5.5). */
   halted_at: string | null;
 }
+/** Sites de la maison pour les chiffres clés du tableau de bord. */
+export interface SitesSummary {
+  running: number;
+  total: number;
+  workers: number;
+  /** Intendants en poste. */
+  posted: number;
+}
 /**
  * Résultat d'une action, affiché là où elle a été lancée : sous son site, ou sous le formulaire.
  * `unanswered` : l'avertissement d'une acquisition abandonnée, que le joueur dit avoir vérifiée.
@@ -91,6 +99,7 @@ export function SitesCard({
   titleRef,
   figures,
   variant = 'full',
+  onSummary,
 }: {
   /** Stock de la maison (`null` tant qu'il n'est pas lu) : intrants disponibles des ateliers. */
   stock: StockLine[] | null;
@@ -101,6 +110,8 @@ export function SitesCard({
   figures?: ReactNode;
   /** `production` : la production en cours du tableau de bord, avec les mêmes commandes de récolte. */
   variant?: 'full' | 'production';
+  /** Sites en activité, travailleurs et intendants, pour les chiffres clés ; `null` tant qu'ils ne sont pas lus. */
+  onSummary?: (summary: SitesSummary | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
@@ -359,6 +370,16 @@ export function SitesCard({
   }, [reloadSites, reloadRules, reloadIdentities, reloadLaborDays, reloadWorkforce, reloadEvents]);
   const typeName = (id: string) => t(`siteTypes.${id}`, { defaultValue: id });
   const rows = sites.rows ?? [];
+  // En activité : ni à l'arrêt, ni sans production (4.2, 5.5).
+  const active =
+    rules && sites.rows
+      ? sites.rows.filter((site) => !site.halted_at && rules.recipe(site.recipe_id)).length
+      : null;
+  const workers = [...staffOf.values()].reduce((sum, staff) => sum + staff.workers, 0);
+  const posted = stewards?.size ?? 0;
+  useEffect(() => {
+    onSummary?.(active === null ? null : { running: active, total: rows.length, workers, posted });
+  }, [onSummary, active, rows.length, workers, posted]);
   /** Nom d'un site : sa production, numérotée quand plusieurs sites ont la même. */
   const siteName = (site: Site) => {
     const alike = rows.filter((other) => other.recipe_id === site.recipe_id);
