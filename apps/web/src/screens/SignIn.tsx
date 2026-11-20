@@ -1,4 +1,4 @@
-import { Button, Card, TextField, WelcomeScene } from '@oikos/ui';
+import { Button, Card, Send, TextField, WelcomeScene } from '@oikos/ui';
 import { useId, useLayoutEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
@@ -55,7 +55,12 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          <Button type="submit" size="lg" loading={state === 'sending'}>
+          <Button
+            icon={<Send aria-hidden="true" />}
+            type="submit"
+            size="lg"
+            loading={state === 'sending'}
+          >
             {t('signIn.submit')}
           </Button>
           {state === 'sent' && <p role="status">{t('signIn.sent', { email })}</p>}

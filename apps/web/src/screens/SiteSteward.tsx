@@ -1,4 +1,18 @@
-import { Button, EmptyState, Sheet, Users } from '@oikos/ui';
+import {
+  ArrowUp,
+  Button,
+  Check,
+  EmptyState,
+  ListChecks,
+  Plus,
+  Save,
+  ScrollText,
+  Sheet,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
+} from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { stewardCommand, type StewardCommandInputs } from '../api';
@@ -196,6 +210,7 @@ export function SiteSteward(props: {
               </p>
             ) : (
               <Button
+                icon={<UserPlus aria-hidden="true" />}
                 className="self-start aria-disabled:opacity-60"
                 aria-disabled={busy}
                 aria-label={t('steward.hireFor', { site: props.siteName })}
@@ -282,6 +297,7 @@ export function SiteSteward(props: {
             )}
           <div className="flex flex-wrap gap-2">
             <Button
+              icon={<ScrollText aria-hidden="true" />}
               variant="secondary"
               aria-haspopup="dialog"
               aria-label={t('steward.instruction.openFor', { name: steward.name })}
@@ -290,6 +306,7 @@ export function SiteSteward(props: {
               {t('steward.instruction.open')}
             </Button>
             <Button
+              icon={<ListChecks aria-hidden="true" />}
               variant="secondary"
               aria-haspopup="dialog"
               aria-label={t('steward.rulesOpenFor', { name: steward.name })}
@@ -389,6 +406,7 @@ export function SiteSteward(props: {
                     <div className="flex flex-wrap gap-2">
                       {index > 0 && (
                         <Button
+                          icon={<ArrowUp aria-hidden="true" />}
                           type="button"
                           variant="secondary"
                           aria-label={t('steward.moveUp', { n })}
@@ -398,6 +416,7 @@ export function SiteSteward(props: {
                         </Button>
                       )}
                       <Button
+                        icon={<Trash2 aria-hidden="true" />}
                         type="button"
                         variant="secondary"
                         aria-label={t('steward.remove', { n })}
@@ -414,6 +433,7 @@ export function SiteSteward(props: {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
+                  icon={<Plus aria-hidden="true" />}
                   type="button"
                   variant="secondary"
                   disabled={rows.length >= rules.rulesPerSteward}
@@ -422,6 +442,7 @@ export function SiteSteward(props: {
                   {t('steward.add', { max: rules.rulesPerSteward })}
                 </Button>
                 <Button
+                  icon={<Save aria-hidden="true" />}
                   type="submit"
                   className="aria-disabled:opacity-60"
                   aria-disabled={busy || 'invalid' in checked}
@@ -432,6 +453,7 @@ export function SiteSteward(props: {
             </form>
           </Sheet>
           <Button
+            icon={<UserMinus aria-hidden="true" />}
             variant="secondary"
             className="self-start aria-disabled:opacity-60"
             aria-disabled={busy}
@@ -454,6 +476,7 @@ export function SiteSteward(props: {
         closeLabel={t('shell.close')}
         footer={
           <Button
+            icon={<Check aria-hidden="true" />}
             onClick={() => {
               setSheet(null);
               void run('steward.hire', hireIntent(siteId), { siteId }, (data) =>

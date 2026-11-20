@@ -129,7 +129,10 @@ describe('carte de l’archipel', () => {
         `Acheter — ${formatMoney(shipClass.purchaseCostOboles, instance.t, 'fr')}</button>`,
       );
     const before = await render(null);
-    expect(before).toMatch(/<button[^>]*disabled=""[^>]*>Acheter — /);
+    // Le libellé suit l'icône décorative du bouton (#869).
+    expect(before).toMatch(
+      /<button[^>]*disabled=""[^>]*>(<svg[^>]*aria-hidden="true".*?<\/svg>)?Acheter — /,
+    );
   });
 
   it('« Faire partir un navire » à droite de l’en-tête, dès qu’un navire armé est à quai', async () => {

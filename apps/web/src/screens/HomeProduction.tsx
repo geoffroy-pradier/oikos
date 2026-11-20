@@ -1,4 +1,4 @@
-import { Button, Card, ChevronRight, cn, EmptyState, GoodIcon } from '@oikos/ui';
+import { Button, Card, ChevronRight, cn, EmptyState, GoodIcon, Wheat } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useId, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +58,7 @@ export function ProductionList(props: {
         </h2>
         {harvestable > 0 && (
           <Button
+            icon={<Wheat aria-hidden="true" />}
             className={WAITING}
             aria-disabled={props.busy}
             aria-label={t('home.collectAllLabel', {
@@ -188,6 +189,7 @@ export function ProductionList(props: {
                   <div className="flex flex-wrap items-center justify-end gap-1 lg:w-52">
                     {!item.retired && (
                       <Button
+                        icon={<Wheat aria-hidden="true" />}
                         size="sm"
                         inactive={item.ready === null}
                         aria-describedby={item.ready === null ? `${ids}-${item.id}` : undefined}

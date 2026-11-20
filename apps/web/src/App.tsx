@@ -2,7 +2,17 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { blazonSchema } from '@oikos/contracts';
-import { Button, Card, cn, EmptyState, House, Skeleton, TriangleAlert } from '@oikos/ui';
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  House,
+  LogOut,
+  RefreshCw,
+  Skeleton,
+  TriangleAlert,
+} from '@oikos/ui';
 import { RouterProvider } from '@tanstack/react-router';
 import { HouseProvider } from './house';
 import { LanguageSelect } from './LanguageSelect';
@@ -136,7 +146,11 @@ export function App() {
       <EmptyState
         icon={<TriangleAlert />}
         title={<span role="alert">{t('app.loadFailed')}</span>}
-        action={<Button onClick={() => void load()}>{t('app.retry')}</Button>}
+        action={
+          <Button icon={<RefreshCw aria-hidden="true" />} onClick={() => void load()}>
+            {t('app.retry')}
+          </Button>
+        }
       />
     );
   } else if (session && house === null) {
@@ -160,7 +174,11 @@ export function App() {
         <div className="flex items-center gap-2">
           <LanguageSelect />
           {session && (
-            <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+            <Button
+              icon={<LogOut aria-hidden="true" />}
+              variant="ghost"
+              onClick={() => void supabase.auth.signOut()}
+            >
               {t('app.signOut')}
             </Button>
           )}

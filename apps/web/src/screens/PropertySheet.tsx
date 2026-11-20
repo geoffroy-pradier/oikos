@@ -1,5 +1,6 @@
 import {
   Button,
+  Check,
   CircleAlert,
   DataTable,
   Sheet,
@@ -88,6 +89,7 @@ export function PropertySheet(props: {
           <>
             <SheetAlert refusal={props.refusal ?? null} />
             <Button
+              icon={<Check aria-hidden="true" />}
               loading={busy}
               aria-describedby={warning ? warningId : undefined}
               onClick={onConfirm}

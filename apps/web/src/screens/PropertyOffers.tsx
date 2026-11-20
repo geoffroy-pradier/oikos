@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Badge, Button, CircleAlert, type DataColumn } from '@oikos/ui';
+import { Badge, Button, CircleAlert, KeyRound, ShoppingCart, type DataColumn } from '@oikos/ui';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
@@ -94,6 +94,13 @@ export function PropertyOffers(props: {
         ) : (
           <span className="flex flex-col items-start gap-1">
             <Button
+              icon={
+                offer.kind === 'lease' ? (
+                  <KeyRound aria-hidden="true" />
+                ) : (
+                  <ShoppingCart aria-hidden="true" />
+                )
+              }
               size="sm"
               variant="secondary"
               inactive={missing(offer) !== null}

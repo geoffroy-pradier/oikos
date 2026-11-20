@@ -11,6 +11,7 @@ import {
   Button,
   Check,
   CityVignette,
+  FilterX,
   GodEmblem,
   Select,
   Stepper,
@@ -354,6 +355,7 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
                 </p>
                 {shown.length === 0 && (
                   <Button
+                    icon={<FilterX aria-hidden="true" />}
                     variant="secondary"
                     className="self-start"
                     onClick={() => {

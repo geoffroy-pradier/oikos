@@ -1,5 +1,5 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Anchor, Button, Card, EmptyState, PillTabs, Ship, Waves } from '@oikos/ui';
+import { Anchor, Button, Card, EmptyState, Hammer, PillTabs, Ship, Waves } from '@oikos/ui';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -215,6 +215,7 @@ export function MapScreen() {
             title={t('map.noShips')}
             action={
               <Button
+                icon={<Hammer aria-hidden="true" />}
                 variant="secondary"
                 onClick={() => document.getElementById('shipyard')?.focus()}
               >

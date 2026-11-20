@@ -1,5 +1,5 @@
 import { appealBodySchema } from '@oikos/contracts';
-import { Button, LoaderCircle, Scale, Sheet, StatusRegion } from '@oikos/ui';
+import { Button, LoaderCircle, Scale, Send, Sheet, StatusRegion, X } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appealSanction } from '../api';
@@ -109,7 +109,13 @@ export function SanctionAppeal({
         closeDisabled={busy}
         footer={
           <>
-            <Button type="button" variant="secondary" disabled={busy} onClick={close}>
+            <Button
+              icon={<X aria-hidden="true" />}
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={close}
+            >
               {t('sanctions.cancel')}
             </Button>
             {/* Inactif par `aria-disabled` pendant l'envoi : refusé, l'appel garde le foyer. */}
@@ -118,7 +124,13 @@ export function SanctionAppeal({
               form={id}
               aria-disabled={busy}
               aria-busy={busy || undefined}
-              icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+              icon={
+                busy ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Send aria-hidden="true" />
+                )
+              }
               className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
             >
               {t('sanctions.send')}

@@ -1,5 +1,5 @@
 import { houseNameSchema } from '@oikos/contracts';
-import { Button, LoaderCircle, Plus, Sheet, TextField } from '@oikos/ui';
+import { Button, LoaderCircle, MessagesSquare, Plus, Sheet, TextField } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { openDirect } from '../api';
@@ -111,7 +111,13 @@ export function NewConversation({
             form="new-conversation"
             aria-disabled={busy}
             aria-busy={busy || undefined}
-            icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+            icon={
+              busy ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <MessagesSquare aria-hidden="true" />
+              )
+            }
             className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
           >
             {t('messages.open')}

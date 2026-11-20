@@ -1,4 +1,4 @@
-import { Button, Flag, LoaderCircle, Select, Sheet, StatusRegion } from '@oikos/ui';
+import { Button, Flag, LoaderCircle, Select, Sheet, StatusRegion, X } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reportMessage } from '../api';
@@ -109,7 +109,13 @@ export function ReportMessage({
         closeDisabled={busy}
         footer={
           <>
-            <Button type="button" variant="secondary" disabled={busy} onClick={close}>
+            <Button
+              icon={<X aria-hidden="true" />}
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={close}
+            >
               {t('reports.cancel')}
             </Button>
             {/* Inactif par `aria-disabled` pendant l'envoi : refusé, le bouton garde le foyer. */}
@@ -118,7 +124,13 @@ export function ReportMessage({
               form={id}
               aria-disabled={busy}
               aria-busy={busy || undefined}
-              icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+              icon={
+                busy ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Flag aria-hidden="true" />
+                )
+              }
               className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
             >
               {t('reports.send')}

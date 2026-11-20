@@ -1,4 +1,4 @@
-import { Button, RefreshCw, Sheet } from '@oikos/ui';
+import { Button, Play, RefreshCw, Sheet } from '@oikos/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
@@ -47,6 +47,7 @@ export function SiteRestart(props: {
         closeLabel={t('shell.close')}
         footer={
           <Button
+            icon={<Play aria-hidden="true" />}
             onClick={() => {
               setOpen(false);
               props.onConfirm();

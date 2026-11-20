@@ -1,5 +1,5 @@
 import type { MarketTaxRule } from '@oikos/sim';
-import { Badge, Button, CircleAlert, Sheet, type DataColumn } from '@oikos/ui';
+import { Badge, Button, CircleAlert, Sheet, SlidersHorizontal, type DataColumn } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { useMoney } from '../money';
 import { conditionShare, type MyProperty, type Offer, type PropertySize } from '../property';
@@ -83,6 +83,7 @@ export function MyProperties(props: {
       header: t('property.columns.action'),
       cell: (property) => (
         <Button
+          icon={<SlidersHorizontal aria-hidden="true" />}
           size="sm"
           variant="secondary"
           disabled={busy}

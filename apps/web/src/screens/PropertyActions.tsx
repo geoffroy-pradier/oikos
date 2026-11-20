@@ -1,5 +1,5 @@
 import { PROPERTY_CONDITION_MAX, type MarketTaxRule } from '@oikos/sim';
-import { Button, NumberField, Stepper } from '@oikos/ui';
+import { ArrowLeft, Button, Check, Hammer, NumberField, Stepper, Tag, Undo2 } from '@oikos/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PropertyCommandInputs } from '../api';
@@ -162,17 +162,34 @@ export function PropertyActions({
           ))}
         </dl>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirming(null)}>
+          <Button
+            icon={<ArrowLeft aria-hidden="true" />}
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => setConfirming(null)}
+          >
             {t('property.backToActions')}
           </Button>
-          <Button className="ml-auto" loading={busy} onClick={() => void recap.send()}>
+          <Button
+            icon={<Check aria-hidden="true" />}
+            className="ml-auto"
+            loading={busy}
+            onClick={() => void recap.send()}
+          >
             {recap.confirm}
           </Button>
         </div>
       </div>
     );
   const back = (
-    <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirming(null)}>
+    <Button
+      icon={<ArrowLeft aria-hidden="true" />}
+      variant="ghost"
+      size="sm"
+      disabled={busy}
+      onClick={() => setConfirming(null)}
+    >
       {t('property.backToActions')}
     </Button>
   );
@@ -262,6 +279,7 @@ export function PropertyActions({
     <div className="flex flex-col gap-2">
       {renovation && (
         <Button
+          icon={<Hammer aria-hidden="true" />}
           variant="secondary"
           className={WAITING}
           aria-disabled={busy}
@@ -273,6 +291,7 @@ export function PropertyActions({
       )}
       {offer && (
         <Button
+          icon={<Undo2 aria-hidden="true" />}
           variant="secondary"
           className={WAITING}
           aria-disabled={busy}
@@ -285,6 +304,7 @@ export function PropertyActions({
       {shown.list &&
         (['listForSale', 'offerLease'] as const).map((action) => (
           <Button
+            icon={<Tag aria-hidden="true" />}
             key={action}
             variant="secondary"
             className={WAITING}
