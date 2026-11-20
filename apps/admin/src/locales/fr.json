@@ -231,6 +231,7 @@
       "faucets": "Robinets",
       "sinks": "Puits",
       "net": "Création nette",
+      "values": "Valeurs, jour par jour",
       "day": "Jour de jeu",
       "summary_one": "Sur 1 jour, les robinets vont de {{faucets.min}} à {{faucets.max}} oboles, les puits de {{sinks.min}} à {{sinks.max}} ; le tableau qui suit donne les valeurs.",
       "summary_other": "Sur {{count}} jours, les robinets vont de {{faucets.min}} à {{faucets.max}} oboles par jour, les puits de {{sinks.min}} à {{sinks.max}} ; le tableau qui suit donne les valeurs."

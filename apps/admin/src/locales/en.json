@@ -231,6 +231,7 @@
       "faucets": "Faucets",
       "sinks": "Sinks",
       "net": "Net creation",
+      "values": "Values, day by day",
       "day": "Game day",
       "summary_one": "Over 1 day, faucets range from {{faucets.min}} to {{faucets.max}} obols, sinks from {{sinks.min}} to {{sinks.max}}; the table that follows gives the values.",
       "summary_other": "Over {{count}} days, faucets range from {{faucets.min}} to {{faucets.max}} obols a day, sinks from {{sinks.min}} to {{sinks.max}}; the table that follows gives the values."

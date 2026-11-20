@@ -1,5 +1,15 @@
-import { DataTable, EmptyState, type SortDirection } from '@oikos/ui';
+import {
+  Card,
+  ChartPie,
+  ChevronRight,
+  DataTable,
+  EmptyState,
+  type SortDirection,
+  Table2,
+  TrendingUp,
+} from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 
 /** Créé (robinets) et détruit (puits) un jour de jeu, en oboles nettes. */
 export interface DayFlow {
@@ -40,9 +50,11 @@ export function DailyFlows({
     t('app.sorted', { column: header, direction: t(`app.${direction}`) });
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm lg:p-5">
+    <Card className="flex flex-col gap-4 lg:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">{caption}</h3>
+        <SectionTitle as="h3" icon={<TrendingUp />}>
+          {caption}
+        </SectionTitle>
         <ul aria-hidden="true" className="flex gap-4 text-xs text-foreground-secondary">
           <li className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-[3px] bg-accent-decorative" />
@@ -94,37 +106,48 @@ export function DailyFlows({
           (day) => day && <span key={day.gameDay}>{date(day.gameDay)}</span>,
         )}
       </p>
-      <DataTable
-        caption={caption}
-        rows={ordered}
-        rowKey={(day) => String(day.gameDay)}
-        locale={i18n.language}
-        defaultSort={{ column: 'day', direction: 'descending' }}
-        sortAnnouncement={sorted}
-        columns={[
-          {
-            id: 'day',
-            header: t('economy.chart.day'),
-            cell: (day) => date(day.gameDay),
-            sortValue: (day) => day.gameDay,
-          },
-          ...(['faucets', 'sinks'] as const).map((part) => ({
-            id: part,
-            header: t(`economy.chart.${part}`),
-            numeric: true,
-            cell: (day: DayFlow) => number.format(day[part]),
-            sortValue: (day: DayFlow) => day[part],
-          })),
-          {
-            id: 'net',
-            header: t('economy.chart.net'),
-            numeric: true,
-            cell: (day) => number.format(day.faucets - day.sinks),
-            sortValue: (day) => day.faucets - day.sinks,
-          },
-        ]}
-      />
-    </div>
+      {/* Les valeurs du dessin, repliées : le résumé du dessin dit déjà l'étendue, le tableau donne chaque jour. */}
+      <details className="group">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg text-sm font-medium text-accent">
+          <Table2 aria-hidden="true" className="size-4" />
+          {t('economy.chart.values')}
+          <ChevronRight
+            aria-hidden="true"
+            className="size-4 transition-transform duration-(--motion-fast) group-open:rotate-90"
+          />
+        </summary>
+        <DataTable
+          caption={caption}
+          rows={ordered}
+          rowKey={(day) => String(day.gameDay)}
+          locale={i18n.language}
+          defaultSort={{ column: 'day', direction: 'descending' }}
+          sortAnnouncement={sorted}
+          columns={[
+            {
+              id: 'day',
+              header: t('economy.chart.day'),
+              cell: (day) => date(day.gameDay),
+              sortValue: (day) => day.gameDay,
+            },
+            ...(['faucets', 'sinks'] as const).map((part) => ({
+              id: part,
+              header: t(`economy.chart.${part}`),
+              numeric: true,
+              cell: (day: DayFlow) => number.format(day[part]),
+              sortValue: (day: DayFlow) => day[part],
+            })),
+            {
+              id: 'net',
+              header: t('economy.chart.net'),
+              numeric: true,
+              cell: (day) => number.format(day.faucets - day.sinks),
+              sortValue: (day) => day.faucets - day.sinks,
+            },
+          ]}
+        />
+      </details>
+    </Card>
   );
 }
 
@@ -140,9 +163,14 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: n
   });
   const positive = sinks.filter((sink) => sink.total > 0).sort((a, b) => b.total - a.total);
   const sum = positive.reduce((total, sink) => total + sink.total, 0);
+  // La barre se mesure à la plus grande part : des parts proches, qui ne feraient que des filets égaux de quelques
+  // pour cent de la piste, restent distinguables. La part exacte est écrite à côté.
+  const largest = (positive[0]?.total ?? 0) / (sum || 1);
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm lg:p-5">
-      <h3 className="text-base font-semibold">{t('economy.shares')}</h3>
+    <Card className="flex flex-col gap-3 lg:p-5">
+      <SectionTitle as="h3" icon={<ChartPie />}>
+        {t('economy.shares')}
+      </SectionTitle>
       {positive.length === 0 ? (
         <EmptyState compact illustration="noEntry" title={t('economy.noShares')} />
       ) : (
@@ -156,7 +184,7 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: n
                 <dd aria-hidden="true" className="col-span-2 h-1.5 rounded-full bg-muted">
                   <div
                     className="h-1.5 rounded-full bg-foreground-secondary"
-                    style={{ width: `${share * 100}%` }}
+                    style={{ width: `${(share / largest) * 100}%` }}
                   />
                 </dd>
               </div>
@@ -164,6 +192,6 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: n
           })}
         </dl>
       )}
-    </div>
+    </Card>
   );
 }
