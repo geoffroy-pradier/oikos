@@ -61,9 +61,12 @@ async function render(sites: object[], identities: unknown, lng: 'fr' | 'en' = '
     </I18nextProvider>,
   );
 }
-/** Productions offertes par la feuille d'acquisition, ouverte au clic, dans leur ordre. */
-async function offered(identities: unknown) {
-  await render([], identities);
+/**
+ * Productions offertes par une feuille (acquisition, ou changement de production d'un site), ouverte au clic, dans leur
+ * ordre ; `null` si l'écran ne propose pas cette feuille.
+ */
+async function radios(sites: object[], identities: unknown, trigger: string | RegExp) {
+  await render(sites, identities);
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({ resources: { fr: { translation: fr } }, lng: 'fr' });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Ampelos' };
@@ -74,19 +77,20 @@ async function offered(identities: unknown) {
       </HouseProvider>
     </I18nextProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: fr.home.acquire }));
+  const button = screen.queryByRole('button', { name: trigger });
+  if (!button) {
+    cleanup();
+    return null;
+  }
+  fireEvent.click(button);
   const values = screen
     .getAllByRole<HTMLInputElement>('radio')
     .map((radio) => [radio.value, radio.checked] as const);
   cleanup();
   return values;
 }
-/** Valeurs des options d'un menu, repéré par ce qui précède son premier `<option>`. */
-const optionsAfter = (html: string, marker: string) => {
-  const start = html.indexOf(marker);
-  const end = html.indexOf('</select>', start);
-  return [...html.slice(start, end).matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
-};
+const offered = async (identities: unknown) =>
+  (await radios([], identities, fr.home.acquire)) ?? [];
 // Le rendu échappe l'apostrophe : on cherche la mention par son texte tel qu'il paraît dans le HTML.
 const OUT_OF_TERROIR = fr.home.outOfTerroir.replaceAll("'", '&#x27;');
 const validated = validateConfig(INITIAL_CONFIG);
@@ -112,13 +116,13 @@ describe('écran Sites : seules les productions du terroir sont proposées (6.1,
   it('changement de production : seulement vers une recette admise par la cité du site', async () => {
     const fishery = (cityId: string) => site(`s-${cityId}`, cityId, 'catch_fish');
     // Halos admet le sel : la pêcherie peut passer au sel. Ampelos non : aucun changement proposé.
-    const halos = await render([fishery('c2')], [identity('c1', AMPELOS), identity('c2', HALOS)]);
-    expect(optionsAfter(halos, `<span>${fr.home.production}</span>`)).toEqual([
-      'catch_fish',
-      'rake_salt',
+    const identities = [identity('c1', AMPELOS), identity('c2', HALOS)];
+    const change = /^Changer la production : /;
+    expect(await radios([fishery('c2')], identities, change)).toEqual([
+      ['catch_fish', true],
+      ['rake_salt', false],
     ]);
-    const ampelos = await render([fishery('c1')], [identity('c1', AMPELOS), identity('c2', HALOS)]);
-    expect(ampelos).not.toContain(`<span>${fr.home.production}</span>`);
+    expect(await radios([fishery('c1')], identities, change)).toBeNull();
   });
 
   it('un site hors terroir garde sa recette et le dit ; un site du terroir ne dit rien', async () => {
