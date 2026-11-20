@@ -1,17 +1,30 @@
-import { Card, EmptyState, Users } from '@oikos/ui';
-import { Link } from '@tanstack/react-router';
+import {
+  Card,
+  Coins,
+  DataTable,
+  EmptyState,
+  House,
+  StatCard,
+  Users,
+  type DataColumn,
+} from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
-import { parseCityLabor, staffByCity } from '../labor';
+import { HouseNav } from '../HouseNav';
+import { parseCityLabor, staffByCity, type CityStaff } from '../labor';
 import { useMoney } from '../money';
+import { ScreenHeader } from '../ScreenHeader';
 import { LoadProblem, Loading } from './LoadProblem';
+
+const COUNTS = ['workers', 'housed', 'unhoused'] as const;
 
 /**
  * Personnel de la maison (4.4, 4.5) : les travailleurs de ses sites, cité par cité, logés par ses biens
  * ou non, et ce que coûte chaque jour l'hébergement des autres chez les PNJ, au prix du jour de la cité
- * (vues `my_workforce` et `labor_market`). Lecture seule.
+ * (vues `my_workforce` et `labor_market`). Lecture seule : les totaux en cartes, puis les cités en
+ * tableau (fiches sur téléphone).
  */
 export function StaffScreen() {
   const { t, i18n } = useTranslation();
@@ -35,61 +48,115 @@ export function StaffScreen() {
   const failed =
     staffRows.failed || laborRows.failed || (staffRows.rows !== null && cities === null);
   const loading = !failed && (staffRows.rows === null || laborRows.rows === null);
+  const shown = !loading && !failed && cities && cities.length > 0 ? cities : null;
+  const total = (pick: (city: CityStaff) => number) =>
+    (shown ?? []).reduce((sum, city) => sum + pick(city), 0);
+  // Une cité dont le prix n'est pas encore fixé n'entre pas dans le total, qui le dit.
+  const unpriced = (shown ?? []).filter((city) => city.lodgingOboles === null).length;
+  const columns: DataColumn<CityStaff>[] = [
+    {
+      id: 'city',
+      header: t('staff.city'),
+      cell: (city) => nameOf(city.cityId),
+      sortValue: (city) => nameOf(city.cityId),
+    },
+    ...COUNTS.map((key) => ({
+      id: key,
+      header: t(`staff.columns.${key}`),
+      cell: (city: CityStaff) => number.format(city[key]),
+      sortValue: (city: CityStaff) => city[key],
+      numeric: true,
+    })),
+    {
+      id: 'lodging',
+      header: t('staff.columns.lodging'),
+      cell: (city) =>
+        city.lodgingOboles === null ? t('staff.lodgingPending') : money(city.lodgingOboles),
+      sortValue: (city) => city.lodgingOboles,
+      numeric: true,
+    },
+  ];
+  const icons = { workers: <Users />, housed: <House />, unhoused: <Users /> };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-2">
-        <h1 ref={title} tabIndex={-1} className="text-2xl">
-          {t('staff.title')}
-        </h1>
-        <p className="text-muted-foreground">{t('staff.intro')}</p>
-        <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">
-          {t('staff.back')}
-        </Link>
-      </Card>
-      <Card className="flex flex-col gap-3">
-        {loading && <Loading />}
-        {failed && (
-          <LoadProblem
-            heading={title}
-            onRetry={() => Promise.all([staffRows.reload(), laborRows.reload()])}
-          />
-        )}
-        {!loading && !failed && cities?.length === 0 && (
-          <EmptyState icon={<Users />} title={t('staff.empty')} headingLevel={3} />
-        )}
-        {!loading && !failed && cities && cities.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {cities.map((city) => (
-              <li
-                key={city.cityId}
-                className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-raised p-3 shadow-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-xl">{nameOf(city.cityId)}</h2>
-                </div>
-                <p>
-                  {t('staff.workers', {
-                    count: city.workers,
-                    number: number.format(city.workers),
-                  })}
-                </p>
-                <p>
-                  {t('staff.housing', {
-                    housed: number.format(city.housed),
-                    unhoused: number.format(city.unhoused),
-                  })}
-                </p>
-                <p className={city.unhoused > 0 ? 'font-semibold' : 'text-muted-foreground'}>
-                  {city.lodgingOboles === null
-                    ? t('staff.lodgingUnknown')
-                    : t('staff.lodging', { cost: money(city.lodgingOboles) })}
-                </p>
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
+      <ScreenHeader title={t('staff.title')} titleRef={title} />
+      <HouseNav />
+      <p className="max-w-3xl text-sm text-muted-foreground">{t('staff.intro')}</p>
+      {loading && <Loading />}
+      {failed && (
+        <LoadProblem
+          heading={title}
+          onRetry={() => Promise.all([staffRows.reload(), laborRows.reload()])}
+        />
+      )}
+      {!loading && !failed && cities?.length === 0 && (
+        <Card>
+          <EmptyState icon={<Users />} title={t('staff.empty')} headingLevel={2} />
+        </Card>
+      )}
+      {shown && (
+        <>
+          <ul
+            aria-label={t('staff.figures')}
+            className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4"
+          >
+            {COUNTS.map((key) => (
+              <li key={key} className="flex">
+                <StatCard
+                  className="flex-1"
+                  label={t(`staff.columns.${key}`)}
+                  icon={icons[key]}
+                  value={number.format(total((city) => city[key]))}
+                />
               </li>
             ))}
+            <li className="flex">
+              <StatCard
+                className="flex-1"
+                label={t('staff.columns.lodging')}
+                icon={<Coins />}
+                value={
+                  unpriced === shown.length ? '—' : money(total((city) => city.lodgingOboles ?? 0))
+                }
+                hint={
+                  unpriced === shown.length
+                    ? t('staff.lodgingNext')
+                    : unpriced > 0
+                      ? t('staff.lodgingPartial', { count: unpriced })
+                      : t('staff.lodgingHint')
+                }
+              />
+            </li>
           </ul>
-        )}
-      </Card>
+          <Card className="flex flex-col gap-3" aria-labelledby="staff-cities">
+            <h2 id="staff-cities" className="text-lg font-semibold">
+              {t('staff.byCity')}
+            </h2>
+            <DataTable
+              caption={t('staff.byCity')}
+              columns={columns}
+              rows={shown}
+              rowKey={(city) => city.cityId}
+              defaultSort={{ column: 'city', direction: 'ascending' }}
+              locale={i18n.language}
+              sortAnnouncement={(column, direction) =>
+                t(
+                  direction === 'ascending'
+                    ? 'accounts.sortedAscending'
+                    : 'accounts.sortedDescending',
+                  {
+                    column,
+                  },
+                )
+              }
+            />
+            {unpriced > 0 && (
+              <p className="text-sm text-muted-foreground">{t('staff.lodgingUnknown')}</p>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

@@ -752,11 +752,21 @@
     "intro": "The workers of your sites, city by city. Your properties in a city house the workers of your oldest sites in that city first; the others lodge with the inhabitants, one night a day, at the city's price of the day.",
     "back": "Back to the house",
     "empty": "No site, no worker.",
-    "workers_one": "{{number}} worker",
-    "workers_other": "{{number}} workers",
-    "housing": "Housed by your properties: {{housed}}; lodging with the inhabitants: {{unhoused}}",
-    "lodging": "Lodging: {{cost}} a day, paid with the upkeep",
-    "lodgingUnknown": "Lodging price not set yet: it will be at the next close."
+    "lodgingUnknown": "Lodging price not set yet: it will be at the next close.",
+    "figures": "Staff key figures",
+    "byCity": "Workers by city",
+    "city": "City",
+    "columns": {
+      "workers": "Workers",
+      "housed": "Housed by your properties",
+      "unhoused": "Lodging with the inhabitants",
+      "lodging": "Lodging a day"
+    },
+    "lodgingPending": "Not set yet",
+    "lodgingHint": "Paid with the upkeep, at the close",
+    "lodgingPartial_one": "Excluding {{count}} city with no price yet",
+    "lodgingPartial_other": "Excluding {{count}} cities with no price yet",
+    "lodgingNext": "Set at the next close"
   },
   "propertySizes": {
     "townhouse": "Town house",

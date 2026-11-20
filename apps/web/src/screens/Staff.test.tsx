@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -14,9 +14,11 @@ vi.mock('../data', () => ({
     const rows = view in state.views ? (state.views[view] ?? null) : [];
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
+  useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  useRouterState: () => '/personnel',
 }));
 const { StaffScreen } = await import('./Staff');
 
@@ -62,15 +64,25 @@ describe('personnel de la maison (#259)', () => {
       ],
     };
     await show(<StaffScreen />);
-    expect(screen.getByRole('heading', { name: 'Kallistè' })).toBeTruthy();
-    expect(screen.getByText('4 travailleurs')).toBeTruthy();
-    expect(
-      screen.getByText('Logés par vos biens : 1 ; hébergés chez les habitants : 3'),
-    ).toBeTruthy();
+    // Le tableau (fiches sur téléphone) : une ligne par cité, ses travailleurs logés ou non.
+    const table = within(screen.getByRole('table', { name: fr.staff.byCity }));
+    const cells = (city: string) =>
+      within(table.getByRole('row', { name: new RegExp(`^${city}`) }))
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent);
     // 3 nuits à 3 oboles : 1 drachme 3 oboles.
-    expect(screen.getByText(/^Hébergement : 1 drachme 3 oboles par jour/)).toBeTruthy();
+    expect(cells('Kallistè')).toEqual(['4', '1', '3', '1 drachme 3 oboles']);
     // Elaia n'a pas encore de marché du travail : le prix est inconnu, jamais nul.
+    expect(cells('Elaia')).toEqual(['2', '2', '0', fr.staff.lodgingPending]);
     expect(screen.getByText(fr.staff.lodgingUnknown)).toBeTruthy();
+    // Les totaux en cartes ; l'hébergement ne compte que les cités dont le prix est fixé, et le dit.
+    const figures = within(screen.getByRole('list', { name: fr.staff.figures }));
+    expect(figures.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Travailleurs6',
+      'Logés par vos biens3',
+      'Hébergés chez les habitants3',
+      'Hébergement par jour1 drachme 3 obolesHors 1 cité au prix pas encore fixé',
+    ]);
   });
 
   it('sans site : rien à montrer ; lecture en échec : annoncée', async () => {

@@ -56,6 +56,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    « Récolter » reste proposé quand rien n'est prêt : l'API dit pourquoi ; « Tout récolter » ne compte que les sites prêts, et chaque issue s'annonce sous sa ligne.
    L'avertissement d'une acquisition restée sans réponse y est rappelé, avec un lien vers l'écran Sites, tant que le joueur n'a pas dit avoir vérifié la liste.
    Le tableau de bord ouvre aussi l'écran Personnel (`/personnel`) : les travailleurs des sites de la maison, cité par cité, logés par ses biens ou hébergés chez les habitants, et le coût d'un jour de cet hébergement au prix du jour de la cité.
+   Refonte (#694) : Personnel, Immobilier et Comptes s'ouvrent sur l'en-tête de page et les rubriques de l'onglet Maison en pastilles.
+   Personnel donne ses totaux en cartes (travailleurs, logés par ses biens, hébergés, hébergement d'un jour), puis les cités en tableau triable, en fiches sur téléphone (`DataTable`) ; une cité dont le prix n'est pas encore fixé le dit et reste hors du total, qui le dit aussi.
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
    Ces clés sont gardées en stockage de session, comme celles des sites et des navires : elles survivent au changement d'onglet et au rechargement.
