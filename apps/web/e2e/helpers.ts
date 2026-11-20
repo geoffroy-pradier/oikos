@@ -102,3 +102,13 @@ export async function foundHouseForm(
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Fonder la maison' }).click();
 }
+
+/**
+ * Onglet Cité (#697) : ouvre une de ses sous-sections en pastilles (Vie politique, Assemblée, Trésor,
+ * Événements, Chronique) et attend qu'elle soit affichée.
+ */
+export async function citySection(page: Page, name: string) {
+  const tab = page.getByRole('tab', { name, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}

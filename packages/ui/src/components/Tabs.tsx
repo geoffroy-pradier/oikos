@@ -19,6 +19,11 @@ export interface TabsProps {
   value?: string;
   defaultValue?: string;
   onValueChange?: (id: string) => void;
+  /**
+   * Panneaux tous montés, les autres cachés (`hidden`) : une saisie, une clé d'idempotence ou une
+   * commande en vol d'un panneau survit au passage à un autre onglet.
+   */
+  keepMounted?: boolean;
   className?: string;
 }
 
@@ -26,7 +31,15 @@ export interface TabsProps {
  * Onglets en pastilles dans une gélule (WAI-ARIA) : un seul arrêt de tabulation, flèches, Début et
  * Fin ; activation au foyer.
  */
-export function Tabs({ label, items, value, defaultValue, onValueChange, className }: TabsProps) {
+export function Tabs({
+  label,
+  items,
+  value,
+  defaultValue,
+  onValueChange,
+  keepMounted = false,
+  className,
+}: TabsProps) {
   const base = useId();
   const [own, setOwn] = useState(defaultValue ?? items[0]?.id);
   const selected = value ?? own;
@@ -78,12 +91,13 @@ export function Tabs({ label, items, value, defaultValue, onValueChange, classNa
         })}
       </div>
       {items.map((item) =>
-        item.id === selected && item.content !== undefined ? (
+        (item.id === selected || keepMounted) && item.content !== undefined ? (
           <div
             key={item.id}
             role="tabpanel"
             id={`${base}-panel-${item.id}`}
             aria-labelledby={`${base}-tab-${item.id}`}
+            hidden={item.id !== selected}
             tabIndex={0}
             className="animate-rise rounded-md"
           >

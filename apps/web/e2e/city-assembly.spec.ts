@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import { closeCityDb, ARCHON_NAME, setUpCity } from './city-fixtures';
-import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
+import { citySection, expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Onglet Cité (#264) : vie politique, assemblée et trésor public de Kallistè, avec une élection en dépôt
 // des candidatures et un décret au vote ; ce qu'y voient et y font un métèque, une citoyenne et l'archonte.
+// Chaque sous-section est une pastille (#697) : la vie politique s'ouvre d'abord.
 test.afterAll(closeCityDb);
 
 async function openCity(page: Page, role: Parameters<typeof setUpCity>[1]) {
@@ -22,9 +23,11 @@ async function openCity(page: Page, role: Parameters<typeof setUpCity>[1]) {
   await expect(
     politics.getByText("Élection de l'archonte : dépôt des candidatures ouvert."),
   ).toBeVisible();
+  await citySection(page, 'Assemblée');
   await expect(
     assembly.getByText(new RegExp(`^Proposé par ${ARCHON_NAME} ; vote clos le `)),
   ).toBeVisible();
+  await citySection(page, 'Vie politique');
   return { houseName, politics, assembly, treasury: card('Trésor public') };
 }
 
@@ -33,7 +36,10 @@ test('un métèque voit élection, décret au vote et trésor, sans bouton, et s
 }) => {
   const { politics, assembly, treasury } = await openCity(page, 'metic');
   const cards = ['Vie politique', 'Assemblée', 'Trésor public'];
-  const titles = await page.getByRole('heading', { level: 2 }).allTextContents();
+  // Les panneaux des pastilles non choisies restent montés, cachés : leurs titres comptent.
+  const titles = await page
+    .getByRole('heading', { level: 2, includeHidden: true })
+    .allTextContents();
   expect(titles.filter((title) => cards.includes(title))).toEqual(cards);
 
   await expect(politics.getByText(/^Métèque à Kallistè depuis le /)).toBeVisible();
@@ -43,6 +49,7 @@ test('un métèque voit élection, décret au vote et trésor, sans bouton, et s
   await expect(politics.getByText(/^Fin du vote le /)).toBeVisible();
   await expect(politics.getByRole('button')).toHaveCount(0);
 
+  await citySection(page, 'Assemblée');
   await expect(
     assembly.getByText('Métèque, votre maison ne vote pas les décrets de la cité.'),
   ).toBeVisible();
@@ -50,6 +57,7 @@ test('un métèque voit élection, décret au vote et trésor, sans bouton, et s
   await expect(assembly.getByRole('button')).toHaveCount(0);
   await expect(assembly.getByRole('heading', { name: 'Proposer un décret' })).toHaveCount(0);
 
+  await citySection(page, 'Trésor');
   await expect(treasury.getByText(/^Solde : −?[\d\s]+ (drachmes?|oboles?)/)).toBeVisible();
   await expect(treasury.getByText(/^Taxe de marché en vigueur : [\d,]+\s%$/)).toBeVisible();
   await expectNoHorizontalScroll(page);
@@ -65,11 +73,12 @@ test('une citoyenne se porte candidate et vote le décret, au clavier', async ({
   await expect(politics.getByRole('listitem').filter({ hasText: houseName })).toBeVisible();
   await expect(politics.getByRole('button', { name: 'Retirer ma candidature' })).toBeVisible();
 
-  // Du dernier contrôle de la vie politique, Tab puis Entrée : le bouton Pour nomme le décret.
+  // Depuis le panneau de l'assemblée, Tab puis Entrée : le bouton Pour nomme le décret.
   const approve = assembly
     .getByRole('button', { name: /^Voter pour : Taxe de marché de la cité à / })
     .first();
-  await politics.getByRole('button', { name: 'Retirer ma candidature' }).focus();
+  await citySection(page, 'Assemblée');
+  await page.getByRole('tabpanel', { name: 'Assemblée' }).focus();
   await page.keyboard.press('Tab');
   await expect(approve).toBeFocused();
   await page.keyboard.press('Enter');
@@ -82,6 +91,7 @@ test('une citoyenne se porte candidate et vote le décret, au clavier', async ({
 
 test('l’archonte en charge propose un décret dans les bornes annoncées', async ({ page }) => {
   const { assembly } = await openCity(page, 'archon');
+  await citySection(page, 'Assemblée');
   await expect(assembly.getByRole('heading', { name: 'Proposer un décret' })).toBeVisible();
   await expect(assembly.getByText(/^Vote d.+ ; quorum de .+ des citoyens ;/)).toBeVisible();
   await assembly.getByLabel('Taux de la taxe de marché').check();

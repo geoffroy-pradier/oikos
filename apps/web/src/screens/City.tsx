@@ -1,4 +1,18 @@
-import { Amphora, Bird, Card, Hammer, House, Landmark, Users } from '@oikos/ui';
+import {
+  Amphora,
+  Bird,
+  Card,
+  Coins,
+  Gavel,
+  Hammer,
+  House,
+  Landmark,
+  PillTabs,
+  ScrollText,
+  Sparkles,
+  Users,
+  Vote,
+} from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -71,6 +85,14 @@ export function CityScreen() {
   const sizeName = (id: string) => t(`propertySizes.${id}`, { defaultValue: id });
   // Une classe ou un nom ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const className = (id: string) => t(`npcClasses.${id}`, { defaultValue: id });
+  // Sous-sections en pastilles (ADR 0011), la vie politique d'abord.
+  const sections = [
+    ['politics', <Vote key="politics" />, <CityPolitics key="politics" />],
+    ['assembly', <Gavel key="assembly" />, <CityAssembly key="assembly" />],
+    ['treasury', <Coins key="treasury" />, <CityTreasury key="treasury" />],
+    ['events', <Sparkles key="events" />, <CityEvents key="events" />],
+    ['chronicle', <ScrollText key="chronicle" />, <CityChronicle key="chronicle" />],
+  ] as const;
 
   return (
     <div className="flex flex-col gap-4">
@@ -114,11 +136,17 @@ export function CityScreen() {
           </ul>
         )}
       </Card>
-      <CityChronicle />
-      <CityEvents />
-      <CityPolitics />
-      <CityAssembly />
-      <CityTreasury />
+      <PillTabs
+        label={t('city.sections.label')}
+        // Panneaux gardés montés : une commande en vol, sa clé ou une saisie survivent au changement.
+        keepMounted
+        items={sections.map(([id, icon, content]) => ({
+          id,
+          icon,
+          label: t(`city.sections.${id}`),
+          content,
+        }))}
+      />
       <Card className="flex flex-col gap-3">
         <h2 ref={laborTitle} tabIndex={-1} className="text-xl">
           <Hammer aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />

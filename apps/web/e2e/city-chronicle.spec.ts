@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { gameDayDate } from '@oikos/sim';
 import { expect, test } from '@playwright/test';
 import { closeCityDb, setUpChronicles } from './city-fixtures';
-import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
+import { citySection, expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Onglet Cité, chronique (#271) : la plus récente en entier ; la précédente, repliée, s'ouvre et se referme au
 // clavier ; la mention de l'IA suit la source de chacune. À 360 px comme à 1 440 px, sans défilement horizontal.
@@ -27,6 +27,7 @@ test('la chronique du jour en entier, la précédente repliée et ouverte au cla
   await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await page.getByRole('link', { name: 'Cité' }).click();
+  await citySection(page, 'Chronique');
 
   const title = page.getByRole('heading', { name: 'Chronique de la cité', level: 2 });
   const card = title.locator('..');

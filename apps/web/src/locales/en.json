@@ -596,7 +596,15 @@
       "empty": "No housing in the city.",
       "size": "{{size}}: {{total}} in all, {{forSale}} still for sale by the city"
     },
-    "templeLink": "Temple: Charis, offerings, graces and oracle"
+    "templeLink": "Temple: Charis, offerings, graces and oracle",
+    "sections": {
+      "label": "City sections",
+      "politics": "Politics",
+      "assembly": "Assembly",
+      "treasury": "Treasury",
+      "events": "Events",
+      "chronicle": "Chronicle"
+    }
   },
   "npcClasses": {
     "thetes": "Thetes",

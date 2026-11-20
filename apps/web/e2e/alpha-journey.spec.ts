@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { closeCityDb, E2E_ORACLE, setUpChronicles, setUpCity, setUpOracle } from './city-fixtures';
 import {
+  citySection,
   expectNoHorizontalScroll,
   fillOrder,
   foundHouseForm,
@@ -332,6 +333,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await nav.getByRole('link', { name: 'Cité' }).click();
     const card = (name: string) => page.getByRole('heading', { name, level: 2 }).locator('..');
     const assembly = card('Assemblée');
+    await citySection(page, 'Assemblée');
     await assembly
       .getByRole('button', { name: /^Voter pour : Taxe de marché de la cité à / })
       .first()
@@ -340,6 +342,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       assembly.getByRole('status').filter({ hasText: 'Vote enregistré.' }),
     ).toBeVisible();
     // Chronique : celle de repli ou de l'IA déjà écrite, jamais attendue du modèle.
+    await citySection(page, 'Chronique');
     const article = card('Chronique de la cité').getByRole('article');
     await expect(
       article.getByText(chronicle?.text_fr.split(/\n\s*\n/)[0] ?? '', { exact: true }),
