@@ -1,7 +1,8 @@
-import { Button, Card, ChevronRight, cn, EmptyState, GoodIcon, Wheat } from '@oikos/ui';
+import { Button, Card, ChevronRight, cn, EmptyState, Factory, GoodIcon, Wheat } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useId, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 
 /** Un site tel que le tableau de bord le montre, calculé par `SitesCard`. */
 export interface ProductionItem {
@@ -53,9 +54,9 @@ export function ProductionList(props: {
   return (
     <Card className="flex flex-col gap-3 p-0 pb-2">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-        <h2 ref={props.titleRef} tabIndex={-1} className="text-base font-semibold">
+        <SectionTitle ref={props.titleRef} tabIndex={-1} icon={<Factory />}>
           {t('production.title')}
-        </h2>
+        </SectionTitle>
         {harvestable > 0 && (
           <Button
             icon={<Wheat aria-hidden="true" />}

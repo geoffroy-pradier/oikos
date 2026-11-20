@@ -58,13 +58,15 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Rien à signaler : la carte se tait.
    Ces alertes forment la carte « À faire aujourd'hui » (#693) : une ligne par alerte, avec son icône, qui est tout entière le lien vers l'écran où y répondre.
    La courbe de la trésorerie montre le solde de fin de chacun des 14 derniers jours de jeu ; c'est une image décrite (premier et dernier solde, plus haut, plus bas), doublée d'un tableau des mêmes soldes et de leur mouvement, ouvert au clavier, le jour le plus récent d'abord.
+   Le plus haut et le plus bas se lisent au-dessus du dessin, jamais sur la courbe (#869).
+   Sous 1 024 px, le titre dit « Bonjour » sans le nom de la maison, que l'en-tête compact porte déjà ; son nom accessible reste entier (#869).
    Sur ordinateur, la courbe et les tâches se partagent une rangée, la courbe seule quand rien n'est à faire ; sur téléphone, les tâches viennent d'abord, puis la production, puis la courbe.
    La production en cours (#693) range chaque site sur une ligne, en tableau sur ordinateur et en fiche sur téléphone : sa cité, l'avancement de son cycle à l'heure du serveur (ou son plafond atteint, son arrêt), ce qu'une récolte donnerait (« — » tant qu'elle n'est pas estimée), « Récolter » tant que sa production existe, et un lien vers sa fiche dans l'écran Sites.
    « Récolter » reste proposé quand rien n'est prêt : l'API dit pourquoi ; « Tout récolter » ne compte que les sites prêts, et chaque issue s'annonce sous sa ligne.
    L'avertissement d'une acquisition restée sans réponse y est rappelé, avec un lien vers l'écran Sites, tant que le joueur n'a pas dit avoir vérifié la liste.
    Le tableau de bord ouvre aussi l'écran Personnel (`/personnel`) : les travailleurs des sites de la maison, cité par cité, logés par ses biens ou hébergés chez les habitants, et le coût d'un jour de cet hébergement au prix du jour de la cité.
    Refonte (#694) : Personnel, Immobilier et Comptes s'ouvrent sur l'en-tête de page et les rubriques de l'onglet Maison en pastilles.
-   Personnel donne ses totaux en cartes (travailleurs, logés par ses biens, hébergés, hébergement d'un jour), puis les cités en tableau triable, en fiches sur téléphone (`DataTable`) ; une cité dont le prix n'est pas encore fixé le dit et reste hors du total, qui le dit aussi.
+   Personnel donne ses totaux en cartes (travailleurs, logés par ses biens, hébergés, hébergement d'un jour), puis les cités en tableau triable, en fiches sur téléphone (`DataTable`) ; une cité dont le prix n'est pas encore fixé le dit et reste hors du total, qui le dit aussi ; aucune note ne le redit sous le tableau (#869).
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
    Refonte (#694) : chaque liste de l'Immobilier est un tableau triable, en fiches sur téléphone (`DataTable`).
    Les baux disent le bien, le rôle de la maison (locataire ou bailleur), le loyer d'un jour et l'état du bail.
@@ -224,6 +226,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 7. Temple : Charis, grâces, offrandes, oracle.
    Première version (#272) : l'écran du temple (`/cite/temple`) s'ouvre au clavier depuis l'onglet Cité, auquel il appartient.
    Il montre la Charis de la maison envers chaque dieu de la configuration (`temple_rules`, `my_favor` ; nulle sans ligne), et son déclin du jour : ce que la prochaine clôture lui retirera (`charisDecay`, 7.1), ou rien.
+   Le taux de déclin, commun aux dieux qui déclinent, n'est dit qu'une fois, sous le titre, et un dieu ne dit son déclin du jour que s'il lui retire quelque chose ; des taux différents restent dits dieu par dieu, « rien » compris (#869).
+   La description d'une grâce est plus petite que son titre (#869).
    Il montre la Charis de la cité de la maison envers son dieu protecteur (`city_charis`), ou dit que la cité n'en a pas ; une maison métèque lit qu'elle n'y compte pas.
    Une offrande choisit un dieu parmi ceux qui acceptent un don, puis des oboles (s'il prend la monnaie, saisie en oboles) et des biens qu'il accepte, pris dans le stock libre de la maison dans sa cité, hors réservations.
    La Charis qu'elle rapportera est annoncée avant l'envoi (`offeringCharis`, au taux de `temple_rules`) et envoyée telle quelle ; un autre taux en vigueur est refusé, rien n'est offert.
@@ -279,6 +283,7 @@ Les en-têtes de tableau sont en casse normale et tiennent sur deux lignes au pl
 Une colonne de boutons n'a pas de ligne « Action » dans les fiches : ses boutons ferment la fiche, sous un trait.
 Sur téléphone, un plan inversé (jetons `inverse`, sombre dans les deux thèmes) met en tête la trésorerie du tableau de bord, sur toute la rangée ; les autres chiffres clés y passent en petites cartes, sans icône ni ligne secondaire.
 Le détail de la trésorerie (séquestre, ordres ouverts à l'agora) se lit sous les cartes, hors de la carte de la trésorerie (#863).
+En sombre, ce plan est plus clair que les surfaces, pour se distinguer des autres cartes (#869).
 Une carte de chiffre montre sa valeur en grand sur une seule ligne, dans le format unique des montants, sans abréviation : la taille du chiffre suit la largeur de la carte.
 Elle a au plus une ligne secondaire (variation, précision, petite courbe).
 Les cartes de chiffres du jeu et d'Olympe se rangent dans une même grille (`StatGrid`) : deux par rangée sous 1 280 px de large.
@@ -291,6 +296,8 @@ Plusieurs gestes sur un même objet gardent une action principale ; les autres v
 Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.
+Les titres de section d'un écran ont un même style (`SectionTitle`) et portent tous une icône, ou aucun (#869).
+L'explication d'un écran ou d'une section tient en une ligne, « Comment ça marche ? », qui l'ouvre au clavier comme à la souris (#869).
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
 Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.
 Un bien sans dessin propre prend celui de son niveau, corbeille, ballot ficelé ou coffre, quand l'appelant donne ce niveau (#708).

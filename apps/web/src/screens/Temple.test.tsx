@@ -76,15 +76,37 @@ describe('écran du temple : Charis (#272)', () => {
       fr.temple.city.title,
       fr.temple.pythia.consulted,
     ]);
+    // Le taux, commun aux dieux qui déclinent, n'est dit qu'une fois, sous le titre (#869).
     expect(
-      screen.getByText(/^Déclin du jour : −12 à la prochaine clôture \(1\s?% par jour\)\.$/),
+      screen.getByText(
+        /^Chaque Charis décline de 1\s?% par jour à la clôture, arrondi vers zéro ; un dieu sans déclin dit ne perd rien/,
+      ),
     ).toBeTruthy();
-    expect(screen.getByText(/^Déclin du jour : rien à la prochaine clôture/)).toBeTruthy();
+    expect(screen.getByText(/^Déclin du jour : −12 à la prochaine clôture\.$/)).toBeTruthy();
+    // Athéna (99 Charis) ne perd rien : rien n'est dit sous elle, la règle l'a dit une fois.
+    expect(screen.queryByText(/rien à la prochaine clôture/)).toBeNull();
+    expect(screen.getAllByText(/^Déclin du jour/)).toHaveLength(1);
+    expect(screen.queryAllByText(/par jour/)).toHaveLength(1);
     expect(screen.getByText(fr.temple.charis.noDecay)).toBeTruthy();
     expect(
       screen.getByText(/^Charis de Kallistè envers Athéna, son dieu protecteur : 4\s200$/),
     ).toBeTruthy();
     expect(screen.getByText(fr.temple.city.metic)).toBeTruthy();
+  });
+
+  it('des taux de déclin différents restent dits dieu par dieu (#869)', async () => {
+    state.rules = {
+      gods: GODS.map((god) => (god.id === 'athena' ? { ...god, dailyDecayBps: 200 } : god)),
+    };
+    state.views = { my_favor: [{ house_id: 'h1', god_id: 'demeter', charis: 1250 }] };
+    await show();
+    expect(screen.queryByText(/^Chaque Charis décline/)).toBeNull();
+    expect(
+      screen.getByText(/^Déclin du jour : −12 à la prochaine clôture \(1\s?% par jour\)\.$/),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/^Déclin du jour : rien à la prochaine clôture \(2\s?% par jour/),
+    ).toBeTruthy();
   });
 
   it('cité sans dieu protecteur ; citoyenne, sa Charis compte', async () => {

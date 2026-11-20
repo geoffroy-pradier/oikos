@@ -12,6 +12,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Help } from './Help';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { HouseNav } from '../HouseNav';
@@ -84,7 +85,7 @@ export function StaffScreen() {
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <ScreenHeader title={t('staff.title')} titleRef={title} />
       <HouseNav />
-      <p className="max-w-3xl text-sm text-muted-foreground">{t('staff.intro')}</p>
+      <Help>{t('staff.intro')}</Help>
       {loading && <Loading />}
       {failed && (
         <LoadProblem
@@ -157,9 +158,6 @@ export function StaffScreen() {
                 )
               }
             />
-            {unpriced > 0 && (
-              <p className="text-sm text-muted-foreground">{t('staff.lodgingUnknown')}</p>
-            )}
           </Card>
         </>
       )}

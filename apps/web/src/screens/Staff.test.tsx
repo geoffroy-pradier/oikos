@@ -74,7 +74,14 @@ describe('personnel de la maison (#259)', () => {
     expect(cells('Kallistè')).toEqual(['4', '1', '3', '1 drachme 3 oboles']);
     // Elaia n'a pas encore de marché du travail : le prix est inconnu, jamais nul.
     expect(cells('Elaia')).toEqual(['2', '2', '0', fr.staff.lodgingPending]);
-    expect(screen.getByText(fr.staff.lodgingUnknown)).toBeTruthy();
+    // « Pas encore fixé » n'est dit qu'une fois, par la cité (#869) : aucune note de plus sous le tableau.
+    const byCity = screen.getByRole('heading', { name: fr.staff.byCity }).closest('section');
+    expect(byCity?.textContent).not.toMatch(/prochaine clôture/);
+    // Une seule fois par mise en page : la cellule du tableau (ordinateur), la ligne de la fiche (téléphone).
+    const pending = screen.getAllByText(fr.staff.lodgingPending);
+    expect(pending.filter((cell) => cell.closest('table'))).toHaveLength(1);
+    expect(pending.filter((cell) => !cell.closest('table'))).toHaveLength(1);
+    expect(byCity?.textContent?.match(/pas encore fixé/gi)).toHaveLength(2);
     // Les totaux en cartes ; l'hébergement ne compte que les cités dont le prix est fixé, et le dit.
     const figures = within(screen.getByRole('list', { name: fr.staff.figures }));
     expect(figures.getAllByRole('listitem').map((item) => item.textContent)).toEqual([

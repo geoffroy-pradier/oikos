@@ -2,6 +2,7 @@ import { Badge, Card, EmptyState, Landmark, Warehouse } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { stockByCity } from '../site-rules';
@@ -70,7 +71,18 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <ScreenHeader title={t('home.greeting', { name: house.name })}>
+      {/* Sous 1 024 px, l'en-tête compact nomme déjà la maison : le titre ne la répète pas à l'écran, son nom
+          accessible reste entier (#869). */}
+      <ScreenHeader
+        title={
+          <>
+            <span aria-hidden="true" className="lg:hidden">
+              {t('home.greetingShort')}
+            </span>
+            <span className="max-lg:sr-only">{t('home.greeting', { name: house.name })}</span>
+          </>
+        }
+      >
         <p>
           <Badge
             tone={house.citizenshipStatus === 'citizen' ? 'success' : 'aegean'}
@@ -121,10 +133,7 @@ export function HomeScreen() {
       </div>
 
       <Card>
-        <h2 className="flex items-center gap-2 text-xl">
-          <Warehouse aria-hidden="true" className="size-5 text-accent" />
-          {t('home.stock')}
-        </h2>
+        <SectionTitle icon={<Warehouse />}>{t('home.stock')}</SectionTitle>
         {stock.rows === null && !stock.failed && <Loading />}
         {stock.rows?.length === 0 && atSea.length === 0 && (
           <EmptyState

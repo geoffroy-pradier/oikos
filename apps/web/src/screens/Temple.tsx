@@ -1,6 +1,18 @@
-import { Amphora, Button, Card, EmptyState, GodEmblem, Sparkles, TrendingDown } from '@oikos/ui';
+import {
+  Amphora,
+  Bird,
+  Button,
+  Card,
+  EmptyState,
+  GodEmblem,
+  ScrollText,
+  Sparkles,
+  TrendingDown,
+} from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
+import { Help } from './Help';
 import { useRows, useTempleRules } from '../data';
 import { useHouse } from '../house';
 import { ScreenHeader } from '../ScreenHeader';
@@ -46,19 +58,29 @@ export function TempleScreen() {
   const godName = (id: string) => t(`gods.${id}`, { defaultValue: id });
   const gods = rules.rules && favor ? charisByGod(rules.rules, favor) : null;
   const status = house.citizenshipStatus === 'citizen' ? 'citizen' : 'metic';
+  // Taux de déclin commun aux dieux dont la Charis décline : dit une fois, sous le titre (#869) ; des taux
+  // différents restent dits dieu par dieu.
+  const rates = new Set(
+    (gods ?? []).map(({ god }) => god.dailyDecayBps).filter((rate) => rate > 0),
+  );
+  const sharedRate = rates.size === 1 ? ([...rates][0] ?? null) : null;
   // Dieu dont la feuille d'offrande est ouverte ; `null` : fermée.
   const [offerTo, setOfferTo] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <ScreenHeader title={t('temple.title', { city: house.cityName })}>
-        <p className="max-w-prose text-sm text-foreground-secondary">{t('temple.intro')}</p>
+        <Help>{t('temple.intro')}</Help>
       </ScreenHeader>
       <Card className="flex flex-col gap-4">
-        <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-          <Sparkles aria-hidden="true" className="size-5 shrink-0 text-accent" />
+        <SectionTitle ref={title} tabIndex={-1} icon={<Sparkles />}>
           {t('temple.charis.title')}
-        </h2>
+        </SectionTitle>
+        {sharedRate !== null && (
+          <p className="text-sm text-muted-foreground">
+            {t('temple.charis.decayRule', { percent: percent.format(sharedRate / 10_000) })}
+          </p>
+        )}
         {loading && <Loading />}
         {failed && <LoadProblem heading={title} onRetry={reload} />}
         {gods?.length === 0 && (
@@ -80,17 +102,22 @@ export function TempleScreen() {
                       charis: number.format(charis),
                     })}
                   </h3>
-                  <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-                    <TrendingDown aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                    <span>
-                      {god.dailyDecayBps === 0
-                        ? t('temple.charis.noDecay')
-                        : t(decay === 0 ? 'temple.charis.noLoss' : 'temple.charis.decay', {
-                            loss: number.format(decay),
-                            percent: percent.format(god.dailyDecayBps / 10_000),
-                          })}
-                    </span>
-                  </p>
+                  {/* Taux commun : seul un déclin qui retire quelque chose se dit, sous le dieu (#869). */}
+                  {!(sharedRate !== null && god.dailyDecayBps > 0 && decay === 0) && (
+                    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <TrendingDown aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        {god.dailyDecayBps === 0
+                          ? t('temple.charis.noDecay')
+                          : sharedRate !== null
+                            ? t('temple.charis.lossToday', { loss: number.format(decay) })
+                            : t(decay === 0 ? 'temple.charis.noLoss' : 'temple.charis.decay', {
+                                loss: number.format(decay),
+                                percent: percent.format(god.dailyDecayBps / 10_000),
+                              })}
+                      </span>
+                    </p>
+                  )}
                   {acceptsOfferings(god) && (
                     <Button
                       variant="secondary"
@@ -144,14 +171,14 @@ export function TempleScreen() {
           {rules.rules && favor ? (
             <TempleGraces rules={rules.rules} favor={favor} onDone={reload} />
           ) : (
-            <h2 className="text-xl">{t('temple.graces.title')}</h2>
+            <SectionTitle icon={<Bird />}>{t('temple.graces.title')}</SectionTitle>
           )}
         </Card>
         <Card className="flex flex-col gap-3">
           {rules.rules ? (
             <TemplePythia rules={rules.rules} favor={favor} onDone={reload} />
           ) : (
-            <h2 className="text-xl">{t('temple.pythia.title')}</h2>
+            <SectionTitle icon={<ScrollText />}>{t('temple.pythia.title')}</SectionTitle>
           )}
         </Card>
       </div>

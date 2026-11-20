@@ -104,7 +104,8 @@
   --shoal: #13304a;
   --route: #748190;
   --scrim: rgb(0 0 0 / 0.65);
-  --inverse: #24272c;
+  /* Plus clair que les surfaces, pour que la carte mise en tête se distingue des autres (#869). */
+  --inverse: #353a42;
   --inverse-foreground: #f2f3f5;
   --inverse-muted: #c9cdd2;
   /* Aucune ombre en sombre : les plans se séparent par leurs bordures. */
