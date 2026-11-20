@@ -126,11 +126,14 @@ select pg_temp.as_player('a');
 select is(pg_temp.seen(), 'Alcméonides@1 Bacchiades@1 Philaïdes@1', 'après le rejeu de la migration 2, Alice ne lit que son monde');
 select pg_temp.as_owner();
 
--- Le service lit toujours toutes les maisons.
+-- Le service lit toujours toutes les maisons. Le compte se fait sous `oikos_service`, qui ne voit pas pgTAP ;
+-- l'assertion, au propriétaire.
 set local role oikos_service;
-select is((select count(*) from game.houses where id::text like '00000000-0000-7000-8000-000000085%'), 5::bigint,
-  'le service lit les maisons de tous les mondes');
+select set_config('oikos_test.service_houses_857',
+  (select count(*) from game.houses where id::text like '00000000-0000-7000-8000-000000085%')::text, true);
 reset role;
+select is(current_setting('oikos_test.service_houses_857')::bigint, 5::bigint,
+  'le service lit les maisons de tous les mondes');
 
 select * from finish();
 rollback;
