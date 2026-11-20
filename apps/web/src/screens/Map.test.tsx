@@ -28,15 +28,17 @@ vi.mock('../data', async () => {
 // Liens sans routeur : de simples ancres.
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  useNavigate: () => () => Promise.resolve(),
 }));
 const { MapScreen } = await import('./Map');
 const { formatMoney } = await import('../money');
 const { parseShipRules } = await import('../ship-rules');
 
-async function render(ships: object[] | null, voyages: object[] = []) {
+async function render(ships: object[] | null, voyages: object[] = [], rates?: object[]) {
   views.rows = {
     my_ships: ships,
     my_voyages: voyages,
+    ...(rates && { city_rates: rates }),
   };
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -128,6 +130,27 @@ describe('carte de l’archipel', () => {
       );
     const before = await render(null);
     expect(before).toMatch(/<button[^>]*disabled=""[^>]*>Acheter — /);
+  });
+
+  it('« Faire partir un navire » à droite de l’en-tête, dès qu’un navire armé est à quai', async () => {
+    // L'en-tête : de son titre à la carte qui le suit.
+    const header = (html: string) => html.slice(html.indexOf('<h1'), html.indexOf('role="img"'));
+    const action = (html: string) => header(html).slice(header(html).indexOf('page-header-action'));
+    const atSea = { id: 's2', class_id: 'coaster', docked_city_id: null, laid_up_at: null };
+    const laidUp = {
+      id: 's3',
+      class_id: 'round_ship',
+      docked_city_id: 'e',
+      laid_up_at: '2026-11-16',
+    };
+    const docked = { id: 's1', class_id: 'coaster', docked_city_id: 'k', laid_up_at: null };
+    const ready = await render([atSea, laidUp, docked], [], []);
+    expect(action(ready)).toContain(`${fr.map.depart}</button>`);
+    expect(action(ready)).toContain(fr.map.layer.terroirs);
+    expect(ready.match(new RegExp(fr.map.depart, 'g'))).toHaveLength(1);
+    // Ni navire en mer ni navire désarmé ne partent ; droits de port pas encore lus : pas d'action non plus.
+    expect(await render([atSea, laidUp], [], [])).not.toContain(fr.map.depart);
+    expect(await render([docked])).not.toContain(fr.map.depart);
   });
 
   it('une cité qu’aucune route ne relie est nommée dans la liste', async () => {

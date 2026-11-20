@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +92,21 @@ describe('choix de la cité de l’agora', () => {
     await show();
     expect(screen.queryByLabelText('Cité du marché')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Agora de Kallistè' })).toBeTruthy();
+  });
+
+  it('le choix du bien, et de la cité s’il y en a plusieurs, à droite de l’en-tête', async () => {
+    state.stock = [{ city_id: ELAIA }];
+    await show();
+    const title = screen.getByRole('heading', { level: 1, name: 'Agora de Kallistè' });
+    const header = title.closest<HTMLElement>('[data-slot="page-header"]');
+    if (!header) throw new Error('en-tête');
+    for (const label of [fr.agora.good, 'Cité du marché']) {
+      expect(
+        within(header).getByLabelText(label).closest('[data-slot="page-header-action"]'),
+      ).toBeTruthy();
+      // Libellé lu, pas affiché : la liste reste sur la ligne du titre.
+      expect(within(header).getByText(label).className).toBe('sr-only');
+    }
   });
 
   it('propose les cités du stock et des sites, sans doublon, l’origine par défaut', async () => {

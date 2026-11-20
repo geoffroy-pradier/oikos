@@ -99,6 +99,8 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
 /** Un intendant lu sans opération : la fiche le dit, plutôt que de taire la section. */
 const NO_ACTIVITY = { recent: [], lastRefusal: null };
+/** Durée pendant laquelle le résultat d'une commande suit les fiches que les relectures agrandissent. */
+const NOTICE_FOLLOW_MS = 1000;
 
 /**
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
@@ -109,6 +111,7 @@ export function SitesCard({
   onChanged,
   titleRef,
   figures,
+  header,
   balance,
   variant = 'full',
   onSummary,
@@ -120,6 +123,8 @@ export function SitesCard({
   titleRef?: RefObject<HTMLHeadingElement | null>;
   /** Chiffres clés de l'écran, rangés avant celui des sites (trésorerie). */
   figures?: ReactNode;
+  /** En-tête de l'écran Sites, qui reçoit l'acquisition comme action principale (rendu en tête de la liste). */
+  header?: (action: ReactNode) => ReactNode;
   /** Trésorerie lue, que l'acquisition dit avant et après l'achat. */
   balance?: number | undefined;
   /** `production` : la production en cours du tableau de bord, avec les mêmes commandes de récolte. */
@@ -284,12 +289,25 @@ export function SitesCard({
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
+    // Une lecture relancée par la commande peut encore agrandir une fiche au-dessus du message : il reste
+    // dans la fenêtre tant que la page change de taille, pendant `NOTICE_FOLLOW_MS`.
+    let observer: ResizeObserver | undefined;
+    let stop: ReturnType<typeof setTimeout> | undefined;
+    if (element && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => element.scrollIntoView({ block: 'nearest' }));
+      observer.observe(document.body);
+      stop = setTimeout(() => observer?.disconnect(), NOTICE_FOLLOW_MS);
+    }
     // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer »,
     // « Acquérir » s'efface à la limite) ou devenir inactif (« Changer » après un
     // changement réussi) : le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
     const active = document.activeElement;
     const lost = active === document.body || active?.matches(':disabled') === true;
     if (element && lost) element.focus();
+    return () => {
+      observer?.disconnect();
+      clearTimeout(stop);
+    };
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
@@ -781,8 +799,27 @@ export function SitesCard({
         : null,
     );
   const known = sites.rows !== null && costs.every((cost) => cost !== null);
+  // Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat).
+  const acquisition =
+    rules && sites.rows ? (
+      full ? (
+        <p className="text-sm text-muted-foreground">{t('home.limitReached')}</p>
+      ) : (
+        <SiteAcquire
+          offers={offers}
+          upkeepOf={rules.upkeepOf}
+          balance={balance}
+          count={sites.rows.length}
+          limit={rules.limit}
+          busy={busy}
+          warning={notice?.unanswered ? notice.text : null}
+          onConfirm={(offer) => void acquire(offer)}
+        />
+      )
+    ) : null;
   return (
     <div className="flex flex-col gap-4">
+      {header?.(acquisition)}
       <StatGrid>
         {figures}
         <StatCard
@@ -818,8 +855,9 @@ export function SitesCard({
           hint={t('sites.dailyHint')}
         />
       </StatGrid>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {harvestable.length > 0 && (
+      {!header && acquisition && <div className="self-end">{acquisition}</div>}
+      {harvestable.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             className={WAITING}
             aria-disabled={busy}
@@ -831,27 +869,8 @@ export function SitesCard({
           >
             {t('home.collectAll')}
           </Button>
-        )}
-        {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
-        {rules && sites.rows && (
-          <div className="ml-auto">
-            {full ? (
-              <p className="text-sm text-muted-foreground">{t('home.limitReached')}</p>
-            ) : (
-              <SiteAcquire
-                offers={offers}
-                upkeepOf={rules.upkeepOf}
-                balance={balance}
-                count={sites.rows.length}
-                limit={rules.limit}
-                busy={busy}
-                warning={notice?.unanswered ? notice.text : null}
-                onConfirm={(offer) => void acquire(offer)}
-              />
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       {announce(ALL)}
       {rules && sites.rows && (
         <div role="group" aria-label={t('home.acquire')} className="flex flex-col gap-2">
@@ -1148,13 +1167,17 @@ export function SitesScreen() {
   );
   const balance = treasury.rows?.[0]?.balance;
   return (
-    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <ScreenHeader title={t('home.sites')} titleRef={title} />
-      <HouseNav />
-      {(treasury.failed || stock.failed) && (
-        <LoadProblem onRetry={() => Promise.all([treasury.reload(), stock.reload()])} />
-      )}
+    <div className="[overflow-wrap:anywhere]">
       <SitesCard
+        header={(action) => (
+          <>
+            <ScreenHeader title={t('home.sites')} titleRef={title} action={action} />
+            <HouseNav />
+            {(treasury.failed || stock.failed) && (
+              <LoadProblem onRetry={() => Promise.all([treasury.reload(), stock.reload()])} />
+            )}
+          </>
+        )}
         stock={stock.rows}
         onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
         titleRef={title}
