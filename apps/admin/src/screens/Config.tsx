@@ -8,7 +8,15 @@ import {
   type RetiredUsage,
 } from '@oikos/contracts';
 import { Badge, Button, cn, PageHeader } from '@oikos/ui';
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand, adminGet } from '../api';
 import { CITIES_TABLE } from '../cities-form';
@@ -120,14 +128,19 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // Rendu JSON : un changement de type reste visible (`"600" → 600`).
   const show = (value: unknown) => JSON.stringify(value);
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    parsed = undefined;
-  }
+  // Lu une fois par texte, pas à chaque rendu : la note, une réponse de l'API ne relisent rien (#884).
+  const parsed = useMemo(() => {
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return undefined;
+    }
+  }, [text]);
   const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
-  const changes = isObject && active ? diffConfigs(active.config, parsed) : null;
+  const changes = useMemo(
+    () => (isObject && active ? diffConfigs(active.config, parsed) : null),
+    [isObject, active, parsed],
+  );
   // Corrigé en cours de frappe, le message s'efface ; il ne revient qu'au contrôle suivant.
   if (invalid && isObject) setInvalid(false);
 
@@ -135,10 +148,10 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
   // remplacerait sans prévenir la version affichée et la saisie en cours.
   const opening = useRef(0);
   /** Saisie, dans le texte ou par le formulaire : elle l'emporte sur une ouverture encore en route. */
-  const edit = (next: string) => {
+  const edit = useCallback((next: string) => {
     opening.current += 1;
     setText(next);
-  };
+  }, []);
   async function open(id: string) {
     const request = ++opening.current;
     setNotice(null);
@@ -558,23 +571,32 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
           <label htmlFor="config-json" className="-mb-1 text-sm font-medium">
             {t('config.content')}
           </label>
-          <textarea
-            ref={editor}
-            id="config-json"
-            className={cn(CONTROL, 'min-h-72 py-3 font-mono text-sm', invalid && 'border-danger')}
-            spellCheck={false}
-            wrap="off"
-            readOnly={!canEdit}
-            aria-invalid={invalid}
-            aria-describedby={invalid ? 'config-json-error' : undefined}
-            value={text}
-            onChange={(event) => edit(event.target.value)}
-            onKeyDown={(event) => {
-              if (!event.repeat) heldSubmit.current = false;
-              else if (heldSubmit.current && event.key === 'Enter') event.preventDefault();
-            }}
-            onBlur={() => setInvalid(!isObject)}
-          />
+          {/* Le texte ne fait ni la taille du champ ni la mise en page de l'écran (`contain`) : chaque ligne
+              écrite ne recalcule que le champ, pas les formulaires qui le suivent (#884). Le bloc qui
+              l'entoure le sort de la colonne flexible, où un élément ne peut pas borner ce recalcul. */}
+          <div>
+            <textarea
+              ref={editor}
+              id="config-json"
+              className={cn(
+                CONTROL,
+                'block min-h-72 py-3 font-mono text-sm [contain:size_layout]',
+                invalid && 'border-danger',
+              )}
+              spellCheck={false}
+              wrap="off"
+              readOnly={!canEdit}
+              aria-invalid={invalid}
+              aria-describedby={invalid ? 'config-json-error' : undefined}
+              value={text}
+              onChange={(event) => edit(event.target.value)}
+              onKeyDown={(event) => {
+                if (!event.repeat) heldSubmit.current = false;
+                else if (heldSubmit.current && event.key === 'Enter') event.preventDefault();
+              }}
+              onBlur={() => setInvalid(!isObject)}
+            />
+          </div>
           {/* Seule zone qui annonce un texte invalide ; hauteur réservée : rien ne bouge sous un clic. */}
           <p
             id="config-json-error"

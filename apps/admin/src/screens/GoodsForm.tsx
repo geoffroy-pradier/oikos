@@ -1,4 +1,5 @@
 import { Button } from '@oikos/ui';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   addRow,
@@ -24,10 +25,13 @@ export function GoodsForm(props: {
 }) {
   const { t } = useTranslation();
   const goods = readGoods(props.config);
-  const tiers = GOOD_TIERS.map((tier) => ({
-    value: tier,
-    label: t(`config.goodsForm.tiers.${tier}`),
-  }));
+  const tiers = useMemo(
+    () => GOOD_TIERS.map((tier) => ({ value: tier, label: t(`config.goodsForm.tiers.${tier}`) })),
+    [t],
+  );
+  // Un champ n'est rendu à nouveau que si sa valeur change (#884) : sa saisie lit le texte du moment.
+  const latest = useRef(props.config);
+  latest.current = props.config;
   const { guard, reshape, announcement } = useReshape(props.onChange);
   return (
     // Nommé par son résumé, comme les autres formulaires de table.
@@ -63,7 +67,12 @@ export function GoodsForm(props: {
                 readOnly={props.readOnly}
                 choices={tiers}
                 onInput={(input) =>
-                  props.onChange(composeGoods(props.config, editRow(goods, row, field, input)))
+                  props.onChange(
+                    composeGoods(
+                      latest.current,
+                      editRow(readGoods(latest.current) ?? [], row, field, input),
+                    ),
+                  )
                 }
               />
             ))}

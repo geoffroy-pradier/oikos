@@ -1,4 +1,5 @@
 import { Button } from '@oikos/ui';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   addRow,
@@ -33,12 +34,19 @@ export function NestedTableForm(props: {
   const { t } = useTranslation();
   const { table, texts, fields, lists } = props.spec;
   const reshapes = !props.readOnly && props.spec.fixedRows !== true;
-  const rows = readNested(
-    props.config,
-    table,
-    lists.map((list) => list.key),
-  );
+  const read = (config: unknown) =>
+    readNested(
+      config,
+      table,
+      lists.map((list) => list.key),
+    );
+  const rows = read(props.config);
   const compose = (next: Row[]) => composeTable(props.config, table, next);
+  // Un champ n'est rendu à nouveau que si sa valeur change (#884) : sa saisie lit le texte du moment.
+  const latest = useRef(props.config);
+  latest.current = props.config;
+  const write = (change: (rows: Row[]) => Row[]) =>
+    props.onChange(composeTable(latest.current, table, change(read(latest.current) ?? [])));
   const { guard, reshape, announcement } = useReshape(props.onChange);
   const label = (key: string) => t(`config.schemaPath.fields.${table}.${key}`);
   // Par identifiant, sinon par rang : un identifiant peut manquer, se répéter ou être en cours de frappe.
@@ -46,11 +54,15 @@ export function NestedTableForm(props: {
     typeof id === 'string' && id.trim() !== ''
       ? id
       : t('config.schemaPath.position', { rank: index + 1 });
-  const choices = Object.fromEntries(
-    Object.entries(props.spec.choices).map(([key, { values, labels }]) => [
-      key,
-      values.map((value) => ({ value, label: t(`${labels}.${value}`) })),
-    ]),
+  const choices = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(props.spec.choices).map(([key, { values, labels }]) => [
+          key,
+          values.map((value) => ({ value, label: t(`${labels}.${value}`) })),
+        ]),
+      ),
+    [props.spec.choices, t],
   );
   const suggestions = `${table}-good-ids`;
   return (
@@ -89,7 +101,7 @@ export function NestedTableForm(props: {
                 value={entry[field.key]}
                 readOnly={props.readOnly}
                 choices={choices[field.key]}
-                onInput={(input) => props.onChange(compose(editRow(rows, row, field, input)))}
+                onInput={(input) => write((all) => editRow(all, row, field, input))}
               />
             ))}
             {lists.map((list) => {
@@ -120,9 +132,7 @@ export function NestedTableForm(props: {
                           choices={choices[field.key]}
                           list={field.key === 'goodId' ? suggestions : undefined}
                           onInput={(input) =>
-                            props.onChange(
-                              compose(editNested(rows, row, list.key, line, field, input)),
-                            )
+                            write((all) => editNested(all, row, list.key, line, field, input))
                           }
                         />
                       ))}
