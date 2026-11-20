@@ -41,6 +41,7 @@ import {
   WORLD_SEED,
   WORLD_STEPS,
   type Settlement,
+  type Slug,
 } from './world';
 
 /** Paramètres d'une partie du banc des quatre cités : les valeurs par défaut sont celles du banc de `ci`. */
@@ -67,9 +68,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   for (const city of cities)
     settlements.push({
       city,
-      houses: (await foundHouses(city, SETTLEMENTS[city.slug as (typeof SLUGS)[number]])).map(
-        seller,
-      ),
+      houses: (await foundHouses(city, SETTLEMENTS[city.slug as Slug])).map(seller),
     });
   const [world] = cities;
   if (!world) throw new Error('No city created');
@@ -84,11 +83,13 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     ] as const)
       for (const goodId of goods)
         carriedBy.set(`${slug}/${goodId}`, (carriedBy.get(`${slug}/${goodId}`) ?? 0) + spec.count);
+  const cityOf = (slug: string) => {
+    const found = cities.find((city) => city.slug === slug);
+    if (!found) throw new Error(`No city ${slug}`);
+    return found;
+  };
   for (const spec of CARRIERS) {
-    const [home, source] = [spec.home, spec.source].map((slug) =>
-      cities.find((city) => city.slug === slug),
-    );
-    if (!home || !source) throw new Error(`No city ${spec.home} or ${spec.source}`);
+    const [home, source] = [cityOf(spec.home), cityOf(spec.source)];
     const shares = (city: City, goods: readonly string[]) =>
       new Map(goods.map((goodId) => [goodId, 1 / (carriedBy.get(`${city.slug}/${goodId}`) ?? 1)]));
     for (const house of await foundHouses(home, [{ ...CARRIER, count: spec.count }]))
@@ -96,6 +97,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
         ...seller(house),
         home,
         source,
+        ...(spec.via ? { via: cityOf(spec.via) } : {}),
         deliver: new Map([
           [home.cityId, shares(home, spec.toHome)],
           [source.cityId, shares(source, spec.toSource)],
@@ -106,15 +108,28 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   }
   // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
   const inputs = new Map(
-    cities.map((city) => [
-      city.cityId,
-      netInputs(SETTLEMENTS[city.slug as (typeof SLUGS)[number]]),
-    ]),
+    cities.map((city) => [city.cityId, netInputs(SETTLEMENTS[city.slug as Slug])]),
   );
-  const demandOf = async (city: City) => {
+  const ownDemand = async (city: City) => {
     const demand = await npcDailyDemand(city);
     for (const [goodId, quantity] of inputs.get(city.cityId) ?? [])
       demand.set(goodId, (demand.get(goodId) ?? 0) + quantity);
+    return demand;
+  };
+  // Relais (`CARRIERS`, #712) : la demande d'une cité compte, pour chaque bien qu'un armateur en porte vers une autre,
+  // celle de cette autre cité. Aucun armateur des quatre premières cités ne livre un bien qu'on relaie de sa cité.
+  const relayed = CARRIERS.flatMap((spec) => [
+    { from: spec.source, to: spec.home, goods: spec.toHome },
+    { from: spec.home, to: spec.source, goods: spec.toSource },
+  ]);
+  const demandOf = async (city: City) => {
+    const demand = await ownDemand(city);
+    for (const { from, to, goods } of relayed) {
+      if (from !== city.slug) continue;
+      const far = await ownDemand(cityOf(to));
+      for (const goodId of goods)
+        demand.set(goodId, (demand.get(goodId) ?? 0) + (far.get(goodId) ?? 0));
+    }
     return demand;
   };
   const houses = [...settlements.flatMap((settlement) => settlement.houses), ...carriers];

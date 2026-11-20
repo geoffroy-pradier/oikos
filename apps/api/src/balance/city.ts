@@ -93,7 +93,17 @@ export interface Role {
   name: string;
   count: number;
   sites: string[];
-  trader?: true;
+  /** Négociant : il revend ce qu'il achète bon marché (`balance/strategy.ts`), selon ces paramètres du scénario. */
+  trader?: Trader;
+}
+/** Paramètres d'un négociant du banc : des choix du scénario, pas de l'équilibrage du jeu. */
+export interface Trader {
+  /** Prix de ses offres d'achat, en multiple du prix de référence. */
+  bid: number;
+  /** Diviseur de sa trésorerie : au plus cette part par bien. */
+  budgetShare: number;
+  /** Réserve d'entretien : jours d'entretien de ses sites qu'il garde hors séquestre. */
+  reserveDays: number;
 }
 export interface Site {
   id: string;
