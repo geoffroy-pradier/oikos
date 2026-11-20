@@ -23,7 +23,8 @@ create table if not exists game.ostracisms (
   ballots integer check (ballots >= 0),
   outcome text check (outcome in ('ostracized', 'tie', 'no_quorum')),
   ostracized_house_id uuid,
-  -- Fin de l'ostracisme : la clôture `ostracism_days` jours de jeu après celle du dépouillement.
+  -- Fin de l'ostracisme : la clôture `ostracism_days` jours de jeu après celle du dépouillement, datée par le jour de
+  -- jeu de cette clôture et non par l'heure où elle est jouée : une clôture rattrapée en retard peut l'écrire déjà passée.
   ends_at timestamptz,
   constraint ostracisms_city_same_world foreign key (city_id, world_id) references game.cities (id, world_id),
   constraint ostracisms_house_same_world foreign key (ostracized_house_id, world_id) references game.houses (id, world_id),
@@ -32,7 +33,7 @@ create table if not exists game.ostracisms (
     (tallied_at is null) = (electorate is null) and (tallied_at is null) = (ballots is null)
     and (tallied_at is null) = (outcome is null)
     and (outcome is not distinct from 'ostracized') = (ostracized_house_id is not null)
-    and (ostracized_house_id is null) = (ends_at is null) and (ends_at is null or ends_at > tallied_at))
+    and (ostracized_house_id is null) = (ends_at is null) and (ends_at is null or ends_at > voting_closes_at))
 );
 -- Au plus un vote non dépouillé par cité ; votes d'un monde par échéance (dépouillement) ; ostracismes d'une maison.
 create unique index if not exists ostracisms_one_open_idx on game.ostracisms (city_id) where tallied_at is null;
@@ -106,7 +107,8 @@ begin
      is distinct from (ballots, electorate, expected, case when expected = 'ostracized' then first_house end) then
     raise exception 'an ostracism tally follows its ostraca' using errcode = 'restrict_violation';
   end if;
-  -- Fin : après le dépouillement (contrainte), au plus `ostracism_days` jours de jeu plus tard.
+  -- Fin : après la fin du vote (contrainte, vraie aussi pour une clôture rattrapée en retard), au plus
+  -- `ostracism_days` jours de jeu après le dépouillement.
   if new.ends_at > now() + (new.ostracism_days + 1) * interval '1 day' then
     raise exception 'an ostracism lasts its days' using errcode = 'restrict_violation';
   end if;

@@ -80,13 +80,13 @@ create function pg_temp.cast_(house text, target text, decree text default '0') 
     'insert into game.ostraca (ostracism_id, house_id, target_house_id) values (%L, %L, %L)',
     pg_temp.ostracism(decree), pg_temp.id(house, '1'), pg_temp.id(target, '1')))
 $$;
--- Dépouillement : citoyens, bulletins, issue, maison ostracisée et fin (en jours après maintenant).
+-- Dépouillement : citoyens, bulletins, issue, maison ostracisée et fin (intervalle après maintenant).
 create function pg_temp.tally(decree text, electorate int, ballots int, outcome text, house text default null,
-  days int default null) returns text language sql as $$
+  ends text default null) returns text language sql as $$
   select format('select pg_temp.as_service(%L)', format(
     'update game.ostracisms set tallied_at = now(), electorate = %s, ballots = %s, outcome = %L, ostracized_house_id = %L, '
     'ends_at = now() + %L::interval where id = %L', electorate, ballots, outcome,
-    case when house is not null then pg_temp.id(house, '1') end, days || ' days', pg_temp.ostracism(decree)))
+    case when house is not null then pg_temp.id(house, '1') end, ends, pg_temp.ostracism(decree)))
 $$;
 
 select ok(relrowsecurity, format('règles par ligne actives sur game.%s', relname))
@@ -119,17 +119,18 @@ select throws_ok(
   '42501', null, 'le service ne date pas l''ouverture');
 
 -- Dépouillement de X, Y, Z : la base recompte bulletins et citoyens devenus citoyens avant la fin du vote.
-select throws_ok(pg_temp.tally('7', 3, 2, 'ostracized', 'b', 7), '23001', null, 'Eudore, citoyen après la fin du vote, n''est pas compté');
+select throws_ok(pg_temp.tally('7', 3, 2, 'ostracized', 'b', '7 days'), '23001', null, 'Eudore, citoyen après la fin du vote, n''est pas compté');
 select throws_ok(pg_temp.tally('7', 2, 2, 'tie'), '23001', null, 'Bob seul en tête : pas d''égalité');
-select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'a', 7), '23001', null, 'c''est Bob le plus nommé, pas Alice');
-select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', 9), '23001', null, 'pas plus de jours que le vote n''en fixe');
-select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', 0), '23514', null, 'l''ostracisme finit après le dépouillement');
+select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'a', '7 days'), '23001', null, 'c''est Bob le plus nommé, pas Alice');
+select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', '9 days'), '23001', null, 'pas plus de jours que le vote n''en fixe');
+select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', '-1 days'), '23514', null, 'l''ostracisme finit après la fin du vote');
 select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b'), '23514', null, 'un ostracisé a une fin');
-select lives_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', 7), 'deux bulletins sur deux citoyens, Bob seul en tête : ostracisé');
-select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', 7), '23001', null, 'un vote n''est dépouillé qu''une fois');
+select lives_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', '-30 minutes'),
+  'deux bulletins sur deux citoyens, Bob seul en tête : ostracisé, même par une clôture rattrapée après la fin de l''ostracisme');
+select throws_ok(pg_temp.tally('7', 2, 2, 'ostracized', 'b', '7 days'), '23001', null, 'un vote n''est dépouillé qu''une fois');
 select throws_ok(pg_temp.tally('8', 1, 0, 'tie'), '23001', null, 'aucun bulletin sur un citoyen, quorum de 50 % : pas d''égalité');
 select lives_ok(pg_temp.tally('8', 1, 0, 'no_quorum'), 'mais quorum manqué');
-select throws_ok(pg_temp.tally('9', 2, 2, 'ostracized', '0', 7), '23001', null, 'Phaon et Glaucos à égalité : personne n''est ostracisé');
+select throws_ok(pg_temp.tally('9', 2, 2, 'ostracized', '0', '7 days'), '23001', null, 'Phaon et Glaucos à égalité : personne n''est ostracisé');
 select lives_ok(pg_temp.tally('9', 2, 2, 'tie'), 'égalité, malgré le quorum nul');
 select is((select string_agg(right(decree_id::text, 1) || ':' || outcome || ':' || coalesce(right(ostracized_house_id::text, 2), '-')
      || ':' || (tallied_at = now()), ' ' order by decree_id) from game.ostracisms),
