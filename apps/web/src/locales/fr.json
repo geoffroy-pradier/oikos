@@ -1103,7 +1103,8 @@
     "arrived": "Nouveau message de {{house}} : {{text}}",
     "arrivedMany_one": "{{count}} nouveau message dans ce canal.",
     "arrivedMany_other": "{{count}} nouveaux messages dans ce canal.",
-    "arrivedIn": "Nouveau message : {{channel}}."
+    "arrivedIn": "Nouveau message : {{channel}}.",
+    "backUnread": ", {{unread}}"
   },
   "temple": {
     "title": "Temple de {{city}}",

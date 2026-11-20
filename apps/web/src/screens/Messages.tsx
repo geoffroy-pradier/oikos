@@ -247,7 +247,11 @@ export function MessagesScreen() {
                   onClick={() => show('list')}
                 >
                   {t('messages.channels')}
-                  {totalText && <span className="sr-only">{`, ${totalText}`}</span>}
+                  {totalText && (
+                    <span className="sr-only">
+                      {t('messages.backUnread', { unread: totalText })}
+                    </span>
+                  )}
                   {total > 0 && (
                     <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
                   )}
