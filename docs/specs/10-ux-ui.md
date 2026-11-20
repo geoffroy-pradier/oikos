@@ -192,6 +192,7 @@ Décidée le 19 novembre 2026 (ADR 0011), elle remplace la direction inspirée d
 L'interface est épurée : fond neutre, graphite en thème sombre et gris très clair en thème clair, un seul accent orange pour l'action principale, l'état actif et les données mises en avant.
 Aucun ornement : ni frise, ni texture, ni police de titrage ; Inter seule, avec des chiffres tabulaires pour tout montant ou quantité.
 Les chiffres clés sont en cartes, les sous-sections d'un onglet en onglets à pastilles, les listes en tableaux denses et triables sur ordinateur et en fiches sur téléphone.
+Sur téléphone, un plan inversé (jetons `inverse`, sombre dans les deux thèmes) met en tête la trésorerie du tableau de bord ; les autres chiffres clés y passent en petites cartes, trois par rangée.
 Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.

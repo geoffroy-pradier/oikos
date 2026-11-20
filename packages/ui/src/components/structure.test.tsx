@@ -28,6 +28,13 @@ describe('StatCard', () => {
     expect(delta.querySelector('[aria-hidden="true"]')?.textContent).toBe('▲ ');
     expect(screen.getByText('96 dr.').className).toContain('tabular-nums');
   });
+
+  it('dense : petite carte sous 1 024 px, sans icône ni variation ; entière au-delà', () => {
+    render(<StatCard dense label="Stocks" icon={<Coins />} value="12 dr." hint="2 cités" />);
+    expect(screen.getByText('12 dr.').className).toContain('max-lg:text-base');
+    expect(screen.getByText('2 cités').className).toContain('max-lg:hidden');
+    expect(screen.getByText('Stocks').nextElementSibling?.className).toContain('max-lg:hidden');
+  });
 });
 
 describe('Progress', () => {

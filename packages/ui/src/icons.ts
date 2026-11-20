@@ -47,6 +47,7 @@ export {
   Sparkles,
   Store,
   Sun,
+  TrendingUp,
   TriangleAlert,
   Users,
   Vote,

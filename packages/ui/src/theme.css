@@ -56,6 +56,10 @@
   --route: #6b7682;
   /* Voile derrière une feuille ou une boîte de dialogue. */
   --scrim: rgb(16 24 40 / 0.45);
+  /* Plan inversé : la carte de la trésorerie en tête du tableau de bord, sur téléphone. */
+  --inverse: #111317;
+  --inverse-foreground: #ffffff;
+  --inverse-muted: #b8bdc4;
   --elevation-1: 0 1px 2px rgb(16 24 40 / 0.05);
   --elevation-2: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px -2px rgb(16 24 40 / 0.06);
   --elevation-3: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 32px -8px rgb(16 24 40 / 0.12);
@@ -100,6 +104,9 @@
   --shoal: #13304a;
   --route: #748190;
   --scrim: rgb(0 0 0 / 0.65);
+  --inverse: #24272c;
+  --inverse-foreground: #f2f3f5;
+  --inverse-muted: #c9cdd2;
   /* Aucune ombre en sombre : les plans se séparent par leurs bordures. */
   --elevation-1: 0 0 #0000;
   --elevation-2: 0 0 #0000;
@@ -140,6 +147,9 @@
   --color-route: var(--route);
   --color-focus: var(--focus);
   --color-scrim: var(--scrim);
+  --color-inverse: var(--inverse);
+  --color-inverse-foreground: var(--inverse-foreground);
+  --color-inverse-muted: var(--inverse-muted);
   --shadow-sm: var(--elevation-1);
   --shadow-md: var(--elevation-2);
   --shadow-lg: var(--elevation-3);
