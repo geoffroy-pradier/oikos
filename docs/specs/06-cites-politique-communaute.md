@@ -138,6 +138,7 @@ Elle montre le blason, le nom, la cité, le statut de métèque ou de citoyenne,
 Elle ne lit que des vues publiques : `houses`, `house_honor` et `offices`, jamais une vue `my_*`.
 Décision (ambiguïté du ticket, « mandats passés et en cours ») : seules les charges pourvues sont des mandats, les candidatures n'y figurent pas.
 Décision : une maison absente, d'un autre monde ou désignée par une adresse mal formée mène à l'écran introuvable, sans qu'aucune autre vue soit lue ; la devise, les titres des Jeux, les cosmétiques et les avis des partenaires attendent.
+La vue `houses` ne rend d'ailleurs à un joueur que les maisons de son monde (#857) : une maison d'un autre monde n'arrive plus dans la réponse.
 On y arrive par le nom d'un auteur de message, d'un candidat et de l'archonte en charge.
 
 Dans la phase 2 (ticket 273), la discussion compte deux sortes de canaux.

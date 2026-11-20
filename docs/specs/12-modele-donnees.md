@@ -72,6 +72,9 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le service ne modifie que quelques colonnes (nom d'une maison, cycle et arrêt d'un site, quai et désarmement d'un navire, arrivée d'un voyage, annulation d'un ordre, report de la demande, valeurs d'un chandelier de prix ou d'un prix observé), n'exécute aucune fonction de déclencheur du jeu et ne possède que le schéma de sa file de tâches.
   Il garde le droit, accordé à tous par Postgres, de créer des tables temporaires : elles sont sans effet sur le jeu.
 - Les données privées d'un concurrent (stocks, trésorerie, règles d'intendant) ne quittent jamais le serveur.
+- Maisons (#857) : un joueur connecté ne lit une ligne de `houses` que si son monde est celui d'une de ses maisons (règle restrictive `houses_same_world`, par `game.current_world_ids()`, exécutée au nom du propriétaire).
+  Un compte sans maison n'en lit aucune, un visiteur anonyme ne lit rien ; un compte qui a hérité des maisons de plusieurs mondes (#604) lit celles de chacun.
+  La règle vaut pour toute lecture de `game.houses` au nom d'un joueur, `public.houses` et `public.house_honor` comprises (pgTAP 857).
 - Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant, nature de la ligne), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
   Il ne lit ni les autres lignes de ces écritures (contrepartie, taxe), ni leur détail (`meta`), ni les échanges où il achète.
   Les vues `my_cash_flows`, `my_valued_stocks` et `my_balance_sheet` en sont des agrégats calculés à la lecture, et le compte de résultat (`my_income_statement`, `my_income_statement_by_season`) un agrégat de `my_cash_flows`, sans droit supplémentaire ;
@@ -128,7 +131,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Tout autre motif est refusé : chaque mécanique qui touche la Timè remplace la garde pour y ajouter le sien.
   La base ne lit pas les bornes de la configuration : qui écrit prend le verrou consultatif `honor:<maison>` de sa transaction, lit la Timè et la tient dans ses bornes (`honorChange`).
   Le service écrit au journal sans en choisir ni l'identifiant ni la date, et ne modifie jamais la Timè ; aucun joueur n'écrit ni l'une ni l'autre.
-  Tout joueur connecté lit la Timè de chaque maison par `public.house_honor` (une ligne par maison), et les seules lignes du journal de sa maison par `public.my_honor_entries` ; un visiteur anonyme ne lit rien (pgTAP 704).
+  Tout joueur connecté lit la Timè de chaque maison de son monde par `public.house_honor` (une ligne par maison, #857), et les seules lignes du journal de sa maison par `public.my_honor_entries` ; un visiteur anonyme ne lit rien (pgTAP 704).
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.
@@ -190,7 +193,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 - Citoyenneté (3, 6.2, #260) : `citizenships` porte la maison, sa cité, son statut (métèque ou citoyen) et la date de ce statut.
   La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
   Le service n'écrit à la fondation que la maison et la cité, et à la promotion que le statut et la date ; c'est la clôture qui promeut.
-  Les joueurs connectés lisent le statut de toute maison (`houses.citizenship_status`).
+  Les joueurs connectés lisent le statut de toute maison de leur monde (`houses.citizenship_status`, #857).
   Un joueur lit aussi la citoyenneté de ses seules maisons avec sa date par `my_citizenships` (#420), vue `security_invoker` créée une fois : maison, cité, statut, instant du statut et son jour de jeu, calculé à l'horloge en vigueur comme les autres lectures datées (nul sans horloge ou pour un fuseau inconnu de la base).
   La date d'une autre maison n'en sort pas, un visiteur anonyme ne lit rien, et `houses` garde ses colonnes (ADR 0006).
 - Élection de l'archonte (6.2, #260) : `elections` (cité, charge `archon`, ouverture du dépôt des candidatures, ouverture et fin du vote, fin du mandat, dépouillement), `candidacies` (élection, maison, dépôt, retrait), `ballots` (élection, maison qui vote, candidature choisie) et `offices` (cité, maison, charge, élection, début et fin du mandat).
