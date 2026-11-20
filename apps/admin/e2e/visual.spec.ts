@@ -87,6 +87,17 @@ const economy = (real: Economy) => ({
       unpricedByWindow: { current: [], previous: [] },
       partialWindow: null,
     },
+    // Fortunes (#718) : les maisons des autres suites changent d'un passage à l'autre ; mesures figées.
+    inequality: {
+      giniBps: 4_187,
+      houses: 26,
+      unpricedStocks: 3,
+      cities: [
+        { slug: 'kalliste', giniBps: 3_912, houses: 18, unpricedStocks: 3 },
+        { slug: 'elaia', giniBps: 2_405, houses: 8, unpricedStocks: 0 },
+        { slug: 'halos', giniBps: null, houses: 0, unpricedStocks: 0 },
+      ].map((city, i) => ({ cityId: `01900000-0000-7000-8000-00000000071${i}`, ...city })),
+    },
   })),
 });
 

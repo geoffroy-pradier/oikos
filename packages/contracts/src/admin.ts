@@ -326,6 +326,11 @@ export const configActivationScheduledSchema = z.strictObject({
 
 const oboles = z.number().int();
 const bps = z.number().int();
+const inequality = z.object({
+  giniBps: bps.min(0).max(10_000).nullable(),
+  houses: z.number().int().nonnegative(),
+  unpricedStocks: z.number().int().nonnegative(),
+});
 /**
  * Lecture `GET /api/admin/economy` (docs/specs/05-economie.md, 5.5) : un bloc par monde, montants en
  * oboles entières, tirés du grand livre ; indice des prix tiré des chandeliers.
@@ -388,6 +393,14 @@ export const adminEconomySchema = z.object({
          * calculés tels quels, sans estimation. `null` : aucune fenêtre partielle.
          */
         partialWindow: z.enum(['current', 'previous']).nullable(),
+      }),
+      /**
+       * Inégalité des fortunes (4.1, 5.5 ; #718) : Gini en points de base (0 : fortunes égales), `null` sans
+       * maison ; maisons comptées, sans les maisons PNJ de secours ; stocks sans prix observé, que leurs fortunes
+       * ignorent. Le monde, puis chacune de ses cités, une maison comptant dans sa cité de citoyenneté.
+       */
+      inequality: inequality.extend({
+        cities: z.array(inequality.extend({ cityId: z.uuid(), slug: z.string() })),
       }),
     }),
   ),

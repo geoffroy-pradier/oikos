@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ADMIN_ROLES, adminEconomySchema, type AdminEconomy } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { dailyCloseAt, gameDayAt, SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
+import { dailyCloseAt, gameDayAt, giniBps, SYSTEM_ACCOUNT_KEYS } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { historyStarts, readEconomy } from './admin-economy';
@@ -521,8 +521,84 @@ it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même inst
     },
   });
   const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
-  expect(queries).toBe(6);
+  expect(queries).toBe(8);
   expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
   const { world } = await read(WORLD);
   expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);
+});
+
+it('inégalité des fortunes par monde et par cité, sans les maisons PNJ de secours (#718)', async () => {
+  const world = randomUUID();
+  const [kalliste, halos, empty] = [randomUUID(), randomUUID(), randomUUID()];
+  const slug = `gini-${randomUUID().slice(0, 8)}`;
+  await sql`insert into game.worlds (id, slug, name) values (${world}, ${slug}, 'Gini')`.execute(
+    owner,
+  );
+  await sql`insert into game.cities (id, world_id, slug, name, created_at) values
+    (${kalliste}, ${world}, 'kalliste', 'Kallistè', now() - interval '2 seconds'),
+    (${halos}, ${world}, 'halos', 'Halos', now() - interval '1 second'),
+    (${empty}, ${world}, 'vide', 'Vide', now())`.execute(owner);
+  // Trois maisons fondées par la commande, chacune avec sa dotation : deux à Kallistè, une à Halos.
+  const found = async (cityId: string, name: string) =>
+    (await send(await newUser(), 'house.create', { cityId, name, blazon })).houseId;
+  const [a, b] = [await found(kalliste, 'Alpha'), await found(kalliste, 'Beta')];
+  await found(halos, 'Gamma');
+  // Alpha reçoit 3 000 oboles de plus ; Beta a un stock de blé sans prix observé, qui ne compte pas.
+  await owner.transaction().execute(async (trx) => {
+    const { rows } = await sql<{ id: string }>`insert into game.ledger_entries (world_id, kind)
+      values (${world}, 'quest.reward') returning id`.execute(trx);
+    await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+      select ${rows[0]?.id}, id, case when kind = 'system' then -3000 else 3000 end from game.accounts
+      where world_id = ${world} and (system_key = 'faucet_rewards' or (house_id = ${a} and kind = 'house'))`.execute(
+      trx,
+    );
+    const { rows: stock } = await sql<{ id: string }>`insert into game.inventories
+      (world_id, house_id, city_id, good_id) values (${world}, ${b}, ${kalliste}, 'wheat') returning id`.execute(
+      trx,
+    );
+    await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
+      values (${world}, 'wheat', 12, 'production', ${stock[0]?.id}, 'site.collect')`.execute(trx);
+  });
+  // Une maison PNJ de secours à Kallistè, bien plus riche : elle n'entre dans aucun Gini.
+  const npc = randomUUID();
+  await sql`insert into game.houses (id, world_id, user_id, name, blazon, kind)
+    values (${npc}, ${world}, ${await newUser()}, 'Greniers', '{}', 'npc')`.execute(owner);
+  await sql`insert into game.citizenships (house_id, city_id) values (${npc}, ${kalliste})`.execute(
+    owner,
+  );
+  await owner.transaction().execute(async (trx) => {
+    await sql`insert into game.accounts (world_id, kind, house_id) values (${world}, 'house', ${npc})`.execute(
+      trx,
+    );
+    const { rows } = await sql<{ id: string }>`insert into game.ledger_entries (world_id, kind)
+      values (${world}, 'house.starting_grant') returning id`.execute(trx);
+    await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+      select ${rows[0]?.id}, id, case when kind = 'system' then -900000 else 900000 end from game.accounts
+      where world_id = ${world} and (system_key = 'faucet_starting_grant' or house_id = ${npc})`.execute(
+      trx,
+    );
+  });
+
+  const { world: seen } = await read(world);
+  const rich = BigInt(GRANT + 3000);
+  expect(seen.inequality).toEqual({
+    giniBps: giniBps([rich, BigInt(GRANT), BigInt(GRANT)]),
+    houses: 3,
+    unpricedStocks: 1,
+    cities: [
+      {
+        cityId: kalliste,
+        slug: 'kalliste',
+        giniBps: giniBps([rich, BigInt(GRANT)]),
+        houses: 2,
+        unpricedStocks: 1,
+      },
+      { cityId: halos, slug: 'halos', giniBps: 0, houses: 1, unpricedStocks: 0 },
+      { cityId: empty, slug: 'vide', giniBps: null, houses: 0, unpricedStocks: 0 },
+    ],
+  });
+  expect(seen.inequality.giniBps).toBeGreaterThan(0);
+  // Le monde vide n'a aucune maison : Gini inconnu, jamais nul.
+  const { world: none } = await read(EMPTY);
+  expect(none.inequality).toEqual({ giniBps: null, houses: 0, unpricedStocks: 0, cities: [] });
 });

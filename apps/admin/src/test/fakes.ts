@@ -201,6 +201,28 @@ export const ECONOMY: AdminEconomy = {
         unpricedByWindow: { current: [], previous: [] },
         partialWindow: null,
       },
+      // Inégalité des fortunes (#718) : une cité mesurée, une cité sans maison.
+      inequality: {
+        giniBps: 1_234,
+        houses: 3,
+        unpricedStocks: 2,
+        cities: [
+          {
+            cityId: '01900000-0000-7000-8000-000000000102',
+            slug: 'halos',
+            giniBps: null,
+            houses: 0,
+            unpricedStocks: 0,
+          },
+          {
+            cityId: '01900000-0000-7000-8000-000000000101',
+            slug: 'kalliste',
+            giniBps: 1_234,
+            houses: 3,
+            unpricedStocks: 2,
+          },
+        ],
+      },
     },
   ],
 };

@@ -238,7 +238,18 @@
     },
     "shares": "Part de chaque puits, depuis l'origine",
     "noShares": "Aucun puits n'a encore détruit de monnaie.",
-    "dayDetail": "Détail par compte, jour par jour"
+    "dayDetail": "Détail par compte, jour par jour",
+    "wealth": {
+      "title": "Inégalité des fortunes",
+      "gini": "Coefficient de Gini du monde",
+      "giniShort": "Gini",
+      "houses": "Maisons comptées",
+      "unpriced": "Stocks sans prix observé",
+      "city": "Cité",
+      "byCity": "Inégalité des fortunes par cité, monde « {{slug}} »",
+      "unknown": "Sans mesure (aucune maison)",
+      "definition": "Fortune d'une maison : trésorerie, séquestre et stocks au dernier prix observé de leur cité, sans sites, navires ni logements ; un stock sans prix observé n'y compte pas. Le coefficient va de 0 (fortunes égales) à 1 (une maison a tout). Les maisons PNJ de secours n'y entrent pas, et chaque maison compte dans sa cité de citoyenneté."
+    }
   },
   "access": {
     "title": "Accès",

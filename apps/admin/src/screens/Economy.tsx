@@ -22,6 +22,7 @@ import { TABLE } from '../table';
 import { ALERT } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { DailyFlows, SinkShares } from './EconomyCharts';
+import { WealthInequality } from './EconomyWealth';
 import { SectionTitle } from './SectionTitle';
 
 type World = AdminEconomy['worlds'][number];
@@ -32,8 +33,8 @@ const outOfTarget = ({ priceIndex }: World) =>
 
 /**
  * Module Économie (15.1 ; 5.5) : par monde, indice des prix et inflation, masse monétaire, robinets et
- * puits. Montants en oboles, nets : un montant négatif est affiché tel quel, avec son signe. Hors de la
- * cible, l'inflation est annoncée par une alerte écrite, jamais par la seule couleur ; une mesure
+ * puits, inégalité des fortunes (#718). Montants en oboles, nets : un montant négatif est affiché tel
+ * quel, avec son signe. Hors de la cible, l'inflation est annoncée par une alerte écrite, jamais par la seule couleur ; une mesure
  * absente est dite telle, jamais remplacée par un zéro. Avec plusieurs mondes, les alertes sont
  * rappelées en tête de page, chacune avec un lien vers son monde.
  */
@@ -248,6 +249,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
                 systemAccounts.map((account) => [name(account), account.total]),
               )}
             </div>
+            <WealthInequality inequality={world.inequality} slug={slug} />
             <Card className="flex flex-col gap-3 lg:p-5">
               <SectionTitle as="h3" icon={<CalendarDays />}>
                 {t('economy.byDay', { count: data.windowDays })}
