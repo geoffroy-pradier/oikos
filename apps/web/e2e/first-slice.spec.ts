@@ -1162,11 +1162,13 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
 
   // Chaque valeur est cherchée dans sa carte, nommée par son titre : aucun libellé d'une autre n'y répond.
   const region = (name: string) => page.getByRole('region', { name, exact: true });
+  // Le bilan en cartes : la valeur est le premier paragraphe de la carte qui porte le libellé.
   const line = (label: string, sheet = 'Bilan') =>
     region(sheet)
-      .locator('dl > div')
+      .getByRole('listitem')
       .filter({ has: page.getByText(label, { exact: true }) })
-      .locator('dd');
+      .locator('p')
+      .first();
   await alone(async () => {
     // Prix moyen observé du blé à Kallistè, fixé à 7 oboles le temps de lire l'écran, puis remis comme
     // il était (la ligne d'avant, ou aucune) : sans échange, le tick garderait ces 7 oboles. Rien d'autre
@@ -1200,9 +1202,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
       const stock = (good: string, stocks = card) =>
         wide
           ? stocks.getByRole('row', { name: new RegExp(`^${literal(good)}`) })
-          : stocks
-              .getByRole('listitem')
-              .filter({ has: page.getByRole('heading', { name: good, exact: true }) });
+          : stocks.getByRole('listitem').filter({ has: page.getByText(good, { exact: true }) });
       await expect(stock('Blé')).toContainText(
         /40.*1 drachme 1 obole \(calculé le .+\).*46 drachmes 4 oboles/,
       );
@@ -1223,7 +1223,8 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
         await route.fulfill({ response, json: [clay, ...rows] });
       });
       await page.reload();
-      const goods = wide ? card.getByRole('rowheader') : card.getByRole('heading', { level: 3 });
+      // Le bien nomme la ligne du tableau, et ouvre la fiche sur téléphone.
+      const goods = wide ? card.getByRole('rowheader') : card.locator('li > p');
       await expect(goods).toHaveText(['Blé', 'Argile']);
       await expect(stock('Argile')).toContainText(/Aucun prix observé.*Non valorisé/);
       // L'annonce du tri n'existe qu'avec le tableau, et reste muette tant que le tri n'a pas changé.

@@ -169,11 +169,13 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 6. Comptes : résultat, bilan, flux, par période.
    Première version : ouvert au clavier depuis le tableau de bord (`/comptes`), l'écran montre le bilan en fiches (trésorerie, séquestre, stocks au prix moyen observé, total calculé à l'affichage ;
    les stocks sans prix observé sont comptés à part, hors du total).
+   Refonte (#694) : le bilan est en cartes (`StatCard`), le total mis en avant, et le compte des stocks sans prix observé se dit sous la carte des stocks.
    Les montants s'y écrivent en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme) : une part nulle est tue, un montant nul s'écrit « 0 obole », le signe porte sur tout le montant.
    Une lecture en échec ou illisible est annoncée et se réessaie, jamais prise pour un bilan nul.
    Sous le bilan, les stocks valorisés : une fiche par stock sur téléphone ;
    à partir de la largeur d'ordinateur, un tableau (bien, quantité, prix moyen observé et sa date, valeur) trié par défaut de la plus forte valeur à la plus faible, dont chaque en-tête est un bouton qui change le tri au clavier (`aria-sort` et flèche sur la colonne triée ;
    chaque changement de tri est annoncé aux lecteurs d'écran). Un stock sans prix observé est dit tel, non valorisé, et reste en fin de liste quel que soit le tri.
+   Refonte (#694) : ces fiches et ce tableau sont ceux du composant `DataTable`.
    Enfin le compte de résultat (4.1), par journée de jeu ou par saison au choix, borné aux 7, 30 ou 90 dernières périodes : mêmes fiches et même tableau triable, périodes les plus récentes d'abord.
    Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ;
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
