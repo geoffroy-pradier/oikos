@@ -99,6 +99,7 @@
     "meticDays": 3,
     "archon": { "termDays": 28, "candidacyDays": 4, "votingDays": 3, "maxConsecutiveTerms": 2 }
   },
+  "honor": { "min": -10000, "max": 10000, "changes": { "archon_term": 0 } },
   "decrees": {
     "votingDays": 2,
     "quorumBps": 2000,

@@ -23,6 +23,7 @@ import {
   decreeRejectedSchema,
   decreeVoteCastSchema,
 } from './decree';
+import { honorChangedSchema } from './honor';
 import { messageReportedSchema, sanctionAppealedSchema } from './moderation';
 import {
   appealDecidedSchema,
@@ -105,6 +106,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   leaseEndedSchema,
   citizenshipGrantedSchema,
   archonElectedSchema,
+  honorChangedSchema,
   candidacyFiledSchema,
   candidacyWithdrawnSchema,
   ballotCastSchema,

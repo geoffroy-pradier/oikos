@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
+import { honorSchema } from './honor';
 import { filterForm } from './moderation';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
@@ -991,6 +992,8 @@ export const gameConfigSchema = z
      * ne s'ouvre ; une élection déjà ouverte est dépouillée à ses dates.
      */
     politics: politicsSchema.optional(),
+    /** Absent des versions publiées avant la Timè (#704) : aucune Timè ne change. */
+    honor: honorSchema.optional(),
     /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
     decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */

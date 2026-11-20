@@ -52,6 +52,16 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Les sites, les navires et les biens immobiliers n'y figurent pas : leur prix d'acquisition est détruit, ou versé au vendeur d'un bien revendu.
 - **Famille** : conjoint, héritiers, parents, chacun avec 2 ou 3 traits. Un membre peut être placé à la tête d'un site ou envoyé en ambassade. Les mariages entre maisons de joueurs créent une alliance formelle (accès croisé aux entrepôts, clause d'entraide).
 - **Timè** : monte avec les contrats honorés, les liturgies et les mandats bien tenus ; baisse avec les défauts de paiement et les sanctions. Elle conditionne le crédit, l'éligibilité et les prix obtenus des PNJ.
+  Décision (#704) : elle est tenue comme la Charis, entière, par un journal en ajout seul (`honor_ledger`, 12) ; elle n'est pas de la monnaie, ne s'achète pas et ne se transfère pas.
+  Elle est publique, comme le nom et la cité de la maison : tout joueur connecté lit la Timè de chaque maison (`house_honor`), et seule sa maison lit le détail de ses lignes (`my_honor_entries`).
+  Une maison nouvelle a une Timè nulle.
+  Chaque ligne du journal porte une variation non nulle, un motif d'une liste fermée, une référence et un jour de jeu, au plus une ligne par motif et par référence.
+  La variation d'un motif vient de la configuration (`honor.changes`), rognée pour que la Timè reste entre `honor.min` et `honor.max` (`honorChange`) ; une variation nulle n'écrit rien.
+  Un gain ne fait jamais baisser la Timè, ni une perte monter : des bornes resserrées par une version nouvelle ne ramènent pas d'un coup une Timè déjà au-delà, elles l'empêchent seulement de s'en éloigner.
+  Les variations sont nulles au départ (paramètres neutres), et une version publiée avant la Timè n'en fait changer aucune.
+  Chaque variation émet `HonorChanged` (maison, variation, motif, Timè après elle).
+  Décision (ambiguïté) : les « sanctions » qui la font baisser sont celles du jeu (défaut de paiement, dérobade à une liturgie, Némésis), jamais celles de la modération (6.6).
+  Les motifs des liturgies, des prêts et des conflits viendront avec leurs tickets ; le crédit, l'éligibilité et les prix des PNJ ne la lisent pas encore.
 
 ## 4.2 Les domaines
 
