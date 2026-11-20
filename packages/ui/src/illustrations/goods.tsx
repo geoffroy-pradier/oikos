@@ -151,18 +151,40 @@ const UNKNOWN_GOOD = `
 /** Identifiants des biens dessinés. */
 export const GOOD_ICON_IDS = Object.keys(GOODS);
 
+/** Repli d'un bien sans dessin propre, selon son niveau (5.1) : corbeille, ballot ficelé, coffre. */
+const TIERS: Record<string, string> = {
+  raw: `
+    a ${o(9, 8, 3)}
+    a ${o(15, 8, 3)}
+    s M4 11h16l-1.8 9.2a1.5 1.5 0 0 1-1.5 1.3H7.3a1.5 1.5 0 0 1-1.5-1.3Z
+    - M4.9 15.5h14.2M9.5 11l.5 10.5M14.5 11l-.5 10.5`,
+  intermediate: `
+    s M4 7.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z
+    l M12 5.5v15M4 13h16
+    a ${o(12, 13, 1.8)}`,
+  finished: `
+    s M4 12c0-3.3 2-5.5 4-5.5h8c2 0 4 2.2 4 5.5Z
+    s M4 12h16v7.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5Z
+    a M10.5 10.5h3v4h-3Z`,
+};
+
+/** Niveaux de bien qui ont un dessin de repli. */
+export const GOOD_TIER_IDS = Object.keys(TIERS);
+
 export interface GoodIconProps extends IllustrationProps {
   goodId: string;
+  /** Niveau du bien (`raw`, `intermediate`, `finished`) : un bien sans dessin propre prend celui de son niveau. */
+  tier?: string;
   /** 24 px dans une ligne de texte ou un tableau, 48 px dans une fiche (trait un peu plus fin). */
   size?: 24 | 48;
 }
 
-/** Pictogramme d'un bien ; un bien inconnu reçoit une caisse neutre. */
-export function GoodIcon({ goodId, size = 24, ...props }: GoodIconProps) {
+/** Pictogramme d'un bien ; sans dessin propre, celui de son niveau, ou à défaut une caisse neutre. */
+export function GoodIcon({ goodId, tier = '', size = 24, ...props }: GoodIconProps) {
   const strokeWidth = size > 24 ? 1.5 : 2;
   return (
     <Svg viewBox="0 0 24 24" width={size} height={size} strokeWidth={strokeWidth} {...props}>
-      {drawing(GOODS, goodId, UNKNOWN_GOOD)}
+      {drawing(GOODS, goodId, Object.hasOwn(TIERS, tier) ? (TIERS[tier] ?? '') : UNKNOWN_GOOD)}
     </Svg>
   );
 }
