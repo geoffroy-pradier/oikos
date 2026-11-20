@@ -1012,7 +1012,7 @@
       "balance": "Solde",
       "marketTax": "Taxe de marché",
       "portDues": "Droit de port",
-      "factor": "coefficient {{factor}}"
+      "factor": "× {{factor}}"
     },
     "chart_one": "Recettes et dépenses du trésor sur {{count}} jour : {{income}} de recettes, {{spending}} de dépenses.",
     "chart_other": "Recettes et dépenses du trésor sur {{count}} jours : {{income}} de recettes, {{spending}} de dépenses.",

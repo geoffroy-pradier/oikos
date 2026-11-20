@@ -1012,7 +1012,7 @@
       "balance": "Balance",
       "marketTax": "Market tax",
       "portDues": "Port dues",
-      "factor": "factor {{factor}}"
+      "factor": "× {{factor}}"
     },
     "chart_one": "Treasury income and spending over {{count}} day: {{income}} of income, {{spending}} of spending.",
     "chart_other": "Treasury income and spending over {{count}} days: {{income}} of income, {{spending}} of spending.",
