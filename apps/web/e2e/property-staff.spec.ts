@@ -68,8 +68,9 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   await page.keyboard.press('Enter');
   // Le résultat s'annonce dans la carte des offres et prend le foyer, la feuille fermée.
   await expect(page.getByRole('status').filter({ hasText: 'Bien acheté.' })).toBeVisible();
-  const mine = page.getByRole('heading', { name: 'Mes biens' }).locator('..');
-  await expect(mine.getByText('État : 100 %')).toBeVisible();
+  // Le bien acheté, à 100 %, en tableau sur ordinateur, en fiche sur téléphone.
+  const mine = page.getByRole('region', { name: 'Mes biens' });
+  await expect(mine.getByText(/^100\s%$/).filter({ visible: true })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // Onglet Cité : marché du travail pas encore fixé, parc par taille.
