@@ -55,7 +55,17 @@
     "summaryIntro": "Read it over before founding: you can still go back.",
     "summaryName": "House",
     "summaryBlazon": "Blazon",
-    "summaryCity": "Home city"
+    "summaryCity": "Home city",
+    "filterGod": "Patron god",
+    "filterRaw": "Raw material",
+    "allGods": "All gods",
+    "allRaws": "All raw materials",
+    "cityCount_one": "{{count}} city",
+    "cityCount_other": "{{count}} cities",
+    "cityShown_one": "{{count}} city of {{total}}",
+    "cityShown_other": "{{count}} cities of {{total}}",
+    "clearFilters": "Clear filters",
+    "cityShown_zero": "No city matches these filters."
   },
   "home": {
     "title": "House {{name}}",

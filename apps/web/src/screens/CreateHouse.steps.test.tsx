@@ -20,6 +20,7 @@ vi.mock('../data', () => ({
     failed: false,
     reload: () => undefined,
   }),
+  useSiteRules: () => ({ rules: null }),
 }));
 const { CreateHouse } = await import('./CreateHouse');
 

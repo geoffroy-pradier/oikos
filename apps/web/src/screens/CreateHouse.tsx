@@ -6,13 +6,22 @@ import {
   normalizeHouseName,
   type Blazon,
 } from '@oikos/contracts';
-import { Badge, Check, CityVignette, GodEmblem, Select, Stepper, TextField } from '@oikos/ui';
+import {
+  Badge,
+  Button,
+  Check,
+  CityVignette,
+  GodEmblem,
+  Select,
+  Stepper,
+  TextField,
+} from '@oikos/ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createHouse } from '../api';
 import { Blazon as BlazonPreview } from '../Blazon';
 import { describeCity, parseCityIdentities, type CityIdentity } from '../city-identity';
-import { useRows } from '../data';
+import { useRows, useSiteRules } from '../data';
 import { LoadProblem } from './LoadProblem';
 
 export interface City {
@@ -53,6 +62,10 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     tincture: BLAZON_TINCTURES[0],
     emblem: BLAZON_EMBLEMS[0],
   });
+  // Filtres de la liste des cités (#707) : dieu protecteur, matière première du terroir ; vides, toutes.
+  const [godFilter, setGodFilter] = useState('');
+  const [rawFilter, setRawFilter] = useState('');
+  const siteRules = useSiteRules().rules;
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Cités qui ont refusé un premier site faute de travailleurs (4.4, #258) : l'écran propose les autres.
@@ -202,6 +215,52 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
     );
   };
 
+  // Une matière première se nomme par le bien de sa recette de terroir, à défaut par la recette.
+  const rawName = (recipeId: string) => {
+    const good = siteRules?.recipe(recipeId)?.outputs[0]?.goodId;
+    return good
+      ? t(`goods.${good}`, { defaultValue: good })
+      : t(`recipes.${recipeId}`, { defaultValue: recipeId });
+  };
+  const known = [...(identities?.values() ?? [])];
+  const options = (ids: string[], name: (id: string) => string) =>
+    [...new Set(ids)]
+      .map((id) => ({ id, name: name(id) }))
+      .sort((a, b) => a.name.localeCompare(b.name, i18n.language));
+  const gods = options(
+    known.flatMap(({ patronGodId }) => (patronGodId ? [patronGodId] : [])),
+    (id) => t(`gods.${id}`, { defaultValue: id }),
+  );
+  const raws = options(
+    known.flatMap(({ terroir }) => terroir ?? []),
+    rawName,
+  );
+  const shown = cities.filter((city) => {
+    const identity = identities?.get(city.id);
+    if (!identity) return !godFilter && !rawFilter;
+    return (
+      (!godFilter || identity.patronGodId === godFilter) &&
+      (!rawFilter || identity.terroir === null || identity.terroir.includes(rawFilter))
+    );
+  });
+  const filter = (
+    id: string,
+    label: string,
+    value: string,
+    set: (value: string) => void,
+    all: string,
+    list: { id: string; name: string }[],
+  ) => (
+    <Select id={id} label={label} quiet value={value} onChange={(event) => set(event.target.value)}>
+      <option value="">{all}</option>
+      {list.map((option) => (
+        <option key={option.id} value={option.id}>
+          {option.name}
+        </option>
+      ))}
+    </Select>
+  );
+
   const chosenIdentity = chosen && identities?.get(chosen.id);
   const chosenLines = describe(chosenIdentity);
 
@@ -268,7 +327,44 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
                 {(read.failed || (read.rows !== null && identities === null)) && (
                   <LoadProblem onRetry={() => read.reload()} />
                 )}
-                <div className="grid gap-3 md:grid-cols-2">{cities.map(cityCard)}</div>
+                {identities && identities.size > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {filter(
+                      'city-god',
+                      t('createHouse.filterGod'),
+                      godFilter,
+                      setGodFilter,
+                      t('createHouse.allGods'),
+                      gods,
+                    )}
+                    {filter(
+                      'city-raw',
+                      t('createHouse.filterRaw'),
+                      rawFilter,
+                      setRawFilter,
+                      t('createHouse.allRaws'),
+                      raws,
+                    )}
+                  </div>
+                )}
+                <p role="status" className="text-sm text-muted-foreground">
+                  {shown.length === cities.length
+                    ? t('createHouse.cityCount', { count: cities.length })
+                    : t('createHouse.cityShown', { count: shown.length, total: cities.length })}
+                </p>
+                {shown.length === 0 && (
+                  <Button
+                    variant="secondary"
+                    className="self-start"
+                    onClick={() => {
+                      setGodFilter('');
+                      setRawFilter('');
+                    }}
+                  >
+                    {t('createHouse.clearFilters')}
+                  </Button>
+                )}
+                <div className="grid gap-3 md:grid-cols-2">{shown.map(cityCard)}</div>
                 <p id="form-error" role="alert" className="font-semibold text-danger">
                   {cityError ? errorText : ''}
                 </p>
