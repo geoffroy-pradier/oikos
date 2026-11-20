@@ -7,10 +7,13 @@ import {
   Card,
   CITY_VIGNETTE_IDS,
   CityVignette,
+  EMPTY_ILLUSTRATION_IDS,
+  EmptyIllustration,
   GOD_EMBLEM_IDS,
   GodEmblem,
   GOOD_ICON_IDS,
   GoodIcon,
+  WelcomeScene,
 } from '@oikos/ui';
 import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -88,6 +91,22 @@ function Cities() {
   );
 }
 
+function Scenes() {
+  return (
+    <div className="flex flex-col gap-4">
+      <WelcomeScene className="h-auto w-full rounded-lg" />
+      <ul className="grid grid-cols-2 gap-3">
+        {EMPTY_ILLUSTRATION_IDS.map((id) => (
+          <li key={id} className="flex flex-col items-center gap-1 text-center">
+            <EmptyIllustration kind={id} className="h-auto w-full max-w-40" />
+            <span className="text-xs text-muted-foreground">{id}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Catalogue() {
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-8">
@@ -103,6 +122,9 @@ function Catalogue() {
       </Section>
       <Section title="CityVignette · 240 × 160 · 120 × 80">
         <Cities />
+      </Section>
+      <Section title="WelcomeScene · EmptyIllustration">
+        <Scenes />
       </Section>
     </main>
   );

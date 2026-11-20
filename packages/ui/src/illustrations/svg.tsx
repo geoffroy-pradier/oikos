@@ -35,10 +35,11 @@ const TONES: Record<string, SVGProps<SVGPathElement>> = {
 /** Tracés d'un dessin ; un code de ton inconnu est une erreur de dessin. */
 export function paths(source: string): ReactNode {
   return source
-    .trim()
     .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line)
     .map((line, index) => {
-      const [code = '', ...d] = line.trim().split(' ');
+      const [code = '', ...d] = line.split(' ');
       const tone = TONES[code];
       if (!tone) throw new Error(`Ton inconnu : ${code}`);
       return <path key={index} {...tone} d={d.join(' ')} />;
