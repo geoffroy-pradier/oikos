@@ -6,7 +6,7 @@ import { Coins, Ship } from '../icons';
 import { EmptyState } from './EmptyState';
 import { PageHeader } from './PageHeader';
 import { Progress } from './Progress';
-import { StatCard } from './StatCard';
+import { StatCard, StatGrid } from './StatCard';
 import { StatusRegion } from './StatusRegion';
 
 afterEach(cleanup);
@@ -31,7 +31,8 @@ describe('StatCard', () => {
 
   it('dense : petite carte sous 1 024 px, sans icône ni variation ; entière au-delà', () => {
     render(<StatCard dense label="Stocks" icon={<Coins />} value="12 dr." hint="2 cités" />);
-    expect(screen.getByText('12 dr.').className).toContain('max-lg:text-base');
+    expect(screen.getByText('12 dr.').className).toContain('cqi');
+    expect(screen.getByText('12 dr.').className).toContain('max-lg:[--stat-max:1.25rem]');
     expect(screen.getByText('2 cités').className).toContain('max-lg:hidden');
     expect(screen.getByText('Stocks').nextElementSibling?.className).toContain('max-lg:hidden');
   });
@@ -58,6 +59,140 @@ describe('StatCard', () => {
     ]);
     expect(term.parentElement?.querySelector('dd')?.textContent).toBe('5 615');
     expect(screen.getByText('+4 %').className).toContain('text-danger');
+  });
+
+  it('montant long : en entier sur une ligne, à la taille que permet la largeur de la carte', () => {
+    render(<StatCard label="Trésorerie" icon={<Coins />} value="486 drachmes 4 oboles" />);
+    const value = screen.getByText('486 drachmes 4 oboles');
+    expect(value.className).toContain('whitespace-nowrap');
+    expect(value.className).not.toContain('overflow-wrap');
+    // Taille : la largeur de la carte (`cqi`, la valeur est dans un conteneur) divisée par celle du montant, en em.
+    expect(value.style.getPropertyValue('--stat-em')).toBe('12.08');
+    expect(value.className).toMatch(/min\(var\(--stat-max\),100cqi\/var\(--stat-em\)\)/);
+    expect(value.parentElement?.className).toContain('@container');
+  });
+
+  it('une seule ligne secondaire : variation, précision et courbe ensemble', () => {
+    render(
+      <StatCard
+        inverse
+        label="Trésorerie"
+        value="600 oboles"
+        delta={{ value: '+2 drachmes', trend: 'up' }}
+        hint="sur 7 jours"
+        chart={<svg aria-hidden="true" data-testid="courbe" />}
+      />,
+    );
+    const line = screen.getByText('+2 drachmes').closest('p');
+    expect(line?.textContent).toBe('▲ +2 drachmes sur 7 jours');
+    expect(line?.contains(screen.getByTestId('courbe'))).toBe(true);
+    expect(screen.getByText('Trésorerie').closest('section')?.querySelectorAll('p')).toHaveLength(
+      2,
+    );
+    // Plan inversé sous 1 024 px : la variation y garde le texte du plan, son sens reste dit par le triangle.
+    expect(screen.getByText('+2 drachmes').className).toContain('max-lg:text-inverse-foreground');
+  });
+});
+
+describe('StatGrid', () => {
+  /** Colonnes de chaque enfant : sous 1 280 px (`max-xl`), puis au-delà (`xl`), deux s'il est marqué. */
+  const spans = (items: Iterable<Element>) =>
+    Array.from(items, (item) =>
+      ['max-xl:col-span-2', 'xl:col-span-2'].map((span) => +item.classList.contains(span) + 1),
+    );
+
+  it('rangées partagées par les cartes ; une rangée à 1 280 px si les cartes tiennent en cinq colonnes', () => {
+    render(
+      <StatGrid as="ul" aria-label="Chiffres">
+        <li>
+          <StatCard label="Hébergés chez les habitants de la cité" value="4" />
+        </li>
+        <li>
+          <StatCard label="Hébergement par jour" value="13 drachmes 2 oboles" />
+        </li>
+      </StatGrid>,
+    );
+    const grid = screen.getByRole('list', { name: 'Chiffres' });
+    expect(grid.className).toContain('grid-cols-2');
+    // 1 + 2 colonnes : une seule rangée de trois.
+    expect(grid.className).toContain('xl:grid-cols-3');
+    expect(grid.className).toContain('[&>li]:grid-rows-subgrid');
+    expect(grid.className).toContain('[&_[data-stat-card]]:grid-rows-subgrid');
+    // Montant trop long pour une colonne : deux, partout ; la carte d'avant reste seule sous 1 280 px.
+    expect(spans(grid.children)).toEqual([
+      [2, 1],
+      [2, 2],
+    ]);
+    // Libellé, valeur, ligne secondaire : trois rangées partagées, la valeur ne suit pas la hauteur du libellé.
+    for (const card of grid.querySelectorAll('section')) {
+      expect(card.dataset['statCard']).toBe('');
+      // Une carte conteneur (`container-type`) perdrait ses rangées partagées : seule sa valeur l'est.
+      expect(card.className).not.toContain('@container');
+    }
+  });
+
+  it('Maison : trésorerie large et trois cartes, une rangée de cinq ; la carte seule sur téléphone s’étend', () => {
+    const { container } = render(
+      <StatGrid>
+        <StatCard wide label="Trésorerie" value="—" />
+        <StatCard label="Résultat" value="0 obole" />
+        <StatCard label="Stocks" value="0 obole" />
+        <StatCard label="Sites" value="1 sur 1" />
+        <p className="col-span-full">Détail</p>
+      </StatGrid>,
+    );
+    const grid = container.firstElementChild as Element;
+    expect(grid.className).toContain('xl:grid-cols-5');
+    expect(spans(grid.children)).toEqual([
+      [2, 2],
+      [1, 1],
+      [1, 1],
+      [2, 1],
+      [1, 1],
+    ]);
+  });
+
+  it('Sites : une carte large et trois normales font cinq colonnes, une rangée aux valeurs de même taille', () => {
+    const { container } = render(
+      <StatGrid>
+        <StatCard wide label="Trésorerie" value="486 drachmes 4 oboles" />
+        <StatCard label="Sites" value="1 sur 4" />
+        <StatCard label="Prêts" value="0" />
+        <StatCard label="Coût d'un jour" value="9 drachmes" />
+      </StatGrid>,
+    );
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.className).toContain('xl:grid-cols-5');
+    expect(spans(grid.children)).toEqual([
+      [2, 2],
+      [1, 1],
+      [1, 1],
+      [2, 1],
+    ]);
+    // Taille commune : la plus serrée d'une colonne (« 9 drachmes ») et de deux (le montant), sur la largeur de la grille.
+    expect(grid.className).toContain('xl:[&_[data-stat-value]]:text-[length:var(--stat-row)]');
+    expect(grid.style.getPropertyValue('--stat-fit')).toBe(
+      'min(1.75rem, calc((2 * (100cqi - 4rem) / 5 + 1rem - 2rem - 2px) / 12.08), ' +
+        'calc((1 * (100cqi - 4rem) / 5 + 0rem - 2rem - 2px) / 6.11))',
+    );
+  });
+
+  it('Comptes : au-delà de cinq colonnes, quatre par rangée', () => {
+    const { container } = render(
+      <StatGrid as="ul">
+        {['486 drachmes 4 oboles', '13 drachmes 2 oboles', '0 obole', '500 drachmes'].map(
+          (value) => (
+            <li key={value}>
+              <StatCard wide={value.startsWith('486')} label="Bilan" value={value} />
+            </li>
+          ),
+        )}
+      </StatGrid>,
+    );
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.className).toContain('xl:grid-cols-4');
+    expect(grid.className).not.toContain('--stat-row');
+    expect(spans(grid.children).map(([, xl]) => xl)).toEqual([2, 2, 1, 2]);
   });
 });
 

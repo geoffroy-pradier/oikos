@@ -199,6 +199,17 @@
   }
 }
 
+/*
+ * Taille commune des valeurs d'une rangée de `StatGrid` : une longueur calculée sur chaque carte, dont les unités
+ * `cqi` se rapportent ainsi à la grille, puis héritée par la valeur, elle-même dans un autre conteneur. Sa valeur
+ * initiale doit être absolue (pas de `rem`), sans quoi la déclaration est ignorée.
+ */
+@property --stat-row {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 28px;
+}
+
 @layer base {
   html {
     /* La taille de police suit le réglage du navigateur : tout est exprimé en rem. */
