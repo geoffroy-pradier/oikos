@@ -1,9 +1,8 @@
 import { houseNameSchema } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
-import { useId, useRef, useState } from 'react';
+import { Button, LoaderCircle, Plus, Sheet, TextField } from '@oikos/ui';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { openDirect } from '../api';
-import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { supabase } from '../supabase';
 
@@ -28,18 +27,20 @@ async function findHouse(worldId: string, name: string) {
 
 /**
  * Nouvelle conversation privée avec une maison nommée, du monde de la maison (6.6) : son nom, puis
- * `chat.openDirect`, qui ouvre la conversation ou rend celle qui existe. `onOpened` la sélectionne.
+ * `chat.openDirect`, qui ouvre la conversation ou rend celle qui existe. `onOpened` la sélectionne. Le nom se saisit
+ * dans une feuille (ADR 0011), refus dits sous le champ ; ouverte, la feuille se ferme et l'écran l'annonce.
  */
 export function NewConversation({
   worldId,
   onOpened,
 }: {
   worldId: string;
-  onOpened: (channelId: string) => Promise<unknown>;
+  /** La conversation ouverte, et le nom de la maison, pour l'annonce que l'écran en fait. */
+  onOpened: (channelId: string, house: string) => Promise<unknown>;
 }) {
   const { t } = useTranslation();
   const house = useHouse();
-  const id = useId();
+  const [shown, setShown] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -70,8 +71,8 @@ export function NewConversation({
       if (result.ok || result.error.code !== 'INTERNAL') keys.current.delete(found.id);
       if (result.ok) {
         setName('');
-        setNotice({ kind: 'status', text: t('messages.opened', { house: found.name }) });
-        await onOpened(result.data.channelId);
+        setShown(false);
+        await onOpened(result.data.channelId, found.name);
       } else
         setNotice({ kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) });
     } finally {
@@ -80,36 +81,60 @@ export function NewConversation({
   }
 
   return (
-    <form
-      className="flex flex-col gap-2 border-t border-border-subtle pt-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void open();
-      }}
-    >
-      <label htmlFor={id} className="font-semibold">
-        {t('messages.newConversation')}
-      </label>
-      <input
-        id={id}
-        value={name}
-        autoComplete="off"
-        className="min-h-11 w-full rounded-lg border border-border bg-surface px-2"
-        onChange={(event) => setName(event.target.value)}
-      />
+    <>
       <Button
-        type="submit"
-        aria-disabled={busy}
-        className="self-start aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+        icon={<Plus aria-hidden="true" />}
+        aria-haspopup="dialog"
+        onClick={() => {
+          setNotice(null);
+          setShown(true);
+        }}
       >
-        {t('messages.open')}
+        {t('messages.newConversationOpen')}
       </Button>
-      <p role="status" className={STATUS_BOX}>
-        {notice?.kind === 'status' ? notice.text : ''}
-      </p>
-      <p role="alert" className={ALERT_BOX}>
-        {notice?.kind === 'alert' ? notice.text : ''}
-      </p>
-    </form>
+      <Sheet
+        open={shown}
+        onClose={() => {
+          // Recherche en vol : la feuille reste ouverte, pour que son issue y soit dite.
+          if (busy) return;
+          setShown(false);
+          setNotice(null);
+        }}
+        title={t('messages.newConversationOpen')}
+        description={t('messages.newConversationHint')}
+        closeLabel={t('shell.close')}
+        closeDisabled={busy}
+        footer={
+          // Inactif par `aria-disabled` pendant la recherche : refusée, le bouton garde le foyer.
+          <Button
+            type="submit"
+            form="new-conversation"
+            aria-disabled={busy}
+            aria-busy={busy || undefined}
+            icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+          >
+            {t('messages.open')}
+          </Button>
+        }
+      >
+        <form
+          id="new-conversation"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void open();
+          }}
+        >
+          <TextField
+            label={t('messages.newConversation')}
+            value={name}
+            autoFocus
+            autoComplete="off"
+            error={notice?.kind === 'alert' ? notice.text : undefined}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </form>
+      </Sheet>
+    </>
   );
 }

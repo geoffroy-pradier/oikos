@@ -91,7 +91,7 @@ test('deux joueurs : le canal de la cité et une conversation privée, en direct
   await expect(composer(other)).toBeFocused();
 
   // Alpha ouvre une conversation avec Bêta par son nom, et lui écrit.
-  await channelList(page);
+  await page.getByRole('button', { name: 'Nouvelle conversation' }).click();
   await page
     .getByRole('textbox', { name: 'Écrire à une maison, par son nom' })
     .fill(beta.toLowerCase());

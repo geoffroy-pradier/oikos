@@ -45,6 +45,7 @@ export {
   Scale,
   ScrollText,
   Search,
+  Send,
   Settings,
   ShieldAlert,
   Ship,
