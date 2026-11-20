@@ -287,6 +287,25 @@ export function previewHarvest(
   };
 }
 
+/**
+ * Avancement du cycle en cours d'un site, pour l'affichage : part faite (de 0 à 1) et minutes avant le
+ * prochain cycle. Plafond d'accumulation atteint (`full`), le temps ne produit plus rien. À l'arrêt, le
+ * temps s'est arrêté à l'instant de l'arrêt, comme pour `previewHarvest`.
+ */
+export function cycleProgress(
+  recipe: SiteRecipe,
+  cycleStartedAt: Date,
+  now: Date,
+  haltedAt: Date | null = null,
+): { done: number; minutesLeft: number; full: boolean } {
+  const until = haltedAt && haltedAt < now ? haltedAt : now;
+  const cycle = recipe.durationMinutes * 60_000;
+  const elapsed = Math.max(0, until.getTime() - cycleStartedAt.getTime());
+  if (elapsed >= cycle * recipe.maxAccruedCycles) return { done: 1, minutesLeft: 0, full: true };
+  const current = elapsed % cycle;
+  return { done: current / cycle, minutesLeft: Math.ceil((cycle - current) / 60_000), full: false };
+}
+
 export interface StockLine {
   city_id: string;
   good_id: string;

@@ -1142,5 +1142,23 @@
     "notInteger": "Whole number expected.",
     "belowMin": "At least {{min}}.",
     "aboveMax": "At most {{max}}."
+  },
+  "production": {
+    "title": "Production in progress",
+    "site": "Site",
+    "city": "City",
+    "next": "Next harvest",
+    "nextOf": "Next harvest: {{site}}",
+    "ready": "Ready",
+    "readyLine": "Ready: {{list}}",
+    "nothing": "Nothing ready",
+    "left_minutes": "Next cycle in {{minutes}} min",
+    "left_hours": "Next cycle in {{hours}} h {{minutes}}",
+    "full": "Cap reached",
+    "halted": "Stopped",
+    "retired": "Production withdrawn",
+    "details": "Details",
+    "detailsOf": "Details: {{site}}",
+    "unknown": "Harvest not estimated yet"
   }
 }

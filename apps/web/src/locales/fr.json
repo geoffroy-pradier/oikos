@@ -1142,5 +1142,23 @@
     "notInteger": "Nombre entier attendu.",
     "belowMin": "Au moins {{min}}.",
     "aboveMax": "Au plus {{max}}."
+  },
+  "production": {
+    "title": "Production en cours",
+    "site": "Site",
+    "city": "Cité",
+    "next": "Prochaine récolte",
+    "nextOf": "Prochaine récolte : {{site}}",
+    "ready": "Prêt",
+    "readyLine": "Prêt : {{list}}",
+    "nothing": "Rien de prêt",
+    "left_minutes": "Cycle suivant dans {{minutes}} min",
+    "left_hours": "Cycle suivant dans {{hours}} h {{minutes}}",
+    "full": "Plafond atteint",
+    "halted": "À l'arrêt",
+    "retired": "Production retirée",
+    "details": "Détails",
+    "detailsOf": "Détails : {{site}}",
+    "unknown": "Récolte pas encore estimée"
   }
 }
