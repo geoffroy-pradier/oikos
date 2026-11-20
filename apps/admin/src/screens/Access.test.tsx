@@ -198,6 +198,34 @@ it('un refus est expliqué, la saisie reste ; après une panne, la même demande
   expect([1, 2, 3].map((call) => keyOf(call) === keyOf(call - 1))).toEqual([false, false, true]);
 });
 
+it('pendant l’envoi, Échap ne referme pas la feuille ; un refus garde la saisie et rend le foyer au bouton', async () => {
+  const sent = held<unknown>();
+  await opened(ROLES, sent.promise);
+  const field = grantSheet();
+  fill(field, NEW, 'support');
+  const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Accorder le rôle' });
+  await waitFor(() => expect(submit.disabled).toBe(true));
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(screen.getByRole('dialog', { name: 'Accorder un rôle' })).toBeTruthy();
+  sent.release({ ok: false, code: 'ROLE_UNCHANGED' });
+  await waitFor(() => expect(notice('alert')).toBe('Ce compte porte déjà ce rôle.'));
+  expect([field.value, screen.getByLabelText<HTMLSelectElement>('Rôle').value]).toEqual([
+    NEW,
+    'support',
+  ]);
+  await waitFor(() => expect(document.activeElement).toBe(submit));
+});
+
+it('la feuille s’ouvre sans le résultat d’un geste précédent', async () => {
+  await opened(ROLES, { ok: false, code: 'LAST_SUPER_ADMIN' });
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer le retrait' }));
+  await waitFor(() => expect(notice('alert')).toMatch(/^Il doit toujours rester/));
+  grantSheet();
+  expect(within(screen.getByRole('dialog')).queryByText(/Il doit toujours rester/)).toBeNull();
+  expect(notice('alert')).toBeUndefined();
+});
+
 it('retire un rôle après confirmation ; annuler ne fait rien et rend le foyer au bouton', async () => {
   const sent = held<{ userId: string; previousRole: string }>();
   await opened(ROLES.slice(0, 2), sent.promise);

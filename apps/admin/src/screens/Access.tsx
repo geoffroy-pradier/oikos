@@ -1,6 +1,6 @@
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
 import { Button, Field, PageHeader, Plus, Sheet } from '@oikos/ui';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
 import { ignoreHeldEnter } from '../keyboard';
@@ -41,6 +41,11 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
   const [busy, setBusy] = useState(false);
   /** Feuille « Accorder un rôle » ouverte ; rôle dont la liste est filtrée (`all` : tous). */
   const [granting, setGranting] = useState(false);
+  /** Rôle refusé : « Accorder le rôle », inactif pendant l'envoi, reprend le foyer après le rendu. */
+  const [refused, setRefused] = useState(0);
+  useEffect(() => {
+    if (refused > 0) document.getElementById('access-grant')?.focus();
+  }, [refused]);
   const [shownRole, setShownRole] = useState<AdminRole | 'all'>('all');
   const [notice, setNotice] = useState<Notice>(null);
   // Intention en attente de réponse : la même action renvoyée après une panne réutilise sa clé.
@@ -89,6 +94,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
           previous: data.previousRole && t(`roles.${data.previousRole}`),
         }),
     );
+    if (!granted) setRefused((count) => count + 1);
     if (granted) setRole('observer');
     if (granted) setAccount('');
   }
@@ -112,7 +118,11 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
             icon={<Plus aria-hidden="true" />}
             aria-haspopup="dialog"
             disabled={busy}
-            onClick={() => setGranting(true)}
+            onClick={() => {
+              // Un résultat précédent (un retrait refusé) ne se lit pas dans la feuille qui s'ouvre.
+              setNotice(null);
+              setGranting(true);
+            }}
           >
             {t('access.grantTitle')}
           </Button>
@@ -136,7 +146,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
               </label>
               <select
                 id="access-filter"
-                className={`${CONTROL} min-h-10 text-sm sm:w-56`}
+                className={`${CONTROL} min-h-11 text-sm sm:w-56`}
                 value={shownRole}
                 onChange={(event) => setShownRole(event.target.value as AdminRole | 'all')}
               >
@@ -231,7 +241,8 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
       <Notice notice={notice} />
       <Sheet
         open={granting}
-        onClose={() => setGranting(false)}
+        // Commande en vol : ni Échap ni le voile ne referment la feuille (doc de `Sheet`).
+        onClose={() => !busy && setGranting(false)}
         closeDisabled={busy}
         closeLabel={t('access.close')}
         title={t('access.grantTitle')}
@@ -264,7 +275,7 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
               </option>
             ))}
           </select>
-          <Button type="submit" className="self-end" disabled={busy}>
+          <Button id="access-grant" type="submit" className="self-end" disabled={busy}>
             {t('access.grant')}
           </Button>
         </form>
