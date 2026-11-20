@@ -342,4 +342,4 @@ La tolérance est faible : au plus 0,1 % de pixels différents.
 Les références sont celles de Linux (suffixe `-linux`) : elles se produisent et se comparent sur une machine Linux, ou sous WSL 2.
 Une référence se met à jour sur une base neuve, par `pnpm --filter @oikos/web exec playwright test visual --update-snapshots` (de même pour `@oikos/admin`), et la nouvelle image se relit dans la demande de fusion.
 Hors `ci`, le contrôle du jeu est sauté sur une base où sa maison a plus d'une heure.
-En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual`.
+En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual-<application>-<morceau>` du job de bout en bout qui l'a vu (`e2e-visual-web-2`, par exemple).
