@@ -10,7 +10,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Séquestre | Monnaie qu'un achat en attente à l'agora retient hors de la trésorerie (prix limite × reste), rendue à l'annulation (`escrow`) |
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
 | Charis | Faveur divine d'une maison envers un dieu, entière, gagnée par les offrandes et les actes ; elle décline à chaque clôture et ne se transfère pas (`favor`) |
-| Timè | Honneur, réputation publique de la maison |
+| Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |
 | Hybris | Démesure : jauge qui monte quand une maison domine trop |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |

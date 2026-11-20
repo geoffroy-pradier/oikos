@@ -17,7 +17,7 @@ Le joueur arrive comme chef d'une maison modeste, débarqué dans une cité qui 
 | Agora | Le marché de la cité, et par extension l'espace public (forum) |
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
 | Charis | Faveur divine, gagnée par les offrandes et les actes |
-| Timè | Honneur, réputation publique de la maison |
+| Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |
 | Hybris | Démesure : jauge qui monte quand une maison domine trop |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |
