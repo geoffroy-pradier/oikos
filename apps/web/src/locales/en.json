@@ -65,8 +65,6 @@
       "citizen": "Citizen in {{city}}"
     },
     "treasury": "Treasury",
-    "balance": "{{amount}}",
-    "balanceLabel": "Balance",
     "stock": "Storehouse",
     "stockEmpty": "Nothing in stock yet.",
     "stockCity": "Stock in {{city}}",
@@ -175,6 +173,21 @@
       "staff": "Staff",
       "property": "Property",
       "accounts": "Accounts"
+    },
+    "figures": {
+      "title": "Key figures",
+      "plus": "+{{amount}}",
+      "week": "over 7 days",
+      "today": "Today's result",
+      "todayHint": "Sales {{sales}} · costs {{charges}}",
+      "stocks": "Valued stocks",
+      "sites": "Active sites",
+      "sitesValue": "{{running}} / {{total}}",
+      "sitesHint": "{{workers}} · {{stewards}}",
+      "workers_one": "{{number}} worker",
+      "workers_other": "{{number}} workers",
+      "stewards_one": "{{number}} steward",
+      "stewards_other": "{{number}} stewards"
     }
   },
   "agora": {

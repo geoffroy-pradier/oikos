@@ -1,12 +1,13 @@
-import { Badge, Card, Coins, EmptyState, Landmark, Package, Stat, Warehouse } from '@oikos/ui';
-import { Link } from '@tanstack/react-router';
+import { Badge, Card, EmptyState, Landmark, Package, Warehouse } from '@oikos/ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { stockByCity } from '../site-rules';
 import { HouseAlerts } from './HouseAlerts';
-import { SitesCard } from './Sites';
-import { useMoney } from '../money';
+import { useHomeFigures } from '../home-figures';
+import { HomeFigures } from './HomeFigures';
+import { SitesCard, type SitesSummary } from './Sites';
 import { LoadProblem, Loading } from './LoadProblem';
 import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
@@ -55,10 +56,13 @@ export function HomeScreen() {
   );
 
   const number = new Intl.NumberFormat(i18n.language);
-  const money = useMoney();
   // Un bien ou une recette ajoutés par le back-office sans traduction s'affichent par leur identifiant.
   const goodName = (id: string) => t(`goods.${id}`, { defaultValue: id });
-  const failed = treasury.failed || stock.failed || orders.failed || voyages.failed;
+  const balance = treasury.rows?.[0]?.balance;
+  const figures = useHomeFigures(balance);
+  const [sites, setSites] = useState<SitesSummary | null>(null);
+  const failed =
+    treasury.failed || stock.failed || orders.failed || voyages.failed || figures.failed;
   const groups = stockByCity(stock.rows ?? [], house.cityId);
   const titled = atSea.length > 0 || groups.some(({ cityId }) => cityId !== house.cityId);
 
@@ -78,51 +82,32 @@ export function HomeScreen() {
       {failed && (
         <LoadProblem
           onRetry={() =>
-            Promise.all([treasury.reload(), stock.reload(), orders.reload(), voyages.reload()])
+            Promise.all([
+              treasury.reload(),
+              stock.reload(),
+              orders.reload(),
+              voyages.reload(),
+              figures.reload(),
+            ])
           }
         />
       )}
 
-      <HouseAlerts />
+      <HomeFigures
+        figures={figures}
+        balance={balance}
+        held={held}
+        orders={orders.rows && { buys: buys.length, sells: sells.length }}
+        sites={sites}
+      />
 
-      <Card className="flex flex-col gap-3">
-        <h2 className="text-xl">{t('home.treasury')}</h2>
-        {treasury.rows === null && !treasury.failed && <Loading />}
-        {treasury.rows?.map((account) => (
-          <Stat
-            key="balance"
-            icon={<Coins />}
-            label={t('home.balanceLabel')}
-            value={t('home.balance', { amount: money(account.balance) })}
-            hint={held > 0 ? t('home.held', { amount: money(held) }) : undefined}
-          />
-        ))}
-        {orders.rows === null && !orders.failed && <Loading />}
-        {orders.rows && (
-          <p>
-            {orders.rows.length === 0
-              ? t('home.openOrdersNone')
-              : t('home.openOrders', {
-                  buys: t('home.openBuys', {
-                    count: buys.length,
-                    number: number.format(buys.length),
-                  }),
-                  sells: t('home.openSells', {
-                    count: sells.length,
-                    number: number.format(sells.length),
-                  }),
-                })}{' '}
-            <Link to="/agora" className="underline underline-offset-4">
-              {t('home.toAgora')}
-            </Link>
-          </p>
-        )}
-      </Card>
+      <HouseAlerts />
 
       <SitesCard
         variant="production"
         stock={stock.rows}
-        onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
+        onChanged={() => Promise.all([treasury.reload(), stock.reload(), figures.reload()])}
+        onSummary={setSites}
       />
 
       <Card>
