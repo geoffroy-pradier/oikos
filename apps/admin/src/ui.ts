@@ -11,3 +11,7 @@ export const CONTROL =
 /** Alerte écrite d'un écran : fond et texte de danger, jamais la couleur seule (le texte dit l'alerte). */
 export const ALERT =
   'rounded-xl border border-danger/30 bg-danger-subtle px-4 py-3 text-sm font-semibold text-danger';
+
+/** Cadre d'un tableau de données sur ordinateur ; sous 1 024 px, ses fiches s'empilent sans cadre. */
+export const FRAME =
+  'lg:rounded-xl lg:border lg:border-border-subtle lg:bg-surface lg:px-2 lg:shadow-sm';

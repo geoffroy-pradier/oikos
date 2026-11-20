@@ -1,8 +1,17 @@
-import { Button, cn, Hourglass, PageHeader, RefreshCw, Sparkles, StatCard } from '@oikos/ui';
+import {
+  Button,
+  cn,
+  DataTable,
+  Hourglass,
+  PageHeader,
+  RefreshCw,
+  Sparkles,
+  StatCard,
+  type SortDirection,
+} from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
-import { TABLE } from '../table';
-import { ALERT } from '../ui';
+import { ALERT, FRAME } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { StaleReportsAlert } from './Moderation';
 
@@ -182,6 +191,15 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         ]),
       ]
     : [];
+  const sorted = (header: string, direction: SortDirection) =>
+    t('app.sorted', { column: header, direction: t(`app.${direction}`) });
+  const caption = (id: string, text: string, Icon: typeof Hourglass) => (
+    <h2 id={id} className="flex items-center gap-2 text-base font-semibold">
+      <Icon aria-hidden="true" className="size-4.5 text-accent" />
+      {text}
+    </h2>
+  );
+
   return (
     <>
       <PageHeader
@@ -255,100 +273,119 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         </section>
       )}
       {data?.ai && (
-        <>
-          <h2 id="ai-gateway" className="text-xl">
-            <Sparkles
-              aria-hidden="true"
-              className="mr-2 inline size-5 align-[-0.15em] text-accent"
-            />
-            {t('vigie.ai.title')}
-          </h2>
-          {/* Région focalisable : à 360 px, le tableau défile aussi au clavier. */}
-          <div className="overflow-x-auto" role="region" aria-labelledby="ai-gateway" tabIndex={0}>
-            <table aria-labelledby="ai-gateway" className={TABLE}>
-              <thead>
-                <tr>
-                  <th scope="col">{t('vigie.ai.usage')}</th>
-                  <th scope="col">{t('vigie.ai.state')}</th>
-                  <th scope="col">{t('vigie.ai.today')}</th>
-                  <th scope="col">{t('vigie.ai.month')}</th>
-                  <th scope="col">{t('vigie.ai.rejected')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.ai.map((row) => (
-                  <tr key={row.usage}>
-                    <th scope="row">{t(`vigie.ai.usages.${row.usage}`)}</th>
-                    <td className={row.cut === 'capped' ? 'font-semibold text-danger' : undefined}>
-                      {t(`vigie.ai.cut.${row.cut ?? 'open'}`)}
-                    </td>
-                    <td>{cost(row.spentTodayMicroEuros)}</td>
-                    <td>
-                      {t('vigie.ai.ofCap', {
-                        spent: cost(row.spentMonthMicroEuros),
-                        cap: cost(row.capMicroEuros),
-                      })}
-                    </td>
-                    <td>
-                      {t('vigie.ai.rejectedOf', {
-                        rejected: number.format(row.rejectedMonth),
-                        answered: number.format(row.answeredMonth),
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <section aria-labelledby="ai-gateway" className="flex flex-col gap-3">
+          {caption('ai-gateway', t('vigie.ai.title'), Sparkles)}
+          <DataTable
+            caption={t('vigie.ai.title')}
+            className={FRAME}
+            rows={data.ai}
+            rowKey={(row) => row.usage}
+            locale={i18n.language}
+            sortAnnouncement={sorted}
+            columns={[
+              {
+                id: 'usage',
+                header: t('vigie.ai.usage'),
+                cell: (row) => t(`vigie.ai.usages.${row.usage}`),
+              },
+              {
+                id: 'state',
+                header: t('vigie.ai.state'),
+                cell: (row) => (
+                  <span className={row.cut === 'capped' ? 'font-semibold text-danger' : undefined}>
+                    {t(`vigie.ai.cut.${row.cut ?? 'open'}`)}
+                  </span>
+                ),
+              },
+              {
+                id: 'today',
+                header: t('vigie.ai.today'),
+                numeric: true,
+                cell: (row) => cost(row.spentTodayMicroEuros),
+                sortValue: (row) => row.spentTodayMicroEuros,
+              },
+              {
+                id: 'month',
+                header: t('vigie.ai.month'),
+                numeric: true,
+                cell: (row) =>
+                  t('vigie.ai.ofCap', {
+                    spent: cost(row.spentMonthMicroEuros),
+                    cap: cost(row.capMicroEuros),
+                  }),
+                sortValue: (row) => row.spentMonthMicroEuros,
+              },
+              {
+                id: 'rejected',
+                header: t('vigie.ai.rejected'),
+                numeric: true,
+                cell: (row) =>
+                  t('vigie.ai.rejectedOf', {
+                    rejected: number.format(row.rejectedMonth),
+                    answered: number.format(row.answeredMonth),
+                  }),
+                sortValue: (row) => row.rejectedMonth,
+              },
+            ]}
+          />
+        </section>
       )}
       {data && (
-        <>
-          <h2 id="recent-ticks" className="text-xl">
-            <Hourglass
-              aria-hidden="true"
-              className="mr-2 inline size-5 align-[-0.15em] text-accent"
-            />
-            {t('vigie.recentTicks')}
-          </h2>
+        <section aria-labelledby="recent-ticks" className="flex flex-col gap-3">
+          {caption('recent-ticks', t('vigie.recentTicks'), Hourglass)}
           {data.recentTicks.length === 0 ? (
             <p className="text-muted-foreground">{t('vigie.noTicks')}</p>
           ) : (
-            <div
-              className="overflow-x-auto"
-              role="region"
-              aria-labelledby="recent-ticks"
-              tabIndex={0}
-            >
-              <table aria-labelledby="recent-ticks" className={TABLE}>
-                <thead>
-                  <tr>
-                    <th scope="col">{t('vigie.time')}</th>
-                    <th scope="col">{t('vigie.world')}</th>
-                    <th scope="col">{t('vigie.tick')}</th>
-                    <th scope="col">{t('vigie.status')}</th>
-                    <th scope="col">{t('vigie.tickDuration')}</th>
-                    <th scope="col">{t('vigie.error')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.recentTicks.map((tick) => (
-                    <tr key={`${tick.worldId}:${tick.tickIndex}:${tick.createdAt}`}>
-                      <td>{time.format(new Date(tick.createdAt))}</td>
-                      <td>
-                        <code className="whitespace-nowrap">{tick.worldId.slice(0, 8)}</code>
-                      </td>
-                      <td>{tick.tickIndex}</td>
-                      <td>{t(`vigie.tickStatus.${tick.status}`)}</td>
-                      <td>{duration(tick.durationMs)}</td>
-                      <td>{tick.error ?? ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              caption={t('vigie.recentTicks')}
+              className={FRAME}
+              rows={data.recentTicks}
+              rowKey={(tick) => `${tick.worldId}:${tick.tickIndex}:${tick.createdAt}`}
+              locale={i18n.language}
+              sortAnnouncement={sorted}
+              columns={[
+                {
+                  id: 'time',
+                  header: t('vigie.time'),
+                  cell: (tick) => time.format(new Date(tick.createdAt)),
+                  sortValue: (tick) => tick.createdAt,
+                },
+                {
+                  id: 'world',
+                  header: t('vigie.world'),
+                  cell: (tick) => (
+                    <code className="whitespace-nowrap">{tick.worldId.slice(0, 8)}</code>
+                  ),
+                },
+                {
+                  id: 'tick',
+                  header: t('vigie.tick'),
+                  numeric: true,
+                  cell: (tick) => tick.tickIndex,
+                  sortValue: (tick) => tick.tickIndex,
+                },
+                {
+                  id: 'status',
+                  header: t('vigie.status'),
+                  cell: (tick) => t(`vigie.tickStatus.${tick.status}`),
+                  sortValue: (tick) => tick.status,
+                },
+                {
+                  id: 'duration',
+                  header: t('vigie.tickDuration'),
+                  numeric: true,
+                  cell: (tick) => duration(tick.durationMs),
+                  sortValue: (tick) => tick.durationMs,
+                },
+                {
+                  id: 'error',
+                  header: t('vigie.error'),
+                  cell: (tick) => <span className="wrap-anywhere">{tick.error ?? ''}</span>,
+                },
+              ]}
+            />
           )}
-        </>
+        </section>
       )}
     </>
   );

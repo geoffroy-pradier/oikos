@@ -18,7 +18,10 @@
       "rateLimited": "Trop de demandes en peu de temps. Patientez un instant, puis réessayez."
     },
     "skipToContent": "Aller au contenu",
-    "darkTheme": "Thème sombre"
+    "darkTheme": "Thème sombre",
+    "sorted": "Trié par {{column}}, {{direction}}",
+    "ascending": "croissant",
+    "descending": "décroissant"
   },
   "languages": {
     "fr": "Français",
