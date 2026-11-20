@@ -1,5 +1,5 @@
 import type { AdminEventsData, AdminWorldEvent } from '@oikos/contracts';
-import { EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
+import { Button, EmptyState, PageHeader, SegmentedControl } from '@oikos/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminGet } from '../api';
@@ -64,7 +64,9 @@ export function Events({ accessToken }: { accessToken: string }) {
       <PageHeader title={t('events.title')} titleRef={title} />
       {!data && !error && <p>{t('app.loading')}</p>}
       {error && <LoadError code={error} onRetry={() => void load(true)} />}
-      {data?.events.length === 0 && <p className="text-muted-foreground">{t('events.empty')}</p>}
+      {data?.events.length === 0 && (
+        <EmptyState illustration="noEvent" headingLevel={2} title={t('events.empty')} />
+      )}
       {data && data.events.length > 0 && (
         <>
           <SegmentedControl
@@ -89,7 +91,23 @@ export function Events({ accessToken }: { accessToken: string }) {
               {t('events.truncated', { shown: count.format(data.events.length) })}
             </p>
           )}
-          {visible.length === 0 && <EmptyState title={t('events.filteredEmpty')} />}
+          {visible.length === 0 && (
+            <EmptyState
+              illustration="noEvent"
+              title={t('events.filteredEmpty')}
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShown('all');
+                    title.current?.focus();
+                  }}
+                >
+                  {t('events.showAll')}
+                </Button>
+              }
+            />
+          )}
           <div
             hidden={visible.length === 0}
             className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm"

@@ -1,5 +1,5 @@
 import { ADMIN_ROLES, type AdminRole } from '@oikos/contracts';
-import { Button, Field, PageHeader, Plus, Sheet } from '@oikos/ui';
+import { Button, EmptyState, Field, PageHeader, Plus, Sheet } from '@oikos/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
@@ -133,7 +133,9 @@ export function Access({ accessToken, userId }: { accessToken: string; userId: s
         <LoadError code={error} onRetry={() => void reload().then(() => title.current?.focus())} />
       )}
       {!roles && !error && <p>{t('app.loading')}</p>}
-      {roles?.length === 0 && <p className="text-muted-foreground">{t('access.empty')}</p>}
+      {roles?.length === 0 && (
+        <EmptyState compact illustration="noReport" title={t('access.empty')} />
+      )}
       {roles && roles.length > 0 && (
         <>
           <div className="flex flex-wrap items-end justify-between gap-3">
