@@ -126,6 +126,10 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le dessin montre les routes en pointillés et leur durée de référence (en accent celles où un navire de la maison est en mer), la cité de la maison en accent, le nombre de navires de la maison à quai sous chaque cité, et ceux en mer sur leur route, à la part du trajet faite à l'heure du serveur, voile tournée vers leur destination et nommés quand la place le permet.
    Une échelle en heures de mer en donne l'ordre de grandeur : la longueur médiane d'une heure de route sur le dessin, pour 1, 2, 4 ou 8 heures.
    Les noms gardent leur taille à l'écran ; sur un dessin petit (téléphone), les durées et les navires à quai ne sont dits que par la liste.
+   Douze cités (#707) : le nom d'une cité se pose au-dessus de son point, sinon au-dessous, à droite ou à gauche, la première place qui ne chevauche ni un autre nom, ni un point de cité, ni les boutons de la carte non zoomée, ni ses navires à quai ou son terroir ; les cités du nord se posent d'abord.
+   La durée d'une route se pose au-dessus de son milieu, sinon au-dessous ; sans place libre, seule la liste la dit.
+   Sur un dessin petit, le calque Terroirs ne montre que le terroir de la cité choisie, et le dit sous la carte ; une cité au bas du dessin a son terroir au-dessus d'elle.
+   La liste des routes est triée par cité de départ puis d'arrivée, en colonnes sur un écran large.
    La carte se déplace et se zoome (de ×1 à ×4), bornée au dessin : en glissant à la souris ou au doigt, à la molette, en pinçant, au clavier (un arrêt de tabulation : flèches, + et −, 0) et par trois boutons (zoomer, dézoomer, recentrer).
    Recentrer mène à la cité de la maison, zoomée au moins à ×2 ; un bouton ou une touche y glisse en 200 ms, sans animation sous `prefers-reduced-motion`.
    Un appui ne devient un glisser qu'au-delà de 4 pixels : en deçà, c'est un clic sur sa cible ; un glisser ne choisit rien. Tant que la carte n'est pas zoomée, le doigt y fait défiler la page verticalement, et pincer zoome.

@@ -38,6 +38,12 @@ export function MapScreen() {
     const to = idOf.get(b);
     return from && to ? [{ from, to, hours }] : [];
   });
+  // Liste : par cité de départ puis d'arrivée, en colonnes sur un écran large (vingt-trois routes, #707).
+  const sortedRoutes = [...routes].sort(
+    (a, b) =>
+      cityName(a.from).localeCompare(cityName(b.from), i18n.language) ||
+      cityName(a.to).localeCompare(cityName(b.to), i18n.language),
+  );
   // Cités du monde qu'aucune route ne relie : nommées dans la liste, comme sur le dessin.
   const unlinked = [...slugs.keys()].filter(
     (cityId) => !routes.some(({ from, to }) => from === cityId || to === cityId),
@@ -163,8 +169,8 @@ export function MapScreen() {
             {t('map.noRouteFor', { cities: formatList(i18n.language, unlinked.map(cityName)) })}
           </p>
         )}
-        <ul className="flex flex-col gap-1.5">
-          {routes.map(({ from, to, hours: duration }) => (
+        <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
+          {sortedRoutes.map(({ from, to, hours: duration }) => (
             <li key={`${from}-${to}`} className="flex items-center gap-2">
               <Waves aria-hidden="true" className="size-4 shrink-0 text-aegean" />
               {t('map.route', {

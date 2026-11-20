@@ -1,7 +1,19 @@
 import { Archipelago, GoodIcon, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { along, MAP_HEIGHT, MAP_WIDTH, placeLabels, scaleBar, type Point } from '../map-layout';
+import {
+  along,
+  CITY_LABEL,
+  cityDot,
+  cityLabels,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  placeBoxes,
+  placeLabels,
+  scaleBar,
+  type Box,
+  type Point,
+} from '../map-layout';
 import { useMapView } from '../map-view';
 
 export interface MapRoute {
@@ -85,6 +97,49 @@ export function ArchipelagoMap(props: {
   const routesShown = props.layer === 'routes';
   const ring = (at: Point, r: number) =>
     `M${at.x - px(r)} ${at.y}a${px(r)} ${px(r)} 0 1 0 ${px(2 * r)} 0a${px(r)} ${px(r)} 0 1 0 ${-px(2 * r)} 0Z`;
+  // Boutons de zoom, en haut à droite de la vue : un nom de cité ne s'y cache pas tant que la carte n'est pas
+  // zoomée. Sous chaque cité, ses navires à quai ou les biens de son terroir : sur un dessin petit, ceux de la
+  // seule cité choisie (le panneau les dit tous) ; au bas du dessin, au-dessus d'elle.
+  const controls = { x: box.x + box.width - px(56), y: box.y, width: px(56), height: px(148) };
+  const terroir = (city: MapCity) => {
+    if (routesShown || city.goods.length === 0 || (dense && !city.selected)) return null;
+    const height = px(24 * Math.ceil(city.goods.length / 4));
+    const under = city.at.y + px(10) + height <= MAP_HEIGHT;
+    const y = under ? city.at.y + px(10) : city.at.y - px(10) - height;
+    return { x: city.at.x - px(48), y, width: px(96), height };
+  };
+  const below = props.cities.flatMap((city): Box[] => {
+    const { at, docked } = city;
+    const goods = terroir(city);
+    if (goods) return [goods];
+    return routesShown && docked > 0 && !dense
+      ? [{ x: at.x - px(40), y: at.y + px(10), width: px(80), height: px(14) }]
+      : [];
+  });
+  const names = cityLabels(props.cities, unit, [...(map.zoomed ? [] : [controls]), ...below]).map(
+    (box, index) => {
+      const at = props.cities[index]?.at ?? { x: 0, y: 0 };
+      // Nom à droite du point : aligné à gauche ; à gauche : aligné à droite ; dessus ou dessous : centré.
+      const [start, end] = [box.x >= at.x, box.x + box.width <= at.x];
+      const x = start ? box.x : end ? box.x + box.width : box.x + box.width / 2;
+      const anchor = start ? 'start' : end ? 'end' : 'middle';
+      return { box, x, y: box.y + px(CITY_LABEL.baseline), anchor } as const;
+    },
+  );
+  const dots = props.cities.map(({ at }) => cityDot(at, unit));
+  // Durée de chaque route au-dessus de son milieu, sinon au-dessous ; sans place, la liste la dit.
+  const durations = placeBoxes(
+    legs.map(({ a, b, hours: h }) => {
+      const middle = along(a, b, 0.5);
+      const [width, height] = [px(hours(h).length * 7 + 4), px(14)];
+      return [
+        { x: middle.x - width / 2, y: middle.y - px(4) - height, width, height },
+        { x: middle.x - width / 2, y: middle.y + px(4), width, height },
+      ];
+    }),
+    [...names.map(({ box }) => box), ...dots, ...below],
+    { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT },
+  );
   const ships = (routesShown ? props.ships : []).map((ship) => ({
     ...ship,
     at: along(ship.from, ship.to, ship.progress),
@@ -95,12 +150,9 @@ export function ArchipelagoMap(props: {
   const labels = placeLabels(
     ships,
     [
-      ...props.cities.map(({ at, name }) => ({
-        x: at.x - px(name.length * 4.5),
-        y: at.y - px(28),
-        width: px(name.length * 9),
-        height: px(36),
-      })),
+      ...names.map(({ box }) => box),
+      ...dots,
+      ...(dense ? [] : durations.flatMap((duration) => (duration ? [duration] : []))),
       ...ships.map(({ at }) => ({
         x: at.x - px(13),
         y: at.y - px(13),
@@ -108,7 +160,7 @@ export function ArchipelagoMap(props: {
         height: px(26),
       })),
       // Les boutons de zoom, en haut à droite ; la légende, en haut à gauche.
-      { x: box.x + box.width - px(64), y: box.y, width: px(64), height: px(160) },
+      controls,
       ...(width >= 512 ? [{ x: box.x, y: box.y, width: px(250), height: px(50) }] : []),
     ],
     box,
@@ -135,8 +187,8 @@ export function ArchipelagoMap(props: {
         className="block h-auto w-full select-none"
       >
         <Archipelago width={MAP_WIDTH} height={MAP_HEIGHT} />
-        {(routesShown ? legs : []).map(({ from, to, a, b, ours, hours: duration }) => {
-          const middle = along(a, b, 0.5);
+        {(routesShown ? legs : []).map(({ from, to, a, b, ours, hours: duration }, index) => {
+          const place = durations[index];
           return (
             <g key={`${from}-${to}`}>
               <line
@@ -150,9 +202,9 @@ export function ArchipelagoMap(props: {
                 strokeDasharray={`${px(2)} ${px(7)}`}
               />
               <text
-                visibility={dense ? 'hidden' : undefined}
-                x={middle.x}
-                y={middle.y - px(6)}
+                visibility={dense || !place ? 'hidden' : undefined}
+                x={place ? place.x + place.width / 2 : a.x}
+                y={place ? place.y + px(11) : a.y}
                 textAnchor="middle"
                 fontSize={px(11)}
                 className="fill-muted-foreground stroke-sea font-medium"
@@ -164,7 +216,7 @@ export function ArchipelagoMap(props: {
             </g>
           );
         })}
-        {props.cities.map((city) => (
+        {props.cities.map((city, index) => (
           <g key={city.id} className="cursor-pointer" onClick={() => props.onSelect(city.id)}>
             {city.home && <path className="fill-primary" opacity={0.25} d={ring(city.at, 12)} />}
             {city.selected && (
@@ -183,22 +235,22 @@ export function ArchipelagoMap(props: {
               strokeWidth={px(2.5)}
             />
             <text
-              x={city.at.x}
-              y={city.at.y - px(12)}
-              textAnchor="middle"
-              fontSize={px(14)}
+              x={names[index]?.x}
+              y={names[index]?.y}
+              textAnchor={names[index]?.anchor}
+              fontSize={px(CITY_LABEL.font)}
               className="fill-foreground stroke-sea font-bold"
               strokeWidth={px(3.5)}
               style={halo}
             >
               {city.name}
             </text>
-            {!routesShown &&
+            {terroir(city) &&
               city.goods.map((good, i) => {
-                // Quatre biens par rangée, centrées sous la cité.
+                // Quatre biens par rangée, centrées sous la cité (au-dessus d'elle, au bas du dessin).
                 const row = Math.min(4, city.goods.length - Math.floor(i / 4) * 4);
                 const x = city.at.x + px(24 * (i % 4) - 12 * row);
-                const y = city.at.y + px(10 + 24 * Math.floor(i / 4));
+                const y = (terroir(city)?.y ?? 0) + px(24 * Math.floor(i / 4));
                 return (
                   <g key={good} className="text-foreground" transform={`translate(${x} ${y})`}>
                     <rect width={px(22)} height={px(22)} rx={px(6)} className="fill-surface" />
@@ -264,7 +316,7 @@ export function ArchipelagoMap(props: {
             </g>
           );
         })}
-        {scale && (
+        {scale && routesShown && (
           <g className="stroke-muted-foreground" strokeWidth={px(2)} strokeLinecap="round">
             <path
               fill="none"
@@ -284,6 +336,9 @@ export function ArchipelagoMap(props: {
           </g>
         )}
       </svg>
+      {!routesShown && dense && (
+        <p className="m-2 text-xs text-foreground-secondary">{t('map.terroirHint')}</p>
+      )}
       <ul
         hidden={!routesShown}
         aria-label={t('map.legend')}

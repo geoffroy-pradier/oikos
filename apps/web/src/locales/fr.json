@@ -724,7 +724,8 @@
     "buyPrice": "Prix, payé une fois",
     "buyCapacity": "Cargaison, en unités",
     "buyUpkeep": "Entretien par jour",
-    "buyHome": "À quai à sa naissance"
+    "buyHome": "À quai à sa naissance",
+    "terroirHint": "Sur ce petit dessin, seul le terroir de la cité choisie est montré : touchez une cité, ou zoomez."
   },
   "shipClasses": {
     "coaster": "Caboteur",

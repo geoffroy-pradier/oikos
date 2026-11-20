@@ -70,6 +70,16 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(page.getByText('Kallistè – Elaia : 4 h')).toBeVisible();
   // Un vrai clic sur une cité du dessin la choisit pour le panneau ; un glisser qui revient sur une autre, non.
   const drawing = page.getByRole('img', { name: /12 cités, 23 routes/ });
+  // Les douze noms de cités, tels que le navigateur les dessine : aucun n'en chevauche un autre (#707).
+  const boxes = await drawing
+    .locator('text.font-bold')
+    .evaluateAll((texts) => texts.map((text) => text.getBoundingClientRect().toJSON() as DOMRect));
+  expect(boxes).toHaveLength(12);
+  for (const [i, a] of boxes.entries())
+    for (const b of boxes.slice(i + 1))
+      expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(
+        true,
+      );
   await drawing.locator('text', { hasText: /^Ampelos$/ }).click();
   const chosen = page.getByRole('heading', { level: 2, name: 'Ampelos' });
   await expect(chosen).toBeVisible();
