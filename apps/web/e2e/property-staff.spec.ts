@@ -4,7 +4,7 @@ import { createDb } from '@oikos/db';
 import { cityProperties } from '@oikos/engine';
 import { createRng } from '@oikos/sim';
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Écrans Personnel et Immobilier, onglet Cité (#259) : le parc de Kallistè naît comme au premier tick qui
 // la connaît ; une maison achète un bien à la cité au clavier, au prix affiché.
@@ -33,9 +33,7 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   const houseName = `Bâtisseurs ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await buildPark();
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
 
   // Personnel : le champ de départ et ses quatre travailleurs, sans logement.

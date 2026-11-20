@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Cité du monde de test (`seed.sql`). D'autres suites créent des cités : on la choisit par son identifiant. */
 export const KALLISTE_ID = '01900000-0000-7000-8000-000000000101';
@@ -52,4 +52,16 @@ export async function chooseLanguage(page: Page, language: 'fr' | 'en') {
     .selectOption(language);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+
+/** Fonde la maison depuis l'écran de création. `city` : la carte de cité à choisir, Kallistè par défaut. */
+export async function foundHouseForm(
+  page: Page,
+  houseName: string,
+  city: Locator = page.locator(`input[value="${KALLISTE_ID}"]`),
+) {
+  const name = page.getByLabel('Nom de la maison');
+  await name.fill(houseName);
+  await city.check();
+  await name.press('Enter');
 }

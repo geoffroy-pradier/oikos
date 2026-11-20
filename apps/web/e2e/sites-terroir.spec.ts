@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, signIn } from './helpers';
+import { expectNoHorizontalScroll, foundHouseForm, signIn } from './helpers';
 
 // Écran Sites (#291) : une maison d'Ampelos ne se voit proposer que les productions de son terroir (6.1)
 // et les ateliers ; le champ de blé, refusé par l'API, n'est plus offert.
@@ -8,9 +8,7 @@ test('une maison d’Ampelos ne se voit proposer que les sites de son terroir', 
   const id = randomUUID();
   const houseName = `Vignes ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.getByRole('radio', { name: 'Ampelos', exact: true }).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName, page.getByRole('radio', { name: 'Ampelos', exact: true }));
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Vigne', exact: true })).toBeVisible();
 

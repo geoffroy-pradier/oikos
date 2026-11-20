@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Onglet Messages (#274), à deux joueurs de Kallistè, chacun dans son navigateur : un message du canal de la
 // cité et une conversation privée arrivent chez l'autre sans recharger la page, par Realtime ; la saisie en
@@ -12,9 +12,7 @@ async function foundHouse(page: Page, prefix: string) {
   const id = randomUUID();
   const name = `${prefix} ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(name);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, name);
   await expect(page.getByRole('heading', { name: `Maison ${name}` })).toBeVisible();
   await page
     .getByRole('navigation', { name: 'Navigation principale' })
