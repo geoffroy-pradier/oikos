@@ -139,6 +139,8 @@ Le vote est secret comme les autres : un joueur lit que sa maison a voté, jamai
 Ce secret vaut envers les joueurs, pas envers l'exploitant : le nom reste lié à la maison dans `ostraca`, et en clair dans le journal des commandes (entrée de `city.castOstracon`).
 La clôture qui suit la fin du vote le dépouille, avant les élections et l'entretien, une seule fois même rejouée.
 Si les bulletins atteignent `quorumBps` des citoyens devenus citoyens avant la fin du vote, la maison la plus nommée, seule en tête, est ostracisée jusqu'à la clôture `ostracismDays` jours de jeu plus tard (une saison) ; à égalité en tête, aucun bulletin compris, personne ne l'est.
+La fin se compte depuis le jour de jeu de la clôture qui dépouille, non depuis l'heure où elle est jouée : une clôture rattrapée longtemps après peut écrire un ostracisme déjà fini, qui n'écarte personne et ne fait quitter aucune charge.
+Avant d'ouvrir le modèle, vérifier que `ostracismDays` vaut `clock.seasonDays`, la saison du texte, que la configuration n'impose pas.
 Événements : `OstracismOpened`, `OstraconCast` (sans le nom inscrit), `OstracismTallied` (issue `ostracized`, `tie` ou `no_quorum`) et `HouseOstracized`.
 L'ostracisé garde ses biens, sa Timè et son vote ; jusqu'à la fin de son ostracisme, il ne se présente à aucune élection et ne propose aucun décret, et, archonte en charge, il la quitte à cette clôture (6.2).
 Les joueurs connectés lisent les ostracismes des cités de leur monde, leur issue, et le décompte par nom après le dépouillement (12).

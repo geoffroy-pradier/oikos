@@ -202,3 +202,52 @@ describe('dépouillement et bulletins concurrents', () => {
     });
   });
 });
+
+describe('clôture rattrapée longtemps après', () => {
+  it('l’ostracisme est daté par le jour de la clôture : déjà fini, il n’écarte personne, et le monde avance', async () => {
+    // Vote clos il y a dix jours, dépouillé maintenant par la clôture de ce jour-là : fin à son septième jour.
+    const world = await newWorld(3, {
+      closesAt: at(TODAY - 10),
+      quorumBps: 0,
+      ostraca: [
+        [1, 0],
+        [2, 0],
+      ],
+    });
+    const late = await db.transaction().execute((trx) =>
+      ostracismTally.run({
+        trx,
+        worldId: world.worldId,
+        gameDay: TODAY - 10,
+        closeAt: at(TODAY - 10),
+        config: opened,
+      }),
+    );
+    expect(late).toEqual({ tallied: 1, ostracized: 1, vacated: 0 });
+    expect(await ostracism(world.ostracismId)).toMatchObject({
+      house: world.houseIds[0],
+      ends_at: at(TODAY - 3),
+    });
+    expect((await eventsOf(world.ostracismId)).at(-1)?.payload).toMatchObject({
+      endsAt: at(TODAY - 3).toISOString(),
+      vacatedOfficeId: null,
+    });
+    const [state] = (
+      await sql<{ ostracized: boolean; vacated: boolean }>`select
+        game.house_ostracized(${world.houseIds[0]}, now()) as ostracized,
+        (select vacated_at is not null from game.offices where id = ${world.officeId}) as vacated`.execute(
+        owner,
+      )
+    ).rows;
+    expect(state).toEqual({ ostracized: false, vacated: false });
+    // La clôture du jour passe, l'archonte reste en charge et peut être élu.
+    expect(
+      await closeWorld(db, {
+        worldId: world.worldId,
+        now: at(TODAY),
+        config,
+        steps: [ostracismTally, archonTally],
+      }),
+    ).toEqual([TODAY]);
+  });
+});

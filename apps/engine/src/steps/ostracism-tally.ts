@@ -8,8 +8,9 @@ import type { CloseStep } from '../close';
  * monde clos à l'instant de jeu de la clôture. Le vote est d'abord verrouillé : un bulletin en cours, qui le tient
  * en partage, est attendu puis compté ; un bulletin plus tardif est refusé par la base. Si les bulletins atteignent
  * le quorum fixé à l'ouverture, en part des citoyens devenus citoyens avant la fin du vote, la maison la plus nommée,
- * seule en tête, est ostracisée jusqu'à la clôture `ostracism_days` jours de jeu plus tard ; archonte en charge, elle
- * quitte sa charge, vacante jusqu'au mandat suivant. La base recompte et n'admet que cette issue, une seule fois :
+ * seule en tête, est ostracisée jusqu'à la clôture `ostracism_days` jours de jeu après celle-ci, datée par son jour de
+ * jeu et non par l'heure où elle est jouée ; archonte en charge, elle quitte sa charge, vacante jusqu'au mandat
+ * suivant, si l'ostracisme court encore. La base recompte et n'admet que cette issue, une seule fois :
  * rejouée, l'étape ne retrouve plus le vote. Placée avant le dépouillement des élections, qu'elle prive de l'ostracisé.
  */
 export const ostracismTally: CloseStep = {
@@ -86,7 +87,8 @@ export const ostracismTally: CloseStep = {
       ];
       summary.tallied += 1;
       if (decision.outcome === 'ostracized' && endsAt) {
-        // Charge d'archonte en cours de l'ostracisé : quittée maintenant (la base le vérifie).
+        // Charge d'archonte en cours de l'ostracisé : quittée maintenant, si l'ostracisme court encore (une clôture
+        // rattrapée longtemps après peut le dater déjà fini) ; la base le vérifie.
         const vacated = await trx
           .updateTable('game.offices')
           .set({ vacated_at: sql<Date>`now()` })
@@ -96,6 +98,7 @@ export const ostracismTally: CloseStep = {
           .where('starts_at', '<=', sql<Date>`now()`)
           .where('ends_at', '>', sql<Date>`now()`)
           .where('vacated_at', 'is', null)
+          .where(sql<boolean>`now() < ${endsAt}`)
           .returning('id')
           .executeTakeFirst();
         events.push(
