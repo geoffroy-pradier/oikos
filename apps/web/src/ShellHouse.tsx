@@ -2,7 +2,7 @@ import { IconButton, Settings, Skeleton } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { Blazon } from './Blazon';
 import { useRows } from './data';
-import { useGameTime } from './game-time';
+import { formatTime, useGameTime } from './game-time';
 import { useHouse } from './house';
 import { useMoney } from './money';
 
@@ -51,14 +51,14 @@ export function CompactHeader({
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const now = useGameTime();
-  const time = new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' });
   return (
     <header className="flex items-center gap-3 border-b border-border-subtle bg-surface px-4 py-2 lg:hidden">
       {house.blazon && <Blazon blazon={house.blazon} className="size-9" />}
       <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         <p className="leading-tight font-semibold">{t('shell.house', { name: house.name })}</p>
         <p className="text-sm text-muted-foreground">
-          {house.cityName} · <time dateTime={now.toISOString()}>{time.format(now)}</time>
+          {house.cityName} ·{' '}
+          <time dateTime={now.toISOString()}>{formatTime(i18n.language, now)}</time>
         </p>
       </div>
       {/* Icône seule, même nom accessible que le bouton de la barre latérale. */}

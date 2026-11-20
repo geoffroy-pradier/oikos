@@ -16,6 +16,7 @@ export {
   ChevronRight,
   CircleAlert,
   Coins,
+  Compass,
   Eye,
   Gavel,
   Hammer,

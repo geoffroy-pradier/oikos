@@ -1,5 +1,5 @@
-import { Button, Skeleton } from '@oikos/ui';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Button, RefreshCw, Skeleton, TriangleAlert } from '@oikos/ui';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -7,13 +7,16 @@ import { useTranslation } from 'react-i18next';
  * inactif le temps de la relecture, pour qu'un double appui ne la lance pas deux fois.
  * Relecture réussie : le message disparaît avec son bouton, et le foyer va au titre `heading` de la
  * carte (il ne retombe pas sur la page). Relecture encore en échec : le message est annoncé de nouveau.
+ * Une illustration décorative (`packages/ui/src/illustrations`) peut remplacer l'icône d'alerte.
  */
 export function LoadProblem({
   onRetry,
   heading,
+  illustration,
 }: {
   onRetry: () => Promise<unknown>;
   heading?: RefObject<HTMLElement | null>;
+  illustration?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [retrying, setRetrying] = useState(false);
@@ -37,12 +40,28 @@ export function LoadProblem({
     retried.current = false;
   }, [attempt]);
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <p key={attempt} role="alert">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4">
+      {illustration ? (
+        <div
+          aria-hidden="true"
+          className="w-24 shrink-0 text-accent-decorative [&_svg]:h-auto [&_svg]:w-full"
+        >
+          {illustration}
+        </div>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-danger-subtle text-danger [&_svg]:size-5"
+        >
+          <TriangleAlert />
+        </span>
+      )}
+      <p key={attempt} role="alert" className="min-w-0 flex-1 basis-48">
         {t('app.loadFailed')}
       </p>
       <Button
         variant="secondary"
+        icon={<RefreshCw aria-hidden="true" />}
         aria-disabled={retrying}
         className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
         onClick={() => {

@@ -20,6 +20,7 @@ import {
   Package,
   PillTabs,
   Plus,
+  PageHeader,
   Progress,
   SegmentedControl,
   Select,
@@ -269,6 +270,13 @@ function Catalogue() {
           <Overlays />
         </Section>
 
+        <Section title="PageHeader" wide>
+          <PageHeader
+            title="Agora de Kallistè"
+            subtitle="Il est 14:05 · prochaine clôture à 04:00"
+            action={<Button icon={<Plus />}>Passer un ordre</Button>}
+          />
+        </Section>
         <Section title="Progress · StatusRegion">
           <Progress label="Moisson" value={3} max={5} valueText="3 jours sur 5" />
           <StatusRegion tone="success">Ordre passé : 20 amphores de vin.</StatusRegion>
