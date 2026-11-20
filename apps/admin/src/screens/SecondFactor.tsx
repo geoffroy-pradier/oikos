@@ -1,4 +1,6 @@
-import { Button } from '@oikos/ui';
+import { Button, KeyRound } from '@oikos/ui';
+import { CONTROL } from '../ui';
+import { CardHeading } from './SignIn';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
@@ -78,25 +80,34 @@ export function SecondFactor({ onVerified }: { onVerified: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-3">
-      <h1 className="text-2xl">{t('mfa.title')}</h1>
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <CardHeading icon={<KeyRound />} title={t('mfa.title')} />
       {factor?.secret ? (
         <>
-          <p>{t('mfa.enrollIntro')}</p>
+          <p className="text-sm text-foreground-secondary">{t('mfa.enrollIntro')}</p>
+          {/* Fond blanc dans les deux thèmes : un code QR se lit en sombre sur clair. */}
           {factor.qrCode && (
-            <img src={factor.qrCode} alt={t('mfa.qrAlt')} className="size-44 bg-white p-2" />
+            <img
+              src={factor.qrCode}
+              alt={t('mfa.qrAlt')}
+              className="size-44 self-center rounded-xl border border-border-subtle bg-white p-2"
+            />
           )}
-          <p>
-            {t('mfa.secret')} : <code className="break-all">{factor.secret}</code>
+          <p className="rounded-lg bg-surface-raised p-3 text-sm">
+            {t('mfa.secret')} : <code className="font-semibold break-all">{factor.secret}</code>
           </p>
         </>
       ) : (
-        <p>{factor ? t('mfa.verifyIntro') : t('app.loading')}</p>
+        <p className="text-sm text-foreground-secondary">
+          {factor ? t('mfa.verifyIntro') : t('app.loading')}
+        </p>
       )}
-      <label htmlFor="code">{t('mfa.code')}</label>
+      <label htmlFor="code" className="-mb-2 text-sm font-medium">
+        {t('mfa.code')}
+      </label>
       <input
         id="code"
-        className="min-h-11 w-full rounded-md border border-border bg-surface px-3"
+        className={`${CONTROL} text-lg tracking-[0.2em] tabular-nums`}
         inputMode="numeric"
         autoComplete="one-time-code"
         aria-describedby="code-error"
@@ -104,7 +115,7 @@ export function SecondFactor({ onVerified }: { onVerified: () => void }) {
         value={code}
         onChange={(event) => setCode(event.target.value)}
       />
-      <p id="code-error" role="alert" className="font-semibold text-danger">
+      <p id="code-error" role="alert" className="-mt-2 text-sm font-semibold text-danger">
         {error && t(`mfa.${error}`)}
       </p>
       {!factor && error === 'failed' && (
@@ -112,7 +123,7 @@ export function SecondFactor({ onVerified }: { onVerified: () => void }) {
           {t('app.retry')}
         </Button>
       )}
-      <Button type="submit" disabled={busy || !factor || code.trim() === ''}>
+      <Button type="submit" size="lg" disabled={busy || !factor || code.trim() === ''}>
         {t('mfa.submit')}
       </Button>
     </form>

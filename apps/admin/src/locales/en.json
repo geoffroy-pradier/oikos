@@ -16,7 +16,9 @@
     "errors": {
       "network": "The API is not responding. Check your connection, then retry.",
       "rateLimited": "Too many requests in a short time. Wait a moment, then retry."
-    }
+    },
+    "skipToContent": "Skip to content",
+    "darkTheme": "Dark theme"
   },
   "languages": {
     "fr": "Français",
