@@ -14,6 +14,8 @@ L'interface est conçue d'abord pour le téléphone, puis densifiée pour l'ordi
 
 Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordinateur, barre latérale, panneaux multiples redimensionnables et tableaux denses triables, parce que les joueurs de gestion veulent voir leurs chiffres.
 Chaque onglet porte une icône au trait ; l'onglet actif est marqué par sa couleur et un trait (#575).
+L'onglet Messages porte le nombre de messages non lus de tous les canaux, compté comme dans l'onglet sans rien marquer lu : une pastille chiffrée sur ordinateur, un point sur téléphone, et le compte en clair dans le nom du lien.
+Hors de l'onglet Messages, ce compte est relu à chaque changement d'écran, au retour sur l'onglet du navigateur, à intervalle (`chatSafetyRereadSeconds`) et quand un canal est marqué lu.
 À partir de 1 024 px, la barre latérale porte la marque, la carte de la maison (blason, nom, cité, statut et trésorerie), les cinq onglets et, en bas, un bouton Réglages.
 En dessous, un en-tête compact montre le blason, le nom et la cité de la maison et l'heure de jeu, avec le bouton Réglages réduit à son icône, sous le même nom accessible.
 Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
