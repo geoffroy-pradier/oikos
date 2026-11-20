@@ -73,6 +73,9 @@ afterEach(() => {
   delete document.documentElement.dataset['theme'];
 });
 
+/** Barre latérale (ordinateur) et barre d'onglets (téléphone) : un seul élément `nav`. */
+const nav = () => screen.getByRole('navigation', { name: 'Navigation principale' });
+
 describe('coquille : navigation', () => {
   it('marque l’onglet actif, et seulement lui', async () => {
     await mount('/agora');
@@ -102,18 +105,34 @@ describe('coquille : navigation', () => {
     expect(links.every((link) => link.getAttribute('tabindex') !== '-1')).toBe(true);
   });
 
-  it('montre la maison, son blason et sa trésorerie dans l’en-tête', async () => {
+  it('montre la maison, son blason et sa trésorerie dans la barre latérale', async () => {
     await mount('/');
-    expect(screen.getByText('Maison Alcméonides')).toBeTruthy();
-    expect(screen.getByText('Kallistè')).toBeTruthy();
-    expect(screen.getByText('Trésorerie').parentElement?.textContent).toContain('100 drachmes');
+    expect(within(nav()).getByText('Maison Alcméonides')).toBeTruthy();
+    expect(within(nav()).getByText('Kallistè').parentElement?.textContent).toBe(
+      'Kallistè · Métèque',
+    );
+    expect(within(nav()).getByText('Trésorerie').parentElement?.textContent).toContain(
+      '100 drachmes',
+    );
+    // La marque n'est pas un lien : les cinq onglets restent les seuls liens de la navigation.
+    expect(within(nav()).getByText('OIKOS')).toBeTruthy();
+  });
+
+  it('montre sur téléphone un en-tête compact : maison, cité et heure de jeu, Réglages', async () => {
+    await mount('/');
+    const header = screen.getByRole('banner');
+    expect(within(header).getByText('Maison Alcméonides')).toBeTruthy();
+    expect(header.querySelector('time')?.parentElement?.textContent).toMatch(
+      /^Kallistè · \d{2}:\d{2}$/,
+    );
+    expect(within(header).getByRole('button', { name: 'Réglages' })).toBeTruthy();
   });
 });
 
 describe('coquille : réglages', () => {
   it('la feuille s’ouvre au bouton, se referme à Échap et rend le foyer au bouton', async () => {
     await mount('/');
-    const button = screen.getByRole('button', { name: 'Réglages' });
+    const button = within(nav()).getByRole('button', { name: 'Réglages' });
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('dialog')).toBeNull();
     button.focus();
@@ -130,7 +149,7 @@ describe('coquille : réglages', () => {
 
   it('thème clair, sombre ou celui de l’appareil : appliqué et mémorisé', async () => {
     await mount('/');
-    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Réglages' }));
     const radio = (name: string) => screen.getByRole('radio', { name });
     // Rien de mémorisé : le thème de l'appareil est le choix en cours.
     expect(radio('Appareil').getAttribute('aria-checked')).toBe('true');
@@ -146,7 +165,7 @@ describe('coquille : réglages', () => {
 
   it('la déconnexion ferme la session et revient à l’accueil', async () => {
     await mount('/agora');
-    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Réglages' }));
     fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }));
     expect(router.navigate).toHaveBeenCalledWith({ to: '/' });
     expect(supabase.auth.signOut).toHaveBeenCalled();

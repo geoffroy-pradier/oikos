@@ -395,6 +395,10 @@
       "light": "Clair",
       "dark": "Sombre",
       "system": "Appareil"
+    },
+    "status": {
+      "metic": "Métèque",
+      "citizen": "Citoyen"
     }
   },
   "languages": {

@@ -395,6 +395,10 @@
       "light": "Light",
       "dark": "Dark",
       "system": "Device"
+    },
+    "status": {
+      "metic": "Metic",
+      "citizen": "Citizen"
     }
   },
   "languages": {
