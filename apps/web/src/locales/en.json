@@ -13,6 +13,12 @@
       "later": "Later"
     }
   },
+  "stepper": {
+    "progress": "Steps",
+    "back": "Back",
+    "next": "Continue",
+    "stepOf": "Step {{current}} of {{total}}"
+  },
   "signIn": {
     "title": "Enter the Archipelago",
     "intro": "Enter your email address and we will send you a sign-in link. No password needed.",
@@ -39,7 +45,16 @@
     "noWorkers": "This city has no free workers left for your first site: nothing was created. Choose another city: {{cities}}.",
     "noWorkersAnywhere": "No city has free workers left for a first site: nothing was created. Try again later.",
     "nameRejected": "This name contains a term banned by the code of conduct: your house was not founded. Choose another one.",
-    "silenced": "Your account is silenced: a house name is public text, so you cannot found your house until the sanction ends."
+    "silenced": "Your account is silenced: a house name is public text, so you cannot found your house until the sanction ends.",
+    "steps": {
+      "name": "Your house name",
+      "blazon": "Its blazon",
+      "city": "Your home city",
+      "summary": "Summary"
+    },
+    "summaryIntro": "Read it over before founding: you can still go back.",
+    "summaryName": "House",
+    "summaryCity": "Home city"
   },
   "home": {
     "title": "House {{name}}",

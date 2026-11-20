@@ -13,6 +13,12 @@
       "later": "Plus tard"
     }
   },
+  "stepper": {
+    "progress": "Étapes",
+    "back": "Retour",
+    "next": "Continuer",
+    "stepOf": "Étape {{current}} sur {{total}}"
+  },
   "signIn": {
     "title": "Entrer dans l'Archipel",
     "intro": "Saisissez votre adresse e-mail : nous vous envoyons un lien de connexion, sans mot de passe.",
@@ -39,7 +45,16 @@
     "noWorkers": "Cette cité n'a plus de travailleurs libres pour votre premier site : rien n'a été créé. Choisissez une autre cité : {{cities}}.",
     "noWorkersAnywhere": "Aucune cité n'a plus de travailleurs libres pour un premier site : rien n'a été créé. Réessayez plus tard.",
     "nameRejected": "Ce nom contient un terme interdit par la charte : votre maison n'a pas été fondée. Choisissez-en un autre.",
-    "silenced": "Votre compte est réduit au silence : un nom de maison est un texte public, vous ne pouvez pas fonder votre maison avant la fin de la sanction."
+    "silenced": "Votre compte est réduit au silence : un nom de maison est un texte public, vous ne pouvez pas fonder votre maison avant la fin de la sanction.",
+    "steps": {
+      "name": "Le nom de votre maison",
+      "blazon": "Son blason",
+      "city": "Votre cité d'accueil",
+      "summary": "Récapitulatif"
+    },
+    "summaryIntro": "Relisez avant de fonder : vous pouvez encore revenir en arrière.",
+    "summaryName": "Maison",
+    "summaryCity": "Cité d'accueil"
   },
   "home": {
     "title": "Maison {{name}}",

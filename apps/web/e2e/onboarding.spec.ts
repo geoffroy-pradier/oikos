@@ -46,6 +46,12 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await expect(page.getByLabel('Nom de la maison')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByLabel('Nom de la maison').fill(houseName);
+  await page.getByLabel('Nom de la maison').press('Enter');
+  // Blason : l'étape suivante du Stepper, ses listes sont natives.
+  await expect(page.getByRole('heading', { name: /Étape 2 sur 4/ })).toBeFocused();
+  await page.getByLabel('Emblème').selectOption('trident');
+  await expectNoHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   // La base de test contient les cités d'autres mondes (tests d'intégration) : seules les quatre de
   // l'Âge servi par ce client sont proposées, chacune avec son dieu protecteur et son terroir (6.1).
   const cities = page.getByRole('group', { name: "Cité d'accueil" }).getByRole('radio');
@@ -56,9 +62,9 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
     "Protégée par Poséidon · Cité portuaire · Terroir : Pêcherie, Saline, Carrière d'argile, Coupe de bois et Pâturage à moutons · Premier site : Pêcherie",
   );
   await expect(city('Ampelos')).toHaveAccessibleDescription(/^Protégée par Dionysos .* Vigne$/);
-  // Aucune cité choisie d'avance : fonder sans choisir est refusé, sans rien envoyer.
+  // Aucune cité choisie d'avance : continuer sans choisir est refusé, sans rien envoyer.
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await expect(page.getByRole('alert')).toHaveText("Choisissez votre cité d'accueil.");
   await expect(city('Halos')).toHaveAttribute('aria-invalid', 'true');
   // Choix au clavier : espace sur la première cité, puis les flèches parcourent le groupe.
@@ -68,8 +74,13 @@ test('inscription, création de maison, puis coquille de navigation', async ({ p
   await page.keyboard.press('ArrowUp');
   await expect(page.locator(`input[value="${KALLISTE_ID}"]`)).toBeChecked();
   await expectNoHorizontalScroll(page);
-  await page.getByLabel('Emblème').selectOption('trident');
-  await page.getByLabel('Nom de la maison').press('Enter');
+  // Récapitulatif : le nom, le blason et la cité choisis, puis la fondation.
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page.getByRole('heading', { name: /Étape 4 sur 4/ })).toBeFocused();
+  await expect(page.getByRole('term').filter({ hasText: 'Maison' })).toBeVisible();
+  await expect(page.getByText(houseName, { exact: true })).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Fonder la maison' }).click();
 
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await expect(page.getByText('Métèque à Kallistè')).toBeVisible();

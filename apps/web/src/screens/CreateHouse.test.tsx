@@ -41,7 +41,20 @@ async function mount() {
   });
   return onCreated;
 }
-const found = () => fireEvent.click(screen.getByRole('button', { name: 'Fonder la maison' }));
+/** Avance d'étape en étape jusqu'à la liste des cités, puis choisit la cité. */
+function pick(name: string) {
+  while (screen.queryAllByRole('radio').length === 0)
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  fireEvent.click(screen.getByRole('radio', { name }));
+}
+/** Passe au récapitulatif (les étapes valables s'enchaînent), puis fonde. */
+function found() {
+  for (let step = 0; step < 3; step++) {
+    const next = screen.queryByRole('button', { name: 'Continuer' });
+    if (next) fireEvent.click(next);
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Fonder la maison' }));
+}
 afterEach(() => {
   cleanup();
   sent.cities = [];
@@ -52,7 +65,7 @@ describe('fondation dans une cité sans travailleurs libres (#258)', () => {
   it('la cité est marquée et décochée, l’écran propose les autres ; la suivante fonde la maison', async () => {
     sent.answers.push(full, { ok: true, data: {} });
     const onCreated = await mount();
-    fireEvent.click(screen.getByRole('radio', { name: 'Kallistè' }));
+    pick('Kallistè');
     found();
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toBe(
@@ -67,7 +80,7 @@ describe('fondation dans une cité sans travailleurs libres (#258)', () => {
     );
     expect(kalliste.getAttribute('aria-describedby')).toBe('city-k form-error');
     expect(onCreated).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('radio', { name: 'Elaia' }));
+    pick('Elaia');
     found();
     await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
     expect(sent.cities).toEqual(['k', 'e']);
@@ -77,7 +90,7 @@ describe('fondation dans une cité sans travailleurs libres (#258)', () => {
     sent.answers.push(full, full);
     await mount();
     for (const name of ['Kallistè', 'Elaia']) {
-      fireEvent.click(screen.getByRole('radio', { name }));
+      pick(name);
       found();
       await waitFor(() => expect(sent.cities).toHaveLength(name === 'Elaia' ? 2 : 1));
     }
@@ -92,7 +105,7 @@ describe('nom refusé par la modération (#527)', () => {
   ])('%s : l’écran dit pourquoi le nom ne passe pas', async (code, text) => {
     sent.answers.push({ ok: false, error: { code, message: '' } });
     await mount();
-    fireEvent.click(screen.getByRole('radio', { name: 'Kallistè' }));
+    pick('Kallistè');
     found();
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(text));
   });
