@@ -93,6 +93,14 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const sent = () => api.propertyCommand.mock.calls.map((call) => [call[0], call[1], call[3]]);
+// Une commande s'ouvre dans une feuille, au prix vu, puis se confirme. Le tableau (ordinateur) et les
+// fiches (téléphone) portent le même bouton : le premier suffit.
+const open = (name: RegExp) =>
+  fireEvent.click(screen.getAllByRole('button', { name })[0] as HTMLElement);
+const confirm = () =>
+  fireEvent.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: /^(Confirmer|Signer)/ }),
+  );
 const inTable = (name: string) => within(screen.getByRole('table', { name }));
 
 describe('écran Immobilier (#259)', () => {
@@ -195,10 +203,44 @@ describe('écran Immobilier (#259)', () => {
     expect(leases.getByText(fr.property.ended.unpaid)).toBeTruthy();
     expect(leases.getAllByText(fr.property.tenant)).toHaveLength(3);
     // Un seul bail en cours sans fin demandée : un seul bouton.
-    const end = leases.getAllByRole('button', { name: /^Mettre fin au bail/ });
-    expect(end).toHaveLength(1);
-    fireEvent.click(end[0] as HTMLElement);
+    expect(leases.getAllByRole('button', { name: /^Mettre fin au bail/ })).toHaveLength(1);
+    open(/^Mettre fin au bail/);
+    expect(screen.getByRole('dialog').textContent).toContain(fr.property.endNote);
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
     expect(sent()[0]?.slice(0, 2)).toEqual(['property.endLease', { leaseId: 'l1' }]);
+    // La feuille fermée, le foyer va au résultat, annoncé sous le titre des baux.
+    await waitFor(() =>
+      expect(document.activeElement?.textContent).toBe(fr.property.done.endLease),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('fin de bail sans réponse puis refusée : la feuille reste ouverte, le nouvel essai garde la clé', async () => {
+    api.propertyCommand
+      .mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: 'lost' } })
+      .mockResolvedValueOnce({ ok: false, error: { code: 'PRICE_CHANGED', message: 'x' } });
+    await showProperty();
+    open(/^Mettre fin au bail/);
+    const sheet = within(screen.getByRole('dialog'));
+    const said = async (text: string) => {
+      await waitFor(() => expect(sheet.getByRole('alert').textContent).toBe(text));
+      await waitFor(() =>
+        expect(sheet.getByRole('button', { name: /^Confirmer/ }).hasAttribute('disabled')).toBe(
+          false,
+        ),
+      );
+    };
+    // Région d'alerte présente avant le refus, près du bouton.
+    expect(sheet.getByRole('alert').textContent).toBe('');
+    confirm();
+    await said(fr.errors.INTERNAL);
+    confirm();
+    await said(fr.errors.PRICE_CHANGED);
+    const keys = sent().map(([, , key]) => key);
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+    // Rien n'est annoncé hors de la feuille, qui reste ouverte.
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });

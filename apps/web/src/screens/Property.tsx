@@ -113,14 +113,17 @@ export function PropertyScreen() {
     [house.id],
   );
   // Le contrôle qui a lancé la commande a pu disparaître (offre achetée, bail fini) ou devenir inactif :
-  // le foyer, retombé sur la page, va au résultat, annoncé près de l'action.
+  // le foyer, retombé sur la page, va au résultat, annoncé près de l'action. Une commande aboutie depuis
+  // une feuille la ferme, et son bouton avec elle : le foyer va toujours au résultat.
   const noticeElement = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const run: RunCommand = async (intent, name, input) => {
+  const fromSheet = useRef(false);
+  const run: RunCommand = async (intent, name, input, sheet) => {
     if (busy) return;
     setBusy(true);
     setNotice(null);
+    sheet?.refuse(null);
     try {
       const result = await sendUnderKey(
         pending,
@@ -129,19 +132,16 @@ export function PropertyScreen() {
         input,
         (key, sent) => propertyCommand(name, sent ?? input, house.accessToken, key),
       );
-      setNotice(
-        result.ok
-          ? {
-              kind: 'status',
-              text: t(`property.done.${name.slice('property.'.length)}`),
-              place: PLACE[name],
-            }
-          : {
-              kind: 'alert',
-              text: t([`errors.${result.error.code}`, 'errors.INTERNAL']),
-              place: PLACE[name],
-            },
-      );
+      const text = result.ok
+        ? t(`property.done.${name.slice('property.'.length)}`)
+        : t([`errors.${result.error.code}`, 'errors.INTERNAL']);
+      // Refus ou réponse perdue : la feuille reste ouverte, saisie gardée, et le dit près du bouton.
+      if (sheet && !result.ok) sheet.refuse(text);
+      else {
+        fromSheet.current = sheet !== undefined;
+        sheet?.close();
+        setNotice({ kind: result.ok ? 'status' : 'alert', text, place: PLACE[name] });
+      }
       await reload();
     } finally {
       setBusy(false);
@@ -150,8 +150,9 @@ export function PropertyScreen() {
 
   useEffect(() => {
     const active = document.activeElement;
-    if (notice && (active === document.body || active?.getAttribute('aria-disabled') === 'true'))
-      noticeElement.current?.focus();
+    const lost = active === document.body || active?.getAttribute('aria-disabled') === 'true';
+    if (notice && (fromSheet.current || lost)) noticeElement.current?.focus();
+    fromSheet.current = false;
   }, [notice]);
   // Toujours présente dans chaque carte : une région vivante annonce le résultat dès qu'il paraît. Une
   // alerte remonte la région sous son rôle (fixé au montage), annoncée dès qu'elle paraît.

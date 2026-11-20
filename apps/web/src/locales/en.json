@@ -848,11 +848,18 @@
     "perDay": "{{cost}} a day",
     "tenant": "Tenant",
     "landlord": "Landlord",
+    "endNote": "Asking for the end is final: the lease ends at the next close, which asks for no more rent.",
     "columns": {
       "property": "Property",
       "role": "You are",
       "rent": "Rent",
       "status": "Lease"
+    },
+    "sheet": {
+      "endLease": "End the lease: {{name}}"
+    },
+    "confirm": {
+      "endLease": "Confirm the end of the lease"
     }
   },
   "alerts": {
