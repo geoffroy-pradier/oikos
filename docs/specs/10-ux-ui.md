@@ -250,6 +250,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le choix du motif se fait dans une feuille, comme l'ouverture d'une conversation, lancée par « Nouvelle conversation » en tête de l'onglet (#698).
    Sur tous les écrans de la maison (#275), les sanctions du compte pas encore finies sont annoncées en tête, à l'heure du serveur : effet, motif, début si elles sont à venir, fin, et l'appel, déjà fait ou à faire par « Faire appel ».
    L'annonce se relit quand l'API refuse une commande pour une sanction, et à la fin de la plus proche.
+   Elles forment un bandeau en tête de l'écran (#698) ; « Faire appel » ouvre une feuille, titrée par la sanction, foyer sur le texte de l'appel.
    Un compte qui n'a pas encore fondé de maison ne la voit pas.
 
 ## Direction artistique

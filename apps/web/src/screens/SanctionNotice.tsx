@@ -1,4 +1,4 @@
-import { Button, Card, TriangleAlert } from '@oikos/ui';
+import { Button, ShieldAlert } from '@oikos/ui';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows } from '../data';
@@ -84,15 +84,16 @@ export function SanctionNotice() {
   return (
     <>
       {shown && (
-        <Card elevation="raised" className="mb-4 flex flex-col gap-3 border-2 border-primary">
-          <h2 className="text-xl">
-            <TriangleAlert
-              aria-hidden="true"
-              className="mr-2 inline size-5 align-[-0.15em] text-primary"
-            />
+        // Bandeau en tête de l'écran (ADR 0011) : l'appel s'écrit dans une feuille, rien n'y reste ouvert.
+        <section
+          aria-labelledby="sanctions-title"
+          className="mb-4 flex animate-rise flex-col gap-3 rounded-xl border border-danger/40 bg-danger-subtle p-4"
+        >
+          <h2 id="sanctions-title" className="flex items-center gap-2 text-lg text-danger">
+            <ShieldAlert aria-hidden="true" className="size-5 shrink-0" />
             {t('sanctions.title')}
           </h2>
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col divide-y divide-danger/20">
             {sanctions.map((sanction) => (
               <SanctionItem
                 key={sanction.id}
@@ -103,7 +104,7 @@ export function SanctionNotice() {
               />
             ))}
           </ul>
-        </Card>
+        </section>
       )}
       {/* Région présente avant son texte dès qu'un avis s'affiche, et gardée après le dernier masqué tant qu'elle
           annonce ; jamais en display:none. Sans rien à annoncer, aucune région : l'écran garde la sienne seule. */}
@@ -133,24 +134,26 @@ function SanctionItem({
   const ended = sanctionEnded(sanction, now);
   const future = sanction.startsAt > now;
   return (
-    <li className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3">
-      <h3 id={heading} className="font-semibold">
-        {t(`sanctions.kind.${sanction.kind}`)}
-      </h3>
+    <li className="flex flex-col gap-1 py-3 text-sm first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h3 id={heading} className="text-base font-semibold">
+          {t(`sanctions.kind.${sanction.kind}`)}
+        </h3>
+        {future && <p>{t('sanctions.starts', { date: date.format(sanction.startsAt) })}</p>}
+        <p>
+          {sanction.endsAt === null
+            ? t('sanctions.permanent')
+            : t(ended ? 'sanctions.ended' : 'sanctions.until', {
+                date: date.format(sanction.endsAt),
+              })}
+        </p>
+      </div>
       {!ended && <p>{t(`sanctions.effect.${sanction.kind}`)}</p>}
       <p className="break-words">{t('sanctions.reason', { reason: sanction.reason })}</p>
-      {future && <p>{t('sanctions.starts', { date: date.format(sanction.startsAt) })}</p>}
-      <p>
-        {sanction.endsAt === null
-          ? t('sanctions.permanent')
-          : t(ended ? 'sanctions.ended' : 'sanctions.until', {
-              date: date.format(sanction.endsAt),
-            })}
-      </p>
       {sanction.appealedAt !== null && (
         <>
           <p>{t('sanctions.appealed', { date: date.format(sanction.appealedAt) })}</p>
-          <blockquote className="border-l-4 border-accent pl-3 break-words whitespace-pre-wrap">
+          <blockquote className="border-l-2 border-danger/40 pl-3 break-words whitespace-pre-wrap italic">
             {sanction.appealBody}
           </blockquote>
         </>
@@ -162,19 +165,28 @@ function SanctionItem({
           })}
         </p>
       )}
-      {ended ? (
-        <div>
-          <Button type="button" variant="ghost" aria-describedby={heading} onClick={onDismiss}>
+      <div className="mt-1 flex flex-col">
+        {ended ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 self-start"
+            aria-describedby={heading}
+            onClick={onDismiss}
+          >
             {t('sanctions.dismiss')}
           </Button>
-        </div>
-      ) : (
-        <SanctionAppeal
-          sanctionId={sanction.id}
-          appealed={sanction.appealedAt !== null}
-          onAppealed={onAppealed}
-        />
-      )}
+        ) : (
+          <SanctionAppeal
+            sanctionId={sanction.id}
+            appealed={sanction.appealedAt !== null}
+            describedBy={heading}
+            name={t(`sanctions.kind.${sanction.kind}`)}
+            onAppealed={onAppealed}
+          />
+        )}
+      </div>
     </li>
   );
 }

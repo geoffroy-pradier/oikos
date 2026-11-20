@@ -1237,7 +1237,8 @@
       "rejected": "Appeal rejected on {{date}}: the sanction stands."
     },
     "dismiss": "Hide this notice",
-    "dismissed": "Notice hidden."
+    "dismissed": "Notice hidden.",
+    "appealTitle": "Appeal: {{kind}}"
   },
   "reports": {
     "button": "Report",
