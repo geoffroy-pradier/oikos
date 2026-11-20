@@ -99,6 +99,15 @@ async function openVersion(number: number, role: 'super_admin' | 'observer' = 's
   return editor;
 }
 
+it("une version sans auteur n'affiche pas « par — » : sa date seule ; l'auteur connu reste nommé", async () => {
+  render(<Config accessToken="token" role="super_admin" />);
+  await screen.findByRole('heading', { name: /^Version 3/ });
+  expect(item(2).textContent).not.toContain('par');
+  expect(item(2).textContent).not.toContain('—');
+  expect(item(2).textContent).toMatch(/le \d{2}\/\d{2}\/\d{4}/);
+  expect(item(3).textContent).toContain('par aaaaaaaa');
+});
+
 it('liste les versions : en vigueur, programmation à venir seulement, retour arrière', async () => {
   render(<Config accessToken="token" role="super_admin" />);
   await screen.findByRole('heading', { name: /^Version 3/ });

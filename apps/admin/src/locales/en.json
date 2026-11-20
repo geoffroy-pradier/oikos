@@ -543,6 +543,7 @@
     "confirmRetired": "I confirm: schedule version {{number}} despite these recipes and classes in use",
     "alreadyRetired": "Recipes and NPC classes already retired by the version in force and still in use: a version without them does not retire them, so there is nothing to confirm.",
     "noNote": "No note",
+    "on": "on {{date}}",
     "by": "by {{account}}, on {{date}}",
     "open": "Open version {{number}}",
     "schedule": "Schedule version {{number}} for the next daily close",

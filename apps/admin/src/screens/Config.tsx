@@ -7,7 +7,17 @@ import {
   type BuybackTotals,
   type RetiredUsage,
 } from '@oikos/contracts';
-import { Badge, Button, cn, PageHeader } from '@oikos/ui';
+import {
+  Badge,
+  Button,
+  CalendarClock,
+  CircleCheck,
+  cn,
+  Eye,
+  PageHeader,
+  Undo2,
+  X,
+} from '@oikos/ui';
 import {
   useCallback,
   useEffect,
@@ -372,17 +382,20 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
               <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
                 {t('config.version', { number: version.number })}
                 {version.id === listing.data?.activeVersionId && (
-                  <Badge tone="primary">
-                    <strong>{t('config.active')}</strong>
+                  <Badge tone="success" icon={<CircleCheck aria-hidden="true" />}>
+                    {t('config.active')}
                   </Badge>
                 )}
               </h3>
               <p className="text-sm">{version.note || t('config.noNote')}</p>
               <p className="text-xs text-muted-foreground">
-                {t('config.by', {
-                  account: version.createdBy?.slice(0, 8) ?? '—',
-                  date: date.format(new Date(version.createdAt)),
-                })}
+                {/* Sans auteur (compte supprimé, version initiale), la date seule : pas de « par — ». */}
+                {version.createdBy
+                  ? t('config.by', {
+                      account: version.createdBy.slice(0, 8),
+                      date: date.format(new Date(version.createdAt)),
+                    })
+                  : t('config.on', { date: date.format(new Date(version.createdAt)) })}
                 {upcoming &&
                   ` · ${t('config.scheduled', { date: date.format(new Date(upcoming)) })}`}
               </p>
@@ -483,6 +496,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 <Button
                   id={`config-open-${version.id}`}
                   variant="secondary"
+                  icon={<Eye aria-hidden="true" />}
+                  className="max-sm:w-full"
                   onClick={() => askOpen(version.id)}
                 >
                   {t('config.open', { number: version.number })}
@@ -490,6 +505,14 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                 {canEdit && (
                   <Button
                     variant="secondary"
+                    icon={
+                      version.number < activeNumber ? (
+                        <Undo2 aria-hidden="true" />
+                      ) : (
+                        <CalendarClock aria-hidden="true" />
+                      )
+                    }
+                    className="max-sm:w-full"
                     disabled={busy || (toConfirm && !isConfirmed)}
                     aria-describedby={described || undefined}
                     onClick={() => void schedule(version, isConfirmed)}
@@ -503,6 +526,8 @@ export function Config({ accessToken, role }: { accessToken: string; role: Admin
                   <Button
                     id={`config-cancel-${next.id}`}
                     variant="secondary"
+                    icon={<X aria-hidden="true" />}
+                    className="max-sm:w-full"
                     disabled={busy}
                     onClick={() => confirmCancel(next.id)}
                   >
