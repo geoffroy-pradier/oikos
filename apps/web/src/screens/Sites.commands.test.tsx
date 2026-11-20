@@ -192,3 +192,13 @@ describe('le résultat suit la fiche que les relectures agrandissent, sans reten
     expect(observer?.disconnected).toBe(true);
   });
 });
+
+describe('fiche de site (#869)', () => {
+  it('la production en cours a sa barre de progression, nommée par le site', async () => {
+    await show();
+    const bar = await screen.findByRole('progressbar', {
+      name: fr.production.nextOf.replace('{{site}}', fr.recipes.grow_wheat),
+    });
+    expect(bar.getAttribute('aria-valuetext')).toBeTruthy();
+  });
+});

@@ -56,7 +56,7 @@ import {
   sendUnderKey,
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
-import { ProductionList, type ProductionItem } from './HomeProduction';
+import { CycleBar, ProductionList, type ProductionItem } from './HomeProduction';
 import { SiteAcquire, type SiteOffer } from './SiteAcquire';
 import { SiteProduction } from './SiteProduction';
 import { SiteRestart } from './SiteRestart';
@@ -926,6 +926,7 @@ export function SitesCard({
               : site.recipe_id;
           const recipe = rules?.recipe(site.recipe_id);
           const { halted, harvest, estimate, current, alerts } = stateOf(site);
+          const cycle = productionOf(site).progress;
           // Récolte estimée touchée par un événement de rendement : à rien, ou de combien (7.4, #417).
           const why =
             estimate && harvest && harvest.cycles > 0
@@ -987,6 +988,8 @@ export function SitesCard({
                   </Button>
                 )}
               </div>
+              {/* La production en cours en barre, comme au tableau de bord (#869) ; à l'arrêt, l'avis le dit. */}
+              {!retired && !halted && cycle && <CycleBar site={name} progress={cycle} />}
               {retired && (
                 <p className="rounded-md bg-danger-subtle px-3 py-2 font-semibold text-danger">
                   {t('home.retired')}

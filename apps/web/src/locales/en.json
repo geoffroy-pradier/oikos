@@ -275,6 +275,7 @@
     "freeStock": "Free stock in {{city}}: {{quantity}} × {{good}}.",
     "cash": "Treasury: {{amount}}.",
     "overStock": "Not enough free stock: only {{free}} × {{good}} in {{city}}.",
+    "bestPrice": "Best price",
     "bestBid": "Sold at once: buyers are waiting for {{quantity}} × {{good}} at {{price}}.",
     "bestAsk": "Bought at once: sellers offer {{quantity}} × {{good}} at {{price}}.",
     "useBest": "Use {{price}}",
@@ -913,6 +914,8 @@
     "title": "Property",
     "intro": "The archipelago's housing: buy it from the city or from a house, lease it, renovate it. A property houses your workers in its city while it is in good repair; rent is paid every day at the close.",
     "describe": "{{size}} no. {{lot}}, {{city}}",
+    "cityFilter": "City",
+    "allCities": "All cities",
     "offers": "Properties on offer",
     "noOffers": "No property on offer for now.",
     "take": {

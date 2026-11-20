@@ -35,6 +35,7 @@ L'écran de connexion dit alors pourquoi, en français et en anglais, et donne l
 La connexion tient en une carte centrée : sur téléphone la scène d'accueil la surmonte, sur ordinateur elle se tient à son côté.
 Sur ordinateur, le bloc est aussi centré en hauteur (#869).
 Un envoi refusé s'affiche sous le champ de l'adresse, qu'il décrit et marque invalide.
+Un Stepper nomme ses étapes sous sa barre ; Continuer, ou la confirmation, prend la largeur que laisse Retour (#869).
 Dans un Stepper, Entrée dans un champ de saisie vaut Continuer ; une étape peut garder le joueur sur place (`check`) en expliquant pourquoi, et un refus de l'API qui se corrige à une étape y ramène le joueur (`initialStep`).
 La création de maison se fait en quatre étapes : le nom, le blason, la cité d'accueil, puis un récapitulatif confirmé par « Fonder la maison ».
 Un nom invalide garde l'étape et se dit sous le champ ; continuer sans cité choisie est refusé de même, aucune cité n'étant choisie d'avance.
@@ -69,6 +70,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Personnel donne ses totaux en cartes (travailleurs, logés par ses biens, hébergés, hébergement d'un jour), puis les cités en tableau triable, en fiches sur téléphone (`DataTable`) ; une cité dont le prix n'est pas encore fixé le dit et reste hors du total, qui le dit aussi ; aucune note ne le redit sous le tableau (#869).
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
    Refonte (#694) : chaque liste de l'Immobilier est un tableau triable, en fiches sur téléphone (`DataTable`).
+   Dès que les offres viennent de plus d'une cité, une liste de choix les filtre par cité, « Toutes les cités » d'abord (#869).
    Les baux disent le bien, le rôle de la maison (locataire ou bailleur), le loyer d'un jour et l'état du bail.
    Chaque commande de l'Immobilier s'ouvre dans une feuille qui récapitule, au prix lu à son ouverture, ce qu'elle engage avant sa confirmation.
    Une commande aboutie ferme sa feuille ; son issue s'annonce sous le titre de la liste, où va le foyer.
@@ -87,6 +89,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
    L'écran Sites (`/sites`, #693) porte les fiches des sites de la maison, avec en chiffres clés la trésorerie, le nombre de sites sur la limite du siège, les sites prêts à récolter (« — » tant que l'heure du serveur ou le stock ne sont pas lus) et le coût d'un jour des sites qui tournent (celui de leurs relances, que la clôture prélèvera ; « — » tant qu'un prix manque).
    Chaque fiche porte le pictogramme de sa production, son type et sa cité ; « Détails » du tableau de bord ouvre l'écran sur elle (`/sites#site-…`) et pose le foyer sur son titre.
+   Sous son en-tête, la production en cours a sa barre de progression, comme au tableau de bord ; un site à l'arrêt le dit par son avis, sans barre (#869).
    L'issue d'une commande paraît une fois relu ce qu'elle a pu changer, et reste dans la fenêtre quand une relecture (sites, journées de travail, intendants, événements) agrandit une fiche au-dessus d'elle, jusqu'au premier geste du joueur (molette, doigt, pointeur, touche) ou cinq secondes au plus : son défilement n'est jamais interrompu (#869).
    Pendant la relecture des événements de rendement sous une borne nouvelle, ceux déjà lus restent rendus : la fiche ne passe pas par une hauteur plus petite.
    L'issue d'une commande de l'intendant paraît de même une fois l'intendant relu.
@@ -96,6 +99,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Confirmer referme la feuille, rend le foyer à son bouton et annonce l'issue sur la fiche ; après un refus (récolter d'abord), le choix est gardé pour l'essai suivant.
    « Relancer » (5.5) ouvre une feuille qui détaille le prix d'un jour (entretien, salaires et hébergement, total) ; la relance part au prix vu, et son bouton disparaissant avec l'arrêt, le foyer passe à l'issue annoncée.
    L'intendant d'un site (4.4) se lit sur sa fiche : son état, le nombre de ses règles, ses dernières opérations et ses ordres ouverts.
+   Son encart est resserré : le titre et « Embaucher un intendant » sur une ligne, l'explication dessous, en petit (#869).
    L'embauche (salaire d'un jour, postes occupés), la consigne (#280) et les règles s'ouvrent chacune dans sa feuille ; les règles, voie complète du jeu sans IA, gardent leur formulaire, sur lequel leur feuille pose le foyer, et la consigne y mène (IA coupée, refus, « Modifier »).
    Envoyer referme la feuille ; l'issue s'annonce sur la fiche, et une proposition de l'intendant y est signalée jusqu'à ce qu'on l'ouvre.
    La consigne écrite est gardée par la fiche jusqu'à un envoi réussi : un échec la rend à la feuille rouverte.
@@ -125,6 +129,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le stock libre et la trésorerie sont relus à chaque ouverture de la feuille ; tant que cette lecture n'a pas abouti, la feuille ne borne rien et l'API juge seule.
    Une vente au-delà du stock libre ainsi lu est refusée à l'étape de la quantité, sans rien envoyer ; un achat au-delà de la trésorerie reste permis, il s'exécute pour la part payable (5.3).
    Sous le prix, la feuille propose le meilleur niveau du côté opposé qui n'est pas fait des seuls ordres de la maison, et dit ce qui s'y échangerait tout de suite.
+   Ce meilleur prix est mis en avant, en grand dans un encart à l'accent (#869).
    Le récapitulatif donne le brut, la taxe de marché et le net d'une vente (le brut seul tant que la taxe n'est pas lue ou si elle est nulle), le coût au plus et le séquestre d'un achat.
    Un refus est dit dans la feuille, près du dépôt, qui garde le foyer ; un dépôt réussi ferme la feuille, son résultat paraît sous les boutons et y prend le foyer.
    La saisie survit à la fermeture de la feuille : restée sans réponse, la même saisie repart sous la même clé, même après une annulation entre-temps.

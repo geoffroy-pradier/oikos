@@ -194,37 +194,44 @@ export function SiteSteward(props: {
   );
 
   return (
+    // Encart resserré (#869) : le titre et l'embauche sur une ligne, l'explication dessous, en petit.
     <section
       aria-labelledby={labelId}
-      className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-muted/40 p-3"
+      className="flex flex-col gap-1.5 rounded-lg border border-border-subtle bg-muted/40 px-3 py-2.5"
     >
-      <div className="flex items-center gap-2">
-        <Users aria-hidden="true" className="size-4 text-accent" />
-        <h4 id={labelId} className="font-semibold">
-          {t('steward.title')}
-        </h4>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* Le titre garde sa largeur : faute de place, « Embaucher » passe dessous, jamais le titre lettre à lettre. */}
+        <div className="flex flex-1 basis-32 items-center gap-2">
+          <Users aria-hidden="true" className="size-4 shrink-0 text-accent" />
+          <h4 id={labelId} className="font-semibold">
+            {t('steward.title')}
+          </h4>
+        </div>
+        {!steward && rules.limit > 0 && props.posted < rules.limit && (
+          <Button
+            icon={<UserPlus aria-hidden="true" />}
+            className="aria-disabled:opacity-60"
+            aria-disabled={busy}
+            aria-label={t('steward.hireFor', { site: props.siteName })}
+            aria-haspopup="dialog"
+            onClick={() => !busy && setSheet('hire')}
+          >
+            {t('steward.hire')}
+          </Button>
+        )}
       </div>
       {!steward ? (
         rules.limit === 0 ? (
           <p className="text-sm text-muted-foreground">{t('steward.noPost')}</p>
         ) : (
           <>
-            <p className="text-sm">{t('steward.pitch', { cost: money(rules.dailyWageOboles) })}</p>
-            {props.posted >= rules.limit ? (
+            <p className="text-sm text-muted-foreground">
+              {t('steward.pitch', { cost: money(rules.dailyWageOboles) })}
+            </p>
+            {props.posted >= rules.limit && (
               <p className="text-sm text-muted-foreground">
                 {t('steward.postsTaken', { count: rules.limit })}
               </p>
-            ) : (
-              <Button
-                icon={<UserPlus aria-hidden="true" />}
-                className="self-start aria-disabled:opacity-60"
-                aria-disabled={busy}
-                aria-label={t('steward.hireFor', { site: props.siteName })}
-                aria-haspopup="dialog"
-                onClick={() => !busy && setSheet('hire')}
-              >
-                {t('steward.hire')}
-              </Button>
             )}
           </>
         )

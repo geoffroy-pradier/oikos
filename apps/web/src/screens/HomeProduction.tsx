@@ -135,38 +135,7 @@ export function ProductionList(props: {
                   </div>
                   <p className="hidden text-sm text-foreground-secondary lg:block">{item.city}</p>
                   <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
-                    {item.progress && (
-                      <>
-                        <div
-                          role="progressbar"
-                          aria-label={t('production.nextOf', { site: item.name })}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={Math.round(item.progress.done * 100)}
-                          aria-valuetext={item.progress.text}
-                          className="h-1.5 overflow-hidden rounded-full bg-muted"
-                        >
-                          <div
-                            className={cn(
-                              'h-full rounded-full transition-[width] duration-(--motion-base)',
-                              BAR[item.progress.tone],
-                            )}
-                            style={{ width: `${item.progress.done * 100}%` }}
-                          />
-                        </div>
-                        <p
-                          aria-hidden="true"
-                          className={cn(
-                            'text-xs tabular-nums',
-                            item.progress.tone === 'danger'
-                              ? 'text-danger'
-                              : 'text-muted-foreground',
-                          )}
-                        >
-                          {item.progress.text}
-                        </p>
-                      </>
-                    )}
+                    {item.progress && <CycleBar site={item.name} progress={item.progress} />}
                     {item.retired && (
                       <p className="text-sm font-semibold text-danger">{t('production.retired')}</p>
                     )}
@@ -220,5 +189,49 @@ export function ProductionList(props: {
         </>
       )}
     </Card>
+  );
+}
+
+/**
+ * Avancement du cycle en cours d'un site : la barre, nommée par le site, et le temps restant (ou le plafond,
+ * l'arrêt) écrit dessous. Sur le tableau de bord comme sur la fiche du site (#869).
+ */
+export function CycleBar({
+  site,
+  progress,
+}: {
+  site: string;
+  progress: NonNullable<ProductionItem['progress']>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div
+        role="progressbar"
+        aria-label={t('production.nextOf', { site })}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress.done * 100)}
+        aria-valuetext={progress.text}
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width] duration-(--motion-base)',
+            BAR[progress.tone],
+          )}
+          style={{ width: `${progress.done * 100}%` }}
+        />
+      </div>
+      <p
+        aria-hidden="true"
+        className={cn(
+          'text-xs tabular-nums',
+          progress.tone === 'danger' ? 'text-danger' : 'text-muted-foreground',
+        )}
+      >
+        {progress.text}
+      </p>
+    </div>
   );
 }
