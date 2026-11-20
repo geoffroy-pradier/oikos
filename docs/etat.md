@@ -1,10 +1,11 @@
 # État du projet
 
-Point d'étape au 19 novembre 2026, vers 23 h 50 (heure de Paris).
+Point d'étape au 20 novembre 2026 (heure de Paris).
 La phase 1 est terminée depuis le 15 novembre, la phase 2 depuis le 19 novembre : le code vérifie son critère de sortie (`docs/specs/17-feuille-de-route.md`, « Vérification du critère de la phase 2 »).
 Tous les tickets de la phase 2 (#250 à #286) sont fermés, avec leurs suivis, sauf #269 (fournisseur d'IA réel, `needs-human`) ; #286 se ferme avec la demande de fusion qui porte ce fichier.
 Aucun suivi n'est ouvert : #541 est fermé (#620).
-Restent ouverts #33 et #269 (`needs-human`) et les tickets de la refonte graphique (#687 à #700).
+Restent ouverts #33 et #269 (`needs-human`).
+La refonte graphique (#687 à #700) est terminée : #700 se ferme avec la demande de fusion qui porte cette mise à jour.
 Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`docs/specs/`) décrivent la cible.
 
 ## Où en est la feuille de route
@@ -18,8 +19,8 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
   Son critère de sortie, retenu par délégation du propriétaire (en tête de `docs/tickets/phase-2.md`), est vérifié par le code : parcours de l'alpha de bout en bout à 360 px, banc d'équilibrage à quatre cités et tableau de bord d'Olympe.
   Il reste à l'éprouver avec des joueurs réels, une fois un serveur en place.
   Le propriétaire a reporté tout serveur : la phase s'est développée et testée en local, et seul #269 (fournisseur d'IA réel) est `needs-human`, avec #33.
-- **Refonte graphique** : en cours, avant la phase 3 (ADR 0011, décidée le 19 novembre 2026) ; #687 (jetons et thèmes) est fusionné.
-  Tickets #687 à #700, dans `docs/tickets/refonte.md`.
+- **Refonte graphique** : terminée le 20 novembre 2026, avant la phase 3 (ADR 0011, décidée le 19 novembre 2026).
+  Tickets #687 à #700, dans `docs/tickets/refonte.md` ; la nouvelle interface est décrite plus bas (« Interface »).
 - **Phase 3 (bêta ouverte)** : ses tickets sont rédigés dans `docs/tickets/phase-3.md` et ouverts sur GitHub (#703 à #769, dont trois `needs-human`) ; elle commence après la refonte graphique.
 
 ## Ce qui est jouable aujourd'hui
@@ -28,6 +29,19 @@ En local (procédure dans le `README.md`), dans douze cités : Kallistè, Elaia,
 Depuis #707, les douze cités sont reliées par vingt-trois routes maritimes entre voisines, et chacune a son île sur la carte.
 Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour recevoir les nouvelles cités et la configuration qui les décrit.
 
+- **Interface** (refonte graphique, #687 à #700, ADR 0011, spécification 10).
+  Épurée, en deux thèmes, clair et sombre : celui de l'appareil, ou celui choisi dans les Réglages.
+  Un seul accent orange pour l'action principale, l'état actif et les données mises en avant ; Inter seule, chiffres tabulaires.
+  Sur ordinateur (dès 1 024 px), une barre latérale porte la maison, sa trésorerie, les cinq onglets et les Réglages ; sur téléphone, un en-tête compact et une barre d'onglets en bas.
+  Les sous-sections d'un onglet sont des onglets en pastilles : Vue d'ensemble, Sites, Personnel, Immobilier et Comptes sous Maison ; Vie politique, Assemblée, Trésor, Événements et Chronique sous Cité.
+  Chaque écran s'ouvre sur le même en-tête : titre, heure de jeu et prochaine clôture, action principale.
+  Les chiffres clés sont en cartes ; les listes en tableaux triables sur ordinateur et en fiches sur téléphone ; sur téléphone, la trésorerie ouvre le tableau de bord sur un plan sombre.
+  Une action qui demande plus d'un choix s'ouvre dans une feuille, montée du bas sur téléphone et panneau latéral sur ordinateur, par étapes et avec un récapitulatif chiffré : ordre de l'agora, acquisition d'un site, biens immobiliers, décrets, gestes d'Olympe.
+  Les saisies de quantité ont des boutons ± et des raccourcis (25 %, 50 %, tout) quand une borne est connue.
+  Icônes au trait (lucide) ; illustrations SVG dessinées dans le dépôt pour l'accueil, les écrans vides, les biens, les dieux et les douze cités.
+  La carte est un dessin vectoriel de l'archipel, déplaçable et zoomable au doigt, à la souris et au clavier, doublée d'une liste.
+  Olympe partage les jetons et la coquille : modules en barre latérale sur ordinateur et en pastilles sur téléphone, thème au choix.
+  Les écrans clés du jeu et d'Olympe ont des images de référence, dans les deux thèmes, à 360 et 1 440 px, comparées en `ci` avec un contrôle axe (#700, spécification 10, « Contrôle visuel »).
 - **Compte et maison.** Connexion par lien magique (courriel). Création d'une maison : nom, blason, cité.
   La maison reçoit 3 000 oboles et le premier site de sa cité (champ de blé, vigne ou pêcherie). La commande de renommage existe dans l'API, sans écran.
 - **Sites.** Jusqu'à quatre sites par maison. Acquisition contre monnaie (de 600 à 1 200 oboles selon le
@@ -224,6 +238,9 @@ Les décisions structurantes sont dans `docs/adr/` ; celles-ci ont été prises 
 - **Refonte graphique** (ADR 0011, 19 novembre 2026) : le propriétaire écarte la direction inspirée de la céramique grecque.
   L'interface devient épurée, avec deux thèmes (clair et sombre), un seul accent orange, Inter seule, les actions longues en feuilles, une vraie carte et des illustrations SVG dessinées par les agents.
   Elle remplace en partie l'ADR 0010 ; ses tickets (#687 à #700) passent avant la phase 3.
+- **Contrôle visuel dans l'image Docker de Playwright** (#700, 10) : les captures de référence sont rendues par le Chromium de l'image officielle, à la version du dépôt, en local comme en `ci`.
+  Le Chromium de l'hôte rend le texte autrement selon les réglages de fontconfig de la machine : des références qu'il produirait ne vaudraient que pour elle.
+  Seul le contrôle visuel lance ce conteneur : les autres tests de bout en bout se passent de Docker.
 
 - **Le client lit par Supabase, écrit par l'API** (ADR 0001). Les règles du jeu qu'il affiche (recettes,
   coûts) viennent de la vue `site_rules`, pas d'une copie de la configuration.
@@ -458,6 +475,13 @@ Défauts connus :
 - **Tests d'intégration partageant une base** : certains programment des versions de configuration et les annulent à la fin (#354), sauf à moins d'une minute de l'échéance, ce que la base refuse.
   Deux suites lancées en même temps sur la même base peuvent encore se gêner.
   Les scripts lancent une suite à la fois en local, et en `ci` l'api et le reste ont chacun leur base.
+- **Relevés de la refonte, laissés pour un ticket** (#700) :
+  - la coquille ne relit pas le statut de la maison (métèque ou citoyenne) : il change à la clôture, et l'en-tête ne le montre qu'après un rechargement ;
+  - le panneau d'édition des Paramètres d'Olympe n'a pas de bouton « Fermer » : il se referme en ouvrant une autre version, et un bouton devrait demander la même confirmation qu'elle pour un texte non enregistré ;
+  - les biens offerts de l'écran Immobilier couvrent toute l'archipel, sans filtre : avec le parc des douze cités, plus de 300 lignes ; filtrer par cité demande une décision, car un joueur loue aussi ailleurs que chez lui ;
+  - les textes français mettent une espace ordinaire avant « : », qui peut ouvrir une ligne ;
+  - à 1 440 px, le compte de résultat (dix colonnes) défile à l'horizontale dans sa carte ;
+  - la pile locale partagée n'a pas de conteneur Realtime : `messages.spec.ts` n'y passe pas (la `ci` en a un).
 - **Test instable de l'agora** (ex-#98) : une cause établie (service worker), une autre non prouvée ; les
   traces d'un test rejoué sont désormais gardées en artefact de `ci` (`e2e-traces`).
 

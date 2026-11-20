@@ -23,6 +23,8 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
   reporter: 'list',
+  // Contrôle visuel (#700) : tolérance faible ; animations et curseur figés par Playwright.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: 'disabled', caret: 'hide' } },
   use: { baseURL: 'http://127.0.0.1:5174', trace: 'off', locale: 'fr-FR' },
   projects: [
     {

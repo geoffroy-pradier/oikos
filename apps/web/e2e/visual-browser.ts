@@ -11,6 +11,7 @@ import { test as base } from '@playwright/test';
  * comparées dans le même environnement de rendu (polices du système, réglages de fontconfig), en local comme en
  * `ci` ; le navigateur de l'hôte rend le texte autrement d'une machine à l'autre. Seuls les tests qui importent ce
  * `test` démarrent le conteneur, un par processus de test : les autres tests de bout en bout se passent de Docker.
+ * Olympe l'importe aussi (`apps/admin/e2e/visual.spec.ts`).
  */
 const resolve = createRequire(import.meta.url).resolve;
 const playwrightTest = resolve('@playwright/test/package.json');
