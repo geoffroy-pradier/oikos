@@ -102,16 +102,24 @@ async function screenOf() {
   return { ...render(tree()), tree };
 }
 afterEach(cleanup);
+// Annonces faites (la région du tri des voyages, toujours présente, reste vide).
+const announced = () =>
+  screen
+    .queryAllByRole('status')
+    .map((region) => region.textContent)
+    .filter(Boolean);
+// Les voyages sont en fiches sur téléphone et en tableau sur ordinateur : chaque valeur, deux fois.
+const shown = (text: string) => expect(screen.getAllByText(text)).toHaveLength(2);
 
 describe('fiche d’un navire', () => {
   it('fiche du voyage en cours : départ, arrivée prévue, cargaison ; rien d’annoncé à l’ouverture', async () => {
     state(false);
     await screenOf();
     expect(screen.getByRole('heading', { name: 'Caboteur' })).toBeTruthy();
-    expect(screen.getByText('Kallistè → Elaia')).toBeTruthy();
-    expect(screen.getByText(fr.ship.arrivesAt)).toBeTruthy();
-    expect(screen.getByText('30 × Blé')).toBeTruthy();
-    expect(screen.queryByRole('status')).toBeNull();
+    shown('Kallistè → Elaia');
+    shown(fr.ship.arrivesAt);
+    shown('30 × Blé');
+    expect(announced()).toEqual([]);
     // Droit de port en vigueur : lu pour les seules cités du monde de la maison.
     expect(views.filters['city_rates']).toEqual({ city_id: ['e', 'k'] });
   });
@@ -121,18 +129,16 @@ describe('fiche d’un navire', () => {
     const { rerender, tree } = await screenOf();
     state(true);
     rerender(tree());
-    expect(screen.getByRole('status').textContent).toBe(
-      'Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.',
-    );
+    expect(announced()).toEqual(['Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.']);
     expect(screen.getByText('à quai à Elaia')).toBeTruthy();
-    expect(screen.getByText(fr.ship.arrivedAt)).toBeTruthy();
+    shown(fr.ship.arrivedAt);
   });
 
   it('un voyage déjà arrivé à l’ouverture se lit dans la liste, sans annonce', async () => {
     state(true);
     await screenOf();
-    expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.getByText(fr.ship.arrivedAt)).toBeTruthy();
+    expect(announced()).toEqual([]);
+    shown(fr.ship.arrivedAt);
   });
 
   it('après un départ, la feuille se ferme et le foyer va au message qui l’annonce', async () => {
@@ -144,6 +150,7 @@ describe('fiche d’un navire', () => {
     button.focus();
     fireEvent.click(button);
     const status = await screen.findByText('Parti.');
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(status);
     views.rules = null;
   });

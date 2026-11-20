@@ -55,7 +55,11 @@ async function mount(ships: ShipRow[]) {
   );
   return { ...render(tree(ships)), tree };
 }
-const buy = () => fireEvent.click(screen.getByRole('button', { name: /Acheter — 400 drachmes/ }));
+// L'achat s'ouvre dans une feuille, au prix vu, puis se confirme.
+const buy = () => {
+  fireEvent.click(screen.getByRole('button', { name: /Acheter — 400 drachmes/ }));
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'achat — 400 drachmes" }));
+};
 beforeEach(() => {
   houseNumber += 1;
   sent.keys = [];
@@ -65,12 +69,27 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('achat d’un navire, comme l’acquisition d’un site', () => {
+  it('la feuille d’achat dit prix, cale et entretien ; la refermer n’achète rien', async () => {
+    await mount([]);
+    fireEvent.click(screen.getByRole('button', { name: /Acheter — 400 drachmes/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Acheter : Caboteur' });
+    expect(sheet.textContent).toMatch(/Prix, payé une fois400 drachmes/);
+    expect(sheet.textContent).toMatch(/Cargaison, en unités300/);
+    expect(sheet.textContent).toMatch(/Entretien par jour3 drachmes/);
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(sent.keys).toEqual([]);
+  });
+
   it('sans réponse, mais un navire de plus à la relecture : la même clé repart une fois', async () => {
     sent.answers.push(lost, bought);
     fleet = [ship('s1')];
     await mount([]);
     buy();
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('déjà abouti'));
+    // La feuille fermée, le foyer va au message qui dit l'issue.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('status'));
     expect(sent.keys).toHaveLength(2);
     expect(sent.keys[1]).toBe(sent.keys[0]);
   });

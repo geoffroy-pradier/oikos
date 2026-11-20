@@ -655,7 +655,13 @@
       "noPrices": "Aucun cours observé à son agora pour l'instant.",
       "agora": "Ouvrir l'agora — {{city}}",
       "notAtAgora": "{{city}} n'est pas proposée à l'agora : votre maison n'y a ni stock ni site. Le lien ouvre l'agora de votre cité."
-    }
+    },
+    "buyTitle": "Acheter : {{ship}}",
+    "buyConfirm": "Confirmer l'achat — {{cost}}",
+    "buyPrice": "Prix, payé une fois",
+    "buyCapacity": "Cargaison, en unités",
+    "buyUpkeep": "Entretien par jour",
+    "buyHome": "À quai à sa naissance"
   },
   "shipClasses": {
     "coaster": "Caboteur",
@@ -672,7 +678,9 @@
     "departedAt": "Départ",
     "arrivesAt": "Arrivée prévue",
     "arrivedAt": "Arrivé",
-    "cargo": "Cargaison"
+    "cargo": "Cargaison",
+    "route": "Trajet",
+    "arrival": "Arrivée"
   },
   "departure": {
     "title": "Faire partir le navire",
