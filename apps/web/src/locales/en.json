@@ -333,7 +333,17 @@
     "oil_lamps": "Oil lamps",
     "sandals": "Sandals",
     "tools": "Tools",
-    "clothes": "Clothes"
+    "clothes": "Clothes",
+    "painted_ceramics": "Painted ceramics",
+    "perfumes": "Perfumes",
+    "jewelry": "Jewellery",
+    "furniture": "Furniture",
+    "statues": "Statues",
+    "weapons": "Weapons",
+    "sails": "Sails",
+    "candles": "Candles",
+    "mosaics": "Mosaics",
+    "fig_cakes": "Fig cakes"
   },
   "recipes": {
     "grow_wheat": "Wheat field",
@@ -379,7 +389,17 @@
     "mould_lamps": "Lamp workshop",
     "make_sandals": "Cobbler",
     "forge_tools": "Toolmaker",
-    "sew_clothes": "Tailor"
+    "sew_clothes": "Tailor",
+    "paint_ceramics": "Ceramics workshop",
+    "blend_perfumes": "Perfumery",
+    "craft_jewelry": "Jeweller",
+    "build_furniture": "Joinery",
+    "carve_statues": "Sculptor",
+    "forge_weapons": "Armoury",
+    "sew_sails": "Sailmaker",
+    "dip_candles": "Chandlery",
+    "lay_mosaics": "Mosaic workshop",
+    "press_fig_cakes": "Pastry shop"
   },
   "siteTypes": {
     "field": "Field",

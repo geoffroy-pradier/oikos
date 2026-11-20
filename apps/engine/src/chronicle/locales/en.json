@@ -86,7 +86,17 @@
     "oil_lamps": "Oil lamps",
     "sandals": "Sandals",
     "tools": "Tools",
-    "clothes": "Clothes"
+    "clothes": "Clothes",
+    "painted_ceramics": "Painted ceramics",
+    "perfumes": "Perfumes",
+    "jewelry": "Jewellery",
+    "furniture": "Furniture",
+    "statues": "Statues",
+    "weapons": "Weapons",
+    "sails": "Sails",
+    "candles": "Candles",
+    "mosaics": "Mosaics",
+    "fig_cakes": "Fig cakes"
   },
   "cities": {
     "kalliste": "Kallistè",
