@@ -87,6 +87,16 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    « En cours » se lit à l'heure du serveur, relue chaque minute et au retour sur l'onglet ; un événement à venir n'est pas lisible (7.3), un événement fini disparaît sans rechargement.
    Seuls sont lus les événements qui finissent après une borne : l'heure du serveur à l'ouverture de l'écran, avancée à l'heure de la relecture qui suit la fin d'un événement lu ; une longue session ne garde pas les événements finis.
 3. Carnet d'ordres d'un bien : profondeur, historique de prix, saisie d'ordre.
+   Refonte (#695) : la fiche du bien porte son pictogramme, son stock libre dans la cité, le dernier prix en grand avec sa variation sur 24 heures, le meilleur achat et la meilleure vente du carnet, puis les boutons Vendre et Acheter.
+   Les chandeliers, doublés de leur tableau, le carnet par niveau de prix et les ordres de la maison, chacun avec « Annuler », suivent ; sur ordinateur, le bien et le carnet sont à gauche, les chandeliers et les ordres à droite.
+   Vendre et Acheter ouvrent une feuille en deux étapes : la quantité et le prix limite, puis le récapitulatif et le dépôt ; le bien et la cité sont ceux de l'écran.
+   La quantité a des boutons ± et les raccourcis 25 %, 50 % et tout, bornés par le stock libre du bien dans la cité pour une vente, par ce que la trésorerie paie au prix saisi pour un achat.
+   Le stock libre et la trésorerie sont relus à chaque ouverture de la feuille ; tant que cette lecture n'a pas abouti, la feuille ne borne rien et l'API juge seule.
+   Une vente au-delà du stock libre ainsi lu est refusée à l'étape de la quantité, sans rien envoyer ; un achat au-delà de la trésorerie reste permis, il s'exécute pour la part payable (5.3).
+   Sous le prix, la feuille propose le meilleur niveau du côté opposé qui n'est pas fait des seuls ordres de la maison, et dit ce qui s'y échangerait tout de suite.
+   Le récapitulatif donne le brut, la taxe de marché et le net d'une vente (le brut seul tant que la taxe n'est pas lue ou si elle est nulle), le coût au plus et le séquestre d'un achat.
+   Un refus est dit dans la feuille, près du dépôt, qui garde le foyer ; un dépôt réussi ferme la feuille, son résultat paraît sous les boutons et y prend le foyer.
+   La saisie survit à la fermeture de la feuille : restée sans réponse, la même saisie repart sous la même clé, même après une annulation entre-temps.
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.
    Refonte (#696) : l'archipel est un dessin fait à la main (`Archipelago`, `packages/ui/src/illustrations`) : mer et quadrillage discret, deux continents, une île par cité et des îlots, hauts-fonds autour des terres, rose des vents.
