@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -49,9 +49,19 @@ describe('flux de trésorerie (#272)', () => {
   it('la nature offerings est libellée, en français et en anglais ; la lecture se borne aux derniers jours', async () => {
     state.rows = [flow('offerings', -60), flow('sales', 66)];
     await show();
-    expect(screen.getByText('Offrandes et consultations de la Pythie : −10 drachmes')).toBeTruthy();
-    expect(screen.getByText('Ventes, au brut : 11 drachmes')).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 3 }).textContent).toMatch(/2025 : net 1 drachme$/);
+    // Le tableau (fiches sur téléphone) : jour, entrées, sorties, net, puis le détail par nature.
+    const table = within(screen.getByRole('table', { name: fr.accounts.flows.title }));
+    expect(table.getByText('Offrandes et consultations de la Pythie : −10 drachmes')).toBeTruthy();
+    expect(table.getByText('Ventes, au brut : 11 drachmes')).toBeTruthy();
+    expect(table.getByRole('rowheader').textContent).toMatch(/2025$/);
+    expect(
+      table
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent)
+        .slice(0, 3),
+    ).toEqual(['11 drachmes', '−10 drachmes', '1 drachme']);
+    // Le graphique est une image décrite, qui renvoie au tableau.
+    expect(screen.getByRole('img').getAttribute('aria-label')).toMatch(/sur le dernier jour/);
     expect(state.args.slice(2)).toEqual([
       'game_day',
       { house_id: 'h1', account: 'treasury' },
@@ -59,7 +69,11 @@ describe('flux de trésorerie (#272)', () => {
     ]);
     cleanup();
     await show('en');
-    expect(screen.getByText('Offerings and Pythia consultations: −10 drachmas')).toBeTruthy();
+    expect(
+      within(screen.getByRole('table')).getByText(
+        'Offerings and Pythia consultations: −10 drachmas',
+      ),
+    ).toBeTruthy();
   });
 
   it('aucun mouvement ; une nature inconnue dite par son nom ; une lecture en échec annoncée', async () => {
@@ -68,7 +82,9 @@ describe('flux de trésorerie (#272)', () => {
     cleanup();
     state.rows = [flow('future_nature', 6)];
     await show();
-    expect(screen.getByText('Mouvements « future_nature » : 1 drachme')).toBeTruthy();
+    expect(
+      within(screen.getByRole('table')).getByText('Mouvements « future_nature » : 1 drachme'),
+    ).toBeTruthy();
     cleanup();
     state.rows = null;
     await show();

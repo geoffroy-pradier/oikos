@@ -184,6 +184,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
    Sous le compte de résultat, les flux de trésorerie (#272, `my_cash_flows`, compte `treasury`) : pour chacun des 7 derniers jours de jeu où la trésorerie a bougé, son net et le détail par nature, chacune libellée.
+   Refonte (#694) : un graphique en barres les montre, entrées au-dessus de l'axe (orange) et sorties en dessous (gris), du plus ancien au plus récent ; c'est une image décrite, doublée d'un `DataTable` des mêmes jours (entrées, sorties, net, détail par nature), le plus récent d'abord.
    Les offrandes et les consultations de la Pythie y sont sous « Offrandes et consultations de la Pythie » (nature `offerings`) ; une nature que le client ne connaît pas encore est dite par son identifiant.
    Décision (le ticket ne dit pas où libeller `offerings`) : ce détail est la seule place de la nature, le compte de résultat la gardant dans « Offrandes et autres mouvements » (4.1).
 7. Temple : Charis, grâces, offrandes, oracle.

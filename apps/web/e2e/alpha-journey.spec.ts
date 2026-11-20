@@ -307,7 +307,10 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     // Les comptes portent les salaires payés, sous leur nature.
     await page.getByRole('link', { name: 'Comptes', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
-    await expect(page.getByText(`Salaires : −${money(wages)}`)).toBeVisible();
+    // Tableau sur ordinateur, fiches sur téléphone : la mise en page affichée.
+    await expect(
+      page.getByText(`Salaires : −${money(wages)}`).filter({ visible: true }),
+    ).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
 
