@@ -694,7 +694,8 @@
     "next": "Continue",
     "open": "Prepare a departure",
     "summary": "To {{city}}, {{hours}} h at sea; cargo: {{cargo}}.",
-    "summaryBallast": "To {{city}}, {{hours}} h at sea, in ballast."
+    "summaryBallast": "To {{city}}, {{hours}} h at sea, in ballast.",
+    "sending": "Departure in progress: the sheet stays open until the answer."
   },
   "staff": {
     "title": "Staff",

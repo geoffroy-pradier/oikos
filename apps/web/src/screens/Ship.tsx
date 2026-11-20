@@ -31,6 +31,8 @@ export function ShipScreen() {
   }, [voyageRows]);
   const [notice, setNotice] = useState<DepartureNotice | null>(null);
   const [departing, setDeparting] = useState(false);
+  // Départ en vol : la feuille reste ouverte (Fermer et Échap inactifs) jusqu'à son issue.
+  const [sending, setSending] = useState(false);
   // Un départ réussi ferme sa feuille, et « Partir » avec elle : le foyer va au message qui annonce
   // l'issue (comme sur l'écran des sites). Un refus reste dit dans la feuille, ouverte.
   const noticeElement = useRef<HTMLParagraphElement>(null);
@@ -126,10 +128,11 @@ export function ShipScreen() {
       {ship?.docked_city_id && !ship.laid_up_at && fleet.departureRules && (
         <Sheet
           open={departing}
-          onClose={() => setDeparting(false)}
+          onClose={() => !sending && setDeparting(false)}
           title={shipName(ship)}
-          description={place}
+          description={sending ? t('departure.sending') : place}
           closeLabel={t('shell.close')}
+          closeDisabled={sending}
         >
           <Departure
             ship={{ ...ship, docked_city_id: ship.docked_city_id }}
@@ -137,6 +140,7 @@ export function ShipScreen() {
             rules={fleet.departureRules}
             slugs={fleet.slugs}
             voyageCounts={voyageCounts}
+            onBusyChange={setSending}
             onDone={(next) => {
               if (next.kind === 'status') {
                 setDeparting(false);

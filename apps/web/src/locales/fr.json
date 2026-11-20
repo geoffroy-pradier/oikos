@@ -694,7 +694,8 @@
     "next": "Continuer",
     "open": "Préparer un départ",
     "summary": "Vers {{city}}, {{hours}} h de mer ; cargaison : {{cargo}}.",
-    "summaryBallast": "Vers {{city}}, {{hours}} h de mer, sur lest."
+    "summaryBallast": "Vers {{city}}, {{hours}} h de mer, sur lest.",
+    "sending": "Départ en cours : la feuille reste ouverte jusqu'à la réponse."
   },
   "staff": {
     "title": "Personnel",

@@ -102,6 +102,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le départ se fait depuis la fiche, dans une feuille (ADR 0011), par étapes : la destination, qui dit la durée pour la classe du navire et le coût, la cargaison, puis un récapitulatif (destination, durée, cargaison, tempête, vent et coût vus) et « Partir ».
    Décision (#696) : la refonte remplace les deux touches de la première version par ces étapes, une étape qui ne se valide pas (cargaison au-delà de la cale ou du stock libre) n'ouvrant pas la suivante.
    Un départ fait ferme la feuille et son issue s'annonce sur la fiche, où va le foyer ; un refus ou une réponse perdue se dit dans la feuille, près de « Partir », qui reste ouverte.
+   Tant que la requête est en vol, la feuille ne se ferme pas (Fermer inactif, Échap et le voile sans effet) et le dit : son issue y est toujours lue.
    Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
    Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit.
    Après un « Réessayer » réussi, le foyer va au titre de la carte.

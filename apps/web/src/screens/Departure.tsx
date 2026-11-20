@@ -32,8 +32,8 @@ const GRACE_COLUMNS =
 
 /**
  * Départ d'un navire à quai (4.6) : une destination, une cargaison prise dans le stock libre de la cité
- * (facultative : sans cargaison, le navire part sur lest), le coût annoncé avant l'envoi. Trois touches au
- * plus : la destination, puis « Partir ».
+ * (facultative : sans cargaison, le navire part sur lest), le coût annoncé avant l'envoi. Par étapes, dans la
+ * feuille de la fiche : la destination, la cargaison, puis le récapitulatif au coût vu et « Partir ».
  */
 export function Departure(props: {
   ship: ShipRow & { docked_city_id: string };
@@ -43,6 +43,8 @@ export function Departure(props: {
   /** Voyages de la maison, par navire : le compte qui rend caduque la clé d'un départ abouti. */
   voyageCounts: ReadonlyMap<string, number> | null;
   onDone: (notice: DepartureNotice) => Promise<unknown>;
+  /** Requête en vol : la feuille ne se ferme pas, pour que son issue y soit dite. */
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { ship, rules, slugs, voyageCounts } = props;
   const { t, i18n } = useTranslation();
@@ -137,6 +139,7 @@ export function Departure(props: {
     if (!chosen || intent === null || blocked || running.current) return;
     running.current = true;
     setBusy(true);
+    props.onBusyChange?.(true);
     setFailure(null);
     try {
       const input = {
@@ -186,6 +189,7 @@ export function Departure(props: {
     } finally {
       running.current = false;
       setBusy(false);
+      props.onBusyChange?.(false);
     }
   }
 
