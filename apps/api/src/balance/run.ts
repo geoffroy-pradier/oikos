@@ -32,7 +32,6 @@ import {
 import { planEvents } from './events';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
-  buysProperties,
   CARRIER,
   CARRIERS,
   MEASURED,
@@ -42,10 +41,9 @@ import {
   WORLD_SEED,
   WORLD_STEPS,
   type Settlement,
-  type Slug,
 } from './world';
 
-/** Paramètres d'une partie du banc des douze cités : les valeurs par défaut sont celles du banc de `ci`. */
+/** Paramètres d'une partie du banc des quatre cités : les valeurs par défaut sont celles du banc de `ci`. */
 export interface PlayOptions {
   /** Jours de mise en route, non mesurés. */
   warmup?: number;
@@ -56,7 +54,7 @@ export interface PlayOptions {
 }
 
 /**
- * Joue un monde neuf des douze cités (maisons scriptées par terroir, armateurs, intendants, logement, vie
+ * Joue un monde neuf des quatre cités (maisons scriptées par terroir, armateurs, intendants, logement, vie
  * civique) avec la configuration du banc, jour après jour, et rend tout ce que le banc de `ci` vérifie et que
  * le simulateur publie. Aucune vérification d'équilibrage ici : seules les gardes de la mécanique du banc lèvent.
  */
@@ -69,7 +67,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   for (const city of cities)
     settlements.push({
       city,
-      houses: (await foundHouses(city, SETTLEMENTS[city.slug as Slug])).map(seller),
+      houses: (await foundHouses(city, SETTLEMENTS[city.slug] ?? [])).map(seller),
     });
   const [world] = cities;
   if (!world) throw new Error('No city created');
@@ -109,7 +107,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   }
   // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
   const inputs = new Map(
-    cities.map((city) => [city.cityId, netInputs(SETTLEMENTS[city.slug as Slug])]),
+    cities.map((city) => [city.cityId, netInputs(SETTLEMENTS[city.slug] ?? [])]),
   );
   const ownDemand = async (city: City) => {
     const demand = await npcDailyDemand(city);
@@ -117,8 +115,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       demand.set(goodId, (demand.get(goodId) ?? 0) + quantity);
     return demand;
   };
-  // Relais (`CARRIERS`) : la demande d'une cité compte, pour chaque bien qu'un armateur en porte vers une autre, celle
-  // de cette autre cité. Aucun armateur des quatre premières cités ne livre un bien qu'on relaie de sa cité.
+  // Relais (`CARRIERS`, #712) : la demande d'une cité compte, pour chaque bien qu'un armateur en porte vers une autre,
+  // celle de cette autre cité. Aucun armateur des quatre premières cités ne livre un bien qu'on relaie de sa cité.
   const relayed = CARRIERS.flatMap((spec) => [
     { from: spec.source, to: spec.home, goods: spec.toHome },
     { from: spec.home, to: spec.source, goods: spec.toSource },
@@ -178,13 +176,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       }
     // Logement : un armateur loue pour ses travailleurs, il n'achète pas ; sa trésorerie sert à ses cargaisons.
     for (const { city, house } of residents)
-      await housingMorning(
-        city,
-        house,
-        now,
-        housing,
-        !carriers.includes(house as Carrier) && buysProperties(city.slug, house.role),
-      );
+      await housingMorning(city, house, now, housing, !carriers.includes(house as Carrier));
     for (const { city, houses: own } of settlements)
       await politicsMorning(
         city,

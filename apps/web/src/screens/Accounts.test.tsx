@@ -17,7 +17,7 @@ vi.mock('../data', () => ({
   useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  Link: ({ children, to }: { children: ReactNode; to?: string }) => <a href={to}>{children}</a>,
   useRouterState: () => '/comptes',
 }));
 const { AccountsScreen } = await import('./Accounts');
@@ -54,6 +54,16 @@ afterEach(() => {
 });
 
 describe('écran Comptes (#694)', () => {
+  it('sans stock : l’état vide le dit et mène à l’agora (#866)', async () => {
+    state.views = {
+      my_balance_sheet: [{ treasury: 3000, escrow: 0, stock_value: 0, unpriced_stocks: 0 }],
+    };
+    await show();
+    expect(screen.getByRole('heading', { name: fr.accounts.stocksEmpty })).toBeTruthy();
+    const link = screen.getByRole('link', { name: fr.home.stockAction });
+    expect(link.getAttribute('href')).toBe('/agora');
+  });
+
   it('le bilan en cartes, total compris ; les stocks sans prix, dits tels, en fin de tableau', async () => {
     state.views = {
       my_balance_sheet: [{ treasury: 3000, escrow: 60, stock_value: 280, unpriced_stocks: 1 }],

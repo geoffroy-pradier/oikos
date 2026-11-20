@@ -61,7 +61,9 @@ export function Audit({ accessToken }: { accessToken: string }) {
     <>
       <PageHeader title={t('audit.title')} titleRef={title} />
       {!entries && !error && <p>{t('app.loading')}</p>}
-      {entries?.length === 0 && <p className="text-muted-foreground">{t('audit.empty')}</p>}
+      {entries?.length === 0 && (
+        <EmptyState illustration="noEntry" headingLevel={2} title={t('audit.empty')} />
+      )}
       {entries && entries.length > 0 && (
         <>
           <SegmentedControl
@@ -82,7 +84,23 @@ export function Audit({ accessToken }: { accessToken: string }) {
           <p id="audit-caption" className="text-sm text-muted-foreground">
             {t('audit.caption')}
           </p>
-          {visible.length === 0 && <EmptyState title={t('audit.filteredEmpty')} />}
+          {visible.length === 0 && (
+            <EmptyState
+              illustration="noEntry"
+              title={t('audit.filteredEmpty')}
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShown('all');
+                    title.current?.focus();
+                  }}
+                >
+                  {t('audit.showAll')}
+                </Button>
+              }
+            />
+          )}
           <div
             hidden={visible.length === 0}
             className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm"

@@ -17,7 +17,7 @@ vi.mock('../data', () => ({
   useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  Link: ({ children, to }: { children: ReactNode; to?: string }) => <a href={to}>{children}</a>,
   useRouterState: () => '/personnel',
 }));
 const { StaffScreen } = await import('./Staff');
@@ -88,6 +88,7 @@ describe('personnel de la maison (#259)', () => {
   it('sans site : rien à montrer ; lecture en échec : annoncée', async () => {
     await show(<StaffScreen />);
     expect(screen.getByText(fr.staff.empty)).toBeTruthy();
+    expect(screen.getByRole('link', { name: fr.home.acquire }).getAttribute('href')).toBe('/sites');
     cleanup();
     state.views = { my_workforce: null };
     await show(<StaffScreen />);

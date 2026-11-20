@@ -59,6 +59,7 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await elapse(houseName, 480);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
 
@@ -101,6 +102,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await expect(page.getByRole('status')).toHaveText('Caboteur acheté pour 400 drachmes.');
   await expect(page.getByRole('listitem').filter({ hasText: 'à quai à Kallistè' })).toBeVisible();
   await expectNoHorizontalScroll(page);
+  // Action principale de l'en-tête : un seul navire à quai, elle mène à sa fiche.
+  await page.getByRole('button', { name: 'Faire partir un navire' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Caboteur' })).toBeVisible();
+  await page.goBack();
 
   // Fiche du navire, puis sa feuille de départ par étapes : la destination, la cargaison prise dans le
   // stock libre, puis « Partir » au coût vu.

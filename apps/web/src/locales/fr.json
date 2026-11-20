@@ -207,7 +207,8 @@
       "net": "Mouvement",
       "high": "plus haut : {{amount}}",
       "low": "plus bas : {{amount}}"
-    }
+    },
+    "stockAction": "Acheter à l'agora"
   },
   "agora": {
     "city": "Cité du marché",
@@ -287,7 +288,8 @@
     "recapBuyNote": "L'achat ne dépense jamais plus que la trésorerie ; ce qui attend dans le carnet a son prix retenu au séquestre jusqu'à l'exécution ou l'annulation.",
     "bestBuy": "Meilleur achat",
     "bestSell": "Meilleure vente",
-    "bestNone": "aucun"
+    "bestNone": "aucun",
+    "myOrdersAction": "Passer un ordre d'achat"
   },
   "goods": {
     "wheat": "Blé",
@@ -615,7 +617,7 @@
     "sortedDescending": "Trié par {{column}}, ordre décroissant",
     "income": {
       "title": "Compte de résultat",
-      "intro": "Au flux de trésorerie : un produit ou une charge compte le jour où la monnaie change de mains ; une charge est négative. Une journée de jeu commence à la clôture quotidienne.",
+      "intro": "Au flux de trésorerie : un produit ou une charge compte le jour où la monnaie change de mains ; une charge est négative. Une journée de jeu commence à la clôture quotidienne. Les charges courantes sont l'entretien, les salaires, l'hébergement, le transport et les loyers payés ; les acquisitions et cessions portent sur les sites, les navires et les biens.",
       "groupBy": "Regrouper par",
       "day": "Journée",
       "season": "Saison",
@@ -626,11 +628,11 @@
       "sales": "Ventes et loyers reçus",
       "purchases": "Achats",
       "taxes": "Taxes",
-      "upkeep": "Entretien, salaires, hébergement, transport et loyers payés",
+      "upkeep": "Charges courantes",
       "operating_result": "Résultat d'exploitation",
-      "acquisitions": "Acquisitions et cessions (sites, navires, biens)",
+      "acquisitions": "Acquisitions et cessions",
       "grants": "Dotations",
-      "other": "Offrandes et autres mouvements",
+      "other": "Offrandes et divers",
       "non_operating": "Hors exploitation",
       "cash_change": "Variation de la monnaie",
       "escrow_change": "dont séquestre"
@@ -687,6 +689,8 @@
       "employment_other": "Taux d'emploi : {{percent}} ({{employed}} employés pour {{supply}} travailleurs disponibles)",
       "unlimited_one": "{{employed}} employé ; main-d’œuvre sans limite",
       "unlimited_other": "{{employed}} employés ; main-d’œuvre sans limite",
+      "noWorkers_one": "Aucun travailleur disponible ; {{employed}} employé",
+      "noWorkers_other": "Aucun travailleur disponible ; {{employed}} employés",
       "lodging": "Hébergement chez les habitants : {{cost}} la nuit",
       "unhoused": "Travailleurs sans logement dans la cité : {{number}}"
     },
@@ -754,6 +758,7 @@
   "map": {
     "title": "Carte de l'archipel",
     "intro": "Les cités, les routes maritimes et vos navires. La durée d'une route est celle d'un navire de vitesse ordinaire ; un navire plus lent met plus longtemps.",
+    "depart": "Faire partir un navire",
     "drawing": "Carte de l'archipel : {{cities}} cités, {{routes}} routes ; la liste qui suit en donne le détail.",
     "hours_one": "{{number}} h",
     "hours_other": "{{number}} h",
@@ -814,7 +819,8 @@
     "buyCapacity": "Cargaison, en unités",
     "buyUpkeep": "Entretien par jour",
     "buyHome": "À quai à sa naissance",
-    "terroirHint": "Sur ce petit dessin, seul le terroir de la cité choisie est montré : touchez une cité, ou zoomez."
+    "terroirHint": "Sur ce petit dessin, seul le terroir de la cité choisie est montré : touchez une cité, ou zoomez.",
+    "toShipyard": "Voir le chantier naval"
   },
   "shipClasses": {
     "coaster": "Caboteur",
@@ -825,6 +831,7 @@
     "ballast": "sur lest, sans cargaison",
     "arrived": "Navire arrivé à {{city}} : {{cargo}}, déchargé dans votre stock.",
     "reload": "Relire la flotte",
+    "reloaded": "Flotte relue : à jour.",
     "voyages": "Voyages",
     "noVoyages": "Ce navire n'a pas encore fait de voyage.",
     "voyage": "{{from}} → {{to}}",
@@ -1003,7 +1010,8 @@
     "steps": {
       "recap": "Récapitulatif",
       "price": "Votre prix"
-    }
+    },
+    "seeOffers": "Voir les biens offerts"
   },
   "alerts": {
     "title": "À faire aujourd'hui",
@@ -1480,7 +1488,8 @@
     "ambiguous": "Nombre ambigu : écrivez les milliers avec une espace, par exemple 30 000.",
     "notInteger": "Nombre entier attendu.",
     "belowMin": "Au moins {{min}}.",
-    "aboveMax": "Au plus {{max}}."
+    "aboveMax": "Au plus {{max}}.",
+    "shortfall": "Il manque {{missing}} à votre trésorerie."
   },
   "production": {
     "title": "Production en cours",

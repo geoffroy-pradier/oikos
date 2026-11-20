@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { CalendarClock, Card, Check, cn, Crown, Info, Users, Vote } from '@oikos/ui';
+import { CalendarClock, Card, Check, cn, Crown, EmptyState, Info, Users, Vote } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCitedHouses } from '../cited-houses';
@@ -177,7 +177,9 @@ export function CityPolitics() {
               <CalendarClock aria-hidden="true" />
               {t('cityPolitics.election')}
             </h3>
-            {!election && <p className="text-muted-foreground">{t('cityPolitics.noElection')}</p>}
+            {!election && (
+              <EmptyState compact illustration="noEvent" title={t('cityPolitics.noElection')} />
+            )}
             {election && phase && (
               <>
                 <p className="font-medium">
@@ -208,7 +210,11 @@ export function CityPolitics() {
                   {t('cityPolitics.candidates', { count: running.length })}
                 </h4>
                 {running.length === 0 && (
-                  <p className="text-muted-foreground">{t('cityPolitics.noCandidate')}</p>
+                  <EmptyState
+                    compact
+                    illustration="noEvent"
+                    title={t('cityPolitics.noCandidate')}
+                  />
                 )}
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">
                   {running.map((candidate) => (
@@ -251,7 +257,9 @@ export function CityPolitics() {
               <Crown aria-hidden="true" />
               {t('cityPolitics.lastResults')}
             </h3>
-            {!last && <p className="text-muted-foreground">{t('cityPolitics.noResults')}</p>}
+            {!last && (
+              <EmptyState compact illustration="noEvent" title={t('cityPolitics.noResults')} />
+            )}
             {last && (
               <ul className="flex flex-col gap-3">
                 {/* La barre double le nombre de voix, écrit dans le texte. */}

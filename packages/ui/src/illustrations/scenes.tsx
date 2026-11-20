@@ -36,8 +36,33 @@ const WELCOME = `
   c ${wave(212, 192)}${wave(300, 176)}${wave(196, 134)}${wave(316, 128)}
   - M92 52l6 5 6-5M114 40l5 4 5-4`;
 
-/** Illustrations d'états vides, 160 × 120, sur un disque doux. */
-const EMPTY: Record<string, string> = {
+/** Un nuage à fond plat, posé en (x, y), large de 60. */
+const cloud = (x: number, y: number) =>
+  `M${x} ${y}c-6 0-9-7-3-10 0-7 8-10 14-6 3-7 15-8 18 0 7-3 15 2 13 8 6 1 7 8 0 8Z`;
+
+/**
+ * Scène de la connexion d'Olympe, 360 × 160 : le temple au sommet de l'Olympe, devant le soleil, au-dessus des nuages.
+ * En aplats : le halo, le soleil, la montagne, le temple et les nuages ; le trait porte chaque forme, et les colonnes
+ * se détachent sur le mur du temple, jamais sur le soleil (contrastes : `contrast.ts`).
+ */
+const OLYMPUS = `
+  S ${o(180, 62, 58)}
+  a ${o(180, 40, 24)}
+  - M180 11V3M159.5 19.5l-5.7-5.7M200.5 19.5l5.7-5.7M151 40h-8M209 40h8
+  m M-2 152l46-50 26 18 34-34 40 46v20Z
+  m M222 152l40-58 24 18 32-30 44 50v20Z
+  t M60 152l66-60 18 6 18-30h36l18 28 18-8 66 64Z
+  - M148 100l8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6
+  s M158 68h44v-5h-44ZM162 63V42h36v21Z
+  - M166 63V42M173 63V42M180 63V42M187 63V42M194 63V42
+  s M158 42h44v-5h-44ZM160 37l20-11 20 11Z
+  m ${cloud(64, 140)}
+  m ${cloud(250, 126)}
+  - M0 152h360
+  - M62 40l6 5 6-5M82 28l5 4 5-4M286 36l5 4 5-4`;
+
+/** Illustrations d'états vides, 160 × 120, sur un disque doux : une par famille de listes. */
+const EMPTY = {
   // Pas de site : une parcelle piquetée, vide, et son jalon.
   noSite: `
     - ${dashes(40, 72, 80, 54, 5)}${dashes(80, 54, 120, 72, 5)}
@@ -62,16 +87,62 @@ const EMPTY: Record<string, string> = {
     - M48 42l-12 26M48 42l12 26M112 42l-12 26M112 42l12 26
     - M34 68h28c0 6-6 10-14 10s-14-4-14-10ZM98 68h28c0 6-6 10-14 10s-14-4-14-10Z
     a ${o(80, 36, 5)}`,
-};
+  // Entrepôt vide : une étagère, la place d'une caisse en pointillé, une amphore seule.
+  noStock: `
+    - M46 96V26M114 96V26
+    m M40 48h80v6H40ZM40 90h80v6H40Z
+    - ${dashes(54, 48, 54, 30, 3)}${dashes(54, 30, 80, 30, 4)}${dashes(80, 30, 80, 48, 3)}
+    a M98 66h6v3c5 2 8 6 8 10 0 6-4 11-11 11s-11-5-11-11c0-4 3-8 8-10Z
+    - M96 66h10`,
+  // Aucun bien immobilier : une maison, et l'écriteau encore vierge d'une vente.
+  noProperty: `
+    - M32 92h96
+    m M40 92V64l26-22 26 22v28Z
+    - M60 92V78h12v14M48 66h8v8h-8ZM76 66h8v8h-8Z
+    - M116 92V66
+    a M104 52h24v14h-24Z`,
+  // Rien dans la cité : la façade du temple, au calme, le soleil levé derrière elle.
+  noEvent: `
+    a ${o(98, 36, 10)}
+    m M40 52l40-18 40 18Z
+    m M40 52h80v6H40Z
+    - M48 58v26M64 58v26M80 58v26M96 58v26M112 58v26
+    m M34 84h92v6H34Z`,
+  // Rien à modérer : la corbeille de courrier vide, et sa coche.
+  noReport: `
+    - M48 50h64l8 16M48 50l-8 16
+    m M40 66h22l5 9h26l5-9h22v22H40Z
+    a ${o(116, 34, 10)}
+    - M111 34l3.5 3.5 6.5-7`,
+  // Aucune écriture : le registre ouvert, ses lignes vides, une obole.
+  noEntry: `
+    m M80 46c-10-6-26-7-40-3v44c14-4 30-3 40 3ZM80 46c10-6 26-7 40-3v44c-14-4-30-3-40 3Z
+    - M80 46v44
+    - ${dashes(48, 58, 72, 58, 3)}${dashes(48, 68, 72, 68, 3)}${dashes(88, 58, 112, 58, 3)}
+    a ${o(104, 76, 6)}
+    - ${o(104, 76, 2.5)}`,
+} satisfies Record<string, string>;
+
+/** Famille d'un état vide dessiné : chaque liste vide du jeu et d'Olympe prend celle de sa famille. */
+export type EmptyKind = keyof typeof EMPTY;
 
 /** Identifiants des états vides dessinés. */
-export const EMPTY_ILLUSTRATION_IDS = Object.keys(EMPTY);
+export const EMPTY_ILLUSTRATION_IDS = Object.keys(EMPTY) as EmptyKind[];
 
 /** Scène d'accueil, 360 × 200 par défaut ; `className="h-auto w-full"` pour qu'elle suive sa colonne. */
 export function WelcomeScene(props: IllustrationProps) {
   return (
     <Svg viewBox="0 0 360 200" width={360} height={200} {...props}>
       {paths(WELCOME)}
+    </Svg>
+  );
+}
+
+/** Connexion d'Olympe, 360 × 160 par défaut ; `className="h-auto w-full"` pour qu'elle suive sa colonne. */
+export function OlympusScene(props: IllustrationProps) {
+  return (
+    <Svg viewBox="0 0 360 160" width={360} height={160} {...props}>
+      {paths(OLYMPUS)}
     </Svg>
   );
 }

@@ -1,5 +1,14 @@
 import type { MarketPlaceOrderInput } from '@oikos/contracts';
-import { Badge, Button, Card, GoodIcon, Select, StatusRegion } from '@oikos/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  GoodIcon,
+  Select,
+  StatusRegion,
+  TableScroll,
+} from '@oikos/ui';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -242,10 +251,13 @@ export function AgoraScreen() {
         action={
           // Pas de changement de marché pendant qu'une commande est en route : son résultat et le carnet
           // relu ensuite portent sur le bien et la cité affichés.
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-flow-col sm:auto-cols-[12rem]">
+          // Libellés lus seulement : la valeur choisie suffit à l'œil, et la liste (48 px) reste centrée sur la
+          // ligne du titre au lieu de monter au-dessus de lui.
+          <div className="grid w-full gap-3 sm:-mt-1 sm:w-auto sm:grid-flow-col sm:auto-cols-[12rem]">
             <Select
               id="good"
               label={t('agora.good')}
+              hideLabel
               quiet
               value={goodId}
               disabled={busy}
@@ -264,6 +276,7 @@ export function AgoraScreen() {
               <Select
                 id="city"
                 label={t('agora.city')}
+                hideLabel
                 quiet
                 value={cityId}
                 disabled={busy}
@@ -355,26 +368,36 @@ export function AgoraScreen() {
               ).map(([key, levels, caption, column, empty, tone]) => {
                 const deepest = Math.max(1, ...(levels ?? []).map((level) => level.quantity));
                 return levels?.length === 0 ? (
-                  <p
+                  <EmptyState
                     key={key}
-                    className="rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground"
-                  >
-                    {t(`agora.${empty}`)}
-                  </p>
+                    compact
+                    illustration="noOrder"
+                    title={t(`agora.${empty}`)}
+                  />
                 ) : (
                   // En police agrandie sur petit écran, le tableau défile dans sa carte au lieu de faire
                   // défiler la page ; un prix ou une quantité ne se coupe jamais entre deux chiffres.
-                  <div key={key} className="overflow-x-auto rounded-lg bg-muted/40 p-2">
+                  <TableScroll
+                    key={key}
+                    label={t(`agora.${caption}`)}
+                    className="rounded-lg bg-muted/40 p-2"
+                  >
                     <table className="w-full text-left tabular-nums">
                       <caption className="px-2 pb-2 text-left text-sm text-muted-foreground">
                         {t(`agora.${caption}`)}
                       </caption>
                       <thead>
                         <tr className="border-b border-border-subtle">
-                          <th scope="col" className="eyebrow px-2 py-1 font-semibold">
+                          <th
+                            scope="col"
+                            className="px-2 py-1 text-xs font-semibold text-muted-foreground"
+                          >
                             {t('agora.price')}
                           </th>
-                          <th scope="col" className="eyebrow px-2 py-1 text-right font-semibold">
+                          <th
+                            scope="col"
+                            className="px-2 py-1 text-right text-xs font-semibold text-muted-foreground"
+                          >
                             {t(`agora.${column}`)}
                           </th>
                         </tr>
@@ -398,7 +421,7 @@ export function AgoraScreen() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </TableScroll>
                 );
               })}
             </div>
@@ -409,9 +432,15 @@ export function AgoraScreen() {
           <h2 className="text-lg">{t('agora.myOrders')}</h2>
           {mine.rows === null && !mine.failed && <Loading />}
           {mine.rows?.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-              {t('agora.myOrdersEmpty')}
-            </p>
+            <EmptyState
+              illustration="noOrder"
+              title={t('agora.myOrdersEmpty')}
+              action={
+                <Button variant="secondary" disabled={busy} onClick={() => void openSheet('buy')}>
+                  {t('agora.myOrdersAction')}
+                </Button>
+              }
+            />
           )}
           <ul className="flex flex-col divide-y divide-border-subtle">
             {mine.rows?.map((order) => {

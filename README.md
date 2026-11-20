@@ -30,7 +30,7 @@ jeu, le moteur (ticks) et le client web. Ce qui est jouable est décrit dans `do
 Prérequis, à installer une fois :
 
 - **Git** ;
-- **Node.js 22** (la version exacte est dans `.nvmrc`) ;
+- **Node.js 24** (la version exacte est dans `.nvmrc`) ;
 - **Docker Desktop**, démarré, avec le moteur WSL 2 ;
 - **pnpm**, activé par `corepack enable` (la version est épinglée dans `package.json`).
 
@@ -200,14 +200,14 @@ Ces stratégies passent par les commandes du jeu ; leurs seuils viennent de la c
 L'hébergement chez les PNJ, l'entretien et la vétusté des biens sont ceux de la configuration (#668) ; le banc divise les prix d'achat et de rénovation par cinq et rénove au blé (`HOUSING` dans `world.ts`), pour que ces puits jouent pendant ses 40 jours.
 Les commandes datent leurs écritures de l'instant réel de la base et la clôture les juge à l'instant de jeu : le banc ne réécrit que des dates, gardes coupées puis rétablies dans la même transaction (`balance/dates.ts` et `balance/calendar.ts`).
 Il ne borne pas l'économie, que #283 calibre : il vérifie que le grand livre, les puits (immobiliers et publics compris), les robinets et le trésor de chaque cité se rapprochent des flux comptés, que chaque cité a tourné, que des voyages sont arrivés avec leur cargaison, que les salaires ont été payés, que les intendants ont exécuté leurs règles, que les élections et les décrets ont l'issue que leurs votes imposent et que des logements ont été achetés, loués et rénovés.
-Le test publie ses mesures dans son journal, et dans le fichier JSON que `BALANCE_REPORT` désigne ; le job `balance` le conserve comme pièce jointe (`balance-measures`).
+Le test publie ses mesures dans son journal, et dans le fichier JSON que `BALANCE_REPORT` désigne ; le job `balance` le conserve comme pièce jointe (`balance-measures-<morceau>`, celle du morceau qui a joué ce banc).
 Les mesures, par jour mesuré, sont : par cité et pour le monde, la monnaie en circulation et le net de chaque robinet et de chaque puits ; par cité, le coût du panier, la couverture des besoins vitaux par classe et la population ; la marge nette quotidienne de chaque recette dans chaque cité, aux prix moyens des dix derniers jours ; enfin, sur les jours mesurés, la part de chaque puits dans la monnaie détruite, par cité et pour le monde, avec les sommes des puits immobiliers (achat, rénovation, entretien, hébergement chez les PNJ) et des puits publics (grands travaux, fêtes).
 Le simulateur d'équilibrage (#284, spécification 15.2) rejoue ce même banc (`balance/run.ts`) avec une configuration candidate : `pnpm --filter @oikos/api simulate --candidate config.json [--days 30] [--seed graine] [--json rapport.json] [--markdown rapport.md]`, ou `--version <numéro>` pour une version enregistrée.
 Il joue la configuration initiale puis la candidate, chacune sur un monde neuf de la base `DATABASE_URL` (comme le banc, sur une base locale), et écrit le rapport en tableaux Markdown, avec l'écart de chaque indicateur ; une candidate que le schéma refuse l'est avant toute simulation.
 Le scénario du banc remplace certains champs par ses constantes (`worldConfig`, `world.ts`) : la dotation de départ, le prix d'achat et la rénovation des biens immobiliers, la population des cités.
 Un de ces champs qui diffère de la référence n'est pas simulé : la commande les liste sur la sortie d'erreur avant de jouer, et le rapport les porte dans sa section « non simulé ».
 Sa durée est bornée dans le test (`MAX_MINUTES`) et par le délai du job.
-Dans la `ci`, le job `balance` le lance ; s'il échoue, `ci` est rouge.
+Dans la `ci`, le job `balance` le lance, un morceau par fichier `.bench.ts` (`vitest --shard`) ; s'il échoue, `ci` est rouge.
 
 Catalogue des composants du système de design : `pnpm --filter @oikos/web dev`, puis `http://localhost:5173/catalogue.html`.
 

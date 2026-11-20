@@ -61,6 +61,41 @@ describe('EmptyState', () => {
     expect(screen.getByText('Le chantier vend des navires.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ouvrir' })).toBeTruthy();
   });
+
+  it('dessine la famille de la liste, décorative, et propose l’action qui la remplit', () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <EmptyState
+        illustration="noStock"
+        icon={<Ship />}
+        title="Entrepôt vide"
+        action={<Button onClick={onClick}>Acheter</Button>}
+      />,
+    );
+    // Le dessin remplace l'icône : un seul SVG, caché aux lecteurs d'écran, celui de l'entrepôt.
+    const svgs = container.querySelectorAll('svg');
+    expect(svgs).toHaveLength(1);
+    expect(svgs[0]?.closest('[aria-hidden="true"]')).toBeTruthy();
+    expect(svgs[0]?.querySelectorAll('path').length).toBeGreaterThan(1);
+    expect(screen.queryAllByRole('img')).toEqual([]);
+    expect(screen.getByRole('heading', { level: 3, name: 'Entrepôt vide' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Acheter' }));
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it('compact, dans une section titrée : la raison est un texte, pas un titre', () => {
+    render(
+      <EmptyState
+        compact
+        illustration="noOrder"
+        title="Aucun ordre."
+        action={<a href="/agora">Agora</a>}
+      />,
+    );
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByText('Aucun ordre.').tagName).toBe('P');
+    expect(screen.getByRole('link', { name: 'Agora' }).getAttribute('href')).toBe('/agora');
+  });
 });
 
 describe('Skeleton', () => {

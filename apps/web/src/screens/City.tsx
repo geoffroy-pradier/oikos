@@ -5,6 +5,7 @@ import {
   ChevronRight,
   CityVignette,
   Coins,
+  EmptyState,
   Gavel,
   GodEmblem,
   Hammer,
@@ -218,7 +219,7 @@ export function CityScreen() {
           {rows.rows === null && !rows.failed && <Loading />}
           {failed && <LoadProblem heading={title} onRetry={() => rows.reload()} />}
           {city && city.classes.length === 0 && (
-            <p className="text-muted-foreground">{t('city.empty')}</p>
+            <EmptyState compact illustration="noEvent" title={t('city.empty')} />
           )}
           {city && city.classes.length > 0 && (
             <>
@@ -283,7 +284,7 @@ export function CityScreen() {
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <span>
                     {employment === null
-                      ? t('city.labor.unlimited', {
+                      ? t(labor.supply === 0 ? 'city.labor.noWorkers' : 'city.labor.unlimited', {
                           count: labor.employed,
                           employed: number.format(labor.employed),
                         })
@@ -291,7 +292,7 @@ export function CityScreen() {
                           count: labor.employed,
                           percent: percent.format(employment),
                           employed: number.format(labor.employed),
-                          supply: number.format(labor.supply),
+                          supply: number.format(labor.supply ?? 0),
                         })}
                   </span>
                   {employment !== null && <Meter share={employment} />}
@@ -316,7 +317,9 @@ export function CityScreen() {
           {(parkRows.failed || park === null) && (
             <LoadProblem heading={parkTitle} onRetry={() => parkRows.reload()} />
           )}
-          {park?.length === 0 && <p className="text-muted-foreground">{t('city.park.empty')}</p>}
+          {park?.length === 0 && (
+            <EmptyState compact illustration="noProperty" title={t('city.park.empty')} />
+          )}
           {park && park.length > 0 && (
             <ul className="flex flex-col divide-y divide-border-subtle text-sm">
               {park.map((size) => (

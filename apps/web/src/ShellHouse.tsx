@@ -1,5 +1,7 @@
 import { IconButton, Settings, Skeleton } from '@oikos/ui';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { COMMAND_SUCCEEDED_EVENT } from './api';
 import { Blazon } from './Blazon';
 import { useRows } from './data';
 import { formatTime, useGameTime } from './game-time';
@@ -12,6 +14,20 @@ export function HouseCard() {
   const house = useHouse();
   const money = useMoney();
   const treasury = useRows<{ balance: number }>('my_treasury', 'balance', 'house_id');
+  const { reload } = treasury;
+  // La trésorerie se relit après une commande réussie et au retour du foyer sur l'onglet (clôture quotidienne).
+  useEffect(() => {
+    const refresh = () => void reload();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener(COMMAND_SUCCEEDED_EVENT, refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener(COMMAND_SUCCEEDED_EVENT, refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [reload]);
   const balance = treasury.rows?.[0]?.balance;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised p-3 [overflow-wrap:anywhere]">

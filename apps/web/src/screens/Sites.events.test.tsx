@@ -78,7 +78,11 @@ async function show() {
       <HouseProvider
         value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'metic' }}
       >
-        <SitesCard stock={[]} onChanged={() => Promise.resolve()} />
+        {/* Du blé pour le moulin : sans intrants, « Récolter » y serait inactif (#864). */}
+        <SitesCard
+          stock={[{ city_id: 'c1', good_id: 'wheat', quantity: 1_000, reserved: 0 }]}
+          onChanged={() => Promise.resolve()}
+        />
       </HouseProvider>
     </I18nextProvider>,
   );

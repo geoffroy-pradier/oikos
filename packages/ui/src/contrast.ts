@@ -77,6 +77,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Survol d'un onglet de la barre latérale (`Shell`) : texte accentué sur `muted`.
   ['primary', 'muted', AA_TEXT],
   ['accent', 'muted', AA_TEXT],
+  // Geste lourd d'un menu d'actions (`Menu`), survolé ou au foyer : texte de danger sur `muted`.
+  ['danger', 'muted', AA_TEXT],
   ['aegean', 'aegean-subtle', AA_TEXT],
   ['success', 'success-subtle', AA_TEXT],
   ['danger', 'danger-subtle', AA_TEXT],
@@ -126,6 +128,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Illustrations : le trait porte la forme et se détache des aplats doux et neutre (seuil graphique).
   ['foreground', 'primary-subtle', AA_UI],
   ['foreground', 'muted', AA_UI],
+  // États vides (`EmptyState`) : trait en `foreground-secondary` sur le disque `primary-subtle`, l'aplat `muted`
+  // et la surface ; ces couples tiennent déjà le seuil du texte, plus haut.
   // Vignettes des cités : le trait de l'île et de son motif sur la mer et sur la terre.
   ['foreground', 'sea', AA_UI],
   ['foreground', 'land', AA_UI],
@@ -135,6 +139,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['focus', 'background', AA_UI],
   ['focus', 'surface', AA_UI],
   ['focus', 'surface-raised', AA_UI],
+  // Bouton d'une action impossible (#864) : texte et bordure tiretée en `muted-foreground` sur `muted`
+  // (couple tenu au seuil du texte, plus haut), et son foyer visible.
+  ['focus', 'muted', AA_UI],
   // Pastille active (onglets, choix segmentés) : fond plein du texte, texte couleur du fond.
   ['background', 'foreground', AA_TEXT],
   // Interrupteur allumé sur une fiche relevée (éteint : sa bordure, et sa pastille sur la piste, sont

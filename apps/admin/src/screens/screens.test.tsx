@@ -477,6 +477,16 @@ describe("journal d'audit", () => {
     expect(commands()).toHaveLength(3);
   });
 
+  it('aucune entrée de cette issue : l’état vide ramène à tout le journal (#866)', async () => {
+    adminGet.mockResolvedValue({ ok: true, data: { entries: [entry(1), entry(2)] } });
+    render(<Audit accessToken="token" />);
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('radio', { name: 'En panne' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Voir toutes les entrées' }));
+    expect(commands()).toHaveLength(2);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
+  });
+
   it("chaque issue a son libellé, avec le code d'un refus", async () => {
     adminGet.mockResolvedValue({
       ok: true,

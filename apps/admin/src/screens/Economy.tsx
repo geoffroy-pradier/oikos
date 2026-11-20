@@ -1,5 +1,14 @@
 import type { AdminEconomy } from '@oikos/contracts';
-import { Button, ChevronRight, cn, PageHeader, RefreshCw, StatCard, StatGrid } from '@oikos/ui';
+import {
+  Button,
+  ChevronRight,
+  cn,
+  EmptyState,
+  PageHeader,
+  RefreshCw,
+  StatCard,
+  StatGrid,
+} from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
@@ -214,7 +223,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
               {t('economy.byDay', { count: data.windowDays })}
             </h3>
             {days.length === 0 ? (
-              <p className="text-muted-foreground">{t('economy.noDays')}</p>
+              <EmptyState compact illustration="noEntry" title={t('economy.noDays')} />
             ) : (
               // Détail par compte, replié : le dessin et son tableau donnent déjà les totaux du jour.
               <details className="group">

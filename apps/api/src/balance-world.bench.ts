@@ -11,27 +11,28 @@ import {
   recipeMargins,
   sinkShares,
 } from './balance/measures';
-import { SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
+import { SCENARIO, SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
 import { sql } from 'kysely';
 
 /*
- * Banc d'équilibrage des douze cités (#281, #712, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à part, sur
- * la graine `WORLD_SEED` : les douze cités de la configuration initiale, leurs maisons scriptées selon leur
+ * Banc d'équilibrage des quatre cités (#281, docs/specs/05-economie.md 5.2 et 5.5), dans un monde à part, sur
+ * la graine `WORLD_SEED` : les quatre cités de la configuration initiale, leurs maisons scriptées selon leur
  * terroir et des armateurs qui ravitaillent les cités importatrices (`balance/world.ts`), jouées comme celles du banc
  * d'une cité de #78 (`balance.integration.test.ts`, qui garde ses bornes). Il tourne dans son propre job `ci`
  * (`pnpm test:balance`), pas avec les tests d'intégration. Il vérifie que le grand livre se rapproche des flux
  * comptés et que chaque cité a tourné, et borne les marges des ateliers (#285), puis l'économie de chaque cité et la
- * masse monétaire du monde (#283).
+ * masse monétaire du monde (#283). Avec `BALANCE_SCENARIO=twelve`, il joue les douze cités, mêmes bornes, dans le
+ * workflow de nuit `balance-nightly` (#712).
  */
 const bench = openBench({ config: worldConfig });
 beforeAll(() => bench.start());
 afterAll(() => bench.stop());
 
-/** Durée maximale du banc, en minutes : au-delà, le test échoue (le job `ci` en laisse davantage). */
-const MAX_MINUTES = 15;
+/** Durée maximale du banc, en minutes, selon son scénario : au-delà, le test échoue (le job en laisse davantage). */
+const MAX_MINUTES = SCENARIO.maxMinutes;
 
 it(
-  'les douze cités, 40 jours : grand livre rapproché',
+  `${SCENARIO.name}, 40 jours : grand livre rapproché`,
   { timeout: MAX_MINUTES * 60_000 },
   async () => {
     const run = await playWorld(bench);
@@ -226,7 +227,7 @@ it(
     // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
     // quotidienne d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des
     // sites de matières premières. Aucune voie n'écrase l'autre (01, pilier 2). Celles du terroir des cités du
-    // scénario, toutes depuis #712 : celles de #708, qu'aucune maison n'y produit, comptent à leur prix de référence.
+    // scénario : les matières premières de #708 ne s'y produisent pas, et n'auraient que leur prix de référence.
     const worldMargins = margins['world'] ?? {};
     const primary = median(
       config.recipes

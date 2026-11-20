@@ -107,4 +107,5 @@ it('soixante biens : une saisie ne rend à nouveau que son champ, et le texte ga
   ])
     expect(screen.getByText((_, node) => node?.tagName === 'LI' && node.textContent === change));
   expect(field('goods-0-elasticity').value).toBe('0.75');
-});
+  // Rendre soixante biens dans jsdom prend 2 s seul, plus de 5 s sur un runner chargé : le test compte des rendus, il ne mesure aucune durée.
+}, 20_000);

@@ -525,22 +525,21 @@ Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps
   Les achats de sites, de navires et de biens tombent dans la mise en route.
   La borne de −5 % à +25 % attend un puits proportionnel à la richesse, les liturgies, que la feuille de route place en phase 3 (17).
 
-Calibrage à douze cités (#712), éprouvé par le même banc (`apps/api/src/balance-world.bench.ts`), qui joue depuis les douze cités de la configuration initiale et leurs vingt-trois routes (#707), même graine, 10 jours de mise en route puis 30 mesurés :
+Calibrage à douze cités (#712), éprouvé par le même banc avec `BALANCE_SCENARIO=twelve` (graine fixe, 10 jours de mise en route puis 30 mesurés), dans le workflow `balance-nightly` :
 
-- **Scénario.** Les quatre premières cités gardent leur population (divisée par huit), leurs maisons et leurs armateurs.
-  Les huit cités de #706 sont trois fois plus petites (population divisée par vingt-quatre, 417 habitants) : leur demande tient dans les sites d'une à cinq maisons et dans la soute d'un caboteur, et le banc dans la durée du job `balance`.
-  Décision (#712) : le scénario réduit leur population plutôt que les jours mesurés, comme le ticket le prévoit, et le simulateur le dit (`cities[…].population` parmi les champs non simulés).
-  Dikaia fait le blé, le pain et le vin de Delphis, Gamelia ceux d'Emporion, Phrourion ceux de Myrrhinè, d'Agrotera et de Chalkeia ; Delphis, Emporion, Myrrhinè, Chalkeia et Agrotera ont une maison chacune (huile, poisson, sel ou raisin selon leur terroir), et une maison de plus à Halos coupe le bois et tire l'argile de Gamelia.
-  À Dikaia et Gamelia, le boulanger cuit son propre charbon : vendu, le surplus d'une charbonnière ferait tomber le prix du charbon du monde, et la marge de la filière sous sa borne (309 oboles au premier essai).
-- **Armateurs.** Huit caboteurs de plus, un par cité qui importe, sur les routes de #707.
-  Un relais porte pour une autre cité ce qu'un second armateur y prend (le sel d'Elaia pour Dikaia, par Delphis) : la demande de la cité de relais compte celle de la cité servie, et aucun armateur des quatre premières cités ne livre un bien qu'on relaie de sa cité.
-  Chalkeia, qu'aucune cité à blé ne borde, est ravitaillée de Phrourion par une escale à Myrrhinè (4.6), où l'armateur ne vend ni n'achète rien.
-- **Logement.** Dans les huit cités de #706, une maison qui ne récolte pas de blé n'achète pas de bien : elle le rénoverait avec le blé de ses PNJ (un immeuble en demande 150, sa cité 183 par jour), et au premier essai la couverture des thètes de Chalkeia tombait à 53 % le jour d'une rénovation.
-- **Mesure.** Le coût du panier ne bouge dans aucune cité, les besoins vitaux sont couverts à 99 % au moins chaque jour mesuré, et aucun site ne s'arrête.
-  Les quatre premières cités gardent leurs mesures de #283 (de 1 223 à 1 230 habitants au premier jour mesuré, 2,4 % de plus au dernier) ; la population des huit autres ne bouge pas (410 à 413 habitants), sa croissance d'un jour arrondie à zéro.
-  Les marges des ateliers sont de 440 oboles (le chai) à 1 006 (le pressoir à moût), dans la borne de 421 à 1 685 : la médiane des dix-huit matières premières, toutes au terroir d'une cité du banc, est de 842,5 oboles.
-- **Masse.** La masse du monde croît de 161 % sur les 30 jours mesurés, sous la borne de 200 % ; la création nette quotidienne des dix derniers jours vaut 98 % de celle des dix premiers (environ 75 000 oboles par jour).
-- **Durée.** 21,3 minutes en local (machine partagée), 2,2 fois le banc à quatre cités sur la même machine (9,7 minutes) ; à ce rapport, environ 10,5 minutes dans le job `balance` (4,8 minutes à quatre cités), sous les 15 minutes que le banc s'accorde, et le job reste sous son délai de 25 minutes avec le test du simulateur.
+- **Où et pourquoi.** Le banc à douze cités joue chaque nuit et à chaque envoi sur `main`, sans bloquer les demandes de fusion ; un échec y laisse un job rouge sur `main`.
+  Décision (#712) : il dure trop pour chaque demande de fusion (36,2 minutes en local, où le banc à quatre cités en dure 10,9, soit environ 17 minutes en `ci`), et le banc à quatre cités reste dans le job `balance` (celui à une cité, dans les tests d'intégration).
+  Le workflow joue aussi le test du simulateur (#284) sur ce scénario (10 minutes en local, sous sa limite de 30) ; la commande `simulate` le joue avec `BALANCE_SCENARIO=twelve`.
+- **Scénario.** La configuration initiale entière, ses vingt-trois routes (#707), la population de chaque cité divisée par huit, comme à quatre cités, dont les maisons et les armateurs restent.
+  Dikaia fait le blé, le pain et le vin de Delphis, Gamelia ceux d'Emporion, Phrourion ceux de Myrrhinè et de Chalkeia ; Agrotera fait les siens ; 131 % de la demande de blé, de 99 à 124 % de celle de pain.
+  Delphis, Emporion, Myrrhinè et Chalkeia pressent l'huile, pêchent le poisson ou raffinent le sel de leurs voisines ; une maison de plus pêche à Ampélos, une autre coupe le bois et tire l'argile de Gamelia à Halos.
+  Le boulanger cuit son charbon et le garde : vendu, le surplus d'une charbonnière ferait tomber le prix du charbon du monde, et la marge de la filière sous sa borne (309 oboles au premier essai).
+- **Armateurs.** Dix-sept caboteurs de plus : trois pour chaque cité ravitaillée en blé et en pain, quatre pour Chalkeia, qu'aucune cité à blé ne borde, par une escale à Myrrhinè (4.6), où l'armateur ne vend ni n'achète rien.
+  Un relais porte pour une autre cité ce qu'un second armateur y apporte (le sel d'Elaia pour Dikaia, par Delphis) : la demande de la cité de relais compte celle de la cité servie.
+- **Mesure.** Le coût du panier ne bouge dans aucune cité, les besoins vitaux sont couverts à 98,4 % au moins chaque jour mesuré (les hippeis d'Agrotera), et aucun site ne s'arrête.
+  Les quatre premières cités gardent leurs mesures de #283 ; la population des douze croît de 1,4 % (Delphis) à 2,4 %.
+  Les marges des ateliers vont de 437 oboles (le chai) à 1 169 (le moulin), dans la borne de 421 à 1 685 : la médiane des dix-huit matières premières, toutes au terroir d'une cité, est de 842,5 oboles.
+- **Masse.** Elle croît de 170 % sur les 30 jours mesurés, sous la borne de 200 % ; la création nette quotidienne des dix derniers jours vaut 99,5 % de celle des dix premiers (environ 137 000 oboles par jour).
 
 ## 5.6 Fiscalité
 

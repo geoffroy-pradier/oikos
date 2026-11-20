@@ -77,4 +77,15 @@ describe('Select', () => {
     expect(onChange).toHaveBeenCalledOnce();
     expect((select as HTMLSelectElement).value).toBe('corinth');
   });
+
+  it('libellé caché : toujours le nom de la liste, sans place au-dessus d’elle', () => {
+    render(
+      <Select label="Bien" hideLabel quiet>
+        <option value="wheat">Blé</option>
+      </Select>,
+    );
+    const label = screen.getByText('Bien');
+    expect(screen.getByRole('combobox', { name: 'Bien' })).toBeTruthy();
+    expect(label.className).toBe('sr-only');
+  });
 });

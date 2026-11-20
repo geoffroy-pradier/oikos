@@ -212,7 +212,7 @@ export async function createWorld(
     throw new Error(`Bench of ${days} days does not end in the past`);
   const worldId = randomUUID();
   // Graine fixée (#267), pour que ses tirages soient reproductibles. Ses clôtures, celles de jours passés, ne
-  // planifient aucun événement (7.3) : le banc des douze cités les planifie lui-même (`balance/events.ts`), celui de
+  // planifient aucun événement (7.3) : le banc des quatre cités les planifie lui-même (`balance/events.ts`), celui de
   // la cité prototype n'en joue aucun.
   await sql`insert into game.worlds (id, slug, name, seed)
     values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Équilibrage', ${seed})`.execute(

@@ -1,4 +1,14 @@
-import { Anchor, Badge, Button, Card, CircleAlert, DataTable, Info, Sheet } from '@oikos/ui';
+import {
+  Anchor,
+  Badge,
+  Button,
+  Card,
+  CircleAlert,
+  DataTable,
+  EmptyState,
+  Info,
+  Sheet,
+} from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +41,31 @@ export function ShipScreen() {
   }, [voyageRows]);
   const [notice, setNotice] = useState<DepartureNotice | null>(null);
   const [departing, setDeparting] = useState(false);
+  // « Relire la flotte » : occupé le temps de la lecture (aria-disabled, le foyer reste), puis l'issue est
+  // annoncée même sans changement. `round` remonte la région pour que deux issues identiques s'annoncent.
+  const [rereading, setRereading] = useState(false);
+  const [reread, setReread] = useState<{ round: number; ok: boolean } | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const rereadFleet = () => {
+    if (rereading) return;
+    setRereading(true);
+    setReread(null);
+    void fleet
+      .reload()
+      .then((results) => results.every((result) => result !== null))
+      .catch(() => false)
+      .then((ok) => {
+        if (!mounted.current) return;
+        setRereading(false);
+        setReread((before) => ({ round: (before?.round ?? 0) + 1, ok }));
+      });
+  };
   // Départ en vol : la feuille reste ouverte (Fermer et Échap inactifs) jusqu'à son issue.
   const [sending, setSending] = useState(false);
   // Un départ réussi ferme sa feuille, et « Partir » avec elle : le foyer va au message qui annonce
@@ -118,10 +153,26 @@ export function ShipScreen() {
                   {t('departure.open')}
                 </Button>
               )}
-              <Button variant="secondary" onClick={() => void fleet.reload()}>
+              <Button
+                variant="secondary"
+                aria-disabled={rereading}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+                onClick={rereadFleet}
+              >
                 {t('ship.reload')}
               </Button>
             </div>
+            {/* Issue de la relecture : dite même sans changement. Un échec reprend le texte des autres
+                échecs de lecture (le message visible est celui de `LoadProblem`). */}
+            {reread?.ok === false ? (
+              <p key={reread.round} role="alert" className="sr-only">
+                {t('app.loadFailed')}
+              </p>
+            ) : (
+              <p key={reread?.round ?? 0} role="status" className={reread ? '' : 'sr-only'}>
+                {reread ? t('ship.reloaded') : ''}
+              </p>
+            )}
           </div>
         </Card>
       )}
@@ -155,9 +206,7 @@ export function ShipScreen() {
         <Card>
           <h2 className="mb-3 text-xl">{t('ship.voyages')}</h2>
           {voyages.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
-              {t('ship.noVoyages')}
-            </p>
+            <EmptyState compact illustration="noShip" title={t('ship.noVoyages')} />
           )}
           {voyages.length > 0 && (
             <DataTable

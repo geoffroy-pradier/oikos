@@ -104,6 +104,22 @@ const confirm = () =>
 const inTable = (name: string) => within(screen.getByRole('table', { name }));
 
 describe('écran Immobilier (#259)', () => {
+  it('sans bien ni bail : les états vides mènent aux biens offerts, foyer sur leur titre (#866)', async () => {
+    state.views = { ...state.views, my_properties: [], my_leases: [] };
+    await showProperty();
+    expect(screen.getByRole('heading', { name: fr.property.noneMine })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: fr.property.noLeases })).toBeTruthy();
+    const [toOffers] = screen.getAllByRole('button', { name: fr.property.seeOffers });
+    fireEvent.click(toOffers as HTMLElement);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: fr.property.offers }));
+    // Sans offre, rien vers quoi mener : la raison seule.
+    cleanup();
+    state.views = { ...state.views, city_properties: [], property_offers_upkeep: [] };
+    await showProperty();
+    expect(screen.getByRole('heading', { name: fr.property.noOffers })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: fr.property.seeOffers })).toBeNull();
+  });
+
   it('achat à la cité et location d’une offre, chacun au prix vu', async () => {
     await showProperty();
     open(/^Acheter à la cité .* n° 1, Kallistè$/);
@@ -127,6 +143,26 @@ describe('écran Immobilier (#259)', () => {
     // Le bouton cliqué n'a pas le foyer : le résultat, annoncé dans la carte des offres, le prend.
     await waitFor(() => expect(document.activeElement?.textContent).toBe(fr.property.done.lease));
     expect(document.activeElement?.getAttribute('role')).toBe('status');
+  });
+
+  it('achat au-delà de la trésorerie : inactif, ce qui manque dit et relié ; la location reste proposée (#864)', async () => {
+    const price = townhouse?.purchasePriceOboles ?? 0;
+    state.views['my_treasury'] = [{ balance: price - 6 }];
+    await showProperty();
+    const buy = screen.getAllByRole('button', { name: /^Acheter à la cité/ })[0] as HTMLElement;
+    expect(buy.getAttribute('aria-disabled')).toBe('true');
+    const why = document.getElementById(buy.getAttribute('aria-describedby') ?? '');
+    expect(why?.textContent).toBe('Il manque 1 drachme à votre trésorerie.');
+    fireEvent.click(buy);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const rent = screen.getAllByRole('button', { name: /^Louer/ })[0] as HTMLElement;
+    expect(rent.hasAttribute('aria-disabled')).toBe(false);
+    // La trésorerie au prix : l'achat redevient possible.
+    cleanup();
+    state.views['my_treasury'] = [{ balance: price }];
+    await showProperty();
+    open(/^Acheter à la cité/);
+    expect(screen.getByRole('dialog', { name: /^Acheter à la cité/ })).toBeTruthy();
   });
 
   it('sans réponse : le nouvel essai rejoue la même clé ; un refus est dit, la clé suivante est neuve', async () => {

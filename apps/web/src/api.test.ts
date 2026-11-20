@@ -1,5 +1,11 @@
 import { expect, it, vi } from 'vitest';
-import { consultOracle, invokeGrace, makeOffering, sendCommand } from './api';
+import {
+  COMMAND_SUCCEEDED_EVENT,
+  consultOracle,
+  invokeGrace,
+  makeOffering,
+  sendCommand,
+} from './api';
 import { SESSION_ENDED_EVENT } from './session';
 
 const respond = (body: unknown, status = 200) =>
@@ -166,4 +172,29 @@ it('annonce la fin de la session sur UNAUTHENTICATED seulement (#565)', async ()
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it('émet COMMAND_SUCCEEDED_EVENT après une commande réussie, pas après un refus ni une panne', async () => {
+  const heard = vi.fn();
+  const target = new EventTarget();
+  vi.stubGlobal('window', target);
+  target.addEventListener(COMMAND_SUCCEEDED_EVENT, heard);
+  await sendCommand(
+    'x',
+    {},
+    't',
+    'k',
+    respond({ ok: false, error: { code: 'NOPE', message: 'm' } }, 409),
+  );
+  await sendCommand(
+    'x',
+    {},
+    't',
+    'k',
+    vi.fn<typeof fetch>(async () => Promise.reject(new TypeError('off'))),
+  );
+  expect(heard).not.toHaveBeenCalled();
+  await sendCommand('x', {}, 't', 'k', respond({ ok: true, data: {} }));
+  expect(heard).toHaveBeenCalledTimes(1);
+  vi.unstubAllGlobals();
 });

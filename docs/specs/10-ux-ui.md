@@ -19,6 +19,7 @@ Hors de l'onglet Messages, ce compte est relu à chaque changement d'écran, au 
 À partir de 1 024 px, la barre latérale porte la marque, la carte de la maison (blason, nom, cité, statut et trésorerie), les cinq onglets et, en bas, un bouton Réglages.
 En dessous, un en-tête compact montre le blason, le nom et la cité de la maison et l'heure de jeu, avec le bouton Réglages réduit à son icône, sous le même nom accessible.
 Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
+Avant la connexion, le jeu et Olympe choisissent la langue au même endroit, à droite de l'en-tête, par un même sélecteur de `@oikos/ui` (`LanguageSelect`) stylé par les jetons, sur une liste native (#868).
 Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
 L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier et Comptes.
 Ce sont des liens, un par écran ; celui de l'écran ouvert est plein et marqué comme la page courante, et la gélule défile quand elle est plus large que l'écran.
@@ -210,7 +211,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    chaque changement de tri est annoncé aux lecteurs d'écran). Un stock sans prix observé est dit tel, non valorisé, et reste en fin de liste quel que soit le tri.
    Refonte (#694) : ces fiches et ce tableau sont ceux du composant `DataTable`.
    Enfin le compte de résultat (4.1), par journée de jeu ou par saison au choix, borné aux 7, 30 ou 90 dernières périodes : mêmes fiches et même tableau triable, périodes les plus récentes d'abord.
-   Refonte (#694) : ce tableau défile dans sa carte, montants sur une ligne, et ses trois soldes (résultat d'exploitation, hors exploitation, variation de la monnaie) sont en gras.
+   Refonte (#694) : ses trois soldes (résultat d'exploitation, hors exploitation, variation de la monnaie) sont en gras.
+   Refonte (#865) : à 1 440 px, la carte du tableau déborde sur les marges de l'écran et toutes ses colonnes tiennent ; un montant passe à la ligne entre drachmes et oboles, jamais au milieu d'une unité.
    Une journée de jeu porte la date civile du jour où sa clôture l'ouvre, une saison celles de son premier et de son dernier jour ;
    sans horloge lisible, la période est dite inconnue et ses montants restent affichés.
    Un compte dont les totaux ne tombent pas juste n'est pas affiché : la lecture est annoncée en échec.
@@ -271,6 +273,9 @@ Décidée le 19 novembre 2026 (ADR 0011), elle remplace la direction inspirée d
 L'interface est épurée : fond neutre, graphite en thème sombre et gris très clair en thème clair, un seul accent orange pour l'action principale, l'état actif et les données mises en avant.
 Aucun ornement : ni frise, ni texture, ni police de titrage ; Inter seule, avec des chiffres tabulaires pour tout montant ou quantité.
 Les chiffres clés sont en cartes, les sous-sections d'un onglet en onglets à pastilles, les listes en tableaux denses et triables sur ordinateur et en fiches sur téléphone.
+Un tableau plus large que son cadre défile à l'horizontale et le dit par un fondu sur le bord où il reste des colonnes (#865) ; défilant, il prend le foyer au clavier (flèches) sous le nom du tableau.
+Les en-têtes de tableau sont en casse normale et tiennent sur deux lignes au plus : un libellé trop long est raccourci, son détail va dans le texte d'introduction.
+Une colonne de boutons n'a pas de ligne « Action » dans les fiches : ses boutons ferment la fiche, sous un trait.
 Sur téléphone, un plan inversé (jetons `inverse`, sombre dans les deux thèmes) met en tête la trésorerie du tableau de bord, sur toute la rangée ; les autres chiffres clés y passent en petites cartes, sans icône ni ligne secondaire.
 Le détail de la trésorerie (séquestre, ordres ouverts à l'agora) se lit sous les cartes, hors de la carte de la trésorerie (#863).
 Une carte de chiffre montre sa valeur en grand sur une seule ligne, dans le format unique des montants, sans abréviation : la taille du chiffre suit la largeur de la carte.
@@ -281,18 +286,27 @@ Les cartes d'une rangée ont la même hauteur, et leurs libellés, valeurs et li
 Le chiffre principal d'un écran (la trésorerie sur Maison, Sites et Comptes) est en carte large, sur deux colonnes ; une valeur trop longue pour une colonne fait aussi de sa carte une carte large : dans une rangée, aucune valeur n'est plus petite que celle d'une carte voisine.
 Sous 1 280 px, une carte restée seule sur sa rangée la prend entière.
 Un ratio s'écrit en toutes lettres, « 1 sur 4 » (« 1 of 4 »).
+Plusieurs gestes sur un même objet gardent une action principale ; les autres vont dans un menu d'actions (`Menu`), chacun avec son icône, parcouru aux flèches, refermé par Échap qui rend le foyer à son bouton (#868).
 Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
 Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.
 Un bien sans dessin propre prend celui de son niveau, corbeille, ballot ficelé ou coffre, quand l'appelant donne ce niveau (#708).
+La connexion d'Olympe a sa scène (`OlympusScene`) : le temple au sommet de l'Olympe, devant le soleil, au-dessus des nuages (#868).
 L'icône de l'application est le soleil levant de la scène d'accueil, orange sur graphite ; ses PNG se régénèrent par `apps/web/scripts/render-icons.mjs`.
 La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.
 De courtes animations répondent au survol, à l'appui et à l'apparition d'une feuille ; elles sont coupées sous `prefers-reduced-motion`.
 Un chargement se montre par des formes qui annoncent le contenu, et une liste vide dit pourquoi, avec une illustration et l'action qui la remplit.
+Une liste vide du jeu et d'Olympe prend le composant `EmptyState` (#866) : le dessin de sa famille, la raison, et l'action qui la remplit quand elle existe.
+Les familles sont les sites, l'entrepôt, les biens immobiliers, l'agora, la flotte, la cité, les messages, la modération et les registres de comptes.
+Dans une section déjà titrée, l'état vide se réduit à une rangée, un petit dessin à côté de la raison, sans titre de plus.
+Une liste ou une section vide prend toujours `EmptyState`, en variante compacte si la section a déjà un titre.
+Une valeur absente dans une carte ou un formulaire se dit en une phrase, sans dessin (marché du travail pas encore fixé, siège sans poste d'intendant, intendant sans règle, départ sans bien libre).
 Une lecture en échec et une adresse inconnue prennent la même présentation : une icône ou une illustration, le message, et l'action qui en sort (« Réessayer », « Revenir à la maison »).
 Chaque écran s'ouvre sur un en-tête de page commun (`PageHeader`) : titre de 26 px, heure de jeu et prochaine clôture quotidienne en sous-titre atténué, recherche si l'écran en a une, action principale à droite.
+Le titre est à la même hauteur sur chaque écran, quelle que soit la hauteur de l'action ; quand la place manque (téléphone), l'action passe sous le titre, dans l'en-tête, sans le couper.
+Actions principales : « Acquérir un site » (Sites), le choix du bien (Agora), « Nouvelle conversation » (Messages), et sur la Carte « Faire partir un navire » dès qu'un navire armé est à quai (sa fiche s'il est seul, la flotte sinon).
 L'heure de clôture et le fuseau du monde sont des règles publiques, lues par les joueurs connectés (vue `clock_rules`, pgTAP 690) ; sans horloge en vigueur, sous un fuseau que la base ou le navigateur ne connaît pas, ou si la lecture échoue, l'en-tête ne donne que l'heure.
 Les jetons et les composants de `@oikos/ui` font foi ; la page `catalogue.html` les montre dans les deux thèmes.
 Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interface ».
@@ -310,6 +324,14 @@ Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interfac
   sur les chandeliers de l'agora, hausse et baisse se distinguent par la forme (corps vide ou plein).
   Le résultat d'une action paraît près de l'action, dans une région vivante présente avant lui ;
   si le contrôle qui l'a lancée disparaît ou devient inactif, le foyer passe sur ce résultat, sinon il reste sur le contrôle.
+- Actions impossibles (#864) : l'écran ne décide jamais à la place de l'API.
+  Il ne rend un bouton inactif que si ce qu'il a lu rend l'action certainement impossible ; sans cette lecture (en cours, en échec), le bouton reste actif et l'API juge.
+  Le bouton inactif porte `aria-disabled` : il garde le foyer, ignore l'activation et prend un style à part (bordure tiretée, texte atténué sur `muted`), distinct d'un bouton secondaire actif dans les deux thèmes.
+  Sa raison est écrite à côté et reliée par `aria-describedby` ; les refus de l'API s'affichent comme avant.
+  Actions concernées : « Récolter » sur Maison et sur Sites, quand le calcul affiché ne prévoit rien (« Rien de prêt », « Rien à récolter pour l'instant ») ; « Acheter » un navire au chantier naval et « Acheter » un bien à la cité ou à une maison sur Immobilier, quand la trésorerie lue est sous le prix affiché (ce qui manque est dit).
+  Une location n'est pas concernée : rien n'est payé à sa signature.
+  La trésorerie de ces écrans se relit après chaque commande et chaque minute.
+- Un même geste garde la même hiérarchie sur tous les écrans : « Récolter » et « Tout récolter » sont des actions principales sur Maison comme sur Sites ; « Acheter » une offre (navire ou bien) est secondaire, sur la Carte comme sur Immobilier.
 - Accueil : 15 minutes guidées qui mènent à une première vente, puis objectifs quotidiens du mentor pendant 7 jours.
 
 ## Contrôle visuel
@@ -330,4 +352,4 @@ La tolérance est faible : au plus 0,1 % de pixels différents.
 Les références sont celles de Linux (suffixe `-linux`) : elles se produisent et se comparent sur une machine Linux, ou sous WSL 2.
 Une référence se met à jour sur une base neuve, par `pnpm --filter @oikos/web exec playwright test visual --update-snapshots` (de même pour `@oikos/admin`), et la nouvelle image se relit dans la demande de fusion.
 Hors `ci`, le contrôle du jeu est sauté sur une base où sa maison a plus d'une heure.
-En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual`.
+En `ci`, un écart laisse l'image attendue, l'image obtenue et leur différence dans l'artefact `e2e-visual-<application>-<morceau>` du job de bout en bout qui l'a vu (`e2e-visual-web-2`, par exemple).
