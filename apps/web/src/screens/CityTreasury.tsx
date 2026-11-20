@@ -147,7 +147,7 @@ export function CityTreasury() {
                       </div>
                       <div className="flex items-start justify-center">
                         <span
-                          className="w-full max-w-10 rounded-b-md bg-muted-foreground/60"
+                          className="w-full max-w-10 rounded-b-md bg-muted-foreground"
                           style={{ height: height(bar.spending) }}
                         />
                       </div>
@@ -166,7 +166,7 @@ export function CityTreasury() {
                     {t('treasury.income')}
                   </li>
                   <li className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-muted-foreground/60" />
+                    <span className="size-2.5 rounded-sm bg-muted-foreground" />
                     {t('treasury.spending')}
                   </li>
                 </ul>
