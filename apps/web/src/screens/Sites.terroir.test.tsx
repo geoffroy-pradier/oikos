@@ -1,4 +1,6 @@
+// @vitest-environment jsdom
 import { INITIAL_CONFIG, validateConfig } from '@oikos/config';
+import { cleanup, fireEvent, render as mount, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -59,13 +61,32 @@ async function render(sites: object[], identities: unknown, lng: 'fr' | 'en' = '
     </I18nextProvider>,
   );
 }
+/** Productions offertes par la feuille d'acquisition, ouverte au clic, dans leur ordre. */
+async function offered(identities: unknown) {
+  await render([], identities);
+  const instance = i18next.createInstance();
+  await instance.use(initReactI18next).init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+  const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Ampelos' };
+  mount(
+    <I18nextProvider i18n={instance}>
+      <HouseProvider value={{ ...house, cityNames: {}, citizenshipStatus: 'metic' }}>
+        <SitesCard stock={[]} onChanged={() => Promise.resolve()} />
+      </HouseProvider>
+    </I18nextProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: fr.home.acquire }));
+  const values = screen
+    .getAllByRole<HTMLInputElement>('radio')
+    .map((radio) => [radio.value, radio.checked] as const);
+  cleanup();
+  return values;
+}
 /** Valeurs des options d'un menu, repéré par ce qui précède son premier `<option>`. */
 const optionsAfter = (html: string, marker: string) => {
   const start = html.indexOf(marker);
   const end = html.indexOf('</select>', start);
   return [...html.slice(start, end).matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
 };
-const ACQUIRE = `<span>${fr.home.acquireRecipe}</span>`;
 // Le rendu échappe l'apostrophe : on cherche la mention par son texte tel qu'il paraît dans le HTML.
 const OUT_OF_TERROIR = fr.home.outOfTerroir.replaceAll("'", '&#x27;');
 const validated = validateConfig(INITIAL_CONFIG);
@@ -77,16 +98,15 @@ const WORKSHOPS = RECIPES.filter((recipe) => recipe.siteType === 'workshop').map
 
 describe('écran Sites : seules les productions du terroir sont proposées (6.1, #291)', () => {
   it('acquisition : les matières premières du terroir de la cité, et tous les ateliers', async () => {
-    const html = await render([], [identity('c1', AMPELOS), identity('c2', HALOS)]);
-    const offered = optionsAfter(html, ACQUIRE);
-    expect(offered).toEqual(
+    const offers = await offered([identity('c1', AMPELOS), identity('c2', HALOS)]);
+    expect(offers.map(([id]) => id)).toEqual(
       RECIPES.map((recipe) => recipe.id).filter(
         (id) => AMPELOS.includes(id) || WORKSHOPS.includes(id),
       ),
     );
     // Le choix par défaut est admis : le premier essai d'un joueur d'Ampelos n'échoue plus sur le blé.
-    expect(offered[0]).toBe('grow_grapes');
-    expect(offered).not.toContain('grow_wheat');
+    expect(offers[0]).toEqual(['grow_grapes', true]);
+    expect(offers.map(([id]) => id)).not.toContain('grow_wheat');
   });
 
   it('changement de production : seulement vers une recette admise par la cité du site', async () => {
@@ -110,15 +130,15 @@ describe('écran Sites : seules les productions du terroir sont proposées (6.1,
     // En anglais, le terroir se dit « land », comme partout ailleurs dans l'interface.
     const english = await render([site('s1', 'c1', 'grow_wheat')], [identity('c1', AMPELOS)], 'en');
     expect(english).toContain(en.home.outOfTerroir.replaceAll("'", '&#x27;'));
-    expect(english).toContain(`<span>${en.home.acquireRecipe}</span>`);
+    expect(english).toContain(`${en.home.acquire}</button>`);
   });
 
   it('identité illisible, absente ou terroir ouvert : tout est proposé, l’API tranche', async () => {
     const all = RECIPES.map((recipe) => recipe.id);
     for (const identities of [null, [{ city_id: 7 }], [], [identity('c1', null)]]) {
       const html = await render([site('s1', 'c1', 'grow_wheat')], identities);
-      expect(optionsAfter(html, ACQUIRE)).toEqual(all);
       expect(html).not.toContain(OUT_OF_TERROIR);
+      expect((await offered(identities)).map(([id]) => id)).toEqual(all);
     }
   });
 });

@@ -13,18 +13,19 @@ test('une maison d’Ampelos ne se voit proposer que les sites de son terroir', 
   await expect(page.getByRole('heading', { name: 'Vigne', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
 
-  const offers = page.getByLabel('Site à acquérir').locator('option');
+  await page.getByRole('button', { name: 'Acquérir un site' }).press('Enter');
+  const offers = page.getByRole('group', { name: 'Site à acquérir' }).getByRole('radio');
   await expect(offers.first()).toHaveAttribute('value', 'grow_grapes');
   const values = await offers.evaluateAll((options) =>
-    options.map((option) => (option as HTMLOptionElement).value),
+    options.map((option) => (option as HTMLInputElement).value),
   );
   expect(values).toEqual(expect.arrayContaining(['grow_grapes', 'catch_fish', 'mill_flour']));
   expect(values).not.toContain('grow_wheat');
   expect(values).not.toContain('grow_olives');
-  // Au clavier : le menu se parcourt aux flèches, sans jamais tomber sur une production hors terroir.
-  const menu = page.getByLabel('Site à acquérir');
-  await menu.focus();
+  // Au clavier : le choix se parcourt aux flèches, sans jamais tomber sur une production hors terroir.
+  await offers.first().focus();
   await page.keyboard.press('ArrowDown');
-  await expect(menu).toHaveValue(values[1] ?? '');
+  await expect(offers.nth(1)).toBeChecked();
+  await expect(offers.nth(1)).toHaveAttribute('value', values[1] ?? '');
   await expectNoHorizontalScroll(page);
 });

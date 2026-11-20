@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG } from '@oikos/config';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { useRef } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -75,12 +75,21 @@ const keysSent = () => api.acquireSite.mock.calls.map((call) => call[3] as unkno
 const stored = () =>
   Object.keys(window.sessionStorage).filter((name) => name.startsWith('oikos.pending.h1.'));
 const warned = () => screen.queryByText(fr.home.acquireUnanswered);
-const submit = () => fireEvent.click(screen.getByRole('button', { name: fr.home.acquireSubmit }));
+/** Ouvre la feuille d'acquisition (rien si elle reste fermée), choisit `recipe`, passe au récapitulatif, confirme. */
+function acquireThrough(recipe?: RegExp) {
+  fireEvent.click(screen.getByRole('button', { name: fr.home.acquire }));
+  const sheet = screen.queryByRole('dialog');
+  if (!sheet) return;
+  if (recipe) fireEvent.click(within(sheet).getByRole('radio', { name: recipe }));
+  fireEvent.click(within(sheet).getByRole('button', { name: fr.steps.next }));
+  fireEvent.click(within(sheet).getByRole('button', { name: /^Acquérir pour / }));
+}
+const submit = () => acquireThrough();
 /** Écran quitté puis rouvert (onglet Agora, puis Maison). */
 async function reopen() {
   cleanup();
   await show();
-  await screen.findByRole('button', { name: fr.home.acquireSubmit });
+  await screen.findByRole('button', { name: fr.home.acquire });
 }
 
 beforeEach(() => {
@@ -131,7 +140,7 @@ describe('acquisition sans réponse, d’un écran à l’autre', () => {
     harvested({ ok: true, replayed: false, data: { outputs: [] } });
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: fr.home.acquireSubmit }).getAttribute('aria-disabled'),
+        screen.getByRole('button', { name: fr.home.acquire }).getAttribute('aria-disabled'),
       ).toBe('false'),
     );
   });

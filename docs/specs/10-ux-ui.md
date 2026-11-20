@@ -66,6 +66,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
    L'écran Sites (`/sites`, #693) porte les fiches des sites de la maison, avec en chiffres clés la trésorerie, le nombre de sites sur la limite du siège, les sites prêts à récolter (« — » tant que l'heure du serveur ou le stock ne sont pas lus) et le coût d'un jour des sites qui tournent (celui de leurs relances, que la clôture prélèvera ; « — » tant qu'un prix manque).
    Chaque fiche porte le pictogramme de sa production, son type et sa cité ; « Détails » du tableau de bord ouvre l'écran sur elle (`/sites#site-…`) et pose le foyer sur son titre.
+   « Acquérir un site » ouvre une feuille, par étapes : la production, chacune avec son pictogramme, son type et son prix, puis un récapitulatif chiffré (cycle, intrants, travailleurs, entretien par jour, prix, trésorerie après l'achat).
+   Confirmer referme la feuille et envoie le prix vu ; l'issue s'annonce dans la région de l'acquisition, sous son bouton, comme l'avertissement d'une acquisition restée sans réponse, que le récapitulatif rappelle avant un nouvel achat.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    Un champ ou un verger dit la sécheresse ou la bonne année en cours dans sa cité (#417, vue `world_events`), avec sa fin et son ampleur.
    Sa récolte est estimée comme l'API la calculera (`cycleYield`, 4.3 et 7.4), à l'heure du serveur, sous les événements qui finissent après le début de son cycle en cours, et l'écart dû à l'événement est dit.

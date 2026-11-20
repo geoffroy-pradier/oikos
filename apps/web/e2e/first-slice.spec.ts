@@ -6,6 +6,7 @@ import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { sql } from 'kysely';
 import {
+  acquireSite,
   chooseLanguage,
   expectNoHorizontalScroll,
   fillOrder,
@@ -779,19 +780,26 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
   await expect(page.getByText('1 sur 4')).toBeVisible();
 
-  // Une oliveraie, choisie et payée au clavier : la trésorerie baisse du prix annoncé.
-  const offer = page.getByLabel('Site à acquérir');
+  // Une oliveraie, choisie et payée au clavier, dans sa feuille : la trésorerie baisse du prix annoncé.
+  await page.getByRole('button', { name: 'Acquérir un site' }).press('Enter');
+  const sheet = page.getByRole('dialog', { name: 'Acquérir un site' });
+  const offer = sheet.getByRole('group', { name: 'Site à acquérir' });
   // Le pâturage à moutons n'est plus du terroir de Kallistè (#669) : il n'est pas proposé, l'oliveraie l'est.
-  await expect(offer.locator('option[value="grow_olives"]')).toHaveCount(1);
-  await expect(offer.locator('option[value="shear_wool"]')).toHaveCount(0);
-  // La région vivante du formulaire est là, vide, avant toute annonce : le message y paraît ensuite.
-  const region = page.getByRole('form', { name: 'Acquérir un site' }).getByRole('status');
+  await expect(offer.locator('input[value="grow_olives"]')).toHaveCount(1);
+  await expect(offer.locator('input[value="shear_wool"]')).toHaveCount(0);
+  // La région vivante de l'acquisition est là, vide, avant toute annonce : le message y paraît ensuite.
+  const region = page.getByRole('group', { name: 'Acquérir un site' }).getByRole('status');
   await expect(region).toHaveCount(1);
   await expect(region).toBeEmpty();
-  await offer.selectOption({ label: 'Oliveraie (Verger) : 150 drachmes' });
-  await offer.focus();
+  await offer.getByRole('radio', { name: /^Oliveraie Verger 150 drachmes$/ }).check();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
+  // Le récapitulatif dit le prix et la trésorerie qui restera ; la confirmation, au clavier, le prix vu.
+  await expect(sheet.getByText("Trésorerie après l'achat").locator('..')).toHaveText(
+    "Trésorerie après l'achat350 drachmes",
+  );
+  await sheet.getByRole('button', { name: 'Acquérir pour 150 drachmes' }).press('Enter');
+  await expect(sheet).toHaveCount(0);
   await expect(region).toContainText('Site acquis : Oliveraie, pour 150 drachmes.');
   await expect(page.getByText(/^350 drachmes$/)).toBeVisible();
   await expect(page.getByText('2 sur 4')).toBeVisible();
@@ -813,16 +821,14 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
 
   // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
-  await offer.selectOption({ label: 'Champ de blé (Champ) : 100 drachmes' });
-  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await acquireSite(page, /^Champ de blé/);
   await expect(page.getByText(/^250 drachmes$/)).toBeVisible();
   // La dernière au clavier : le bouton disparaît à la limite, le foyer va au message.
-  await page.getByRole('button', { name: 'Acquérir' }).focus();
-  await page.keyboard.press('Enter');
+  await acquireSite(page, /^Champ de blé/);
   await expect(page.getByText(/^150 drachmes$/)).toBeVisible();
   await expect(page.getByText('4 sur 4')).toBeVisible();
   await expect(page.getByText('Votre maison exploite déjà autant de sites')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Acquérir' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Acquérir un site' })).toHaveCount(0);
   // Le message paraît dans la région du formulaire, et le foyer est sur lui.
   await expect(region).toContainText('Site acquis : Champ de blé');
   await expect(region.locator('p')).toBeFocused();
@@ -841,7 +847,6 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
 }) => {
   await foundHouse(page);
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
-  const acquire = page.getByRole('button', { name: 'Acquérir' });
 
   // La commande n'atteint pas le serveur : rien n'est acquis, l'issue reste inconnue pour l'écran.
   const keys: string[] = [];
@@ -850,7 +855,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
     keyOf(route);
     await route.abort();
   });
-  await acquire.click();
+  await acquireSite(page);
   await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   await expect(page.getByText('1 sur 4')).toBeVisible();
 
@@ -870,7 +875,7 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
   // Les sites sont relus avant le clic : l'intention porte leur nombre.
   await expect(page.getByText('1 sur 4')).toBeVisible();
-  await acquire.click();
+  await acquireSite(page);
   // Le rejeu dit l'issue : acquis une fois, payé une fois.
   await expect(said(page, 'status')).toContainText('Ce site était déjà acquis : Champ de blé');
   await expect(page.getByText('2 sur 4')).toBeVisible();
@@ -879,13 +884,13 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
   // Le rejeu reste lui aussi sans réponse : l'écran dit qu'un site de plus est là, et qu'un nouvel
   // essai serait un nouvel achat, au lieu d'inviter à réessayer.
   lost = 2;
-  await acquire.click();
+  await acquireSite(page);
   await expect(said(page, 'alert')).toContainText('un nouvel essai serait un nouvel achat');
   await expect(page.getByText('3 sur 4')).toBeVisible();
   await expect(page.getByText(/^300 drachmes$/)).toBeVisible();
 
-  // Prévenu, le joueur veut encore un champ de blé : nouvel achat, clé neuve. Un double clic n'envoie
-  // qu'une commande, et le prix payé s'affiche dans la fenêtre bien que le site ait poussé le formulaire.
+  // Prévenu, le joueur veut encore un champ de blé : nouvel achat, clé neuve. Une double activation n'envoie
+  // qu'une commande, et le prix payé s'affiche dans la fenêtre.
   await page.unroute('**/api/commands/site.acquire');
   let sent = 0;
   await page.route('**/api/commands/site.acquire', async (route) => {
@@ -894,7 +899,12 @@ test('acquisition sans réponse : rejouée tant que son issue est inconnue, jama
     await new Promise((resolve) => setTimeout(resolve, 300));
     await route.continue();
   });
-  await acquire.dblclick();
+  // Double activation de la confirmation : la feuille se referme à la première, la seconde ne relance rien.
+  await page.getByRole('button', { name: 'Acquérir un site' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: /^Acquérir pour / }).focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
     'Site acquis : Champ de blé, pour 100 drachmes.',
   );
@@ -928,7 +938,7 @@ test('acquisition abandonnée : avertie au retour sur l’onglet et à la réouv
   const cut = () =>
     page.route(mySites, (route) => route.fulfill({ status: 500, json: { message: 'coupé' } }));
   await cut();
-  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await acquireSite(page);
   await expect(said(page, 'alert').filter({ hasText: 'Une erreur est survenue' })).toBeVisible();
   await expect(warning).toHaveCount(0);
 
@@ -952,7 +962,7 @@ test('acquisition abandonnée : avertie au retour sur l’onglet et à la réouv
 
   // Même perte, écran quitté lectures coupées, rouvert lectures rétablies : l'écran prévient.
   await cut();
-  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await acquireSite(page);
   await expect(said(page, 'alert').filter({ hasText: 'Une erreur est survenue' })).toBeVisible();
   await nav.getByRole('link', { name: 'Agora' }).click();
   await page.unroute(mySites);
@@ -969,10 +979,8 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
 }) => {
   const houseName = await foundHouse(page);
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
-  const offer = page.getByLabel('Site à acquérir');
-  await offer.selectOption({ label: 'Oliveraie (Verger) : 150 drachmes' });
   for (const count of ['2 sur 4', '3 sur 4']) {
-    await page.getByRole('button', { name: 'Acquérir' }).click();
+    await acquireSite(page, /^Oliveraie/);
     await expect(page.getByText(count)).toBeVisible();
   }
   const headings = page.getByRole('listitem').getByRole('heading', { level: 3 });
@@ -1019,8 +1027,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
 
   // Un moulin : sa fiche dit ce qu'il consomme et ce que la maison a de libre.
   await page.getByRole('link', { name: 'Sites', exact: true }).click();
-  await page.getByLabel('Site à acquérir').selectOption('mill_flour');
-  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await acquireSite(page, /^Moulin/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   const mill = page
     .getByRole('listitem')
@@ -1297,8 +1304,7 @@ test('à surveiller : plafond atteint et atelier à court d’intrants ; « Tout
     'Champ de blé — plafond de production atteint',
   ]);
   // Un moulin, acquis ensuite, sans blé libre : une heure plus tard, son premier cycle attend.
-  await page.getByLabel('Site à acquérir').selectOption('mill_flour');
-  await page.getByRole('button', { name: 'Acquérir' }).click();
+  await acquireSite(page, /^Moulin/);
   await expect(said(page, 'status')).toContainText('Site acquis : Moulin');
   await db.transaction().execute(async (trx) => {
     await sql`alter table game.sites disable trigger sites_guard`.execute(trx);

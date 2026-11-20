@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { INITIAL_CONFIG, type GameConfig } from '@oikos/config';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,6 +110,16 @@ afterEach(cleanup);
 const sends = (command: typeof api.acquireSite) =>
   command.mock.calls.map((call) => ({ price: call[1] as unknown, key: call[3] as unknown }));
 
+/** Ouvre la feuille d'acquisition (rien si elle reste fermée), choisit `recipe`, passe au récapitulatif, confirme. */
+function acquireThrough(recipe?: RegExp) {
+  fireEvent.click(screen.getByRole('button', { name: fr.home.acquire }));
+  const sheet = screen.queryByRole('dialog');
+  if (!sheet) return;
+  if (recipe) fireEvent.click(within(sheet).getByRole('radio', { name: recipe }));
+  fireEvent.click(within(sheet).getByRole('button', { name: fr.steps.next }));
+  fireEvent.click(within(sheet).getByRole('button', { name: /^Acquérir pour / }));
+}
+
 describe('prix envoyés par la carte des sites', () => {
   it('relance avec des salaires : le prix envoyé est l’entretien plus les salaires du site dans sa cité', async () => {
     // Champ : 30 d'entretien, 4 travailleurs à 5 oboles à Kallistè ; ailleurs, aucun salaire.
@@ -198,23 +208,20 @@ describe('prix envoyés par la carte des sites', () => {
     api.acquireSite.mockResolvedValueOnce(LOST).mockResolvedValueOnce(CHANGED);
     api.acquireSite.mockResolvedValue(LOST);
     await show();
-    const submit = await screen.findByRole('button', { name: fr.home.acquireSubmit });
-    fireEvent.change(screen.getByLabelText(fr.home.acquireRecipe), {
-      target: { value: 'grow_wheat' },
-    });
-    fireEvent.click(submit);
+    await screen.findByRole('button', { name: fr.home.acquire });
+    acquireThrough(/^Champ de blé/);
     await waitFor(() => expect(api.acquireSite).toHaveBeenCalledTimes(1));
     state.rules = withPrices(660, 30);
     cleanup();
     await show();
-    fireEvent.change(screen.getByLabelText(fr.home.acquireRecipe), {
-      target: { value: 'grow_wheat' },
-    });
-    expect(screen.getByRole('option', { name: /^Champ de blé.*110 drachmes/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: fr.home.acquireSubmit }));
+    // Le prix affiché dans la feuille est le nouveau ; l'essai suivant renvoie pourtant le prix envoyé.
+    fireEvent.click(await screen.findByRole('button', { name: fr.home.acquire }));
+    expect(screen.getByRole('radio', { name: /^Champ de blé.*110 drachmes/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: fr.shell.close }));
+    acquireThrough(/^Champ de blé/);
     await waitFor(() => expect(api.acquireSite).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getAllByText(fr.errors.PRICE_CHANGED)).not.toHaveLength(0));
-    fireEvent.click(screen.getByRole('button', { name: fr.home.acquireSubmit }));
+    acquireThrough(/^Champ de blé/);
     await waitFor(() => expect(api.acquireSite).toHaveBeenCalledTimes(3));
     const [first, second, third] = sends(api.acquireSite);
     expect(api.acquireSite.mock.calls.map((call) => call[0] as unknown)).toEqual([
