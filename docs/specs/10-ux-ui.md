@@ -33,6 +33,7 @@ Si Supabase Auth refuse le renouvellement (compte effacé depuis la connexion, s
 Un seul renouvellement par jeton refusé : si l'API refuse encore le jeton issu d'un renouvellement (compte effacé sans que ses sessions soient fermées, par exemple), la session est fermée sans nouvel essai, et aucune boucle de renouvellements ne s'installe.
 L'écran de connexion dit alors pourquoi, en français et en anglais, et donne le foyer au champ de l'adresse, que ce message décrit ; il ne le dit plus après la connexion suivante.
 La connexion tient en une carte centrée : sur téléphone la scène d'accueil la surmonte, sur ordinateur elle se tient à son côté.
+Sur ordinateur, le bloc est aussi centré en hauteur (#869).
 Un envoi refusé s'affiche sous le champ de l'adresse, qu'il décrit et marque invalide.
 Dans un Stepper, Entrée dans un champ de saisie vaut Continuer ; une étape peut garder le joueur sur place (`check`) en expliquant pourquoi, et un refus de l'API qui se corrige à une étape y ramène le joueur (`initialStep`).
 La création de maison se fait en quatre étapes : le nom, le blason, la cité d'accueil, puis un récapitulatif confirmé par « Fonder la maison ».
@@ -317,6 +318,7 @@ Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interfac
 - Une nouvelle version du client est proposée par un bandeau (« Mettre à jour » ou « Plus tard ») et ne s'installe qu'à la demande du joueur : rien ne recharge la page pendant une saisie. Un onglet resté ouvert vérifie lui-même qu'une version est parue, à intervalle régulier (`updateCheckMinutes`, réglage du client dans `packages/config`, une heure au départ), tant qu'il est visible et en ligne.
 - Notifications push web paramétrables par type (ordre exécuté, navire arrivé, vote ouvert).
 - Français et anglais dès la structure du code, aucun texte en dur.
+  Les textes français portent une espace insécable avant « : », « ; », « ! » et « ? », vérifiée par un test sur `fr.json` (#869).
 - Montants : partout dans le client, un seul format, en drachmes et oboles (« 1 drachme 1 obole », 6 oboles pour 1 drachme ; une part nulle est omise, un montant nul s'écrit « 0 obole »), comme l'écran Comptes. Seules les saisies de prix restent en oboles, l'unité des commandes, et le disent dans leur libellé ; les prix des carnets et des chandeliers sont des nombres d'oboles, annoncés comme tels.
 - Une commande dont un appel lève (relecture ou annonce en échec ; un réseau coupé, lui, rend déjà une erreur) est annoncée comme une erreur et rend l'écran utilisable : les contrôles ne restent jamais en attente.
 - Accessibilité : contrastes AA, navigation clavier, tailles de police réglables, aucune information portée par la couleur seule.

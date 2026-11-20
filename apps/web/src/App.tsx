@@ -143,9 +143,10 @@ export function App() {
     screen = <CreateHouse cities={cities} accessToken={session.access_token} onCreated={load} />;
   }
 
-  // Avant la maison : un seul écran centré, sans navigation.
+  // Avant la maison : un seul écran centré, sans navigation ; la connexion, centrée aussi en hauteur sur
+  // ordinateur (#869).
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="flex flex-wrap items-center justify-between gap-2 p-4">
         <p className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
           <span
@@ -166,7 +167,12 @@ export function App() {
         </div>
       </header>
       <main
-        className={cn('mx-auto animate-rise p-4', session === null ? 'max-w-4xl' : 'max-w-2xl')}
+        className={cn(
+          'mx-auto w-full animate-rise p-4',
+          session === null
+            ? 'max-w-4xl md:flex md:flex-1 md:flex-col md:justify-center md:pb-18'
+            : 'max-w-2xl',
+        )}
       >
         {session === null ? (
           screen
