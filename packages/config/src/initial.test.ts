@@ -34,6 +34,25 @@ const TEN_RAW: Record<string, string> = {
   silver: 'mine_silver',
 };
 const [TEN_RAW_GOODS, TEN_RAW_RECIPES] = [Object.keys(TEN_RAW), Object.values(TEN_RAW)];
+/** Les douze intermédiaires de #709 et leurs ateliers, dans l'ordre de la configuration. */
+const TWELVE_INTERMEDIATE: Record<string, string> = {
+  barley_flour: 'mill_barley',
+  must: 'press_must',
+  planks: 'saw_planks',
+  bronze: 'smelt_bronze',
+  wrought_iron: 'forge_iron',
+  thread: 'spin_thread',
+  leather: 'tan_leather',
+  linen_cloth: 'weave_linen',
+  pigments: 'grind_pigments',
+  wax: 'render_wax',
+  silver_ingots: 'cast_silver',
+  marble_blocks: 'cut_marble',
+};
+const [TWELVE_GOODS, TWELVE_RECIPES] = [
+  Object.keys(TWELVE_INTERMEDIATE),
+  Object.values(TWELVE_INTERMEDIATE),
+];
 /**
  * Biens qui n'attendent encore qu'un atelier ou un acheteur : la figue (#711, #712) et les onze intermédiaires
  * que les biens finis de #710 et #711 consommeront. La liste se vide au fil de ces tickets ; à la fin des biens finis
@@ -223,6 +242,61 @@ describe('jeu de valeurs initial', () => {
       expect(margin(recipe), recipe.id).toBeGreaterThanOrEqual(899 / 2);
       expect(margin(recipe), recipe.id).toBeLessThanOrEqual(899 * 2);
     }
+  });
+
+  it('douze intermédiaires de plus (#709), chacun d’un atelier à intrants, seize en tout', () => {
+    expect(config.goods.slice(25).map((good) => [good.id, good.tier])).toEqual(
+      TWELVE_GOODS.map((id) => [id, 'intermediate']),
+    );
+    const workshops = config.recipes.slice(25);
+    expect(workshops.map((recipe) => [recipe.id, recipe.siteType, recipe.outputs.length])).toEqual(
+      TWELVE_RECIPES.map((id) => [id, 'workshop', 1]),
+    );
+    expect(workshops.map((recipe) => recipe.outputs[0]?.goodId)).toEqual(TWELVE_GOODS);
+    for (const recipe of workshops) expect(recipe.inputs.length, recipe.id).toBeGreaterThan(0);
+    // Chaque atelier ne consomme que des matières premières, ou le fil qu'une autre recette de #709 produit.
+    const tier = new Map(config.goods.map((good) => [good.id, good.tier]));
+    for (const recipe of workshops)
+      for (const input of recipe.inputs)
+        expect(
+          tier.get(input.goodId) === 'raw' || ['charcoal', 'thread'].includes(input.goodId),
+          `${recipe.id} consomme ${input.goodId}`,
+        ).toBe(true);
+    // Les recettes de la phase 2 ne changent pas (décision de #709) : le vin reste fait de raisin, le tissu de laine.
+    const recipe = (id: string) => config.recipes.find((each) => each.id === id);
+    expect(recipe('ferment_wine')?.inputs.map((input) => input.goodId)).toEqual([
+      'grapes',
+      'amphorae',
+    ]);
+    expect(recipe('weave_cloth')?.inputs.map((input) => input.goodId)).toEqual(['wool']);
+  });
+
+  it('marge nette quotidienne de chaque atelier de #709, au prix de référence, entre la moitié et le double de la médiane de la phase 2', () => {
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    const value = (lines: { goodId: string; quantity: number }[]) =>
+      lines.reduce((sum, line) => sum + line.quantity * (price.get(line.goodId) ?? NaN), 0);
+    // Un jour de cycles : extrants moins intrants au prix de référence, moins l'entretien et les salaires.
+    const margin = (recipe: (typeof config.recipes)[number]) =>
+      (value(recipe.outputs) - value(recipe.inputs)) * (1440 / recipe.durationMinutes) -
+      Math.ceil((dailyOboles[recipe.siteType] * coefficientBps) / 10_000) -
+      recipe.workers * (config.staff.dailyWageOboles['kalliste'] ?? NaN);
+    // Médiane des huit matières premières de la phase 2 (899 oboles), écrite à la main : bornes de 449,5 à 1 798.
+    for (const recipe of config.recipes.filter((each) => TWELVE_RECIPES.includes(each.id))) {
+      expect(margin(recipe), recipe.id).toBeGreaterThanOrEqual(899 / 2);
+      expect(margin(recipe), recipe.id).toBeLessThanOrEqual(899 * 2);
+    }
+  });
+
+  it('chaque intermédiaire est l’intrant d’une recette, sauf ceux qui attendent un bien fini (#710, #711)', () => {
+    const consumed = new Set(config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)));
+    const intermediates = config.goods.filter((good) => good.tier === 'intermediate');
+    expect(intermediates).toHaveLength(16);
+    // L'huile et le tissu, que seuls les PNJ achetent, attendent eux aussi un bien fini (parfums, vêtements).
+    const awaiting = [...AWAITING_BUYER, 'olive_oil', 'cloth'];
+    expect(
+      intermediates.filter((good) => !consumed.has(good.id) && !awaiting.includes(good.id)),
+    ).toEqual([]);
   });
 
   it('aucune cité ne produit tous les biens vitaux du panier de ses PNJ : blé, poisson, sel et bois du charbon du pain (6.1, #706)', () => {
