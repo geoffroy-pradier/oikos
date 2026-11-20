@@ -60,6 +60,9 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Un gain ne fait jamais baisser la Timè, ni une perte monter : des bornes resserrées par une version nouvelle ne ramènent pas d'un coup une Timè déjà au-delà, elles l'empêchent seulement de s'en éloigner.
   Les variations sont nulles au départ (paramètres neutres), et une version publiée avant la Timè n'en fait changer aucune.
   Chaque variation émet `HonorChanged` (maison, variation, motif, Timè après elle).
+  Motif `archon_term` (#704) : la clôture qui atteint la fin d'un mandat d'archonte (6.2), celle qui dépouille l'élection du suivant, crédite la maison qui l'a tenu du gain `honor.changes.archon_term`, une fois même rejouée.
+  Un mandat est crédité par la première clôture dont l'instant atteint sa fin : un mandat fini avant la clôture précédente du monde ne l'est jamais après coup, même quand une version plus récente rend ce gain non nul.
+  Une charge restée vacante ne crédite personne.
   Décision (ambiguïté) : les « sanctions » qui la font baisser sont celles du jeu (défaut de paiement, dérobade à une liturgie, Némésis), jamais celles de la modération (6.6).
   Les motifs des liturgies, des prêts et des conflits viendront avec leurs tickets ; le crédit, l'éligibilité et les prix des PNJ ne la lisent pas encore.
 
