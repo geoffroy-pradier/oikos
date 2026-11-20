@@ -2,6 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { cn } from '../cn';
 import { TableScroll } from './TableScroll';
 
+/**
+ * Colonne d'action : large de quoi tenir un bouton qui ne passe jamais à la ligne et, dessous, une raison sur deux
+ * lignes au plus (« Il manque … ») ; le reste de la largeur va aux autres colonnes.
+ */
+const ACTION = 'w-px min-w-56 text-left [&_button]:whitespace-nowrap';
+
 export type SortDirection = 'ascending' | 'descending';
 
 export interface DataColumn<Row> {
@@ -58,7 +64,7 @@ export function DataTable<Row>({
   const details = rest.filter((column) => !column.action);
   const actions = rest.filter((column) => column.action);
   const align = (column: DataColumn<Row>) =>
-    column.numeric ? 'text-right tabular-nums' : column.action ? 'w-px text-right' : '';
+    column.numeric ? 'text-right tabular-nums' : column.action ? ACTION : '';
 
   return (
     <div className={className}>
@@ -108,7 +114,11 @@ export function DataTable<Row>({
                     key={column.id}
                     scope="col"
                     aria-sort={active ? sort?.direction : undefined}
-                    className={cn('min-w-20 px-1.5 py-2 font-medium', align(column) || 'text-left')}
+                    className={cn(
+                      'px-1.5 py-2 font-medium',
+                      column.action ? '' : 'min-w-20',
+                      align(column) || 'text-left',
+                    )}
                   >
                     {column.sortValue ? (
                       <button

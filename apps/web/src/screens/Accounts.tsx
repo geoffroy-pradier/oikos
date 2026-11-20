@@ -107,7 +107,12 @@ export function AccountsScreen() {
           </h2>
           <StatGrid as="ul">
             {BALANCE.map(([line, icon]) => (
-              <li key={line}>
+              // À 1 280 px, la grille a quatre colonnes : trésorerie et séquestre prennent deux colonnes chacun, stocks et
+              // total aussi, de quoi remplir deux rangées sans trou.
+              <li
+                key={line}
+                className={line === 'stockValue' || line === 'total' ? 'xl:col-span-2' : undefined}
+              >
                 <StatCard
                   wide={line === 'treasury'}
                   className={line === 'total' ? 'border-primary/40 bg-primary-subtle' : undefined}
