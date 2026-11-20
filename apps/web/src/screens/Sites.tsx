@@ -99,6 +99,8 @@ const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
 /** Un intendant lu sans opération : la fiche le dit, plutôt que de taire la section. */
 const NO_ACTIVITY = { recent: [], lastRefusal: null };
+/** Durée pendant laquelle le résultat d'une commande suit les fiches que les relectures agrandissent. */
+const NOTICE_FOLLOW_MS = 1000;
 
 /**
  * Sites de la maison : récolte, changement de production, acquisition d'un nouveau site
@@ -287,12 +289,25 @@ export function SitesCard({
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
+    // Une lecture relancée par la commande peut encore agrandir une fiche au-dessus du message : il reste
+    // dans la fenêtre tant que la page change de taille, pendant `NOTICE_FOLLOW_MS`.
+    let observer: ResizeObserver | undefined;
+    let stop: ReturnType<typeof setTimeout> | undefined;
+    if (element && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => element.scrollIntoView({ block: 'nearest' }));
+      observer.observe(document.body);
+      stop = setTimeout(() => observer?.disconnect(), NOTICE_FOLLOW_MS);
+    }
     // Le bouton qui a lancé l'action a pu disparaître (un site relancé n'a plus de bouton « Relancer »,
     // « Acquérir » s'efface à la limite) ou devenir inactif (« Changer » après un
     // changement réussi) : le foyer, retombé sur la page, est posé sur le message qui annonce l'issue.
     const active = document.activeElement;
     const lost = active === document.body || active?.matches(':disabled') === true;
     if (element && lost) element.focus();
+    return () => {
+      observer?.disconnect();
+      clearTimeout(stop);
+    };
   }, [notice]);
 
   const number = new Intl.NumberFormat(i18n.language);
