@@ -1,5 +1,5 @@
 import { SANCTION_REASON_MAX_CHARS, type AdminReports } from '@oikos/contracts';
-import { Button, cn, PageHeader, RefreshCw, Search, Sheet } from '@oikos/ui';
+import { Button, cn, EmptyState, PageHeader, RefreshCw, Search, Sheet } from '@oikos/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminCommand } from '../api';
@@ -318,7 +318,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
             )}
           </div>
           {queue.length === 0 ? (
-            <p className="text-muted-foreground">{t('moderation.queueEmpty')}</p>
+            <EmptyState compact illustration="noReport" title={t('moderation.queueEmpty')} />
           ) : (
             <>
               <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -502,7 +502,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
             {t('moderation.exclusions')}
           </h2>
           {data.pendingExclusions.length === 0 ? (
-            <p className="text-muted-foreground">{t('moderation.exclusionsEmpty')}</p>
+            <EmptyState compact illustration="noReport" title={t('moderation.exclusionsEmpty')} />
           ) : (
             <ul aria-labelledby="moderation-exclusions" className="flex flex-col gap-3">
               {data.pendingExclusions.map((item) => (
@@ -531,7 +531,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
             {t('moderation.active')}
           </h2>
           {active.length === 0 ? (
-            <p className="text-muted-foreground">{t('moderation.activeEmpty')}</p>
+            <EmptyState compact illustration="noReport" title={t('moderation.activeEmpty')} />
           ) : (
             <ul aria-labelledby="moderation-active" className="flex flex-col gap-3">
               {active.map((item) => (
@@ -560,7 +560,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
             {t('moderation.lifts')}
           </h2>
           {lifts.length === 0 ? (
-            <p className="text-muted-foreground">{t('moderation.liftsEmpty')}</p>
+            <EmptyState compact illustration="noReport" title={t('moderation.liftsEmpty')} />
           ) : (
             <ul aria-labelledby="moderation-lifts" className="flex flex-col gap-3">
               {lifts.map((item) => (
@@ -595,7 +595,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
             {t('moderation.appeals')}
           </h2>
           {data.appeals.length === 0 ? (
-            <p className="text-muted-foreground">{t('moderation.appealsEmpty')}</p>
+            <EmptyState compact illustration="noReport" title={t('moderation.appealsEmpty')} />
           ) : (
             <ul aria-labelledby="moderation-appeals" className="flex flex-col gap-3">
               {data.appeals.map((item) => (

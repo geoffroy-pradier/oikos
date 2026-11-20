@@ -298,6 +298,8 @@ Un chargement se montre par des formes qui annoncent le contenu, et une liste vi
 Une liste vide du jeu et d'Olympe prend le composant `EmptyState` (#866) : le dessin de sa famille, la raison, et l'action qui la remplit quand elle existe.
 Les familles sont les sites, l'entrepôt, les biens immobiliers, l'agora, la flotte, la cité, les messages, la modération et les registres de comptes.
 Dans une section déjà titrée, l'état vide se réduit à une rangée, un petit dessin à côté de la raison, sans titre de plus.
+Une liste ou une section vide prend toujours `EmptyState`, en variante compacte si la section a déjà un titre.
+Une valeur absente dans une carte ou un formulaire se dit en une phrase, sans dessin (marché du travail pas encore fixé, siège sans poste d'intendant, intendant sans règle, départ sans bien libre).
 Une lecture en échec et une adresse inconnue prennent la même présentation : une icône ou une illustration, le message, et l'action qui en sort (« Réessayer », « Revenir à la maison »).
 Chaque écran s'ouvre sur un en-tête de page commun (`PageHeader`) : titre de 26 px, heure de jeu et prochaine clôture quotidienne en sous-titre atténué, recherche si l'écran en a une, action principale à droite.
 L'heure de clôture et le fuseau du monde sont des règles publiques, lues par les joueurs connectés (vue `clock_rules`, pgTAP 690) ; sans horloge en vigueur, sous un fuseau que la base ou le navigateur ne connaît pas, ou si la lecture échoue, l'en-tête ne donne que l'heure.

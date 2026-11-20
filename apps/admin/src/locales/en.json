@@ -303,7 +303,8 @@
     },
     "filtered_one": "{{shown}} of {{count}} entry read: the filter only covers entries already loaded.",
     "filtered_other": "{{shown}} of {{count}} entries read: the filter only covers entries already loaded.",
-    "filteredEmpty": "No loaded entry has this outcome."
+    "filteredEmpty": "No loaded entry has this outcome.",
+    "showAll": "Show all entries"
   },
   "moderation": {
     "title": "Moderation",
@@ -503,7 +504,8 @@
     "all": "All",
     "filtered_one": "{{shown}} of {{count}} event.",
     "filtered_other": "{{shown}} of {{count}} events.",
-    "filteredEmpty": "No event in this state."
+    "filteredEmpty": "No event in this state.",
+    "showAll": "Show all events"
   },
   "config": {
     "title": "Parameters",

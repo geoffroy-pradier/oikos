@@ -219,7 +219,7 @@ export function CityScreen() {
           {rows.rows === null && !rows.failed && <Loading />}
           {failed && <LoadProblem heading={title} onRetry={() => rows.reload()} />}
           {city && city.classes.length === 0 && (
-            <p className="text-muted-foreground">{t('city.empty')}</p>
+            <EmptyState compact illustration="noEvent" title={t('city.empty')} />
           )}
           {city && city.classes.length > 0 && (
             <>

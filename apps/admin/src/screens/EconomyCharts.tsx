@@ -1,4 +1,4 @@
-import { DataTable, type SortDirection } from '@oikos/ui';
+import { DataTable, EmptyState, type SortDirection } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 
 /** Créé (robinets) et détruit (puits) un jour de jeu, en oboles nettes. */
@@ -144,7 +144,7 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: n
     <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm lg:p-5">
       <h3 className="text-base font-semibold">{t('economy.shares')}</h3>
       {positive.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('economy.noShares')}</p>
+        <EmptyState compact illustration="noEntry" title={t('economy.noShares')} />
       ) : (
         <dl className="flex flex-col gap-2.5 text-sm tabular-nums">
           {positive.map((sink) => {

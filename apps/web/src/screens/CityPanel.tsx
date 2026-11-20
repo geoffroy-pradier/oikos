@@ -1,4 +1,4 @@
-import { Card, Select, Store } from '@oikos/ui';
+import { Card, EmptyState, Select, Store } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { describeCity, type CityIdentity } from '../city-identity';
@@ -105,7 +105,7 @@ export function CityPanel(props: {
         )}
       </dl>
       {prices.rows?.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t('map.city.noPrices')}</p>
+        <EmptyState compact illustration="noOrder" title={t('map.city.noPrices')} />
       )}
       {lines && <p className="text-sm text-muted-foreground">{lines.terroir}</p>}
       {!offered && (

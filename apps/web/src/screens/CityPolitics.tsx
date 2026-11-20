@@ -177,7 +177,9 @@ export function CityPolitics() {
               <CalendarClock aria-hidden="true" />
               {t('cityPolitics.election')}
             </h3>
-            {!election && <p className="text-muted-foreground">{t('cityPolitics.noElection')}</p>}
+            {!election && (
+              <EmptyState compact illustration="noEvent" title={t('cityPolitics.noElection')} />
+            )}
             {election && phase && (
               <>
                 <p className="font-medium">
