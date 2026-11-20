@@ -1,4 +1,4 @@
-import { Button, Field } from '@oikos/ui';
+import { Button, Card, TextField, WelcomeScene } from '@oikos/ui';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
@@ -26,30 +26,39 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
     setState(error ? 'failed' : 'sent');
   }
 
+  // Téléphone : la scène au-dessus de la carte ; ordinateur : à côté, la carte centrée sur la scène.
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <h1 className="text-2xl">{t('signIn.title')}</h1>
-      {sessionEnded && (
-        <p id={noticeId} role="status" className="rounded-md bg-muted/40 p-3">
-          {t('signIn.sessionEnded')}
-        </p>
-      )}
-      <p className="text-muted-foreground">{t('signIn.intro')}</p>
-      <Field
-        label={t('signIn.email')}
-        id={emailId}
-        aria-describedby={sessionEnded ? noticeId : undefined}
-        type="email"
-        autoComplete="email"
-        required
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-      />
-      <Button type="submit" disabled={state === 'sending'}>
-        {t('signIn.submit')}
-      </Button>
-      {state === 'sent' && <p role="status">{t('signIn.sent', { email })}</p>}
-      {state === 'failed' && <p role="alert">{t('signIn.failed')}</p>}
-    </form>
+    <div className="mx-auto grid max-w-4xl items-center gap-6 md:grid-cols-2 md:gap-12">
+      <div className="flex flex-col gap-3">
+        <WelcomeScene className="h-auto w-full rounded-xl" />
+        <p className="text-center text-foreground-secondary">{t('signIn.welcome')}</p>
+      </div>
+      <Card elevation="raised" className="p-5 md:p-6">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <h1 className="text-2xl">{t('signIn.title')}</h1>
+          {sessionEnded && (
+            <p id={noticeId} role="status" className="rounded-md bg-muted/40 p-3">
+              {t('signIn.sessionEnded')}
+            </p>
+          )}
+          <p className="text-muted-foreground">{t('signIn.intro')}</p>
+          <TextField
+            label={t('signIn.email')}
+            id={emailId}
+            aria-describedby={sessionEnded ? noticeId : undefined}
+            error={state === 'failed' ? t('signIn.failed') : undefined}
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <Button type="submit" size="lg" loading={state === 'sending'}>
+            {t('signIn.submit')}
+          </Button>
+          {state === 'sent' && <p role="status">{t('signIn.sent', { email })}</p>}
+        </form>
+      </Card>
+    </div>
   );
 }

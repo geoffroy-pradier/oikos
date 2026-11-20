@@ -102,6 +102,66 @@ describe('Stepper', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('Entrée dans un champ avance ; une étape gardée par check reste en place', () => {
+    let allowed = false;
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={() => undefined}
+        steps={[
+          {
+            id: 'name',
+            title: 'Nom',
+            check: () => allowed,
+            content: <input aria-label="Nom" />,
+          },
+          { id: 'summary', title: 'Récapitulatif', content: <p>Fin</p> },
+        ]}
+      />,
+    );
+    fireEvent.keyDown(screen.getByLabelText('Nom'), { key: 'Enter' });
+    expect(current()).toEqual(['Nom']);
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(current()).toEqual(['Nom']);
+    allowed = true;
+    fireEvent.keyDown(screen.getByLabelText('Nom'), { key: 'Enter' });
+    expect(current()).toEqual(['Récapitulatif']);
+  });
+
+  it('Entrée qui valide une composition IME n’avance pas', () => {
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={() => undefined}
+        steps={[
+          { id: 'name', title: 'Nom', content: <input aria-label="Nom" /> },
+          { id: 'summary', title: 'Récapitulatif', content: <p>Fin</p> },
+        ]}
+      />,
+    );
+    const field = screen.getByLabelText('Nom');
+    fireEvent.keyDown(field, { key: 'Enter', isComposing: true });
+    expect(current()).toEqual(['Nom']);
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(current()).toEqual(['Récapitulatif']);
+  });
+
+  it('commence par l’étape demandée, sans voler le foyer', () => {
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={() => undefined}
+        initialStep="summary"
+        steps={[
+          { id: 'name', title: 'Nom', content: <p>Nom</p> },
+          { id: 'summary', title: 'Récapitulatif', content: <p>Fin</p> },
+        ]}
+      />,
+    );
+    expect(current()).toEqual(['Récapitulatif']);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('dans une feuille : la tabulation boucle, Échap ferme et rend le foyer', () => {
     function InSheet() {
       const [open, setOpen] = useState(false);

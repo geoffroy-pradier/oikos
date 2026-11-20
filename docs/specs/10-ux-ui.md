@@ -26,6 +26,9 @@ Si Supabase Auth ne répond pas, la session reste aussi ouverte, avec son jeton 
 Si Supabase Auth refuse le renouvellement (compte effacé depuis la connexion, session révoquée), la session est fermée sur l'appareil et l'application revient à la connexion.
 Un seul renouvellement par jeton refusé : si l'API refuse encore le jeton issu d'un renouvellement (compte effacé sans que ses sessions soient fermées, par exemple), la session est fermée sans nouvel essai, et aucune boucle de renouvellements ne s'installe.
 L'écran de connexion dit alors pourquoi, en français et en anglais, et donne le foyer au champ de l'adresse, que ce message décrit ; il ne le dit plus après la connexion suivante.
+La connexion tient en une carte centrée : sur téléphone la scène d'accueil la surmonte, sur ordinateur elle se tient à son côté.
+Un envoi refusé s'affiche sous le champ de l'adresse, qu'il décrit et marque invalide.
+Dans un Stepper, Entrée dans un champ de saisie vaut Continuer ; une étape peut garder le joueur sur place (`check`) en expliquant pourquoi, et un refus de l'API qui se corrige à une étape y ramène le joueur (`initialStep`).
 
 ## Écrans clés à maquetter en premier
 

@@ -5,7 +5,7 @@ import { voyageArrivals } from '@oikos/engine';
 import { createRng } from '@oikos/sim';
 import { expect, test } from '@playwright/test';
 import { sql } from 'kysely';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Onglet Carte (#254) : acheter un navire, le faire partir chargé, le voir arriver, par l'interface.
 const db = createDb(process.env['DATABASE_URL'] ?? '');
@@ -56,9 +56,7 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   const id = randomUUID();
   const houseName = `Armateurs ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await elapse(houseName, 480);
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();

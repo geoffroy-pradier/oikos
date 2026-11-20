@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import { closeCityDb, ARCHON_NAME, setUpCity } from './city-fixtures';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Onglet Cité (#264) : vie politique, assemblée et trésor public de Kallistè, avec une élection en dépôt
 // des candidatures et un décret au vote ; ce qu'y voient et y font un métèque, une citoyenne et l'archonte.
@@ -11,9 +11,7 @@ async function openCity(page: Page, role: Parameters<typeof setUpCity>[1]) {
   const id = randomUUID();
   const houseName = `Agora ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await setUpCity(houseName, role);
   await page.getByRole('link', { name: 'Cité' }).click();

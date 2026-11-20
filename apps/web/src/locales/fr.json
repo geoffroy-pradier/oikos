@@ -20,7 +20,8 @@
     "submit": "Recevoir le lien",
     "sent": "Lien envoyé à {{email}}. Ouvrez-le sur cet appareil pour continuer.",
     "failed": "L'envoi a échoué. Réessayez dans un instant.",
-    "sessionEnded": "Votre session a pris fin : ce compte n'est plus reconnu, ou sa connexion a expiré. Reconnectez-vous pour continuer."
+    "sessionEnded": "Votre session a pris fin : ce compte n'est plus reconnu, ou sa connexion a expiré. Reconnectez-vous pour continuer.",
+    "welcome": "Une Grèce de légende, une maison à bâtir."
   },
   "createHouse": {
     "title": "Fonder votre maison",

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 /** Violations graves (sérieuses ou critiques) des règles WCAG A et AA relevées par axe sur la page. */
 async function seriousViolations(page: Page) {
@@ -24,9 +24,7 @@ test('coquille : sans violation grave (axe) dans les deux thèmes, Réglages au 
   const id = randomUUID();
   const houseName = `Coquille ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
 
   // Sur ordinateur, la maison est dans la barre latérale ; sur téléphone, dans l'en-tête compact.

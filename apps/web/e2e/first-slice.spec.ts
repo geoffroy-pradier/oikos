@@ -5,7 +5,13 @@ import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '
 import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { sql } from 'kysely';
-import { chooseLanguage, expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import {
+  chooseLanguage,
+  expectNoHorizontalScroll,
+  KALLISTE_ID,
+  signIn,
+  foundHouseForm,
+} from './helpers';
 
 /**
  * Message annoncé : les régions vivantes vides, présentes en permanence près de chaque action, ne
@@ -33,9 +39,7 @@ async function foundHouse(page: Page) {
   const id = randomUUID();
   const houseName = `Champs ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   return houseName;
 }

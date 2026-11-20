@@ -20,7 +20,8 @@
     "submit": "Send me the link",
     "sent": "Link sent to {{email}}. Open it on this device to continue.",
     "failed": "The email could not be sent. Try again in a moment.",
-    "sessionEnded": "Your session has ended: this account is no longer recognised, or its sign-in has expired. Sign in again to continue."
+    "sessionEnded": "Your session has ended: this account is no longer recognised, or its sign-in has expired. Sign in again to continue.",
+    "welcome": "A legendary Greece, a house to build."
   },
   "createHouse": {
     "title": "Found your house",

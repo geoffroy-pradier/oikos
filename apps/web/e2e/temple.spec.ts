@@ -4,7 +4,7 @@ import { createDb } from '@oikos/db';
 import { expect, test } from '@playwright/test';
 import { sql } from 'kysely';
 import { closeCityDb, E2E_ORACLE, setUpOracle } from './city-fixtures';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, signIn, foundHouseForm } from './helpers';
 
 // Écran du temple (#272), IA coupée (configuration initiale) : Charis, offrande de monnaie et de blé au clavier,
 // grâces, consultation de la Pythie et oracle en texte brut, puis l'offrande dans les flux de l'écran Comptes. À
@@ -31,9 +31,7 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   const id = randomUUID();
   const houseName = `Prêtres ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
   await signIn(page, `e2e-${id}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(houseName);
-  await page.locator(`input[value="${KALLISTE_ID}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, houseName);
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
   await elapse(houseName, 480);
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();

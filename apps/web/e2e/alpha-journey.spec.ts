@@ -6,7 +6,7 @@ import { createRng } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { closeCityDb, E2E_ORACLE, setUpChronicles, setUpCity, setUpOracle } from './city-fixtures';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { expectNoHorizontalScroll, foundHouseForm, KALLISTE_ID, signIn } from './helpers';
 
 // Parcours de l'alpha (#286), critère de sortie de la phase 2, point 1 : deux joueurs dans deux cités (Kallistè et
 // Elaia), à 360 px, IA coupée (configuration initiale), qui jouent à tour de rôle ce que le critère énumère. Chaque
@@ -35,9 +35,7 @@ const suffix = () => [...randomUUID().replace(/[^a-f]/g, '')].slice(0, 8).join('
 async function foundHouse(page: Page, prefix: string, cityId: string) {
   const name = `${prefix} ${suffix()}`;
   await signIn(page, `e2e-${randomUUID()}@example.test`);
-  await page.getByLabel('Nom de la maison').fill(name);
-  await page.locator(`input[value="${cityId}"]`).check();
-  await page.getByLabel('Nom de la maison').press('Enter');
+  await foundHouseForm(page, name, page.locator(`input[value="${cityId}"]`));
   await expect(page.getByRole('heading', { name: `Maison ${name}` })).toBeVisible();
   return name;
 }
