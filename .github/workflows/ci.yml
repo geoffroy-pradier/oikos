@@ -15,15 +15,17 @@ concurrency:
 # données, tests d'intégration, banc d'équilibrage et bout en bout (découpés en morceaux, chacun avec sa propre
 # pile Supabase, #900), images.
 # Le job `ci`, en dernier, est le seul contrôle requis : il est vert si tous les autres le sont, ou si ceux
-# qui ne concernent pas le changement ont été sautés (documents seuls).
+# qui ne concernent pas le changement ont été sautés (documents seuls ; interface seule pour la base,
+# l'intégration et les bancs).
 jobs:
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      server: ${{ steps.diff.outputs.server }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -42,6 +44,7 @@ jobs:
             base="$BEFORE"
           else
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "server=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --diff-filter=MDR --name-only "$base" HEAD -- packages/db/supabase/migrations)"
@@ -60,6 +63,16 @@ jobs:
             echo "code=false" >> "$GITHUB_OUTPUT"
             echo "Documents seuls : base, intégration, bout en bout et images sautés."
           fi
+          # Interface seule (clients, site, composants) : la base, l'intégration et les bancs ne lisent aucun
+          # de ces fichiers, ils sont sautés ; le bout en bout tourne. Sur `main`, tout tourne toujours.
+          if [ "${{ github.event_name }}" = push ] \
+            || printf '%s\n' "$files" \
+              | grep -qvE '^(docs/|\.claude/|apps/web/|apps/admin/|apps/site/|packages/ui/)|\.md$|^$'; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server=false" >> "$GITHUB_OUTPUT"
+            echo "Interface seule : base, intégration et bancs sautés."
+          fi
 
   # Lint, types et tests unitaires. Le cache de Turborepo est gardé d'une exécution à l'autre : un paquet
   # que le changement ne touche pas n'est ni revérifié ni retesté.
@@ -67,13 +80,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
@@ -90,7 +103,7 @@ jobs:
   # de la suite (règle 9) et application des migrations comme au déploiement.
   database:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -98,11 +111,11 @@ jobs:
       # sortante du runner peut en occuper un et faire échouer le démarrage. On les réserve d'abord.
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
@@ -134,7 +147,7 @@ jobs:
   integration:
     name: integration (${{ matrix.part }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -155,11 +168,11 @@ jobs:
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
@@ -211,7 +224,7 @@ jobs:
   balance:
     name: balance (${{ matrix.shard }}/${{ matrix.shards }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -222,11 +235,11 @@ jobs:
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
@@ -245,7 +258,7 @@ jobs:
       # dans l'artefact du morceau qui a joué le banc des quatre cités.
       - name: Upload balance measures
         if: always() && hashFiles('balance-report/measures.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: balance-measures-${{ matrix.shard }}
           path: balance-report/measures.json
@@ -272,11 +285,11 @@ jobs:
     steps:
       - name: Reserve Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start Supabase
@@ -293,7 +306,7 @@ jobs:
       # Traces des tests rejoués (échec puis nouvel essai), à ouvrir avec `playwright show-trace`.
       - name: Upload end-to-end traces
         if: always() && hashFiles('apps/web/test-results/**/trace.zip') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-traces-${{ matrix.app }}-${{ matrix.shard }}
           path: apps/web/test-results/**/trace.zip
@@ -302,7 +315,7 @@ jobs:
       # de l'image Docker de Playwright ; à relire avant toute mise à jour d'une référence.
       - name: Upload visual differences
         if: always() && hashFiles('apps/*/test-results/**/*-diff.png') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-visual-${{ matrix.app }}-${{ matrix.shard }}
           path: |
@@ -317,11 +330,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Les images de l'API et du moteur doivent toujours pouvoir être construites.
@@ -351,15 +364,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Every job passed, or was skipped for a documentation-only change
+      - name: Every job passed, or was skipped for a documentation-only or interface-only change
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           echo "$RESULTS" | jq -e '
             (.changes.outputs.code) as $code
+            | (.changes.outputs.server) as $server
             | (keys == ["balance", "build", "changes", "database", "e2e", "integration", "static"])
             and (to_entries
             | all(.value.result == "success"
                   or (.value.result == "skipped" and $code == "false"
-                      and (.key | IN("changes", "static") | not))))' > /dev/null
+                      and (.key | IN("changes", "static") | not))
+                  or (.value.result == "skipped" and $server == "false"
+                      and (.key | IN("database", "integration", "balance")))))' > /dev/null
