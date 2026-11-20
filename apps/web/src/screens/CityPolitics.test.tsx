@@ -277,4 +277,19 @@ describe('statut de la maison et sa date (#420)', () => {
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
   });
+
+  it('carte de l’élection : l’étape en cours du calendrier, les candidatures comptées, le bulletin en cartes (#697)', async () => {
+    state.views = {
+      houses,
+      elections: [election()],
+      election_candidates: [{ id: 'k2', election_id: 'e1', house_id: 'h2', withdrawn_at: null }],
+    };
+    await show();
+    const steps = screen.getAllByRole('listitem').filter((item) => item.closest('ol'));
+    expect(steps.map((item) => item.getAttribute('aria-current'))).toEqual([null, 'step', null]);
+    expect(steps[1]?.textContent).toMatch(/^Vote à partir du /);
+    expect(screen.getByRole('heading', { name: '1 candidature', level: 4 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: fr.cityPolitics.ballot, level: 4 })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Voter pour Maison Alpha' })).toBeTruthy();
+  });
 });

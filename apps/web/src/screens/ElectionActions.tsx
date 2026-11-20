@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Check, TriangleAlert, Vote } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand, type CityCommandInputs } from '../api';
@@ -11,6 +11,8 @@ import { LoadProblem } from './LoadProblem';
 type Command = 'city.standForElection' | 'city.withdrawCandidacy' | 'city.castVote';
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
+/** Carte d'action dans la carte de l'élection : candidature ou bulletin. */
+const PANEL = 'flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface p-4';
 
 /**
  * Actions d'une citoyenne à l'élection en cours (6.2) : se porter candidate ou se retirer pendant le dépôt,
@@ -65,16 +67,24 @@ export function ElectionActions(props: {
   }, [notice]);
 
   return (
-    <div className="flex flex-col gap-2">
-      {phase === 'filing' && withdrawn && <p>{t('cityPolitics.withdrawn')}</p>}
+    <div className="flex flex-col gap-3">
+      {phase === 'filing' && withdrawn && <p className={PANEL}>{t('cityPolitics.withdrawn')}</p>}
       {phase === 'filing' && !withdrawn && (
-        <>
-          {mine && (
-            <p id={`withdraw-${election.id}`} className="text-muted-foreground">
+        <div className={PANEL}>
+          <h4 className="font-semibold">{t('cityPolitics.candidacy')}</h4>
+          {mine ? (
+            <p
+              id={`withdraw-${election.id}`}
+              className="flex items-start gap-2 text-sm text-warning"
+            >
+              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               {t('cityPolitics.withdrawWarning')}
             </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('cityPolitics.standHint')}</p>
           )}
           <Button
+            variant={mine ? 'secondary' : 'primary'}
             className={`self-start ${WAITING}`}
             aria-disabled={busy}
             aria-describedby={mine ? `withdraw-${election.id}` : undefined}
@@ -86,28 +96,43 @@ export function ElectionActions(props: {
           >
             {t(mine ? 'cityPolitics.withdraw' : 'cityPolitics.stand')}
           </Button>
-        </>
+        </div>
       )}
       {phase === 'voting' && (ballotRows.failed || (ballotRows.rows !== null && !voted)) && (
         <LoadProblem onRetry={() => ballotRows.reload()} />
       )}
-      {phase === 'voting' && voted?.has(election.id) && <p>{t('cityPolitics.voted')}</p>}
+      {phase === 'voting' && voted?.has(election.id) && (
+        <p className={`${PANEL} flex-row items-center`}>
+          <Check aria-hidden="true" className="size-5 shrink-0 text-success" />
+          {t('cityPolitics.voted')}
+        </p>
+      )}
       {phase === 'voting' && voted && !voted.has(election.id) && (
-        <ul className="flex flex-wrap gap-2">
-          {candidates.map((candidate) => (
-            <li key={candidate.id}>
-              <Button
-                className={WAITING}
-                aria-disabled={busy}
-                onClick={() =>
-                  void run('city.castVote', { electionId: election.id, candidacyId: candidate.id })
-                }
-              >
-                {t('cityPolitics.voteFor', { house: nameOf(candidate.houseId) })}
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <div className={PANEL}>
+          <h4 className="font-semibold">{t('cityPolitics.ballot')}</h4>
+          <p className="text-sm text-muted-foreground">{t('cityPolitics.ballotHint')}</p>
+          {/* Un bulletin par candidature, en carte : le nom de la maison est dans le bouton. */}
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {candidates.map((candidate) => (
+              <li key={candidate.id}>
+                <Button
+                  variant="secondary"
+                  icon={<Vote />}
+                  className={`h-auto min-h-14 w-full justify-start py-3 text-left break-all ${WAITING}`}
+                  aria-disabled={busy}
+                  onClick={() =>
+                    void run('city.castVote', {
+                      electionId: election.id,
+                      candidacyId: candidate.id,
+                    })
+                  }
+                >
+                  {t('cityPolitics.voteFor', { house: nameOf(candidate.houseId) })}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <p
         ref={noticeElement}

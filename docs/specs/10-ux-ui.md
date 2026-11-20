@@ -151,6 +151,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Refonte (#697) : vie politique, assemblée, trésor, événements et chronique sont des pastilles de l'onglet Cité, la vie politique d'abord.
    Les panneaux des pastilles quittées restent montés, cachés : une commande en vol garde sa clé, une saisie survit au changement de pastille.
    Au-dessus des pastilles, l'en-tête de page porte le lien du temple, puis viennent la vignette et l'identité de la cité et trois cartes : population (détail par classe replié), marché du travail et parc de logements.
+   La vie politique tient en cartes : statut, archonte en charge, élection en cours (calendrier en trois étapes, l'étape en cours marquée, candidatures en cartes), puis la dernière élection dépouillée, dont les voix sont doublées de barres.
+   Dans la carte de l'élection, la candidature et le bulletin sont des cartes d'action : le bulletin a un bouton par candidature, qui nomme la maison.
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).
