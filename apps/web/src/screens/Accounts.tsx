@@ -6,6 +6,7 @@ import {
   Package,
   Scale,
   StatCard,
+  StatGrid,
   TriangleAlert,
 } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
@@ -104,13 +105,12 @@ export function AccountsScreen() {
           <h2 id="balance-sheet" className="text-lg font-semibold">
             {t('accounts.balanceSheet')}
           </h2>
-          <ul className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+          <StatGrid as="ul">
             {BALANCE.map(([line, icon]) => (
-              <li key={line} className="flex">
+              <li key={line}>
                 <StatCard
-                  className={
-                    line === 'total' ? 'flex-1 border-primary/40 bg-primary-subtle' : 'flex-1'
-                  }
+                  wide={line === 'treasury'}
+                  className={line === 'total' ? 'border-primary/40 bg-primary-subtle' : undefined}
                   label={t(`accounts.${line}`)}
                   icon={icon}
                   value={money(sheet[line])}
@@ -122,7 +122,7 @@ export function AccountsScreen() {
                 />
               </li>
             ))}
-          </ul>
+          </StatGrid>
         </section>
       )}
       {stocks && <ValuedStocks stocks={stocks} />}

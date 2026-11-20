@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Sparkles,
   StatCard,
+  StatGrid,
   type SortDirection,
 } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
@@ -250,11 +251,11 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           <h2 id={`vigie-${id}`} className="text-base font-semibold">
             {t(`vigie.groups.${id}`)}
           </h2>
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatGrid as="dl">
             {figures.map(([label, value]) => (
               <StatCard key={label} definition dense label={label} value={value} />
             ))}
-          </dl>
+          </StatGrid>
         </section>
       ))}
       {facts.length > 0 && (

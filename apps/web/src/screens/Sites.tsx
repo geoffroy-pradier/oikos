@@ -9,6 +9,7 @@ import {
   GoodIcon,
   Package,
   StatCard,
+  StatGrid,
   TriangleAlert,
   Wheat,
 } from '@oikos/ui';
@@ -783,7 +784,7 @@ export function SitesCard({
   const known = sites.rows !== null && costs.every((cost) => cost !== null);
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StatGrid>
         {figures}
         <StatCard
           dense
@@ -817,7 +818,7 @@ export function SitesCard({
           value={known ? money(costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0)) : '—'}
           hint={t('sites.dailyHint')}
         />
-      </div>
+      </StatGrid>
       <div className="flex flex-wrap items-center justify-between gap-3">
         {harvestable.length > 0 && (
           <Button
@@ -1162,6 +1163,7 @@ export function SitesScreen() {
         figures={
           <StatCard
             dense
+            wide
             label={t('home.treasury')}
             icon={<Coins />}
             value={balance === undefined ? '—' : money(balance)}

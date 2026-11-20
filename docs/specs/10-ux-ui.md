@@ -271,7 +271,16 @@ Décidée le 19 novembre 2026 (ADR 0011), elle remplace la direction inspirée d
 L'interface est épurée : fond neutre, graphite en thème sombre et gris très clair en thème clair, un seul accent orange pour l'action principale, l'état actif et les données mises en avant.
 Aucun ornement : ni frise, ni texture, ni police de titrage ; Inter seule, avec des chiffres tabulaires pour tout montant ou quantité.
 Les chiffres clés sont en cartes, les sous-sections d'un onglet en onglets à pastilles, les listes en tableaux denses et triables sur ordinateur et en fiches sur téléphone.
-Sur téléphone, un plan inversé (jetons `inverse`, sombre dans les deux thèmes) met en tête la trésorerie du tableau de bord ; les autres chiffres clés y passent en petites cartes, trois par rangée.
+Sur téléphone, un plan inversé (jetons `inverse`, sombre dans les deux thèmes) met en tête la trésorerie du tableau de bord, sur toute la rangée ; les autres chiffres clés y passent en petites cartes, sans icône ni ligne secondaire.
+Le détail de la trésorerie (séquestre, ordres ouverts à l'agora) se lit sous les cartes, hors de la carte de la trésorerie (#863).
+Une carte de chiffre montre sa valeur en grand sur une seule ligne, dans le format unique des montants, sans abréviation : la taille du chiffre suit la largeur de la carte.
+Elle a au plus une ligne secondaire (variation, précision, petite courbe).
+Les cartes de chiffres du jeu et d'Olympe se rangent dans une même grille (`StatGrid`) : deux par rangée sous 1 280 px de large.
+À partir de 1 280 px, des cartes qui tiennent en cinq colonnes (une carte large en compte deux) forment une seule rangée, où toutes les valeurs prennent la taille de la plus serrée ; au-delà, quatre par rangée.
+Les cartes d'une rangée ont la même hauteur, et leurs libellés, valeurs et lignes secondaires s'alignent : un libellé sur deux lignes ne décale pas la valeur.
+Le chiffre principal d'un écran (la trésorerie sur Maison, Sites et Comptes) est en carte large, sur deux colonnes ; une valeur trop longue pour une colonne fait aussi de sa carte une carte large : dans une rangée, aucune valeur n'est plus petite que celle d'une carte voisine.
+Sous 1 280 px, une carte restée seule sur sa rangée la prend entière.
+Un ratio s'écrit en toutes lettres, « 1 sur 4 » (« 1 of 4 »).
 Une action qui demande plus d'un choix s'ouvre dans une feuille (montée du bas sur téléphone, panneau latéral ou boîte de dialogue sur ordinateur) ; une action à plusieurs champs se fait par étapes, avec validation à la saisie et un récapitulatif chiffré avant la confirmation.
 Aucun formulaire ne reste ouvert en permanence dans un écran.
 Chaque onglet, chaque action et chaque état porte une icône au trait (lucide) ; une icône est décorative, un texte porte toujours l'information.

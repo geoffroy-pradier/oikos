@@ -1,4 +1,4 @@
-import { Card, cn, Coins, Package, StatCard, TrendingUp, Wheat } from '@oikos/ui';
+import { Coins, Package, StatCard, StatGrid, TrendingUp, Wheat } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { variation, type BalancePoint } from '../balance-history';
@@ -10,9 +10,9 @@ import type { SitesSummary } from './Sites';
 const WEEK = 7;
 
 /**
- * Chiffres clés du tableau de bord : trésorerie (variation sur 7 jours, séquestre, ordres à l'agora), résultat du
- * jour, stocks valorisés et sites en activité. Sur téléphone, la trésorerie passe en tête, en carte inversée avec
- * sa courbe, et les trois autres en petites cartes.
+ * Chiffres clés du tableau de bord : trésorerie (variation sur 7 jours), résultat du jour, stocks valorisés et sites
+ * en activité, puis le détail de la trésorerie (séquestre, ordres à l'agora). Sur téléphone, la trésorerie passe en
+ * tête, en carte inversée avec sa courbe, et les trois autres en petites cartes.
  */
 export function HomeFigures(props: {
   figures: ReturnType<typeof useHomeFigures>;
@@ -31,67 +31,21 @@ export function HomeFigures(props: {
     amount > 0 ? t('home.figures.plus', { amount: money(amount) }) : money(amount);
   const charges = today && -(today.purchases + today.taxes + today.upkeep);
   return (
-    <section
-      aria-label={t('home.figures.title')}
-      className="grid grid-cols-3 gap-2 lg:grid-cols-4 lg:gap-4"
-    >
-      <Card
-        className={cn(
-          'col-span-3 flex flex-col gap-1.5 rounded-2xl border-inverse bg-inverse p-4 text-inverse-foreground',
-          'lg:col-span-1 lg:rounded-xl lg:border-border-subtle lg:bg-surface lg:text-foreground',
-        )}
-      >
-        <div className="flex items-center justify-between gap-2 text-[0.8125rem] text-inverse-muted lg:text-muted-foreground">
-          <span>{t('home.treasury')}</span>
-          <Coins aria-hidden="true" className="size-4" />
-        </div>
-        <p className="text-[2rem] leading-tight font-bold tabular-nums lg:text-2xl">
-          {props.balance === undefined ? '—' : money(props.balance)}
-        </p>
-        <div className="flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[0.8125rem] text-inverse-muted lg:text-muted-foreground">
-            {week !== null && (
-              <p>
-                <span
-                  className={cn(
-                    'font-semibold text-inverse-foreground tabular-nums',
-                    week > 0
-                      ? 'lg:text-success'
-                      : week < 0
-                        ? 'lg:text-danger'
-                        : 'lg:text-foreground',
-                  )}
-                >
-                  <span aria-hidden="true">{week > 0 ? '▲ ' : week < 0 ? '▼ ' : '– '}</span>
-                  {signed(week)}
-                </span>{' '}
-                {t('home.figures.week')}
-              </p>
-            )}
-            {props.held > 0 && <p>{t('home.held', { amount: money(props.held) })}</p>}
-            {props.orders && (
-              <p>
-                {props.orders.buys + props.orders.sells === 0
-                  ? t('home.openOrdersNone')
-                  : t('home.openOrders', {
-                      buys: t('home.openBuys', {
-                        count: props.orders.buys,
-                        number: number.format(props.orders.buys),
-                      }),
-                      sells: t('home.openSells', {
-                        count: props.orders.sells,
-                        number: number.format(props.orders.sells),
-                      }),
-                    })}{' '}
-                <Link to="/agora" className="font-medium underline underline-offset-4">
-                  {t('home.toAgora')}
-                </Link>
-              </p>
-            )}
-          </div>
-          {history && <Sparkline points={history} />}
-        </div>
-      </Card>
+    <StatGrid as="section" aria-label={t('home.figures.title')}>
+      <StatCard
+        inverse
+        wide
+        label={t('home.treasury')}
+        icon={<Coins />}
+        value={props.balance === undefined ? '—' : money(props.balance)}
+        delta={
+          week === null
+            ? undefined
+            : { value: signed(week), trend: week > 0 ? 'up' : week < 0 ? 'down' : 'flat' }
+        }
+        hint={week !== null && t('home.figures.week')}
+        chart={history && <Sparkline points={history} />}
+      />
       <StatCard
         dense
         label={t('home.figures.today')}
@@ -142,7 +96,42 @@ export function HomeFigures(props: {
           })
         }
       />
-    </section>
+      {/* Détail de la trésorerie, hors de sa carte : le séquestre, puis les ordres ouverts à l'agora ; rien à dire, rien de rendu. */}
+      {(props.held > 0 || props.orders) && (
+        <div
+          data-testid="treasury-detail"
+          className="col-span-full flex flex-col gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted-foreground sm:flex-row sm:flex-wrap"
+        >
+          {props.held > 0 && (
+            <p className="first-letter:uppercase">
+              {t('home.held', { amount: money(props.held) })}
+            </p>
+          )}
+          {props.orders && (
+            <p>
+              {props.orders.buys + props.orders.sells === 0
+                ? t('home.openOrdersNone')
+                : t('home.openOrders', {
+                    buys: t('home.openBuys', {
+                      count: props.orders.buys,
+                      number: number.format(props.orders.buys),
+                    }),
+                    sells: t('home.openSells', {
+                      count: props.orders.sells,
+                      number: number.format(props.orders.sells),
+                    }),
+                  })}{' '}
+              <Link
+                to="/agora"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                {t('home.toAgora')}
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
+    </StatGrid>
   );
 }
 
@@ -157,7 +146,7 @@ function Sparkline({ points }: { points: readonly BalancePoint[] }) {
     <svg
       aria-hidden="true"
       viewBox="-2 0 124 36"
-      className="h-9 w-24 shrink-0 text-accent-decorative lg:hidden"
+      className="h-9 w-32 shrink-0 text-accent-decorative lg:hidden"
     >
       <path
         d={path}

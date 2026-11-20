@@ -53,7 +53,7 @@ describe('chiffres clés du tableau de bord', () => {
       '+3 drachmesVentes 8 drachmes · charges 5 drachmes',
     );
     expect(card(fr.home.figures.stocks)).toContain('40 drachmes2 stocks sans prix observé');
-    expect(card(fr.home.figures.sites)).toContain('1 / 24 travailleurs · 1 intendant');
+    expect(card(fr.home.figures.sites)).toContain('1 sur 24 travailleurs · 1 intendant');
   });
 
   it('rien de lu : des tirets, jamais un zéro inventé ; aucun mouvement aujourd’hui : un résultat nul', async () => {
@@ -68,8 +68,11 @@ describe('chiffres clés du tableau de bord', () => {
       balance: undefined,
       orders: null,
       sites: null,
+      held: 0,
     });
     expect(screen.getAllByText('—')).toHaveLength(4);
+    // Ni séquestre ni ordres lus : pas de ligne de détail vide sous les cartes.
+    expect(screen.queryByTestId('treasury-detail')).toBeNull();
     expect(screen.queryByText(/sur 7 jours/)).toBeNull();
     cleanup();
     await show({ figures: { history, today: null, sheet, failed: false, reload: vi.fn() } });
