@@ -10,13 +10,17 @@ const state = vi.hoisted(() => ({
   stock: [] as { city_id: string; good_id?: string; quantity?: number; reserved?: number }[],
   sites: [] as { city_id: string }[],
   reads: [] as { view: string; filters: Record<string, unknown> }[],
+  // Lignes rendues par vue : comme la vraie lecture, elles ne changent qu'à une relecture.
+  seen: new Map<string, unknown[]>(),
 }));
 const api = vi.hoisted(() => ({ placeOrder: vi.fn(), cancelOrder: vi.fn() }));
 vi.mock('../api', () => ({ placeOrder: api.placeOrder, cancelOrder: api.cancelOrder }));
 vi.mock('../data', () => ({
+  // En-tête de page : horloge du monde inconnue, l'heure seule.
+  useClockRules: () => ({ rules: null }),
   useRows: (view: string, _columns: string, _order: string, filters: Record<string, unknown>) => {
     state.reads.push({ view, filters });
-    const rows =
+    const source = () =>
       view === 'my_inventories'
         ? state.stock
         : view === 'my_sites'
@@ -24,11 +28,20 @@ vi.mock('../data', () => ({
           : view === 'market_rules'
             ? [{ market_tax: { rateBps: 0 }, price_history: { candleSeconds: 3600 } }]
             : [];
-    return { rows, failed: false, reload: () => Promise.resolve(rows) };
+    if (!state.seen.has(view)) state.seen.set(view, source());
+    const reload = () => {
+      state.seen.set(view, source());
+      return Promise.resolve(state.seen.get(view));
+    };
+    return { rows: state.seen.get(view), failed: false, reload };
   },
 }));
 vi.mock('./PriceHistory', () => ({
-  PriceHistory: (props: { cityId: string }) => <p data-testid="history">{props.cityId}</p>,
+  usePriceHistory: (cityId: string) => ({ cityId }),
+  PriceQuote: () => null,
+  PriceChart: (props: { history: { cityId: string } }) => (
+    <p data-testid="history">{props.history.cityId}</p>
+  ),
 }));
 vi.mock('../market-rules', () => ({
   cityMarketTax: () => ({ rateBps: 0 }),
@@ -68,6 +81,7 @@ beforeEach(() => {
   state.stock = [];
   state.sites = [];
   state.reads = [];
+  state.seen.clear();
   api.placeOrder.mockReset();
 });
 afterEach(cleanup);
@@ -121,5 +135,56 @@ describe('choix de la cité de l’agora', () => {
       price: 20,
       quantity: 30,
     });
+  });
+});
+
+describe('feuille d’ordre de l’agora', () => {
+  const sell = async (quantity: string, price: string) => {
+    fireEvent.change(screen.getByLabelText('Quantité', { exact: true }), {
+      target: { value: quantity },
+    });
+    fireEvent.change(screen.getByLabelText('Prix limite par unité (oboles)'), {
+      target: { value: price },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(await screen.findByRole('button', { name: "Déposer l'ordre" }));
+  };
+
+  it('relit le stock libre à l’ouverture : un stock monté depuis la première lecture se vend', async () => {
+    state.stock = [{ city_id: CITY, good_id: 'wheat', quantity: 10, reserved: 0 }];
+    api.placeOrder.mockResolvedValue({
+      ok: false,
+      error: { code: 'INSUFFICIENT_STOCK', message: 'x' },
+    });
+    await show();
+    // Récolte faite ailleurs entre-temps : la base a 40 blés, l'écran en a lu 10.
+    state.stock = [{ city_id: CITY, good_id: 'wheat', quantity: 40, reserved: 0 }];
+    fireEvent.click(screen.getByRole('button', { name: 'Vendre' }));
+    expect(await screen.findByText('Stock libre à Kallistè : 40 × Blé.')).toBeTruthy();
+    await sell('30', '20');
+    await waitFor(() => expect(api.placeOrder).toHaveBeenCalledTimes(1));
+    expect(api.placeOrder.mock.calls[0]?.[0]).toMatchObject({ side: 'sell', quantity: 30 });
+  });
+
+  it('même saisie restée sans réponse : même clé ; autre saisie : clé neuve', async () => {
+    state.stock = [{ city_id: CITY, good_id: 'wheat', quantity: 40, reserved: 0 }];
+    api.placeOrder.mockResolvedValue({ ok: false, error: { code: 'INTERNAL', message: 'x' } });
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Vendre' }));
+    await screen.findByText('Stock libre à Kallistè : 40 × Blé.');
+    await sell('30', '20');
+    await waitFor(() => expect(api.placeOrder).toHaveBeenCalledTimes(1));
+    const submit = await screen.findByRole('button', { name: "Déposer l'ordre" });
+    await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(submit);
+    await waitFor(() => expect(api.placeOrder).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    await sell('30', '21');
+    await waitFor(() => expect(api.placeOrder).toHaveBeenCalledTimes(3));
+    const [first, again, other] = api.placeOrder.mock.calls.map((call) => call[2] as string);
+    expect(again).toBe(first);
+    expect(other).not.toBe(first);
+    expect(api.placeOrder.mock.calls[2]?.[0]).toMatchObject({ price: 21 });
   });
 });

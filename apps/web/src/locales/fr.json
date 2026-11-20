@@ -243,7 +243,7 @@
     "expectedNet": "Net attendu : {{net}} ({{gross}} moins {{tax}} de taxe de marché), si la vente est servie en un seul échange. Servie en plusieurs fois, elle peut rapporter quelques oboles de moins.",
     "priceTitle": "Prix : {{good}}",
     "priceEmpty": "Aucun prix à afficher pour l'instant : l'historique se met à jour à chaque tick, à partir des échanges.",
-    "lastPrice": "Dernier prix, en oboles : {{price}} (période du {{date}}).",
+    "lastPrice": "Dernier prix, en oboles : <big>{{price}}</big> (période du {{date}}).",
     "change": "Variation sur 24 h : {{change}}.",
     "changeUnknown": "Variation sur 24 h : inconnue, l'historique est trop court.",
     "chartLabel_one": "Chandeliers : {{good}}, {{count}} période, du {{from}} au {{to}}, prix en oboles de {{low}} à {{high}}. Le tableau des prix donne les mêmes valeurs.",

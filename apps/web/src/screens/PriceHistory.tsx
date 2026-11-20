@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Badge, Card, Minus, ScrollText } from '@oikos/ui';
 import { useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useRows } from '../data';
 import { LoadProblem, Loading } from './LoadProblem';
 import { candleMarks, observedAverage, parsePriceSeries, priceSummary } from '../price-history';
@@ -10,29 +10,22 @@ const HISTORY_ROWS = 200;
 /** Chandeliers tracés, et cadre du dessin (unités du graphique). */
 const SHOWN = 48;
 const [WIDTH, HEIGHT, MARGIN] = [320, 128, 6];
+/** Ton de la variation : la flèche et le signe la disent aussi. */
+const TONES = { flat: 'neutral', up: 'success', down: 'danger' } as const;
 
-/**
- * Historique des prix d'un bien dans la cité (5.3) : dernier prix, variation sur 24 heures, prix moyen
- * observé (daté s'il est plus ancien que sa fenêtre), chandeliers et tableau des mêmes valeurs. Le
- * graphique est une image décrite ; tout ce qu'il montre se lit aussi dans le tableau, au clavier comme
- * au lecteur d'écran. Hausse et baisse se distinguent par la forme (corps vide ou plein), pas par la
- * couleur.
- */
-export function PriceHistory(props: { cityId: string; goodId: string; periodSeconds: number }) {
-  const { cityId, goodId, periodSeconds } = props;
-  const { t, i18n } = useTranslation();
-  // Titre de la carte : le foyer y va après une relecture réussie.
-  const title = useRef<HTMLHeadingElement>(null);
+/** Lectures de l'historique d'un marché (5.3) : chandeliers de la série en cours et prix moyen observé. */
+export function usePriceHistory(cityId: string, goodId: string, periodSeconds: number | null) {
   const market = { city_id: cityId, good_id: goodId };
   const candles = useRows<unknown>(
     'price_candles',
     'period_start, period_seconds, open, high, low, close, volume',
     'period_start',
-    // Seulement la série en cours : après un changement de durée, l'ancienne reste en base.
-    { ...market, period_seconds: String(periodSeconds) },
+    // Seulement la série en cours, une fois sa durée lue : après un changement, l'ancienne reste en base.
+    periodSeconds === null ? null : { ...market, period_seconds: String(periodSeconds) },
     { limit: HISTORY_ROWS },
   );
-  const series = candles.rows ? parsePriceSeries(candles.rows, periodSeconds) : null;
+  const series =
+    candles.rows && periodSeconds !== null ? parsePriceSeries(candles.rows, periodSeconds) : null;
   const observed = useRows<unknown>(
     'observed_prices',
     'price, volume, window_seconds, observed_at',
@@ -41,37 +34,108 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
   );
   // `undefined` : pas de prix observé pour ce marché ; `null` : ligne illisible.
   const average = observed.rows?.[0] ? observedAverage(observed.rows[0], Date.now()) : undefined;
-  // Variation jugée à l'heure du navigateur : indicative, comme « à récolter » sur la fiche d'un site.
-  const summary = series ? priceSummary(series, Date.now()) : null;
-  const shown = series?.slice(-SHOWN) ?? [];
-  const { marks, slot, low, high } = candleMarks(shown, WIDTH, HEIGHT - 2 * MARGIN);
+  return {
+    cityId,
+    goodId,
+    series,
+    average,
+    // Variation jugée à l'heure du navigateur : indicative, comme « à récolter » sur la fiche d'un site.
+    summary: series ? priceSummary(series, Date.now()) : null,
+    loading: candles.rows === null && !candles.failed,
+    failed: candles.failed || observed.failed || average === null || (!!candles.rows && !series),
+    reload: () => Promise.all([candles.reload(), observed.reload()]),
+  };
+}
+export type PriceHistoryReads = ReturnType<typeof usePriceHistory>;
 
-  const number = new Intl.NumberFormat(i18n.language);
+function useFormats() {
+  const { t, i18n } = useTranslation();
+  const date = (instant?: number) =>
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(
+      instant,
+    );
+  return { t, number: new Intl.NumberFormat(i18n.language), date };
+}
+
+/**
+ * Cours d'un bien, en tête de sa fiche : dernier prix en grand, variation sur 24 heures (le sens dit par
+ * la flèche et le signe, jamais par la couleur seule) et prix moyen observé, daté s'il est passé.
+ */
+export function PriceQuote({ history }: { history: PriceHistoryReads }) {
+  const { t, number, date } = useFormats();
+  const { i18n } = useTranslation();
+  const { summary, average } = history;
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
     maximumFractionDigits: 1,
     signDisplay: 'exceptZero',
   });
-  const date = (instant?: number) =>
-    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(
-      instant,
-    );
-  const good = t(`goods.${goodId}`);
+  const trend =
+    summary?.change === null || summary?.change === undefined || summary.change === 0
+      ? 'flat'
+      : summary.change > 0
+        ? 'up'
+        : 'down';
+  const Arrow = { flat: Minus, up: ArrowUpRight, down: ArrowDownRight }[trend];
+  return (
+    <div className="flex flex-col gap-2">
+      {summary && (
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <p className="flex min-w-0 flex-col text-sm text-muted-foreground">
+            <Trans
+              i18nKey="agora.lastPrice"
+              values={{ price: number.format(summary.last), date: date(summary.lastAt) }}
+              components={{
+                big: (
+                  <span className="text-[2.5rem] leading-tight font-bold text-foreground tabular-nums" />
+                ),
+              }}
+            />
+          </p>
+          <Badge tone={TONES[trend]} icon={<Arrow aria-hidden="true" />}>
+            {summary.change === null
+              ? t('agora.changeUnknown')
+              : t('agora.change', { change: percent.format(summary.change) })}
+          </Badge>
+        </div>
+      )}
+      {average && (
+        <p className="text-sm text-muted-foreground">
+          {t(average.current ? 'agora.observedPrice' : 'agora.observedPriceDated', {
+            hours: number.format(average.hours),
+            price: number.format(average.price),
+            volume: number.format(average.volume),
+            date: date(average.observedAt),
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Chandeliers d'un bien dans la cité (5.3) et tableau des mêmes valeurs. Le graphique est une image
+ * décrite ; tout ce qu'il montre se lit aussi dans le tableau, au clavier comme au lecteur d'écran.
+ * Hausse et baisse se distinguent par la forme (corps vide ou plein), pas par la couleur.
+ */
+export function PriceChart({ history }: { history: PriceHistoryReads }) {
+  const { t, number, date } = useFormats();
+  // Titre de la carte : le foyer y va après une relecture réussie.
+  const title = useRef<HTMLHeadingElement>(null);
+  const { series, summary } = history;
+  const shown = series?.slice(-SHOWN) ?? [];
+  const { marks, slot, low, high } = candleMarks(shown, WIDTH, HEIGHT - 2 * MARGIN);
+  const good = t(`goods.${history.goodId}`);
   const scale = { low: number.format(low), high: number.format(high) };
   const bodyWidth = Math.min(slot * 0.6, 12);
 
   return (
     <Card className="flex flex-col gap-3">
-      <h2 ref={title} tabIndex={-1} className="text-xl">
+      <h2 ref={title} tabIndex={-1} className="text-lg">
         {t('agora.priceTitle', { good })}
       </h2>
-      {(candles.failed || observed.failed || average === null || (candles.rows && !series)) && (
-        <LoadProblem
-          heading={title}
-          onRetry={() => Promise.all([candles.reload(), observed.reload()])}
-        />
-      )}
-      {candles.rows === null && !candles.failed && <Loading />}
+      {history.failed && <LoadProblem heading={title} onRetry={history.reload} />}
+      {history.loading && <Loading />}
       {series?.length === 0 && (
         <p className="rounded-lg border border-dashed border-border-subtle p-4 text-muted-foreground">
           {t('agora.priceEmpty')}
@@ -79,40 +143,6 @@ export function PriceHistory(props: { cityId: string; goodId: string; periodSeco
       )}
       {summary && (
         <>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <strong className="text-lg">
-              {t('agora.lastPrice', {
-                price: number.format(summary.last),
-                date: date(summary.lastAt),
-              })}
-            </strong>
-            <Badge
-              tone="aegean"
-              icon={
-                summary.change === null || summary.change === 0 ? (
-                  <Minus aria-hidden="true" />
-                ) : summary.change > 0 ? (
-                  <ArrowUpRight aria-hidden="true" />
-                ) : (
-                  <ArrowDownRight aria-hidden="true" />
-                )
-              }
-            >
-              {summary.change === null
-                ? t('agora.changeUnknown')
-                : t('agora.change', { change: percent.format(summary.change) })}
-            </Badge>
-          </p>
-          {average && (
-            <p className="text-sm text-muted-foreground">
-              {t(average.current ? 'agora.observedPrice' : 'agora.observedPriceDated', {
-                hours: number.format(average.hours),
-                price: number.format(average.price),
-                volume: number.format(average.volume),
-                date: date(average.observedAt),
-              })}
-            </p>
-          )}
           <svg
             role="img"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}

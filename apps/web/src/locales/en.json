@@ -243,7 +243,7 @@
     "expectedNet": "Expected net: {{net}} ({{gross}} less {{tax}} in market tax), if the sale is filled in a single trade. Filled in several trades, it may bring in a few obols less.",
     "priceTitle": "Prices: {{good}}",
     "priceEmpty": "No price to show yet: the history is updated at each tick, from the trades.",
-    "lastPrice": "Last price, in obols: {{price}} (period of {{date}}).",
+    "lastPrice": "Last price, in obols: <big>{{price}}</big> (period of {{date}}).",
     "change": "24 h change: {{change}}.",
     "changeUnknown": "24 h change: unknown, the history is too short.",
     "chartLabel_one": "Candlesticks: {{good}}, {{count}} period, from {{from}} to {{to}}, prices in obols from {{low}} to {{high}}. The price table gives the same values.",
