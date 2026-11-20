@@ -68,8 +68,11 @@ describe('chiffres clés du tableau de bord', () => {
       balance: undefined,
       orders: null,
       sites: null,
+      held: 0,
     });
     expect(screen.getAllByText('—')).toHaveLength(4);
+    // Ni séquestre ni ordres lus : pas de ligne de détail vide sous les cartes.
+    expect(screen.queryByTestId('treasury-detail')).toBeNull();
     expect(screen.queryByText(/sur 7 jours/)).toBeNull();
     cleanup();
     await show({ figures: { history, today: null, sheet, failed: false, reload: vi.fn() } });

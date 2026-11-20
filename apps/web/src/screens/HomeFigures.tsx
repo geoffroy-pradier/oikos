@@ -96,31 +96,41 @@ export function HomeFigures(props: {
           })
         }
       />
-      {/* Détail de la trésorerie, hors de sa carte : le séquestre, puis les ordres ouverts à l'agora. */}
-      <div className="col-span-full flex flex-col gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted-foreground sm:flex-row sm:flex-wrap">
-        {props.held > 0 && (
-          <p className="first-letter:uppercase">{t('home.held', { amount: money(props.held) })}</p>
-        )}
-        {props.orders && (
-          <p>
-            {props.orders.buys + props.orders.sells === 0
-              ? t('home.openOrdersNone')
-              : t('home.openOrders', {
-                  buys: t('home.openBuys', {
-                    count: props.orders.buys,
-                    number: number.format(props.orders.buys),
-                  }),
-                  sells: t('home.openSells', {
-                    count: props.orders.sells,
-                    number: number.format(props.orders.sells),
-                  }),
-                })}{' '}
-            <Link to="/agora" className="font-medium text-foreground underline underline-offset-4">
-              {t('home.toAgora')}
-            </Link>
-          </p>
-        )}
-      </div>
+      {/* Détail de la trésorerie, hors de sa carte : le séquestre, puis les ordres ouverts à l'agora ; rien à dire, rien de rendu. */}
+      {(props.held > 0 || props.orders) && (
+        <div
+          data-testid="treasury-detail"
+          className="col-span-full flex flex-col gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted-foreground sm:flex-row sm:flex-wrap"
+        >
+          {props.held > 0 && (
+            <p className="first-letter:uppercase">
+              {t('home.held', { amount: money(props.held) })}
+            </p>
+          )}
+          {props.orders && (
+            <p>
+              {props.orders.buys + props.orders.sells === 0
+                ? t('home.openOrdersNone')
+                : t('home.openOrders', {
+                    buys: t('home.openBuys', {
+                      count: props.orders.buys,
+                      number: number.format(props.orders.buys),
+                    }),
+                    sells: t('home.openSells', {
+                      count: props.orders.sells,
+                      number: number.format(props.orders.sells),
+                    }),
+                  })}{' '}
+              <Link
+                to="/agora"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                {t('home.toAgora')}
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
     </StatGrid>
   );
 }
