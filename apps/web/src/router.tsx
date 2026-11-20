@@ -3,6 +3,7 @@ import { AccountsScreen } from './screens/Accounts';
 import { AgoraScreen } from './screens/Agora';
 import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
+import { HouseProfileScreen } from './screens/HouseProfile';
 import { MapScreen } from './screens/Map';
 import { MessagesScreen } from './screens/Messages';
 import { PropertyScreen } from './screens/Property';
@@ -32,6 +33,8 @@ const routeTree = rootRoute.addChildren([
   route('/cite', CityScreen),
   route('/cite/temple', TempleScreen),
   route('/messages', MessagesScreen),
+  // Fiche publique d'une maison (6.6), ouverte depuis un message, un candidat ou un magistrat.
+  route('/maison/$houseId', HouseProfileScreen),
 ]);
 
 // Adresse inconnue : écran traduit, jamais le texte par défaut du routeur.
