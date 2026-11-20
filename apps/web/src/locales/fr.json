@@ -852,7 +852,9 @@
       "action": "Action",
       "upkeep": "Entretien",
       "city": "Cité",
-      "situation": "Situation"
+      "situation": "Situation",
+      "cost": "Coût",
+      "offer": "Offre ouverte"
     },
     "sheet": {
       "endLease": "Mettre fin au bail : {{name}}",
@@ -864,7 +866,9 @@
       "endLease": "Confirmer la fin du bail",
       "citySale": "Confirmer l'achat — {{cost}}",
       "sale": "Confirmer l'achat — {{cost}}",
-      "lease": "Signer le bail — {{cost}}"
+      "lease": "Signer le bail — {{cost}}",
+      "renovate": "Confirmer la rénovation",
+      "withdraw": "Confirmer le retrait"
     },
     "once": "{{cost}}",
     "unpaidBadge": "Entretien impayé",
@@ -885,7 +889,8 @@
     "listed": {
       "sale": "En vente : {{cost}}",
       "lease": "À louer : {{cost}} par jour"
-    }
+    },
+    "backToActions": "Autres commandes du bien"
   },
   "alerts": {
     "title": "À faire aujourd'hui",

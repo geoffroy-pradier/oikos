@@ -307,6 +307,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page
       .getByRole('button', { name: /^Rénover \(.*\) — Maison de ville n° \d+, Kallistè$/ })
       .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirmer la rénovation' }).click();
     await expect(said(page, 'status', 'Bien rénové.')).toBeVisible();
     // L'état, en tableau sur ordinateur, en fiche sur téléphone : la mise en page affichée.
     const owned = page.getByRole('region', { name: 'Mes biens' });
