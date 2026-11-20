@@ -1188,7 +1188,10 @@
         "INVALID_PROPOSAL": "{{name}} n'a pas su traduire cette consigne en règles valables. Reformulez-la, ou donnez les règles par le formulaire.",
         "OUT_OF_GRAMMAR": "{{name}} sait récolter, vendre et racheter, rien d'autre : cette consigne demande autre chose.",
         "AMBIGUOUS": "Cette consigne est ambiguë : il y manque un bien, un prix ou une quantité écrits en chiffres, ou un prix n'y est pas entier dans une seule unité (pas « 12,5 drachmes » ni « 1 drachme 3 oboles »). Précisez-la, ou donnez les règles par le formulaire."
-      }
+      },
+      "open": "Consigne…",
+      "openFor": "Consigne à {{name}}…",
+      "answered": "{{name}} a répondu à votre consigne : ouvrez « Consigne » pour valider ou modifier sa proposition."
     },
     "orders": {
       "title": "Ordres ouverts de l'intendant",
@@ -1216,7 +1219,13 @@
       },
       "lastRefusal": "Dernier refus, {{text}}",
       "resting": "La règle refusée se repose : {{name}} la retentera à partir du {{date}}."
-    }
+    },
+    "rulesCount_one": "{{name}} suit {{count}} règle.",
+    "rulesCount_other": "{{name}} suit {{count}} règles.",
+    "rulesOpen": "Règles…",
+    "rulesOpenFor": "Règles de {{name}}…",
+    "hireConfirm": "Embaucher pour {{cost}} par jour",
+    "posts": "Postes d'intendant occupés : {{posted}} sur {{limit}}."
   },
   "controls": {
     "decrement": "Diminuer",

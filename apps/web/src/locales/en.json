@@ -1188,7 +1188,10 @@
         "INVALID_PROPOSAL": "{{name}} could not turn this instruction into valid rules. Rephrase it, or give the rules with the form.",
         "OUT_OF_GRAMMAR": "{{name}} can harvest, sell and buy back, nothing else: this instruction asks for something else.",
         "AMBIGUOUS": "This instruction is ambiguous: it lacks a good, a price or a quantity written in digits, or a price is not whole in a single unit (not “12.5 drachmas” nor “1 drachma 3 obols”). Make it precise, or give the rules with the form."
-      }
+      },
+      "open": "Instruction…",
+      "openFor": "Instruction to {{name}}…",
+      "answered": "{{name}} answered your instruction: open “Instruction” to accept or edit the proposal."
     },
     "orders": {
       "title": "Steward's open orders",
@@ -1216,7 +1219,13 @@
       },
       "lastRefusal": "Last refusal, {{text}}",
       "resting": "The refused rule is resting: {{name}} will retry it from {{date}}."
-    }
+    },
+    "rulesCount_one": "{{name}} follows {{count}} rule.",
+    "rulesCount_other": "{{name}} follows {{count}} rules.",
+    "rulesOpen": "Rules…",
+    "rulesOpenFor": "{{name}}'s rules…",
+    "hireConfirm": "Hire for {{cost}} a day",
+    "posts": "Steward posts taken: {{posted}} of {{limit}}."
   },
   "controls": {
     "decrement": "Decrease",

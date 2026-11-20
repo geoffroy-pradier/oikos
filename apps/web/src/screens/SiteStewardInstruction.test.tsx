@@ -57,7 +57,7 @@ async function show(instruction?: StewardInstruction) {
     interpolation: { escapeValue: false },
   });
   const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
-  return render(
+  const view = render(
     <I18nextProvider i18n={instance}>
       <HouseProvider value={{ ...house, cityNames: {}, citizenshipStatus: 'metic' }}>
         <SiteSteward
@@ -73,6 +73,9 @@ async function show(instruction?: StewardInstruction) {
       </HouseProvider>
     </I18nextProvider>,
   );
+  // La consigne s'écrit dans sa feuille.
+  fireEvent.click(screen.getByRole('button', { name: 'Consigne à Nikias…' }));
+  return view;
 }
 const rulesForm = () => screen.getByRole('form', { name: 'Règles de Nikias' });
 const write = (text: string) => {
@@ -101,6 +104,30 @@ describe('consigne d’un intendant (#280)', () => {
       expect.any(String),
     );
     expect(screen.getByRole('status').textContent).toMatch(/^Nikias étudie votre consigne/);
+  });
+
+  it('un envoi en échec garde le texte : la feuille rouverte le rend, et un envoi réussi le vide', async () => {
+    api.stewardCommand.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'INTERNAL', message: 'x' },
+    });
+    api.stewardCommand.mockResolvedValueOnce({ ok: true, replayed: false, data: {} });
+    await show();
+    write('vends la farine à 3 drachmes');
+    await waitFor(() =>
+      expect(screen.getAllByRole('alert').map((n) => n.textContent)).toContain(fr.errors.INTERNAL),
+    );
+    const reopen = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Consigne à Nikias…' }));
+    const field = () =>
+      screen.getByLabelText<HTMLTextAreaElement>('Votre consigne à Nikias, en vos mots');
+    reopen();
+    expect(field().value).toBe('vends la farine à 3 drachmes');
+    fireEvent.click(screen.getByRole('button', { name: 'Traduire en règles' }));
+    await waitFor(() => expect(api.stewardCommand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/^Nikias étudie/));
+    reopen();
+    expect(field().value).toBe('');
   });
 
   it('IA coupée : l’écran le dit et mène au formulaire, qui reste entier', async () => {

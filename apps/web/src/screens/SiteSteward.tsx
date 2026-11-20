@@ -1,5 +1,5 @@
-import { Button, Users } from '@oikos/ui';
-import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Button, Sheet, Users } from '@oikos/ui';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { stewardCommand, type StewardCommandInputs } from '../api';
 import { useHouse } from '../house';
@@ -62,9 +62,17 @@ export function SiteSteward(props: {
   const rows =
     steward && draft?.stewardId === steward.id ? draft.rows : (steward?.rules ?? []).map(draftOf);
   const edit = (next: RuleDraft[]) => steward && setDraft({ stewardId: steward.id, rows: next });
-  // Le formulaire, voie complète du jeu sans IA : la section de consigne y mène.
-  const form = useRef<HTMLFormElement>(null);
-  const openForm = () => form.current?.focus();
+  // Embauche, règles et consigne s'ouvrent chacune dans sa feuille. Le formulaire des règles, voie complète du jeu
+  // sans IA : la consigne y mène (IA coupée, refus, « Modifier »).
+  const [sheet, setSheet] = useState<'hire' | 'rules' | 'instruction' | null>(null);
+  const openForm = () => setSheet('rules');
+  // La consigne en cours d'écriture : la feuille se referme à l'envoi, le texte reste jusqu'à un envoi réussi.
+  const [draftText, setDraftText] = useState('');
+  // Ouverte, la feuille des règles porte le foyer sur le formulaire, qu'elle nomme ; une fois, pas à chaque rendu.
+  const rulesForm = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (sheet === 'rules') rulesForm.current?.focus();
+  }, [sheet]);
   const kinds = KINDS.filter(
     (kind) => kind !== 'buy' || goodsFor(props.recipe, { kind, goodId: '' }).length > 0,
   );
@@ -138,7 +146,8 @@ export function SiteSteward(props: {
 
   function save(event: FormEvent) {
     event.preventDefault();
-    if (!steward || !('rules' in checked)) return;
+    if (!steward || !('rules' in checked) || busy) return;
+    setSheet(null);
     const input = { stewardId: steward.id, rules: checked.rules };
     const done = () => t('steward.saved', { count: input.rules.length, name: steward.name });
     void run('steward.setRules', rulesIntent(steward, input.rules), input, done);
@@ -190,11 +199,8 @@ export function SiteSteward(props: {
                 className="self-start aria-disabled:opacity-60"
                 aria-disabled={busy}
                 aria-label={t('steward.hireFor', { site: props.siteName })}
-                onClick={() =>
-                  void run('steward.hire', hireIntent(siteId), { siteId }, (data) =>
-                    t('steward.hireDone', { name: String(data['name']) }),
-                  )
-                }
+                aria-haspopup="dialog"
+                onClick={() => !busy && setSheet('hire')}
               >
                 {t('steward.hire')}
               </Button>
@@ -265,119 +271,166 @@ export function SiteSteward(props: {
               )}
             </section>
           )}
-          <SiteStewardInstruction
-            steward={steward}
-            instruction={props.instruction}
-            busy={busy}
-            describe={describe}
-            onSubmit={async (text) => {
-              const input = { stewardId: steward.id, text };
-              const code = await run(
-                'steward.submitInstruction',
-                instructionIntent(steward, text),
-                input,
-                () => t('steward.instruction.sent', { name: steward.name }),
-              );
-              if (code === 'AI_UNAVAILABLE') openForm();
-              return code === 'ok';
-            }}
-            onValidate={(proposed: StewardRule[]) => {
-              const input = { stewardId: steward.id, rules: proposed };
-              const done = () => t('steward.saved', { count: proposed.length, name: steward.name });
-              void run('steward.setRules', rulesIntent(steward, proposed), input, done);
-            }}
-            onEdit={(proposed) => {
-              edit(proposed.map(draftOf));
-              openForm();
-            }}
-            onRefresh={() => void props.onChanged()}
-            openForm={openForm}
-          />
-          <form
-            ref={form}
-            tabIndex={-1}
-            className="flex flex-col gap-3"
-            aria-label={t('steward.rulesOf', { name: steward.name })}
-            onSubmit={save}
-          >
-            {rows.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t('steward.noRule')}</p>
+          <p className="text-sm">
+            {t('steward.rulesCount', { count: steward.rules.length, name: steward.name })}
+          </p>
+          {props.instruction?.revision === steward.revision &&
+            props.instruction.status === 'answered' && (
+              <p className="text-sm font-semibold">
+                {t('steward.instruction.answered', { name: steward.name })}
+              </p>
             )}
-            {rows.map((row, index) => {
-              const n = index + 1;
-              const fields = row.kind === 'collect' ? [] : (['price', 'units'] as const);
-              return (
-                <fieldset key={index} className="flex flex-col gap-2 border-t border-border pt-2">
-                  <legend className="text-sm font-semibold">{t('steward.rule', { n })}</legend>
-                  {choice(
-                    t('steward.kind'),
-                    row.kind,
-                    kinds.map((kind) => [kind, t(`steward.kinds.${kind}`)]),
-                    (kind) => change(index, blankRule(props.recipe, kind as RuleDraft['kind'])),
-                  )}
-                  {row.kind !== 'collect' &&
-                    choice(
-                      t('steward.good'),
-                      row.goodId,
-                      goodsFor(props.recipe, row).map((good) => [good, goodName(good)]),
-                      (goodId) => change(index, { goodId }),
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              aria-haspopup="dialog"
+              aria-label={t('steward.instruction.openFor', { name: steward.name })}
+              onClick={() => setSheet('instruction')}
+            >
+              {t('steward.instruction.open')}
+            </Button>
+            <Button
+              variant="secondary"
+              aria-haspopup="dialog"
+              aria-label={t('steward.rulesOpenFor', { name: steward.name })}
+              onClick={() => setSheet('rules')}
+            >
+              {t('steward.rulesOpen')}
+            </Button>
+          </div>
+          <Sheet
+            open={sheet === 'instruction'}
+            onClose={() => setSheet(null)}
+            title={t('steward.instruction.title')}
+            description={steward.name}
+            closeLabel={t('shell.close')}
+          >
+            <SiteStewardInstruction
+              steward={steward}
+              instruction={props.instruction}
+              busy={busy}
+              describe={describe}
+              draft={draftText}
+              onDraft={setDraftText}
+              onSubmit={async (text) => {
+                setSheet(null);
+                const input = { stewardId: steward.id, text };
+                const code = await run(
+                  'steward.submitInstruction',
+                  instructionIntent(steward, text),
+                  input,
+                  () => t('steward.instruction.sent', { name: steward.name }),
+                );
+                if (code === 'AI_UNAVAILABLE') openForm();
+                return code === 'ok';
+              }}
+              onValidate={(proposed: StewardRule[]) => {
+                setSheet(null);
+                const input = { stewardId: steward.id, rules: proposed };
+                const done = () =>
+                  t('steward.saved', { count: proposed.length, name: steward.name });
+                void run('steward.setRules', rulesIntent(steward, proposed), input, done);
+              }}
+              onEdit={(proposed) => {
+                edit(proposed.map(draftOf));
+                openForm();
+              }}
+              onRefresh={() => void props.onChanged()}
+              openForm={openForm}
+            />
+          </Sheet>
+          <Sheet
+            open={sheet === 'rules'}
+            onClose={() => setSheet(null)}
+            title={t('steward.rulesOf', { name: steward.name })}
+            closeLabel={t('shell.close')}
+          >
+            <form
+              ref={rulesForm}
+              tabIndex={-1}
+              className="flex flex-col gap-3"
+              aria-label={t('steward.rulesOf', { name: steward.name })}
+              onSubmit={save}
+            >
+              {rows.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t('steward.noRule')}</p>
+              )}
+              {rows.map((row, index) => {
+                const n = index + 1;
+                const fields = row.kind === 'collect' ? [] : (['price', 'units'] as const);
+                return (
+                  <fieldset key={index} className="flex flex-col gap-2 border-t border-border pt-2">
+                    <legend className="text-sm font-semibold">{t('steward.rule', { n })}</legend>
+                    {choice(
+                      t('steward.kind'),
+                      row.kind,
+                      kinds.map((kind) => [kind, t(`steward.kinds.${kind}`)]),
+                      (kind) => change(index, blankRule(props.recipe, kind as RuleDraft['kind'])),
                     )}
-                  {fields.map((field) => (
-                    <label key={field} className="flex flex-col gap-1 text-sm">
-                      <span>{t(`steward.fields.${row.kind}.${field}`)}</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className={CONTROL}
-                        value={row[field]}
-                        onChange={(event) => change(index, { [field]: event.target.value })}
-                      />
-                    </label>
-                  ))}
-                  <div className="flex flex-wrap gap-2">
-                    {index > 0 && (
+                    {row.kind !== 'collect' &&
+                      choice(
+                        t('steward.good'),
+                        row.goodId,
+                        goodsFor(props.recipe, row).map((good) => [good, goodName(good)]),
+                        (goodId) => change(index, { goodId }),
+                      )}
+                    {fields.map((field) => (
+                      <label key={field} className="flex flex-col gap-1 text-sm">
+                        <span>{t(`steward.fields.${row.kind}.${field}`)}</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className={CONTROL}
+                          value={row[field]}
+                          onChange={(event) => change(index, { [field]: event.target.value })}
+                        />
+                      </label>
+                    ))}
+                    <div className="flex flex-wrap gap-2">
+                      {index > 0 && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          aria-label={t('steward.moveUp', { n })}
+                          onClick={() => edit(moveUp(rows, index))}
+                        >
+                          {t('steward.up')}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="secondary"
-                        aria-label={t('steward.moveUp', { n })}
-                        onClick={() => edit(moveUp(rows, index))}
+                        aria-label={t('steward.remove', { n })}
+                        onClick={() => edit(rows.filter((_, rank) => rank !== index))}
                       >
-                        {t('steward.up')}
+                        {t('steward.delete')}
                       </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      aria-label={t('steward.remove', { n })}
-                      onClick={() => edit(rows.filter((_, rank) => rank !== index))}
-                    >
-                      {t('steward.delete')}
-                    </Button>
-                  </div>
-                </fieldset>
-              );
-            })}
-            <p role="alert" className="text-sm font-semibold text-danger">
-              {'invalid' in checked ? t('steward.invalid', { n: checked.invalid + 1 }) : ''}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={rows.length >= rules.rulesPerSteward}
-                onClick={() => edit([...rows, blankRule(props.recipe, 'collect')])}
-              >
-                {t('steward.add', { max: rules.rulesPerSteward })}
-              </Button>
-              <Button
-                type="submit"
-                className="aria-disabled:opacity-60"
-                aria-disabled={busy || 'invalid' in checked}
-              >
-                {t('steward.save')}
-              </Button>
-            </div>
-          </form>
+                    </div>
+                  </fieldset>
+                );
+              })}
+              <p role="alert" className="text-sm font-semibold text-danger">
+                {'invalid' in checked ? t('steward.invalid', { n: checked.invalid + 1 }) : ''}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={rows.length >= rules.rulesPerSteward}
+                  onClick={() => edit([...rows, blankRule(props.recipe, 'collect')])}
+                >
+                  {t('steward.add', { max: rules.rulesPerSteward })}
+                </Button>
+                <Button
+                  type="submit"
+                  className="aria-disabled:opacity-60"
+                  aria-disabled={busy || 'invalid' in checked}
+                >
+                  {t('steward.save')}
+                </Button>
+              </div>
+            </form>
+          </Sheet>
           <Button
             variant="secondary"
             className="self-start aria-disabled:opacity-60"
@@ -393,6 +446,32 @@ export function SiteSteward(props: {
         </>
       )}
       {region}
+      <Sheet
+        open={sheet === 'hire'}
+        onClose={() => setSheet(null)}
+        title={t('steward.hire')}
+        description={props.siteName}
+        closeLabel={t('shell.close')}
+        footer={
+          <Button
+            onClick={() => {
+              setSheet(null);
+              void run('steward.hire', hireIntent(siteId), { siteId }, (data) =>
+                t('steward.hireDone', { name: String(data['name']) }),
+              );
+            }}
+          >
+            {t('steward.hireConfirm', { cost: money(rules.dailyWageOboles) })}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-3 text-sm">
+          <p>{t('steward.pitch', { cost: money(rules.dailyWageOboles) })}</p>
+          <p className="text-muted-foreground">
+            {t('steward.posts', { posted: props.posted, limit: rules.limit })}
+          </p>
+        </div>
+      </Sheet>
     </section>
   );
 }
