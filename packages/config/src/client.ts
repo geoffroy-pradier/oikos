@@ -44,5 +44,13 @@ export const CITY_MAP_POSITIONS: Readonly<Record<string, CityMapPosition>> = Obj
     elaia: { x: 790, y: 229 },
     ampelos: { x: 255, y: 571 },
     halos: { x: 720, y: 743 },
+    delphis: { x: 590, y: 136 },
+    dikaia: { x: 420, y: 307 },
+    emporion: { x: 690, y: 493 },
+    gamelia: { x: 885, y: 679 },
+    agrotera: { x: 85, y: 671 },
+    phrourion: { x: 250, y: 871 },
+    myrrhine: { x: 450, y: 843 },
+    chalkeia: { x: 600, y: 921 },
   }),
 );

@@ -119,6 +119,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 4. Carte de la cité avec parcelles et quartiers.
    Première version (#254) : l'onglet Carte montre l'archipel en vectoriel, sans parcelles.
    Refonte (#696) : l'archipel est un dessin fait à la main (`Archipelago`, `packages/ui/src/illustrations`) : mer et quadrillage discret, deux continents, une île par cité et des îlots, hauts-fonds autour des terres, rose des vents.
+   Douze cités (#707) : les huit îles nouvelles ont chacune leur trait (le mont de Delphis, le pic de Dikaia, les deux anses d'Emporion, les bois d'Agrotera, la citadelle de Phrourion, le croissant de Myrrhinè, le volcan de Chalkeia, le détroit de Gamelia), et la côte de l'est recule pour laisser passer Gamelia.
    Chaque cité est posée sur son île par sa place dans `CITY_MAP_POSITIONS` (`packages/config/src/client.ts`), en millièmes du dessin : une valeur d'affichage, sans rien d'équilibrage, qui ne prétend à aucune distance, la durée d'une route venant de la configuration.
    Décision : ces places sont un réglage du client, non versionné en base, parce que le dessin des îles est lui-même dans le client.
    Une cité sans place (ajoutée par Olympe avant que le client ne dessine son île) est posée par la règle de la première version : sur une ellipse, dans l'ordre des identifiants de configuration de toutes les cités.

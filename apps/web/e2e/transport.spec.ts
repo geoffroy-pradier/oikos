@@ -66,10 +66,10 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Carte' }).click();
   await expect(page.getByRole('heading', { name: "Carte de l'archipel" })).toBeVisible();
-  await expect(page.getByRole('img', { name: /12 cités, 6 routes/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /12 cités, 23 routes/ })).toBeVisible();
   await expect(page.getByText('Kallistè – Elaia : 4 h')).toBeVisible();
   // Un vrai clic sur une cité du dessin la choisit pour le panneau ; un glisser qui revient sur une autre, non.
-  const drawing = page.getByRole('img', { name: /12 cités, 6 routes/ });
+  const drawing = page.getByRole('img', { name: /12 cités, 23 routes/ });
   await drawing.locator('text', { hasText: /^Ampelos$/ }).click();
   const chosen = page.getByRole('heading', { level: 2, name: 'Ampelos' });
   await expect(chosen).toBeVisible();
@@ -101,6 +101,18 @@ test('acheter un navire, le faire partir chargé vers Elaia, le voir arriver', a
   await page.evaluate(() => (document.documentElement.style.fontSize = '260%'));
   await expectNoHorizontalScroll(page);
   await page.evaluate(() => (document.documentElement.style.fontSize = ''));
+  // La feuille ne propose que les routes de Kallistè, ses six voisines, des plus courtes aux plus longues (#707).
+  const destinations = page.getByRole('group', { name: 'Destination' }).locator('label');
+  await expect(destinations).toHaveCount(6);
+  const names = await destinations.allTextContents();
+  expect(names.map((name) => name.split(' — ')[0])).toEqual([
+    'Dikaia',
+    'Emporion',
+    'Ampelos',
+    'Elaia',
+    'Myrrhinè',
+    'Halos',
+  ]);
   await page.getByRole('radio', { name: /^Elaia — 4 h de mer/ }).check();
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel(/Blé \(80 libres\)/).fill('30');
