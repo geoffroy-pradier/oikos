@@ -421,7 +421,9 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     const oboles = Math.ceil(grace.charisRequired / demeter.charisPerObole);
     await page.getByRole('link', { name: 'Temple : Charis, offrandes, grâces et oracle' }).click();
     await expect(page.getByRole('heading', { name: 'Temple de Kallistè' })).toBeVisible();
+    await page.getByRole('button', { name: 'Faire une offrande à Déméter' }).click();
     await page.getByLabel(/^Oboles offertes/).fill(String(oboles));
+    await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: /^Offrir à Déméter/ }).click();
     await expect(said(page, 'status', 'Offrande faite à Déméter')).toBeVisible();
     const name = `Récolte bénie (Déméter)`;

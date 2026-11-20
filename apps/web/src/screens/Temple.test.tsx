@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -107,5 +107,20 @@ describe('écran du temple : Charis (#272)', () => {
     state.rulesFailed = true;
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
+  });
+
+  it('la carte d’un dieu ouvre la feuille d’offrande sur ce dieu ; Échap la referme', async () => {
+    state.rules = { gods: GODS };
+    await show();
+    const opener = screen.getByRole('button', { name: 'Faire une offrande à Athéna' });
+    // Un bouton par dieu qui accepte un don.
+    expect(screen.getAllByRole('button', { name: /^Faire une offrande à / })).toHaveLength(3);
+    opener.focus();
+    fireEvent.click(opener);
+    const sheet = screen.getByRole('dialog', { name: fr.temple.offering.title });
+    expect((within(sheet).getByRole('combobox') as HTMLSelectElement).value).toBe('athena');
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(opener);
   });
 });

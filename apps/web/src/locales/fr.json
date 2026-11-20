@@ -1131,7 +1131,15 @@
       "empty": "Choisissez un montant ou des biens à offrir.",
       "quote": "Cette offrande vous rapportera {{charis}} Charis envers {{god}}.",
       "submit": "Offrir à {{god}} (+{{charis}} Charis)",
-      "done": "Offrande faite à {{god}} : +{{gained}} Charis. Votre Charis envers {{god}} : {{charis}}."
+      "done": "Offrande faite à {{god}} : +{{gained}} Charis. Votre Charis envers {{god}} : {{charis}}.",
+      "openFor": "Faire une offrande à {{god}}",
+      "stepGifts": "Vos dons",
+      "stepRecap": "Récapitulatif",
+      "recap": "Vous offrez à {{god}} :",
+      "recapMoney": "Monnaie",
+      "recapGain": "Charis gagnée",
+      "recapAfter": "Votre Charis envers {{god}} ensuite",
+      "recapNote": "La Charis annoncée part telle quelle : si le taux en vigueur a changé, l'offrande est refusée et rien n'est donné."
     },
     "graces": {
       "title": "Grâces",

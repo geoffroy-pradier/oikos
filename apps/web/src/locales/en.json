@@ -1131,7 +1131,15 @@
       "empty": "Choose an amount or goods to offer.",
       "quote": "This offering will earn you {{charis}} Charis toward {{god}}.",
       "submit": "Offer to {{god}} (+{{charis}} Charis)",
-      "done": "Offering made to {{god}}: +{{gained}} Charis. Your Charis toward {{god}}: {{charis}}."
+      "done": "Offering made to {{god}}: +{{gained}} Charis. Your Charis toward {{god}}: {{charis}}.",
+      "openFor": "Make an offering to {{god}}",
+      "stepGifts": "Your gifts",
+      "stepRecap": "Summary",
+      "recap": "You offer to {{god}}:",
+      "recapMoney": "Money",
+      "recapGain": "Charis earned",
+      "recapAfter": "Your Charis toward {{god}} afterwards",
+      "recapNote": "The Charis shown is sent as is: if the rate in force has changed, the offering is refused and nothing is given."
     },
     "graces": {
       "title": "Graces",

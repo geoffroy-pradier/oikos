@@ -1,10 +1,10 @@
-import { Amphora, Card, GodEmblem, Sparkles, TrendingDown } from '@oikos/ui';
-import { useRef } from 'react';
+import { Amphora, Button, Card, GodEmblem, Sparkles, TrendingDown } from '@oikos/ui';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRows, useTempleRules } from '../data';
 import { useHouse } from '../house';
 import { ScreenHeader } from '../ScreenHeader';
-import { charisByGod, parseCityCharis, parseFavor } from '../temple';
+import { acceptsOfferings, charisByGod, parseCityCharis, parseFavor } from '../temple';
 import { LoadProblem, Loading } from './LoadProblem';
 import { TempleGraces } from './TempleGraces';
 import { TempleOffering } from './TempleOffering';
@@ -46,6 +46,8 @@ export function TempleScreen() {
   const godName = (id: string) => t(`gods.${id}`, { defaultValue: id });
   const gods = rules.rules && favor ? charisByGod(rules.rules, favor) : null;
   const status = house.citizenshipStatus === 'citizen' ? 'citizen' : 'metic';
+  // Dieu dont la feuille d'offrande est ouverte ; `null` : fermée.
+  const [offerTo, setOfferTo] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
@@ -86,10 +88,32 @@ export function TempleScreen() {
                           })}
                     </span>
                   </p>
+                  {acceptsOfferings(god) && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="mt-2 self-start"
+                      icon={<Amphora aria-hidden="true" />}
+                      aria-haspopup="dialog"
+                      aria-label={t('temple.offering.openFor', { god: godName(god.id) })}
+                      onClick={() => setOfferTo(god.id)}
+                    >
+                      {t('temple.offering.title')}
+                    </Button>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
+        )}
+        {rules.rules && (
+          <TempleOffering
+            rules={rules.rules}
+            favor={favor}
+            onDone={reload}
+            godId={offerTo}
+            onClose={() => setOfferTo(null)}
+          />
         )}
         {city !== null && cityRows.rows !== null && (
           <div className="flex items-start gap-3 rounded-xl bg-muted p-4">
@@ -111,13 +135,6 @@ export function TempleScreen() {
             </div>
           </div>
         )}
-      </Card>
-      <Card className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-xl">
-          <Amphora aria-hidden="true" className="size-5 shrink-0 text-accent" />
-          {t('temple.offering.title')}
-        </h2>
-        {rules.rules && <TempleOffering rules={rules.rules} favor={favor} onDone={reload} />}
       </Card>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-3">

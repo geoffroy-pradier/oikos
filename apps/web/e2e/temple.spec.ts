@@ -53,18 +53,26 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   const demeter = config.gods.find((god) => god.id === 'demeter');
   const wheat = demeter?.charisPerUnit['wheat'] ?? NaN;
   const charis = 12 * (demeter?.charisPerObole ?? NaN) + 10 * wheat;
-  await page.getByLabel(/^Oboles offertes/).fill('12');
-  await page.getByLabel(/^Blé \(80 libres/).fill('10');
-  await expect(
-    page.getByText(`Cette offrande vous rapportera ${charis} Charis envers Déméter.`),
-  ).toBeVisible();
-  await page.getByRole('button', { name: `Offrir à Déméter (+${charis} Charis)` }).focus();
+  // La feuille s'ouvre depuis la carte de Déméter ; Entrée dans un champ mène au récapitulatif.
+  await page.getByRole('button', { name: 'Faire une offrande à Déméter' }).focus();
   await page.keyboard.press('Enter');
+  const sheet = page.getByRole('dialog', { name: 'Faire une offrande' });
+  await sheet.getByLabel(/^Oboles offertes/).fill('12');
+  await sheet.getByLabel(/^Blé \(80 libres/).fill('10');
+  await expect(
+    sheet.getByText(`Cette offrande vous rapportera ${charis} Charis envers Déméter.`),
+  ).toBeVisible();
+  await page.keyboard.press('Enter');
+  await sheet.getByRole('button', { name: `Offrir à Déméter (+${charis} Charis)` }).focus();
+  await page.keyboard.press('Enter');
+  await expect(sheet).toBeHidden();
   await expect(page.getByRole('status').filter({ hasText: 'Offrande faite à Déméter' })).toHaveText(
     `Offrande faite à Déméter : +${charis} Charis. Votre Charis envers Déméter : ${charis}.`,
   );
   await expect(page.getByRole('heading', { name: `Déméter : ${charis} Charis` })).toBeVisible();
-  await expect(page.getByLabel(/^Blé \(70 libres/)).toBeVisible();
+  await page.getByRole('button', { name: 'Faire une offrande à Déméter' }).click();
+  await expect(sheet.getByLabel(/^Blé \(70 libres/)).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // Grâces : celles de la configuration en vigueur (aucune dans la configuration initiale).
   if (config.graces.length === 0)
