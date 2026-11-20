@@ -20,6 +20,8 @@ Hors de l'onglet Messages, ce compte est relu à chaque changement d'écran, au 
 En dessous, un en-tête compact montre le blason, le nom et la cité de la maison et l'heure de jeu, avec le bouton Réglages réduit à son icône, sous le même nom accessible.
 Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
 Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
+L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier et Comptes.
+Ce sont des liens, un par écran ; celui de l'écran ouvert est plein et marqué comme la page courante, et la gélule défile quand elle est plus large que l'écran.
 Quand l'API refuse une session (`UNAUTHENTICATED`, #565), le jeu comme Olympe la renouvellent d'abord : un jeton expiré au réveil d'un appareil, ou sous une horloge en retard, ne déconnecte personne.
 Renouvelée, la session reste ouverte et l'écran invite à réessayer dans un instant ; la commande repart sous la même clé, que l'API n'a pas consommée.
 Si Supabase Auth ne répond pas, la session reste aussi ouverte, avec son jeton de renouvellement.
@@ -54,6 +56,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Sous le prix de vente, l'écran annonce le net du vendeur après la taxe de marché de la cité du bien (vue `city_rates`, même calcul et même arrondi que l'API), comme l'agora ; tant que ce taux n'est pas lu, ou s'il est nul, il n'annonce rien.
    Ce net est calculé au taux en vigueur à l'affichage, et le texte le dit : un décret peut changer le taux avant la vente.
 2. Fiche de site : recette, personnel, stocks, marge unitaire.
+   L'écran Sites (`/sites`, #693) porte les fiches des sites de la maison, avec la trésorerie et le nombre de sites sur la limite du siège en chiffres clés.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    Un champ ou un verger dit la sécheresse ou la bonne année en cours dans sa cité (#417, vue `world_events`), avec sa fin et son ampleur.
    Sa récolte est estimée comme l'API la calculera (`cycleYield`, 4.3 et 7.4), à l'heure du serveur, sous les événements qui finissent après le début de son cycle en cours, et l'écart dû à l'événement est dit.

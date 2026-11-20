@@ -8,6 +8,7 @@ import { HouseAlerts } from './HouseAlerts';
 import { SitesCard } from './Sites';
 import { useMoney } from '../money';
 import { LoadProblem, Loading } from './LoadProblem';
+import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
 
 interface Treasury {
@@ -28,7 +29,7 @@ interface Inventory {
   reserved: number;
 }
 
-/** Onglet Maison : trésorerie, entrepôt et sites de la maison (`SitesCard`). */
+/** Onglet Maison, vue d'ensemble : trésorerie, alertes, entrepôt et sites de la maison (`SitesCard`). */
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const house = useHouse();
@@ -63,7 +64,7 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <ScreenHeader title={t('home.title', { name: house.name })}>
+      <ScreenHeader title={t('home.greeting', { name: house.name })}>
         <p>
           <Badge
             tone={house.citizenshipStatus === 'citizen' ? 'success' : 'aegean'}
@@ -73,6 +74,7 @@ export function HomeScreen() {
           </Badge>
         </p>
       </ScreenHeader>
+      <HouseNav />
       {failed && (
         <LoadProblem
           onRetry={() =>
@@ -115,29 +117,6 @@ export function HomeScreen() {
             </Link>
           </p>
         )}
-        <nav
-          aria-label={t('home.sectionsNav')}
-          className="flex flex-wrap gap-x-4 border-t border-border-subtle pt-2"
-        >
-          <Link
-            to="/comptes"
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-          >
-            {t('home.accounts')}
-          </Link>
-          <Link
-            to="/personnel"
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-          >
-            {t('home.staffLink')}
-          </Link>
-          <Link
-            to="/immobilier"
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"
-          >
-            {t('home.propertyLink')}
-          </Link>
-        </nav>
       </Card>
 
       <Card>

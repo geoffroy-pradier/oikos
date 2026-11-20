@@ -19,6 +19,7 @@ export { Stat, type StatProps } from './components/Stat';
 export { Switch, type SwitchProps } from './components/Switch';
 export { Tabs, type TabItem, type TabsProps } from './components/Tabs';
 export { PillTabs, type PillTabsProps } from './components/Tabs';
+export { PILL_LIST, pillClass } from './components/pills';
 export { AA_TEXT, AA_UI, COLOR_TOKENS, CONTRAST_PAIRS, contrastRatio } from './contrast';
 export * from './icons';
 export { numberProblem, readTypedNumber, typedIntegerProblem, type NumberProblem } from './numbers';

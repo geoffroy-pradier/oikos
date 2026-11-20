@@ -94,7 +94,7 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
 
   // Comptes : l'offrande et la consultation sous leur nature, libellée.
   await nav.getByRole('link', { name: 'Maison' }).click();
-  await page.getByRole('link', { name: 'Comptes de la maison' }).click();
+  await page.getByRole('link', { name: 'Comptes', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
   await expect(page.getByText(/^Offrandes et consultations de la Pythie : −/)).toBeVisible();
   await expectNoHorizontalScroll(page);

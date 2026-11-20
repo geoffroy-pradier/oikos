@@ -165,7 +165,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page.reload();
     await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
     await expect(page.getByText('Blé : 80')).toBeVisible();
-    await page.getByRole('link', { name: 'Personnel de la maison' }).click();
+    await page.getByRole('link', { name: 'Personnel', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Personnel', level: 1 })).toBeVisible();
     await expect(page.getByText('4 travailleurs', { exact: true })).toBeVisible();
     await expect(
@@ -285,7 +285,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       `Site relancé : Champ de blé, pour ${money(upkeep + wages)} d'entretien et de salaires.`,
     );
     // Les comptes portent les salaires payés, sous leur nature.
-    await page.getByRole('link', { name: 'Comptes de la maison' }).click();
+    await page.getByRole('link', { name: 'Comptes', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
     await expect(page.getByText(`Salaires : −${money(wages)}`)).toBeVisible();
     await expectNoHorizontalScroll(page);

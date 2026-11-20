@@ -167,10 +167,15 @@
     },
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
-    "accounts": "Comptes de la maison",
-    "staffLink": "Personnel de la maison",
-    "propertyLink": "Immobilier",
-    "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir."
+    "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir.",
+    "greeting": "Bonjour, Maison {{name}}",
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "sites": "Sites",
+      "staff": "Personnel",
+      "property": "Immobilier",
+      "accounts": "Comptes"
+    }
   },
   "agora": {
     "city": "Cité du marché",

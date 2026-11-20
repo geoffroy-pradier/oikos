@@ -1,8 +1,17 @@
 import { cityTerroirAdmits } from '@oikos/config/schema';
 import type { SiteCollectOutput } from '@oikos/contracts';
 import { yieldModelOf, type WorldEventKind } from '@oikos/sim';
-import { Button, Card, EmptyState, TriangleAlert, Wheat } from '@oikos/ui';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Button, Card, Coins, EmptyState, StatCard, TriangleAlert, Wheat } from '@oikos/ui';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { acquireSite, collectSite, restartSite, setSiteRecipe, type CommandResponse } from '../api';
 import { useRows, useSiteRules } from '../data';
@@ -36,6 +45,8 @@ import {
   sendUnderKey,
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
+import { HouseNav } from '../HouseNav';
+import { ScreenHeader } from '../ScreenHeader';
 import { SiteSteward } from './SiteSteward';
 import {
   parseInstructions,
@@ -75,10 +86,16 @@ const NO_ACTIVITY = { recent: [], lastRefusal: null };
 export function SitesCard({
   stock,
   onChanged,
+  titleRef,
+  figures,
 }: {
   /** Stock de la maison (`null` tant qu'il n'est pas lu) : intrants disponibles des ateliers. */
   stock: StockLine[] | null;
   onChanged: () => Promise<unknown>;
+  /** Titre de l'écran Sites, qui nomme alors la liste : le foyer y va après une relecture réussie. */
+  titleRef?: RefObject<HTMLHeadingElement | null>;
+  /** Chiffres clés de l'écran, rangés avant celui des sites (trésorerie). */
+  figures?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
   const house = useHouse();
@@ -232,8 +249,9 @@ export function SitesCard({
   }, [pending, sites.rows, busy]);
   // Le résultat reste dans la fenêtre, même quand un nouveau site a poussé le formulaire vers le bas.
   const noticeElement = useRef<HTMLParagraphElement>(null);
-  // Titre de la carte : le foyer y va après une relecture réussie.
-  const title = useRef<HTMLHeadingElement>(null);
+  // Titre de la carte, ou de l'écran : le foyer y va après une relecture réussie.
+  const ownTitle = useRef<HTMLHeadingElement>(null);
+  const title = titleRef ?? ownTitle;
   useEffect(() => {
     const element = noticeElement.current;
     element?.scrollIntoView({ block: 'nearest' });
@@ -639,20 +657,39 @@ export function SitesCard({
 
   return (
     <Card className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-          <Wheat aria-hidden="true" className="size-5 text-accent" />
-          {t('home.sites')}
-        </h2>
-        {rules && sites.rows && (
-          <p className="text-sm text-muted-foreground">
-            {t('home.sitesCount', {
-              count: number.format(sites.rows.length),
-              limit: number.format(rules.limit),
-            })}
-          </p>
-        )}
-      </div>
+      {titleRef && (
+        <div className="grid grid-cols-2 gap-3">
+          {figures}
+          <StatCard
+            label={t('home.sites')}
+            icon={<Wheat />}
+            value={
+              rules && sites.rows
+                ? t('home.sitesCount', {
+                    count: number.format(sites.rows.length),
+                    limit: number.format(rules.limit),
+                  })
+                : '—'
+            }
+          />
+        </div>
+      )}
+      {!titleRef && (
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
+            <Wheat aria-hidden="true" className="size-5 text-accent" />
+            {t('home.sites')}
+          </h2>
+          {rules && sites.rows && (
+            <p className="text-sm text-muted-foreground">
+              {t('home.sitesCount', {
+                count: number.format(sites.rows.length),
+                limit: number.format(rules.limit),
+              })}
+            </p>
+          )}
+        </div>
+      )}
       {harvestable.length > 0 && (
         <Button
           className={`self-start ${WAITING}`}
@@ -1004,5 +1041,40 @@ export function SitesCard({
         </form>
       )}
     </Card>
+  );
+}
+
+/** Écran Sites de l'onglet Maison : chiffres clés, chaque site et sa fiche, l'acquisition. */
+export function SitesScreen() {
+  const { t } = useTranslation();
+  const money = useMoney();
+  const title = useRef<HTMLHeadingElement>(null);
+  const treasury = useRows<{ balance: number }>('my_treasury', 'balance', 'house_id');
+  const stock = useRows<StockLine & { id: string }>(
+    'my_inventories',
+    'id, city_id, good_id, quantity, reserved',
+    'good_id',
+  );
+  const balance = treasury.rows?.[0]?.balance;
+  return (
+    <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
+      <ScreenHeader title={t('home.sites')} titleRef={title} />
+      <HouseNav />
+      {(treasury.failed || stock.failed) && (
+        <LoadProblem onRetry={() => Promise.all([treasury.reload(), stock.reload()])} />
+      )}
+      <SitesCard
+        stock={stock.rows}
+        onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
+        titleRef={title}
+        figures={
+          <StatCard
+            label={t('home.treasury')}
+            icon={<Coins />}
+            value={balance === undefined ? '—' : money(balance)}
+          />
+        }
+      />
+    </div>
   );
 }

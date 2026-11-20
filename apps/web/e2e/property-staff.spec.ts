@@ -37,7 +37,7 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
 
   // Personnel : le champ de départ et ses quatre travailleurs, sans logement.
-  await page.getByRole('link', { name: 'Personnel de la maison' }).click();
+  await page.getByRole('link', { name: 'Personnel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Personnel', level: 1 })).toBeVisible();
   await expect(page.getByText('4 travailleurs', { exact: true })).toBeVisible();
   await expect(
