@@ -7,7 +7,7 @@ import { TOUCH_TARGET } from './field-parts';
 const buttonVariants = cva(
   `${TOUCH_TARGET} inline-flex items-center justify-center gap-2 rounded-md font-medium select-none ` +
     'transition-[background-color,border-color,box-shadow,transform] duration-(--motion-fast) ease-out ' +
-    'enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 ' +
+    'enabled:not-aria-disabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 ' +
     '[&_svg]:size-[1.15em] [&_svg]:shrink-0',
   {
     variants: {
@@ -21,6 +21,9 @@ const buttonVariants = cva(
         danger:
           'border border-danger/40 bg-danger-subtle text-danger enabled:hover:border-danger ' +
           'enabled:hover:shadow-sm',
+        // Action que l'écran sait impossible (`inactive`) : ni plein ni relevé, bordure tiretée, sans survol.
+        inactive:
+          'cursor-not-allowed border border-dashed border-muted-foreground bg-muted text-muted-foreground',
       },
       // 40 px visibles, 44 px de cible (`TOUCH_TARGET`) ; `sm` est réservé aux tableaux denses sur ordinateur.
       size: {
@@ -40,6 +43,11 @@ export type ButtonProps = ComponentProps<'button'> &
     icon?: ReactNode;
     /** Commande en cours : bouton inactif, marqué occupé, libellé inchangé. */
     loading?: boolean;
+    /**
+     * Action que l'écran sait impossible : `aria-disabled`, le bouton garde le foyer mais ignore l'activation.
+     * L'appelant affiche la raison à côté et la relie par `aria-describedby`.
+     */
+    inactive?: boolean;
   };
 
 export function Button({
@@ -48,18 +56,23 @@ export function Button({
   size,
   icon,
   loading = false,
+  inactive = false,
   disabled,
   children,
   type = 'button',
+  onClick,
   ...props
 }: ButtonProps) {
   return (
     <button
       type={type}
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={cn(buttonVariants({ variant: inactive ? 'inactive' : variant, size }), className)}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...props}
+      aria-disabled={inactive || props['aria-disabled']}
+      // Inactif, le clic n'agit pas, pas même l'envoi d'un formulaire.
+      onClick={inactive ? (event) => event.preventDefault() : onClick}
     >
       {loading ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : icon}
       {children}

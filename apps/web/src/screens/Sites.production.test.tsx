@@ -66,8 +66,16 @@ describe('SitesCard en production en cours', () => {
     const olives = screen.getByRole('progressbar', { name: 'Prochaine récolte : Oliveraie' });
     expect(olives.getAttribute('aria-valuetext')).toMatch(/^Cycle suivant dans \d+ h \d{2}$/);
     expect(screen.getAllByText(fr.production.nothing)).toHaveLength(1);
-    // « Récolter » reste proposé sur un site sans rien de prêt : l'API dit pourquoi.
+    // « Récolter » reste proposé sur un site sans rien de prêt, inactif, sa raison à côté (#864).
     expect(screen.getAllByRole('button', { name: /^Récolter : / })).toHaveLength(2);
+    const olivesButton = screen.getByRole('button', { name: 'Récolter : Oliveraie' });
+    expect(olivesButton.getAttribute('aria-disabled')).toBe('true');
+    expect(
+      document.getElementById(olivesButton.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe(fr.production.nothing);
+    expect(
+      screen.getByRole('button', { name: 'Récolter : Champ de blé' }).getAttribute('aria-disabled'),
+    ).toBe('false');
     expect(screen.getByRole('link', { name: 'Détails : Oliveraie' }).getAttribute('href')).toBe(
       '/sites#site-s2',
     );

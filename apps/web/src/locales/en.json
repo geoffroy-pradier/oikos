@@ -1480,7 +1480,8 @@
     "ambiguous": "Ambiguous number: write thousands with a comma, for example 30,000.",
     "notInteger": "Whole number expected.",
     "belowMin": "At least {{min}}.",
-    "aboveMax": "At most {{max}}."
+    "aboveMax": "At most {{max}}.",
+    "shortfall": "Your treasury is {{missing}} short."
   },
   "production": {
     "title": "Production in progress",

@@ -1,8 +1,9 @@
 import { gameDayDate } from '@oikos/sim';
 import { Badge, Button, CircleAlert, type DataColumn } from '@oikos/ui';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHouse } from '../house';
-import { useMoney } from '../money';
+import { shortfall, useMoney } from '../money';
 import { conditionShare, type Offer, type PropertySize } from '../property';
 import { PropertySheet, PropertyTable, useSheet, type RunCommand } from './PropertySheet';
 
@@ -14,13 +15,16 @@ export const offerIntent = (offer: Offer) =>
  * Biens offerts (4.5) : ceux de la cité et les offres des maisons, en tableau (fiches sur téléphone). Achat
  * et location s'ouvrent dans une feuille qui dit prix, état, entretien et, pour un bien à l'entretien
  * impayé, depuis quand ; la commande part au prix lu à l'ouverture de la feuille. Une offre de la maison
- * se dit « Votre offre », sans bouton.
+ * se dit « Votre offre », sans bouton. Un achat au-delà de la trésorerie a son bouton inactif, ce qui manque
+ * dit dessous (#864) ; une location, dont rien n'est payé à la signature, reste proposée.
  */
 export function PropertyOffers(props: {
   offers: Offer[];
   mineIds: ReadonlySet<string>;
   sizes: ReadonlyMap<string, PropertySize> | null;
   describe: (property: { sizeId: string; lot: number; cityId: string }) => string;
+  /** Trésorerie de la maison ; `null` tant qu'elle n'est pas connue : l'API juge seule. */
+  balance: number | null;
   busy: boolean;
   run: RunCommand;
 }) {
@@ -28,6 +32,9 @@ export function PropertyOffers(props: {
   const { t, i18n } = useTranslation();
   const house = useHouse();
   const money = useMoney();
+  const ids = useId();
+  const missing = (offer: Offer) =>
+    offer.kind === 'lease' ? null : shortfall(props.balance, offer.priceOboles);
   const { opened, open, refusal, outcome } = useSheet<Offer>();
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
@@ -84,15 +91,29 @@ export function PropertyOffers(props: {
         mineIds.has(offer.propertyId) ? (
           <span className="text-muted-foreground">{t('property.yourOffer')}</span>
         ) : (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={busy}
-            aria-label={`${t(`property.take.${offer.kind}`, { cost: money(offer.priceOboles) })} — ${describe(offer)}`}
-            onClick={() => open(offer)}
-          >
-            {t(`property.open.${offer.kind}`)}
-          </Button>
+          <span className="flex flex-col items-start gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              inactive={missing(offer) !== null}
+              aria-describedby={
+                missing(offer) === null ? undefined : `${ids}${offer.kind}${offer.propertyId}`
+              }
+              disabled={busy}
+              aria-label={`${t(`property.take.${offer.kind}`, { cost: money(offer.priceOboles) })} — ${describe(offer)}`}
+              onClick={() => open(offer)}
+            >
+              {t(`property.open.${offer.kind}`)}
+            </Button>
+            {missing(offer) !== null && (
+              <span
+                id={`${ids}${offer.kind}${offer.propertyId}`}
+                className="text-xs text-muted-foreground"
+              >
+                {t('controls.shortfall', { missing: money(missing(offer) ?? 0) })}
+              </span>
+            )}
+          </span>
         ),
     },
   ];

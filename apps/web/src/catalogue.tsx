@@ -297,6 +297,9 @@ function Catalogue() {
             <Button size="lg">lg</Button>
             <Button loading>loading</Button>
             <Button disabled>disabled</Button>
+            <Button variant="secondary" inactive>
+              inactive
+            </Button>
             <Button variant="secondary" icon={<Ship />} loading>
               loading
             </Button>

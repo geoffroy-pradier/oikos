@@ -62,14 +62,15 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   await expectNoHorizontalScroll(page);
   await page.getByRole('link', { name: "Vue d'ensemble" }).click();
 
-  // Trop tôt : le refus de l'API est affiché, rien n'entre en stock.
+  // Trop tôt : rien de prêt, « Récolter » est inactif et dit pourquoi ; rien n'entre en stock (#864).
   const collect = page.getByRole('button', { name: 'Récolter : Champ de blé' });
-  await collect.click();
-  await expect(said(page, 'alert')).toContainText('Rien à récolter');
+  await expect(collect).toHaveAttribute('aria-disabled', 'true');
+  await expect(collect).toHaveAccessibleDescription('Rien de prêt');
   await expect(page.getByText('Aucun bien en stock')).toBeVisible();
 
   // Deux cycles de quatre heures plus tard : 80 unités de blé, récoltées au clavier.
   await elapse(houseName, 480);
+  await page.reload();
   await collect.focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText('Récolte engrangée : 80 × Blé.');
@@ -330,6 +331,7 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
 test('réponse perdue ou lecture en échec : l’écran ne ment pas sur le stock', async ({ page }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 240);
+  await page.reload();
 
   // La récolte aboutit côté serveur, mais sa réponse n'arrive jamais : l'erreur est annoncée,
   // et le stock relu montre quand même le blé engrangé.
@@ -404,6 +406,7 @@ async function npcsBuy(step: TickStep = npcDemand) {
 test('du champ à l’agora : produire, vendre, voir son solde augmenter', async ({ page }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 480);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
 
@@ -536,6 +539,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
 }) => {
   const seller = await foundHouse(page);
   await elapse(seller, 240);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 40')).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
@@ -692,6 +696,7 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   });
   const houseName = await foundHouse(page);
   await elapse(houseName, 480);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
@@ -1038,6 +1043,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
 }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 480);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
 
@@ -1099,10 +1105,12 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
     mill.getByText("Rien à récolter pour l'instant. 4 cycles attendent des intrants."),
   ).toBeVisible();
   await expect(mill.getByText('10 × Blé (stock libre : 0)')).toBeVisible();
-  // Récolter quand même : le refus de l'API est traduit, sous le site.
-  await page.getByRole('button', { name: 'Récolter : Moulin' }).click();
-  await expect(said(page, 'alert')).toContainText('Il manque des intrants');
-  await expect(said(page, 'alert')).toBeInViewport();
+  // Rien à récolter d'après l'écran : « Récolter » est inactif, décrit par ce qui manque (#864).
+  const millCollect = page.getByRole('button', { name: 'Récolter : Moulin' });
+  await expect(millCollect).toHaveAttribute('aria-disabled', 'true');
+  await expect(millCollect).toHaveAccessibleDescription(
+    "Rien à récolter pour l'instant. 4 cycles attendent des intrants.",
+  );
   await expectNoHorizontalScroll(page);
 
   await chooseLanguage(page, 'en');
@@ -1115,6 +1123,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
 }) => {
   const houseName = await foundHouse(page);
   await elapse(houseName, 240);
+  await page.reload();
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 40')).toBeVisible();
 

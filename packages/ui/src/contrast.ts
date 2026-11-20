@@ -135,6 +135,9 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['focus', 'background', AA_UI],
   ['focus', 'surface', AA_UI],
   ['focus', 'surface-raised', AA_UI],
+  // Bouton d'une action impossible (#864) : texte et bordure tiretée en `muted-foreground` sur `muted`
+  // (couple tenu au seuil du texte, plus haut), et son foyer visible.
+  ['focus', 'muted', AA_UI],
   // Pastille active (onglets, choix segmentés) : fond plein du texte, texte couleur du fond.
   ['background', 'foreground', AA_TEXT],
   // Interrupteur allumé sur une fiche relevée (éteint : sa bordure, et sa pastille sur la piste, sont

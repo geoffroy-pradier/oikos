@@ -1,6 +1,6 @@
 import { Button, Card, ChevronRight, cn, EmptyIllustration, EmptyState, GoodIcon } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
-import type { ReactNode, Ref } from 'react';
+import { useId, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** Un site tel que le tableau de bord le montre, calculé par `SitesCard`. */
@@ -28,8 +28,9 @@ const COLUMNS = 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_m
 
 /**
  * Production en cours du tableau de bord : un site par ligne (site, cité, prochaine récolte, prêt, actions),
- * en tableau à partir de 1 024 px et en fiches en dessous. « Récolter » reste proposé tant que la production
- * existe : l'API dit s'il n'y a rien à récolter. Le résultat s'annonce sous la ligne (`announce`).
+ * en tableau à partir de 1 024 px et en fiches en dessous. « Récolter », action principale d'un site, est
+ * inactif quand le calcul affiché ne prévoit rien, sa raison (« Rien de prêt ») à côté ; non estimé, il
+ * reste actif et l'API juge. Le résultat s'annonce sous la ligne (`announce`).
  */
 export function ProductionList(props: {
   items: ProductionItem[] | null;
@@ -48,6 +49,7 @@ export function ProductionList(props: {
   const { t, i18n } = useTranslation();
   const number = new Intl.NumberFormat(i18n.language);
   const { items, harvestable } = props;
+  const ids = useId();
   return (
     <Card className="flex flex-col gap-3 p-0 pb-2">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
@@ -56,7 +58,6 @@ export function ProductionList(props: {
         </h2>
         {harvestable > 0 && (
           <Button
-            variant="secondary"
             className={WAITING}
             aria-disabled={props.busy}
             aria-label={t('home.collectAllLabel', {
@@ -174,7 +175,9 @@ export function ProductionList(props: {
                         {t('production.readyLine', { list: item.ready })}
                       </span>
                     ) : item.ready === null ? (
-                      <span className="text-muted-foreground">{t('production.nothing')}</span>
+                      <span id={`${ids}-${item.id}`} className="text-muted-foreground">
+                        {t('production.nothing')}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">
                         <span aria-hidden="true">—</span>
@@ -186,8 +189,9 @@ export function ProductionList(props: {
                     {!item.retired && (
                       <Button
                         size="sm"
-                        variant={item.ready ? 'primary' : 'secondary'}
-                        className={WAITING}
+                        inactive={item.ready === null}
+                        aria-describedby={item.ready === null ? `${ids}-${item.id}` : undefined}
+                        className={item.ready === null ? undefined : WAITING}
                         aria-disabled={props.busy}
                         aria-label={t('home.collectSite', { site: item.name })}
                         onClick={() => props.onCollect(item.id)}

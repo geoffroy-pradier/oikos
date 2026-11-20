@@ -1480,7 +1480,8 @@
     "ambiguous": "Nombre ambigu : écrivez les milliers avec une espace, par exemple 30 000.",
     "notInteger": "Nombre entier attendu.",
     "belowMin": "Au moins {{min}}.",
-    "aboveMax": "Au plus {{max}}."
+    "aboveMax": "Au plus {{max}}.",
+    "shortfall": "Il manque {{missing}} à votre trésorerie."
   },
   "production": {
     "title": "Production en cours",
