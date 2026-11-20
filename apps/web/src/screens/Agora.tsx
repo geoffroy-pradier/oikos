@@ -11,8 +11,9 @@ import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 import { parseCandleSeconds } from '../price-history';
 import { AgoraOrderSheet, type Side } from './AgoraOrderSheet';
-import { PriceHistory } from './PriceHistory';
+import { PriceChart, PriceQuote, usePriceHistory } from './PriceHistory';
 import { useMoney } from '../money';
+import { bestOpposite } from '../order-book';
 
 /**
  * Biens proposés : ceux qui ont un nom (un test tient les traductions alignées sur la configuration).
@@ -112,6 +113,7 @@ export function AgoraScreen() {
       .filter((row) => row.city_id === cityId && row.good_id === goodId)
       .reduce((sum, row) => sum + row.quantity - row.reserved, 0);
   const treasury = useRows<{ balance: number }>('my_treasury', 'balance', 'house_id');
+  const history = usePriceHistory(cityId, goodId, candleSeconds);
   // Sens de l'ordre en cours de saisie dans la feuille ; `null` : feuille fermée.
   const [side, setSide] = useState<Side | null>(null);
   // Bornes de la feuille : stock libre et trésorerie relus à son ouverture. Seule cette lecture borne la
@@ -154,6 +156,13 @@ export function AgoraScreen() {
   const number = new Intl.NumberFormat(i18n.language);
   const money = useMoney();
   const good = t(`goods.${goodId}`);
+  // Meilleure offre que la feuille propose : le premier niveau opposé hors des ordres de la maison.
+  const best =
+    side &&
+    bestOpposite(
+      (side === 'sell' ? bids : asks) ?? [],
+      (mine.rows ?? []).filter((order) => order.good_id === goodId && order.side !== side),
+    );
   const reloadAll = () =>
     Promise.all([
       book.reload(),
@@ -278,6 +287,7 @@ export function AgoraScreen() {
               </option>
             ))}
           </select>
+          <PriceQuote history={history} />
         </div>
       </Card>
       {(book.failed ||
@@ -290,9 +300,7 @@ export function AgoraScreen() {
         <LoadProblem heading={bookTitle} onRetry={reloadAll} />
       )}
 
-      {candleSeconds && (
-        <PriceHistory cityId={cityId} goodId={goodId} periodSeconds={candleSeconds} />
-      )}
+      {candleSeconds && <PriceChart history={history} />}
 
       <Card className="flex flex-col gap-3">
         <h2 ref={bookTitle} tabIndex={-1} className="text-xl">
@@ -390,7 +398,7 @@ export function AgoraScreen() {
         tax={tax}
         free={bounds?.free ?? null}
         cash={bounds?.cash ?? null}
-        best={(side === 'sell' ? bids : asks)?.[0] ?? null}
+        best={best}
         onPlace={place}
       />
 
