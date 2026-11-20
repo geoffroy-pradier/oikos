@@ -15,6 +15,8 @@ import {
   Dialog,
   EmptyState,
   IconButton,
+  LanguageSelect,
+  Menu,
   Moon,
   NumberField,
   Package,
@@ -320,6 +322,33 @@ function Catalogue() {
             <option value="corinth">Corinthe</option>
           </Select>
           <TextField label="TextField · disabled" disabled defaultValue="value" />
+        </Section>
+
+        <Section title="Menu · LanguageSelect">
+          <div className="flex flex-wrap items-start gap-2">
+            <Button icon={<Ship />}>primary</Button>
+            <Menu
+              label="Menu"
+              items={[
+                { id: 'menu-coins', label: 'item', icon: <Coins />, onSelect: () => {} },
+                { id: 'menu-x', label: 'danger', icon: <X />, danger: true, onSelect: () => {} },
+                {
+                  id: 'menu-store',
+                  label: 'separated',
+                  icon: <Store />,
+                  separated: true,
+                  onSelect: () => {},
+                },
+              ]}
+            />
+            <LanguageSelect
+              languages={['fr', 'en']}
+              value="fr"
+              onChange={() => {}}
+              label="LanguageSelect"
+              nameOf={(code) => fr.languages[code as keyof typeof fr.languages]}
+            />
+          </div>
         </Section>
 
         <Section title="NumberField">
