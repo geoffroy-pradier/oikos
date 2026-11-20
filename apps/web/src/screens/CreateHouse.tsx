@@ -6,7 +6,7 @@ import {
   normalizeHouseName,
   type Blazon,
 } from '@oikos/contracts';
-import { Badge, Select, Stepper, TextField } from '@oikos/ui';
+import { Badge, Check, CityVignette, GodEmblem, Select, Stepper, TextField } from '@oikos/ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createHouse } from '../api';
@@ -132,18 +132,19 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
   const cityCard = (city: City) => {
     const identity = identities?.get(city.id);
     const lines = describe(identity);
+    const full = fullCityIds.includes(city.id);
     return (
-      // Toute la carte se clique ; le nom vient du seul nom de la cité, la description n'est lue
-      // qu'une fois, par `aria-describedby`.
+      // Toute la carte se clique ; le nom vient du seul nom de la cité. La description, lue une fois par
+      // `aria-describedby`, reprend en texte les lignes que l'œil lit en dieu, terroir et port.
       <label
         key={city.id}
-        className="flex cursor-pointer gap-3 rounded-xl border border-border bg-surface-raised p-3 shadow-sm transition-colors duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
+        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm transition-[border-color,box-shadow] duration-(--motion-fast) hover:border-foreground-secondary has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--focus)"
       >
         <input
           type="radio"
           name="city"
           required
-          className="mt-1 size-5 shrink-0"
+          className="sr-only"
           value={city.id}
           checked={cityId === city.id}
           onChange={() => {
@@ -154,23 +155,52 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
           aria-describedby={`city-${city.id}${cityError ? ' form-error' : ''}`}
           aria-invalid={cityError}
         />
-        <span className="flex min-w-0 flex-col">
-          <span id={`city-name-${city.id}`} className="font-semibold">
-            {cityName(city)}
+        <CityVignette
+          cityId={city.slug}
+          className="h-auto w-full rounded-none border-b border-border-subtle"
+        />
+        <span className="flex flex-col gap-2 p-3">
+          <span className="flex items-center justify-between gap-2">
+            <span id={`city-name-${city.id}`} className="text-lg font-semibold">
+              {cityName(city)}
+            </span>
+            <Check
+              aria-hidden="true"
+              className="hidden size-5 text-primary group-has-[:checked]:block"
+            />
           </span>
-          <span id={`city-${city.id}`} className="text-sm text-muted-foreground">
-            {lines && [lines.god, lines.port, lines.terroir, lines.start].join(' · ')}
-            {identities && !identity && t('cityIdentity.missing')}
-            {fullCityIds.includes(city.id) && (
-              <Badge tone="danger" className="ml-2">
-                {t('createHouse.cityFull')}
-              </Badge>
-            )}
+          {lines && (
+            <span
+              aria-hidden="true"
+              className="flex flex-col gap-1.5 text-sm text-muted-foreground"
+            >
+              <span className="flex items-center gap-2 text-foreground">
+                {identity?.patronGodId && <GodEmblem godId={identity.patronGodId} size={28} />}
+                {lines.god}
+              </span>
+              <span>{lines.terroir}</span>
+              <span>{[lines.port, lines.start].join(' · ')}</span>
+            </span>
+          )}
+          {full && (
+            <Badge tone="danger" aria-hidden="true" className="self-start">
+              {t('createHouse.cityFull')}
+            </Badge>
+          )}
+          <span id={`city-${city.id}`} className="sr-only">
+            {[
+              ...(lines ? [lines.god, lines.port, lines.terroir, lines.start] : []),
+              ...(identities && !identity ? [t('cityIdentity.missing')] : []),
+              ...(full ? [t('createHouse.cityFull')] : []),
+            ].join(' · ')}
           </span>
         </span>
       </label>
     );
   };
+
+  const chosenIdentity = chosen && identities?.get(chosen.id);
+  const chosenLines = describe(chosenIdentity);
 
   return (
     <>
@@ -261,9 +291,34 @@ export function CreateHouse({ cities, accessToken, onCreated }: Props) {
                   </div>
                   <div>
                     <dt className="text-sm text-muted-foreground">
+                      {t('createHouse.summaryBlazon')}
+                    </dt>
+                    <dd>
+                      {(['shape', 'tincture', 'emblem'] as const)
+                        .map((part) => t(`blazon.${part}.${blazon[part]}` as string))
+                        .join(' · ')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted-foreground">
                       {t('createHouse.summaryCity')}
                     </dt>
-                    <dd className="font-semibold">{chosen && cityName(chosen)}</dd>
+                    <dd className="flex items-center gap-3">
+                      {chosen && (
+                        <CityVignette cityId={chosen.slug} className="h-auto w-24 rounded-lg" />
+                      )}
+                      <span className="flex flex-col gap-1">
+                        <span className="font-semibold">{chosen && cityName(chosen)}</span>
+                        {chosenLines && (
+                          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                            {chosenIdentity?.patronGodId && (
+                              <GodEmblem godId={chosenIdentity.patronGodId} size={24} />
+                            )}
+                            {chosenLines.god}
+                          </span>
+                        )}
+                      </span>
+                    </dd>
                   </div>
                 </dl>
                 <p id="summary-error" role="alert" className="font-semibold text-danger">
