@@ -872,6 +872,8 @@ export function SitesCard({
         </div>
       )}
       {problem}
+      {/* Titre de la liste, pour le plan de la page : les fiches et l'état vide sont des titres de niveau 3. */}
+      {sites.rows && <h2 className="sr-only">{t('home.sitesList')}</h2>}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && (
         <EmptyState

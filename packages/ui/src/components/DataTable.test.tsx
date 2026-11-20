@@ -66,4 +66,29 @@ describe('DataTable', () => {
     expect(cards.map((card) => card.querySelector('p')?.textContent)).toEqual(order());
     expect(within(cards[2] as HTMLElement).getByText('—')).toBeTruthy();
   });
+  it('ordonne les textes selon la langue (accents, nombres) et garde l’ordre reçu des égalités', () => {
+    const named: Row[] = [
+      { good: 'Vin', value: 3 },
+      { good: 'Écorce', value: 3 },
+      { good: 'Lot 10', value: 1 },
+      { good: 'Lot 9', value: 3 },
+      { good: 'Argile', value: 1 },
+    ];
+    render(
+      <DataTable
+        caption="Stocks"
+        columns={columns}
+        rows={named}
+        rowKey={(row) => row.good}
+        sortAnnouncement={() => ''}
+        locale="fr"
+      />,
+    );
+    // Premier tri d'une colonne de texte : de A à Z, « Écorce » avec les E, « Lot 9 » avant « Lot 10 ».
+    fireEvent.click(screen.getByRole('button', { name: /Bien/ }));
+    expect(order()).toEqual(['Argile', 'Écorce', 'Lot 9', 'Lot 10', 'Vin']);
+    // Premier tri d'une colonne de nombres : du plus grand au plus petit ; à valeur égale, l'ordre reçu.
+    fireEvent.click(screen.getByRole('button', { name: /Valeur/ }));
+    expect(order()).toEqual(['Vin', 'Écorce', 'Lot 9', 'Lot 10', 'Argile']);
+  });
 });

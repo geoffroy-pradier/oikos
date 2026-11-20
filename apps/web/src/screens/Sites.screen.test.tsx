@@ -71,6 +71,8 @@ describe('écran Sites', () => {
       </I18nextProvider>,
     );
     expect(screen.getByRole('heading', { level: 1, name: fr.home.sites })).toBeTruthy();
+    // La liste a son titre de niveau 2 : les fiches, de niveau 3, ne sautent pas de niveau (axe, heading-order).
+    expect(screen.getByRole('heading', { level: 2, name: fr.home.sitesList })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: fr.home.sectionsNav });
     const current = [...nav.querySelectorAll('a[aria-current="page"]')].map((a) => a.textContent);
     expect(current).toEqual([fr.home.nav.sites]);

@@ -289,8 +289,8 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       )}
       {!data && !error && <p>{t('app.loading')}</p>}
       <StaleReportsAlert hours={stale} limit={data?.staleAfterHours ?? 0} />
-      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. */}
-      <Notice notice={notice} />
+      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. Feuille ouverte : il y paraît, pas ici. */}
+      <Notice notice={open === null ? notice : null} />
       {data && (
         <>
           <div className="flex flex-wrap items-end justify-between gap-3">
