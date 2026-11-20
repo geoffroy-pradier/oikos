@@ -1092,5 +1092,16 @@
       "lastRefusal": "Last refusal, {{text}}",
       "resting": "The refused rule is resting: {{name}} will retry it from {{date}}."
     }
+  },
+  "controls": {
+    "decrement": "Decrease",
+    "increment": "Increase",
+    "all": "All",
+    "shortcuts": "Shortcuts",
+    "unreadable": "Unreadable number: write a number without a unit, for example 30,000.",
+    "ambiguous": "Ambiguous number: write thousands with a comma, for example 30,000.",
+    "notInteger": "Whole number expected.",
+    "belowMin": "At least {{min}}.",
+    "aboveMax": "At most {{max}}."
   }
 }
