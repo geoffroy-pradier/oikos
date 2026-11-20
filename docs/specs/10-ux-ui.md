@@ -247,6 +247,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Hors de l'onglet Messages, rien n'est encore signalé : le nombre de non lus sur l'onglet viendra avec les notifications.
    Sous chaque message visible d'une autre maison, « Signaler » (#275) ouvre au clavier le choix d'un motif, foyer sur ce choix, puis l'envoi ; un message déjà signalé par la maison est dit tel, et ni ses propres messages ni un message masqué ne se signalent.
    Un motif ajouté par Olympe sans traduction s'affiche sous son identifiant.
+   Le choix du motif se fait dans une feuille, comme l'ouverture d'une conversation, lancée par « Nouvelle conversation » en tête de l'onglet (#698).
    Sur tous les écrans de la maison (#275), les sanctions du compte pas encore finies sont annoncées en tête, à l'heure du serveur : effet, motif, début si elles sont à venir, fin, et l'appel, déjà fait ou à faire par « Faire appel ».
    L'annonce se relit quand l'API refuse une commande pour une sanction, et à la fin de la plus proche.
    Un compte qui n'a pas encore fondé de maison ne la voit pas.

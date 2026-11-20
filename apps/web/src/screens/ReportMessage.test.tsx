@@ -112,7 +112,8 @@ describe('signaler un message (#275)', () => {
     const first = api.reports[0];
     expect([first?.messageId, first?.reason]).toEqual(['m1', 'other']);
     await act(async () => first?.answer({ ok: false, error: { code: 'INTERNAL', message: 'x' } }));
-    expect(within(items()[0] as HTMLElement).getByRole('alert').textContent).toBe(
+    // Refusé, le signalement reste dans sa feuille, qui le dit.
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe(
       fr.errors.INTERNAL,
     );
     fireEvent.submit(reason);
@@ -142,5 +143,25 @@ describe('signaler un message (#275)', () => {
       api.reports[0]?.answer({ ok: false, error: { code: 'ALREADY_REPORTED', message: 'x' } }),
     );
     expect(screen.getByText("Message signalé : la modération l'examinera.")).toBeTruthy();
+  });
+
+  it('refusé, le signalement garde le foyer sur son envoi, jamais inactif pendant l’envoi', async () => {
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Signaler le message de Bacchiades' }));
+    const submit = screen.getByRole('button', { name: 'Envoyer le signalement' });
+    submit.focus();
+    fireEvent.click(submit);
+    // En vol : marqué inactif sans `disabled`, qui ferait tomber le foyer sur la page.
+    expect([submit.hasAttribute('disabled'), submit.getAttribute('aria-disabled')]).toEqual([
+      false,
+      'true',
+    ]);
+    await act(async () =>
+      api.reports[0]?.answer({ ok: false, error: { code: 'INTERNAL', message: 'x' } }),
+    );
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe(
+      fr.errors.INTERNAL,
+    );
+    expect(document.activeElement).toBe(submit);
   });
 });

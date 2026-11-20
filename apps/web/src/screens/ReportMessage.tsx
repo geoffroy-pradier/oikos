@@ -1,8 +1,8 @@
-import { Button } from '@oikos/ui';
+import { Button, Flag, LoaderCircle, Select, Sheet, StatusRegion } from '@oikos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reportMessage } from '../api';
-import { ALERT_BOX, STATUS_BOX } from './CommandNotice';
+import { STATUS_BOX } from './CommandNotice';
 import { useHouse } from '../house';
 import { pendingKeys, sendUnderKey } from '../pending-keys';
 
@@ -10,8 +10,9 @@ const session = () => window.sessionStorage;
 
 /**
  * « Signaler » sous un message d'une autre maison (#275) : un motif de la configuration, puis l'envoi. Un message
- * déjà signalé est dit tel. Le même signalement resté sans réponse repart sous la même clé. Envoyé, le choix
- * disparaît et le foyer passe sur le résultat ; annulé, il revient au bouton.
+ * déjà signalé est dit tel. Le même signalement resté sans réponse repart sous la même clé. Le motif se choisit
+ * dans une feuille (ADR 0011), foyer sur ce choix, un refus y est dit ; envoyé, la feuille se ferme et le foyer passe
+ * sur le résultat, sous le message ; annulé, il revient au bouton.
  */
 export function ReportMessage({
   messageId,
@@ -35,12 +36,12 @@ export function ReportMessage({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'status' | 'alert'; text: string } | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
-  const choice = useRef<HTMLSelectElement>(null);
   const status = useRef<HTMLParagraphElement>(null);
   const keys = pendingKeys(`report.${house.id}`, session);
+  // La feuille fermée, son bouton a disparu : le foyer passe sur le résultat.
   useEffect(() => {
-    if (open) choice.current?.focus();
-  }, [open]);
+    if (notice?.kind === 'status') status.current?.focus();
+  }, [notice]);
   const label = (value: string) => t(`reports.reasons.${value}`, { defaultValue: value });
 
   async function send() {
@@ -59,8 +60,6 @@ export function ReportMessage({
       if (result.ok || result.error.code === 'ALREADY_REPORTED') {
         setOpen(false);
         setNotice({ kind: 'status', text: t('reports.sent') });
-        // Le choix disparaît : le foyer passe sur le résultat.
-        status.current?.focus();
         await onReported();
       } else
         setNotice({ kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) });
@@ -69,76 +68,90 @@ export function ReportMessage({
     }
   }
 
+  const close = () => {
+    // Envoi en vol : la feuille reste ouverte, pour que son issue y soit dite.
+    if (busy) return;
+    setOpen(false);
+    setNotice(null);
+    // La feuille fermée, le foyer revient au bouton, même ouvert sans lui avoir donné le foyer.
+    setTimeout(() => opener.current?.focus());
+  };
+
   return (
     <div className="flex flex-col gap-1">
       {reported ? (
-        <p className="text-sm text-muted-foreground">{t('reports.reported')}</p>
-      ) : open ? (
+        <p className="text-xs text-muted-foreground">{t('reports.reported')}</p>
+      ) : (
+        <Button
+          ref={opener}
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-mb-1 -ml-2 h-8 self-start px-2 text-xs text-muted-foreground"
+          icon={<Flag aria-hidden="true" />}
+          aria-haspopup="dialog"
+          aria-label={t('reports.open', { house: author })}
+          onClick={() => setOpen(true)}
+        >
+          {t('reports.button')}
+        </Button>
+      )}
+      {/* Région présente avant son texte : le signalement envoyé s'annonce sous le message. */}
+      <p role="status" tabIndex={-1} ref={status} className={STATUS_BOX + ' text-sm'}>
+        {notice?.kind === 'status' ? notice.text : ''}
+      </p>
+      <Sheet
+        open={open && !reported}
+        onClose={close}
+        title={t('reports.open', { house: author })}
+        description={t('reports.description')}
+        closeLabel={t('shell.close')}
+        closeDisabled={busy}
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={busy} onClick={close}>
+              {t('reports.cancel')}
+            </Button>
+            {/* Inactif par `aria-disabled` pendant l'envoi : refusé, le bouton garde le foyer. */}
+            <Button
+              type="submit"
+              form={id}
+              aria-disabled={busy}
+              aria-busy={busy || undefined}
+              icon={busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : undefined}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+            >
+              {t('reports.send')}
+            </Button>
+          </>
+        }
+      >
         <form
-          className="flex flex-wrap items-end gap-2"
+          id={id}
+          className="flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             void send();
           }}
         >
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor={id} className="text-sm font-semibold">
-              {t('reports.reason', { house: author })}
-            </label>
-            <select
-              id={id}
-              ref={choice}
-              value={reason}
-              className="min-h-11 max-w-full rounded-md border border-border bg-surface px-2"
-              onChange={(event) => setReason(event.target.value)}
-            >
-              {reasons.map((value) => (
-                <option key={value} value={value}>
-                  {label(value)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            type="submit"
-            aria-disabled={busy}
-            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+          <Select
+            label={t('reports.reason', { house: author })}
+            quiet
+            autoFocus
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
           >
-            {t('reports.send')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setOpen(false);
-              setNotice(null);
-              setTimeout(() => opener.current?.focus());
-            }}
-          >
-            {t('reports.cancel')}
-          </Button>
+            {reasons.map((value) => (
+              <option key={value} value={value}>
+                {label(value)}
+              </option>
+            ))}
+          </Select>
+          <StatusRegion role="alert" tone="danger">
+            {notice?.kind === 'alert' && notice.text}
+          </StatusRegion>
         </form>
-      ) : (
-        <div>
-          <Button
-            ref={opener}
-            type="button"
-            variant="ghost"
-            className="text-sm"
-            aria-label={t('reports.open', { house: author })}
-            onClick={() => setOpen(true)}
-          >
-            {t('reports.button')}
-          </Button>
-        </div>
-      )}
-      {/* Régions présentes avant leur texte : le résultat est annoncé près de l'action. */}
-      <p role="status" tabIndex={-1} ref={status} className={STATUS_BOX + ' text-sm'}>
-        {notice?.kind === 'status' ? notice.text : ''}
-      </p>
-      <p role="alert" className={ALERT_BOX + ' text-sm'}>
-        {notice?.kind === 'alert' ? notice.text : ''}
-      </p>
+      </Sheet>
     </div>
   );
 }
