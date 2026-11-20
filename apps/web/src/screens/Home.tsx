@@ -8,6 +8,7 @@ import { HouseAlerts } from './HouseAlerts';
 import { SitesCard } from './Sites';
 import { useMoney } from '../money';
 import { LoadProblem, Loading } from './LoadProblem';
+import { ScreenHeader } from '../ScreenHeader';
 
 interface Treasury {
   balance: number;
@@ -62,17 +63,16 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <Card elevation="raised" className="overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-2 p-4">
-          <h1 className="text-2xl">{t('home.title', { name: house.name })}</h1>
+      <ScreenHeader title={t('home.title', { name: house.name })}>
+        <p>
           <Badge
             tone={house.citizenshipStatus === 'citizen' ? 'success' : 'aegean'}
             icon={<Landmark aria-hidden="true" />}
           >
             {t(`home.status.${house.citizenshipStatus}`, { city: house.cityName })}
           </Badge>
-        </div>
-      </Card>
+        </p>
+      </ScreenHeader>
       {failed && (
         <LoadProblem
           onRetry={() =>

@@ -28,6 +28,7 @@ export {
   type DataTableProps,
   type SortDirection,
 } from './components/DataTable';
+export { PageHeader, type PageHeaderProps } from './components/PageHeader';
 export { Progress, type ProgressProps } from './components/Progress';
 export { StatCard, type StatCardProps } from './components/StatCard';
 export { StatusRegion, type StatusRegionProps } from './components/StatusRegion';

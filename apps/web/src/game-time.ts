@@ -28,3 +28,7 @@ export function useGameTime(): Date {
   }, []);
   return now;
 }
+
+/** Heure et minute d'un instant, dans la langue de l'interface et le fuseau de l'appareil. */
+export const formatTime = (language: string, at: Date) =>
+  new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }).format(at);

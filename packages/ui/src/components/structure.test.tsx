@@ -4,6 +4,7 @@ import { createRef } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Coins, Ship } from '../icons';
 import { EmptyState } from './EmptyState';
+import { PageHeader } from './PageHeader';
 import { Progress } from './Progress';
 import { StatCard } from './StatCard';
 import { StatusRegion } from './StatusRegion';
@@ -73,5 +74,36 @@ describe('EmptyState', () => {
     );
     expect(screen.getByTestId('art').parentElement?.getAttribute('aria-hidden')).toBe('true');
     expect(container.querySelector('[data-testid="icon"]')).toBeNull();
+  });
+});
+
+describe('PageHeader', () => {
+  it('nomme la page par son seul titre, et range recherche et action après lui', () => {
+    const ref = createRef<HTMLHeadingElement>();
+    render(
+      <PageHeader
+        title="Agora"
+        subtitle="Il est 14:05"
+        titleRef={ref}
+        search={<input aria-label="Chercher" />}
+        action={<button type="button">Passer un ordre</button>}
+      />,
+    );
+    const title = screen.getByRole('heading', { level: 1, name: 'Agora' });
+    expect(title).toBe(ref.current);
+    expect(title.getAttribute('tabindex')).toBe('-1');
+    expect(screen.getByText('Il est 14:05').className).toContain('text-muted-foreground');
+    const order = [title, screen.getByLabelText('Chercher'), screen.getByRole('button')];
+    order.slice(1).forEach((node, index) => {
+      const before = order[index];
+      if (!before) throw new Error('ordre');
+      expect(before.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
+
+  it('sans référence, le titre n’est pas focalisable ; sans action, aucune colonne vide', () => {
+    const { container } = render(<PageHeader title="Carte" />);
+    expect(screen.getByRole('heading', { level: 1 }).hasAttribute('tabindex')).toBe(false);
+    expect(container.firstElementChild?.children).toHaveLength(1);
   });
 });
