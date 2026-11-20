@@ -257,16 +257,17 @@ test('production retirée de la configuration : site à l’arrêt sans récolte
   await expectNoHorizontalScroll(page);
 
   // Toutes les productions sont proposées, avec leur type ; le site repart sous la nouvelle.
-  const production = page.getByLabel('Production : retired_recipe', { exact: true });
-  await expect(production).toHaveValue('retired_recipe');
-  await expect(production.locator('option').first()).toHaveText(
+  await page.getByRole('button', { name: 'Changer la production : retired_recipe' }).press('Enter');
+  const production = page.getByRole('group', { name: 'Production : retired_recipe' });
+  await expect(production.getByRole('radio').first()).toBeChecked();
+  await expect(production.locator('label').first()).toHaveText(
     'retired_recipe (production retirée)',
   );
-  const change = page.getByRole('button', { name: 'Changer la production : retired_recipe' });
-  await expect(change).toBeDisabled();
-  await production.selectOption({ label: 'Champ de blé (Champ)' });
-  await change.focus();
-  await page.keyboard.press('Enter');
+  const next = page.getByRole('button', { name: 'Continuer' });
+  await expect(next).toBeDisabled();
+  await production.getByRole('radio', { name: 'Champ de blé (Champ)' }).check();
+  await next.press('Enter');
+  await page.getByRole('button', { name: 'Changer la production', exact: true }).press('Enter');
   await expect(said(page, 'status')).toContainText('Production changée : Champ de blé.');
   await expect(page.getByText("À l'arrêt", { exact: false })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Récolter : Champ de blé' })).toBeVisible();
@@ -806,18 +807,22 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   await expect(page.getByText('Type : Verger')).toBeVisible();
   await expectNoHorizontalScroll(page);
 
-  // Un champ n'a qu'une production : seul le verger propose d'en changer.
-  await expect(page.getByLabel('Production : Champ de blé', { exact: true })).toHaveCount(0);
-  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie' });
-  await expect(change).toBeDisabled();
-  await page.getByLabel('Production : Oliveraie', { exact: true }).selectOption({ label: 'Vigne' });
-  await change.focus();
-  await page.keyboard.press('Enter');
+  // Un champ n'a qu'une production : seul le verger propose d'en changer, dans une feuille, au clavier.
+  await expect(
+    page.getByRole('button', { name: 'Changer la production : Champ de blé' }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Changer la production : Oliveraie' }).press('Enter');
+  const productionSheet = page.getByRole('dialog', { name: 'Production : Oliveraie' });
+  // Sur la production actuelle, rien à continuer.
+  const next = productionSheet.getByRole('button', { name: 'Continuer' });
+  await expect(next).toBeDisabled();
+  await productionSheet.getByRole('radio', { name: 'Vigne' }).check();
+  await next.press('Enter');
+  await productionSheet.getByRole('button', { name: 'Changer la production' }).press('Enter');
   await expect(said(page, 'status')).toContainText('Production changée : Vigne.');
   await expect(page.getByRole('heading', { name: 'Vigne' })).toBeVisible();
-  // « Changer » redevient inactif : le foyer passe au message, il ne retombe pas sur la page.
-  await expect(page.getByRole('button', { name: 'Changer la production : Vigne' })).toBeDisabled();
-  await expect(said(page, 'status').locator('p')).toBeFocused();
+  // La feuille refermée, le foyer revient au bouton qui l'a ouverte, renommé avec le site.
+  await expect(page.getByRole('button', { name: 'Changer la production : Vigne' })).toBeFocused();
   await expect(page.getByRole('heading', { name: 'Oliveraie' })).toHaveCount(0);
 
   // Deux champs de plus : la limite du siège est atteinte, l'acquisition n'est plus proposée.
@@ -988,18 +993,21 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
 
   // Un cycle d'olives s'est écoulé : changer de production exige de récolter d'abord. Au clavier.
   await elapse(houseName, 360);
-  const production = page.getByLabel('Production : Oliveraie 1', { exact: true });
-  await production.selectOption({ label: 'Vigne' });
-  await production.focus();
+  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie 1' });
+  const sheet = page.getByRole('dialog', { name: 'Production : Oliveraie 1' });
+  await change.press('Enter');
+  await sheet.getByRole('radio', { name: 'Vigne' }).check();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
+  await sheet.getByRole('button', { name: 'Changer la production' }).press('Enter');
   const refusal = said(page, 'alert');
   await expect(refusal).toContainText('Récoltez ce site avant de changer sa production.');
   await expect(refusal).toBeInViewport();
-  // Le choix est gardé, et le bouton activé garde le focus.
-  await expect(production).toHaveValue('grow_grapes');
-  const change = page.getByRole('button', { name: 'Changer la production : Oliveraie 1' });
+  // Le bouton qui a ouvert la feuille reprend le foyer, et le choix est gardé pour le prochain essai.
   await expect(change).toBeFocused();
+  await change.press('Enter');
+  await expect(sheet.getByRole('radio', { name: 'Vigne' })).toBeChecked();
+  await page.keyboard.press('Escape');
 
   // Récolte du premier site, page en haut : le résultat paraît sous ce site, dans la fenêtre.
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -1012,6 +1020,8 @@ test('plusieurs sites : noms distincts, résultat affiché près de l’action, 
   await page.getByRole('button', { name: 'Récolter : Oliveraie 1' }).click();
   await expect(said(page, 'status')).toContainText('Récolte engrangée');
   await change.click();
+  await sheet.getByRole('button', { name: 'Continuer' }).click();
+  await sheet.getByRole('button', { name: 'Changer la production' }).click();
   await expect(said(page, 'status')).toContainText('Production changée : Vigne.');
   await expect(headings).toHaveText(['Champ de blé', 'Vigne', 'Oliveraie']);
   await expectNoHorizontalScroll(page);

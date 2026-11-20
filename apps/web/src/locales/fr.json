@@ -82,7 +82,6 @@
     "siteType": "Type : {{type}}",
     "production": "Production",
     "productionOf": "Production : {{site}}",
-    "change": "Changer",
     "changeSite": "Changer la production : {{site}}",
     "recipeChanged": "Production changée : {{site}}. Un nouveau cycle commence.",
     "acquire": "Acquérir un site",

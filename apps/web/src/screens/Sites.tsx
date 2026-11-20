@@ -57,6 +57,7 @@ import {
 import { LoadProblem, Loading } from './LoadProblem';
 import { ProductionList, type ProductionItem } from './HomeProduction';
 import { SiteAcquire, type SiteOffer } from './SiteAcquire';
+import { SiteProduction } from './SiteProduction';
 import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
 import { SiteSteward } from './SiteSteward';
@@ -92,7 +93,6 @@ export interface SitesSummary {
 type Notice = { target: string; kind: 'status' | 'alert'; text: string; unanswered?: true } | null;
 const ACQUIRE = 'acquire';
 const ALL = 'all';
-const CONTROL = 'min-h-11 w-full rounded-md border border-border bg-surface px-3';
 // Pendant une commande, les boutons restent atteignables (le focus ne retombe pas sur la page).
 const WAITING = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
@@ -1022,47 +1022,19 @@ export function SitesCard({
                   )}
                 </p>
               )}
-              {alternatives.length > 0 && (
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                    <span>{t('home.production')}</span>
-                    <select
-                      className={CONTROL}
-                      aria-label={t('home.productionOf', { site: name })}
-                      value={choice}
-                      disabled={busy}
-                      onChange={(event) =>
-                        setChosen((all) => ({ ...all, [site.id]: event.target.value }))
-                      }
-                    >
-                      <option value={site.recipe_id}>
-                        {retired
-                          ? t('home.retiredOption', { site: recipeName(site.recipe_id) })
-                          : recipeName(site.recipe_id)}
-                      </option>
-                      {alternatives.map((recipe) => (
-                        <option key={recipe.id} value={recipe.id}>
-                          {/* Toutes les productions sont proposées : leur type est précisé. */}
-                          {retired
-                            ? t('home.productionTyped', {
-                                site: recipeName(recipe.id),
-                                type: typeName(recipe.siteType),
-                              })
-                            : recipeName(recipe.id)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    variant="secondary"
-                    className={WAITING}
-                    disabled={choice === site.recipe_id}
-                    aria-disabled={busy}
-                    aria-label={t('home.changeSite', { site: name })}
-                    onClick={() => void change(site, choice)}
-                  >
-                    {t('home.change')}
-                  </Button>
+              {alternatives.length > 0 && rules && (
+                <div className="flex flex-wrap gap-2">
+                  <SiteProduction
+                    siteName={name}
+                    current={site.recipe_id}
+                    recipe={recipe ?? null}
+                    alternatives={alternatives}
+                    choice={choice}
+                    onChoice={(recipeId) => setChosen((all) => ({ ...all, [site.id]: recipeId }))}
+                    upkeepOf={rules.upkeepOf}
+                    busy={busy}
+                    onConfirm={(recipeId) => void change(site, recipeId)}
+                  />
                 </div>
               )}
               {announce(site.id)}
