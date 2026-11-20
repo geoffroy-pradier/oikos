@@ -170,7 +170,7 @@ export function CityAssembly() {
         <span aria-hidden="true" className="flex h-1.5 overflow-hidden rounded-full bg-muted">
           <span className="bg-primary" style={{ width: share(decree.votesFor, decree) }} />
           <span
-            className="bg-muted-foreground/60"
+            className="bg-muted-foreground"
             style={{ width: share(decree.votesAgainst, decree) }}
           />
         </span>
