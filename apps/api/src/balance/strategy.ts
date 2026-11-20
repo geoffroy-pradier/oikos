@@ -21,10 +21,6 @@ import {
  */
 /** Prix d'achat maximal des intrants, en multiple du prix de référence. */
 const INPUT_BID = 1.5;
-/** Le négociant achète tout bien à ce multiple du prix de référence… */
-const TRADER_BID = 0.85;
-/** … avec, par bien, au plus ce diviseur de sa trésorerie. */
-const TRADER_BUDGET_SHARE = 8;
 /** Prix demandé plancher, en multiple du prix de référence : une maison garde son stock plutôt que de le brader. */
 const ASK_FLOOR = 0.7;
 /** Pas quotidien du prix demandé, à la hausse comme à la baisse (1 %). */
@@ -103,7 +99,12 @@ export const ROLES: Role[] = [
   },
   { name: 'tisserand', count: 1, sites: ['grow_wheat', 'shear_wool', 'shear_wool', 'weave_cloth'] },
   { name: 'tisserand-caviste', count: 1, sites: ['grow_wheat', 'weave_cloth', 'ferment_wine'] },
-  { name: 'négociant', count: 1, sites: ['grow_wheat'], trader: true },
+  {
+    name: 'négociant',
+    count: 1,
+    sites: ['grow_wheat'],
+    trader: { bid: 0.85, budgetShare: 8, reserveDays: UPKEEP_DAYS_BEFORE_BUYING },
+  },
 ];
 
 /** Maison scriptée qui tient ses prix demandés et ses mises en vente d'un jour à l'autre. */
@@ -250,14 +251,22 @@ export async function morning(city: City, house: Seller, now: Date) {
     const affordable = Math.floor(((await cash(city, house.houseId)) - reserve) / price);
     await place(city, house, goodId, 'buy', price, Math.min(missing, affordable));
   }
-  if (house.role.trader) {
-    // Le négociant achète ce qui se vend sous `TRADER_BID` du prix de référence, dans la limite de sa
-    // trésorerie. Il n'enchérit que sur les biens que les sites du monde livrent : avec les offres d'achat sur les
-    // douze intermédiaires de #709, que personne n'y produit, le banc à une cité arrête un moulin faute d'entretien payé.
+  const { trader } = house.role;
+  if (trader) {
+    // Le négociant achète ce qui se vend sous `trader.bid` du prix de référence : par bien, une part de sa trésorerie,
+    // sans entamer sa réserve d'entretien, que la monnaie sous séquestre ne paierait pas (un site dont l'entretien n'est
+    // pas payé s'arrête, 5.5) ; elle tient quel que soit le nombre de biens (#712). Il n'enchérit que sur les biens que
+    // les sites du monde livrent : des offres qui ne se rempliraient jamais tiendraient sa trésorerie sous sa réserve
+    // de dépenses, et il vendrait chaque matin comme une maison à court (le panier du banc à une cité baisserait).
+    const upkeep = house.sites.reduce((sum, site) => sum + upkeepOf(site.recipeId), 0);
     const sold = await producedGoods(city);
     for (const good of config.goods.filter((each) => sold.has(each.id))) {
-      const budget = Math.floor((await cash(city, house.houseId)) / TRADER_BUDGET_SHARE);
-      const price = Math.floor(good.referencePriceOboles * TRADER_BID);
+      const left = await cash(city, house.houseId);
+      const budget = Math.min(
+        Math.floor(left / trader.budgetShare),
+        left - trader.reserveDays * upkeep,
+      );
+      const price = Math.floor(good.referencePriceOboles * trader.bid);
       if (price > 0) await place(city, house, good.id, 'buy', price, Math.floor(budget / price));
     }
   }

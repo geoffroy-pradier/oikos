@@ -10,6 +10,7 @@ import type { Seller } from './strategy';
 export const WORLD_SEED = 'banc-equilibrage-281';
 /** Les quatre cités de la configuration initiale. */
 export const SLUGS = ['kalliste', 'elaia', 'ampelos', 'halos'] as const;
+export type Slug = (typeof SLUGS)[number];
 /**
  * Diviseur de la population de chaque cité : une cité de 1 250 habitants, que sept ou huit maisons couvrent, et la
  * demande des quatre cités vaut la moitié de celle de la cité prototype (#78) ; le banc, avec ses armateurs, reste
@@ -141,8 +142,10 @@ export const SETTLEMENTS: Record<(typeof SLUGS)[number], Role[]> = {
  * et d'Halos.
  */
 export const CARRIERS: {
-  home: (typeof SLUGS)[number];
-  source: (typeof SLUGS)[number];
+  home: Slug;
+  source: Slug;
+  /** Escale entre les deux, sans route directe (#712) : l'armateur n'y vend ni n'achète rien. */
+  via?: Slug;
   count: number;
   toHome: string[];
   toSource: string[];
