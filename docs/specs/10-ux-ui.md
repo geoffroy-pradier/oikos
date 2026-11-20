@@ -14,8 +14,9 @@ L'interface est conçue d'abord pour le téléphone, puis densifiée pour l'ordi
 
 Sur téléphone, barre d'onglets en bas et écrans en fiches empilées. Sur ordinateur, barre latérale, panneaux multiples redimensionnables et tableaux denses triables, parce que les joueurs de gestion veulent voir leurs chiffres.
 Chaque onglet porte une icône au trait ; l'onglet actif est marqué par sa couleur et un trait (#575).
-Un en-tête commun montre le blason, le nom et la cité de la maison, sa trésorerie, le choix de la langue et un bouton Réglages.
-Le bouton Réglages ouvre le thème et la déconnexion ; Échap le referme et rend le foyer au bouton.
+Un en-tête commun montre le blason, le nom et la cité de la maison, sa trésorerie et un bouton Réglages.
+Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
+Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
 Sur téléphone, ce bouton ne garde que son icône, avec le même nom accessible, pour que l'en-tête tienne en deux lignes.
 Quand l'API refuse une session (`UNAUTHENTICATED`, #565), le jeu comme Olympe la renouvellent d'abord : un jeton expiré au réveil d'un appareil, ou sous une horloge en retard, ne déconnecte personne.
 Renouvelée, la session reste ouverte et l'écran invite à réessayer dans un instant ; la commande repart sous la même clé, que l'API n'a pas consommée.

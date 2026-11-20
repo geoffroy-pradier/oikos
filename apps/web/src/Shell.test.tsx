@@ -23,12 +23,16 @@ vi.mock('./router', async () => ({
   router: { navigate: vi.fn() },
 }));
 const { Shell } = await import('./Shell');
+const { supabase } = await import('./supabase');
+const { router } = await import('./router');
 
 async function mount(path: string) {
   window.matchMedia = ((query: string) => ({
     matches: false,
     media: query,
-  })) as typeof window.matchMedia;
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  })) as unknown as typeof window.matchMedia;
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
     resources: { fr: { translation: fr } },
@@ -63,7 +67,11 @@ async function mount(path: string) {
   );
   await screen.findByRole('navigation', { name: 'Navigation principale' });
 }
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+  delete document.documentElement.dataset['theme'];
+});
 
 describe('coquille : navigation', () => {
   it('marque l’onglet actif, et seulement lui', async () => {
@@ -103,17 +111,44 @@ describe('coquille : navigation', () => {
 });
 
 describe('coquille : réglages', () => {
-  it('le panneau s’ouvre au bouton, se referme à Échap et rend le foyer au bouton', async () => {
+  it('la feuille s’ouvre au bouton, se referme à Échap et rend le foyer au bouton', async () => {
     await mount('/');
     const button = screen.getByRole('button', { name: 'Réglages' });
     expect(button.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('button', { name: 'Thème sombre' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    button.focus();
     fireEvent.click(button);
     expect(button.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Thème sombre' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeTruthy();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('button', { name: 'Se déconnecter' })).toBeNull();
+    const sheet = screen.getByRole('dialog', { name: 'Réglages' });
+    expect(within(sheet).getByRole('radiogroup', { name: 'Thème' })).toBeTruthy();
+    expect(within(sheet).getByLabelText('Langue')).toHaveProperty('value', 'fr');
+    expect(within(sheet).getByRole('button', { name: 'Se déconnecter' })).toBeTruthy();
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(button);
+  });
+
+  it('thème clair, sombre ou celui de l’appareil : appliqué et mémorisé', async () => {
+    await mount('/');
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    const radio = (name: string) => screen.getByRole('radio', { name });
+    // Rien de mémorisé : le thème de l'appareil est le choix en cours.
+    expect(radio('Appareil').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(radio('Sombre'));
+    expect(radio('Sombre').getAttribute('aria-checked')).toBe('true');
+    expect(document.documentElement.dataset['theme']).toBe('dark');
+    expect(window.localStorage.getItem('oikos.theme')).toBe('dark');
+    // Appareil en clair (`matchMedia` du montage) : le thème suit, la mémoire est effacée.
+    fireEvent.click(radio('Appareil'));
+    expect(document.documentElement.dataset['theme']).toBe('light');
+    expect(window.localStorage.getItem('oikos.theme')).toBeNull();
+  });
+
+  it('la déconnexion ferme la session et revient à l’accueil', async () => {
+    await mount('/agora');
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }));
+    expect(router.navigate).toHaveBeenCalledWith({ to: '/' });
+    expect(supabase.auth.signOut).toHaveBeenCalled();
   });
 });

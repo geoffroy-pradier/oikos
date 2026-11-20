@@ -39,3 +39,17 @@ export async function signIn(page: Page, email: string) {
   await expect(page.getByRole('status')).toContainText(email);
   await page.goto(await magicLink(email));
 }
+
+/**
+ * Change la langue par la feuille des Réglages de la coquille, puis la referme à Échap. Le bouton se nomme
+ * dans la langue en cours ; seul celui de la mise en page affichée est visible.
+ */
+export async function chooseLanguage(page: Page, language: 'fr' | 'en') {
+  await page.getByRole('button', { name: /^(Réglages|Settings)$/ }).click();
+  await page
+    .getByRole('dialog')
+    .getByLabel(/^(Langue|Language)$/)
+    .selectOption(language);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}

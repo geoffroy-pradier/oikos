@@ -5,7 +5,7 @@ import { npcDemand, observedPricesStep, priceCandlesStep, type TickStep } from '
 import { createRng, marketTax } from '@oikos/sim';
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { sql } from 'kysely';
-import { expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
+import { chooseLanguage, expectNoHorizontalScroll, KALLISTE_ID, signIn } from './helpers';
 
 /**
  * Message annoncé : les régions vivantes vides, présentes en permanence près de chaque action, ne
@@ -69,7 +69,7 @@ test('fiche de site et trésorerie : la maison reçoit sa dotation, puis récolt
   // Après rechargement, l'état vient toujours de la base ; les textes suivent la langue.
   await page.reload();
   await expect(page.getByText('Blé : 80')).toBeVisible();
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByText('Wheat: 80')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Wheat field' })).toBeVisible();
   await expect(page.getByText(/^500 drachmas$/)).toBeVisible();
@@ -213,7 +213,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   // Le cycle gelé a repris là où il en était : toujours un cycle à récolter, pas trois.
   await expect(page.getByText('À récolter : 40 × Blé.')).toBeVisible();
   await expectNoHorizontalScroll(page);
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByText('Upkeep: 5 drachmas a day', { exact: false })).toBeVisible();
 });
 
@@ -269,7 +269,7 @@ test('production retirée de la configuration : site à l’arrêt sans récolte
     await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
   });
   await page.reload();
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByText(/^Stopped: its production no longer exists\./)).toBeVisible();
   await expect(page.getByText('retired_recipe — stopped, production withdrawn')).toBeVisible();
   await expect(page.getByRole('button', { name: /Collect/ })).toHaveCount(0);
@@ -807,7 +807,7 @@ test('sites : acquisition au clavier, changement de production, limite du siège
   // Après rechargement, tout vient de la base ; les textes suivent la langue.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Champ de blé' })).toHaveCount(3);
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByText('4 of 4')).toBeVisible();
   await expect(page.getByText('Type: Orchard')).toBeVisible();
 });
@@ -1047,7 +1047,7 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   await expect(said(page, 'alert')).toBeInViewport();
   await expectNoHorizontalScroll(page);
 
-  await page.getByLabel('Langue').selectOption('en');
+  await chooseLanguage(page, 'en');
   await expect(page.getByText('Inputs per cycle:')).toBeVisible();
   await expect(page.getByText('4 cycles are waiting for inputs.')).toBeVisible();
 });
@@ -1095,9 +1095,11 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
     await route.continue();
   });
   await page.getByRole('button', { name: 'Réessayer' }).click();
-  await page.getByLabel('Langue').focus();
+  // Le choix de la langue est passé dans la feuille des Réglages : le foyer va à leur bouton.
+  const settings = page.getByRole('button', { name: 'Réglages' });
+  await settings.focus();
   await expect(page.getByRole('heading', { name: 'Bilan' })).toBeVisible();
-  await expect(page.getByLabel('Langue')).toBeFocused();
+  await expect(settings).toBeFocused();
   await page.unroute(balanceSheet);
 
   // Chaque valeur est cherchée dans sa carte, nommée par son titre : aucun libellé d'une autre n'y répond.
@@ -1227,7 +1229,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
         );
       }
       await expectNoHorizontalScroll(page);
-      await page.getByLabel('Langue').selectOption('en');
+      await chooseLanguage(page, 'en');
       await expect(stock('Wheat', region('Valued stocks'))).toContainText('46 drachmas 4 obols');
       await expect(line('Treasury', 'Balance sheet')).toHaveText('500 drachmas');
       await expect(line('Total', 'Balance sheet')).toHaveText('546 drachmas 4 obols');

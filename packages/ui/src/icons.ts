@@ -31,6 +31,7 @@ export {
   MapIcon,
   MessagesSquare,
   Minus,
+  MonitorSmartphone,
   Moon,
   Package,
   Plus,

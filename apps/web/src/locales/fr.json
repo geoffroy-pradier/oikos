@@ -384,13 +384,18 @@
   "shell": {
     "skipToContent": "Aller au contenu",
     "navigation": "Navigation principale",
-    "darkTheme": "Thème sombre",
     "notFound": "Cette page n'existe pas.",
     "backHome": "Revenir à la maison",
     "settings": "Réglages",
-    "settingsPanel": "Réglages du compte",
     "balance": "Trésorerie",
-    "house": "Maison {{name}}"
+    "house": "Maison {{name}}",
+    "close": "Fermer",
+    "theme": "Thème",
+    "themes": {
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Appareil"
+    }
   },
   "languages": {
     "fr": "Français",
