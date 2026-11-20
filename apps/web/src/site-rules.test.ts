@@ -2,6 +2,7 @@ import { DEFAULT_SITES, gameConfigSchema } from '@oikos/config/schema';
 import { INITIAL_CONFIG } from '@oikos/config';
 import { describe, expect, it } from 'vitest';
 import {
+  cycleProgress,
   freeStockIn,
   parseLaborMarket,
   parseSiteRules,
@@ -416,5 +417,33 @@ describe('stockByCity', () => {
       { cityId: 'loin', lines: [line('a', 'loin')] },
     ]);
     expect(stockByCity([], 'ici')).toEqual([]);
+  });
+});
+
+describe('cycleProgress', () => {
+  const field = parseSiteRules(raw())?.recipe('grow_wheat');
+  if (!field) throw new Error('grow_wheat missing from the initial configuration');
+  const since = new Date('2026-01-01T00:00:00Z');
+  const after = (minutes: number) => new Date(since.getTime() + minutes * 60_000);
+  const cycle = field.durationMinutes;
+
+  it('la part faite du cycle en cours et les minutes avant le suivant, cycles déjà faits compris', () => {
+    expect(cycleProgress(field, since, after(cycle * 2 + cycle / 4))).toEqual({
+      done: 0.25,
+      minutesLeft: (cycle * 3) / 4,
+      full: false,
+    });
+    // Une fraction de minute restante compte pour une minute entière.
+    expect(cycleProgress(field, since, new Date(after(cycle).getTime() - 1)).minutesLeft).toBe(1);
+  });
+
+  it('plafond atteint : plein, plus rien à attendre ; à l’arrêt, le temps s’arrête à l’arrêt', () => {
+    expect(cycleProgress(field, since, after(cycle * field.maxAccruedCycles))).toEqual({
+      done: 1,
+      minutesLeft: 0,
+      full: true,
+    });
+    const halted = after(cycle / 2);
+    expect(cycleProgress(field, since, after(cycle * 5), halted).done).toBe(0.5);
   });
 });
