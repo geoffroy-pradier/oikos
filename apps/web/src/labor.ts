@@ -7,8 +7,8 @@ const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 /** Marché du travail du dernier jour fixé d'une cité (vue publique `labor_market`, 4.4). */
 export interface CityLabor {
   gameDay: number;
-  /** Offre de travail ; nulle, elle est sans limite (aucune classe travailleuse). */
-  supply: number;
+  /** Offre de travail ; `null` : sans limite (colonne `supply` nulle). 0 reste une vraie offre de 0. */
+  supply: number | null;
   employed: number;
   unhoused: number;
   wageOboles: number;
@@ -18,7 +18,7 @@ export interface CityLabor {
 const laborRow = z.object({
   city_id: id,
   game_day: z.number().int(),
-  supply: count,
+  supply: count.nullable(),
   employed: count,
   unhoused: count,
   wage_oboles: count,
@@ -49,10 +49,10 @@ export function parseCityLabor(rows: unknown): Map<string, CityLabor> | null {
 
 /**
  * Taux d'emploi en fraction (0 à 1, au-delà si la population est tombée sous l'emploi), pour
- * `Intl.NumberFormat` en pourcentage. `null` : offre sans limite, aucun taux à montrer.
+ * `Intl.NumberFormat` en pourcentage. `null` : offre sans limite (ou sans quotient possible), aucun taux à montrer.
  */
 export const employmentShare = (labor: CityLabor) =>
-  labor.supply === 0 ? null : labor.employed / labor.supply;
+  labor.supply === null || labor.supply === 0 ? null : labor.employed / labor.supply;
 
 /** Personnel de la maison dans une cité : travailleurs de ses sites, logés ou non, et ce que coûte l'hébergement. */
 export interface CityStaff {

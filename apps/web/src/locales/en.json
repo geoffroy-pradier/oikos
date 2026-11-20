@@ -825,6 +825,7 @@
     "ballast": "in ballast, no cargo",
     "arrived": "Ship arrived at {{city}}: {{cargo}}, unloaded into your stock.",
     "reload": "Reload the fleet",
+    "reloaded": "Fleet re-read: up to date.",
     "voyages": "Voyages",
     "noVoyages": "This ship has not sailed yet.",
     "voyage": "{{from}} → {{to}}",

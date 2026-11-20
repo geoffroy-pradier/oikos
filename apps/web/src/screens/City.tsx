@@ -291,7 +291,7 @@ export function CityScreen() {
                           count: labor.employed,
                           percent: percent.format(employment),
                           employed: number.format(labor.employed),
-                          supply: number.format(labor.supply),
+                          supply: number.format(labor.supply ?? 0),
                         })}
                   </span>
                   {employment !== null && <Meter share={employment} />}

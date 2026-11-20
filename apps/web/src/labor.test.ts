@@ -27,13 +27,14 @@ describe('marché du travail et personnel (#259)', () => {
   });
 
   it('taux d’emploi : employés sur offre, au-delà de 1 sous l’emploi ; offre nulle, sans limite', () => {
-    const share = (supply: number, employed: number) => {
+    const share = (supply: number | null, employed: number) => {
       const labor = parseCityLabor([{ ...day, supply, employed }])?.get('c1');
       return labor ? employmentShare(labor) : undefined;
     };
     expect(share(40, 30)).toBe(0.75);
     expect(share(20, 30)).toBe(1.5);
     expect(share(0, 30)).toBeNull();
+    expect(share(null, 30)).toBeNull();
   });
 
   it('personnel par cité : sites additionnés, hébergement au prix du jour, cités par nom', () => {
@@ -50,5 +51,19 @@ describe('marché du travail et personnel (#259)', () => {
     ]);
     expect(staffByCity([{ ...rows[0], workers: 1.5 }], null, String)).toBeNull();
     expect(staffByCity([], null, String)).toEqual([]);
+  });
+});
+
+describe('offre sans limite (#896)', () => {
+  it('une ligne à NULL, une à 0 et une ordinaire se lisent ensemble ; 0 reste 0', () => {
+    const labor = parseCityLabor([
+      { ...day, city_id: 'a', supply: null },
+      { ...day, city_id: 'b', supply: 0 },
+      { ...day, city_id: 'c', supply: 40 },
+    ]);
+    expect(labor?.get('a')?.supply).toBeNull();
+    expect(labor?.get('b')?.supply).toBe(0);
+    expect(labor?.get('c')?.supply).toBe(40);
+    expect(parseCityLabor([{ ...day, supply: -1 }])).toBeNull();
   });
 });
