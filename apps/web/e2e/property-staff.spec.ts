@@ -58,7 +58,15 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   });
   await (testInfo.project.name === 'mobile-360' ? buy.first() : buy.last()).focus();
   await page.keyboard.press('Enter');
-  // Le résultat s'annonce dans la carte des offres et prend le foyer si le bouton a disparu.
+  // L'achat s'ouvre dans une feuille, au prix vu, et se confirme au clavier.
+  const confirm = page
+    .getByRole('dialog')
+    .getByRole('button', { name: "Confirmer l'achat — 500 drachmes" });
+  // Le foyer entre dans la feuille sur « Fermer » ; une tabulation mène à la confirmation.
+  await page.keyboard.press('Tab');
+  await expect(confirm).toBeFocused();
+  await page.keyboard.press('Enter');
+  // Le résultat s'annonce dans la carte des offres et prend le foyer, la feuille fermée.
   await expect(page.getByRole('status').filter({ hasText: 'Bien acheté.' })).toBeVisible();
   const mine = page.getByRole('heading', { name: 'Mes biens' }).locator('..');
   await expect(mine.getByText('État : 100 %')).toBeVisible();

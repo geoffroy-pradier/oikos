@@ -106,9 +106,18 @@ const inTable = (name: string) => within(screen.getByRole('table', { name }));
 describe('écran Immobilier (#259)', () => {
   it('achat à la cité et location d’une offre, chacun au prix vu', async () => {
     await showProperty();
-    fireEvent.click(screen.getByRole('button', { name: /^Acheter à la cité .* n° 1, Kallistè$/ }));
+    open(/^Acheter à la cité .* n° 1, Kallistè$/);
+    // La feuille dit le prix, l'état et l'entretien ; la refermer n'achète rien.
+    const sheet = screen.getByRole('dialog', { name: /^Acheter à la cité : .* n° 1, Kallistè$/ });
+    expect(sheet.textContent).toContain('Entretien');
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(api.propertyCommand).not.toHaveBeenCalled();
+    open(/^Acheter à la cité .* n° 1, Kallistè$/);
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(1));
-    fireEvent.click(await screen.findByRole('button', { name: /^Louer \(5 drachmes par jour\)/ }));
+    await screen.findAllByRole('button', { name: /^Louer \(5 drachmes par jour\)/ });
+    open(/^Louer \(5 drachmes par jour\)/);
+    confirm();
     await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(2));
     expect(sent().map(([name, input]) => [name, input])).toEqual([
       ['property.buy', { propertyId: 'p1', expectedPriceOboles: townhouse?.purchasePriceOboles }],
@@ -125,11 +134,22 @@ describe('écran Immobilier (#259)', () => {
       .mockResolvedValueOnce({ ok: false, error: { code: 'INTERNAL', message: 'lost' } })
       .mockResolvedValueOnce({ ok: false, error: { code: 'PRICE_CHANGED', message: 'x' } });
     await showProperty();
-    const buy = () => screen.getByRole('button', { name: /^Acheter à la cité/ });
-    for (const times of [1, 2, 3]) {
-      fireEvent.click(buy());
+    open(/^Acheter à la cité/);
+    // La feuille reste ouverte après une réponse perdue ou un refus, dit près de son bouton.
+    const sheet = within(screen.getByRole('dialog'));
+    for (const [times, said] of [
+      [1, fr.errors.INTERNAL],
+      [2, fr.errors.PRICE_CHANGED],
+      [3, ''],
+    ] as const) {
+      await waitFor(() =>
+        expect(sheet.getByRole('button', { name: /^Confirmer/ }).hasAttribute('disabled')).toBe(
+          false,
+        ),
+      );
+      confirm();
       await waitFor(() => expect(api.propertyCommand).toHaveBeenCalledTimes(times));
-      if (times === 2) expect(await screen.findByText(fr.errors.PRICE_CHANGED)).toBeTruthy();
+      if (said) await waitFor(() => expect(sheet.getByRole('alert').textContent).toBe(said));
     }
     const keys = sent().map(([, , key]) => key);
     expect(keys[1]).toBe(keys[0]);
@@ -143,7 +163,7 @@ describe('écran Immobilier (#259)', () => {
     await showProperty();
     expect(screen.getByText('État : 60 %')).toBeTruthy();
     expect(screen.getByText(/^Entretien impayé depuis le/)).toBeTruthy();
-    expect(screen.getByText(fr.property.yourOffer)).toBeTruthy();
+    expect(inTable(fr.property.offers).getByText(fr.property.yourOffer)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Louer/ })).toBeNull();
     cleanup();
     state.views['my_properties'] = null;
@@ -165,22 +185,36 @@ describe('écran Immobilier (#259)', () => {
       },
     ];
     await showProperty();
+    // Le tableau marque les offres impayées ; la feuille en dit le jour, et décrit le bouton qui confirme.
+    const unpaid = (lot: number) =>
+      within(
+        inTable(fr.property.offers).getByRole('row', { name: new RegExp(`n° ${lot},`) }),
+      ).queryByText(fr.property.unpaidBadge);
+    expect([3, 4, 6].map((lot) => unpaid(lot) !== null)).toEqual([true, true, false]);
+    const confirmButton = () =>
+      within(screen.getByRole('dialog')).getByRole('button', { name: /^Confirmer/ });
+    const sheetFor = (lot: number) => {
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+      open(new RegExp(`^(Acheter|Buy) \\(.* ${lot}, Kallistè$`));
+    };
+    sheetFor(3);
     const dated = screen.getByText(
       "Entretien impayé depuis le 16 nov. 2026 : ce bien ne loge personne jusqu'à ce qu'une clôture paie son entretien.",
     );
+    expect(confirmButton().getAttribute('aria-describedby')).toBe(dated.id);
+    sheetFor(4);
     expect(screen.getAllByText(fr.property.offerUnpaidUndated)).toHaveLength(1);
-    // Le bouton d'achat de l'offre impayée en porte l'avertissement ; celui de l'offre payée, rien.
-    const buy = (lot: number) =>
-      screen.getByRole('button', { name: new RegExp(`^Acheter \\(.*n° ${lot}, Kallistè$`) });
-    expect(buy(3).getAttribute('aria-describedby')).toBe(dated.id);
-    expect(buy(6).getAttribute('aria-describedby')).toBeNull();
+    sheetFor(6);
+    expect(confirmButton().getAttribute('aria-describedby')).toBeNull();
     cleanup();
     await showProperty('en');
+    sheetFor(3);
     expect(
       screen.getByText(
         'Upkeep unpaid since Nov 16, 2026: this property houses no one until a close pays its upkeep.',
       ),
     ).toBeTruthy();
+    sheetFor(4);
     expect(screen.getAllByText(en.property.offerUnpaidUndated)).toHaveLength(1);
   });
   it('mes baux : fin demandée, bail résilié, fin du bail', async () => {

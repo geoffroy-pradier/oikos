@@ -797,11 +797,6 @@
     "condition": "Condition: {{percent}}",
     "offers": "Properties on offer",
     "noOffers": "No property on offer for now.",
-    "offer": {
-      "citySale": "Sold by the city: {{cost}}",
-      "sale": "Sold by a house: {{cost}}",
-      "lease": "For lease: {{cost}} a day"
-    },
     "take": {
       "citySale": "Buy from the city ({{cost}})",
       "sale": "Buy ({{cost}})",
@@ -853,13 +848,37 @@
       "property": "Property",
       "role": "You are",
       "rent": "Rent",
-      "status": "Lease"
+      "status": "Lease",
+      "kind": "Offer",
+      "price": "Price",
+      "condition": "Condition",
+      "action": "Action",
+      "upkeep": "Upkeep",
+      "city": "City"
     },
     "sheet": {
-      "endLease": "End the lease: {{name}}"
+      "endLease": "End the lease: {{name}}",
+      "citySale": "Buy from the city: {{name}}",
+      "sale": "Buy: {{name}}",
+      "lease": "Rent: {{name}}"
     },
     "confirm": {
-      "endLease": "Confirm the end of the lease"
+      "endLease": "Confirm the end of the lease",
+      "citySale": "Confirm the purchase — {{cost}}",
+      "sale": "Confirm the purchase — {{cost}}",
+      "lease": "Sign the lease — {{cost}}"
+    },
+    "once": "{{cost}}",
+    "unpaidBadge": "Upkeep unpaid",
+    "kind": {
+      "citySale": "Sold by the city",
+      "sale": "Sold by a house",
+      "lease": "For rent"
+    },
+    "open": {
+      "citySale": "Buy",
+      "sale": "Buy",
+      "lease": "Rent"
     }
   },
   "alerts": {

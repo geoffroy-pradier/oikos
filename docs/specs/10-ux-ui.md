@@ -65,6 +65,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Une commande aboutie ferme sa feuille ; son issue s'annonce sous le titre de la liste, où va le foyer.
    Un refus ou une réponse perdue laisse la feuille ouverte, saisie gardée, et s'y annonce près du bouton, dans une région vivante présente avant lui ; un nouvel essai après une réponse perdue repart sous la même clé.
    La feuille de fin de bail rappelle le rôle, le loyer et que la fin demandée est définitive.
+   Les offres disent le bien, marqué quand son entretien est impayé, l'offre (cité, maison ou location), le prix et l'état ; « Acheter » ou « Louer » ouvre une feuille qui dit prix, état, entretien d'un jour, cité et, pour un bien impayé, depuis quand, avertissement qui décrit le bouton de confirmation.
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
    Ces clés sont gardées en stockage de session, comme celles des sites et des navires : elles survivent au changement d'onglet et au rechargement.
    Après chaque relecture, l'écran rend les clés des commandes qu'il ne propose plus, parce que leur effet est lu ou qu'elles ne peuvent plus être demandées : la même demande, proposée de nouveau plus tard, part sous une clé neuve.
