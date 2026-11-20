@@ -334,3 +334,19 @@ it('le tableau des cumuls montre chaque robinet et chaque puits du catalogue, m�
     expect(new Set(shown).size).toBe(SYSTEM_ACCOUNT_KEYS.length);
   }
 });
+
+it('robinets et puits par jour : dessin résumé, doublé d’un tableau ; part de chaque puits écrite', async () => {
+  await show();
+  expect(screen.getByRole('img').getAttribute('aria-label')?.replace(/\s/g, ' ')).toBe(
+    'Sur 2 jours, les robinets vont de -200 à 6 000 oboles par jour, les puits de 30 à 155 ; le tableau qui suit donne les valeurs.',
+  );
+  // Du jour le plus récent au plus ancien ; la création nette est robinets moins puits.
+  expect(rows('Robinets et puits par jour')).toEqual([
+    ['Jour de jeu▼', 'Robinets', 'Puits', 'Création nette'],
+    ['15 nov. 2026', '6 000', '155', '5 845'],
+    ['14 nov. 2026', '-200', '30', '-230'],
+  ]);
+  // Un seul puits a détruit de la monnaie : toute la part est à lui, sans libellé de type.
+  const shares = screen.getByRole('heading', { name: "Part de chaque puits, depuis l'origine" });
+  expect(text(shares.nextElementSibling)).toBe('Entretien des sites100 %');
+});

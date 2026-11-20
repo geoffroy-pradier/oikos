@@ -1,14 +1,15 @@
 import type { AdminEconomy } from '@oikos/contracts';
-import { Button } from '@oikos/ui';
+import { Button, ChevronRight, cn, PageHeader, RefreshCw, StatCard } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
+import { ALERT } from '../ui';
 import { useAdmin } from '../useAdmin';
+import { DailyFlows, SinkShares } from './EconomyCharts';
 
 type World = AdminEconomy['worlds'][number];
 type Account = World['systemAccounts'][number];
 const DAY_MS = 86_400_000;
-const BOX = 'rounded-md border p-3';
 const outOfTarget = ({ priceIndex }: World) =>
   priceIndex.status === 'above' || priceIndex.status === 'below';
 
@@ -39,34 +40,48 @@ export function Economy({ accessToken }: { accessToken: string }) {
     t(`economy.kind.${kind}`, { name: t(`economy.accounts.${key}`, { defaultValue: key }) });
   /** Tableau à deux colonnes, intitulé et montant ; `total` met la dernière ligne en avant. */
   const amounts = (caption: string, slug: string, rows: [string, number][], total = false) => (
-    <table className={TABLE}>
-      <caption className="text-left text-lg">
-        {caption}
-        <span className="sr-only">{t('economy.ofWorld', { slug })}</span>
-      </caption>
-      <tbody>
-        {rows.map(([label, amount], row) => (
-          <tr key={label} className={total && row === rows.length - 1 ? 'font-semibold' : ''}>
-            <th scope="row" className="wrap-anywhere">
-              {label}
-            </th>
-            <td className="text-right">{number.format(amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="rounded-xl border border-border-subtle bg-surface px-3 pt-3 pb-1 shadow-sm lg:px-4 lg:pt-4">
+      <table className={cn(TABLE, '[&_th]:font-normal')}>
+        <caption className="pb-2 text-left text-base font-semibold">
+          {caption}
+          <span className="sr-only">{t('economy.ofWorld', { slug })}</span>
+        </caption>
+        <tbody>
+          {rows.map(([label, amount], row) => (
+            <tr
+              key={label}
+              className={
+                total && row === rows.length - 1 ? 'font-semibold [&_th]:font-semibold' : ''
+              }
+            >
+              <th scope="row" className="wrap-anywhere">
+                {label}
+              </th>
+              <td className="text-right tabular-nums">{number.format(amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
   const header = (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl">{t('economy.title')}</h1>
-        <Button variant="secondary" onClick={() => void reload()}>
-          {t('app.refresh')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('economy.title')}
+        subtitle={data && t('economy.intro')}
+        action={
+          <Button
+            variant="secondary"
+            icon={<RefreshCw aria-hidden="true" />}
+            onClick={() => void reload()}
+          >
+            {t('app.refresh')}
+          </Button>
+        }
+      />
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {/* Un « Actualiser » en échec laisse la lecture précédente à l'écran : il le dit. */}
-      {error && data && <p className="font-semibold">{t('economy.stale')}</p>}
+      {error && data && <p className="text-sm font-semibold">{t('economy.stale')}</p>}
     </>
   );
   if (!data) {
@@ -90,10 +105,9 @@ export function Economy({ accessToken }: { accessToken: string }) {
   return (
     <>
       {header}
-      <p className="text-sm text-muted-foreground">{t('economy.intro')}</p>
       {data.worlds.length > 1 && alerts.length > 0 && (
-        <section aria-labelledby="economy-alerts" className={`${BOX} border-danger`}>
-          <h2 id="economy-alerts" className="font-semibold text-danger">
+        <section aria-labelledby="economy-alerts" className={cn(ALERT, 'font-normal')}>
+          <h2 id="economy-alerts" className="text-sm font-semibold">
             {t('economy.alerts', { count: alerts.length })}
           </h2>
           <ul className="list-disc pl-5">
@@ -128,34 +142,44 @@ export function Economy({ accessToken }: { accessToken: string }) {
         days.sort((a, b) => b - a);
         const on = (account: Account, day: number) =>
           account.days.find((candidate) => candidate.gameDay === day)?.amount;
+        const flows = days.map((gameDay) => {
+          const sum = (kind: Account['kind']) =>
+            moving
+              .filter((account) => account.kind === kind)
+              .reduce((total, account) => total + (on(account, gameDay) ?? 0), 0);
+          return { gameDay, faucets: sum('faucet'), sinks: sum('sink') };
+        });
+        const sinks = systemAccounts
+          .filter((account) => account.kind === 'sink')
+          .map(({ key, total }) => ({
+            name: t(`economy.accounts.${key}`, { defaultValue: key }),
+            total,
+          }));
         return (
-          <section key={worldId} id={`world-${worldId}`} className="flex flex-col gap-3">
+          <section key={worldId} id={`world-${worldId}`} className="flex flex-col gap-4">
             <h2 className="text-xl wrap-anywhere">{t('economy.world', { slug })}</h2>
             {outOfTarget(world) && (
-              <p role="alert" className={`${BOX} border-danger font-semibold text-danger`}>
+              <p role="alert" className={ALERT}>
                 {t('economy.alert', { ...target, inflation, status })}
                 {partial && ` ${partial}`}
               </p>
             )}
-            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
                 [t('economy.indexCurrent', target), per100(index.currentBps)],
                 [t('economy.indexPrevious', target), per100(index.previousBps)],
                 [t('economy.inflation', target), inflation],
                 [t('economy.statusLabel'), status],
               ].map(([label, value]) => (
-                <div key={label} className={`${BOX} border-border`}>
-                  <dt className="text-sm text-muted-foreground">{label}</dt>
-                  <dd className="text-2xl font-semibold">{value}</dd>
-                </div>
+                <StatCard key={label} definition dense label={label} value={value} />
               ))}
             </dl>
-            {partial && <p>{partial}</p>}
+            {partial && <p className="text-sm">{partial}</p>}
             {/* Panier vide : lu dans la réponse, jamais déduit d'une liste de biens vide. */}
             {index.status === 'unknown' && data.basketEmpty && <p>{t('economy.noBasket')}</p>}
             {index.status === 'unknown' && !data.basketEmpty && index.unpricedGoods.length > 0 && (
-              <div>
-                <p>{t('economy.unpriced')}</p>
+              <div className="rounded-xl bg-surface-raised p-4 text-sm">
+                <p className="mb-1 font-medium">{t('economy.unpriced')}</p>
                 <ul className="list-disc pl-5">
                   {index.unpricedGoods.map((good) => (
                     <li key={good} className="wrap-anywhere">
@@ -165,39 +189,66 @@ export function Economy({ accessToken }: { accessToken: string }) {
                 </ul>
               </div>
             )}
-            {amounts(
-              t('economy.supply.title'),
-              slug,
-              supply.map(([part, amount]) => [t(`economy.supply.${part}`), amount]),
-              true,
+            {flows.length > 0 && (
+              <div className="grid items-start gap-4 lg:grid-cols-3">
+                <div className="min-w-0 lg:col-span-2">
+                  <DailyFlows days={flows} date={date} caption={t('economy.chart.title')} />
+                </div>
+                <SinkShares sinks={sinks} />
+              </div>
             )}
-            {amounts(
-              t('economy.totals'),
-              slug,
-              systemAccounts.map((account) => [name(account), account.total]),
-            )}
-            <h3 className="text-lg">{t('economy.byDay', { count: data.windowDays })}</h3>
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              {amounts(
+                t('economy.supply.title'),
+                slug,
+                supply.map(([part, amount]) => [t(`economy.supply.${part}`), amount]),
+                true,
+              )}
+              {amounts(
+                t('economy.totals'),
+                slug,
+                systemAccounts.map((account) => [name(account), account.total]),
+              )}
+            </div>
+            <h3 className="text-base font-semibold">
+              {t('economy.byDay', { count: data.windowDays })}
+            </h3>
             {days.length === 0 ? (
               <p className="text-muted-foreground">{t('economy.noDays')}</p>
             ) : (
-              // Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà.
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {days.map((day) => (
-                  <li key={day} className={`${BOX} border-border`}>
-                    <h4 className="font-semibold">{date(day)}</h4>
-                    <dl className="[&_dd]:whitespace-nowrap">
-                      {moving
-                        .filter((account) => on(account, day) !== undefined)
-                        .map((account) => (
-                          <div key={account.key} className="flex justify-between gap-x-4">
-                            <dt className="min-w-0 wrap-anywhere">{name(account)}</dt>
-                            <dd>{number.format(on(account, day) ?? 0)}</dd>
-                          </div>
-                        ))}
-                    </dl>
-                  </li>
-                ))}
-              </ul>
+              // Détail par compte, replié : le dessin et son tableau donnent déjà les totaux du jour.
+              <details className="group">
+                <summary className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg text-sm font-medium text-accent">
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-4 transition-transform duration-(--motion-fast) group-open:rotate-90"
+                  />
+                  {t('economy.dayDetail')}
+                </summary>
+                {/* Une fiche par jour de jeu, du plus récent au plus ancien : empilées sur téléphone, en grille au-delà. */}
+                <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {days.map((day) => (
+                    <li
+                      key={day}
+                      className="rounded-xl border border-border-subtle bg-surface p-4 text-sm shadow-sm"
+                    >
+                      <h4 className="mb-2 font-semibold">{date(day)}</h4>
+                      <dl className="flex flex-col gap-1 tabular-nums [&_dd]:whitespace-nowrap">
+                        {moving
+                          .filter((account) => on(account, day) !== undefined)
+                          .map((account) => (
+                            <div key={account.key} className="flex justify-between gap-x-4">
+                              <dt className="min-w-0 text-foreground-secondary wrap-anywhere">
+                                {name(account)}
+                              </dt>
+                              <dd>{number.format(on(account, day) ?? 0)}</dd>
+                            </div>
+                          ))}
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </section>
         );

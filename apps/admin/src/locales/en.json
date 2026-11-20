@@ -225,7 +225,19 @@
     },
     "byDay_one": "Faucets and sinks: net per game day (day read: 1)",
     "byDay_other": "Faucets and sinks: net per game day (days read: {{count}})",
-    "noDays": "No movement over the period."
+    "noDays": "No movement over the period.",
+    "chart": {
+      "title": "Faucets and sinks by day",
+      "faucets": "Faucets",
+      "sinks": "Sinks",
+      "net": "Net creation",
+      "day": "Game day",
+      "summary_one": "Over 1 day, faucets range from {{faucets.min}} to {{faucets.max}} obols, sinks from {{sinks.min}} to {{sinks.max}}; the table that follows gives the values.",
+      "summary_other": "Over {{count}} days, faucets range from {{faucets.min}} to {{faucets.max}} obols a day, sinks from {{sinks.min}} to {{sinks.max}}; the table that follows gives the values."
+    },
+    "shares": "Share of each sink, since the origin",
+    "noShares": "No sink has destroyed money yet.",
+    "dayDetail": "Detail by account, day by day"
   },
   "access": {
     "title": "Access",
