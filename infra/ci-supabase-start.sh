@@ -35,8 +35,9 @@ fi
 # Une socket qui écoute ou qui est établie ; les sockets en TIME-WAIT ne bloquent pas la liaison de Docker.
 held() { sudo ss -Htanp state listening "$ports"; sudo ss -Htanp state connected "$ports"; }
 
+# Seul le premier essai vérifie les ports : après un échec, `db:stop` peut laisser un instant un `docker-proxy`.
 for attempt in 1 2 3; do
-  if [ -n "$(held)" ]; then
+  if [ "$attempt" -eq 1 ] && [ -n "$(held)" ]; then
     echo "::error::Ports de Supabase (14320 à 14329) déjà occupés, sans attente possible :"
     held
     exit 1
@@ -45,6 +46,7 @@ for attempt in 1 2 3; do
   echo "::warning::Supabase n'a pas démarré (essai $attempt sur 3). Sockets sur ses ports :"
   held || true
   pnpm db:stop || true
+  sleep 5
 done
 echo "::error::Supabase n'a pas démarré en trois essais."
 exit 1
