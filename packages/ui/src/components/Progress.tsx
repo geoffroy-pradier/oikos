@@ -20,7 +20,7 @@ export function Progress({ label, value, max = 100, valueText, className }: Prog
     <div className={cn('flex flex-col gap-1.5', className)}>
       <div className="flex items-baseline justify-between gap-2 text-sm">
         <span id={id}>{label}</span>
-        <span aria-hidden="true" className="text-muted-foreground tabular-nums">
+        <span aria-hidden="true" className="shrink-0 text-muted-foreground tabular-nums">
           {valueText}
         </span>
       </div>

@@ -28,6 +28,7 @@ export {
   Landmark,
   Leaf,
   LoaderCircle,
+  LocateFixed,
   LogOut,
   MapIcon,
   MessagesSquare,

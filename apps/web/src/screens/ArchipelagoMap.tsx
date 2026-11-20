@@ -1,4 +1,4 @@
-import { Archipelago } from '@oikos/ui';
+import { Archipelago, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { along, MAP_HEIGHT, MAP_WIDTH, placeLabels, scaleBar, type Point } from '../map-layout';
@@ -60,7 +60,8 @@ export function ArchipelagoMap(props: {
   const { t, i18n } = useTranslation();
   const map = useMapView(props.home);
   const { box } = map;
-  const unit = box.width / useWidth(map.frame);
+  const width = useWidth(map.frame);
+  const unit = box.width / width;
   const number = new Intl.NumberFormat(i18n.language);
   const hours = (count: number) => t('map.hours', { count, number: number.format(count) });
   const px = (size: number) => size * unit;
@@ -82,12 +83,23 @@ export function ArchipelagoMap(props: {
   // Les étiquettes des navires évitent les noms des cités, les unes les autres et le bord du dessin.
   const labels = placeLabels(
     ships,
-    props.cities.map(({ at, name }) => ({
-      x: at.x - px(name.length * 4.5),
-      y: at.y - px(28),
-      width: px(name.length * 9),
-      height: px(36),
-    })),
+    [
+      ...props.cities.map(({ at, name }) => ({
+        x: at.x - px(name.length * 4.5),
+        y: at.y - px(28),
+        width: px(name.length * 9),
+        height: px(36),
+      })),
+      ...ships.map(({ at }) => ({
+        x: at.x - px(13),
+        y: at.y - px(13),
+        width: px(26),
+        height: px(26),
+      })),
+      // Les boutons de zoom, en haut à droite ; la légende, en haut à gauche.
+      { x: box.x + box.width - px(64), y: box.y, width: px(64), height: px(160) },
+      ...(width >= 512 ? [{ x: box.x, y: box.y, width: px(250), height: px(50) }] : []),
+    ],
     box,
     px(13),
   );
@@ -100,7 +112,7 @@ export function ArchipelagoMap(props: {
       tabIndex={0}
       aria-label={t('map.pan')}
       aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + - 0"
-      className={`relative cursor-grab rounded-[inherit] outline-offset-[-3px] active:cursor-grabbing ${map.zoomed ? 'touch-none' : 'touch-pan-y'}`}
+      className={`@container relative cursor-grab rounded-[inherit] outline-offset-[-3px] active:cursor-grabbing ${map.zoomed ? 'touch-none' : 'touch-pan-y'}`}
       {...map.handlers}
     >
       <svg
@@ -244,6 +256,45 @@ export function ArchipelagoMap(props: {
           </g>
         )}
       </svg>
+      <ul
+        aria-label={t('map.legend')}
+        className="m-2 flex w-fit flex-wrap @lg:absolute @lg:top-3 @lg:left-3 @lg:m-0 gap-x-3 gap-y-1 rounded-lg border border-border-subtle bg-surface/90 px-2.5 py-1.5 text-xs text-foreground-secondary"
+      >
+        {(['ourRoutes', 'otherRoutes'] as const).map((key) => (
+          <li key={key} className="flex items-center gap-1.5">
+            <svg aria-hidden="true" width="22" height="4" className="shrink-0">
+              <path
+                d="M2 2H20"
+                className={key === 'ourRoutes' ? 'stroke-primary' : 'stroke-route'}
+                strokeWidth={key === 'ourRoutes' ? 2.5 : 2}
+                strokeLinecap="round"
+                strokeDasharray="2 5"
+              />
+            </svg>
+            {t(`map.${key}`)}
+          </li>
+        ))}
+      </ul>
+      <div className="absolute top-2 right-2 flex flex-col gap-1 @lg:top-3 @lg:right-3 @lg:gap-1.5">
+        <IconButton
+          variant="secondary"
+          icon={<Plus />}
+          label={t('map.zoomIn')}
+          onClick={map.zoomIn}
+        />
+        <IconButton
+          variant="secondary"
+          icon={<Minus />}
+          label={t('map.zoomOut')}
+          onClick={map.zoomOut}
+        />
+        <IconButton
+          variant="secondary"
+          icon={<LocateFixed />}
+          label={t('map.recenter')}
+          onClick={map.recenter}
+        />
+      </div>
     </div>
   );
 }

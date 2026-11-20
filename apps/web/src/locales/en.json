@@ -617,7 +617,18 @@
     "dockedCount_one": "{{number}} ship in port",
     "dockedCount_other": "{{number}} ships in port",
     "scale": "{{duration}} at sea",
-    "pan": "Map of the archipelago: arrow keys to move it, + and − to zoom, 0 to centre on your city"
+    "pan": "Map of the archipelago: arrow keys to move it, + and − to zoom, 0 to centre on your city",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Centre on your city",
+    "atSeaTitle": "Your ships at sea",
+    "noneAtSea": "None of your ships is at sea.",
+    "arrivesAt": "arriving {{time}}",
+    "atSeaRoute": "{{route}} · {{cargo}}",
+    "legend": "Legend",
+    "ourRoutes": "your routes",
+    "otherRoutes": "other routes",
+    "homeCity": "your city"
   },
   "shipClasses": {
     "coaster": "Coaster",

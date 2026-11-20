@@ -21,6 +21,7 @@ vi.mock('../data', async () => {
   return {
     useRows: (view: string) => ({ rows: views.rows[view] ?? null, failed: false, reload }),
     useShipRules: () => ({ rules: views.rules ?? rules, failed: false, reload }),
+    useClockRules: () => ({ rules: null, failed: false, reload }),
   };
 });
 // Liens sans routeur : de simples ancres.
@@ -54,11 +55,15 @@ async function render(ships: object[] | null, voyages: object[] = []) {
   );
 }
 
+/** Le dessin seul, sans les icônes des boutons de zoom qui le suivent. */
+const drawing = (html: string) =>
+  html.slice(html.indexOf('role="img"'), html.indexOf(`aria-label="${fr.map.zoomIn}"`));
+
 describe('carte de l’archipel', () => {
   it('quatre cités et six routes dessinées, et la liste qui les dit au clavier', async () => {
     const html = await render([]);
     expect(html).toContain('role="img" aria-label="Carte de l&#x27;archipel : 4 cités, 6 routes');
-    expect(html.match(/<line /g)).toHaveLength(6);
+    expect(drawing(html).match(/<line /g)).toHaveLength(6);
     expect(html).toContain('Kallistè – Elaia : 4 h');
     expect(html).toContain('Elaia – Halos : 8 h');
     expect(html).toContain('pas encore de navire');
@@ -93,10 +98,14 @@ describe('carte de l’archipel', () => {
     expect(html).toContain('Caboteur n° 2</a> : en mer vers Halos, arrivée prévue le');
     expect(html).toContain('Navire rond</a> : à quai à Elaia (désarmé');
     // Un navire en mer est dessiné sur sa route, en plus des quatre cités.
-    expect(html.match(/<circle /g)).toHaveLength(5);
+    expect(drawing(html).match(/<circle /g)).toHaveLength(5);
+    // À côté de la carte, le voyage en cours : sa route, sa cargaison, la part du trajet faite.
+    expect(html).toContain('Vos navires en mer');
+    expect(html).toContain('Kallistè → Halos · sur lest, sans cargaison');
+    expect(html).toMatch(/role="progressbar"[^>]*aria-valuenow="100"/);
     // La route du navire en mer est mise en avant, les cinq autres non.
-    expect(html.match(/<line [^>]*class="stroke-primary"/g)).toHaveLength(1);
-    expect(html.match(/<line [^>]*class="stroke-route"/g)).toHaveLength(5);
+    expect(drawing(html).match(/<line [^>]*class="stroke-primary"/g)).toHaveLength(1);
+    expect(drawing(html).match(/<line [^>]*class="stroke-route"/g)).toHaveLength(5);
   });
 
   it('chantier : chaque classe à son prix de la configuration, en drachmes ; rien avant la flotte', async () => {

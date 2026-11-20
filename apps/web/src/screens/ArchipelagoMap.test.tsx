@@ -55,6 +55,16 @@ describe('carte déplaçable et zoomable (#696)', () => {
     expect(viewBox()).toBe('25 18.5 50 35');
   });
 
+  it('boutons : zoomer, dézoomer, recentrer ; jamais au-delà du dessin', async () => {
+    const { viewBox } = await mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Dézoomer' }));
+    expect(viewBox()).toBe('0 0 100 70');
+    fireEvent.click(screen.getByRole('button', { name: 'Recentrer sur votre cité' }));
+    expect(viewBox()).toBe('25 18.5 50 35');
+    for (let i = 0; i < 6; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Zoomer' }));
+    expect(viewBox()).toBe('37.5 27.25 25 17.5');
+  });
+
   it('à la souris : la molette zoome sous le pointeur, glisser déplace le dessin', async () => {
     const { map, viewBox } = await mount();
     // Sans zoom, le doigt fait défiler la page verticalement.

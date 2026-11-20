@@ -617,7 +617,18 @@
     "dockedCount_one": "{{number}} navire à quai",
     "dockedCount_other": "{{number}} navires à quai",
     "scale": "{{duration}} de mer",
-    "pan": "Carte de l'archipel : flèches pour la déplacer, + et − pour zoomer, 0 pour recentrer sur votre cité"
+    "pan": "Carte de l'archipel : flèches pour la déplacer, + et − pour zoomer, 0 pour recentrer sur votre cité",
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "recenter": "Recentrer sur votre cité",
+    "atSeaTitle": "Vos navires en mer",
+    "noneAtSea": "Aucun de vos navires n'est en mer.",
+    "arrivesAt": "arrivée {{time}}",
+    "atSeaRoute": "{{route}} · {{cargo}}",
+    "legend": "Légende",
+    "ourRoutes": "vos routes",
+    "otherRoutes": "autres routes",
+    "homeCity": "votre cité"
   },
   "shipClasses": {
     "coaster": "Caboteur",
