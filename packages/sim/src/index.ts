@@ -5,6 +5,7 @@ export * from './charis';
 export * from './chronicle';
 export * from './clock';
 export * from './decree';
+export * from './ostracism';
 export * from './demand';
 export * from './festival';
 export * from './graces';

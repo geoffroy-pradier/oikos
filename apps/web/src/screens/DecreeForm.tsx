@@ -1,4 +1,3 @@
-import type { DecreeModel } from '@oikos/contracts';
 import {
   Button,
   Coins,
@@ -20,6 +19,7 @@ import {
   parseDecreeRules,
   readTypedNumber,
   typedIntegerProblem,
+  type FormDecreeModel,
 } from '../decrees';
 import { useHouse } from '../house';
 import { useMoney } from '../money';
@@ -71,7 +71,7 @@ export function DecreeForm(props: { onDone: () => Promise<unknown> }) {
   const archon = offices?.some(
     (office) => office.office === 'archon' && office.inOffice && office.houseId === house.id,
   );
-  const [model, setModel] = useState<DecreeModel | null>(null);
+  const [model, setModel] = useState<FormDecreeModel | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   // `null` : aucune case encore touchée.
   const [goods, setGoods] = useState<string[] | null>(null);

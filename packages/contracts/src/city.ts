@@ -77,6 +77,8 @@ export const CITY_STAND_FOR_ELECTION_ERROR_CODES = [
   'ALREADY_CANDIDATE',
   /** La maison a tenu la charge aux derniers mandats consécutifs autorisés (`maxConsecutiveTerms`). */
   'TERM_LIMIT_REACHED',
+  /** La maison est ostracisée : elle ne se présente à aucune élection d'ici la fin de son ostracisme (#722). */
+  'OSTRACIZED',
 ] as const;
 export const CITY_WITHDRAW_CANDIDACY_ERROR_CODES = [
   'HOUSE_NOT_FOUND',
