@@ -1166,12 +1166,14 @@ describe('demande des PNJ au tick', () => {
     ]);
   });
 
-  it('la configuration initiale joue la demande dans chacune des quatre cités (#250)', async () => {
+  it('la configuration initiale joue la demande dans chacune des douze cités (#250, #706)', async () => {
     const validation = validateConfig(INITIAL_CONFIG);
     if (!validation.ok) throw new Error(validation.errors.join('\n'));
     const { config } = validation;
     const kalliste = await newWorld();
-    const others = ['elaia', 'ampelos', 'halos', 'delos'].map((slug) => ({
+    const named = config.cities.map((city) => city.id).filter((slug) => slug !== 'kalliste');
+    expect(named).toHaveLength(11);
+    const others = [...named, 'delos'].map((slug) => ({
       slug,
       worldId: kalliste.worldId,
       cityId: randomUUID(),
@@ -1189,9 +1191,9 @@ describe('demande des PNJ au tick', () => {
     const wheat = { goodId: 'wheat', units: 30, spent: 180 };
     expect(outcome.summary).toEqual({
       npcDemand: {
-        units: 120,
-        spent: 720,
-        markets: ['ampelos', 'elaia', 'halos', 'kalliste'].map((city) => ({ city, ...wheat })),
+        units: 360,
+        spent: 2_160,
+        markets: [...named, 'kalliste'].sort().map((city) => ({ city, ...wheat })),
       },
     });
     // Chaque cité de la configuration a ses classes, à leur population initiale, et sa mesure du jour.
@@ -1204,12 +1206,7 @@ describe('demande des PNJ au tick', () => {
       .orderBy('p.class_id')
       .execute();
     const classes = config.npcClasses.map((npcClass) => npcClass.id).sort();
-    expect([...new Set(born.map((row) => row.slug))]).toEqual([
-      'ampelos',
-      'elaia',
-      'halos',
-      'kalliste',
-    ]);
+    expect([...new Set(born.map((row) => row.slug))]).toEqual([...named, 'kalliste'].sort());
     for (const city of config.cities)
       expect(born.filter((row) => row.slug === city.id)).toEqual(
         classes.map((classId) => ({
@@ -1223,6 +1220,6 @@ describe('demande des PNJ au tick', () => {
       .select((eb) => eb.fn.count<string>('city_id').distinct().as('cities'))
       .where('world_id', '=', kalliste.worldId)
       .executeTakeFirstOrThrow();
-    expect(Number(measured.cities)).toBe(4);
+    expect(Number(measured.cities)).toBe(12);
   });
 });
