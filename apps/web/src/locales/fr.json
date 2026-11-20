@@ -65,8 +65,6 @@
       "citizen": "Citoyen à {{city}}"
     },
     "treasury": "Trésorerie",
-    "balance": "{{amount}}",
-    "balanceLabel": "Solde",
     "stock": "Entrepôt",
     "stockEmpty": "Aucun bien en stock pour l'instant.",
     "stockCity": "Stock à {{city}}",
@@ -175,6 +173,21 @@
       "staff": "Personnel",
       "property": "Immobilier",
       "accounts": "Comptes"
+    },
+    "figures": {
+      "title": "Chiffres clés",
+      "plus": "+{{amount}}",
+      "week": "sur 7 jours",
+      "today": "Résultat du jour",
+      "todayHint": "Ventes {{sales}} · charges {{charges}}",
+      "stocks": "Stocks valorisés",
+      "sites": "Sites en activité",
+      "sitesValue": "{{running}} / {{total}}",
+      "sitesHint": "{{workers}} · {{stewards}}",
+      "workers_one": "{{number}} travailleur",
+      "workers_other": "{{number}} travailleurs",
+      "stewards_one": "{{number}} intendant",
+      "stewards_other": "{{number}} intendants"
     }
   },
   "agora": {

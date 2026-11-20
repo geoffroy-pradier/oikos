@@ -45,6 +45,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
 ## Écrans clés à maquetter en premier
 
 1. Tableau de bord de la maison : trésorerie, alertes, production en cours, tâches du jour.
+   Il s'ouvre sur quatre chiffres clés (#693) : la trésorerie, avec sa variation sur les 7 derniers jours de jeu, le séquestre de ses achats et ses ordres ouverts à l'agora ; le résultat d'exploitation du jour de jeu en cours, avec ses ventes et ses charges ; les stocks valorisés du bilan ; les sites en activité (ni à l'arrêt, ni sans production), avec leurs travailleurs et intendants.
+   Le solde de fin de chaque jour se retrouve à rebours du solde lu et des flux nets de la trésorerie (`my_cash_flows`) ; sans horloge du monde, aucun jour n'est daté : ni variation, ni résultat du jour, et une valeur non lue s'écrit « — », jamais zéro.
    Première version des alertes (#259) : travailleurs sans logement dans les cités où une nuit d'hébergement coûte, bien à rénover (état sous le seuil où il ne loge plus personne) ou dont l'entretien est impayé, bail résilié pour loyer impayé à la dernière clôture du monde de la maison, chacune avec un lien vers l'écran Personnel ou Immobilier.
    Rien à signaler : la carte se tait.
    La production en cours (#693) range chaque site sur une ligne, en tableau sur ordinateur et en fiche sur téléphone : sa cité, l'avancement de son cycle à l'heure du serveur (ou son plafond atteint, son arrêt), ce qu'une récolte donnerait (« — » tant qu'elle n'est pas estimée), « Récolter » tant que sa production existe, et un lien vers sa fiche dans l'écran Sites.
