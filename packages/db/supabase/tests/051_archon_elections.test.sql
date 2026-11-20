@@ -73,7 +73,7 @@ select is(
     || 'elections.candidacy_opens_at:INSERT elections.city_id:INSERT elections.office:INSERT elections.tallied_at:UPDATE '
     || 'elections.term_ends_at:INSERT elections.voting_closes_at:INSERT elections.voting_opens_at:INSERT elections.world_id:INSERT '
     || 'offices.city_id:INSERT offices.election_id:INSERT offices.ends_at:INSERT offices.house_id:INSERT '
-    || 'offices.office:INSERT offices.starts_at:INSERT offices.world_id:INSERT',
+    || 'offices.office:INSERT offices.starts_at:INSERT offices.vacated_at:UPDATE offices.world_id:INSERT',
   'le service ne choisit ni identifiant ni date fixée par la garde : liste figée');
 -- Bulletins.
 select lives_ok(pg_temp.vote('a1', 'a', 'b2'), 'une citoyenne vote pendant le vote, pour une candidature maintenue');
