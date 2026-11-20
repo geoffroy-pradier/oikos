@@ -74,6 +74,9 @@ Décision (relecture de #275) : un message signalé est purgé avec les autres, 
 Écran du module Modération (ticket #277) : il lit `GET /api/admin/reports` et liste la file, du plus ancien au plus signalé, dans l'ordre de l'API.
 Chaque entrée dit la maison signalée, les motifs et l'ancienneté du plus ancien signalement, et montre le message dans la conversation autour de lui (`contextSize` messages de chaque côté) ; un message purgé n'a ni texte ni contexte.
 Les gestes d'une entrée sont : masquer le message, avertir, réduire au silence, suspendre, proposer une exclusion, retenir le signalement, le classer sans suite.
+Masquer le message est l'action principale d'une entrée, ou retenir le signalement quand le message est purgé ou déjà masqué ; les autres gestes sont dans le menu « Autres gestes », chacun avec son icône (#868).
+Une feuille annulée ou refusée rouvre ce menu, le foyer sur le geste qui l'avait ouverte.
+Les motifs s'affichent en pastilles, et le canal d'une cité porte le nom traduit de la cité.
 Chaque geste demande une confirmation qui nomme la maison visée ; le foyer clavier va au geste sans effet (« Annuler »), et la répétition d'une touche Entrée tenue n'ouvre ni ne confirme rien, comme dans le module Accès (15.3).
 Une sanction à durée demande, dans sa confirmation, l'une des durées proposées et un motif ; une exclusion ne demande que le motif.
 Sous la file, l'écran liste les exclusions proposées à valider, les exclusions en vigueur, les levées d'exclusion à confirmer (#616) et les appels à trancher, comptes en entier, avec le motif de la sanction et le texte de l'appel.
