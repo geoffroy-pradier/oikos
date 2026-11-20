@@ -18,9 +18,11 @@ vi.mock('../data', () => ({
     const rows = view in state.views ? (state.views[view] ?? null) : [];
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
+  useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
 }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  useRouterState: () => '/immobilier',
 }));
 const { PropertyScreen } = await import('./Property');
 

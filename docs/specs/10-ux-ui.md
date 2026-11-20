@@ -59,6 +59,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Refonte (#694) : Personnel, Immobilier et Comptes s'ouvrent sur l'en-tête de page et les rubriques de l'onglet Maison en pastilles.
    Personnel donne ses totaux en cartes (travailleurs, logés par ses biens, hébergés, hébergement d'un jour), puis les cités en tableau triable, en fiches sur téléphone (`DataTable`) ; une cité dont le prix n'est pas encore fixé le dit et reste hors du total, qui le dit aussi.
    Il ouvre l'écran Immobilier (`/immobilier`) : les biens que la cité vend encore et les offres des maisons de son monde, les biens de la maison (état, entretien, entretien impayé) et ses baux.
+   Refonte (#694) : chaque liste de l'Immobilier est un tableau triable, en fiches sur téléphone (`DataTable`).
+   Les baux disent le bien, le rôle de la maison (locataire ou bailleur), le loyer d'un jour et l'état du bail.
    Chaque commande de l'immobilier (achat, location, rénovation, mise en vente ou en location, retrait d'une offre, fin de bail) part au prix affiché ; restée sans réponse, elle repart sous la même clé au même prix.
    Ces clés sont gardées en stockage de session, comme celles des sites et des navires : elles survivent au changement d'onglet et au rechargement.
    Après chaque relecture, l'écran rend les clés des commandes qu'il ne propose plus, parce que leur effet est lu ou qu'elles ne peuvent plus être demandées : la même demande, proposée de nouveau plus tard, part sous une clé neuve.

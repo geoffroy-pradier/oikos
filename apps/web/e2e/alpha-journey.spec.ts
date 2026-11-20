@@ -264,7 +264,12 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       })
       .click();
     await expect(said(page, 'status', 'Bail signé.')).toBeVisible();
-    await expect(page.getByText(`Vous louez ce bien : ${money(rent)} par jour`)).toBeVisible();
+    // Le bail en cours, dans le tableau (ou la fiche) des baux : locataire, à ce loyer.
+    const leases = page.getByRole('region', { name: 'Mes baux' });
+    await expect(leases.getByText('Locataire').filter({ visible: true })).toBeVisible();
+    await expect(
+      leases.getByText(`${money(rent)} par jour`, { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
 
     await page
       .getByRole('button', {
