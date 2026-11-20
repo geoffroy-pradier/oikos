@@ -302,6 +302,8 @@ Une liste ou une section vide prend toujours `EmptyState`, en variante compacte 
 Une valeur absente dans une carte ou un formulaire se dit en une phrase, sans dessin (marché du travail pas encore fixé, siège sans poste d'intendant, intendant sans règle, départ sans bien libre).
 Une lecture en échec et une adresse inconnue prennent la même présentation : une icône ou une illustration, le message, et l'action qui en sort (« Réessayer », « Revenir à la maison »).
 Chaque écran s'ouvre sur un en-tête de page commun (`PageHeader`) : titre de 26 px, heure de jeu et prochaine clôture quotidienne en sous-titre atténué, recherche si l'écran en a une, action principale à droite.
+Le titre est à la même hauteur sur chaque écran, quelle que soit la hauteur de l'action ; quand la place manque (téléphone), l'action passe sous le titre, dans l'en-tête, sans le couper.
+Actions principales : « Acquérir un site » (Sites), le choix du bien (Agora), « Nouvelle conversation » (Messages), et sur la Carte « Faire partir un navire » dès qu'un navire armé est à quai (sa fiche s'il est seul, la flotte sinon).
 L'heure de clôture et le fuseau du monde sont des règles publiques, lues par les joueurs connectés (vue `clock_rules`, pgTAP 690) ; sans horloge en vigueur, sous un fuseau que la base ou le navigateur ne connaît pas, ou si la lecture échoue, l'en-tête ne donne que l'heure.
 Les jetons et les composants de `@oikos/ui` font foi ; la page `catalogue.html` les montre dans les deux thèmes.
 Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interface ».
