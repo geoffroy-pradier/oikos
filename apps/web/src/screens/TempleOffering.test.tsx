@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +25,19 @@ const rules = parseTempleRules({
   ],
 });
 const onDone = vi.fn(() => Promise.resolve());
+/** L'écran du temple : la feuille ouverte par la carte de Déméter, refermée par elle-même. */
+function Opened(props: { rules: NonNullable<typeof rules> }) {
+  const [god, setGod] = useState<string | null>('demeter');
+  return (
+    <TempleOffering
+      rules={props.rules}
+      favor={state.favor}
+      onDone={onDone}
+      godId={god}
+      onClose={() => setGod(null)}
+    />
+  );
+}
 async function show() {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -36,7 +50,7 @@ async function show() {
   return render(
     <I18nextProvider i18n={instance}>
       <HouseProvider value={{ ...house, cityNames: {}, citizenshipStatus: 'metic' }}>
-        <TempleOffering rules={rules} favor={state.favor} onDone={onDone} />
+        <Opened rules={rules} />
       </HouseProvider>
     </I18nextProvider>,
   );
@@ -58,6 +72,7 @@ beforeEach(() => {
   window.sessionStorage.clear();
 });
 afterEach(cleanup);
+const next = () => fireEvent.click(screen.getByRole('button', { name: fr.steps.next }));
 
 describe('offrande au temple (#272)', () => {
   it('monnaie et biens du stock libre acceptés, Charis annoncée avant l’envoi et envoyée telle quelle', async () => {
@@ -79,6 +94,11 @@ describe('offrande au temple (#272)', () => {
     expect(
       screen.getByText('Cette offrande vous rapportera 112 Charis envers Déméter.'),
     ).toBeTruthy();
+    next();
+    // Récapitulatif au coût vu : 12 oboles (2 drachmes) et 20 blés, la Charis gagnée et celle d'après.
+    expect(screen.getByText('2 drachmes')).toBeTruthy();
+    expect(screen.getByText('+112')).toBeTruthy();
+    expect(screen.getByText('212')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Offrir à Déméter (+112 Charis)' }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(api.makeOffering.mock.calls[0]?.slice(0, 2)).toEqual([
@@ -90,11 +110,11 @@ describe('offrande au temple (#272)', () => {
       },
       't',
     ]);
-    // Le contrôle est inactif une fois la saisie remise à zéro : le foyer va au résultat.
+    // La feuille se ferme avec son bouton, la saisie remise à zéro : le foyer va au résultat.
     const status = screen.getByText(/^Offrande faite à Déméter : \+112 Charis/);
     await waitFor(() => expect(document.activeElement).toBe(status));
-    const reset = screen.getByRole('button', { name: 'Offrir à Déméter (+0 Charis)' });
-    expect(reset).toHaveProperty('disabled', true);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(status.getAttribute('role')).toBe('status');
   });
 
   it('un dieu qui refuse la monnaie n’a pas de saisie d’oboles ; une saisie fautive est dite et n’envoie rien', async () => {
@@ -106,9 +126,11 @@ describe('offrande au temple (#272)', () => {
     expect(screen.getByRole('alert').textContent).toBe(fr.temple.offering.overStock);
     fireEvent.change(fish, { target: { value: '2,5' } });
     expect(screen.getByRole('alert').textContent).toBe(fr.temple.offering.unreadable);
-    const submit = screen.getByRole('button', { name: /^Offrir à Poséidon/ });
+    // Rien ne mène au récapitulatif : Continuer reste inactif, rien n'est envoyé.
+    const submit = screen.getByRole('button', { name: fr.steps.next });
     expect(submit).toHaveProperty('disabled', true);
     fireEvent.click(submit);
+    expect(screen.queryByRole('button', { name: /^Offrir à Poséidon/ })).toBeNull();
     expect(api.makeOffering).not.toHaveBeenCalled();
   });
 
@@ -116,7 +138,11 @@ describe('offrande au temple (#272)', () => {
     api.makeOffering.mockResolvedValue({ ok: false, error: { code: 'INTERNAL', message: '' } });
     await show();
     const send = async (calls: number) => {
-      fireEvent.change(screen.getByLabelText(/^Oboles offertes/), { target: { value: '12' } });
+      // Après un refus, la feuille reste au récapitulatif, saisie gardée : la même offrande se renvoie.
+      if (!screen.queryByRole('button', { name: /^Offrir à Déméter/ })) {
+        fireEvent.change(screen.getByLabelText(/^Oboles offertes/), { target: { value: '12' } });
+        next();
+      }
       fireEvent.click(screen.getByRole('button', { name: /^Offrir à Déméter/ }));
       await waitFor(() => expect(onDone).toHaveBeenCalledTimes(calls));
     };
@@ -148,7 +174,7 @@ describe('offrande au temple (#272)', () => {
     expect(screen.getByRole('alert').textContent).toMatch(
       /^Au plus 1\s000\s000\s000 oboles par offrande\.$/,
     );
-    const submit = screen.getByRole('button', { name: /^Offrir à Déméter/ });
+    const submit = screen.getByRole('button', { name: fr.steps.next });
     expect(submit).toHaveProperty('disabled', true);
   });
 });
