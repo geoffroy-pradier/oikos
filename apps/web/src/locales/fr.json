@@ -1168,7 +1168,15 @@
       "pending": "En attente : elle s'appliquera à votre prochaine action de cet effet.",
       "pendingRecharging": "En attente : elle s'appliquera à votre prochaine action de cet effet, et se recharge jusqu'au {{date}}.",
       "recharging": "En recharge jusqu'au {{date}}.",
-      "done": "Grâce invoquée : {{grace}}. Elle s'appliquera à votre prochaine action de cet effet et se recharge jusqu'au {{date}}. Votre Charis envers ce dieu : {{charis}}."
+      "done": "Grâce invoquée : {{grace}}. Elle s'appliquera à votre prochaine action de cet effet et se recharge jusqu'au {{date}}. Votre Charis envers ce dieu : {{charis}}.",
+      "sheet": "Invoquer une grâce",
+      "confirm": "Confirmer l'invocation (−{{spent}} Charis)",
+      "recapSpent": "Charis dépensée",
+      "recapAfter": "Votre Charis envers {{god}} ensuite",
+      "recapCooldown": "Recharge",
+      "days_one": "{{count}} jour de jeu",
+      "days_other": "{{count}} jours de jeu",
+      "recapNote": "La Charis dépensée part telle quelle : si la configuration a changé, l'invocation est refusée et rien n'est dépensé."
     },
     "pythia": {
       "title": "La Pythie",
