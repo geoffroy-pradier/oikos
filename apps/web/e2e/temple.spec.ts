@@ -46,7 +46,7 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   await expect(page.getByRole('heading', { name: 'Temple de Kallistè' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Déméter : 0 Charis' })).toBeVisible();
   await expect(
-    page.getByText(/^Charis de Kallistè envers Déméter, son dieu protecteur : /),
+    page.getByText(/^Charis de Kallistè envers Déméter, son dieu protecteur\s: /),
   ).toBeVisible();
   await expect(page.getByText(/votre maison, métèque, n'y compte pas\.$/)).toBeVisible();
 
@@ -97,7 +97,7 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   ).toContainText(`+${gained} Charis. La Pythie a rendu`);
   await expect(page.getByText(E2E_ORACLE.fr, { exact: true })).toBeVisible();
   await expect(page.locator('main blockquote em')).toHaveCount(0);
-  await expect(page.getByText(/Date de l'événement : imprécise/).first()).toBeVisible();
+  await expect(page.getByText(/Date de l'événement\s: imprécise/).first()).toBeVisible();
   await expect(page.getByRole('heading', { name: `Apollon : ${gained} Charis` })).toBeVisible();
   await expectNoHorizontalScroll(page);
 
@@ -107,7 +107,7 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
   // Tableau sur ordinateur, fiches sur téléphone : la mise en page affichée.
   await expect(
-    page.getByText(/^Offrandes et consultations de la Pythie : −/).filter({ visible: true }),
+    page.getByText(/^Offrandes et consultations de la Pythie\s: −/).filter({ visible: true }),
   ).toBeVisible();
   await expectNoHorizontalScroll(page);
 });

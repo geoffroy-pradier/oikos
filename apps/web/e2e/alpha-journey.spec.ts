@@ -221,7 +221,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await fillOrder(page, 'Vendre', 30, price);
     await page.keyboard.press('Enter');
     await placeOrder(page);
-    await expect(said(page, 'status', /^Vente déposée : 30 × Blé/)).toBeVisible();
+    await expect(said(page, 'status', /^Vente déposée\s: 30 × Blé/)).toBeVisible();
     await expectNoHorizontalScroll(page);
     // L'ordre d'Alpha à Elaia, retrouvé en base : sa maison n'y en a pas d'autre au même prix.
     const { rows: orders } = await sql<{ id: string }>`
@@ -236,7 +236,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await fillOrder(other, 'Acheter', 30, price + 1);
     await other.keyboard.press('Enter');
     await placeOrder(other);
-    await expect(said(other, 'status', /^Achat conclu : 30 × Blé pour /)).toBeVisible();
+    await expect(said(other, 'status', /^Achat conclu\s: 30 × Blé pour /)).toBeVisible();
     // La vente d'Alpha, par son identifiant : d'autres ordres de blé peuvent attendre à Elaia, pas dans ce compte.
     const { rows } = await sql<{ gross: string; units: string }>`
       select sum(price * quantity)::text as gross, sum(quantity)::text as units
@@ -378,7 +378,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     const assembly = card('Assemblée');
     await citySection(page, 'Assemblée');
     await assembly
-      .getByRole('button', { name: /^Voter pour : Taxe de marché de la cité à / })
+      .getByRole('button', { name: /^Voter pour\s: Taxe de marché de la cité à / })
       .first()
       .click();
     await expect(
@@ -442,7 +442,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
       .click();
     await expect(said(page, 'status', 'Grâce invoquée')).toContainText(`Grâce invoquée : ${name}.`);
     await expect(
-      page.getByText(/En attente : elle s'appliquera à votre prochaine action/),
+      page.getByText(/En attente\s: elle s'appliquera à votre prochaine action/),
     ).toBeVisible();
     await page.getByRole('button', { name: /^Consulter la Pythie pour / }).click();
     await expect(

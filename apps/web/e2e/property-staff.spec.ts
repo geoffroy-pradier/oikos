@@ -76,6 +76,6 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   // Onglet Cité : marché du travail pas encore fixé, parc par taille.
   await page.getByRole('link', { name: 'Cité' }).click();
   await expect(page.getByRole('heading', { name: 'Marché du travail' })).toBeVisible();
-  await expect(page.getByText(/^Maison de ville : 20 au total/)).toBeVisible();
+  await expect(page.getByText(/^Maison de ville\s: 20 au total/)).toBeVisible();
   await expectNoHorizontalScroll(page);
 });

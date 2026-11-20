@@ -172,7 +172,7 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   });
   await page.reload();
   await expect(
-    page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\. Ce site ne produit plus\.$/),
+    page.getByText(/^À l'arrêt depuis le .+\s: entretien impayé\. Ce site ne produit plus\.$/),
   ).toBeVisible();
   // Le tableau de bord le signale aussi parmi les sites à surveiller.
   await expect(
@@ -250,7 +250,7 @@ test('production retirée de la configuration : site à l’arrêt sans récolte
     await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
   });
   await page.reload();
-  await expect(page.getByText(/^À l'arrêt : sa production n'existe plus\./)).toBeVisible();
+  await expect(page.getByText(/^À l'arrêt\s: sa production n'existe plus\./)).toBeVisible();
   await expect(
     page
       .getByRole('region', { name: 'À surveiller' })
@@ -315,7 +315,7 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
   await expect(said(page, 'alert')).toContainText(
     "Arrêté pendant votre visite, faute d'entretien payé à la clôture : Champ de blé.",
   );
-  await expect(page.getByText(/^À l'arrêt depuis le .+ : entretien impayé\./)).toBeVisible();
+  await expect(page.getByText(/^À l'arrêt depuis le .+\s: entretien impayé\./)).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' }),
   ).toBeVisible();
@@ -473,7 +473,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await expect(
       page.getByText(`Dernier prix, en oboles : ${french.format(Number(candle.close))} (`),
     ).toBeVisible();
-    await expect(page.getByText(/Variation sur 24 h : /)).toBeVisible();
+    await expect(page.getByText(/Variation sur 24 h\s: /)).toBeVisible();
     // Prix moyen observé, calculé à l'instant par le tick : annoncé « sur 24 h », avec son volume.
     const average = await sql<{
       price: string;
@@ -492,7 +492,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await page.reload();
     await expect(
       page.getByText(
-        /^Dernier prix moyen calculé, au .+, en oboles : .+ \(volume échangé en 24 h : .+\)\.$/,
+        /^Dernier prix moyen calculé, au .+, en oboles\s: .+ \(volume échangé en 24 h\s: .+\)\.$/,
       ),
     ).toBeVisible();
     await expect(page.getByText(/Prix moyen sur 24 h/)).toHaveCount(0);
@@ -508,7 +508,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     const periods = count === 1 ? '1 période' : `${count} périodes`;
     await expect(page.getByRole('img', { name: /^Chandeliers/ })).toHaveAccessibleName(
       new RegExp(
-        `^Chandeliers : Blé, ${periods}, du .+ au .+, prix en oboles de ${french.format(low ?? 0)} à ${french.format(high ?? 0)}\\. Le tableau des prix donne les mêmes valeurs\\.$`,
+        `^Chandeliers\\s: Blé, ${periods}, du .+ au .+, prix en oboles de ${french.format(low ?? 0)} à ${french.format(high ?? 0)}\\. Le tableau des prix donne les mêmes valeurs\\.$`,
       ),
     );
     const table = page.getByText('Tableau des prix par période');
@@ -560,7 +560,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // La description accessible ramène les espaces insécables des nombres à des espaces simples.
     const plain = (text: string) => text.replace(/\s/g, ' ');
     const expected = new RegExp(
-      `^Net attendu : ${plain(money(net))} \\(${plain(money(gross))} moins ${plain(money(gross - net))} de taxe de marché\\)`,
+      `^Net attendu\\s: ${plain(money(net))} \\(${plain(money(gross))} moins ${plain(money(gross - net))} de taxe de marché\\)`,
     );
     // Lue en arrivant sur chacun des deux champs et sur le bouton, sans être annoncée à chaque frappe ;
     // le bouton de dépôt est au récapitulatif, l'étape suivante.
@@ -629,7 +629,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // L'acheteur a reçu le blé sans repayer ; ce qui attend encore reste retenu, puis lui est rendu.
     await otherNav.getByRole('link', { name: 'Maison' }).click();
     await expect(other.getByText('Blé : 34')).toBeVisible();
-    await expect(other.getByText(/Ordres ouverts à l'agora : 1 achat, /)).toBeVisible();
+    await expect(other.getByText(/Ordres ouverts à l'agora\s: 1 achat, /)).toBeVisible();
     await expect(
       other.getByText(`${money(3000 - 30 * price - 30 * bid)}`, { exact: true }),
     ).toBeVisible();
