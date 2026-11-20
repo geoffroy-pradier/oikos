@@ -45,6 +45,8 @@ export interface GameDatabase {
     /** `jsonb` : lu désérialisé, écrit sous forme de texte JSON. */
     blazon: ColumnType<Blazon, string, string>;
     created_at: Generated<Date>;
+    /** Nature (#718) : maison de joueur, ou maison PNJ de secours (#715), écartée des classements de fortune. */
+    kind: Generated<'player' | 'npc'>;
   };
   /**
    * Citoyenneté d'une maison : elle naît métèque, maintenant, et la clôture la fait citoyenne (garde de
