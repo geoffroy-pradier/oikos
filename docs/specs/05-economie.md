@@ -117,7 +117,7 @@ Décision (#711) : les soixante biens sont au complet, et plus aucune liste d'at
 Chaque matière première et chaque intermédiaire est l'intrant d'au moins une recette : un test de la configuration initiale nomme le bien sans débouché, sans aucune exception.
 La figue, le moût, le bronze, la toile de lin, les pigments, la cire, les lingots d'argent et les blocs de marbre y entrent avec #711.
 Seuls restaient en attente les dix-sept biens finis de #710 et #711, que les paniers des PNJ n'achetaient pas encore : #713 vide cette liste et la retire.
-Décision (paramètres neutres, #711) : aucun des dix biens n'entre dans un panier des PNJ, dans l'indice des prix ni dans le domaine d'un dieu.
+Décision (paramètres neutres, #711) : jusqu'à #713, aucun des dix biens n'entrait dans un panier des PNJ ni dans le domaine d'un dieu, et aucun n'entre dans l'indice des prix.
 Depuis #713, chaque bien du catalogue a un usage : l'intrant d'une recette, le panier d'une classe de PNJ (5.2), une offrande qu'un dieu accepte (7.1), un bien de fête (7.5) ou de rénovation (4.5).
 Un test de la configuration initiale nomme le bien sans usage, sans aucune exception.
 Les dix-sept biens finis de #710 et #711 entrent dans les paniers des classes aisées, en confort et en luxe, et chacun dans le domaine d'un dieu ; l'indice des prix ne change pas (5.5).
