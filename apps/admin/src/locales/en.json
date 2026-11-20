@@ -134,6 +134,13 @@
         "disabled": "Off (configuration)",
         "capped": "Off (monthly cap reached or too close)"
       }
+    },
+    "subtitle": "Last 24 hours, across all worlds.",
+    "groups": {
+      "players": "Players and commands",
+      "engine": "Engine",
+      "api": "API guard",
+      "state": "Service state"
     }
   },
   "economy": {

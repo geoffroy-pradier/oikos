@@ -7,3 +7,7 @@ export const CONTROL =
   'transition-[border-color,box-shadow] duration-(--motion-fast) ease-out placeholder:text-muted-foreground ' +
   'hover:border-foreground-secondary focus-visible:border-accent focus-visible:ring-1 ' +
   'focus-visible:ring-accent focus-visible:outline-none aria-invalid:border-danger aria-invalid:ring-danger';
+
+/** Alerte écrite d'un écran : fond et texte de danger, jamais la couleur seule (le texte dit l'alerte). */
+export const ALERT =
+  'rounded-xl border border-danger/30 bg-danger-subtle px-4 py-3 text-sm font-semibold text-danger';

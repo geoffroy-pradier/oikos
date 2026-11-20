@@ -35,6 +35,30 @@ describe('StatCard', () => {
     expect(screen.getByText('2 cités').className).toContain('max-lg:hidden');
     expect(screen.getByText('Stocks').nextElementSibling?.className).toContain('max-lg:hidden');
   });
+
+  it('dans une liste de définitions : libellé en `dt`, valeur et variation en `dd`', () => {
+    render(
+      <dl>
+        <StatCard
+          definition
+          label="Masse"
+          icon={<Coins />}
+          value="5 615"
+          delta={{ value: '+4 %', trend: 'up', tone: 'negative' }}
+        />
+      </dl>,
+    );
+    const term = screen.getByText('Masse');
+    expect(term.tagName).toBe('DT');
+    expect(term.parentElement?.tagName).toBe('DIV');
+    expect(Array.from(term.parentElement?.children ?? [], (child) => child.tagName)).toEqual([
+      'DT',
+      'DD',
+      'DD',
+    ]);
+    expect(term.parentElement?.querySelector('dd')?.textContent).toBe('5 615');
+    expect(screen.getByText('+4 %').className).toContain('text-danger');
+  });
 });
 
 describe('Progress', () => {

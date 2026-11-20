@@ -1,7 +1,8 @@
-import { Button, Hourglass, RefreshCw, Sparkles } from '@oikos/ui';
+import { Button, cn, Hourglass, PageHeader, RefreshCw, Sparkles, StatCard } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
+import { ALERT } from '../ui';
 import { useAdmin } from '../useAdmin';
 import { StaleReportsAlert } from './Moderation';
 
@@ -103,80 +104,99 @@ export function Vigie({ accessToken }: { accessToken: string }) {
         ? t('vigie.timezoneUnknownValue', { timezone: value.timezone })
         : value.timezone;
 
-  const figures: [string, string][] = data
+  type Figure = [label: string, value: string];
+  const none: Figure[] = [];
+  const some = <T,>(when: boolean, items: T[]) => (when ? items : []);
+  // Chiffres par famille ; l'état du service (dernière erreur, réglages en vigueur) se lit en clair, à part.
+  const groups: { id: string; figures: Figure[] }[] = data
     ? [
-        [t('vigie.houses'), number.format(data.houses)],
-        [t('vigie.activeAccounts'), number.format(data.activeAccounts24h)],
-        [t('vigie.commandsOk'), number.format(data.commands24h.ok)],
-        [t('vigie.commandsRejected'), number.format(data.commands24h.rejected)],
-        [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
-        ...(data.stewardOperations24h
-          ? ([
-              [t('vigie.stewardOk'), number.format(data.stewardOperations24h.ok)],
-              [t('vigie.stewardRejected'), number.format(data.stewardOperations24h.rejected)],
-              [t('vigie.stewardFailed'), number.format(data.stewardOperations24h.failed)],
-            ] as [string, string][])
-          : []),
-        [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
-        [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
-        ...(data.voyagesOverdue === undefined
-          ? []
-          : ([
+        {
+          id: 'players',
+          figures: [
+            [t('vigie.houses'), number.format(data.houses)],
+            [t('vigie.activeAccounts'), number.format(data.activeAccounts24h)],
+            [t('vigie.commandsOk'), number.format(data.commands24h.ok)],
+            [t('vigie.commandsRejected'), number.format(data.commands24h.rejected)],
+            [t('vigie.commandsFailed'), number.format(data.commands24h.failed)],
+            ...(data.stewardOperations24h
+              ? ([
+                  [t('vigie.stewardOk'), number.format(data.stewardOperations24h.ok)],
+                  [t('vigie.stewardRejected'), number.format(data.stewardOperations24h.rejected)],
+                  [t('vigie.stewardFailed'), number.format(data.stewardOperations24h.failed)],
+                ] as Figure[])
+              : none),
+          ],
+        },
+        {
+          id: 'engine',
+          figures: [
+            [t('vigie.ticksFailed'), number.format(data.ticks24h.failed)],
+            [t('vigie.tickMax'), duration(data.ticks24h.maxDurationMs)],
+            ...some<Figure>(data.voyagesOverdue !== undefined, [
               [
                 t('vigie.voyagesOverdue'),
-                data.voyagesOverdue === null
+                data.voyagesOverdue == null
                   ? t('vigie.voyagesOverdueUnknown')
                   : number.format(data.voyagesOverdue),
               ],
-            ] as [string, string][])),
-        ...(data.staleReports === undefined
-          ? []
-          : ([
+            ]),
+            ...some<Figure>(data.closes24h !== undefined, [
+              [t('vigie.closesFailed'), number.format(data.closes24h?.failed ?? 0)],
+            ]),
+            [
+              t('vigie.queue'),
+              data.queuePending === null
+                ? t('vigie.queueUnknown')
+                : number.format(data.queuePending),
+            ],
+            ...some<Figure>(data.staleReports !== undefined, [
               [
-                data.staleReports === null
-                  ? t('vigie.staleReportsUnknown')
-                  : t('vigie.staleReports', { hours: data.staleReports.afterHours }),
-                data.staleReports === null
-                  ? t('vigie.none')
-                  : number.format(data.staleReports.count),
+                data.staleReports
+                  ? t('vigie.staleReports', { hours: data.staleReports.afterHours })
+                  : t('vigie.staleReportsUnknown'),
+                data.staleReports ? number.format(data.staleReports.count) : t('vigie.none'),
               ],
-            ] as [string, string][])),
-        ...(data.closes24h
-          ? ([
-              [t('vigie.closesFailed'), number.format(data.closes24h.failed)],
-              [t('vigie.closeLastError'), data.closes24h.lastError ?? t('vigie.none')],
-            ] as [string, string][])
-          : []),
-        [
-          t('vigie.queue'),
-          data.queuePending === null ? t('vigie.queueUnknown') : number.format(data.queuePending),
-        ],
-        [t('vigie.refusedUnauthenticated'), number.format(data.refusals24h.unauthenticated)],
-        [t('vigie.refusedRateLimited'), number.format(data.refusals24h.rateLimited)],
-        [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
-        [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
-        [t('vigie.adminReads'), number.format(data.adminReads24h)],
-        [t('vigie.review'), t(`vigie.${review(data.selfReviewAllowed)}`)],
-        ...(clock === undefined
-          ? []
-          : ([
-              [t('vigie.timezone'), clock === null ? t('vigie.timezoneNone') : timezone(clock)],
-            ] as [string, string][])),
+            ]),
+          ],
+        },
+        {
+          id: 'api',
+          figures: [
+            [t('vigie.refusedUnauthenticated'), number.format(data.refusals24h.unauthenticated)],
+            [t('vigie.refusedRateLimited'), number.format(data.refusals24h.rateLimited)],
+            [t('vigie.refusedTooLarge'), number.format(data.refusals24h.payloadTooLarge)],
+            [t('vigie.refusedForbidden'), number.format(data.refusals24h.forbidden)],
+            [t('vigie.adminReads'), number.format(data.adminReads24h)],
+          ],
+        },
       ]
     : [];
-
+  const facts: Figure[] = data
+    ? [
+        ...some<Figure>(data.closes24h !== undefined, [
+          [t('vigie.closeLastError'), data.closes24h?.lastError ?? t('vigie.none')],
+        ]),
+        [t('vigie.review'), t(`vigie.${review(data.selfReviewAllowed)}`)],
+        ...some<Figure>(clock !== undefined, [
+          [t('vigie.timezone'), clock ? timezone(clock) : t('vigie.timezoneNone')],
+        ]),
+      ]
+    : [];
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl">{t('vigie.title')}</h1>
-        <Button
-          variant="secondary"
-          icon={<RefreshCw aria-hidden="true" />}
-          onClick={() => void reload()}
-        >
-          {t('app.refresh')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('vigie.title')}
+        subtitle={t('vigie.subtitle')}
+        action={
+          <Button
+            variant="secondary"
+            icon={<RefreshCw aria-hidden="true" />}
+            onClick={() => void reload()}
+          >
+            {t('app.refresh')}
+          </Button>
+        }
+      />
       {error && <LoadError code={error} onRetry={() => void reload()} />}
       {!data && !error && <p>{t('app.loading')}</p>}
       {/* Signalements ouverts au-delà du seuil de la configuration (15.5) : l'API les compte. */}
@@ -188,22 +208,17 @@ export function Vigie({ accessToken }: { accessToken: string }) {
       )}
       {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
       {data?.selfReviewAllowed === true && (
-        <p className="rounded-md border border-danger p-3 font-semibold text-danger">
-          {t('vigie.reviewLiftedWarning')}
-        </p>
+        <p className={ALERT}>{t('vigie.reviewLiftedWarning')}</p>
       )}
       {/* Version en vigueur hors du schéma : l'API et le moteur ne la chargent pas. */}
       {clock?.invalidConfig === true && (
-        <p role="alert" className="rounded-md border border-danger p-3 font-semibold text-danger">
+        <p role="alert" className={ALERT}>
           {t('vigie.configInvalidWarning')}
         </p>
       )}
-      {/* Fuseau sorti de la base des fuseaux : les comptes de tous les mondes perdent jour et saison (3). */}
+      {/* Fuseau sorti de la base : les comptes de tous les mondes perdent jour et saison (3). */}
       {clock?.knownToDatabase === false && (
-        <p
-          role="alert"
-          className="rounded-md border border-danger p-3 font-semibold wrap-anywhere text-danger"
-        >
+        <p role="alert" className={cn(ALERT, 'wrap-anywhere')}>
           {clock.worlds > 0
             ? t('vigie.timezoneUnknownWarning', {
                 timezone: clock.timezone,
@@ -212,18 +227,32 @@ export function Vigie({ accessToken }: { accessToken: string }) {
             : t('vigie.timezoneUnknownWarningNoWorld', { timezone: clock.timezone })}
         </p>
       )}
-      {data && (
-        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {figures.map(([label, value]) => (
-            <div
-              key={label}
-              className="min-w-0 rounded-lg border border-border-subtle bg-muted/40 p-3 shadow-sm"
-            >
-              <dt className="eyebrow">{label}</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums wrap-anywhere">{value}</dd>
-            </div>
-          ))}
-        </dl>
+      {groups.map(({ id, figures }) => (
+        <section key={id} aria-labelledby={`vigie-${id}`} className="flex flex-col gap-3">
+          <h2 id={`vigie-${id}`} className="text-base font-semibold">
+            {t(`vigie.groups.${id}`)}
+          </h2>
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {figures.map(([label, value]) => (
+              <StatCard key={label} definition dense label={label} value={value} />
+            ))}
+          </dl>
+        </section>
+      ))}
+      {facts.length > 0 && (
+        <section aria-labelledby="vigie-state" className="flex flex-col gap-3">
+          <h2 id="vigie-state" className="text-base font-semibold">
+            {t('vigie.groups.state')}
+          </h2>
+          <dl className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-surface px-4 text-sm shadow-sm">
+            {facts.map(([label, value]) => (
+              <div key={label} className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-3">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="min-w-0 font-medium wrap-anywhere">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
       {data?.ai && (
         <>
