@@ -100,7 +100,9 @@ export function Stepper({
           onKeyDown={(event) => {
             // Entrée dans un champ de saisie vaut Continuer ; ni sur un bouton, ni sur un choix.
             const target = event.target;
-            if (event.key !== 'Enter' || !(target instanceof HTMLInputElement)) return;
+            // Entrée qui valide une composition IME (japonais, chinois…) ne fait pas avancer.
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+            if (!(target instanceof HTMLInputElement)) return;
             if (!['text', 'email', 'search', 'number', 'tel'].includes(target.type)) return;
             event.preventDefault();
             advance();

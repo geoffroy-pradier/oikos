@@ -128,6 +128,24 @@ describe('Stepper', () => {
     expect(current()).toEqual(['Récapitulatif']);
   });
 
+  it('Entrée qui valide une composition IME n’avance pas', () => {
+    render(
+      <Stepper
+        labels={labels}
+        onConfirm={() => undefined}
+        steps={[
+          { id: 'name', title: 'Nom', content: <input aria-label="Nom" /> },
+          { id: 'summary', title: 'Récapitulatif', content: <p>Fin</p> },
+        ]}
+      />,
+    );
+    const field = screen.getByLabelText('Nom');
+    fireEvent.keyDown(field, { key: 'Enter', isComposing: true });
+    expect(current()).toEqual(['Nom']);
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(current()).toEqual(['Récapitulatif']);
+  });
+
   it('commence par l’étape demandée, sans voler le foyer', () => {
     render(
       <Stepper
