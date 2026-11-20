@@ -25,6 +25,7 @@ import { LoadError } from '../LoadError';
 import { hoursSince, staleReportHours } from '../moderation-age';
 import { ALERT, CONTROL } from '../ui';
 import { useAdmin } from '../useAdmin';
+import { SectionTitle } from './SectionTitle';
 
 type Entry = AdminReports['queue'][number];
 type Appeal = AdminReports['appeals'][number];
@@ -318,13 +319,14 @@ export function Moderation({ accessToken }: { accessToken: string }) {
       {!data && !error && <p>{t('app.loading')}</p>}
       <StaleReportsAlert hours={stale} limit={data?.staleAfterHours ?? 0} />
       {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. Feuille ouverte : il y paraît, pas ici. */}
-      <Notice notice={open === null ? notice : null} />
+      {/* Vide, la région ne laisse pas sa marge d'empilement : le titre de la file reste à sa place. */}
+      <Notice notice={open === null ? notice : null} className="empty:-mt-6" />
       {data && (
         <>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 id="moderation-queue" className="text-lg">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SectionTitle id="moderation-queue" icon={<Flag />}>
               {t('moderation.queue')}
-            </h2>
+            </SectionTitle>
             {queue.length > 0 && (
               <div className="relative w-full sm:w-64">
                 <label htmlFor="moderation-filter" className="sr-only">
@@ -691,11 +693,12 @@ const CARD = 'flex flex-col gap-2 rounded-xl border border-border-subtle bg-surf
  * Résultat du dernier geste. Toujours présent : un lecteur d'écran l'annonce dès qu'il paraît. La feuille d'un
  * geste en porte une copie, seule lue tant qu'elle est ouverte (le reste de la page est alors inerte).
  */
-export function Notice({ notice }: { notice: Notice }) {
+export function Notice({ notice, className }: { notice: Notice; className?: string }) {
   return (
     <div
       role={notice?.kind ?? 'status'}
       className={cn(
+        className,
         notice?.text && 'rounded-lg px-4 py-3 text-sm font-medium',
         notice?.kind === 'alert'
           ? 'bg-danger-subtle text-danger'

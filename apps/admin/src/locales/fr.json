@@ -543,6 +543,7 @@
     "confirmRetired": "Je confirme : programmer la version {{number}} malgré ces recettes et ces classes en usage",
     "alreadyRetired": "Recettes et classes de PNJ que la version en vigueur a déjà retirées et que le monde porte encore : une version qui ne les contient pas ne les retire pas, il n'y a rien à confirmer.",
     "noNote": "Sans note",
+    "on": "le {{date}}",
     "by": "par {{account}}, le {{date}}",
     "open": "Ouvrir la version {{number}}",
     "schedule": "Programmer la version {{number}} à la prochaine clôture",
