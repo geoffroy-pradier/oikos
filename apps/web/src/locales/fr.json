@@ -549,7 +549,6 @@
     "flows": {
       "title": "Flux de trésorerie",
       "none": "Aucun mouvement de votre trésorerie pour l'instant.",
-      "day": "{{date}} : net {{net}}",
       "noDay": "Jour inconnu",
       "unknown": "Mouvements « {{nature}} » : {{amount}}",
       "natures": {
@@ -566,7 +565,17 @@
         "grant": "Dotation de départ : {{amount}}",
         "escrow": "Séquestre (retenu ou rendu) : {{amount}}",
         "other": "Autres mouvements : {{amount}}"
-      }
+      },
+      "columns": {
+        "day": "Jour",
+        "in": "Entrées",
+        "out": "Sorties",
+        "net": "Net",
+        "detail": "Détail"
+      },
+      "chart_one": "Graphique en barres des entrées et des sorties de la trésorerie, sur le dernier jour où elle a bougé ; les montants sont dans le tableau qui suit.",
+      "chart_other": "Graphique en barres des entrées et des sorties de la trésorerie, sur les {{count}} derniers jours où elle a bougé ; les montants sont dans le tableau qui suit.",
+      "bar": "{{date}} — entrées {{in}}, sorties {{out}}, net {{net}}"
     }
   },
   "city": {

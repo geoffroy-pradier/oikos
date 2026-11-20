@@ -549,7 +549,6 @@
     "flows": {
       "title": "Cash flows",
       "none": "No movement of your treasury yet.",
-      "day": "{{date}}: net {{net}}",
       "noDay": "Unknown day",
       "unknown": "“{{nature}}” movements: {{amount}}",
       "natures": {
@@ -566,7 +565,17 @@
         "grant": "Starting grant: {{amount}}",
         "escrow": "Escrow (held or released): {{amount}}",
         "other": "Other movements: {{amount}}"
-      }
+      },
+      "columns": {
+        "day": "Day",
+        "in": "Inflows",
+        "out": "Outflows",
+        "net": "Net",
+        "detail": "Detail"
+      },
+      "chart_one": "Bar chart of the treasury's inflows and outflows, over the last day it moved; the amounts are in the table that follows.",
+      "chart_other": "Bar chart of the treasury's inflows and outflows, over the last {{count}} days it moved; the amounts are in the table that follows.",
+      "bar": "{{date}} — inflows {{in}}, outflows {{out}}, net {{net}}"
     }
   },
   "city": {

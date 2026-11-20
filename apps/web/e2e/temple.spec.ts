@@ -96,6 +96,9 @@ test('Charis, offrande, grâces et Pythie au clavier, puis l’offrande dans les
   await nav.getByRole('link', { name: 'Maison' }).click();
   await page.getByRole('link', { name: 'Comptes', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Flux de trésorerie' })).toBeVisible();
-  await expect(page.getByText(/^Offrandes et consultations de la Pythie : −/)).toBeVisible();
+  // Tableau sur ordinateur, fiches sur téléphone : la mise en page affichée.
+  await expect(
+    page.getByText(/^Offrandes et consultations de la Pythie : −/).filter({ visible: true }),
+  ).toBeVisible();
   await expectNoHorizontalScroll(page);
 });
