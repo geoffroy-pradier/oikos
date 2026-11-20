@@ -85,9 +85,11 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le dessin montre les routes en pointillés et leur durée de référence (en accent celles où un navire de la maison est en mer), la cité de la maison en accent, le nombre de navires de la maison à quai sous chaque cité, et ceux en mer sur leur route, à la part du trajet faite à l'heure du serveur, voile tournée vers leur destination et nommés quand la place le permet.
    Une échelle en heures de mer en donne l'ordre de grandeur : la longueur médiane d'une heure de route sur le dessin, pour 1, 2, 4 ou 8 heures.
    Les noms gardent leur taille à l'écran ; sur un dessin petit (téléphone), les durées et les navires à quai ne sont dits que par la liste.
-   La carte se déplace et se zoome (de ×1 à ×4), bornée au dessin : en glissant à la souris ou au doigt, à la molette, en pinçant, au clavier (un arrêt de tabulation : flèches, + et −, 0).
-   Recentrer (0) mène à la cité de la maison, zoomée au moins à ×2 ; une touche y glisse en 200 ms, sans animation sous `prefers-reduced-motion`.
+   La carte se déplace et se zoome (de ×1 à ×4), bornée au dessin : en glissant à la souris ou au doigt, à la molette, en pinçant, au clavier (un arrêt de tabulation : flèches, + et −, 0) et par trois boutons (zoomer, dézoomer, recentrer).
+   Recentrer mène à la cité de la maison, zoomée au moins à ×2 ; un bouton ou une touche y glisse en 200 ms, sans animation sous `prefers-reduced-motion`.
    Un appui ne devient un glisser qu'au-delà de 4 pixels : en deçà, c'est un clic sur sa cible ; un glisser ne choisit rien. Tant que la carte n'est pas zoomée, le doigt y fait défiler la page verticalement, et pincer zoome.
+   Une légende distingue les routes de la maison des autres (couleur et épaisseur, et la liste les dit) ; elle est sur la carte, ou sous elle quand la carte est étroite.
+   À côté de la carte (dessous sur téléphone), « Vos navires en mer » donne pour chaque voyage en cours sa route, sa cargaison, son arrivée prévue et une barre de la part du trajet faite, écrite en pourcentage.
    Il est doublé d'une liste au clavier qui porte les mêmes informations : les routes, puis chaque navire et son état (à quai, en mer vers sa destination avec l'arrivée prévue, désarmé).
    Le chantier naval propose chaque classe à son prix, en drachmes et oboles ; l'achat suit l'acquisition d'un site (4.2) : un achat resté sans réponse garde sa clé jusqu'à la relecture qui montre un navire de plus.
    Sans réponse mais un navire de plus à la relecture, la même clé repart une fois pour connaître l'issue ; un navire de plus après une issue inconnue prévient le joueur, rappelé à chaque ouverture de l'écran tant qu'il n'a pas dit avoir vérifié sa flotte.

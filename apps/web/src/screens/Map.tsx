@@ -1,5 +1,5 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Card, MapIcon, Ship, Waves } from '@oikos/ui';
+import { Card, Ship, Waves } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,9 @@ import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '.
 import { useHouse } from '../house';
 import { archipelagoLayout, voyageProgress, type Point } from '../map-layout';
 import { formatList } from '../lists';
+import { ScreenHeader } from '../ScreenHeader';
 import { ArchipelagoMap } from './ArchipelagoMap';
+import { AtSea } from './AtSea';
 import { LoadProblem, Loading } from './LoadProblem';
 import { Shipyard } from './Shipyard';
 
@@ -60,47 +62,50 @@ export function MapScreen() {
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
-      <Card elevation="raised" className="overflow-hidden p-0">
-        <div className="flex flex-col gap-1 p-4">
-          <h1 className="flex items-center gap-2 text-2xl">
-            <MapIcon aria-hidden="true" className="size-6 shrink-0 text-aegean" />
-            {t('map.title')}
-          </h1>
-          <p className="text-muted-foreground">{t('map.intro')}</p>
-        </div>
-      </Card>
+      <ScreenHeader title={t('map.title')}>
+        <p className="text-sm text-muted-foreground">{t('map.intro')}</p>
+      </ScreenHeader>
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
       {loading && !fleet.failed && <Loading />}
 
-      <Card className="overflow-hidden border-coast p-0">
-        <ArchipelagoMap
-          label={t('map.drawing', {
-            cities: number.format(layout.size),
-            routes: number.format(routes.length),
-          })}
-          routes={routes.map((route) => ({
-            ...route,
-            ours: atSea.some(
-              ({ voyage }) =>
-                [voyage.from_city_id, voyage.to_city_id].sort().join() ===
-                [route.from, route.to].sort().join(),
-            ),
-          }))}
-          cities={[...slugs.keys()].flatMap((cityId) => {
-            const at = pointOf(cityId);
-            const docked = (ships ?? []).filter((ship) => ship.docked_city_id === cityId).length;
-            const home = cityId === house.cityId;
-            return at ? [{ id: cityId, name: cityName(cityId), at, home, docked }] : [];
-          })}
-          ships={atSea.flatMap(({ ship, voyage }) => {
-            const [from, to] = [pointOf(voyage.from_city_id), pointOf(voyage.to_city_id)];
-            const progress = voyageProgress(voyage.departed_at, voyage.arrives_at, now);
-            return from && to ? [{ id: ship.id, name: shipName(ship), from, to, progress }] : [];
-          })}
-          pointOf={pointOf}
-          home={pointOf(house.cityId)}
-        />
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <Card className="overflow-hidden border-coast p-0">
+          <ArchipelagoMap
+            label={t('map.drawing', {
+              cities: number.format(layout.size),
+              routes: number.format(routes.length),
+            })}
+            routes={routes.map((route) => ({
+              ...route,
+              ours: atSea.some(
+                ({ voyage }) =>
+                  [voyage.from_city_id, voyage.to_city_id].sort().join() ===
+                  [route.from, route.to].sort().join(),
+              ),
+            }))}
+            cities={[...slugs.keys()].flatMap((cityId) => {
+              const at = pointOf(cityId);
+              const docked = (ships ?? []).filter((ship) => ship.docked_city_id === cityId).length;
+              const home = cityId === house.cityId;
+              return at ? [{ id: cityId, name: cityName(cityId), at, home, docked }] : [];
+            })}
+            ships={atSea.flatMap(({ ship, voyage }) => {
+              const [from, to] = [pointOf(voyage.from_city_id), pointOf(voyage.to_city_id)];
+              const progress = voyageProgress(voyage.departed_at, voyage.arrives_at, now);
+              return from && to ? [{ id: ship.id, name: shipName(ship), from, to, progress }] : [];
+            })}
+            pointOf={pointOf}
+            home={pointOf(house.cityId)}
+          />
+        </Card>
+        <aside className="flex flex-col gap-4">
+          <AtSea
+            voyages={atSea.map(({ ship, voyage }) => ({ ...voyage, name: shipName(ship) }))}
+            cityName={cityName}
+            now={now}
+          />
+        </aside>
+      </div>
 
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('map.routes')}</h2>
