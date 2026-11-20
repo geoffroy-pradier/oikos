@@ -45,7 +45,7 @@ export const COLOR_TOKENS = {
     'aegean',
     'aegean-subtle',
   ],
-  map: ['sea', 'land', 'coast'],
+  map: ['sea', 'land', 'coast', 'shoal', 'route'],
 } as const;
 
 /** Couples (premier plan, fond) utilisés par les composants ; chacun doit tenir son seuil dans les deux thèmes. */
@@ -103,6 +103,17 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   // Carte : les noms se lisent sur la mer comme sur les terres.
   ['foreground', 'sea', AA_TEXT],
   ['foreground', 'land', AA_TEXT],
+  ['foreground', 'shoal', AA_TEXT],
+  // Échelle de la carte, en texte atténué sur la mer.
+  ['muted-foreground', 'sea', AA_TEXT],
+  // Routes et cités de la carte (#696) : accent pour celles de la maison, `route` pour les autres, sur la mer,
+  // les hauts-fonds et la terre qu'elles traversent.
+  ['primary', 'sea', AA_UI],
+  ['primary', 'shoal', AA_UI],
+  ['primary', 'land', AA_UI],
+  ['route', 'sea', AA_UI],
+  ['route', 'shoal', AA_UI],
+  ['route', 'land', AA_UI],
   // Illustrations : le trait porte la forme et se détache des aplats doux et neutre (seuil graphique).
   ['foreground', 'primary-subtle', AA_UI],
   ['foreground', 'muted', AA_UI],

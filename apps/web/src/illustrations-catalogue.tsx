@@ -4,6 +4,7 @@
  * Chaque dessin est montré dans les deux thèmes côte à côte ; les noms viennent des traductions.
  */
 import {
+  Archipelago,
   Card,
   CITY_VIGNETTE_IDS,
   CityVignette,
@@ -125,6 +126,9 @@ function Catalogue() {
       </Section>
       <Section title="WelcomeScene · EmptyIllustration">
         <Scenes />
+      </Section>
+      <Section title="Archipelago · 1 000 × 700">
+        <Archipelago className="h-auto w-full rounded-lg" />
       </Section>
     </main>
   );

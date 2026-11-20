@@ -8,3 +8,4 @@ export { GOOD_ICON_IDS, GoodIcon, type GoodIconProps } from './goods';
 export { GOD_EMBLEM_IDS, GodEmblem, type GodEmblemProps } from './gods';
 export { CITY_VIGNETTE_IDS, CityVignette } from './cities';
 export { EMPTY_ILLUSTRATION_IDS, EmptyIllustration, WelcomeScene } from './scenes';
+export { Archipelago, ARCHIPELAGO_HEIGHT, ARCHIPELAGO_WIDTH } from './archipelago';

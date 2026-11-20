@@ -7,6 +7,7 @@ import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  Archipelago,
   CITY_VIGNETTE_IDS,
   CityVignette,
   EMPTY_ILLUSTRATION_IDS,
@@ -36,6 +37,7 @@ const ALL = [
   ...[...CITY_VIGNETTE_IDS, 'unknown'].map((id) => <CityVignette key={id} cityId={id} />),
   ...[...EMPTY_ILLUSTRATION_IDS, 'unknown'].map((id) => <EmptyIllustration key={id} kind={id} />),
   <WelcomeScene key="welcome" />,
+  <Archipelago key="archipelago" />,
 ].map((element): [string, ReactElement] => [`${element.type.name} ${element.key}`, element]);
 
 /** Ce qu'une illustration dessinée dans le dépôt ne contient jamais : image, lien, ressource externe. */

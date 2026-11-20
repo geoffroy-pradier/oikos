@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Réglages du client joueur qui ne relèvent pas de l'équilibrage : ils ne sont pas versionnés en base,
  * mais restent hors du code des applications (règle 1 du `CLAUDE.md`).
@@ -21,3 +23,26 @@ export const CLIENT_SETTINGS = Object.freeze({
    */
   chatSafetyRereadSeconds: 120,
 });
+
+const permille = z.number().int().min(0).max(1000);
+/**
+ * Place d'une cité sur le dessin de l'archipel (onglet Carte, #696), en millièmes de sa largeur et de sa
+ * hauteur depuis le coin haut gauche. Affichage seulement : aucune distance n'en est tirée, la durée d'une
+ * route vient de la configuration du jeu.
+ */
+export const cityMapPositionSchema = z.strictObject({ x: permille, y: permille });
+export type CityMapPosition = z.infer<typeof cityMapPositionSchema>;
+
+/**
+ * Place de chaque cité sur le dessin, par identifiant de cité de la configuration (`cities`). Le dessin est
+ * dans le client, ces places aussi : une cité ajoutée par Olympe n'en a pas tant que le client ne dessine
+ * pas son île, et la carte la place alors par la règle de repli (l'ellipse, `docs/specs/10-ux-ui.md`).
+ */
+export const CITY_MAP_POSITIONS: Readonly<Record<string, CityMapPosition>> = Object.freeze(
+  z.record(z.string().min(1), cityMapPositionSchema).parse({
+    kalliste: { x: 500, y: 514 },
+    elaia: { x: 790, y: 229 },
+    ampelos: { x: 255, y: 571 },
+    halos: { x: 720, y: 743 },
+  }),
+);
