@@ -6,6 +6,7 @@ import { adminCommand } from '../api';
 import { ignoreHeldEnter } from '../keyboard';
 import { LoadError } from '../LoadError';
 import { hoursSince, staleReportHours } from '../moderation-age';
+import { ALERT } from '../ui';
 import { useAdmin } from '../useAdmin';
 
 type Entry = AdminReports['queue'][number];
@@ -43,7 +44,7 @@ export function StaleReportsAlert({ hours, limit }: { hours: number | null; limi
   const { t } = useTranslation();
   if (hours === null) return null;
   return (
-    <p role="alert" className="rounded-md border border-danger p-3 font-semibold text-danger">
+    <p role="alert" className={ALERT}>
       {t('moderation.stale', { hours, limit })}
     </p>
   );

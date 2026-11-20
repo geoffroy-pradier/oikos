@@ -134,6 +134,13 @@
         "disabled": "Coupé (configuration)",
         "capped": "Coupé (plafond du mois atteint ou trop proche)"
       }
+    },
+    "subtitle": "Dernières 24 heures, tous mondes confondus.",
+    "groups": {
+      "players": "Joueurs et commandes",
+      "engine": "Moteur",
+      "api": "Garde de l'API",
+      "state": "État du service"
     }
   },
   "economy": {
