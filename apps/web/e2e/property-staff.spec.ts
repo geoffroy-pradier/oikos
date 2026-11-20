@@ -39,10 +39,14 @@ test('personnel, parc de la cité et achat d’un bien à la cité', async ({ pa
   // Personnel : le champ de départ et ses quatre travailleurs, sans logement.
   await page.getByRole('link', { name: 'Personnel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Personnel', level: 1 })).toBeVisible();
-  await expect(page.getByText('4 travailleurs', { exact: true })).toBeVisible();
-  await expect(
-    page.getByText('Logés par vos biens : 0 ; hébergés chez les habitants : 4'),
-  ).toBeVisible();
+  // Une ligne par cité (fiche sur téléphone) : travailleurs, logés par ses biens, hébergés, hébergement.
+  const workforce = page.getByRole('region', { name: 'Travailleurs par cité' });
+  await expect(workforce.locator('td, dd').filter({ visible: true })).toHaveText([
+    '4',
+    '0',
+    '4',
+    /./,
+  ]);
   await expectNoHorizontalScroll(page);
 
   // Immobilier : un bien de la cité s'achète au clavier, au prix affiché.

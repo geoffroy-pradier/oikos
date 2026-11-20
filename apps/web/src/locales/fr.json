@@ -752,11 +752,21 @@
     "intro": "Les travailleurs de vos sites, cité par cité. Vos biens d'une cité logent d'abord les travailleurs de vos sites les plus anciens de cette cité ; les autres sont hébergés chez les habitants, une nuit par jour, au prix du jour de la cité.",
     "back": "Retour à la maison",
     "empty": "Aucun site, aucun travailleur.",
-    "workers_one": "{{number}} travailleur",
-    "workers_other": "{{number}} travailleurs",
-    "housing": "Logés par vos biens : {{housed}} ; hébergés chez les habitants : {{unhoused}}",
-    "lodging": "Hébergement : {{cost}} par jour, payé avec l'entretien",
-    "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture."
+    "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture.",
+    "figures": "Chiffres clés du personnel",
+    "byCity": "Travailleurs par cité",
+    "city": "Cité",
+    "columns": {
+      "workers": "Travailleurs",
+      "housed": "Logés par vos biens",
+      "unhoused": "Hébergés chez les habitants",
+      "lodging": "Hébergement par jour"
+    },
+    "lodgingPending": "Pas encore fixé",
+    "lodgingHint": "Payé avec l'entretien, à la clôture",
+    "lodgingPartial_one": "Hors {{count}} cité au prix pas encore fixé",
+    "lodgingPartial_other": "Hors {{count}} cités au prix pas encore fixé",
+    "lodgingNext": "Fixé à la prochaine clôture"
   },
   "propertySizes": {
     "townhouse": "Maison de ville",
