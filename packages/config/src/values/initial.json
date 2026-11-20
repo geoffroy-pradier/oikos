@@ -456,7 +456,17 @@
     { "id": "oil_lamps", "tier": "finished", "referencePriceOboles": 40, "elasticity": 0.7 },
     { "id": "sandals", "tier": "finished", "referencePriceOboles": 75, "elasticity": 0.8 },
     { "id": "tools", "tier": "finished", "referencePriceOboles": 100, "elasticity": 0.6 },
-    { "id": "clothes", "tier": "finished", "referencePriceOboles": 110, "elasticity": 0.9 }
+    { "id": "clothes", "tier": "finished", "referencePriceOboles": 110, "elasticity": 0.9 },
+    { "id": "painted_ceramics", "tier": "finished", "referencePriceOboles": 55, "elasticity": 0.9 },
+    { "id": "perfumes", "tier": "finished", "referencePriceOboles": 125, "elasticity": 1.4 },
+    { "id": "jewelry", "tier": "finished", "referencePriceOboles": 200, "elasticity": 1.8 },
+    { "id": "furniture", "tier": "finished", "referencePriceOboles": 140, "elasticity": 1.1 },
+    { "id": "statues", "tier": "finished", "referencePriceOboles": 200, "elasticity": 1.6 },
+    { "id": "weapons", "tier": "finished", "referencePriceOboles": 175, "elasticity": 0.8 },
+    { "id": "sails", "tier": "finished", "referencePriceOboles": 130, "elasticity": 0.7 },
+    { "id": "candles", "tier": "finished", "referencePriceOboles": 32, "elasticity": 0.5 },
+    { "id": "mosaics", "tier": "finished", "referencePriceOboles": 190, "elasticity": 1.5 },
+    { "id": "fig_cakes", "tier": "finished", "referencePriceOboles": 42, "elasticity": 0.6 }
   ],
   "recipes": [
     {
@@ -904,6 +914,127 @@
         { "goodId": "thread", "quantity": 3 }
       ],
       "outputs": [{ "goodId": "clothes", "quantity": 3 }]
+    },
+    {
+      "id": "paint_ceramics",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 2,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "clay", "quantity": 6 },
+        { "goodId": "pigments", "quantity": 1 },
+        { "goodId": "charcoal", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "painted_ceramics", "quantity": 4 }]
+    },
+    {
+      "id": "blend_perfumes",
+      "siteType": "workshop",
+      "durationMinutes": 360,
+      "workers": 2,
+      "maxAccruedCycles": 12,
+      "inputs": [
+        { "goodId": "olive_oil", "quantity": 4 },
+        { "goodId": "wax", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "perfumes", "quantity": 3 }]
+    },
+    {
+      "id": "craft_jewelry",
+      "siteType": "workshop",
+      "durationMinutes": 360,
+      "workers": 3,
+      "maxAccruedCycles": 12,
+      "inputs": [
+        { "goodId": "silver_ingots", "quantity": 2 },
+        { "goodId": "bronze", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "jewelry", "quantity": 3 }]
+    },
+    {
+      "id": "build_furniture",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 3,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "planks", "quantity": 8 },
+        { "goodId": "leather", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "furniture", "quantity": 3 }]
+    },
+    {
+      "id": "carve_statues",
+      "siteType": "workshop",
+      "durationMinutes": 480,
+      "workers": 3,
+      "maxAccruedCycles": 9,
+      "inputs": [
+        { "goodId": "marble_blocks", "quantity": 5 },
+        { "goodId": "bronze", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "statues", "quantity": 3 }]
+    },
+    {
+      "id": "forge_weapons",
+      "siteType": "workshop",
+      "durationMinutes": 360,
+      "workers": 3,
+      "maxAccruedCycles": 12,
+      "inputs": [
+        { "goodId": "bronze", "quantity": 6 },
+        { "goodId": "wrought_iron", "quantity": 3 }
+      ],
+      "outputs": [{ "goodId": "weapons", "quantity": 3 }]
+    },
+    {
+      "id": "sew_sails",
+      "siteType": "workshop",
+      "durationMinutes": 240,
+      "workers": 3,
+      "maxAccruedCycles": 18,
+      "inputs": [
+        { "goodId": "linen_cloth", "quantity": 3 },
+        { "goodId": "thread", "quantity": 3 }
+      ],
+      "outputs": [{ "goodId": "sails", "quantity": 3 }]
+    },
+    {
+      "id": "dip_candles",
+      "siteType": "workshop",
+      "durationMinutes": 120,
+      "workers": 2,
+      "maxAccruedCycles": 36,
+      "inputs": [
+        { "goodId": "wax", "quantity": 2 },
+        { "goodId": "thread", "quantity": 1 }
+      ],
+      "outputs": [{ "goodId": "candles", "quantity": 6 }]
+    },
+    {
+      "id": "lay_mosaics",
+      "siteType": "workshop",
+      "durationMinutes": 360,
+      "workers": 3,
+      "maxAccruedCycles": 12,
+      "inputs": [
+        { "goodId": "marble_blocks", "quantity": 4 },
+        { "goodId": "pigments", "quantity": 4 }
+      ],
+      "outputs": [{ "goodId": "mosaics", "quantity": 3 }]
+    },
+    {
+      "id": "press_fig_cakes",
+      "siteType": "workshop",
+      "durationMinutes": 180,
+      "workers": 2,
+      "maxAccruedCycles": 24,
+      "inputs": [
+        { "goodId": "figs", "quantity": 8 },
+        { "goodId": "must", "quantity": 2 }
+      ],
+      "outputs": [{ "goodId": "fig_cakes", "quantity": 6 }]
     }
   ],
   "npcClasses": [

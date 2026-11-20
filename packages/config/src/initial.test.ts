@@ -64,35 +64,38 @@ const SEVEN_FINISHED: Record<string, string> = {
   clothes: 'sew_clothes',
 };
 const [SEVEN_GOODS, SEVEN_RECIPES] = [Object.keys(SEVEN_FINISHED), Object.values(SEVEN_FINISHED)];
+/** Les dix biens finis de luxe et d'ouvrage de #711 et leurs ateliers, dans l'ordre de la configuration. */
+const TEN_FINISHED: Record<string, string> = {
+  painted_ceramics: 'paint_ceramics',
+  perfumes: 'blend_perfumes',
+  jewelry: 'craft_jewelry',
+  furniture: 'build_furniture',
+  statues: 'carve_statues',
+  weapons: 'forge_weapons',
+  sails: 'sew_sails',
+  candles: 'dip_candles',
+  mosaics: 'lay_mosaics',
+  fig_cakes: 'press_fig_cakes',
+};
+const [TEN_GOODS, TEN_RECIPES] = [Object.keys(TEN_FINISHED), Object.values(TEN_FINISHED)];
 /**
- * Biens qui n'attendent encore qu'un atelier ou un acheteur : la figue (#711, #712), les sept biens finis du
- * quotidien de #710, que les paniers des PNJ n'achètent pas encore (#713), et les sept intermédiaires que les biens
- * finis de #711 consommeront. La liste se vide au fil de ces tickets ; à la fin des biens finis (« P9 »), plus aucun
- * intermédiaire n'y figure (5.1).
+ * Biens finis qu'aucun panier de PNJ n'achète encore : les sept de #710 et les dix de #711, que #713 place dans les
+ * paniers. Cette liste, bornée à ces dix-sept biens, se vide avec #713 ; il n'y reste ni matière ni intermédiaire
+ * (5.1), et le test des impasses en retire tout bien qui a trouvé preneur.
  */
-const AWAITING_BUYER = [
-  ...SEVEN_GOODS,
-  'figs',
-  'must',
-  'bronze',
-  'linen_cloth',
-  'pigments',
-  'wax',
-  'silver_ingots',
-  'marble_blocks',
-];
+const AWAITING_BASKET = [...SEVEN_GOODS, ...TEN_GOODS];
 
 describe('jeu de valeurs initial', () => {
   const result = validateConfig(INITIAL_CONFIG);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   const { config } = result;
 
-  it('contient 44 biens, dont 18 matières premières, 16 intermédiaires et 10 finis, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706, #708, #709, #710)', () => {
-    expect(config.goods).toHaveLength(44);
+  it('contient 54 biens, dont 18 matières premières, 16 intermédiaires et 20 finis, des recettes, les quatre classes de PNJ d’une cité et douze cités (#706, #708, #709, #710, #711)', () => {
+    expect(config.goods).toHaveLength(54);
     expect(config.goods.filter((good) => good.tier === 'raw')).toHaveLength(18);
     expect(config.goods.filter((good) => good.tier === 'intermediate')).toHaveLength(16);
-    expect(config.goods.filter((good) => good.tier === 'finished')).toHaveLength(10);
-    expect(config.recipes).toHaveLength(44);
+    expect(config.goods.filter((good) => good.tier === 'finished')).toHaveLength(20);
+    expect(config.recipes).toHaveLength(54);
     expect(config.npcClasses.map((npcClass) => npcClass.id)).toEqual([
       'thetes',
       'zeugitai',
@@ -298,21 +301,19 @@ describe('jeu de valeurs initial', () => {
     }
   });
 
-  it('chaque intermédiaire est l’intrant d’une recette, sauf ceux qui attendent un bien fini (#710, #711)', () => {
+  it('chaque matière première et chaque intermédiaire est l’intrant d’au moins une recette (#711)', () => {
     const consumed = new Set(config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)));
-    const intermediates = config.goods.filter((good) => good.tier === 'intermediate');
-    expect(intermediates).toHaveLength(16);
-    // Depuis #710, l'huile (lampes) et le tissu (vêtements) sont des intrants : plus d'exception pour eux.
-    expect(
-      intermediates.filter((good) => !consumed.has(good.id) && !AWAITING_BUYER.includes(good.id)),
-    ).toEqual([]);
+    const upstream = config.goods.filter((good) => good.tier !== 'finished');
+    expect(upstream).toHaveLength(34);
+    // Aucune liste d'attente : un bien sans débouché est nommé ici.
+    expect(upstream.filter((good) => !consumed.has(good.id)).map((good) => good.id)).toEqual([]);
   });
 
   it('sept biens finis de plus (#710), chacun d’un atelier, dont les intrants sont des intermédiaires ou des matières premières', () => {
-    expect(config.goods.slice(37).map((good) => [good.id, good.tier])).toEqual(
+    expect(config.goods.slice(37, 44).map((good) => [good.id, good.tier])).toEqual(
       SEVEN_GOODS.map((id) => [id, 'finished']),
     );
-    const workshops = config.recipes.slice(37);
+    const workshops = config.recipes.slice(37, 44);
     expect(workshops.map((recipe) => [recipe.id, recipe.siteType, recipe.outputs.length])).toEqual(
       SEVEN_RECIPES.map((id) => [id, 'workshop', 1]),
     );
@@ -346,6 +347,46 @@ describe('jeu de valeurs initial', () => {
       recipe.workers * (config.staff.dailyWageOboles['kalliste'] ?? NaN);
     // Médiane des huit matières premières de la phase 2 (899 oboles), écrite à la main : bornes de 449,5 à 1 798.
     for (const recipe of config.recipes.filter((each) => SEVEN_RECIPES.includes(each.id))) {
+      expect(margin(recipe), recipe.id).toBeGreaterThanOrEqual(899 / 2);
+      expect(margin(recipe), recipe.id).toBeLessThanOrEqual(899 * 2);
+    }
+  });
+
+  it('dix biens finis de plus (#711), chacun d’un atelier, dont les intrants ne sont jamais des biens finis', () => {
+    expect(config.goods.slice(44).map((good) => [good.id, good.tier])).toEqual(
+      TEN_GOODS.map((id) => [id, 'finished']),
+    );
+    const workshops = config.recipes.slice(44);
+    expect(workshops.map((recipe) => [recipe.id, recipe.siteType, recipe.outputs.length])).toEqual(
+      TEN_RECIPES.map((id) => [id, 'workshop', 1]),
+    );
+    expect(workshops.map((recipe) => recipe.outputs[0]?.goodId)).toEqual(TEN_GOODS);
+    const tier = new Map(config.goods.map((good) => [good.id, good.tier]));
+    for (const recipe of workshops) {
+      expect(recipe.inputs.length, recipe.id).toBeGreaterThan(0);
+      // Pas de chaîne de biens finis : seule l'amphore du garum (#710) en sert d'intrant.
+      for (const input of recipe.inputs)
+        expect(tier.get(input.goodId), `${recipe.id} consomme ${input.goodId}`).not.toBe(
+          'finished',
+        );
+      // Au moins trois unités par cycle : l'atelier inspiré en ajoute une (7.1, décision de #710).
+      expect(recipe.outputs[0]?.quantity, recipe.id).toBeGreaterThanOrEqual(3);
+    }
+    // Les navires restent achetés à la cité (4.6) : aucun bien « navire » au catalogue.
+    expect(config.goods.filter((good) => /ship|navire/.test(good.id))).toEqual([]);
+  });
+
+  it('marge nette quotidienne de chaque atelier de #711, au prix de référence, entre la moitié et le double de la médiane de la phase 2', () => {
+    const price = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+    const { coefficientBps, dailyOboles } = config.sites.upkeep;
+    const value = (lines: { goodId: string; quantity: number }[]) =>
+      lines.reduce((sum, line) => sum + line.quantity * (price.get(line.goodId) ?? NaN), 0);
+    const margin = (recipe: (typeof config.recipes)[number]) =>
+      (value(recipe.outputs) - value(recipe.inputs)) * (1440 / recipe.durationMinutes) -
+      Math.ceil((dailyOboles[recipe.siteType] * coefficientBps) / 10_000) -
+      recipe.workers * (config.staff.dailyWageOboles['kalliste'] ?? NaN);
+    // Médiane des huit matières premières de la phase 2 (899 oboles), écrite à la main : bornes de 449,5 à 1 798.
+    for (const recipe of config.recipes.filter((each) => TEN_RECIPES.includes(each.id))) {
       expect(margin(recipe), recipe.id).toBeGreaterThanOrEqual(899 / 2);
       expect(margin(recipe), recipe.id).toBeLessThanOrEqual(899 * 2);
     }
@@ -400,11 +441,11 @@ describe('jeu de valeurs initial', () => {
       ...config.recipes.flatMap((r) => r.inputs.map((i) => i.goodId)),
       ...config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)),
     ]);
-    // Sauf les biens qui attendent leurs acheteurs (#710 à #713) : liste écrite à la main plus haut.
-    const checked = config.goods.filter((good) => !AWAITING_BUYER.includes(good.id));
+    // Sauf les dix-sept biens finis qui attendent les paniers de #713 : liste écrite à la main plus haut.
+    const checked = config.goods.filter((good) => !AWAITING_BASKET.includes(good.id));
     expect(checked.filter((good) => !used.has(good.id))).toEqual([]);
     // La liste ne retient que de vrais impasses : un bien qui a trouvé preneur en sort.
-    expect(AWAITING_BUYER.filter((id) => used.has(id))).toEqual([]);
+    expect(AWAITING_BASKET.filter((id) => used.has(id))).toEqual([]);
   });
 
   it('le revenu de chaque classe couvre son panier au prix de référence, sans le dépasser de beaucoup', () => {
@@ -638,10 +679,13 @@ describe('jeu de valeurs initial', () => {
 
   it('chaque bien fini est demandé par au moins une classe de PNJ', () => {
     const wanted = new Set(config.npcClasses.flatMap((c) => c.basket.map((entry) => entry.goodId)));
-    // Sauf les sept biens de #710, qui attendent les paniers de #713 (5.1) ; la liste ne retient que des biens invendus.
-    expect(SEVEN_GOODS.filter((id) => wanted.has(id))).toEqual([]);
+    // Sauf les dix-sept biens de #710 et #711, qui attendent les paniers de #713 (5.1) ; la liste ne retient que des biens
+    // invendus et ne compte que ces dix-sept biens.
+    expect(AWAITING_BASKET).toHaveLength(17);
+    expect(AWAITING_BASKET.filter((id) => wanted.has(id))).toEqual([]);
     const unsold = config.goods.filter(
-      (good) => good.tier === 'finished' && !wanted.has(good.id) && !SEVEN_GOODS.includes(good.id),
+      (good) =>
+        good.tier === 'finished' && !wanted.has(good.id) && !AWAITING_BASKET.includes(good.id),
     );
     expect(unsold).toEqual([]);
   });

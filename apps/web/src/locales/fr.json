@@ -333,7 +333,17 @@
     "oil_lamps": "Lampes à huile",
     "sandals": "Sandales",
     "tools": "Outils",
-    "clothes": "Vêtements"
+    "clothes": "Vêtements",
+    "painted_ceramics": "Céramique peinte",
+    "perfumes": "Parfums",
+    "jewelry": "Bijoux",
+    "furniture": "Meubles",
+    "statues": "Statues",
+    "weapons": "Armes",
+    "sails": "Voiles",
+    "candles": "Bougies",
+    "mosaics": "Mosaïques",
+    "fig_cakes": "Gâteaux de figues"
   },
   "recipes": {
     "grow_wheat": "Champ de blé",
@@ -379,7 +389,17 @@
     "mould_lamps": "Atelier de lampes",
     "make_sandals": "Cordonnerie",
     "forge_tools": "Atelier d'outils",
-    "sew_clothes": "Atelier de couture"
+    "sew_clothes": "Atelier de couture",
+    "paint_ceramics": "Atelier de céramique",
+    "blend_perfumes": "Parfumerie",
+    "craft_jewelry": "Bijouterie",
+    "build_furniture": "Menuiserie",
+    "carve_statues": "Atelier de sculpture",
+    "forge_weapons": "Armurerie",
+    "sew_sails": "Voilerie",
+    "dip_candles": "Chandellerie",
+    "lay_mosaics": "Atelier de mosaïque",
+    "press_fig_cakes": "Pâtisserie"
   },
   "siteTypes": {
     "field": "Champ",
