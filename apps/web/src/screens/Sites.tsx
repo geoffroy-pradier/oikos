@@ -18,7 +18,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -57,6 +56,7 @@ import {
 } from '../pending-keys';
 import { LoadProblem, Loading } from './LoadProblem';
 import { ProductionList, type ProductionItem } from './HomeProduction';
+import { SiteAcquire, type SiteOffer } from './SiteAcquire';
 import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
 import { SiteSteward } from './SiteSteward';
@@ -108,6 +108,7 @@ export function SitesCard({
   onChanged,
   titleRef,
   figures,
+  balance,
   variant = 'full',
   onSummary,
 }: {
@@ -118,6 +119,8 @@ export function SitesCard({
   titleRef?: RefObject<HTMLHeadingElement | null>;
   /** Chiffres clés de l'écran, rangés avant celui des sites (trésorerie). */
   figures?: ReactNode;
+  /** Trésorerie lue, que l'acquisition dit avant et après l'achat. */
+  balance?: number | undefined;
   /** `production` : la production en cours du tableau de bord, avec les mêmes commandes de récolte. */
   variant?: 'full' | 'production';
   /** Sites en activité, travailleurs et intendants, pour les chiffres clés ; `null` tant qu'ils ne sont pas lus. */
@@ -248,7 +251,6 @@ export function SitesCard({
   const [notice, setNotice] = useState<Notice>(null);
   // Production choisie pour chaque site (tant que le joueur n'a pas validé) et site à acquérir.
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  const [wanted, setWanted] = useState('');
   // Une commande sans réponse garde sa clé, même onglet quitté : la renvoyer rejoue la commande au lieu
   // de la payer une seconde fois.
   const pending = useMemo(() => pendingKeys(house.id, () => window.sessionStorage), [house.id]);
@@ -469,7 +471,6 @@ export function SitesCard({
     .map((site) => ({ site, alerts: stateOf(site).alerts }))
     .filter(({ alerts }) => alerts.length > 0);
   const offers = (rules?.offers ?? []).filter(({ recipe }) => admits(house.cityId)(recipe));
-  const offer = offers.find((candidate) => candidate.recipe.id === wanted) ?? offers[0];
   const full = rules !== null && sites.rows !== null && sites.rows.length >= rules.limit;
 
   /** Envoie une commande, relit ce qu'elle a pu changer, puis annonce son issue à l'endroit de l'action. */
@@ -568,10 +569,9 @@ export function SitesCard({
     );
   }
 
-  async function acquire(event: FormEvent) {
-    event.preventDefault();
+  async function acquire(offer: SiteOffer) {
     // Pendant une autre commande, rien ne part : aucune clé n'est créée qui ne serait jamais envoyée.
-    if (!offer || running.current) return;
+    if (running.current) return;
     const { recipe, costOboles } = offer;
     const recipeId = recipe.id;
     // Un achat abouti sans réponse a ajouté un site, vu à la relecture : vouloir de nouveau la même
@@ -817,20 +817,59 @@ export function SitesCard({
           hint={t('sites.dailyHint')}
         />
       </div>
-      {harvestable.length > 0 && (
-        <Button
-          className={`self-start ${WAITING}`}
-          aria-disabled={busy}
-          aria-label={t('home.collectAllLabel', {
-            count: harvestable.length,
-            number: number.format(harvestable.length),
-          })}
-          onClick={() => void collectEverything()}
-        >
-          {t('home.collectAll')}
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {harvestable.length > 0 && (
+          <Button
+            className={WAITING}
+            aria-disabled={busy}
+            aria-label={t('home.collectAllLabel', {
+              count: harvestable.length,
+              number: number.format(harvestable.length),
+            })}
+            onClick={() => void collectEverything()}
+          >
+            {t('home.collectAll')}
+          </Button>
+        )}
+        {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
+        {rules && sites.rows && (
+          <div className="ml-auto">
+            {full ? (
+              <p className="text-sm text-muted-foreground">{t('home.limitReached')}</p>
+            ) : (
+              <SiteAcquire
+                offers={offers}
+                upkeepOf={rules.upkeepOf}
+                balance={balance}
+                count={sites.rows.length}
+                limit={rules.limit}
+                busy={busy}
+                warning={notice?.unanswered ? notice.text : null}
+                onConfirm={(offer) => void acquire(offer)}
+              />
+            )}
+          </div>
+        )}
+      </div>
       {announce(ALL)}
+      {rules && sites.rows && (
+        <div role="group" aria-label={t('home.acquire')} className="flex flex-col gap-2">
+          {announce(ACQUIRE)}
+          {notice?.unanswered && (
+            <Button
+              variant="secondary"
+              className="self-start"
+              onClick={() => {
+                pending.warning.set(false);
+                setNotice(null);
+                title.current?.focus();
+              }}
+            >
+              {t('home.acquireChecked')}
+            </Button>
+          )}
+        </div>
+      )}
       {problem}
       {sites.rows === null && !sites.failed && <Loading />}
       {sites.rows?.length === 0 && (
@@ -1122,64 +1161,6 @@ export function SitesCard({
           );
         })}
       </ul>
-
-      {/* Proposée une fois les sites lus : leur nombre fait partie de l'intention (rejeu ou nouvel achat). */}
-      {rules && sites.rows && (
-        <form
-          aria-labelledby="sites-acquire"
-          className="flex flex-col gap-2 rounded-lg border border-dashed border-border-subtle p-3"
-          onSubmit={(event) => void acquire(event)}
-        >
-          <h3 id="sites-acquire" className="text-lg">
-            {t('home.acquire')}
-          </h3>
-          {full ? (
-            <p className="text-muted-foreground">{t('home.limitReached')}</p>
-          ) : (
-            <>
-              <label className="flex flex-col gap-1 text-sm">
-                <span>{t('home.acquireRecipe')}</span>
-                <select
-                  className={CONTROL}
-                  value={offer?.recipe.id ?? ''}
-                  disabled={busy}
-                  onChange={(event) => setWanted(event.target.value)}
-                >
-                  {offers.map(({ recipe, costOboles }) => {
-                    const [site, type] = [recipeName(recipe.id), typeName(recipe.siteType)];
-                    const cost = money(costOboles);
-                    return (
-                      <option key={recipe.id} value={recipe.id}>
-                        {/* Le type n'est pas répété quand la production porte déjà son nom. */}
-                        {site === type
-                          ? t('home.acquireOptionPlain', { site, cost })
-                          : t('home.acquireOption', { site, type, cost })}
-                      </option>
-                    );
-                  })}
-                </select>
-              </label>
-              <Button type="submit" className={WAITING} disabled={!offer} aria-disabled={busy}>
-                {t('home.acquireSubmit')}
-              </Button>
-            </>
-          )}
-          {announce(ACQUIRE)}
-          {notice?.unanswered && (
-            <Button
-              variant="secondary"
-              className="self-start"
-              onClick={() => {
-                pending.warning.set(false);
-                setNotice(null);
-                title.current?.focus();
-              }}
-            >
-              {t('home.acquireChecked')}
-            </Button>
-          )}
-        </form>
-      )}
     </div>
   );
 }
@@ -1207,6 +1188,7 @@ export function SitesScreen() {
         stock={stock.rows}
         onChanged={() => Promise.all([treasury.reload(), stock.reload()])}
         titleRef={title}
+        balance={balance}
         figures={
           <StatCard
             dense

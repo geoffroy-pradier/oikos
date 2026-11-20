@@ -50,6 +50,18 @@ export async function fillOrder(
 export const placeOrder = (page: Page) =>
   page.getByRole('button', { name: "Déposer l'ordre" }).press('Enter');
 
+/**
+ * Acquiert un site par sa feuille, au clavier : la production (`recipe`, sinon la première proposée), « Continuer »,
+ * puis la confirmation au prix vu.
+ */
+export async function acquireSite(page: Page, recipe?: RegExp) {
+  await page.getByRole('button', { name: 'Acquérir un site' }).press('Enter');
+  const sheet = page.getByRole('dialog', { name: 'Acquérir un site' });
+  if (recipe) await sheet.getByRole('radio', { name: recipe }).check();
+  await sheet.getByRole('button', { name: 'Continuer' }).press('Enter');
+  await sheet.getByRole('button', { name: /^Acquérir pour / }).press('Enter');
+}
+
 /** Connexion par lien magique d'un nouveau compte : saisie et envoi au clavier. */
 export async function signIn(page: Page, email: string) {
   await page.goto('/');

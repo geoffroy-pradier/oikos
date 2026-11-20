@@ -42,7 +42,7 @@ async function render(rows: object[] | null, failed = false) {
     </I18nextProvider>,
   );
 }
-const SUBMIT = `>${fr.home.acquireSubmit}</button>`;
+const SUBMIT = `${fr.home.acquire}</button>`;
 
 describe('acquisition proposée seulement quand les sites sont lus', () => {
   it('règles lues avant les sites : pas de formulaire, la lecture est annoncée', async () => {
@@ -58,11 +58,15 @@ describe('acquisition proposée seulement quand les sites sont lus', () => {
     expect(html).toContain(`>${fr.app.retry}</button>`);
   });
 
-  it('sites lus, même aucun : « Acquérir » est proposé et actif', async () => {
+  it('sites lus, même aucun : « Acquérir un site » est proposé et actif', async () => {
     for (const rows of [[], [{ ...field, halted_at: null }]]) {
       const html = await render(rows);
-      expect(html).toContain(`aria-disabled="false"${SUBMIT}`);
-      expect(html).not.toMatch(/<button[^>]* disabled=""[^>]*>Acquérir</);
+      const trigger = html.slice(
+        html.lastIndexOf('<button', html.indexOf(SUBMIT)),
+        html.indexOf(SUBMIT),
+      );
+      expect(trigger).toContain('aria-disabled="false"');
+      expect(trigger).not.toContain('disabled=""');
     }
   });
 });
