@@ -33,6 +33,7 @@ import { chatReport } from './commands/chat-report';
 import { cityCastVote } from './commands/city-cast-vote';
 import { cityProposeDecree } from './commands/city-decree';
 import { cityVoteDecree } from './commands/city-vote-decree';
+import { cityCastOstracon } from './commands/city-ostracism';
 import { cityStandForElection, cityWithdrawCandidacy } from './commands/city-election';
 import { houseCreate } from './commands/house-create';
 import { houseRename } from './commands/house-rename';
@@ -108,6 +109,7 @@ export const COMMANDS = [
   cityCastVote,
   cityProposeDecree,
   cityVoteDecree,
+  cityCastOstracon,
   voyageDepart,
   chatOpenDirect,
   chatPost,

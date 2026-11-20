@@ -55,6 +55,20 @@ export const voting = (election: Election, now: Date) =>
   !election.tallied_at && election.voting_opens_at <= now && now < election.voting_closes_at;
 
 export const NOT_CITIZEN = { code: 'NOT_CITIZEN', message: 'Only citizens of the city take part.' };
+export const OSTRACIZED = {
+  code: 'OSTRACIZED',
+  message: 'An ostracized house holds no public office until its ostracism ends.',
+};
+
+/** La maison est-elle ostracisée à cet instant (6.4, #722) : du dépouillement inclus à la fin exclue. */
+export const isOstracized = async (trx: Db, houseId: string, at: Date) =>
+  (await trx
+    .selectFrom('game.ostracisms')
+    .select('id')
+    .where('ostracized_house_id', '=', houseId)
+    .where('tallied_at', '<=', at)
+    .where('ends_at', '>', at)
+    .executeTakeFirst()) !== undefined;
 const FILING_CLOSED = { code: 'FILING_CLOSED', message: 'Candidacies are not open.' };
 
 export const cityStandForElection = defineCommand({
@@ -66,6 +80,7 @@ export const cityStandForElection = defineCommand({
     candidacies_one_per_house: { code: 'ALREADY_CANDIDATE', message: 'Already a candidate.' },
     candidacies_filing_period: FILING_CLOSED,
     candidacies_citizens_only: NOT_CITIZEN,
+    candidacies_not_ostracized: OSTRACIZED,
   },
   async handler({ trx, userId, emit, config, now }, input) {
     const house = await houseOf(trx, userId);
@@ -75,6 +90,7 @@ export const cityStandForElection = defineCommand({
     if (house.status !== 'citizen' || house.city_id !== election.city_id)
       return { ok: false, error: NOT_CITIZEN };
     if (!filing(election, now)) return { ok: false, error: FILING_CLOSED };
+    if (await isOstracized(trx, house.id, now)) return { ok: false, error: OSTRACIZED };
     const existing = await trx
       .selectFrom('game.candidacies')
       .select('id')
