@@ -187,7 +187,9 @@ it('masque un message après confirmation qui nomme la maison ; annuler ne fait 
   ]);
   // File relue : l'entrée traitée n'y est plus ; le foyer va au titre.
   expect(screen.queryByRole('listitem', { name: /Alpha/ })).toBeNull();
-  expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
+  await waitFor(() =>
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 })),
+  );
 });
 
 it('chaque geste de la file s’ouvre dans une feuille nommée, qui rappelle l’entrée et le message', async () => {
