@@ -34,6 +34,12 @@ vi.mock('../data', async () => {
     useClockRules: () => ({ rules: null, failed: false, reload: () => Promise.resolve() }),
   };
 });
+// L'heure du serveur, lue ou pas encore : sans elle, rien n'est compté prêt.
+const clock = vi.hoisted(() => ({ synced: true }));
+vi.mock('../server-clock', () => ({
+  serverClock: { now: () => new Date() },
+  syncServerClock: () => (clock.synced ? Promise.resolve() : new Promise(() => undefined)),
+}));
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: { children: React.ReactNode; to: string; 'aria-current'?: 'page' }) => (
     <a href={props.to} aria-current={props['aria-current']}>
@@ -47,7 +53,9 @@ const { SitesScreen } = await import('./Sites');
 afterEach(cleanup);
 
 describe('écran Sites', () => {
-  it('son titre, les rubriques de la maison et ses chiffres clés', async () => {
+  it('son titre, les rubriques de la maison, ses chiffres clés et la fiche demandée par l’adresse', async () => {
+    window.location.hash = '#site-s1';
+    Element.prototype.scrollIntoView = () => undefined;
     const instance = i18next.createInstance();
     await instance
       .use(initReactI18next)
@@ -68,6 +76,35 @@ describe('écran Sites', () => {
     expect(current).toEqual([fr.home.nav.sites]);
     expect(await screen.findByText('500 drachmes')).toBeTruthy();
     expect(screen.getByText('1 sur 4')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Champ de blé' })).toBeTruthy();
+    // Le champ, plein depuis longtemps, est prêt ; « Détails » du tableau de bord y mène et y pose le foyer.
+    expect(screen.getByText(fr.sites.ready).closest('section')?.textContent).toContain(
+      '1site prêt',
+    );
+    expect(screen.getByText(fr.sites.daily)).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Champ de blé' }));
+  });
+
+  it('heure du serveur pas encore lue : « Prêts à récolter » dit « — », jamais zéro', async () => {
+    clock.synced = false;
+    window.location.hash = '';
+    const instance = i18next.createInstance();
+    await instance
+      .use(initReactI18next)
+      .init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+    const house = { id: 'h1', name: 'Test', cityId: 'c1', accessToken: 't', cityName: 'Kallistè' };
+    render(
+      <I18nextProvider i18n={instance}>
+        <HouseProvider
+          value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'metic' }}
+        >
+          <SitesScreen />
+        </HouseProvider>
+      </I18nextProvider>,
+    );
+    await screen.findByText('1 sur 4');
+    expect(screen.getByText(fr.sites.ready).closest('section')?.textContent).toBe(
+      `${fr.sites.ready}—`,
+    );
+    clock.synced = true;
   });
 });

@@ -1250,5 +1250,12 @@
     "detailsOf": "Détails : {{site}}",
     "unknown": "Récolte pas encore estimée",
     "checkSites": "Vérifier la liste des sites"
+  },
+  "sites": {
+    "ready": "Prêts à récolter",
+    "readyHint_one": "site prêt",
+    "readyHint_other": "sites prêts",
+    "daily": "Coût d'un jour",
+    "dailyHint": "des sites qui tournent, prélevé à la clôture"
   }
 }
