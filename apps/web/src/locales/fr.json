@@ -1237,7 +1237,8 @@
       "rejected": "Appel rejeté le {{date}} : la sanction est maintenue."
     },
     "dismiss": "Masquer cet avis",
-    "dismissed": "Avis masqué."
+    "dismissed": "Avis masqué.",
+    "appealTitle": "Faire appel : {{kind}}"
   },
   "reports": {
     "button": "Signaler",

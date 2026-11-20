@@ -130,7 +130,13 @@ describe('sanctions en cours', () => {
   it('un appel s’écrit au clavier, part sous une clé gardée tant qu’il est sans réponse, puis le foyer passe au résultat', async () => {
     fake.rows = [row('s1', 'suspension', -HOUR, HOUR)];
     await show();
-    fireEvent.click(screen.getByRole('button', { name: 'Faire appel' }));
+    const opener = screen.getByRole('button', { name: 'Faire appel' });
+    // Le bouton est décrit par sa sanction ; la feuille qu'il ouvre la nomme.
+    expect(opener.getAttribute('aria-describedby')).toBe(
+      screen.getByRole('heading', { name: 'Compte suspendu' }).id,
+    );
+    fireEvent.click(opener);
+    expect(screen.getByRole('dialog', { name: 'Faire appel : Compte suspendu' })).toBeTruthy();
     const box = screen.getByRole('textbox', { name: 'Votre appel' });
     expect(document.activeElement).toBe(box);
     fireEvent.click(screen.getByRole('button', { name: "Envoyer l'appel" }));
@@ -174,6 +180,28 @@ describe('sanctions en cours', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await act(async () => new Promise((resolve) => setTimeout(resolve)));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Appeal' }));
+  });
+
+  it('refusé, l’appel garde le foyer sur son envoi, jamais inactif pendant l’envoi', async () => {
+    fake.rows = [row('s1', 'silence', -HOUR, HOUR)];
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Faire appel' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Votre appel' }), {
+      target: { value: 'Je conteste.' },
+    });
+    const submit = screen.getByRole('button', { name: "Envoyer l'appel" });
+    submit.focus();
+    fireEvent.click(submit);
+    // En vol : marqué inactif sans `disabled`, qui ferait tomber le foyer sur la page.
+    expect([submit.hasAttribute('disabled'), submit.getAttribute('aria-disabled')]).toEqual([
+      false,
+      'true',
+    ]);
+    await act(async () =>
+      fake.appeals[0]?.answer({ ok: false, error: { code: 'INTERNAL', message: 'x' } }),
+    );
+    expect(screen.getByRole('alert').textContent).toBe(fr.errors.INTERNAL);
+    expect(document.activeElement).toBe(submit);
   });
 
   it('se relit quand l’API refuse une commande pour une sanction', async () => {
