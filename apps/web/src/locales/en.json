@@ -1269,6 +1269,15 @@
       "description_one": "Your house runs {{number}} of {{limit}} sites. The price is the one shown.",
       "description_other": "Your house runs {{number}} of {{limit}} sites. The price is the one shown.",
       "inputs": "Inputs per cycle"
+    },
+    "production": {
+      "open": "Change production…",
+      "title": "Production: {{site}}",
+      "description": "Only the productions the site's city admits are offered.",
+      "outputs": "Outputs per cycle",
+      "fromTo": "{{before}} → {{after}}",
+      "note": "A new cycle starts. Harvest what is ready first: otherwise the change is refused.",
+      "confirm": "Change production"
     }
   },
   "steps": {
