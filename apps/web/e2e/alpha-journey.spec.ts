@@ -6,7 +6,14 @@ import { createRng } from '@oikos/sim';
 import { expect, test, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import { closeCityDb, E2E_ORACLE, setUpChronicles, setUpCity, setUpOracle } from './city-fixtures';
-import { expectNoHorizontalScroll, foundHouseForm, KALLISTE_ID, signIn } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  fillOrder,
+  foundHouseForm,
+  KALLISTE_ID,
+  placeOrder,
+  signIn,
+} from './helpers';
 
 // Parcours de l'alpha (#286), critère de sortie de la phase 2, point 1 : deux joueurs dans deux cités (Kallistè et
 // Elaia), à 360 px, IA coupée (configuration initiale), qui jouent à tour de rôle ce que le critère énumère. Chaque
@@ -206,9 +213,9 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await expect(page.getByRole('heading', { name: 'Agora de Kallistè' })).toBeVisible();
     await page.getByLabel('Cité du marché').selectOption({ label: 'Elaia' });
     await expect(page.getByRole('heading', { name: 'Agora de Elaia' })).toBeVisible();
-    await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
-    await page.getByLabel('Quantité', { exact: true }).fill('30');
+    await fillOrder(page, 'Vendre', 30, price);
     await page.keyboard.press('Enter');
+    await placeOrder(page);
     await expect(said(page, 'status', /^Vente déposée : 30 × Blé/)).toBeVisible();
     await expectNoHorizontalScroll(page);
     // L'ordre d'Alpha à Elaia, retrouvé en base : sa maison n'y en a pas d'autre au même prix.
@@ -221,10 +228,9 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     const placed = { data: { orderId: orders[0]?.id } };
     await otherNav.getByRole('link', { name: 'Agora' }).click();
     await expect(other.getByRole('heading', { name: 'Agora de Elaia' })).toBeVisible();
-    await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
-    await other.getByLabel('Prix limite par unité (oboles)').fill(String(price + 1));
-    await other.getByLabel('Quantité', { exact: true }).fill('30');
+    await fillOrder(other, 'Acheter', 30, price + 1);
     await other.keyboard.press('Enter');
+    await placeOrder(other);
     await expect(said(other, 'status', /^Achat conclu : 30 × Blé pour /)).toBeVisible();
     // La vente d'Alpha, par son identifiant : d'autres ordres de blé peuvent attendre à Elaia, pas dans ce compte.
     const { rows } = await sql<{ gross: string; units: string }>`

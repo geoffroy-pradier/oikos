@@ -8,7 +8,9 @@ import { sql } from 'kysely';
 import {
   chooseLanguage,
   expectNoHorizontalScroll,
+  fillOrder,
   KALLISTE_ID,
+  placeOrder,
   signIn,
   foundHouseForm,
 } from './helpers';
@@ -397,13 +399,13 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
   await page.getByRole('button', { name: 'Récolter : Champ de blé' }).click();
   await expect(page.getByText('Blé : 80')).toBeVisible();
 
-  // Dépôt d'une vente à l'agora, au clavier : une saisie invalide est refusée sans rien envoyer.
+  // Dépôt d'une vente à l'agora, dans sa feuille, au clavier : une saisie invalide est refusée sans rien
+  // envoyer, et la feuille reste sur la quantité et le prix.
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Agora' }).click();
   await expect(page.getByRole('heading', { name: 'Agora de Kallistè' })).toBeVisible();
   await alone(async () => {
-    await page.getByLabel('Prix limite par unité (oboles)').fill('2');
-    await page.getByLabel('Quantité', { exact: true }).fill('beaucoup');
+    await fillOrder(page, 'Vendre', 'beaucoup', 2);
     await page.keyboard.press('Enter');
     await expect(said(page, 'alert')).toContainText('ne sont pas valides');
     await page.getByLabel('Quantité', { exact: true }).fill('8e1');
@@ -414,6 +416,7 @@ test('du champ à l’agora : produire, vendre, voir son solde augmenter', async
     await expect(said(page, 'alert')).toContainText('Stock libre insuffisant');
     await page.getByLabel('Quantité', { exact: true }).fill('80');
     await page.keyboard.press('Enter');
+    await placeOrder(page);
     await expect(said(page, 'status')).toContainText('Vente déposée : 80 × Blé à 2 oboles.');
     await expect(page.getByText('80 sur 80 à 2 oboles')).toBeVisible();
     // Le carnet public montre ce niveau de prix : colonne du prix, puis quantité offerte.
@@ -538,8 +541,7 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
 
   await alone(async () => {
     // La vente est déposée, mais la réponse se perd : le joueur réessaie la même saisie.
-    await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
-    await page.getByLabel('Quantité', { exact: true }).fill('30');
+    await fillOrder(page, 'Vendre', 30, price);
     // Avant de déposer la vente, le formulaire annonce ce qu'elle rapportera, taxe de marché déduite.
     const [gross, net] = [30 * price, netOf(30 * price)];
     expect(net).toBeLessThan(gross);
@@ -548,22 +550,27 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     const expected = new RegExp(
       `^Net attendu : ${plain(money(net))} \\(${plain(money(gross))} moins ${plain(money(gross - net))} de taxe de marché\\)`,
     );
-    // Lue en arrivant sur chacun des deux champs et sur le bouton, sans être annoncée à chaque frappe.
-    for (const control of [
+    // Lue en arrivant sur chacun des deux champs et sur le bouton, sans être annoncée à chaque frappe ;
+    // le bouton de dépôt est au récapitulatif, l'étape suivante.
+    const fields = [
       page.getByLabel('Prix limite par unité (oboles)'),
       page.getByLabel('Quantité', { exact: true }),
-      page.getByRole('button', { name: "Déposer l'ordre" }),
-    ])
-      await expect(control).toHaveAccessibleDescription(expected);
+    ];
+    for (const control of fields) await expect(control).toHaveAccessibleDescription(expected);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: "Déposer l'ordre" })).toHaveAccessibleDescription(
+      expected,
+    );
     await expect(page.locator('#expected-net')).not.toHaveAttribute('aria-live');
     await expectNoHorizontalScroll(page);
     await page.route('**/api/commands/market.placeOrder', async (route) => {
       await route.fetch();
       await route.abort();
     });
-    await page.keyboard.press('Enter');
+    await placeOrder(page);
     await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
     await page.unroute('**/api/commands/market.placeOrder');
+    // Le refus est dit dans la feuille, près du bouton, qui garde le foyer : Entrée renvoie l'ordre.
     await page.keyboard.press('Enter');
     await expect(said(page, 'status')).toContainText(`Vente déposée : 30 × Blé à ${money(price)}.`);
     // Un seul ordre : la même clé d'idempotence a rejoué le premier dépôt.
@@ -576,16 +583,17 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await foundHouse(other);
     const otherNav = other.getByRole('navigation', { name: 'Navigation principale' });
     await otherNav.getByRole('link', { name: 'Agora' }).click();
-    await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
-    await other.getByLabel('Prix limite par unité (oboles)').fill(String(price + 1));
-    await other.getByLabel('Quantité', { exact: true }).fill('30');
+    await fillOrder(other, 'Acheter', 30, price + 1);
     await other.keyboard.press('Enter');
+    await placeOrder(other);
     await expect(said(other, 'status')).toContainText(
       `Achat conclu : 30 × Blé pour ${money(30 * price)}.`,
     );
     await expect(other.getByRole('row', { name: `${price} 30` })).toHaveCount(0);
     // Plus rien à ce prix : un second achat attend dans le carnet, son prix retenu hors de la trésorerie.
+    await fillOrder(other, 'Acheter', 30, price + 1);
     await other.keyboard.press('Enter');
+    await placeOrder(other);
     const bid = price + 1;
     await expect(said(other, 'status')).toContainText(
       `Achat en attente : 30 × Blé à ${money(bid)}. Le séquestre retient ${money(30 * bid)}`,
@@ -599,9 +607,9 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     await expect(bids.getByRole('row', { name: `${bid} 30` })).toBeVisible();
     await expectNoHorizontalScroll(page);
     // Le vendeur y répond par une vente moins chère : elle s'exécute aussitôt, au prix de l'achat.
-    await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
-    await page.getByLabel('Quantité', { exact: true }).fill('4');
+    await fillOrder(page, 'Vendre', 4, price);
     await page.keyboard.press('Enter');
+    await placeOrder(page);
     await expect(said(page, 'status')).toContainText(
       `Vente conclue : 4 × Blé pour ${money(netOf(4 * bid))}.`,
     );
@@ -627,16 +635,15 @@ test('achat à l’agora, et nouvel essai après une réponse perdue : un seul o
     // l'achat s'exécute pour cette part et le dit ; le reste, impossible à retenir, est annulé.
     const left = 3000 - 30 * price - 4 * bid;
     const dear = Math.floor(left / 3);
-    await page.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
-    await page.getByLabel('Quantité', { exact: true }).fill('6');
+    await fillOrder(page, 'Vendre', 6, dear);
     await page.keyboard.press('Enter');
+    await placeOrder(page);
     await expect(said(page, 'status')).toContainText(`Vente déposée : 6 × Blé à ${money(dear)}.`);
-    await other.getByLabel('Sens').selectOption({ label: 'Acheter' });
-    await other.getByLabel('Prix limite par unité (oboles)').fill(String(dear));
-    await other.getByLabel('Quantité', { exact: true }).fill('6');
+    await fillOrder(other, 'Acheter', 6, dear);
     // Un achat ne paie pas la taxe : rien n'est annoncé.
     await expect(other.getByLabel('Quantité', { exact: true })).toHaveAccessibleDescription('');
     await other.keyboard.press('Enter');
+    await placeOrder(other);
     await expect(said(other, 'status')).toContainText(
       `Achat partiel : 3 × Blé sur 6 pour ${money(3 * dear)}. Votre trésorerie ne permettait ni d'en payer davantage ni de retenir le prix du reste.`,
     );
@@ -687,18 +694,18 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   await expect(good.getByRole('option')).toHaveCount(15);
   await good.selectOption({ label: 'Olives' });
   await expect(page.getByRole('heading', { name: "Carnet d'ordres : Olives" })).toBeVisible();
-  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
-  await page.getByLabel('Quantité', { exact: true }).fill('30');
+  await fillOrder(page, 'Vendre', 30, 900);
   await page.keyboard.press('Enter');
   // La maison n'a pas d'olives : la vente est refusée, rien n'est déposé.
   await expect(said(page, 'alert')).toContainText('Stock libre insuffisant');
+  await page.keyboard.press('Escape');
 
   // Une vente de blé, à un prix que les PNJ n'atteignent pas : elle attend dans le carnet.
   await good.selectOption({ label: 'Blé' });
   await expect(page.getByRole('heading', { name: 'Déposer un ordre : Blé' })).toBeVisible();
-  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
-  await page.getByLabel('Quantité', { exact: true }).fill('30');
+  await fillOrder(page, 'Vendre', 30, 900);
   await page.keyboard.press('Enter');
+  await placeOrder(page);
   await expect(said(page, 'status')).toContainText('Vente déposée : 30 × Blé à 150 drachmes.');
   await expect(page.getByText('Blé : 30 sur 30 à 150 drachmes')).toBeVisible();
   // Une réponse tardive du carnet du blé ne s'affiche pas sous le titre d'un autre bien.
@@ -727,15 +734,16 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
 
   // Un second dépôt dont la réponse se perd, puis une annulation, puis le même dépôt renvoyé :
   // l'annulation ne fait pas oublier la clé du dépôt, un seul ordre existe.
-  await page.getByLabel('Prix limite par unité (oboles)').fill('901');
-  await page.getByLabel('Quantité', { exact: true }).fill('10');
-  loseReply = true;
+  await fillOrder(page, 'Vendre', 10, 901);
   await page.keyboard.press('Enter');
+  loseReply = true;
+  await placeOrder(page);
   await expect(said(page, 'alert')).toContainText('Une erreur est survenue');
   expect(lost).toBe(1);
   loseReply = false;
 
-  // Annulation au clavier : le stock réservé redevient disponible.
+  // Annulation au clavier, la feuille refermée : le stock réservé redevient disponible.
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Annuler la vente de 30 × Blé à 150 drachmes' }).focus();
   await page.keyboard.press('Enter');
   await expect(said(page, 'status')).toContainText(
@@ -743,6 +751,10 @@ test('agora : choisir un bien, déposer une vente puis l’annuler au clavier', 
   );
   await expect(page.getByText('Blé : 30 sur 30 à 150 drachmes')).toHaveCount(0);
 
+  // Rouverte, la feuille a gardé la saisie : le même dépôt repart, sous la même clé.
+  await page.getByRole('button', { name: 'Vendre', exact: true }).click();
+  await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('10');
+  await page.keyboard.press('Enter');
   await page.getByRole('button', { name: "Déposer l'ordre" }).click();
   await expect(said(page, 'status')).toContainText(
     'Vente déposée : 10 × Blé à 150 drachmes 1 obole.',
@@ -1033,8 +1045,8 @@ test('atelier : intrants requis, stock libre, production récoltable, puis pénu
   // Une vente en attente réserve 55 blés : il n'en reste que 5 de libres, pas de quoi moudre.
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Agora' }).click();
-  await page.getByLabel('Prix limite par unité (oboles)').fill('900');
-  await page.getByLabel('Quantité', { exact: true }).fill('55');
+  await fillOrder(page, 'Vendre', 55, 900);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: "Déposer l'ordre" }).click();
   await expect(said(page, 'status')).toContainText('Vente déposée : 55 × Blé');
   await elapse(houseName, 60);

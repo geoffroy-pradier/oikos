@@ -211,7 +211,6 @@
     "offered": "Quantity offered",
     "bookEmpty": "No resting sell order.",
     "place": "Place an order: {{good}}",
-    "side": "Side",
     "sell": "Sell",
     "buy": "Buy",
     "limitPrice": "Limit price per unit (obols)",

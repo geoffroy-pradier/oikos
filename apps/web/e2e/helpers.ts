@@ -31,6 +31,25 @@ export async function expectNoHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
+/**
+ * Ouvre la feuille d'ordre de l'agora (« Vendre » ou « Acheter ») et y saisit la quantité et le prix limite.
+ * Entrée mène ensuite au récapitulatif, que `placeOrder` confirme au clavier.
+ */
+export async function fillOrder(
+  page: Page,
+  side: 'Vendre' | 'Acheter',
+  quantity: number | string,
+  price: number | string,
+) {
+  await page.getByRole('button', { name: side, exact: true }).click();
+  await page.getByLabel('Quantité', { exact: true }).fill(String(quantity));
+  await page.getByLabel('Prix limite par unité (oboles)').fill(String(price));
+}
+
+/** Confirme l'ordre au récapitulatif de la feuille, au clavier. */
+export const placeOrder = (page: Page) =>
+  page.getByRole('button', { name: "Déposer l'ordre" }).press('Enter');
+
 /** Connexion par lien magique d'un nouveau compte : saisie et envoi au clavier. */
 export async function signIn(page: Page, email: string) {
   await page.goto('/');
