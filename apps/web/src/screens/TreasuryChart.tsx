@@ -1,7 +1,8 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card, cn, ScrollText, TableScroll } from '@oikos/ui';
+import { Card, cn, ScrollText, TableScroll, TrendingUp } from '@oikos/ui';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import type { BalancePoint } from '../balance-history';
 import { useMoney } from '../money';
 
@@ -47,9 +48,17 @@ export function TreasuryChart({
 
   return (
     <Card aria-labelledby={`${id}-title`} className={cn('flex min-w-0 flex-col gap-3', className)}>
-      <h2 id={`${id}-title`} className="text-base font-semibold">
+      <SectionTitle id={`${id}-title`} icon={<TrendingUp />}>
         {t('home.chart.title', { count: points.length })}
-      </h2>
+      </SectionTitle>
+      {/* Plus haut et plus bas au-dessus du dessin : jamais sur la courbe (#869). */}
+      <p
+        aria-hidden="true"
+        className="-mb-1 flex flex-wrap justify-between gap-x-4 text-xs text-muted-foreground tabular-nums"
+      >
+        <span>{t('home.chart.high', { amount: money(high) })}</span>
+        {high !== low && <span>{t('home.chart.low', { amount: money(low) })}</span>}
+      </p>
       <div className="relative">
         <svg
           role="img"
@@ -100,20 +109,6 @@ export function TreasuryChart({
           className="absolute size-3 -translate-1/2 rounded-full border-2 border-surface bg-primary"
           style={{ left: '100%', top: `${(y(last.balance) / HEIGHT) * 100}%` }}
         />
-        <span
-          aria-hidden="true"
-          className="absolute top-0 left-0 rounded bg-surface/80 px-1 text-xs text-muted-foreground tabular-nums"
-        >
-          {t('home.chart.high', { amount: money(high) })}
-        </span>
-        {high !== low && (
-          <span
-            aria-hidden="true"
-            className="absolute bottom-0 left-0 rounded bg-surface/80 px-1 text-xs text-muted-foreground tabular-nums"
-          >
-            {t('home.chart.low', { amount: money(low) })}
-          </span>
-        )}
       </div>
       <div aria-hidden="true" className="flex justify-between text-xs text-muted-foreground">
         <span>{date(first.day)}</span>

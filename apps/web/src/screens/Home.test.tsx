@@ -76,3 +76,23 @@ describe('entrepôt : le stock par cité, celui en mer compris', () => {
     expect(html).toContain(`<a href="/agora">${fr.home.stockAction.replace("'", '&#x27;')}</a>`);
   });
 });
+
+describe('finitions (#869)', () => {
+  it('sous 1 024 px, le titre ne répète pas le nom de la maison ; son nom accessible reste entier', async () => {
+    const html = await render([]);
+    const title = /<h1[^>]*>(.*?)<\/h1>/.exec(html)?.[1] ?? '';
+    // Ce que lit un lecteur d'écran : tout sauf ce qui est caché aux technologies d'assistance.
+    expect(
+      title.replace(/<span aria-hidden="true"[^>]*>.*?<\/span>/g, '').replace(/<[^>]+>/g, ''),
+    ).toBe('Bonjour, Maison Test');
+    expect(title).toMatch(/<span aria-hidden="true" class="lg:hidden">Bonjour<\/span>/);
+    expect(title).toMatch(/<span class="max-lg:sr-only">Bonjour, Maison Test<\/span>/);
+  });
+
+  it('les titres de section de l’écran portent tous une icône', async () => {
+    const html = await render([]);
+    const titles = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((match) => match[1] ?? '');
+    expect(titles.length).toBeGreaterThan(0);
+    expect(titles.filter((title) => !title.includes('<svg'))).toEqual([]);
+  });
+});

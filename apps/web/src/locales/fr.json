@@ -5,6 +5,7 @@
     "signOut": "Se déconnecter",
     "loading": "Chargement…",
     "loadFailed": "Impossible de lire vos données pour le moment.",
+    "help": "Comment ça marche ?",
     "retry": "Réessayer",
     "update": {
       "title": "Nouvelle version",
@@ -173,6 +174,7 @@
     "cap_one": "Plafond d'accumulation : {{cycles}} cycle, soit {{list}}",
     "cap_other": "Plafond d'accumulation : {{cycles}} cycles, soit {{list}}",
     "outOfTerroir": "Cette production n'est plus dans le terroir de la cité : le site la garde, mais après un changement il ne pourra plus y revenir.",
+    "greetingShort": "Bonjour",
     "greeting": "Bonjour, Maison {{name}}",
     "nav": {
       "overview": "Vue d'ensemble",
@@ -886,7 +888,6 @@
     "title": "Personnel",
     "intro": "Les travailleurs de vos sites, cité par cité. Vos biens d'une cité logent d'abord les travailleurs de vos sites les plus anciens de cette cité ; les autres sont hébergés chez les habitants, une nuit par jour, au prix du jour de la cité.",
     "empty": "Aucun site, aucun travailleur.",
-    "lodgingUnknown": "Prix de l'hébergement pas encore fixé : il le sera à la prochaine clôture.",
     "figures": "Chiffres clés du personnel",
     "byCity": "Travailleurs par cité",
     "city": "Cité",
@@ -1242,6 +1243,8 @@
       "title": "Charis de votre maison",
       "none": "Aucun dieu dans la configuration en vigueur.",
       "god": "{{god}} : {{charis}} Charis",
+      "decayRule": "Chaque Charis décline de {{percent}} par jour à la clôture, arrondi vers zéro ; un dieu sans déclin dit ne perd rien à la prochaine.",
+      "lossToday": "Déclin du jour : −{{loss}} à la prochaine clôture.",
       "decay": "Déclin du jour : −{{loss}} à la prochaine clôture ({{percent}} par jour).",
       "noLoss": "Déclin du jour : rien à la prochaine clôture ({{percent}} par jour, arrondi vers zéro).",
       "noDecay": "Cette Charis ne décline pas."

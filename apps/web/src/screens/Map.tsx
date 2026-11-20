@@ -3,6 +3,7 @@ import { Anchor, Button, Card, EmptyState, Hammer, PillTabs, Ship, Waves } from 
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Help } from './Help';
 import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
 import { parseCityIdentities } from '../city-identity';
 import { useCash } from '../cash';
@@ -125,7 +126,7 @@ export function MapScreen() {
           </>
         }
       >
-        <p className="text-sm text-muted-foreground">{t('map.intro')}</p>
+        <Help>{t('map.intro')}</Help>
       </ScreenHeader>
       {fleet.failed && <LoadProblem onRetry={fleet.reload} />}
       {loading && !fleet.failed && <Loading />}

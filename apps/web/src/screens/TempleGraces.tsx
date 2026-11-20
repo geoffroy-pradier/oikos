@@ -10,6 +10,7 @@ import {
 } from '@oikos/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { invokeGrace } from '../api';
 import { useRows } from '../data';
 import { graceStates, parseGraceUses, type GraceShown } from '../graces';
@@ -134,10 +135,9 @@ export function TempleGraces(props: {
 
   return (
     <>
-      <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-        <Bird aria-hidden="true" className="size-5 shrink-0 text-accent" />
+      <SectionTitle ref={title} tabIndex={-1} icon={<Bird />}>
         {t('temple.graces.title')}
-      </h2>
+      </SectionTitle>
       {read.rows === null && !read.failed && <Loading />}
       {(read.failed || (read.rows !== null && uses === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
@@ -155,7 +155,8 @@ export function TempleGraces(props: {
               <GodEmblem godId={grace.godId} size={40} className="size-10 shrink-0 text-accent" />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <h3 className="font-semibold">{name(grace)}</h3>
-                <p>
+                {/* Plus petite que le titre de la grâce (#869). */}
+                <p className="text-sm">
                   {EFFECTS.includes(grace.effect)
                     ? t(`temple.graces.effect.${grace.effect}`, {
                         percent: percent.format(grace.magnitudeBps / 10_000),

@@ -1,6 +1,7 @@
 import { Button, Card, EmptyState, House, Inbox, ScrollText, StatusRegion } from '@oikos/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Help } from './Help';
 import { propertyCommand } from '../api';
 import { useCash } from '../cash';
 import { useRows } from '../data';
@@ -221,7 +222,7 @@ export function PropertyScreen() {
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
       <ScreenHeader title={t('property.title')} titleRef={title} />
       <HouseNav />
-      <p className="max-w-3xl text-sm text-muted-foreground">{t('property.intro')}</p>
+      <Help>{t('property.intro')}</Help>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {!loading && !failed && (

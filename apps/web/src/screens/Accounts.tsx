@@ -12,6 +12,7 @@ import {
 } from '@oikos/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import {
   INCOME_COLUMNS,
   parseBalanceSheet,
@@ -107,9 +108,9 @@ export function AccountsScreen() {
 
       {sheet && (
         <section aria-labelledby="balance-sheet" className="flex flex-col gap-2">
-          <h2 id="balance-sheet" className="text-lg font-semibold">
+          <SectionTitle id="balance-sheet" icon={<Scale />}>
             {t('accounts.balanceSheet')}
-          </h2>
+          </SectionTitle>
           <StatGrid as="ul">
             {BALANCE.map(([line, icon]) => (
               // À 1 280 px, la grille a quatre colonnes : trésorerie et séquestre prennent deux colonnes chacun, stocks et

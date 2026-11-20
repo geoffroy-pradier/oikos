@@ -1,6 +1,7 @@
 import { Card, DataTable, EmptyState, Package, type DataColumn } from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Help } from './Help';
 import type { ValuedStock } from '../accounts';
 import { formatMoney } from '../money';
 
@@ -53,7 +54,7 @@ export function ValuedStocks({ stocks }: { stocks: ValuedStock[] }) {
         <Package aria-hidden="true" className="size-5 shrink-0 text-accent" />
         {t('accounts.stocks')}
       </h2>
-      <p className="text-sm text-muted-foreground">{t('accounts.stocksIntro')}</p>
+      <Help>{t('accounts.stocksIntro')}</Help>
       {stocks.length === 0 ? (
         <EmptyState
           illustration="noStock"

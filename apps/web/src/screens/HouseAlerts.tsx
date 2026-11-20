@@ -1,6 +1,17 @@
-import { Card, ChevronRight, cn, Coins, Hammer, KeyRound, Users, type Icon } from '@oikos/ui';
+import {
+  Card,
+  ChevronRight,
+  cn,
+  Coins,
+  Hammer,
+  type Icon,
+  KeyRound,
+  ListTodo,
+  Users,
+} from '@oikos/ui';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { useRows } from '../data';
 import { useHouse } from '../house';
 import { parseCityLabor } from '../labor';
@@ -71,7 +82,7 @@ export function HouseAlerts({ className }: { className?: string }) {
   return (
     <Card data-todo className={cn('flex flex-col gap-3', className)}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{t('alerts.title')}</h2>
+        <SectionTitle icon={<ListTodo />}>{t('alerts.title')}</SectionTitle>
         <span
           aria-hidden="true"
           className="min-w-6 rounded-full bg-primary-subtle px-2 text-center text-xs leading-6 font-semibold text-primary tabular-nums"

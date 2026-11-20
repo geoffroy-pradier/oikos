@@ -1,6 +1,7 @@
 import { Card, DataTable, EmptyState, ScrollText, Select, type DataColumn } from '@oikos/ui';
 import { gameDayDate } from '@oikos/sim';
 import { useTranslation } from 'react-i18next';
+import { Help } from './Help';
 import { INCOME_COLUMNS, type IncomeColumn, type IncomeRow } from '../accounts';
 import { formatMoney } from '../money';
 import { Loading } from './LoadProblem';
@@ -81,7 +82,7 @@ export function IncomeStatement(props: {
         <ScrollText aria-hidden="true" className="size-5 shrink-0 text-accent" />
         {t('accounts.income.title')}
       </h2>
-      <p className="text-sm text-muted-foreground">{t('accounts.income.intro')}</p>
+      <Help>{t('accounts.income.intro')}</Help>
       <div className="flex flex-wrap gap-3">
         <Select
           quiet

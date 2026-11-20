@@ -5,6 +5,7 @@
     "signOut": "Sign out",
     "loading": "Loading…",
     "loadFailed": "Your data could not be loaded right now.",
+    "help": "How does it work?",
     "retry": "Try again",
     "update": {
       "title": "New version",
@@ -173,6 +174,7 @@
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
     "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it.",
+    "greetingShort": "Hello",
     "greeting": "Hello, House {{name}}",
     "nav": {
       "overview": "Overview",
@@ -886,7 +888,6 @@
     "title": "Staff",
     "intro": "The workers of your sites, city by city. Your properties in a city house the workers of your oldest sites in that city first; the others lodge with the inhabitants, one night a day, at the city's price of the day.",
     "empty": "No site, no worker.",
-    "lodgingUnknown": "Lodging price not set yet: it will be at the next close.",
     "figures": "Staff key figures",
     "byCity": "Workers by city",
     "city": "City",
@@ -1242,6 +1243,8 @@
       "title": "Your house's Charis",
       "none": "No god in the configuration in force.",
       "god": "{{god}}: {{charis}} Charis",
+      "decayRule": "Each Charis declines by {{percent}} a day at the close, rounded toward zero; a god with no decline shown loses nothing at the next one.",
+      "lossToday": "Today's decline: −{{loss}} at the next close.",
       "decay": "Today's decline: −{{loss}} at the next close ({{percent}} a day).",
       "noLoss": "Today's decline: nothing at the next close ({{percent}} a day, rounded toward zero).",
       "noDecay": "This Charis does not decline."

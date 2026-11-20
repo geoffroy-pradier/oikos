@@ -1,6 +1,7 @@
 import { Button, EmptyState, ScrollText, Sparkles } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SectionTitle } from './SectionTitle';
 import { consultOracle } from '../api';
 import { useRows } from '../data';
 import { useHouse } from '../house';
@@ -100,10 +101,9 @@ export function TemplePythia(props: {
 
   return (
     <>
-      <h2 ref={title} tabIndex={-1} className="flex items-center gap-2 text-xl">
-        <ScrollText aria-hidden="true" className="size-5 shrink-0 text-accent" />
+      <SectionTitle ref={title} tabIndex={-1} icon={<ScrollText />}>
         {t('temple.pythia.title')}
-      </h2>
+      </SectionTitle>
       <p className="text-sm text-muted-foreground">{t('temple.pythia.intro')}</p>
       {gain === null ? (
         <p className="rounded-xl bg-muted p-4">{t('temple.pythia.unavailable')}</p>

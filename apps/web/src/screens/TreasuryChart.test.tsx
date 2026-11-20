@@ -46,4 +46,21 @@ describe('trésorerie des derniers jours', () => {
       '27 mai100 drachmes—',
     ]);
   });
+
+  it('plus haut et plus bas se lisent hors du dessin, jamais sur la courbe (#869)', async () => {
+    const instance = i18next.createInstance();
+    await instance
+      .use(initReactI18next)
+      .init({ resources: { fr: { translation: fr } }, lng: 'fr' });
+    render(
+      <I18nextProvider i18n={instance}>
+        <TreasuryChart points={points} />
+      </I18nextProvider>,
+    );
+    const drawing = screen.getByRole('img').parentElement;
+    for (const text of ['plus haut : 100 drachmes', 'plus bas : 75 drachmes']) {
+      const label = screen.getByText(text);
+      expect(drawing?.contains(label)).toBe(false);
+    }
+  });
 });
