@@ -109,9 +109,11 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
   await editor.blur();
   await expect(invalid).toHaveCount(1);
 
-  // Une valeur hors bornes est refusée par le schéma de l'API, champ nommé.
+  // Une valeur hors bornes est refusée par le schéma de l'API, champ nommé. Texte sur une ligne :
+  // Playwright tape un texte ligne à ligne, d'un coût qui croît comme le carré du nombre de lignes
+  // (7 s pour les 2 150 lignes de 37 biens, quand un collage du même texte prend 70 ms, #884).
   const broken = { ...config, market: { npcMaxPriceFactor: 0 } };
-  await editor.fill(JSON.stringify(broken, null, 2));
+  await editor.fill(JSON.stringify(broken));
   await expect(page.getByText('market.npcMaxPriceFactor : 3 → 0')).toBeVisible();
   await page.getByRole('button', { name: 'Enregistrer comme nouvelle version' }).click();
   // La zone du champ est aussi une alerte, vide ici : celle des résultats se désigne par son texte.
@@ -120,7 +122,7 @@ test('paramètres : comparer, enregistrer une nouvelle version, programmer à la
 
   // Une modification valide : la différence est affichée, puis enregistrée comme nouvelle version.
   const next = { ...config, starting: { ...config.starting, grantOboles: grant + 1 } };
-  await editor.fill(JSON.stringify(next, null, 2));
+  await editor.fill(JSON.stringify(next));
   await expect(page.getByText(`starting.grantOboles : ${grant} → ${grant + 1}`)).toBeVisible();
   const note = `essai ${randomUUID().slice(0, 8)}`;
   await page.getByLabel('Note de version').fill(note);
