@@ -79,4 +79,30 @@ describe('trésor public de la cité (#264)', () => {
     await show();
     expect(screen.getByRole('button', { name: fr.app.retry })).toBeTruthy();
   });
+
+  it('chiffres clés en cartes, barres décrites doublées d’un tableau des mêmes valeurs (#697)', async () => {
+    state.views = {
+      city_treasury: [{ city_id: 'c1', balance: 1200 }],
+      city_rates: rates,
+      city_treasury_flows: [
+        { city_id: 'c1', game_day: 20406, nature: 'market_tax', amount: 54 },
+        { city_id: 'c1', game_day: 20406, nature: 'public_works', amount: -600 },
+        { city_id: 'c1', game_day: 20405, nature: 'other', amount: 6 },
+      ],
+    };
+    await show();
+    // La carte est une image pour l'œil ; le lecteur d'écran lit la phrase entière.
+    expect(screen.getByText(fr.treasury.figures.balance).closest('[aria-hidden]')).toBeTruthy();
+    expect(screen.getByRole('img').getAttribute('aria-label')).toBe(
+      'Recettes et dépenses du trésor sur 2 jours : 10 drachmes de recettes, 100 drachmes de dépenses.',
+    );
+    const rows = screen
+      .getAllByRole('row', { hidden: true })
+      .slice(1)
+      .map((row) => [...row.children].map((cell) => cell.textContent));
+    expect(rows).toEqual([
+      [expect.stringMatching(/2025$/), '9 drachmes', '100 drachmes', '−91 drachmes'],
+      [expect.stringMatching(/2025$/), '1 drachme', '0 obole', '1 drachme'],
+    ]);
+  });
 });

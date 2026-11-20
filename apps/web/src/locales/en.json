@@ -1008,6 +1008,19 @@
     "portDues": "Port dues in force: coefficient {{factor}}",
     "flows": "Income and spending on the latest days the treasury moved",
     "noFlows": "No treasury movement yet.",
+    "figures": {
+      "balance": "Balance",
+      "marketTax": "Market tax",
+      "portDues": "Port dues",
+      "factor": "factor {{factor}}"
+    },
+    "chart_one": "Treasury income and spending over {{count}} day: {{income}} of income, {{spending}} of spending.",
+    "chart_other": "Treasury income and spending over {{count}} days: {{income}} of income, {{spending}} of spending.",
+    "income": "Income",
+    "spending": "Spending",
+    "net": "Net",
+    "dayColumn": "Day",
+    "table": "Table of income and spending",
     "day": "{{date}}: net {{net}}",
     "noDay": "Unknown day",
     "natures": {

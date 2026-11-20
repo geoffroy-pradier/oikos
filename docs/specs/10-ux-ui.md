@@ -168,6 +168,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Les décrets adoptés, en vigueur, rejetés ou caducs s'affichent avec leur décompte après le dépouillement.
    Un métèque voit tout, sans bouton, et l'écran dit pourquoi.
    Le trésor public montre le solde, la taxe de marché et le droit de port en vigueur, et les recettes et dépenses par nature des sept derniers jours où le trésor a bougé.
+   Refonte (#697) : solde, taxe et droit de port sont des cartes de chiffres clés, dont un lecteur d'écran lit la phrase entière (« Solde : … »).
+   Les recettes et les dépenses de ces jours sont des barres, recettes au-dessus de la ligne et dépenses dessous, image décrite doublée d'un tableau (jour, recettes, dépenses, net) qui s'ouvre au clavier ; le détail par nature suit, une carte par jour.
    Ces écrans ne lisent dans la vue `houses` que les maisons qu'ils nomment (archonte en charge, candidats de l'élection en cours, résultats de la dernière élection, auteurs des décrets au vote) et la ligne de la maison du joueur, d'où vient son statut (#441) : la vue rend au plus 1 000 lignes par lecture.
    Ces maisons sont lues par paquets de 100, en 10 lectures au plus (1 000 maisons), la maison du joueur et l'archonte d'abord ; au-delà, une maison s'affiche « Maison inconnue ».
    Le statut s'affiche avec sa date, « Citoyenne à … depuis le … » ou « Métèque à … depuis le … », lus ensemble dans la ligne de la maison de la vue `my_citizenships` (#420), et ce statut prime sur celui de `houses`, boutons compris.
