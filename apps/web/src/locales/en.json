@@ -1163,7 +1163,15 @@
       "pending": "Waiting: it will apply to your next action of this effect.",
       "pendingRecharging": "Waiting: it will apply to your next action of this effect, and recharges until {{date}}.",
       "recharging": "Recharging until {{date}}.",
-      "done": "Grace invoked: {{grace}}. It will apply to your next action of this effect and recharges until {{date}}. Your Charis toward this god: {{charis}}."
+      "done": "Grace invoked: {{grace}}. It will apply to your next action of this effect and recharges until {{date}}. Your Charis toward this god: {{charis}}.",
+      "sheet": "Invoke a grace",
+      "confirm": "Confirm the invocation (−{{spent}} Charis)",
+      "recapSpent": "Charis spent",
+      "recapAfter": "Your Charis toward {{god}} afterwards",
+      "recapCooldown": "Recharge",
+      "days_one": "{{count}} game day",
+      "days_other": "{{count}} game days",
+      "recapNote": "The Charis spent is sent as is: if the configuration has changed, the invocation is refused and nothing is spent."
     },
     "pythia": {
       "title": "The Pythia",

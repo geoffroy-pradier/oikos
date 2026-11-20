@@ -430,6 +430,9 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page
       .getByRole('button', { name: `Invoquer ${name} (−${grace.charisSpent} Charis)` })
       .click();
+    await page
+      .getByRole('button', { name: `Confirmer l'invocation (−${grace.charisSpent} Charis)` })
+      .click();
     await expect(said(page, 'status', 'Grâce invoquée')).toContainText(`Grâce invoquée : ${name}.`);
     await expect(
       page.getByText(/En attente : elle s'appliquera à votre prochaine action/),

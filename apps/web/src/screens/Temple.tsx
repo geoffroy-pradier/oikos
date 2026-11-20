@@ -63,11 +63,12 @@ export function TempleScreen() {
         {failed && <LoadProblem heading={title} onRetry={reload} />}
         {gods?.length === 0 && <p className="text-muted-foreground">{t('temple.charis.none')}</p>}
         {gods && gods.length > 0 && (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          // Fiches sur ordinateur, liste séparée de filets sur téléphone : pas de carte dans la carte.
+          <ul className="grid divide-y divide-border-subtle sm:grid-cols-2 sm:gap-3 sm:divide-y-0 xl:grid-cols-3">
             {gods.map(({ god, charis, decay }) => (
               <li
                 key={god.id}
-                className="flex items-start gap-3 rounded-xl border border-border-subtle bg-surface-raised p-4"
+                className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 sm:rounded-xl sm:border sm:border-border-subtle sm:bg-surface-raised sm:p-4 sm:first:pt-4 sm:last:pb-4"
               >
                 <GodEmblem godId={god.id} size={48} className="size-12 shrink-0 text-accent" />
                 <div className="flex min-w-0 flex-col gap-1">
