@@ -528,6 +528,16 @@ Depuis #669, la configuration initiale retire la laine au terroir de Kallistè (
 Le banc à une cité, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario, pour que ses tisserands tondent leurs moutons sur place.
 Ses mesures n'en changent pas, ni ses bornes : hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236.
 
+Terroirs resserrés (#714, 6.1) : la configuration initiale retire aussi le sel au terroir de Kallistè, qu'Elaia et Halos raffinent.
+Chacune des douze cités importe désormais au moins un bien vital, ou l'intrant d'un bien vital ; un test sur la configuration initiale le vérifie cité par cité.
+Le banc à une cité rend toujours toutes ses matières premières à Kallistè, le sel compris : ses mesures et ses bornes sont celles d'avant (hausse du coût du panier de 0,08 %, besoins vitaux couverts à 99,1 % au moins, population de 9 775 à 10 236).
+Dans le banc à quatre cités, la maison de Kallistè qui raffinait le sel pêche un second site de poisson, un armateur d'Elaia porte le sel à Kallistè, et un d'Halos à Ampélos, qui le tenait de Kallistè.
+Un armateur de plus à chaque bout suffit : la demande de sel est la plus faible des quatre biens vitaux.
+À quatre cités : coût du panier inchangé, besoins vitaux couverts à 100 %, masse de 2 177 949 oboles au dernier jour mesuré, population de 1 252 à 1 259 habitants par cité.
+À douze cités : coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,4 % au moins (les hippeis d'Agrotera), marges des ateliers dans leur borne, aucun site arrêté, masse de 6 544 860 oboles au dernier jour mesuré, population de 1 247 (Delphis) à 1 268 (Agrotera) habitants par cité.
+Le rapport du simulateur, configuration d'avant #714 contre configuration d'après, n'a aucun écart aux bancs à quatre et à douze cités, hors la marge du sel de Kallistè, qu'elle ne mesure plus.
+Un test du banc vérifie que chaque scénario a un armateur pour chaque bien vital que le terroir d'une cité ne produit pas (sauf le bois, qu'une cité tire de ses voisines).
+
 Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps/api/src/balance-world.bench.ts`, graine fixe, 10 jours de mise en route puis 30 jours mesurés) :
 
 - **Configuration.** Le banc joue la configuration initiale, salaires, marché du travail, transport, entretien et vétusté des biens et événements du monde compris (#668) ; il n'en remplace que la population des cités (divisée par huit), la dotation des maisons de son scénario (15 000 oboles, de quoi acquérir leurs sites et un navire dès les premiers jours), le prix d'achat et de rénovation des logements (divisés par cinq, rénovation au blé), et le simulateur le dit.

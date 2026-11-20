@@ -15,7 +15,7 @@ Retirer une recette qu'un terroir cite demande donc de la retirer aussi de ce te
 
 | Cité | Dieu protecteur | Terroir | Premier site |
 | --- | --- | --- | --- |
-| Kallistè | Déméter | Blé, olives, raisin, bois, argile, poisson, sel | Champ de blé |
+| Kallistè | Déméter | Blé, olives, raisin, bois, argile, poisson | Champ de blé |
 | Elaia | Athéna | Olives, blé, sel, bois | Champ de blé |
 | Ampelos | Dionysos | Raisin, poisson, laine, argile | Vigne |
 | Halos | Poséidon | Poisson, sel, argile, bois, laine | Pêcherie |
@@ -39,7 +39,10 @@ Kallistè, cité fondatrice, les a d'abord toutes gardées, pour que le banc d'�
 Depuis #669, la configuration initiale lui retire la laine : son tissu vient d'Ampelos ou d'Halos, qui tondent leurs moutons.
 Décision (#669) : c'est le resserrement le plus petit qui rende Kallistè dépendante du commerce ; le banc à quatre cités n'y fait pas tondre de moutons, et ses mesures n'en bougent pas.
 Le banc à une cité de #78, qui joue Kallistè seule et sans armateur, lui rend toutes ses matières premières dans son scénario (5.5).
-Un resserrement plus fort, du poisson ou du sel par exemple, demanderait d'abord des armateurs qui en ravitaillent Kallistè dans le banc à quatre cités.
+Depuis #714, la configuration initiale lui retire aussi le sel, qu'Elaia et Halos raffinent : chaque cité des douze importe au moins un bien vital, ou l'intrant d'un bien vital.
+Décision (#714) : le sel est le resserrement le plus petit après la laine, le moins demandé des quatre biens vitaux (0,13 à 0,2 pour mille par tick) ; le poisson, plus demandé, aurait fait peser le banc à quatre cités sur les seules pêcheries d'Ampelos et d'Halos.
+Un test sur la configuration initiale refuse une cité qui produirait tous ses biens vitaux, et son message nomme la cité.
+Dans le banc à quatre cités, un armateur d'Elaia ravitaille Kallistè en sel, et un d'Halos Ampelos, qui le tenait de Kallistè ; les trois bancs gardent leurs bornes (5.5).
 Décision (ambiguïté de cette section) : les douze cités ont un port, puisque le seul transport de la phase 2 est maritime ; les cités sans port attendent les caravanes terrestres (4.6) et une carte des routes de terre.
 Depuis #707, les routes maritimes relient les douze cités entre voisines, chacune à au moins deux autres (4.6) ; chaque cité a son île sur la carte de l'archipel.
 Le banc à quatre cités (5.5) retire les huit cités de #706 de son scénario, et leurs routes depuis #707, comme le banc à une cité rend sa laine à Kallistè : ses mesures et ses bornes ne changent pas, jusqu'au banc à douze cités (« P10 »).
