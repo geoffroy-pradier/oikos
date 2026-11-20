@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Badge, Card, Vote } from '@oikos/ui';
+import { CalendarClock, Card, Check, cn, Crown, Info, Users, Vote } from '@oikos/ui';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCitedHouses } from '../cited-houses';
@@ -17,6 +17,13 @@ import {
 import { serverClock } from '../server-clock';
 import { ElectionActions } from './ElectionActions';
 import { LoadProblem, Loading } from './LoadProblem';
+
+/** Titre de section, icône en accent. */
+const TITLE =
+  'flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-accent';
+/** Pastille ronde d'une icône décorative. */
+const ROUND =
+  'grid size-9 shrink-0 place-items-center rounded-full bg-primary-subtle text-primary [&_svg]:size-4.5';
 
 /**
  * Vie politique de la cité de la maison (6.2) : son statut, l'archonte en charge, l'élection en cours
@@ -106,86 +113,164 @@ export function CityPolitics() {
   const phase = election ? electionPhase(election, now) : null;
   const office = (id: string) => t(`cityPolitics.offices.${id}`, { defaultValue: id });
 
+  // Étape du calendrier en cours : dépôt, vote, puis clôture (vote clos ou dépouillé).
+  const step = phase === 'filing' ? 0 : phase === 'voting' ? 1 : phase === 'upcoming' ? -1 : 2;
+  const most = Math.max(1, ...lastResults.map((result) => result.votes));
+
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 ref={title} tabIndex={-1} className="text-xl">
-        <Vote aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+    <section className="flex flex-col gap-4">
+      <h2 ref={title} tabIndex={-1} className={TITLE}>
+        <Vote aria-hidden="true" />
         {t('cityPolitics.title')}
       </h2>
       {loading && <Loading />}
       {failed && <LoadProblem heading={title} onRetry={reload} />}
       {!loading && !failed && (
         <>
-          <p>
-            {citizenship
-              ? t(`cityPolitics.statusSince.${citizenship.status}`, {
-                  city: house.cityName,
-                  date: since(citizenship),
-                })
-              : t(`home.status.${citizen ? 'citizen' : 'metic'}`, { city: house.cityName })}
-          </p>
-          {!citizen && <p className="text-muted-foreground">{t('cityPolitics.meticNotice')}</p>}
-          <p>
-            {archon
-              ? t('cityPolitics.archon', {
-                  house: nameOf(archon.houseId),
-                  until: date.format(archon.endsAt),
-                })
-              : t('cityPolitics.noArchon')}
-          </p>
-          <h3 className="eyebrow mt-2">{t('cityPolitics.election')}</h3>
-          {!election && <p className="text-muted-foreground">{t('cityPolitics.noElection')}</p>}
-          {election && phase && (
-            <>
-              <p>{t(`cityPolitics.phase.${phase}`, { office: office(election.office) })}</p>
-              <ul className="flex flex-col gap-1 text-muted-foreground">
-                <li>{t('cityPolitics.filing', { at: date.format(election.candidacyOpensAt) })}</li>
-                <li>{t('cityPolitics.voting', { at: date.format(election.votingOpensAt) })}</li>
-                <li>{t('cityPolitics.closing', { at: date.format(election.votingClosesAt) })}</li>
-              </ul>
-              {running.length === 0 && <p>{t('cityPolitics.noCandidate')}</p>}
-              <ul className="flex flex-wrap gap-2">
-                {running.map((candidate) => (
-                  <li key={candidate.id}>
-                    <Badge tone="aegean" className="break-all">
-                      {nameOf(candidate.houseId)}
-                    </Badge>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className={cn(ROUND, !citizen && 'bg-muted text-muted-foreground')}
+              >
+                {citizen ? <Check /> : <Info />}
+              </span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="font-medium">
+                  {citizenship
+                    ? t(`cityPolitics.statusSince.${citizenship.status}`, {
+                        city: house.cityName,
+                        date: since(citizenship),
+                      })
+                    : t(`home.status.${citizen ? 'citizen' : 'metic'}`, { city: house.cityName })}
+                </p>
+                {!citizen && (
+                  <p className="text-sm text-muted-foreground">{t('cityPolitics.meticNotice')}</p>
+                )}
+              </div>
+            </Card>
+            <Card className="flex items-start gap-3">
+              <span aria-hidden="true" className={ROUND}>
+                <Crown />
+              </span>
+              <p className="min-w-0 font-medium">
+                {archon
+                  ? t('cityPolitics.archon', {
+                      house: nameOf(archon.houseId),
+                      until: date.format(archon.endsAt),
+                    })
+                  : t('cityPolitics.noArchon')}
+              </p>
+            </Card>
+          </div>
+          <Card elevation="raised" className="flex flex-col gap-4">
+            <h3 className={`${TITLE} text-base`}>
+              <CalendarClock aria-hidden="true" />
+              {t('cityPolitics.election')}
+            </h3>
+            {!election && <p className="text-muted-foreground">{t('cityPolitics.noElection')}</p>}
+            {election && phase && (
+              <>
+                <p className="font-medium">
+                  {t(`cityPolitics.phase.${phase}`, { office: office(election.office) })}
+                </p>
+                <ol className="grid gap-2 text-sm sm:grid-cols-3">
+                  {(
+                    [
+                      ['filing', election.candidacyOpensAt],
+                      ['voting', election.votingOpensAt],
+                      ['closing', election.votingClosesAt],
+                    ] as const
+                  ).map(([key, at], index) => (
+                    <li
+                      key={key}
+                      aria-current={index === step ? 'step' : undefined}
+                      className={
+                        index === step
+                          ? 'rounded-lg border border-primary bg-primary-subtle p-3 font-medium'
+                          : 'rounded-lg border border-border-subtle p-3 text-muted-foreground'
+                      }
+                    >
+                      {t(`cityPolitics.${key}`, { at: date.format(at) })}
+                    </li>
+                  ))}
+                </ol>
+                <h4 className="text-sm font-semibold">
+                  {t('cityPolitics.candidates', { count: running.length })}
+                </h4>
+                {running.length === 0 && (
+                  <p className="text-muted-foreground">{t('cityPolitics.noCandidate')}</p>
+                )}
+                <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">
+                  {running.map((candidate) => (
+                    <li
+                      key={candidate.id}
+                      className="flex items-center gap-2.5 rounded-xl border border-border-subtle bg-surface p-2.5"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn(ROUND, 'bg-muted text-muted-foreground')}
+                      >
+                        <Users />
+                      </span>
+                      <span className="min-w-0 font-medium break-all">
+                        {nameOf(candidate.houseId)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {citizen && (
+                  <ElectionActions
+                    election={election}
+                    phase={phase}
+                    candidates={running}
+                    withdrawn={
+                      candidates?.some(
+                        (c) =>
+                          c.electionId === election.id && c.houseId === house.id && c.withdrawn,
+                      ) ?? false
+                    }
+                    nameOf={nameOf}
+                    onDone={reload}
+                  />
+                )}
+              </>
+            )}
+          </Card>
+          <Card className="flex flex-col gap-3">
+            <h3 className={`${TITLE} text-base`}>
+              <Crown aria-hidden="true" />
+              {t('cityPolitics.lastResults')}
+            </h3>
+            {!last && <p className="text-muted-foreground">{t('cityPolitics.noResults')}</p>}
+            {last && (
+              <ul className="flex flex-col gap-3">
+                {/* La barre double le nombre de voix, écrit dans le texte. */}
+                {lastResults.map((result) => (
+                  <li key={result.houseId} className="flex flex-col gap-1.5 break-words">
+                    <span className={result.elected ? 'font-semibold' : undefined}>
+                      {t(result.elected ? 'cityPolitics.elected' : 'cityPolitics.result', {
+                        house: nameOf(result.houseId),
+                        count: result.votes,
+                        votes: number.format(result.votes),
+                      })}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="block h-2 overflow-hidden rounded-full bg-muted"
+                    >
+                      <span
+                        className={`block h-full rounded-full ${result.elected ? 'bg-primary' : 'bg-muted-foreground'}`}
+                        style={{ width: `${Math.round((result.votes / most) * 100)}%` }}
+                      />
+                    </span>
                   </li>
                 ))}
               </ul>
-              {citizen && (
-                <ElectionActions
-                  election={election}
-                  phase={phase}
-                  candidates={running}
-                  withdrawn={
-                    candidates?.some(
-                      (c) => c.electionId === election.id && c.houseId === house.id && c.withdrawn,
-                    ) ?? false
-                  }
-                  nameOf={nameOf}
-                  onDone={reload}
-                />
-              )}
-            </>
-          )}
-          <h3 className="eyebrow mt-2">{t('cityPolitics.lastResults')}</h3>
-          {!last && <p className="text-muted-foreground">{t('cityPolitics.noResults')}</p>}
-          {last && (
-            <ul className="flex flex-col gap-1">
-              {lastResults.map((result) => (
-                <li key={result.houseId} className="rounded-lg bg-muted/50 px-3 py-2 break-words">
-                  {t(result.elected ? 'cityPolitics.elected' : 'cityPolitics.result', {
-                    house: nameOf(result.houseId),
-                    count: result.votes,
-                    votes: number.format(result.votes),
-                  })}
-                </li>
-              ))}
-            </ul>
-          )}
+            )}
+          </Card>
         </>
       )}
-    </Card>
+    </section>
   );
 }

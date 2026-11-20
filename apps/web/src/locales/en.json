@@ -901,7 +901,13 @@
       "castVote": "Vote recorded."
     },
     "withdrawn": "Your house withdrew its candidacy for this election: this is final.",
-    "withdrawWarning": "Withdrawing is final: your house will not be able to stand again in this election."
+    "withdrawWarning": "Withdrawing is final: your house will not be able to stand again in this election.",
+    "candidacy": "Your candidacy",
+    "standHint": "As a citizen, your house may stand until voting opens.",
+    "ballot": "Your ballot",
+    "ballotHint": "One secret vote: choose a candidacy.",
+    "candidates_one": "{{count}} candidacy",
+    "candidates_other": "{{count}} candidacies"
   },
   "assembly": {
     "title": "Assembly",

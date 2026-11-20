@@ -901,7 +901,13 @@
       "castVote": "Vote enregistré."
     },
     "withdrawn": "Votre maison a retiré sa candidature à cette élection : c'est définitif.",
-    "withdrawWarning": "Un retrait est définitif : votre maison ne pourra plus se présenter à cette élection."
+    "withdrawWarning": "Un retrait est définitif : votre maison ne pourra plus se présenter à cette élection.",
+    "candidacy": "Votre candidature",
+    "standHint": "Citoyenne, votre maison peut se présenter jusqu'à l'ouverture du vote.",
+    "ballot": "Votre bulletin",
+    "ballotHint": "Une seule voix, secrète : choisissez une candidature.",
+    "candidates_one": "{{count}} candidature",
+    "candidates_other": "{{count}} candidatures"
   },
   "assembly": {
     "title": "Assemblée",
