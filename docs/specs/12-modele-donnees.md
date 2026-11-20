@@ -23,7 +23,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Logistique | `ships`, `voyages`, `voyage_cargo`, `freight_offers` |
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
-| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `city_budget`, `public_works`, `leagues` |
+| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `city_budget`, `public_works`, `leagues` |
 | Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `oracles`, `festivals` |
 | Événements | `world_events`, `event_effects`, `quests`, `domain_events` |
 | IA | `npcs`, `npc_memories`, `ai_calls`, `prompts` |
@@ -206,6 +206,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Les joueurs connectés lisent le calendrier de chaque cité (`public.elections`), les candidatures et leurs retraits (`election_candidates`), les charges, mandats passés compris (`offices`, avec `in_office`), et les règles en vigueur (`politics_rules`, extrait public de la section `politics`, rendu par `game.politics_rules()`).
   Les résultats (`election_results` : bulletins par candidature maintenue, et l'élu) ne sont rendus qu'après le dépouillement, par `game.election_results()`, exécutée au nom du propriétaire et seule à compter les bulletins pour eux.
   D'un bulletin, un joueur ne lit que celui de sa maison, et seulement son élection et sa date (`my_ballots`, « j'ai voté ») : jamais la candidature choisie, la sienne comprise, ni le bulletin d'une autre maison.
+  Une charge ne change plus, sauf pour être quittée (`vacated_at`, #722) : une fois, pendant son mandat, à la date de la transaction d'un dépouillement d'ostracisme de sa cité qui ostracise sa maison ; `offices.in_office` est alors faux.
 - Décrets (6.3, #261) : `decrees` (cité, modèle du catalogue fermé, paramètres, charge et maison de l'archonte qui propose, état `proposed`, `adopted`, `rejected`, `applied` ou `lapsed`, proposition, fin du vote, quorum, dépouillement, citoyens à la fin du vote, votes pour et contre) et `decree_votes` (décret, maison, pour ou contre, date).
   La base garantit qu'un décret est proposé maintenant, au vote, par la maison qui tient à cet instant la charge d'archonte de sa cité, que son vote finit après la proposition, et qu'il ne change ensuite que par son dépouillement, une fois, après la fin du vote, à la date de la transaction.
   Le quorum est fixé à la proposition ; les paramètres sont un objet que l'API valide contre les bornes de la configuration en vigueur, la base ne lisant pas la configuration.
@@ -229,6 +230,15 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   D'un vote, un joueur ne lit que celui de sa maison, et seulement son décret et sa date (`my_decree_votes`, « j'ai voté ») : jamais son choix, ni le vote d'une autre maison.
   Les vues des décrets sont créées sous condition, pour que les tickets suivants puissent les étendre (ADR 0006) ; `public.decrees` rend aussi la date d'application et le jour du règlement d'une dépense.
   Les joueurs connectés lisent les taux en vigueur de chaque cité (`public.city_rates` : taux de la taxe de marché et coefficient du droit de port, sous la version en vigueur, par `game.city_rates_in_force()`), sans pouvoir calculer des taux sous d'autres règles.
+- Ostracisme (6.4, #722) : `ostracisms` (cité, décret `ostracism` adopté qui l'ouvre, ouverture, fin du vote, quorum et durée fixés à l'ouverture, dépouillement, citoyens à la fin du vote, bulletins, issue `ostracized`, `tie` ou `no_quorum`, maison ostracisée et fin de son ostracisme) et `ostraca` (vote, maison qui vote, maison nommée, date).
+  La base garantit qu'un vote naît maintenant, non dépouillé, d'un décret d'ostracisme adopté de sa cité, un seul par décret et un seul non dépouillé par cité, et qu'il ne change ensuite que par son dépouillement, une fois, après la fin du vote, à la date de la transaction.
+  Au dépouillement, elle recompte les bulletins et les citoyens devenus citoyens avant la fin du vote, et n'admet que l'issue qui en découle : quorum manqué si les bulletins n'atteignent pas `quorum_bps` des citoyens, égalité si aucune maison n'est seule en tête (aucun bulletin compris), sinon la maison la plus nommée est ostracisée.
+  La fin de l'ostracisme suit le dépouillement d'au plus `ostracism_days` jours ; le moteur la fixe à la clôture `ostracism_days` jours de jeu plus tard, la base ne lisant pas l'horloge.
+  Un bulletin est déposé pendant le vote par un citoyen de la cité, au nom d'un citoyen de la même cité, un seul par maison et par vote, et il ne change plus ; il prend un verrou partagé sur le vote, que le dépouillement verrouille avant de compter.
+  `game.house_ostracized(maison, instant)` dit si une maison est ostracisée, du dépouillement inclus à la fin exclue ; une maison ostracisée ne dépose aucune candidature, ne propose aucun décret, et la garde des charges l'écarte de l'élu.
+  Le service n'écrit ni identifiant ni date d'ouverture ou de bulletin, et ne supprime rien ; l'écart entre deux ostracismes d'une cité (`intervalDays`), qui dépend de la configuration, est contrôlé par l'API sous le verrou des décrets de la cité.
+  Les joueurs connectés lisent les votes des cités de leur monde (`public.ostracisms`, avec `in_force` : l'ostracisme court encore), leur décompte nul avant le dépouillement, et les voix de chaque maison nommée après lui seulement (`ostracism_results`, par `game.ostracism_results()`, exécutée au nom du propriétaire).
+  D'un bulletin, un joueur ne lit que celui de sa maison, et seulement son vote et sa date (`my_ostraca`) : jamais le nom inscrit, ni le bulletin d'une autre maison.
 - Voyages (4.6, #252) : `voyages` porte le navire, sa maison, les cités de départ et d'arrivée, le départ, l'arrivée prévue et l'arrivée ; `voyage_cargo` une ligne par bien et sa quantité.
   La base garantit qu'un voyage part à l'instant de sa transaction, en mer, de la cité où son navire armé est à quai, qu'un navire n'a qu'un voyage en mer à la fois (index unique), que seule l'arrivée s'écrit ensuite, une fois, ni avant l'arrivée prévue ni dans le futur, et que la cargaison s'écrit dans la transaction du départ puis ne change plus.
   Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).

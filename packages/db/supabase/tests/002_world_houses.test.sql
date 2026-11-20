@@ -59,6 +59,8 @@ select is(
     || 'offices(city_id,election_id,ends_at,house_id,id,office,starts_at,vacated_at,world_id) '
     || 'oracle_consultations(city_id,created_at,house_id,id,oracle_ids) oracles(id,source,text_en,text_fr) '
     || 'orders(city_id,created_at,good_id,house_id,id,price,quantity,remaining,side,status,steward_id) '
+    || 'ostraca(cast_at,house_id,ostracism_id) '
+    || 'ostracisms(ballots,city_id,decree_id,electorate,ends_at,id,opened_at,ostracism_days,ostracized_house_id,outcome,quorum_bps,tallied_at,voting_closes_at,world_id) '
     || 'price_candles(city_id,close,good_id,high,low,open,period_seconds,period_start,turnover,volume) '
     || 'properties(acquired_at,city_id,condition,id,lot,owner_house_id,size_id,upkeep_unpaid_since) '
     || 'property_listings(closed_at,created_at,house_id,id,kind,ledger_entry_id,outcome,price_oboles,property_id) '
