@@ -20,6 +20,22 @@ describe('PillTabs', () => {
     expect(second?.getAttribute('aria-selected')).toBe('true');
     expect(onValueChange).toHaveBeenCalledWith('achats');
   });
+
+  it('panneaux gardés montés : l’onglet quitté garde sa saisie, caché', () => {
+    const items = ['ventes', 'achats'].map((id) => ({
+      id,
+      label: id,
+      content: <input aria-label={`champ ${id}`} />,
+    }));
+    render(<PillTabs label="Agora" items={items} keepMounted />);
+    const field = screen.getByLabelText('champ ventes') as HTMLInputElement;
+    fireEvent.change(field, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'achats' }));
+    expect(field.closest('[role="tabpanel"]')?.hasAttribute('hidden')).toBe(true);
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('tab', { name: 'ventes' }));
+    expect((screen.getByLabelText('champ ventes') as HTMLInputElement).value).toBe('12');
+  });
 });
 
 describe('SegmentedControl', () => {

@@ -148,6 +148,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    L'entrepôt de l'onglet Maison montre aussi les cargaisons en mer, sous leur cité d'arrivée.
 5. Séance de l'assemblée : décrets en cours, vote, débats.
    Première version (#264), dans l'onglet Cité : la vie politique (statut de la maison relu dans sa ligne de la vue `houses`, archonte en charge, élection en cours avec sa phase, son calendrier et ses candidats, résultats de la dernière élection dépouillée), l'assemblée et le trésor public ; les débats attendent la discussion de la cité (#274).
+   Refonte (#697) : vie politique, assemblée, trésor, événements et chronique sont des pastilles de l'onglet Cité, la vie politique d'abord.
+   Les panneaux des pastilles quittées restent montés, cachés : une commande en vol garde sa clé, une saisie survit au changement de pastille.
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).

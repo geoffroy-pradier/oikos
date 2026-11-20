@@ -596,7 +596,15 @@
       "empty": "Aucun logement dans la cité.",
       "size": "{{size}} : {{total}} au total, dont {{forSale}} encore à vendre par la cité"
     },
-    "templeLink": "Temple : Charis, offrandes, grâces et oracle"
+    "templeLink": "Temple : Charis, offrandes, grâces et oracle",
+    "sections": {
+      "label": "Rubriques de la cité",
+      "politics": "Vie politique",
+      "assembly": "Assemblée",
+      "treasury": "Trésor",
+      "events": "Événements",
+      "chronicle": "Chronique"
+    }
   },
   "npcClasses": {
     "thetes": "Thètes",
