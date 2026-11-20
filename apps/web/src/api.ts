@@ -44,6 +44,9 @@ import { SANCTIONED_EVENT } from './moderation';
 import { serverClock } from './server-clock';
 import { announceSessionEnded } from './session';
 
+/** Émis sur la fenêtre après toute commande réussie : l'argent ou les stocks ont pu bouger (#898). */
+export const COMMAND_SUCCEEDED_EVENT = 'oikos:command-succeeded';
+
 /** `replayed` : l'API a rejoué une commande déjà exécutée sous cette clé, sans nouvel effet. */
 export type CommandResponse<T> =
   { ok: true; data: T; replayed: boolean } | { ok: false; error: CommandError };
@@ -79,6 +82,7 @@ export async function sendCommand<T>(
     } | null;
     if (body?.ok === true && body.data !== undefined) {
       const replayed = response.headers.get('Idempotent-Replay') === 'true';
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event(COMMAND_SUCCEEDED_EVENT));
       return { ok: true, data: body.data as T, replayed };
     }
     const error = body?.ok === false ? commandErrorSchema.safeParse(body.error) : null;
