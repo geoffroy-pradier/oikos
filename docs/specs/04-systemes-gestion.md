@@ -177,6 +177,8 @@ Depuis #709, douze ateliers de plus (5.1) : leur marge du monde, aux prix du ban
 Aucune maison du banc n'y joue ces ateliers : leurs extrants, que personne n'échange, comptent à leur prix de référence.
 Les marges des sept recettes du tableau ci-dessous et la médiane des matières premières restent celles d'avant, au chiffre près.
 Le négociant des bancs n'enchérit plus que sur les biens que les sites du monde livrent.
+Raison : il place chaque matin, par bien, une offre d'achat d'un huitième de sa trésorerie restante ; avec trente-sept biens, presque toute sa monnaie serait sous séquestre et l'entretien de ses sites ne serait plus payé.
+Ce filtre dépend du nombre de biens produits : le banc à douze cités (#712) devra donner au négociant une réserve d'entretien.
 Avec une offre d'achat sur chacun des trente-sept biens, le banc à une cité arrêtait un moulin faute d'entretien payé ; les offres sur les douze intermédiaires, que personne n'y produit, ne s'y remplissaient jamais.
 Le banc à une cité garde ses bornes, avec des écarts de quelques millièmes (10 236 habitants au dernier jour au lieu de 10 253).
 
