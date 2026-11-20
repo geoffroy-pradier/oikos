@@ -109,7 +109,7 @@ select throws_ok('select * from public.cities', '42501', null, 'anon ne lit pas 
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "00000000-0000-4000-8000-00000000000a", "role": "authenticated"}';
 
-select is((select count(*) from public.cities where world_id = '01900000-0000-7000-8000-000000000001'), 4::bigint, 'les quatre cités du monde de test sont lisibles');
+select is((select count(*) from public.cities where world_id = '01900000-0000-7000-8000-000000000001'), 12::bigint, 'les douze cités du monde de test sont lisibles');
 select is((select count(*) from public.houses where name in ('Alcméonides', 'Philaïdes')), 2::bigint, 'les profils de maison sont publics');
 select results_eq(
   'select name from public.houses where is_mine',

@@ -8,8 +8,8 @@ import { unlimited } from './rate-limit';
 import { createTelemetry } from './telemetry';
 import { TEST_CONFIG, testVerifier } from './test-config';
 
-// Quatre cités, leur terroir et leur recette de départ (docs/specs/06-cites-politique-communaute.md, 6.1 ;
-// ticket 250), contre Supabase local. Le fichier a son monde, aux quatre cités de la configuration.
+// Douze cités, leur terroir et leur recette de départ (docs/specs/06-cites-politique-communaute.md, 6.1 ;
+// tickets 250 et 706), contre Supabase local. Le fichier a son monde, aux douze cités de la configuration.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 // Le code testé agit sous le rôle de service, comme en production ; `owner` pose les jeux d'essai.
@@ -26,7 +26,20 @@ const app = createApp({
 
 const { config } = TEST_CONFIG;
 const WORLD = randomUUID();
-const SLUGS = ['kalliste', 'elaia', 'ampelos', 'halos'] as const;
+const SLUGS = [
+  'kalliste',
+  'elaia',
+  'ampelos',
+  'halos',
+  'dikaia',
+  'gamelia',
+  'delphis',
+  'agrotera',
+  'phrourion',
+  'myrrhine',
+  'chalkeia',
+  'emporion',
+] as const;
 type Slug = (typeof SLUGS)[number];
 const CITY = Object.fromEntries(SLUGS.map((slug) => [slug, randomUUID()])) as Record<Slug, string>;
 const GRANT = config.starting.grantOboles;
@@ -44,7 +57,7 @@ const withCity = (slug: Slug, change: (city: GameConfig['cities'][number]) => ob
   config.cities.map((city) => (city.id === slug ? { ...city, ...change(city) } : city));
 
 beforeAll(async () => {
-  await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`q-${WORLD.slice(0, 12)}`}, 'Quatre cités')`.execute(
+  await sql`insert into game.worlds (id, slug, name) values (${WORLD}, ${`q-${WORLD.slice(0, 12)}`}, 'Douze cités')`.execute(
     owner,
   );
   for (const slug of SLUGS)
@@ -150,8 +163,8 @@ async function backdate(siteId: string, ms: number, halted = false) {
   });
 }
 
-describe('quatre cités : terroir et recette de départ (6.1)', () => {
-  it('fonde une maison dans chacune des quatre cités, avec la recette de départ de sa cité', async () => {
+describe('douze cités : terroir et recette de départ (6.1)', () => {
+  it('fonde une maison dans chacune des douze cités, avec la recette de départ de sa cité', async () => {
     const founded = [];
     for (const slug of SLUGS) {
       const player = await newPlayer(slug);
@@ -168,7 +181,30 @@ describe('quatre cités : terroir et recette de départ (6.1)', () => {
       ['elaia', CITY.elaia, GRANT, ['grow_wheat']],
       ['ampelos', CITY.ampelos, GRANT, ['grow_grapes']],
       ['halos', CITY.halos, GRANT, ['catch_fish']],
+      ['dikaia', CITY.dikaia, GRANT, ['grow_wheat']],
+      ['gamelia', CITY.gamelia, GRANT, ['grow_wheat']],
+      ['delphis', CITY.delphis, GRANT, ['grow_olives']],
+      ['agrotera', CITY.agrotera, GRANT, ['fell_wood']],
+      ['phrourion', CITY.phrourion, GRANT, ['grow_wheat']],
+      ['myrrhine', CITY.myrrhine, GRANT, ['grow_grapes']],
+      ['chalkeia', CITY.chalkeia, GRANT, ['fell_wood']],
+      ['emporion', CITY.emporion, GRANT, ['catch_fish']],
     ]);
+  });
+
+  it('une cité de #706 admet son terroir et refuse le reste, sans rien prélever', async () => {
+    // Emporion, la cité d'Hermès : poisson, sel, olives et laine, pas de blé.
+    const player = await newPlayer('emporion');
+    const before = await stateOf(player);
+    expect(await send(player.user, 'site.acquire', { recipeId: 'grow_wheat' })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'RECIPE_NOT_IN_TERROIR' } },
+    });
+    expect(await stateOf(player)).toEqual(before);
+    expect(await send(player.user, 'site.acquire', { recipeId: 'rake_salt' })).toMatchObject({
+      status: 200,
+      body: { data: { recipeId: 'rake_salt' } },
+    });
   });
 
   it('une cité inconnue de la configuration reçoit la recette de départ commune', async () => {

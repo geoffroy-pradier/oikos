@@ -42,6 +42,7 @@ Chaque maison choisit un dieu protecteur, chaque cité aussi. Un patronage donne
 | Hermès | Négoce, messagers, change | Commerce et finance |
 | Dionysos | Vigne, théâtre, moral | Fêtes et culture |
 
+Dans la configuration initiale (6.1, 7.1), les douze dieux de ce tableau sont tous au catalogue des dieux, et chacun protège une des douze cités du lancement (ticket 706).
 Hadès (richesses souterraines, dette) et Hestia (foyer, stabilité) sont réservés à une extension post-lancement.
 
 ## Ton et limites

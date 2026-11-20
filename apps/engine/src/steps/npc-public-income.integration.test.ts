@@ -179,6 +179,24 @@ describe('revenu public des PNJ (#632)', () => {
     }
   });
 
+  it('la configuration initiale verse le revenu public dans chacune des douze cités, à la clôture comme au premier tick (#706)', async () => {
+    // 6 000 thètes à 70 oboles par tick pour 1 000 et 10 %, 144 ticks : 6 048 oboles dans chaque cité, la même partout.
+    const slugs = initial.cities.map((city) => city.id);
+    expect(slugs).toHaveLength(12);
+    const each = Math.floor((70 * 6_000 * 1_000 * 144) / 10_000_000);
+    const expected = {
+      purses: Object.fromEntries(slugs.map((slug) => [slug, each])),
+      faucet: -each * 12,
+      entries: slugs.map((slug) => [slug, TODAY] as const).sort(([a], [b]) => a.localeCompare(b)),
+    };
+    const closed = await laborWorld(owner, { cities: slugs, houses: [] });
+    expect(await close(closed.worldId, 1_000)).toEqual([TODAY]);
+    expect(await ledgerOf(closed)).toEqual(expected);
+    const ticked = await laborWorld(owner, { cities: slugs, houses: [] });
+    await tick(ticked.worldId, 1_000);
+    expect(await ledgerOf(ticked)).toEqual(expected);
+  });
+
   it('multiplicateur de chaque cité, à la clôture comme au premier tick du jour, arrondi une fois (#657)', async () => {
     // 1 008 oboles pour 1 000 thètes à 10 %. Kallistè : 999 thètes, 1 006,992 à ×1 ; à ×1,2345, 1 243,12 : 1 243,
     // là où deux arrondis (1 006 × 1,2345 = 1 241,9) donneraient 1 241. Elaia 6 000 à ×0, Ampélos 6 000 à ×2,

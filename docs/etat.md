@@ -24,8 +24,9 @@ Ce fichier décrit ce qui tourne réellement sur `main` ; les spécifications (`
 
 ## Ce qui est jouable aujourd'hui
 
-En local (procédure dans le `README.md`), dans quatre cités : Kallistè, Elaia, Ampelos et Halos (#250).
-Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour recevoir les trois nouvelles cités et la configuration qui les décrit.
+En local (procédure dans le `README.md`), dans douze cités : Kallistè, Elaia, Ampelos et Halos (#250), puis Dikaia, Gamelia, Delphis, Agrotera, Phrourion, Myrrhinè, Chalkeia et Emporion (#706).
+Les huit dernières n'ont pas encore de route maritime ni de place sur la carte (ticket suivant).
+Une base locale existante doit être remise à zéro (`pnpm db:reset`) pour recevoir les nouvelles cités et la configuration qui les décrit.
 
 - **Compte et maison.** Connexion par lien magique (courriel). Création d'une maison : nom, blason, cité.
   La maison reçoit 3 000 oboles et le premier site de sa cité (champ de blé, vigne ou pêcherie). La commande de renommage existe dans l'API, sans écran.
@@ -200,7 +201,7 @@ Ajouts de la phase 2 :
 - **Entretien impayé sur les offres** (#403, 4.5) : la vue `property_offers_upkeep` rend l'impayé d'un bien et le jour de jeu de la clôture qui l'a constaté, et l'écran Immobilier l'annonce sur l'offre.
 - **Nouvel essai des commandes** (#333, 13) : l'API rejoue une commande annulée par un interblocage (`40P01`) ou un échec de sérialisation (`40001`), sous la même clé, jusqu'à trois essais au total.
 - **Quatre cités** (#250, 6.1) : chacune a son terroir (productions primaires admises ; les ateliers le sont partout), son port, son dieu protecteur et son site de départ.
-  La fondation présente les quatre cités avec leur identité, et l'onglet Cité montre celle de la cité du joueur.
+  La fondation présente les douze cités avec leur identité (#706), et l'onglet Cité montre celle de la cité du joueur.
   L'API refuse une production hors terroir (`RECIPE_NOT_IN_TERROIR`), et l'écran Sites ne la propose pas (#291).
   Depuis #669, Kallistè n'a plus de laine : aucune cité n'a toutes les matières premières du panier de ses PNJ.
 - **Passerelle IA** (#268, ADR 0005) : `packages/ai` rend toujours un résultat, la sortie du modèle si elle est conforme à son schéma, sinon le repli.

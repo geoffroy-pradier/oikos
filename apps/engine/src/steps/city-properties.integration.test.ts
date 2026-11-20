@@ -99,6 +99,39 @@ describe('cityProperties', () => {
     expect(await park(worldId)).toEqual(expected);
   });
 
+  it('la configuration initiale crée au premier tick le parc de chacune des douze cités, neuf (#706)', async () => {
+    const worldId = randomUUID();
+    await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`n-${worldId.slice(0, 12)}`}, 'Test')`.execute(
+      owner,
+    );
+    for (const { id } of initial.cities)
+      await sql`insert into game.cities (world_id, slug, name) values (${worldId}, ${id}, ${id})`.execute(
+        owner,
+      );
+    const played = await runTick(db, request(worldId, initial, first));
+    // Une ligne par cité et par taille de la configuration, du nombre de biens qu'elle donne.
+    const counts = initial.cities.flatMap(({ id }) =>
+      initial.properties.sizes.map((size) => ({
+        city: id,
+        sizeId: size.id,
+        properties: initial.properties.countsByCity[id]?.[size.id] ?? 0,
+      })),
+    );
+    expect(initial.cities).toHaveLength(12);
+    expect(counts.every(({ properties }) => properties > 0)).toBe(true);
+    const sorted = <T extends { city: string; sizeId: string }>(rows: T[]) =>
+      [...rows].sort((a, b) => a.city.localeCompare(b.city) || a.sizeId.localeCompare(b.sizeId));
+    expect(played.summary).toEqual({ cityProperties: { built: sorted(counts) } });
+    expect(await park(worldId)).toEqual(
+      sorted(counts).map(({ city, sizeId, properties }) => ({
+        city,
+        size_id: sizeId,
+        lots: Array.from({ length: properties }, (_, index) => index + 1),
+        pristine: true,
+      })),
+    );
+  });
+
   it('un nombre relevé complète le parc ; baissé, ou une taille retirée, ne retire rien', async () => {
     const worldId = await newWorld();
     await runTick(db, request(worldId, withCounts({ kalliste: { townhouse: 2 } }), first));

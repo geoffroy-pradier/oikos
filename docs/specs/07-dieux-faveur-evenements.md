@@ -17,7 +17,7 @@ La Charis de cité est la somme pondérée des offrandes de ses citoyens envers 
 
 Dans la phase 2 (ticket 265), la Charis ne se gagne que par offrandes de biens ou de monnaie.
 Temples, fêtes privées, actes, paliers passifs, présages et rang sacerdotal attendent la phase 3.
-Le catalogue des dieux est la liste `gods` de la configuration (6.1) : les dieux protecteurs des quatre cités et Apollon (la Pythie, 7.3).
+Le catalogue des dieux est la liste `gods` de la configuration (6.1) : les dieux protecteurs des douze cités, dont Apollon, qui protège Delphis et tient la Pythie (7.3).
 Chaque dieu y porte sa Charis : par obole offerte (nulle, il refuse la monnaie), par unité de chaque bien qu'il accepte (un bien absent est refusé), son déclin quotidien en points de base et le poids de sa Charis de cité.
 Ajouter un dieu ne demande aucun code.
 Une offrande rapporte la somme de ses dons au taux du dieu, en entiers et sans arrondi ; un seul don refusé fait refuser toute l'offrande (`offeringCharis`, `packages/sim`).
@@ -27,6 +27,10 @@ La clôture joue ce déclin dans son étape `favorDecay`, après la population d
 Chaque perte est une ligne `decay` du journal de la Charis (12), une par maison, dieu et jour de jeu (index unique) : une clôture rejouée ne fait pas décliner deux fois.
 Un dieu sans déclin, ou retiré de la configuration, ne fait rien perdre.
 Configuration initiale : chaque dieu prend la monnaie à 1 Charis par obole, et les biens de son domaine (2) à autant de Charis par unité que leur prix de référence en oboles.
+Depuis #706, sept dieux s'y ajoutent : Zeus, Héra, Artémis, Arès, Aphrodite, Héphaïstos et Hermès.
+Artémis prend le bois, Aphrodite l'huile d'olive et le tissu, Héphaïstos l'argile, le charbon de bois et les amphores.
+Zeus, Héra, Arès et Hermès n'ont pas de bien du jeu à leur domaine (loi, lignée, escortes, négoce) et ne prennent que la monnaie, comme Apollon.
+Leurs grâces et leurs paliers viendront avec leurs temples.
 Déméter prend le blé, la farine et le pain ; Athéna les olives, l'huile et le tissu ; Dionysos le raisin et le vin ; Poséidon le poisson et le sel ; Apollon la seule monnaie.
 Le déclin est de 100 points de base (1 % par jour) et le poids de cité de ×1 ; revus au calibrage (#668), ils restent tels.
 Le déclin coûte à qui garde la Charis requise par une grâce (600) 6 Charis par jour, soit 42 sur la saison de sa recharge, quand une invocation en dépense 300 : l'offrande reste le vrai prix d'une grâce, et une faveur laissée à elle-même perd la moitié en 69 jours.
