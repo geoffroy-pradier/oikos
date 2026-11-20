@@ -306,6 +306,20 @@
     "filteredEmpty": "No loaded entry has this outcome.",
     "showAll": "Show all entries"
   },
+  "cities": {
+    "kalliste": "Kallistè",
+    "elaia": "Elaia",
+    "ampelos": "Ampelos",
+    "halos": "Halos",
+    "dikaia": "Dikaia",
+    "gamelia": "Gamelia",
+    "delphis": "Delphis",
+    "agrotera": "Agrotera",
+    "phrourion": "Phrourion",
+    "myrrhine": "Myrrhinè",
+    "chalkeia": "Chalkeia",
+    "emporion": "Emporion"
+  },
   "moderation": {
     "title": "Moderation",
     "queue": "Reports to handle",
@@ -330,6 +344,7 @@
     "reportedTag": "(reported)",
     "purged": "Message purged: the report remains, with no text or context.",
     "actions": "Actions on house {{house}}",
+    "more": "More actions",
     "act": {
       "hide": "Hide the message",
       "warning": "Warn",
@@ -463,6 +478,7 @@
     "appealBody": "Appeal of {{date}}: {{body}}",
     "line": "{{date}} · {{house}}:",
     "reportLine": "{{reason}} ({{date}})",
+    "reports": "Report reasons",
     "sinceChannel": "{{since}} · {{channel}}",
     "close": "Close",
     "filter": "Filter by house",
