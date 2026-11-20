@@ -188,6 +188,18 @@
       "workers_other": "{{number}} travailleurs",
       "stewards_one": "{{number}} intendant",
       "stewards_other": "{{number}} intendants"
+    },
+    "chart": {
+      "title_one": "Trésorerie, {{count}} dernier jour",
+      "title_other": "Trésorerie, {{count}} derniers jours",
+      "label_one": "Trésorerie en fin de jour, sur {{count}} jour de jeu : de {{from}} à {{to}} ; au plus haut {{high}}, au plus bas {{low}}.",
+      "label_other": "Trésorerie en fin de jour, sur {{count}} jours de jeu : de {{from}} à {{to}} ; au plus haut {{high}}, au plus bas {{low}}.",
+      "table": "Valeurs, jour par jour",
+      "day": "Jour",
+      "balance": "Solde en fin de jour",
+      "net": "Mouvement",
+      "high": "plus haut : {{amount}}",
+      "low": "plus bas : {{amount}}"
     }
   },
   "agora": {
@@ -812,7 +824,7 @@
     }
   },
   "alerts": {
-    "title": "À surveiller",
+    "title": "À faire aujourd'hui",
     "unhoused_one": "{{number}} travailleur sans logement : il est hébergé chez les habitants, à vos frais.",
     "unhoused_other": "{{number}} travailleurs sans logement : ils sont hébergés chez les habitants, à vos frais.",
     "renovate": "{{property}} est à rénover : ce bien ne loge plus personne.",

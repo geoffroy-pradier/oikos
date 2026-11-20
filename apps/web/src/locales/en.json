@@ -188,6 +188,18 @@
       "workers_other": "{{number}} workers",
       "stewards_one": "{{number}} steward",
       "stewards_other": "{{number}} stewards"
+    },
+    "chart": {
+      "title_one": "Treasury, last {{count}} day",
+      "title_other": "Treasury, last {{count}} days",
+      "label_one": "End-of-day treasury over {{count}} game day: from {{from}} to {{to}}; highest {{high}}, lowest {{low}}.",
+      "label_other": "End-of-day treasury over {{count}} game days: from {{from}} to {{to}}; highest {{high}}, lowest {{low}}.",
+      "table": "Values, day by day",
+      "day": "Day",
+      "balance": "End-of-day balance",
+      "net": "Change",
+      "high": "highest: {{amount}}",
+      "low": "lowest: {{amount}}"
     }
   },
   "agora": {
@@ -812,7 +824,7 @@
     }
   },
   "alerts": {
-    "title": "To watch",
+    "title": "To do today",
     "unhoused_one": "{{number}} unhoused worker: lodging with the inhabitants, at your expense.",
     "unhoused_other": "{{number}} unhoused workers: lodging with the inhabitants, at your expense.",
     "renovate": "{{property}} needs renovating: this property no longer houses anyone.",
