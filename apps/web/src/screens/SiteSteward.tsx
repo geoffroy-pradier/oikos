@@ -145,12 +145,17 @@ export function SiteSteward(props: {
       const send = (key: string) => stewardCommand(name, input, house.accessToken, key);
       const result = await sendUnderKey(keys, intent, () => crypto.randomUUID(), input, send);
       if (result.ok) setDraft(null);
-      setNotice(
-        result.ok
-          ? { kind: 'status', text: done(result.data) }
-          : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
-      );
-      await props.onChanged();
+      // L'issue paraît une fois l'intendant relu (#869) : ses opérations, ses ordres ou ses règles, qui
+      // agrandissent l'encart au-dessus d'elle, ne la déplacent plus après coup.
+      try {
+        await props.onChanged();
+      } finally {
+        setNotice(
+          result.ok
+            ? { kind: 'status', text: done(result.data) }
+            : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
+        );
+      }
       return result.ok ? 'ok' : result.error.code;
     } finally {
       running.current = false;
