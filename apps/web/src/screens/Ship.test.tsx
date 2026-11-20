@@ -31,17 +31,23 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./Departure', async () => {
   const { useState } = await import('react');
   return {
-    Departure: (props: { onDone: (notice: object) => Promise<unknown> }) => {
+    Departure: (props: {
+      onDone: (notice: object) => Promise<unknown>;
+      onBusyChange: (busy: boolean) => void;
+    }) => {
       const [sent, setSent] = useState(false);
       return sent ? null : (
-        <button
-          onClick={() => {
-            setSent(true);
-            void props.onDone({ kind: 'status', text: 'Parti.' });
-          }}
-        >
-          Partir
-        </button>
+        <>
+          <button
+            onClick={() => {
+              setSent(true);
+              void props.onDone({ kind: 'status', text: 'Parti.' });
+            }}
+          >
+            Partir
+          </button>
+          <button onClick={() => props.onBusyChange(true)}>En vol</button>
+        </>
       );
     },
   };
@@ -129,15 +135,32 @@ describe('fiche d’un navire', () => {
     expect(screen.getByText(fr.ship.arrivedAt)).toBeTruthy();
   });
 
-  it('après un départ, le foyer perdu avec le formulaire va au message qui l’annonce', async () => {
+  it('après un départ, la feuille se ferme et le foyer va au message qui l’annonce', async () => {
     state(true);
     views.rules = { classes: [], routes: [], portDues: {} };
     await screenOf();
+    fireEvent.click(screen.getByRole('button', { name: fr.departure.open }));
     const button = screen.getByRole('button', { name: 'Partir' });
     button.focus();
     fireEvent.click(button);
     const status = await screen.findByText('Parti.');
     expect(document.activeElement).toBe(status);
+    views.rules = null;
+  });
+
+  it('une requête en vol garde la feuille ouverte : Fermer inactif, Échap sans effet, et dit pourquoi', async () => {
+    state(true);
+    views.rules = { classes: [], routes: [], portDues: {} };
+    await screenOf();
+    fireEvent.click(screen.getByRole('button', { name: fr.departure.open }));
+    fireEvent.click(screen.getByRole('button', { name: 'En vol' }));
+    const sheet = screen.getByRole('dialog');
+    expect(sheet.textContent).toContain(fr.departure.sending);
+    expect(
+      (screen.getByRole('button', { name: fr.shell.close }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBe(sheet);
     views.rules = null;
   });
 });

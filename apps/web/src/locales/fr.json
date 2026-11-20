@@ -685,7 +685,17 @@
     "windsUnknown": "Vos grâces en attente n'ont pas pu être lues : les durées annoncées sont sans vent favorable.",
     "fairWind": "Ce départ consommera votre vent favorable de {{god}}, en attente : il retire {{saved}} h au trajet.",
     "fairWindSlight": "Ce départ consommera votre vent favorable de {{god}}, en attente : il ne retire au trajet que quelques minutes au plus.",
-    "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite)."
+    "overStock": "La cargaison dépasse le stock libre de la cité (part en vente déduite).",
+    "stepCargo": "Cargaison",
+    "stepRecap": "Récapitulatif",
+    "steps": "Étapes du départ",
+    "stepOf": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "next": "Continuer",
+    "open": "Préparer un départ",
+    "summary": "Vers {{city}}, {{hours}} h de mer ; cargaison : {{cargo}}.",
+    "summaryBallast": "Vers {{city}}, {{hours}} h de mer, sur lest.",
+    "sending": "Départ en cours : la feuille reste ouverte jusqu'à la réponse."
   },
   "staff": {
     "title": "Personnel",

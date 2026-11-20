@@ -11,6 +11,8 @@ export interface SheetProps {
   description?: ReactNode;
   /** Nom du bouton Fermer (« Fermer »), traduit par l'écran. */
   closeLabel: string;
+  /** Commande en vol : le bouton Fermer est inactif (l'appelant ignore aussi Échap et le voile). */
+  closeDisabled?: boolean;
   /** Actions fixées en bas de la feuille, hors de la partie qui défile. */
   footer?: ReactNode;
   children: ReactNode;
@@ -27,6 +29,7 @@ export function Sheet({
   title,
   description,
   closeLabel,
+  closeDisabled = false,
   footer,
   children,
   className,
@@ -55,7 +58,7 @@ export function Sheet({
           </h2>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        <IconButton icon={<X />} label={closeLabel} onClick={onClose} />
+        <IconButton icon={<X />} label={closeLabel} onClick={onClose} disabled={closeDisabled} />
       </header>
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5">{children}</div>
       {footer && (

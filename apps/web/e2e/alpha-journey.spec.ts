@@ -180,8 +180,11 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toHaveText('Caboteur acheté pour 400 drachmes.');
     await page.getByRole('link', { name: 'Caboteur', exact: true }).click();
+    await page.getByRole('button', { name: 'Préparer un départ' }).click();
     await page.getByRole('radio', { name: /^Elaia — 4 h de mer/ }).check();
+    await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByLabel(/Blé \(80 libres\)/).fill('30');
+    await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: /^Partir vers Elaia/ }).click();
     await expect(page.getByRole('heading', { name: 'Kallistè → Elaia' })).toBeVisible();
     await arrive(alpha);

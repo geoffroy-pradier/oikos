@@ -99,7 +99,10 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Le chantier naval propose chaque classe à son prix, en drachmes et oboles ; l'achat suit l'acquisition d'un site (4.2) : un achat resté sans réponse garde sa clé jusqu'à la relecture qui montre un navire de plus.
    Sans réponse mais un navire de plus à la relecture, la même clé repart une fois pour connaître l'issue ; un navire de plus après une issue inconnue prévient le joueur, rappelé à chaque ouverture de l'écran tant qu'il n'a pas dit avoir vérifié sa flotte.
    La fiche d'un navire liste ses voyages (départ, arrivée prévue ou faite, cargaison) ; un voyage en mer à une lecture et arrivé à la suivante est annoncé, la flotte étant relue chaque minute ou à la demande.
-   Le départ se fait depuis la fiche en deux touches : la destination, qui dit la durée pour la classe du navire et le coût, puis « Partir ».
+   Le départ se fait depuis la fiche, dans une feuille (ADR 0011), par étapes : la destination, qui dit la durée pour la classe du navire et le coût, la cargaison, puis un récapitulatif (destination, durée, cargaison, tempête, vent et coût vus) et « Partir ».
+   Décision (#696) : la refonte remplace les deux touches de la première version par ces étapes, une étape qui ne se valide pas (cargaison au-delà de la cale ou du stock libre) n'ouvrant pas la suivante.
+   Un départ fait ferme la feuille et son issue s'annonce sur la fiche, où va le foyer ; un refus ou une réponse perdue se dit dans la feuille, près de « Partir », qui reste ouverte.
+   Tant que la requête est en vol, la feuille ne se ferme pas (Fermer inactif, Échap et le voile sans effet) et le dit : son issue y est toujours lue.
    Pendant une tempête en cours sur la route (#417, vue `world_events`, à l'heure du serveur), la destination dit la durée allongée comme l'API la comptera (`stormDurationSeconds`, la plus forte tempête de la route ; à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) et celle par temps calme ; la destination choisie dit la tempête, sa fin et son ampleur.
    Tant que les tempêtes ne sont pas lues, la durée annoncée est celle du calme, et l'écran dit qu'elle est provisoire ; une lecture en échec le dit et se relit.
    Après un « Réessayer » réussi, le foyer va au titre de la carte.

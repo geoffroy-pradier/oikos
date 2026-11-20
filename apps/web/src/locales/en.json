@@ -685,7 +685,17 @@
     "windsUnknown": "Your pending graces could not be read: the durations shown are without a fair wind.",
     "fairWind": "This departure will use your pending fair wind from {{god}}: it takes {{saved}} h off the voyage.",
     "fairWindSlight": "This departure will use your pending fair wind from {{god}}: it takes a few minutes at most off the voyage.",
-    "overStock": "The cargo exceeds the city's free stock (goods on sale excluded)."
+    "overStock": "The cargo exceeds the city's free stock (goods on sale excluded).",
+    "stepCargo": "Cargo",
+    "stepRecap": "Summary",
+    "steps": "Departure steps",
+    "stepOf": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Continue",
+    "open": "Prepare a departure",
+    "summary": "To {{city}}, {{hours}} h at sea; cargo: {{cargo}}.",
+    "summaryBallast": "To {{city}}, {{hours}} h at sea, in ballast.",
+    "sending": "Departure in progress: the sheet stays open until the answer."
   },
   "staff": {
     "title": "Staff",
