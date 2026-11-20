@@ -55,6 +55,19 @@ it('liste chaque compte avec son identifiant entier, son rôle et qui l’a acco
   expect(row.children[3]?.textContent).toMatch(/^03\/11\/2026/);
 });
 
+it('la liste se filtre par rôle ; « Tous les rôles » la rend entière', async () => {
+  adminGet.mockResolvedValue({ ok: true, data: { roles: ROLES } });
+  render(<Access accessToken="token" userId={ME} />);
+  await screen.findByRole('table');
+  const filter = screen.getByLabelText('Filtrer par rôle');
+  fireEvent.change(filter, { target: { value: 'moderator' } });
+  expect(cells()).toEqual([[OTHER, 'Modérateur', `${ME} (vous)`]]);
+  fireEvent.change(filter, { target: { value: 'observer' } });
+  expect(cells()).toEqual([]);
+  fireEvent.change(filter, { target: { value: 'all' } });
+  expect(cells()).toHaveLength(3);
+});
+
 it('accorde le singulier, et se lit en anglais', async () => {
   adminGet.mockResolvedValue({ ok: true, data: { roles: ROLES.slice(0, 1) } });
   render(<Access accessToken="token" userId={ME} />);
@@ -104,8 +117,12 @@ async function opened(after: typeof ROLES, ...replies: object[]) {
   for (const reply of replies) adminCommand.mockResolvedValueOnce(reply);
   render(<Access accessToken="token" userId={ME} />);
   await screen.findByRole('table');
-  return screen.getByLabelText('Identifiant du compte') as HTMLInputElement;
 }
+/** Ouvre la feuille « Accorder un rôle » et rend son champ d'identifiant. */
+const grantSheet = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Accorder un rôle' }));
+  return screen.getByLabelText('Identifiant du compte') as HTMLInputElement;
+};
 const fill = (field: HTMLInputElement, value: string, role = 'moderator') => {
   fireEvent.change(field, { target: { value } });
   fireEvent.change(screen.getByLabelText('Rôle'), { target: { value: role } });
@@ -122,11 +139,12 @@ it('accorde un rôle par identifiant : saisie contrôlée à l’envoi, liste re
     grantedBy: ME,
     grantedAt: '2026-11-04T09:00:00Z',
   };
-  const field = await opened(
+  await opened(
     [...ROLES, added],
     { ok: true, data: { userId: NEW, role: 'moderator', previousRole: null } },
     { ok: true, data: { userId: OTHER, role: 'support', previousRole: 'moderator' } },
   );
+  const field = grantSheet();
   expect(screen.getByLabelText<HTMLSelectElement>('Rôle').value).toBe('observer');
   // Ni la longueur ni les tirets ne suffisent : 36 caractères hors forme, ou la forme dans un texte.
   for (const bad of [`g${NEW.slice(1)}`, NEW.replaceAll('-', '0'), `${NEW}0`, `0${NEW}`]) {
@@ -159,13 +177,14 @@ it('accorde un rôle par identifiant : saisie contrôlée à l’envoi, liste re
 });
 
 it('un refus est expliqué, la saisie reste ; après une panne, la même demande garde sa clé', async () => {
-  const field = await opened(
+  await opened(
     ROLES,
     { ok: false, code: 'ROLE_SELF_GRANT' },
     { ok: false, code: 'INTERNAL' },
     { ok: false, code: 'INTERNAL' },
     { ok: false, code: 'ACCOUNT_NOT_FOUND' },
   );
+  const field = grantSheet();
   fill(field, ME);
   await waitFor(() => expect(notice('alert')).toMatch(/^On ne change pas son propre rôle/));
   expect(field.value).toBe(ME);
@@ -177,6 +196,34 @@ it('un refus est expliqué, la saisie reste ; après une panne, la même demande
   await waitFor(() => expect(notice('alert')).toBe('Aucun compte ne porte cet identifiant.'));
   // Clé neuve après un refus (intention close) et pour une autre demande ; gardée après une panne.
   expect([1, 2, 3].map((call) => keyOf(call) === keyOf(call - 1))).toEqual([false, false, true]);
+});
+
+it('pendant l’envoi, Échap ne referme pas la feuille ; un refus garde la saisie et rend le foyer au bouton', async () => {
+  const sent = held<unknown>();
+  await opened(ROLES, sent.promise);
+  const field = grantSheet();
+  fill(field, NEW, 'support');
+  const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Accorder le rôle' });
+  await waitFor(() => expect(submit.disabled).toBe(true));
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(screen.getByRole('dialog', { name: 'Accorder un rôle' })).toBeTruthy();
+  sent.release({ ok: false, code: 'ROLE_UNCHANGED' });
+  await waitFor(() => expect(notice('alert')).toBe('Ce compte porte déjà ce rôle.'));
+  expect([field.value, screen.getByLabelText<HTMLSelectElement>('Rôle').value]).toEqual([
+    NEW,
+    'support',
+  ]);
+  await waitFor(() => expect(document.activeElement).toBe(submit));
+});
+
+it('la feuille s’ouvre sans le résultat d’un geste précédent', async () => {
+  await opened(ROLES, { ok: false, code: 'LAST_SUPER_ADMIN' });
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmer le retrait' }));
+  await waitFor(() => expect(notice('alert')).toMatch(/^Il doit toujours rester/));
+  grantSheet();
+  expect(within(screen.getByRole('dialog')).queryByText(/Il doit toujours rester/)).toBeNull();
+  expect(notice('alert')).toBeUndefined();
 });
 
 it('retire un rôle après confirmation ; annuler ne fait rien et rend le foyer au bouton', async () => {
@@ -268,7 +315,7 @@ it('Entrée tenue ou redoublée sur « Retirer le rôle » ne retire rien, même
 
 it('une commande efface l’annonce précédente ; le foyer d’un retrait refusé ne saute pas sur la ligne revenue', async () => {
   const sent = held<{ previousRole: null }>();
-  const field = await opened(ROLES, { ok: false, code: 'ROLE_NOT_FOUND' }, sent.promise);
+  await opened(ROLES, { ok: false, code: 'ROLE_NOT_FOUND' }, sent.promise);
   // Le compte a perdu son rôle entre-temps : la liste relue n'a plus sa ligne.
   adminGet.mockResolvedValueOnce({ ok: true, data: { roles: ROLES.slice(0, 2) } });
   fireEvent.click(screen.getByRole('button', { name: 'Retirer le rôle de cccccccc' }));
@@ -276,6 +323,7 @@ it('une commande efface l’annonce précédente ; le foyer d’un retrait refus
   await waitFor(() => expect(notice('alert')).toBe('Ce compte ne porte plus aucun rôle.'));
   expect(cells()).toHaveLength(2);
 
+  const field = grantSheet();
   field.focus();
   fill(field, OTHER);
   expect([notice('alert'), notice('status')]).toEqual([undefined, '']);
@@ -286,7 +334,8 @@ it('une commande efface l’annonce précédente ; le foyer d’un retrait refus
 });
 
 it('code de refus hors liste ou erreur inattendue : message de panne, et l’écran n’est pas verrouillé', async () => {
-  const field = await opened(ROLES, { ok: false, code: 'CODE_HORS_LISTE' });
+  await opened(ROLES, { ok: false, code: 'CODE_HORS_LISTE' });
+  const field = grantSheet();
   adminCommand.mockRejectedValueOnce(new Error('inattendue'));
   const failure = "L'action n'a pas abouti. Réessayez : elle ne sera pas exécutée deux fois.";
   const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Accorder le rôle' });

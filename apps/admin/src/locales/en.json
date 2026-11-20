@@ -273,7 +273,10 @@
       "RATE_LIMITED": "Too many requests in a short time. Wait a moment.",
       "VALIDATION_FAILED": "Request refused: malformed identifier or role.",
       "INTERNAL": "The action did not complete. Try again: it will not be executed twice."
-    }
+    },
+    "close": "Close",
+    "filter": "Filter by role",
+    "allRoles": "All roles"
   },
   "audit": {
     "title": "Audit log",
