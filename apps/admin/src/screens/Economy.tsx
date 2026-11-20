@@ -1,5 +1,5 @@
 import type { AdminEconomy } from '@oikos/contracts';
-import { Button, ChevronRight, cn, PageHeader, RefreshCw, StatCard } from '@oikos/ui';
+import { Button, ChevronRight, cn, PageHeader, RefreshCw, StatCard, StatGrid } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
 import { TABLE } from '../table';
@@ -164,7 +164,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
                 {partial && ` ${partial}`}
               </p>
             )}
-            <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatGrid as="dl">
               {[
                 [t('economy.indexCurrent', target), per100(index.currentBps)],
                 [t('economy.indexPrevious', target), per100(index.previousBps)],
@@ -173,7 +173,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
               ].map(([label, value]) => (
                 <StatCard key={label} definition dense label={label} value={value} />
               ))}
-            </dl>
+            </StatGrid>
             {partial && <p className="text-sm">{partial}</p>}
             {/* Panier vide : lu dans la réponse, jamais déduit d'une liste de biens vide. */}
             {index.status === 'unknown' && data.basketEmpty && <p>{t('economy.noBasket')}</p>}

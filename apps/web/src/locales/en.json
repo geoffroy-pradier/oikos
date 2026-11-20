@@ -189,7 +189,7 @@
       "todayHint": "Sales {{sales}} · costs {{charges}}",
       "stocks": "Valued stocks",
       "sites": "Active sites",
-      "sitesValue": "{{running}} / {{total}}",
+      "sitesValue": "{{running}} of {{total}}",
       "sitesHint": "{{workers}} · {{stewards}}",
       "workers_one": "{{number}} worker",
       "workers_other": "{{number}} workers",

@@ -93,3 +93,52 @@ test('rangées de pastilles qui défilent : chaque onglet atteint au clavier est
   }
   await expectNoHorizontalScroll(page);
 });
+
+test('cartes de chiffres : un montant long tient sur une ligne, dans sa carte, sans rapetisser sous ses voisines (#863)', async ({
+  page,
+}) => {
+  // 486 drachmes 4 oboles (2 920 oboles) : la trésorerie lue est remplacée, sur la Maison comme sur Sites.
+  await page.route('**/rest/v1/my_treasury*', (route) =>
+    route.fulfill({ json: [{ balance: 2920 }] }),
+  );
+  const id = randomUUID();
+  await signIn(page, `e2e-${id}@example.test`);
+  const houseName = `Chiffres ${[...id.replace(/[^a-f]/g, '')].slice(0, 8).join('')}`;
+  await foundHouseForm(page, houseName);
+  await expect(page.getByRole('heading', { name: `Maison ${houseName}` })).toBeVisible();
+  for (const [path, title] of [
+    ['/', /^Bonjour, Maison /],
+    ['/sites', 'Sites'],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    const values = page.locator('[data-stat-value]');
+    await expect(values.getByText('486 drachmes 4 oboles', { exact: true })).toBeVisible();
+    await expect(values.filter({ hasText: '—' })).toHaveCount(0);
+    const boxes = await values.evaluateAll((elements) =>
+      elements.map((element) => {
+        // La valeur est dans son conteneur, sans marge intérieure, lui-même dans la carte.
+        const card = element.parentElement?.getBoundingClientRect();
+        const inset = parseFloat(getComputedStyle(element.parentElement as Element).paddingRight);
+        const box = element.getBoundingClientRect();
+        return {
+          value: element.textContent,
+          row: Math.round(element.parentElement?.parentElement?.getBoundingClientRect().top ?? 0),
+          size: parseFloat(getComputedStyle(element).fontSize),
+          lines: Math.round(box.height / parseFloat(getComputedStyle(element).lineHeight)),
+          overflow: element.scrollWidth - element.clientWidth,
+          outside: Math.ceil(box.right - ((card?.right ?? 0) - inset)),
+        };
+      }),
+    );
+    for (const box of boxes) {
+      expect(box, `${path} : ${box.value}`).toMatchObject({ lines: 1, overflow: 0 });
+      expect(box.outside, `${path} : ${box.value}`).toBeLessThanOrEqual(0);
+      // Dans une rangée, aucune valeur, la trésorerie la première, n'est plus petite que ses voisines.
+      const row = boxes.filter((other) => other.row === box.row);
+      expect(row.length, `${path} : ${box.value}`).toBeGreaterThan(0);
+      expect(box.size, `${path} : ${box.value}`).toBe(Math.max(...row.map((other) => other.size)));
+    }
+  }
+  await expectNoHorizontalScroll(page);
+});

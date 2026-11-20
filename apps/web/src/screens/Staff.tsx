@@ -5,6 +5,7 @@ import {
   EmptyState,
   House,
   StatCard,
+  StatGrid,
   Users,
   type DataColumn,
 } from '@oikos/ui';
@@ -97,23 +98,18 @@ export function StaffScreen() {
       )}
       {shown && (
         <>
-          <ul
-            aria-label={t('staff.figures')}
-            className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4"
-          >
+          <StatGrid as="ul" aria-label={t('staff.figures')}>
             {COUNTS.map((key) => (
-              <li key={key} className="flex">
+              <li key={key}>
                 <StatCard
-                  className="flex-1"
                   label={t(`staff.columns.${key}`)}
                   icon={icons[key]}
                   value={number.format(total((city) => city[key]))}
                 />
               </li>
             ))}
-            <li className="flex">
+            <li>
               <StatCard
-                className="flex-1"
                 label={t('staff.columns.lodging')}
                 icon={<Coins />}
                 value={
@@ -128,7 +124,7 @@ export function StaffScreen() {
                 }
               />
             </li>
-          </ul>
+          </StatGrid>
           <Card className="flex flex-col gap-3" aria-labelledby="staff-cities">
             <h2 id="staff-cities" className="text-lg font-semibold">
               {t('staff.byCity')}
