@@ -7,6 +7,7 @@ import { MapScreen } from './screens/Map';
 import { MessagesScreen } from './screens/Messages';
 import { PropertyScreen } from './screens/Property';
 import { ShipScreen } from './screens/Ship';
+import { SitesScreen } from './screens/Sites';
 import { StaffScreen } from './screens/Staff';
 import { TempleScreen } from './screens/Temple';
 import { NotFound } from './screens/NotFound';
@@ -21,6 +22,7 @@ const route = <P extends string>(path: P, component: () => React.JSX.Element) =>
 const routeTree = rootRoute.addChildren([
   route('/', HomeScreen),
   // Écrans de l'onglet Maison, ouverts depuis le tableau de bord.
+  route('/sites', SitesScreen),
   route('/comptes', AccountsScreen),
   route('/personnel', StaffScreen),
   route('/immobilier', PropertyScreen),

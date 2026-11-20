@@ -19,6 +19,7 @@ vi.mock('./Sites', () => ({ SitesCard: () => null }));
 // Liens sans routeur : de simples ancres.
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  useRouterState: () => '/',
 }));
 const { HomeScreen } = await import('./Home');
 

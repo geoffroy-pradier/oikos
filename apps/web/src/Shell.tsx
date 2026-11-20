@@ -65,7 +65,9 @@ export function Shell() {
   }
 
   return (
-    <div className="min-h-dvh bg-background text-foreground lg:grid lg:grid-cols-[15rem_1fr]">
+    // La barre latérale colle à la fenêtre, à sa hauteur ; sa colonne garde son fond et sa bordure sur toute la
+    // hauteur de la page (fin de page, capture pleine page).
+    <div className="min-h-dvh bg-background text-foreground lg:grid lg:grid-cols-[15rem_1fr] lg:bg-[linear-gradient(to_right,var(--surface)_calc(15rem-1px),var(--border-subtle)_calc(15rem-1px)_15rem,var(--background)_15rem)]">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:bg-surface focus:p-3"

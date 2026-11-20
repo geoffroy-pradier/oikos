@@ -1068,7 +1068,7 @@ test('comptes : bilan, stocks valorisés et compte de résultat en drachmes et o
   await page.route('**/rest/v1/my_balance_sheet*', (route) =>
     route.fulfill({ status: 500, json: { message: 'boom' } }),
   );
-  await page.getByRole('link', { name: 'Comptes de la maison' }).focus();
+  await page.getByRole('link', { name: 'Comptes', exact: true }).focus();
   await page.keyboard.press('Enter');
   const title = page.getByRole('heading', { name: `Comptes de la maison ${houseName}` });
   await expect(title).toBeFocused();

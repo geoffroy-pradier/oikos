@@ -167,10 +167,15 @@
     },
     "cap_one": "Accumulation cap: {{cycles}} cycle, that is {{list}}",
     "cap_other": "Accumulation cap: {{cycles}} cycles, that is {{list}}",
-    "accounts": "House accounts",
-    "staffLink": "House staff",
-    "propertyLink": "Property",
-    "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it."
+    "outOfTerroir": "This production is no longer in the city's land: the site keeps it, but after a change it cannot go back to it.",
+    "greeting": "Hello, House {{name}}",
+    "nav": {
+      "overview": "Overview",
+      "sites": "Sites",
+      "staff": "Staff",
+      "property": "Property",
+      "accounts": "Accounts"
+    }
   },
   "agora": {
     "city": "Market city",
