@@ -477,11 +477,11 @@ Label : `refonte`.
 
 ### Critères d'acceptation
 
-- [ ] Une carte de chiffre montre sa valeur en grand sur une seule ligne, avec un format court des montants décrit dans la spécification 10 ; le montant exact reste lisible (libellé accessible et détail).
+- [ ] Une carte de chiffre montre sa valeur en grand sur une seule ligne, dans le format unique de la spécification 10 (drachmes et oboles) : la taille du chiffre s'adapte à la largeur de la carte, sans format abrégé.
 - [ ] Une carte de chiffre a au plus une ligne secondaire ; le détail de la trésorerie (séquestre, ordres ouverts) sort de la carte, et la courbe n'est plus écrasée à 360 px.
 - [ ] Les cartes d'une rangée ont la même hauteur, et un libellé sur deux lignes ne décale pas la valeur.
 - [ ] Même grille de cartes sur Maison, Sites, Personnel, Vigie et Économie d'Olympe, et même écriture d'un ratio partout (« 1 sur 4 »).
-- [ ] Tests unitaires du format court (bornes, arrondi, oboles) et du composant.
+- [ ] Tests unitaires du composant, dont un montant long (« 486 drachmes 4 oboles ») ; un test de bout en bout à 360 et 1 440 px vérifie que la valeur tient sur une ligne.
 - [ ] Références visuelles de `visual.spec.ts` regénérées dans l'image Docker de Playwright, et l'écart visible dans la demande de fusion.
 - [ ] Thèmes clair et sombre, contrastes AA vérifiés par `contrast.test.ts` pour tout couple nouveau.
 - [ ] Utilisable à 360 px et au clavier ; foyer visible ; animations coupées sous `prefers-reduced-motion`.
@@ -670,7 +670,7 @@ Label : `refonte`.
 
 ### Critères d'acceptation
 
-- [ ] Une icône au trait sur chaque action (Récolter, Acheter, Vendre, Annuler, Continuer…) et sur chaque titre de section, ou sur aucun d'une même famille.
+- [ ] Une icône au trait sur chaque action (Récolter, Acheter, Vendre, Annuler, Continuer…), comme le demande la spécification 10 ; les titres de section d'un même écran ont tous une icône, ou aucun.
 - [ ] Maison : pas de nom de maison répété à 360 px ; les libellés « plus haut » et « plus bas » ne chevauchent pas la courbe ; titres de section au même style ; en sombre, le plan inversé se distingue.
 - [ ] Les paragraphes d'explication sous l'en-tête (Personnel, Immobilier, Carte, Temple, Comptes) sont réduits à une ligne ou passent dans une aide ; « Pas encore fixé » n'est dit qu'une fois sur Personnel.
 - [ ] Sites : une barre de progression pour la production en cours ; encart Intendant resserré.
