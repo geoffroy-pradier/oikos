@@ -70,6 +70,7 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Confirmer referme la feuille et envoie le prix vu ; l'issue s'annonce dans la région de l'acquisition, sous son bouton, comme l'avertissement d'une acquisition restée sans réponse, que le récapitulatif rappelle avant un nouvel achat.
    « Changer la production… » ouvre aussi une feuille par étapes : la production, parmi celles que la cité du site admet (Continuer reste inactif sur l'actuelle), puis ce qui change (extrants, intrants, travailleurs, entretien).
    Confirmer referme la feuille, rend le foyer à son bouton et annonce l'issue sur la fiche ; après un refus (récolter d'abord), le choix est gardé pour l'essai suivant.
+   « Relancer » (5.5) ouvre une feuille qui détaille le prix d'un jour (entretien, salaires et hébergement, total) ; la relance part au prix vu, et son bouton disparaissant avec l'arrêt, le foyer passe à l'issue annoncée.
    Première version du personnel (#259) : travailleurs requis, logés ou non, salaire du jour de la cité et coût d'un jour (entretien, salaires et hébergement), qui est aussi le prix d'une relance.
    Un champ ou un verger dit la sécheresse ou la bonne année en cours dans sa cité (#417, vue `world_events`), avec sa fin et son ampleur.
    Sa récolte est estimée comme l'API la calculera (`cycleYield`, 4.3 et 7.4), à l'heure du serveur, sous les événements qui finissent après le début de son cycle en cours, et l'écart dû à l'événement est dit.

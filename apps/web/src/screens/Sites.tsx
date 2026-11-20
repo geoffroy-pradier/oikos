@@ -58,6 +58,7 @@ import { LoadProblem, Loading } from './LoadProblem';
 import { ProductionList, type ProductionItem } from './HomeProduction';
 import { SiteAcquire, type SiteOffer } from './SiteAcquire';
 import { SiteProduction } from './SiteProduction';
+import { SiteRestart } from './SiteRestart';
 import { HouseNav } from '../HouseNav';
 import { ScreenHeader } from '../ScreenHeader';
 import { SiteSteward } from './SiteSteward';
@@ -987,18 +988,13 @@ export function SitesCard({
                   </p>
                   {/* Sans les règles, le prix est inconnu : pas de bouton qui annoncerait « 0 obole ». */}
                   {restartCost !== null && (
-                    <Button
-                      variant="secondary"
-                      className={WAITING}
-                      aria-disabled={busy}
-                      aria-label={t('home.restartSite', {
-                        site: name,
-                        cost: money(restartCost),
-                      })}
-                      onClick={() => void restart(site, restartCost)}
-                    >
-                      {t('home.restart', { cost: money(restartCost) })}
-                    </Button>
+                    <SiteRestart
+                      siteName={name}
+                      cost={restartCost}
+                      upkeep={upkeep ?? 0}
+                      busy={busy}
+                      onConfirm={() => void restart(site, restartCost)}
+                    />
                   )}
                 </div>
               )}

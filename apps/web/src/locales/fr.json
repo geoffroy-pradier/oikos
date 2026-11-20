@@ -1279,6 +1279,14 @@
       "fromTo": "{{before}} → {{after}}",
       "note": "Un nouveau cycle commence. Récoltez d'abord ce qui est prêt : sinon, le changement est refusé.",
       "confirm": "Changer la production"
+    },
+    "restart": {
+      "title": "Relancer : {{site}}",
+      "description": "Le site repart là où son cycle s'était arrêté. Ce prix est celui d'un jour, payé maintenant ; la clôture suivante prélèvera de nouveau l'entretien et les salaires.",
+      "upkeep": "Entretien d'un jour",
+      "wages": "Salaires et hébergement d'un jour",
+      "total": "À payer maintenant",
+      "confirm": "Relancer pour {{cost}}"
     }
   },
   "steps": {
