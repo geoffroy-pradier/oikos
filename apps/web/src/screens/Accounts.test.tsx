@@ -82,6 +82,28 @@ describe('écran Comptes (#694)', () => {
     ]);
   });
 
+  it('compte de résultat en tableau : la journée la plus récente d’abord, à sa date civile', async () => {
+    const day = (gameDay: number, grants: number) => ({
+      game_day: gameDay,
+      ...{ sales: 0, purchases: 0, taxes: 0, upkeep: 0, operating_result: 0 },
+      ...{ acquisitions: 0, grants, other: 0, non_operating: grants },
+      ...{ cash_change: grants, escrow_change: 0 },
+    });
+    state.views = {
+      my_balance_sheet: [{ treasury: 3000, escrow: 0, stock_value: 0, unpriced_stocks: 0 }],
+      my_income_statement: [day(20_772, 6), day(20_773, 3000)],
+    };
+    await show();
+    const table = within(screen.getByRole('table', { name: fr.accounts.income.title }));
+    expect(table.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual([
+      '16 nov. 2026',
+      '15 nov. 2026',
+    ]);
+    const latest = within(table.getByRole('row', { name: /^16 nov/ })).getAllByRole('cell');
+    expect(latest).toHaveLength(11);
+    expect(latest[6]?.textContent).toBe('500 drachmes');
+  });
+
   it('bilan illisible : annoncé et réessayé, jamais montré comme un bilan nul', async () => {
     state.views = { my_balance_sheet: [] };
     await show();

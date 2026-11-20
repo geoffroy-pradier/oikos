@@ -77,27 +77,6 @@ export function parseValuedStocks(raw: unknown): ValuedStock[] | null {
   return stocks.some((stock) => Number.isNaN(stock.pricedAt)) ? null : stocks;
 }
 
-/**
- * Tri d'un tableau de comptes, sans toucher aux lignes reçues : nombres par valeur, textes dans l'ordre
- * de la langue. Une valeur absente (`null`) reste à la fin dans les deux sens ; à valeur égale, l'ordre
- * reçu est gardé.
- */
-export function sortRows<T>(
-  rows: readonly T[],
-  key: (row: T) => number | string | null,
-  descending: boolean,
-  language: string,
-): T[] {
-  const collator = new Intl.Collator(language);
-  return [...rows].sort((a, b) => {
-    const [x, y] = [key(a), key(b)];
-    if (x === null || y === null) return Number(x === null) - Number(y === null);
-    const order =
-      typeof x === 'number' && typeof y === 'number' ? x - y : collator.compare(`${x}`, `${y}`);
-    return descending ? -order : order;
-  });
-}
-
 /** Colonnes de montants du compte de résultat, nommées comme dans ses vues (4.1), en oboles. */
 const OPERATING = ['sales', 'purchases', 'taxes', 'upkeep', 'operating_result'] as const;
 const NON_OPERATING = ['acquisitions', 'grants', 'other', 'non_operating'] as const;
