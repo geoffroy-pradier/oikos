@@ -1279,6 +1279,14 @@
       "fromTo": "{{before}} → {{after}}",
       "note": "A new cycle starts. Harvest what is ready first: otherwise the change is refused.",
       "confirm": "Change production"
+    },
+    "restart": {
+      "title": "Restart: {{site}}",
+      "description": "The site resumes where its cycle stopped. This is one day's price, paid now; the next daily close takes upkeep and wages again.",
+      "upkeep": "One day's upkeep",
+      "wages": "One day's wages and lodging",
+      "total": "To pay now",
+      "confirm": "Restart for {{cost}}"
     }
   },
   "steps": {

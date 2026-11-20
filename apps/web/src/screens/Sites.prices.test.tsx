@@ -120,6 +120,13 @@ function acquireThrough(recipe?: RegExp) {
   fireEvent.click(within(sheet).getByRole('button', { name: /^Acquérir pour / }));
 }
 
+/** Ouvre la feuille de relance par `button`, puis confirme au prix vu. */
+function restartThrough(button: HTMLElement) {
+  fireEvent.click(button);
+  const sheet = screen.getByRole('dialog');
+  fireEvent.click(within(sheet).getByRole('button', { name: /^Relancer pour / }));
+}
+
 describe('prix envoyés par la carte des sites', () => {
   it('relance avec des salaires : le prix envoyé est l’entretien plus les salaires du site dans sa cité', async () => {
     // Champ : 30 d'entretien, 4 travailleurs à 5 oboles à Kallistè ; ailleurs, aucun salaire.
@@ -130,7 +137,7 @@ describe('prix envoyés par la carte des sites', () => {
       data: { siteId: 's1', upkeepOboles: 30, wagesOboles: 20, cycleStartedAt: halted.halted_at },
     });
     await show();
-    fireEvent.click(
+    restartThrough(
       await screen.findByRole('button', { name: /^Relancer : .*8 drachmes 2 oboles/ }),
     );
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
@@ -148,7 +155,7 @@ describe('prix envoyés par la carte des sites', () => {
       data: { siteId: 's1', upkeepOboles: 30, wagesOboles: 28, cycleStartedAt: halted.halted_at },
     });
     await show();
-    fireEvent.click(
+    restartThrough(
       await screen.findByRole('button', { name: /^Relancer : .*10 drachmes 4 oboles/ }),
     );
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
@@ -185,7 +192,7 @@ describe('prix envoyés par la carte des sites', () => {
     api.restartSite.mockResolvedValue(LOST);
     await show();
     const restart = () => screen.getByRole('button', { name: /^Relancer : / });
-    fireEvent.click(await screen.findByRole('button', { name: /^Relancer : .*5 drachmes/ }));
+    restartThrough(await screen.findByRole('button', { name: /^Relancer : .*5 drachmes/ }));
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(1));
     // Le tarif relu passe à 36 oboles (écran rouvert) : le bouton l'affiche, mais la clé en attente
     // repart à 30.
@@ -193,10 +200,10 @@ describe('prix envoyés par la carte des sites', () => {
     cleanup();
     await show();
     await screen.findByRole('button', { name: /^Relancer : .*6 drachmes/ });
-    fireEvent.click(restart());
+    restartThrough(restart());
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getAllByText(fr.errors.PRICE_CHANGED)).not.toHaveLength(0));
-    fireEvent.click(restart());
+    restartThrough(restart());
     await waitFor(() => expect(api.restartSite).toHaveBeenCalledTimes(3));
     const [first, second, third] = sends(api.restartSite);
     expect([first?.price, second?.price, third?.price]).toEqual([30, 30, 36]);

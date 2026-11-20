@@ -212,8 +212,13 @@ test('site à l’arrêt : annoncé avec son entretien, « à récolter » born�
   // quittent la trésorerie, le site repart.
   const restart = page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' });
   await expect(restart).toHaveText('Relancer (9 drachmes)');
-  await restart.focus();
-  await page.keyboard.press('Enter');
+  await restart.press('Enter');
+  // La feuille détaille le prix d'un jour ; la relance part au clavier, au prix vu.
+  const sheet = page.getByRole('dialog', { name: 'Relancer : Champ de blé' });
+  await expect(sheet.getByText('À payer maintenant').locator('..')).toHaveText(
+    'À payer maintenant9 drachmes',
+  );
+  await sheet.getByRole('button', { name: 'Relancer pour 9 drachmes' }).press('Enter');
   await expect(said(page, 'status')).toContainText(
     "Site relancé : Champ de blé, pour 9 drachmes d'entretien et de salaires.",
   );
@@ -315,6 +320,7 @@ test('arrêt prononcé pendant que la fiche est ouverte : annoncé au retour sur
   ).toBeVisible();
   // Relancé au prix affiché : l'API reçoit ce prix et le prélève.
   await page.getByRole('button', { name: 'Relancer : Champ de blé, pour 9 drachmes' }).click();
+  await page.getByRole('button', { name: 'Relancer pour 9 drachmes' }).click();
   await expect(said(page, 'status')).toContainText(
     "Site relancé : Champ de blé, pour 9 drachmes d'entretien et de salaires.",
   );

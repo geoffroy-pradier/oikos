@@ -295,6 +295,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     await page
       .getByRole('button', { name: `Relancer : Champ de blé, pour ${money(upkeep + wages)}` })
       .click();
+    await page.getByRole('button', { name: `Relancer pour ${money(upkeep + wages)}` }).click();
     await expect(said(page, 'status', 'Site relancé')).toContainText(
       `Site relancé : Champ de blé, pour ${money(upkeep + wages)} d'entretien et de salaires.`,
     );
