@@ -1,5 +1,5 @@
 import { gameDayDate } from '@oikos/sim';
-import { Card, ScrollText } from '@oikos/ui';
+import { Card, ChevronRight, EmptyState, ScrollText, Sparkles } from '@oikos/ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { chronicleParagraphs, parseChronicle, type ChronicleArticle } from '../chronicle';
@@ -36,44 +36,59 @@ export function CityChronicle() {
         <p key={index}>{paragraph}</p>
       ))}
       {article.source === 'ai' && (
-        <p className="text-sm text-muted-foreground">{t('chronicle.aiNote')}</p>
+        <p className="flex items-start gap-2 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+          <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {t('chronicle.aiNote')}
+        </p>
       )}
     </>
   );
 
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 ref={title} tabIndex={-1} className="text-xl">
-        <ScrollText aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+    <section className="flex flex-col gap-4">
+      <h2
+        ref={title}
+        tabIndex={-1}
+        className="flex items-center gap-2 text-lg font-semibold [&_svg]:size-5 [&_svg]:text-accent"
+      >
+        <ScrollText aria-hidden="true" />
         {t('chronicle.title')}
       </h2>
       {read.rows === null && !read.failed && <Loading />}
       {(read.failed || (read.rows !== null && articles === null)) && (
         <LoadProblem heading={title} onRetry={() => read.reload()} />
       )}
-      {articles?.length === 0 && <p className="text-muted-foreground">{t('chronicle.none')}</p>}
+      {articles?.length === 0 && <EmptyState icon={<ScrollText />} title={t('chronicle.none')} />}
       {latest && (
-        <article className="flex flex-col gap-2 rounded-lg bg-muted/50 p-3 break-words">
-          <h3 className="font-semibold">{heading(latest)}</h3>
-          {body(latest)}
-        </article>
+        <Card elevation="raised" className="flex flex-col gap-3 break-words sm:p-6">
+          <article className="flex max-w-prose flex-col gap-3 leading-relaxed">
+            <h3 className="text-lg font-semibold">{heading(latest)}</h3>
+            {body(latest)}
+          </article>
+        </Card>
       )}
       {earlier.length > 0 && (
-        <section className="flex flex-col gap-2 border-t border-border-subtle pt-3">
-          <h3 className="font-semibold">{t('chronicle.earlier')}</h3>
+        <div className="flex flex-col gap-2">
+          <h3 className="eyebrow">{t('chronicle.earlier')}</h3>
           {earlier.map((article) => (
             <details
               key={article.id}
-              className="rounded-lg border border-border-subtle px-3 py-1 break-words"
+              className="group rounded-xl border border-border-subtle bg-surface px-4 break-words"
             >
-              <summary className="min-h-11 cursor-pointer py-2.5 font-medium">
+              <summary className="flex min-h-11 cursor-pointer items-center gap-2 py-2.5 font-medium hover:text-primary">
+                <ChevronRight
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-(--motion-fast) group-open:rotate-90"
+                />
                 {heading(article)}
               </summary>
-              <div className="flex flex-col gap-2 pt-2">{body(article)}</div>
+              <div className="flex max-w-prose flex-col gap-2 pb-4 leading-relaxed">
+                {body(article)}
+              </div>
             </details>
           ))}
-        </section>
+        </div>
       )}
-    </Card>
+    </section>
   );
 }

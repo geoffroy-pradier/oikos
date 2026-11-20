@@ -162,6 +162,8 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Dans la carte de l'élection, la candidature et le bulletin sont des cartes d'action : le bulletin a un bouton par candidature, qui nomme la maison.
    L'archonte propose un décret dans une feuille par étapes, ouverte par « Nouveau décret » sous les règles du vote : le modèle (une carte par modèle ouvert, décrite), ses paramètres aux bornes annoncées, puis un récapitulatif chiffré confirmé par « Proposer au vote ».
    Continuer reste inactif tant qu'un paramètre sort des bornes ; Retour garde la saisie ; un refus de l'API se dit au récapitulatif, la feuille ouverte ; proposé, le décret ferme la feuille et le résultat prend le foyer sous le bouton.
+   Chaque décret est une carte, illustrée par le pictogramme de son modèle : au vote, ses boutons Pour et Contre y sont ; dépouillé, son décompte est doublé d'une barre (pour, contre, sur les citoyens).
+   Les événements en cours sont des cartes, un pictogramme par événement ; la chronique du jour est une carte de lecture, les précédentes des volets repliés ; une liste vide le dit dans un état vide.
    Une citoyenne se porte candidate ou se retire pendant le dépôt, et vote pour une candidature pendant le vote ; votée, elle lit seulement qu'elle a voté.
    Elle vote un décret pour ou contre en deux touches (Tab puis Entrée), chaque bouton nommant le décret ; l'archonte en charge propose un décret d'un modèle ouvert, chaque paramètre avec ses bornes annoncées d'après `decree_rules`, et rien ne part hors des bornes.
    Chaque paramètre est jugé par le schéma borné de `@oikos/contracts`, le même que l'API, et le message tombe sous le champ fautif ; les bornes s'affichent au format de la langue (séparateur des milliers).
