@@ -58,9 +58,12 @@ export function FieldFrame({
   label,
   hint,
   error,
+  quiet = false,
   polite = false,
   children,
 }: FieldTextProps & {
+  /** Champ qui n'a jamais d'erreur (langue dans l'en-tête) : pas de région vivante vide à côté. */
+  quiet?: boolean | undefined;
   ids: ReturnType<typeof useFieldIds>;
   polite?: boolean;
   children: ReactNode;
@@ -77,14 +80,16 @@ export function FieldFrame({
         </p>
       )}
       {/* L'erreur n'est jamais portée par la couleur seule : texte explicite, annoncé. */}
-      <p
-        id={ids.errorId}
-        role={polite ? undefined : 'alert'}
-        aria-live={polite ? 'polite' : undefined}
-        className={cn('text-sm font-semibold text-danger', error ? 'mt-1.5' : undefined)}
-      >
-        {error}
-      </p>
+      {!quiet && (
+        <p
+          id={ids.errorId}
+          role={polite ? undefined : 'alert'}
+          aria-live={polite ? 'polite' : undefined}
+          className={cn('text-sm font-semibold text-danger', error ? 'mt-1.5' : undefined)}
+        >
+          {error}
+        </p>
+      )}
     </div>
   );
 }

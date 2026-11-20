@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { blazonSchema } from '@oikos/contracts';
-import { Button, Card, cn, EmptyState, Landmark, Skeleton, TriangleAlert } from '@oikos/ui';
+import { Button, Card, cn, EmptyState, House, Skeleton, TriangleAlert } from '@oikos/ui';
 import { RouterProvider } from '@tanstack/react-router';
 import { HouseProvider } from './house';
 import { LanguageSelect } from './LanguageSelect';
@@ -147,8 +147,13 @@ export function App() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="flex flex-wrap items-center justify-between gap-2 p-4">
-        <p className="flex items-center gap-2 text-3xl font-semibold text-primary">
-          <Landmark aria-hidden="true" className="size-7" />
+        <p className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+          <span
+            aria-hidden="true"
+            className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground"
+          >
+            <House className="size-5" strokeWidth={2} />
+          </span>
           {t('app.title')}
         </p>
         <div className="flex items-center gap-2">

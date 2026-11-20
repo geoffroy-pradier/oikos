@@ -3,13 +3,25 @@ import type { ComponentProps } from 'react';
 import { cn } from '../cn';
 import { CONTROL, FieldFrame, useFieldIds, type FieldTextProps } from './field-parts';
 
-export interface SelectProps extends ComponentProps<'select'>, FieldTextProps {}
+export interface SelectProps extends ComponentProps<'select'>, FieldTextProps {
+  /** Sans région d'erreur : pour un choix qui n'en a jamais (langue de l'en-tête). */
+  quiet?: boolean | undefined;
+}
 
 /** Liste de choix native (clavier et lecteurs d'écran du système), habillée comme les champs. */
-export function Select({ label, hint, error, className, id, children, ...props }: SelectProps) {
+export function Select({
+  label,
+  hint,
+  error,
+  quiet,
+  className,
+  id,
+  children,
+  ...props
+}: SelectProps) {
   const ids = useFieldIds({ hint, error }, id, props['aria-describedby']);
   return (
-    <FieldFrame ids={ids} label={label} hint={hint} error={error}>
+    <FieldFrame ids={ids} label={label} hint={hint} error={error} quiet={quiet}>
       <div className="relative">
         <select
           {...props}

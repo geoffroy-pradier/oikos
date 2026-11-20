@@ -28,18 +28,14 @@ export function LanguageSelect({ field = false }: { field?: boolean }) {
     );
   }
   return (
-    <>
-      <label htmlFor="language" className="sr-only">
-        {t('app.language')}
-      </label>
-      <select
-        id="language"
-        className="min-h-11 rounded-md border border-border bg-surface px-2"
-        value={i18n.language}
-        onChange={choose}
-      >
-        {options}
-      </select>
-    </>
+    <Select
+      label={<span className="sr-only">{t('app.language')}</span>}
+      quiet
+      className="min-h-10 w-auto"
+      value={i18n.language}
+      onChange={choose}
+    >
+      {options}
+    </Select>
   );
 }
