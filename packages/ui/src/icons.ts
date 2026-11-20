@@ -50,6 +50,7 @@ export {
   Sparkles,
   Store,
   Sun,
+  TrendingDown,
   TrendingUp,
   TriangleAlert,
   Users,

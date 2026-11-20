@@ -73,6 +73,7 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, number])[] = [
   ['muted-foreground', 'primary-subtle', AA_TEXT],
   ['foreground-secondary', 'primary-subtle', AA_TEXT],
   ['accent', 'accent-subtle', AA_TEXT],
+  ['foreground', 'accent-subtle', AA_TEXT],
   // Survol d'un onglet de la barre latérale (`Shell`) : texte accentué sur `muted`.
   ['primary', 'muted', AA_TEXT],
   ['accent', 'muted', AA_TEXT],
