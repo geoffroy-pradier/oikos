@@ -261,9 +261,12 @@ it('un refus de l’API est expliqué et le foyer revient au bouton du geste', a
       "Un autre compte que l'auteur et que le compte concerné doit le faire.",
     ),
   );
-  // Le bouton du geste, dans l'entrée qui l'a porté, reprend le foyer.
-  expect(document.activeElement).toBe(
-    within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }),
+  // Le bouton du geste, dans l'entrée qui l'a porté, reprend le foyer. Il le reprend par un effet passif, après la
+  // fermeture de la feuille : l'avis peut paraître un instant avant.
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      within(entryOf('Alpha')).getByRole('button', { name: 'Classer sans suite' }),
+    ),
   );
 });
 
