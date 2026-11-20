@@ -211,7 +211,6 @@
     "offered": "Quantité offerte",
     "bookEmpty": "Aucune vente en attente.",
     "place": "Déposer un ordre : {{good}}",
-    "side": "Sens",
     "sell": "Vendre",
     "buy": "Acheter",
     "limitPrice": "Prix limite par unité (oboles)",

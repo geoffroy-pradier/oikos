@@ -1,15 +1,16 @@
-import { marketPlaceOrderInputSchema } from '@oikos/contracts';
-import { Badge, Button, Card, CircleAlert, Info, Scale, Store } from '@oikos/ui';
-import { useRef, useState, type FormEvent } from 'react';
+import type { MarketPlaceOrderInput } from '@oikos/contracts';
+import { Badge, Button, Card, Scale, StatusRegion, Store } from '@oikos/ui';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
 import { useRows } from '../data';
 import { LoadProblem, Loading } from './LoadProblem';
 import { useHouse } from '../house';
-import { cityMarketTax, parseMarketTax, previewSale } from '../market-rules';
+import { cityMarketTax, parseMarketTax } from '../market-rules';
 import { orderNotice } from '../order-notice';
 import fr from '../locales/fr.json';
 import { parseCandleSeconds } from '../price-history';
+import { AgoraOrderSheet, type Side } from './AgoraOrderSheet';
 import { PriceHistory } from './PriceHistory';
 import { useMoney } from '../money';
 
@@ -31,6 +32,12 @@ interface Level {
   price: number;
   quantity: number;
 }
+interface Stock {
+  city_id: string;
+  good_id: string;
+  quantity: number;
+  reserved: number;
+}
 interface Order {
   id: string;
   side: 'buy' | 'sell';
@@ -39,7 +46,8 @@ interface Order {
   quantity: number;
   remaining: number;
 }
-type Notice = { kind: 'status' | 'alert'; text: string } | null;
+/** Résultat annoncé, près du dépôt (`place`) ou de la liste des ordres (`cancel`). */
+type Notice = { where: 'place' | 'cancel'; kind: 'status' | 'alert'; text: string } | null;
 
 /** Onglet Agora : carnet d'ordres agrégé (ventes et achats), dépôt d'un ordre à cours limité, ordres en attente de la maison. */
 export function AgoraScreen() {
@@ -47,12 +55,12 @@ export function AgoraScreen() {
   const house = useHouse();
   const [goodId, setGoodId] = useState(DEFAULT_GOOD);
   // Cités où la maison a un stock ou un site (lectures existantes) ; sa cité d'origine d'abord et par défaut.
-  const stockCities = useRows<{ city_id: string }>('my_inventories', 'city_id', 'city_id');
+  const stock = useRows<Stock>('my_inventories', 'city_id, good_id, quantity, reserved', 'city_id');
   const siteCities = useRows<{ city_id: string }>('my_sites', 'city_id', 'id');
   const cityIds = [
     house.cityId,
     ...new Set(
-      [...(stockCities.rows ?? []), ...(siteCities.rows ?? [])]
+      [...(stock.rows ?? []), ...(siteCities.rows ?? [])]
         .map((row) => row.city_id)
         .filter((id) => id !== house.cityId),
     ),
@@ -99,9 +107,28 @@ export function AgoraScreen() {
       : null;
   // Durée des chandeliers en vigueur : elle désigne la série de prix à afficher.
   const candleSeconds = rules.rows ? parseCandleSeconds(rules.rows[0] ?? null) : null;
-  const [side, setSide] = useState<'sell' | 'buy'>('sell');
-  const [price, setPrice] = useState('');
-  const [quantity, setQuantity] = useState('');
+  const freeOf = (rows: readonly Stock[]) =>
+    rows
+      .filter((row) => row.city_id === cityId && row.good_id === goodId)
+      .reduce((sum, row) => sum + row.quantity - row.reserved, 0);
+  const treasury = useRows<{ balance: number }>('my_treasury', 'balance', 'house_id');
+  // Sens de l'ordre en cours de saisie dans la feuille ; `null` : feuille fermée.
+  const [side, setSide] = useState<Side | null>(null);
+  // Bornes de la feuille : stock libre et trésorerie relus à son ouverture. Seule cette lecture borne la
+  // saisie et fonde un refus ici ; en cours ou en échec, `null` : l'API juge seule.
+  const [bounds, setBounds] = useState<{ free: number | null; cash: number | null } | null>(null);
+  const opening = useRef(0);
+  async function openSheet(choice: Side) {
+    const round = ++opening.current;
+    setBounds(null);
+    setSide(choice);
+    const [stockRows, cashRows] = await Promise.all([stock.reload(), treasury.reload()]);
+    if (round !== opening.current) return;
+    setBounds({
+      free: stockRows ? freeOf(stockRows) : null,
+      cash: cashRows?.[0]?.balance ?? null,
+    });
+  }
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   // Intentions en attente de réponse, chacune avec sa clé : la même saisie renvoyée après une panne
@@ -110,6 +137,12 @@ export function AgoraScreen() {
   const pending = useRef(new Map<string, string>());
   // Titre du carnet : le foyer y va après une relecture réussie.
   const bookTitle = useRef<HTMLHeadingElement>(null);
+  // Régions où paraît le résultat d'un dépôt (la feuille fermée) ou d'une annulation (le bouton disparu).
+  const placed = useRef<HTMLDivElement>(null);
+  const cancelled = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice?.kind === 'status') (notice.where === 'place' ? placed : cancelled).current?.focus();
+  }, [notice]);
   const keyFor = (intent: string) => {
     const known = pending.current.get(intent);
     if (known) return known;
@@ -121,48 +154,47 @@ export function AgoraScreen() {
   const number = new Intl.NumberFormat(i18n.language);
   const money = useMoney();
   const good = t(`goods.${goodId}`);
-  const preview = previewSale(tax, side, price, quantity);
+  const reloadAll = () =>
+    Promise.all([
+      book.reload(),
+      mine.reload(),
+      rules.reload(),
+      cityRate.reload(),
+      stock.reload(),
+      treasury.reload(),
+    ]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    // Entiers écrits en chiffres seulement : `Number` accepterait aussi « 1e3 » ou « 0x10 ».
-    const digits = /^\d+$/;
-    const input = marketPlaceOrderInputSchema.safeParse({
-      cityId,
-      goodId,
-      side,
-      price: Number(price.trim()),
-      quantity: Number(quantity.trim()),
-    });
-    if (!input.success || !digits.test(price.trim()) || !digits.test(quantity.trim()))
-      return setNotice({ kind: 'alert', text: t('errors.VALIDATION_FAILED') });
+  /** Dépose l'ordre saisi dans la feuille : rend le message d'un refus, ou `null` une fois annoncé. */
+  async function place(input: MarketPlaceOrderInput): Promise<string | null> {
     setBusy(true);
     setNotice(null);
-    const intent = `place:${JSON.stringify(input.data)}`;
-    const result = await placeOrder(input.data, house.accessToken, keyFor(intent));
+    const intent = `place:${JSON.stringify(input)}`;
+    const result = await placeOrder(input, house.accessToken, keyFor(intent));
     // Sans réponse de l'API (`INTERNAL`), l'intention reste en attente : son issue est inconnue.
     if (result.ok || result.error.code !== 'INTERNAL') pending.current.delete(intent);
-    let next: Notice;
     if (!result.ok) {
-      next = { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
-    } else {
-      const outcome = orderNotice(input.data, result.data, tax);
-      next = {
-        kind: 'status',
-        text: t(`agora.${outcome.key}`, {
-          good,
-          price: money(input.data.price),
-          quantity: number.format(outcome.quantity),
-          wanted: number.format(outcome.wanted),
-          amount: money(outcome.amount),
-          held: money(outcome.held),
-        }),
-      };
+      await reloadAll();
+      setBusy(false);
+      return t([`errors.${result.error.code}`, 'errors.INTERNAL']);
     }
-    // Carnet relu avant d'annoncer le résultat : quand le message paraît, le formulaire est de nouveau prêt.
-    await Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()]);
-    setNotice(next);
+    const outcome = orderNotice(input, result.data, tax);
+    // Carnet relu avant d'annoncer le résultat : quand le message paraît, l'écran est de nouveau prêt.
+    await reloadAll();
+    setNotice({
+      where: 'place',
+      kind: 'status',
+      text: t(`agora.${outcome.key}`, {
+        good,
+        price: money(input.price),
+        quantity: number.format(outcome.quantity),
+        wanted: number.format(outcome.wanted),
+        amount: money(outcome.amount),
+        held: money(outcome.held),
+      }),
+    });
+    setSide(null);
     setBusy(false);
+    return null;
   }
 
   async function cancel(order: Order) {
@@ -173,6 +205,7 @@ export function AgoraScreen() {
     if (result.ok || result.error.code !== 'INTERNAL') pending.current.delete(intent);
     const next: Notice = result.ok
       ? {
+          where: 'cancel',
           kind: 'status',
           text: t(order.side === 'buy' ? 'agora.cancelledBuy' : 'agora.cancelled', {
             quantity: number.format(result.data.released),
@@ -181,8 +214,12 @@ export function AgoraScreen() {
             amount: money(order.price * result.data.released),
           }),
         }
-      : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) };
-    await Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()]);
+      : {
+          where: 'cancel',
+          kind: 'alert',
+          text: t([`errors.${result.error.code}`, 'errors.INTERNAL']),
+        };
+    await reloadAll();
     setNotice(next);
     setBusy(false);
   }
@@ -247,13 +284,10 @@ export function AgoraScreen() {
         mine.failed ||
         rules.failed ||
         cityRate.failed ||
+        stock.failed ||
+        treasury.failed ||
         (rules.rows && cityRate.rows && !(tax && candleSeconds))) && (
-        <LoadProblem
-          heading={bookTitle}
-          onRetry={() =>
-            Promise.all([book.reload(), mine.reload(), rules.reload(), cityRate.reload()])
-          }
-        />
+        <LoadProblem heading={bookTitle} onRetry={reloadAll} />
       )}
 
       {candleSeconds && (
@@ -325,97 +359,40 @@ export function AgoraScreen() {
         )}
       </Card>
 
-      <Card>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-3">
-          <h2 className="text-xl">
-            <Scale aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
-            {t('agora.place', { good })}
-          </h2>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="side" className={LABEL}>
-              {t('agora.side')}
-            </label>
-            <select
-              className={CONTROL}
-              id="side"
-              value={side}
-              onChange={(event) => setSide(event.target.value === 'buy' ? 'buy' : 'sell')}
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-xl">
+          <Scale aria-hidden="true" className="mr-2 inline size-5 align-[-0.15em] text-accent" />
+          {t('agora.place', { good })}
+        </h2>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          {(['sell', 'buy'] as const).map((choice) => (
+            <Button
+              key={choice}
+              size="lg"
+              variant={choice === 'sell' ? 'primary' : 'secondary'}
+              disabled={busy}
+              onClick={() => void openSheet(choice)}
             >
-              <option value="sell">{t('agora.sell')}</option>
-              <option value="buy">{t('agora.buy')}</option>
-            </select>
-          </div>
-          {/* min-w-0 : à police très agrandie, les champs rétrécissent avec la page au lieu de la déborder. */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor="price" className={LABEL}>
-                {t('agora.limitPrice')}
-              </label>
-              <input
-                className={CONTROL}
-                id="price"
-                inputMode="numeric"
-                value={price}
-                aria-describedby="expected-net"
-                onChange={(event) => setPrice(event.target.value)}
-              />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor="quantity" className={LABEL}>
-                {t('agora.quantity')}
-              </label>
-              <input
-                className={CONTROL}
-                id="quantity"
-                inputMode="numeric"
-                value={quantity}
-                aria-describedby="expected-net"
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </div>
-          </div>
-          {/* Description des deux champs et du bouton : lue en y arrivant, pas annoncée à chaque frappe. */}
-          <p
-            id="expected-net"
-            className="rounded-md bg-aegean-subtle p-2 text-sm text-foreground empty:hidden"
-          >
-            {preview &&
-              t('agora.expectedNet', {
-                net: money(preview.net),
-                gross: money(preview.gross),
-                tax: money(preview.tax),
-              })}
-          </p>
-          <Button
-            type="submit"
-            disabled={busy}
-            aria-describedby="expected-net"
-            className="w-full sm:w-auto sm:self-start"
-          >
-            {t('agora.submit')}
-          </Button>
-        </form>
-      </Card>
-
-      {/* Toujours présent : un lecteur d'écran annonce le résultat dès qu'il apparaît. Vide, il est masqué
-          visuellement (sr-only) mais reste dans l'arbre d'accessibilité, jamais en display:none. */}
-      <p
-        role={notice?.kind ?? 'status'}
-        className={
-          'flex items-start gap-2 rounded-lg p-3 empty:sr-only ' +
-          (notice?.kind === 'alert'
-            ? 'bg-danger-subtle font-semibold text-danger'
-            : 'bg-success-subtle text-foreground')
-        }
-      >
-        {notice &&
-          (notice.kind === 'alert' ? (
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          ) : (
-            <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+              {t(`agora.${choice}`)}
+            </Button>
           ))}
-        {notice?.text}
-      </p>
+        </div>
+        <Notices notice={notice} where="place" status={placed} />
+      </Card>
+      <AgoraOrderSheet
+        // Saisie propre à un marché : un autre bien ou une autre cité repart d'une feuille vide.
+        key={`${cityId}:${goodId}`}
+        side={side}
+        onClose={() => setSide(null)}
+        cityId={cityId}
+        cityName={cityName}
+        goodId={goodId}
+        tax={tax}
+        free={bounds?.free ?? null}
+        cash={bounds?.cash ?? null}
+        best={(side === 'sell' ? bids : asks)?.[0] ?? null}
+        onPlace={place}
+      />
 
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl">{t('agora.myOrders')}</h2>
@@ -461,7 +438,27 @@ export function AgoraScreen() {
             );
           })}
         </ul>
+        <Notices notice={notice} where="cancel" status={cancelled} />
       </Card>
     </div>
+  );
+}
+
+/** Régions vivantes d'un endroit, présentes avant tout résultat : succès poli, refus en alerte. */
+function Notices(props: {
+  notice: Notice;
+  where: 'place' | 'cancel';
+  status: RefObject<HTMLDivElement | null>;
+}) {
+  const here = props.notice?.where === props.where ? props.notice : null;
+  return (
+    <>
+      <StatusRegion ref={props.status} tone="success">
+        {here?.kind === 'status' && here.text}
+      </StatusRegion>
+      <StatusRegion role="alert" tone="danger">
+        {here?.kind === 'alert' && here.text}
+      </StatusRegion>
+    </>
   );
 }

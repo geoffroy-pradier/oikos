@@ -7,7 +7,7 @@ import { HouseProvider } from '../house';
 import fr from '../locales/fr.json';
 
 const state = vi.hoisted(() => ({
-  stock: [] as { city_id: string }[],
+  stock: [] as { city_id: string; good_id?: string; quantity?: number; reserved?: number }[],
   sites: [] as { city_id: string }[],
   reads: [] as { view: string; filters: Record<string, unknown> }[],
 }));
@@ -91,7 +91,7 @@ describe('choix de la cité de l’agora', () => {
   });
 
   it('carnet, historique et ordres suivent la cité choisie, et l’ordre part avec elle', async () => {
-    state.stock = [{ city_id: ELAIA }];
+    state.stock = [{ city_id: ELAIA, good_id: 'wheat', quantity: 40, reserved: 0 }];
     api.placeOrder.mockResolvedValue({
       ok: false,
       error: { code: 'INSUFFICIENT_STOCK', message: 'x' },
@@ -104,12 +104,15 @@ describe('choix de la cité de l’agora', () => {
     expect(state.reads.filter((read) => read.view === 'my_orders').at(-1)?.filters).toMatchObject({
       city_id: ELAIA,
     });
+    // L'ordre se saisit dans la feuille de vente : quantité et prix, puis le récapitulatif.
+    fireEvent.click(screen.getByRole('button', { name: 'Vendre' }));
     fireEvent.change(screen.getByLabelText('Prix limite par unité (oboles)'), {
       target: { value: '20' },
     });
     fireEvent.change(screen.getByLabelText('Quantité', { exact: true }), {
       target: { value: '30' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.click(screen.getByRole('button', { name: "Déposer l'ordre" }));
     await waitFor(() => expect(api.placeOrder).toHaveBeenCalled());
     expect(api.placeOrder.mock.calls[0]?.[0]).toMatchObject({
