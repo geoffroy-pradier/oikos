@@ -26,7 +26,8 @@ begin
 end $$;
 
 -- Garde des charges (migration 71), plus l'ostracisme. Une charge ne change que pour être quittée, une fois,
--- maintenant, pendant son mandat, par une maison qu'un dépouillement de sa cité ostracise dans la transaction.
+-- maintenant, pendant son mandat, par une maison qu'un dépouillement de sa cité ostracise dans la transaction, et
+-- dont l'ostracisme court encore (une clôture rattrapée peut l'écrire déjà fini).
 -- À sa création, l'élu est la candidature maintenue qui a le plus de bulletins, la plus ancienne à égalité,
 -- parmi celles des maisons qui ne sont pas ostracisées à cet instant.
 create or replace function game.guard_office() returns trigger
@@ -42,7 +43,8 @@ begin
        is distinct from (old.id, old.world_id, old.city_id, old.office, old.house_id, old.election_id, old.starts_at, old.ends_at)
        or old.vacated_at is not null or new.vacated_at is distinct from now()
        or not exists (select 1 from game.ostracisms o
-                      where o.city_id = old.city_id and o.ostracized_house_id = old.house_id and o.tallied_at = now()) then
+                      where o.city_id = old.city_id and o.ostracized_house_id = old.house_id and o.tallied_at = now()
+                        and now() < o.ends_at) then
       raise exception 'an office is final, but for its vacancy by the ostracism of its holder, now'
         using errcode = 'restrict_violation';
     end if;
