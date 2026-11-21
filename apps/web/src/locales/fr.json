@@ -1630,6 +1630,27 @@
       "recapCharisNoGod": "Charis gagnée",
       "recapNote": "Le montant est prélevé sur votre trésorerie, en une seule écriture.",
       "confirm": "Payer {{total}}"
-    }
+    },
+    "title": "Liturgie",
+    "back": "Retour à la cité",
+    "intro": "Chaque saison, la cité confie une dépense publique à quelques maisons. L'accomplir avec faste rapporte de la Timè et de la Charis ; s'y dérober coûte de la Timè.",
+    "empty": {
+      "title": "Votre liturgie",
+      "text": "Aucune liturgie n'est confiée à votre maison. Elles sont désignées à la première clôture de chaque saison."
+    },
+    "state": {
+      "label": "État",
+      "assigned": "À accomplir",
+      "overdue": "Échue",
+      "performed": "Accomplie",
+      "levied": "Prélevée d'office"
+    },
+    "notes": {
+      "assigned": "Accomplissez votre liturgie avant l'échéance : le dû est payé sur votre trésorerie, et le faste que vous y ajoutez accroît ce que vous gagnez.",
+      "overdue": "L'échéance est passée : la liturgie sera prélevée d'office à la prochaine clôture, sans gain et avec une perte de Timè de {{loss}}.",
+      "performed": "Vous avez accompli cette liturgie. Timè gagnée : {{honor}}.",
+      "levied": "Prélevée d'office : la liturgie n'a pas été accomplie avant l'échéance. Le dû a été pris sur votre trésorerie, sans gain. Timè perdue : {{loss}}."
+    },
+    "perform": "Accomplir ma liturgie"
   }
 }

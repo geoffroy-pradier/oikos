@@ -1630,6 +1630,27 @@
       "recapCharisNoGod": "Charis gained",
       "recapNote": "The amount is taken from your treasury in a single entry.",
       "confirm": "Pay {{total}}"
-    }
+    },
+    "title": "Liturgy",
+    "back": "Back to the city",
+    "intro": "Each season, the city entrusts a public expense to a few houses. Performing it with splendor earns Timè and Charis; shirking it costs Timè.",
+    "empty": {
+      "title": "Your liturgy",
+      "text": "No liturgy is entrusted to your house. They are assigned at the first close of each season."
+    },
+    "state": {
+      "label": "Status",
+      "assigned": "To perform",
+      "overdue": "Overdue",
+      "performed": "Performed",
+      "levied": "Levied automatically"
+    },
+    "notes": {
+      "assigned": "Perform your liturgy before the deadline: the due is paid from your treasury, and any splendor you add increases what you earn.",
+      "overdue": "The deadline has passed: the liturgy will be levied automatically at the next close, with no gain and a Timè loss of {{loss}}.",
+      "performed": "You performed this liturgy. Timè gained: {{honor}}.",
+      "levied": "Levied automatically: the liturgy was not performed before the deadline. The due was taken from your treasury, with no gain. Timè lost: {{loss}}."
+    },
+    "perform": "Perform my liturgy"
   }
 }
