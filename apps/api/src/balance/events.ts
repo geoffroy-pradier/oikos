@@ -51,29 +51,39 @@ export async function planEvents(world: City, cities: readonly City[], day: numb
   if (planned.length === 0) return [];
   // Garde coupée le temps de l'écriture, hors transaction : la clé de la clôture jouée, différée, est vérifiée à la
   // validation de chaque insertion, et la table ne se modifie pas avec un contrôle différé en attente.
-  await sql`alter table game.world_events disable trigger world_events_guard`.execute(world.owner);
-  try {
-    for (const event of planned)
-      await world.owner
-        .insertInto('game.world_events')
-        .values({
-          world_id: world.worldId,
-          model: event.model,
-          city_id: id(event.cityId),
-          other_city_id: event.otherCityId === null ? null : id(event.otherCityId),
-          good_id: event.goodId,
-          planned_day: gameDay,
-          start_day: event.startDay,
-          end_day: event.endDay,
-          starts_at: dailyCloseAt(event.startDay, config.clock),
-          ends_at: dailyCloseAt(event.endDay, config.clock),
-          magnitude_bps: event.magnitudeBps,
-          seed: daySeed,
-        })
-        .execute();
-  } finally {
-    await sql`alter table game.world_events enable trigger world_events_guard`.execute(world.owner);
-  }
+  // La coupure vaut pour toute la table : deux parties jouées en même temps sur une base (simulateur, #904) se
+  // sérialisent par un verrou consultatif, pris sur une seule connexion, sans quoi l'une rétablit la garde pendant
+  // que l'autre écrit encore.
+  await world.owner.connection().execute(async (conn) => {
+    await sql`select pg_advisory_lock(hashtext('balance.world_events_guard'))`.execute(conn);
+    try {
+      await sql`alter table game.world_events disable trigger world_events_guard`.execute(conn);
+      try {
+        for (const event of planned)
+          await conn
+            .insertInto('game.world_events')
+            .values({
+              world_id: world.worldId,
+              model: event.model,
+              city_id: id(event.cityId),
+              other_city_id: event.otherCityId === null ? null : id(event.otherCityId),
+              good_id: event.goodId,
+              planned_day: gameDay,
+              start_day: event.startDay,
+              end_day: event.endDay,
+              starts_at: dailyCloseAt(event.startDay, config.clock),
+              ends_at: dailyCloseAt(event.endDay, config.clock),
+              magnitude_bps: event.magnitudeBps,
+              seed: daySeed,
+            })
+            .execute();
+      } finally {
+        await sql`alter table game.world_events enable trigger world_events_guard`.execute(conn);
+      }
+    } finally {
+      await sql`select pg_advisory_unlock(hashtext('balance.world_events_guard'))`.execute(conn);
+    }
+  });
   return planned;
 }
 

@@ -1,5 +1,5 @@
 import { liturgyAssignedSchema } from '@oikos/contracts';
-import { notExcluded } from '@oikos/db';
+import { notExcluded, violatedConstraint } from '@oikos/db';
 import {
   dailyCloseAt,
   designateLiturgies,
@@ -18,7 +18,8 @@ import type { CloseStep } from '../close';
  * maisons de joueur qui ont leur foyer dans la cité et dont le compte n'est pas exclu. Le dû (`liturgyDue`) et le
  * genre (`liturgyGenre`) sont fixés à la désignation ; l'échéance est la clôture `dueDays` jours de jeu plus tard. La
  * base n'admet qu'une liturgie par maison et par saison : rejouée, l'étape n'en écrit pas de seconde. Les lignes
- * s'écrivent dans l'ordre des identifiants de maison. La fortune est
+ * s'écrivent dans l'ordre des identifiants de maison, chacune dans un point de sauvegarde : une maison que la garde de
+ * la base refuse (exclusion validée pendant la clôture) est écartée. La fortune est
  * lue à l'ouverture de la clôture, avant ses loyers et son entretien, par une seule instruction. Ni monnaie ni stock,
  * aucun verrou de plus que celui de la clôture du monde ; sans section `liturgies`, ou à zéro maison, rien.
  */
@@ -74,15 +75,24 @@ export const liturgyAssignment: CloseStep = {
       at?.(`house ${house.houseId}`);
       const due = liturgyDue(house.wealth, rules);
       const genre = liturgyGenre(world.seed, season, house.houseId, rules.genres);
-      // L'exclusion est relue par l'instruction qui insère, à l'heure de la garde : une exclusion validée depuis la
-      // lecture des fortunes écarte la maison sans faire échouer la clôture.
-      const { rows } = await sql<{ id: string }>`insert into game.liturgies
-          (world_id, city_id, house_id, season, genre, due, designated_day, due_day, due_at)
-        select ${worldId}::uuid, ${house.cityId}::uuid, h.id, ${season}::integer, ${genre}, ${due.toString()}::bigint,
-               ${gameDay}::integer, ${dueDay}::integer, ${dueAt}::timestamptz
-        from game.houses h where h.id = ${house.houseId} and ${notExcluded(sql.ref('h.user_id'))}
-        on conflict (house_id, season) do nothing
-        returning id`.execute(trx);
+      // La garde de la base relit l'exclusion à l'écriture, seule juge (#945) : une exclusion validée depuis la lecture
+      // des fortunes, même pendant l'instruction qui écrit, est refusée (`liturgies_house_eligible`) dans un point de
+      // sauvegarde, et la maison est écartée sans faire échouer la clôture.
+      await sql`savepoint liturgy_house`.execute(trx);
+      let rows: { id: string }[];
+      try {
+        ({ rows } = await sql<{ id: string }>`insert into game.liturgies
+            (world_id, city_id, house_id, season, genre, due, designated_day, due_day, due_at)
+          values (${worldId}, ${house.cityId}, ${house.houseId}, ${season}, ${genre}, ${due.toString()}, ${gameDay},
+                  ${dueDay}, ${dueAt})
+          on conflict (house_id, season) do nothing
+          returning id`.execute(trx));
+      } catch (error) {
+        if (violatedConstraint(error) !== 'liturgies_house_eligible') throw error;
+        await sql`rollback to savepoint liturgy_house`.execute(trx);
+        continue;
+      }
+      await sql`release savepoint liturgy_house`.execute(trx);
       const written = rows[0];
       if (!written) continue;
       const event = liturgyAssignedSchema.parse({

@@ -9,7 +9,7 @@ import {
 import { LITURGY_GENRES } from '@oikos/contracts';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { dailyCloseAt, gameDayAt, seasonOfGameDay } from '@oikos/sim';
-import { sql } from 'kysely';
+import { sql, type KyselyPlugin } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runDailyClose, type CloseStep } from '../close';
 import { liturgyAssignment } from './liturgy-assignment';
@@ -267,5 +267,60 @@ describe('désignation des liturgies (#719)', () => {
     expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['done', 'skipped']);
     expect((await liturgiesOf(worldId)).length).toBe(2);
     expect(await eventsOf(ids)).toHaveLength(2);
+  });
+
+  it('une exclusion validée pendant l’étape, avant l’écriture de la liturgie : la maison est écartée, la clôture réussit (#945)', async () => {
+    const { worldId, ids, users } = await newWorld([
+      { city: 0, grant: 12_000, age: 1 },
+      { city: 0, grant: 9_000, age: 2 },
+    ]);
+    const [a, b] = ids;
+    // Un greffon de la connexion du moteur : armé par le crochet `house <b>`, il attend, dès la fin de l'instruction
+    // suivante (le point de sauvegarde de b), qu'une autre connexion valide l'exclusion de b. La garde la voit, alors
+    // que la lecture des fortunes ne la voyait pas.
+    let armed = false;
+    const exclude = async () => {
+      const [author, validator] = [randomUUID(), randomUUID()];
+      await sql`insert into auth.users (id, email) select u, u || '@example.test' from unnest(${[author, validator]}::uuid[]) u`.execute(
+        owner,
+      );
+      await sql`insert into admin.sanctions (user_id, kind, reason, author_id, validated_by)
+        values (${users[1]}, 'ban', 'Fraude', ${author}, ${validator})`.execute(owner);
+    };
+    const plugin: KyselyPlugin = {
+      transformQuery: ({ node }) => node,
+      transformResult: async ({ result }) => {
+        if (armed) {
+          armed = false;
+          await exclude();
+        }
+        return result;
+      },
+    };
+    const hooked: CloseStep = {
+      name: liturgyAssignment.name,
+      run: (context) =>
+        liturgyAssignment.run({
+          ...context,
+          at: (subject) => {
+            context.at?.(subject);
+            if (subject === `house ${b}`) armed = true;
+          },
+        }),
+    };
+    const outcome = await runDailyClose(db.withPlugin(plugin), {
+      worldId,
+      gameDay: MONDAY,
+      closeAt: at(MONDAY),
+      config: { at: async () => ({ ...loaded, config: { ...initial, clock, liturgies: RULES } }) },
+      steps: [hooked],
+      now: new Date(),
+    });
+    expect(outcome).toMatchObject({
+      status: 'done',
+      summary: { liturgyAssignment: { season: SEASON, assigned: 1 } },
+    });
+    expect((await liturgiesOf(worldId)).map((row) => row.house_id)).toEqual([a]);
+    expect((await eventsOf(ids)).map((event) => event['houseId'])).toEqual([a]);
   });
 });
