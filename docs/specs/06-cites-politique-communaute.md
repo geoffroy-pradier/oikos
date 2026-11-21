@@ -143,7 +143,7 @@ Une maison n'a qu'une liturgie par saison (index unique) : rejouée, ou jouée p
 Les liturgies d'une clôture s'écrivent dans l'ordre des identifiants de maison, et les joueurs n'en lisent ni l'identifiant ni la date : rien de ce qu'ils lisent ne suit le classement des fortunes (4.1).
 Une exclusion validée pendant la clôture, entre la lecture des fortunes et l'écriture d'une liturgie, même pendant l'instruction qui l'écrit, est relue par la garde de la base, seule juge : chaque liturgie s'écrit dans un point de sauvegarde, la maison refusée (`liturgies_house_eligible`) est écartée et la clôture n'échoue pas (#945).
 Chaque désignation émet `LiturgyAssigned` (liturgie, maison, cité, saison, genre, dû, échéance).
-La configuration initiale ne désigne aucune maison (`housesPerCity` nul, gains et perte nuls) ; une version publiée avant la section n'en désigne aucune non plus (#721 les active).
+Depuis #721, la configuration initiale désigne dix maisons par cité (`housesPerCity`), au plancher de 20 000 oboles, pour 45 % de leur fortune, avec 100 Timè et 300 Charis de gain et 300 Timè de perte (5.5) ; une version publiée avant la section n'en désigne aucune.
 Les gains de Timè et de Charis (`honorGain`, `charisGain`, envers le dieu protecteur de la cité) et la perte de Timè d'une dérobade (`evasionHonorLoss`) servent à l'accomplissement et à la dérobade (#720).
 Accomplissement (#720) : avant l'échéance, la maison désignée accomplit sa liturgie (`liturgy.perform`, liturgie, dû vu, faste).
 Elle paie son dû et son faste, les oboles qu'elle ajoute au-delà du dû, en une écriture `liturgy.perform` de sa trésorerie au puits `sink_liturgies` (5.5).

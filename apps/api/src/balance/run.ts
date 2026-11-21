@@ -11,6 +11,7 @@ import {
   MINUTE,
   reconcile,
   tickDay,
+  topUp,
   upkeepDue,
   wagesDue,
   stewardWageOf,
@@ -36,6 +37,7 @@ import { newNpcBench, npcAfterClose, npcAfterTick } from './npc';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
   CARRIER,
+  CARRIER_TOP_UP,
   CARRIERS,
   MEASURED,
   SETTLEMENTS,
@@ -94,7 +96,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     const [home, source] = [cityOf(spec.home), cityOf(spec.source)];
     const shares = (city: City, goods: readonly string[]) =>
       new Map(goods.map((goodId) => [goodId, 1 / (carriedBy.get(`${city.slug}/${goodId}`) ?? 1)]));
-    for (const house of await foundHouses(home, [{ ...CARRIER, count: spec.count }]))
+    for (const house of await foundHouses(home, [{ ...CARRIER, count: spec.count }])) {
+      await topUp(home, house.houseId, CARRIER_TOP_UP);
       carriers.push({
         ...seller(house),
         home,
@@ -107,6 +110,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
         waitedHours: 0,
         paid: newVoyageCosts(),
       });
+    }
   }
   // Demande d'un jour d'une cité : celle de ses PNJ, et les intrants que ses maisons scriptées ne produisent pas.
   const inputs = new Map(
@@ -140,6 +144,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     ...settlements.flatMap(({ city, houses: own }) => own.map((house) => ({ city, house }))),
     ...carriers.map((carrier) => ({ city: carrier.home, house: carrier as Seller })),
   ];
+  /** Maisons des cités, avant les armateurs dans `residents`. */
+  const housesCount = settlements.reduce((sum, { houses: own }) => sum + own.length, 0);
   const housing = newHousing();
   const politics = newPolitics();
   // Liturgies (#721) : ce que les maisons ont payé, accomplies ou prélevées d'office, et celles que la stratégie a déjà vues.
@@ -187,8 +193,16 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     const now = new Date(closeOf(world, day).getTime() + MINUTE);
     for (const house of npc.houses.values()) await harvest(house.city, house, now);
     // Liturgies que cette clôture a désignées : accomplies ou éludées selon la stratégie.
+    // Une maison scriptée sur `EVADE_EVERY` se dérobe toujours ; un armateur, dont la trésorerie est son fonds de roulement, non.
     for (const [rank, { city, house }] of residents.entries())
-      await liturgyMorning(city, house, now, liturgies, seenLiturgies, rank % EVADE_EVERY === 0);
+      await liturgyMorning(
+        city,
+        house,
+        now,
+        liturgies,
+        seenLiturgies,
+        rank < housesCount && rank % EVADE_EVERY === 0,
+      );
     for (const { city, houses: own } of settlements)
       for (const house of own) acquisitions += await morning(city, house, now);
     for (const { city, houses: own } of settlements)
@@ -277,6 +291,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     wages + lodging,
     voyages.treasuries,
     npc.grant,
+    carriers.length * CARRIER_TOP_UP,
   );
   return {
     world,
