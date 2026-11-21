@@ -9,6 +9,7 @@ export * from './decree';
 export * from './errors';
 export * from './events';
 export * from './honor';
+export * from './liturgy';
 export * from './house';
 export * from './market';
 export * from './moderation';

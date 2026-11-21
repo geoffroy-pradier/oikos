@@ -1,5 +1,11 @@
 /** Accès typé à la base pour l'API de jeu et le moteur (Kysely). */
-import type { Blazon, DecreeModel, HonorReason, OstracismOutcome } from '@oikos/contracts';
+import type {
+  Blazon,
+  DecreeModel,
+  HonorReason,
+  LiturgyGenre,
+  OstracismOutcome,
+} from '@oikos/contracts';
 import {
   Kysely,
   PostgresDialect,
@@ -642,6 +648,24 @@ export interface GameDatabase {
     ostracized_house_id: ColumnType<string | null, never, string>;
     /** Fin de l'ostracisme : la clôture `ostracism_days` jours de jeu après celle du dépouillement. */
     ends_at: ColumnType<Date | null, never, Date>;
+  };
+  /**
+   * Liturgies (6.4, #719) : une par maison désignée et par saison, écrite par la clôture de bascule de saison, datée
+   * par la base, désignée (`assigned`) à sa naissance. Le dû (oboles) se lit en texte, comme tout `bigint`.
+   */
+  'game.liturgies': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    season: ColumnType<number, number, never>;
+    genre: ColumnType<LiturgyGenre, LiturgyGenre, never>;
+    due: ColumnType<string, string, never>;
+    designated_day: ColumnType<number, number, never>;
+    due_day: ColumnType<number, number, never>;
+    due_at: ColumnType<Date, Date, never>;
+    status: ColumnType<'assigned' | 'performed' | 'levied', never, never>;
+    created_at: ColumnType<Date, never, never>;
   };
   /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */
   'game.ostraca': {
