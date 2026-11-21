@@ -351,8 +351,8 @@ export const adminEconomySchema = z.object({
       worldId: z.uuid(),
       slug: z.string(),
       /**
-       * Masse monétaire : trésoreries des maisons, séquestres, trésors des cités, bourses des PNJ (#632, absentes
-       * d'une réponse antérieure : nulles), autres comptes.
+       * Masse monétaire : trésoreries des maisons, séquestres, trésors des cités, bourses des PNJ (#632), coffres des
+       * banques (#726 ; absents d'une réponse antérieure : nuls), autres comptes.
        */
       moneySupply: z.object({
         total: oboles,
@@ -360,6 +360,7 @@ export const adminEconomySchema = z.object({
         escrow: oboles,
         cityTreasuries: oboles,
         npcPurses: oboles.default(0),
+        bankVaults: oboles.default(0),
         other: oboles,
       }),
       /**

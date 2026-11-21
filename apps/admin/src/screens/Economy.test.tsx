@@ -119,6 +119,14 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
   ]);
   await show({}, -4);
   expect(rows(SUPPLY)[4]).toEqual(['Autres comptes', '-4']);
+  // Les coffres des banques (#726) ne paraissent que s'ils portent de la monnaie, avant les autres comptes.
+  await showAll([
+    { ...WORLD, moneySupply: { ...WORLD.moneySupply, bankVaults: 1_500, total: 7_115 } },
+  ]);
+  expect(rows(SUPPLY).slice(4)).toEqual([
+    ['Coffres des banques', '1 500'],
+    ['Total', '7 115'],
+  ]);
   // L'indice garde ses deux décimales.
   await show({ currentBps: 10_000, previousBps: 11_210 });
   expect(figures('dd').slice(0, 2)).toEqual(['100,00', '112,10']);

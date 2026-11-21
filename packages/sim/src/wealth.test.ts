@@ -31,6 +31,7 @@ describe('fortune d’une maison', () => {
       stockValue: 803n,
       unpricedStocks: 1,
       debt: 0n,
+      vault: 0n,
       wealth: 3_189n,
     });
     // Solde nul partout : fortune nulle, sans stock sans prix.
@@ -40,6 +41,7 @@ describe('fortune d’une maison', () => {
       stockValue: 0n,
       unpricedStocks: 0,
       debt: 0n,
+      vault: 0n,
       wealth: 0n,
     });
     // Un prêt (#724) : le reste dû se déduit, jusqu'à une fortune négative ; une dette négative n'a pas de sens.
@@ -53,6 +55,10 @@ describe('fortune d’une maison', () => {
     expect(() => houseWealth({ treasury: 0n, escrow: 0n, stocks: [], debt: -1n })).toThrow(
       RangeError,
     );
+    // Le coffre de sa banque (#726) : verser au coffre ne change pas la fortune, le droit de fondation la baisse.
+    const before = houseWealth({ treasury: 30_000n, escrow: 0n, stocks });
+    const after = houseWealth({ treasury: 5_000n, escrow: 0n, stocks, vault: 20_000n });
+    expect(after).toMatchObject({ vault: 20_000n, wealth: before.wealth - 5_000n });
   });
 
   it('propriété : un stock sans prix ne change pas la fortune, il n’ajoute qu’au compte des stocks sans prix', () => {
@@ -78,6 +84,30 @@ describe('fortune d’une maison', () => {
           // Fortune = trésorerie + séquestre + Σ quantité × prix des stocks qui ont un prix.
           const priced = stocks.reduce((sum, s) => sum + s.quantity * (s.unitPrice ?? 0n), 0n);
           expect(before.wealth).toBe(treasury + escrow + priced);
+        },
+      ),
+    );
+  });
+
+  it('propriété : un mouvement de capital entre trésorerie et coffre ne change pas la fortune (#726)', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 0n, max: 2n ** 60n }),
+        fc.bigInt({ min: 0n, max: 2n ** 60n }),
+        fc.bigInt({ min: 0n, max: 2n ** 60n }),
+        fc.bigInt({ min: 0n, max: 2n ** 40n }),
+        (treasury, vault, moved, debt) => {
+          const amount = moved > treasury ? treasury : moved;
+          const before = houseWealth({ treasury, escrow: 0n, stocks: [], debt, vault });
+          const paidIn = houseWealth({
+            treasury: treasury - amount,
+            escrow: 0n,
+            stocks: [],
+            debt,
+            vault: vault + amount,
+          });
+          expect(paidIn.wealth).toBe(before.wealth);
+          expect(before.wealth).toBe(treasury + vault - debt);
         },
       ),
     );

@@ -60,6 +60,7 @@ const economy = (real: Economy) => ({
       escrow: 402_300,
       cityTreasuries: 3_920_500,
       npcPurses: 1_964_000,
+      bankVaults: 0,
       other: 7_000,
     },
     // Montants positifs, créés (robinet) ou détruits (puits) : chaque robinet et un puits sur trois bougent.

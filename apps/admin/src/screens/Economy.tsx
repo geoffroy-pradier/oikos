@@ -168,8 +168,14 @@ export function Economy({ accessToken }: { accessToken: string }) {
               .filter(([, goods]) => goods.includes(good))
               .map(([window]) => t(`economy.window.${window}`, target)),
           );
-        const { other, total, ...parts } = moneySupply;
-        const supply = Object.entries({ ...parts, ...(other !== 0 && { other }), total });
+        // Les coffres des banques (#726) et les autres comptes ne sont montrés que s'ils portent de la monnaie.
+        const { other, bankVaults, total, ...parts } = moneySupply;
+        const supply = Object.entries({
+          ...parts,
+          ...(bankVaults !== 0 && { bankVaults }),
+          ...(other !== 0 && { other }),
+          total,
+        });
         const moving = systemAccounts.filter((account) => account.days.length > 0);
         const days = [...new Set(moving.flatMap((account) => account.days.map((d) => d.gameDay)))];
         days.sort((a, b) => b - a);
