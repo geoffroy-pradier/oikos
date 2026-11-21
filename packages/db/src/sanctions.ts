@@ -34,6 +34,13 @@ export const notSanctioned = (userId: RawBuilder<unknown> | string) =>
   sql<boolean>`not ${inForce(userId, STOPS_ACTION)}`;
 
 /**
+ * Le compte n'est pas exclu (exclusion validée en vigueur), suspendu ou non : les maisons qu'une liturgie peut
+ * désigner (6.4, #719). Une suspension a une fin et n'écarte pas d'une charge de la saison.
+ */
+export const notExcluded = (userId: RawBuilder<unknown> | string) =>
+  sql<boolean>`not ${inForce(userId, ['ban'])}`;
+
+/**
  * Refus que la sanction en vigueur oppose au compte, lu dans la transaction de l'appelant : `SUSPENDED` (suspension ou
  * exclusion validée), sinon `SILENCED` si l'action est une parole (`speech`) et le compte réduit au silence, sinon
  * `null`. Même condition que `notSanctioned`.

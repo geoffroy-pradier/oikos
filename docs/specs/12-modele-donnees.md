@@ -23,7 +23,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Logistique | `ships`, `voyages`, `voyage_cargo`, `freight_offers` |
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
-| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `city_budget`, `public_works`, `leagues` |
+| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `liturgies`, `city_budget`, `public_works`, `leagues` |
 | Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `oracles`, `festivals` |
 | Événements | `world_events`, `event_effects`, `quests`, `domain_events` |
 | IA | `npcs`, `npc_memories`, `ai_calls`, `prompts` |
@@ -249,6 +249,16 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le service n'écrit ni identifiant ni date d'ouverture ou de bulletin, et ne supprime rien ; l'écart entre deux ostracismes d'une cité (`intervalDays`), qui dépend de la configuration, est contrôlé par l'API sous le verrou des décrets de la cité.
   Les joueurs connectés lisent les votes des cités de leur monde (`public.ostracisms`, avec `in_force` : l'ostracisme court encore), leur décompte nul avant le dépouillement, et les voix de chaque maison nommée après lui seulement (`ostracism_results`, par `game.ostracism_results()`, exécutée au nom du propriétaire).
   D'un bulletin, un joueur ne lit que celui de sa maison, et seulement son vote et sa date (`my_ostraca`) : jamais le nom inscrit, ni le bulletin d'une autre maison.
+- Liturgies (6.4, #719) : `liturgies` porte la maison désignée, la cité de son foyer, la saison (indice `seasonOfGameDay`), le genre (`festival`, `trierarchy`, `choregia`), le dû en oboles, le jour de jeu de la clôture qui désigne, l'échéance (jour de jeu et instant de sa clôture) et l'état : `assigned` (désignée), puis `performed` (accomplie) ou `levied` (prélevée d'office), que le ticket 720 écrira.
+  Une liturgie au plus par maison et par saison (index unique `liturgies_one_per_season`) : rejouée, la désignation n'en écrit pas une seconde.
+  La base garantit qu'une liturgie naît maintenant, désignée, avec un dû d'au moins une obole et une échéance après la désignation, pour une maison de joueur (jamais `npc`) qui a son foyer dans la cité et dont le compte n'est pas exclu (exclusion validée en vigueur) ;
+  elle est écrite avant que la clôture de son jour, ou d'un jour postérieur, soit enregistrée, et un déclencheur différé exige à la validation que cette clôture le soit, comme la Timè d'un mandat.
+  Le choix des maisons, le dû et le genre viennent de la configuration, que la base ne lit pas : c'est le moteur qui les tient.
+  Une liturgie ne change pas encore (garde `forbid_change`), le service ne choisit ni identifiant, ni date, ni état, et ne supprime rien.
+  Les joueurs connectés lisent les liturgies des cités de leur monde par `city_liturgies` (maison, cité, saison, genre, état, désignation et échéance), sans le dû ni la fortune : la colonne du dû ne leur est pas accordée.
+  Ni l'identifiant d'une liturgie (`uuid_v7`, préfixé par l'instant d'insertion) ni sa date ne leur sont accordés : ils diraient l'ordre des insertions de la clôture, et une liturgie publique se désigne par sa maison et sa saison.
+  Le moteur insère d'ailleurs les liturgies d'une clôture dans l'ordre des identifiants de maison, jamais dans l'ordre de fortune, si bien que l'ordre physique des lignes ne trahit pas non plus le classement (4.1).
+  Une maison lit les siennes avec leur dû par `my_liturgies`, rendue par `game.my_liturgies()`, exécutée au nom du propriétaire ; un visiteur anonyme ne lit rien (pgTAP 719).
 - Voyages (4.6, #252) : `voyages` porte le navire, sa maison, les cités de départ et d'arrivée, le départ, l'arrivée prévue et l'arrivée ; `voyage_cargo` une ligne par bien et sa quantité.
   La base garantit qu'un voyage part à l'instant de sa transaction, en mer, de la cité où son navire armé est à quai, qu'un navire n'a qu'un voyage en mer à la fois (index unique), que seule l'arrivée s'écrit ensuite, une fois, ni avant l'arrivée prévue ni dans le futur, et que la cargaison s'écrit dans la transaction du départ puis ne change plus.
   Journal des stocks : l'extrémité système `in_transit` est rattachée à un voyage (`stock_ledger.voyage_id`, contrainte `stock_ledger_in_transit_voyage`).

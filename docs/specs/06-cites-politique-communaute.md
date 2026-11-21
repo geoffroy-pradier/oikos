@@ -129,6 +129,24 @@ Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décr
 - **Tribunal** (après le lancement) : les litiges de contrat sont jugés par un jury de joueurs tirés au sort, sur dossier résumé par l'IA.
 - **Grands travaux** : merveilles construites collectivement (port monumental, théâtre, sanctuaire), qui donnent un bonus permanent à la cité.
 
+Liturgies (ticket 719, désignation ; l'accomplissement et la dérobade viennent avec le ticket 720).
+Décision : la clôture de bascule de saison désigne, dans chaque cité, parmi les maisons qui y ont leur foyer (`citizenships`, métèques comprises), les `liturgies.housesPerCity` plus riches dont la fortune (4.1) atteint le plancher `wealthFloor`.
+Le classement suit la fortune, à égalité la maison la plus ancienne (fondation), puis le plus petit identifiant (`designateLiturgies`).
+Une maison PNJ de secours (8.3) n'est jamais désignée, ni une maison dont le compte est exclu (exclusion validée en vigueur, 15.4) ; une maison suspendue ou ostracisée l'est, car une suspension finit et l'ostracisme ne touche pas les biens.
+Décision (la règle la plus simple) : la clôture de bascule est la première clôture jouée d'une saison, celle du lundi ou, si elle a manqué, la suivante ; aucune autre clôture de la saison ne désigne.
+Le dû est la part `dueShareBps` de la fortune lue à l'ouverture de la clôture, avant ses loyers et son entretien, arrondie à l'obole supérieure et ramenée entre `minDue` et `maxDue` (`liturgyDue`).
+La configuration exige `minDue` au plus `wealthFloor` : le dû ne dépasse jamais la fortune de la maison désignée.
+Décision (#719, 4.1) : les marchandises en mer comptent dans la fortune, au prix de leur cité d'arrivée : un départ juste avant la désignation ne les fait plus disparaître de la fortune.
+Il peut encore la faire baisser, vers une cité où le bien est moins cher ou n'a pas de prix observé (la cargaison n'y vaut rien) ; le calibrage (#721) mesure si ce départ est rentable et le suit.
+L'échéance est la clôture `dueDays` jours de jeu après la désignation ; le genre (fête, triérarchie, chorégie) est tiré dans `genres` par une graine du monde, de la saison et de la maison, et ne change que le libellé.
+Une maison n'a qu'une liturgie par saison (index unique) : rejouée, ou jouée par deux moteurs à la fois, la désignation n'en écrit pas de seconde.
+Les liturgies d'une clôture s'écrivent dans l'ordre des identifiants de maison, et les joueurs n'en lisent ni l'identifiant ni la date : rien de ce qu'ils lisent ne suit le classement des fortunes (4.1).
+Une exclusion validée pendant la clôture, entre la lecture des fortunes et l'écriture d'une liturgie, est relue par l'instruction qui l'écrit, à l'heure où la garde de la base la contrôle : la maison est écartée et la clôture n'échoue pas.
+Chaque désignation émet `LiturgyAssigned` (liturgie, maison, cité, saison, genre, dû, échéance).
+La configuration initiale ne désigne aucune maison (`housesPerCity` nul, gains et perte nuls) ; une version publiée avant la section n'en désigne aucune non plus (#721 les active).
+Les gains de Timè et de Charis (`honorGain`, `charisGain`, envers le dieu protecteur de la cité) et la perte de Timè d'une dérobade (`evasionHonorLoss`) sont réglés dès maintenant, mais servent au ticket 720.
+Tout joueur connecté lit les liturgies des cités de son monde, sans le dû ni la fortune (`city_liturgies`) ; une maison lit les siennes avec leur dû (`my_liturgies`, 12).
+
 Ostracisme (ticket 722).
 Décision : l'ostracisme est un modèle de décret (`ostracism`), sans paramètre, que l'archonte en charge propose et que l'assemblée vote comme tout décret (6.3).
 Adopté, il ouvre à la clôture de son dépouillement un vote où chaque citoyen de la cité inscrit une fois le nom d'un citoyen de la même cité (`city.castOstracon`).
