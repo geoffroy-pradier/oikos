@@ -546,7 +546,10 @@
     "LITURGY_NOT_FOUND": "Cette liturgie est introuvable.",
     "LITURGY_SETTLED": "Cette liturgie est déjà réglée.",
     "LITURGY_OVERDUE": "L'échéance de cette liturgie est passée : elle sera prélevée d'office.",
-    "SPLENDOR_OUT_OF_BOUNDS": "Le faste dépasse la borne permise."
+    "SPLENDOR_OUT_OF_BOUNDS": "Le faste dépasse la borne permise.",
+    "LOAN_NOT_FOUND": "Ce prêt n'est plus à votre maison.",
+    "LOAN_REPAID": "Ce prêt est déjà remboursé.",
+    "ABOVE_OUTSTANDING": "Le reste dû a changé depuis l'affichage : rien n'a été payé. Vérifiez le montant puis réessayez."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -1755,6 +1758,30 @@
       "title": "Marque de déshonneur",
       "open": "Un prêt de votre maison est en défaut : la marque dure tant qu'il n'est pas soldé. Votre maison ne peut pas emprunter.",
       "until": "Votre maison porte une marque de déshonneur jusqu'au {{date}} : elle ne peut pas emprunter d'ici là."
+    },
+    "repay": {
+      "open": "Rembourser",
+      "title": "Rembourser un prêt",
+      "stepAmount": "Montant",
+      "stepRecap": "Récapitulatif",
+      "treasury": "Trésorerie",
+      "amount": "Montant remboursé (oboles)",
+      "amountHint": "De 1 à {{max}} oboles",
+      "outOfBounds": "Écrivez un montant entier de 1 à {{max}} oboles.",
+      "noFunds": "Votre trésorerie est vide : il n'y a rien à rembourser pour l'instant.",
+      "order": "Un remboursement paie d'abord les intérêts, puis le principal.",
+      "recap": "Vous remboursez le {{lender}}.",
+      "recapInterest": "Intérêts payés",
+      "recapPrincipal": "Principal remboursé",
+      "recapTotal": "Total payé",
+      "recapLeft": "Reste dû après",
+      "recapTreasury": "Trésorerie après",
+      "recapNote": "Le reste dû se prélève à l'échéance, sur votre trésorerie.",
+      "recapSettles": "Ce remboursement solde le prêt : votre maison pourra emprunter de nouveau.",
+      "changed": "Le reste dû a changé depuis l'affichage : rien n'a été payé. Revenez au montant pour le vérifier.",
+      "confirm": "Rembourser {{amount}}",
+      "done": "Remboursement de {{amount}} : il reste {{left}} à devoir.",
+      "doneSettled": "Remboursement de {{amount}} : le prêt est soldé."
     }
   }
 }

@@ -15,6 +15,8 @@ import {
   type HouseCreateOutput,
   type LiturgyPerformInput,
   type LiturgyPerformOutput,
+  type LoanRepayInput,
+  type LoanRepayOutput,
   type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
@@ -259,6 +261,13 @@ export const performLiturgy = (
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<LiturgyPerformOutput>('liturgy.perform', input, accessToken, idempotencyKey);
+
+/**
+ * Rembourse une part d'un prêt de la maison (5.4, #724), intérêts d'abord. `idempotencyKey` : la même clé tant que
+ * cette intention n'a pas reçu de réponse.
+ */
+export const repayLoan = (input: LoanRepayInput, accessToken: string, idempotencyKey: string) =>
+  sendCommand<LoanRepayOutput>('loan.repay', input, accessToken, idempotencyKey);
 
 /** `idempotencyKey` : la même clé tant que ce message (canal et texte) n'a pas reçu de réponse. */
 export const postMessage = (
