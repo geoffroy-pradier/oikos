@@ -2,7 +2,7 @@
 -- la catégorie et le résumé qu'un message signalé a reçus, un essai par message. Le moteur est seul à l'écrire, sous le rôle
 -- de service, après la validation de la sortie du modèle par le schéma (règle 6) : le modèle n'écrit jamais en base.
 -- Ce n'est qu'une indication pour la file de la modération : aucune commande de sanction ne la lit.
--- Un message sans catégorie (IA coupée, sortie rejetée, délai, plafond) a une ligne sans catégorie ni résumé, qui garde
+-- Un message sans catégorie (sortie rejetée, délai, erreur ; IA coupée ou plafond atteint : aucun appel payé, aucune ligne, le message est repris plus tard) a une ligne sans catégorie ni résumé, qui garde
 -- l'issue de l'essai : le message n'est pas payé deux fois au fournisseur, et la file garde son ordre de la phase 2.
 -- La ligne suit son message : la purge de la rétention (migration 92) emporte aussi le résumé, qui reprend son texte.
 -- Lecture : le service seul (l'API, qui vérifie le rôle de modération de l'appelant, jamais Supabase : un modérateur peut
@@ -16,7 +16,7 @@ create table if not exists game.report_triage (
   outcome text not null,
   triaged_at timestamptz not null default now(),
   constraint report_triage_category_known check (category in ('likely_violation', 'doubtful', 'likely_unfounded')),
-  constraint report_triage_outcome_known check (outcome in ('ok', 'capped', 'timeout', 'invalid', 'error')),
+  constraint report_triage_outcome_known check (outcome in ('ok', 'timeout', 'invalid', 'error')),
   constraint report_triage_summary_length check (char_length(summary) between 1 and 500 and summary ~ '[^[:space:]]'),
   -- Une catégorie et un résumé vont ensemble, et seulement avec une sortie acceptée.
   constraint report_triage_whole check ((category is not null) = (summary is not null) and (category is not null) = (outcome = 'ok'))

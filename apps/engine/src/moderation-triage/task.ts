@@ -14,7 +14,7 @@ export interface TriageTaskRequest {
 
 /**
  * Pré-tri des messages signalés d'un monde par la passerelle IA (usage `moderation_triage`, 8.1, 15.1 ; #763). Chaque
- * message qui a un signalement ouvert et pas encore de ligne dans `game.report_triage` est essayé une fois, le plus
+ * message qui a un signalement ouvert et pas encore de ligne dans `game.report_triage` est essayé une fois (un plafond atteint n'est pas un essai : le message est repris plus tard), le plus
  * ancien signalement d'abord : rangé dans une catégorie avec son résumé si la sortie est conforme
  * (`triageRequest`), sinon sans catégorie ; l'issue est notée dans les deux cas, si bien qu'aucun message n'est payé
  * deux fois au fournisseur. IA coupée, rien n'est lu ni essayé : la file garde son ordre de la phase 2, et les messages
@@ -70,13 +70,16 @@ export async function triageReports(db: Db, worldId: string, request: TriageTask
         .where('world_id', '=', worldId)
         .execute();
       const houseNames = houses.map((house) => house.name);
+      // Réglages relus avant chaque message : un usage coupé entre-temps n'essaie plus rien.
+      let ai = config.ai;
       const gateway = createGateway({
         provider: request.provider,
         store: request.store,
-        settings: () => config.ai,
+        settings: () => ai,
       });
       const done = { ...none };
       for (const message of pending) {
+        ai = (await request.config.at(request.now)).config.ai;
         const result = await gateway(
           triageRequest(
             { houseName: message.house_name, body: message.body },
@@ -86,6 +89,10 @@ export async function triageReports(db: Db, worldId: string, request: TriageTask
         );
         // Usage coupé entre-temps : rien n'a été essayé.
         if (result.outcome === 'disabled') continue;
+        // Plafond du mois atteint : aucun appel n'est parti ni n'a été payé. Aucune ligne n'est écrite, le message
+        // sera repris au passage suivant, après la remise à zéro du mois ou une hausse du plafond. Les autres
+        // messages seraient coupés de même : le passage s'arrête.
+        if (result.outcome === 'capped') break;
         const triage = result.source === 'ai' ? result.value : null;
         // Le message a pu être purgé pendant l'appel : alors rien n'est écrit.
         const inserted = await conn

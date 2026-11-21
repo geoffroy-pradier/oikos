@@ -22,7 +22,7 @@ const owner = createDb(DATABASE_URL);
 const loaded = validateConfig(INITIAL_CONFIG);
 if (!loaded.ok) throw new Error(loaded.errors.join('\n'));
 const initial = loaded.config;
-const withAi = (enabled: boolean): GameConfig => ({
+const withAi = (enabled: boolean, capShareBps = 5_000): GameConfig => ({
   ...initial,
   ai: {
     ...initial.ai,
@@ -34,7 +34,7 @@ const withAi = (enabled: boolean): GameConfig => ({
         ...initial.ai.usages.moderation_triage,
         enabled,
         model: 'fake',
-        capShareBps: 5_000,
+        capShareBps,
       },
     },
   },
@@ -102,10 +102,10 @@ async function newWorld(specs: Spec[]) {
   });
   return { worldId, ids };
 }
-function run(worldId: string, replies: FakeReply[], enabled = true) {
+function run(worldId: string, replies: FakeReply[], enabled = true, capShareBps = 5_000) {
   const provider = fakeProvider(replies);
   const store = memoryStore();
-  const config = { at: () => Promise.resolve({ ...active, config: withAi(enabled) }) };
+  const config = { at: () => Promise.resolve({ ...active, config: withAi(enabled, capShareBps) }) };
   const done = triageReports(db, worldId, { now: new Date(), config, provider, store });
   return { done, provider, store };
 }
@@ -167,6 +167,49 @@ describe('pré-tri des signalements par le moteur (#763)', () => {
     expect(await second.done).toEqual({ attempted: 0, categorized: 0 });
     expect(second.provider.requests).toHaveLength(0);
     expect(await rowsOf(ids)).toEqual(rows);
+  });
+
+  it('plafond atteint : aucune ligne, le message est trié une fois le plafond relevé', async () => {
+    const { worldId, ids } = await newWorld([
+      { body: 'Un', reportedMinutesAgo: 10 },
+      { body: 'Deux', reportedMinutesAgo: 5 },
+    ]);
+    const capped = run(worldId, [reply('doubtful', 'Ambigu.')], true, 0);
+    expect(await capped.done).toEqual({ attempted: 0, categorized: 0 });
+    expect(capped.provider.requests).toHaveLength(0);
+    expect(capped.store.calls.every((call) => call.outcome === 'capped')).toBe(true);
+    expect(await rowsOf(ids)).toEqual([]);
+    const raised = run(worldId, [reply('doubtful', 'Un.'), reply('likely_unfounded', 'Deux.')]);
+    expect(await raised.done).toEqual({ attempted: 2, categorized: 2 });
+    expect((await rowsOf(ids)).map((row) => row.outcome)).toEqual(['ok', 'ok']);
+  });
+
+  it('un usage coupé entre-temps ne laisse aucune ligne', async () => {
+    const { worldId, ids } = await newWorld([{ body: 'Un', reportedMinutesAgo: 10 }]);
+    const provider = fakeProvider([reply('doubtful', 'Un.')]);
+    let reads = 0;
+    // Allumé à la lecture de départ, coupé à celle du premier message.
+    const config = {
+      at: () => Promise.resolve({ ...active, config: withAi(++reads === 1) }),
+    };
+    const done = await triageReports(db, worldId, {
+      now: new Date(),
+      config,
+      provider,
+      store: memoryStore(),
+    });
+    expect(done).toEqual({ attempted: 0, categorized: 0 });
+    expect(provider.requests).toHaveLength(0);
+    expect(await rowsOf(ids)).toEqual([]);
+  });
+
+  it('un délai dépassé est un essai : une ligne, pas de second paiement', async () => {
+    const { worldId, ids } = await newWorld([{ body: 'Un', reportedMinutesAgo: 10 }]);
+    expect(await run(worldId, [new Error('délai')]).done).toEqual({ attempted: 1, categorized: 0 });
+    const again = run(worldId, [reply('doubtful', 'Un.')]);
+    expect(await again.done).toEqual({ attempted: 0, categorized: 0 });
+    expect(again.provider.requests).toHaveLength(0);
+    expect((await rowsOf(ids)).map((row) => row.outcome)).toEqual(['error']);
   });
 
   it('un résumé qui invente un nombre ou nomme une maison absente du message est rejeté', async () => {
