@@ -345,6 +345,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
         unpricedStocks: row?.unpriced_stocks,
         debt: expected.debt,
         vault: expected.vault,
+        deposits: expected.deposits,
         wealth: BigInt(row?.wealth ?? -1),
       }).toEqual(expected);
     }
