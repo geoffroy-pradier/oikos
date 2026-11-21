@@ -39,10 +39,13 @@ import { morning, ROLES, seller } from './balance/strategy';
  * Terroir du scénario : depuis #669, la configuration initiale retire la laine à Kallistè (6.1), mais la cité
  * prototype de #78 est une cité seule, sans armateur, dont les tisserands tondent leurs moutons sur place. Le banc lui
  * rend donc toutes les matières premières, et ne change rien d'autre : bornes, recettes et prix sont ceux de `config`.
- * C'est un paramètre du banc, pas du jeu.
+ * Depuis #717, la configuration initiale nomme des maisons PNJ de secours ; la cité prototype n'en joue aucune, ses
+ * maisons scriptées tenant toutes ses filières. Ce sont des paramètres du banc, pas du jeu.
  */
 const prototype = {
   ...config,
+  // Ses maisons tiennent ses filières : le banc garde son scénario d'avant les maisons PNJ de secours (#717).
+  npcHouses: {},
   cities: config.cities.map((city) =>
     city.id === 'kalliste'
       ? {

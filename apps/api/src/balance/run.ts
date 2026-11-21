@@ -6,6 +6,7 @@ import {
   config,
   createWorld,
   foundHouses,
+  harvest,
   lastSeq,
   MINUTE,
   reconcile,
@@ -30,6 +31,7 @@ import {
   type Carrier,
 } from './carrier';
 import { planEvents } from './events';
+import { newNpcBench, npcAfterClose, npcAfterTick } from './npc';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
   CARRIER,
@@ -139,6 +141,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   ];
   const housing = newHousing();
   const politics = newPolitics();
+  // Maisons PNJ de secours (#717), que fonde la clôture : récoltées par le banc, leurs flux comptés après chaque clôture.
+  const npc = newNpcBench();
   // Métèques arrivés au jour 0 de jeu : la clôture les promeut citoyens après `politics.meticDays` jours.
   for (const city of cities) await dateMetics(city, closeOf(city, 0));
 
@@ -157,16 +161,26 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     upkeep += upkeepDue(world, houses, day);
     estateUpkeep += propertyUpkeepDue(world, housing, day);
     for (const carrier of carriers) shipUpkeep += shipUpkeepDue(carrier, closeOf(world, day));
-    lodging += await lodgingDue(world, residents, day);
     // Salaires de la clôture : les travailleurs des sites, et les intendants embauchés avant elle (payés d'avance).
     for (const { city, house } of residents) wages += wagesDue(world, [house], day, wageOf(city));
     wages += stewards.filter((steward) => steward.hiredDay < day).length * stewardWageOf(world);
-    await closeDay(world, day);
+    const closed = await closeDay(world, day);
+    // Les maisons PNJ après la clôture, qui les fonde et les retire avant le marché du travail et l'entretien : ce
+    // qu'elle leur a fait payer est ce que leurs sites ouverts doivent. L'hébergement, dont le prix compte leurs
+    // travailleurs, se compte donc après elle, sur les logements tels qu'elle les a laissés (usure du jour faite).
+    await npcAfterClose(world, cities, npc, day, closed.summary);
+    const npcResidents = [...npc.houses.values()].map((house) => ({ city: house.city, house }));
+    for (const { city, house } of npcResidents) {
+      upkeep += upkeepDue(world, [house], day);
+      wages += wagesDue(world, [house], day, wageOf(city));
+    }
+    lodging += await lodgingDue(world, [...residents, ...npcResidents], day, false);
     // Événements que cette clôture aurait planifiés si elle était jouée à son heure (7.3).
     for (const event of await planEvents(world, cities, day))
       events[event.model] = (events[event.model] ?? 0) + 1;
     await dateCitizens(world, closeOf(world, day));
     const now = new Date(closeOf(world, day).getTime() + MINUTE);
+    for (const house of npc.houses.values()) await harvest(house.city, house, now);
     for (const { city, houses: own } of settlements)
       for (const house of own) acquisitions += await morning(city, house, now);
     for (const { city, houses: own } of settlements)
@@ -189,8 +203,10 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     const hours =
       (closeOf(world, day + 1).getTime() - closeOf(world, day).getTime()) / (60 * MINUTE);
     const ticks = await tickDay(world, day, WORLD_STEPS, async (index) => {
-      const run = await actAfterTick(world, await bench.loader.at(), index);
+      const loaded = await bench.loader.at();
+      const run = await actAfterTick(world, loaded, index);
       for (const key of ['acted', 'refused', 'failed'] as const) operations[key] += run[key];
+      await npcAfterTick(world, loaded, index, npc);
       // Armateurs : un pas à mi-chemin du tick suivant.
       const at = new Date(tickStart(index, config.clock.tickMinutes).getTime() + 30 * MINUTE);
       for (const carrier of carriers) await carrierStep(carrier, at, demandOf);
@@ -244,11 +260,13 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       sink_property_upkeep: estateUpkeep,
       sink_public_works: paidFor('public_works'),
       sink_festivals: paidFor('festival'),
+      sink_npc_house_surplus: npc.sunk,
     },
     drawn,
     // Salaires (intendants compris) et hébergement vont aux bourses des PNJ (#632), sans rien détruire.
     wages + lodging,
     voyages.treasuries,
+    npc.grant,
   );
   return {
     world,
@@ -258,6 +276,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     carriers,
     stewards,
     operations,
+    npc,
     housing,
     politics,
     days,

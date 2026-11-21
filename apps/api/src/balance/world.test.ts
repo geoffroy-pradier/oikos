@@ -23,9 +23,15 @@ describe.each(Object.values(SCENARIOS))('scénario des $name', (scenario) => {
     }
   });
 
-  it('chaque cité reçoit chaque bien du panier, de ses maisons ou d’un armateur', () => {
+  it('chaque cité reçoit chaque bien du panier, de ses maisons, d’un armateur ou de la maison PNJ qui le tient', () => {
     for (const slug of scenario.slugs) {
+      const held = scenario.npcHeld.filter((chain) => chain.slug === slug);
       const goods = new Set([
+        ...held.flatMap(
+          (chain) =>
+            scenario.config.npcHouses[slug]?.chains.find((each) => each.id === chain.chainId)
+              ?.goodId ?? [],
+        ),
         ...(scenario.settlements[slug] ?? []).flatMap((role) =>
           role.sites.flatMap((id) => recipeOf(id).outputs.map((stack) => stack.goodId)),
         ),
@@ -82,3 +88,46 @@ describe('scénario des douze cités', () => {
       );
   });
 });
+
+describe.each(Object.values(SCENARIOS))(
+  'maisons PNJ de secours du scénario des $name (#717)',
+  (scenario) => {
+    it('celles de la configuration, sites divisés comme la population, sans règle de récolte', () => {
+      for (const [slug, city] of Object.entries(scenario.config.npcHouses)) {
+        expect(scenario.slugs, slug).toContain(slug);
+        for (const chain of city.chains) {
+          const initial = config.npcHouses[slug]?.chains.find((each) => each.id === chain.id);
+          for (const [recipeId, count] of Object.entries(chain.sites))
+            expect(count, `${slug}/${chain.id}`).toBe(
+              Math.ceil((initial?.sites[recipeId] ?? 0) / 8),
+            );
+          expect(
+            Object.values(chain.rules ?? {})
+              .flat()
+              .map((rule) => rule.kind),
+            `${slug}/${chain.id}`,
+          ).not.toContain('collect');
+        }
+      }
+      // Toutes les cités du scénario qui ont des filières de secours dans la configuration les jouent.
+      expect(Object.keys(scenario.config.npcHouses).sort()).toEqual(
+        Object.keys(config.npcHouses)
+          .filter((slug) => scenario.slugs.includes(slug))
+          .sort(),
+      );
+    });
+
+    it('une filière tenue par la maison PNJ ne l’est par aucune maison scriptée de sa cité', () => {
+      for (const { slug, chainId } of scenario.npcHeld) {
+        const chain = scenario.config.npcHouses[slug]?.chains.find((each) => each.id === chainId);
+        expect(chain, `${slug}/${chainId}`).toBeDefined();
+        const recipes = new Set(Object.keys(chain?.sites ?? {}));
+        for (const role of scenario.settlements[slug] ?? [])
+          expect(
+            role.sites.filter((id) => recipes.has(id)),
+            `${slug} ${role.name}`,
+          ).toEqual([]);
+      }
+    });
+  },
+);

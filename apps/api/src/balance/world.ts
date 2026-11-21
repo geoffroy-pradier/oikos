@@ -1,3 +1,4 @@
+import type { NpcHouses } from '@oikos/config';
 import { cityProperties, npcDemand, voyageArrivals } from '@oikos/engine';
 import { config, type City, type Role } from './city';
 import type { Seller } from './strategy';
@@ -46,6 +47,40 @@ export const HOUSING = {
  */
 export const GRANT_OBOLES = 15_000;
 
+/**
+ * Maisons PNJ de secours du scénario (8.3, #717) : celles de la configuration, à deux paramètres du banc près. Leurs
+ * sites sont divisés comme la population (`POPULATION_DIVISOR`, arrondi au-dessus) : la configuration les règle pour
+ * une cité entière. Et leur règle de récolte n'est pas jouée : la base daterait la récolte de l'instant réel, et le banc
+ * récolte leurs sites à l'heure de jeu, comme ceux de ses maisons (`balance/city.ts`, `balance/npc.ts`). Leurs ventes
+ * sont celles de la configuration, menées par le moteur.
+ */
+export const benchNpcHouses = (npcHouses: NpcHouses): NpcHouses =>
+  Object.fromEntries(
+    Object.entries(npcHouses).map(([slug, city]) => [
+      slug,
+      {
+        ...city,
+        chains: city.chains.map((chain) => ({
+          ...chain,
+          sites: Object.fromEntries(
+            Object.entries(chain.sites).map(([recipeId, count]) => [
+              recipeId,
+              Math.ceil(count / POPULATION_DIVISOR),
+            ]),
+          ),
+          ...(chain.rules && {
+            rules: Object.fromEntries(
+              Object.entries(chain.rules).map(([recipeId, rules]) => [
+                recipeId,
+                rules.filter((rule) => rule.kind !== 'collect'),
+              ]),
+            ),
+          }),
+        })),
+      },
+    ]),
+  );
+
 /** Garde, des tables par cité de la configuration, les entrées des quatre cités du scénario. */
 const ofScenario = <T>(byCity: Record<string, T>): Record<string, T> =>
   Object.fromEntries(
@@ -73,6 +108,7 @@ const fourConfig = {
     },
   },
   starting: { ...config.starting, grantOboles: GRANT_OBOLES },
+  npcHouses: ofScenario(benchNpcHouses(config.npcHouses)),
   properties: {
     ...config.properties,
     countsByCity: ofScenario(config.properties.countsByCity),
@@ -283,6 +319,7 @@ const TWELVE_CARRIERS: CarrierSpec[] = [
 ];
 const twelveConfig = {
   ...fourConfig,
+  npcHouses: benchNpcHouses(config.npcHouses),
   staff: config.staff,
   ships: config.ships,
   properties: { ...fourConfig.properties, countsByCity: config.properties.countsByCity },
@@ -297,9 +334,16 @@ const twelveConfig = {
   })),
 };
 
+/** Filière de secours qu'aucune maison scriptée ne tient dans sa cité : sa maison PNJ la tient jusqu'au bout (#717). */
+export interface NpcHeld {
+  slug: Slug;
+  chainId: string;
+}
+
 /**
- * Un scénario du banc : ses cités, leurs maisons, ses armateurs, sa configuration, et les durées maximales, en minutes,
- * du banc et du test du simulateur (`simulate.bench.ts`).
+ * Un scénario du banc : ses cités, leurs maisons, ses armateurs, sa configuration, les filières que tiennent ses
+ * maisons PNJ (`npcHeld` ; toutes les autres doivent s'être retirées pendant la mise en route), et les durées
+ * maximales, en minutes, du banc et du test du simulateur (`simulate.bench.ts`).
  */
 export const SCENARIOS = {
   four: {
@@ -308,6 +352,7 @@ export const SCENARIOS = {
     settlements: FOUR_SETTLEMENTS,
     carriers: FOUR_CARRIERS,
     config: fourConfig,
+    npcHeld: [] as readonly NpcHeld[],
     maxMinutes: 15,
     simulatorMinutes: 10,
   },
@@ -317,6 +362,7 @@ export const SCENARIOS = {
     settlements: TWELVE_SETTLEMENTS,
     carriers: TWELVE_CARRIERS,
     config: twelveConfig,
+    npcHeld: [] as readonly NpcHeld[],
     maxMinutes: 45,
     simulatorMinutes: 30,
   },
@@ -327,6 +373,7 @@ export const SCENARIO =
 export const SLUGS = SCENARIO.slugs;
 export const SETTLEMENTS = SCENARIO.settlements;
 export const CARRIERS = SCENARIO.carriers;
+export const NPC_HELD = SCENARIO.npcHeld;
 export const worldConfig = SCENARIO.config;
 
 /** Une cité du banc et ses maisons scriptées. */

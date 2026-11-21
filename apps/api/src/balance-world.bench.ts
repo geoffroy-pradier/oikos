@@ -11,7 +11,7 @@ import {
   recipeMargins,
   sinkShares,
 } from './balance/measures';
-import { SCENARIO, SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
+import { NPC_HELD, SCENARIO, SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
 import { sql } from 'kysely';
 
 /*
@@ -55,6 +55,7 @@ it(
       supplyBefore,
       events,
       wages,
+      npc,
     } = run;
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -82,6 +83,26 @@ it(
         0,
       );
     }
+    // Maisons PNJ de secours (8.3, #717), bornes écrites à la main : chaque filière de secours du scénario a sa maison.
+    // Celle qu'aucune maison scriptée ne tient (`NPC_HELD`) la tient jusqu'au bout, sites ouverts, et y vend son bien
+    // pendant les jours mesurés ; les bornes de sa cité sont celles de toutes (plus bas). Toutes les autres se sont
+    // retirées, plus aucun site ouvert, avant la fin de la mise en route.
+    const chains = Object.values(worldConfig.npcHouses).flatMap((city) => city.chains);
+    expect(npc.houses.size, 'maisons PNJ fondées').toBe(chains.length);
+    for (const house of npc.houses.values()) {
+      const label = `${house.city.slug}/${house.chainId}`;
+      if (
+        NPC_HELD.some((held) => held.slug === house.city.slug && held.chainId === house.chainId)
+      ) {
+        expect(house.sites.length, `${label} : sites ouverts`).toBeGreaterThan(0);
+        expect(house.retreatedDay, `${label} : retrait`).toBeUndefined();
+        const sold = await sql<{ units: string }>`select coalesce(sum(t.quantity), 0) as units
+          from game.trades t join game.orders o on o.id = t.sell_order_id
+          where o.house_id = ${house.houseId} and t.created_at > ${measuredFrom}`.execute(world.db);
+        expect(Number(sold.rows[0]?.units), `${label} : ventes mesurées`).toBeGreaterThan(0);
+      } else expect(house.retreatedDay, `${label} : retrait`).toBeLessThan(WARMUP);
+    }
+    expect(npc.operations.failed, 'opérations des maisons PNJ').toBe(0);
     expect(acquisitions).toBeGreaterThan(0);
     // Les maisons ont payé les salaires de la configuration, leurs intendants compris, que le rapprochement de la
     // bourse des PNJ compte, et leurs intendants ont exécuté leurs règles.
@@ -222,6 +243,17 @@ it(
       events,
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
+      npcHouses: Object.fromEntries(
+        [...npc.houses.values()].map((house) => [
+          `${house.city.slug}/${house.chainId}`,
+          {
+            retreatedDay: house.retreatedDay ?? null,
+            open: house.sites.length,
+            dissolved: house.dissolved,
+          },
+        ]),
+      ),
+      npcOperations: npc.operations,
     });
 
     // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
