@@ -15,6 +15,8 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Hybris | Démesure : jauge qui monte quand une maison domine trop |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Faste (splendor) | Ce qu'une maison paie au-delà du dû de sa liturgie, dans une borne, pour plus de Timè et de Charis (`splendor`) |
+| Trapeza (bank) | Banque d'une maison de joueur, une au plus par maison, dans la cité de sa citoyenneté : elle tient un coffre, collectera des dépôts et prêtera sur garantie (`bank`) |
+| Coffre (vault) | Compte du grand livre d'une banque, ouvert par la base à sa fondation, jamais débiteur : la masse monétaire le compte, et la fortune de la maison de la banque aussi (`vault`) |
 | Dérobade (evasion) | Liturgie non accomplie à son échéance : prélevée d'office sur la trésorerie, sans dette, avec une perte de Timè (`liturgy_evaded`) |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |
 | Âge | Un monde de jeu (un serveur) |

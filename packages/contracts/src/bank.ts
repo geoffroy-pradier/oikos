@@ -3,9 +3,11 @@ import { houseNameSchema } from './house';
 
 /**
  * Banques de joueurs (trapeza, docs/specs/05-economie.md, 5.4 ; #726) : une maison fonde au plus une banque, dans sa
- * cité, en payant le droit de fondation et en versant un capital au coffre. Montants en oboles, entiers sûrs.
+ * cité, en payant le droit de fondation et en versant un capital au coffre, puis y verse ou en retire du capital, ce
+ * qui excède la réserve exigée. Montants en oboles, entiers sûrs.
  */
 const oboles = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
 const rate = z.number().int().min(0).max(1_000_000);
 
 /**
@@ -50,8 +52,51 @@ export const BANK_FOUND_ERROR_CODES = [
 ] as const;
 export type BankFoundErrorCode = (typeof BANK_FOUND_ERROR_CODES)[number];
 
+export const BANK_CAPITAL_DIRECTIONS = ['in', 'out'] as const;
+export type BankCapitalDirection = (typeof BANK_CAPITAL_DIRECTIONS)[number];
+
+/**
+ * Commande `bank.moveCapital` : verser au coffre de la banque de la maison (`in`) ou en retirer (`out`) un montant ; un
+ * retrait ne prend que ce qui excède la réserve exigée.
+ */
+export const bankMoveCapitalInputSchema = z.strictObject({
+  direction: z.enum(BANK_CAPITAL_DIRECTIONS),
+  amount: positive,
+});
+export type BankMoveCapitalInput = z.infer<typeof bankMoveCapitalInputSchema>;
+
+const moved = {
+  bankId: z.uuid(),
+  direction: z.enum(BANK_CAPITAL_DIRECTIONS),
+  amount: positive,
+  /** Coffre après le mouvement. */
+  vault: oboles,
+  /** Réserve exigée en vigueur : le coffre n'en descend pas par un retrait. */
+  requiredReserve: oboles,
+};
+export const bankMoveCapitalOutputSchema = z.object(moved);
+export type BankMoveCapitalOutput = z.infer<typeof bankMoveCapitalOutputSchema>;
+
+export const BANK_MOVE_CAPITAL_ERROR_CODES = [
+  'HOUSE_NOT_FOUND',
+  'BANKS_CLOSED',
+  /** La maison n'a pas de banque. */
+  'BANK_NOT_FOUND',
+  /** Un versement dépasse la trésorerie. */
+  'INSUFFICIENT_FUNDS',
+  /** Un retrait passerait le coffre sous la réserve exigée ; le message donne ce qui peut sortir. */
+  'RESERVE_SHORT',
+] as const;
+export type BankMoveCapitalErrorCode = (typeof BANK_MOVE_CAPITAL_ERROR_CODES)[number];
+
 /** Une maison a fondé sa banque : la banque, son droit, son capital et ses taux. Lu par le seul serveur. */
 export const bankFoundedSchema = z.strictObject({
   type: z.literal('BankFounded'),
   payload: z.strictObject({ ...founded, houseId: z.uuid() }),
+});
+
+/** Une maison a versé au coffre de sa banque ou en a retiré du capital. Lu par le seul serveur. */
+export const bankCapitalMovedSchema = z.strictObject({
+  type: z.literal('BankCapitalMoved'),
+  payload: z.strictObject({ ...moved, houseId: z.uuid() }),
 });

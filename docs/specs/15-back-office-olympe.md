@@ -282,7 +282,7 @@ Le journal d'audit rend le résultat de chaque commande d'administration, jamais
 Il est trié par ordre d'inscription ; l'heure affichée est celle du début de la commande, si bien que deux commandes simultanées peuvent y apparaître dans l'ordre inverse de leurs heures.
 L'application `apps/admin` ne parle qu'à Supabase Auth (lien magique, puis second facteur TOTP : enrôlement d'une application d'authentification à la première connexion, code à chaque session) et à ces routes ;
 elle n'affiche aucun module avant que l'API ait confirmé le rôle du compte.
-Le module Économie (5.5) montre, pour chaque monde, l'indice des prix des deux fenêtres, l'inflation et sa situation par rapport à la cible, la masse monétaire par nature de compte (bourses des PNJ comprises, #632), puis le net de chaque robinet et de chaque puits depuis l'origine et par jour de jeu (une fiche par jour, du plus récent au plus ancien) ;
+Le module Économie (5.5) montre, pour chaque monde, l'indice des prix des deux fenêtres, l'inflation et sa situation par rapport à la cible, la masse monétaire par nature de compte (bourses des PNJ comprises, #632, et coffres des banques, #726, montrés dès qu'ils portent de la monnaie), puis le net de chaque robinet et de chaque puits depuis l'origine et par jour de jeu (une fiche par jour, du plus récent au plus ancien) ;
 hors de la cible, une alerte écrite dit l'inflation, le sens de l'écart et la cible ;
 une mesure inconnue est dite telle, avec chaque bien du panier sans échange et la fenêtre en cause, ou l'absence de panier ;
 une fenêtre partielle est signalée à côté de l'indice et dans l'alerte ;

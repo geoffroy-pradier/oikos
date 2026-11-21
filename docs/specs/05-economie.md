@@ -341,6 +341,18 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
 ## 5.4 La finance
 
 - **Banque de joueur** (trapeza) : collecte de dépôts rémunérés, prêts à taux libre avec garantie (parcelle, navire, stock), ratio de réserve minimal imposé. Une ruée sur les dépôts est possible.
+  Fondation (#726) : une maison de joueur fonde au plus une banque, dans la cité de sa citoyenneté, sous un nom unique dans son monde (règle du nom d'une maison).
+  Sa monnaie est un compte du grand livre à part, son coffre, que la base ouvre à la fondation ; la masse monétaire le compte comme une trésorerie (5.5).
+  Paramètres du back-office (`banks`) : le droit de fondation (`charterFeeOboles`), le capital minimal (`minCapitalOboles`), le ratio de réserve en points de base des dépôts (`reserveRatioBps`) et les bornes des taux de dépôt et de prêt (`depositRateBps`, `loanRateBps`).
+  Décision (paramètres neutres) : la configuration initiale ne porte pas de section `banks`, et aucune banque ne se fonde (`BANKS_CLOSED`) tant que les administrateurs ne l'ouvrent pas.
+  La commande `bank.found` porte le nom, le capital et le droit que le joueur a vu (`bank_rules`) : un autre droit est refusé (`FEE_CHANGED`), comme un capital sous le minimum, une trésorerie qui ne couvre pas droit et capital, une seconde banque ou un nom pris.
+  Le droit est détruit par le puits `sink_bank_charter` (écriture `bank.charter`), le capital passe de la trésorerie au coffre (écriture `bank.capital_in`), en une transaction.
+  Les taux affichés d'une banque fondée sont les bornes basses du monde ; `bank.setRates` (#727) les changera.
+  Réserve exigée (`bankRequiredReserve`, `packages/sim`) : le plus grand du capital minimal et de la part `reserveRatioBps` des dépôts, arrondie à l'obole supérieure ; sans dépôt avant #727, le capital minimal.
+  Décision (ambiguïté de 5.4) : le capital minimal est aussi le plancher de la réserve, sans quoi le banquier retirerait son capital dès la fondation.
+  La commande `bank.moveCapital` verse au coffre (`in`) ou en retire (`out`) du capital, par une écriture `bank.capital_in` ou `bank.capital_out` ; un retrait ne prend que ce qui excède la réserve exigée de la configuration en vigueur (`RESERVE_SHORT`), si bien qu'un capital minimal relevé bloque les retraits sans vider aucun coffre.
+  Sans section `banks`, `bank.moveCapital` est refusée elle aussi (`BANKS_CLOSED`) : le capital reste au coffre, qui compte toujours dans la fortune.
+  Événements de domaine : `BankFounded` à la fondation, `BankCapitalMoved` à chaque mouvement de capital.
 - **Prêt maritime** : prêt à taux élevé remboursé seulement si le navire arrive. C'est l'assurance du jeu, et elle est historique.
 - **Trésor du temple** : prêteur PNJ au taux directeur, plafonné par la Timè. Levier de politique monétaire des administrateurs.
   Dans la première version (#724), un prêt du temple porte un intérêt simple, fixé à l'emprunt pour toute sa durée : principal × taux directeur annuel (points de base) × jours ÷ (10 000 × 365), arrondi à l'obole supérieure (`templeLoanInterest`, `packages/sim`, que la base vérifie).
@@ -376,6 +388,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Récompenses de quêtes et de Jeux | Offrandes, liturgies et fêtes de la cité |
 | Dotation de départ | Intérêts payés au Trésor du temple |
 | Rachat du stock d'un bien à retirer (Olympe, 5.1) | Grands travaux et merveilles |
+|  | Droit de fondation des banques (5.4, #726) |
 | Dotation des maisons PNJ de secours (8.3, #715) | Acquisition de sites et achat de navires |
 |  | Surplus des maisons PNJ de secours (8.3, #716) |
 
@@ -458,6 +471,8 @@ Dans l'ordre de la clôture, elle vient après la planification des événements
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Depuis #632, elle compte aussi les bourses des PNJ des cités (12), une nature à part du tableau de bord (`npcPurses`) : ce que les maisons versent aux PNJ circule encore.
+Depuis #726, elle compte aussi les coffres des banques (`bankVaults`), que l'écran d'Olympe ne montre que s'ils portent de la monnaie : le capital versé au coffre ne quitte pas la circulation.
+Le droit de fondation d'une banque, lui, est détruit par le puits `sink_bank_charter`, qui ne rend rien ; comme pour les autres puits, la base ne lie pas ce compte à sa mécanique (12).
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
 
