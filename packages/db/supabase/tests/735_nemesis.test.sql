@@ -1,12 +1,14 @@
 begin;
-select plan(33);
+select plan(37);
 
--- Jeu d'essai : un monde à lui, une cité ; Alice (a) et Bob (b), maisons de joueur ; les Greniers (e), maison PNJ ;
--- Dion (d) a une maison dans un second monde. Aucune clôture n'est enregistrée.
+-- Jeu d'essai : un monde à lui, deux cités ; Alice (a) et Bob (b), maisons de joueur ; les Greniers (e), maison PNJ ;
+-- Dion (d) a une maison dans un second monde. Alice a un voyage en mer et un voyage arrivé, Bob un voyage en mer, tous
+-- sur lest, de Kallistè à Elaia. Aucune clôture n'est enregistrée.
 insert into game.worlds (id, slug, name) values
   ('01900000-0000-7000-8000-0000000735f0', 'nemesis-735', 'Némésis'), ('01900000-0000-7000-8000-0000000735f9', 'ailleurs-735', 'Ailleurs');
 insert into game.cities (id, world_id, slug, name) values
-  ('01900000-0000-7000-8000-0000000735c1', '01900000-0000-7000-8000-0000000735f0', 'k735', 'Kallistè');
+  ('01900000-0000-7000-8000-0000000735c1', '01900000-0000-7000-8000-0000000735f0', 'k735', 'Kallistè'),
+  ('01900000-0000-7000-8000-0000000735c2', '01900000-0000-7000-8000-0000000735f0', 'l735', 'Elaia');
 insert into auth.users (id, email)
 select ('00000000-0000-4000-8000-0000000735a' || n)::uuid, 'nemesis-735-' || n || '@example.test' from unnest(array['a', 'b', 'd']) n;
 insert into game.houses (id, world_id, user_id, name, blazon, kind)
@@ -17,6 +19,20 @@ from (values ('a', 'Alcméonides', 'player', '01900000-0000-7000-8000-0000000735
              ('e', 'Greniers', 'npc', '01900000-0000-7000-8000-0000000735f0'),
              ('d', 'Eumolpides', 'player', '01900000-0000-7000-8000-0000000735f9')) h (n, name, kind, w);
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c735', '{}');
+insert into game.ships (id, world_id, house_id, class_id, docked_city_id)
+select ('00000000-0000-7000-8000-0000000735f' || n)::uuid, '01900000-0000-7000-8000-0000000735f0',
+       ('00000000-0000-7000-8000-0000000735' || h || '1')::uuid, 'coaster', '01900000-0000-7000-8000-0000000735c1'
+from (values ('1', 'a'), ('2', 'a'), ('3', 'b')) s (n, h);
+insert into game.voyages (id, world_id, house_id, ship_id, from_city_id, to_city_id, arrives_at)
+select ('00000000-0000-7000-8000-0000000735c' || n)::uuid, '01900000-0000-7000-8000-0000000735f0', s.house_id, s.id,
+       '01900000-0000-7000-8000-0000000735c1', '01900000-0000-7000-8000-0000000735c2',
+       now() + case n when '2' then interval '1 millisecond' else interval '1 hour' end
+from game.ships s cross join lateral (select right(s.id::text, 1) as n) x
+where s.world_id = '01900000-0000-7000-8000-0000000735f0';
+update game.ships set docked_city_id = null where world_id = '01900000-0000-7000-8000-0000000735f0';
+do $$ begin perform pg_sleep(0.01); end $$;
+update game.voyages set arrived_at = arrives_at where id = '00000000-0000-7000-8000-0000000735c2';
+update game.ships set docked_city_id = '01900000-0000-7000-8000-0000000735c2' where id = '00000000-0000-7000-8000-0000000735f2';
 
 create function pg_temp.as_service(statement text) returns void language plpgsql as $$
 begin
@@ -111,8 +127,8 @@ select throws_ok('update game.nemesis_omens set text_fr = ''autre''', '23001', n
 select throws_ok('delete from game.nemesis_omens', '23001', null, 'ni ne le supprime');
 select pg_temp.close(203);
 
--- Navire perdu d'Alice à la clôture du jour 204, au-delà de son échéance (une clôture manquée) : aucun voyage en mer,
--- rien de pris, la jauge redescend de 900.
+-- Navire perdu d'Alice à la clôture du jour 204, au-delà de son échéance (une clôture manquée) : son voyage en mer
+-- (c1) est condamné, la jauge redescend de 900.
 select lives_ok(pg_temp.hubris('a', 1000, 'market_share', 204), 'la jauge d''Alice monte');
 select throws_ok(pg_temp.hubris('a', 10, 'nemesis', 204), '23001', 'a Hybris relief lowers the gauge',
   'la cause nemesis ne fait que baisser la jauge');
@@ -123,8 +139,14 @@ select throws_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, r
   'un navire perdu ne prend pas d''oboles');
 select throws_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, relief = 900, magnitude_bps = 10'), '23514',
   null, 'ni n''a d''ampleur');
-select lives_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, relief = 900'),
-  'la sanction d''Alice frappe, sans voyage en mer à perdre');
+select throws_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, relief = 900, '
+    || 'voyage_id = ''00000000-0000-7000-8000-0000000735c3'''), '23001',
+  'a ship is lost at sea, on a voyage of its house', 'un navire perdu ne condamne pas le voyage d''une autre maison');
+select throws_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, relief = 900, '
+    || 'voyage_id = ''00000000-0000-7000-8000-0000000735c2'''), '23001',
+  'a ship is lost at sea, on a voyage of its house', 'ni un voyage déjà arrivé');
+select lives_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 204, relief = 900, '
+    || 'voyage_id = ''00000000-0000-7000-8000-0000000735c1'''), 'la sanction d''Alice frappe, son voyage en mer condamné');
 select pg_temp.close(204);
 select lives_ok('set constraints all immediate', 'à la validation : clôture du jour, jauge redescendue');
 set constraints all deferred;
@@ -134,8 +156,12 @@ select throws_ok(pg_temp.omen('b', 204), '23001', 'an omen is written before its
 
 -- Une sanction qui frappe sans faire redescendre la jauge est refusée à la validation.
 select lives_ok(pg_temp.omen('b', 205, 'ship_lost'), 'un nouveau présage pour Bob');
+select lives_ok(pg_temp.omen('a', 205, 'ship_lost'), 'et pour Alice');
 select pg_temp.close(205);
 select lives_ok(pg_temp.settle('b', 'outcome = ''struck'', settled_day = 208, relief = 7'), 'Bob est frappé…');
+-- Alice, frappée de nouveau, ne voit pas condamner deux fois le même voyage.
+select throws_ok(pg_temp.settle('a', 'outcome = ''struck'', settled_day = 208, relief = 1, '
+    || 'voyage_id = ''00000000-0000-7000-8000-0000000735c1'''), '23505', null, 'un voyage n''est condamné qu''une fois');
 select pg_temp.close(208);
 select throws_ok('set constraints game.nemesis_omens_on_close immediate', '23001',
   'a sanction lowers the Hybris gauge by its relief', '… mais sa jauge n''a pas redescendu : refusé à la validation');

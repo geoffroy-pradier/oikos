@@ -64,8 +64,9 @@ create table if not exists game.nemesis_omens (
           else num_nonnulls(magnitude_bps, oboles, ledger_entry_id, inventory_id, quantity, site_id, resumes_at) = 0
         end))
 );
--- Un présage en attente au plus par maison, un par jour, une écriture d'amende par présage.
+-- Un présage en attente au plus par maison, un par jour, une écriture d'amende par présage, un voyage condamné une fois.
 create unique index if not exists nemesis_omens_pending on game.nemesis_omens (house_id) where outcome is null;
+create unique index if not exists nemesis_omens_voyage_once on game.nemesis_omens (voyage_id) where outcome = 'struck';
 create unique index if not exists nemesis_omens_once_a_day on game.nemesis_omens (house_id, omen_day);
 create unique index if not exists nemesis_omens_entry_once on game.nemesis_omens (ledger_entry_id);
 create index if not exists nemesis_omens_due_idx on game.nemesis_omens (world_id, due_day) where outcome is null;
