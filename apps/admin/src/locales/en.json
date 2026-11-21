@@ -217,7 +217,7 @@
       "sink_npc_lodging": "Workers lodged with NPCs",
       "sink_upkeep": "Site upkeep",
       "sink_market_tax": "Market tax, burned share",
-      "sink_offerings": "Offerings and liturgies",
+      "sink_offerings": "Offerings",
       "sink_temple_interest": "Temple Treasury interest",
       "sink_public_works": "Public works and wonders",
       "sink_site_acquisition": "Site acquisition",
@@ -228,7 +228,8 @@
       "sink_property_purchase": "Housing bought from the city",
       "sink_property_upkeep": "Housing upkeep",
       "sink_property_works": "Housing renovation",
-      "sink_festivals": "City festivals"
+      "sink_festivals": "City festivals",
+      "sink_liturgies": "Liturgies"
     },
     "byDay_one": "Faucets and sinks: net per game day (day read: 1)",
     "byDay_other": "Faucets and sinks: net per game day (days read: {{count}})",
