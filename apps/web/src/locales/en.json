@@ -541,7 +541,11 @@
     "INSUFFICIENT_CHARIS": "Your Charis toward this god is not enough to invoke this grace.",
     "GRACE_PENDING": "This grace is still waiting for the action that will consume it: it cannot be invoked again until then.",
     "GRACE_RECHARGING": "This grace is recharging: its card shows until when.",
-    "ORACLE_UNAVAILABLE": "The Pythia cannot be consulted in the configuration in force: nothing was paid."
+    "ORACLE_UNAVAILABLE": "The Pythia cannot be consulted in the configuration in force: nothing was paid.",
+    "LITURGY_NOT_FOUND": "This liturgy cannot be found.",
+    "LITURGY_SETTLED": "This liturgy is already settled.",
+    "LITURGY_OVERDUE": "This liturgy is past its deadline: it will be levied automatically.",
+    "SPLENDOR_OUT_OF_BOUNDS": "The splendor is above the permitted limit."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -1595,5 +1599,37 @@
     "inOffice": "In office",
     "past": "Ended",
     "view": "View the profile of {{house}}"
+  },
+  "liturgy": {
+    "genres": {
+      "festival": "Festival",
+      "trierarchy": "Trierarchy",
+      "choregia": "Choregia"
+    },
+    "done": "Liturgy performed: {{total}} paid, Timè +{{honor}}, Charis +{{charis}}.",
+    "due": "Due",
+    "deadline": "Deadline",
+    "sheet": {
+      "title": "Perform my liturgy",
+      "stepDue": "Due",
+      "stepSplendor": "Splendor",
+      "stepRecap": "Summary",
+      "dueNote": "The due is set by the city. You confirm it at the last step: if it has changed in the meantime, nothing is paid.",
+      "splendor": "Splendor, in obols added to the due",
+      "splendorHint": "From 0 to {{max}} obols. The greater the splendor, the more you earn.",
+      "noSplendor": "No splendor is allowed: you only pay the due.",
+      "outOfBounds": "Splendor must be a whole number of obols, from 0 to {{max}}.",
+      "quote": "You would earn {{honor}} Timè and {{charis}} Charis with {{god}}.",
+      "quoteNoGod": "You would earn {{honor}} Timè. The city has no patron god: no Charis.",
+      "recap": "You perform your liturgy ({{genre}}) by paying:",
+      "recapDue": "Due as seen",
+      "recapSplendor": "Splendor",
+      "recapTotal": "Total paid",
+      "recapHonor": "Timè gained",
+      "recapCharis": "Charis gained with {{god}}",
+      "recapCharisNoGod": "Charis gained",
+      "recapNote": "The amount is taken from your treasury in a single entry.",
+      "confirm": "Pay {{total}}"
+    }
   }
 }

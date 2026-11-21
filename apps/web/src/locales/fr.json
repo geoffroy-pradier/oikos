@@ -541,7 +541,11 @@
     "INSUFFICIENT_CHARIS": "Votre Charis envers ce dieu ne suffit pas pour invoquer cette grâce.",
     "GRACE_PENDING": "Cette grâce attend encore l'action qui la consommera : elle ne s'invoque pas de nouveau d'ici là.",
     "GRACE_RECHARGING": "Cette grâce se recharge : sa fiche dit jusqu'à quand.",
-    "ORACLE_UNAVAILABLE": "La Pythie ne se consulte pas dans la configuration en vigueur : rien n'a été payé."
+    "ORACLE_UNAVAILABLE": "La Pythie ne se consulte pas dans la configuration en vigueur : rien n'a été payé.",
+    "LITURGY_NOT_FOUND": "Cette liturgie est introuvable.",
+    "LITURGY_SETTLED": "Cette liturgie est déjà réglée.",
+    "LITURGY_OVERDUE": "L'échéance de cette liturgie est passée : elle sera prélevée d'office.",
+    "SPLENDOR_OUT_OF_BOUNDS": "Le faste dépasse la borne permise."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -1595,5 +1599,37 @@
     "inOffice": "En cours",
     "past": "Terminé",
     "view": "Voir la fiche de {{house}}"
+  },
+  "liturgy": {
+    "genres": {
+      "festival": "Fête",
+      "trierarchy": "Triérarchie",
+      "choregia": "Chorégie"
+    },
+    "done": "Liturgie accomplie : {{total}} payés, Timè +{{honor}}, Charis +{{charis}}.",
+    "due": "Dû",
+    "deadline": "Échéance",
+    "sheet": {
+      "title": "Accomplir ma liturgie",
+      "stepDue": "Dû",
+      "stepSplendor": "Faste",
+      "stepRecap": "Récapitulatif",
+      "dueNote": "Le dû est fixé par la cité. Vous le confirmez à la dernière étape : s'il a changé entre-temps, rien n'est payé.",
+      "splendor": "Faste, en oboles ajoutées au dû",
+      "splendorHint": "De 0 à {{max}} oboles. Plus le faste est grand, plus vous gagnez.",
+      "noSplendor": "Aucun faste n'est admis : vous ne payez que le dû.",
+      "outOfBounds": "Le faste doit être un nombre entier d'oboles, de 0 à {{max}}.",
+      "quote": "Vous gagneriez {{honor}} de Timè et {{charis}} de Charis envers {{god}}.",
+      "quoteNoGod": "Vous gagneriez {{honor}} de Timè. La cité n'a pas de dieu protecteur : aucune Charis.",
+      "recap": "Vous accomplissez votre liturgie ({{genre}}) en payant :",
+      "recapDue": "Dû vu",
+      "recapSplendor": "Faste",
+      "recapTotal": "Total payé",
+      "recapHonor": "Timè gagnée",
+      "recapCharis": "Charis gagnée envers {{god}}",
+      "recapCharisNoGod": "Charis gagnée",
+      "recapNote": "Le montant est prélevé sur votre trésorerie, en une seule écriture.",
+      "confirm": "Payer {{total}}"
+    }
   }
 }
