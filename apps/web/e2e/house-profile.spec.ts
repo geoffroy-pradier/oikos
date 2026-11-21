@@ -8,7 +8,7 @@ import {
   setUpCity,
   setUpForeignHouse,
 } from './city-fixtures';
-import { expectNoHorizontalScroll, foundHouseForm, signIn } from './helpers';
+import { expectNoHorizontalScroll, foundHouseForm, settleAnimations, signIn } from './helpers';
 
 // Fiche publique d'une maison (#705) : on y arrive depuis un magistrat, un candidat et l'auteur d'un message ;
 // une maison inconnue ou d'un autre monde mène à l'écran introuvable, sans rien révéler.
@@ -23,8 +23,10 @@ async function found(page: Page, role: Parameters<typeof setUpCity>[1] = 'metic'
   await setUpCity(name, role);
   return name;
 }
-const noViolation = async (page: Page) =>
+const noViolation = async (page: Page) => {
+  await settleAnimations(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+};
 
 test('du magistrat à sa fiche, au clavier, puis retour à la cité', async ({ page }) => {
   await found(page);

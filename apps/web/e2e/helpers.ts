@@ -25,8 +25,25 @@ async function magicLink(email: string): Promise<string> {
   throw new Error(`Aucun lien magique reçu pour ${email}`);
 }
 
+/**
+ * Attend la fin des animations et transitions en cours : axe mesure les couleurs telles qu'affichées, et une
+ * apparition en fondu lui montrerait des teintes intermédiaires, au contraste insuffisant (#937).
+ */
+export async function settleAnimations(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        // Une animation sans fin (indicateur de chargement) ne s'achève jamais : on ne l'attend pas.
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
 /** Violations graves (sérieuses ou critiques) des règles WCAG A et AA relevées par axe sur la page. */
 export async function seriousViolations(page: Page) {
+  await settleAnimations(page);
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
