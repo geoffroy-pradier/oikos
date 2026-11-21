@@ -307,8 +307,11 @@ export async function move(city: City, houseId: string, goodId: string, delta: n
 const owedToLevy = new Map<string, number>();
 export const setOwedToLevy = (houseId: string, oboles: number) => owedToLevy.set(houseId, oboles);
 /**
- * Trésorerie de la maison, en oboles, moins ce que le prélèvement d'office des liturgies qu'elle élude lui prendra : une
- * maison scriptée ne le dépense pas, et son entretien reste payé après le prélèvement (#721).
+ * Trésorerie de la maison, en oboles, moins ce que le prélèvement d'office des liturgies qu'elle élude lui prendra
+ * (`owedToLevy`). Toute décision de dépense du banc (sites, intrants, logement, cargaisons) lit cette trésorerie : sans
+ * cette déduction, une maison qui élude dépenserait le dû avant l'échéance, le prélèvement viderait sa trésorerie et
+ * l'entretien de ses sites resterait impayé (site à l'arrêt, ce qui fait échouer le banc). Ce n'est pas le solde de la
+ * base : le test qui le lit sans liturgie n'y voit aucune différence (#721).
  */
 export const cash = async (city: City, houseId: string) =>
   Number(

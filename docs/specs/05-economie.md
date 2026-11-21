@@ -675,7 +675,7 @@ Les chiffres ci-dessous ont été mesurés avant les terroirs resserrés de #714
 
 Calibrage des liturgies (#721, 6.4) : le banc à douze cités tient de −5 % à +25 % de masse monétaire sur les 30 jours mesurés, borne écrite à la main dans `balance-world.bench.ts`.
 Le banc à quatre cités garde sa borne de moins de 200 % ; il joue la même configuration, et sa masse croît de 16,4 % (692 658 à 781 268 oboles) au lieu de 167,1 %.
-Le banc à une cité ne joue aucune liturgie (`createCity` retire l'étape de désignation) : ses mesures et ses bornes sont celles d'avant.
+Le banc à une cité joue les liturgies sans stratégie d'accomplissement : toutes ses maisons sont prélevées d'office, sa masse finale tombe à 1 837 291 oboles au lieu de 2 819 234 et `sink_liturgies` pèse 72,8 % de la monnaie détruite ; ses bornes tiennent, mais il ne couvre pas l'accomplissement.
 
 - **Configuration.** La configuration initiale désigne, à la première clôture de chaque saison, les dix maisons les plus riches de chaque cité dont la fortune atteint 20 000 oboles (`housesPerCity`, `wealthFloor`).
   Le dû est 45 % de la fortune (`dueShareBps`), entre 6 000 et 600 000 oboles, à régler en trois jours de jeu (`dueDays`).
@@ -695,12 +695,13 @@ Le banc à une cité ne joue aucune liturgie (`createCity` retire l'étape de d�
   Aucun site ni aucun navire ne s'arrête dans le banc faute de trésorerie à cause d'une liturgie ; le banc le vérifie.
 - **Armateurs.** Le banc ajoute 2 000 oboles à la dotation de chaque armateur (`CARRIER_TOP_UP`) : un armateur vend à la référence et vit de sa dotation, et le relais de Chalkeia (4.6) finissait les 40 jours à 404 oboles, à 10 avec un revenu public à 70 % ; un jour de plus, son site s'arrêtait.
   C'est un paramètre du banc, pas du jeu ; la référence du rapport le joue aussi.
-- **Mesure à douze cités.** Masse du monde de 2 050 041 oboles au dernier jour de la mise en route à 2 335 288 au dernier jour mesuré, soit +15,4 % ; avant, 6 695 725 oboles au dernier jour mesuré (+163,9 % dans la mesure de #717, qui n'avait pas le fonds de roulement des armateurs).
+  L'armateur du jeu réel n'a pas cette dotation : il reste déficitaire avec un revenu public à 70 %, ce que le calibrage ne corrige pas (suivi dans un ticket à part).
+- **Mesure à douze cités.** Masse du monde de 2 050 041 oboles au premier jour mesuré à 2 335 288 au dernier jour mesuré, soit +15,4 % ; avant, 6 695 725 oboles au dernier jour mesuré (+163,9 % dans la mesure de #717, qui n'avait pas le fonds de roulement des armateurs).
   Création nette quotidienne des dix derniers jours à 50 % de celle des dix premiers (14 061 contre 27 984 oboles par jour).
   Part de `sink_liturgies` dans la monnaie détruite des jours mesurés : 79,4 %, aucune avant.
-  Liturgies jouées : 150 accomplies (1 811 554 oboles) et 61 éludées, prélevées d'office (803 441 oboles), aucune en partie.
+  Liturgies jouées sur les 40 jours : 150 accomplies (1 811 554 oboles) et 61 éludées, prélevées d'office (803 441 oboles), aucune en partie.
   Gini des fortunes du monde : de 2 197 à 3 843 points avant, de 1 950 à 2 628 après (sans borne).
-  Coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,1 % au moins (comme avant : les hippeis d'Agrotera), population de 14 833 à 15 167 habitants (15 167 au dernier jour avant), aucun site arrêté, marges des ateliers inchangées.
+  Coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,1 % au moins (comme avant : les hippeis d'Agrotera) et à 98,9 % à Chalkeia, pour une borne de 98 %, population de 14 833 à 15 167 habitants (15 167 au dernier jour avant), aucun site arrêté, marges des ateliers inchangées.
   Durée du banc : 37,9 minutes en local, pour une limite de 45.
   Le rapport du simulateur, configuration d'avant contre configuration d'après, est joint à la demande de fusion de #721.
 - **Limite connue.** La fortune compte les marchandises en mer au prix de leur cité d'arrivée (6.4) : un départ juste avant la désignation vers une cité sans prix observé les fait disparaître de la fortune.
