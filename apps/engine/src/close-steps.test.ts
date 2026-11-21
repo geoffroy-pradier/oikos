@@ -11,6 +11,7 @@ import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
+import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
 import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
 import { npcPopulation } from './steps/npc-population';
@@ -41,7 +42,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // (#265), sans monnaie ni stock ni agora, passent avant tout ce qui peut prendre l'agora.
     // L'ostracisme (#722) : son dépouillement avant celui des élections, qui écarte l'ostracisé ; l'ouverture de
     // son vote juste après le dépouillement des décrets, qui l'adopte. Les liturgies (#719), sans monnaie ni stock ni
-    // agora, lisent la fortune après les événements du monde et avant tout ce qui touche la monnaie.
+    // agora, lisent la fortune après les événements du monde et avant tout ce qui touche la monnaie ; la dérobade
+    // (#720) prend les Timè et les liturgies échues avant les Charis et l'agora, le prélèvement suit les loyers.
     const order = [
       citizenship,
       ostracismTally,
@@ -53,10 +55,12 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       npcPopulation,
       worldEventPlanning,
       liturgyAssignment,
+      liturgyEvasion,
       favorDecay,
       decreeApplication,
       decreeSpending,
       leaseRent,
+      liturgyLevy,
       propertyWear,
       laborMarket,
       npcHouses,
@@ -71,13 +75,15 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(npcHouses)).toBe(CLOSE_STEPS.length - 4);
     expect(CLOSE_STEPS.indexOf(laborMarket)).toBe(CLOSE_STEPS.length - 5);
     expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 6);
-    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 7);
+    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 7);
+    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 8);
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismTally)).toBe(CLOSE_STEPS.indexOf(archonTally) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismOpening)).toBe(CLOSE_STEPS.indexOf(decreeTally) + 1);
-    expect(CLOSE_STEPS.indexOf(liturgyAssignment)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 1);
+    expect(CLOSE_STEPS.indexOf(liturgyAssignment)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 2);
+    expect(CLOSE_STEPS.indexOf(liturgyEvasion)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 1);
     const names = CLOSE_STEPS.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
   });
