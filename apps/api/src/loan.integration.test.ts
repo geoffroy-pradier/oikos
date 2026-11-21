@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { GameConfig } from '@oikos/config';
+import { ensureInitialConfig, INITIAL_CONFIG, type GameConfig } from '@oikos/config';
+import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   balanceOf,
   db,
@@ -15,6 +16,9 @@ import {
 import { appWithConfig, type App } from './voyage.integration-fixtures';
 
 // Trésor du temple (#724), contre Supabase local : taux de 10 %, 1 000 oboles dès une Timè nulle, 5 000 dès 50.
+// La base date l'emprunt à l'horloge de sa configuration en vigueur (#725) : celle de la configuration initiale.
+beforeAll(() => ensureInitialConfig(db, INITIAL_CONFIG));
+const today = () => gameDayAt(new Date(), (INITIAL_CONFIG as GameConfig).clock);
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 type Rules = NonNullable<GameConfig['templeTreasury']>;
 const RULES: Rules = {
@@ -168,7 +172,7 @@ describe('loan.borrowFromTemple', () => {
     await force(first, `lender = 'bank'`);
     const temple = await borrow(player.user, 300, 7);
     expect(temple.status).toBe(200);
-    await force(first, `status = 'defaulted'`);
+    await force(first, `status = 'defaulted', defaulted_day = due_day`);
     expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
     // `loan.repay` ne rembourse encore que le temple : un prêt de banque lui est inconnu.
     expect(codeOf(await repay(player.user, first, 1))).toBe('LOAN_NOT_FOUND');
@@ -319,8 +323,10 @@ describe('erreurs de la base sous concurrence', () => {
     ]);
     await sql`insert into game.loans (world_id, lender, borrower_house_id, principal, rate_bps, term_days,
         interest, borrowed_day, due_day, due_at, disbursement_entry_id)
-      values (${other.world}, 'temple', ${player.houseId}, 500, 1000, 7, 1, 100, 107, now() + interval '7 days',
-        ${other.entry})`.execute(other.trx);
+      values (${other.world}, 'temple', ${player.houseId}, 500, 1000, 7, 1, ${today()}, ${today() + 7},
+        ${dailyCloseAt(today() + 7, (INITIAL_CONFIG as GameConfig).clock)}, ${other.entry})`.execute(
+      other.trx,
+    );
     // La commande ne voit pas ce prêt : elle passe ses contrôles et bute sur la trésorerie, puis sur l'index.
     const reply = borrow(player.user, 200, 7);
     await blocked();
@@ -345,7 +351,7 @@ describe('erreurs de la base sous concurrence', () => {
       { loanId },
     );
     await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day,
-        ledger_entry_id) values (${other.world}, ${loanId}, ${player.houseId}, 0, 600, 100, ${other.entry})`.execute(
+        ledger_entry_id) values (${other.world}, ${loanId}, ${player.houseId}, 0, 600, ${today()}, ${other.entry})`.execute(
       other.trx,
     );
     // La commande lit un reste dû de 1 000, attend la trésorerie, puis la base relit le prêt : il n'en reste que 400.
