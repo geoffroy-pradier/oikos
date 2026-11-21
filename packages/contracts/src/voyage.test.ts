@@ -81,7 +81,15 @@ describe('voyage.depart', () => {
     const fairWind = { graceUseId: storm.eventId, graceId: 'poseidon_wind', savedSeconds: 900 };
     const windy = { ...departed, payload: { ...payload, storm, fairWind } };
     expect(domainEventSchema.parse(windy)).toEqual(windy);
+    // Risque de perte fixé au départ (#730) : absent des départs antérieurs, de 0 à 10 000 sinon.
+    for (const lossRiskBps of [0, 1_500, 10_000]) {
+      const risky = { ...departed, payload: { ...payload, lossRiskBps } };
+      expect(domainEventSchema.parse(risky)).toEqual(risky);
+    }
     for (const changed of [
+      { ...payload, lossRiskBps: -1 },
+      { ...payload, lossRiskBps: 10_001 },
+      { ...payload, lossRiskBps: 2.5 },
       { ...payload, fairWind: { ...fairWind, savedSeconds: 0 } },
       { ...payload, fairWind: { ...fairWind, graceUseId: 'vent' } },
       { ...payload, portDues: { oboles: 41, burned: 21, treasury: 21 } },

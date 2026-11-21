@@ -453,7 +453,8 @@ Voyages, dans la phase 2 (#252) :
 - Une route (`ships.routes`) relie deux cités à port, dans les deux sens, en 2 à 20 heures pour un navire de vitesse 10 000.
   Un trajet dure ⌈heures × 3 600 × 10 000 ÷ vitesse⌉ secondes : un navire plus lent met plus longtemps, jamais moins que la durée exacte.
   Un navire qui part pendant une tempête de sa route (7.4, #267) met ⌈durée × (10 000 + ampleur) ÷ 10 000⌉ secondes, avec la plus forte tempête en cours au départ (à égalité, celle du plus petit identifiant, soit la planification la plus ancienne) ; une tempête qui commence en cours de trajet ne le change pas.
-  Décision : une tempête retarde, elle ne fait rien perdre ; le retard est expliqué dans `event_effects` et porté par `VoyageDeparted` (`storm`).
+  Décision (phase 2) : une tempête retarde, elle ne fait rien perdre ; le retard est expliqué dans `event_effects` et porté par `VoyageDeparted` (`storm`).
+  Depuis #730, la même tempête majore aussi le risque de perte du voyage (pertes en mer, ci-dessous).
   Un vent favorable en attente de la maison (7.1, #266) raccourcit ensuite le trajet à ⌈durée × (10 000 − ampleur) ÷ 10 000⌉ secondes, sur la durée que la tempête a allongée, et se consomme ; il est porté par `VoyageDeparted` (`fairWind`).
   Chaque route porte les provisions d'un voyage par classe de navire, en oboles, détruites au départ (puits `sink_voyage_provisions`).
 - Le droit de port de la cité d'arrivée (`ships.portDues`, 5.6) est un forfait par classe, multiplié par le coefficient de la cité (10 000 = ×1 ; une cité sans coefficient est à ×1), arrondi à l'obole supérieure, et payé au départ.
@@ -502,6 +503,8 @@ Pertes en mer, dans la phase 3 (#730) :
   Ce sont des règles publiques (vue `ship_rules`) ; une version publiée avant les pertes se lit avec des risques nuls.
   Configuration initiale : risques nuls (paramètres neutres), aucun voyage ne perd rien.
 - Le risque d'un voyage est celui de sa route, plus la majoration si une tempête de la route est en cours au départ, borné à 10 000 (`voyageLossRiskBps`, `packages/sim`).
+  `voyage.depart` le fixe avec la tempête qui allonge le trajet, l'écrit avec le voyage (`loss_risk_bps`), où il ne change plus, et `VoyageDeparted` le porte (`lossRiskBps`, absent des départs antérieurs).
+  Il n'est pas un coût : un risque changé entre la feuille de départ et l'envoi n'est pas refusé.
 - Le tirage se fait à l'arrivée (`voyageLoss`) : un entier uniforme de 0 à 9 999, tiré par un générateur dont la graine est celle du monde suivie de l'identifiant du voyage, perd la cargaison s'il est inférieur au risque.
   Il est rejouable, et caché jusqu'à l'arrivée : les joueurs ne lisent pas la graine du monde (7.3).
   Décision : la graine du monde s'ajoute à l'identifiant du voyage, que le joueur connaît dès le départ et qui seul lui ferait prévoir l'issue.

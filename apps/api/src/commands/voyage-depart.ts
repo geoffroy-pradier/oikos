@@ -12,6 +12,7 @@ import {
   graceToConsume,
   stormDurationSeconds,
   voyageDurationSeconds,
+  voyageLossRiskBps,
 } from '@oikos/sim';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
@@ -29,9 +30,11 @@ const NO_STOCK = { code: 'INSUFFICIENT_STOCK', message: 'Not enough free stock t
  * de la cité d'arrivée (5.6 : coefficient de cette cité, part détruite, reste au trésor de la cité) dans une écriture
  * `voyage.departure`. L'arrivée est jouée par le moteur (#253). Un autre coût que le coût vu est refusé.
  * Un départ pendant une tempête de sa route (7.4, #267) allonge le trajet de l'ampleur de la plus forte (à égalité,
- * le plus petit identifiant, soit la planification la plus ancienne), sans rien faire perdre ; le retard est
+ * le plus petit identifiant, soit la planification la plus ancienne) ; le retard est
  * expliqué dans `event_effects`. Les événements sont lus sans verrou : ils ne changent jamais, et commencent
  * après leur planification.
+ * La même tempête majore le risque de perte de la route (#730) : le risque est fixé ici, gardé avec le voyage,
+ * et tiré à l'arrivée par le moteur ; une tempête qui commence en mer ne le change pas.
  * Un vent favorable en attente de la maison (7.1, #266), le plus ancien, raccourcit ensuite le trajet
  * (`fairWindSeconds`, sur la durée que la tempête a fixée) et se consomme ; s'il ne retire pas une seconde, il reste
  * en attente. Les grâces en attente sont verrouillées en dernier, après les stocks, comme par une récolte.
@@ -174,6 +177,11 @@ export const voyageDepart = defineCommand({
       (candidate) => fairWindSeconds(stormy, candidate.magnitude_bps) < stormy,
     );
     const seconds = wind ? fairWindSeconds(stormy, wind.magnitude_bps) : stormy;
+    const lossRiskBps = voyageLossRiskBps({
+      routeRiskBps: route.lossRiskBps,
+      stormRiskBps: route.stormLossRiskBps,
+      storm: storm !== undefined,
+    });
     const voyage = await trx
       .insertInto('game.voyages')
       .values({
@@ -183,6 +191,7 @@ export const voyageDepart = defineCommand({
         from_city_id: input.fromCityId,
         to_city_id: input.toCityId,
         arrives_at: sql<Date>`now() + ${seconds} * interval '1 second'`,
+        loss_risk_bps: lossRiskBps,
       })
       .returning(['id', 'departed_at', 'arrives_at'])
       .executeTakeFirstOrThrow();
@@ -314,6 +323,7 @@ export const voyageDepart = defineCommand({
         ...departure,
         houseId: owned.house_id,
         portDues: dues,
+        lossRiskBps,
         ...(storm && delaySeconds > 0 && { storm: { eventId: storm.id, delaySeconds } }),
         ...(fairWind && { fairWind }),
       },
