@@ -147,6 +147,8 @@ Le joueur lit ses présages (`public.my_omens`) : textes, jours du présage et d
 Configuration initiale : seuil au plus grand entier sûr, que la jauge ne dépasse jamais, délai de trois jours, excès plein de 10 000, incendie de 5 à 30 %, procès de 5 à 20 % : aucun présage avant le calibrage.
 Limites connues : une maison qui vide sa trésorerie ou son stock avant l'échéance échappe à l'amende ou à l'incendie, pas à la baisse de sa jauge ; la cargaison d'un navire condamné compte encore dans la fortune jusqu'à son arrivée, comme celle de tout voyage en mer.
 Une sanction réglée par le code nouveau suppose le moteur nouveau : revenu au moteur précédent, l'arrivée d'un voyage condamné serait refusée par la base, et le tick de son monde échouerait jusqu'au retour du code nouveau.
+Déploiement : ne jamais revenir à un moteur antérieur à #735 tant qu'un voyage condamné est encore en mer, c'est-à-dire tant que `select count(*) from game.nemesis_omens o join game.voyages v on v.id = o.voyage_id where v.arrived_at is null` n'est pas nul.
+Un même voyage n'est condamné qu'une fois (`nemesis_omens_voyage_once`) : la clôture choisit parmi les voyages qu'aucune sanction n'a condamnés.
 Hors périmètre : présage réécrit par la Pythie et l'IA, procès devant un tribunal de joueurs, écran.
 
 ## 7.3 La Pythie

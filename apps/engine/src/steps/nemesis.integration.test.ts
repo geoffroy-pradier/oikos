@@ -252,7 +252,7 @@ describe('présages et Némésis à la clôture (#735)', () => {
     expect(rows).toEqual([{ site: null }]);
   });
 
-  it('navire perdu : le voyage le plus chargé est condamné ; à l’arrivée, toute sa cargaison part à nemesis', async () => {
+  it('navire perdu : le voyage le plus chargé, puis l’autre ; à l’arrivée, leur cargaison part à nemesis', async () => {
     const world = await newWorld([90_000, 1_000, 1_000]);
     const bare = await newWorld([90_000, 1_000, 1_000]);
     const [a = ''] = world.ids;
@@ -284,10 +284,17 @@ describe('présages et Némésis à la clôture (#735)', () => {
         );
       }
     });
-    for (const { worldId } of [world, bare]) {
-      await close(worldId, DAY, hubris(SHIP), steps);
-      for (const day of [DAY + 1, DAY + 2, DAY + 3]) await close(worldId, day, quiet(SHIP), steps);
-    }
+    // a gagne de l'Hybris chaque jour : frappée à l'excès plein, sa jauge reste au-delà et appelle un présage nouveau.
+    for (let day = DAY; day <= DAY + 6; day++) await close(world.worldId, day, hubris(SHIP), steps);
+    await close(bare.worldId, DAY, hubris(SHIP), steps);
+    for (const day of [DAY + 1, DAY + 2, DAY + 3])
+      await close(bare.worldId, day, quiet(SHIP), steps);
+    // Le voyage de 30 blés est condamné au jour 3 ; au jour 6, l'autre, et non le même une seconde fois.
+    expect(await omensOf(world)).toEqual([
+      '0:ship_lost:0→3:struck@3:-:100000:-:-',
+      '0:ship_lost:3→6:struck@6:-:100000:-:-',
+      '0:ship_lost:6→9',
+    ]);
     const voyages = await sql<{
       id: string;
       doomed: boolean;
@@ -296,8 +303,8 @@ describe('présages et Némésis à la clôture (#735)', () => {
       order by (select quantity from game.voyage_cargo c where c.voyage_id = v.id) desc`.execute(
       db,
     );
-    expect(voyages.rows.map((voyage) => voyage.doomed)).toEqual([true, false]);
-    // Le voyage de 30 blés ne décharge rien ; l'autre décharge ses 10 blés au port.
+    expect(voyages.rows.map((voyage) => voyage.doomed)).toEqual([true, true]);
+    // Aucun des deux ne décharge.
     const scheduledAt = new Date(Date.now() + 100);
     await new Promise((resolve) => setTimeout(resolve, 150));
     const tickMinutes = (INITIAL_CONFIG as GameConfig).clock.tickMinutes;
@@ -314,14 +321,14 @@ describe('présages et Némésis à la clôture (#735)', () => {
         catchUp: false,
       }),
     );
-    expect(summary).toEqual({ voyages: 2, units: 10, nemesisVoyages: 1, nemesisUnits: 30 });
+    expect(summary).toEqual({ voyages: 2, units: 0, nemesisVoyages: 2, nemesisUnits: 40 });
     const { rows } = await sql<{
       line: string;
     }>`select coalesce(to_system, 'stock') || ':' || quantity as line
       from game.stock_ledger where world_id = ${world.worldId} and from_system = 'in_transit' order by quantity desc`.execute(
       db,
     );
-    expect(rows.map((row) => row.line)).toEqual(['nemesis:30', 'stock:10']);
+    expect(rows.map((row) => row.line)).toEqual(['nemesis:30', 'nemesis:10']);
     expect(
       (
         await sql<{ n: number }>`select count(*)::integer as n from game.domain_events
