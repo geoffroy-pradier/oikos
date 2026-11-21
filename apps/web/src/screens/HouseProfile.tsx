@@ -9,6 +9,7 @@ import {
   Info,
   Landmark,
   ScrollText,
+  TriangleAlert,
 } from '@oikos/ui';
 import { useParams, useRouter } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
@@ -16,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Blazon } from '../Blazon';
 import { useHouse } from '../house';
 import { useHouseProfile } from '../house-profile';
+import { DAY_MS } from '../loans';
 import { LoadProblem, Loading } from './LoadProblem';
 import { NotFound } from './NotFound';
 
@@ -57,6 +59,28 @@ export function HouseProfileScreen() {
       </Button>
       {read.loading && <Loading />}
       {read.failed && <LoadProblem onRetry={read.reload} />}
+      {/* Région présente avant son texte : la marque s'y inscrit une fois la fiche lue. */}
+      <div role="status">
+        {shown && ready && read.dishonor?.dishonored && (
+          <Card className="flex items-start gap-3 border-danger/50">
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-danger" />
+            <div className="flex flex-col gap-1">
+              <h2 className="font-semibold">{t('houseProfile.dishonor.title')}</h2>
+              <p className="text-sm">
+                {read.dishonor.untilDay === null
+                  ? t('houseProfile.dishonor.open')
+                  : t('houseProfile.dishonor.until', {
+                      // Premier jour sans marque, en jour de jeu depuis l'époque : une date de calendrier.
+                      date: new Intl.DateTimeFormat(i18n.language, {
+                        dateStyle: 'long',
+                        timeZone: 'UTC',
+                      }).format(new Date(read.dishonor.untilDay * DAY_MS)),
+                    })}
+              </p>
+            </div>
+          </Card>
+        )}
+      </div>
       {shown && ready && (
         <>
           <header className="flex items-center gap-4">

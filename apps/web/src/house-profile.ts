@@ -26,6 +26,10 @@ const houseRow = z.object({
   citizenship_status: z.enum(['metic', 'citizen']).nullable(),
 });
 const honorRow = z.object({ honor: z.number().int().min(Number.MIN_SAFE_INTEGER) });
+const honorMarkRow = z.object({
+  dishonored: z.boolean().default(false),
+  dishonored_until_day: z.number().int().nullable().default(null),
+});
 const npcRow = z.object({ house_id: id });
 const officeRow = z.object({
   office: z.string().min(1),
@@ -80,6 +84,19 @@ export function parseHonor(rows: unknown): number | null {
   return parsed.success ? (parsed.data[0]?.honor ?? 0) : null;
 }
 
+/**
+ * Marque de déshonneur de la maison (`house_honor`, 5.4) : `untilDay` est le premier jour de jeu sans marque, nul
+ * tant que le prêt reste en défaut. Seule la marque est publique, jamais le prêt ni son montant. `null` si illisible.
+ */
+export function parseDishonor(
+  rows: unknown,
+): { dishonored: boolean; untilDay: number | null } | null {
+  const parsed = z.array(honorMarkRow).safeParse(rows);
+  if (!parsed.success) return null;
+  const row = parsed.data[0];
+  return { dishonored: row?.dishonored ?? false, untilDay: row?.dishonored_until_day ?? null };
+}
+
 /** La maison est-elle une maison PNJ de secours (`npc_houses`, une ligne au plus) ? `null` si illisible. */
 export function parseNpc(rows: unknown): boolean | null {
   const parsed = z.array(npcRow).safeParse(rows);
@@ -123,7 +140,7 @@ export function useHouseProfile(houseId: string | undefined) {
   const known = profile !== null && profile !== 'unknown';
   const honorRows = useRows<unknown>(
     'house_honor',
-    'honor',
+    'honor, dishonored, dishonored_until_day',
     'house_id',
     known && wanted ? { house_id: wanted } : null,
   );
@@ -140,6 +157,7 @@ export function useHouseProfile(houseId: string | undefined) {
     known && wanted ? { house_id: wanted } : null,
   );
   const honor = honorRows.rows === null ? null : parseHonor(honorRows.rows);
+  const dishonor = honorRows.rows === null ? null : parseDishonor(honorRows.rows);
   const mandates = officeRows.rows === null ? null : parseMandates(officeRows.rows);
   const npc = npcRows.rows === null ? null : parseNpc(npcRows.rows);
   const reads = [houses, ...(known ? [honorRows, officeRows, npcRows] : [])];
@@ -147,13 +165,14 @@ export function useHouseProfile(houseId: string | undefined) {
     reads.some((read) => read.failed) ||
     (houses.rows !== null && profile === null) ||
     (known &&
-      ((honorRows.rows !== null && honor === null) ||
+      ((honorRows.rows !== null && (honor === null || dishonor === null)) ||
         (officeRows.rows !== null && mandates === null) ||
         (npcRows.rows !== null && npc === null)));
   return {
     /** `'unknown'` : maison absente ou d'un autre monde, y compris une adresse mal formée. */
     profile: valid ? profile : 'unknown',
     honor,
+    dishonor,
     mandates,
     /** Maison PNJ de secours (8.3) : annoncée comme telle, à la place du statut. */
     npc,

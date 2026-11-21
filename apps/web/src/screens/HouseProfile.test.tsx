@@ -129,6 +129,34 @@ describe('fiche publique d’une maison (#705)', () => {
     expect(screen.getByText(/run by the game, not by a player/)).toBeTruthy();
   });
 
+  it('porte la marque de déshonneur : icône et texte, région annoncée avant, sans montant (5.4, #1005)', async () => {
+    state.views['house_honor'] = [{ honor: 1250, dishonored: true, dishonored_until_day: 20_000 }];
+    await show();
+    const region = screen.getByRole('status');
+    const mark = screen.getByRole('heading', { level: 2, name: 'Marque de déshonneur' });
+    expect(region.contains(mark)).toBe(true);
+    expect(region.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    expect(region.textContent).toMatch(/jusqu'au 4 octobre 2024/);
+    expect(region.textContent).not.toMatch(/\d\s?(oboles?|ob)/i);
+    expect(state.asked.every((read) => !/loan/.test(read.view))).toBe(true);
+    cleanup();
+    await show('en');
+    expect(screen.getByRole('status').textContent).toMatch(/until October 4, 2024/);
+  });
+
+  it('marque sans fin : tant que le prêt reste en défaut', async () => {
+    state.views['house_honor'] = [{ honor: 0, dishonored: true, dishonored_until_day: null }];
+    await show();
+    expect(screen.getByRole('status').textContent).toMatch(/tant que le prêt reste en défaut/);
+  });
+
+  it('sans marque, la région reste vide', async () => {
+    state.views['house_honor'] = [{ honor: 5, dishonored: false, dishonored_until_day: null }];
+    await show();
+    expect(screen.getByRole('status').textContent).toBe('');
+    expect(screen.queryByText('Marque de déshonneur')).toBeNull();
+  });
+
   it('une maison de joueur ne s’annonce pas PNJ', async () => {
     await show();
     expect(screen.queryByText(/Maison PNJ/)).toBeNull();
