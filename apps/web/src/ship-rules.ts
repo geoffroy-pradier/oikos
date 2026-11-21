@@ -2,7 +2,9 @@ import {
   cityPortDuesCoefficientBps,
   DEFAULT_PORT_DUES,
   portDuesBaseOboles,
+  routeLossRiskBps,
   routeProvisionsOboles,
+  routeStormLossRiskBps,
   shipLossRiskBpsSchema,
   shipRoute,
   upkeepDailyObolesSchema,
@@ -135,7 +137,7 @@ export function quoteDeparture(
     portDuesOboles: cost.portDues.oboles,
     totalOboles: cost.totalOboles,
     durationSeconds: voyageDurationSeconds(route.hours, shipClass.speedBps),
-    lossRiskBps: route.lossRiskBps,
-    stormLossRiskBps: route.stormLossRiskBps,
+    lossRiskBps: routeLossRiskBps(route),
+    stormLossRiskBps: routeStormLossRiskBps(route),
   };
 }
