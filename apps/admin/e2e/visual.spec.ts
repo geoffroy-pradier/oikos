@@ -156,6 +156,11 @@ const reports = (real: object) => ({
           createdAt: new Date(Date.parse(AT) - 30 * 60_000).toISOString(),
         },
       ],
+      // Pré-tri de l'IA (#763) : catégorie et résumé, avec la mention de leur source.
+      triage: {
+        category: 'likely_violation',
+        summary: 'Reproche à un joueur de mentir, sur un ton hostile.',
+      },
       context: [
         message(1, 'Philaïdes', 'Qui vend du sel au port ce soir ?', 97),
         message(3, 'Philaïdes', 'Restons courtois sur le canal de la cité.', 90),

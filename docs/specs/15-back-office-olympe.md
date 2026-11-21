@@ -194,6 +194,7 @@ chaque refus de l'API y est expliqué.
 - Double validation pour tout crédit de monnaie au-dessus d'un seuil, toute exclusion définitive et toute mise en production de paramètres.
 - Aucun accès direct aux tables : le back-office appelle des commandes d'administration, soumises aux mêmes règles de journalisation que les commandes de jeu.
 - Les modérateurs peuvent être des joueurs bénévoles : leur rôle ne donne accès à aucune donnée économique privée.
+- La catégorie du pré-tri de l'IA (15.1) n'est qu'une indication d'ordre : elle ne donne ni ne retire aucun droit, et aucune commande de sanction ne la lit.
 
 Un nom de maison est un texte public : `house.create` et `house.rename` passent par le filtre de vocabulaire de la discussion (`moderation.bannedTerms`, 6.6) et par le silence (ticket 527).
 Un nom qui contient un terme interdit est refusé avec le même code que la discussion, `MESSAGE_REJECTED`, avant toute écriture ; le terme n'est ni rendu ni journalisé, et le journal des commandes ne garde pas le nom refusé.
@@ -274,10 +275,28 @@ Le calendrier des événements du monde (`GET /api/admin/events`) se lit par la 
 La file de la modération (`GET /api/admin/reports`, #276) se lit par la même voie, pour les rôles de la modération, et ses lectures sont tracées de même.
 Elle rend une entrée par message qui a des signalements ouverts, la plus ancienne d'abord, puis la plus signalée (au plus 200), avec la maison signalée et son compte, le message, même masqué, ses signalements (motif et date, jamais la maison qui signale) et les cinq messages qui le précèdent et les cinq qui le suivent dans son canal ;
 un signalement dont la purge a emporté le message fait son entrée seul, sans texte ni contexte.
+Avec le pré-tri de l'IA (#763), chaque entrée porte aussi `triage`, et la file montre d'abord les violations probables, puis les douteux, les messages sans catégorie et les probablement infondés, dans l'ordre ci-dessus au sein de chacun (15.1).
 Elle rend aussi les appels à trancher, les exclusions à valider et les levées d'exclusion à confirmer (#616), les plus anciens d'abord.
 La base la compose par une fonction accordée au seul service de l'API (`admin.moderation_queue`) : un modérateur connecté au jeu n'en lit rien par Supabase, et son rôle ne lui ouvre aucune lecture de plus qu'à un joueur.
 Les levées à confirmer, elles, sont lues par l'API dans `admin.sanctions`, sous le même compte de service, qui y lit déjà les sanctions à chaque commande ; aucun droit n'est ouvert de plus (#616).
-Décision (ambiguïté de 15.1) : le pré-tri par l'IA attend une phase suivante.
+Pré-tri par l'IA (#763, 15.1, 8.1).
+L'usage `moderation_triage` range chaque message signalé dans une catégorie d'une liste fermée, `likely_violation` (violation probable), `doubtful` (douteux) ou `likely_unfounded` (probablement infondé), et le résume en une phrase.
+La longueur du résumé est `moderation.triageSummaryMaxLength` (200 caractères par défaut) ; l'usage est coupé dans la configuration initiale, comme tous les usages (8.4).
+Une tâche du moteur essaie une fois chaque message qui a un signalement ouvert, le plus ancien signalement d'abord, hors de toute transaction ; seuls le pseudonyme de la maison qui a écrit le message et son texte partent au modèle.
+Le texte signalé est une donnée, jamais une instruction (8.4) : la vraie garantie est le schéma de sortie.
+Le schéma rejette toute catégorie hors de la liste, toute clé de plus, un résumé vide, trop long ou sur plusieurs lignes, tout nombre sous quelque forme que ce soit et tout nom de maison que le message ne porte pas déjà.
+Le modèle n'écrit rien en base : le moteur écrit, sous le rôle de service, ce que le schéma a accepté, dans `game.report_triage` (une ligne par message).
+Cette table n'est lisible par aucun client, pas même par un modérateur : la file la lit par l'API, après le contrôle du rôle de modération.
+Elle suit son message : la purge de la conservation (18) emporte aussi la catégorie et le résumé.
+La file (`GET /api/admin/reports`) porte pour chaque entrée `triage` (catégorie et résumé, nul sans pré-tri) et montre d'abord les violations probables, puis les messages douteux, puis ceux sans catégorie, puis les probablement infondés ; dans chacun, l'ordre de la phase 2.
+L'écran dit que la catégorie et le résumé viennent de l'IA, qu'elle peut se tromper et que la décision reste humaine.
+Décision (ambiguïté du ticket) : un message sans catégorie passe après les douteux et avant les probablement infondés, car une catégorie absente ne vaut ni un jugement d'infondé, ni une gravité ; le seuil d'alerte de 24 heures (15.5) reste le même pour toutes les entrées.
+Décision (ambiguïté du ticket) : le résumé est écrit en français, sans traduction, comme le texte du message qu'il résume ; l'étiquette de la catégorie et la mention de sa source sont traduites (fr, en).
+Repli : IA coupée, plafond atteint, délai dépassé, erreur ou sortie rejetée, le message n'a pas de catégorie ; la ligne du pré-tri garde l'issue de l'essai, si bien qu'un message n'est pas payé deux fois au fournisseur.
+Sans aucune catégorie, la file garde exactement l'ordre de la phase 2.
+La catégorie n'ordonne que la file : aucune commande de sanction ne la lit.
+Un test de la base (seule la lecture de la file lit le pré-tri), un test du code de l'API et un test d'intégration (masquer, sanctionner et traiter passent de la même façon quelle que soit la catégorie) le tiennent.
+La sanction proposée par l'IA et le résumé des dossiers d'appel restent hors périmètre.
 Le journal d'audit rend le résultat de chaque commande d'administration, jamais son entrée.
 Il est trié par ordre d'inscription ; l'heure affichée est celle du début de la commande, si bien que deux commandes simultanées peuvent y apparaître dans l'ordre inverse de leurs heures.
 L'application `apps/admin` ne parle qu'à Supabase Auth (lien magique, puis second facteur TOTP : enrôlement d'une application d'authentification à la première connexion, code à chaque session) et à ces routes ;

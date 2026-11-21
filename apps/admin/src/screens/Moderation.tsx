@@ -19,6 +19,7 @@ import {
   Search,
   Send,
   Sheet,
+  Sparkles,
   TriangleAlert,
   Undo2,
   X,
@@ -34,6 +35,12 @@ import { useAdmin } from '../useAdmin';
 import { SectionTitle } from './SectionTitle';
 
 type Entry = AdminReports['queue'][number];
+/** Teinte de la pastille de chaque catégorie du pré-tri ; le texte de la catégorie la dit toujours aussi (pas la couleur seule). */
+const TRIAGE_TONES = {
+  likely_violation: 'danger',
+  doubtful: 'warning',
+  likely_unfounded: 'neutral',
+} as const;
 type Appeal = AdminReports['appeals'][number];
 export type Notice = { kind: 'status' | 'alert'; text: string } | null;
 /** Geste en cours de confirmation : sur un signalement, une exclusion proposée, une levée proposée, un appel. */
@@ -377,6 +384,7 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                 {t('moderation.queueCaption', { count: queue.length })}
                 {shown.length < queue.length &&
                   ` ${t('moderation.filtered', { count: shown.length })}`}
+                {queue.some((entry) => entry.triage) && ` ${t('moderation.triage.order')}`}
               </p>
               <ol aria-labelledby="moderation-queue" className="flex flex-col gap-4">
                 {shown.map((entry) => {
@@ -443,6 +451,25 @@ export function Moderation({ accessToken }: { accessToken: string }) {
                           </li>
                         ))}
                       </ul>
+                      {entry.triage && (
+                        <section
+                          aria-label={t('moderation.triage.title')}
+                          className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-raised p-3 text-sm"
+                        >
+                          <p className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              tone={TRIAGE_TONES[entry.triage.category]}
+                              icon={<Sparkles aria-hidden="true" />}
+                            >
+                              {t(`moderation.triage.categories.${entry.triage.category}`)}
+                            </Badge>
+                            <span className="text-muted-foreground">
+                              {t('moderation.triage.source')}
+                            </span>
+                          </p>
+                          <p className="wrap-anywhere">{entry.triage.summary}</p>
+                        </section>
+                      )}
                       {entry.message ? (
                         <ol
                           aria-label={t('moderation.conversation')}
