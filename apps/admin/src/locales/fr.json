@@ -365,6 +365,16 @@
     "conversation": "Conversation autour du message signalé",
     "hiddenTag": "(masqué)",
     "reportedTag": "(signalé)",
+    "triage": {
+      "title": "Pré-tri par l’IA",
+      "order": "Les violations probables d’après l’IA viennent en premier, puis les messages douteux, ceux sans catégorie et les probablement infondés.",
+      "source": "Généré par l’IA, peut se tromper : la décision reste la vôtre.",
+      "categories": {
+        "likely_violation": "Violation probable",
+        "doubtful": "Douteux",
+        "likely_unfounded": "Probablement infondé"
+      }
+    },
     "purged": "Message purgé : le signalement reste, sans texte ni contexte.",
     "actions": "Actions sur la maison {{house}}",
     "more": "Autres gestes",
