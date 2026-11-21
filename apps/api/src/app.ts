@@ -35,6 +35,7 @@ import {
   bankWithdraw,
 } from './commands/bank';
 import { bankOfferLoan, bankWithdrawOffer } from './commands/bank-loan';
+import { loanAcceptOffer } from './commands/loan-accept-offer';
 import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
 import { chatReport } from './commands/chat-report';
@@ -131,6 +132,7 @@ export const COMMANDS = [
   bankSetRates,
   bankOfferLoan,
   bankWithdrawOffer,
+  loanAcceptOffer,
   voyageDepart,
   chatOpenDirect,
   chatPost,

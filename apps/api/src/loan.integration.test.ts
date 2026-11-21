@@ -13,7 +13,8 @@ import {
   owner,
   send,
 } from './property.integration-fixtures';
-import { appWithConfig, type App } from './voyage.integration-fixtures';
+import { accept, newBank, offered } from './bank-loan.integration-fixtures';
+import { appWithConfig, give, type App } from './voyage.integration-fixtures';
 
 // Trésor du temple (#724), contre Supabase local : taux de 10 %, 1 000 oboles dès une Timè nulle, 5 000 dès 50.
 // La base date l'emprunt à l'horloge de sa configuration en vigueur (#725) : celle de la configuration initiale.
@@ -163,6 +164,26 @@ describe('loan.borrowFromTemple', () => {
     expect(rows[0]?.n).toBe(1);
     const principal = replies.find((reply) => reply.status === 200)?.body.data.principal as number;
     expect(await balanceOf(player.houseId)).toBe(GRANT + principal);
+  });
+
+  it('un prêt de banque ne compte pas pour le prêt unique, mais en défaut il déshonore (#728)', async () => {
+    const bank = await newBank();
+    const player = await newPlayer(KALLISTE);
+    await give(player.houseId, 'wheat', 20);
+    const first = (await accept(player.user, await offered(bank.user, player.houseId))).body.data
+      .loanId as string;
+    const temple = await borrow(player.user, 300, 7);
+    expect(temple.status).toBe(200);
+    // Défaut posé gardes levées : un prêt de banque ne passe en défaut qu'avec sa saisie (ticket suivant).
+    await force(first, `status = 'defaulted', defaulted_day = due_day`);
+    expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
+    // `loan.repay` ne rembourse encore que le temple : un prêt de banque lui est inconnu.
+    expect(codeOf(await repay(player.user, first, 1))).toBe('LOAN_NOT_FOUND');
+    // Le prêt du temple remboursé, le prêt de banque en défaut déshonore encore.
+    expect((await repay(player.user, temple.body.data.loanId, 301)).body.data).toMatchObject({
+      status: 'repaid',
+    });
+    expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
   });
 
   it('la marque de déshonneur dure `dishonorDays` jours après le solde d’un prêt en défaut (#725)', async () => {
