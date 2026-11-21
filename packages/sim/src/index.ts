@@ -24,6 +24,7 @@ export * from './rent';
 export * from './rng';
 export * from './steward';
 export * from './tax';
+export * from './temple-loan';
 export * from './upkeep';
 export * from './voyage';
 export * from './wealth';

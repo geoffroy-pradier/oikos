@@ -21,6 +21,11 @@ export interface HouseWealthInput {
   /** Solde du compte de séquestre, en oboles (nul sans compte). */
   escrow: bigint;
   stocks: readonly WealthStock[];
+  /**
+   * Reste dû des prêts de la maison (#724), principal et intérêts, en oboles ; nul sans prêt. Il se déduit de la
+   * fortune, qui peut alors être négative.
+   */
+  debt?: bigint;
 }
 
 export interface HouseWealth {
@@ -30,23 +35,39 @@ export interface HouseWealth {
   stockValue: bigint;
   /** Nombre de stocks non vides sans prix observé, que la valeur ignore. */
   unpricedStocks: number;
-  /** Trésorerie, séquestre et valeur des stocks. */
+  /** Reste dû des prêts de la maison. */
+  debt: bigint;
+  /** Trésorerie, séquestre et valeur des stocks, moins le reste dû. */
   wealth: bigint;
 }
 
 /**
  * Fortune d'une maison, comme son bilan (4.1) : trésorerie, séquestre et stocks valorisés au prix observé de
- * leur cité, cargaisons en mer comprises (#719), que le bilan ignore. Un stock vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et
- * il est compté à part. Sites, navires et biens immobiliers n'y entrent pas.
+ * leur cité, cargaisons en mer comprises (#719), que le bilan ignore, moins le reste dû de ses prêts (#724). Un stock
+ * vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et il est compté à part. Sites,
+ * navires et biens immobiliers n'y entrent pas.
  */
-export function houseWealth({ treasury, escrow, stocks }: HouseWealthInput): HouseWealth {
+export function houseWealth({
+  treasury,
+  escrow,
+  stocks,
+  debt = 0n,
+}: HouseWealthInput): HouseWealth {
+  if (debt < 0n) throw new RangeError('debt must not be negative');
   let [stockValue, unpricedStocks] = [0n, 0];
   for (const { quantity, unitPrice } of stocks) {
     if (quantity <= 0n) continue;
     if (unitPrice === null) unpricedStocks += 1;
     else stockValue += quantity * unitPrice;
   }
-  return { treasury, escrow, stockValue, unpricedStocks, wealth: treasury + escrow + stockValue };
+  return {
+    treasury,
+    escrow,
+    stockValue,
+    unpricedStocks,
+    debt,
+    wealth: treasury + escrow + stockValue - debt,
+  };
 }
 
 /**
