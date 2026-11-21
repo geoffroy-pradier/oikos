@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(43);
 
 -- Jeu d'essai : un monde à lui, une cité. Alice (a) fonde la banque, taux de dépôt de 10 % l'an, 1 000 oboles de capital ;
 -- Bob (b) et Chloé (c) déposent ; les Greniers (e) sont une maison PNJ. Trésoreries : 50 000 chacune. Configuration en
@@ -43,6 +43,59 @@ $$;
 create function pg_temp.bank() returns uuid language sql as $$
   select id from game.banks where house_id = pg_temp.house('a')
 $$;
+create function pg_temp.vault() returns bigint language sql as $$
+  select balance from game.accounts where bank_id = pg_temp.bank()
+$$;
+create function pg_temp.cash(n text) returns bigint language sql as $$
+  select balance from game.accounts where kind = 'house' and house_id = pg_temp.house(n)
+$$;
+-- Écriture de banque au nom du service : `kind`, de `amount` oboles de la trésorerie de `src` (ou du coffre, `vault`) à
+-- celle de `dst` ; son mouvement `movement` (aucun si nul) pour le dépôt de `n`, de `moved` oboles ; contrôles différés
+-- joués aussitôt.
+create function pg_temp.post(p_kind text, src text, dst text, amount bigint, n text = null, movement text = null,
+  moved bigint = null) returns void language plpgsql as $$
+declare entry uuid; deposit uuid; bank uuid := pg_temp.bank(); depositor uuid := pg_temp.house(n);
+  acc_src uuid := case when src = 'vault' then (select id from game.accounts where bank_id = pg_temp.bank())
+                       else (select id from game.accounts where kind = 'house' and house_id = pg_temp.house(src)) end;
+  acc_dst uuid := case when dst = 'vault' then (select id from game.accounts where bank_id = pg_temp.bank())
+                       else (select id from game.accounts where kind = 'house' and house_id = pg_temp.house(dst)) end;
+begin
+  perform set_config('role', 'oikos_service', true);
+  insert into game.ledger_entries (world_id, kind, meta)
+  values ('01900000-0000-7000-8000-0000000727f0', p_kind, jsonb_build_object('bankId', bank)) returning id into entry;
+  insert into game.ledger_lines (entry_id, account_id, amount) values (entry, acc_dst, amount), (entry, acc_src, -amount);
+  if movement is not null then
+    insert into game.bank_deposits (world_id, bank_id, house_id)
+    values ('01900000-0000-7000-8000-0000000727f0', bank, depositor) on conflict do nothing;
+    select id into deposit from game.bank_deposits where house_id = depositor;
+    insert into game.bank_deposit_movements (world_id, deposit_id, bank_id, house_id, kind, amount, ledger_entry_id)
+    values ('01900000-0000-7000-8000-0000000727f0', deposit, bank, depositor, movement, coalesce(moved, amount), entry);
+  end if;
+  set constraints all immediate;
+  set constraints all deferred;
+  perform set_config('role', 'none', true);
+end $$;
+-- Lignes ajoutées après coup, au nom du service, à la dernière écriture `kind` de la banque déjà validée : `amount`
+-- oboles de la trésorerie de `src` au coffre ; contrôles différés joués aussitôt.
+create function pg_temp.append(p_kind text, src text, amount bigint) returns void language plpgsql as $$
+declare entry uuid := (select e.id from game.ledger_entries e where e.kind = p_kind
+                         and e.meta ->> 'bankId' = pg_temp.bank()::text order by e.created_at desc, e.id desc limit 1);
+  vault uuid := (select id from game.accounts where bank_id = pg_temp.bank());
+  payer uuid := (select id from game.accounts where kind = 'house' and house_id = pg_temp.house(src));
+begin
+  perform set_config('role', 'oikos_service', true);
+  insert into game.ledger_lines (entry_id, account_id, amount) values (entry, vault, amount), (entry, payer, -amount);
+  set constraints all immediate;
+  set constraints all deferred;
+  perform set_config('role', 'none', true);
+end $$;
+-- Dépôt ou retrait comme l'écrit la commande.
+create function pg_temp.deposit(n text, amount bigint) returns void language sql as $$
+  select pg_temp.post('bank.deposit', n, 'vault', amount, n, 'deposit')
+$$;
+create function pg_temp.withdraw(n text, amount bigint) returns void language sql as $$
+  select pg_temp.post('bank.withdraw', 'vault', n, amount, n, 'withdraw')
+$$;
 create function pg_temp.held(n text) returns bigint language sql as $$
   select balance from game.bank_deposits where house_id = pg_temp.house(n)
 $$;
@@ -67,6 +120,14 @@ select is(
 select ok(not has_table_privilege('authenticated', 'game.bank_deposits', 'insert,update,delete')
           and not has_table_privilege('anon', 'game.bank_deposits', 'select,insert,update,delete'),
   'les joueurs n''écrivent aucun dépôt');
+select is(
+  (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
+   where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'bank_deposit_movements'
+     and privilege_type = 'INSERT'),
+  'amount bank_id deposit_id game_day house_id kind ledger_entry_id world_id',
+  'ni le taux, ni la date d''un mouvement');
+select ok(not has_table_privilege('authenticated', 'game.bank_deposit_movements', 'select')
+          and not has_table_privilege('anon', 'game.bank_deposit_movements', 'select'), 'les joueurs ne lisent pas les mouvements');
 
 -- Ouverture : une maison de joueur, dans une banque qui n'est pas la sienne, vide.
 select throws_ok($$select pg_temp.open('e')$$, '23514', 'a deposit belongs to a player house', 'une maison PNJ ne dépose pas');
@@ -81,7 +142,60 @@ select is((select concat_ws(':', balance, created_at = now()) from game.bank_dep
   '0:t', 'vide, daté par la base');
 select throws_ok($$select pg_temp.open('b')$$, '23505', null, 'un dépôt par banque et par maison');
 
--- Le solde ne bouge que par les mouvements (migration 9991) ; un dépôt garde son identité et ne se supprime pas.
+-- Dépôt et retrait : la monnaie passe de la trésorerie au coffre et revient ; la créance suit.
+select lives_ok($$select pg_temp.post('bank.capital_in', 'a', 'vault', 1000)$$, 'Alice verse 1 000 de capital');
+select lives_ok($$select pg_temp.deposit('b', 10000)$$, 'Bob dépose 10 000');
+select is(array[pg_temp.cash('b'), pg_temp.vault(), pg_temp.held('b')], array[40000, 11000, 10000]::bigint[],
+  'sa trésorerie baisse, le coffre monte, sa créance aussi');
+select is(
+  (select concat_ws(':', m.kind, m.amount, m.rate_bps, m.game_day = game.game_day_at(now()), m.created_at = now())
+   from game.bank_deposit_movements m where m.house_id = pg_temp.house('b')),
+  'deposit:10000:1000:t:t', 'la base date le mouvement et y écrit le taux affiché');
+select lives_ok($$select pg_temp.withdraw('b', 3000)$$, 'Bob retire 3 000');
+select is(array[pg_temp.cash('b'), pg_temp.vault(), pg_temp.held('b')], array[43000, 8000, 7000]::bigint[],
+  'le retrait refait le chemin inverse');
+select throws_ok($$select pg_temp.withdraw('b', 7001)$$, '23514', null, 'pas au-delà du solde du dépôt');
+select lives_ok($$select pg_temp.post('bank.capital_out', 'vault', 'a', 8000)$$, 'Alice vide le coffre');
+select throws_ok($$select pg_temp.withdraw('b', 1)$$, '23514', null,
+  'un retrait que le coffre ne couvre pas est refusé : la ruée est possible');
+select lives_ok($$select pg_temp.post('bank.capital_in', 'a', 'vault', 8000)$$, 'Alice remet son capital');
+select lives_ok($$select pg_temp.withdraw('b', 7000)$$, 'Bob retire tout');
+select is(pg_temp.held('b'), 0::bigint, 'un dépôt soldé reste, à zéro');
+select lives_ok($$select pg_temp.deposit('b', 7000)$$, 'et se remplit de nouveau');
+
+-- L'écriture et le mouvement s'accordent : montant, déposant, sens, banque ; deux lignes.
+select throws_ok($$select pg_temp.post('bank.deposit', 'b', 'vault', 99, 'b', 'deposit', 100)$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee', 'l''écriture paie tout le dépôt');
+select throws_ok($$select pg_temp.post('bank.deposit', 'c', 'vault', 100, 'b', 'deposit')$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'Chloé ne paie pas le dépôt de Bob');
+select throws_ok($$select pg_temp.post('bank.withdraw', 'vault', 'c', 100, 'b', 'withdraw')$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'ni ne touche son retrait');
+select throws_ok($$select pg_temp.post('bank.withdraw', 'b', 'vault', 100, 'b', 'deposit')$$, '23001',
+  'a deposit or a withdrawal is paid by its own bank entry', 'un dépôt n''est pas payé par une écriture de retrait');
+select throws_ok($$select pg_temp.post('bank.deposit', 'vault', 'b', 100, 'b', 'withdraw')$$, '23001',
+  'a deposit or a withdrawal is paid by its own bank entry', 'ni un retrait par une écriture de dépôt');
+select throws_ok($$select pg_temp.post('bank.deposit', 'b', 'vault', 100)$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'une écriture de dépôt a son mouvement');
+select throws_ok($$select pg_temp.post('bank.withdraw', 'vault', 'b', 100)$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'une écriture de retrait aussi : le coffre ne paie personne sans créance');
+select throws_ok($$select pg_temp.as_service(format('insert into game.bank_deposit_movements (world_id, deposit_id, bank_id,
+    house_id, kind, amount, ledger_entry_id) select world_id, id, bank_id, house_id, ''deposit'', 7000, %L
+    from game.bank_deposits where house_id = %L', (select ledger_entry_id from game.bank_deposit_movements
+      where house_id = pg_temp.house('b') order by id desc limit 1), pg_temp.house('b')))$$, '23505', null,
+  'une écriture ne paie qu''un mouvement');
+-- Une ligne ajoutée après coup à une écriture de dépôt validée la refait juger : trois lignes, refusée.
+select throws_ok($$select pg_temp.append('bank.deposit', 'c', 1)$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'ligne ajoutée après coup à un dépôt : refusée');
+select throws_ok($$select pg_temp.append('bank.withdraw', 'b', 1)$$, '23001',
+  'a bank entry moves money between its house treasury and its vault, or pays its charter fee',
+  'même du déposant, à un retrait');
+
+-- Le solde ne bouge que par les mouvements ; dépôts et mouvements ne se suppriment pas.
 select throws_ok($$update game.bank_deposits set balance = 1 where house_id = pg_temp.house('b')$$, '23001',
   'a deposit balance changes only through its movements', 'le propriétaire ne change pas un solde');
 select throws_ok($$select pg_temp.as_service(format('update game.bank_deposits set balance = 1 where house_id = %L',
@@ -90,6 +204,21 @@ select throws_ok($$update game.bank_deposits set house_id = pg_temp.house('c') w
   '23001', 'a deposit keeps its identity', 'un dépôt garde son déposant');
 select throws_ok($$delete from game.bank_deposits where house_id = pg_temp.house('b')$$, '23001', null,
   'un dépôt ne se supprime pas');
+select throws_ok($$update game.bank_deposit_movements set amount = 1 where house_id = pg_temp.house('b')$$, '23001',
+  'game.bank_deposit_movements is append-only', 'un mouvement ne se modifie pas');
+select throws_ok($$delete from game.bank_deposit_movements$$, '23001', 'game.bank_deposit_movements is append-only',
+  'ni ne se supprime');
+select is(
+  pg_temp.held('b'),
+  (select sum(case kind when 'withdraw' then -amount else amount end)::bigint from game.bank_deposit_movements
+   where house_id = pg_temp.house('b')),
+  'le solde est la somme des mouvements');
+select is(pg_temp.cash('a') + pg_temp.cash('b') + pg_temp.cash('c') + pg_temp.vault(), 150000::bigint,
+  'conservation : trésoreries et coffre gardent toute la monnaie, aucun refus n''en a créé');
+
+select throws_ok($$select pg_temp.as_service(format('insert into game.bank_deposit_movements (world_id, deposit_id, bank_id,
+    house_id, kind, amount, game_day) select world_id, id, bank_id, house_id, ''interest'', 1, 0 from game.bank_deposits
+  where house_id = %L', pg_temp.house('b')))$$, '23001', 'deposits earn no interest yet', 'pas encore d''intérêt (migration 9992)');
 
 select * from finish();
 rollback;
