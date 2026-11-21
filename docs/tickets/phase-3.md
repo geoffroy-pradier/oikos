@@ -631,7 +631,7 @@ Valeur des sites, navires et logements, borne sur le Gini.
 C'est aussi le puits proportionnel à la richesse qu'attend la borne de masse de −5 % à +25 % depuis #283 (5.5).
 Décision : à la clôture de la bascule de saison, chaque cité désigne, parmi les maisons qui y ont leur foyer, les plus riches au-dessus d'un plancher de fortune (#718).
 Décision : le dû est une part bornée de la fortune ; le genre (fête, triérarchie, chorégie) est tiré dans la configuration et ne change que le libellé.
-Décision (paramètres neutres) : aucune maison n'est désignée dans la configuration initiale ; #721 les active.
+Décision (paramètres neutres) : aucune maison n'est désignée dans la configuration initiale ; #721 les a activées (5.5).
 Label : `sensible` (règles par ligne ; fortune lue).
 
 ### Spécification liée

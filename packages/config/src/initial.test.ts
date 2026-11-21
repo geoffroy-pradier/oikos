@@ -598,20 +598,25 @@ describe('jeu de valeurs initial', () => {
       expect(recipe.workers * wage).toBeLessThan(dailyOboles[recipe.siteType]);
   });
 
-  it('le revenu public d’un jour de chaque classe reste celui d’avant ses paniers nouveaux (#632, #283, #713)', () => {
-    // Revenu d'un jour entier pour les thètes, comme l'ancien robinet ; pour les classes aisées, dont le revenu suit le
-    // panier, la part qui rend le revenu public d'avant #713 (arrondie au point inférieur) : la masse ne croît pas plus vite.
+  it('le revenu public d’un jour de chaque classe est 70 % de celui d’avant le calibrage des liturgies (#632, #283, #713, #721)', () => {
+    // Avant #721 : un jour entier pour les thètes, comme l'ancien robinet ; pour les classes aisées, dont le revenu suit
+    // le panier, la part qui rendait le revenu public d'avant #713 (arrondie au point inférieur). Le calibrage des
+    // liturgies (#721) baisse ce revenu à 70 % de cette part (7 000 points), arrondi au point inférieur : le puits des
+    // liturgies et cette baisse ensemble tiennent la masse dans sa borne.
     for (const npcClass of config.npcClasses) {
       const before = PHASE_2_INCOME[npcClass.id] ?? NaN;
       expect(npcClass.publicIncomeBps, npcClass.id).toBe(
-        Math.floor((before * 10_000) / npcClass.incomePerThousand),
+        Math.floor((Math.floor((before * 10_000) / npcClass.incomePerThousand) * 7_000) / 10_000),
       );
     }
-    expect(config.npcClasses.find((each) => each.id === 'thetes')?.publicIncomeBps).toBe(10_000);
+    expect(config.npcClasses.find((each) => each.id === 'thetes')?.publicIncomeBps).toBe(7_000);
     // Une version publiée avant le paramètre garde le même comportement.
     expect(DEFAULT_NPC_PUBLIC_INCOME_BPS).toBe(10_000);
-    // Et la même dans chaque cité, en attendant que #283 vise les importatrices (#657).
-    for (const city of config.cities) expect(city.npcPublicIncomeBps).toBe(10_000);
+    // #721 : trois cités, dont les bourses se vident à 70 %, gardent 80 % du revenu d'avant ; les autres le multiplicateur neutre.
+    for (const city of config.cities)
+      expect(city.npcPublicIncomeBps, city.id).toBe(
+        ['delphis', 'emporion', 'myrrhine'].includes(city.id) ? 11_430 : 10_000,
+      );
   });
 
   it('le budget non dépensé des PNJ se reporte, au plus deux unités au prix de réserve (#675)', () => {

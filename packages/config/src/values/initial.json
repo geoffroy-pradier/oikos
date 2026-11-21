@@ -364,16 +364,16 @@
   },
   "honor": { "min": -10000, "max": 10000, "changes": { "archon_term": 0 } },
   "liturgies": {
-    "housesPerCity": 0,
-    "wealthFloor": 600000,
-    "dueShareBps": 500,
+    "housesPerCity": 10,
+    "wealthFloor": 20000,
+    "dueShareBps": 4500,
     "minDue": 6000,
     "maxDue": 600000,
     "dueDays": 3,
     "genres": ["festival", "trierarchy", "choregia"],
-    "honorGain": 0,
-    "charisGain": 0,
-    "evasionHonorLoss": 0,
+    "honorGain": 100,
+    "charisGain": 300,
+    "evasionHonorLoss": 300,
     "maxSplendorBps": 10000
   },
   "templeTreasury": {
@@ -1338,7 +1338,7 @@
       "id": "thetes",
       "qualitySensitivity": 0.1,
       "incomePerThousand": 70,
-      "publicIncomeBps": 10000,
+      "publicIncomeBps": 7000,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 4.2 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.333 },
@@ -1352,7 +1352,7 @@
       "id": "zeugitai",
       "qualitySensitivity": 0.3,
       "incomePerThousand": 84,
-      "publicIncomeBps": 8690,
+      "publicIncomeBps": 6083,
       "basket": [
         { "goodId": "wheat", "need": "vital", "quantityPerThousand": 2.1 },
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.533 },
@@ -1375,7 +1375,7 @@
       "id": "hippeis",
       "qualitySensitivity": 0.6,
       "incomePerThousand": 107,
-      "publicIncomeBps": 7663,
+      "publicIncomeBps": 5364,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.733 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.667 },
@@ -1401,7 +1401,7 @@
       "id": "pentakosiomedimnoi",
       "qualitySensitivity": 0.9,
       "incomePerThousand": 188,
-      "publicIncomeBps": 6382,
+      "publicIncomeBps": 4467,
       "basket": [
         { "goodId": "bread", "need": "vital", "quantityPerThousand": 1.6 },
         { "goodId": "fish", "need": "vital", "quantityPerThousand": 0.8 },
@@ -1685,7 +1685,7 @@
       "hasPort": true,
       "patronGodId": "apollo",
       "startingRecipeId": "grow_olives",
-      "npcPublicIncomeBps": 10000
+      "npcPublicIncomeBps": 11430
     },
     {
       "id": "agrotera",
@@ -1751,7 +1751,7 @@
       "hasPort": true,
       "patronGodId": "aphrodite",
       "startingRecipeId": "grow_grapes",
-      "npcPublicIncomeBps": 10000
+      "npcPublicIncomeBps": 11430
     },
     {
       "id": "chalkeia",
@@ -1794,7 +1794,7 @@
       "hasPort": true,
       "patronGodId": "hermes",
       "startingRecipeId": "catch_fish",
-      "npcPublicIncomeBps": 10000
+      "npcPublicIncomeBps": 11430
     }
   ]
 }

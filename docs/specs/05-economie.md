@@ -586,6 +586,7 @@ Calibrage de la cité prototype (ticket #78), décidé pour la phase 1 et éprou
   À quatre cités (#283), la masse du monde croît de 179 % sur les 30 jours mesurés, soit environ 46 800 oboles par jour : le revenu public en crée environ 52 600, les puits n'en détruisent qu'environ 5 800.
   Les prix n'en dépendent pas tant que les PNJ sont les seuls acheteurs finaux.
   Les puits de la phase 2 (immobilier, décrets) ne prennent pas sur les bénéfices des maisons : seul un puits proportionnel à la richesse, les liturgies de la phase 3, peut contenir la masse sans faire tomber les marges des ateliers ni arrêter de sites.
+  Limite levée par #721, qui active les liturgies (« Calibrage des liturgies » plus bas).
 
 Marges des ateliers (#285, 4.3) : la configuration initiale règle les intrants de quatre recettes d'atelier (pressoir, tissage, poterie, chai) et le prix de référence de l'amphore, pour que chaque atelier rapporte, dans le banc à quatre cités, de la moitié au double de la médiane des sites de matières premières.
 Aucun robinet ni puits n'est réglé : l'entretien des sites, la taxe et le revenu public restent ceux d'avant, et le rapport du simulateur ne voit bouger la masse du monde que de 0,2 % sur 30 jours.
@@ -624,7 +625,8 @@ Calibrage à quatre cités (#283), éprouvé par le banc à quatre cités (`apps
   Avec les paramètres de #668, la masse croît de 178 % : le revenu public crée environ 52 700 oboles par jour, les puits en détruisent environ 6 600.
 - **Puits (#668).** Part de chaque puits dans la monnaie détruite des jours mesurés : entretien des sites 41,6 %, taxe de marché 31,9 %, grands travaux 7,8 %, fêtes 7,7 %, droit de port 3,8 %, provisions 2,2 %, entretien des navires 2,2 %, rénovations 1,8 %, entretien des biens 0,9 %.
   Les achats de sites, de navires et de biens tombent dans la mise en route.
-  La borne de −5 % à +25 % attend un puits proportionnel à la richesse, les liturgies, que la feuille de route place en phase 3 (17).
+  La borne de −5 % à +25 % attendait les liturgies, que la feuille de route place en phase 3 (17).
+  Le banc à douze cités la tient depuis #721 (« Calibrage des liturgies » plus bas).
 
 Calibrage à douze cités (#712), éprouvé par le même banc avec `BALANCE_SCENARIO=twelve` (graine fixe, 10 jours de mise en route puis 30 mesurés), dans le workflow `balance-nightly` :
 
@@ -670,6 +672,45 @@ Les mesures et les bornes des bancs ne changent pas : la mesure ne fait que lire
 Les chiffres ci-dessous ont été mesurés avant les terroirs resserrés de #714, qui changent le banc à quatre cités : ils donnent un ordre de grandeur, pas une référence.
 À quatre cités, le Gini du monde passe de 2 305 à 3 966 points de base sur les 30 jours mesurés, de 870 à 1 215 à Kallistè et de 1 826 à 4 644 à Ampélos (10,5 minutes en local).
 À douze cités, il passe de 2 476 à 3 886 points dans le monde ; Phrourion reste la plus égale (de 531 à 862), Delphis et Chalkeia finissent au-delà de 6 000 points (de 2 840 à 6 221 et de 2 895 à 6 073) (38 minutes en local, dont une partie en parallèle d'un autre banc).
+
+Calibrage des liturgies (#721, 6.4) : le banc à douze cités tient de −5 % à +25 % de masse monétaire sur les 30 jours mesurés, borne écrite à la main dans `balance-world.bench.ts`.
+Le banc à quatre cités garde sa borne de moins de 200 % ; il joue la même configuration, et sa masse croît de 16,4 % (692 658 à 781 268 oboles) au lieu de 167,1 %.
+Le banc à une cité joue les liturgies sans stratégie d'accomplissement : toutes ses maisons sont prélevées d'office, sa masse finale tombe à 1 837 291 oboles au lieu de 2 819 234 et `sink_liturgies` pèse 72,8 % de la monnaie détruite ; ses bornes tiennent, mais il ne couvre pas l'accomplissement.
+
+- **Configuration.** La configuration initiale désigne, à la première clôture de chaque saison, les dix maisons les plus riches de chaque cité dont la fortune atteint 20 000 oboles (`housesPerCity`, `wealthFloor`).
+  Le dû est 45 % de la fortune (`dueShareBps`), entre 6 000 et 600 000 oboles, à régler en trois jours de jeu (`dueDays`).
+  Une liturgie accomplie rapporte 100 Timè et 300 Charis, de l'ordre du seuil d'une grâce (300 à 600 Charis) ; une dérobade coûte 300 Timè (`honorGain`, `charisGain`, `evasionHonorLoss`).
+  Le faste reste borné à autant que le dû (`maxSplendorBps` à 10 000).
+- **Revenu public.** Le revenu public baisse en même temps : les parts publiques des classes passent à 70 % de celles d'avant (7 000, 6 083, 5 364 et 4 467 points), et Delphis, Emporion et Myrrhinè gardent 80 % de leur revenu d'avant (`npcPublicIncomeBps` de ces trois cités à 11 430 points).
+  Raison : à 70 % partout, les bourses des PNJ de ces trois cités, que les salaires et l'hébergement des maisons ne remplissent pas assez, se vident, et la couverture des besoins vitaux y tombe de 92 à 96 % à partir du vingt-huitième jour.
+  À quatre cités, 40 % du revenu d'avant fait tomber la couverture à 53 %, et 65 % la fait passer sous 98 % : le calibrage ne descend pas sous 70 %.
+- **Poids des liturgies.** Le banc ne dépense pas sa fortune : ses maisons gardent en trésorerie ce que les PNJ leur paient, et la masse croît de ce que le revenu public crée moins ce que les puits détruisent.
+  Les liturgies doivent donc détruire, chaque semaine, près de la moitié de la fortune des maisons désignées.
+  Banc à quatre cités, revenu public à 70 %, plancher de 20 000 oboles : un dû de 15 % de la fortune laisse la masse croître de 77 %, 35 % de 28 %, 45 % de 18 %.
+  Décision : 45 % de la fortune par saison, et un plancher à 20 000 oboles.
+  Un plancher de 5 000 oboles désigne des armateurs, dont la trésorerie est le fonds de roulement : le premier essai (20 % de la fortune) a désarmé le navire de l'un d'eux.
+  Ces chiffres sont ceux d'un banc dont les maisons ne réinvestissent pas ; une partie réelle, où les joueurs acquièrent sites, navires et logements, appelle un dû moins lourd, que le tableau de bord de la phase 3 mesurera.
+- **Stratégie du banc.** Une maison scriptée désignée accomplit sa liturgie le matin de la désignation si sa trésorerie, hors séquestre, couvre le dû et trois jours de dépenses ; sinon elle s'y dérobe.
+  Une maison sur quatre, au rang qu'elle a parmi toutes les maisons du banc, toutes cités confondues, s'y dérobe toujours (jamais un armateur, dont la trésorerie est le fonds de roulement).
+  Une maison qui s'y dérobe garde en trésorerie le dû que le prélèvement d'office lui prendra, et ne le dépense pas : l'entretien de ses sites reste payé après le prélèvement.
+  Aucun site ni aucun navire ne s'arrête dans le banc faute de trésorerie à cause d'une liturgie ; le banc le vérifie.
+- **Armateurs.** Le banc ajoute 2 000 oboles à la dotation de chaque armateur (`CARRIER_TOP_UP`) : un armateur vend à la référence et vit de sa dotation, et le relais de Chalkeia (4.6) finissait les 40 jours à 404 oboles, à 10 avec un revenu public à 70 % ; un jour de plus, son site s'arrêtait.
+  C'est un paramètre du banc, pas du jeu ; la référence du rapport le joue aussi.
+  L'armateur du jeu réel n'a pas cette dotation : il reste déficitaire avec un revenu public à 70 %, ce que le calibrage ne corrige pas (suivi dans #1026).
+- **Mesure à douze cités.** Masse du monde de 2 050 041 oboles au premier jour mesuré à 2 335 288 au dernier jour mesuré, soit +15,4 % ; avant, 6 695 725 oboles au dernier jour mesuré (+163,9 % dans la mesure de #717, qui n'avait pas le fonds de roulement des armateurs).
+  Création nette quotidienne des dix derniers jours à 50 % de celle des dix premiers (14 061 contre 27 984 oboles par jour).
+  Part de `sink_liturgies` dans la monnaie détruite des jours mesurés : 79,4 %, aucune avant.
+  Liturgies jouées sur les 40 jours : 150 accomplies (1 811 554 oboles) et 61 éludées, prélevées d'office (803 441 oboles), aucune en partie.
+  Gini des fortunes du monde : de 2 197 à 3 843 points avant, de 1 950 à 2 628 après (sans borne).
+  Coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,1 % au moins (comme avant : les hippeis d'Agrotera) et à 98,9 % à Chalkeia, pour une borne de 98 %, population de 14 833 à 15 167 habitants (15 167 au dernier jour avant), aucun site arrêté, marges des ateliers inchangées.
+  Durée du banc : 37,9 minutes en local, pour une limite de 45.
+  Le rapport du simulateur, configuration d'avant contre configuration d'après, est joint à la demande de fusion de #721.
+- **Limite connue.** La fortune compte les marchandises en mer au prix de leur cité d'arrivée (6.4) : un départ juste avant la désignation vers une cité sans prix observé les fait disparaître de la fortune.
+  Le banc ne mesure pas ce départ, ses armateurs ne sortant pas de leurs routes : sa rentabilité reste à suivre (6.4).
+- **Limite connue (prélèvement non couvert).** En vraie partie, rien ne retient une maison de dépenser le dû d'une liturgie qu'elle élude : le prélèvement d'office, joué à la clôture avant l'entretien, peut alors vider sa trésorerie.
+  Ses sites, dont l'entretien reste impayé, peuvent s'arrêter, et un prêt du Trésor du temple dont l'échéance est prise juste après le prélèvement (`loanCollection`) peut tomber en défaut.
+  Le banc ne le montre pas : ses maisons qui éludent gardent le dû en trésorerie (`owedToLevy`, déduit par `cash`), et le banc échoue si un site s'arrête.
+  Suivi dans #1029.
 
 ## 5.6 Fiscalité
 

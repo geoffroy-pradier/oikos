@@ -209,6 +209,14 @@ const FOUR_CARRIERS: CarrierSpec[] = [
   { home: 'ampelos', source: 'halos', count: 1, toHome: ['salt'], toSource: [] },
 ];
 export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
+/**
+ * Fonds de roulement ajouté à la dotation de chaque armateur, en oboles (#721). Un armateur vend à la référence et
+ * n'achète jamais au-dessus : il ne gagne presque rien par voyage et vit de sa dotation, que les provisions, le droit de
+ * port et l'entretien de son navire usent d'environ 150 oboles par jour. Le relais de Chalkeia finissait les 40 jours à
+ * 404 oboles, et à 10 avec un revenu public à 70 % : un jour de plus, son site s'arrêtait faute d'entretien. C'est un
+ * paramètre du banc, pas du jeu.
+ */
+export const CARRIER_TOP_UP = 2_000;
 
 /**
  * Scénario des douze cités (#712) : la configuration initiale entière, ses vingt-trois routes (#707) et la population de
