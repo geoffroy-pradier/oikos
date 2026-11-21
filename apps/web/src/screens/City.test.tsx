@@ -99,18 +99,19 @@ describe('onglet Cité : marché du travail et parc (#259)', () => {
 });
 
 describe('onglet Cité : sous-sections en pastilles (#697)', () => {
-  it('cinq pastilles, la vie politique d’abord ; les panneaux quittés restent montés, cachés', async () => {
+  it('les pastilles, la vie politique d’abord ; les panneaux quittés restent montés, cachés', async () => {
     await show(<CityScreen />);
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       'Vie politique',
       'Assemblée',
+      'Liturgies',
       'Trésor',
       'Événements',
       'Chronique',
     ]);
     expect(screen.getByRole('tabpanel', { name: 'Vie politique' })).toBeTruthy();
-    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(5);
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(6);
     fireEvent.click(screen.getByRole('tab', { name: 'Trésor' }));
     const panel = screen.getByRole('tabpanel', { name: 'Trésor' });
     expect(panel.querySelector('h2')?.textContent).toBe(fr.treasury.title);
