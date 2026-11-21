@@ -59,6 +59,7 @@ import { stewardSubmitInstruction } from './commands/steward-instruction';
 import { templeConsultOracle } from './commands/temple-consult-oracle';
 import { liturgyPerform } from './commands/liturgy-perform';
 import { loanBorrowFromTemple } from './commands/loan-borrow';
+import { loanRepay } from './commands/loan-repay';
 import { templeInvokeGrace } from './commands/temple-invoke-grace';
 import { templeMakeOffering } from './commands/temple-make-offering';
 import type { RateLimiter } from './rate-limit';
@@ -114,6 +115,7 @@ export const COMMANDS = [
   cityCastOstracon,
   liturgyPerform,
   loanBorrowFromTemple,
+  loanRepay,
   voyageDepart,
   chatOpenDirect,
   chatPost,

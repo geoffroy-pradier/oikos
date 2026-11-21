@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { loanBorrowFromTempleInputSchema, loanDisbursedSchema } from './loan';
+import {
+  LOAN_STATUSES,
+  loanBorrowFromTempleInputSchema,
+  loanDisbursedSchema,
+  loanRepayInputSchema,
+} from './loan';
 
 describe('prêts du temple (#724)', () => {
   it('loan.borrowFromTemple : principal positif, durée et taux vu entiers et bornés', () => {
@@ -22,7 +27,14 @@ describe('prêts du temple (#724)', () => {
     expect(bad({ expectedRateBps: 0, termDays: 366 })).toBe(true);
   });
 
-  it('LoanDisbursed se relit par l’union, du seul temple', () => {
+  it('loan.repay : un prêt et un montant positif', () => {
+    const input = { loanId: '01900000-0000-7000-8000-0000000724c1', amount: 1 };
+    expect(loanRepayInputSchema.parse(input)).toEqual(input);
+    expect(loanRepayInputSchema.safeParse({ ...input, amount: 0 }).success).toBe(false);
+    expect(loanRepayInputSchema.safeParse({ ...input, loanId: 'x' }).success).toBe(false);
+  });
+
+  it('LoanDisbursed et LoanRepaid se relisent par l’union ; états fermés', () => {
     const disbursed = {
       type: 'LoanDisbursed' as const,
       payload: {
@@ -45,5 +57,22 @@ describe('prêts du temple (#724)', () => {
         payload: { ...disbursed.payload, lender: 'bank' },
       }).success,
     ).toBe(false);
+    const repaid = {
+      type: 'LoanRepaid' as const,
+      payload: {
+        loanId: disbursed.payload.loanId,
+        houseId: disbursed.payload.houseId,
+        interest: 2,
+        principal: 998,
+        outstanding: 2,
+        status: 'active' as const,
+      },
+    };
+    expect(domainEventSchema.parse(repaid)).toEqual(repaid);
+    expect(
+      domainEventSchema.safeParse({ ...repaid, payload: { ...repaid.payload, status: 'gone' } })
+        .success,
+    ).toBe(false);
+    expect(LOAN_STATUSES).toEqual(['active', 'repaid', 'defaulted']);
   });
 });

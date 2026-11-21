@@ -42,6 +42,8 @@ const borrow = (user: string, principal: number, termDays = 365, rate = 1_000, v
     undefined,
     via,
   );
+const repay = (user: string, loanId: string, amount: number, key?: string) =>
+  send(user, 'loan.repay', { loanId, amount }, key, app);
 /** Timè posée par le propriétaire, gardes levées : le journal n'admet que ses motifs. */
 async function setHonor(houseId: string, honor: number) {
   await owner.transaction().execute(async (trx) => {
@@ -49,6 +51,13 @@ async function setHonor(houseId: string, honor: number) {
     await sql`insert into game.honor (house_id, world_id, honor)
       select id, world_id, ${honor} from game.houses where id = ${houseId}
       on conflict (house_id) do update set honor = excluded.honor`.execute(trx);
+  });
+}
+/** Modifie un prêt gardes levées (`set` : une affectation SQL écrite par le test). */
+async function force(loanId: string, set: string) {
+  await owner.transaction().execute(async (trx) => {
+    await sql`set local session_replication_role = replica`.execute(trx);
+    await sql`update game.loans set ${sql.raw(set)} where id = ${loanId}`.execute(trx);
   });
 }
 /** État, principal, intérêts, remboursés et reste dû du prêt. */
@@ -138,5 +147,140 @@ describe('loan.borrowFromTemple', () => {
     expect(await systemBalances()).toEqual(before);
     expect(await eventsOf(player.houseId, 'LoanDisbursed')).toEqual([]);
     expect((await borrow(player.user, 5_000, 7)).body.data).toMatchObject({ interest: 10 });
+  });
+
+  it('deux emprunts concurrents, sous deux clés : un seul prêt', async () => {
+    const player = await newPlayer(KALLISTE);
+    const replies = await Promise.all([borrow(player.user, 600, 7), borrow(player.user, 400, 365)]);
+    expect(replies.filter((reply) => reply.status === 200)).toHaveLength(1);
+    expect(replies.map(codeOf).filter(Boolean)).toEqual(['LOAN_OUTSTANDING']);
+    const { rows } = await sql<{ n: number }>`select count(*)::int as n from game.loans
+      where borrower_house_id = ${player.houseId}`.execute(db);
+    expect(rows[0]?.n).toBe(1);
+    const principal = replies.find((reply) => reply.status === 200)?.body.data.principal as number;
+    expect(await balanceOf(player.houseId)).toBe(GRANT + principal);
+  });
+
+  it('un prêt de banque ne compte pas pour le prêt unique, mais en défaut il déshonore ; un prêt en défaut se rembourse', async () => {
+    const player = await newPlayer(KALLISTE);
+    const first = (await borrow(player.user, 500, 7)).body.data.loanId as string;
+    // Prêteur et état posés gardes levées : aucune banque ne prête encore (#728), aucun prêt n'est en défaut (#725).
+    await force(first, `lender = 'bank'`);
+    const temple = await borrow(player.user, 300, 7);
+    expect(temple.status).toBe(200);
+    await force(first, `status = 'defaulted'`);
+    expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
+    // `loan.repay` ne rembourse encore que le temple : un prêt de banque lui est inconnu.
+    expect(codeOf(await repay(player.user, first, 1))).toBe('LOAN_NOT_FOUND');
+    // Le prêt du temple remboursé, le prêt de banque en défaut déshonore encore.
+    expect((await repay(player.user, temple.body.data.loanId, 301)).body.data).toMatchObject({
+      status: 'repaid',
+    });
+    expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
+    await force(first, `lender = 'temple'`);
+    expect((await repay(player.user, first, 501)).body.data).toMatchObject({
+      outstanding: 0,
+      status: 'repaid',
+    });
+  });
+});
+
+describe('loan.repay', () => {
+  it('intérêts d’abord, au puits ; le principal recrédite le robinet ; remboursé, le prêt libère la maison', async () => {
+    const player = await newPlayer(KALLISTE);
+    // 1 000 oboles pour un an : 100 d'intérêts.
+    const loanId = (await borrow(player.user, 1_000)).body.data.loanId as string;
+    const [faucet, sink] = await systemBalances();
+    const key = randomUUID();
+    const first = await repay(player.user, loanId, 60, key);
+    expect(first.body.data).toEqual({
+      loanId,
+      interest: 60,
+      principal: 0,
+      outstanding: 1_040,
+      status: 'active',
+    });
+    expect(await repay(player.user, loanId, 60, key)).toEqual(first);
+    const second = await repay(player.user, loanId, 540);
+    expect(second.body.data).toMatchObject({ interest: 40, principal: 500, outstanding: 500 });
+    expect(codeOf(await repay(player.user, loanId, 501))).toBe('ABOVE_OUTSTANDING');
+    const last = await repay(player.user, loanId, 500);
+    expect(last.body.data).toMatchObject({
+      interest: 0,
+      principal: 500,
+      outstanding: 0,
+      status: 'repaid',
+    });
+    expect(await stateOf(loanId)).toBe('repaid:1000:100:1000:100:0');
+    expect(await linesOf(loanId)).toEqual([
+      'loan.repay:house:-540',
+      'loan.repay:house:-500',
+      'loan.repay:house:-60',
+      'loan.repay:sink_temple_interest:40',
+      'loan.repay:sink_temple_interest:60',
+      'loan.repay:faucet_temple_loans:500',
+      'loan.repay:faucet_temple_loans:500',
+      'loan.temple_disburse:faucet_temple_loans:-1000',
+      'loan.temple_disburse:house:1000',
+    ]);
+    // Conservation : la maison a payé les intérêts, que le puits a détruits ; le robinet a repris le principal.
+    expect(await balanceOf(player.houseId)).toBe(GRANT - 100);
+    expect(await systemBalances()).toEqual([(faucet ?? 0) + 1_000, (sink ?? 0) + 100]);
+    const { houseId } = player;
+    expect((await eventsOf(houseId, 'LoanRepaid')).map((event) => event['outstanding'])).toEqual([
+      1_040, 500, 0,
+    ]);
+    expect(codeOf(await repay(player.user, loanId, 1))).toBe('LOAN_REPAID');
+    expect((await borrow(player.user, 10, 7)).status).toBe(200);
+  });
+
+  it('refus sans rien payer : prêt d’une autre maison ou inconnu, trésorerie insuffisante', async () => {
+    const [player, other] = [await newPlayer(KALLISTE), await newPlayer(KALLISTE)];
+    // 1 000 oboles pour un an : reste dû 1 100. Le propriétaire en détruit tout sauf 50 oboles de la trésorerie.
+    const loanId = (await borrow(player.user, 1_000)).body.data.loanId as string;
+    expect(codeOf(await repay(other.user, loanId, 10))).toBe('LOAN_NOT_FOUND');
+    expect(codeOf(await repay(player.user, randomUUID(), 10))).toBe('LOAN_NOT_FOUND');
+    const spend = GRANT + 1_000 - 50;
+    await owner.transaction().execute(async (trx) => {
+      const { rows } = await sql<{ id: string }>`insert into game.ledger_entries (world_id, kind)
+        select world_id, 'test.spend' from game.houses where id = ${player.houseId} returning id`.execute(
+        trx,
+      );
+      await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+        select ${rows[0]?.id}, id, case when kind = 'house' then ${-spend}::bigint else ${spend}::bigint end from game.accounts
+        where house_id = ${player.houseId} and kind = 'house'
+           or (world_id = (select world_id from game.houses where id = ${player.houseId})
+               and system_key = 'sink_upkeep')`.execute(trx);
+    });
+    expect(codeOf(await repay(player.user, loanId, 51))).toBe('INSUFFICIENT_FUNDS');
+    expect(await stateOf(loanId)).toBe('active:1000:100:0:0:1100');
+    // Solde nul : toute la trésorerie, en intérêts.
+    expect((await repay(player.user, loanId, 50)).body.data).toMatchObject({
+      interest: 50,
+      outstanding: 1_050,
+    });
+    expect(await balanceOf(player.houseId)).toBe(0);
+    expect(await eventsOf(other.houseId, 'LoanRepaid')).toEqual([]);
+  });
+
+  it('deux remboursements concurrents qui dépassent ensemble le reste dû : l’un passe, jamais de reste dû négatif', async () => {
+    const player = await newPlayer(KALLISTE);
+    const loanId = (await borrow(player.user, 1_000, 7)).body.data.loanId as string;
+    const replies = await Promise.all([
+      repay(player.user, loanId, 700),
+      repay(player.user, loanId, 700),
+    ]);
+    expect(replies.filter((reply) => reply.status === 200)).toHaveLength(1);
+    expect(replies.map(codeOf).filter(Boolean)).toEqual(['ABOVE_OUTSTANDING']);
+    expect(await stateOf(loanId)).toBe('active:1000:2:698:2:302');
+    // Deux remboursements qui tiennent ensemble : tous deux passent, les intérêts une seule fois.
+    const fresh = await newPlayer(KALLISTE);
+    const second = (await borrow(fresh.user, 1_000, 7)).body.data.loanId as string;
+    const both = await Promise.all([
+      repay(fresh.user, second, 1),
+      repay(fresh.user, second, 1_001),
+    ]);
+    expect(both.map((reply) => reply.status)).toEqual([200, 200]);
+    expect(await stateOf(second)).toBe('repaid:1000:2:1000:2:0');
   });
 });
