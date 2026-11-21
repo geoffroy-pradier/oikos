@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,8 @@ import fr from '../locales/fr.json';
 
 // Écran Finances (#732) : lectures simulées vue par vue.
 const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
+const api = vi.hoisted(() => ({ repayLoan: vi.fn() }));
+vi.mock('../api', () => ({ repayLoan: api.repayLoan }));
 vi.mock('../data', () => ({
   useRows: (view: string) => {
     const rows = view in state.views ? (state.views[view] ?? null) : [];
@@ -34,7 +36,7 @@ const loan = (extra = {}) => ({
   status: 'active',
   ...extra,
 });
-const plain = (node: HTMLElement | null) => node?.textContent?.replace(/[\u00a0\u202f]/g, ' ');
+const plain = (node: HTMLElement | null) => node?.textContent?.replace(/\p{Zs}/gu, ' ');
 
 async function show(lng: 'fr' | 'en' = 'fr') {
   const instance = i18next.createInstance();
@@ -62,7 +64,9 @@ async function show(lng: 'fr' | 'en' = 'fr') {
 }
 
 beforeEach(() => {
+  api.repayLoan.mockReset();
   state.views = {
+    my_balance_sheet: [{ treasury: 1000, escrow: 0, stock_value: 0, unpriced_stocks: 0 }],
     my_loans: [loan()],
     house_honor: [{ honor: 10, dishonored: false, dishonored_until_day: null }],
   };
@@ -117,7 +121,7 @@ describe('écran Finances, dettes (#732)', () => {
       new Date(20_500 * 86_400_000),
     );
     expect(plain(screen.getByText(/^Votre maison porte une marque/))).toContain(
-      `jusqu'au ${until.replace(/[\u00a0\u202f]/g, ' ')}`,
+      `jusqu'au ${until.replace(/\p{Zs}/gu, ' ')}`,
     );
   });
 
@@ -147,5 +151,32 @@ describe('écran Finances, dettes (#732)', () => {
     expect(plain(screen.getByText('Still owed', { selector: 'dt' }).closest('div'))).toContain(
       '1,005 drachmas',
     );
+  });
+
+  it('« Rembourser » ouvre la feuille, bornée par la trésorerie lue, et annonce le remboursement', async () => {
+    api.repayLoan.mockResolvedValue({
+      ok: true,
+      replayed: false,
+      data: { loanId: 'l1', interest: 30, principal: 270, outstanding: 5730, status: 'active' },
+    });
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: /^Rembourser\p{Zs}: Trésor du temple$/u }));
+    const sheet = within(screen.getByRole('dialog', { name: 'Rembourser un prêt' }));
+    expect(plain(sheet.getByText(/^De 1 à /))).toContain('De 1 à 1 000 oboles');
+    fireEvent.change(sheet.getByLabelText(/^Montant remboursé/), { target: { value: '300' } });
+    fireEvent.click(sheet.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(sheet.getByRole('button', { name: 'Rembourser 50 drachmes' }));
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toMatch(/^Remboursement de /),
+    );
+    expect(plain(screen.getByRole('status'))).toContain('il reste 955 drachmes à devoir');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('trésorerie illisible : le montant n’est borné que par le reste dû, l’API tranche', async () => {
+    state.views['my_balance_sheet'] = [{ treasury: 'x' }];
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: /^Rembourser\p{Zs}: Trésor du temple$/u }));
+    expect(plain(screen.getByText(/^De 1 à /))).toContain('De 1 à 6 030 oboles');
   });
 });

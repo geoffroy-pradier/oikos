@@ -1760,7 +1760,7 @@
       "until": "Votre maison porte une marque de déshonneur jusqu'au {{date}} : elle ne peut pas emprunter d'ici là."
     },
     "repay": {
-      "open": "Rembourser",
+      "open": "Rembourser : {{lender}}",
       "title": "Rembourser un prêt",
       "stepAmount": "Montant",
       "stepRecap": "Récapitulatif",
