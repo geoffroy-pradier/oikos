@@ -687,6 +687,7 @@ describe('opérations des intendants', () => {
     expect(results.find((result) => result.worldId === world)).toEqual({
       worldId: world,
       run: { acted: 0, refused: 0, failed: 0 },
+      npc: { acted: 0, refused: 0, failed: 0 },
     });
     expect(loaded).toContain(newer);
     expect(loaded).not.toContain(older);

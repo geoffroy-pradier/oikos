@@ -19,6 +19,7 @@ export { publicIncomeDue } from './steps/npc-public-income';
 export { observedPricesStep } from './steps/observed-prices';
 export { priceCandlesStep } from './steps/price-candles';
 export { siteUpkeep } from './steps/site-upkeep';
+export { runNpcHouseRules } from './npc-house-rules';
 export { runAllStewards, runStewards, type StewardRun, type StewardTick } from './stewards';
 export { voyageArrivals } from './steps/voyage-arrivals';
 export { eventDaySeed } from './steps/world-event-planning';
