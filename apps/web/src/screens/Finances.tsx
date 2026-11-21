@@ -1,10 +1,12 @@
 import {
   Badge,
+  Button,
   Card,
   CalendarClock,
   Check,
   Coins,
   EmptyState,
+  HandCoins,
   Hourglass,
   Landmark,
   Percent,
@@ -12,8 +14,9 @@ import {
   TriangleAlert,
   type Icon,
 } from '@oikos/ui';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { parseBalanceSheet } from '../accounts';
 import { useRows } from '../data';
 import { useGameTime } from '../game-time';
 import { useHouse } from '../house';
@@ -21,7 +24,9 @@ import { HouseNav } from '../HouseNav';
 import { LOAN_COLUMNS, parseHouseHonor, parseMyLoans, type MyLoan } from '../loans';
 import { useMoney } from '../money';
 import { ScreenHeader } from '../ScreenHeader';
+import { noticeClass } from './CommandNotice';
 import { LoadProblem, Loading } from './LoadProblem';
+import { LoanRepaySheet } from './LoanRepaySheet';
 import { SectionTitle } from './SectionTitle';
 
 /** Jours de jeu : un jour de jeu dure vingt-quatre heures, de clôture à clôture (conversion d'unité, pas d'équilibrage). */
@@ -58,13 +63,28 @@ export function FinancesScreen() {
     'house_id',
     mine,
   );
+  // Trésorerie : bornée au remboursement ; illisible, le remboursement n'est plus borné que par le reste dû.
+  const sheetRows = useRows<unknown>(
+    'my_balance_sheet',
+    'treasury, escrow, stock_value, unpriced_stocks',
+    'house_id',
+    mine,
+  );
   const reads = [loanRows, honorRows];
   const loans = loanRows.rows === null ? null : parseMyLoans(loanRows.rows);
   const honor = honorRows.rows === null ? null : parseHouseHonor(honorRows.rows);
   const loading = reads.some((read) => read.rows === null && !read.failed);
   const failed =
     reads.some((read) => read.failed) || (!loading && (loans === null || honor === null));
-  const reload = () => Promise.all(reads.map((read) => read.reload()));
+  const treasury =
+    sheetRows.rows === null
+      ? null
+      : (parseBalanceSheet(sheetRows.rows[0] ?? null)?.treasury ?? null);
+  const reload = () => Promise.all([...reads, sheetRows].map((read) => read.reload()));
+  const done = useRef<HTMLParagraphElement>(null);
+  const [repaying, setRepaying] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState('');
+  const repaid = loans?.find((loan) => loan.id === repaying) ?? null;
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
@@ -77,6 +97,10 @@ export function FinancesScreen() {
       <ScreenHeader title={t('finances.title')} />
       <HouseNav />
       <p className="text-muted-foreground">{t('finances.intro')}</p>
+      {/* Région présente avant son texte : le remboursement s'annonce ici, la feuille fermée. */}
+      <p ref={done} role="status" tabIndex={-1} className={noticeClass('status')}>
+        {announcement}
+      </p>
       {dishonor?.dishonored && (
         <Card className="flex items-start gap-3 border-danger/50">
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-danger" />
@@ -152,12 +176,37 @@ export function FinancesScreen() {
                   <p className="text-sm text-muted-foreground">
                     {t(`finances.debts.notes.${state}`)}
                   </p>
+                  <Button
+                    className="self-start"
+                    icon={<HandCoins aria-hidden="true" />}
+                    aria-haspopup="dialog"
+                    onClick={() => setRepaying(loan.id)}
+                  >
+                    {t('finances.repay.open', {
+                      lender: t(`finances.debts.lender.${loan.lender}`),
+                    })}
+                  </Button>
                 </li>
               );
             })}
           </ul>
         )}
       </Card>
+      {repaid && (
+        <LoanRepaySheet
+          key={repaid.id}
+          loan={repaid}
+          treasury={treasury}
+          open
+          onClose={() => setRepaying(null)}
+          onRepaid={async (message) => {
+            setAnnouncement(message);
+            await reload();
+            done.current?.focus();
+          }}
+          onRefused={reload}
+        />
+      )}
     </div>
   );
 }
