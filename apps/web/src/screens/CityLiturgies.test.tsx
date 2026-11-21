@@ -114,7 +114,7 @@ describe('liturgies de la saison dans la cité (#723)', () => {
     );
     expect(counts).toEqual({
       'Maisons désignées': '3',
-      'À accomplir': '2',
+      'À accomplir, échues comprises': '2',
       Accomplies: '1',
       "Prélevées d'office": '0',
     });
@@ -141,5 +141,16 @@ describe('liturgies de la saison dans la cité (#723)', () => {
     await show();
     expect(screen.queryByText(/^Aucune liturgie n'a encore été désignée/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();
+  });
+  it('affiche le numéro de la saison désignée, pour qu’une ancienne liste ne paraisse pas courante', async () => {
+    state.views = { houses, city_liturgies: [row('h1', 'festival', 'assigned', 7)] };
+    await show();
+    expect(screen.getByText(/^Saison n°.7\./)).toBeTruthy();
+  });
+
+  it('le compteur À accomplir dit qu’il compte aussi les liturgies échues', async () => {
+    state.views = { houses, city_liturgies: [row('h1', 'festival')] };
+    await show();
+    expect(screen.getByText('À accomplir, échues comprises')).toBeTruthy();
   });
 });

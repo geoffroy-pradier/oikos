@@ -1652,6 +1652,10 @@
     "notes": {
       "assigned": "Perform your liturgy before the deadline: the due is paid from your treasury, and any splendor you add increases what you earn.",
       "overdue": "The deadline has passed: the liturgy will be levied automatically at the next close, with no gain and a Timè loss of {{loss}}.",
+      "assignedNoRules": "Your liturgy is to be performed, but the liturgy configuration is unavailable: no button is offered for now. Please come back later.",
+      "overdueNoRules": "The deadline has passed: the liturgy will be levied automatically at the next close, with no gain.",
+      "performedNoHonor": "You performed this liturgy.",
+      "leviedNoLoss": "Levied automatically: the liturgy was not performed before the deadline. The due was taken from your treasury, with no gain.",
       "performed": "You performed this liturgy. Timè gained: {{honor}}.",
       "levied": "Levied automatically: the liturgy was not performed before the deadline. The due was taken from your treasury, with no gain. Timè lost: {{loss}}."
     },
@@ -1663,10 +1667,11 @@
     "empty": "No liturgy has been assigned in the city yet. They are assigned at the first close of each season.",
     "designated": "Houses assigned",
     "counts": {
-      "assigned": "To perform",
+      "assigned": "To perform, overdue included",
       "performed": "Performed",
       "levied": "Levied automatically"
     },
+    "season": "Season {{season}}.",
     "deadline": "Deadline for the season: {{date}}.",
     "yours": "Your house is assigned this season.",
     "yoursLink": "See my liturgy",
@@ -1693,6 +1698,7 @@
       "count_other": "{{count}} citizens",
       "recap": "You are writing the name of {{house}}.",
       "recapNote": "A ballot cannot be changed, and the name written is never shown.",
+      "gone": "This citizen is no longer in the list: please choose again.",
       "confirm": "Write this name"
     },
     "done": "Your ballot is cast. The vote is secret.",

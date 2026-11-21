@@ -22,6 +22,8 @@ const callbacks = {
   onRefused: vi.fn(() => Promise.resolve()),
 };
 
+let rerender: (list: readonly { id: string; name: string }[]) => void = () => undefined;
+
 async function show(list: readonly { id: string; name: string }[] = citizens) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -36,15 +38,17 @@ async function show(list: readonly { id: string; name: string }[] = citizens) {
     accessToken: 'jeton',
     cityName: 'Kallistè',
   };
-  render(
+  const tree = (citizensList: readonly { id: string; name: string }[]) => (
     <I18nextProvider i18n={instance}>
       <HouseProvider
         value={{ ...house, cityNames: { c1: 'Kallistè' }, citizenshipStatus: 'citizen' }}
       >
-        <OstraconSheet ostracismId="o1" citizens={list} open {...callbacks} />
+        <OstraconSheet ostracismId="o1" citizens={citizensList} open {...callbacks} />
       </HouseProvider>
-    </I18nextProvider>,
+    </I18nextProvider>
   );
+  const view = render(tree(list));
+  rerender = (next) => view.rerender(tree(next));
   return within(screen.getByRole('dialog', { name: 'Inscrire un nom' }));
 }
 const next = () => fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
@@ -114,5 +118,23 @@ describe('feuille du vote d’ostracisme (#723)', () => {
     const sheet = await show(many);
     expect(sheet.getAllByRole('radio')).toHaveLength(50);
     expect(sheet.getByText(/^50 citoyens montrés sur 60/)).toBeTruthy();
+  });
+  it('le citoyen choisi disparu de la liste relue après un refus : retour au choix, pas de récapitulatif vide', async () => {
+    api.cityCommand.mockResolvedValue({
+      ok: false,
+      error: { code: 'ALREADY_VOTED', message: 'x' },
+    });
+    const sheet = await show();
+    fireEvent.click(sheet.getByRole('radio', { name: 'Alcméonides' }));
+    next();
+    fireEvent.click(sheet.getByRole('button', { name: 'Inscrire ce nom' }));
+    await waitFor(() => expect(callbacks.onRefused).toHaveBeenCalledTimes(1));
+    rerender(citizens.filter((citizen) => citizen.id !== 'h2'));
+    await waitFor(() => expect(sheet.getAllByRole('radio')).toHaveLength(2));
+    expect(sheet.getByText(/Ce citoyen ne figure plus dans la liste/)).toBeTruthy();
+    expect(sheet.queryByText(/Vous inscrivez le nom/)).toBeNull();
+    expect((sheet.getByRole('button', { name: 'Continuer' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 });

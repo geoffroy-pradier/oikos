@@ -156,4 +156,32 @@ describe('liturgie de la maison (#723)', () => {
     await show();
     expect(screen.getByText(/^Aucune liturgie n'est confiée à votre maison/)).toBeTruthy();
   });
+  it('sans configuration : l’état à accomplir dit pourquoi aucun bouton n’est offert', async () => {
+    state.views.liturgy_rules = [];
+    await show();
+    expect(screen.getByText(/la configuration des liturgies n.est pas disponible/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accomplir ma liturgie' })).toBeNull();
+  });
+
+  it('sans configuration, échue ou prélevée : aucune perte de Timè de 0 n’est annoncée', async () => {
+    state.views.liturgy_rules = [];
+    state.views.my_liturgies = [liturgy({ due_at: '2020-01-01T04:00:00+00:00' })];
+    await show();
+    expect(
+      screen.getByText(/sera prélevée d'office à la prochaine clôture, sans gain\.$/),
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/perte de Timè de/);
+    cleanup();
+    state.views.my_liturgies = [liturgy({ status: 'levied' })];
+    await show();
+    expect(document.body.textContent).not.toMatch(/Timè perdue/);
+  });
+
+  it('la Timè gagnée ou perdue n’apparaît qu’une fois le journal lu, jamais en « 0 » transitoire', async () => {
+    state.views.my_liturgies = [liturgy({ status: 'performed' })];
+    state.views.my_honor_entries = null;
+    await show();
+    expect(document.body.textContent).not.toMatch(/Timè gagnée/);
+    expect(screen.getByText('Vous avez accompli cette liturgie.')).toBeTruthy();
+  });
 });

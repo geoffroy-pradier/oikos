@@ -1,5 +1,5 @@
 import { Sheet, StatusRegion, Stepper, TextField } from '@oikos/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
 import { useHouse } from '../house';
@@ -31,12 +31,24 @@ export function OstraconSheet(props: {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [round, setRound] = useState(0);
   const keys = useRef(new Map<string, string>());
   const running = useRef(false);
   const number = new Intl.NumberFormat(i18n.language);
   const matches = filterCitizens(props.citizens, query);
   const shown = matches.slice(0, SHOWN);
   const chosen = props.citizens.find((citizen) => citizen.id === chosenId) ?? null;
+
+  // Le citoyen choisi a disparu de la liste relue (après un refus) : retour au choix, pas un récapitulatif vide.
+  const vanished = chosenId !== null && chosen === null;
+  useEffect(() => {
+    if (!vanished) return;
+    setChosenId(null);
+    setRefusal(null);
+    setGone(true);
+    setRound((value) => value + 1);
+  }, [vanished]);
 
   async function cast() {
     if (!chosen || running.current) return;
@@ -75,6 +87,9 @@ export function OstraconSheet(props: {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
+      <StatusRegion role="alert" tone="info">
+        {gone ? t('cityOstracism.sheet.gone') : null}
+      </StatusRegion>
       <fieldset className="flex max-h-72 flex-col gap-2 overflow-y-auto">
         <legend className="sr-only">{t('cityOstracism.sheet.legend')}</legend>
         {shown.map((citizen) => (
@@ -84,7 +99,10 @@ export function OstraconSheet(props: {
               type="radio"
               name="ostracon-target"
               checked={citizen.id === chosenId}
-              onChange={() => setChosenId(citizen.id)}
+              onChange={() => {
+                setChosenId(citizen.id);
+                setGone(false);
+              }}
             />
             <span className="min-w-0 font-medium">
               {citizen.id === house.id
@@ -126,6 +144,7 @@ export function OstraconSheet(props: {
       closeDisabled={busy}
     >
       <Stepper
+        key={round}
         confirming={busy}
         onConfirm={() => void cast()}
         labels={{ ...steps, confirm: t('cityOstracism.sheet.confirm') }}
