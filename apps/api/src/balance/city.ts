@@ -386,6 +386,11 @@ export async function harvest(city: City, house: House, now: Date) {
   }
 }
 
+/**
+ * Oboles que le prélèvement d'office des liturgies a prises, par monde (#721), lues dans le résumé de l'étape de chaque
+ * clôture jouée par `closeDay` : le rapprochement les compte pour tout banc, qu'il joue ou non des liturgies.
+ */
+const levied = new Map<string, number>();
 /** Revenu public des PNJ versé par les clôtures jouées, par monde (#632), compté par `closeDay`. */
 const publicIncome = new Map<string, number>();
 /**
@@ -402,6 +407,11 @@ export async function closeDay(city: City, day: number) {
     steps: CLOSE_STEPS,
     now: new Date(closeOf(city, day).getTime() + 1000),
   });
+  // Une clôture `skipped` rend le résumé d'une clôture déjà jouée : son prélèvement est déjà compté.
+  if (closed.status === 'done') {
+    const levy = closed.summary['liturgyLevy'] as { leviedOboles?: number } | undefined;
+    levied.set(city.worldId, (levied.get(city.worldId) ?? 0) + (levy?.leviedOboles ?? 0));
+  }
   const due = (await publicIncomeDue(city.db, city.worldId, city.played)).reduce(
     (sum, row) => sum + row.oboles,
     0,
@@ -538,6 +548,9 @@ export async function reconcile(
   }
   const { supply, system } = await accounts(city);
   const income = publicIncome.get(city.worldId) ?? 0;
+  // Le prélèvement d'office des liturgies est un puits compté pour tous ; les liturgies accomplies, par le banc (`counted`).
+  const liturgies = (counted['sink_liturgies'] ?? 0) + (levied.get(city.worldId) ?? 0);
+  counted = { ...counted, ...(liturgies > 0 && { sink_liturgies: liturgies }) };
   const sinks = Object.values(counted).reduce((sum, sink) => sum + sink, flows.sink_market_tax);
   return {
     actual: nonZero(Object.fromEntries(system)),
