@@ -953,7 +953,7 @@ export interface GameDatabase {
   /** Appels de la passerelle IA (ADR 0005) : jamais de texte, seulement jetons, coût estimé et issue. */
   'telemetry.ai_calls': {
     id: Generated<string>;
-    usage: 'oracle' | 'chronicle' | 'steward';
+    usage: 'oracle' | 'chronicle' | 'steward' | 'moderation_triage';
     model: string;
     input_tokens: number;
     output_tokens: number;

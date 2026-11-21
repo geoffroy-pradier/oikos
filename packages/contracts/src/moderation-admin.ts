@@ -13,6 +13,14 @@ export const MODERATION_ROLES = [
   'moderator',
 ] as const satisfies AdminRole[];
 
+/**
+ * Catégories du pré-tri des signalements par l'IA (usage `moderation_triage`, 8.1, 15.1 ; #763), liste fermée, de la
+ * plus grave à la moins grave : c'est l'ordre où la file les montre. Une indication pour la file, jamais une décision :
+ * aucune commande de sanction ne la lit.
+ */
+export const TRIAGE_CATEGORIES = ['likely_violation', 'doubtful', 'likely_unfounded'] as const;
+export type TriageCategory = (typeof TRIAGE_CATEGORIES)[number];
+
 /** Plafond technique du motif d'une sanction, en caractères : celui de la base (`sanctions_reason_length`). */
 export const SANCTION_REASON_MAX_CHARS = 2_000;
 /** Motif d'une sanction, lu par le compte sanctionné : mêmes règles qu'un message (6.6), plafond de la base. */

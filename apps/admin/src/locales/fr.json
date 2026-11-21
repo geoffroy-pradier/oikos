@@ -135,7 +135,8 @@
       "usages": {
         "oracle": "Oracles de la Pythie",
         "chronicle": "Chronique des cités",
-        "steward": "Consignes d'intendant"
+        "steward": "Consignes d'intendant",
+        "moderation_triage": "Pré-tri des signalements"
       },
       "cut": {
         "open": "Ouvert",

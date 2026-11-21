@@ -681,6 +681,7 @@ export const DEFAULT_MODERATION = deepFreeze({
   maxAppealLength: 1_000,
   staleReportHours: 24,
   sanctionHours: DEFAULT_SANCTION_HOURS,
+  triageSummaryMaxLength: 200,
 });
 
 /** Durées proposées pour une sorte de sanction : de une à dix, distinctes, d'une heure à un an. */
@@ -722,6 +723,16 @@ export const moderationSchema = z
         suspension: sanctionHoursSchema,
       })
       .default(DEFAULT_SANCTION_HOURS),
+    /**
+     * Longueur maximale, en caractères, du résumé d'un message signalé par le pré-tri de l'IA (usage
+     * `moderation_triage`, 8.1, 15.1 ; #763) : une phrase. Absente d'une version publiée avant lui : 200.
+     */
+    triageSummaryMaxLength: z
+      .number()
+      .int()
+      .min(20)
+      .max(500)
+      .default(DEFAULT_MODERATION.triageSummaryMaxLength),
   })
   .superRefine((moderation, ctx) => {
     for (const duplicate of duplicates(moderation.reportReasons))
@@ -801,8 +812,11 @@ export const politicsSchema = z.strictObject({
   archon: archonSchema,
 });
 
-/** Usages de l'IA de la phase 2 (8.1) : oracles de la Pythie, chronique des cités, consignes d'intendant. */
-export const AI_USAGES = ['oracle', 'chronicle', 'steward'] as const;
+/**
+ * Usages de l'IA (8.1) : oracles de la Pythie, chronique des cités, consignes d'intendant (phase 2), pré-tri des
+ * signalements (phase 3, #763).
+ */
+export const AI_USAGES = ['oracle', 'chronicle', 'steward', 'moderation_triage'] as const;
 export type AiUsage = (typeof AI_USAGES)[number];
 
 /**
@@ -845,7 +859,12 @@ export const DEFAULT_AI = deepFreeze({
   budgetMicroEurosPerActivePlayerMonth: 0,
   expectedActivePlayers: 0,
   stewardDailyQuotaPerHouse: 0,
-  usages: { oracle: disabledUsage, chronicle: disabledUsage, steward: disabledUsage },
+  usages: {
+    oracle: disabledUsage,
+    chronicle: disabledUsage,
+    steward: disabledUsage,
+    moderation_triage: disabledUsage,
+  },
 });
 
 /**
@@ -863,6 +882,8 @@ export const aiSchema = z
       oracle: aiUsageSchema,
       chronicle: aiUsageSchema,
       steward: aiUsageSchema,
+      /** Absent d'une version publiée avant le pré-tri (#763) : coupé, comme `DEFAULT_AI`. */
+      moderation_triage: aiUsageSchema.default(disabledUsage),
     }),
   })
   .refine(
