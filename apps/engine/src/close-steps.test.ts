@@ -8,6 +8,7 @@ import { decreeApplication } from './steps/decree-application';
 import { decreeSpending } from './steps/decree-spending';
 import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
+import { hubrisGauge } from './steps/hubris-gauge';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
@@ -49,6 +50,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // (#720) prend les Timè et les liturgies échues avant les Charis et l'agora, le prélèvement suit les loyers.
     // L'échéance des prêts du temple (#725) : les Timè des maisons en défaut possible avec la dérobade, avant l'agora ;
     // le prélèvement après celui des liturgies, avant l'entretien, qui paie avec ce qui reste.
+    // La jauge d'Hybris (#734), sans monnaie ni stock ni agora, après les événements du monde et avant les liturgies.
     const order = [
       citizenship,
       ostracismTally,
@@ -59,6 +61,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       ostracismOpening,
       npcPopulation,
       worldEventPlanning,
+      hubrisGauge,
       liturgyAssignment,
       liturgyEvasion,
       loanDefaultLocks,
