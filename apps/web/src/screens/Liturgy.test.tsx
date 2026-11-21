@@ -184,4 +184,13 @@ describe('liturgie de la maison (#723)', () => {
     expect(document.body.textContent).not.toMatch(/Timè gagnée/);
     expect(screen.getByText('Vous avez accompli cette liturgie.')).toBeTruthy();
   });
+
+  it('prélevée, règles présentes mais journal pas encore lu : aucune perte chiffrée', async () => {
+    state.views.my_liturgies = [liturgy({ status: 'levied' })];
+    state.views.my_honor_entries = null;
+    await show();
+    expect(screen.getByText(/^Prélevée d'office : la liturgie n'a pas été accomplie/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Timè perdue/);
+    expect(document.body.textContent).not.toMatch(/90/);
+  });
 });

@@ -132,6 +132,10 @@ describe('feuille du vote d’ostracisme (#723)', () => {
     rerender(citizens.filter((citizen) => citizen.id !== 'h2'));
     await waitFor(() => expect(sheet.getAllByRole('radio')).toHaveLength(2));
     expect(sheet.getByText(/Ce citoyen ne figure plus dans la liste/)).toBeTruthy();
+    const note = screen.getByRole('status');
+    expect(note.textContent).toContain('Ce citoyen ne figure plus dans la liste');
+    expect(document.activeElement).toBe(note);
+    expect(sheet.getByText('Étape 1 sur 2')).toBeTruthy();
     expect(sheet.queryByText(/Vous inscrivez le nom/)).toBeNull();
     expect((sheet.getByRole('button', { name: 'Continuer' }) as HTMLButtonElement).disabled).toBe(
       true,

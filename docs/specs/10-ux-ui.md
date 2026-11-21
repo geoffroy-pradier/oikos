@@ -186,11 +186,16 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Liturgies et ostracisme (#723) : deux pastilles de plus, Liturgies et Ostracisme, après l'assemblée.
    Liturgies : pour chaque maison désignée de la saison la plus récente, son genre et l'état de sa liturgie (à accomplir, accomplie, prélevée d'office), rangées par nom de maison, jamais un montant ni un ordre de fortune (4.1, 6.4) ; la maison désignée a le lien vers sa liturgie.
    La saison montrée est la plus récente que la cité ait désignée : l'écran ne lit pas le calendrier des saisons, que le client ne connaît pas.
+   L'écran en donne le numéro, pour qu'une ancienne liste ne paraisse pas courante après un changement de saison.
+   Le compteur « À accomplir » dit qu'il compte aussi les liturgies échues.
    Ostracisme : le vote le plus récent de la cité, avec sa clôture et son quorum ; une citoyenne qui n'a pas voté inscrit un nom dans une feuille par étapes (liste filtrable des citoyens de la cité, sa propre maison comprise, puis confirmation), une maison qui a voté le lit sans que le nom s'affiche, un métèque voit tout sans bouton.
+   Si le citoyen choisi disparaît de la liste relue après un refus, la feuille revient au choix, le dit dans une région vivante qui prend le foyer, et n'affiche pas de récapitulatif vide.
    Dépouillé, le vote montre l'ostracisé et jusqu'à quand, les bulletins et les citoyens, et le décompte par nom ; égalité ou quorum manqué : personne n'est ostracisé.
    Le tableau de bord de la maison alerte d'une liturgie désignée et pas encore échue (genre, dû en drachmes et oboles, échéance), avec le lien vers l'écran de la liturgie (`/cite/liturgie`, rattaché à l'onglet Cité).
    Cet écran dit le dû, l'échéance et l'état ; une liturgie désignée s'accomplit dans une feuille de trois étapes : le dû vu, le faste (boutons ± et raccourcis, borné par la configuration lue dans `liturgy_rules`) avec la Timè et la Charis annoncées, puis le récapitulatif dont la confirmation envoie le dû vu.
    Échue sans être réglée, la liturgie annonce son prélèvement d'office et la perte de Timè ; prélevée, elle le dit avec la Timè perdue lue dans le journal de la Timè de la maison.
+   Sans configuration (`liturgy_rules` vide), l'état à accomplir dit pourquoi aucun bouton n'est offert, et l'état échu n'annonce aucune perte chiffrée.
+   La Timè gagnée ou perdue ne s'affiche qu'une fois le journal lu : jamais de « 0 » transitoire.
    Le titre d'un panneau ne répète pas la pastille active : il n'est lu que par les lecteurs d'écran, et ne paraît que s'il prend le foyer.
    Les panneaux des pastilles quittées restent montés, cachés : une commande en vol garde sa clé, une saisie survit au changement de pastille.
    Les pastilles sont sous l'en-tête de page, qui porte le lien du temple, comme sur Maison (#862).

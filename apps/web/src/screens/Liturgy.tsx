@@ -103,7 +103,7 @@ export function LiturgyScreen() {
   const StateIcon = STATE[state ?? 'assigned'].icon;
   const canPerform = state === 'assigned' && rules !== null;
   // Perte de la dérobade : celle du journal une fois prélevée, celle de la configuration avant.
-  const loss = honor !== null && honor < 0 ? -honor : (rules?.evasionHonorLoss ?? null);
+  const loss = honor === null ? null : honor < 0 ? -honor : (rules?.evasionHonorLoss ?? null);
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">

@@ -35,6 +35,7 @@ export function OstraconSheet(props: {
   const [round, setRound] = useState(0);
   const keys = useRef(new Map<string, string>());
   const running = useRef(false);
+  const goneNote = useRef<HTMLDivElement>(null);
   const number = new Intl.NumberFormat(i18n.language);
   const matches = filterCitizens(props.citizens, query);
   const shown = matches.slice(0, SHOWN);
@@ -49,6 +50,11 @@ export function OstraconSheet(props: {
     setGone(true);
     setRound((value) => value + 1);
   }, [vanished]);
+
+  // Le remontage de l'étape détruit le bouton qui avait le foyer : il passe à l'annonce, déjà présente.
+  useEffect(() => {
+    if (round > 0) goneNote.current?.focus();
+  }, [round]);
 
   async function cast() {
     if (!chosen || running.current) return;
@@ -87,9 +93,6 @@ export function OstraconSheet(props: {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
-      <StatusRegion role="alert" tone="info">
-        {gone ? t('cityOstracism.sheet.gone') : null}
-      </StatusRegion>
       <fieldset className="flex max-h-72 flex-col gap-2 overflow-y-auto">
         <legend className="sr-only">{t('cityOstracism.sheet.legend')}</legend>
         {shown.map((citizen) => (
@@ -143,6 +146,9 @@ export function OstraconSheet(props: {
       closeLabel={t('shell.close')}
       closeDisabled={busy}
     >
+      <StatusRegion ref={goneNote} tone="info">
+        {gone ? t('cityOstracism.sheet.gone') : null}
+      </StatusRegion>
       <Stepper
         key={round}
         confirming={busy}
