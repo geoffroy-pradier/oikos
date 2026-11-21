@@ -126,4 +126,67 @@ describe('feuille d’accomplissement (#723)', () => {
       'Liturgie accomplie : 1 416 drachmes 4 oboles payés, Timè +45, Charis +28.',
     );
   });
+
+  it('un dû qui a changé est refusé : rien n’est payé, la feuille reste ouverte, dit pourquoi et relit', async () => {
+    api.performLiturgy.mockResolvedValue({
+      ok: false,
+      error: { code: 'PRICE_CHANGED', message: 'x' },
+    });
+    const sheet = await show();
+    next();
+    next();
+    fireEvent.click(sheet.getByRole('button', { name: /^Payer / }));
+    await waitFor(() => expect(sheet.getByRole('alert').textContent).toContain('Le prix a changé'));
+    expect(api.performLiturgy.mock.calls[0]?.[0]).toEqual({
+      liturgyId: 'l1',
+      expectedDue: 7500,
+      splendor: 0,
+    });
+    expect(callbacks.onRefused).toHaveBeenCalledTimes(1);
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    expect(callbacks.onPerformed).not.toHaveBeenCalled();
+  });
+
+  it('sans borne de faste publiée, aucun faste n’est proposé : le dû seul', async () => {
+    await show({ rules: { ...rules, maxSplendorBps: 0 } });
+    next();
+    expect(screen.queryByLabelText(/^Faste/)).toBeNull();
+    expect(screen.getByText(/^Aucun faste n'est admis/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Continuer' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  it('sans réponse, la même intention repart sous la même clé ; une autre saisie prend une clé neuve', async () => {
+    api.performLiturgy.mockResolvedValue({ ok: false, error: { code: 'INTERNAL', message: 'x' } });
+    const sheet = await show();
+    next();
+    next();
+    const pay = () => fireEvent.click(sheet.getByRole('button', { name: /^Payer / }));
+    pay();
+    await waitFor(() => expect(api.performLiturgy).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect((sheet.getByRole('button', { name: /^Payer / }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+    pay();
+    await waitFor(() => expect(api.performLiturgy).toHaveBeenCalledTimes(2));
+    expect(api.performLiturgy.mock.calls[1]?.[2]).toBe(api.performLiturgy.mock.calls[0]?.[2]);
+  });
+
+  it('une cité sans dieu protecteur le dit : aucune Charis n’est annoncée', async () => {
+    const sheet = await show({ godName: null });
+    next();
+    expect(
+      sheet.getByText(/^Vous gagneriez 40 de Timè\. La cité n'a pas de dieu protecteur/),
+    ).toBeTruthy();
+    next();
+    expect(
+      sheet
+        .getAllByRole('definition')
+        .map((dd) => plain(dd))
+        .slice(-1),
+    ).toEqual(['+0']);
+  });
 });

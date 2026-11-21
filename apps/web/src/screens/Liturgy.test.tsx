@@ -136,4 +136,24 @@ describe('liturgie de la maison (#723)', () => {
     );
     expect(screen.queryByRole('button', { name: 'Accomplir ma liturgie' })).toBeNull();
   });
+
+  it('une lecture en échec n’est pas prise pour une absence de liturgie', async () => {
+    state.views.my_liturgies = null;
+    await show();
+    expect(screen.queryByText(/^Aucune liturgie n'est confiée/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();
+  });
+
+  it('accomplie : la Timè gagnée vient du journal ; aucune liturgie : un état vide', async () => {
+    state.views.my_liturgies = [liturgy({ status: 'performed' })];
+    state.views.my_honor_entries = [{ amount: 45, reason: 'liturgy_performed', reference: 'l1' }];
+    await show();
+    expect(plain(screen.getByText(/^Vous avez accompli cette liturgie\./))).toBe(
+      'Vous avez accompli cette liturgie. Timè gagnée : 45.',
+    );
+    cleanup();
+    state.views.my_liturgies = [];
+    await show();
+    expect(screen.getByText(/^Aucune liturgie n'est confiée à votre maison/)).toBeTruthy();
+  });
 });
