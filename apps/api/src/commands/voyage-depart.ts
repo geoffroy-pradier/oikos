@@ -334,6 +334,7 @@ export const voyageDepart = defineCommand({
         ...departure,
         portDuesOboles: dues.oboles,
         costOboles: cost.totalOboles,
+        lossRiskBps,
         ...(fairWind && { fairWind }),
       },
     };

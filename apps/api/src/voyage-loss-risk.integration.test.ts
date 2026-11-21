@@ -122,6 +122,12 @@ describe('risque de perte fixé au départ (#730)', () => {
     const safeTrip = await leave(safe, kalliste ?? '', ampelos ?? '');
     for (const trip of [calmTrip, calmHalosTrip, stormyTrip, cappedTrip, safeTrip])
       expect(trip.body.ok).toBe(true);
+    // La réponse porte le risque fixé, que la feuille dit au joueur.
+    expect(
+      [calmTrip, calmHalosTrip, stormyTrip, cappedTrip, safeTrip].map(
+        (trip) => trip.body.data.lossRiskBps,
+      ),
+    ).toEqual([300, 9_500, 1_500, 10_000, 0]);
 
     expect(await riskOf(calmTrip.body.data.voyageId)).toEqual({ stored: 300, announced: [300] });
     expect(await riskOf(calmHalosTrip.body.data.voyageId)).toEqual({

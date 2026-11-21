@@ -308,6 +308,8 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Ces gardes s'exécutent au nom du propriétaire de la base.
   Le service fait partir un voyage sans en choisir l'identifiant ni la date de départ, et n'en écrit ensuite que l'arrivée ; un joueur lit ses voyages et leur cargaison par `my_voyages`, sous règle par ligne.
   Il lit aussi le risque de ses voyages (`voyages.loss_risk_bps`, même règle) ; un autre joueur ne le lit pas, et aucun joueur ne lit le journal des stocks.
+  `my_voyages` porte en dernière colonne l'issue d'un voyage (`cargo_lost`, migration 9961, ajoutée sous condition, ADR 0006), lue par `game.voyage_cargo_lost`, exécutée au nom du propriétaire : nulle pour un voyage en mer ou d'une autre maison, puis vraie ou fausse selon qu'une ligne `lost_at_sea` existe (pgTAP 730).
+  L'issue ne change plus après l'arrivée : le contrôle différé `check_voyage_settled` fait sortir toute la cargaison de `in_transit` dans la transaction de l'arrivée, et l'index unique du déchargement refuse ensuite toute seconde sortie d'un bien.
 - Discussion (6.6, #273) : `channels` (le canal d'une cité, ou la conversation privée de deux maisons d'un même monde), `channel_members` (les deux maisons d'une conversation privée) et `messages` (canal, maison, texte, date, masquage).
   Le canal d'une cité naît avec elle (déclencheur exécuté au nom du propriétaire, comme son trésor) ; le service ne crée que des conversations privées, dont la base inscrit elle-même les deux membres.
   Les deux maisons d'une conversation sont rangées dans l'ordre (`house_low` < `house_high`) : une paire n'a qu'une conversation, quel que soit qui l'ouvre, et une maison ne converse pas avec elle-même.

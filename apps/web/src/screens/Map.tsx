@@ -5,7 +5,14 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SectionTitle } from './SectionTitle';
 import { Help } from './Help';
-import { useArrivals, useFleet, useShipName, voyageAtSea, type ShipRow } from '../fleet';
+import {
+  arrivalKey,
+  useArrivals,
+  useFleet,
+  useShipName,
+  voyageAtSea,
+  type ShipRow,
+} from '../fleet';
 import { parseCityIdentities } from '../city-identity';
 import { useCash } from '../cash';
 import { useRows, useSiteRules } from '../data';
@@ -234,7 +241,7 @@ export function MapScreen() {
             role="status"
             className="rounded-lg bg-success-subtle p-3 font-semibold text-foreground"
           >
-            {t('map.arrived', { city: cityName(voyage.to_city_id) })}
+            {t(arrivalKey('map', voyage), { city: cityName(voyage.to_city_id) })}
           </p>
         ))}
         <ul className="flex flex-col gap-2">

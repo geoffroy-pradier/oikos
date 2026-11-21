@@ -61,6 +61,11 @@ export const voyageDepartOutputSchema = z.object({
   /** Ce que la maison a payé : provisions plus droit de port. */
   costOboles: oboles,
   fairWind,
+  /**
+   * Risque de perte de la cargaison fixé au départ (#730), en points de base. Absent d'une réponse rejouée d'un
+   * départ antérieur aux pertes en mer.
+   */
+  lossRiskBps: z.number().int().min(0).max(10_000).optional(),
 });
 export type VoyageDepartOutput = z.infer<typeof voyageDepartOutputSchema>;
 

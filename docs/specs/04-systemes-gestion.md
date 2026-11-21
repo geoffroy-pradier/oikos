@@ -518,6 +518,9 @@ Pertes en mer, dans la phase 3 (#730) :
   Le résumé de l'étape compte les voyages perdus et leurs unités (`lostVoyages`, `lostUnits`), seulement s'il y en a.
 - La chronique de la cité d'arrivée (6.6) compte les cargaisons perdues de la journée par route, c'est-à-dire par cité de départ, sans nommer de maison : elle ne lit pas la maison de `CargoLostAtSea`.
   Décision : la perte est dite là où le navire accoste à vide, comme son arrivée, qu'elle compte aussi.
+- Le joueur lit l'issue de ses voyages (`my_voyages.cargo_lost`, migration 9961) : nulle tant que le voyage est en mer, si bien que rien du tirage ne paraît avant l'arrivée, puis vraie si la cargaison a été perdue, fausse sinon.
+  La carte et la fiche du navire annoncent alors un navire arrivé à vide, sa cargaison perdue en mer, et non déchargée dans le stock ; la liste des voyages garde la cargaison chargée, dite perdue.
+  Le message de réussite d'un départ dit le risque fixé, que porte la réponse de `voyage.depart` (`lossRiskBps`) ; nul, il n'est pas dit.
 
 ## 4.7 Le savoir
 

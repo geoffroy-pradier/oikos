@@ -198,6 +198,10 @@ export function Departure(props: {
                   cost: money(result.data.costOboles),
                 }),
                 ...(wind ? [saved(wind.savedSeconds, 'sailedWind')] : []),
+                // Le risque réellement fixé au départ (#730) ; nul, il n'est pas dit.
+                ...(result.data.lossRiskBps
+                  ? [t('departure.sailedRisk', { risk: percent(result.data.lossRiskBps) })]
+                  : []),
               ].join(' '),
             }
           : { kind: 'alert', text: t([`errors.${result.error.code}`, 'errors.INTERNAL']) },
