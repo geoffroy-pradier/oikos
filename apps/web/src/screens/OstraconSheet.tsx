@@ -1,5 +1,5 @@
 import { Sheet, StatusRegion, Stepper, TextField } from '@oikos/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cityCommand } from '../api';
 import { useHouse } from '../house';
@@ -31,12 +31,30 @@ export function OstraconSheet(props: {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [round, setRound] = useState(0);
   const keys = useRef(new Map<string, string>());
   const running = useRef(false);
+  const goneNote = useRef<HTMLDivElement>(null);
   const number = new Intl.NumberFormat(i18n.language);
   const matches = filterCitizens(props.citizens, query);
   const shown = matches.slice(0, SHOWN);
   const chosen = props.citizens.find((citizen) => citizen.id === chosenId) ?? null;
+
+  // Le citoyen choisi a disparu de la liste relue (après un refus) : retour au choix, pas un récapitulatif vide.
+  const vanished = chosenId !== null && chosen === null;
+  useEffect(() => {
+    if (!vanished) return;
+    setChosenId(null);
+    setRefusal(null);
+    setGone(true);
+    setRound((value) => value + 1);
+  }, [vanished]);
+
+  // Le remontage de l'étape détruit le bouton qui avait le foyer : il passe à l'annonce, déjà présente.
+  useEffect(() => {
+    if (round > 0) goneNote.current?.focus();
+  }, [round]);
 
   async function cast() {
     if (!chosen || running.current) return;
@@ -84,7 +102,10 @@ export function OstraconSheet(props: {
               type="radio"
               name="ostracon-target"
               checked={citizen.id === chosenId}
-              onChange={() => setChosenId(citizen.id)}
+              onChange={() => {
+                setChosenId(citizen.id);
+                setGone(false);
+              }}
             />
             <span className="min-w-0 font-medium">
               {citizen.id === house.id
@@ -125,7 +146,11 @@ export function OstraconSheet(props: {
       closeLabel={t('shell.close')}
       closeDisabled={busy}
     >
+      <StatusRegion ref={goneNote} tone="info">
+        {gone ? t('cityOstracism.sheet.gone') : null}
+      </StatusRegion>
       <Stepper
+        key={round}
         confirming={busy}
         onConfirm={() => void cast()}
         labels={{ ...steps, confirm: t('cityOstracism.sheet.confirm') }}

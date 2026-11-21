@@ -93,7 +93,9 @@ export function LiturgyScreen() {
   const [announcement, setAnnouncement] = useState('');
 
   const state = liturgy ? liturgyState(liturgy, now.getTime()) : null;
-  const honor = liturgy ? liturgyHonor(honorRows.rows ?? [], liturgy.id) : null;
+  // Tant que le journal n'est pas lu, aucune Timè : un « 0 » transitoire serait faux.
+  const honor =
+    liturgy && honorRows.rows !== null ? liturgyHonor(honorRows.rows, liturgy.id) : null;
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const number = new Intl.NumberFormat(i18n.language);
   const GenreIcon = liturgy ? GENRE_ICONS[liturgy.genre] : null;
@@ -101,7 +103,7 @@ export function LiturgyScreen() {
   const StateIcon = STATE[state ?? 'assigned'].icon;
   const canPerform = state === 'assigned' && rules !== null;
   // Perte de la dérobade : celle du journal une fois prélevée, celle de la configuration avant.
-  const loss = honor !== null && honor < 0 ? -honor : (rules?.evasionHonorLoss ?? 0);
+  const loss = honor === null ? null : honor < 0 ? -honor : (rules?.evasionHonorLoss ?? null);
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
@@ -154,12 +156,20 @@ export function LiturgyScreen() {
               />
             </dl>
             <p className="text-sm">
-              {state === 'assigned' && t('liturgy.notes.assigned')}
+              {state === 'assigned' &&
+                t(rules ? 'liturgy.notes.assigned' : 'liturgy.notes.assignedNoRules')}
               {state === 'overdue' &&
-                t('liturgy.notes.overdue', { loss: number.format(rules?.evasionHonorLoss ?? 0) })}
+                (rules
+                  ? t('liturgy.notes.overdue', { loss: number.format(rules.evasionHonorLoss) })
+                  : t('liturgy.notes.overdueNoRules'))}
               {state === 'performed' &&
-                t('liturgy.notes.performed', { honor: number.format(Math.max(honor ?? 0, 0)) })}
-              {state === 'levied' && t('liturgy.notes.levied', { loss: number.format(loss) })}
+                (honor === null
+                  ? t('liturgy.notes.performedNoHonor')
+                  : t('liturgy.notes.performed', { honor: number.format(Math.max(honor, 0)) }))}
+              {state === 'levied' &&
+                (loss === null
+                  ? t('liturgy.notes.leviedNoLoss')
+                  : t('liturgy.notes.levied', { loss: number.format(loss) }))}
             </p>
             {canPerform && (
               <Button

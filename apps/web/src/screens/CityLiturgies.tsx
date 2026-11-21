@@ -91,6 +91,7 @@ export function CityLiturgies() {
             ))}
           </dl>
           <p className="text-sm text-muted-foreground">
+            {t('cityLiturgies.season', { season: number.format(liturgies[0]?.season ?? 0) })}{' '}
             {t('cityLiturgies.deadline', { date: date.format(liturgies[0]?.dueAt ?? 0) })}
           </p>
           {designated && (

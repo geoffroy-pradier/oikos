@@ -1652,6 +1652,10 @@
     "notes": {
       "assigned": "Accomplissez votre liturgie avant l'échéance : le dû est payé sur votre trésorerie, et le faste que vous y ajoutez accroît ce que vous gagnez.",
       "overdue": "L'échéance est passée : la liturgie sera prélevée d'office à la prochaine clôture, sans gain et avec une perte de Timè de {{loss}}.",
+      "assignedNoRules": "Votre liturgie est à accomplir, mais la configuration des liturgies n'est pas disponible : aucun bouton n'est offert pour le moment. Revenez plus tard.",
+      "overdueNoRules": "L'échéance est passée : la liturgie sera prélevée d'office à la prochaine clôture, sans gain.",
+      "performedNoHonor": "Vous avez accompli cette liturgie.",
+      "leviedNoLoss": "Prélevée d'office : la liturgie n'a pas été accomplie avant l'échéance. Le dû a été pris sur votre trésorerie, sans gain.",
       "performed": "Vous avez accompli cette liturgie. Timè gagnée : {{honor}}.",
       "levied": "Prélevée d'office : la liturgie n'a pas été accomplie avant l'échéance. Le dû a été pris sur votre trésorerie, sans gain. Timè perdue : {{loss}}."
     },
@@ -1663,10 +1667,11 @@
     "empty": "Aucune liturgie n'a encore été désignée dans la cité. Elles le sont à la première clôture de chaque saison.",
     "designated": "Maisons désignées",
     "counts": {
-      "assigned": "À accomplir",
+      "assigned": "À accomplir, échues comprises",
       "performed": "Accomplies",
       "levied": "Prélevées d'office"
     },
+    "season": "Saison n° {{season}}.",
     "deadline": "Échéance de la saison : {{date}}.",
     "yours": "Votre maison est désignée cette saison.",
     "yoursLink": "Voir ma liturgie",
@@ -1693,6 +1698,7 @@
       "count_other": "{{count}} citoyens",
       "recap": "Vous inscrivez le nom de {{house}}.",
       "recapNote": "Un bulletin ne se change pas, et le nom inscrit ne s'affiche jamais.",
+      "gone": "Ce citoyen ne figure plus dans la liste : choisissez à nouveau.",
       "confirm": "Inscrire ce nom"
     },
     "done": "Votre bulletin est déposé. Le vote est secret.",
