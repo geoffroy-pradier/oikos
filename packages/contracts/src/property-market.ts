@@ -43,6 +43,8 @@ export const PROPERTY_OFFER_ERROR_CODES = [
   'PROPERTY_LEASED',
   /** Une offre du bien est déjà ouverte : la retirer d'abord. */
   'PROPERTY_ALREADY_LISTED',
+  /** Le bien garantit un prêt de banque non remboursé (#728) : il ne s'offre ni à la vente ni à la location. */
+  'PROPERTY_PLEDGED',
 ] as const;
 export type PropertyOfferErrorCode = (typeof PROPERTY_OFFER_ERROR_CODES)[number];
 
