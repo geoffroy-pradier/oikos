@@ -122,7 +122,7 @@ select is(
 select is(
   (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'loans' and privilege_type = 'INSERT'),
-  'borrowed_day borrower_house_id disbursement_entry_id due_at due_day interest lender principal rate_bps term_days world_id',
+  'bank_id borrowed_day borrower_house_id disbursement_entry_id due_at due_day interest lender offer_id principal rate_bps term_days world_id',
   'le service ne choisit ni l''identifiant, ni la date, ni l''état, ni ce qui est remboursé ou reste dû');
 select is(
   (select count(*)::integer from information_schema.column_privileges where table_schema = 'game'
@@ -131,8 +131,8 @@ select is(
   0, 'personne d''autre que la base ne modifie un prêt, sauf la clôture qui le fait passer en défaut (#725)');
 
 -- Emprunt : seul le temple prête, à une maison de joueur, à l'intérêt de la règle, par son écriture.
-select throws_ok($$select pg_temp.borrow('a', 10000, p_lender => 'bank')$$, '23001', 'only the temple lends until banks open',
-  'aucune banque ne prête encore');
+select throws_ok($$select pg_temp.borrow('a', 10000, p_lender => 'bank')$$, '23514', null,
+  'un prêt de banque nomme sa banque et son offre (#728)');
 select throws_ok($$select pg_temp.borrow('e', 10000)$$, '23514', 'a loan goes to a player house',
   'une maison PNJ de secours n''emprunte pas');
 select throws_ok($$select pg_temp.borrow('a', 10000, p_interest => 999)$$, '23514', null,
