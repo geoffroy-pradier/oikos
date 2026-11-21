@@ -184,9 +184,10 @@ reset role;
 
 -- Le service lit tout : la filière et la nature, pour la clôture.
 set local role oikos_service;
-select is((select string_agg(chain_id || '@' || house_kind, ' ' order by city_id) from game.npc_houses
-  where world_id = '01900000-0000-7000-8000-0000000715f1'), 'bread@npc bread@npc', 'filières et nature, pour le service');
+select set_config('t.v', (select string_agg(chain_id || '@' || house_kind, ' ' order by city_id) from game.npc_houses
+  where world_id = '01900000-0000-7000-8000-0000000715f1'), true);
 reset role;
+select is(current_setting('t.v'), 'bread@npc bread@npc', 'filières et nature, pour le service');
 
 select * from finish();
 rollback;
