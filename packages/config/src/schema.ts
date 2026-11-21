@@ -7,6 +7,7 @@ import { filterForm } from './moderation';
 import { npcHousesIssues, npcHousesSchema } from './npc-houses';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
+import { templeTreasurySchema } from './temple-treasury';
 // Lu aussi par le client (`site_rules`, clé `stewards`), qui n'importe que ce module.
 export { DEFAULT_STEWARD_REFUSAL_REST_TICKS } from './stewards';
 import { worldEventsIssues, worldEventsSchema } from './world-events';
@@ -998,6 +999,8 @@ export const gameConfigSchema = z
     honor: honorSchema.optional(),
     /** Absent des versions publiées avant les liturgies (#719) : aucune maison n'est désignée. */
     liturgies: liturgiesSchema.optional(),
+    /** Absent des versions publiées avant le Trésor du temple (#724) : le temple ne prête pas. */
+    templeTreasury: templeTreasurySchema.optional(),
     /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
     decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */

@@ -206,6 +206,8 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
         escrow: BigInt(row?.escrow ?? -1),
         stockValue: BigInt(row?.stock_value ?? -1),
         unpricedStocks: row?.unpriced_stocks,
+        // Aucun prêt dans ces scénarios : rien à déduire (#724).
+        debt: 0n,
         wealth: BigInt(row?.wealth ?? -1),
       }).toEqual(expected);
     }

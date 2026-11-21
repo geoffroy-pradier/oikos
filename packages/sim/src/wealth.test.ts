@@ -30,6 +30,7 @@ describe('fortune d’une maison', () => {
       escrow: 40n,
       stockValue: 803n,
       unpricedStocks: 1,
+      debt: 0n,
       wealth: 3_189n,
     });
     // Solde nul partout : fortune nulle, sans stock sans prix.
@@ -38,8 +39,20 @@ describe('fortune d’une maison', () => {
       escrow: 0n,
       stockValue: 0n,
       unpricedStocks: 0,
+      debt: 0n,
       wealth: 0n,
     });
+    // Un prêt (#724) : le reste dû se déduit, jusqu'à une fortune négative ; une dette négative n'a pas de sens.
+    expect(houseWealth({ treasury: 1_000n, escrow: 0n, stocks, debt: 1_100n })).toMatchObject({
+      debt: 1_100n,
+      wealth: 703n,
+    });
+    expect(houseWealth({ treasury: 1_000n, escrow: 0n, stocks: [], debt: 1_100n }).wealth).toBe(
+      -100n,
+    );
+    expect(() => houseWealth({ treasury: 0n, escrow: 0n, stocks: [], debt: -1n })).toThrow(
+      RangeError,
+    );
   });
 
   it('propriété : un stock sans prix ne change pas la fortune, il n’ajoute qu’au compte des stocks sans prix', () => {

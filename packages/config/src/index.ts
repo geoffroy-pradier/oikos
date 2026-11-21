@@ -11,6 +11,7 @@ export * from './oracle';
 export * from './schema';
 export * from './stewards';
 export * from './store';
+export * from './temple-treasury';
 export * from './validate';
 export * from './world-events';
 
