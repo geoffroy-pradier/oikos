@@ -93,10 +93,12 @@ reset role;
 insert into config.activations (id, version_id, activate_at)
 values ('00000000-0000-7000-8000-00000000c87a', '00000000-0000-7000-8000-00000000c872', now());
 set constraints all immediate;
-alter table config.activation_cancellations disable trigger user;
+alter table config.activation_cancellations disable trigger activation_cancellations_guard;
+alter table config.activation_cancellations disable trigger activation_cancellations_before_activation_at_commit;
 insert into config.activation_cancellations (activation_id, cancelled_by)
 values ('00000000-0000-7000-8000-00000000c87a', '00000000-0000-4000-8000-0000008730aa');
-alter table config.activation_cancellations enable trigger user;
+alter table config.activation_cancellations enable trigger activation_cancellations_guard;
+alter table config.activation_cancellations enable trigger activation_cancellations_before_activation_at_commit;
 set local role authenticated;
 select is((select tier from public.good_tiers where good_id = 'ambrosia'), 'finished',
   'activation annulée : le niveau de la version qui reste en vigueur');

@@ -613,6 +613,21 @@ describe('Vigie', () => {
     expect(after.recentTicks.length).toBeLessThanOrEqual(20);
     expect(after.queuePending === null || Number.isInteger(after.queuePending)).toBe(true);
   });
+
+  it("rend le nom court du monde d'un tick, quand le monde existe", async () => {
+    const worldId = randomUUID();
+    const slug = `t-${worldId.slice(0, 12)}`;
+    await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${slug}, 'Vigie')`.execute(
+      owner,
+    );
+    await db
+      .insertInto('telemetry.tick_runs')
+      .values({ world_id: worldId, tick_index: 7, status: 'done', duration_ms: 3, error: null })
+      .execute();
+    const { recentTicks } = (await get(users.observer, 'vigie')).body.data;
+    const mine = recentTicks.filter((tick: { worldId: string }) => tick.worldId === worldId);
+    expect(mine).toMatchObject([{ tickIndex: 7, worldSlug: slug, status: 'done' }]);
+  });
 });
 
 describe('Vigie : joueur et intendant (#563)', () => {
