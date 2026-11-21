@@ -82,7 +82,7 @@ select is(
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_charis game.city_identity game.city_properties game.city_rates_in_force game.city_treasuries game.city_treasury_flows '
     || 'game.clock_rules game.create_city_channel game.create_city_npc_purse game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.current_world_ids '
-    || 'game.decree_rules game.election_results game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.lock_npc_purses game.market_rules game.moderation_rules game.my_appeal_decisions game.my_sanctions game.my_workforce game.npc_purses game.order_book game.ostracism_results '
+    || 'game.decree_rules game.election_results game.good_tiers game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.lock_npc_purses game.market_rules game.moderation_rules game.my_appeal_decisions game.my_sanctions game.my_workforce game.npc_purses game.order_book game.ostracism_results '
     || 'game.politics_rules game.property_offers game.property_offers_upkeep game.property_rules game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.readable_channel_ids game.ship_rules game.site_rules game.temple_graces game.temple_oracle game.temple_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.

@@ -1,4 +1,5 @@
-import { Archipelago, GoodIcon, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
+import { Archipelago, IconButton, LocateFixed, Minus, Plus } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -275,7 +276,7 @@ export function ArchipelagoMap(props: {
                   <g key={good} className="text-foreground" transform={`translate(${x} ${y})`}>
                     <rect width={px(22)} height={px(22)} rx={px(6)} className="fill-surface" />
                     <g transform={`translate(${px(2)} ${px(2)}) scale(${px(18) / 24})`}>
-                      <GoodIcon goodId={good} />
+                      <GoodPicture goodId={good} />
                     </g>
                   </g>
                 );

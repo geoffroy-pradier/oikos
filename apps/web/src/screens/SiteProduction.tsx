@@ -1,4 +1,5 @@
-import { Button, GoodIcon, RefreshCw, Sheet, Stepper } from '@oikos/ui';
+import { Button, RefreshCw, Sheet, Stepper } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatList } from '../lists';
@@ -77,7 +78,7 @@ export function SiteProduction(props: {
         aria-hidden="true"
         className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-raised text-primary"
       >
-        {goodId && <GoodIcon goodId={goodId} />}
+        {goodId && <GoodPicture goodId={goodId} />}
       </span>
       <span className="min-w-0 flex-1 font-semibold">{text}</span>
     </label>

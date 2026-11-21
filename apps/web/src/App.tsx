@@ -14,6 +14,7 @@ import {
   TriangleAlert,
 } from '@oikos/ui';
 import { RouterProvider } from '@tanstack/react-router';
+import { GoodTiersProvider } from './GoodTiersProvider';
 import { HouseProvider } from './house';
 import { LanguageSelect } from './LanguageSelect';
 import { router } from './router';
@@ -129,7 +130,9 @@ export function App() {
           blazon: blazonSchema.safeParse(house.blazon).data ?? null,
         }}
       >
-        <RouterProvider router={router} />
+        <GoodTiersProvider>
+          <RouterProvider router={router} />
+        </GoodTiersProvider>
       </HouseProvider>
     );
   }

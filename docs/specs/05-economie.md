@@ -122,7 +122,8 @@ Depuis #713, chaque bien du catalogue a un usage : l'intrant d'une recette, le p
 Un test de la configuration initiale nomme le bien sans usage, sans aucune exception.
 Les dix-sept biens finis de #710 et #711 entrent dans les paniers des classes aisées, en confort et en luxe, et chacun dans le domaine d'un dieu ; l'indice des prix ne change pas (5.5).
 Chaque bien du catalogue a son pictogramme dessiné (10, direction artistique ; les douze intermédiaires de #709 et les dix-sept biens finis de #710 et #711 sont dessinés à la main, dans le trait et les aplats des autres) ; un bien sans dessin propre prend celui de son niveau (corbeille, ballot ficelé, coffre) quand l'écran connaît ce niveau, sinon une caisse neutre.
-Limite connue : le client joueur ne lit pas encore le niveau d'un bien, qu'aucune vue ne publie ; un bien ajouté par Olympe y prend donc la caisse.
+Depuis #873, la vue `good_tiers` publie au client le niveau de chaque bien de la configuration en vigueur (12) : un bien ajouté par Olympe sans dessin propre prend celui de son niveau dans tous les écrans du jeu.
+Un bien que la vue ne connaît pas, ou dont elle n'a pas encore été lue, garde la caisse ; un service aussi, faute de dessin de niveau.
 
 ## 5.2 La demande finale
 
