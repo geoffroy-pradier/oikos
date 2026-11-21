@@ -407,8 +407,11 @@ export async function closeDay(city: City, day: number) {
     steps: CLOSE_STEPS,
     now: new Date(closeOf(city, day).getTime() + 1000),
   });
-  const levy = closed.summary['liturgyLevy'] as { leviedOboles?: number } | undefined;
-  levied.set(city.worldId, (levied.get(city.worldId) ?? 0) + (levy?.leviedOboles ?? 0));
+  // Une clôture `skipped` rend le résumé d'une clôture déjà jouée : son prélèvement est déjà compté.
+  if (closed.status === 'done') {
+    const levy = closed.summary['liturgyLevy'] as { leviedOboles?: number } | undefined;
+    levied.set(city.worldId, (levied.get(city.worldId) ?? 0) + (levy?.leviedOboles ?? 0));
+  }
   const due = (await publicIncomeDue(city.db, city.worldId, city.played)).reduce(
     (sum, row) => sum + row.oboles,
     0,

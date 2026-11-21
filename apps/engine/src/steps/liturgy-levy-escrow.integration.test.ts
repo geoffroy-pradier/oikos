@@ -94,6 +94,16 @@ const levyOf = async (worldId: string) => {
     where world_id = ${worldId}`.execute(db);
   return rows.map((row) => [row.status, Number(row.paid)]);
 };
+/** Le puits des liturgies du monde et ses écritures `liturgy.levy`. */
+const sinkOf = async (worldId: string) => {
+  const { rows } = await sql<{
+    balance: string;
+    levies: number;
+  }>`select a.balance,
+      (select count(*)::int from game.ledger_entries e where e.world_id = a.world_id and e.kind = 'liturgy.levy') as levies
+    from game.accounts a where a.world_id = ${worldId} and a.system_key = 'sink_liturgies'`.execute(db);
+  return rows.map((row) => ({ balance: Number(row.balance), levies: row.levies }));
+};
 
 it('un prélèvement d’office ne touche pas le séquestre non nul : le dû entier sur la trésorerie, ou ce qu’elle couvre', async () => {
   // Trésorerie de 900 et séquestre de 700 pour 500 dus : 500 pris sur la trésorerie, le séquestre reste à 700.
@@ -104,6 +114,7 @@ it('un prélèvement d’office ne touche pas le séquestre non nul : le dû ent
   });
   expect(await holdingsOf(covered.houseId)).toEqual({ house: 400, escrow: 700 });
   expect(await levyOf(covered.worldId)).toEqual([['levied', 500]]);
+  expect(await sinkOf(covered.worldId)).toEqual([{ balance: 500, levies: 1 }]);
   // Trésorerie de 300 : les 300 oboles qu'elle couvre, pas un de plus, alors que le séquestre en tient 700 de plus.
   const short = await newHouse(300, 700, 500);
   expect((await close(short.worldId)).summary).toMatchObject({
@@ -111,6 +122,7 @@ it('un prélèvement d’office ne touche pas le séquestre non nul : le dû ent
   });
   expect(await holdingsOf(short.houseId)).toEqual({ house: 0, escrow: 700 });
   expect(await levyOf(short.worldId)).toEqual([['levied', 300]]);
+  expect(await sinkOf(short.worldId)).toEqual([{ balance: 300, levies: 1 }]);
   // L'ordre d'achat est resté ouvert, entier.
   const orders = await sql<{
     status: string;
