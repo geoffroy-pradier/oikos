@@ -74,7 +74,7 @@ select is(
     || 'steward_proposals(created_at,instruction_id,refusal,rules,simulation) '
     || 'steward_rules(good_id,kind,position,price_oboles,revision,steward_id,units) stewards(dismissed_at,hired_at,house_id,id,name,rules_revision,site_id,unpaid_since) '
     || 'trades(ledger_entry_id,price,quantity,sell_order_id) voyage_cargo(good_id,quantity,voyage_id) '
-    || 'voyages(arrived_at,arrives_at,departed_at,from_city_id,house_id,id,ship_id,to_city_id) '
+    || 'voyages(arrived_at,arrives_at,departed_at,from_city_id,house_id,id,loss_risk_bps,ship_id,to_city_id) '
     || 'world_events(city_id,end_day,ends_at,good_id,id,magnitude_bps,model,other_city_id,start_day,starts_at,world_id) '
     || 'worlds(created_at,id,name,slug)',
   'colonnes de game lisibles par authenticated : liste figée');

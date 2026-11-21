@@ -867,6 +867,8 @@ export interface GameDatabase {
     departed_at: ColumnType<Date, never, never>;
     arrives_at: ColumnType<Date, Date, never>;
     arrived_at: ColumnType<Date | null, never, Date>;
+    /** Risque de perte de la cargaison fixé au départ, en points de base (#730) ; nul par défaut. */
+    loss_risk_bps: ColumnType<number, number | undefined, never>;
   };
   /** Cargaison d'un voyage, écrite à son départ et jamais modifiée. */
   'game.voyage_cargo': {

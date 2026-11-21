@@ -300,8 +300,14 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Un voyage charge au départ, depuis le stock de sa maison dans la cité de départ, exactement sa cargaison, et ne décharge qu'une fois arrivé, vers le stock de sa maison dans la cité d'arrivée, exactement ce qu'il a chargé ; chaque bien est chargé une fois et déchargé une fois (index uniques).
   À la validation (contrôle différé), un voyage en mer a toute sa cargaison chargée et son navire n'est à quai nulle part, et un voyage arrivé a tout déchargé et son navire est à quai dans la cité d'arrivée (ou en est reparti).
   Un index partiel porte les voyages en mer par monde et par échéance (`voyages_due_idx`, #253) : l'arrivée jouée à chaque tick et la Vigie ne parcourent qu'eux.
+  Pertes en mer (#730, migration 9960) : `voyages.loss_risk_bps` porte le risque de perte fixé au départ (nul par défaut, de 0 à 10 000), qui ne change plus.
+  Une cargaison perdue passe de `in_transit` à l'extrémité système `lost_at_sea`, puits à sens unique alimenté par `in_transit` seulement (contrainte `stock_ledger_lost_at_sea_from_transit`) ; c'est le seul mouvement admis qui ne touche aucun stock (`stock_ledger_touches_inventory`, relâchée pour lui).
+  La base n'admet une perte que d'un voyage arrivé, à risque non nul, exactement ce qui a été chargé, et l'index unique du déchargement fait qu'un bien ne sort qu'une fois de `in_transit`, perdu ou déchargé.
+  À la validation, chaque ligne perdue est contrôlée (déclencheur de contrainte différé `stock_ledger_voyage_loss`) : son voyage n'a rien déchargé vers un stock, si bien qu'une cargaison se perd en entier ou pas du tout (pgTAP 730).
+  La base ne refait pas le tirage : elle vérifie qu'une perte est possible, pas qu'elle est celle que tire le moteur.
   Ces gardes s'exécutent au nom du propriétaire de la base.
   Le service fait partir un voyage sans en choisir l'identifiant ni la date de départ, et n'en écrit ensuite que l'arrivée ; un joueur lit ses voyages et leur cargaison par `my_voyages`, sous règle par ligne.
+  Il lit aussi le risque de ses voyages (`voyages.loss_risk_bps`, même règle) ; un autre joueur ne le lit pas, et aucun joueur ne lit le journal des stocks.
 - Discussion (6.6, #273) : `channels` (le canal d'une cité, ou la conversation privée de deux maisons d'un même monde), `channel_members` (les deux maisons d'une conversation privée) et `messages` (canal, maison, texte, date, masquage).
   Le canal d'une cité naît avec elle (déclencheur exécuté au nom du propriétaire, comme son trésor) ; le service ne crée que des conversations privées, dont la base inscrit elle-même les deux membres.
   Les deux maisons d'une conversation sont rangées dans l'ordre (`house_low` < `house_high`) : une paire n'a qu'une conversation, quel que soit qui l'ouvre, et une maison ne converse pas avec elle-même.
