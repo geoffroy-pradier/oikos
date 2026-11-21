@@ -4,6 +4,7 @@ import initial from './values/initial.json' with { type: 'json' };
 export * from './decrees';
 export * from './graces';
 export * from './honor';
+export * from './liturgies';
 export * from './moderation';
 export * from './oracle';
 export * from './schema';

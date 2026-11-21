@@ -123,10 +123,17 @@ export function gameDayDate(gameDay: number): Date {
   return new Date(gameDay * DAY_MS);
 }
 
-/** Indice de la saison du jour local du tick. Une saison commence un lundi (pour `seasonDays` = 7). */
+/**
+ * Indice de la saison d'un jour de jeu : les saisons durent `seasonDays` jours de jeu, comptés depuis le lundi
+ * 5 janvier 1970. Une saison commence un lundi (pour `seasonDays` = 7).
+ */
+export function seasonOfGameDay(gameDay: number, seasonDays: number): number {
+  return Math.floor((gameDay - REFERENCE_MONDAY) / seasonDays);
+}
+
+/** Indice de la saison du jour local du tick. */
 export function seasonIndexAt(index: number, clock: ClockSettings): number {
-  const gameDay = gameDayAt(tickStart(index, clock.tickMinutes), clock);
-  return Math.floor((gameDay - REFERENCE_MONDAY) / clock.seasonDays);
+  return seasonOfGameDay(gameDayAt(tickStart(index, clock.tickMinutes), clock), clock.seasonDays);
 }
 
 /** Vrai pour la clôture quotidienne qui ouvre une nouvelle saison. */

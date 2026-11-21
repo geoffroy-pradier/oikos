@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
 import { honorSchema } from './honor';
+import { liturgiesSchema } from './liturgies';
 import { filterForm } from './moderation';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
@@ -994,6 +995,8 @@ export const gameConfigSchema = z
     politics: politicsSchema.optional(),
     /** Absent des versions publiées avant la Timè (#704) : aucune Timè ne change. */
     honor: honorSchema.optional(),
+    /** Absent des versions publiées avant les liturgies (#719) : aucune maison n'est désignée. */
+    liturgies: liturgiesSchema.optional(),
     /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
     decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */
