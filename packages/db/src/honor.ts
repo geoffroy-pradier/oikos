@@ -1,4 +1,4 @@
-import { honorChangedSchema, type HonorReason } from '@oikos/contracts';
+import { honorChangedSchema, type DomainEvent, type HonorReason } from '@oikos/contracts';
 import { sql } from 'kysely';
 import type { Db } from './index';
 
@@ -12,6 +12,11 @@ export interface HonorMovement {
   gameDay: number;
   /** Commande qui l'écrit ; nulle pour la clôture. */
   commandId?: string | null;
+  /**
+   * Déclaration de l'événement d'une commande (`emit` de son contexte) : l'événement `HonorChanged` est alors
+   * enregistré avec ceux de la commande, plutôt qu'écrit ici.
+   */
+  emit?: (event: DomainEvent) => void;
 }
 
 /**
@@ -57,6 +62,10 @@ export async function recordHonorChange(
     type: 'HonorChanged',
     payload: { houseId, amount, reason, balance },
   });
+  if (movement.emit) {
+    movement.emit(event);
+    return { amount, balance };
+  }
   await trx
     .insertInto('game.domain_events')
     .values({
