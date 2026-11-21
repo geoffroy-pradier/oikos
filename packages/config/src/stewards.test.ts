@@ -13,6 +13,12 @@ import {
 
 type Config = Record<string, unknown> & { stewards: StewardsRules };
 const base = () => structuredClone(INITIAL_CONFIG) as Config;
+/** Une version publiée avant les intendants : ni eux, ni les maisons PNJ (#715) ni leur retrait (#717), venus après. */
+const beforeStewards = (config: Record<string, unknown>) => {
+  delete config['stewards'];
+  delete config['npcHouses'];
+  delete config['npcRetreat'];
+};
 const fieldsOf = (stewards: unknown) => {
   const result = validateConfig({ ...base(), stewards });
   return result.ok ? [] : [...new Set(result.errors.map((error) => error.split(':')[0]))];
@@ -32,7 +38,7 @@ describe('intendants (4.4, #278)', () => {
 
   it('une version publiée avant les intendants reste lisible : aucun poste, aucun salaire, aucune règle', () => {
     const older: Record<string, unknown> = base();
-    delete older['stewards'];
+    beforeStewards(older);
     const result = validateConfig(older);
     if (!result.ok) throw new Error(result.errors.join('\n'));
     expect(result.config.stewards).toBeUndefined();
@@ -89,7 +95,7 @@ describe('intendants (4.4, #278)', () => {
       ]);
     expect(fieldsOf({ ...stewards, operationsPerTick: 20 })).toEqual([]);
     const without: Record<string, unknown> = base();
-    delete without['stewards'];
+    beforeStewards(without);
     const none = validateConfig(without);
     if (!none.ok) throw new Error(none.errors.join('\n'));
     expect(stewardOperationsPerTick(none.config)).toBe(0);
@@ -112,7 +118,7 @@ describe('intendants (4.4, #278)', () => {
     expect(fieldsOf({ ...stewards, operationsRetentionDays: 1 })).toEqual([]);
     // Sans intendants, les opérations d'une version antérieure se purgent encore, à la valeur d'avant le paramètre.
     const without: Record<string, unknown> = base();
-    delete without['stewards'];
+    beforeStewards(without);
     const none = validateConfig(without);
     if (!none.ok) throw new Error(none.errors.join('\n'));
     expect(stewardOperationsRetentionDays(none.config)).toBe(30);
@@ -137,7 +143,7 @@ describe('intendants (4.4, #278)', () => {
     expect(fieldsOf({ ...stewards, refusalRestTicks: 0 })).toEqual([]);
     expect(fieldsOf({ ...stewards, refusalRestTicks: 1000 })).toEqual([]);
     const without: Record<string, unknown> = base();
-    delete without['stewards'];
+    beforeStewards(without);
     const none = validateConfig(without);
     if (!none.ok) throw new Error(none.errors.join('\n'));
     expect(stewardRefusalRestTicks(none.config)).toBe(0);

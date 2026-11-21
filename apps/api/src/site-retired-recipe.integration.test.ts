@@ -34,6 +34,11 @@ const CYCLE_MS = field.durationMinutes * 60_000;
 const WHEAT = field.outputs[0];
 /** La même production sous un autre identifiant : le cas d'une recette renommée par le back-office. */
 const REPLACEMENT = { ...field, id: `${RETIRED}_v2` };
+/** Les clés d'une table par recette, la recette retirée sous son nouvel identifiant. */
+const renamed = <T>(byRecipe: Record<string, T>): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(byRecipe).map(([id, value]) => [id === RETIRED ? REPLACEMENT.id : id, value]),
+  );
 let retired: LoadedConfig;
 beforeAll(async () => {
   const published = await publishVersion(
@@ -47,6 +52,20 @@ beforeAll(async () => {
         ...city,
         terroir: city.terroir?.map((id) => (id === RETIRED ? REPLACEMENT.id : id)),
       })),
+      // De même pour les filières des maisons PNJ de secours (#717), leurs sites et leurs règles par recette.
+      npcHouses: Object.fromEntries(
+        Object.entries(config.npcHouses).map(([slug, city]) => [
+          slug,
+          {
+            ...city,
+            chains: city.chains.map((chain) => ({
+              ...chain,
+              sites: renamed(chain.sites),
+              ...(chain.rules && { rules: renamed(chain.rules) }),
+            })),
+          },
+        ]),
+      ),
     },
     { note: 'test : recette du champ de départ retirée (ticket 97)' },
   );
