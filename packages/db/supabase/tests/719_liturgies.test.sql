@@ -14,7 +14,8 @@ insert into auth.users (id, email)
 select ('00000000-0000-4000-8000-0000000719a' || n)::uuid, 'liturgy-' || n || '@example.test'
 from unnest(array['a', 'b', 'c', 'd', 'e', 'f', '9', '8']) n;
 insert into game.houses (id, world_id, user_id, name, blazon, kind)
-select ('00000000-0000-7000-8000-0000000719' || n || '1')::uuid, w::uuid, ('00000000-0000-4000-8000-0000000719a' || n)::uuid, name, '{}', kind
+select ('00000000-0000-7000-8000-0000000719' || n || '1')::uuid, w::uuid,
+       case when kind = 'npc' then null else ('00000000-0000-4000-8000-0000000719a' || n)::uuid end, name, '{}', kind
 from (values ('a', 'Alcméonides', 'f0', 'player'), ('b', 'Philaïdes', 'f0', 'player'), ('c', 'Bacchiades', 'f0', 'player'),
              ('d', 'Eumolpides', 'f9', 'player'), ('e', 'Greniers', 'f0', 'npc'), ('f', 'Pisistratides', 'f0', 'player'),
              ('9', 'Néléides', 'f0', 'player')) h (n, name, w0, kind)

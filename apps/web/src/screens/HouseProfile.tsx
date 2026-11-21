@@ -20,7 +20,8 @@ import { LoadProblem, Loading } from './LoadProblem';
 import { NotFound } from './NotFound';
 
 /**
- * Fiche publique d'une maison (6.6) : blason, nom, cité, statut, Timè, mandats passés et en cours. Elle ne lit
+ * Fiche publique d'une maison (6.6) : blason, nom, cité, statut, Timè, mandats passés et en cours. Une maison PNJ de
+ * secours (8.3) s'y annonce comme telle, à la place de son statut de métèque. Elle ne lit
  * que des vues publiques (`PROFILE_VIEWS`). Une maison inconnue ou d'un autre monde donne l'écran introuvable.
  */
 export function HouseProfileScreen() {
@@ -64,7 +65,12 @@ export function HouseProfileScreen() {
               <h1 ref={title} tabIndex={-1} className="text-[1.625rem] leading-tight font-bold">
                 {profile.name}
               </h1>
-              {profile.status && (
+              {read.npc && (
+                <Badge tone="info" icon={<Info />} className="self-start">
+                  {cityName ? t('houseProfile.npc', { city: cityName }) : t('houseProfile.npcOnly')}
+                </Badge>
+              )}
+              {!read.npc && profile.status && (
                 <Badge
                   tone={profile.status === 'citizen' ? 'success' : 'neutral'}
                   icon={profile.status === 'citizen' ? <Check /> : <Info />}
@@ -77,6 +83,7 @@ export function HouseProfileScreen() {
               )}
             </div>
           </header>
+          {read.npc && <p className="text-muted-foreground">{t('houseProfile.npcHint')}</p>}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <Card className="flex items-start gap-3">
               <Landmark aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-accent" />

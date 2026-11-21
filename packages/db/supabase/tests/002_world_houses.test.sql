@@ -55,7 +55,7 @@ select is(
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'liturgies(city_id,designated_day,due_at,due_day,genre,house_id,season,status,world_id) '
     || 'messages(channel_id,created_at,hidden_at,house_id,id,visible_body) '
-    || 'npc_population(city_id,class_id,closed_day,coverage_bps,population) '
+    || 'npc_houses(city_id,house_id,world_id) npc_population(city_id,class_id,closed_day,coverage_bps,population) '
     || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '
     || 'offices(city_id,election_id,ends_at,house_id,id,office,starts_at,vacated_at,world_id) '
     || 'oracle_consultations(city_id,created_at,house_id,id,oracle_ids) oracles(id,source,text_en,text_fr) '

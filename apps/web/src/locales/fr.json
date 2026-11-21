@@ -1576,6 +1576,9 @@
       "citizen": "Citoyenne de {{city}}",
       "metic": "Métèque à {{city}}"
     },
+    "npc": "Maison PNJ de {{city}}",
+    "npcOnly": "Maison PNJ",
+    "npcHint": "Une maison tenue par le jeu, et non par un joueur : elle tient une filière vitale que personne n'occupe encore, et se retire quand des joueurs prennent la place.",
     "statusOnly": {
       "citizen": "Citoyenne",
       "metic": "Métèque"

@@ -77,6 +77,13 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La règle vaut pour toute lecture de `game.houses` au nom d'un joueur, `public.houses` et `public.house_honor` comprises (pgTAP 857).
 - Nature d'une maison (#718) : `houses.kind` vaut `player`, ou `npc` pour une maison PNJ de secours (8.3, #715), que les classements de fortune écartent.
   Une maison fondée sans la nommer est une maison de joueur ; le service la choisit à l'insertion et ne la change jamais, et un joueur connecté ne la lit pas.
+- Maisons PNJ de secours (8.3, #715) : une maison PNJ n'a pas de compte, une maison de joueur en a un (`houses_account_by_kind` : `user_id` nul pour la seule nature `npc`) ; le service ne change ni l'un ni l'autre.
+  Toute commande de l'API de jeu agit pour la maison du compte qui l'envoie (`accountHouseId`, `current_house_ids()`) : aucune n'agit donc pour une maison PNJ, qu'aucun intendant ne sert non plus.
+  `npc_houses` retient la filière de la configuration (`npcHouses`) que tient chaque maison PNJ : une par cité et par filière, dans le monde de sa cité, et seulement pour une maison de nature `npc` (clé étrangère sur la nature).
+  Le service n'y écrit que la maison, le monde, la cité et la filière, et n'en modifie ni n'en supprime rien.
+  Un joueur connecté lit les maisons PNJ de son monde par `npc_houses`, vue `security_invoker` créée une fois (maison, monde, cité), sans la filière ni la date ; un visiteur anonyme ne lit rien (pgTAP 715).
+  `houses` garde ses colonnes (ADR 0006) : la fiche d'une maison (6.6) lit les deux vues.
+  Une maison PNJ naît métèque de sa cité et la garde de la citoyenneté refuse qu'elle devienne citoyenne : elle ne se présente, ne vote et n'entre dans aucun électorat, que la base réserve aux citoyens.
 - Fortune d'une maison (4.1, #718) : `game.house_wealth(p_world)`, au nom du propriétaire, est exécutable par le seul service ; aucune vue, vue matérialisée ni fonction exposée à un joueur ou à un visiteur ne l'appelle ni n'a de colonne de fortune (pgTAP 718).
   Décision (#719, migration 9719) : la fonction compte la cargaison des voyages en mer (`arrived_at` nul) dans la valeur des stocks, au prix observé de la cité d'arrivée, sans changer ses colonnes (pgTAP 719).
 - Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant, nature de la ligne), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
@@ -200,6 +207,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Ni la maison qui offre, ni l'instant exact de l'impayé ; un visiteur anonyme ne lit rien, et `property_offers` garde ses colonnes (ADR 0006).
 - Citoyenneté (3, 6.2, #260) : `citizenships` porte la maison, sa cité, son statut (métèque ou citoyen) et la date de ce statut.
   La base garantit qu'une citoyenneté naît métèque, qu'elle ne change ni de maison ni de cité, que son statut ne fait que passer de métèque à citoyen, daté de la transaction qui l'écrit, et que sa date ne change qu'avec lui.
+  Une maison PNJ de secours ne passe jamais citoyenne (#715).
   Le service n'écrit à la fondation que la maison et la cité, et à la promotion que le statut et la date ; c'est la clôture qui promeut.
   Les joueurs connectés lisent le statut de toute maison de leur monde (`houses.citizenship_status`, #857).
   Un joueur lit aussi la citoyenneté de ses seules maisons avec sa date par `my_citizenships` (#420), vue `security_invoker` créée une fois : maison, cité, statut, instant du statut et son jour de jeu, calculé à l'horloge en vigueur comme les autres lectures datées (nul sans horloge ou pour un fuseau inconnu de la base).
