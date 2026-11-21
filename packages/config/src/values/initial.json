@@ -117,7 +117,9 @@
   "templeTreasury": {
     "policyRateBps": 1000,
     "termDays": [7, 14, 28],
-    "principalCaps": [{ "minHonor": 0, "maxPrincipal": 0 }]
+    "principalCaps": [{ "minHonor": 0, "maxPrincipal": 0 }],
+    "defaultHonorLoss": 0,
+    "dishonorDays": 28
   },
   "decrees": {
     "votingDays": 2,

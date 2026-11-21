@@ -37,6 +37,17 @@ export const templeTreasurySchema = z
         }),
       )
       .max(50),
+    /**
+     * Timè perdue par une maison dont le prêt passe en défaut à son échéance (#725), en valeur absolue, rognée aux
+     * bornes de la Timè. Absente des versions publiées avant #725 : `DEFAULT_LOAN_DEFAULT_HONOR_LOSS`, aucune perte.
+     */
+    defaultHonorLoss: z.number().int().min(0).max(HONOR_LIMIT).optional(),
+    /**
+     * Durée de la marque de déshonneur après le solde d'un prêt en défaut, en jours de jeu (#725) : elle est levée à la
+     * clôture autant de jours après le jour du solde. Absente des versions publiées avant #725 : `DEFAULT_DISHONOR_DAYS`,
+     * la marque levée au solde, comme avant.
+     */
+    dishonorDays: z.number().int().min(0).max(3660).optional(),
   })
   .superRefine((rules, ctx) => {
     rules.principalCaps.forEach((tier, index) => {
@@ -58,3 +69,8 @@ export const templeTreasurySchema = z
     });
   });
 export type TempleTreasuryRules = z.infer<typeof templeTreasurySchema>;
+
+/** Perte de Timè d'un défaut pour une version qui ne la donne pas (publiée avant #725) : aucune, comportement inchangé. */
+export const DEFAULT_LOAN_DEFAULT_HONOR_LOSS = 0;
+/** Marque de déshonneur d'une version qui ne la borne pas (publiée avant #725) : levée au solde, comportement inchangé. */
+export const DEFAULT_DISHONOR_DAYS = 0;
