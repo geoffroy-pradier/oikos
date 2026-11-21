@@ -1,5 +1,5 @@
 import { createDb } from '@oikos/db';
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type Route } from '@playwright/test';
 import { sql } from 'kysely';
 import {
   citySection,
@@ -102,6 +102,52 @@ async function freezeCity(page: Page, cityId: string) {
   await reply('city_properties', park);
   await reply('property_offers_upkeep', []);
   await reply('city_population', people);
+}
+
+/**
+ * Finances de la maison (#732), lues figées : le temple prête (plafond de 2 000 drachmes), la trésorerie est de 5 000
+ * drachmes, la Timè nulle, et la maison doit ou non un prêt selon `debt`. La base de l'essai n'a ni prêt ni temple
+ * ouvert : l'écran serait vide. Rend la fonction qui retire ces lectures figées.
+ */
+async function freezeFinances(page: Page, debt: boolean) {
+  const loan = {
+    id: '01900000-0000-7000-8000-0000000f0030',
+    lender: 'temple',
+    principal: 6000,
+    rate_bps: 1000,
+    term_days: 28,
+    interest: 46,
+    due_day: 99_999,
+    due_at: '2999-01-01T04:00:00+00:00',
+    principal_repaid: 0,
+    interest_repaid: 0,
+    outstanding: 6046,
+    status: 'active',
+  };
+  const views: [string, unknown][] = [
+    ['my_loans', debt ? [loan] : []],
+    ['house_honor', [{ honor: 0, dishonored: false, dishonored_until_day: null }]],
+    [
+      'temple_treasury_rules',
+      [
+        {
+          policy_rate_bps: 1000,
+          term_days: [7, 14, 28],
+          principal_caps: [{ minHonor: 0, maxPrincipal: 12_000 }],
+        },
+      ],
+    ],
+    ['my_balance_sheet', [{ treasury: 30_000, escrow: 0, stock_value: 0, unpriced_stocks: 0 }]],
+  ];
+  const routes = views.map(([view, json]) => {
+    const url = new RegExp(`/rest/v1/${view}\\?`);
+    const handler = (route: Route) => route.fulfill({ json });
+    return { url, handler };
+  });
+  for (const { url, handler } of routes) await page.route(url, handler);
+  return async () => {
+    for (const { url, handler } of routes) await page.unroute(url, handler);
+  };
 }
 
 /**
@@ -313,6 +359,28 @@ test('écrans clés du jeu : références visuelles et axe, thèmes clair et som
   await capture(page, 'immobilier');
   await open(page, '/comptes', `Comptes de la maison ${format.name}`);
   await capture(page, 'comptes');
+  // Finances (#732), lectures figées : une dette du temple et sa feuille de remboursement, puis l'emprunt possible.
+  let unfreeze = await freezeFinances(page, true);
+  await open(page, '/finances', 'Finances');
+  await capture(page, 'finances');
+  await page.getByRole('button', { name: /^Rembourser\s:\sTrésor du temple$/ }).click();
+  const repay = page.getByRole('dialog', { name: 'Rembourser un prêt' });
+  await repay.getByLabel(/^Montant remboursé/).fill('300');
+  await repay.getByRole('button', { name: 'Continuer' }).click();
+  await capture(page, 'finances-remboursement', { target: repay });
+  await page.keyboard.press('Escape');
+  await unfreeze();
+  unfreeze = await freezeFinances(page, false);
+  await open(page, '/finances', 'Finances');
+  await capture(page, 'finances-emprunt');
+  await page.getByRole('button', { name: 'Emprunter', exact: true }).click();
+  const borrow = page.getByRole('dialog', { name: 'Emprunter au Trésor du temple' });
+  await borrow.getByLabel(/^Montant emprunté/).fill('6000');
+  await borrow.getByRole('button', { name: 'Continuer' }).click();
+  await borrow.getByRole('radio', { name: '28 jours' }).check();
+  await capture(page, 'finances-emprunt-feuille', { target: borrow });
+  await page.keyboard.press('Escape');
+  await unfreeze();
   await open(page, '/carte', "Carte de l'archipel");
   await capture(page, 'carte');
   await open(page, '/cite', /^Cité de /);
