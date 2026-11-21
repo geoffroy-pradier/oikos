@@ -718,7 +718,8 @@
       "assembly": "Assembly",
       "treasury": "Treasury",
       "events": "Events",
-      "chronicle": "Chronicle"
+      "chronicle": "Chronicle",
+      "liturgies": "Liturgies"
     }
   },
   "npcClasses": {
@@ -1654,5 +1655,25 @@
       "levied": "Levied automatically: the liturgy was not performed before the deadline. The due was taken from your treasury, with no gain. Timè lost: {{loss}}."
     },
     "perform": "Perform my liturgy"
+  },
+  "cityLiturgies": {
+    "title": "Liturgies of the season",
+    "intro": "Each season, the city entrusts a public expense to a few houses. Only the status of each liturgy is public: the due is known only to the house it was entrusted to.",
+    "empty": "No liturgy has been assigned in the city yet. They are assigned at the first close of each season.",
+    "designated": "Houses assigned",
+    "counts": {
+      "assigned": "To perform",
+      "performed": "Performed",
+      "levied": "Levied automatically"
+    },
+    "deadline": "Deadline for the season: {{date}}.",
+    "yours": "Your house is assigned this season.",
+    "yoursLink": "See my liturgy",
+    "caption": "Liturgies of the season",
+    "columns": {
+      "house": "House",
+      "genre": "Genre",
+      "state": "Status"
+    }
   }
 }

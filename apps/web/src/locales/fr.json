@@ -718,7 +718,8 @@
       "assembly": "Assemblée",
       "treasury": "Trésor",
       "events": "Événements",
-      "chronicle": "Chronique"
+      "chronicle": "Chronique",
+      "liturgies": "Liturgies"
     }
   },
   "npcClasses": {
@@ -1654,5 +1655,25 @@
       "levied": "Prélevée d'office : la liturgie n'a pas été accomplie avant l'échéance. Le dû a été pris sur votre trésorerie, sans gain. Timè perdue : {{loss}}."
     },
     "perform": "Accomplir ma liturgie"
+  },
+  "cityLiturgies": {
+    "title": "Liturgies de la saison",
+    "intro": "Chaque saison, la cité confie une dépense publique à quelques maisons. Seul l'état de chaque liturgie est public : le dû reste connu de la seule maison désignée.",
+    "empty": "Aucune liturgie n'a encore été désignée dans la cité. Elles le sont à la première clôture de chaque saison.",
+    "designated": "Maisons désignées",
+    "counts": {
+      "assigned": "À accomplir",
+      "performed": "Accomplies",
+      "levied": "Prélevées d'office"
+    },
+    "deadline": "Échéance de la saison : {{date}}.",
+    "yours": "Votre maison est désignée cette saison.",
+    "yoursLink": "Voir ma liturgie",
+    "caption": "Liturgies de la saison",
+    "columns": {
+      "house": "Maison",
+      "genre": "Genre",
+      "state": "État"
+    }
   }
 }
