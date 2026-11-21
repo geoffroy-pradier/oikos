@@ -273,4 +273,33 @@ describe('relance d’un site : salaire et hébergement du jour (#258)', () => {
       ['upkeep.restart', -28, 'npc_purse'],
     ]);
   });
+
+  it('un site fermé d’une maison PNJ (#717) rend ses travailleurs : l’acquisition passe', async () => {
+    // Neuf thètes : le champ de départ (4) et le champ de la maison PNJ (4) en emploient huit.
+    const cityId = await newCity(9);
+    const { rows } = await sql<{
+      world_id: string;
+    }>`select world_id from game.cities where id = ${cityId}`.execute(owner);
+    const worldId = rows[0]?.world_id ?? '';
+    const npc = await sql<{
+      id: string;
+    }>`insert into game.houses (world_id, user_id, name, blazon, kind)
+      values (${worldId}, null, ${`Greniers ${cityId.slice(0, 6).replace(/[^a-f]/g, 'x')}`}, '{}', 'npc') returning id`.execute(
+      owner,
+    );
+    const npcId = npc.rows[0]?.id ?? '';
+    await sql`insert into game.sites (world_id, house_id, city_id, recipe_id)
+      values (${worldId}, ${npcId}, ${cityId}, 'grow_wheat')`.execute(owner);
+    const { user } = await found(cityId);
+    // Le moulin en demande deux de plus : dix pour neuf, refusé.
+    expect(await send(user, 'site.acquire', { recipeId: 'mill_flour' })).toMatchObject(
+      refused('NO_WORKERS_AVAILABLE'),
+    );
+    // La maison PNJ ferme son champ : ses quatre travailleurs sont rendus, le moulin passe.
+    await sql`update game.sites set closed_at = now() where house_id = ${npcId}`.execute(owner);
+    expect(await send(user, 'site.acquire', { recipeId: 'mill_flour' })).toMatchObject({
+      status: 200,
+    });
+    expect((await stateOf(user)).sites).toEqual(['grow_wheat', 'mill_flour']);
+  });
 });

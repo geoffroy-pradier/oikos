@@ -26,12 +26,13 @@ export const clock = {
   seasonDays: 7,
 };
 const archon = { termDays: 28, candidacyDays: 4, votingDays: 3, maxConsecutiveTerms: 2 };
-/** Configuration d'essai : l'initiale, son horloge, et les maisons PNJ données. */
-export const configWith = (npc: NpcHouses): GameConfig => ({
+/** Configuration d'essai : l'initiale, son horloge, les maisons PNJ données et ce qu'elle change d'autre (`more`). */
+export const configWith = (npc: NpcHouses, more: Partial<GameConfig> = {}): GameConfig => ({
   ...initial,
   clock,
   politics: { meticDays: 3, archon },
   npcHouses: npc,
+  ...more,
 });
 let loaded: Awaited<ReturnType<ReturnType<typeof createConfigLoader>['at']>> | undefined;
 export async function setUp() {
@@ -48,6 +49,7 @@ export const close = (
   day: number,
   npc: NpcHouses,
   steps: readonly CloseStep[] = [npcHouses],
+  more: Partial<GameConfig> = {},
 ) =>
   closeWorld(db, {
     worldId,
@@ -55,7 +57,7 @@ export const close = (
     config: {
       at: async () => {
         if (!loaded) throw new Error('setUp() first');
-        return { ...loaded, config: configWith(npc) };
+        return { ...loaded, config: configWith(npc, more) };
       },
     },
     steps,
