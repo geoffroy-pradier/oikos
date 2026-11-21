@@ -52,7 +52,7 @@ select is(
    from information_schema.column_privileges
    where table_schema = 'game' and table_name in ('voyages', 'voyage_cargo') and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
   'voyage_cargo.good_id:INSERT voyage_cargo.quantity:INSERT voyage_cargo.voyage_id:INSERT voyage_cargo.world_id:INSERT '
-    || 'voyages.arrived_at:UPDATE voyages.arrives_at:INSERT voyages.from_city_id:INSERT voyages.house_id:INSERT '
+    || 'voyages.arrived_at:UPDATE voyages.arrives_at:INSERT voyages.from_city_id:INSERT voyages.house_id:INSERT voyages.loss_risk_bps:INSERT '
     || 'voyages.ship_id:INSERT voyages.to_city_id:INSERT voyages.world_id:INSERT',
   'le service fait partir un voyage sans en choisir ni l''identifiant ni la date, puis n''écrit que son arrivée : liste figée');
 select ok(not has_table_privilege('oikos_service', 'game.voyages', 'delete')

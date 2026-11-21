@@ -83,7 +83,7 @@ select is(
   'admin.set_role config.cancel_clock_changing_activations game.apply_favor_movement game.apply_honor_movement game.apply_ledger_line game.apply_loan_repayment game.apply_order_reservation game.apply_stock_movement game.apply_trade game.auth_user_exists game.broadcast_message '
     || 'game.check_decree_settled_on_close game.check_entry_balanced game.check_escrow_debit game.check_escrow_matches_orders game.check_grace_settled game.check_loan_disbursed game.check_loan_entry game.check_loan_repayment game.check_npc_purse_credit game.check_npc_purse_payer game.check_offering_settled game.check_property_listing_settled '
     || 'game.check_trade_settled game.check_trade_settlement game.check_treasury_debit '
-    || 'game.check_voyage_settled game.check_voyage_stock_movement '
+    || 'game.check_voyage_loss game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_charis game.city_identity game.city_properties game.city_rates_in_force game.city_treasuries game.city_treasury_flows '
     || 'game.clock_rules game.create_city_channel game.create_city_npc_purse game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.current_world_ids '
     || 'game.decree_rules game.election_results game.game_day_at game.good_tiers game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.house_dishonor game.house_wealth game.liturgy_rules game.lock_npc_purses game.market_rules game.moderation_rules game.my_appeal_decisions game.my_liturgies game.my_sanctions game.my_workforce game.npc_purses game.order_book game.ostracism_results '
