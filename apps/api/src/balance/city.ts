@@ -485,7 +485,8 @@ export async function accounts(city: City) {
 const nonZero = (balances: Record<string, number>) =>
   Object.fromEntries(Object.entries(balances).filter(([, value]) => value !== 0));
 /**
- * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons, revenu public
+ * Grand livre rapproché de flux comptés sans relire aucun solde : dotation des `founded` maisons et des maisons PNJ
+ * (`npcGrant`, #717), revenu public
  * des PNJ compté à chaque clôture (`closeDay`, #632), achats des PNJ (échanges sans ordre d'achat, payés par les
  * bourses des PNJ), taxe recalculée échange par échange par `marketTax` (règle des
  * commandes et du moteur), autres puits comptés par le banc (`counted`), dépenses de décrets tirées des trésors
@@ -502,6 +503,8 @@ export async function reconcile(
   drawn: ReadonlyMap<string, number> = new Map(),
   purses = 0,
   dues: ReadonlyMap<string, number> = new Map(),
+  /** Dotations des maisons PNJ de secours (#717), versées par leur robinet. */
+  npcGrant = 0,
 ) {
   const trades = await city.db
     .selectFrom('game.trades as t')
@@ -540,12 +543,13 @@ export async function reconcile(
     expected: nonZero({
       faucet_starting_grant: -grant,
       faucet_npc_public_income: -income,
+      faucet_npc_house_grant: -npcGrant,
       ...counted,
       ...flows,
       npc_purse: purses + income - npcPurchases,
     }),
     supply,
-    mass: grant + income - sinks,
+    mass: grant + npcGrant + income - sinks,
     npcPurchases,
     /** Trésor attendu de chaque cité (par identifiant) : le banc en compare les soldes à `treasuryOf`. */
     treasuries,

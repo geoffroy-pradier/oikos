@@ -204,12 +204,14 @@ export async function lodgingDue(
   world: City,
   residents: readonly { city: City; house: House }[],
   day: number,
+  /** Faux : lu après la clôture, dont la vétusté du jour est déjà faite. */
+  wear = true,
 ) {
   const { sizes } = world.played.properties;
   const units = new Map<string, number>();
   for (const row of await readHousing(world.db, { worldId: world.worldId })) {
     const size = sizes.find((candidate) => candidate.id === row.sizeId);
-    const worn = wornCondition(row.condition, size?.dailyWear ?? 0);
+    const worn = wear ? wornCondition(row.condition, size?.dailyWear ?? 0) : row.condition;
     units.set(
       row.houseId,
       (units.get(row.houseId) ?? 0) + holdingUnits({ ...row, condition: worn }, sizes),
