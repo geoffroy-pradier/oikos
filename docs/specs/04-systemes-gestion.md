@@ -509,6 +509,12 @@ Pertes en mer, dans la phase 3 (#730) :
   Il est rejouable, et caché jusqu'à l'arrivée : les joueurs ne lisent pas la graine du monde (7.3).
   Décision : la graine du monde s'ajoute à l'identifiant du voyage, que le joueur connaît dès le départ et qui seul lui ferait prévoir l'issue.
   Risque nul, jamais de perte ; risque plein, toujours ; la perte emporte toute la cargaison ou rien.
+- À l'arrivée, dans la transaction du tick, une cargaison perdue passe en entier de `in_transit` au puits `lost_at_sea` du journal des stocks (mouvements `voyage.loss`), sans ouvrir de stock dans la cité d'arrivée, et le navire y accoste à vide.
+  `VoyageArrived` ne porte alors rien de déchargé ; un événement de domaine `CargoLostAtSea` dit, après lui, le risque et la cargaison perdue.
+  Un navire sur lest n'a rien à perdre : ni tirage utile, ni `CargoLostAtSea`.
+  Rejouer l'arrivée ne perd rien deux fois : le tick n'est joué qu'une fois, et la base refuse qu'un bien sorte deux fois de `in_transit` (12).
+  Le tirage ne dépend pas du tick : un voyage déchargé après une panne a la même issue qu'à son échéance.
+  Le résumé de l'étape compte les voyages perdus et leurs unités (`lostVoyages`, `lostUnits`), seulement s'il y en a.
 
 ## 4.7 Le savoir
 

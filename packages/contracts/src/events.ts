@@ -67,7 +67,7 @@ import {
   stewardRulesSetSchema,
 } from './steward';
 import { graceInvokedSchema, offeringMadeSchema, oracleConsultedSchema } from './temple';
-import { voyageArrivedSchema, voyageDepartedSchema } from './voyage';
+import { cargoLostAtSeaSchema, voyageArrivedSchema, voyageDepartedSchema } from './voyage';
 import {
   siteAcquiredSchema,
   siteCollectedSchema,
@@ -206,6 +206,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   loanDefaultedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
+  cargoLostAtSeaSchema,
   directChannelOpenedSchema,
   messagePostedSchema,
   messageReportedSchema,
