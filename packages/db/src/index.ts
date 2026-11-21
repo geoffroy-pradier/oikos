@@ -837,6 +837,23 @@ export interface GameDatabase {
     hidden_at: ColumnType<Date | null, never, Date>;
   };
   /**
+   * Pré-tri d'un message signalé par l'IA (#763), un essai par message, écrit par le moteur seul après la validation de
+   * la sortie du modèle. Une catégorie et un résumé vont ensemble ; sans eux, la ligne garde l'issue du repli. Suit son
+   * message à la purge. Jamais lue par une commande de sanction.
+   */
+  'game.report_triage': {
+    message_id: ColumnType<string, string, never>;
+    category: ColumnType<
+      'likely_violation' | 'doubtful' | 'likely_unfounded' | null,
+      'likely_violation' | 'doubtful' | 'likely_unfounded' | null,
+      never
+    >;
+    summary: ColumnType<string | null, string | null, never>;
+    outcome: ColumnType<'ok' | 'capped' | 'timeout' | 'invalid' | 'error', string, never>;
+    triaged_at: ColumnType<Date, never, never>;
+  };
+
+  /**
    * Signalements d'un message (#275) : écrits ouverts, datés par la base ; à la purge du message, `message_id`
    * devient nul. Le service n'écrit ni l'état ni la date.
    */

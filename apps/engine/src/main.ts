@@ -6,6 +6,7 @@ import { purgeMessages, purgeStewardInstructions } from './chat-retention';
 import { writeAllChronicles } from './chronicle/task';
 import { CLOSE_STEPS } from './close-steps';
 import { cancelClockChangingActivations, purgeTelemetry } from './maintenance';
+import { triageAllReports } from './moderation-triage/task';
 import { rewriteAllOracles } from './oracle/task';
 import { advanceAllWorlds, closeAllWorlds, databaseNow } from './scheduler';
 import { answerAllStewardInstructions } from './steward-instruction/task';
@@ -17,6 +18,7 @@ const QUEUE = 'world-clock';
 const CHRONICLE_QUEUE = 'city-chronicle';
 const ORACLE_QUEUE = 'pythia-oracles';
 const STEWARD_INSTRUCTION_QUEUE = 'steward-instructions';
+const REPORT_TRIAGE_QUEUE = 'report-triage';
 
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('Missing environment variable DATABASE_URL');
@@ -127,6 +129,20 @@ await boss.work(STEWARD_INSTRUCTION_QUEUE, async () => {
       console.log(
         `World ${worldId}: answered ${answered} steward instructions, ${proposed} with rules`,
       );
+});
+// Pré-tri des signalements (#763), dans sa propre file : chaque message signalé, pas encore essayé, est rangé une fois
+// par l'IA dans une catégorie, avec un résumé. IA coupée, la tâche ne fait rien et la file garde son ordre.
+await boss.createQueue(REPORT_TRIAGE_QUEUE);
+await boss.schedule(REPORT_TRIAGE_QUEUE, '* * * * *');
+await boss.work(REPORT_TRIAGE_QUEUE, async () => {
+  const now = await databaseNow(db);
+  for (const { worldId, attempted, categorized } of await triageAllReports(db, {
+    now,
+    config: loader,
+    ...ai,
+  }))
+    if (attempted > 0)
+      console.log(`World ${worldId}: triaged ${categorized} of ${attempted} reported messages`);
 });
 console.log('OIKOS engine started');
 
