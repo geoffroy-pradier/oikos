@@ -12,7 +12,8 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
 | Charis | Faveur divine d'une maison envers un dieu, entière, gagnée par les offrandes et les actes ; elle décline à chaque clôture et ne se transfère pas (`favor`) |
 | Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |
-| Hybris | Démesure : jauge qui monte quand une maison domine trop |
+| Hybris | Démesure : jauge cachée d'une maison de joueur, entière, tenue par un journal en ajout seul ; elle monte quand la maison domine trop (part de marché, fortune, liturgies refusées) et baisse par les offrandes, le mécénat et un déclin quotidien (`hubris`) |
+| Palier d'Hybris (hubris tier) | Seule mesure de sa jauge d'Hybris qu'un joueur lit : le nombre de bornes de la configuration qu'elle atteint (`hubris.tiers`, `my_hubris_tier`) |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Faste (splendor) | Ce qu'une maison paie au-delà du dû de sa liturgie, dans une borne, pour plus de Timè et de Charis (`splendor`) |
 | Trapeza (bank) | Banque d'une maison de joueur, une au plus par maison, dans la cité de sa citoyenneté : elle tient un coffre, collectera des dépôts et prêtera sur garantie (`bank`) |
