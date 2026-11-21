@@ -1595,6 +1595,11 @@
     "stepOf": "Step {{current}} of {{total}}"
   },
   "houseProfile": {
+    "dishonor": {
+      "title": "Mark of dishonor",
+      "open": "This house bears a mark of dishonor for as long as the loan stays in default.",
+      "until": "This house bears a mark of dishonor until {{date}}."
+    },
     "back": "Back",
     "status": {
       "citizen": "Citizen of {{city}}",

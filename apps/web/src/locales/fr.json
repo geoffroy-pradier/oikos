@@ -1595,6 +1595,11 @@
     "stepOf": "Étape {{current}} sur {{total}}"
   },
   "houseProfile": {
+    "dishonor": {
+      "title": "Marque de déshonneur",
+      "open": "Cette maison porte une marque de déshonneur tant que le prêt reste en défaut.",
+      "until": "Cette maison porte une marque de déshonneur jusqu'au {{date}}."
+    },
     "back": "Retour",
     "status": {
       "citizen": "Citoyenne de {{city}}",
