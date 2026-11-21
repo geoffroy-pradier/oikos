@@ -141,7 +141,7 @@ Il peut encore la faire baisser, vers une cité où le bien est moins cher ou n'
 L'échéance est la clôture `dueDays` jours de jeu après la désignation ; le genre (fête, triérarchie, chorégie) est tiré dans `genres` par une graine du monde, de la saison et de la maison, et ne change que le libellé.
 Une maison n'a qu'une liturgie par saison (index unique) : rejouée, ou jouée par deux moteurs à la fois, la désignation n'en écrit pas de seconde.
 Les liturgies d'une clôture s'écrivent dans l'ordre des identifiants de maison, et les joueurs n'en lisent ni l'identifiant ni la date : rien de ce qu'ils lisent ne suit le classement des fortunes (4.1).
-Une exclusion validée pendant la clôture, entre la lecture des fortunes et l'écriture d'une liturgie, est relue par l'instruction qui l'écrit, à l'heure où la garde de la base la contrôle : la maison est écartée et la clôture n'échoue pas.
+Une exclusion validée pendant la clôture, entre la lecture des fortunes et l'écriture d'une liturgie, même pendant l'instruction qui l'écrit, est relue par la garde de la base, seule juge : chaque liturgie s'écrit dans un point de sauvegarde, la maison refusée (`liturgies_house_eligible`) est écartée et la clôture n'échoue pas (#945).
 Chaque désignation émet `LiturgyAssigned` (liturgie, maison, cité, saison, genre, dû, échéance).
 La configuration initiale ne désigne aucune maison (`housesPerCity` nul, gains et perte nuls) ; une version publiée avant la section n'en désigne aucune non plus (#721 les active).
 Les gains de Timè et de Charis (`honorGain`, `charisGain`, envers le dieu protecteur de la cité) et la perte de Timè d'une dérobade (`evasionHonorLoss`) sont réglés dès maintenant, mais servent au ticket 720.
