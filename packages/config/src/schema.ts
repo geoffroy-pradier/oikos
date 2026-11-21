@@ -3,6 +3,7 @@ import { banksSchema } from './banks';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
 import { honorSchema } from './honor';
+import { hubrisSchema } from './hubris';
 import { liturgiesSchema } from './liturgies';
 import { filterForm } from './moderation';
 import { npcHousesIssues, npcHousesSchema, npcRetreatSchema } from './npc-houses';
@@ -1044,6 +1045,8 @@ export const gameConfigSchema = z
     honor: honorSchema.optional(),
     /** Absent des versions publiées avant les liturgies (#719) : aucune maison n'est désignée. */
     liturgies: liturgiesSchema.optional(),
+    /** Absent des versions publiées avant l'Hybris (#734) : aucune jauge ne change, tout palier est nul. */
+    hubris: hubrisSchema.optional(),
     /** Absent des versions publiées avant le Trésor du temple (#724) : le temple ne prête pas. */
     templeTreasury: templeTreasurySchema.optional(),
     /** Absent des versions publiées avant les banques (#726), et de la configuration initiale : aucune banque ne se fonde. */

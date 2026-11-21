@@ -376,6 +376,18 @@
     "evasionHonorLoss": 300,
     "maxSplendorBps": 10000
   },
+  "hubris": {
+    "marketShareThresholdBps": 3500,
+    "marketShareWindowDays": 7,
+    "wealthMultipleBps": 30000,
+    "marketShareWeight": 0,
+    "wealthWeight": 0,
+    "leviedLiturgyWeight": 0,
+    "offeringReliefBps": 0,
+    "performedLiturgyRelief": 0,
+    "dailyDecay": 0,
+    "tiers": [1000, 3000, 6000, 10000]
+  },
   "templeTreasury": {
     "policyRateBps": 1000,
     "termDays": [7, 14, 28],
