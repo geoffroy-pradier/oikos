@@ -358,6 +358,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 | Dotation de départ | Intérêts payés au Trésor du temple |
 | Rachat du stock d'un bien à retirer (Olympe, 5.1) | Grands travaux et merveilles |
 | Dotation des maisons PNJ de secours (8.3, #715) | Acquisition de sites et achat de navires |
+|  | Surplus des maisons PNJ de secours (8.3, #716) |
 
 Salaires et hébergement versés aux PNJ (#632) : ni création ni destruction, mais un transfert des maisons à la bourse des PNJ de la cité, que la masse monétaire compte.
 Les achats des PNJ aux joueurs, payés par cette bourse, sont le transfert inverse : depuis #632, ils ne créent plus de monnaie, et le robinet `faucet_npc_purchases` reste au catalogue pour l'historique, sans mouvement nouveau.
@@ -369,6 +370,12 @@ Robinet des maisons PNJ de secours (`faucet_npc_house_grant`, #715) : il ne paie
 Il reste à part de la dotation de départ des joueurs (`faucet_starting_grant`) : le tableau de bord suit les deux séparément.
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12).
 Une maison PNJ paie ensuite l'entretien, les salaires et l'hébergement comme toute maison ; elle n'entre dans aucun classement, fortune et Gini compris (8.3).
+
+Puits du surplus des maisons PNJ de secours (`sink_npc_house_surplus`, #716) : chaque clôture, juste avant l'entretien, y verse la trésorerie d'une maison PNJ au-delà du plafond de sa cité (`npcHouses.<cité>.treasuryCapOboles`), par une écriture `npc_house.surplus`.
+Une maison PNJ ne thésaurise donc pas et ne gonfle pas la masse ; elle paie ensuite l'entretien avec ce qui reste.
+Seule sa trésorerie compte : le séquestre de ses achats en attente reste à l'agora jusqu'à leur service ou leur annulation.
+Une cité que la configuration ne nomme plus n'a pas de plafond, et ses maisons PNJ ne versent rien.
+Aucun robinet ne paie une maison PNJ après sa dotation : faute d'entretien, ses sites s'arrêtent comme ceux d'une autre maison.
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.

@@ -10,6 +10,7 @@ import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
+import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
 import { npcPopulation } from './steps/npc-population';
 import { npcPublicIncome } from './steps/npc-public-income';
@@ -32,9 +33,11 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), la vétusté des biens immobiliers (4.5),
  * le marché du travail du jour (4.4, #258), la fondation des maisons PNJ de secours (8.3, #715), le revenu public
- * des PNJ (5.5, #632), puis l'entretien.
+ * des PNJ (5.5, #632), le surplus des maisons PNJ (8.3, #716), puis l'entretien.
  * Les maisons PNJ ne touchent que leur robinet et la maison qu'elles fondent, sans verrou d'agora : leurs sites,
  * créés après l'instant de la clôture, n'entrent ni dans le marché du travail ni dans l'entretien du jour.
+ * Leur surplus prend les verrous de l'entretien, dans son ordre, et son puits avant les trésoreries : l'entretien
+ * qui le suit paie avec ce qui reste sous le plafond.
  * Le revenu public n'est ici qu'un secours : le moteur jouant les ticks avant les clôtures, le premier tick du jour
  * l'a presque toujours versé (sur la population de la veille). S'il ne l'a pas fait, la clôture le verse sur la
  * population du jour, avec les verrous de l'entretien, avant lui : l'agora, les puits, puis les bourses des PNJ.
@@ -73,5 +76,6 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   laborMarket,
   npcHouses,
   npcPublicIncome,
+  npcHouseSurplusStep,
   siteUpkeep,
 ];
