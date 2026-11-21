@@ -772,7 +772,10 @@ export interface GameDatabase {
     city_id: ColumnType<string, string, never>;
     house_id: ColumnType<string, string, never>;
     name: ColumnType<string, string, never>;
-    /** Taux affichés : `bank.setRates` (#727) les change, dans les bornes du monde, que la base vérifie. */
+    /**
+     * Taux affichés : `bank.setRates` (#727) les change dans les bornes du monde, que la commande vérifie ; la base ne
+     * borne qu'entre 0 et 1 000 000 points de base.
+     */
     deposit_rate_bps: ColumnType<number, number, number>;
     loan_rate_bps: ColumnType<number, number, number>;
     charter_fee: ColumnType<string, number, never>;

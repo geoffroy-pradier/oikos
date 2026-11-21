@@ -1,4 +1,5 @@
 import type { CloseStep } from './close';
+import { bankInterest } from './steps/bank-interest';
 import { archonHonor } from './steps/archon-honor';
 import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
@@ -40,7 +41,8 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), le prélèvement d'office des liturgies échues
  * (#720), sur ce que les loyers laissent, l'échéance des prêts du temple (#725), qui prélève ce qui reste et fait
- * passer en défaut un prêt qui reste dû, la vétusté des biens immobiliers (4.5), le retrait des maisons PNJ devant
+ * passer en défaut un prêt qui reste dû, l'intérêt des dépôts (5.4, #727), sous l'agora qu'elle tient déjà, sans
+ * toucher la monnaie, la vétusté des biens immobiliers (4.5), le retrait des maisons PNJ devant
  * les joueurs (8.3, #717), le marché du travail du jour (4.4, #258), la fondation des maisons PNJ de secours (8.3,
  * #715), le revenu public des PNJ (5.5, #632), leur surplus (8.3, #716), puis l'entretien.
  * Les maisons PNJ ne touchent que leur robinet et la maison qu'elles fondent, sans verrou d'agora : leurs sites,
@@ -87,6 +89,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   leaseRent,
   liturgyLevy,
   loanCollection,
+  bankInterest,
   propertyWear,
   npcHouseRetreatStep,
   laborMarket,

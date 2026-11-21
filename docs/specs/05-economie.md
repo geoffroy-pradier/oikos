@@ -347,12 +347,27 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Décision (paramètres neutres) : la configuration initiale ne porte pas de section `banks`, et aucune banque ne se fonde (`BANKS_CLOSED`) tant que les administrateurs ne l'ouvrent pas.
   La commande `bank.found` porte le nom, le capital et le droit que le joueur a vu (`bank_rules`) : un autre droit est refusé (`FEE_CHANGED`), comme un capital sous le minimum, une trésorerie qui ne couvre pas droit et capital, une seconde banque ou un nom pris.
   Le droit est détruit par le puits `sink_bank_charter` (écriture `bank.charter`), le capital passe de la trésorerie au coffre (écriture `bank.capital_in`), en une transaction.
-  Les taux affichés d'une banque fondée sont les bornes basses du monde ; `bank.setRates` (#727) les changera.
-  Réserve exigée (`bankRequiredReserve`, `packages/sim`) : le plus grand du capital minimal et de la part `reserveRatioBps` des dépôts, arrondie à l'obole supérieure ; sans dépôt avant #727, le capital minimal.
+  Les taux affichés d'une banque fondée sont les bornes basses du monde ; `bank.setRates` les change.
+  Réserve exigée (`bankRequiredReserve`, `packages/sim`) : le plus grand du capital minimal et de la part `reserveRatioBps` des dépôts que la banque doit, intérêts compris, arrondie à l'obole supérieure.
   Décision (ambiguïté de 5.4) : le capital minimal est aussi le plancher de la réserve, sans quoi le banquier retirerait son capital dès la fondation.
   La commande `bank.moveCapital` verse au coffre (`in`) ou en retire (`out`) du capital, par une écriture `bank.capital_in` ou `bank.capital_out` ; un retrait ne prend que ce qui excède la réserve exigée de la configuration en vigueur (`RESERVE_SHORT`), si bien qu'un capital minimal relevé bloque les retraits sans vider aucun coffre.
   Sans section `banks`, `bank.moveCapital` est refusée elle aussi (`BANKS_CLOSED`) : le capital reste au coffre, qui compte toujours dans la fortune.
   Événements de domaine : `BankFounded` à la fondation, `BankCapitalMoved` à chaque mouvement de capital.
+  Dépôts (#727) : une maison de joueur dépose dans une banque de son monde, de toute cité, sauf la sienne (`OWN_BANK`), où elle verse du capital.
+  Un dépôt passe de la trésorerie du déposant au coffre (écriture `bank.deposit`) ; sa créance, son dépôt, est tenue en table, en oboles, et n'est pas de la monnaie de plus.
+  La commande `bank.deposit` porte la banque, le montant et le taux de dépôt que le joueur a vu (`banks`) : un autre taux est refusé (`RATE_CHANGED`), comme une banque inconnue ou un montant au-delà de la trésorerie ; sans section `banks`, elle est refusée (`BANKS_CLOSED`).
+  La commande `bank.withdraw` (banque, montant) reprend du coffre (écriture `bank.withdraw`) ce que le solde du dépôt (`ABOVE_BALANCE`) et le coffre (`VAULT_SHORT`) couvrent.
+  Décision (#727) : la réserve exigée borne les prêts et les retraits de capital du banquier, jamais les retraits des déposants ; un retrait que le coffre ne couvre pas est refusé, ce qui rend la ruée possible.
+  Décision (#727) : un déposant retire même sans section `banks` : fermer les banques ne gèle aucune créance.
+  Un dépôt soldé reste, à zéro, et se remplit de nouveau ; une maison n'a qu'un dépôt par banque.
+  Intérêt (#727) : à chaque clôture, avant l'entretien, chaque dépôt non vide gagne l'intérêt du jour de son solde au taux de dépôt affiché à l'instant de la clôture, solde × taux annuel (points de base) ÷ (10 000 × 365), arrondi à l'obole inférieure (`bankDepositInterest`, que la base vérifie) ; un intérêt nul ne s'écrit pas.
+  Décision (#727) : l'intérêt s'ajoute à la créance, sans écriture au grand livre : la dette de la banque grossit, pas la masse monétaire ; ajouté chaque jour, il se compose.
+  La base n'admet qu'un intérêt par dépôt et par jour de jeu, dans la transaction qui enregistre la clôture de ce jour : une clôture rejouée ne crédite rien deux fois.
+  Décision (ambiguïté de 5.4) : l'intérêt porte sur le solde au moment où la clôture s'exécute, si bien qu'un dépôt versé juste avant la clôture gagne un jour entier.
+  La commande `bank.setRates` (taux de dépôt, taux de prêt) change les taux que la banque de la maison affiche, dans les bornes de la configuration en vigueur (`RATE_OUT_OF_BOUNDS`) ; sans section `banks`, elle est refusée.
+  Des bornes resserrées par une version nouvelle refusent un taux hors d'elles, sans changer celui qui est déjà affiché, que les dépôts et l'intérêt gardent.
+  Dépôts, retraits, changements de taux et intérêt de la clôture se suivent sous le verrou de l'agora du monde : un dépôt qui croise un changement de taux relit le taux et répond `RATE_CHANGED`.
+  Événements de domaine : `BankDeposited`, `BankWithdrawn`, `BankRatesSet` et, à la clôture, `BankInterestCredited`.
 - **Prêt maritime** : prêt à taux élevé remboursé seulement si le navire arrive. C'est l'assurance du jeu, et elle est historique.
 - **Trésor du temple** : prêteur PNJ au taux directeur, plafonné par la Timè. Levier de politique monétaire des administrateurs.
   Dans la première version (#724), un prêt du temple porte un intérêt simple, fixé à l'emprunt pour toute sa durée : principal × taux directeur annuel (points de base) × jours ÷ (10 000 × 365), arrondi à l'obole supérieure (`templeLoanInterest`, `packages/sim`, que la base vérifie).
@@ -472,6 +487,7 @@ Dans l'ordre de la clôture, elle vient après la planification des événements
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Depuis #632, elle compte aussi les bourses des PNJ des cités (12), une nature à part du tableau de bord (`npcPurses`) : ce que les maisons versent aux PNJ circule encore.
 Depuis #726, elle compte aussi les coffres des banques (`bankVaults`), que l'écran d'Olympe ne montre que s'ils portent de la monnaie : le capital versé au coffre ne quitte pas la circulation.
+Les dépôts (#727) n'y entrent pas : la monnaie déposée est au coffre, et la créance du déposant, intérêts compris, n'est pas de la monnaie.
 Le droit de fondation d'une banque, lui, est détruit par le puits `sink_bank_charter`, qui ne rend rien ; comme pour les autres puits, la base ne lie pas ce compte à sa mécanique (12).
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).

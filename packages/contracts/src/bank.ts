@@ -142,6 +142,8 @@ export const BANK_DEPOSIT_ERROR_CODES = [
   /** Le taux de dépôt affiché n'est plus celui que le client a envoyé, que le message donne. */
   'RATE_CHANGED',
   'INSUFFICIENT_FUNDS',
+  /** Le dépôt passerait au-delà des entiers sûrs, le plus grand solde qu'un dépôt tient. */
+  'DEPOSIT_LIMIT',
 ] as const;
 export type BankDepositErrorCode = (typeof BANK_DEPOSIT_ERROR_CODES)[number];
 
