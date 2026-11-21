@@ -778,6 +778,19 @@ export interface GameDatabase {
     founded_at: ColumnType<Date, never, never>;
   };
   /**
+   * Dépôts (5.4, #727) : la créance d'une maison de joueur sur une banque qui n'est pas la sienne, une par banque et par
+   * maison, ouverte vide par le service ; son solde (oboles, lu en texte) ne change que par ses mouvements
+   * (`game.bank_deposit_movements`). Le service le verrouille (`forUpdate`) sans pouvoir l'écrire.
+   */
+  'game.bank_deposits': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    bank_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    balance: ColumnType<string, never, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
    * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
    * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`. Seule la
