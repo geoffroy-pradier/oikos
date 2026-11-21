@@ -16,6 +16,7 @@ export * from './labor';
 export * from './liturgies';
 export * from './liturgy-settlement';
 export * from './ledger';
+export * from './nemesis';
 export * from './npc-retreat';
 export * from './orderbook';
 export * from './population';

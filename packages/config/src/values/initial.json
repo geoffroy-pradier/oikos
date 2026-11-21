@@ -386,7 +386,18 @@
     "offeringReliefBps": 0,
     "performedLiturgyRelief": 0,
     "dailyDecay": 0,
-    "tiers": [1000, 3000, 6000, 10000]
+    "tiers": [1000, 3000, 6000, 10000],
+    "nemesis": {
+      "threshold": 9007199254740991,
+      "omenLeadDays": 3,
+      "fullExcess": 10000,
+      "models": {
+        "warehouse_fire": { "minBps": 500, "maxBps": 3000 },
+        "lawsuit": { "minBps": 500, "maxBps": 2000 },
+        "artisan_desertion": {},
+        "ship_lost": {}
+      }
+    }
   },
   "templeTreasury": {
     "policyRateBps": 1000,
