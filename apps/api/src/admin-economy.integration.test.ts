@@ -560,10 +560,10 @@ it('inégalité des fortunes par monde et par cité, sans les maisons PNJ de sec
     await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
       values (${world}, 'wheat', 12, 'production', ${stock[0]?.id}, 'site.collect')`.execute(trx);
   });
-  // Une maison PNJ de secours à Kallistè, bien plus riche : elle n'entre dans aucun Gini.
+  // Une maison PNJ de secours à Kallistè, sans compte (#715), bien plus riche : elle n'entre dans aucun Gini.
   const npc = randomUUID();
   await sql`insert into game.houses (id, world_id, user_id, name, blazon, kind)
-    values (${npc}, ${world}, ${await newUser()}, 'Greniers', '{}', 'npc')`.execute(owner);
+    values (${npc}, ${world}, null, 'Greniers', '{}', 'npc')`.execute(owner);
   await sql`insert into game.citizenships (house_id, city_id) values (${npc}, ${kalliste})`.execute(
     owner,
   );

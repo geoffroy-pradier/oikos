@@ -44,6 +44,9 @@ export const candidates = (db: Db, tick: StewardTick, perTick: number) =>
         where o.steward_id = s.id and o.tick_index = ${tick.index}) < ${perTick}`,
     )
     .where(notSanctioned(sql.ref('h.user_id')))
+    // Une maison PNJ n'a pas de compte (#715), donc pas d'intendant : aucune commande ne l'embauche pour elle.
+    .where('h.user_id', 'is not', null)
+    .$narrowType<{ user_id: string }>()
     .orderBy('s.hired_at')
     .orderBy('s.id')
     .execute();

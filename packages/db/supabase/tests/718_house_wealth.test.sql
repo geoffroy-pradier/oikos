@@ -10,13 +10,14 @@ insert into game.cities (id, world_id, slug, name) values
   ('01900000-0000-7000-8000-0000000718c2', '01900000-0000-7000-8000-0000000718f0', 'halos', 'Halos'),
   ('01900000-0000-7000-8000-0000000718c9', '01900000-0000-7000-8000-0000000718f9', 'delphis', 'Delphis');
 insert into auth.users (id, email)
-select ('00000000-0000-4000-8000-0000000718a' || n)::uuid, 'wealth-' || n || '@example.test' from unnest(array['a', 'b', 'c', 'd', 'e']) n;
+select ('00000000-0000-4000-8000-0000000718a' || n)::uuid, 'wealth-' || n || '@example.test' from unnest(array['a', 'b', 'c', 'd']) n;
 insert into game.houses (id, world_id, user_id, name, blazon)
 select ('00000000-0000-7000-8000-0000000718' || n || '1')::uuid, w::uuid, ('00000000-0000-4000-8000-0000000718a' || n)::uuid, name, '{}'
 from (values ('a', 'Alcméonides', '01900000-0000-7000-8000-0000000718f0'), ('b', 'Philaïdes', '01900000-0000-7000-8000-0000000718f0'),
              ('c', 'Bacchiades', '01900000-0000-7000-8000-0000000718f0'), ('d', 'Eumolpides', '01900000-0000-7000-8000-0000000718f9')) h (n, name, w);
+-- Une maison PNJ n'a pas de compte (#715).
 insert into game.houses (id, world_id, user_id, name, blazon, kind) values
-  ('00000000-0000-7000-8000-0000000718e1', '01900000-0000-7000-8000-0000000718f0', '00000000-0000-4000-8000-0000000718ae', 'Greniers', '{}', 'npc');
+  ('00000000-0000-7000-8000-0000000718e1', '01900000-0000-7000-8000-0000000718f0', null, 'Greniers', '{}', 'npc');
 insert into game.citizenships (house_id, city_id) values
   ('00000000-0000-7000-8000-0000000718a1', '01900000-0000-7000-8000-0000000718c1'),
   ('00000000-0000-7000-8000-0000000718b1', '01900000-0000-7000-8000-0000000718c2'),

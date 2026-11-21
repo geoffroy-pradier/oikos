@@ -44,7 +44,8 @@ export interface GameDatabase {
   'game.houses': {
     id: Generated<string>;
     world_id: string;
-    user_id: string;
+    /** Compte du joueur ; nul pour une maison PNJ, et seulement pour elle (`houses_account_by_kind`, #715). */
+    user_id: string | null;
     name: string;
     /** Colonne générée : `lower(name)`. */
     name_key: GeneratedAlways<string>;
@@ -58,6 +59,15 @@ export interface GameDatabase {
    * Citoyenneté d'une maison : elle naît métèque, maintenant, et la clôture la fait citoyenne (garde de
    * la base). Le service n'écrit à la fondation que la maison et la cité.
    */
+  /** Maison PNJ de secours d'une filière d'une cité (#715) : une par cité et par filière, fondée par la clôture. */
+  'game.npc_houses': {
+    house_id: ColumnType<string, string, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    chain_id: ColumnType<string, string, never>;
+    founded_at: ColumnType<Date, never, never>;
+  };
+
   'game.citizenships': {
     id: ColumnType<string, never, never>;
     house_id: ColumnType<string, string, never>;

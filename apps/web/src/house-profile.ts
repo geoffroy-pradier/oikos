@@ -5,9 +5,10 @@ import { useHouse } from './house';
 
 /**
  * Vues publiques que la fiche d'une maison lit, et elles seules (6.6) : le nom, le blason, la cité et le statut
- * (`houses`), la Timè (`house_honor`), les mandats (`offices`). Aucune vue `my_*`, aucune table du schéma `game`.
+ * (`houses`), la Timè (`house_honor`), les mandats (`offices`), la nature d'une maison PNJ de secours (`npc_houses`,
+ * 8.3). Aucune vue `my_*`, aucune table du schéma `game`.
  */
-export const PROFILE_VIEWS = ['houses', 'house_honor', 'offices'] as const;
+export const PROFILE_VIEWS = ['houses', 'house_honor', 'offices', 'npc_houses'] as const;
 
 const id = z.string().min(1);
 const instant = z.string().transform((value, ctx) => {
@@ -25,6 +26,7 @@ const houseRow = z.object({
   citizenship_status: z.enum(['metic', 'citizen']).nullable(),
 });
 const honorRow = z.object({ honor: z.number().int().min(Number.MIN_SAFE_INTEGER) });
+const npcRow = z.object({ house_id: id });
 const officeRow = z.object({
   office: z.string().min(1),
   city_id: id,
@@ -78,6 +80,12 @@ export function parseHonor(rows: unknown): number | null {
   return parsed.success ? (parsed.data[0]?.honor ?? 0) : null;
 }
 
+/** La maison est-elle une maison PNJ de secours (`npc_houses`, une ligne au plus) ? `null` si illisible. */
+export function parseNpc(rows: unknown): boolean | null {
+  const parsed = z.array(npcRow).safeParse(rows);
+  return parsed.success ? parsed.data.length > 0 : null;
+}
+
 /** Mandats en cours d'abord, puis les passés du plus récent au plus ancien ; `null` si illisibles. */
 export function parseMandates(rows: unknown): Mandate[] | null {
   const parsed = z.array(officeRow).safeParse(rows);
@@ -125,25 +133,35 @@ export function useHouseProfile(houseId: string | undefined) {
     'starts_at',
     known && wanted ? { house_id: wanted } : null,
   );
+  const npcRows = useRows<unknown>(
+    'npc_houses',
+    'house_id',
+    'house_id',
+    known && wanted ? { house_id: wanted } : null,
+  );
   const honor = honorRows.rows === null ? null : parseHonor(honorRows.rows);
   const mandates = officeRows.rows === null ? null : parseMandates(officeRows.rows);
-  const reads = [houses, ...(known ? [honorRows, officeRows] : [])];
+  const npc = npcRows.rows === null ? null : parseNpc(npcRows.rows);
+  const reads = [houses, ...(known ? [honorRows, officeRows, npcRows] : [])];
   const failed =
     reads.some((read) => read.failed) ||
     (houses.rows !== null && profile === null) ||
     (known &&
       ((honorRows.rows !== null && honor === null) ||
-        (officeRows.rows !== null && mandates === null)));
+        (officeRows.rows !== null && mandates === null) ||
+        (npcRows.rows !== null && npc === null)));
   return {
     /** `'unknown'` : maison absente ou d'un autre monde, y compris une adresse mal formée. */
     profile: valid ? profile : 'unknown',
     honor,
     mandates,
+    /** Maison PNJ de secours (8.3) : annoncée comme telle, à la place du statut. */
+    npc,
     failed,
     loading:
       valid &&
       !failed &&
-      (houses.rows === null || (known && (honor === null || mandates === null))),
+      (houses.rows === null || (known && (honor === null || mandates === null || npc === null))),
     reload: () => Promise.all(reads.map((read) => read.reload())),
   };
 }

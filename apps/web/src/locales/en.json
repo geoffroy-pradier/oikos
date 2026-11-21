@@ -1576,6 +1576,9 @@
       "citizen": "Citizen of {{city}}",
       "metic": "Metic in {{city}}"
     },
+    "npc": "NPC house of {{city}}",
+    "npcOnly": "NPC house",
+    "npcHint": "A house run by the game, not by a player: it holds a vital trade no one occupies yet, and withdraws when players take its place.",
     "statusOnly": {
       "citizen": "Citizen",
       "metic": "Metic"

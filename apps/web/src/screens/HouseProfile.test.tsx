@@ -115,6 +115,26 @@ describe('fiche publique d’une maison (#705)', () => {
     expect(screen.getByText('Métèque à Kallistè')).toBeTruthy();
   });
 
+  it('une maison PNJ de secours s’annonce comme telle, à la place de son statut (8.3, #715)', async () => {
+    state.views['houses'] = [house(OWN, 'w1'), house(OTHER, 'w1')];
+    state.views['npc_houses'] = [{ house_id: OTHER }];
+    await show();
+    expect(screen.getByText('Maison PNJ de Kallistè')).toBeTruthy();
+    expect(screen.getByText(/tenue par le jeu, et non par un joueur/)).toBeTruthy();
+    expect(screen.queryByText('Métèque à Kallistè')).toBeNull();
+    expect(state.asked).toContainEqual({ view: 'npc_houses', filters: { house_id: OTHER } });
+    cleanup();
+    await show('en');
+    expect(screen.getByText('NPC house of Kallistè')).toBeTruthy();
+    expect(screen.getByText(/run by the game, not by a player/)).toBeTruthy();
+  });
+
+  it('une maison de joueur ne s’annonce pas PNJ', async () => {
+    await show();
+    expect(screen.queryByText(/Maison PNJ/)).toBeNull();
+    expect(screen.queryByText(/tenue par le jeu/)).toBeNull();
+  });
+
   it('ne lit que des vues publiques, et rien de plus pour une maison inconnue', async () => {
     await show();
     const views = new Set(state.asked.map((read) => read.view));
