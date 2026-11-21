@@ -712,6 +712,30 @@ export interface GameDatabase {
     /** Écriture `liturgy.perform` ou `liturgy.levy` ; nulle pour un prélèvement qui n'a rien trouvé. */
     ledger_entry_id: ColumnType<string | null, never, string | null>;
   };
+  /**
+   * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
+   * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
+   * changent que par les remboursements ; les montants (oboles) se lisent en texte, comme tout `bigint`.
+   */
+  'game.loans': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    lender: ColumnType<'temple' | 'bank', 'temple', never>;
+    borrower_house_id: ColumnType<string, string, never>;
+    principal: ColumnType<string, number, never>;
+    rate_bps: ColumnType<number, number, never>;
+    term_days: ColumnType<number, number, never>;
+    interest: ColumnType<string, number, never>;
+    borrowed_day: ColumnType<number, number, never>;
+    due_day: ColumnType<number, number, never>;
+    due_at: ColumnType<Date, Date, never>;
+    principal_repaid: ColumnType<string, never, never>;
+    interest_repaid: ColumnType<string, never, never>;
+    outstanding: ColumnType<string, never, never>;
+    status: ColumnType<'active' | 'repaid' | 'defaulted', never, never>;
+    disbursement_entry_id: ColumnType<string, string, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
   /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */
   'game.ostraca': {
     id: ColumnType<string, never, never>;
