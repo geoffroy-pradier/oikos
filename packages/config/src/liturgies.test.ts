@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_CONFIG, LITURGY_GENRES, validateConfig, type LiturgyRules } from './index';
+import {
+  DEFAULT_MAX_SPLENDOR_BPS,
+  INITIAL_CONFIG,
+  LITURGY_GENRES,
+  validateConfig,
+  type LiturgyRules,
+} from './index';
 
 type Config = Record<string, unknown> & { liturgies: LiturgyRules };
 const base = () => structuredClone(INITIAL_CONFIG) as Config;
@@ -51,6 +57,9 @@ describe('les liturgies (6.4, #719)', () => {
       [{ honorGain: -1 }, 'liturgies.honorGain'],
       [{ charisGain: 1_000_000_001 }, 'liturgies.charisGain'],
       [{ evasionHonorLoss: -5 }, 'liturgies.evasionHonorLoss'],
+      [{ maxSplendorBps: -1 }, 'liturgies.maxSplendorBps'],
+      [{ maxSplendorBps: 10_001 }, 'liturgies.maxSplendorBps'],
+      [{ maxSplendorBps: 0.5 }, 'liturgies.maxSplendorBps'],
       [{ hidden: 1 }, 'liturgies'],
     ] as const)
       expect(fieldsOf({ ...liturgies, ...patch }), JSON.stringify(patch)).toEqual([field]);
@@ -58,5 +67,16 @@ describe('les liturgies (6.4, #719)', () => {
     expect(
       fieldsOf({ ...liturgies, minDue: 7, maxDue: 7, wealthFloor: 7, dueShareBps: 10_000 }),
     ).toEqual([]);
+  });
+
+  it('le faste est borné à autant que le dû ; une version publiée avant #720 n’en admet aucun (#720)', () => {
+    expect(base().liturgies.maxSplendorBps).toBe(10_000);
+    const older: Partial<LiturgyRules> = base().liturgies;
+    delete older.maxSplendorBps;
+    const result = validateConfig({ ...base(), liturgies: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.liturgies?.maxSplendorBps).toBeUndefined();
+    expect(DEFAULT_MAX_SPLENDOR_BPS).toBe(0);
+    expect(fieldsOf({ ...base().liturgies, maxSplendorBps: 0 })).toEqual([]);
   });
 });

@@ -13,7 +13,8 @@ const oboles = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
  * cité confie une dépense publique à ses `housesPerCity` maisons les plus riches dont la fortune atteint
  * `wealthFloor`. Le dû est la part `dueShareBps` de la fortune, arrondie à l'obole supérieure, entre `minDue` et
  * `maxDue` (`liturgyDue`, `@oikos/sim`), à régler dans `dueDays` jours de jeu. Le genre est tiré dans `genres`. Les
- * gains et la perte servent à l'accomplissement et à la dérobade (#720). Aucune maison désignée au départ.
+ * gains et la perte servent à l'accomplissement et à la dérobade (#720), le faste borné par `maxSplendorBps`. Aucune
+ * maison désignée au départ.
  */
 export const liturgiesSchema = z
   .strictObject({
@@ -38,6 +39,11 @@ export const liturgiesSchema = z
     charisGain: z.number().int().min(0).max(LIMIT),
     /** Timè perdue par une dérobade, en valeur absolue (#720). */
     evasionHonorLoss: z.number().int().min(0).max(LIMIT),
+    /**
+     * Faste le plus haut qu'une maison peut ajouter à son dû, en points de base du dû (#720) : 10 000, autant que le
+     * dû. Absent des versions publiées avant #720 : `DEFAULT_MAX_SPLENDOR_BPS`, aucun faste.
+     */
+    maxSplendorBps: z.number().int().min(0).max(10_000).optional(),
   })
   .superRefine((rules, ctx) => {
     if (rules.minDue > rules.maxDue)
@@ -56,3 +62,6 @@ export const liturgiesSchema = z
       });
   });
 export type LiturgyRules = z.infer<typeof liturgiesSchema>;
+
+/** Borne du faste d'une version qui ne la donne pas (publiée avant #720) : aucun faste, comportement inchangé. */
+export const DEFAULT_MAX_SPLENDOR_BPS = 0;
