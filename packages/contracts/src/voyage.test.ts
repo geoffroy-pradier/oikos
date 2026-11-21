@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { domainEventSchema } from './events';
-import { voyageArrivedSchema, voyageDepartedSchema, voyageDepartInputSchema } from './voyage';
+import {
+  cargoLostAtSeaSchema,
+  voyageArrivedSchema,
+  voyageDepartedSchema,
+  voyageDepartInputSchema,
+} from './voyage';
 
 const SHIP = '01900000-0000-7000-8000-0000000003f1';
 const [KALLISTE, ELAIA] = [
@@ -136,6 +141,47 @@ describe('VoyageArrived', () => {
       { cargo: [{ goodId: 'wheat', quantity: 0 }] },
       { arrivedAt: undefined },
       { worldId: KALLISTE },
+    ])
+      expect([changed, parses(changed)]).toEqual([changed, false]);
+  });
+});
+
+describe('CargoLostAtSea (#730)', () => {
+  const lost = {
+    type: 'CargoLostAtSea' as const,
+    payload: {
+      voyageId: '01900000-0000-7000-8000-0000000004f1',
+      shipId: SHIP,
+      houseId: '01900000-0000-7000-8000-0000000000a1',
+      fromCityId: KALLISTE,
+      toCityId: ELAIA,
+      arrivedAt: '2026-11-15T14:10:00.000Z',
+      lossRiskBps: 1_500,
+      cargo: [
+        { goodId: 'olive_oil', quantity: 10 },
+        { goodId: 'wheat', quantity: 120 },
+      ],
+    },
+  };
+
+  it('se relit tel qu’il est écrit', () => {
+    const written = JSON.parse(JSON.stringify(lost)) as unknown;
+    expect(cargoLostAtSeaSchema.parse(written)).toEqual(lost);
+    expect(domainEventSchema.parse(written)).toEqual(lost);
+  });
+
+  it('une perte vient d’un risque non nul, entre deux cités, et emporte une cargaison non vide', () => {
+    const parses = (changed: Record<string, unknown>) =>
+      domainEventSchema.safeParse({ ...lost, payload: { ...lost.payload, ...changed } }).success;
+    expect(parses({ lossRiskBps: 10_000 })).toBe(true);
+    for (const changed of [
+      { lossRiskBps: 0 },
+      { lossRiskBps: 10_001 },
+      { toCityId: KALLISTE },
+      { cargo: [] },
+      { cargo: [{ goodId: 'wheat', quantity: 0 }] },
+      { cargo: [lost.payload.cargo[1], lost.payload.cargo[1]] },
+      { houseName: 'Alcméonides' },
     ])
       expect([changed, parses(changed)]).toEqual([changed, false]);
   });

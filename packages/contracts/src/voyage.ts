@@ -144,7 +144,10 @@ export const voyageArrivedSchema = z.strictObject({
       arrivesAt: z.iso.datetime(),
       /** Instant du tick qui a déchargé le voyage. */
       arrivedAt: z.iso.datetime(),
-      /** Ce qui a été déchargé : exactement ce qui avait été chargé. Vide pour un navire sur lest. */
+      /**
+       * Ce qui a été déchargé : exactement ce qui avait été chargé. Vide pour un navire sur lest, et pour une
+       * cargaison perdue en mer (#730), que dit alors `CargoLostAtSea`.
+       */
       cargo: z.array(cargoLineSchema),
     })
     .refine((payload) => payload.fromCityId !== payload.toCityId, {
@@ -152,5 +155,33 @@ export const voyageArrivedSchema = z.strictObject({
     })
     .refine((payload) => Date.parse(payload.arrivedAt) >= Date.parse(payload.arrivesAt), {
       message: 'a voyage does not arrive before it is due',
+    }),
+});
+
+/**
+ * Perte de la cargaison d'un voyage à son arrivée (4.6, #730), tirée par le moteur au risque fixé au départ : toute
+ * la cargaison passe de l'extrémité `in_transit` au puits `lost_at_sea`, le navire accoste à vide. Émis au même tick
+ * que le `VoyageArrived` du voyage, après lui ; jamais pour un navire sur lest.
+ */
+export const cargoLostAtSeaSchema = z.strictObject({
+  type: z.literal('CargoLostAtSea'),
+  payload: z
+    .strictObject({
+      voyageId: z.uuid(),
+      shipId: z.uuid(),
+      houseId: z.uuid(),
+      fromCityId: z.uuid(),
+      toCityId: z.uuid(),
+      /** Instant du tick qui a joué l'arrivée. */
+      arrivedAt: z.iso.datetime(),
+      /** Risque fixé au départ, en points de base : jamais nul pour une perte. */
+      lossRiskBps: z.number().int().min(1).max(10_000),
+      /** Toute la cargaison chargée, perdue. */
+      cargo: cargoSchema.refine((cargo) => cargo.length > 0, {
+        message: 'a lost cargo is not empty',
+      }),
+    })
+    .refine((payload) => payload.fromCityId !== payload.toCityId, {
+      message: 'a voyage links two different cities',
     }),
 });

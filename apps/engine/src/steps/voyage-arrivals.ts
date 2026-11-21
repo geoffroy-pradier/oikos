@@ -1,4 +1,5 @@
-import { voyageArrivedSchema } from '@oikos/contracts';
+import { cargoLostAtSeaSchema, voyageArrivedSchema } from '@oikos/contracts';
+import { voyageLoss } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { TickStep } from '../tick';
 
@@ -10,7 +11,11 @@ const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * instant : sa cargaison passe de `in_transit` au stock de sa maison dans la cité d'arrivée (ouvert s'il
  * manque), son navire y est à quai, un événement `VoyageArrived` l'annonce. Échu pendant une panne, il l'est
  * par le premier tick, rattrapé ou non, qui commence à son échéance ou après. Seuls les voyages échus sont
- * lus (`voyages_due_idx`), les listes passent en tableaux (aucune limite de paramètres), ni horloge ni hasard.
+ * lus (`voyages_due_idx`), les listes passent en tableaux (aucune limite de paramètres), sans horloge.
+ * Pertes en mer (#730) : un voyage au risque non nul tire sa perte (`voyageLoss`), à la graine du monde et de son
+ * identifiant, non à celle du tick : rejouer le tick, ou le décharger à un autre tick, rend la même issue. Une
+ * cargaison perdue passe en entier de `in_transit` au puits `lost_at_sea`, sans ouvrir de stock ; le navire
+ * accoste à vide, `VoyageArrived` ne porte rien de déchargé, et `CargoLostAtSea` dit ce qui est perdu.
  * Tous sont déchargés dans la seule transaction du tick : une erreur sur l'un d'eux fait échouer tout le tick
  * du monde, demande des PNJ comprise (échec à la télémétrie, compté par la Vigie, tick repris au passage
  * suivant).
@@ -31,7 +36,15 @@ export const voyageArrivals: TickStep = {
     );
     const due = await trx
       .selectFrom('game.voyages')
-      .select(['id', 'house_id', 'ship_id', 'from_city_id', 'to_city_id', 'arrives_at'])
+      .select([
+        'id',
+        'house_id',
+        'ship_id',
+        'from_city_id',
+        'to_city_id',
+        'arrives_at',
+        'loss_risk_bps',
+      ])
       .where('world_id', '=', worldId)
       .where('arrived_at', 'is', null)
       .where('arrives_at', '<=', scheduledAt)
@@ -42,6 +55,25 @@ export const voyageArrivals: TickStep = {
       .execute();
     if (due.length === 0) return { voyages: 0, units: 0 };
     const ids = due.map((voyage) => voyage.id);
+    // La graine du monde n'est lue que si un voyage échu a un risque : elle ne change jamais.
+    const worldSeed = due.some((voyage) => voyage.loss_risk_bps > 0)
+      ? (
+          await trx
+            .selectFrom('game.worlds')
+            .select('seed')
+            .where('id', '=', worldId)
+            .executeTakeFirstOrThrow()
+        ).seed
+      : '';
+    const lost = new Set(
+      due
+        .filter(
+          (voyage) =>
+            voyage.loss_risk_bps > 0 &&
+            voyageLoss({ worldSeed, voyageId: voyage.id, riskBps: voyage.loss_risk_bps }),
+        )
+        .map((voyage) => voyage.id),
+    );
 
     // Cargaison, dans l'ordre des stocks d'arrivée (maison, cité, bien), celui d'une récolte pour une
     // maison et une cité ; le tick peut pourtant s'interbloquer avec une récolte (voir plus haut).
@@ -56,8 +88,10 @@ export const voyageArrivals: TickStep = {
       where c.voyage_id = any(${ids}::uuid[])`.execute(trx);
     const placeOf = (line: { house_id: string; city_id: string; good_id: string }) =>
       `${line.house_id}|${line.city_id}|${line.good_id}`;
-    const unload = rows
-      .map((line) => ({ ...line, quantity: Number(line.quantity) }))
+    const cargo = rows.map((line) => ({ ...line, quantity: Number(line.quantity) }));
+    const sunk = cargo.filter((line) => lost.has(line.voyage_id));
+    const unload = cargo
+      .filter((line) => !lost.has(line.voyage_id))
       .sort(
         (a, b) =>
           byCodeUnit(a.house_id, b.house_id) ||
@@ -97,10 +131,23 @@ export const voyageArrivals: TickStep = {
       from unnest(${column('good_id')}::text[], ${unload.map((line) => line.quantity)}::bigint[],
                   ${unload.map((line) => stockOf.get(placeOf(line)))}::uuid[], ${unload.map((line) => line.voyage_id)}::uuid[])
         as m (good_id, quantity, stock, voyage)`.execute(trx);
+    if (sunk.length > 0)
+      await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_system, kind, voyage_id)
+        select ${worldId}, m.good_id, m.quantity, 'in_transit', 'lost_at_sea', 'voyage.loss', m.voyage
+        from unnest(${sunk.map((line) => line.good_id)}::text[], ${sunk.map((line) => line.quantity)}::bigint[],
+                    ${sunk.map((line) => line.voyage_id)}::uuid[]) as m (good_id, quantity, voyage)`.execute(
+        trx,
+      );
 
-    const payloads = due.map(
-      (voyage) =>
-        voyageArrivedSchema.parse({
+    const linesOf = (lines: typeof cargo, voyageId: string) =>
+      lines
+        .filter((line) => line.voyage_id === voyageId)
+        .sort((a, b) => byCodeUnit(a.good_id, b.good_id))
+        .map((line) => ({ goodId: line.good_id, quantity: line.quantity }));
+    const events = due.flatMap((voyage) => [
+      {
+        type: 'VoyageArrived',
+        payload: voyageArrivedSchema.parse({
           type: 'VoyageArrived',
           payload: {
             voyageId: voyage.id,
@@ -110,19 +157,46 @@ export const voyageArrivals: TickStep = {
             toCityId: voyage.to_city_id,
             arrivesAt: voyage.arrives_at.toISOString(),
             arrivedAt: scheduledAt.toISOString(),
-            cargo: unload
-              .filter((line) => line.voyage_id === voyage.id)
-              .map((line) => ({ goodId: line.good_id, quantity: line.quantity })),
+            cargo: linesOf(unload, voyage.id),
           },
         }).payload,
-    );
+      },
+      // Un navire sur lest n'a rien à perdre : pas d'événement de perte.
+      ...(lost.has(voyage.id) && sunk.some((line) => line.voyage_id === voyage.id)
+        ? [
+            {
+              type: 'CargoLostAtSea',
+              payload: cargoLostAtSeaSchema.parse({
+                type: 'CargoLostAtSea',
+                payload: {
+                  voyageId: voyage.id,
+                  shipId: voyage.ship_id,
+                  houseId: voyage.house_id,
+                  fromCityId: voyage.from_city_id,
+                  toCityId: voyage.to_city_id,
+                  arrivedAt: scheduledAt.toISOString(),
+                  lossRiskBps: voyage.loss_risk_bps,
+                  cargo: linesOf(sunk, voyage.id),
+                },
+              }).payload,
+            },
+          ]
+        : []),
+    ]);
     await sql`insert into game.domain_events (command_id, type, payload)
-      select null, 'VoyageArrived', e.payload::jsonb
-      from unnest(${payloads.map((payload) => JSON.stringify(payload))}::text[]) with ordinality as e (payload, rank)
+      select null, e.type, e.payload::jsonb
+      from unnest(${events.map((event) => event.type)}::text[],
+                  ${events.map((event) => JSON.stringify(event.payload))}::text[]) with ordinality as e (type, payload, rank)
       order by e.rank`.execute(trx);
+    const units = (lines: typeof cargo) => lines.reduce((sum, line) => sum + line.quantity, 0);
+    // Les pertes ne s'ajoutent au résumé que s'il y en a : un tick sans perte garde le résumé d'avant #730.
     return {
       voyages: due.length,
-      units: unload.reduce((sum, line) => sum + line.quantity, 0),
+      units: units(unload),
+      ...(sunk.length > 0 && {
+        lostVoyages: new Set(sunk.map((line) => line.voyage_id)).size,
+        lostUnits: units(sunk),
+      }),
     };
   },
 };

@@ -62,7 +62,8 @@ export async function newHouse(world: World, ships = 1) {
 /**
  * Un navire part de Kallistè vers Elaia avec sa cargaison, chargée depuis l'entrepôt de Kallistè, puis son
  * départ et son échéance sont antidatés (arrivée prévue : `arrivesAt`), gardes des voyages levées le temps
- * de les réécrire, dans une seconde transaction : le départ lui-même passe toutes les gardes.
+ * de les réécrire, dans une seconde transaction : le départ lui-même passe toutes les gardes. `lossRiskBps` :
+ * le risque de perte fixé au départ (#730).
  */
 export async function sail(
   world: World,
@@ -70,11 +71,12 @@ export async function sail(
   shipId: string,
   arrivesAt: Date,
   cargo: Record<string, number> = {},
+  lossRiskBps = 0,
 ) {
   const voyageId = await owner.transaction().execute(async (trx) => {
     const { rows } = await sql<{ id: string }>`insert into game.voyages
-      (world_id, house_id, ship_id, from_city_id, to_city_id, arrives_at)
-      values (${world.worldId}, ${houseId}, ${shipId}, ${world.kalliste}, ${world.elaia}, now() + interval '1 hour')
+      (world_id, house_id, ship_id, from_city_id, to_city_id, arrives_at, loss_risk_bps)
+      values (${world.worldId}, ${houseId}, ${shipId}, ${world.kalliste}, ${world.elaia}, now() + interval '1 hour', ${lossRiskBps})
       returning id`.execute(trx);
     const id = rows[0]?.id ?? '';
     for (const [goodId, quantity] of Object.entries(cargo)) {
@@ -155,14 +157,18 @@ export const arrive = (world: World, scheduledAt: Date) =>
     }),
   );
 
-/** Par bien : ce que contiennent les stocks du monde plus ce qui est en mer, contre ce qui a été produit. */
+/**
+ * Par bien : ce que contiennent les stocks du monde, plus ce qui est en mer, plus ce qui est perdu en mer (#730),
+ * contre ce qui a été produit.
+ */
 export const conservation = async ({ worldId }: World) =>
   (
     await sql<{ good_id: string; held: string; produced: string }>`
       select l.good_id,
         (select coalesce(sum(i.quantity), 0) from game.inventories i where i.world_id = ${worldId} and i.good_id = l.good_id)
           + coalesce(sum(l.quantity) filter (where l.to_system = 'in_transit'), 0)
-          - coalesce(sum(l.quantity) filter (where l.from_system = 'in_transit'), 0) as held,
+          - coalesce(sum(l.quantity) filter (where l.from_system = 'in_transit'), 0)
+          + coalesce(sum(l.quantity) filter (where l.to_system = 'lost_at_sea'), 0) as held,
         sum(l.quantity) filter (where l.from_system = 'production') as produced
       from game.stock_ledger l where l.world_id = ${worldId} group by l.good_id`.execute(owner)
   ).rows.every((row) => row.held === row.produced);
