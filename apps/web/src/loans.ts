@@ -135,3 +135,36 @@ export function parseTempleRules(rows: unknown): TempleRules | 'closed' | null {
 /** Plafond du principal d'une maison de Timè `honor`, par la formule de `packages/sim` ; zéro sous le premier palier. */
 export const loanCap = (honor: number, rules: TempleRules): number =>
   templeLoanCap(honor, rules.tiers);
+
+/** Alerte du tableau de bord sur un prêt (10) : une échéance proche, ou un défaut. */
+export interface LoanAlert {
+  kind: 'dueSoon' | 'overdue' | 'defaulted';
+  loan: MyLoan;
+}
+
+/**
+ * Délai, en jours de jeu, sous lequel une échéance alerte le tableau de bord : seuil d'affichage du ticket #732, pas une
+ * règle de jeu. Un jour de jeu dure vingt-quatre heures, de clôture à clôture.
+ */
+export const DUE_SOON_DAYS = 3;
+/** Millisecondes d'un jour de jeu, de clôture à clôture : conversion d'unité, pas d'équilibrage. */
+export const DAY_MS = 86_400_000;
+
+/**
+ * Prêts qui demandent la maison à `now` : ceux en défaut d'abord, puis les prêts en cours dont l'échéance tombe dans les
+ * `DUE_SOON_DAYS` jours de jeu à venir, ou est passée sans que la clôture l'ait prélevée ; le plus proche en tête.
+ */
+export function loanAlerts(loans: readonly MyLoan[], now: number): LoanAlert[] {
+  const horizon = now + DUE_SOON_DAYS * DAY_MS;
+  return [
+    ...loans
+      .filter((loan) => loan.status === 'defaulted')
+      .map((loan) => ({ kind: 'defaulted' as const, loan })),
+    ...loans
+      .filter((loan) => loan.status === 'active' && loan.dueAt <= horizon)
+      .map((loan) => ({
+        kind: loan.dueAt <= now ? ('overdue' as const) : ('dueSoon' as const),
+        loan,
+      })),
+  ];
+}

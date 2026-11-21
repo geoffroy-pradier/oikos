@@ -183,4 +183,60 @@ describe('alertes du tableau de bord (#259)', () => {
       }
     });
   });
+
+  describe('prêts de la maison (#732)', () => {
+    const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    const loan = (extra = {}) => ({
+      id: 'p1',
+      lender: 'temple',
+      principal: 6000,
+      rate_bps: 1000,
+      term_days: 30,
+      interest: 50,
+      due_day: 20_400,
+      due_at: at(2),
+      principal_repaid: 0,
+      interest_repaid: 0,
+      outstanding: 6050,
+      status: 'active',
+      ...extra,
+    });
+
+    it('échéance dans les trois jours : alerte vers l’écran Finances, avec le reste dû et la date', async () => {
+      views.rows = { my_loans: [loan()] };
+      const html = await render();
+      expect(html).toContain('href="/finances"');
+      expect(html.replace(/\p{Zs}/gu, ' ')).toContain(
+        'Prêt (Trésor du temple) à rembourser avant le ',
+      );
+      expect(html.replace(/\p{Zs}/gu, ' ')).toContain('1 008 drachmes 2 oboles restent dus');
+      expect(html).toContain('Voir mes finances');
+    });
+
+    it('défaut : alerte, quelle que soit l’échéance ; elle compte dans le total', async () => {
+      views.rows = {
+        my_loans: [loan({ status: 'defaulted', due_at: at(-9) })],
+        my_liturgies: [],
+      };
+      const html = await render();
+      expect(html).toContain('en défaut');
+      expect(html).toContain('>1<');
+    });
+
+    it('échéance passée sans prélèvement : alerte « échu »', async () => {
+      views.rows = { my_loans: [loan({ due_at: at(-0.5) })] };
+      expect(await render()).toContain('Prêt (Trésor du temple) échu');
+    });
+
+    it('échéance lointaine, prêt soldé ou aucun prêt : la carte se tait', async () => {
+      for (const rows of [
+        [loan({ due_at: at(10) })],
+        [loan({ status: 'repaid', outstanding: 0, due_at: at(1) })],
+        [],
+      ]) {
+        views.rows = { my_loans: rows };
+        expect(await render()).toBe('');
+      }
+    });
+  });
 });

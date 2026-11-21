@@ -1049,7 +1049,13 @@
     "toStaff": "See the staff",
     "toProperty": "See the property",
     "liturgy": "Liturgy entrusted to your house: {{genre}}. Due: {{due}}, to be performed before {{date}}.",
-    "toLiturgy": "Perform my liturgy"
+    "toLiturgy": "Perform my liturgy",
+    "toFinances": "See my finances",
+    "loan": {
+      "dueSoon": "Loan ({{lender}}) to repay before {{date}}: {{owed}} still owed.",
+      "defaulted": "Loan ({{lender}}) in default: {{owed}} still owed, taken at each close.",
+      "overdue": "Loan ({{lender}}) overdue: {{owed}} still owed, taken at the next close."
+    }
   },
   "cityPolitics": {
     "title": "Civic life",

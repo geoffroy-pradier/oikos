@@ -21,7 +21,7 @@ En dessous, un en-tête compact montre le blason, le nom et la cité de la maiso
 Le bouton Réglages ouvre une feuille : thème (clair, sombre ou celui de l'appareil), langue et déconnexion ; Échap la referme et rend le foyer au bouton.
 Avant la connexion, le jeu et Olympe choisissent la langue au même endroit, à droite de l'en-tête, par un même sélecteur de `@oikos/ui` (`LanguageSelect`) stylé par les jetons, sur une liste native (#868).
 Le thème de l'appareil n'est pas mémorisé : il suit le réglage du système, même quand celui-ci change en cours de partie.
-L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier et Comptes.
+L'onglet Maison a ses rubriques en pastilles, en tête de la vue d'ensemble et de l'écran Sites (#693) : Vue d'ensemble (le tableau de bord, `/`), Sites (`/sites`), Personnel, Immobilier, Comptes et Finances.
 Ce sont des liens, un par écran ; celui de l'écran ouvert est plein et marqué comme la page courante, et la gélule défile quand elle est plus large que l'écran.
 Toute rangée de pastilles ou de navigation plus large que l'écran défile ainsi, celles du jeu comme celle des modules d'Olympe (#862).
 Elle s'ouvre centrée sur son élément actif, se recentre quand il change, et montre en entier l'élément qui prend le foyer.
@@ -297,6 +297,21 @@ Les clés d'idempotence, les régions vivantes et le foyer sont ceux des autres 
    Elles forment un bandeau en tête de l'écran (#698) ; « Faire appel » ouvre une feuille, titrée par la sanction, foyer sur le texte de l'appel.
    Un compte qui n'a pas encore fondé de maison ne la voit pas.
 
+9. Finances (#732) : dettes en cours et Trésor du temple (5.4), pastille Finances de l'onglet Maison (`/finances`).
+   Les dettes sont celles de la maison seule (`my_loans`) : une fiche par prêt non soldé, avec le prêteur, le reste dû, l'échéance et les intérêts restants sur ceux fixés à l'emprunt, au taux de l'emprunt.
+   Un prêt est « en cours », « échu » (l'échéance est passée, la clôture le prélèvera) ou « en défaut » ; l'historique des prêts soldés n'est pas montré.
+   La marque de déshonneur (`house_honor`) s'annonce en tête, avec son dernier jour quand elle a une fin, ou tant que le prêt en défaut n'est pas soldé.
+   Chaque dette a son bouton « Rembourser », qui ouvre une feuille de deux étapes : le montant, en oboles avec boutons ± et raccourcis, borné par le reste dû et la trésorerie lue (`my_balance_sheet`) ;
+   puis le récapitulatif, intérêts d'abord (`splitLoanRepayment`), reste dû et trésorerie après, dont la confirmation envoie le montant vu.
+   Décision (#732) : si la trésorerie est illisible, le montant n'est borné que par le reste dû et l'API tranche (`INSUFFICIENT_FUNDS`).
+   La carte Trésor du temple montre le taux directeur, la Timè de la maison et le plafond du palier qu'elle atteint (`temple_treasury_rules`, `templeLoanCap`).
+   « Emprunter » ouvre une feuille de trois étapes : le montant jusqu'au plafond, la durée parmi celles de la configuration avec les intérêts calculés (`templeLoanInterest`), puis le récapitulatif dont la confirmation envoie le principal, la durée et le taux vus.
+   Un taux changé est refusé par l'API (`RATE_CHANGED`) : rien n'est emprunté, la feuille reste ouverte et l'écran relit.
+   Quand l'emprunt est impossible (temple fermé, marque de déshonneur, prêt du temple déjà en cours, Timè sous le premier palier), la carte le dit à la place du bouton.
+   Plafond, taux et durées viennent de la configuration, jamais du client ; des règles illisibles se relisent dans la carte sans masquer les dettes.
+   Le tableau de bord alerte d'un prêt dont l'échéance tombe dans les trois jours de jeu (ou est passée sans prélèvement) et d'un prêt en défaut, avec le lien vers l'écran Finances.
+   Décision (#732) : les trois jours sont un seuil d'affichage (`DUE_SOON_DAYS`), pas une règle de jeu ; un jour de jeu y vaut vingt-quatre heures.
+
 ## Direction artistique
 
 Décidée le 19 novembre 2026 (ADR 0011), elle remplace la direction inspirée de la céramique grecque.
@@ -379,7 +394,7 @@ Les maquettes de référence sont dans l'artefact « OIKOS — nouvelle interfac
 ## Contrôle visuel
 
 Les écrans clés du jeu et d'Olympe sont comparés à des images de référence, dans les deux thèmes, à 360 et à 1 440 px de large (#700).
-Jeu : connexion, Maison, Sites, Personnel, Immobilier, Comptes, Carte, Agora et sa feuille d'ordre, Cité, Temple, Messages (`apps/web/e2e/visual.spec.ts`) ; pour les liturgies et l'ostracisme (#723), les pastilles Liturgies et Ostracisme (au vote et dépouillé), sa feuille de vote, l'écran de la liturgie et sa feuille, et la Maison avec l'alerte, sur des lectures figées.
+Jeu : connexion, Maison, Sites, Personnel, Immobilier, Comptes, Finances (#732), Carte, Agora et sa feuille d'ordre, Cité, Temple, Messages (`apps/web/e2e/visual.spec.ts`) ; pour les liturgies et l'ostracisme (#723), les pastilles Liturgies et Ostracisme (au vote et dépouillé), sa feuille de vote, l'écran de la liturgie et sa feuille, et la Maison avec l'alerte, sur des lectures figées.
 Olympe : connexion, Vigie, Économie, Paramètres, Modération (`apps/admin/e2e/visual.spec.ts`).
 Chaque écran capturé passe aussi le contrôle axe, sans violation grave (sérieuse ou critique) des règles WCAG A et AA.
 Les données sont figées.

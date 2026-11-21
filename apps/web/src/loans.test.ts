@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loanCap, parseHouseHonor, parseMyLoans, parseTempleRules } from './loans';
+import { loanAlerts, loanCap, parseHouseHonor, parseMyLoans, parseTempleRules } from './loans';
 
 const row = (extra = {}) => ({
   id: 'l1',
@@ -98,6 +98,48 @@ describe('prêts de la maison (#732)', () => {
     if (rules === null || rules === 'closed') throw new Error('rules expected');
     expect([5, 10, 49, 50, 500].map((honor) => loanCap(honor, rules))).toEqual([
       0, 600, 600, 9000, 9000,
+    ]);
+  });
+});
+
+describe('alertes de prêt du tableau de bord (#732)', () => {
+  const now = Date.parse('2026-12-01T12:00:00+00:00');
+  const at = (days: number) => new Date(now + days * 86_400_000).toISOString();
+  const loans = (...rows: object[]) => parseMyLoans(rows.map((extra) => row(extra))) ?? [];
+
+  it('alerte d’une échéance dans les trois jours de jeu, pas au-delà ; la plus proche en tête', () => {
+    const alerts = loanAlerts(
+      loans(
+        { id: 'far', due_at: at(3.01) },
+        { id: 'edge', due_at: at(3) },
+        { id: 'soon', due_at: at(1) },
+      ),
+      now,
+    );
+    expect(alerts.map(({ kind, loan }) => [kind, loan.id])).toEqual([
+      ['dueSoon', 'soon'],
+      ['dueSoon', 'edge'],
+    ]);
+  });
+
+  it('une échéance passée que la clôture n’a pas encore prélevée alerte encore', () => {
+    expect(loanAlerts(loans({ due_at: at(-0.5) }), now).map(({ kind }) => kind)).toEqual([
+      'overdue',
+    ]);
+  });
+
+  it('un prêt en défaut alerte avant les échéances, quelle que soit son échéance ; un prêt soldé jamais', () => {
+    const alerts = loanAlerts(
+      loans(
+        { id: 'soon', due_at: at(1) },
+        { id: 'late', status: 'defaulted', due_at: at(-9) },
+        { id: 'paid', status: 'repaid', outstanding: 0, due_at: at(1) },
+      ),
+      now,
+    );
+    expect(alerts.map(({ kind, loan }) => [kind, loan.id])).toEqual([
+      ['defaulted', 'late'],
+      ['dueSoon', 'soon'],
     ]);
   });
 });
