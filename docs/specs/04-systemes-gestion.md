@@ -531,6 +531,9 @@ Pertes en mer, dans la phase 3 (#730) :
 - Le joueur lit l'issue de ses voyages (`my_voyages.cargo_lost`, migration 9961) : nulle tant que le voyage est en mer, si bien que rien du tirage ne paraît avant l'arrivée, puis vraie si la cargaison a été perdue, fausse sinon.
   La carte et la fiche du navire annoncent alors un navire arrivé à vide, sa cargaison perdue en mer, et non déchargée dans le stock ; la liste des voyages garde la cargaison chargée, dite perdue.
   Le message de réussite d'un départ dit le risque fixé, que porte la réponse de `voyage.depart` (`lossRiskBps`) ; nul, il n'est pas dit.
+- Navire perdu à Némésis (7.2, #735) : un voyage que la clôture a condamné ne tire pas sa perte à l'arrivée ; toute sa cargaison passe de `in_transit` à l'extrémité `nemesis`, et le navire accoste à vide.
+  `VoyageArrived` ne porte rien de déchargé, aucun `CargoLostAtSea` n'est émis (la clôture a émis `NemesisStruck`), et le résumé de l'étape compte ces voyages et leurs unités (`nemesisVoyages`, `nemesisUnits`), seulement s'il y en a.
+  Le joueur lit ce voyage perdu (`my_voyages.cargo_lost`), comme une cargaison perdue en mer.
 
 ## 4.7 Le savoir
 

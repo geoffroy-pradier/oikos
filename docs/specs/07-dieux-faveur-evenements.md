@@ -129,7 +129,25 @@ Décision : une clôture jouée sous une telle version ne compte pas non plus le
 La médiane compte chaque maison de joueur du monde ; une maison absente de `game.house_wealth`, qui les rend pourtant toutes, y compterait pour une fortune nulle.
 Limites connues : la fortune est lue quand la clôture se joue, et non à son instant de jeu, comme pour la désignation des liturgies ; un échange en cours à l'instant de la clôture n'entre dans la fenêtre qu'aux clôtures suivantes.
 Une maison seule à vendre un bien peu échangé dans une cité y détient toute la part, quelle que soit la quantité : le calibrage en tiendra compte.
-Présages et Némésis viennent avec le ticket suivant (Hybris 2/2) ; l'écran aussi.
+Dans la phase 3 (#735), Némésis suit la jauge : la section `hubris.nemesis` fixe le seuil (`threshold`), le délai du présage (`omenLeadDays`), l'excès plein (`fullExcess`) et les modèles en jeu, avec les bornes de la part que prennent l'incendie et le procès.
+La clôture joue Némésis dans son étape `nemesis`, après le retrait des maisons PNJ et avant le marché du travail et l'entretien : d'abord l'échéance, puis les présages.
+Présage : une maison de joueur dont la jauge dépasse strictement le seuil, sans présage en attente, en reçoit un (`OmenReceived`), d'un modèle tiré avec la même chance parmi ceux en jeu, échu `omenLeadDays` jours plus tard.
+Décision (règle 6) : le présage est un texte de repli écrit à la main, trois par modèle, en `fr` et en `en` (`apps/engine/src/nemesis/locales`), tiré avec le modèle par une graine à sens unique du monde, de la maison et du jour, et enregistré avec lui ; il dit à mots couverts ce qui menace, sans chiffre ni jour.
+Échéance : la clôture du jour d'échéance, ou la suivante après une clôture manquée, règle le présage une fois.
+Si la jauge, après la variation du jour, dépasse encore le seuil en vigueur, la sanction frappe (`NemesisStruck`) ; sinon, ou sous une version sans `hubris.nemesis`, ou sans le modèle du présage, elle est évitée (`NemesisAverted`) et rien n'arrive.
+Ampleur : de la borne basse du modèle au moindre excès à sa borne haute à l'excès plein, au prorata entre les deux, arrondie vers le bas (`nemesisMagnitudeBps`, `packages/sim`).
+Décision (ambiguïté de cette section) : la jauge redescend de l'excès compté, plafonné à `fullExcess` (`nemesisRelief`), par une ligne `nemesis` de son journal ; une jauge loin au-delà du seuil y reste, et reçoit un présage nouveau à la même clôture.
+Modèles :
+- incendie d'entrepôt (`warehouse_fire`) : la part de l'ampleur, arrondie vers le bas, du stock libre (hors réservations des ventes ouvertes) le plus fourni de la maison, toutes cités confondues, part à l'extrémité `nemesis` du journal des stocks ;
+- procès (`lawsuit`) : une amende, part de la trésorerie (hors séquestre), détruite par le puits `sink_nemesis` (5.5) ;
+- artisan qui déserte (`artisan_desertion`) : le plus ancien atelier en marche de la maison s'arrête, ne doit rien à l'entretien de cette clôture, dont le marché du travail ne compte pas ses travailleurs, et ne repart pas avant l'instant de la clôture suivante, qui le relance s'il est payé ; une relance est refusée d'ici là (`SITE_DESERTED`) ;
+- navire perdu (`ship_lost`) : le voyage en mer de la maison qui porte le plus de marchandises est condamné ; à son arrivée, toute sa cargaison part à l'extrémité `nemesis`, comme une perte en mer (4.6), et le navire accoste à vide.
+Décision : une maison qui n'a rien à perdre (trésorerie ou stock vides, part arrondie à zéro, aucun atelier en marche, aucun voyage chargé en mer) est frappée sans rien perdre, et sa jauge redescend quand même.
+Le joueur lit ses présages (`public.my_omens`) : textes, jours du présage et de l'échéance, puis l'issue et ce que la sanction a pris ; le modèle seulement une fois réglée, jamais l'ampleur ni la baisse de la jauge, rien d'une autre maison.
+Configuration initiale : seuil au plus grand entier sûr, que la jauge ne dépasse jamais, délai de trois jours, excès plein de 10 000, incendie de 5 à 30 %, procès de 5 à 20 % : aucun présage avant le calibrage.
+Limites connues : une maison qui vide sa trésorerie ou son stock avant l'échéance échappe à l'amende ou à l'incendie, pas à la baisse de sa jauge ; la cargaison d'un navire condamné compte encore dans la fortune jusqu'à son arrivée, comme celle de tout voyage en mer.
+Une sanction réglée par le code nouveau suppose le moteur nouveau : revenu au moteur précédent, l'arrivée d'un voyage condamné serait refusée par la base, et le tick de son monde échouerait jusqu'au retour du code nouveau.
+Hors périmètre : présage réécrit par la Pythie et l'IA, procès devant un tribunal de joueurs, écran.
 
 ## 7.3 La Pythie
 
@@ -175,7 +193,7 @@ Limite connue : un joueur qui consulte chaque jour voit un oracle nouveau paraî
 Le prix de la consultation se lit dans la colonne `oracle` de `public.temple_rules`, nulle pour une version publiée avant la Pythie.
 Configuration initiale : 60 oboles, à revoir au calibrage (#283).
 Limite connue : un événement planifié par le code précédent pendant un déploiement n'a pas d'oracle, et aucune consultation ne le rend.
-Hors périmètre : marché des oracles, présages de Némésis, écran du temple (#272).
+Hors périmètre : marché des oracles, présages de Némésis réécrits par la Pythie (7.2), écran du temple (#272).
 
 ## 7.4 Événements
 

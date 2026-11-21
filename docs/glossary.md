@@ -13,6 +13,8 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Charis | Faveur divine d'une maison envers un dieu, entière, gagnée par les offrandes et les actes ; elle décline à chaque clôture et ne se transfère pas (`favor`) |
 | Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |
 | Hybris | Démesure : jauge cachée d'une maison de joueur, entière, tenue par un journal en ajout seul ; elle monte quand la maison domine trop (part de marché, fortune, liturgies refusées) et baisse par les offrandes, le mécénat et un déclin quotidien (`hubris`) |
+| Némésis (nemesis) | Sanction divine de la démesure : quand la jauge d'Hybris d'une maison dépasse le seuil, un présage l'annonce, et à l'échéance, si la jauge n'est pas redescendue, l'incendie d'un entrepôt, un procès, un artisan qui déserte ou un navire perdu la frappe, proportionné à l'excès (`nemesis`) |
+| Présage (omen) | Annonce d'une sanction de Némésis, adressée par la clôture à la maison qu'elle menace, quelques jours avant l'échéance (`nemesis_omens`, `my_omens`) |
 | Palier d'Hybris (hubris tier) | Seule mesure de sa jauge d'Hybris qu'un joueur lit : le nombre de bornes de la configuration qu'elle atteint (`hubris.tiers`, `my_hubris_tier`) |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Faste (splendor) | Ce qu'une maison paie au-delà du dû de sa liturgie, dans une borne, pour plus de Timè et de Charis (`splendor`) |

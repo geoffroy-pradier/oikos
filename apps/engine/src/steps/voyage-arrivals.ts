@@ -16,6 +16,9 @@ const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * identifiant, non à celle du tick : rejouer le tick, ou le décharger à un autre tick, rend la même issue. Une
  * cargaison perdue passe en entier de `in_transit` au puits `lost_at_sea`, sans ouvrir de stock ; le navire
  * accoste à vide, `VoyageArrived` ne porte rien de déchargé, et `CargoLostAtSea` dit ce qui est perdu.
+ * Navire perdu à Némésis (7.2, #735) : un voyage que la clôture a condamné ne tire pas sa perte ; toute sa cargaison
+ * passe de `in_transit` à l'extrémité `nemesis`, rattachée au présage, et le navire accoste à vide, sans
+ * `CargoLostAtSea` (l'événement `NemesisStruck` de la clôture l'a dit).
  * Tous sont déchargés dans la seule transaction du tick : une erreur sur l'un d'eux fait échouer tout le tick
  * du monde, demande des PNJ comprise (échec à la télémétrie, compté par la Vigie, tick repris au passage
  * suivant).
@@ -55,6 +58,17 @@ export const voyageArrivals: TickStep = {
       .execute();
     if (due.length === 0) return { voyages: 0, units: 0 };
     const ids = due.map((voyage) => voyage.id);
+    // Voyages condamnés par Némésis (#735), et le présage de chacun.
+    const omenOf = new Map(
+      (
+        await trx
+          .selectFrom('game.nemesis_omens')
+          .select(['id', 'voyage_id'])
+          .where('voyage_id', '=', sql<string>`any(${ids}::uuid[])`)
+          .where('outcome', '=', 'struck')
+          .execute()
+      ).map((omen) => [omen.voyage_id, omen.id]),
+    );
     // La graine du monde n'est lue que si un voyage échu a un risque : elle ne change jamais.
     const worldSeed = due.some((voyage) => voyage.loss_risk_bps > 0)
       ? (
@@ -69,6 +83,7 @@ export const voyageArrivals: TickStep = {
       due
         .filter(
           (voyage) =>
+            !omenOf.has(voyage.id) &&
             voyage.loss_risk_bps > 0 &&
             voyageLoss({ worldSeed, voyageId: voyage.id, riskBps: voyage.loss_risk_bps }),
         )
@@ -90,8 +105,9 @@ export const voyageArrivals: TickStep = {
       `${line.house_id}|${line.city_id}|${line.good_id}`;
     const cargo = rows.map((line) => ({ ...line, quantity: Number(line.quantity) }));
     const sunk = cargo.filter((line) => lost.has(line.voyage_id));
+    const doomed = cargo.filter((line) => omenOf.has(line.voyage_id));
     const unload = cargo
-      .filter((line) => !lost.has(line.voyage_id))
+      .filter((line) => !lost.has(line.voyage_id) && !omenOf.has(line.voyage_id))
       .sort(
         (a, b) =>
           byCodeUnit(a.house_id, b.house_id) ||
@@ -136,6 +152,14 @@ export const voyageArrivals: TickStep = {
         select ${worldId}, m.good_id, m.quantity, 'in_transit', 'lost_at_sea', 'voyage.loss', m.voyage
         from unnest(${sunk.map((line) => line.good_id)}::text[], ${sunk.map((line) => line.quantity)}::bigint[],
                     ${sunk.map((line) => line.voyage_id)}::uuid[]) as m (good_id, quantity, voyage)`.execute(
+        trx,
+      );
+    if (doomed.length > 0)
+      await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_system, kind, voyage_id, nemesis_id)
+        select ${worldId}, m.good_id, m.quantity, 'in_transit', 'nemesis', 'nemesis.ship_lost', m.voyage, m.omen
+        from unnest(${doomed.map((line) => line.good_id)}::text[], ${doomed.map((line) => line.quantity)}::bigint[],
+                    ${doomed.map((line) => line.voyage_id)}::uuid[],
+                    ${doomed.map((line) => omenOf.get(line.voyage_id) ?? null)}::uuid[]) as m (good_id, quantity, voyage, omen)`.execute(
         trx,
       );
 
@@ -196,6 +220,11 @@ export const voyageArrivals: TickStep = {
       ...(sunk.length > 0 && {
         lostVoyages: new Set(sunk.map((line) => line.voyage_id)).size,
         lostUnits: units(sunk),
+      }),
+      // De même pour les voyages perdus à Némésis (#735).
+      ...(doomed.length > 0 && {
+        nemesisVoyages: new Set(doomed.map((line) => line.voyage_id)).size,
+        nemesisUnits: units(doomed),
       }),
     };
   },
