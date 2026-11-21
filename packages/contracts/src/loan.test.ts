@@ -75,4 +75,47 @@ describe('prêts du temple (#724)', () => {
     ).toBe(false);
     expect(LOAN_STATUSES).toEqual(['active', 'repaid', 'defaulted']);
   });
+
+  it('prélèvement et défaut de la clôture (#725) : parts non nulles ensemble, Timè perdue positive', () => {
+    const loanId = '01900000-0000-7000-8000-000000000725';
+    const houseId = '01900000-0000-7000-8000-0000000007a5';
+    const collected = {
+      type: 'LoanCollected' as const,
+      payload: {
+        loanId,
+        houseId,
+        interest: 5,
+        principal: 0,
+        outstanding: 95,
+        status: 'active' as const,
+        gameDay: 9,
+      },
+    };
+    expect(domainEventSchema.parse(collected)).toEqual(collected);
+    const nothing = { ...collected.payload, interest: 0 };
+    expect(domainEventSchema.safeParse({ ...collected, payload: nothing }).success).toBe(false);
+    const defaulted = {
+      type: 'LoanDefaulted' as const,
+      payload: {
+        loanId,
+        houseId,
+        lender: 'temple' as const,
+        outstanding: 95,
+        honorLost: 0,
+        gameDay: 9,
+      },
+    };
+    expect(domainEventSchema.parse(defaulted)).toEqual(defaulted);
+    for (const patch of [
+      { outstanding: 0 },
+      { honorLost: -1 },
+      { gameDay: -1 },
+      { lender: 'bank' },
+    ])
+      expect(
+        domainEventSchema.safeParse({ ...defaulted, payload: { ...defaulted.payload, ...patch } })
+          .success,
+        JSON.stringify(patch),
+      ).toBe(false);
+  });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_CONFIG, validateConfig, type TempleTreasuryRules } from './index';
+import {
+  DEFAULT_DISHONOR_DAYS,
+  DEFAULT_LOAN_DEFAULT_HONOR_LOSS,
+  INITIAL_CONFIG,
+  validateConfig,
+  type TempleTreasuryRules,
+} from './index';
 
 type Config = Record<string, unknown> & { templeTreasury: TempleTreasuryRules };
 const base = () => structuredClone(INITIAL_CONFIG) as Config;
@@ -48,6 +54,12 @@ describe('le Trésor du temple (5.4, #724)', () => {
       [{ principalCaps: tiers([5, 10], [0, 20]) }, 'templeTreasury.principalCaps[1].minHonor'],
       [{ principalCaps: tiers([0, 20], [5, 10]) }, 'templeTreasury.principalCaps[1].maxPrincipal'],
       [{ hidden: 1 }, 'templeTreasury'],
+      [{ defaultHonorLoss: -1 }, 'templeTreasury.defaultHonorLoss'],
+      [{ defaultHonorLoss: 1e9 + 1 }, 'templeTreasury.defaultHonorLoss'],
+      [{ defaultHonorLoss: 0.5 }, 'templeTreasury.defaultHonorLoss'],
+      [{ dishonorDays: -1 }, 'templeTreasury.dishonorDays'],
+      [{ dishonorDays: 3661 }, 'templeTreasury.dishonorDays'],
+      [{ dishonorDays: 1.5 }, 'templeTreasury.dishonorDays'],
     ] as const)
       expect(fieldsOf({ ...rules, ...patch }), JSON.stringify(patch)).toEqual([field]);
     // Bornes atteintes : taux nul ou de 100 %, une seule durée d'un an, aucun palier, paliers égaux en plafond.
@@ -56,7 +68,18 @@ describe('le Trésor du temple (5.4, #724)', () => {
       { policyRateBps: 10_000, termDays: [366] },
       { principalCaps: [] },
       { principalCaps: tiers([-1e9, 0], [0, 1e12], [1e9, 1e12]) },
+      { defaultHonorLoss: 0, dishonorDays: 0 },
+      { defaultHonorLoss: 1e9, dishonorDays: 3660 },
     ])
       expect(fieldsOf({ ...rules, ...patch }), JSON.stringify(patch)).toEqual([]);
+  });
+
+  it('une version publiée avant #725 ne donne ni perte de Timè ni durée de la marque : ni perte, marque levée au solde', () => {
+    const { defaultHonorLoss, dishonorDays, ...older } = base().templeTreasury;
+    expect([defaultHonorLoss, dishonorDays]).toEqual([0, 28]);
+    const result = validateConfig({ ...base(), templeTreasury: older });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.templeTreasury?.dishonorDays).toBeUndefined();
+    expect([DEFAULT_LOAN_DEFAULT_HONOR_LOSS, DEFAULT_DISHONOR_DAYS]).toEqual([0, 0]);
   });
 });

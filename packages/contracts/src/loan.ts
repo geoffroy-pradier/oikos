@@ -44,7 +44,7 @@ export const LOAN_BORROW_ERROR_CODES = [
   'RATE_CHANGED',
   /** Cette durée n'est pas parmi celles que le temple admet. */
   'TERM_NOT_OFFERED',
-  /** La maison porte une marque de déshonneur (un prêt en défaut, #725). */
+  /** La maison porte une marque de déshonneur : un prêt en défaut, ou soldé depuis moins de `dishonorDays` jours (#725). */
   'DISHONORED',
   /** La maison a déjà un prêt du temple en cours. */
   'LOAN_OUTSTANDING',
@@ -94,4 +94,32 @@ export const loanDisbursedSchema = z.strictObject({
 export const loanRepaidSchema = z.strictObject({
   type: z.literal('LoanRepaid'),
   payload: z.strictObject({ ...repaid, houseId: z.uuid() }),
+});
+
+/**
+ * La clôture a prélevé sur la trésorerie d'une maison ce qu'elle couvrait d'un prêt échu (#725), intérêts d'abord, par
+ * une écriture `loan.collect` : parts des intérêts et du principal, non nulles ensemble, reste dû et état après, jour
+ * de jeu de la clôture. Lu par le seul serveur.
+ */
+export const loanCollectedSchema = z.strictObject({
+  type: z.literal('LoanCollected'),
+  payload: z
+    .strictObject({ ...repaid, houseId: z.uuid(), gameDay: day })
+    .refine((payload) => payload.interest + payload.principal > 0, 'a collection takes something'),
+});
+
+/**
+ * Un prêt non soldé à son échéance est passé en défaut (#725) : ce qui reste dû, la Timè perdue (positive, nulle sans
+ * perte) et le jour de jeu de la clôture. La maison porte une marque de déshonneur. Lu par le seul serveur.
+ */
+export const loanDefaultedSchema = z.strictObject({
+  type: z.literal('LoanDefaulted'),
+  payload: z.strictObject({
+    loanId: z.uuid(),
+    houseId: z.uuid(),
+    lender: z.literal('temple'),
+    outstanding: oboles,
+    honorLost: owed,
+    gameDay: day,
+  }),
 });
