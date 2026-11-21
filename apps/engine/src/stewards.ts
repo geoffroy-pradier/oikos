@@ -20,6 +20,7 @@ import {
 } from '@oikos/operations';
 import type { StewardAction } from '@oikos/sim';
 import { sql, type ControlledTransaction } from 'kysely';
+import { runNpcHouseRules } from './npc-house-rules';
 import { candidates, plan, type Steward, type StewardTick } from './steward-plan';
 
 export type { StewardTick } from './steward-plan';
@@ -323,12 +324,13 @@ export async function runStewards(db: Db, tick: StewardTick): Promise<StewardRun
  * Mène les opérations des intendants de chaque monde pour son dernier tick joué, sous la version de configuration
  * de ce tick. Appelé à chaque passage du moteur, après les ticks et les clôtures : une opération manquée (moteur
  * arrêté, panne) est menée au passage suivant tant que le tick est le dernier, puis ne l'est plus. L'échec d'un
- * monde n'arrête pas les autres.
+ * monde n'arrête pas les autres. Les règles des maisons PNJ de secours (#716) se mènent au même pas, après celles
+ * des intendants du monde (`npc`).
  */
 export async function runAllStewards(
   db: Db,
   { config }: { config: Pick<ConfigLoader, 'byId'> },
-): Promise<{ worldId: string; run?: StewardRun; error?: string }[]> {
+): Promise<{ worldId: string; run?: StewardRun; npc?: StewardRun; error?: string }[]> {
   // Mondes illisibles (base indisponible) : signalé et rien à faire, sans faire échouer le passage du moteur.
   const worlds = await db
     .selectFrom('game.worlds')
@@ -339,7 +341,7 @@ export async function runAllStewards(
       console.error('Stewards: worlds could not be read', error);
       return [];
     });
-  const results: { worldId: string; run?: StewardRun; error?: string }[] = [];
+  const results: { worldId: string; run?: StewardRun; npc?: StewardRun; error?: string }[] = [];
   for (const { id: worldId } of worlds) {
     try {
       const last = await db
@@ -357,7 +359,8 @@ export async function runAllStewards(
         configVersionId: loaded.id,
         config: loaded.config,
       };
-      results.push({ worldId, run: await runStewards(db, tick) });
+      const run = await runStewards(db, tick);
+      results.push({ worldId, run, npc: await runNpcHouseRules(db, tick) });
     } catch (error) {
       console.error(`World ${worldId}: stewards could not act`, error);
       results.push({ worldId, error: error instanceof Error ? error.message : String(error) });
