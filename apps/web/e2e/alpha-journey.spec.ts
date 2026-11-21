@@ -154,6 +154,7 @@ test('parcours de l’alpha : deux joueurs, deux cités, IA coupée', async ({
     false,
     false,
     false,
+    false,
   ]);
   const startedAt = new Date();
   await setUpOracle();
