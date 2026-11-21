@@ -125,6 +125,8 @@ La clôture joue l'Hybris dans son étape `hubrisGauge`, après la planification
 Le joueur ne lit que le palier de sa jauge (`public.my_hubris_tier`) : le nombre de bornes de `hubris.tiers`, dans la configuration en vigueur, que sa jauge atteint ; il ne lit jamais sa valeur, ni rien de la jauge d'une autre maison.
 Configuration initiale : seuil de 35 %, fenêtre de 7 jours, trois fois la médiane, paliers à 1 000, 3 000, 6 000 et 10 000 ; poids, baisses et déclin nuls : la jauge ne bouge pas avant le calibrage.
 Une version publiée avant l'Hybris ne change aucune jauge, et tout palier y est nul.
+Décision : une clôture jouée sous une telle version ne compte pas non plus les actes de sa période (les liturgies prélevées à la clôture précédente, les offrandes et liturgies accomplies de la période d'avant) : ils restent ignorés, la période suivante commençant à la dernière clôture enregistrée.
+La médiane compte chaque maison de joueur du monde ; une maison absente de `game.house_wealth`, qui les rend pourtant toutes, y compterait pour une fortune nulle.
 Limites connues : la fortune est lue quand la clôture se joue, et non à son instant de jeu, comme pour la désignation des liturgies ; un échange en cours à l'instant de la clôture n'entre dans la fenêtre qu'aux clôtures suivantes.
 Une maison seule à vendre un bien peu échangé dans une cité y détient toute la part, quelle que soit la quantité : le calibrage en tiendra compte.
 Présages et Némésis viennent avec le ticket suivant (Hybris 2/2) ; l'écran aussi.
