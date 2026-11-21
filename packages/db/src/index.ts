@@ -791,6 +791,28 @@ export interface GameDatabase {
     created_at: ColumnType<Date, never, never>;
   };
   /**
+   * Mouvements d'un dépôt (#727), en ajout seul : un dépôt ou un retrait, payé par l'écriture `ledger_entry_id`
+   * (`bank.deposit`, `bank.withdraw`), ou l'intérêt du jour `game_day`, sans écriture, écrit par la clôture. La base
+   * écrit le taux affiché et, hors intérêt, le jour de jeu ; elle les applique au dépôt.
+   */
+  'game.bank_deposit_movements': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    deposit_id: ColumnType<string, string, never>;
+    bank_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    kind: ColumnType<
+      'deposit' | 'withdraw' | 'interest',
+      'deposit' | 'withdraw' | 'interest',
+      never
+    >;
+    amount: ColumnType<string, number, never>;
+    rate_bps: ColumnType<number, never, never>;
+    game_day: ColumnType<number | null, number | undefined, never>;
+    ledger_entry_id: ColumnType<string | null, string | undefined, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
    * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
    * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`. Seule la
