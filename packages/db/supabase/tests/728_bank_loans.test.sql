@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(39);
 
 -- Jeu d'essai : un monde à lui, une cité. Alice (a) tient la banque, 20 000 oboles de capital au coffre ; Bob (b) et
 -- Chloé (c) empruntent. Trésoreries : 50 000 chacune. Configuration en vigueur : l'horloge, qui date les prêts.
@@ -32,6 +32,8 @@ insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loa
 values ('01900000-0000-7000-8000-0000000728f1', '01900000-0000-7000-8000-0000000728c2', '00000000-0000-7000-8000-0000000728a2',
         'Trapeza Alkmaion', 100, 800, 0);
 
+-- Les logements naissent à leur maison, garde levée (les achats ont leurs propres tests).
+alter table game.properties disable trigger properties_guard;
 create function pg_temp.house(n text) returns uuid language sql as $$
   select ('00000000-0000-7000-8000-0000000728' || n || '2')::uuid
 $$;
@@ -65,12 +67,13 @@ begin
   perform set_config('role', 'none', true);
   return entry;
 end $$;
--- Offre de la banque à `n` : principal, 12 % l'an, 30 jours, gagée sur le logement (la garantie vient en migration 0303).
+-- Offre de la banque à `n` : principal, 12 % l'an, 30 jours, gagée sur un logement neuf de `n`.
 create function pg_temp.offer(n text, principal bigint) returns uuid language plpgsql as $$
 declare offer uuid;
 begin
-  insert into game.properties (world_id, city_id, size_id, lot) select '01900000-0000-7000-8000-0000000728f1',
-    '01900000-0000-7000-8000-0000000728c2', 'townhouse', count(*) + 1 from game.properties;
+  insert into game.properties (world_id, city_id, size_id, lot, owner_house_id, acquired_at)
+  select '01900000-0000-7000-8000-0000000728f1', '01900000-0000-7000-8000-0000000728c2', 'townhouse', count(*) + 1,
+    pg_temp.house(n), now() from game.properties;
   insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
     collateral_property_id)
   values ('01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), principal, 1200, 30, 'property',
@@ -91,6 +94,24 @@ begin
      values (%L, %L, %L, %s, %s, %s, %s, %s, %s, %L, %L, %L, %L)', o.world_id, 'bank', o.borrower_house_id,
     coalesce(p, o.principal), o.rate_bps, o.term_days, ceil(coalesce(p, o.principal)::numeric * o.rate_bps * o.term_days / 3650000),
     pg_temp.today(), pg_temp.today() + o.term_days, pg_temp.close_at(pg_temp.today() + o.term_days), entry, o.bank_id, o.id));
+end $$;
+-- Offre de la banque à `n` gagée sur `quantity` unités du bien `good` de son stock à Pella.
+create function pg_temp.stock_offer(n text, principal bigint, quantity bigint, good text = 'olives') returns uuid
+language sql as $$
+  insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
+    collateral_city_id, collateral_good_id, collateral_quantity)
+  values ('01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), principal, 1200, 30, 'stock',
+    '01900000-0000-7000-8000-0000000728c2', good, quantity) returning id
+$$;
+create function pg_temp.olives(n text) returns text language sql as $$
+  select quantity || '/' || reserved from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'
+$$;
+-- Sortie de `quantity` olives du stock de `n` vers la consommation, au nom du service.
+create function pg_temp.consume(n text, quantity bigint) returns void language plpgsql as $$
+begin
+  perform pg_temp.as_service(format('insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system,
+    kind) values (%L, %L, %s, %L, %L, %L)', '01900000-0000-7000-8000-0000000728f1', 'olives', quantity,
+    (select id from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'), 'consumption', 'test'));
 end $$;
 create function pg_temp.loan(n text) returns game.loans language sql as $$
   select * from game.loans where borrower_house_id = pg_temp.house(n) order by created_at desc, id desc limit 1
@@ -119,6 +140,11 @@ end $$;
 do $$ begin perform pg_temp.entry('bank.capital_in', pg_temp.treasury('a'), pg_temp.vault_id(), 20000); end $$;
 set constraints all immediate;
 set constraints all deferred;
+insert into game.inventories (world_id, house_id, city_id, good_id) values
+  ('01900000-0000-7000-8000-0000000728f1', pg_temp.house('b'), '01900000-0000-7000-8000-0000000728c2', 'olives');
+insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
+select '01900000-0000-7000-8000-0000000728f1', 'olives', 100, 'production', id, 'test' from game.inventories
+where house_id = pg_temp.house('b');
 create temporary table money_before as select pg_temp.money() as total;
 create temporary table offers (n text primary key, id uuid);
 insert into offers values ('b', pg_temp.offer('b', 5000)), ('c', pg_temp.offer('c', 3000)), ('w', pg_temp.offer('c', 1000));
@@ -183,5 +209,39 @@ select throws_ok($$update game.loans set offer_id = null where borrower_house_id
 select throws_ok($$select pg_temp.as_service(format('update game.loans set status = %L, defaulted_day = due_day where id = %L',
   'defaulted', (pg_temp.loan('c')).id))$$, '23001', null, 'un prêt de banque ne passe pas en défaut avant sa saisie');
 select is(pg_temp.money(), (select total from money_before), 'un prêt de banque ne crée ni ne détruit de monnaie');
+-- 5. Garantie d'un stock : retenue sur le stock libre, aucune sortie ne l'entame, libérée au solde.
+select lives_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 1000, 40))$$, 'un prêt gagé sur 40 olives');
+select is(pg_temp.olives('b'), '100/40', 'le stock gagé est retenu sur le stock de l''emprunteur');
+select throws_ok($$select pg_temp.consume('b', 61)$$, '23514', 'new row for relation "inventories" violates check constraint "inventories_reserved_within_quantity"', 'un stock gagé ne sort par aucun chemin');
+select lives_ok($$select pg_temp.consume('b', 60)$$, 'le stock libre sort');
+select throws_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 100, 1))$$, '23514', 'new row for relation "inventories" violates check constraint "inventories_reserved_within_quantity"',
+  'un prêt ne gage que du stock libre');
+select throws_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 100, 1, 'wine'))$$, '23514', 'a bank loan pledges collateral its borrower holds free',
+  'un prêt ne gage pas un stock que l''emprunteur n''a pas');
+select lives_ok($$select pg_temp.repay('b', 10, 1000)$$, 'le prêt gagé se rembourse');
+select is(pg_temp.olives('b'), '40/0', 'au solde, le stock gagé se libère');
+
+-- 6. Garantie d'un logement : ni offert, ni vendu, ni gagé deux fois tant que le prêt n'est pas remboursé.
+create temporary table pledged as select collateral_property_id as id from game.bank_loan_offers
+  where id = (select id from offers where n = 'c');
+-- Nouvelle offre à `n` gagée sur ce logement.
+create function pg_temp.property_offer(n text) returns uuid language sql as $$
+  insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
+    collateral_property_id)
+  select '01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), 100, 1200, 30, 'property', id from pledged
+  returning id
+$$;
+select throws_ok($$insert into game.property_listings (world_id, property_id, house_id, kind, price_oboles)
+  select '01900000-0000-7000-8000-0000000728f1', id, pg_temp.house('c'), 'lease', 10 from pledged$$, '23514', 'a pledged property is neither listed nor sold',
+  'un logement gagé ne s''offre pas à la location');
+select throws_ok($$update game.properties set owner_house_id = pg_temp.house('b') where id = (select id from pledged)$$,
+  '23514', 'a pledged property is neither listed nor sold', 'un logement gagé ne change pas de propriétaire');
+select throws_ok($$select pg_temp.lend(pg_temp.property_offer('c'))$$, '23514', 'a bank loan pledges collateral its borrower holds free', 'un logement gagé ne se gage pas deux fois');
+select lives_ok($$select pg_temp.repay('c', 30, 3000)$$, 'le prêt gagé sur le logement se rembourse');
+select lives_ok($$insert into game.property_listings (world_id, property_id, house_id, kind, price_oboles)
+  select '01900000-0000-7000-8000-0000000728f1', id, pg_temp.house('c'), 'sale', 10 from pledged$$,
+  'au solde, le logement s''offre de nouveau');
+select throws_ok($$select pg_temp.lend(pg_temp.property_offer('c'))$$, '23514', 'a bank loan pledges collateral its borrower holds free', 'un logement offert à la vente ne se gage pas');
+
 select * from finish();
 rollback;
