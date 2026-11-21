@@ -3,6 +3,7 @@ import { CLOSE_STEPS } from './close-steps';
 import { archonHonor } from './steps/archon-honor';
 import { archonOpening } from './steps/archon-opening';
 import { archonTally } from './steps/archon-tally';
+import { bankInterest } from './steps/bank-interest';
 import { citizenship } from './steps/citizenship';
 import { decreeApplication } from './steps/decree-application';
 import { decreeSpending } from './steps/decree-spending';
@@ -49,7 +50,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // agora, lisent la fortune après les événements du monde et avant tout ce qui touche la monnaie ; la dérobade
     // (#720) prend les Timè et les liturgies échues avant les Charis et l'agora, le prélèvement suit les loyers.
     // L'échéance des prêts du temple (#725) : les Timè des maisons en défaut possible avec la dérobade, avant l'agora ;
-    // le prélèvement après celui des liturgies, avant l'entretien, qui paie avec ce qui reste.
+    // le prélèvement après celui des liturgies, avant l'entretien, qui paie avec ce qui reste. L'intérêt des dépôts (#727)
+    // juste après, sous l'agora que l'échéance tient déjà.
     // La jauge d'Hybris (#734), sans monnaie ni stock ni agora, après les événements du monde et avant les liturgies.
     const order = [
       citizenship,
@@ -71,6 +73,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       leaseRent,
       liturgyLevy,
       loanCollection,
+      bankInterest,
       propertyWear,
       npcHouseRetreatStep,
       laborMarket,
@@ -87,9 +90,10 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(laborMarket)).toBe(CLOSE_STEPS.length - 5);
     expect(CLOSE_STEPS.indexOf(npcHouseRetreatStep)).toBe(CLOSE_STEPS.length - 6);
     expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 7);
-    expect(CLOSE_STEPS.indexOf(loanCollection)).toBe(CLOSE_STEPS.length - 8);
-    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 9);
-    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 10);
+    expect(CLOSE_STEPS.indexOf(bankInterest)).toBe(CLOSE_STEPS.length - 8);
+    expect(CLOSE_STEPS.indexOf(loanCollection)).toBe(CLOSE_STEPS.length - 9);
+    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 10);
+    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 11);
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);

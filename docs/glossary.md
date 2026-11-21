@@ -16,8 +16,10 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Palier d'Hybris (hubris tier) | Seule mesure de sa jauge d'Hybris qu'un joueur lit : le nombre de bornes de la configuration qu'elle atteint (`hubris.tiers`, `my_hubris_tier`) |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
 | Faste (splendor) | Ce qu'une maison paie au-delà du dû de sa liturgie, dans une borne, pour plus de Timè et de Charis (`splendor`) |
-| Trapeza (bank) | Banque d'une maison de joueur, une au plus par maison, dans la cité de sa citoyenneté : elle tient un coffre, collectera des dépôts et prêtera sur garantie (`bank`) |
+| Trapeza (bank) | Banque d'une maison de joueur, une au plus par maison, dans la cité de sa citoyenneté : elle tient un coffre, collecte des dépôts et prêtera sur garantie (`bank`) |
 | Coffre (vault) | Compte du grand livre d'une banque, ouvert par la base à sa fondation, jamais débiteur : la masse monétaire le compte, et la fortune de la maison de la banque aussi (`vault`) |
+| Dépôt (deposit) | Créance d'une maison sur une banque qui n'est pas la sienne, tenue en table et grossie chaque jour de son intérêt ; ce n'est pas de la monnaie (`deposit`) |
+| Ruée (bank run) | Retraits des déposants jusqu'au coffre vide : un retrait que le coffre ne couvre pas est refusé (`VAULT_SHORT`) |
 | Dérobade (evasion) | Liturgie non accomplie à son échéance : prélevée d'office sur la trésorerie, sans dette, avec une perte de Timè (`liturgy_evaded`) |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |
 | Âge | Un monde de jeu (un serveur) |
