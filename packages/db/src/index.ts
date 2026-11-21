@@ -20,6 +20,9 @@ import pg from 'pg';
 export type HubrisCauseCode =
   'market_share' | 'wealth' | 'liturgy_levied' | 'offering' | 'liturgy_performed' | 'decay';
 
+/** Modèles de sanction de Némésis (7.2, #735), ceux de la contrainte `nemesis_omens.model`. */
+export type NemesisModelCode = 'warehouse_fire' | 'lawsuit' | 'artisan_desertion' | 'ship_lost';
+
 export * from './bank-vaults';
 export * from './city-rates';
 export * from './honor';
