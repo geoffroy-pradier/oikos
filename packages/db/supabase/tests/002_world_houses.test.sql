@@ -54,6 +54,8 @@ select is(
     || 'leases(end_reason,end_requested_at,end_requested_by,ended_at,ended_day,id,landlord_house_id,property_id,rent_oboles,started_at,tenant_house_id) '
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'liturgies(city_id,designated_day,due_at,due_day,genre,house_id,season,status,world_id) '
+    || 'loan_repayments(created_at,game_day,house_id,id,interest,ledger_entry_id,loan_id,principal) '
+    || 'loans(borrowed_day,borrower_house_id,created_at,due_at,due_day,id,interest,interest_repaid,lender,outstanding,principal,principal_repaid,rate_bps,status,term_days,world_id) '
     || 'messages(channel_id,created_at,hidden_at,house_id,id,visible_body) '
     || 'npc_houses(city_id,house_id,world_id) npc_population(city_id,class_id,closed_day,coverage_bps,population) '
     || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '

@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { createDb, serviceRoleUrl } from '@oikos/db';
-import { createRng, houseWealth, type Rng } from '@oikos/sim';
+import {
+  createRng,
+  houseWealth,
+  splitLoanRepayment,
+  templeLoanInterest,
+  type Rng,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, expect, it } from 'vitest';
 
@@ -13,10 +19,18 @@ const owner = createDb(DATABASE_URL);
 afterAll(() => Promise.all([service.destroy(), owner.destroy()]));
 
 const GOODS = ['wheat', 'olives', 'fish', 'salt'] as const;
+const [RATE, TERM] = [1_000, 7];
 const CITIES = 2;
 type Stock = { city: number; good: string; quantity: number; consumed: boolean };
 type Scenario = {
-  houses: { grant: number; pending: [number, number] | null; stocks: Stock[]; sails: boolean }[];
+  houses: {
+    grant: number;
+    pending: [number, number] | null;
+    stocks: Stock[];
+    sails: boolean;
+    /** Prêt du temple (#724) : principal, et oboles remboursées (zéro, une part, ou tout). */
+    loan: [number, number] | null;
+  }[];
   observed: { city: number; good: string; price: number }[];
 };
 /** Couples (cité, bien) distincts, tirés dans l'ordre. */
@@ -30,7 +44,8 @@ function pairs(rng: Rng, max: number) {
  * Scénario tiré d'une graine : une à cinq maisons, chacune une dotation (parfois nulle), parfois un achat en attente
  * (prix × quantité au séquestre), des stocks dans les deux cités, parfois vidés ; quelques prix observés. Une
  * maison sur deux a un navire en mer de la cité 0 vers la cité 1, chargé de la moitié de chaque stock non vidé de la
- * cité 0 (sur lest sans stock) : sa cargaison compte au prix de la cité 1 (#719).
+ * cité 0 (sur lest sans stock) : sa cargaison compte au prix de la cité 1 (#719). Une maison sur deux a emprunté au
+ * temple, à 10 % pour 7 jours, et en a remboursé rien, une part ou tout : son reste dû se déduit (#724).
  */
 function scenario(seed: string): Scenario {
   const rng = createRng(seed);
@@ -44,13 +59,24 @@ function scenario(seed: string): Scenario {
       consumed: rng.next() < 0.2,
     })),
     sails: rng.next() < 0.5,
+    loan: null as [number, number] | null,
   }));
+  for (const house of houses) {
+    if (rng.next() < 0.5) continue;
+    const principal = rng.int(1, 1_000_000);
+    const owed = principal + Number(templeLoanInterest(BigInt(principal), RATE, TERM));
+    // Tout rembourser demande que la dotation couvre les intérêts ; sinon, au plus le principal.
+    const roll = rng.next();
+    const repaid =
+      roll < 0.3 ? 0 : roll < 0.6 && house.grant >= owed - principal ? owed : rng.int(1, principal);
+    house.loan = [principal, repaid];
+  }
   const observed = pairs(rng, 4).map((pair) => ({ ...pair, price: rng.int(1, 100_000) }));
   return { houses, observed };
 }
 
-it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part, cargaisons en mer comprises', async () => {
-  let atSea = 0;
+it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part, cargaisons en mer comprises, dettes déduites', async () => {
+  let [atSea, borrowed, repaidLoans] = [0, 0, 0];
   for (let run = 0; run < 15; run += 1) {
     const { houses, observed } = scenario(`house-wealth-${run}`);
     const world = randomUUID();
@@ -77,15 +103,19 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
         await sql`insert into game.accounts (world_id, kind, house_id)
           values (${world}, 'house', ${id}), (${world}, 'escrow', ${id})`.execute(trx);
         const held = h.pending ? h.pending[0] * h.pending[1] : 0;
-        const post = async (kind: string, lines: [unknown, number][]) => {
+        const post = async (kind: string, lines: [unknown, number][], meta = {}) => {
           const { rows } = await sql<{
             id: string;
-          }>`insert into game.ledger_entries (world_id, kind)
-            values (${world}, ${kind}) returning id`.execute(trx);
+          }>`insert into game.ledger_entries (world_id, kind, meta)
+            values (${world}, ${kind}, ${JSON.stringify(meta)}) returning id`.execute(trx);
           for (const [account, n] of lines)
-            await sql`insert into game.ledger_lines (entry_id, account_id, amount)
-              values (${rows[0]?.id}, ${account}, ${n})`.execute(trx);
+            if (n !== 0)
+              await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+                values (${rows[0]?.id}, ${account}, ${n})`.execute(trx);
+          return rows[0]?.id ?? '';
         };
+        const system = (key: string) =>
+          sql`(select id from game.accounts where world_id = ${world} and system_key = ${key})`;
         const account = (kind: string) =>
           sql`(select id from game.accounts where house_id = ${id} and kind = ${kind})`;
         const grant = h.grant + held;
@@ -94,6 +124,37 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             [faucet, -grant],
             [account('house'), grant],
           ]);
+        if (h.loan) {
+          // Emprunt et remboursement comme `loan.borrowFromTemple` et `loan.repay` les écrivent.
+          const [principal, repaid] = h.loan;
+          const interest = templeLoanInterest(BigInt(principal), RATE, TERM);
+          const disbursed = await post('loan.temple_disburse', [
+            [system('faucet_temple_loans'), -principal],
+            [account('house'), principal],
+          ]);
+          const { rows: loan } = await sql<{ id: string }>`insert into game.loans (world_id, lender,
+              borrower_house_id, principal, rate_bps, term_days, interest, borrowed_day, due_day, due_at,
+              disbursement_entry_id)
+            values (${world}, 'temple', ${id}, ${principal}, ${RATE}, ${TERM}, ${interest}, 100, ${100 + TERM},
+              now() + interval '7 days', ${disbursed}) returning id`.execute(trx);
+          if (repaid > 0) {
+            const split = splitLoanRepayment(BigInt(repaid), interest);
+            const entry = await post(
+              'loan.repay',
+              [
+                [account('house'), -repaid],
+                [system('sink_temple_interest'), Number(split.interest)],
+                [system('faucet_temple_loans'), Number(split.principal)],
+              ],
+              { loanId: loan[0]?.id },
+            );
+            await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal,
+                game_day, ledger_entry_id)
+              values (${world}, ${loan[0]?.id}, ${id}, ${split.interest}, ${split.principal}, 101, ${entry})`.execute(
+              trx,
+            );
+          }
+        }
         if (h.pending) {
           const [price, quantity] = h.pending;
           await sql`insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
@@ -173,6 +234,14 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
       left join game.observed_prices p on p.city_id = v.to_city_id and p.good_id = k.good_id
       where v.world_id = ${world} and v.arrived_at is null`.execute(owner);
     atSea += cargo.length;
+    // Dette attendue tirée du scénario, pas de la base : principal + intérêts − remboursé.
+    const debtOf = (loan: [number, number] | null) =>
+      loan
+        ? BigInt(loan[0]) + templeLoanInterest(BigInt(loan[0]), RATE, TERM) - BigInt(loan[1])
+        : 0n;
+    const loaned = houses.filter((h) => h.loan);
+    borrowed += loaned.length;
+    repaidLoans += loaned.filter((h) => debtOf(h.loan) === 0n).length;
     const { rows: actual } = await sql<{
       house_id: string;
       treasury: string;
@@ -188,7 +257,8 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
     for (const [index, id] of ids.entries()) {
       // Les soldes lus sont bien ceux du scénario : dotation, et prix retenu de l'achat en attente.
       const pending = houses[index]?.pending;
-      expect(balance(id, 'house')).toBe(BigInt(houses[index]?.grant ?? -1));
+      const [principal, repaid] = houses[index]?.loan ?? [0, 0];
+      expect(balance(id, 'house')).toBe(BigInt((houses[index]?.grant ?? -1) + principal - repaid));
       expect(balance(id, 'escrow')).toBe(BigInt(pending ? pending[0] * pending[1] : 0));
       const expected = houseWealth({
         treasury: balance(id, 'house'),
@@ -199,6 +269,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             quantity: BigInt(s.quantity),
             unitPrice: s.price === null ? null : BigInt(s.price),
           })),
+        debt: debtOf(houses[index]?.loan ?? null),
       });
       const row = actual.find((r) => r.house_id === id);
       expect({
@@ -206,12 +277,14 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
         escrow: BigInt(row?.escrow ?? -1),
         stockValue: BigInt(row?.stock_value ?? -1),
         unpricedStocks: row?.unpriced_stocks,
-        // Aucun prêt dans ces scénarios : rien à déduire (#724).
-        debt: 0n,
+        debt: expected.debt,
         wealth: BigInt(row?.wealth ?? -1),
       }).toEqual(expected);
     }
   }
   // Des cargaisons sont bien en mer dans ces scénarios : la branche « en mer » est comparée.
   expect(atSea).toBeGreaterThan(5);
+  // Des prêts sont en cours et d'autres remboursés : la dette déduite et la dette éteinte sont comparées.
+  expect(borrowed - repaidLoans).toBeGreaterThan(3);
+  expect(repaidLoans).toBeGreaterThan(0);
 });
