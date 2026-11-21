@@ -1,15 +1,15 @@
 begin;
-select plan(27);
+select plan(38);
 
 -- Jeu d'essai : un monde à lui, Kallistè (k) et Elaia (l). Alice (a) a 100 blés et 40 huiles à Kallistè, un atelier
--- et un navire à quai ; Bob (b) a un navire. Les présages sont adressés au jour 300 et frappent au jour 303 ; les
+-- et un navire à quai ; Bob (b) a un navire ; Chloé (c) n'a pas de maison. Les présages sont adressés au jour 300 et frappent au jour 303 ; les
 -- mouvements sont écrits comme le moteur les écrit (#735).
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000735e0', 'nemesis-e-735', 'Némésis');
 insert into game.cities (id, world_id, slug, name) values
   ('01900000-0000-7000-8000-0000000735e1', '01900000-0000-7000-8000-0000000735e0', 'k735e', 'Kallistè'),
   ('01900000-0000-7000-8000-0000000735e2', '01900000-0000-7000-8000-0000000735e0', 'l735e', 'Elaia');
 insert into auth.users (id, email)
-select ('00000000-0000-4000-8000-000000735e' || n || n)::uuid, 'nemesis-e-735-' || n || '@example.test' from unnest(array['a', 'b']) n;
+select ('00000000-0000-4000-8000-000000735e' || n || n)::uuid, 'nemesis-e-735-' || n || '@example.test' from unnest(array['a', 'b', 'c']) n;
 insert into game.houses (id, world_id, user_id, name, blazon)
 select ('00000000-0000-7000-8000-000000735e' || n || '1')::uuid, '01900000-0000-7000-8000-0000000735e0',
        ('00000000-0000-4000-8000-000000735e' || n || n)::uuid, name, '{}'
@@ -177,6 +177,47 @@ select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = 
   '23514', 'a deserted workshop waits for the next close', 'il ne repart pas avant l''instant de reprise, même relancé');
 select throws_ok($$update game.sites set halted_at = null where id = '00000000-0000-7000-8000-000000735ed1'$$,
   '23514', 'a deserted workshop waits for the next close', 'quel que soit le rôle');
+
+
+-- Lectures (migration 203) : chaque joueur lit ses présages, jamais l'ampleur ni la baisse de la jauge, rien d'autrui.
+select lives_ok($$select pg_temp.as_service($q$
+  insert into game.nemesis_omens (world_id, house_id, model, text_fr, text_en, omen_day, due_day)
+  values ('01900000-0000-7000-8000-0000000735e0', '00000000-0000-7000-8000-000000735eb1', 'lawsuit', 'Sceau', 'Seal', 308, 311)$q$)$$,
+  'un présage en attente pour Bob');
+select is(
+  (select string_agg(column_name, ' ' order by ordinal_position) from information_schema.columns
+   where table_schema = 'public' and table_name = 'my_omens'),
+  'id house_id text_fr text_en omen_day due_day outcome model settled_day oboles city_id good_id quantity site_id resumes_at voyage_id',
+  'la vue ne porte ni l''ampleur ni la baisse de la jauge');
+select is(
+  (select string_agg(r.rolname, ' ' order by r.rolname) from pg_roles r
+   where not r.rolsuper and r.rolname in ('anon', 'authenticated', 'authenticator', 'oikos_service', 'service_role')
+     and (has_table_privilege(r.oid, 'public.my_omens', 'select, insert, update, delete, truncate, references, trigger')
+          or has_function_privilege(r.oid, 'game.my_omens()', 'execute'))),
+  'authenticated', 'la vue et sa fonction ne sont lues que par les joueurs connectés');
+select is(has_table_privilege('authenticated', 'public.my_omens', 'insert, update, delete'), false,
+  'et personne n''écrit par elle');
+set local role anon;
+select throws_ok('select * from public.my_omens', '42501', null, 'un visiteur anonyme ne lit aucun présage');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-000000735eaa", "role": "authenticated"}';
+select results_eq($$select model, outcome, settled_day, city_id, good_id, quantity, site_id is not null, resumes_at is not null
+                    from public.my_omens order by omen_day$$,
+  $$values ('warehouse_fire', 'struck', 303, '01900000-0000-7000-8000-0000000735e1'::uuid, 'wheat', 30::bigint, false, false),
+           ('artisan_desertion', 'struck', 307, null, null, null, true, true)$$,
+  'Alice lit ses deux sanctions : le stock brûlé, l''atelier déserté et l''instant de sa reprise');
+select throws_ok('select relief from game.nemesis_omens', '42501', null, 'elle ne lit pas la table des présages');
+select is((select count(*) from game.my_omens() where house_id <> '00000000-0000-7000-8000-000000735ea1'), 0::bigint,
+  'ni, par la fonction seule, les présages de Bob');
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-000000735ebb", "role": "authenticated"}';
+select results_eq($$select text_fr, due_day, outcome, model, voyage_id is not null from public.my_omens order by omen_day$$,
+  $$values ('Écume', 303, 'struck', 'ship_lost', true), ('Sceau', 311, null, null, false)$$,
+  'Bob lit son navire perdu, et son présage en attente sans le modèle de la sanction');
+select is((select cargo_lost from public.my_voyages), true, 'son voyage se lit perdu');
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-000000735ecc", "role": "authenticated"}';
+select is((select count(*) from public.my_omens), 0::bigint, 'un compte sans maison ne lit aucun présage');
+reset role;
 
 select * from finish();
 rollback;
