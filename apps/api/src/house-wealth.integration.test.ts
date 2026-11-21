@@ -36,6 +36,8 @@ type Scenario = {
     loan: [number, number] | null;
     /** Banque (#726) : droit de fondation détruit et capital versé au coffre, que la fortune compte. */
     bank: [number, number] | null;
+    /** Dépôt (#727) dans la banque d'une autre maison du scénario : sa banque, le montant déposé, puis retiré. */
+    deposit: [number, number, number] | null;
   }[];
   observed: { city: number; good: string; price: number }[];
 };
@@ -68,6 +70,7 @@ function scenario(seed: string): Scenario {
     sails: rng.next() < 0.5,
     loan: null as [number, number] | null,
     bank: null as [number, number] | null,
+    deposit: null as [number, number, number] | null,
   }));
   for (const house of houses) {
     if (rng.next() < 0.5) continue;
@@ -88,16 +91,34 @@ function scenario(seed: string): Scenario {
     const roll = rng.next();
     house.bank = [fee, roll < 0.2 ? 0 : roll < 0.4 ? cash - fee : rng.int(0, cash - fee)];
   }
+  // Tirée après le reste, pour garder les scénarios d'avant #727 : une maison sur deux dépose dans la banque d'une autre
+  // ce que sa trésorerie couvre, parfois tout, et en retire parfois une part ou tout.
+  for (const [index, house] of houses.entries()) {
+    const banks = houses.flatMap((other, at) => (at !== index && other.bank ? [at] : []));
+    const cash =
+      house.grant +
+      (house.loan ? house.loan[0] - house.loan[1] : 0) -
+      (house.bank ? house.bank[0] + house.bank[1] : 0);
+    if (banks.length === 0 || cash <= 0 || rng.next() < 0.5) continue;
+    const amount = rng.next() < 0.2 ? cash : rng.int(1, cash);
+    const roll = rng.next();
+    house.deposit = [
+      banks[rng.int(0, banks.length - 1)] ?? -1,
+      amount,
+      roll < 0.4 ? 0 : roll < 0.6 ? amount : rng.int(0, amount),
+    ];
+  }
   return { houses, observed };
 }
 
-it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part, cargaisons en mer et coffres compris, dettes déduites', async () => {
-  let [atSea, borrowed, repaidLoans, banked] = [0, 0, 0, 0];
+it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part, cargaisons en mer, coffres et dépôts compris, dettes déduites', async () => {
+  let [atSea, borrowed, repaidLoans, banked, deposited] = [0, 0, 0, 0, 0];
   for (let run = 0; run < 15; run += 1) {
     const { houses, observed } = scenario(`house-wealth-${run}`);
     const world = randomUUID();
     const cities = Array.from({ length: CITIES }, () => randomUUID());
     const ids = houses.map(() => randomUUID());
+    const bankIds: (string | null)[] = houses.map(() => null);
     await owner.transaction().execute(async (trx) => {
       // Jour de jeu et horloge de la base, que la base vérifie à l'emprunt (#725).
       const { rows: clocks } = await sql<{
@@ -226,6 +247,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
               ],
               { bankId },
             );
+          bankIds[index] = bankId ?? null;
           banked += 1;
         }
         const loads: [inventory: string, good: string, quantity: number][] = [];
@@ -269,6 +291,39 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             trx,
           );
         }
+      }
+      // Dépôts et retraits comme `bank.deposit` et `bank.withdraw` les écrivent, une fois toutes les banques fondées.
+      for (const [index, h] of houses.entries()) {
+        if (!h.deposit) continue;
+        const [at, amount, withdrawn] = h.deposit;
+        const [id, bankId] = [ids[index] ?? '', bankIds[at] ?? ''];
+        const treasury = sql`(select id from game.accounts where house_id = ${id} and kind = 'house')`;
+        const vault = sql`(select id from game.accounts where bank_id = ${bankId})`;
+        const { rows: deposit } = await sql<{
+          id: string;
+        }>`insert into game.bank_deposits (world_id, bank_id, house_id)
+          values (${world}, ${bankId}, ${id}) returning id`.execute(trx);
+        for (const [kind, n] of [
+          ['deposit', amount],
+          ['withdraw', withdrawn],
+        ] as const) {
+          if (n === 0) continue;
+          const { rows: entry } = await sql<{
+            id: string;
+          }>`insert into game.ledger_entries (world_id, kind, meta)
+            values (${world}, ${`bank.${kind}`}, ${JSON.stringify({ bankId })}) returning id`.execute(
+            trx,
+          );
+          const [from, to] = kind === 'deposit' ? [treasury, vault] : [vault, treasury];
+          await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+            values (${entry[0]?.id}, ${to}, ${n}), (${entry[0]?.id}, ${from}, ${-n})`.execute(trx);
+          await sql`insert into game.bank_deposit_movements (world_id, deposit_id, bank_id, house_id, kind, amount,
+              ledger_entry_id)
+            values (${world}, ${deposit[0]?.id}, ${bankId}, ${id}, ${kind}, ${n}, ${entry[0]?.id})`.execute(
+            trx,
+          );
+        }
+        deposited += 1;
       }
       for (const p of observed)
         await sql`insert into game.observed_prices (world_id, city_id, good_id, price, volume, window_seconds, observed_at)
@@ -321,8 +376,9 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
       const pending = houses[index]?.pending;
       const [principal, repaid] = houses[index]?.loan ?? [0, 0];
       const [fee, capital] = houses[index]?.bank ?? [0, 0];
+      const [, put, taken] = houses[index]?.deposit ?? [0, 0, 0];
       expect(balance(id, 'house')).toBe(
-        BigInt((houses[index]?.grant ?? -1) + principal - repaid - fee - capital),
+        BigInt((houses[index]?.grant ?? -1) + principal - repaid - fee - capital - put + taken),
       );
       expect(balance(id, 'escrow')).toBe(BigInt(pending ? pending[0] * pending[1] : 0));
       const expected = houseWealth({
@@ -335,7 +391,9 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             unitPrice: s.price === null ? null : BigInt(s.price),
           })),
         debt: debtOf(houses[index]?.loan ?? null),
+        // Le coffre net des dépôts que la banque doit : son capital, les dépôts reçus s'y annulant.
         vault: BigInt(capital),
+        deposits: BigInt(put - taken),
       });
       const row = actual.find((r) => r.house_id === id);
       expect({
@@ -357,4 +415,6 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
   expect(repaidLoans).toBeGreaterThan(0);
   // Des banques sont fondées : le coffre compté par la base est comparé.
   expect(banked).toBeGreaterThan(3);
+  // Des dépôts sont tenus : la créance du déposant et la dette de la banque sont comparées.
+  expect(deposited).toBeGreaterThan(3);
 });

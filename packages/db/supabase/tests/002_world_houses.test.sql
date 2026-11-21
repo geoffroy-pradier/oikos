@@ -38,6 +38,7 @@ select is(
          where grantee = 'authenticated' and table_schema = 'game' and privilege_type = 'SELECT'
          group by table_name) granted),
   'accounts(balance,house_id,id,kind) ballots(cast_at,election_id,house_id) '
+    || 'bank_deposits(balance,bank_id,created_at,house_id,id,world_id) '
     || 'banks(city_id,deposit_rate_bps,founded_at,house_id,id,loan_rate_bps,name,world_id) '
     || 'candidacies(created_at,election_id,house_id,id,withdrawn_at) '
     || 'channels(city_id,created_at,house_high,house_low,id,kind,world_id) '
