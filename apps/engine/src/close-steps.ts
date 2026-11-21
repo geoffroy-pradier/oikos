@@ -7,6 +7,7 @@ import { decreeApplication } from './steps/decree-application';
 import { decreeSpending } from './steps/decree-spending';
 import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
+import { hubrisGauge } from './steps/hubris-gauge';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
@@ -30,7 +31,8 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * verrous de la Timè, l'ouverture des élections suivantes, le dépouillement des décrets (6.3), l'ouverture du vote
  * des ostracismes adoptés, la population des PNJ,
  * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
- * les siens, sans autre verrou que celui de la clôture du monde, la désignation des liturgies (6.4, #719), qui lit
+ * les siens, sans autre verrou que celui de la clôture du monde, la jauge d'Hybris (7.2, #734), qui n'écrit que ses
+ * jauges, sous ce même verrou, la désignation des liturgies (6.4, #719), qui lit
  * la fortune des maisons avant que la clôture ne touche la monnaie, sans autre verrou non plus, la dérobade aux
  * liturgies échues (#720), qui prend les Timè de leurs maisons puis les verrouille avant les Charis et l'agora, dans
  * l'ordre de `liturgy.perform`, les Timè des maisons dont un prêt du temple échoit (5.4, #725), dans le même ordre, le
@@ -75,6 +77,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   ostracismOpening,
   npcPopulation,
   worldEventPlanning,
+  hubrisGauge,
   liturgyAssignment,
   liturgyEvasion,
   loanDefaultLocks,
