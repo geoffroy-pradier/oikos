@@ -105,10 +105,38 @@ export const npcHouseFoundedSchema = z.strictObject({
   }),
 });
 
+/** Un site d'une maison PNJ fermé ou rouvert par le retrait (8.3, #717), à la part des joueurs qui l'a décidé. */
+const npcHouseSiteMove = z.strictObject({
+  houseId: z.uuid(),
+  worldId: z.uuid(),
+  cityId: z.uuid(),
+  chainId: z.string().min(1),
+  siteId: z.uuid(),
+  /** Part des maisons de joueurs dans les ventes du bien de la filière, sur la fenêtre, en points de base. */
+  shareBps: z.number().int().min(0).max(10_000),
+  /** Sites encore ouverts après le mouvement. */
+  openSites: z.number().int().nonnegative(),
+  gameDay: z.number().int().nonnegative(),
+});
+
+/** Événement de la clôture (8.3, #717) : les joueurs tiennent le marché de la filière, la maison PNJ ferme un site. */
+export const npcHouseRetreatedSchema = z.strictObject({
+  type: z.literal('NpcHouseRetreated'),
+  payload: npcHouseSiteMove,
+});
+
+/** Événement de la clôture (8.3, #717) : les joueurs ne tiennent plus le marché, la maison PNJ rouvre un site. */
+export const npcHouseReturnedSchema = z.strictObject({
+  type: z.literal('NpcHouseReturned'),
+  payload: npcHouseSiteMove,
+});
+
 export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
   npcHouseFoundedSchema,
+  npcHouseRetreatedSchema,
+  npcHouseReturnedSchema,
   siteCollectedSchema,
   siteAcquiredSchema,
   siteRecipeChangedSchema,
