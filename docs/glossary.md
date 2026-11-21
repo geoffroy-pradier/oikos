@@ -14,6 +14,8 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |
 | Hybris | Démesure : jauge qui monte quand une maison domine trop |
 | Liturgie | Dépense publique imposée aux plus riches, source de prestige |
+| Faste (splendor) | Ce qu'une maison paie au-delà du dû de sa liturgie, dans une borne, pour plus de Timè et de Charis (`splendor`) |
+| Dérobade (evasion) | Liturgie non accomplie à son échéance : prélevée d'office sur la trésorerie, sans dette, avec une perte de Timè (`liturgy_evaded`) |
 | Olympiade | Cycle de 16 semaines réelles, conclu par les Jeux |
 | Âge | Un monde de jeu (un serveur) |
 | Olympe (Olympus) | Le back-office : l'outil des administrateurs, distinct du client joueur |
