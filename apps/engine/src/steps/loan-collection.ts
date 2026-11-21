@@ -29,6 +29,29 @@ const dueLoans = ({ trx, worldId, closeAt }: CloseContext) =>
     .where('due_at', '<=', closeAt);
 
 /**
+ * Verrous du défaut des prêts (5.4, #725), première des deux étapes de l'échéance : la Timè (`honor:<maison>`) de chaque
+ * maison dont un prêt du temple, encore en cours, est échu à l'instant de la clôture, dans l'ordre des identifiants. Elle
+ * vient avec la dérobade aux liturgies, avant le déclin de la Charis et l'agora : `loan.borrowFromTemple` et
+ * `liturgy.perform` prennent la Timè avant l'agora, et `loanCollection`, qui écrit la Timè perdue, vient bien après.
+ * Sans perte de Timè, elle ne verrouille rien.
+ */
+export const loanDefaultLocks: CloseStep = {
+  name: 'loanDefaultLocks',
+  async run(context) {
+    if (lossOf(context) === 0) return { houses: 0 };
+    const houses = [
+      ...new Set(
+        (await dueLoans(context).where('status', '=', 'active').execute()).map(
+          (l) => l.borrower_house_id,
+        ),
+      ),
+    ].sort();
+    for (const houseId of houses) await lockKey(context.trx, `honor:${houseId}`);
+    return { houses: houses.length };
+  },
+};
+
+/**
  * Échéance des prêts du temple (5.4, #725), après le prélèvement d'office des liturgies et avant l'entretien : chaque
  * prêt échu à l'instant de la clôture et encore dû prend sur la trésorerie de son emprunteur, hors séquestre, ce qu'elle
  * couvre, intérêts d'abord (`collectDueLoans`), par une écriture `loan.collect` (aucune s'il n'y a rien à prendre) ; ce
@@ -36,8 +59,8 @@ const dueLoans = ({ trx, worldId, closeAt }: CloseContext) =>
  * en défaut : événement `LoanDefaulted`, perte de Timè `templeTreasury.defaultHonorLoss` (motif `loan_defaulted`,
  * rognée aux bornes de la Timè), marque de déshonneur. Verrous : l'agora, les puits de l'entretien, les trésoreries par
  * identifiant, puis les prêts ; la base n'admet qu'un prélèvement par prêt et par jour, dans la transaction qui
- * enregistre la clôture de son jour : rejouée, la clôture ne prélève rien deux fois. Elle écrit la Timè perdue après
- * l'agora : l'étape qui en prend les verrous avant elle, et sa place dans la clôture, viennent ensuite.
+ * enregistre la clôture de son jour : rejouée, la clôture ne prélève rien deux fois. La Timè perdue s'écrit sous les
+ * verrous que `loanDefaultLocks` a pris avant l'agora.
  */
 export const loanCollection: CloseStep = {
   name: 'loanCollection',

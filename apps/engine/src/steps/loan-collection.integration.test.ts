@@ -10,8 +10,9 @@ import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql, type RawBuilder } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runDailyClose, type CloseStep } from '../close';
+import { CLOSE_STEPS } from '../close-steps';
 import { neutralEconomy } from '../neutral.integration-fixtures';
-import { loanCollection } from './loan-collection';
+import { loanCollection, loanDefaultLocks } from './loan-collection';
 
 // Échéance des prêts du temple (#725), contre Supabase local. Chaque test a son monde et joue des clôtures passées.
 const DATABASE_URL =
@@ -39,14 +40,19 @@ beforeAll(async () => {
 });
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
-const close = (worldId: string, gameDay: number, steps: readonly CloseStep[] = [loanCollection]) =>
+const close = (
+  worldId: string,
+  gameDay: number,
+  steps: readonly CloseStep[] = [loanDefaultLocks, loanCollection],
+  sites = initial.sites,
+) =>
   runDailyClose(db, {
     worldId,
     gameDay,
     closeAt: dailyCloseAt(gameDay, clock),
     config: {
       at: async () => {
-        const config: GameConfig = { ...initial, clock };
+        const config: GameConfig = { ...initial, clock, sites };
         config.templeTreasury = {
           policyRateBps: 1_000,
           termDays: [7],
@@ -74,10 +80,10 @@ const credit = (worldId: string, houseId: string, oboles: number) =>
 
 /**
  * Un monde à une cité ; chaque maison emprunte 500 oboles pour 7 jours comme l'écrit `loan.borrowFromTemple`, puis sa
- * trésorerie passe à `treasury`. Les prêts sont ensuite reculés de dix jours, gardes levées : un prêt ne naît
- * qu'aujourd'hui.
+ * trésorerie passe à `treasury` ; ses sites (`recipes`) ont dix jours. Les prêts sont ensuite reculés de dix jours,
+ * gardes levées : un prêt ne naît qu'aujourd'hui.
  */
-async function newWorld(houses: { treasury: number }[]) {
+async function newWorld(houses: { treasury: number; recipes?: string[] }[]) {
   const [worldId, cityId] = [randomUUID(), randomUUID()];
   const ids = houses.map(() => randomUUID()).sort();
   const users = ids.map(() => randomUUID());
@@ -106,6 +112,16 @@ async function newWorld(houses: { treasury: number }[]) {
         values (${worldId}, 'temple', ${id}, ${PRINCIPAL}, 1000, 7, 1, ${TODAY}, ${TODAY + 7},
           ${dailyCloseAt(TODAY + 7, clock)}, ${rows[0]?.id})`.execute(trx);
     }
+    const sites = houses.flatMap((house, index) =>
+      (house.recipes ?? []).map((recipe) => [ids[index], recipe]),
+    );
+    await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+    await sql`insert into game.sites (world_id, house_id, city_id, recipe_id, created_at, cycle_started_at)
+      select ${worldId}, h, ${cityId}, r, now() - interval '10 days', now() - interval '9 days'
+      from unnest(${sites.map((site) => site[0])}::uuid[], ${sites.map((site) => site[1])}::text[]) v (h, r)`.execute(
+      trx,
+    );
+    await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
   });
   for (const [index, id] of ids.entries())
     if ((houses[index]?.treasury ?? 0) !== PRINCIPAL)
@@ -153,9 +169,11 @@ describe('échéance des prêts du temple (#725)', () => {
     ]);
     const [a, b, c] = ids as [string, string, string];
     expect((await close(worldId, DUE - 1)).summary).toEqual({
+      loanDefaultLocks: { houses: 0 },
       loanCollection: { collected: 0, collectedOboles: 0, defaulted: 0, honorLost: 0 },
     });
     expect((await close(worldId, DUE)).summary).toEqual({
+      loanDefaultLocks: { houses: 3 },
       loanCollection: {
         collected: 2,
         collectedOboles: OWED + 100,
@@ -203,5 +221,71 @@ describe('échéance des prêts du temple (#725)', () => {
     expect(await systemOf(worldId)).toBe(
       `faucet_temple_loans:-${PRINCIPAL} sink_temple_interest:2`,
     );
+  });
+
+  it('dans la clôture entière, le prélèvement passe avant l’entretien : payé, le prêt laisse le site à l’arrêt', async () => {
+    // Champ de blé : 30 oboles d'entretien par jour. 501 dus et 29 de plus en trésorerie : le prêt est soldé, le site s'arrête.
+    const sites = {
+      ...initial.sites,
+      upkeep: {
+        coefficientBps: 10_000,
+        dailyOboles: { ...initial.sites.upkeep.dailyOboles, field: 30 },
+      },
+    };
+    const { worldId, ids } = await newWorld([{ treasury: OWED + 29, recipes: ['grow_wheat'] }]);
+    const outcome = await close(worldId, DUE, CLOSE_STEPS, sites);
+    expect(outcome.summary['loanCollection']).toMatchObject({
+      collected: 1,
+      collectedOboles: OWED,
+      defaulted: 0,
+    });
+    expect(await stateOf(worldId)).toEqual(['repaid:0:-:29:0']);
+    const { rows } = await sql<{
+      halted: boolean;
+    }>`select halted_at is not null as halted from game.sites
+      where house_id = ${ids[0]}`.execute(db);
+    expect(rows).toEqual([{ halted: true }]);
+  });
+
+  it('un remboursement qui tient l’agora : la clôture l’attend, puis ne prend que ce qui reste', async () => {
+    const { worldId, ids } = await newWorld([{ treasury: PRINCIPAL }]);
+    const houseId = ids[0] ?? '';
+    // Remboursement de 300 comme l'écrit `loan.repay` : agora, écriture, remboursement ; laissé ouvert.
+    const trx = await db.startTransaction().execute();
+    await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${worldId}`}, 0))`.execute(
+      trx,
+    );
+    const { rows } = await sql<{
+      id: string;
+    }>`with entry as (insert into game.ledger_entries (world_id, kind, meta)
+        values (${worldId}, 'loan.repay', (select jsonb_build_object('loanId', id) from game.loans where borrower_house_id = ${houseId}))
+        returning id),
+      lines as (insert into game.ledger_lines (entry_id, account_id, amount)
+        select entry.id, a.id, case when a.kind = 'house' then -300 when a.system_key = 'sink_temple_interest' then 1 else 299 end
+        from entry, game.accounts a where a.world_id = ${worldId} and ((a.kind = 'house' and a.house_id = ${houseId})
+          or a.system_key in ('sink_temple_interest', 'faucet_temple_loans')))
+      select id from entry`.execute(trx);
+    await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day, ledger_entry_id)
+      select ${worldId}, id, ${houseId}, 1, 299, ${TODAY}, ${rows[0]?.id} from game.loans where borrower_house_id = ${houseId}`.execute(
+      trx,
+    );
+    const closing = close(worldId, DUE);
+    for (let attempt = 0; ; attempt += 1) {
+      const { rows: waiting } = await sql<{
+        n: number;
+      }>`select count(*)::int as n from pg_locks where not granted`.execute(owner);
+      if ((waiting[0]?.n ?? 0) > 0) break;
+      if (attempt > 200) throw new Error('the close is not waiting');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    await trx.commit().execute();
+    expect((await closing).summary['loanCollection']).toEqual({
+      collected: 1,
+      collectedOboles: 200,
+      defaulted: 1,
+      honorLost: LOSS,
+    });
+    expect(await collectionsOf(houseId)).toEqual(['0:0+200']);
+    expect(await stateOf(worldId)).toEqual([`defaulted:1:0:0:-${LOSS}`]);
   });
 });
