@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { AccountsScreen } from './screens/Accounts';
 import { AgoraScreen } from './screens/Agora';
 import { CityScreen } from './screens/City';
+import { FinancesScreen } from './screens/Finances';
 import { HomeScreen } from './screens/Home';
 import { HouseProfileScreen } from './screens/HouseProfile';
 import { LiturgyScreen } from './screens/Liturgy';
@@ -26,6 +27,7 @@ const routeTree = rootRoute.addChildren([
   // Écrans de l'onglet Maison, ouverts depuis le tableau de bord.
   route('/sites', SitesScreen),
   route('/comptes', AccountsScreen),
+  route('/finances', FinancesScreen),
   route('/personnel', StaffScreen),
   route('/immobilier', PropertyScreen),
   route('/carte', MapScreen),

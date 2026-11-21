@@ -181,7 +181,8 @@
       "sites": "Sites",
       "staff": "Staff",
       "property": "Property",
-      "accounts": "Accounts"
+      "accounts": "Accounts",
+      "finances": "Finances"
     },
     "figures": {
       "title": "Key figures",
@@ -1724,5 +1725,36 @@
     "voted": "Your house voted on {{date}}. The vote is secret: the name written is not shown.",
     "cast": "Write a name",
     "counting": "Voting is closed. It will be counted at the next daily close."
+  },
+  "finances": {
+    "title": "Finances",
+    "intro": "Your current debts and the Temple Treasury. Amounts are in drachmas and obols.",
+    "debts": {
+      "title": "Current debts",
+      "empty": "No debt at the moment.",
+      "lender": {
+        "temple": "Temple Treasury",
+        "bank": "Bank"
+      },
+      "outstanding": "Still owed",
+      "dueAt": "Due",
+      "interest": "Interest",
+      "interestValue": "left of {{total}}, at {{rate}} a year",
+      "state": {
+        "active": "Current",
+        "due": "Overdue",
+        "defaulted": "In default"
+      },
+      "notes": {
+        "active": "Interest is fixed when the loan is taken, for its whole term: a repayment pays it first.",
+        "due": "The due date has passed: the next close takes what the treasury covers, interest first.",
+        "defaulted": "What is left is taken at each close, with no further interest. Your house bears a mark of dishonor."
+      }
+    },
+    "dishonor": {
+      "title": "Mark of dishonor",
+      "open": "A loan of your house is in default: the mark lasts until it is settled. Your house cannot borrow.",
+      "until": "Your house bears a mark of dishonor until {{date}}: it cannot borrow before then."
+    }
   }
 }

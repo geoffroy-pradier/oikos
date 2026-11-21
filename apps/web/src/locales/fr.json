@@ -181,7 +181,8 @@
       "sites": "Sites",
       "staff": "Personnel",
       "property": "Immobilier",
-      "accounts": "Comptes"
+      "accounts": "Comptes",
+      "finances": "Finances"
     },
     "figures": {
       "title": "Chiffres clés",
@@ -1724,5 +1725,36 @@
     "voted": "Votre maison a voté le {{date}}. Le vote est secret : le nom inscrit n'est pas affiché.",
     "cast": "Inscrire un nom",
     "counting": "Le vote est clos. Il sera dépouillé à la prochaine clôture quotidienne."
+  },
+  "finances": {
+    "title": "Finances",
+    "intro": "Vos dettes en cours et le Trésor du temple. Les montants sont en drachmes et oboles.",
+    "debts": {
+      "title": "Dettes en cours",
+      "empty": "Aucune dette en cours.",
+      "lender": {
+        "temple": "Trésor du temple",
+        "bank": "Banque"
+      },
+      "outstanding": "Reste dû",
+      "dueAt": "Échéance",
+      "interest": "Intérêts",
+      "interestValue": "restants sur {{total}}, à {{rate}} l'an",
+      "state": {
+        "active": "En cours",
+        "due": "Échu",
+        "defaulted": "En défaut"
+      },
+      "notes": {
+        "active": "Les intérêts sont fixés à l'emprunt pour toute la durée : un remboursement les paie d'abord.",
+        "due": "L'échéance est passée : la prochaine clôture prélève ce que la trésorerie couvre, intérêts d'abord.",
+        "defaulted": "Ce qui reste dû se prélève à chaque clôture, sans intérêt de plus. Votre maison porte une marque de déshonneur."
+      }
+    },
+    "dishonor": {
+      "title": "Marque de déshonneur",
+      "open": "Un prêt de votre maison est en défaut : la marque dure tant qu'il n'est pas soldé. Votre maison ne peut pas emprunter.",
+      "until": "Votre maison porte une marque de déshonneur jusqu'au {{date}} : elle ne peut pas emprunter d'ici là."
+    }
   }
 }
