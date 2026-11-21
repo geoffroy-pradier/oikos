@@ -306,7 +306,15 @@ export const bankDeposit = defineCommand({
   input: bankDepositInputSchema,
   output: bankDepositOutputSchema,
   errors: BANK_DEPOSIT_ERROR_CODES,
-  errorByConstraint: { accounts_no_overdraft: NO_FUNDS, bank_deposits_not_own_bank: OWN },
+  // La base fait foi : ni découvert, ni sa propre banque, ni un solde de dépôt hors des entiers sûrs.
+  errorByConstraint: {
+    accounts_no_overdraft: NO_FUNDS,
+    bank_deposits_not_own_bank: OWN,
+    bank_deposits_balance_bounds: {
+      code: 'DEPOSIT_LIMIT',
+      message: 'The deposit would exceed the largest balance a deposit may hold.',
+    },
+  },
   async handler({ trx, userId, emit, config }, input) {
     // Verrous : la maison, l'agora (que `bank.setRates` et la clôture tiennent pour les taux et les intérêts), la
     // trésorerie, le coffre, puis le dépôt.

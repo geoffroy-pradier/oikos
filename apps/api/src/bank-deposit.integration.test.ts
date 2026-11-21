@@ -144,6 +144,19 @@ describe('bank.deposit et bank.withdraw', () => {
     expect(await heldBy(player.houseId, bank.bankId)).toBe(0);
   });
 
+  it('un dépôt qui passerait le solde au-delà des entiers sûrs est refusé, sans effet (DEPOSIT_LIMIT)', async () => {
+    const bank = await newBank();
+    const player = await newPlayer(ELAIA);
+    const max = Number.MAX_SAFE_INTEGER;
+    await fund(player.houseId, max);
+    expect((await deposit(player.user, bank.bankId, max)).body.data.balance).toBe(max);
+    const before = [await balanceOf(player.houseId), await vaultOf(bank.bankId)];
+    const refused = await deposit(player.user, bank.bankId, 1);
+    expect([codeOf(refused), refused.status]).toEqual(['DEPOSIT_LIMIT', 409]);
+    expect([await balanceOf(player.houseId), await vaultOf(bank.bankId)]).toEqual(before);
+    expect(await heldBy(player.houseId, bank.bankId)).toBe(max);
+  });
+
   it('refus sans effet : banques fermées, banque inconnue ou la sienne, taux changé, trésorerie, solde, pas de dépôt', async () => {
     const bank = await newBank();
     const player = await newPlayer(KALLISTE);
