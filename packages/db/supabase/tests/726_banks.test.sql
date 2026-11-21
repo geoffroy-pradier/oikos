@@ -116,9 +116,11 @@ select is(
   'charter_fee city_id deposit_rate_bps house_id loan_rate_bps name world_id',
   'le service ne choisit ni l''identifiant ni la date d''une banque');
 select is(
-  (select count(*)::integer from information_schema.column_privileges where table_schema = 'game' and table_name = 'banks'
+  (select string_agg(grantee || ':' || privilege_type || ':' || column_name, ' ' order by grantee, column_name)
+   from information_schema.column_privileges where table_schema = 'game' and table_name = 'banks'
      and privilege_type in ('UPDATE', 'DELETE') and grantee in ('oikos_service', 'authenticated', 'anon')),
-  0, 'personne ne modifie une banque');
+  'oikos_service:UPDATE:deposit_rate_bps oikos_service:UPDATE:loan_rate_bps',
+  'personne ne modifie une banque, sauf le service ses taux (#727)');
 select ok(not has_table_privilege('authenticated', 'game.banks', 'select')
           and not has_table_privilege('anon', 'game.banks', 'select'), 'les joueurs ne lisent pas la table');
 
