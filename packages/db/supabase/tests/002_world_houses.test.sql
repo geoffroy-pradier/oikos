@@ -39,6 +39,7 @@ select is(
          group by table_name) granted),
   'accounts(balance,house_id,id,kind) ballots(cast_at,election_id,house_id) '
     || 'bank_deposits(balance,bank_id,created_at,house_id,id,world_id) '
+    || 'bank_loan_offers(bank_id,borrower_house_id,closed_at,collateral_city_id,collateral_good_id,collateral_kind,collateral_property_id,collateral_quantity,created_at,id,principal,rate_bps,status,term_days,world_id) '
     || 'banks(city_id,deposit_rate_bps,founded_at,house_id,id,loan_rate_bps,name,world_id) '
     || 'candidacies(created_at,election_id,house_id,id,withdrawn_at) '
     || 'channels(city_id,created_at,house_high,house_low,id,kind,world_id) '
@@ -57,7 +58,7 @@ select is(
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'liturgies(city_id,designated_day,due_at,due_day,genre,house_id,season,status,world_id) '
     || 'loan_repayments(created_at,game_day,house_id,id,interest,ledger_entry_id,loan_id,principal) '
-    || 'loans(borrowed_day,borrower_house_id,created_at,defaulted_day,due_at,due_day,id,interest,interest_repaid,lender,outstanding,principal,principal_repaid,rate_bps,status,term_days,world_id) '
+    || 'loans(bank_id,borrowed_day,borrower_house_id,created_at,defaulted_day,due_at,due_day,id,interest,interest_repaid,lender,offer_id,outstanding,principal,principal_repaid,rate_bps,status,term_days,world_id) '
     || 'messages(channel_id,created_at,hidden_at,house_id,id,visible_body) '
     || 'npc_houses(city_id,house_id,world_id) npc_population(city_id,class_id,closed_day,coverage_bps,population) '
     || 'observed_prices(city_id,good_id,observed_at,price,volume,window_seconds) '

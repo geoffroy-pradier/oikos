@@ -127,8 +127,8 @@ select is((select concat_ws(':', vault, required_reserve, deposits, depositors) 
 select is(
   (select string_agg(column_name, ' ' order by ordinal_position) from information_schema.columns
    where table_schema = 'public' and table_name = 'my_bank'),
-  'id world_id city_id house_id name deposit_rate_bps loan_rate_bps founded_at vault required_reserve deposits depositors',
-  'my_bank ne nomme aucun déposant');
+  'id world_id city_id house_id name deposit_rate_bps loan_rate_bps founded_at vault required_reserve deposits depositors loans',
+  'my_bank ne nomme aucun déposant (le reste dû de ses prêts vient avec #728)');
 select is((select count(*)::integer from public.my_deposits), 0, 'elle ne lit aucun dépôt de sa banque');
 select is((select count(*)::integer from game.bank_deposits), 0, 'ni dans la table');
 select is((select string_agg(nature || ':' || amount, ' ' order by nature) from public.my_cash_flows),
