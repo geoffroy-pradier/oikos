@@ -348,11 +348,19 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Décision (paramètres neutres) : plafonds nuls au départ, si bien que le temple ne prête rien tant que les administrateurs ne les ouvrent pas.
   Une maison emprunte au plus le plafond du plus haut palier que sa Timè atteint (`templeLoanCap`), rien sous le premier, et n'a qu'un prêt du temple à la fois, en cours ou en défaut (index unique).
   La commande `loan.borrowFromTemple` porte le principal, la durée et le taux que le joueur a vu (`temple_treasury_rules`) : un autre taux est refusé (`RATE_CHANGED`), comme une autre durée, un principal au-delà du plafond, un second prêt du temple (un prêt de banque, #728, ne compte pas) ou une maison sous une marque de déshonneur (`DISHONORED`).
-  Décision (#724) : jusqu'à #725, qui la bornera dans le temps, la marque de déshonneur est un prêt en défaut de la maison, de tout prêteur.
-  L'échéance est la clôture `termDays` jours de jeu après le jour de l'emprunt ; l'échéance et le défaut viennent avec #725.
+  L'échéance est la clôture `termDays` jours de jeu après le jour de l'emprunt ; la base vérifie le jour de l'emprunt et l'instant de l'échéance à l'horloge de la configuration en vigueur (#725).
+  Échéance (#725) : à chaque clôture à partir de l'échéance, avant l'entretien, un prêt encore dû prend sur la trésorerie de la maison, hors séquestre, ce qu'elle couvre, intérêts d'abord, par une écriture `loan.collect` (événement `LoanCollected`).
+  Décision (#725) : ce que la trésorerie ne couvre pas reste dû, sans intérêt de plus, et se prélève à chaque clôture suivante ; une dette ne s'efface jamais, puisqu'elle effacerait la monnaie créée.
+  La base n'admet qu'un prélèvement par prêt et par jour de jeu, dans la transaction qui enregistre la clôture de ce jour : une clôture rejouée ne prend rien deux fois.
+  Un prêt non soldé par le prélèvement de son échéance passe en défaut (`defaulted`, événement `LoanDefaulted`), une fois : la maison perd la Timè `defaultHonorLoss` (motif `loan_defaulted`, rognée aux bornes de la Timè) et porte une marque de déshonneur.
+  La marque dure tant qu'un prêt de la maison est en défaut, de tout prêteur, puis jusqu'à la clôture `dishonorDays` jours de jeu après le jour du solde du dernier prêt qui l'a été (`dishonorMark`).
+  Elle refuse tout nouvel emprunt (`DISHONORED`) et se lit avec la Timè, publique (`house_honor` : `dishonored`, et le premier jour sans marque quand elle a une fin).
+  Une version publiée avant ces paramètres ne fait rien perdre et lève la marque au solde ; la configuration initiale ne fait rien perdre et marque 28 jours.
+  Décision (#725) : la durée de la marque se lit dans la version en vigueur, si bien qu'un changement de `dishonorDays` s'applique aussi aux marques en cours.
   La commande `loan.repay` (prêt, montant) paie les intérêts d'abord, puis le principal, en une écriture `loan.repay` ; elle est refusée au-delà du reste dû ou de la trésorerie, et pour le prêt d'une autre maison, qui lui est inconnu, comme un prêt d'un autre prêteur jusqu'à #728.
+  Elle lit le prêt sous le verrou de l'agora, que la clôture tient pendant son prélèvement, et le verrouille : un remboursement qui croise un prélèvement en attente relit ce qui reste dû et répond par un code (`LOAN_REPAID`, `ABOVE_OUTSTANDING`, `INSUFFICIENT_FUNDS`) (#725).
   Un remboursement complet éteint le prêt, et la maison peut emprunter de nouveau.
-  Événements de domaine : `LoanDisbursed` à l'emprunt, `LoanRepaid` à chaque remboursement (parts des intérêts et du principal, reste dû, état).
+  Événements de domaine : `LoanDisbursed` à l'emprunt, `LoanRepaid` à chaque remboursement (parts des intérêts et du principal, reste dû, état), `LoanCollected` à chaque prélèvement de la clôture et `LoanDefaulted` au défaut (reste dû, Timè perdue).
 - **Sociétés** (après le lancement) : une activité peut être apportée à une société dont les parts s'échangent, avec dividendes et prises de contrôle.
 - **Défaut** : saisie de la garantie, vente aux enchères, marque de déshonneur temporaire. Pas de faillite définitive : une maison ruinée repart avec un bien insaisissable.
 
@@ -428,8 +436,10 @@ Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie d
 Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des seules offrandes, les liturgies ayant le leur depuis #720.
 
 Trésor du temple (#724, 5.4) : le principal d'un prêt est créé par le robinet `faucet_temple_loans` (écriture `loan.temple_disburse`), et le principal remboursé recrédite ce robinet, qui ne compte donc en net que le principal encore dû.
-Les intérêts sont détruits par le puits `sink_temple_interest` (dans l'écriture `loan.repay`) : c'est le coût du crédit pour la masse, et le taux directeur est le levier de cette ligne.
-La base vérifie que chaque prêt est décaissé par sa propre écriture `loan.temple_disburse` et chaque remboursement payé par sa propre écriture `loan.repay`, et qu'une écriture de ces natures règle un prêt (12).
+Les intérêts sont détruits par le puits `sink_temple_interest` (dans l'écriture `loan.repay`, ou `loan.collect` pour un prélèvement de la clôture, #725) : c'est le coût du crédit pour la masse, et le taux directeur est le levier de cette ligne.
+Un prêt en défaut garde son reste dû : le robinet compte encore le principal qui n'est pas revenu, et les clôtures suivantes le font revenir à mesure que la trésorerie de la maison le couvre.
+Le prélèvement d'un prêt échu vient après celui des liturgies et avant l'entretien : un prélèvement qui vide la trésorerie peut laisser l'entretien impayé (sites à l'arrêt).
+La base vérifie que chaque prêt est décaissé par sa propre écriture `loan.temple_disburse` et chaque remboursement payé par sa propre écriture `loan.repay` ou `loan.collect`, qu'une écriture de ces natures règle un prêt, et qu'un prélèvement partiel vide la trésorerie (12).
 Elle ne lie pas pour autant ces comptes à ces natures : comme pour les autres robinets et puits, une écriture d'une autre nature peut encore mouvoir `faucet_temple_loans` ou `sink_temple_interest`.
 
 Offrandes (#265, 7.1) : les oboles qu'une maison offre à un dieu sont détruites par le puits `sink_offerings` (écriture `temple.offering`).
