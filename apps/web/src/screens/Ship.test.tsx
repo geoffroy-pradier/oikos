@@ -67,7 +67,7 @@ const voyage = {
   arrived_at: null as string | null,
   cargo: [{ goodId: 'wheat', quantity: 30 }],
 };
-function state(arrived: boolean) {
+function state(arrived: boolean, cargoLost = false) {
   views.rows = {
     my_ships: [
       {
@@ -77,7 +77,14 @@ function state(arrived: boolean) {
         laid_up_at: null,
       },
     ],
-    my_voyages: [{ ...voyage, arrived_at: arrived ? '2026-11-16T14:00:00Z' : null }],
+    // Issue nulle en mer (#730) : la vue ne dit rien du tirage avant l'arrivée.
+    my_voyages: [
+      {
+        ...voyage,
+        arrived_at: arrived ? '2026-11-16T14:00:00Z' : null,
+        cargo_lost: arrived ? cargoLost : null,
+      },
+    ],
   };
 }
 async function screenOf() {
@@ -135,6 +142,17 @@ describe('fiche d’un navire', () => {
     expect(announced()).toEqual(['Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.']);
     expect(screen.getByText('à quai à Elaia')).toBeTruthy();
     shown(fr.ship.arrivedAt);
+  });
+
+  it('pertes en mer (#730) : une cargaison perdue est annoncée perdue, jamais déchargée, et la liste le dit', async () => {
+    state(false);
+    const { rerender, tree } = await screenOf();
+    state(true, true);
+    rerender(tree());
+    expect(announced()).toEqual(['Navire arrivé à vide à Elaia : 30 × Blé, perdue en mer.']);
+    expect(screen.queryByText(/déchargé dans votre stock/)).toBeNull();
+    shown('30 × Blé, perdue en mer');
+    expect(screen.getByText('à quai à Elaia')).toBeTruthy();
   });
 
   it('un voyage déjà arrivé à l’ouverture se lit dans la liste, sans annonce', async () => {

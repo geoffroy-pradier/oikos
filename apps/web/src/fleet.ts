@@ -22,6 +22,11 @@ export interface VoyageRow {
   arrives_at: string;
   arrived_at: string | null;
   cargo: { goodId: string; quantity: number }[];
+  /**
+   * Issue du voyage (#730) : nulle en mer, rien du tirage ne paraît avant l'arrivée ; vraie si la cargaison a été
+   * perdue en mer (le navire est arrivé à vide), fausse si elle a été déchargée.
+   */
+  cargo_lost: boolean | null;
 }
 
 /**
@@ -36,7 +41,7 @@ export function useFleet() {
   const ships = useRows<ShipRow>('my_ships', 'id, class_id, docked_city_id, laid_up_at', 'id');
   const voyages = useRows<VoyageRow>(
     'my_voyages',
-    'id, ship_id, from_city_id, to_city_id, departed_at, arrives_at, arrived_at, cargo',
+    'id, ship_id, from_city_id, to_city_id, departed_at, arrives_at, arrived_at, cargo, cargo_lost',
     'departed_at',
   );
   const [now, setNow] = useState(() => serverClock.now());
@@ -109,6 +114,10 @@ export function useShipName(ships: readonly ShipRow[]) {
       : t('map.shipNumbered', { ship: name, number: number.format(alike.indexOf(ship) + 1) });
   };
 }
+
+/** Annonce d'une arrivée, sur la carte ou sur la fiche du navire : déchargée, ou perdue en mer (#730). */
+export const arrivalKey = (scope: 'map' | 'ship', voyage: Pick<VoyageRow, 'cargo_lost'>) =>
+  voyage.cargo_lost ? (`${scope}.arrivedLost` as const) : (`${scope}.arrived` as const);
 
 /** Voyage en cours d'un navire en mer : le dernier parti et pas encore arrivé. */
 export const voyageAtSea = (voyages: readonly VoyageRow[], shipId: string) =>
