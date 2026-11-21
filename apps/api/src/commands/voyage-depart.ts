@@ -1,4 +1,10 @@
-import { portDuesBaseOboles, routeProvisionsOboles, shipRoute } from '@oikos/config';
+import {
+  portDuesBaseOboles,
+  routeLossRiskBps,
+  routeProvisionsOboles,
+  routeStormLossRiskBps,
+  shipRoute,
+} from '@oikos/config';
 import {
   VOYAGE_DEPART_ERROR_CODES,
   voyageDepartInputSchema,
@@ -178,8 +184,8 @@ export const voyageDepart = defineCommand({
     );
     const seconds = wind ? fairWindSeconds(stormy, wind.magnitude_bps) : stormy;
     const lossRiskBps = voyageLossRiskBps({
-      routeRiskBps: route.lossRiskBps,
-      stormRiskBps: route.stormLossRiskBps,
+      routeRiskBps: routeLossRiskBps(route),
+      stormRiskBps: routeStormLossRiskBps(route),
       storm: storm !== undefined,
     });
     const voyage = await trx
