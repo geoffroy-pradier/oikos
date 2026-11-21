@@ -1818,6 +1818,19 @@
       "daysShort_one": "{{count}} jour",
       "daysShort_other": "{{count}} jours",
       "termHint": "Durée en jours de jeu : l'échéance est la clôture de ce jour-là."
+    },
+    "temple": {
+      "title": "Trésor du temple",
+      "intro": "Le temple prête au taux directeur, dans le plafond de votre Timè, un prêt à la fois.",
+      "rate": "Taux directeur",
+      "honor": "Votre Timè",
+      "cap": "Plafond de votre Timè",
+      "blocked": {
+        "closed": "Le Trésor du temple ne prête pas pour l'instant.",
+        "dishonored": "L'emprunt est suspendu tant que la marque de déshonneur dure.",
+        "outstanding": "Votre maison a déjà un prêt du temple : remboursez-le pour emprunter de nouveau.",
+        "noCap": "Votre Timè n'atteint pas le premier palier : le temple ne vous prête rien pour l'instant."
+      }
     }
   }
 }

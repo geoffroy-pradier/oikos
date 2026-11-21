@@ -8,12 +8,22 @@ import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
 // Écran Finances (#732) : lectures simulées vue par vue.
-const state = vi.hoisted(() => ({ views: {} as Record<string, unknown[] | null> }));
-const api = vi.hoisted(() => ({ repayLoan: vi.fn() }));
-vi.mock('../api', () => ({ repayLoan: api.repayLoan }));
+const state = vi.hoisted(() => ({
+  views: {} as Record<string, unknown[] | null>,
+  reads: [] as [string, unknown][],
+  loading: new Set<string>(),
+}));
+const api = vi.hoisted(() => ({ repayLoan: vi.fn(), borrowFromTemple: vi.fn() }));
+vi.mock('../api', () => ({
+  repayLoan: api.repayLoan,
+  borrowFromTemple: api.borrowFromTemple,
+}));
 vi.mock('../data', () => ({
-  useRows: (view: string) => {
+  useRows: (view: string, _columns: string, _order: string, filters?: unknown) => {
+    state.reads.push([view, filters]);
     const rows = view in state.views ? (state.views[view] ?? null) : [];
+    if (state.loading.has(view))
+      return { rows: null, failed: false, reload: () => Promise.resolve(null) };
     return { rows, failed: rows === null, reload: () => Promise.resolve(rows) };
   },
   useClockRules: () => ({ rules: null }),
@@ -36,6 +46,14 @@ const loan = (extra = {}) => ({
   status: 'active',
   ...extra,
 });
+const RULES = {
+  policy_rate_bps: 1000,
+  term_days: [7, 30],
+  principal_caps: [
+    { minHonor: 0, maxPrincipal: 600 },
+    { minHonor: 50, maxPrincipal: 9000 },
+  ],
+};
 const plain = (node: HTMLElement | null) => node?.textContent?.replace(/\p{Zs}/gu, ' ');
 
 async function show(lng: 'fr' | 'en' = 'fr') {
@@ -65,7 +83,11 @@ async function show(lng: 'fr' | 'en' = 'fr') {
 
 beforeEach(() => {
   api.repayLoan.mockReset();
+  api.borrowFromTemple.mockReset();
+  state.reads = [];
+  state.loading.clear();
   state.views = {
+    temple_treasury_rules: [RULES],
     my_balance_sheet: [{ treasury: 1000, escrow: 0, stock_value: 0, unpriced_stocks: 0 }],
     my_loans: [loan()],
     house_honor: [{ honor: 10, dishonored: false, dishonored_until_day: null }],
@@ -146,7 +168,7 @@ describe('écran Finances, dettes (#732)', () => {
 
   it('en anglais : prêteur, états et unités', async () => {
     await show('en');
-    expect(screen.getByRole('heading', { name: 'Temple Treasury' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Temple Treasury' })).toBeTruthy();
     expect(screen.getByText('Current')).toBeTruthy();
     expect(plain(screen.getByText('Still owed', { selector: 'dt' }).closest('div'))).toContain(
       '1,005 drachmas',
@@ -178,5 +200,109 @@ describe('écran Finances, dettes (#732)', () => {
     await show();
     fireEvent.click(screen.getByRole('button', { name: /^Rembourser\p{Zs}: Trésor du temple$/u }));
     expect(plain(screen.getByText(/^De 1 à /))).toContain('De 1 à 6 030 oboles');
+  });
+
+  it('Trésor du temple : taux directeur, Timè et plafond du palier atteint, et « Emprunter » ouvre la feuille', async () => {
+    await show();
+    const card = within(
+      screen
+        .getByRole('heading', { level: 2, name: 'Trésor du temple' })
+        .closest('section') as HTMLElement,
+    );
+    expect(plain(card.getByText('Taux directeur', { selector: 'dt' }).closest('div'))).toContain(
+      "10 % l'an",
+    );
+    expect(
+      plain(card.getByText('Plafond de votre Timè', { selector: 'dt' }).closest('div')),
+    ).toContain('100 drachmes');
+    cleanup();
+    state.views['my_loans'] = [];
+    state.views['house_honor'] = [{ honor: 60, dishonored: false, dishonored_until_day: null }];
+    await show();
+    expect(
+      plain(screen.getByText('Plafond de votre Timè', { selector: 'dt' }).closest('div')),
+    ).toContain('1 500 drachmes');
+    fireEvent.click(screen.getByRole('button', { name: 'Emprunter' }));
+    const sheet = within(screen.getByRole('dialog', { name: 'Emprunter au Trésor du temple' }));
+    expect(plain(sheet.getByText(/^De 1 à /))).toContain('De 1 à 9 000 oboles');
+  });
+
+  it('emprunter annonce le prêt accordé et relit ; le plafond est celui de la Timè lue', async () => {
+    state.views['my_loans'] = [];
+    api.borrowFromTemple.mockResolvedValue({
+      ok: true,
+      replayed: false,
+      data: {
+        loanId: 'l9',
+        principal: 600,
+        rateBps: 1000,
+        termDays: 7,
+        interest: 2,
+        outstanding: 602,
+        dueDay: 1,
+        dueAt: '2999-01-01T04:00:00+00:00',
+      },
+    });
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Emprunter' }));
+    const sheet = within(screen.getByRole('dialog'));
+    fireEvent.change(sheet.getByLabelText(/^Montant emprunté/), { target: { value: '600' } });
+    fireEvent.click(sheet.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(sheet.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(sheet.getByRole('button', { name: /^Emprunter / }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/^Prêt accordé/));
+    expect(api.borrowFromTemple.mock.calls[0]?.[0]).toEqual({
+      principal: 600,
+      termDays: 7,
+      expectedRateBps: 1000,
+    });
+  });
+
+  it.each([
+    ['temple_treasury_rules', [], /ne prête pas pour l'instant/],
+    [
+      'house_honor',
+      [{ honor: 70, dishonored: true, dishonored_until_day: null }],
+      /ne peut pas emprunter/,
+    ],
+    [
+      'house_honor',
+      [{ honor: -5, dishonored: false, dishonored_until_day: null }],
+      /n'atteint pas le premier palier/,
+    ],
+    ['my_loans', [loan()], /remboursez-le pour emprunter de nouveau/],
+  ])('pas d’emprunt possible (%s) : le dit, sans bouton', async (view, rows, reason) => {
+    state.views['my_loans'] = [];
+    state.views[view] = rows as unknown[];
+    await show();
+    expect(screen.getByText(reason)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Emprunter' })).toBeNull();
+  });
+
+  it('règles du temple illisibles : relire dans la carte, les dettes restent montrées', async () => {
+    state.views['temple_treasury_rules'] = null;
+    await show();
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();
+    expect(screen.getByText('Reste dû', { selector: 'dt' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Emprunter' })).toBeNull();
+    expect(screen.queryByText(/n'atteint pas le premier palier/)).toBeNull();
+  });
+
+  it('règles du temple en cours de chargement : ni blocage ni plafond affirmés', async () => {
+    state.loading.add('temple_treasury_rules');
+    state.views['my_loans'] = [];
+    await show();
+    expect(screen.queryByText(/n'atteint pas le premier palier/)).toBeNull();
+    expect(screen.queryByText(/ne prête pas pour l'instant/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Emprunter' })).toBeNull();
+  });
+
+  it('ne lit que sa propre maison : chaque lecture de prêt, de Timè ou de trésorerie porte son identifiant', async () => {
+    await show();
+    const own = state.reads.filter(([view]) =>
+      ['my_loans', 'house_honor', 'my_balance_sheet'].includes(view),
+    );
+    expect(new Set(own.map(([view]) => view)).size).toBe(3);
+    for (const [, filters] of own) expect(filters).toEqual({ house_id: 'h1' });
   });
 });
