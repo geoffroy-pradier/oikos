@@ -25,6 +25,7 @@ import {
 } from './decree';
 import { honorChangedSchema } from './honor';
 import { liturgyAssignedSchema, liturgyLeviedSchema, liturgyPerformedSchema } from './liturgy';
+import { loanDisbursedSchema } from './loan';
 import { messageReportedSchema, sanctionAppealedSchema } from './moderation';
 import {
   appealDecidedSchema,
@@ -149,6 +150,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   liturgyAssignedSchema,
   liturgyPerformedSchema,
   liturgyLeviedSchema,
+  loanDisbursedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   directChannelOpenedSchema,
