@@ -44,6 +44,17 @@ interface VigieData {
    * ancien, en heures. `null` sans configuration lisible ; absent d'une API antérieure : rien n'est affiché.
    */
   staleReports?: { afterHours: number; count: number; oldestHours: number | null } | null;
+  /**
+   * Filières de secours que la dernière clôture de leur monde a passées, faute d'un nom libre (`taken`) ou admis par la
+   * base (`refused`) : 8.3, #949. Absent d'une API antérieure : rien n'est affiché.
+   */
+  npcHousesSkipped?: {
+    worldSlug: string;
+    citySlug: string | null;
+    chainId: string;
+    name: string;
+    reason: string;
+  }[];
   /** Absent d'une API antérieure à ce champ : rien n'est affiché à sa place. */
   closes24h?: { failed: number; lastError: string | null };
   recentTicks: {
@@ -285,6 +296,29 @@ export function Vigie({ accessToken }: { accessToken: string }) {
           hours={data.staleReports.oldestHours ?? data.staleReports.afterHours}
           limit={data.staleReports.afterHours}
         />
+      )}
+      {/* Maisons PNJ de secours non fondées (8.3) : le nom de leur filière est à changer par une version nouvelle. */}
+      {data?.npcHousesSkipped && data.npcHousesSkipped.length > 0 && (
+        <div role="alert" className={ALERT}>
+          <p>{t('vigie.npcHousesSkipped.title')}</p>
+          <ul className="mt-1 list-disc ps-5 font-normal">
+            {data.npcHousesSkipped.map((row) => (
+              <li key={`${row.worldSlug} ${row.citySlug} ${row.chainId}`} className="wrap-anywhere">
+                {t(
+                  row.reason === 'refused'
+                    ? 'vigie.npcHousesSkipped.refused'
+                    : 'vigie.npcHousesSkipped.taken',
+                  {
+                    world: row.worldSlug,
+                    city: row.citySlug ?? '—',
+                    chain: row.chainId,
+                    name: row.name,
+                  },
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {/* Réglage d'un monde de test : mis en avant, il ne doit pas rester actif sans qu'on le voie. */}
       {data?.selfReviewAllowed === true && (

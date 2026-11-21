@@ -71,7 +71,7 @@ export const CHAT_POST_ERROR_CODES = [
 ] as const;
 export const CHAT_OPEN_DIRECT_ERROR_CODES = [
   'HOUSE_NOT_FOUND',
-  /** Aucune maison de ce monde sous cet identifiant. */
+  /** Aucune maison de joueur de ce monde sous cet identifiant : une maison PNJ (8.3) n'en est pas une. */
   'RECIPIENT_NOT_FOUND',
   /** Une maison ne converse pas avec elle-même. */
   'SELF_CONVERSATION',
