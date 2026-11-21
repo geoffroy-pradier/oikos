@@ -14,6 +14,13 @@ export const HUBRIS_CAUSES = [
 ] as const;
 export type HubrisCause = (typeof HUBRIS_CAUSES)[number];
 
+/**
+ * Causes du journal de l'Hybris : celles de `hubrisDelta`, et la baisse qui suit une sanction de Némésis (#735), que la
+ * clôture écrit à part, après la variation du jour.
+ */
+export const HUBRIS_LEDGER_CAUSES = [...HUBRIS_CAUSES, 'nemesis'] as const;
+export type HubrisLedgerCause = (typeof HUBRIS_LEDGER_CAUSES)[number];
+
 /** Paramètres lus dans la section `hubris` de la configuration. */
 export interface HubrisWeights {
   marketShareThresholdBps: number;
