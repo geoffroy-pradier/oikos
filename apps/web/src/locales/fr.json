@@ -549,7 +549,13 @@
     "SPLENDOR_OUT_OF_BOUNDS": "Le faste dépasse la borne permise.",
     "LOAN_NOT_FOUND": "Ce prêt n'est plus à votre maison.",
     "LOAN_REPAID": "Ce prêt est déjà remboursé.",
-    "ABOVE_OUTSTANDING": "Le reste dû a changé depuis l'affichage : rien n'a été payé. Vérifiez le montant puis réessayez."
+    "ABOVE_OUTSTANDING": "Le reste dû a changé depuis l'affichage : rien n'a été payé. Vérifiez le montant puis réessayez.",
+    "TEMPLE_CLOSED": "Le Trésor du temple ne prête pas pour l'instant.",
+    "RATE_CHANGED": "Le taux directeur a changé depuis l'affichage : rien n'a été emprunté. Vérifiez le nouveau taux puis réessayez.",
+    "TERM_NOT_OFFERED": "Le temple n'admet plus cette durée : rien n'a été emprunté. Choisissez-en une autre.",
+    "DISHONORED": "Votre maison porte une marque de déshonneur : elle ne peut pas emprunter.",
+    "LOAN_OUTSTANDING": "Votre maison a déjà un prêt du temple en cours.",
+    "ABOVE_CAP": "Ce montant dépasse le plafond de votre Timè : rien n'a été emprunté."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -1782,6 +1788,36 @@
       "confirm": "Rembourser {{amount}}",
       "done": "Remboursement de {{amount}} : il reste {{left}} à devoir.",
       "doneSettled": "Remboursement de {{amount}} : le prêt est soldé."
+    },
+    "borrow": {
+      "open": "Emprunter",
+      "title": "Emprunter au Trésor du temple",
+      "stepAmount": "Montant",
+      "stepTerm": "Durée",
+      "stepRecap": "Récapitulatif",
+      "amount": "Montant emprunté (oboles)",
+      "amountHint": "De 1 à {{max}} oboles, le plafond de votre Timè",
+      "outOfBounds": "Écrivez un montant entier de 1 à {{max}} oboles.",
+      "term": "Durée du prêt",
+      "days_one": "{{count}} jour de jeu",
+      "days_other": "{{count}} jours de jeu",
+      "quote": "À {{rate}} l'an, les intérêts sont de {{interest}} : vous rembourserez {{total}}.",
+      "recap": "Vous empruntez au Trésor du temple.",
+      "recapPrincipal": "Montant emprunté",
+      "recapTerm": "Durée",
+      "recapRate": "Taux directeur",
+      "perYear": "{{rate}} l'an",
+      "recapInterest": "Intérêts",
+      "recapTotal": "À rembourser",
+      "recapDue": "Échéance",
+      "dueIn_one": "À la clôture, {{count}} jour de jeu après l'emprunt",
+      "dueIn_other": "À la clôture, {{count}} jours de jeu après l'emprunt",
+      "recapNote": "Le taux et les intérêts sont fixés pour toute la durée. À l'échéance, le prêt est prélevé sur votre trésorerie ; non soldé, il met votre maison en défaut et lui vaut une marque de déshonneur.",
+      "confirm": "Emprunter {{amount}} à {{rate}}",
+      "done": "Prêt accordé : {{principal}}, à rembourser {{total}} avant le {{date}}.",
+      "daysShort_one": "{{count}} jour",
+      "daysShort_other": "{{count}} jours",
+      "termHint": "Durée en jours de jeu : l'échéance est la clôture de ce jour-là."
     }
   }
 }

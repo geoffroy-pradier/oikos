@@ -15,6 +15,8 @@ import {
   type HouseCreateOutput,
   type LiturgyPerformInput,
   type LiturgyPerformOutput,
+  type LoanBorrowFromTempleInput,
+  type LoanBorrowFromTempleOutput,
   type LoanRepayInput,
   type LoanRepayOutput,
   type MarketCancelOrderOutput,
@@ -268,6 +270,23 @@ export const performLiturgy = (
  */
 export const repayLoan = (input: LoanRepayInput, accessToken: string, idempotencyKey: string) =>
   sendCommand<LoanRepayOutput>('loan.repay', input, accessToken, idempotencyKey);
+
+/**
+ * Emprunte au Trésor du temple (5.4, #724). `input.expectedRateBps` : le taux directeur vu, que l'API refuse
+ * (`RATE_CHANGED`) plutôt que d'en appliquer un autre. `idempotencyKey` : la même clé tant que cette intention n'a pas
+ * reçu de réponse.
+ */
+export const borrowFromTemple = (
+  input: LoanBorrowFromTempleInput,
+  accessToken: string,
+  idempotencyKey: string,
+) =>
+  sendCommand<LoanBorrowFromTempleOutput>(
+    'loan.borrowFromTemple',
+    input,
+    accessToken,
+    idempotencyKey,
+  );
 
 /** `idempotencyKey` : la même clé tant que ce message (canal et texte) n'a pas reçu de réponse. */
 export const postMessage = (

@@ -549,7 +549,13 @@
     "SPLENDOR_OUT_OF_BOUNDS": "The splendor is above the permitted limit.",
     "LOAN_NOT_FOUND": "This loan is no longer your house's.",
     "LOAN_REPAID": "This loan is already repaid.",
-    "ABOVE_OUTSTANDING": "The amount owed has changed since it was shown: nothing was paid. Check the amount and try again."
+    "ABOVE_OUTSTANDING": "The amount owed has changed since it was shown: nothing was paid. Check the amount and try again.",
+    "TEMPLE_CLOSED": "The Temple Treasury is not lending for now.",
+    "RATE_CHANGED": "The policy rate has changed since it was shown: nothing was borrowed. Check the new rate and try again.",
+    "TERM_NOT_OFFERED": "The temple no longer offers this term: nothing was borrowed. Pick another.",
+    "DISHONORED": "Your house bears a mark of dishonor: it cannot borrow.",
+    "LOAN_OUTSTANDING": "Your house already has a temple loan outstanding.",
+    "ABOVE_CAP": "This amount is above your Timè ceiling: nothing was borrowed."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -1782,6 +1788,36 @@
       "confirm": "Repay {{amount}}",
       "done": "Repaid {{amount}}: {{left}} still owed.",
       "doneSettled": "Repaid {{amount}}: the loan is settled."
+    },
+    "borrow": {
+      "open": "Borrow",
+      "title": "Borrow from the Temple Treasury",
+      "stepAmount": "Amount",
+      "stepTerm": "Term",
+      "stepRecap": "Summary",
+      "amount": "Amount borrowed (obols)",
+      "amountHint": "From 1 to {{max}} obols, your Timè ceiling",
+      "outOfBounds": "Enter a whole amount from 1 to {{max}} obols.",
+      "term": "Loan term",
+      "days_one": "{{count}} game day",
+      "days_other": "{{count}} game days",
+      "quote": "At {{rate}} a year, the interest is {{interest}}: you will repay {{total}}.",
+      "recap": "You are borrowing from the Temple Treasury.",
+      "recapPrincipal": "Amount borrowed",
+      "recapTerm": "Term",
+      "recapRate": "Policy rate",
+      "perYear": "{{rate}} a year",
+      "recapInterest": "Interest",
+      "recapTotal": "To repay",
+      "recapDue": "Due",
+      "dueIn_one": "At the close, {{count}} game day after the loan",
+      "dueIn_other": "At the close, {{count}} game days after the loan",
+      "recapNote": "The rate and the interest are fixed for the whole term. At the due date the loan is taken from your treasury; unsettled, it puts your house in default and earns it a mark of dishonor.",
+      "confirm": "Borrow {{amount}} at {{rate}}",
+      "done": "Loan granted: {{principal}}, to repay {{total}} before {{date}}.",
+      "daysShort_one": "{{count}} day",
+      "daysShort_other": "{{count}} days",
+      "termHint": "Term in game days: the due date is the close of that day."
     }
   }
 }
