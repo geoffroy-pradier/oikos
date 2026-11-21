@@ -4,7 +4,14 @@ import {
   loanBorrowFromTempleOutputSchema,
 } from '@oikos/contracts';
 import { accountHouseId } from '@oikos/operations';
-import { dailyCloseAt, gameDayAt, templeLoanCap, templeLoanInterest } from '@oikos/sim';
+import { DEFAULT_DISHONOR_DAYS } from '@oikos/config';
+import {
+  dailyCloseAt,
+  dishonorMark,
+  gameDayAt,
+  templeLoanCap,
+  templeLoanInterest,
+} from '@oikos/sim';
 import { sql } from 'kysely';
 import type { Db } from '@oikos/db';
 import { defineCommand, type CommandResult } from '../registry';
@@ -38,8 +45,9 @@ export const systemAccount = (trx: Db, worldId: string, key: string) =>
  * au taux directeur en vigueur, que le joueur a vu ; l'intérêt simple est fixé pour toute la durée
  * (`templeLoanInterest`). Le principal est créé par le robinet `faucet_temple_loans` dans sa trésorerie, en une écriture
  * `loan.temple_disburse` (nature 4.1 `loans`), dans une transaction, une fois. Refusée sans Trésor du temple, à un autre
- * taux, pour une autre durée, sous une marque de déshonneur, avec un prêt du temple en cours ou au-delà du plafond du
- * palier de Timè de la maison (`templeLoanCap`).
+ * taux, pour une autre durée, sous une marque de déshonneur (un prêt en défaut, ou soldé depuis moins de
+ * `dishonorDays` jours, `dishonorMark`, #725), avec un prêt du temple en cours ou au-delà du plafond du palier de Timè de
+ * la maison (`templeLoanCap`).
  */
 export const loanBorrowFromTemple = defineCommand({
   name: 'loan.borrowFromTemple',
@@ -48,7 +56,9 @@ export const loanBorrowFromTemple = defineCommand({
   errors: LOAN_BORROW_ERROR_CODES,
   // La base fait foi sous concurrence : un prêt du temple à la fois.
   errorByConstraint: { loans_one_temple_loan: OUTSTANDING },
-  async handler({ trx, userId, emit, config, now }, input) {
+  async handler({ trx, userId, emit, configAt, now }, input) {
+    // Règles et horloge de la version en vigueur à l'instant de la base, que la base relit pour dater le prêt (#725).
+    const config = await configAt(now);
     // Verrous : la maison, sa Timè (`honor:<maison>`), puis l'agora ; trésorerie et robinet par les lignes de l'écriture.
     const house = await lockHouse(trx, userId);
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
@@ -59,16 +69,39 @@ export const loanBorrowFromTemple = defineCommand({
     if (!rules.termDays.includes(input.termDays))
       return refuse('TERM_NOT_OFFERED', 'The temple does not lend for this term.');
     await lock(trx, `honor:${house.id}`);
+    // Prêts encore dus, ou soldés après un défaut : ceux-ci marquent encore `dishonorDays` jours après leur solde,
+    // le jour de leur dernier remboursement (#725).
     const loans = await trx
       .selectFrom('game.loans')
-      .select(['lender', 'status'])
+      .select(['lender', 'status', 'defaulted_day'])
+      .select(
+        sql<
+          number | null
+        >`(select max(r.game_day) from game.loan_repayments r where r.loan_id = game.loans.id)`.as(
+          'repaid_day',
+        ),
+      )
       .where('borrower_house_id', '=', house.id)
-      .where('status', '<>', 'repaid')
+      .where((eb) => eb.or([eb('status', '<>', 'repaid'), eb('defaulted_day', 'is not', null)]))
       .execute();
-    // Un prêt en défaut, de tout prêteur, déshonore (#725 le bornera) ; un seul prêt du temple à la fois.
-    if (loans.some((loan) => loan.status === 'defaulted'))
-      return refuse('DISHONORED', 'This house is dishonored by a defaulted loan.');
-    if (loans.some((loan) => loan.lender === 'temple'))
+    const borrowedDay = gameDayAt(now, config.clock);
+    const mark = dishonorMark(
+      loans.map((loan) => ({
+        status: loan.status,
+        defaultedDay: loan.defaulted_day,
+        repaidDay: loan.status === 'repaid' ? loan.repaid_day : null,
+      })),
+      borrowedDay,
+      rules.dishonorDays ?? DEFAULT_DISHONOR_DAYS,
+    );
+    if (mark.dishonored)
+      return refuse(
+        'DISHONORED',
+        mark.untilDay === null
+          ? 'This house is dishonored by a defaulted loan.'
+          : `This house is dishonored until game day ${mark.untilDay}.`,
+      );
+    if (loans.some((loan) => loan.lender === 'temple' && loan.status !== 'repaid'))
       return refuse(OUTSTANDING.code, OUTSTANDING.message);
     const honor = await trx
       .selectFrom('game.honor')
@@ -81,7 +114,6 @@ export const loanBorrowFromTemple = defineCommand({
 
     const principal = BigInt(input.principal);
     const interest = templeLoanInterest(principal, rules.policyRateBps, input.termDays);
-    const borrowedDay = gameDayAt(now, config.clock);
     const dueDay = borrowedDay + input.termDays;
     const dueAt = dailyCloseAt(dueDay, config.clock);
     await lock(trx, `market:${house.world_id}`);

@@ -187,6 +187,45 @@ describe('loan.borrowFromTemple', () => {
       status: 'repaid',
     });
   });
+
+  it('la marque de déshonneur dure `dishonorDays` jours après le solde d’un prêt en défaut (#725)', async () => {
+    const marked = withRules({ ...RULES, dishonorDays: 28 });
+    const player = await newPlayer(KALLISTE);
+    const loanId = (await borrow(player.user, 500, 7, 1_000, marked)).body.data.loanId as string;
+    // Défaut posé gardes levées : la clôture l'écrit (moteur, #725).
+    await force(loanId, `status = 'defaulted', defaulted_day = due_day`);
+    const refused = await borrow(player.user, 100, 7, 1_000, marked);
+    expect([codeOf(refused), refused.body.error?.message]).toEqual([
+      'DISHONORED',
+      'This house is dishonored by a defaulted loan.',
+    ]);
+    expect((await repay(player.user, loanId, 501)).body.data).toMatchObject({ status: 'repaid' });
+    // Soldé aujourd'hui : marqué jusqu'à la clôture dans 28 jours ; sans durée dans la version, la marque est levée.
+    expect((await borrow(player.user, 100, 7, 1_000, marked)).body.error?.message).toBe(
+      `This house is dishonored until game day ${today() + 28}.`,
+    );
+    const shift = (days: number) =>
+      owner.transaction().execute(async (trx) => {
+        await sql`set local session_replication_role = replica`.execute(trx);
+        await sql`update game.loan_repayments set game_day = game_day - ${days} where loan_id = ${loanId}`.execute(
+          trx,
+        );
+      });
+    // Soldé il y a 27 jours : encore marqué aujourd'hui, levée à la clôture de demain.
+    await shift(27);
+    expect(codeOf(await borrow(player.user, 100, 7, 1_000, marked))).toBe('DISHONORED');
+    await shift(1);
+    expect((await borrow(player.user, 100, 7, 1_000, marked)).status).toBe(200);
+  });
+
+  it('sans durée dans la version, la marque est levée au solde (#725)', async () => {
+    const player = await newPlayer(KALLISTE);
+    const loanId = (await borrow(player.user, 500, 7)).body.data.loanId as string;
+    await force(loanId, `status = 'defaulted', defaulted_day = due_day`);
+    expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
+    await repay(player.user, loanId, 501);
+    expect((await borrow(player.user, 100, 7)).status).toBe(200);
+  });
 });
 
 describe('loan.repay', () => {
@@ -354,12 +393,70 @@ describe('erreurs de la base sous concurrence', () => {
         ledger_entry_id) values (${other.world}, ${loanId}, ${player.houseId}, 0, 600, ${today()}, ${other.entry})`.execute(
       other.trx,
     );
-    // La commande lit un reste dû de 1 000, attend la trésorerie, puis la base relit le prêt : il n'en reste que 400.
+    // La commande attend le prêt, que tient la transaction, puis le relit (#725) : il n'en reste que 400.
     const reply = repay(player.user, loanId, 700);
     await blocked();
     await other.trx.commit().execute();
     expect(codeOf(await reply)).toBe('ABOVE_OUTSTANDING');
     expect(await stateOf(loanId)).toBe('active:1000:2:600:2:400');
     expect(await balanceOf(player.houseId)).toBe(GRANT + 1_000 - 2 - 600);
+  });
+
+  it('un remboursement qui croise un prélèvement de la clôture encore à valider : il relit le prêt sous l’agora (#725)', async () => {
+    // Prélèvement entier (le prêt est soldé), puis partiel sur une trésorerie de 500 (elle est vidée).
+    for (const [drained, taken, expected, state] of [
+      [0, [2, 1_000], 'LOAN_REPAID', 'repaid:1000:2:1000:2:0'],
+      [GRANT + 500, [2, 498], 'INSUFFICIENT_FUNDS', 'defaulted:1000:2:498:2:502'],
+    ] as const) {
+      // Un monde à lui, dont la clôture du jour s'enregistre ici. 1 000 oboles pour 7 jours, 2 d'intérêts, échues.
+      const [world, city] = [randomUUID(), randomUUID()];
+      await sql`insert into game.worlds (id, slug, name) values (${world}, ${`t-${world.slice(0, 12)}`}, 'Échéance')`.execute(
+        owner,
+      );
+      await sql`insert into game.cities (id, world_id, slug, name) values (${city}, ${world}, 'kalliste', 'Kallistè')`.execute(
+        owner,
+      );
+      const player = await newPlayer(city);
+      const loanId = (await borrow(player.user, 1_000, 7)).body.data.loanId as string;
+      await force(
+        loanId,
+        `borrowed_day = borrowed_day - 10, due_day = due_day - 10, status = 'defaulted',
+        defaulted_day = due_day - 10, due_at = due_at - interval '10 days', created_at = created_at - interval '11 days'`,
+      );
+      if (drained > 0) {
+        const spent = await pending(player.houseId, 'test.seed', [
+          ['house', -drained],
+          ['faucet_starting_grant', drained],
+        ]);
+        await spent.trx.commit().execute();
+      }
+      // La clôture tient l'agora et prélève, intérêts d'abord.
+      const [interest, principal] = taken;
+      const close = await pending(
+        player.houseId,
+        'loan.collect',
+        [
+          ['house', -(interest + principal)],
+          ['sink_temple_interest', interest],
+          ['faucet_temple_loans', principal],
+        ],
+        { loanId },
+      );
+      await sql`select pg_advisory_xact_lock(hashtextextended(${`market:${world}`}, 0))`.execute(
+        close.trx,
+      );
+      await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day,
+          ledger_entry_id, kind) values (${world}, ${loanId}, ${player.houseId}, ${interest}, ${principal}, ${today()},
+          ${close.entry}, 'collect')`.execute(close.trx);
+      await sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+        select ${world}, ${today()}, ${dailyCloseAt(today(), (INITIAL_CONFIG as GameConfig).clock)}, id
+        from config.versions limit 1`.execute(close.trx);
+      // Lu avant le prélèvement, le remboursement aurait payé des intérêts déjà payés : la base l'aurait refusé sans code.
+      const reply = repay(player.user, loanId, 400);
+      await blocked();
+      await close.trx.commit().execute();
+      expect(codeOf(await reply)).toBe(expected);
+      expect(await stateOf(loanId)).toBe(state);
+    }
   });
 });

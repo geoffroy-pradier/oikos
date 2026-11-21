@@ -23,11 +23,15 @@ export const loanRepay = defineCommand({
   errors: LOAN_REPAY_ERROR_CODES,
   // La base fait foi sous concurrence : ni découvert, ni plus que le reste dû.
   errorByConstraint: { accounts_no_overdraft: NO_FUNDS, loans_outstanding_rule: ABOVE },
-  async handler({ trx, userId, emit, config, now }, input) {
-    // Ordre des verrous : la maison, puis l'agora du monde et la trésorerie, comme `liturgy.perform`. La maison
-    // verrouillée fait se suivre les remboursements d'un même prêt, que la base relit de toute façon.
+  async handler({ trx, userId, emit, configAt, now }, input) {
+    // Horloge de la version en vigueur à l'instant de la base, qui date le remboursement comme la base le vérifie (#725).
+    const config = await configAt(now);
+    // Ordre des verrous : la maison, puis l'agora du monde, le prêt et la trésorerie, comme `liturgy.perform`. Le prêt
+    // est lu sous l'agora, que la clôture tient pendant son prélèvement (#725), et verrouillé : un prélèvement ou un
+    // remboursement validé entre-temps est relu, et le partage se fait sur ce qui reste des intérêts.
     const house = await lockHouse(trx, userId);
     if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
+    await lock(trx, `market:${house.world_id}`);
     const loan = await trx
       .selectFrom('game.loans')
       .select(['id', 'interest', 'interest_repaid', 'outstanding', 'status'])
@@ -35,13 +39,13 @@ export const loanRepay = defineCommand({
       .where('borrower_house_id', '=', house.id)
       // Les prêts de banque (#728) se rembourseront à leur coffre : d'ici là, seul le temple est remboursé.
       .where('lender', '=', 'temple')
+      .forNoKeyUpdate()
       .executeTakeFirst();
     if (!loan) return refuse('LOAN_NOT_FOUND', 'This house has no such loan.');
     if (loan.status === 'repaid') return refuse('LOAN_REPAID', 'This loan is already repaid.');
     const amount = BigInt(input.amount);
     if (amount > BigInt(loan.outstanding))
       return refuse(ABOVE.code, `This loan still owes ${loan.outstanding} oboles.`);
-    await lock(trx, `market:${house.world_id}`);
     const treasury = await trx
       .selectFrom('game.accounts')
       .select(['id', 'balance'])

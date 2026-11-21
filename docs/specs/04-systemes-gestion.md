@@ -79,7 +79,8 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   Décision (ambiguïté) : les « sanctions » qui la font baisser sont celles du jeu (défaut de paiement, dérobade à une liturgie, Némésis), jamais celles de la modération (6.6).
   Motifs `liturgy_performed` et `liturgy_evaded` (#720, 6.4) : une liturgie accomplie rapporte `liturgies.honorGain`, grandi par le faste ; une liturgie prélevée d'office coûte `liturgies.evasionHonorLoss` ; l'un ou l'autre une fois par liturgie, rognés aux bornes.
   Le crédit du Trésor du temple la lit (5.4, #724) : son plafond est celui du palier de Timè de la maison.
-  Les motifs des prêts et des conflits viendront avec leurs tickets ; l'éligibilité et les prix des PNJ ne la lisent pas encore.
+  Motif `loan_defaulted` (#725, 5.4) : un prêt qui passe en défaut à son échéance coûte `templeTreasury.defaultHonorLoss`, une fois par prêt, rognée aux bornes ; la marque de déshonneur se lit avec la Timè (`house_honor`).
+  Les motifs des conflits viendront avec leurs tickets ; l'éligibilité et les prix des PNJ ne la lisent pas encore.
 
 ## 4.2 Les domaines
 
