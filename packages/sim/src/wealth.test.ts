@@ -32,6 +32,7 @@ describe('fortune d’une maison', () => {
       unpricedStocks: 1,
       debt: 0n,
       vault: 0n,
+      deposits: 0n,
       wealth: 3_189n,
     });
     // Solde nul partout : fortune nulle, sans stock sans prix.
@@ -42,6 +43,7 @@ describe('fortune d’une maison', () => {
       unpricedStocks: 0,
       debt: 0n,
       vault: 0n,
+      deposits: 0n,
       wealth: 0n,
     });
     // Un prêt (#724) : le reste dû se déduit, jusqu'à une fortune négative ; une dette négative n'a pas de sens.
@@ -59,6 +61,15 @@ describe('fortune d’une maison', () => {
     const before = houseWealth({ treasury: 30_000n, escrow: 0n, stocks });
     const after = houseWealth({ treasury: 5_000n, escrow: 0n, stocks, vault: 20_000n });
     expect(after).toMatchObject({ vault: 20_000n, wealth: before.wealth - 5_000n });
+    // Un dépôt (#727) : une créance du déposant ; le coffre de la banque, net de ce qu'elle doit, peut être négatif.
+    expect(houseWealth({ treasury: 0n, escrow: 0n, stocks: [], deposits: 7n })).toMatchObject({
+      deposits: 7n,
+      wealth: 7n,
+    });
+    expect(houseWealth({ treasury: 10n, escrow: 0n, stocks: [], vault: -40n }).wealth).toBe(-30n);
+    expect(() => houseWealth({ treasury: 0n, escrow: 0n, stocks: [], deposits: -1n })).toThrow(
+      RangeError,
+    );
   });
 
   it('propriété : un stock sans prix ne change pas la fortune, il n’ajoute qu’au compte des stocks sans prix', () => {
@@ -108,6 +119,32 @@ describe('fortune d’une maison', () => {
           });
           expect(paidIn.wealth).toBe(before.wealth);
           expect(before.wealth).toBe(treasury + vault - debt);
+        },
+      ),
+    );
+  });
+
+  it('propriété : un dépôt ou un retrait ne change ni la fortune du déposant ni celle du banquier ; l’intérêt passe de l’un à l’autre (#727)', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 0n, max: 2n ** 50n }),
+        fc.bigInt({ min: 0n, max: 2n ** 50n }),
+        fc.bigInt({ min: 0n, max: 2n ** 50n }),
+        fc.bigInt({ min: -(2n ** 50n), max: 2n ** 50n }),
+        fc.bigInt({ min: 0n, max: 2n ** 40n }),
+        (treasury, held, owed, vaultNet, moved) => {
+          // Le déposant verse `moved` : sa trésorerie baisse, sa créance monte ; le coffre de la banque monte autant que
+          // ce qu'elle doit, son net ne bouge pas.
+          const depositor = (cash: bigint, deposits: bigint) =>
+            houseWealth({ treasury: cash, escrow: 0n, stocks: [], deposits }).wealth;
+          const banker = (vault: bigint, deposits: bigint) =>
+            houseWealth({ treasury, escrow: 0n, stocks: [], vault: vault - deposits }).wealth;
+          const vault = vaultNet + owed;
+          expect(depositor(treasury + moved, held)).toBe(depositor(treasury, held + moved));
+          expect(banker(vault, owed)).toBe(banker(vault + moved, owed + moved));
+          // L'intérêt : la créance monte, la dette de la banque aussi ; la somme des deux fortunes ne change pas.
+          const before = depositor(treasury, held) + banker(vault, owed);
+          expect(depositor(treasury, held + moved) + banker(vault, owed + moved)).toBe(before);
         },
       ),
     );

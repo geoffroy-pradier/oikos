@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { bankRequiredReserve, bankWithdrawableCapital } from './bank';
+import { bankDepositInterest, bankRequiredReserve, bankWithdrawableCapital } from './bank';
 
 const rules = (minCapitalOboles: number, reserveRatioBps: number) => ({
   minCapitalOboles,
@@ -77,6 +77,74 @@ describe('capital retirable d’un coffre (#726)', () => {
           expect(left >= reserve || free === 0n).toBe(true);
           // Une obole de plus passerait sous la réserve.
           if (vault > reserve) expect(left).toBe(reserve);
+        },
+      ),
+    );
+  });
+});
+
+describe('intérêt du jour d’un dépôt (#727)', () => {
+  it('exemples : arrondi à l’obole inférieure, rien d’un solde nul, d’un taux nul ou d’un petit dépôt', () => {
+    // 5 % l'an sur 73 000 oboles : 73 000 × 500 ÷ 3 650 000 = 10 oboles juste.
+    expect(bankDepositInterest(73_000n, 500)).toBe(10n);
+    // Une obole de moins : 9,99…, arrondi à 9.
+    expect(bankDepositInterest(72_999n, 500)).toBe(9n);
+    expect(bankDepositInterest(7_299n, 500)).toBe(0n);
+    expect(bankDepositInterest(7_300n, 500)).toBe(1n);
+    expect(bankDepositInterest(0n, 1_000_000)).toBe(0n);
+    expect(bankDepositInterest(10n ** 12n, 0)).toBe(0n);
+    // Rogné aux entiers sûrs : le solde n'en sort jamais.
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    expect(bankDepositInterest(max, 1_000_000)).toBe(0n);
+    expect(bankDepositInterest(max - 5n, 1_000_000)).toBe(5n);
+  });
+
+  it('refuse un solde ou un taux hors des entiers admis', () => {
+    expect(() => bankDepositInterest(-1n, 0)).toThrow(RangeError);
+    expect(() => bankDepositInterest(BigInt(Number.MAX_SAFE_INTEGER) + 1n, 0)).toThrow(RangeError);
+    expect(() => bankDepositInterest(1n, -1)).toThrow(RangeError);
+    expect(() => bankDepositInterest(1n, 1_000_001)).toThrow(RangeError);
+    expect(() => bankDepositInterest(1n, 1.5)).toThrow(RangeError);
+  });
+
+  it('propriété : le plus grand entier sous le produit exact, croissant avec le solde et le taux', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 0n, max: 10n ** 15n }),
+        fc.integer({ min: 0, max: 100_000 }),
+        (balance, rate) => {
+          const interest = bankDepositInterest(balance, rate);
+          const exact = balance * BigInt(rate);
+          expect(interest >= 0n).toBe(true);
+          expect(interest * 3_650_000n <= exact).toBe(true);
+          expect((interest + 1n) * 3_650_000n > exact).toBe(true);
+          expect(bankDepositInterest(balance + 1n, rate) >= interest).toBe(true);
+          expect(bankDepositInterest(balance, rate + 1) >= interest).toBe(true);
+        },
+      ),
+    );
+  });
+
+  it('propriété : jour après jour, l’intérêt se compose et ne dépasse jamais l’intérêt composé exact', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 0n, max: 10n ** 12n }),
+        fc.integer({ min: 0, max: 100_000 }),
+        fc.integer({ min: 1, max: 60 }),
+        (start, rate, days) => {
+          let balance = start;
+          let simple = 0n;
+          for (let day = 0; day < days; day += 1) {
+            const interest = bankDepositInterest(balance, rate);
+            // Chaque jour rapporte au moins l'intérêt du solde de départ : les intérêts passés en rapportent.
+            expect(interest >= bankDepositInterest(start, rate)).toBe(true);
+            simple += bankDepositInterest(start, rate);
+            balance += interest;
+          }
+          expect(balance - start >= simple).toBe(true);
+          // Majoré par le composé exact : (1 + r)^jours, en rationnels.
+          const [num, den] = [3_650_000n + BigInt(rate), 3_650_000n];
+          expect(balance * den ** BigInt(days) <= start * num ** BigInt(days)).toBe(true);
         },
       ),
     );

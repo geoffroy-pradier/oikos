@@ -27,10 +27,12 @@ export interface HouseWealthInput {
    */
   debt?: bigint;
   /**
-   * Coffre de la banque de la maison (#726), net de ses dépôts (#727, nuls avant), en oboles ; nul sans banque. La
-   * monnaie du coffre reste à la maison qui l'a versée : elle compte dans sa fortune.
+   * Coffre de la banque de la maison (#726), net des dépôts qu'elle doit (#727), en oboles ; nul sans banque. La
+   * monnaie du coffre reste à la maison qui l'a versée, moins ce qu'elle doit à ses déposants : il peut être négatif.
    */
   vault?: bigint;
+  /** Dépôts de la maison dans les banques (#727), intérêts compris, en oboles : une créance, comptée dans sa fortune. */
+  deposits?: bigint;
 }
 
 export interface HouseWealth {
@@ -42,16 +44,19 @@ export interface HouseWealth {
   unpricedStocks: number;
   /** Reste dû des prêts de la maison. */
   debt: bigint;
-  /** Coffre de sa banque, net de ses dépôts. */
+  /** Coffre de sa banque, net des dépôts qu'elle doit. */
   vault: bigint;
-  /** Trésorerie, séquestre, valeur des stocks et coffre, moins le reste dû. */
+  /** Ses dépôts dans les banques. */
+  deposits: bigint;
+  /** Trésorerie, séquestre, valeur des stocks, coffre net et dépôts, moins le reste dû. */
   wealth: bigint;
 }
 
 /**
  * Fortune d'une maison, comme son bilan (4.1) : trésorerie, séquestre et stocks valorisés au prix observé de
- * leur cité, cargaisons en mer comprises (#719), que le bilan ignore, et coffre de sa banque (#726), moins le reste dû
- * de ses prêts (#724). Un stock
+ * leur cité, cargaisons en mer comprises (#719), que le bilan ignore, coffre de sa banque net des dépôts qu'elle doit
+ * (#726, #727) et dépôts de la maison (#727), moins le reste dû de ses prêts (#724). Un dépôt compte une fois : pour le
+ * déposant, et en moins dans le coffre de sa banque. Un stock
  * vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et il est compté à part. Sites,
  * navires et biens immobiliers n'y entrent pas.
  */
@@ -61,8 +66,10 @@ export function houseWealth({
   stocks,
   debt = 0n,
   vault = 0n,
+  deposits = 0n,
 }: HouseWealthInput): HouseWealth {
   if (debt < 0n) throw new RangeError('debt must not be negative');
+  if (deposits < 0n) throw new RangeError('deposits must not be negative');
   let [stockValue, unpricedStocks] = [0n, 0];
   for (const { quantity, unitPrice } of stocks) {
     if (quantity <= 0n) continue;
@@ -76,7 +83,8 @@ export function houseWealth({
     unpricedStocks,
     debt,
     vault,
-    wealth: treasury + escrow + stockValue + vault - debt,
+    deposits,
+    wealth: treasury + escrow + stockValue + vault + deposits - debt,
   };
 }
 

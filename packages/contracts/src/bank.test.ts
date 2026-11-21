@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bankFoundInputSchema, bankMoveCapitalInputSchema } from './bank';
+import {
+  bankDepositInputSchema,
+  bankFoundInputSchema,
+  bankMoveCapitalInputSchema,
+  bankSetRatesInputSchema,
+  bankWithdrawInputSchema,
+} from './bank';
 import { domainEventSchema } from './events';
 
 describe('banques de joueurs (#726)', () => {
@@ -60,6 +66,62 @@ describe('banques de joueurs (#726)', () => {
     expect(domainEventSchema.parse(moved)).toEqual(moved);
     expect(
       domainEventSchema.safeParse({ ...moved, payload: { ...moved.payload, amount: 0 } }).success,
+    ).toBe(false);
+  });
+
+  it('bank.deposit, bank.withdraw, bank.setRates : une banque, un montant positif, des taux entiers (#727)', () => {
+    const bankId = '01900000-0000-7000-8000-0000000727b1';
+    const deposit = { bankId, amount: 1, expectedRateBps: 0 };
+    expect(bankDepositInputSchema.parse(deposit)).toEqual(deposit);
+    for (const patch of [
+      { amount: 0 },
+      { amount: 1.5 },
+      { amount: Number.MAX_SAFE_INTEGER + 1 },
+      { expectedRateBps: -1 },
+      { expectedRateBps: 1_000_001 },
+      { expectedRateBps: undefined },
+      { bankId: 'x' },
+      { houseId: bankId },
+    ])
+      expect(bankDepositInputSchema.safeParse({ ...deposit, ...patch }).success).toBe(false);
+    const withdraw = { bankId, amount: 7 };
+    expect(bankWithdrawInputSchema.parse(withdraw)).toEqual(withdraw);
+    for (const patch of [{ amount: 0 }, { amount: -7 }, { bankId: undefined }, { rateBps: 1 }])
+      expect(bankWithdrawInputSchema.safeParse({ ...withdraw, ...patch }).success).toBe(false);
+    const rates = { depositRateBps: 0, loanRateBps: 1_000_000 };
+    expect(bankSetRatesInputSchema.parse(rates)).toEqual(rates);
+    for (const patch of [{ depositRateBps: 0.5 }, { loanRateBps: -1 }, { bankId }])
+      expect(bankSetRatesInputSchema.safeParse({ ...rates, ...patch }).success).toBe(false);
+  });
+
+  it('BankDeposited, BankWithdrawn, BankRatesSet et BankInterestCredited se relisent par l’union (#727)', () => {
+    const ids = {
+      bankId: '01900000-0000-7000-8000-0000000727b1',
+      houseId: '01900000-0000-7000-8000-0000000727a1',
+    };
+    const depositId = '01900000-0000-7000-8000-0000000727d1';
+    const events = [
+      {
+        type: 'BankDeposited' as const,
+        payload: { ...ids, depositId, amount: 10, balance: 10, rateBps: 500 },
+      },
+      { type: 'BankWithdrawn' as const, payload: { ...ids, depositId, amount: 10, balance: 0 } },
+      { type: 'BankRatesSet' as const, payload: { ...ids, depositRateBps: 0, loanRateBps: 300 } },
+      {
+        type: 'BankInterestCredited' as const,
+        payload: { ...ids, depositId, interest: 1, rateBps: 500, balance: 7_301, gameDay: 20_000 },
+      },
+    ];
+    for (const event of events) expect(domainEventSchema.parse(event)).toEqual(event);
+    // Un intérêt nul ne s'écrit pas ; un solde négatif n'existe pas.
+    const [, withdrawn, , credited] = events;
+    expect(
+      domainEventSchema.safeParse({ ...credited, payload: { ...credited?.payload, interest: 0 } })
+        .success,
+    ).toBe(false);
+    expect(
+      domainEventSchema.safeParse({ ...withdrawn, payload: { ...withdrawn?.payload, balance: -1 } })
+        .success,
     ).toBe(false);
   });
 });
