@@ -39,9 +39,9 @@ const app = withRules(RULES);
 const codeOf = (reply: { body: { error?: { code: string } } }) => reply.body.error?.code;
 const freshName = () => `Trapeza ${[...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
 /** Une banque fondée par une maison nouvelle de Kallistè, avec `capital` oboles au coffre. */
-async function newBank(capital = 1_500, via = app) {
-  const banker = await newPlayer(KALLISTE);
-  await fund(banker.houseId, capital);
+async function newBank(capital = 1_500, via = app, city: string = KALLISTE) {
+  const banker = await newPlayer(city);
+  if (capital > 0) await fund(banker.houseId, capital);
   const founded = await send(
     banker.user,
     'bank.found',
@@ -145,16 +145,44 @@ describe('bank.deposit et bank.withdraw', () => {
   });
 
   it('un dépôt qui passerait le solde au-delà des entiers sûrs est refusé, sans effet (DEPOSIT_LIMIT)', async () => {
-    const bank = await newBank();
-    const player = await newPlayer(ELAIA);
-    const max = Number.MAX_SAFE_INTEGER;
-    await fund(player.houseId, max);
-    expect((await deposit(player.user, bank.bankId, max)).body.data.balance).toBe(max);
-    const before = [await balanceOf(player.houseId), await vaultOf(bank.bankId)];
-    const refused = await deposit(player.user, bank.bankId, 1);
-    expect([codeOf(refused), refused.status]).toEqual(['DEPOSIT_LIMIT', 409]);
-    expect([await balanceOf(player.houseId), await vaultOf(bank.bankId)]).toEqual(before);
-    expect(await heldBy(player.houseId, bank.bankId)).toBe(max);
+    // Un monde à lui : son robinet de dotation, débiteur de près de 2^53 oboles, et ses soldes géants ne touchent pas
+    // le monde partagé du jeu d'essai, dont d'autres fichiers additionnent la monnaie.
+    const [world, city] = [randomUUID(), randomUUID()];
+    await sql`insert into game.worlds (id, slug, name) values (${world}, ${`d-${world.slice(0, 12)}`}, 'Plafond')`.execute(
+      owner,
+    );
+    await sql`insert into game.cities (id, world_id, slug, name)
+      values (${city}, ${world}, 'plafond', 'Plafond')`.execute(owner);
+    const open = withRules({ ...RULES, minCapitalOboles: 0 });
+    const bank = await newBank(0, open, city);
+    const player = await newPlayer(city);
+    try {
+      const max = Number.MAX_SAFE_INTEGER;
+      // Une obole de plus que le plafond : le dernier dépôt d'une obole est refusé par le solde, pas par la trésorerie.
+      await fund(player.houseId, max - GRANT + 1);
+      const full = await deposit(player.user, bank.bankId, max, 100, undefined, open);
+      expect(full.body.data.balance).toBe(max);
+      const refused = await deposit(player.user, bank.bankId, 1, 100, undefined, open);
+      expect([codeOf(refused), refused.status]).toEqual(['DEPOSIT_LIMIT', 409]);
+      expect([await balanceOf(player.houseId), await vaultOf(bank.bankId)]).toEqual([1, max]);
+      expect(await heldBy(player.houseId, bank.bankId)).toBe(max);
+    } finally {
+      // Le monde rendu à des soldes ordinaires : le tableau de bord d'Olympe, qui lit tous les mondes, rend leur masse
+      // monétaire en entiers sûrs. Le dépôt revient à la trésorerie, puis l'excédent de la dotation au robinet.
+      const held = await heldBy(player.houseId, bank.bankId);
+      if (held) await withdraw(player.user, bank.bankId, held, open);
+      const { rows } = await sql<{ excess: string }>`select (balance - ${GRANT})::text as excess
+        from game.accounts where house_id = ${player.houseId} and kind = 'house'`.execute(owner);
+      const excess = rows[0]?.excess ?? '0';
+      if (BigInt(excess) > 0n)
+        await sql`with entry as (insert into game.ledger_entries (world_id, kind)
+            values (${world}, 'test.fund') returning id)
+          insert into game.ledger_lines (entry_id, account_id, amount)
+          select entry.id, a.id, case when a.kind = 'house' then -${excess}::bigint else ${excess}::bigint end
+          from entry join game.accounts a on a.world_id = ${world}
+          where (a.kind = 'house' and a.house_id = ${player.houseId})
+             or a.system_key = 'faucet_starting_grant'`.execute(owner);
+    }
   });
 
   it('refus sans effet : banques fermées, banque inconnue ou la sienne, taux changé, trésorerie, solde, pas de dépôt', async () => {
