@@ -323,6 +323,8 @@ Raisons des choix :
   Décision (#621) : ce repos plutôt que le partitionnement des journaux, pour la raison et aux conditions de l'ADR 0002.
   Le journal des commandes et les événements des refus inscrits se purgent avec ces journaux, au partitionnement (ADR 0002).
   Les intendants et leurs règles sont privés : une maison lit les siens en poste (`my_stewards`, `my_steward_rules`), jamais ceux d'une autre (12).
+  Maisons PNJ de secours (8.3, #716) : leurs sites portent des règles de la même grammaire, écrites dans la configuration de leur filière (`npcHouses`), que le moteur mène au même pas, après les intendants, sans intendant ni salaire.
+  Une vente y a un prix plancher au plus égal au prix de référence du bien ; la file, le repos et les refus sont ceux d'un intendant, la dernière opération de chaque site tenant lieu de journal (`npc_site_queues`).
   La fiche de chaque site a sa section Intendant : embaucher, l'état de l'intendant (actif, en attente de la clôture qui le paie, impayé), ses règles par le formulaire, le renvoyer.
   Consigne en langage naturel (#280) : le joueur écrit une consigne à son intendant (`steward.submitInstruction`, 500 caractères au plus), qui n'est qu'une demande de traduction ; il valide toujours les règles par `steward.setRules`.
   La commande la refuse (`AI_UNAVAILABLE`) quand l'usage `steward` de l'IA est coupé, quand son plafond du mois est atteint, ou quand la maison a donné ses consignes du jour de jeu (`ai.stewardDailyQuotaPerHouse`, intendants renvoyés compris) ; une seule consigne attend par intendant (`INSTRUCTION_PENDING`).
