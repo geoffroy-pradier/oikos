@@ -14,6 +14,7 @@ import {
 import { lockNpcPurses, readHousing, type Db } from '@oikos/db';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
+import { notDeserted } from './nemesis-sanctions';
 
 /**
  * Puits du dû quotidien des sites (docs/specs/05-economie.md, 5.5), dans l'ordre où ils sont verrouillés :
@@ -211,8 +212,9 @@ export const siteUpkeep: CloseStep = {
         .select(['id', 'house_id', 'recipe_id', 'city_id', 'halted_at'])
         .where('house_id', '=', houseId)
         .where('created_at', '<', closeAt)
-        // Un site fermé d'une maison PNJ (#717) ne doit rien, ni ne repart.
+        // Un site fermé d'une maison PNJ (#717) ne doit rien, ni ne repart ; un atelier déserté ce jour non plus (#735).
         .where('closed_at', 'is', null)
+        .where(notDeserted(gameDay))
         .orderBy('created_at')
         .orderBy('id')
         .forUpdate()

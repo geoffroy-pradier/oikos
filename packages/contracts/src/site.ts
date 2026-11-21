@@ -200,6 +200,8 @@ export const SITE_RESTART_ERROR_CODES = [
   'SITE_CHANGED',
   /** Le prix en vigueur (entretien et salaires) n'est pas celui que le client a envoyé : rien n'est payé. */
   'PRICE_CHANGED',
+  /** Son artisan a déserté (Némésis, 7.2, #735) : le site ne repart qu'à la clôture suivante ; rien n'est payé. */
+  'SITE_DESERTED',
 ] as const;
 export type SiteRestartErrorCode = (typeof SITE_RESTART_ERROR_CODES)[number];
 

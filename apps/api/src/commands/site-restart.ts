@@ -35,6 +35,11 @@ export const siteRestart = defineCommand({
   // La base fait foi sous concurrence : le compte d'une maison ne passe jamais sous zéro.
   errorByConstraint: {
     accounts_no_overdraft: { code: 'INSUFFICIENT_FUNDS', message: 'Not enough money.' },
+    // Un atelier que Némésis a fait déserter (#735) ne repart qu'à la clôture suivante : la base refuse la reprise.
+    sites_nemesis_deserted: {
+      code: 'SITE_DESERTED',
+      message: 'This workshop waits for the next daily close.',
+    },
   },
   async handler({ trx, userId, emit, config }, input) {
     const owned = await trx

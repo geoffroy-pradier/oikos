@@ -14,6 +14,7 @@ import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
 import { loanCollection, loanDefaultLocks } from './steps/loan-collection';
+import { nemesis } from './steps/nemesis';
 import { npcHouseRetreatStep } from './steps/npc-house-retreat';
 import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
@@ -43,7 +44,9 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * (#720), sur ce que les loyers laissent, l'échéance des prêts du temple (#725), qui prélève ce qui reste et fait
  * passer en défaut un prêt qui reste dû, l'intérêt des dépôts (5.4, #727), sous l'agora qu'elle tient déjà, sans
  * toucher la monnaie, la vétusté des biens immobiliers (4.5), le retrait des maisons PNJ devant
- * les joueurs (8.3, #717), le marché du travail du jour (4.4, #258), la fondation des maisons PNJ de secours (8.3,
+ * les joueurs (8.3, #717), les présages et les sanctions de Némésis (7.2, #735), qui prennent sur ce qui reste, sous
+ * les verrous de l'entretien, avant que le marché du travail compte les ateliers, le marché du travail du jour (4.4,
+ * #258), la fondation des maisons PNJ de secours (8.3,
  * #715), le revenu public des PNJ (5.5, #632), leur surplus (8.3, #716), puis l'entretien.
  * Les maisons PNJ ne touchent que leur robinet et la maison qu'elles fondent, sans verrou d'agora : leurs sites,
  * créés après l'instant de la clôture, n'entrent ni dans le marché du travail ni dans l'entretien du jour.
@@ -92,6 +95,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   bankInterest,
   propertyWear,
   npcHouseRetreatStep,
+  nemesis,
   laborMarket,
   npcHouses,
   npcPublicIncome,
