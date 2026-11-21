@@ -178,7 +178,7 @@ async function newWorld(): Promise<[string, string]> {
 const moved = (world: AdminEconomy['worlds'][number]) =>
   Object.fromEntries(
     world.systemAccounts
-      .filter((row) => row.total !== 0 || row.days.length > 0)
+      .filter((row) => row.total !== '0' || row.days.length > 0)
       .map((row) => [row.key, [row.total, ...row.days.map((d) => [d.gameDay - today, d.amount])]]),
   );
 
@@ -199,26 +199,26 @@ it('masse monétaire par nature de compte, robinets et puits en cumul et par jou
   const { data, world } = await read(WORLD);
   expect(data.windowDays).toBe(30);
   expect(world.moneySupply).toEqual({
-    total: 2 * GRANT - ORCHARD + 584,
-    houses: 2 * GRANT - ORCHARD + 412,
-    escrow: 70,
-    cityTreasuries: 2,
-    npcPurses: 60,
-    bankVaults: 40,
-    other: 0,
+    total: String(2 * GRANT - ORCHARD + 584),
+    houses: String(2 * GRANT - ORCHARD + 412),
+    escrow: '70',
+    cityTreasuries: '2',
+    npcPurses: '60',
+    bankVaults: '40',
+    other: '0',
   });
   expect(moved(world)).toEqual({
-    faucet_starting_grant: [2 * GRANT, [0, 2 * GRANT]],
-    faucet_rewards: [557, [-29, 1], [-3, 7], [-2, 40]],
-    sink_site_acquisition: [ORCHARD, [0, ORCHARD]],
-    sink_upkeep: [30, [-3, 30]],
-    sink_market_tax: [3, [-3, 3]],
-    faucet_npc_public_income: [60, [-1, 60]],
+    faucet_starting_grant: [String(2 * GRANT), [0, String(2 * GRANT)]],
+    faucet_rewards: ['557', [-29, '1'], [-3, '7'], [-2, '40']],
+    sink_site_acquisition: [String(ORCHARD), [0, String(ORCHARD)]],
+    sink_upkeep: ['30', [-3, '30']],
+    sink_market_tax: ['3', [-3, '3']],
+    faucet_npc_public_income: ['60', [-1, '60']],
   });
   for (const row of world.systemAccounts) expect(row.key.startsWith(`${row.kind}_`)).toBe(true);
   // Monde sans maison ni écriture : tout est nul, rien n'est absent.
   const { world: empty } = await read(EMPTY);
-  expect(new Set(Object.values(empty.moneySupply))).toEqual(new Set([0]));
+  expect(new Set(Object.values(empty.moneySupply))).toEqual(new Set(['0']));
   expect(empty.systemAccounts.map((row) => row.key)).toEqual(
     world.systemAccounts.map((r) => r.key),
   );
@@ -268,17 +268,20 @@ it('le tableau de bord porte chaque robinet et chaque puits du catalogue des com
 it('`days` règle le nombre de jours détaillés, sans toucher aux cumuls', async () => {
   const two = await read(WORLD, '?days=2');
   expect(two.data.windowDays).toBe(2);
-  expect(moved(two.world)['faucet_rewards']).toEqual([557]);
-  expect(moved(two.world)['sink_site_acquisition']).toEqual([ORCHARD, [0, ORCHARD]]);
+  expect(moved(two.world)['faucet_rewards']).toEqual(['557']);
+  expect(moved(two.world)['sink_site_acquisition']).toEqual([
+    String(ORCHARD),
+    [0, String(ORCHARD)],
+  ]);
   // Au-delà du maximum, la fenêtre est bornée et la réponse le dit.
   const wide = await read(WORLD, '?days=999');
   expect(wide.data.windowDays).toBe(90);
   expect(moved(wide.world)['faucet_rewards']).toEqual([
-    557,
-    [-30, 500],
-    [-29, 1],
-    [-3, 7],
-    [-2, 40],
+    '557',
+    [-30, '500'],
+    [-29, '1'],
+    [-3, '7'],
+    [-2, '40'],
   ]);
   expect((await read(WORLD, '?days=1000')).data.windowDays).toBe(90);
   for (const bad of ['0', '-1', '1.5', '090', 'abc', '']) {
@@ -300,11 +303,15 @@ it('dans chaque monde, la masse affichée est la somme des soldes et le net des 
     const held = rows.find((row) => row.world_id === world.worldId);
     const { total, houses, escrow, cityTreasuries, npcPurses, bankVaults, other } =
       world.moneySupply;
-    expect([Number(held?.held ?? 0), Number(held?.lines ?? 0)]).toEqual([total, total]);
-    expect(houses + escrow + cityTreasuries + npcPurses + bankVaults + other).toBe(total);
+    expect([held?.held ?? '0', held?.lines ?? '0']).toEqual([total, total]);
+    const parts = [houses, escrow, cityTreasuries, npcPurses, bankVaults, other];
+    expect(parts.reduce((sum, part) => sum + BigInt(part), 0n)).toBe(BigInt(total));
     const net = (kind: string) =>
-      world.systemAccounts.reduce((sum, row) => sum + (row.kind === kind ? row.total : 0), 0);
-    expect(net('faucet') - net('sink')).toBe(total);
+      world.systemAccounts.reduce(
+        (sum, row) => sum + (row.kind === kind ? BigInt(row.total) : 0n),
+        0n,
+      );
+    expect(net('faucet') - net('sink')).toBe(BigInt(total));
   }
 });
 
@@ -539,9 +546,15 @@ it('lue pendant qu’une maison se fonde, garde cumul et jours d’un même inst
   });
   const seen = (await readEconomy(racing, config, 30)).worlds.find((w) => w.worldId === WORLD);
   expect(queries).toBe(8);
-  expect(seen && moved(seen)['faucet_starting_grant']).toEqual([2 * GRANT, [0, 2 * GRANT]]);
+  expect(seen && moved(seen)['faucet_starting_grant']).toEqual([
+    String(2 * GRANT),
+    [0, String(2 * GRANT)],
+  ]);
   const { world } = await read(WORLD);
-  expect(moved(world)['faucet_starting_grant']).toEqual([3 * GRANT, [0, 3 * GRANT]]);
+  expect(moved(world)['faucet_starting_grant']).toEqual([
+    String(3 * GRANT),
+    [0, String(3 * GRANT)],
+  ]);
 });
 
 it('inégalité des fortunes par monde et par cité, sans les maisons PNJ de secours (#718)', async () => {
@@ -618,4 +631,40 @@ it('inégalité des fortunes par monde et par cité, sans les maisons PNJ de sec
   // Le monde vide n'a aucune maison : Gini inconnu, jamais nul.
   const { world: none } = await read(EMPTY);
   expect(none.inequality).toEqual({ giniBps: null, houses: 0, unpricedStocks: 0, cities: [] });
+});
+
+it('un monde au-delà des entiers sûrs est rendu sans perte, et ne fait pas refuser la réponse des autres (#1056)', async () => {
+  const [world, city] = await newWorld();
+  const found = (
+    await send(await newUser(), 'house.create', { cityId: city, name: 'Crésus', blazon })
+  ).houseId;
+  // 2^53 + 1 : le premier entier que `number` ne sait plus représenter.
+  const big = 2n ** 53n + 1n;
+  const shift = async (amount: bigint) =>
+    owner.transaction().execute(async (trx) => {
+      const { rows } = await sql<{ id: string }>`insert into game.ledger_entries (world_id, kind)
+        values (${world}, 'quest.reward') returning id`.execute(trx);
+      await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+        select ${rows[0]?.id}, id, case when kind = 'system' then -${String(amount)}::bigint else ${String(amount)}::bigint end
+        from game.accounts
+        where world_id = ${world} and (system_key = 'faucet_rewards' or (house_id = ${found} and kind = 'house'))`.execute(
+        trx,
+      );
+    });
+  await shift(big);
+  try {
+    const { data, world: seen } = await read(world);
+    const total = BigInt(GRANT) + big;
+    expect(seen.moneySupply).toMatchObject({ total: String(total), houses: String(total) });
+    expect(seen.systemAccounts.find((row) => row.key === 'faucet_rewards')).toMatchObject({
+      total: String(big),
+      days: [{ amount: String(big) }],
+    });
+    // Les autres mondes sont toujours là, avec leurs chiffres.
+    expect(data.worlds.map((w) => w.worldId)).toContain(WORLD);
+  } finally {
+    // Le grand livre est en ajout seul : l'écriture inverse rend au monde son solde d'avant.
+    await shift(-big);
+  }
+  expect((await read(world)).world.moneySupply.total).toBe(String(GRANT));
 });

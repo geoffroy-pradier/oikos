@@ -13,6 +13,18 @@ import {
 import { type QueryExecutorProvider, sql } from 'kysely';
 
 const DAY_MS = 86_400_000;
+type Supply = AdminEconomy['worlds'][number]['moneySupply'];
+
+/** Ajoute `n` (texte décimal) à une nature de la masse et à son total, en entiers exacts : au-delà de 2^53 aussi. */
+function addSupply(
+  world: { moneySupply: Supply },
+  part: Exclude<keyof Supply, 'total'>,
+  n: string,
+): void {
+  const { moneySupply } = world;
+  moneySupply[part] = (BigInt(moneySupply[part]) + BigInt(n)).toString();
+  moneySupply.total = (BigInt(moneySupply.total) + BigInt(n)).toString();
+}
 type Balance = { world_id: string; slug: string; kind: string; key: string | null; n: string };
 type Candle = { world_id: string; good_id: string; current: boolean; paid: string; units: string };
 type Wealth = {
@@ -153,20 +165,20 @@ export async function readEconomy(
   };
   // Monnaie créée par un robinet (compte débiteur) ou détruite par un puits (compte créditeur), en net.
   const moved = (key: string, sum: string) =>
-    key.startsWith('faucet_') ? 0 - Number(sum) : Number(sum);
+    (key.startsWith('faucet_') ? -BigInt(sum) : BigInt(sum)).toString();
   const worlds = new Map<string, AdminEconomy['worlds'][number]>();
   for (const { world_id: worldId, slug, kind, key, n } of accounts.rows) {
     const world = worlds.get(worldId) ?? {
       worldId,
       slug,
       moneySupply: {
-        total: 0,
-        houses: 0,
-        escrow: 0,
-        cityTreasuries: 0,
-        npcPurses: 0,
-        bankVaults: 0,
-        other: 0,
+        total: '0',
+        houses: '0',
+        escrow: '0',
+        cityTreasuries: '0',
+        npcPurses: '0',
+        bankVaults: '0',
+        other: '0',
       },
       systemAccounts: [],
       priceIndex: indexOf(worldId),
@@ -200,15 +212,13 @@ export async function readEconomy(
       const known = { house: 'houses', escrow: 'escrow', treasury: 'cityTreasuries' } as const;
       const part =
         kind === 'house' || kind === 'escrow' || kind === 'treasury' ? known[kind] : 'other';
-      world.moneySupply[part] += Number(n);
-      world.moneySupply.total += Number(n);
+      addSupply(world, part, n);
     }
   }
   for (const { world_id: worldId, part, n } of purses.rows) {
     const world = worlds.get(worldId);
     if (!world) continue;
-    world.moneySupply[part] += Number(n);
-    world.moneySupply.total += Number(n);
+    addSupply(world, part, n);
   }
   const { windowDays: priceWindowDays, inflationTargetBps } = priceIndex;
   const basketEmpty = priceIndex.basket.length === 0;

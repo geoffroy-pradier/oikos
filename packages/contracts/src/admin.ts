@@ -324,7 +324,12 @@ export const configActivationScheduledSchema = z.strictObject({
   }),
 });
 
-const oboles = z.number().int();
+/**
+ * Montant en oboles rendu en texte décimal entier (signe compris), pour les totaux qui additionnent des cumuls :
+ * ils peuvent dépasser les entiers sûrs de JavaScript sans rien perdre, et un monde aberrant ne fait pas
+ * refuser la réponse de tous les autres (docs/specs/15-back-office-olympe.md).
+ */
+const oboles = z.string().regex(/^-?\d+$/);
 const bps = z.number().int();
 const inequality = z.object({
   giniBps: bps.min(0).max(10_000).nullable(),
@@ -359,8 +364,8 @@ export const adminEconomySchema = z.object({
         houses: oboles,
         escrow: oboles,
         cityTreasuries: oboles,
-        npcPurses: oboles.default(0),
-        bankVaults: oboles.default(0),
+        npcPurses: oboles.default('0'),
+        bankVaults: oboles.default('0'),
         other: oboles,
       }),
       /**
