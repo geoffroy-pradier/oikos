@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import {
   createRng,
+  dailyCloseAt,
   houseWealth,
   splitLoanRepayment,
   templeLoanInterest,
   type Rng,
 } from '@oikos/sim';
 import { sql } from 'kysely';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 
 // Fortune d'une maison (#718) : la fonction de la base `game.house_wealth` et la fonction pure `houseWealth`
 // rendent la même valeur sur les mêmes données, contre Supabase local. Chaque essai fonde son propre monde.
@@ -16,6 +18,8 @@ const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const service = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
+// La base date l'emprunt à l'horloge de sa configuration en vigueur (#725) : celle de la configuration initiale.
+beforeAll(() => ensureInitialConfig(service, INITIAL_CONFIG));
 afterAll(() => Promise.all([service.destroy(), owner.destroy()]));
 
 const GOODS = ['wheat', 'olives', 'fish', 'salt'] as const;
@@ -83,6 +87,15 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
     const cities = Array.from({ length: CITIES }, () => randomUUID());
     const ids = houses.map(() => randomUUID());
     await owner.transaction().execute(async (trx) => {
+      // Jour de jeu et horloge de la base, que la base vérifie à l'emprunt (#725).
+      const { rows: clocks } = await sql<{
+        today: number;
+        dailyCloseHour: number;
+        timezone: string;
+      }>`
+        select game.game_day_at(now()) as today, daily_close_hour as "dailyCloseHour", timezone
+        from game.clock_rules()`.execute(trx);
+      const { today, ...clock } = clocks[0] ?? { today: 0, dailyCloseHour: 0, timezone: 'UTC' };
       const slug = `w${world.slice(0, 8)}`;
       await sql`insert into game.worlds (id, slug, name) values (${world}, ${slug}, 'Fortune')`.execute(
         trx,
@@ -135,8 +148,10 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
           const { rows: loan } = await sql<{ id: string }>`insert into game.loans (world_id, lender,
               borrower_house_id, principal, rate_bps, term_days, interest, borrowed_day, due_day, due_at,
               disbursement_entry_id)
-            values (${world}, 'temple', ${id}, ${principal}, ${RATE}, ${TERM}, ${interest}, 100, ${100 + TERM},
-              now() + interval '7 days', ${disbursed}) returning id`.execute(trx);
+            values (${world}, 'temple', ${id}, ${principal}, ${RATE}, ${TERM}, ${interest}, ${today},
+              ${today + TERM}, ${dailyCloseAt(today + TERM, clock)}, ${disbursed}) returning id`.execute(
+            trx,
+          );
           if (repaid > 0) {
             const split = splitLoanRepayment(BigInt(repaid), interest);
             const entry = await post(
@@ -150,7 +165,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             );
             await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal,
                 game_day, ledger_entry_id)
-              values (${world}, ${loan[0]?.id}, ${id}, ${split.interest}, ${split.principal}, 101, ${entry})`.execute(
+              values (${world}, ${loan[0]?.id}, ${id}, ${split.interest}, ${split.principal}, ${today}, ${entry})`.execute(
               trx,
             );
           }

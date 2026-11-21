@@ -45,7 +45,7 @@ select is(
     || 'graces_used.consumed_at graces_used.saved_seconds graces_used.site_id graces_used.voyage_id '
     || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day '
     || 'liturgies.charis_gained liturgies.god_id liturgies.ledger_entry_id liturgies.paid liturgies.settled_day liturgies.splendor '
-    || 'liturgies.status messages.hidden_at npc_demand_carry.budget_carry npc_demand_carry.carry '
+    || 'liturgies.status loans.defaulted_day loans.status messages.hidden_at npc_demand_carry.budget_carry npc_demand_carry.carry '
     || 'npc_demand_carry.updated_at npc_house_retreats.above_days npc_house_retreats.dissolved_at npc_house_retreats.game_day '
     || 'npc_house_retreats.sales npc_house_retreats.trade_seq npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_site_queues.config_version_id npc_site_queues.error_code npc_site_queues.rank npc_site_queues.refused '
@@ -86,7 +86,7 @@ select is(
     || 'game.check_voyage_settled game.check_voyage_stock_movement '
     || 'game.city_charis game.city_identity game.city_properties game.city_rates_in_force game.city_treasuries game.city_treasury_flows '
     || 'game.clock_rules game.create_city_channel game.create_city_npc_purse game.create_city_treasury game.create_direct_channel_members game.create_kind_system_accounts game.create_world_system_accounts game.current_house_ids game.current_world_ids '
-    || 'game.decree_rules game.election_results game.good_tiers game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.house_wealth game.liturgy_rules game.lock_npc_purses game.market_rules game.moderation_rules game.my_appeal_decisions game.my_liturgies game.my_sanctions game.my_workforce game.npc_purses game.order_book game.ostracism_results '
+    || 'game.decree_rules game.election_results game.game_day_at game.good_tiers game.guard_lease game.guard_property game.guard_property_listing game.guard_ship game.guard_voyage game.guard_voyage_cargo game.house_wealth game.liturgy_rules game.lock_npc_purses game.market_rules game.moderation_rules game.my_appeal_decisions game.my_liturgies game.my_sanctions game.my_workforce game.npc_purses game.order_book game.ostracism_results '
     || 'game.politics_rules game.property_offers game.property_offers_upkeep game.property_rules game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.readable_channel_ids game.ship_rules game.site_rules game.temple_graces game.temple_oracle game.temple_rules game.temple_treasury_rules telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions SECURITY DEFINER : liste figée');
 -- Une fonction exécutée au nom du propriétaire ne cherche ses objets dans aucun schéma implicite.
@@ -110,7 +110,7 @@ select is(
    where (n.nspname in ('game', 'config', 'telemetry', 'admin')
           or (n.nspname = 'public' and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')))
     and has_function_privilege('oikos_service', p.oid, 'execute')),
-  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.auth_user_exists game.city_rates game.house_ostracized game.house_wealth game.lock_npc_purses game.npc_purses game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
+  'admin.iso_instant admin.moderation_queue admin.set_role config.active_version_at config.cancel_clock_changing_activations game.auth_user_exists game.city_rates game.game_day_at game.house_ostracized game.house_wealth game.lock_npc_purses game.npc_purses game.purge_messages game.purge_steward_instructions game.purge_steward_operations game.uuid_v7 '
     || 'game.written_by_owner_trigger telemetry.prune_rate_windows telemetry.purge_ai_calls telemetry.purge_runs',
   'fonctions exécutables par le service : liste figée');
 select ok(not has_database_privilege('oikos_service', current_database(), 'create'), 'le service ne crée pas de schéma dans la base');

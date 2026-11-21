@@ -735,7 +735,8 @@ export interface GameDatabase {
   /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
    * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
-   * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`.
+   * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`. Seule la
+   * clôture le fait passer en défaut (#725), état et jour du défaut.
    */
   'game.loans': {
     id: ColumnType<string, never, never>;
@@ -752,7 +753,8 @@ export interface GameDatabase {
     principal_repaid: ColumnType<string, never, never>;
     interest_repaid: ColumnType<string, never, never>;
     outstanding: ColumnType<string, never, never>;
-    status: ColumnType<'active' | 'repaid' | 'defaulted', never, never>;
+    status: ColumnType<'active' | 'repaid' | 'defaulted', never, 'defaulted'>;
+    defaulted_day: ColumnType<number | null, never, number>;
     disbursement_entry_id: ColumnType<string, string, never>;
     created_at: ColumnType<Date, never, never>;
   };

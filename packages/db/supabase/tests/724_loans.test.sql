@@ -27,7 +27,8 @@ begin
      or (world_id = '01900000-0000-7000-8000-0000000724f0' and system_key = 'faucet_starting_grant');
 end $$;
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c724',
-  '{"templeTreasury": {"policyRateBps": 1000, "termDays": [7, 365],
+  '{"clock": {"tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7},
+    "templeTreasury": {"policyRateBps": 1000, "termDays": [7, 365],
     "principalCaps": [{"minHonor": 0, "maxPrincipal": 20000}, {"minHonor": 50, "maxPrincipal": 90000}]}}');
 insert into config.activations (version_id, activate_at) values ('00000000-0000-7000-8000-00000000c724', now());
 
@@ -44,13 +45,20 @@ create function pg_temp.balance(n text) returns bigint language sql as $$
   select balance from game.accounts where (kind = 'house' and house_id::text = '00000000-0000-7000-8000-0000000724' || n || '1')
     or (world_id = '01900000-0000-7000-8000-0000000724f0' and system_key = n)
 $$;
+-- Instant de la clôture qui ouvre le jour de jeu `d` (`dailyCloseAt`) : le premier quart d'heure de ce jour (#725).
+create function pg_temp.close_at(d int) returns timestamptz language sql as $$
+  select min(t) from generate_series((date '1970-01-01' + d - 1)::timestamp at time zone 'UTC',
+    (date '1970-01-01' + d + 2)::timestamp at time zone 'UTC', interval '15 minutes') t
+  where game.game_day_at(t) >= d
+$$;
 -- Emprunt écrit comme l'écrit la commande, au nom du service : l'écriture du décaissement (`credit` oboles du compte
 -- système `faucet` à la trésorerie de la maison), puis le prêt ; les contrôles différés sont joués aussitôt.
 create function pg_temp.borrow(n text, p_principal bigint, p_rate int = 1000, p_term int = 365, p_interest bigint = null,
   credit bigint = null, faucet text = 'faucet_temple_loans', entry_kind text = 'loan.temple_disburse',
   p_lender text = 'temple', p_due_day int = null)
 returns uuid language plpgsql as $$
-declare entry uuid; loan uuid; h uuid := pg_temp.house(n);
+declare entry uuid; loan uuid; h uuid := pg_temp.house(n); today int := game.game_day_at(now());
+  due timestamptz := pg_temp.close_at(coalesce(p_due_day, today + p_term));
 begin
   perform set_config('role', 'oikos_service', true);
   insert into game.ledger_entries (world_id, kind, meta)
@@ -64,8 +72,8 @@ begin
   insert into game.loans (world_id, lender, borrower_house_id, principal, rate_bps, term_days, interest, borrowed_day,
     due_day, due_at, disbursement_entry_id)
   values ('01900000-0000-7000-8000-0000000724f0', p_lender, h, p_principal, p_rate, p_term,
-    coalesce(p_interest, ceil(p_principal::numeric * p_rate * p_term / 3650000)::bigint), 200,
-    coalesce(p_due_day, 200 + p_term), now() + make_interval(days => p_term), entry)
+    coalesce(p_interest, ceil(p_principal::numeric * p_rate * p_term / 3650000)::bigint), today,
+    coalesce(p_due_day, today + p_term), due, entry)
   returning id into loan;
   set constraints game.loans_disbursed, game.ledger_entries_loan immediate;
   set constraints all deferred;
@@ -118,8 +126,9 @@ select is(
   'le service ne choisit ni l''identifiant, ni la date, ni l''état, ni ce qui est remboursé ou reste dû');
 select is(
   (select count(*)::integer from information_schema.column_privileges where table_schema = 'game'
-     and table_name = 'loans' and privilege_type in ('UPDATE', 'DELETE') and grantee in ('oikos_service', 'authenticated', 'anon')),
-  0, 'personne d''autre que la base ne modifie un prêt');
+     and table_name = 'loans' and privilege_type in ('UPDATE', 'DELETE') and grantee in ('oikos_service', 'authenticated', 'anon')
+     and (grantee, privilege_type, column_name) not in (('oikos_service', 'UPDATE', 'status'), ('oikos_service', 'UPDATE', 'defaulted_day'))),
+  0, 'personne d''autre que la base ne modifie un prêt, sauf la clôture qui le fait passer en défaut (#725)');
 
 -- Emprunt : seul le temple prête, à une maison de joueur, à l'intérêt de la règle, par son écriture.
 select throws_ok($$select pg_temp.borrow('a', 10000, p_lender => 'bank')$$, '23001', 'only the temple lends until banks open',
@@ -201,7 +210,7 @@ select throws_ok($$select pg_temp.repay(pg_temp.loan('b'), 1, 1, payer => 'a')$$
 
 -- Un prêt en défaut (#725, posé ici gardes levées) reste dû : il compte pour le prêt unique, et se rembourse.
 set local session_replication_role = replica;
-update game.loans set status = 'defaulted' where id = pg_temp.loan('b');
+update game.loans set status = 'defaulted', defaulted_day = due_day where id = pg_temp.loan('b');
 set local session_replication_role = origin;
 select throws_ok($$select pg_temp.borrow('b', 100, p_term => 7)$$, '23505', null, 'un prêt en défaut empêche d''en prendre un autre');
 select lives_ok($$select pg_temp.repay(pg_temp.loan('b'), 1, 3000)$$, 'Bob en rembourse l''intérêt et une part du principal');
