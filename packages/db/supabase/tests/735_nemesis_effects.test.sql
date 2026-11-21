@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(27);
 
 -- Jeu d'essai : un monde à lui, Kallistè (k) et Elaia (l). Alice (a) a 100 blés et 40 huiles à Kallistè, un atelier
 -- et un navire à quai ; Bob (b) a un navire. Les présages sont adressés au jour 300 et frappent au jour 303 ; les
@@ -157,7 +157,8 @@ create function pg_temp.desert(halt boolean) returns text language sql as $$
   select format('select pg_temp.as_service(%L)', format(
     'insert into game.hubris_ledger (world_id, house_id, amount, cause, game_day) values (%L, %L, -5, ''nemesis'', 307);
      update game.nemesis_omens set outcome = ''struck'', settled_day = 307, relief = 5, site_id = %L,
-       resumes_at = now() + interval ''1 day'' where id = (select id from game.nemesis_omens where model = ''artisan_desertion'');
+       resumes_at = now() + interval ''1 day'' where id = (select id from game.nemesis_omens
+       where world_id = ''01900000-0000-7000-8000-0000000735e0'' and model = ''artisan_desertion'');
      %s', '01900000-0000-7000-8000-0000000735e0', pg_temp.house('a'), '00000000-0000-7000-8000-000000735ed1',
     case when halt then 'update game.sites set halted_at = now() where id = ''00000000-0000-7000-8000-000000735ed1''' else '' end))
 $$;
@@ -166,6 +167,12 @@ select throws_ok(pg_temp.desert(false) || '; select pg_temp.close(307); set cons
 select lives_ok(pg_temp.desert(true) || '; select pg_temp.close(307); set constraints all immediate',
   'l''atelier d''Alice s''arrête avec la sanction');
 set constraints all deferred;
+select throws_ok($$select pg_temp.as_service(format($q$insert into game.stock_ledger
+    (world_id, good_id, quantity, from_inventory_id, to_system, kind, nemesis_id)
+  values ('01900000-0000-7000-8000-0000000735e0', 'oil', 1, '00000000-0000-7000-8000-000000735ec2', 'nemesis', 'nemesis.fire', %L)$q$,
+  (select id from game.nemesis_omens where world_id = '01900000-0000-7000-8000-0000000735e0' and model = 'artisan_desertion')))$$,
+  '23001', 'goods go to nemesis only as its struck sanction takes them',
+  'une sanction frappée qui ne brûle ni ne perd de navire n''envoie aucun bien à nemesis');
 select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = null where id = ''00000000-0000-7000-8000-000000735ed1''')$$,
   '23514', 'a deserted workshop waits for the next close', 'il ne repart pas avant l''instant de reprise, même relancé');
 select throws_ok($$update game.sites set halted_at = null where id = '00000000-0000-7000-8000-000000735ed1'$$,
