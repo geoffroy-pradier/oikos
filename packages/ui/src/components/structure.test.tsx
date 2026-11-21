@@ -29,6 +29,38 @@ describe('StatCard', () => {
     expect(screen.getByText('96 dr.').className).toContain('tabular-nums');
   });
 
+  it("state : icône à la teinte et bord de l'état ; rien sans state", () => {
+    const { container } = render(
+      <>
+        {(['danger', 'warning', 'success'] as const).map((tone) => (
+          <StatCard
+            key={tone}
+            label={`L-${tone}`}
+            value="1"
+            icon={<Ship data-testid="plain" />}
+            state={{ tone, icon: <Coins data-testid={`state-${tone}`} /> }}
+          />
+        ))}
+        <StatCard label="L-none" value="0" icon={<Ship data-testid="plain-only" />} />
+      </>,
+    );
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-stat-card]'));
+    const [danger, warning, success, none] = cards;
+    const iconBox = (id: string) => screen.getByTestId(id).parentElement as HTMLElement;
+    expect(iconBox('state-danger').className).toContain('text-danger');
+    expect(iconBox('state-warning').className).toContain('text-warning');
+    expect(iconBox('state-success').className).toContain('text-success');
+    expect(danger?.className).toContain('border-danger/50');
+    expect(warning?.className).toContain('border-warning/50');
+    // Un état à zéro garde le bord commun.
+    expect(success?.className).not.toMatch(/border-(success|warning|danger)/);
+    // Avec `state`, l'icône d'état remplace l'icône décorative.
+    expect(screen.queryAllByTestId('plain')).toHaveLength(0);
+    // Sans `state` : ni teinte ni bord d'état, l'icône ordinaire reste.
+    expect(none?.className).not.toMatch(/border-(success|warning|danger)/);
+    expect(iconBox('plain-only').className).not.toMatch(/text-(success|warning|danger)/);
+  });
+
   it('dense : petite carte sous 1 024 px, sans icône ni variation ; entière au-delà', () => {
     render(<StatCard dense label="Stocks" icon={<Coins />} value="12 dr." hint="2 cités" />);
     expect(screen.getByText('12 dr.').className).toContain('cqi');
