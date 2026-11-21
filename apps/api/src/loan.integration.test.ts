@@ -284,3 +284,76 @@ describe('loan.repay', () => {
     expect(await stateOf(second)).toBe('repaid:1000:2:1000:2:0');
   });
 });
+
+describe('erreurs de la base sous concurrence', () => {
+  /** Attend qu'une commande attende un verrou que tient la transaction du test. */
+  async function blocked() {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const { rows } = await sql<{ n: number }>`select count(*)::int as n from pg_locks
+        where not granted`.execute(owner);
+      if ((rows[0]?.n ?? 0) > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error('no command is waiting');
+  }
+  /** Écriture d'un prêt ou d'un remboursement par le propriétaire, dans une transaction laissée ouverte. */
+  async function pending(houseId: string, kind: string, lines: [string, number][], meta = {}) {
+    const trx = await owner.startTransaction().execute();
+    const { rows } = await sql<{ id: string; world_id: string }>`insert into game.ledger_entries
+      (world_id, kind, meta) select world_id, ${kind}, ${JSON.stringify(meta)} from game.houses
+      where id = ${houseId} returning id, world_id`.execute(trx);
+    const [entry, world] = [rows[0]?.id ?? '', rows[0]?.world_id ?? ''];
+    for (const [key, amount] of lines)
+      await sql`insert into game.ledger_lines (entry_id, account_id, amount)
+        select ${entry}, id, ${amount}::bigint from game.accounts
+        where (${key} = 'house' and house_id = ${houseId} and kind = 'house')
+           or (world_id = ${world} and system_key = ${key})`.execute(trx);
+    return { trx, entry, world };
+  }
+
+  it('un emprunt qui croise un prêt encore à valider : l’index unique répond LOAN_OUTSTANDING', async () => {
+    const player = await newPlayer(KALLISTE);
+    const other = await pending(player.houseId, 'loan.temple_disburse', [
+      ['faucet_temple_loans', -500],
+      ['house', 500],
+    ]);
+    await sql`insert into game.loans (world_id, lender, borrower_house_id, principal, rate_bps, term_days,
+        interest, borrowed_day, due_day, due_at, disbursement_entry_id)
+      values (${other.world}, 'temple', ${player.houseId}, 500, 1000, 7, 1, 100, 107, now() + interval '7 days',
+        ${other.entry})`.execute(other.trx);
+    // La commande ne voit pas ce prêt : elle passe ses contrôles et bute sur la trésorerie, puis sur l'index.
+    const reply = borrow(player.user, 200, 7);
+    await blocked();
+    await other.trx.commit().execute();
+    expect(codeOf(await reply)).toBe('LOAN_OUTSTANDING');
+    expect(await balanceOf(player.houseId)).toBe(GRANT + 500);
+    expect(await eventsOf(player.houseId, 'LoanDisbursed')).toEqual([]);
+  });
+
+  it('un remboursement qui croise un remboursement encore à valider : le reste dû répond ABOVE_OUTSTANDING', async () => {
+    const player = await newPlayer(KALLISTE);
+    // 1 000 oboles pour 7 jours, 2 d'intérêts payés d'abord : il reste 1 000 de principal.
+    const loanId = (await borrow(player.user, 1_000, 7)).body.data.loanId as string;
+    expect((await repay(player.user, loanId, 2)).body.data).toMatchObject({ outstanding: 1_000 });
+    const other = await pending(
+      player.houseId,
+      'loan.repay',
+      [
+        ['house', -600],
+        ['faucet_temple_loans', 600],
+      ],
+      { loanId },
+    );
+    await sql`insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day,
+        ledger_entry_id) values (${other.world}, ${loanId}, ${player.houseId}, 0, 600, 100, ${other.entry})`.execute(
+      other.trx,
+    );
+    // La commande lit un reste dû de 1 000, attend la trésorerie, puis la base relit le prêt : il n'en reste que 400.
+    const reply = repay(player.user, loanId, 700);
+    await blocked();
+    await other.trx.commit().execute();
+    expect(codeOf(await reply)).toBe('ABOVE_OUTSTANDING');
+    expect(await stateOf(loanId)).toBe('active:1000:2:600:2:400');
+    expect(await balanceOf(player.houseId)).toBe(GRANT + 1_000 - 2 - 600);
+  });
+});
