@@ -6,15 +6,6 @@ const LIMIT = 1_000_000_000;
 const weight = z.number().int().min(0).max(LIMIT);
 
 /**
- * Hybris (docs/specs/07-dieux-faveur-evenements.md, 7.2 ; #734) : jauge cachée de chaque maison de joueur, en entiers,
- * tenue par un journal en ajout seul (`hubris_ledger`) et recalculée à chaque clôture (`hubrisDelta`, `@oikos/sim`).
- * Elle monte avec la part des ventes d'une maison dans les échanges d'un bien et d'une cité au-delà de
- * `marketShareThresholdBps`, sur `marketShareWindowDays` jours, avec sa fortune au-delà de `wealthMultipleBps` fois la
- * médiane du monde, et avec chaque liturgie prélevée d'office. Elle baisse avec les oboles offertes (offrandes et faste
- * des liturgies), chaque liturgie accomplie, et d'un déclin quotidien. Le joueur ne lit que son palier : le nombre de
- * bornes de `tiers` que sa jauge atteint. Poids, baisses et déclin nuls au départ : la jauge ne bouge pas.
- */
-/**
  * Modèles de sanction de Némésis (7.2, #735), dans l'ordre du tirage : l'incendie d'entrepôt détruit une part bornée d'un
  * stock, le procès prend une amende, part bornée de la trésorerie, l'artisan qui déserte arrête un atelier jusqu'à la
  * clôture suivante, le navire perdu emporte la cargaison d'un voyage en mer. Même liste que la contrainte de la base
@@ -62,6 +53,15 @@ export const nemesisSchema = z.strictObject({
 });
 export type NemesisRules = z.infer<typeof nemesisSchema>;
 
+/**
+ * Hybris (docs/specs/07-dieux-faveur-evenements.md, 7.2 ; #734) : jauge cachée de chaque maison de joueur, en entiers,
+ * tenue par un journal en ajout seul (`hubris_ledger`) et recalculée à chaque clôture (`hubrisDelta`, `@oikos/sim`).
+ * Elle monte avec la part des ventes d'une maison dans les échanges d'un bien et d'une cité au-delà de
+ * `marketShareThresholdBps`, sur `marketShareWindowDays` jours, avec sa fortune au-delà de `wealthMultipleBps` fois la
+ * médiane du monde, et avec chaque liturgie prélevée d'office. Elle baisse avec les oboles offertes (offrandes et faste
+ * des liturgies), chaque liturgie accomplie, et d'un déclin quotidien. Le joueur ne lit que son palier : le nombre de
+ * bornes de `tiers` que sa jauge atteint. Poids, baisses et déclin nuls au départ : la jauge ne bouge pas.
+ */
 export const hubrisSchema = z.strictObject({
   /** Part des ventes d'un bien dans une cité au-delà de laquelle la jauge monte, en points de base (3 500 : 35 %). */
   marketShareThresholdBps: z.number().int().min(0).max(10_000),
