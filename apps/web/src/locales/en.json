@@ -1694,6 +1694,20 @@
       "recapNote": "A ballot cannot be changed, and the name written is never shown.",
       "confirm": "Write this name"
     },
-    "done": "Your ballot is cast. The vote is secret."
+    "done": "Your ballot is cast. The vote is secret.",
+    "ostracized": "{{house}} is ostracized until {{date}}: it stands in no election and proposes no decree. Its property is not touched.",
+    "ostracizedEnded": "{{house}} was ostracized; its ostracism ended on {{date}}.",
+    "outcome": {
+      "tie": "Tie at the top: nobody is ostracized.",
+      "no_quorum": "The quorum was not reached: nobody is ostracized.",
+      "ostracized": "A house was ostracized."
+    },
+    "ballots": "Ballots",
+    "electorate": "Citizens",
+    "results": "Vote count",
+    "columns": {
+      "house": "House",
+      "votes": "Votes"
+    }
   }
 }

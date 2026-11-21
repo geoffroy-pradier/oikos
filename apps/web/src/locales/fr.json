@@ -1694,6 +1694,20 @@
       "recapNote": "Un bulletin ne se change pas, et le nom inscrit ne s'affiche jamais.",
       "confirm": "Inscrire ce nom"
     },
-    "done": "Votre bulletin est déposé. Le vote est secret."
+    "done": "Votre bulletin est déposé. Le vote est secret.",
+    "ostracized": "{{house}} est ostracisée jusqu'au {{date}} : elle ne se présente à aucune élection et ne propose aucun décret. Ses biens ne sont pas touchés.",
+    "ostracizedEnded": "{{house}} a été ostracisée ; son ostracisme a pris fin le {{date}}.",
+    "outcome": {
+      "tie": "Égalité en tête : personne n'est ostracisé.",
+      "no_quorum": "Le quorum n'a pas été atteint : personne n'est ostracisé.",
+      "ostracized": "Une maison a été ostracisée."
+    },
+    "ballots": "Bulletins",
+    "electorate": "Citoyens",
+    "results": "Décompte du vote",
+    "columns": {
+      "house": "Maison",
+      "votes": "Voix"
+    }
   }
 }
