@@ -16,8 +16,7 @@ import {
 import type { Db } from '@oikos/db';
 import { sql } from 'kysely';
 import { defineCommand, type CommandResult } from '../registry';
-import { cancelLockedOrders, lockAgora } from './cancel-orders';
-import { accountHouseId } from '@oikos/operations';
+import { accountHouseId, cancelLockedOrders, lockAgora } from '@oikos/operations';
 
 const refuse = (code: string, message: string): CommandResult<never> => ({
   ok: false,

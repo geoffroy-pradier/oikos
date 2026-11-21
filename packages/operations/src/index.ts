@@ -11,5 +11,6 @@ export {
   type OperationDefinition,
   type OperationResult,
 } from './context';
+export { cancelLockedOrders, lockAgora, type OpenOrder } from './cancel-orders';
 export { placeOrder } from './market-place-order';
 export { collectSite } from './site-collect';

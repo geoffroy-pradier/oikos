@@ -238,6 +238,63 @@ describe('retrait des maisons PNJ de secours (#717)', () => {
     expect(settled?.['unpaid']).toEqual([]);
   });
 
+  it('sans site, elle vend son stock au prix de référence, verse sa trésorerie au puits, puis se dissout', async () => {
+    const world = await founded(1);
+    // Un achat en attente, sous séquestre, et du blé en stock, que la liquidation va annuler et vendre.
+    await order(world.npc.houseId, world.cityId, 'buy', 5, 5);
+    await harvest(world.worldId, world.npc.houseId, world.cityId, 7);
+    await trade(world, [[world.seller, 100]]);
+    expect(await close(world.worldId, D + 1, secours(1), steps, more())).toEqual([D + 1]);
+    let state = await stateOf(world.npc.houseId);
+    expect(state.sites.map((site) => site.closed)).toEqual([true]);
+    expect(state.memory?.dissolved).toBe(false);
+    const { rows: orders } = await sql<{
+      side: string;
+      status: string;
+      price: number;
+      remaining: number;
+    }>`
+      select side, status, price::int, remaining::int from game.orders where house_id = ${world.npc.houseId}
+      order by created_at`.execute(owner);
+    expect(orders).toEqual([
+      { side: 'buy', status: 'cancelled', price: 5, remaining: 5 },
+      { side: 'sell', status: 'open', price: 6, remaining: 7 },
+    ]);
+    // Toute la dotation est revenue à la trésorerie, rien au séquestre.
+    expect((await npcHouseOf(world.worldId, world.cityId)).balance).toBe(1_000);
+    // Les joueurs tiennent toujours le marché ; un acheteur prend le blé de la maison PNJ.
+    await trade(world, [[world.seller, 100]]);
+    await order(world.buyer, world.cityId, 'buy', 7);
+    expect(await close(world.worldId, D + 2, secours(1), steps, more())).toEqual([D + 2]);
+    state = await stateOf(world.npc.houseId);
+    expect(state.memory?.dissolved).toBe(true);
+    // 1 000 de dotation, plus 7 blés à 6 oboles, moins la taxe de marché : tout au puits, rien ne reste.
+    const { rows } = await sql<Record<'sink' | 'house' | 'total' | 'entries', string>>`select
+      (select balance from game.accounts where world_id = ${world.worldId} and system_key = 'sink_npc_house_surplus') as sink,
+      (select coalesce(sum(balance), 0) from game.accounts where house_id = ${world.npc.houseId}) as house,
+      (select sum(balance) from game.accounts where world_id = ${world.worldId}) as total,
+      (select count(*) from game.ledger_entries where world_id = ${world.worldId} and kind = 'npc_house.dissolution') as entries`.execute(
+      owner,
+    );
+    const [dissolved] = await eventsOf(world.worldId, 'NpcHouseDissolved');
+    expect(dissolved).toMatchObject({
+      houseId: world.npc.houseId,
+      chainId: 'wheat',
+      gameDay: D + 2,
+    });
+    expect(Number(rows[0]?.sink)).toBe(dissolved?.['oboles']);
+    expect(Number(rows[0]?.sink)).toBeGreaterThan(1_000);
+    expect(Number(rows[0]?.sink)).toBeLessThanOrEqual(1_042);
+    expect(rows[0]).toMatchObject({ house: '0', total: '0', entries: '1' });
+    // Dissoute, elle ne compte plus rien, et une clôture de plus ne la touche pas.
+    expect(await close(world.worldId, D + 3, secours(1), steps, more())).toEqual([D + 3]);
+    expect((await stateOf(world.npc.houseId)).memory).toMatchObject({
+      game_day: D + 2,
+      dissolved: true,
+    });
+    expect(await eventsOf(world.worldId, 'NpcHouseDissolved')).toHaveLength(1);
+  });
+
   it('sous des échanges concurrents, chaque vente est comptée une fois, ni perdue ni doublée', async () => {
     const world = await founded();
     const window = more({ ...RETREAT, windowDays: 3, highShareBps: 9_999, lowShareBps: 0 });

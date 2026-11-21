@@ -1,6 +1,6 @@
 import type { DomainEvent } from '@oikos/contracts';
 import type { Db } from '@oikos/db';
-import { cancelLockedOrders, lockAgora } from './cancel-orders';
+import { cancelLockedOrders, lockAgora } from '@oikos/operations';
 
 /**
  * Annule les ordres ouverts de toutes les maisons d'un compte exclu, dans la transaction qui valide l'exclusion
