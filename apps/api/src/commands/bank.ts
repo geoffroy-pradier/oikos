@@ -1,9 +1,13 @@
 import {
   BANK_FOUND_ERROR_CODES,
+  BANK_MOVE_CAPITAL_ERROR_CODES,
   bankFoundInputSchema,
   bankFoundOutputSchema,
+  bankMoveCapitalInputSchema,
+  bankMoveCapitalOutputSchema,
 } from '@oikos/contracts';
 import { lockBankVault, type Db } from '@oikos/db';
+import { bankRequiredReserve, bankWithdrawableCapital } from '@oikos/sim';
 import { defineCommand } from '../registry';
 import { lock, lockHouse, refuse, systemAccount } from './loan-borrow';
 
@@ -140,6 +144,74 @@ export const bankFound = defineCommand({
       loanRateBps,
     };
     emit({ type: 'BankFounded', payload: { ...data, houseId: house.id } });
+    return { ok: true, data };
+  },
+});
+
+/**
+ * La maison verse au coffre de sa banque (`in`, de sa trésorerie) ou en retire (`out`, vers sa trésorerie) du capital
+ * (#726), en une écriture `bank.capital_in` ou `bank.capital_out`, hors exploitation (4.1). Un retrait ne prend que ce
+ * qui excède la réserve exigée (`bankRequiredReserve`, le capital minimal tant qu'il n'y a pas de dépôt, #727), lue dans
+ * la configuration en vigueur. Refusée sans section `banks`, sans banque ou au-delà de la trésorerie.
+ */
+export const bankMoveCapital = defineCommand({
+  name: 'bank.moveCapital',
+  input: bankMoveCapitalInputSchema,
+  output: bankMoveCapitalOutputSchema,
+  errors: BANK_MOVE_CAPITAL_ERROR_CODES,
+  errorByConstraint: { accounts_no_overdraft: NO_FUNDS },
+  async handler({ trx, userId, emit, config }, input) {
+    // Verrous : la maison (ses mouvements de capital se suivent), l'agora, la trésorerie, puis le coffre.
+    const house = await lockHouse(trx, userId);
+    if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
+    const rules = config.banks;
+    if (!rules) return refuse(CLOSED.code, CLOSED.message);
+    const bank = await trx
+      .selectFrom('game.banks')
+      .select('id')
+      .where('house_id', '=', house.id)
+      .executeTakeFirst();
+    if (!bank) return refuse('BANK_NOT_FOUND', 'This house has no bank.');
+    await lock(trx, `market:${house.world_id}`);
+    const treasury = await lockTreasury(trx, house.id);
+    const vault = await lockBankVault(trx, bank.id);
+    if (!vault) throw new Error(`Bank ${bank.id} has no vault`);
+    // Aucun dépôt avant #727 : la réserve exigée est le capital minimal.
+    const reserve = bankRequiredReserve(0n, rules);
+    const amount = BigInt(input.amount);
+    if (input.direction === 'in') {
+      if (BigInt(treasury.balance) < amount) return refuse(NO_FUNDS.code, NO_FUNDS.message);
+      await post(
+        trx,
+        house.world_id,
+        'bank.capital_in',
+        bank.id,
+        treasury.id,
+        vault.accountId,
+        input.amount,
+      );
+    } else {
+      const free = bankWithdrawableCapital(BigInt(vault.balance), reserve);
+      if (amount > free)
+        return refuse('RESERVE_SHORT', `At most ${free} oboles may leave the vault.`);
+      await post(
+        trx,
+        house.world_id,
+        'bank.capital_out',
+        bank.id,
+        vault.accountId,
+        treasury.id,
+        input.amount,
+      );
+    }
+    const data = {
+      bankId: bank.id,
+      direction: input.direction,
+      amount: input.amount,
+      vault: vault.balance + (input.direction === 'in' ? input.amount : -input.amount),
+      requiredReserve: Number(reserve),
+    };
+    emit({ type: 'BankCapitalMoved', payload: { ...data, houseId: house.id } });
     return { ok: true, data };
   },
 });
