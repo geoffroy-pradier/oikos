@@ -525,8 +525,6 @@ export async function reconcile(
   dues: ReadonlyMap<string, number> = new Map(),
   /** Dotations des maisons PNJ de secours (#717), versées par leur robinet. */
   npcGrant = 0,
-  /** Fonds de roulement ajouté à la dotation de départ de certaines maisons du banc (`topUp`, #721). */
-  topUps = 0,
 ) {
   const trades = await city.db
     .selectFrom('game.trades as t')
@@ -536,7 +534,7 @@ export async function reconcile(
     .execute();
   // Trésor de chaque cité : la part de la taxe des échanges de son marché.
   const treasuries = new Map<string, number>();
-  const grant = founded * city.played.starting.grantOboles + topUps;
+  const grant = founded * city.played.starting.grantOboles;
   const flows = { sink_market_tax: 0, treasury: 0 };
   let npcPurchases = 0;
   for (const trade of trades) {
@@ -580,20 +578,6 @@ export async function reconcile(
     treasuries,
   };
 }
-/**
- * Dotation de `oboles` de plus à une maison, par le robinet de départ comme la sienne (écriture `house.starting_grant`) :
- * posée par le propriétaire de la base, le service ne peut créer de la monnaie qu'à la fondation d'une maison.
- */
-export const topUp = (city: City, houseId: string, oboles: number) =>
-  sql`with e as (insert into game.ledger_entries (world_id, kind, meta)
-      values (${city.worldId}, 'house.starting_grant', jsonb_build_object('houseId', ${houseId}::text, 'topUp', true))
-      returning id)
-    insert into game.ledger_lines (entry_id, account_id, amount)
-    select e.id, a.id, case when a.kind = 'house' then ${oboles}::bigint else ${-oboles}::bigint end
-    from e join game.accounts a on a.world_id = ${city.worldId}
-      and ((a.kind = 'house' and a.house_id = ${houseId}) or a.system_key = 'faucet_starting_grant')`.execute(
-    city.owner,
-  );
 /** Rang du dernier échange du monde. */
 export const lastSeq = async (city: City) =>
   Number(

@@ -50,7 +50,8 @@ Vérification du critère de la phase 2, le 19 novembre 2026 :
   La marge des ateliers reste entre la moitié et le double de la médiane des matières premières (#285).
   Il joue la configuration initiale calibrée par #283 et #668, à trois paramètres de scénario près, écrits dans `apps/api/src/balance/world.ts` : population divisée par huit, dotation de départ multipliée par cinq (15 000 oboles) et prix des logements divisés par cinq (5.5).
   La borne de −5 % à +25 % de la masse monétaire passe en phase 3, avec les liturgies.
-  Depuis #721 (21 novembre 2026), le banc à douze cités tient cette borne et le banc ajoute un quatrième paramètre de scénario, 2 000 oboles de fonds de roulement par armateur (5.5).
+  Depuis #721 (21 novembre 2026), le banc à douze cités tient cette borne.
+  Le fonds de roulement de 2 000 oboles par armateur que #721 avait ajouté comme quatrième paramètre de scénario est retiré par #1026 : les armateurs du banc partent à moitié pleins, et le banc reste à trois paramètres (5.5).
 - Pilotage : le tableau de bord d'Olympe porte chaque robinet et chaque puits du catalogue des comptes système, un test le compare au catalogue de la base et nomme ceux de la phase 2 (#670).
   Le simulateur (`pnpm --filter @oikos/api simulate`, #284) compare sur 30 jours une configuration candidate à la configuration de référence : inflation, masse monétaire, robinets et puits, couverture des besoins, population et marges par filière ; son module dans Olympe attend le serveur.
 - Communauté : chaque étape d'un signalement est vérifiée contre la base, signalement, file d'Olympe, masquage, classement, sanction graduée, double validation d'une exclusion, appel et décision (#275 à #277), et l'écran de modération l'est au clavier.

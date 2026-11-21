@@ -694,10 +694,24 @@ Le banc à une cité joue les liturgies sans stratégie d'accomplissement : tout
   Une maison sur quatre, au rang qu'elle a parmi toutes les maisons du banc, toutes cités confondues, s'y dérobe toujours (jamais un armateur, dont la trésorerie est le fonds de roulement).
   Une maison qui s'y dérobe garde en trésorerie le dû que le prélèvement d'office lui prendra, et ne le dépense pas : l'entretien de ses sites reste payé après le prélèvement.
   Aucun site ni aucun navire ne s'arrête dans le banc faute de trésorerie à cause d'une liturgie ; le banc le vérifie.
-- **Armateurs.** Le banc ajoute 2 000 oboles à la dotation de chaque armateur (`CARRIER_TOP_UP`) : un armateur vend à la référence et vit de sa dotation, et le relais de Chalkeia (4.6) finissait les 40 jours à 404 oboles, à 10 avec un revenu public à 70 % ; un jour de plus, son site s'arrêtait.
-  C'est un paramètre du banc, pas du jeu ; la référence du rapport le joue aussi.
-  L'armateur du jeu réel n'a pas cette dotation : il reste déficitaire avec un revenu public à 70 %, ce que le calibrage ne corrige pas (suivi dans #1026).
+- **Armateurs (#1026).** Le banc ne dote plus ses armateurs : le fonds de roulement de 2 000 oboles que #721 leur ajoutait (`CARRIER_TOP_UP`) est retiré, un armateur vit de sa dotation de départ (15 000 oboles dans le banc) et de ses ventes.
+  Mesure à quatre cités sans fonds de roulement, avant : 1 419 départs pour 72 692 unités, soit 51 unités par départ pour un caboteur de 300 ; variation de la trésorerie des armateurs, sur les dix derniers jours mesurés, de +13 oboles par jour en moyenne (de −191 à +193) ; aucun site ni navire arrêté.
+  À douze cités, sur 20 jours (10 de mise en route, 10 mesurés), avant : de −214 à +534 oboles par jour pour 26 armateurs, −2 en moyenne, et −84, +73, −171 et −151 pour les quatre du relais de Chalkeia, qui finissait les 40 jours à 404 oboles avant #721 et à 10 avec un revenu public à 70 %.
+  Cause : le prix de fret n'y est pas en cause, les frais le sont.
+  Un armateur du banc vend à la référence et paie la taxe de marché de 5 % sur chaque vente, quand il achète à la référence : il ne gagne que l'écart des biens bruts, que les intendants vendent à 90 % de la référence.
+  Ses frais sont forfaitaires : provisions et droit de port d'un départ (22 à 26 oboles), et chaque jour l'entretien de son navire, de son champ de départ et de ses travailleurs (environ 80 oboles).
+  Or il partait dès ses achats faits, quatre à cinq fois par jour, même pour quelques unités : un armateur de sel, qui n'en porte que 25 unités par jour, payait 100 oboles de départs pour 175 oboles de marchandise.
+  Décision : un armateur part quand sa soute est à moitié pleine ou après six heures d'attente, jamais pour avoir seulement fait ses achats.
+  Après : 912 départs pour 71 466 unités (78 par départ), variation moyenne de +55 oboles par jour (de −137 à +435), le moins riche des dix armateurs finissant à 6 079 oboles ; coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,9 % au moins (le premier jour mesuré, 100 % ensuite), masse du monde à +16,4 % au lieu de +18,4 %, aucun site ni navire arrêté.
+  Le banc borne désormais la variation moyenne de la trésorerie des armateurs : de zéro au moins sur les dix derniers jours mesurés.
+  Essais écartés, à quatre cités : un fret de 5 % sur les prix de vente (arrondis à l'obole, le blé et le sel n'y gagnent rien) enrichit les armateurs de pains, d'huile et de poisson, mais la couverture d'Ampélos tombe à 91,9 % au trente-cinquième jour ; 10 % de fret la font passer à 95,1 % en 20 jours ; une attente de 12 heures avec 5 % de fret, à 85,4 %.
+  La demande des PNJ baisse avec le prix (5.2) : sans marge de couverture au-dessus de 98 %, l'armateur ne peut pas se payer par un fret plus cher.
+  Limite connue : les armateurs de sel (Elaia vers Kallistè, Halos vers Ampélos) restent déficitaires, de 123 et 137 oboles par jour ; 175 oboles de marchandise par jour ne paient pas 80 oboles de frais fixes.
+  Ils finissent les 40 jours à 7 389 et 6 900 oboles, de quoi tenir au moins 50 jours de plus.
+  Un armateur du jeu réel qui ne porte qu'un bien rare doit lui adjoindre d'autres cargaisons, ce que le banc ne joue pas.
+  Le banc à douze cités n'a pas été rejoué avec ce réglage dans cette demande de fusion : le job `balance` de `ci` le fait, avec la même borne.
 - **Mesure à douze cités.** Masse du monde de 2 050 041 oboles au premier jour mesuré à 2 335 288 au dernier jour mesuré, soit +15,4 % ; avant, 6 695 725 oboles au dernier jour mesuré (+163,9 % dans la mesure de #717, qui n'avait pas le fonds de roulement des armateurs).
+  Cette mesure comptait les 52 000 oboles de fonds de roulement des 26 armateurs, que le banc ne verse plus depuis #1026.
   Création nette quotidienne des dix derniers jours à 50 % de celle des dix premiers (14 061 contre 27 984 oboles par jour).
   Part de `sink_liturgies` dans la monnaie détruite des jours mesurés : 79,4 %, aucune avant.
   Liturgies jouées sur les 40 jours : 150 accomplies (1 811 554 oboles) et 61 éludées, prélevées d'office (803 441 oboles), aucune en partie.

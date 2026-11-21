@@ -497,6 +497,10 @@ Voyages, dans la phase 2 (#252) :
   Comme un site, un navire acquis à l'instant de jeu de la clôture ou après ne doit rien pour ce jour, et une classe retirée de la configuration ne doit rien (désarmé, son navire est réarmé sans payer).
   `UpkeepSettled` dit, pour une maison qui a des navires, leur entretien payé et impayé, et les navires désarmés et réarmés.
 - Chaque joueur lit ses voyages et leur cargaison (vue `my_voyages`).
+- Décision (#1026) : les provisions et le droit de port sont des forfaits de départ, qui ne dépendent pas de la cargaison.
+  Un départ presque à vide les paie autant qu'un départ plein : l'armateur y perd, et une cargaison de quelques unités ne les couvre pas.
+  Le banc des armateurs (5.5) ne fait donc partir un navire qu'à moitié plein ou après six heures d'attente.
+  Aucune règle du jeu ne change : le fret se fixe par les prix de l'armateur, et la demande des PNJ, qui baisse avec le prix (5.2), le borne à quelques points de pourcentage.
 
 Pertes en mer, dans la phase 3 (#730) :
 

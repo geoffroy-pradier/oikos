@@ -66,6 +66,8 @@ it(
       events,
       wages,
       npc,
+      carriers,
+      carrierCash,
     } = run;
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -240,6 +242,18 @@ it(
     );
     expect(Number(halted.rows[0]?.n), 'sites ou navires arrêtés').toBe(0);
 
+    // Armateurs (#1026, 4.6), sans dotation de banc : trésorerie de chacun à la fin de chaque jour, variation sur les
+    // dix derniers jours mesurés.
+    const [cashBefore, cashAfter] = [carrierCash.at(-1 - WINDOW) ?? [], carrierCash.at(-1) ?? []];
+    const carrierResults = carriers.map((carrier, index) => ({
+      carrier: `${carrier.home.slug}<-${carrier.source.slug}${carrier.via ? `/${carrier.via.slug}` : ''}`,
+      cash: cashAfter[index] ?? 0,
+      perDay: ((cashAfter[index] ?? 0) - (cashBefore[index] ?? 0)) / WINDOW,
+    }));
+    console.table(carrierResults);
+    const carrierPerDay =
+      carrierResults.reduce((sum, result) => sum + result.perDay, 0) / carrierResults.length;
+
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW));
     const drift = Object.fromEntries(
@@ -265,6 +279,10 @@ it(
       stewards: stewards.length,
       stewardOperations: operations,
       events,
+      carriers: {
+        perDay: Math.round(carrierPerDay),
+        results: carrierResults.map((result) => ({ ...result, perDay: Math.round(result.perDay) })),
+      },
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
       npcHouses: Object.fromEntries(
@@ -279,6 +297,13 @@ it(
       ),
       npcOperations: npc.operations,
     });
+
+    // Le rôle d'armateur ne perd pas d'argent en moyenne (#1026) : sur les dix derniers jours mesurés, la trésorerie d'un
+    // armateur ne baisse pas, en moyenne, de plus qu'elle n'a gagné.
+    expect(
+      carrierPerDay,
+      'armateurs : variation moyenne de la trésorerie par jour',
+    ).toBeGreaterThanOrEqual(0);
 
     // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
     // quotidienne d'un site de chaque recette d'atelier est entre la moitié et le double de la médiane de celle des
