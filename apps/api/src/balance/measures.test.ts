@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { config, recipeOf } from './city';
 import {
   basketDriftBps,
+  giniSpan,
   laborCost,
   median,
   netInputs,
@@ -19,11 +20,26 @@ const day = (extra: Partial<DayMeasure> = {}): DayMeasure => ({
   traded: {},
   bought: {},
   labor: {},
+  gini: {},
   ...extra,
 });
 const upkeepOf = (recipeId: string) =>
   config.sites.upkeep.dailyOboles[recipeOf(recipeId).siteType] ?? 0;
 const perDay = (recipeId: string) => 1440 / recipeOf(recipeId).durationMinutes;
+
+describe('giniSpan', () => {
+  it('Gini du premier et du dernier jour mesurés, par cité et pour le monde ; inconnu sans mesure', () => {
+    const span = giniSpan([
+      day({ gini: { kalliste: 1000, world: 3000 } }),
+      day({ gini: { kalliste: 9999, world: 9999 } }),
+      day({ gini: { kalliste: 1800, world: null } }),
+    ]);
+    expect(span['kalliste']).toEqual({ first: 1000, last: 1800 });
+    expect(span['world']).toEqual({ first: 3000, last: null });
+    expect(span['elaia']).toEqual({ first: null, last: null });
+    expect(giniSpan([])['world']).toEqual({ first: null, last: null });
+  });
+});
 
 describe('laborCost', () => {
   it('salaire moyen des jours connus, hébergement au prorata des employés sans logement', () => {

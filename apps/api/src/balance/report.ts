@@ -10,7 +10,15 @@ import type { DayMeasure } from './measures';
 export type Indicators = Record<string, number | null>;
 
 /** Groupes d'indicateurs, dans l'ordre du tableau Markdown. */
-export const GROUPS = ['inflation', 'supply', 'flow', 'coverage', 'population', 'margin'] as const;
+export const GROUPS = [
+  'inflation',
+  'supply',
+  'flow',
+  'coverage',
+  'population',
+  'margin',
+  'gini',
+] as const;
 export type Group = (typeof GROUPS)[number];
 
 /** Groupes dont une clé absente d'un côté vaut zéro (un robinet ou un puits qui n'a pas servi) et non « inconnue ». */
@@ -35,6 +43,7 @@ export const LABELS = {
     coverage: 'Couverture des besoins vitaux (points de base, dernier jour)',
     population: 'Population (dernier jour)',
     margin: 'Marge nette quotidienne par filière (oboles)',
+    gini: 'Inégalité des fortunes (Gini, points de base, premier et dernier jour mesurés, sans borne)',
   } satisfies Record<Group, string>,
 };
 
@@ -84,6 +93,11 @@ export function indicatorsOf(
     out[key('population', slug)] = last?.population[slug] ?? null;
     for (const [classId, bps] of Object.entries(last?.coverage[slug] ?? {}))
       out[key('coverage', slug, classId)] = bps;
+  }
+  // Gini des fortunes (#718) au premier et au dernier jour mesurés, par cité et pour le monde.
+  for (const slug of [...slugs, 'world']) {
+    out[key('gini', slug, 'first')] = days[0]?.gini[slug] ?? null;
+    out[key('gini', slug, 'last')] = last?.gini[slug] ?? null;
   }
   // Marges par cité, puis celles du monde (`world`), aux prix du monde (#285).
   for (const slug of [...slugs, 'world'])

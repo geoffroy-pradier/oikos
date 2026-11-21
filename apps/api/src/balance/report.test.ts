@@ -12,6 +12,7 @@ const day = (n: number, basket: number | null, extra: Partial<DayMeasure> = {}):
   traded: {},
   bought: {},
   labor: {},
+  gini: {},
   ...extra,
 });
 
@@ -49,6 +50,35 @@ describe('indicatorsOf', () => {
       'margin/world/mill_flour': 7,
       'inflation/a': 0,
     });
+  });
+});
+
+describe('indicatorsOf : Gini des fortunes (#718)', () => {
+  it('rapporte le Gini au premier et au dernier jour mesurés, inconnu sans maison, sans borne', () => {
+    const out = indicatorsOf(
+      [
+        day(0, 100, { gini: { a: 1200, world: 2500 } }),
+        day(1, 100, { gini: { a: 9000, world: 9999 } }),
+        day(2, 100, { gini: { a: 1500, world: null } }),
+      ],
+      {},
+      ['a', 'b'],
+      10,
+    );
+    expect(
+      Object.fromEntries(Object.entries(out).filter(([name]) => name.startsWith('gini/'))),
+    ).toEqual({
+      'gini/a/first': 1200,
+      'gini/a/last': 1500,
+      'gini/b/first': null,
+      'gini/b/last': null,
+      'gini/world/first': 2500,
+      'gini/world/last': null,
+    });
+    expect(indicatorsOf([], {}, ['a'], 10)['gini/a/first']).toBeNull();
+    const md = toMarkdown(compare(out, out, { seed: 's', days: 3 }));
+    expect(md).toContain('## Inégalité des fortunes (Gini');
+    expect(md).toContain('| a/last | 1500 | 1500 | 0 | 0 |');
   });
 });
 
