@@ -167,8 +167,11 @@ export const npcHouseRetreatStep: CloseStep = {
         .select(['n.house_id', 'n.city_id', 'n.chain_id', 'c.slug'])
         .select(['r.game_day', 'r.trade_seq', 'r.sales', 'r.above_days', 'r.dissolved_at'])
         .where('n.world_id', '=', worldId)
+        // Les maisons d'une même clôture par cité et filière, sans dépendre de leur identifiant tiré au hasard ; le
+        // retrait de l'une ne touche pas l'agora d'une autre filière.
         .orderBy('n.founded_at')
-        .orderBy('n.house_id')
+        .orderBy('c.slug')
+        .orderBy('n.chain_id')
         .execute()
     ).flatMap((row) => {
       const chain = chainOf(config, row.slug, row.chain_id);
@@ -234,6 +237,7 @@ export const npcHouseRetreatStep: CloseStep = {
         .select(['id', 'recipe_id', 'closed_at', 'halted_at'])
         .where('house_id', '=', house.house_id)
         .orderBy('created_at')
+        .orderBy('recipe_id')
         .orderBy('id')
         .forUpdate()
         .execute();
