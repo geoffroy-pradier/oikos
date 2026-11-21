@@ -82,6 +82,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   `npc_houses` retient la filière de la configuration (`npcHouses`) que tient chaque maison PNJ : une par cité et par filière, dans le monde de sa cité, et seulement pour une maison de nature `npc` (clé étrangère sur la nature).
   Le service n'y écrit que la maison, le monde, la cité et la filière, et n'en modifie ni n'en supprime rien.
   Un joueur connecté lit les maisons PNJ de son monde par `npc_houses`, vue `security_invoker` créée une fois (maison, monde, cité), sans la filière ni la date ; un visiteur anonyme ne lit rien (pgTAP 715).
+  `npc_site_queues` tient, par site d'une maison PNJ, la dernière opération menée de ses règles (#716) : tick et rang, qui ne font que croître (garde), version de configuration, position de la règle, refus et dernier tick de refus de chaque règle ; seul le service la lit et l'écrit, aucun joueur (pgTAP 716).
   `houses` garde ses colonnes (ADR 0006) : la fiche d'une maison (6.6) lit les deux vues.
   Une maison PNJ naît métèque de sa cité et la garde de la citoyenneté refuse qu'elle devienne citoyenne : elle ne se présente, ne vote et n'entre dans aucun électorat, que la base réserve aux citoyens.
 - Fortune d'une maison (4.1, #718) : `game.house_wealth(p_world)`, au nom du propriétaire, est exécutable par le seul service ; aucune vue, vue matérialisée ni fonction exposée à un joueur ou à un visiteur ne l'appelle ni n'a de colonne de fortune (pgTAP 718).
