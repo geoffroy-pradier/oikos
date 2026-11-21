@@ -45,15 +45,16 @@ create function pg_temp.assign(house text, city text, due int = 500, day int = 1
     season, 'festival', due, day, due_day))
 $$;
 
--- Droits : le service écrit une désignation sans identifiant, date ni état, et ne modifie ni ne supprime rien.
+-- Droits : le service écrit une désignation sans identifiant, date ni état, et ne supprime rien ; il ne modifie que
+-- l'état et le règlement (#720, pgTAP 720).
 select is(
   (select string_agg(column_name || ':' || privilege_type, ' ' order by column_name, privilege_type)
    from information_schema.column_privileges
-   where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'liturgies' and privilege_type <> 'SELECT'),
+   where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'liturgies' and privilege_type = 'INSERT'),
   'city_id:INSERT designated_day:INSERT due:INSERT due_at:INSERT due_day:INSERT genre:INSERT house_id:INSERT season:INSERT world_id:INSERT',
   'le service n''écrit que les colonnes d''une désignation');
 select ok(not has_table_privilege('oikos_service', 'game.liturgies', 'delete') and not has_table_privilege('oikos_service', 'game.liturgies', 'update'),
-  'le service ne modifie ni ne supprime une liturgie');
+  'le service ne supprime pas une liturgie et ne modifie pas toute la ligne');
 select is(pg_get_indexdef('game.liturgies_one_per_season'::regclass),
   'CREATE UNIQUE INDEX liturgies_one_per_season ON game.liturgies USING btree (house_id, season)', 'une liturgie au plus par maison et par saison');
 
@@ -72,7 +73,7 @@ select throws_ok(pg_temp.assign('b', 'c1', 500, 100, 100, 6), '23514', null, 'un
 select throws_ok($$select pg_temp.as_service('insert into game.liturgies (world_id, city_id, house_id, season, genre, due, designated_day, due_day, due_at, status)
   values (''01900000-0000-7000-8000-0000000719f0'', ''01900000-0000-7000-8000-0000000719c1'', ''00000000-0000-7000-8000-0000000719b1'', 7, ''festival'', 5, 100, 103, now(), ''performed'')')$$,
   '42501', null, 'le service ne choisit pas l''état');
-select throws_ok($$update game.liturgies set due = 1$$, '23001', null, 'une liturgie ne change pas, même pour le propriétaire');
+select throws_ok($$update game.liturgies set due = 1$$, '23001', null, 'une liturgie ne change pas de dû, même pour le propriétaire');
 
 -- À la validation, chaque désignation a la clôture de son jour, enregistrée dans la même transaction.
 select throws_ok('set constraints game.liturgies_on_close immediate', '23001', 'a liturgy is assigned by the close of its day',

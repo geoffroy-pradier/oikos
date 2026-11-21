@@ -678,7 +678,8 @@ export interface GameDatabase {
   };
   /**
    * Liturgies (6.4, #719) : une par maison désignée et par saison, écrite par la clôture de bascule de saison, datée
-   * par la base, désignée (`assigned`) à sa naissance. Le dû (oboles) se lit en texte, comme tout `bigint`.
+   * par la base, désignée (`assigned`) à sa naissance. Le dû (oboles) se lit en texte, comme tout `bigint`. Réglée une
+   * fois (#720) : accomplie (`performed`) ou prélevée d'office (`levied`), datée par la base (`settled_at`).
    */
   'game.liturgies': {
     id: ColumnType<string, never, never>;
@@ -691,8 +692,19 @@ export interface GameDatabase {
     designated_day: ColumnType<number, number, never>;
     due_day: ColumnType<number, number, never>;
     due_at: ColumnType<Date, Date, never>;
-    status: ColumnType<'assigned' | 'performed' | 'levied', never, never>;
+    status: ColumnType<'assigned' | 'performed' | 'levied', never, 'performed' | 'levied'>;
     created_at: ColumnType<Date, never, never>;
+    /** Faste payé au-delà du dû ; zéro pour un prélèvement. */
+    splendor: ColumnType<string | null, never, number>;
+    /** Oboles payées : dû plus faste, ou ce que la trésorerie a couvert. */
+    paid: ColumnType<string | null, never, number>;
+    /** Dieu protecteur et Charis gagnée d'un accomplissement ; nuls sans Charis. */
+    god_id: ColumnType<string | null, never, string | null>;
+    charis_gained: ColumnType<string | null, never, number | null>;
+    settled_day: ColumnType<number | null, never, number>;
+    settled_at: ColumnType<Date | null, never, never>;
+    /** Écriture `liturgy.perform` ou `liturgy.levy` ; nulle pour un prélèvement qui n'a rien trouvé. */
+    ledger_entry_id: ColumnType<string | null, never, string | null>;
   };
   /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */
   'game.ostraca': {
