@@ -56,6 +56,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Tempête (storm) | Événement du monde qui allonge les trajets partis sur une route pendant ses jours, sans rien faire perdre (`storm`) |
 | Caravane étrangère (foreign caravan) | Événement du monde qui accroît, pendant ses jours, la demande des PNJ d'une cité pour un bien (`caravan`) |
 | Intendant (steward) | PNJ qu'une maison embauche pour un de ses sites et qui mène, dans leur ordre, les règles d'une grammaire fermée qu'elle lui donne : récolter, vendre, racheter ; payé chaque jour à la clôture, il n'agit qu'une fois payé (`stewards`, `steward.hire`) |
+| Maison PNJ de secours (rescue NPC house) | Maison du monde sans compte, tenue par le jeu, qui tient une filière vitale qu'aucun joueur n'occupe dans une cité ; jamais citoyenne, écartée des classements (`houses.kind = 'npc'`, `npc_houses`, 8.3) |
 | Pythie (Pythia) | Prêtresse d'Apollon qui rend, contre une offrande de monnaie, les oracles des événements à venir de la cité de la maison (`temple.consultOracle`) |
 | Oracle (oracle) | Annonce volontairement ambiguë d'un événement du monde à venir, écrite à la main et parfois réécrite par l'IA, sans chiffre ni nom de cité (`oracles`) |
 | Consultation (consultation) | Offrande de monnaie qui paie la lecture des oracles de la cité de la maison (`oracle_consultations`, `temple.oracle`) |

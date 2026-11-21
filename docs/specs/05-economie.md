@@ -368,6 +368,7 @@ La boucle se ferme ainsi : sans robinet ni puits, la masse d'un monde ne change 
 Robinet des maisons PNJ de secours (`faucet_npc_house_grant`, #715) : il ne paie que la dotation d'une maison PNJ (8.3), une fois, à sa fondation par la clôture, au montant que la configuration fixe pour sa filière (`npcHouses`).
 Il reste à part de la dotation de départ des joueurs (`faucet_starting_grant`) : le tableau de bord suit les deux séparément.
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12).
+Une maison PNJ paie ensuite l'entretien, les salaires et l'hébergement comme toute maison ; elle n'entre dans aucun classement, fortune et Gini compris (8.3).
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.

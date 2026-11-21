@@ -11,7 +11,9 @@ import { dailyCloseAt, gameDayAt } from '@oikos/sim';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CloseStep } from '../close';
+import { CLOSE_STEPS } from '../close-steps';
 import { closeWorld } from '../scheduler';
+import { citizenship } from './citizenship';
 import { NPC_HOUSE_BLAZON, npcHouses } from './npc-houses';
 
 // Maisons PNJ de secours à la clôture (#715), contre Supabase local. Chaque test a son monde.
@@ -21,6 +23,7 @@ const db = createDb(serviceRoleUrl(DATABASE_URL));
 const owner = createDb(DATABASE_URL);
 const initial = INITIAL_CONFIG as GameConfig;
 const clock = { tickMinutes: 10, dailyCloseHour: 4, timezone: 'Europe/Paris', seasonDays: 7 };
+const archon = { termDays: 28, candidacyDays: 4, votingDays: 3, maxConsecutiveTerms: 2 };
 let loaded: Awaited<ReturnType<ReturnType<typeof createConfigLoader>['at']>>;
 /** Kallistè : le blé et la farine, 8 000 oboles ; Elaia : le blé, sans dotation ; Halos, absente des mondes d'essai. */
 const SECOURS: NpcHouses = {
@@ -47,7 +50,7 @@ const SECOURS: NpcHouses = {
 const settings = (npc: NpcHouses) => ({
   at: async () => ({
     ...loaded,
-    config: { ...initial, clock, npcHouses: npc },
+    config: { ...initial, clock, politics: { meticDays: 3, archon }, npcHouses: npc },
   }),
 });
 const TODAY = gameDayAt(new Date(), clock);
@@ -227,5 +230,85 @@ describe('maisons PNJ de secours à la clôture (#715)', () => {
       entries: 1,
       events: 2,
     });
+  });
+
+  it('un nom déjà porté dans le monde fait passer la filière, sans dotation, jusqu’à un autre nom', async () => {
+    const world = await newWorld(['kalliste', 'elaia'], 'greniers de kallistè');
+    expect(await close(world.worldId)).toEqual([DAY]);
+    expect((await npcOf(world.worldId)).map((house) => house.slug)).toEqual(['elaia']);
+    expect(await ledgerOf(world.worldId)).toEqual({ faucet: 0, total: 0, entries: 0, events: 1 });
+    expect(await summaryOf(world.worldId)).toEqual({
+      npcHouses: { founded: 1, nameTaken: 1, oboles: 0 },
+    });
+    const renamed: NpcHouses = {
+      kalliste: {
+        treasuryCapOboles: 20_000,
+        chains: [
+          {
+            id: 'bread',
+            name: 'Fournils de Kallistè',
+            sites: { grow_wheat: 1 },
+            grantOboles: 20_000,
+          },
+        ],
+      },
+    };
+    expect(await close(world.worldId, DAY + 1, renamed)).toEqual([DAY + 1]);
+    expect((await npcOf(world.worldId)).map((house) => [house.slug, house.name])).toEqual([
+      ['elaia', "Greniers d'Elaia"],
+      ['kalliste', 'Fournils de Kallistè'],
+    ]);
+    expect(await ledgerOf(world.worldId)).toEqual({
+      faucet: -20_000,
+      total: 0,
+      entries: 1,
+      events: 2,
+    });
+  });
+
+  it('elle paie l’entretien de ses sites comme toute maison, dès la clôture suivante', async () => {
+    const world = await newWorld(['kalliste']);
+    expect(await close(world.worldId, DAY, SECOURS, CLOSE_STEPS)).toEqual([DAY]);
+    // Fondée par cette clôture, après son instant : rien n'est prélevé le jour même.
+    expect((await npcOf(world.worldId)).map((house) => house.balance)).toEqual([8_000]);
+    // Ses sites, datés d'une minute après cette clôture (garde levée), comme en jeu, où la suivante vient un jour après.
+    const after = new Date(dailyCloseAt(DAY, clock).getTime() + 60_000);
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.sites disable trigger sites_guard`.execute(trx);
+      await sql`update game.sites set created_at = ${after}, cycle_started_at = ${after}
+        where world_id = ${world.worldId}`.execute(trx);
+      await sql`alter table game.sites enable trigger sites_guard`.execute(trx);
+    });
+    expect(await close(world.worldId, DAY + 1, SECOURS, CLOSE_STEPS)).toEqual([DAY + 1]);
+    const [house] = await npcOf(world.worldId);
+    expect(house?.balance).toBeLessThan(8_000);
+    expect((await ledgerOf(world.worldId)).total).toBe(0);
+  });
+
+  it('une maison PNJ n’est jamais citoyenne : la citoyenneté promeut les joueurs, pas elle', async () => {
+    const world = await newWorld(['kalliste']);
+    expect(await close(world.worldId)).toEqual([DAY]);
+    // Les deux maisons sont métèques depuis dix jours (garde levée) : la clôture du jour promeut le joueur seul, sans
+    // tenter la maison PNJ, que la base refuserait.
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.citizenships disable trigger citizenships_guard`.execute(trx);
+      await sql`update game.citizenships set since = now() - interval '10 days'
+        where house_id in (select id from game.houses where world_id = ${world.worldId})`.execute(
+        trx,
+      );
+      await sql`alter table game.citizenships enable trigger citizenships_guard`.execute(trx);
+    });
+    expect(await close(world.worldId, TODAY, SECOURS, [citizenship, npcHouses])).toEqual([TODAY]);
+    expect(await summaryOf(world.worldId, TODAY)).toEqual({
+      citizenship: { granted: 1 },
+      npcHouses: { founded: 0, nameTaken: 0, oboles: 0 },
+    });
+    const { rows } = await sql<{ kind: string; status: string }>`select h.kind, z.status
+      from game.houses h join game.citizenships z on z.house_id = h.id
+      where h.world_id = ${world.worldId} order by h.kind`.execute(owner);
+    expect(rows).toEqual([
+      { kind: 'npc', status: 'metic' },
+      { kind: 'player', status: 'citizen' },
+    ]);
   });
 });

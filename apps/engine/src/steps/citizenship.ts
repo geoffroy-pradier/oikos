@@ -9,7 +9,8 @@ import type { CloseStep } from '../close';
  * les métèques arrivés avant la clôture du jour `gameDay − meticDays + 1`. Une maison arrivée après
  * l'instant de jeu de la clôture, jouée en retard, n'est jamais promue par elle. La base date la promotion
  * de la transaction et refuse tout autre changement de statut (garde des citoyennetés). Rejouée sur un jour
- * ultérieur, l'étape ne trouve plus ces maisons, déjà citoyennes. Sans section `politics` (version publiée
+ * ultérieur, l'étape ne trouve plus ces maisons, déjà citoyennes. Une maison PNJ de secours n'est jamais promue
+ * (#715). Sans section `politics` (version publiée
  * avant la citoyenneté), personne n'est promu. Chaque maison promue reçoit `CitizenshipGranted`.
  */
 export const citizenship: CloseStep = {
@@ -25,6 +26,14 @@ export const citizenship: CloseStep = {
       .where('since', '<', arrivedBefore)
       .where('city_id', 'in', (eb) =>
         eb.selectFrom('game.cities').select('id').where('world_id', '=', worldId),
+      )
+      // Une maison PNJ de secours reste métèque (#715) : la base refuse sa promotion.
+      .where('house_id', 'in', (eb) =>
+        eb
+          .selectFrom('game.houses')
+          .select('id')
+          .where('world_id', '=', worldId)
+          .where('kind', '=', 'player'),
       )
       .returning(['house_id', 'city_id'])
       .execute();
