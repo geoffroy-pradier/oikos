@@ -95,7 +95,7 @@ interface VigieData {
    */
   ai?:
     | {
-        usage: 'oracle' | 'chronicle' | 'steward';
+        usage: 'oracle' | 'chronicle' | 'steward' | 'moderation_triage';
         cut: 'disabled' | 'capped' | null;
         capMicroEuros: number;
         spentTodayMicroEuros: number;

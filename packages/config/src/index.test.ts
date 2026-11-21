@@ -80,6 +80,7 @@ const FIXTURE: GameConfig = {
     maxAppealLength: 600,
     staleReportHours: 12,
     sanctionHours: { warning: [24], silence: [2, 12], suspension: [48] },
+    triageSummaryMaxLength: 150,
   },
   chronicle: { maxGoods: 5, settleSeconds: 120, maxTextLength: 1_500 },
   ai: {
@@ -90,6 +91,7 @@ const FIXTURE: GameConfig = {
       oracle: { ...usage(), enabled: true, capShareBps: 2_500 },
       chronicle: { ...usage(), capShareBps: 5_000 },
       steward: { ...usage(), capShareBps: 2_500 },
+      moderation_triage: { ...usage(), capShareBps: 0 },
     },
   },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
@@ -815,6 +817,7 @@ describe('modération', () => {
       maxAppealLength: 1_000,
       staleReportHours: 24,
       sanctionHours: { warning: [168], silence: [1, 24, 72], suspension: [24, 168, 720] },
+      triageSummaryMaxLength: 200,
     });
     expect(Object.isFrozen(DEFAULT_MODERATION.reportReasons)).toBe(true);
     expect(Object.isFrozen(DEFAULT_MODERATION.sanctionHours.silence)).toBe(true);
@@ -828,6 +831,19 @@ describe('modération', () => {
     if (!result.ok) throw new Error(result.errors.join('\n'));
     expect(result.config.moderation.reportReasons).toEqual(['spam', 'other']);
     expect(result.config.moderation.sanctionHours).toEqual(DEFAULT_MODERATION.sanctionHours);
+  });
+
+  it('une version publiée avant le pré-tri (#763) le garde coupé, avec un résumé de 200 caractères au plus', () => {
+    const older: { usages: Record<string, unknown> } & Record<string, unknown> = clone().ai;
+    delete older.usages.moderation_triage;
+    const moderation: { triageSummaryMaxLength?: number } = clone().moderation;
+    delete moderation.triageSummaryMaxLength;
+    const result = validateConfig({ ...clone(), ai: older, moderation });
+    if (!result.ok) throw new Error(result.errors.join('\n'));
+    expect(result.config.ai.usages.moderation_triage).toEqual(DEFAULT_AI.usages.moderation_triage);
+    expect(result.config.ai.usages.moderation_triage.enabled).toBe(false);
+    expect(result.config.moderation.triageSummaryMaxLength).toBe(200);
+    expect(DEFAULT_MODERATION.triageSummaryMaxLength).toBe(200);
   });
 
   it('durées des sanctions : de une à dix par sorte, distinctes, d’une heure à un an, pas d’exclusion', () => {
@@ -974,6 +990,7 @@ describe('passerelle IA', () => {
     if (!result.ok) throw new Error(result.errors.join('\n'));
     expect(result.config.ai).toEqual(DEFAULT_AI);
     expect(Object.values(result.config.ai.usages).map((entry) => entry.enabled)).toEqual([
+      false,
       false,
       false,
       false,

@@ -473,6 +473,7 @@ describe('Vigie', () => {
         oracle: usage({ enabled: false }),
         chronicle: usage({}),
         steward: usage({ capShareBps: 0 }),
+        moderation_triage: usage({ enabled: false, capShareBps: 0 }),
       },
     };
     let current = ai;
@@ -530,6 +531,7 @@ describe('Vigie', () => {
       ['oracle', 'disabled'],
       ['chronicle', null],
       ['steward', 'capped'],
+      ['moderation_triage', 'disabled'],
     ]);
     const chronicle = (rows: typeof after) => rows.find((row) => row.usage === 'chronicle');
     expect(chronicle(after)?.capMicroEuros).toBe(50_000_000_000);
@@ -555,6 +557,7 @@ describe('Vigie', () => {
         ...ai.usages,
         chronicle: usage({ enabled: false }),
         steward: usage({ capShareBps: 10_000 }),
+        moderation_triage: usage({ enabled: false, capShareBps: 0 }),
       },
     };
     expect(steward(await read())?.cut).toBeNull();

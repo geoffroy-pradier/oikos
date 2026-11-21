@@ -135,7 +135,8 @@
       "usages": {
         "oracle": "Pythia's oracles",
         "chronicle": "City chronicles",
-        "steward": "Steward instructions"
+        "steward": "Steward instructions",
+        "moderation_triage": "Report triage"
       },
       "cut": {
         "open": "Open",
