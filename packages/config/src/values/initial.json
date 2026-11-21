@@ -111,7 +111,8 @@
     "genres": ["festival", "trierarchy", "choregia"],
     "honorGain": 0,
     "charisGain": 0,
-    "evasionHonorLoss": 0
+    "evasionHonorLoss": 0,
+    "maxSplendorBps": 10000
   },
   "decrees": {
     "votingDays": 2,
