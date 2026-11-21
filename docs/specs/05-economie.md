@@ -690,12 +690,13 @@ Le banc à une cité joue les liturgies sans stratégie d'accomplissement : tout
   Décision : 45 % de la fortune par saison, et un plancher à 20 000 oboles.
   Un plancher de 5 000 oboles désigne des armateurs, dont la trésorerie est le fonds de roulement : le premier essai (20 % de la fortune) a désarmé le navire de l'un d'eux.
   Ces chiffres sont ceux d'un banc dont les maisons ne réinvestissent pas ; une partie réelle, où les joueurs acquièrent sites, navires et logements, appelle un dû moins lourd, que le tableau de bord de la phase 3 mesurera.
-- **Stratégie du banc.** Une maison scriptée désignée accomplit sa liturgie le matin de la désignation si sa trésorerie, hors séquestre, couvre le dû et trois jours de dépenses ; sinon elle s'y dérobe, et une maison de la cité sur quatre s'y dérobe toujours (jamais un armateur, dont la trésorerie est le fonds de roulement).
+- **Stratégie du banc.** Une maison scriptée désignée accomplit sa liturgie le matin de la désignation si sa trésorerie, hors séquestre, couvre le dû et trois jours de dépenses ; sinon elle s'y dérobe.
+  Une maison sur quatre, au rang qu'elle a parmi toutes les maisons du banc, toutes cités confondues, s'y dérobe toujours (jamais un armateur, dont la trésorerie est le fonds de roulement).
   Une maison qui s'y dérobe garde en trésorerie le dû que le prélèvement d'office lui prendra, et ne le dépense pas : l'entretien de ses sites reste payé après le prélèvement.
   Aucun site ni aucun navire ne s'arrête dans le banc faute de trésorerie à cause d'une liturgie ; le banc le vérifie.
 - **Armateurs.** Le banc ajoute 2 000 oboles à la dotation de chaque armateur (`CARRIER_TOP_UP`) : un armateur vend à la référence et vit de sa dotation, et le relais de Chalkeia (4.6) finissait les 40 jours à 404 oboles, à 10 avec un revenu public à 70 % ; un jour de plus, son site s'arrêtait.
   C'est un paramètre du banc, pas du jeu ; la référence du rapport le joue aussi.
-  L'armateur du jeu réel n'a pas cette dotation : il reste déficitaire avec un revenu public à 70 %, ce que le calibrage ne corrige pas (suivi dans un ticket à part).
+  L'armateur du jeu réel n'a pas cette dotation : il reste déficitaire avec un revenu public à 70 %, ce que le calibrage ne corrige pas (suivi dans #1026).
 - **Mesure à douze cités.** Masse du monde de 2 050 041 oboles au premier jour mesuré à 2 335 288 au dernier jour mesuré, soit +15,4 % ; avant, 6 695 725 oboles au dernier jour mesuré (+163,9 % dans la mesure de #717, qui n'avait pas le fonds de roulement des armateurs).
   Création nette quotidienne des dix derniers jours à 50 % de celle des dix premiers (14 061 contre 27 984 oboles par jour).
   Part de `sink_liturgies` dans la monnaie détruite des jours mesurés : 79,4 %, aucune avant.
@@ -706,6 +707,10 @@ Le banc à une cité joue les liturgies sans stratégie d'accomplissement : tout
   Le rapport du simulateur, configuration d'avant contre configuration d'après, est joint à la demande de fusion de #721.
 - **Limite connue.** La fortune compte les marchandises en mer au prix de leur cité d'arrivée (6.4) : un départ juste avant la désignation vers une cité sans prix observé les fait disparaître de la fortune.
   Le banc ne mesure pas ce départ, ses armateurs ne sortant pas de leurs routes : sa rentabilité reste à suivre (6.4).
+- **Limite connue (prélèvement non couvert).** En vraie partie, rien ne retient une maison de dépenser le dû d'une liturgie qu'elle élude : le prélèvement d'office, joué à la clôture avant l'entretien, peut alors vider sa trésorerie.
+  Ses sites, dont l'entretien reste impayé, peuvent s'arrêter, et un prêt du Trésor du temple dont l'échéance est prise juste après le prélèvement (`loanCollection`) peut tomber en défaut.
+  Le banc ne le montre pas : ses maisons qui éludent gardent le dû en trésorerie (`owedToLevy`, déduit par `cash`), et le banc échoue si un site s'arrête.
+  Suivi dans #1029.
 
 ## 5.6 Fiscalité
 

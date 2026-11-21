@@ -15,11 +15,12 @@ const fieldsOf = (liturgies: unknown) => {
 };
 
 describe('les liturgies (6.4, #719)', () => {
-  it('la configuration initiale désigne dix maisons par cité et donne ses gains et sa perte (#721)', () => {
+  it('la configuration initiale désigne dix maisons par cité, plancher, part, gains et perte du calibrage (#721)', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
     const liturgies = result.config.liturgies;
     expect(liturgies?.housesPerCity).toBe(10);
+    expect([liturgies?.wealthFloor, liturgies?.dueShareBps]).toEqual([20_000, 4_500]);
     expect([liturgies?.honorGain, liturgies?.charisGain, liturgies?.evasionHonorLoss]).toEqual([
       100, 300, 300,
     ]);

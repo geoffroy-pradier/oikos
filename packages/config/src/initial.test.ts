@@ -598,12 +598,13 @@ describe('jeu de valeurs initial', () => {
       expect(recipe.workers * wage).toBeLessThan(dailyOboles[recipe.siteType]);
   });
 
-  it('le revenu public d’un jour de chaque classe reste celui d’avant ses paniers nouveaux (#632, #283, #713)', () => {
-    // Revenu d'un jour entier pour les thètes, comme l'ancien robinet ; pour les classes aisées, dont le revenu suit le
-    // panier, la part qui rend le revenu public d'avant #713 (arrondie au point inférieur) : la masse ne croît pas plus vite.
+  it('le revenu public d’un jour de chaque classe est 70 % de celui d’avant le calibrage des liturgies (#632, #283, #713, #721)', () => {
+    // Avant #721 : un jour entier pour les thètes, comme l'ancien robinet ; pour les classes aisées, dont le revenu suit
+    // le panier, la part qui rendait le revenu public d'avant #713 (arrondie au point inférieur). Le calibrage des
+    // liturgies (#721) baisse ce revenu à 70 % de cette part (7 000 points), arrondi au point inférieur : le puits des
+    // liturgies et cette baisse ensemble tiennent la masse dans sa borne.
     for (const npcClass of config.npcClasses) {
       const before = PHASE_2_INCOME[npcClass.id] ?? NaN;
-      // #721 : le calibrage des liturgies ramène ce revenu à 70 % de celui d'avant (7 000 points), arrondi au point inférieur.
       expect(npcClass.publicIncomeBps, npcClass.id).toBe(
         Math.floor((Math.floor((before * 10_000) / npcClass.incomePerThousand) * 7_000) / 10_000),
       );
