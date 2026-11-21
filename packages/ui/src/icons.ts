@@ -53,6 +53,7 @@ export {
   Coins,
   Compass,
   Crown,
+  Drama,
   Eye,
   EyeOff,
   Flag,

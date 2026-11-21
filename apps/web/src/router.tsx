@@ -4,6 +4,7 @@ import { AgoraScreen } from './screens/Agora';
 import { CityScreen } from './screens/City';
 import { HomeScreen } from './screens/Home';
 import { HouseProfileScreen } from './screens/HouseProfile';
+import { LiturgyScreen } from './screens/Liturgy';
 import { MapScreen } from './screens/Map';
 import { MessagesScreen } from './screens/Messages';
 import { PropertyScreen } from './screens/Property';
@@ -32,6 +33,8 @@ const routeTree = rootRoute.addChildren([
   route('/agora', AgoraScreen),
   route('/cite', CityScreen),
   route('/cite/temple', TempleScreen),
+  // Liturgie de la maison (6.4), ouverte depuis l'alerte du tableau de bord et l'onglet Cité.
+  route('/cite/liturgie', LiturgyScreen),
   route('/messages', MessagesScreen),
   // Fiche publique d'une maison (6.6), ouverte depuis un message, un candidat ou un magistrat.
   route('/maison/$houseId', HouseProfileScreen),
