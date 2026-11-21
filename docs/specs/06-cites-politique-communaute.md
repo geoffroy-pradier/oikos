@@ -163,6 +163,7 @@ Rejouée, ou jouée par deux moteurs, la clôture ne prélève rien et ne retire
 Une maison dont le compte a été exclu depuis la désignation est prélevée comme les autres : la liturgie lui a été confiée.
 Les joueurs lisent l'état réglé de chaque liturgie (`city_liturgies`), jamais ce qu'une autre maison a payé, ni son faste, qui diraient une part de sa fortune (4.1).
 Tout joueur connecté lit les liturgies des cités de son monde, sans le dû ni la fortune (`city_liturgies`) ; une maison lit les siennes avec leur dû (`my_liturgies`, 12).
+Les gains, la perte de Timè et la borne du faste se lisent dans `liturgy_rules` (12) : l'écran n'en porte aucune valeur (#723).
 
 Ostracisme (ticket 722).
 Décision : l'ostracisme est un modèle de décret (`ostracism`), sans paramètre, que l'archonte en charge propose et que l'assemblée vote comme tout décret (6.3).
