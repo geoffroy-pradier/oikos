@@ -2,6 +2,7 @@ import {
   BANK_DEPOSIT_ERROR_CODES,
   BANK_FOUND_ERROR_CODES,
   BANK_MOVE_CAPITAL_ERROR_CODES,
+  BANK_SET_RATES_ERROR_CODES,
   BANK_WITHDRAW_ERROR_CODES,
   bankDepositInputSchema,
   bankDepositOutputSchema,
@@ -9,6 +10,8 @@ import {
   bankFoundOutputSchema,
   bankMoveCapitalInputSchema,
   bankMoveCapitalOutputSchema,
+  bankSetRatesInputSchema,
+  bankSetRatesOutputSchema,
   bankWithdrawInputSchema,
   bankWithdrawOutputSchema,
 } from '@oikos/contracts';
@@ -399,6 +402,50 @@ export const bankWithdraw = defineCommand({
       balance: Number(deposit.balance) - input.amount,
     };
     emit({ type: 'BankWithdrawn', payload: { ...data, houseId: house.id } });
+    return { ok: true, data };
+  },
+});
+
+/**
+ * La maison change les taux annuels que sa banque affiche (#727), de dépôt et de prêt, dans les bornes de la
+ * configuration en vigueur (`bank_rules`). Un dépôt qui croise le changement relit le taux sous le verrou de l'agora et
+ * répond `RATE_CHANGED` ; l'intérêt de la clôture prend le taux affiché à son instant. Des bornes resserrées ne changent
+ * pas un taux déjà affiché : elles en refusent un nouveau hors d'elles. Refusée sans section `banks`, sans banque, ou
+ * hors des bornes.
+ */
+export const bankSetRates = defineCommand({
+  name: 'bank.setRates',
+  input: bankSetRatesInputSchema,
+  output: bankSetRatesOutputSchema,
+  errors: BANK_SET_RATES_ERROR_CODES,
+  async handler({ trx, userId, emit, config }, input) {
+    // Verrous : la maison, puis l'agora, que les dépôts et la clôture tiennent quand ils lisent le taux.
+    const house = await lockHouse(trx, userId);
+    if (!house) return refuse('HOUSE_NOT_FOUND', 'This account has no house.');
+    const rules = config.banks;
+    if (!rules) return refuse(CLOSED.code, CLOSED.message);
+    const bank = await trx
+      .selectFrom('game.banks')
+      .select('id')
+      .where('house_id', '=', house.id)
+      .executeTakeFirst();
+    if (!bank) return refuse('BANK_NOT_FOUND', 'This house has no bank.');
+    const [deposit, loan] = [rules.depositRateBps, rules.loanRateBps];
+    const within = (rate: number, bounds: { min: number; max: number }) =>
+      rate >= bounds.min && rate <= bounds.max;
+    if (!within(input.depositRateBps, deposit) || !within(input.loanRateBps, loan))
+      return refuse(
+        'RATE_OUT_OF_BOUNDS',
+        `Deposit rates run from ${deposit.min} to ${deposit.max} basis points, loan rates from ${loan.min} to ${loan.max}.`,
+      );
+    await lock(trx, `market:${house.world_id}`);
+    await trx
+      .updateTable('game.banks')
+      .set({ deposit_rate_bps: input.depositRateBps, loan_rate_bps: input.loanRateBps })
+      .where('id', '=', bank.id)
+      .execute();
+    const data = { bankId: bank.id, ...input };
+    emit({ type: 'BankRatesSet', payload: { ...data, houseId: house.id } });
     return { ok: true, data };
   },
 });

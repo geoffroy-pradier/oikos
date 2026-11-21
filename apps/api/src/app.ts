@@ -27,7 +27,13 @@ import {
   adminWithdrawExclusion,
 } from './commands/admin-moderation';
 import { adminGrantRole, adminRevokeRole } from './commands/admin-roles';
-import { bankDeposit, bankFound, bankMoveCapital, bankWithdraw } from './commands/bank';
+import {
+  bankDeposit,
+  bankFound,
+  bankMoveCapital,
+  bankSetRates,
+  bankWithdraw,
+} from './commands/bank';
 import { chatOpenDirect } from './commands/chat-open-direct';
 import { chatPost } from './commands/chat-post';
 import { chatReport } from './commands/chat-report';
@@ -121,6 +127,7 @@ export const COMMANDS = [
   bankMoveCapital,
   bankDeposit,
   bankWithdraw,
+  bankSetRates,
   voyageDepart,
   chatOpenDirect,
   chatPost,
