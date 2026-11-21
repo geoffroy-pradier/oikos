@@ -100,7 +100,7 @@ async function newWorld(houses: House[]) {
         trx,
       );
       await sql`insert into game.houses (id, world_id, user_id, name, blazon, kind, created_at)
-        values (${id}, ${worldId}, ${user}, ${`Maison ${String.fromCharCode(97 + index)}`}, '{}',
+        values (${id}, ${worldId}, ${house.npc ? null : user}, ${`Maison ${String.fromCharCode(97 + index)}`}, '{}',
                 ${house.npc ? 'npc' : 'player'}, now() - ${house.age} * interval '1 day')`.execute(
         trx,
       );

@@ -86,9 +86,28 @@ export const houseRenamedSchema = z.strictObject({
   payload: z.strictObject({ houseId: z.uuid(), previousName: z.string(), name: z.string() }),
 });
 
+/**
+ * Événement de la clôture (8.3, #715) : la maison PNJ de secours d'une filière d'une cité est fondée, avec ses sites et
+ * sa dotation, versée par le robinet `faucet_npc_house_grant` (nulle : aucune écriture).
+ */
+export const npcHouseFoundedSchema = z.strictObject({
+  type: z.literal('NpcHouseFounded'),
+  payload: z.strictObject({
+    houseId: z.uuid(),
+    worldId: z.uuid(),
+    cityId: z.uuid(),
+    chainId: z.string().min(1),
+    name: z.string(),
+    sites: z.number().int().positive(),
+    grantOboles: z.number().int().nonnegative(),
+    gameDay: z.number().int().nonnegative(),
+  }),
+});
+
 export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
+  npcHouseFoundedSchema,
   siteCollectedSchema,
   siteAcquiredSchema,
   siteRecipeChangedSchema,
