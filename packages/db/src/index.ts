@@ -77,8 +77,8 @@ export interface GameDatabase {
     game_day: ColumnType<number, number, number>;
     trade_seq: ColumnType<string, number | string, number | string>;
     /** `[ventes des joueurs, ventes en tout]` par clôture, la plus récente en dernier. */
-    sales: ColumnType<[number, number][], string, string>;
-    above_days: ColumnType<number, number, number>;
+    sales: ColumnType<[number, number][], string | undefined, string>;
+    above_days: ColumnType<number, number | undefined, number>;
     dissolved_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
     updated_at: ColumnType<Date, never, never>;
   };

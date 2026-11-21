@@ -12,6 +12,7 @@ import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
+import { npcHouseRetreatStep } from './steps/npc-house-retreat';
 import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
 import { npcPopulation } from './steps/npc-population';
@@ -37,7 +38,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // d'avant ne tiennent pas le verrou de l'agora. Le marché du travail (#258) juste avant l'entretien, qui
     // prélève son salaire et son hébergement ; le revenu public des PNJ (#632) entre les deux, après la population ;
     // les maisons PNJ de secours (#715) juste avant lui, sans verrou d'agora ; leur surplus (#716) juste avant
-    // l'entretien, sous ses verrous.
+    // l'entretien, sous ses verrous ; leur retrait (#717) juste avant le marché du travail : un site fermé ce jour
+    // n'emploie ni ne doit rien.
     // La planification des événements (#267) puis le déclin de la Charis
     // (#265), sans monnaie ni stock ni agora, passent avant tout ce qui peut prendre l'agora.
     // L'ostracisme (#722) : son dépouillement avant celui des élections, qui écarte l'ostracisé ; l'ouverture de
@@ -62,6 +64,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       leaseRent,
       liturgyLevy,
       propertyWear,
+      npcHouseRetreatStep,
       laborMarket,
       npcHouses,
       npcPublicIncome,
@@ -74,9 +77,10 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(npcPublicIncome)).toBe(CLOSE_STEPS.length - 3);
     expect(CLOSE_STEPS.indexOf(npcHouses)).toBe(CLOSE_STEPS.length - 4);
     expect(CLOSE_STEPS.indexOf(laborMarket)).toBe(CLOSE_STEPS.length - 5);
-    expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 6);
-    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 7);
-    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 8);
+    expect(CLOSE_STEPS.indexOf(npcHouseRetreatStep)).toBe(CLOSE_STEPS.length - 6);
+    expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 7);
+    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 8);
+    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 9);
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
