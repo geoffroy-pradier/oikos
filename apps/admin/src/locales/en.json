@@ -207,6 +207,7 @@
       "faucet_good_buyback": "Buyback of a retired good's stock",
       "faucet_npc_public_income": "NPC public income",
       "faucet_npc_house_grant": "Rescue NPC house grant",
+      "sink_npc_house_surplus": "Rescue NPC house surplus",
       "sink_npc_wages": "NPC worker wages",
       "sink_npc_lodging": "Workers lodged with NPCs",
       "sink_upkeep": "Site upkeep",

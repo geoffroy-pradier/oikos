@@ -15,6 +15,7 @@ export const SYSTEM_ACCOUNT_KEYS = [
   'faucet_good_buyback',
   'faucet_npc_public_income',
   'faucet_npc_house_grant',
+  'sink_npc_house_surplus',
   'sink_npc_wages',
   'sink_npc_lodging',
   'sink_upkeep',
