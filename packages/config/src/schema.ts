@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { banksSchema } from './banks';
 import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
 import { honorSchema } from './honor';
@@ -1001,6 +1002,8 @@ export const gameConfigSchema = z
     liturgies: liturgiesSchema.optional(),
     /** Absent des versions publiées avant le Trésor du temple (#724) : le temple ne prête pas. */
     templeTreasury: templeTreasurySchema.optional(),
+    /** Absent des versions publiées avant les banques (#726), et de la configuration initiale : aucune banque ne se fonde. */
+    banks: banksSchema.optional(),
     /** Absent des versions publiées avant les décrets : aucun décret ne se propose. */
     decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */
