@@ -100,6 +100,18 @@
     "archon": { "termDays": 28, "candidacyDays": 4, "votingDays": 3, "maxConsecutiveTerms": 2 }
   },
   "honor": { "min": -10000, "max": 10000, "changes": { "archon_term": 0 } },
+  "liturgies": {
+    "housesPerCity": 0,
+    "wealthFloor": 600000,
+    "dueShareBps": 500,
+    "minDue": 6000,
+    "maxDue": 600000,
+    "dueDays": 3,
+    "genres": ["festival", "trierarchy", "choregia"],
+    "honorGain": 0,
+    "charisGain": 0,
+    "evasionHonorLoss": 0
+  },
   "decrees": {
     "votingDays": 2,
     "quorumBps": 2000,
