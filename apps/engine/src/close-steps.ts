@@ -11,6 +11,7 @@ import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
+import { loanCollection, loanDefaultLocks } from './steps/loan-collection';
 import { npcHouseRetreatStep } from './steps/npc-house-retreat';
 import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
@@ -32,10 +33,12 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * les siens, sans autre verrou que celui de la clôture du monde, la désignation des liturgies (6.4, #719), qui lit
  * la fortune des maisons avant que la clôture ne touche la monnaie, sans autre verrou non plus, la dérobade aux
  * liturgies échues (#720), qui prend les Timè de leurs maisons puis les verrouille avant les Charis et l'agora, dans
- * l'ordre de `liturgy.perform`, le déclin de la Charis (7.1, #265),
+ * l'ordre de `liturgy.perform`, les Timè des maisons dont un prêt du temple échoit (5.4, #725), dans le même ordre, le
+ * déclin de la Charis (7.1, #265),
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), le prélèvement d'office des liturgies échues
- * (#720), sur ce que les loyers laissent, la vétusté des biens immobiliers (4.5), le retrait des maisons PNJ devant
+ * (#720), sur ce que les loyers laissent, l'échéance des prêts du temple (#725), qui prélève ce qui reste et fait
+ * passer en défaut un prêt qui reste dû, la vétusté des biens immobiliers (4.5), le retrait des maisons PNJ devant
  * les joueurs (8.3, #717), le marché du travail du jour (4.4, #258), la fondation des maisons PNJ de secours (8.3,
  * #715), le revenu public des PNJ (5.5, #632), leur surplus (8.3, #716), puis l'entretien.
  * Les maisons PNJ ne touchent que leur robinet et la maison qu'elles fondent, sans verrou d'agora : leurs sites,
@@ -74,11 +77,13 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   worldEventPlanning,
   liturgyAssignment,
   liturgyEvasion,
+  loanDefaultLocks,
   favorDecay,
   decreeApplication,
   decreeSpending,
   leaseRent,
   liturgyLevy,
+  loanCollection,
   propertyWear,
   npcHouseRetreatStep,
   laborMarket,
