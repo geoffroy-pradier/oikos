@@ -133,7 +133,14 @@ describe('voyage.depart', () => {
     ]);
     const events = sql`select payload from game.domain_events where type = 'VoyageDeparted' and payload->>'houseId' = ${houseId}`;
     expect(await rows(events)).toEqual([
-      { payload: { ...departure, houseId, portDues: { oboles: 0, burned: 0, treasury: 0 } } },
+      {
+        payload: {
+          ...departure,
+          houseId,
+          portDues: { oboles: 0, burned: 0, treasury: 0 },
+          lossRiskBps: 0,
+        },
+      },
     ]);
     // Rejeu de la même clé : même réponse, sans second voyage ; une clé neuve trouve le navire en mer.
     expect(await send(user, 'voyage.depart', body, key)).toEqual(sailed);

@@ -115,6 +115,11 @@ export const voyageDepartedSchema = z.strictObject({
         .strictObject({ eventId: z.uuid(), delaySeconds: z.number().int().positive() })
         .optional(),
       fairWind,
+      /**
+       * Risque de perte de la cargaison fixé au départ (4.6, #730), en points de base : celui de la route, majoré
+       * pendant une tempête. Absent des départs antérieurs aux pertes en mer, qui n'en ont pas.
+       */
+      lossRiskBps: z.number().int().min(0).max(10_000).optional(),
     })
     .refine((payload) => payload.fromCityId !== payload.toCityId, {
       message: 'a voyage links two different cities',
