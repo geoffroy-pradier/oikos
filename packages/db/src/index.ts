@@ -67,6 +67,23 @@ export interface GameDatabase {
     chain_id: ColumnType<string, string, never>;
     founded_at: ColumnType<Date, never, never>;
   };
+  /**
+   * File des règles d'un site d'une maison PNJ (#716) : sa dernière opération, clé d'idempotence (tick, rang) et
+   * position de la file ; tick et rang ne font que croître (garde de la base). Rien n'en est lu par les joueurs.
+   */
+  'game.npc_site_queues': {
+    site_id: ColumnType<string, string, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    config_version_id: ColumnType<string, string, string>;
+    tick_index: ColumnType<string, number, number>;
+    rank: ColumnType<number, number, number>;
+    rule_position: ColumnType<number, number, number>;
+    error_code: ColumnType<string | null, string | null, string | null>;
+    /** Dernier tick de refus de chaque règle de la version, par position. */
+    refused: ColumnType<Record<string, number>, string, string>;
+    updated_at: ColumnType<Date, never, never>;
+  };
 
   'game.citizenships': {
     id: ColumnType<string, never, never>;
