@@ -232,7 +232,8 @@
       "sink_property_works": "Housing renovation",
       "sink_festivals": "City festivals",
       "sink_liturgies": "Liturgies",
-      "sink_bank_charter": "Bank charter fees"
+      "sink_bank_charter": "Bank charter fees",
+      "sink_nemesis": "Nemesis sanctions"
     },
     "byDay_one": "Faucets and sinks: net per game day (day read: 1)",
     "byDay_other": "Faucets and sinks: net per game day (days read: {{count}})",
