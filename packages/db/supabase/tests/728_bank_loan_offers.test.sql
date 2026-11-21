@@ -100,7 +100,7 @@ select throws_ok($$select pg_temp.as_service(format(
   'delete from game.bank_loan_offers where borrower_house_id = %L', pg_temp.house('b')))$$,
   '42501', null, 'le service ne supprime pas d''offre');
 
--- 3. Aucun joueur ni visiteur ne lit la table avant les lectures de la migration 0302, ni n'y écrit.
+-- 3. Aucun joueur ni visiteur ne lit la table avant les lectures de la migration 0304, ni n'y écrit.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000728ab", "role": "authenticated"}', true);
 select throws_ok($$insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days,

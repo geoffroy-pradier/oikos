@@ -96,7 +96,7 @@ create trigger bank_loan_offers_no_truncate before truncate on game.bank_loan_of
   for each statement execute function game.forbid_change();
 
 -- Le service offre sans choisir ni l'identifiant, ni la date, ni l'état, et retire une offre (droit sur `status`, que la
--- garde borne) ; rien ne se supprime. Les lectures des joueurs viennent avec la migration 0302.
+-- garde borne) ; rien ne se supprime. Les lectures des joueurs viennent avec la migration 0304.
 alter table game.bank_loan_offers enable row level security;
 revoke all on game.bank_loan_offers from public, anon, authenticated, oikos_service;
 grant select on game.bank_loan_offers to oikos_service;
