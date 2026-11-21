@@ -6,7 +6,7 @@ import {
   type DomainEvent,
 } from '@oikos/contracts';
 import type { Db, GameDatabase } from '@oikos/db';
-import type { OperationContext } from '@oikos/operations';
+import { cancelLockedOrders, lockAgora, type OperationContext } from '@oikos/operations';
 import { nextStewardOperation, type StewardPlanRule } from '@oikos/sim';
 import { sql, type ControlledTransaction } from 'kysely';
 import { sightOf, type StewardTick } from './steward-plan';
@@ -33,6 +33,110 @@ export function npcSiteRules(config: GameConfig, site: Omit<NpcSite, 'site_id' |
     Object.hasOwn(rules, site.recipe_id) ? rules[site.recipe_id] : [],
   );
   return parsed.success ? (parsed.data as StewardPlanRule[]) : [];
+}
+
+/** Un ordre ouvert d'une maison PNJ, tel que la justification le lit. */
+export interface NpcOpenOrder {
+  side: 'buy' | 'sell';
+  good_id: string;
+  price: string | number;
+}
+
+/**
+ * Un ordre ouvert d'une maison PNJ est-il justifié par la configuration en vigueur (#717) ? Sans entrée-sortie. Jamais
+ * au-dessus du prix de référence de son bien (un bien que la configuration ne connaît plus n'en a pas). Une maison qui
+ * se liquide (aucun site ouvert) garde ses ventes et aucun achat. Sinon, une règle des sites ouverts (`rules`) poserait
+ * cet ordre : une vente du bien à ce prix plancher, ou un achat du bien à ce prix plafond. Une règle, une filière ou
+ * une cité retirée, un prix changé ou un prix de référence baissé ne justifient donc plus les ordres d'avant.
+ */
+export function npcOrderJustified(
+  order: NpcOpenOrder,
+  rules: readonly StewardPlanRule[],
+  reference: number | undefined,
+  liquidating: boolean,
+) {
+  const price = Number(order.price);
+  if (reference === undefined || price > reference) return false;
+  if (liquidating) return order.side === 'sell';
+  return rules.some((rule) =>
+    order.side === 'sell'
+      ? rule.kind === 'sell' && rule.goodId === order.good_id && rule.minPriceOboles === price
+      : rule.kind === 'buy' && rule.goodId === order.good_id && rule.maxPriceOboles === price,
+  );
+}
+
+/**
+ * Ordres ouverts des maisons PNJ du monde que la configuration du tick ne justifie plus (`npcOrderJustified`), d'après
+ * les règles de leurs sites ouverts.
+ */
+async function unjustifiedNpcOrders(trx: Db, config: GameConfig, worldId: string, lock = false) {
+  const query = trx
+    .selectFrom('game.orders as o')
+    .innerJoin('game.npc_houses as n', 'n.house_id', 'o.house_id')
+    .innerJoin('game.cities as c', 'c.id', 'n.city_id')
+    .select(['o.id', 'o.world_id', 'o.house_id', 'o.city_id', 'o.good_id', 'o.side', 'o.price'])
+    .select(['o.remaining', 'c.slug', 'n.chain_id'])
+    .where('o.world_id', '=', worldId)
+    .where('o.status', '=', 'open')
+    .orderBy('o.id');
+  const orders = await (lock ? query.forUpdate('o') : query).execute();
+  if (orders.length === 0) return [];
+  const sites = await trx
+    .selectFrom('game.sites')
+    .select(['house_id', 'recipe_id'])
+    .where('house_id', 'in', [...new Set(orders.map((order) => order.house_id))])
+    .where('closed_at', 'is', null)
+    .execute();
+  const reference = new Map(config.goods.map((good) => [good.id, good.referencePriceOboles]));
+  return orders.filter((order) => {
+    const open = sites.filter((site) => site.house_id === order.house_id);
+    const rules = open.flatMap((site) =>
+      npcSiteRules(config, {
+        slug: order.slug,
+        chain_id: order.chain_id,
+        recipe_id: site.recipe_id,
+      }),
+    );
+    return !npcOrderJustified(order, rules, reference.get(order.good_id), open.length === 0);
+  });
+}
+
+/**
+ * Annule les ordres ouverts des maisons PNJ que la configuration ne justifie plus (#717), comme `steward.setRules`
+ * pour un intendant : réservation levée, séquestre rendu à la trésorerie, un `OrderCancelled` par ordre, sans
+ * commande. Vus d'abord sans verrou ; s'il y en a, relus sous le verrou de l'agora, puis la trésorerie (l'ordre des
+ * opérations), dans une transaction. Rend le nombre d'ordres annulés ; une panne est signalée, sans retenir les règles.
+ */
+export async function cancelUnjustifiedNpcOrders(db: Db, tick: StewardTick): Promise<number> {
+  if ((await unjustifiedNpcOrders(db, tick.config, tick.worldId)).length === 0) return 0;
+  try {
+    return await db.transaction().execute(async (trx) => {
+      await lockAgora(trx, tick.worldId);
+      const orders = await unjustifiedNpcOrders(trx, tick.config, tick.worldId, true);
+      const events: DomainEvent[] = [];
+      await cancelLockedOrders(
+        trx,
+        orders,
+        (event) => events.push(domainEventSchema.parse(event)),
+        (houseId) => ({ houseId, cause: 'npc_house.rules', configVersionId: tick.configVersionId }),
+      );
+      if (events.length > 0)
+        await trx
+          .insertInto('game.domain_events')
+          .values(
+            events.map((event) => ({
+              command_id: null,
+              type: event.type,
+              payload: JSON.stringify(event.payload),
+            })),
+          )
+          .execute();
+      return orders.length;
+    });
+  } catch (error) {
+    console.error(`World ${tick.worldId}: unjustified NPC orders could not be cancelled`, error);
+    return 0;
+  }
 }
 
 /** Dernière opération du site : la position de sa file et la clé d'idempotence de son rang. */
@@ -183,10 +287,12 @@ async function operate(
  * Règles des maisons PNJ de secours d'un monde pour un tick (8.3, 4.4 ; #716), au pas des intendants : chaque site
  * d'une maison PNJ qui a des règles mène au plus `stewards.operationsPerTick` opérations, une transaction chacune,
  * dans l'ordre de ses règles, sans salaire ni intendant. Rejouer le même tick ne double rien. Une opération refusée
- * ou en panne ne retient pas les autres sites ; une panne arrête ce site jusqu'au passage suivant.
+ * ou en panne ne retient pas les autres sites ; une panne arrête ce site jusqu'au passage suivant. D'abord, les ordres
+ * que la configuration du tick ne justifie plus sont annulés (#717), même pour une version sans maisons PNJ.
  */
 export async function runNpcHouseRules(db: Db, tick: StewardTick): Promise<StewardRun> {
   const run: StewardRun = { acted: 0, refused: 0, failed: 0 };
+  await cancelUnjustifiedNpcOrders(db, tick);
   const perTick = stewardOperationsPerTick(tick.config);
   if (perTick === 0 || Object.keys(tick.config.npcHouses).length === 0) return run;
   const sites = await db

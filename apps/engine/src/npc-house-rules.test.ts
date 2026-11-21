@@ -2,7 +2,7 @@ import { INITIAL_CONFIG, npcRuleSchema, type GameConfig, type NpcHouses } from '
 import { stewardRuleSchema } from '@oikos/contracts';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { npcSiteRules } from './npc-house-rules';
+import { npcOrderJustified, npcSiteRules } from './npc-house-rules';
 
 const FIELD = [
   { kind: 'collect' },
@@ -66,6 +66,61 @@ describe('règles d’un site d’une maison PNJ (#716)', () => {
         );
       }),
       { numRuns: 500 },
+    );
+  });
+});
+
+describe('ordres d’une maison PNJ que la configuration justifie (#717)', () => {
+  const RULES = [
+    { kind: 'sell', goodId: 'wheat', minPriceOboles: 5, keepUnits: 0 },
+    { kind: 'buy', goodId: 'flour', maxPriceOboles: 9, targetUnits: 10 },
+  ] as const;
+  const sell = (price: number, good_id = 'wheat') => ({ side: 'sell' as const, good_id, price });
+  const buy = (price: number, good_id = 'flour') => ({ side: 'buy' as const, good_id, price });
+
+  it('l’ordre qu’une règle des sites ouverts poserait, à son prix, au plus au prix de référence', () => {
+    expect(npcOrderJustified(sell(5), RULES, 6, false)).toBe(true);
+    expect(npcOrderJustified(buy(9), RULES, 10, false)).toBe(true);
+    // Prix changé par la version, règle retirée, autre bien : plus justifié.
+    expect(npcOrderJustified(sell(6), RULES, 6, false)).toBe(false);
+    expect(npcOrderJustified(buy(8), RULES, 10, false)).toBe(false);
+    expect(npcOrderJustified(sell(5, 'flour'), RULES, 10, false)).toBe(false);
+    expect(npcOrderJustified(sell(5), [], 6, false)).toBe(false);
+    // Prix de référence baissé sous l'ordre, ou bien inconnu : plus justifié, même par sa règle.
+    expect(npcOrderJustified(sell(5), RULES, 4, false)).toBe(false);
+    expect(npcOrderJustified(buy(9), RULES, 8, false)).toBe(false);
+    expect(npcOrderJustified(sell(5), RULES, undefined, false)).toBe(false);
+  });
+
+  it('une maison qui se liquide garde ses ventes au plus au prix de référence, et aucun achat', () => {
+    expect(npcOrderJustified(sell(6), [], 6, true)).toBe(true);
+    expect(npcOrderJustified(sell(1), [], 6, true)).toBe(true);
+    expect(npcOrderJustified(sell(7), [], 6, true)).toBe(false);
+    expect(npcOrderJustified(buy(9), RULES, 10, true)).toBe(false);
+  });
+
+  it('propriété : jamais un ordre au-dessus du prix de référence, quelles que soient les règles', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom('buy' as const, 'sell' as const),
+        fc.integer({ min: 1, max: 100 }),
+        fc.integer({ min: 1, max: 100 }),
+        fc.boolean(),
+        (side, price, reference, liquidating) => {
+          const rules = [
+            { kind: 'sell' as const, goodId: 'wheat', minPriceOboles: price, keepUnits: 0 },
+            { kind: 'buy' as const, goodId: 'wheat', maxPriceOboles: price, targetUnits: 1 },
+          ];
+          const justified = npcOrderJustified(
+            { side, good_id: 'wheat', price },
+            rules,
+            reference,
+            liquidating,
+          );
+          if (price > reference) expect(justified).toBe(false);
+          else expect(justified).toBe(side === 'sell' || !liquidating);
+        },
+      ),
     );
   });
 });

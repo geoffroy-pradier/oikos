@@ -310,6 +310,48 @@ describe('maisons PNJ de secours à la clôture (#715)', () => {
     });
   });
 
+  it.each([
+    ['la règle du blason (`houses_blazon_check`)', '23514', 'houses_blazon_check'],
+    ['un interblocage', '40P01', null],
+  ])(
+    'une autre erreur que le refus du nom, %s, fait échouer la fondation et toute la clôture (#949)',
+    async (_, errcode, constraint) => {
+      // Une panne simulée à l'écriture des maisons PNJ du monde (déclencheur temporaire : les fichiers d'intégration
+      // passent l'un après l'autre), avec l'état SQL et la contrainte qu'en donnerait la base.
+      const world = await newWorld(['kalliste', 'elaia']);
+      const raise = constraint
+        ? `raise exception 'simulated failure' using errcode = '${errcode}', constraint = '${constraint}'`
+        : `raise exception 'simulated failure' using errcode = '${errcode}'`;
+      await sql
+        .raw(
+          `create or replace function game.test_npc_house_failure() returns trigger language plpgsql as $$
+          begin if new.kind = 'npc' and new.world_id = '${world.worldId}' then ${raise}; end if; return new; end $$;
+          create trigger test_npc_house_failure before insert on game.houses
+            for each row execute function game.test_npc_house_failure();`,
+        )
+        .execute(owner);
+      try {
+        await expect(close(world.worldId, DAY, SECOURS)).rejects.toThrow(/simulated failure/);
+      } finally {
+        await sql
+          .raw(
+            'drop trigger test_npc_house_failure on game.houses; drop function game.test_npc_house_failure();',
+          )
+          .execute(owner);
+      }
+      // Rien n'est écrit, pas même la clôture : la suivante fonde les deux maisons.
+      expect(await npcOf(world.worldId)).toEqual([]);
+      const closes = await owner
+        .selectFrom('game.daily_closes')
+        .select('game_day')
+        .where('world_id', '=', world.worldId)
+        .execute();
+      expect(closes).toEqual([]);
+      expect(await close(world.worldId, DAY, SECOURS)).toEqual([DAY]);
+      expect(await npcOf(world.worldId)).toHaveLength(2);
+    },
+  );
+
   it('elle paie l’entretien de ses sites comme toute maison, dès la clôture suivante', async () => {
     const world = await newWorld(['kalliste']);
     expect(await close(world.worldId, DAY, SECOURS, CLOSE_STEPS)).toEqual([DAY]);
