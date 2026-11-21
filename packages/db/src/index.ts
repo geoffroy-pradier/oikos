@@ -760,7 +760,7 @@ export interface GameDatabase {
   };
   /**
    * Remboursements d'un prêt (#724), en ajout seul : intérêts d'abord, puis principal, payés par l'écriture
-   * `ledger_entry_id` (`loan.repay`) ; la base les applique au prêt.
+   * `ledger_entry_id` (`loan.repay`, ou `loan.collect` pour un prélèvement de la clôture) ; la base les applique au prêt.
    */
   'game.loan_repayments': {
     id: ColumnType<string, never, never>;
@@ -771,6 +771,8 @@ export interface GameDatabase {
     principal: ColumnType<string, number, never>;
     game_day: ColumnType<number, number, never>;
     ledger_entry_id: ColumnType<string, string, never>;
+    /** Remboursement de la maison (`repay`), ou prélèvement de la clôture à l'échéance (`collect`, #725). */
+    kind: ColumnType<'repay' | 'collect', 'repay' | 'collect' | undefined, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */
