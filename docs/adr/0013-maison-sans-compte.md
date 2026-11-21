@@ -22,3 +22,9 @@ Deux voies existaient : un acteur à part, avec ses propres tables, ou une maiso
 - Toute règle par ligne nouvelle sur `houses.user_id` doit rester une égalité stricte avec `auth.uid()` : un `user_id` nul ne doit jamais rien ouvrir.
 - Une commande qui viserait une autre maison que la sienne doit refuser une maison `npc`.
 - La vue publique `public.npc_houses` dit qu'une maison est PNJ ; `public.houses` ne change pas (ADR 0006).
+
+## Complément (#716) : la stratégie d'une maison PNJ
+
+- Ses règles vivent dans la configuration de sa filière, dans la grammaire de l'intendant (#278), et le moteur les mène par le même cœur que celles d'un intendant, au même pas.
+- Faute de compte, elle n'a ni `command_log` ni `steward_operations` : une file par site, `game.npc_site_queues`, sert de clé d'idempotence (tick et rang strictement croissants), de position dans la file et de mémoire des refus.
+- Une file par site, et non par opération, borne la table sans purge ; la trace d'audit d'une opération en panne est plus pauvre que celle d'un intendant.
