@@ -343,6 +343,16 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
 - **Banque de joueur** (trapeza) : collecte de dépôts rémunérés, prêts à taux libre avec garantie (parcelle, navire, stock), ratio de réserve minimal imposé. Une ruée sur les dépôts est possible.
 - **Prêt maritime** : prêt à taux élevé remboursé seulement si le navire arrive. C'est l'assurance du jeu, et elle est historique.
 - **Trésor du temple** : prêteur PNJ au taux directeur, plafonné par la Timè. Levier de politique monétaire des administrateurs.
+  Dans la première version (#724), un prêt du temple porte un intérêt simple, fixé à l'emprunt pour toute sa durée : principal × taux directeur annuel (points de base) × jours ÷ (10 000 × 365), arrondi à l'obole supérieure (`templeLoanInterest`, `packages/sim`, que la base vérifie).
+  Paramètres du back-office (`templeTreasury`) : le taux directeur (`policyRateBps`), les durées admises en jours de jeu (`termDays`) et le plafond du principal par palier de Timè (`principalCaps`, paliers croissants qui ne prêtent pas moins) ; une version publiée avant eux ne prête pas.
+  Décision (paramètres neutres) : plafonds nuls au départ, si bien que le temple ne prête rien tant que les administrateurs ne les ouvrent pas.
+  Une maison emprunte au plus le plafond du plus haut palier que sa Timè atteint (`templeLoanCap`), rien sous le premier, et n'a qu'un prêt du temple à la fois, en cours ou en défaut (index unique).
+  La commande `loan.borrowFromTemple` porte le principal, la durée et le taux que le joueur a vu (`temple_treasury_rules`) : un autre taux est refusé (`RATE_CHANGED`), comme une autre durée, un principal au-delà du plafond, un second prêt du temple (un prêt de banque, #728, ne compte pas) ou une maison sous une marque de déshonneur (`DISHONORED`).
+  Décision (#724) : jusqu'à #725, qui la bornera dans le temps, la marque de déshonneur est un prêt en défaut de la maison, de tout prêteur.
+  L'échéance est la clôture `termDays` jours de jeu après le jour de l'emprunt ; l'échéance et le défaut viennent avec #725.
+  La commande `loan.repay` (prêt, montant) paie les intérêts d'abord, puis le principal, en une écriture `loan.repay` ; elle est refusée au-delà du reste dû ou de la trésorerie, et pour le prêt d'une autre maison, qui lui est inconnu, comme un prêt d'un autre prêteur jusqu'à #728.
+  Un remboursement complet éteint le prêt, et la maison peut emprunter de nouveau.
+  Événements de domaine : `LoanDisbursed` à l'emprunt, `LoanRepaid` à chaque remboursement (parts des intérêts et du principal, reste dû, état).
 - **Sociétés** (après le lancement) : une activité peut être apportée à une société dont les parts s'échangent, avec dividendes et prises de contrôle.
 - **Défaut** : saisie de la garantie, vente aux enchères, marque de déshonneur temporaire. Pas de faillite définitive : une maison ruinée repart avec un bien insaisissable.
 
@@ -415,6 +425,11 @@ Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par u
 Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
 Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des seules offrandes, les liturgies ayant le leur depuis #720.
 
+Trésor du temple (#724, 5.4) : le principal d'un prêt est créé par le robinet `faucet_temple_loans` (écriture `loan.temple_disburse`), et le principal remboursé recrédite ce robinet, qui ne compte donc en net que le principal encore dû.
+Les intérêts sont détruits par le puits `sink_temple_interest` (dans l'écriture `loan.repay`) : c'est le coût du crédit pour la masse, et le taux directeur est le levier de cette ligne.
+La base vérifie que chaque prêt est décaissé par sa propre écriture `loan.temple_disburse` et chaque remboursement payé par sa propre écriture `loan.repay`, et qu'une écriture de ces natures règle un prêt (12).
+Elle ne lie pas pour autant ces comptes à ces natures : comme pour les autres robinets et puits, une écriture d'une autre nature peut encore mouvoir `faucet_temple_loans` ou `sink_temple_interest`.
+
 Offrandes (#265, 7.1) : les oboles qu'une maison offre à un dieu sont détruites par le puits `sink_offerings` (écriture `temple.offering`).
 Les biens offerts sortent de la circulation vers l'extrémité système `offering` du journal des stocks, d'où rien ne revient : c'est aussi un puits de biens.
 Rien n'est créé en face : une offrande ne rapporte que de la Charis, qui n'est pas de la monnaie et ne s'échange pas.
@@ -461,7 +476,7 @@ hors de la cible, le tableau de bord alerte. Rien du jeu ne se règle sur l'indi
 elle dit aussi, une fois pour tous les mondes, si le panier est vide (`basketEmpty`) : « pas de panier » se lit dans ce champ, jamais dans une liste de biens vide.
 
 Inégalité des fortunes (#718) : le tableau de bord suit, pour chaque monde et chacune de ses cités, le coefficient de Gini des fortunes des maisons (4.1), en points de base (0 : fortunes égales ; vers 10 000 : une maison a tout).
-Il est calculé en entiers par `giniBps` (`packages/sim`), sur les fortunes triées, arrondi au point le plus proche, le demi-point vers le haut ; une fortune négative (une dette, quand les prêts viendront) y compte pour zéro.
+Il est calculé en entiers par `giniBps` (`packages/sim`), sur les fortunes triées, arrondi au point le plus proche, le demi-point vers le haut ; une fortune négative (une dette plus grande que l'actif, #724) y compte pour zéro.
 Une maison compte dans sa cité de citoyenneté, et toujours dans son monde ; les maisons PNJ de secours (8.3) n'entrent dans aucun Gini, comme dans aucun classement de fortune.
 Sans maison, le Gini est inconnu, jamais nul ; toutes les fortunes nulles donnent un Gini nul.
 `GET /api/admin/economy` le rend dans `inequality`, avec le nombre de maisons comptées et celui des stocks sans prix observé, que leurs fortunes ignorent (15.1).
