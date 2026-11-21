@@ -177,7 +177,7 @@ describe('bank.deposit et bank.withdraw', () => {
     expect([await balanceOf(player.houseId), await vaultOf(bank.bankId)]).toEqual(before);
   });
 
-  it('la réserve exigée, sur les dépôts dus, borne le retrait de capital du banquier', async () => {
+  it('la réserve exigée borne le retrait de capital du banquier, jamais celui des déposants : ruée jusqu’au coffre vide', async () => {
     const bank = await newBank(3_000);
     const [a, b] = [await newPlayer(KALLISTE), await newPlayer(ELAIA)];
     await fund(a.houseId, 4_000);
@@ -190,7 +190,138 @@ describe('bank.deposit et bank.withdraw', () => {
     expect(codeOf(await moveCapital(bank.user, 'out', vault - reserve + 1))).toBe('RESERVE_SHORT');
     const out = await moveCapital(bank.user, 'out', vault - reserve);
     expect(out.body.data).toMatchObject({ vault: reserve, requiredReserve: reserve });
-    // Le coffre est à la réserve : le banquier ne retire plus rien.
+    // Le coffre est à la réserve, sous les dépôts : la ruée commence. Chaque déposant reprend ce que le coffre couvre.
+    expect((await withdraw(b.user, bank.bankId, 2_000)).status).toBe(200);
+    expect(await vaultOf(bank.bankId)).toBe(1);
+    expect(codeOf(await withdraw(a.user, bank.bankId, 2))).toBe('VAULT_SHORT');
+    expect((await withdraw(a.user, bank.bankId, 1)).status).toBe(200);
+    expect(await vaultOf(bank.bankId)).toBe(0);
+    for (const player of [a, b])
+      expect(codeOf(await withdraw(player.user, bank.bankId, 1))).toBe('VAULT_SHORT');
+    // Les créances restent dues ; le coffre vide, les trésoreries tiennent toute la monnaie versée (dotations, 8 000).
+    expect([await heldBy(a.houseId, bank.bankId), await heldBy(b.houseId, bank.bankId)]).toEqual([
+      6_000, 2_000,
+    ]);
+    const cash = [bank, a, b].map((house) => balanceOf(house.houseId));
+    expect((await Promise.all(cash)).reduce((sum, n) => sum + n, 0)).toBe(
+      3 * GRANT + 3_000 + 5_000,
+    );
+    // Le banquier ne retire plus rien : la réserve exigée vaut toujours sur les dépôts dus.
     expect(codeOf(await moveCapital(bank.user, 'out', 1))).toBe('RESERVE_SHORT');
+  });
+
+  it('ruée concurrente jusqu’au coffre vide : chaque obole sort une fois, aucun retrait de trop', async () => {
+    const bank = await newBank();
+    const players = await Promise.all([1, 2, 3, 4].map(() => newPlayer(KALLISTE)));
+    for (const player of players) await deposit(player.user, bank.bankId, 2_000);
+    const vault = await vaultOf(bank.bankId);
+    expect(vault).toBe(1_500 + 8_000);
+    // La réserve exigée (20 % de 8 000 : 1 600) laisse 7 900 au banquier, qui les prend.
+    await moveCapital(bank.user, 'out', vault - Number(bankRequiredReserve(8_000n, RULES)));
+    expect(await vaultOf(bank.bankId)).toBe(1_600);
+    const race = await Promise.all(players.map((p) => withdraw(p.user, bank.bankId, 800)));
+    // 1 600 au coffre, quatre retraits de 800 : deux passent, deux trouvent le coffre vide.
+    expect(race.map((reply) => codeOf(reply) ?? 'ok').sort()).toEqual([
+      'VAULT_SHORT',
+      'VAULT_SHORT',
+      'ok',
+      'ok',
+    ]);
+    expect(await vaultOf(bank.bankId)).toBe(0);
+    const held = await Promise.all(players.map((p) => heldBy(p.houseId, bank.bankId)));
+    expect(held.reduce<number>((sum, n) => sum + (n ?? 0), 0)).toBe(8_000 - 1_600);
+    // Deux retraits concurrents du même solde : un seul passe.
+    const other = await newBank();
+    const saver = await newPlayer(ELAIA);
+    await deposit(saver.user, other.bankId, 500);
+    const twice = await Promise.all([
+      withdraw(saver.user, other.bankId, 500),
+      withdraw(saver.user, other.bankId, 500),
+    ]);
+    expect(twice.map((reply) => codeOf(reply) ?? 'ok').sort()).toEqual(['ABOVE_BALANCE', 'ok']);
+    expect([await balanceOf(saver.houseId), await heldBy(saver.houseId, other.bankId)]).toEqual([
+      GRANT,
+      0,
+    ]);
+    // Dépôts concurrents d'une même maison : chacun passe, rien ne se perd.
+    await Promise.all([10, 20, 30].map((n) => deposit(saver.user, other.bankId, n)));
+    expect(await heldBy(saver.houseId, other.bankId)).toBe(60);
+    expect(await vaultOf(other.bankId)).toBe(1_500 + 60);
+  });
+});
+
+describe('bank.setRates', () => {
+  const rates = (
+    user: string,
+    depositRateBps: number,
+    loanRateBps: number,
+    key?: string,
+    via = app,
+  ) => send(user, 'bank.setRates', { depositRateBps, loanRateBps }, key, via);
+  const ratesOf = async (bankId: string) =>
+    (
+      await sql<{ rates: string }>`select deposit_rate_bps || ':' || loan_rate_bps as rates
+        from game.banks where id = ${bankId}`.execute(owner)
+    ).rows[0]?.rates;
+
+  it('les taux affichés changent dans les bornes du monde ; un dépôt au taux vu ancien est refusé', async () => {
+    const bank = await newBank();
+    const player = await newPlayer(ELAIA);
+    const key = randomUUID();
+    const done = await rates(bank.user, 1_000, 5_000, key);
+    expect(done.body.data).toEqual({
+      bankId: bank.bankId,
+      depositRateBps: 1_000,
+      loanRateBps: 5_000,
+    });
+    expect(await rates(bank.user, 1_000, 5_000, key)).toEqual(done);
+    expect(await ratesOf(bank.bankId)).toBe('1000:5000');
+    const refusals = [
+      [await rates(bank.user, 1_001, 300), 'RATE_OUT_OF_BOUNDS'],
+      [await rates(bank.user, 99, 300), 'RATE_OUT_OF_BOUNDS'],
+      [await rates(bank.user, 100, 299), 'RATE_OUT_OF_BOUNDS'],
+      [await rates(bank.user, 100, 5_001), 'RATE_OUT_OF_BOUNDS'],
+      [await rates(bank.user, 100, 300, undefined, withRules(null)), 'BANKS_CLOSED'],
+      [await rates(player.user, 100, 300), 'BANK_NOT_FOUND'],
+    ] as const;
+    for (const [reply, code] of refusals) expect(codeOf(reply)).toBe(code);
+    expect((await rates(bank.user, 1_001, 300)).body.error?.message).toContain('100 to 1000');
+    expect(await ratesOf(bank.bankId)).toBe('1000:5000');
+    expect(await eventsOf(bank.houseId, 'BankRatesSet')).toEqual([
+      { ...done.body.data, houseId: bank.houseId },
+    ]);
+    // Le déposant a vu l'ancien taux : refusé, le message donne le nouveau ; au nouveau, il passe.
+    expect(codeOf(await deposit(player.user, bank.bankId, 10, 100))).toBe('RATE_CHANGED');
+    expect((await deposit(player.user, bank.bankId, 10, 100)).body.error?.message).toContain(
+      '1000',
+    );
+    expect((await deposit(player.user, bank.bankId, 10, 1_000)).body.data.rateBps).toBe(1_000);
+    // Des bornes resserrées refusent un changement, pas le taux déjà affiché, que les dépôts gardent.
+    const narrow = withRules({ ...RULES, depositRateBps: { min: 100, max: 500 } });
+    expect(codeOf(await rates(bank.user, 1_000, 5_000, undefined, narrow))).toBe(
+      'RATE_OUT_OF_BOUNDS',
+    );
+    expect((await deposit(player.user, bank.bankId, 10, 1_000, undefined, narrow)).status).toBe(
+      200,
+    );
+    expect((await rates(bank.user, 500, 300, undefined, narrow)).status).toBe(200);
+  });
+
+  it('un changement de taux et un dépôt concurrents : le dépôt passe au taux vu, ou il est refusé', async () => {
+    for (let run = 0; run < 3; run += 1) {
+      const bank = await newBank();
+      const player = await newPlayer(KALLISTE);
+      const [set, put] = await Promise.all([
+        rates(bank.user, 500, 300),
+        deposit(player.user, bank.bankId, 100, 100),
+      ]);
+      expect(set.status).toBe(200);
+      const { rows } = await sql<{
+        rate: number;
+      }>`select rate_bps as rate from game.bank_deposit_movements
+        where bank_id = ${bank.bankId}`.execute(owner);
+      if (put.status === 200) expect(rows).toEqual([{ rate: 100 }]);
+      else expect([codeOf(put), rows]).toEqual(['RATE_CHANGED', []]);
+    }
   });
 });
