@@ -11,7 +11,16 @@ import {
   recipeMargins,
   sinkShares,
 } from './balance/measures';
-import { NPC_HELD, SCENARIO, SLUGS, WARMUP, MEASURED, WINDOW, worldConfig } from './balance/world';
+import {
+  NPC_HELD,
+  SCENARIO,
+  SCENARIOS,
+  SLUGS,
+  WARMUP,
+  MEASURED,
+  WINDOW,
+  worldConfig,
+} from './balance/world';
 import { sql } from 'kysely';
 
 /*
@@ -43,6 +52,7 @@ it(
       operations,
       housing,
       politics,
+      liturgies,
       days,
       measured,
       ledger,
@@ -217,6 +227,19 @@ it(
     expect(shares['estate'], 'part des puits immobiliers').toBeGreaterThan(0);
     expect(shares['public'], 'part des puits publics').toBeGreaterThan(0);
 
+    // Liturgies (#721, 6.4) : des maisons ont été désignées, certaines ont accompli la leur, d'autres s'y sont dérobées et
+    // ont été prélevées d'office ; le puits `sink_liturgies` a sa part de la monnaie détruite, et aucun site ni aucun
+    // navire ne s'est arrêté faute de trésorerie (une maison qui s'arrête fait échouer le banc : `harvest`, `voyage.depart`).
+    expect(liturgies.performed, 'liturgies accomplies').toBeGreaterThan(0);
+    expect(liturgies.evaded, 'liturgies éludées').toBeGreaterThan(0);
+    expect(shares['sink_liturgies'] ?? 0, 'part de sink_liturgies').toBeGreaterThan(0);
+    const halted = await sql<{ n: string }>`select
+      (select count(*) from game.sites where world_id = ${world.worldId} and halted_at is not null)
+      + (select count(*) from game.ships where world_id = ${world.worldId} and laid_up_at is not null) as n`.execute(
+      world.db,
+    );
+    expect(Number(halted.rows[0]?.n), 'sites ou navires arrêtés').toBe(0);
+
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW));
     const drift = Object.fromEntries(
@@ -238,6 +261,7 @@ it(
         Math.round(created(days.slice(-WINDOW))),
       ],
       minutes: Math.round(minutes * 10) / 10,
+      liturgies: { ...liturgies, shareBps: shares['sink_liturgies'] ?? 0 },
       stewards: stewards.length,
       stewardOperations: operations,
       events,
@@ -295,10 +319,14 @@ it(
         days[0]?.population[slug] ?? Infinity,
       );
     }
-    // Masse du monde, borne contre l'emballement (5.5) : sur les 30 jours mesurés, elle croît de moins de 200 %, ce que
-    // ferait le seul revenu public de 30 jours sans aucun puits ; et sa création nette quotidienne des dix derniers jours
-    // ne dépasse pas 110 % de celle des dix premiers. La borne de −5 % à +25 % attend les liturgies (phase 3).
-    expect(massBps, 'masse du monde').toBeLessThan(20_000);
+    // Masse du monde (5.5). Borne contre l'emballement, de chaque scénario : sur les 30 jours mesurés, elle croît de
+    // moins de 200 %, ce que ferait le seul revenu public de 30 jours sans aucun puits ; et sa création nette
+    // quotidienne des dix derniers jours ne dépasse pas 110 % de celle des dix premiers. Depuis #721, le banc à douze
+    // cités tient la borne des liturgies, écrite à la main : de −5 % à +25 % sur les 30 jours mesurés.
+    if (SCENARIO === SCENARIOS.twelve) {
+      expect(massBps, 'masse du monde').toBeGreaterThanOrEqual(-500);
+      expect(massBps, 'masse du monde').toBeLessThanOrEqual(2_500);
+    } else expect(massBps, 'masse du monde').toBeLessThan(20_000);
     expect(created(days.slice(-WINDOW)), 'création nette').toBeLessThanOrEqual(
       created(days.slice(0, WINDOW)) * 1.1,
     );

@@ -1,5 +1,5 @@
 import { sql } from 'kysely';
-import { cash, recipeOf, wageOf, worstLodging, type City, type House } from './city';
+import { cash, recipeOf, setOwedToLevy, wageOf, worstLodging, type City, type House } from './city';
 import { upkeepOf } from './strategy';
 
 /*
@@ -108,4 +108,15 @@ export async function liturgyMorning(
     liturgies.performed += 1;
     liturgies.performedOboles += due + SPLENDOR;
   }
+  // Ce qui reste désigné est éludé : le prélèvement d'office le prendra à l'échéance, la maison ne le dépense pas.
+  const left = await city.db
+    .selectFrom('game.liturgies')
+    .select('due')
+    .where('house_id', '=', house.houseId)
+    .where('status', '=', 'assigned')
+    .execute();
+  setOwedToLevy(
+    house.houseId,
+    left.reduce((sum, liturgy) => sum + Number(liturgy.due), 0),
+  );
 }
