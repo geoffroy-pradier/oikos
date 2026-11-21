@@ -546,7 +546,10 @@
     "LITURGY_NOT_FOUND": "This liturgy cannot be found.",
     "LITURGY_SETTLED": "This liturgy is already settled.",
     "LITURGY_OVERDUE": "This liturgy is past its deadline: it will be levied automatically.",
-    "SPLENDOR_OUT_OF_BOUNDS": "The splendor is above the permitted limit."
+    "SPLENDOR_OUT_OF_BOUNDS": "The splendor is above the permitted limit.",
+    "LOAN_NOT_FOUND": "This loan is no longer your house's.",
+    "LOAN_REPAID": "This loan is already repaid.",
+    "ABOVE_OUTSTANDING": "The amount owed has changed since it was shown: nothing was paid. Check the amount and try again."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -1755,6 +1758,30 @@
       "title": "Mark of dishonor",
       "open": "A loan of your house is in default: the mark lasts until it is settled. Your house cannot borrow.",
       "until": "Your house bears a mark of dishonor until {{date}}: it cannot borrow before then."
+    },
+    "repay": {
+      "open": "Repay",
+      "title": "Repay a loan",
+      "stepAmount": "Amount",
+      "stepRecap": "Summary",
+      "treasury": "Treasury",
+      "amount": "Amount repaid (obols)",
+      "amountHint": "From 1 to {{max}} obols",
+      "outOfBounds": "Enter a whole amount from 1 to {{max}} obols.",
+      "noFunds": "Your treasury is empty: there is nothing to repay for now.",
+      "order": "A repayment pays the interest first, then the principal.",
+      "recap": "You are repaying the {{lender}}.",
+      "recapInterest": "Interest paid",
+      "recapPrincipal": "Principal repaid",
+      "recapTotal": "Total paid",
+      "recapLeft": "Still owed after",
+      "recapTreasury": "Treasury after",
+      "recapNote": "What is left is taken at the due date, from your treasury.",
+      "recapSettles": "This repayment settles the loan: your house will be able to borrow again.",
+      "changed": "The amount owed has changed since it was shown: nothing was paid. Go back to the amount to check it.",
+      "confirm": "Repay {{amount}}",
+      "done": "Repaid {{amount}}: {{left}} still owed.",
+      "doneSettled": "Repaid {{amount}}: the loan is settled."
     }
   }
 }
