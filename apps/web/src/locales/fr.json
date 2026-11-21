@@ -719,7 +719,8 @@
       "treasury": "Trésor",
       "events": "Événements",
       "chronicle": "Chronique",
-      "liturgies": "Liturgies"
+      "liturgies": "Liturgies",
+      "ostracism": "Ostracisme"
     }
   },
   "npcClasses": {
@@ -1708,6 +1709,14 @@
     "columns": {
       "house": "Maison",
       "votes": "Voix"
-    }
+    },
+    "title": "Ostracisme",
+    "intro": "Une fois par année de jeu, l'assemblée peut écarter un citoyen des charges publiques pour une saison. Ses biens ne sont pas touchés. Chaque citoyen inscrit, en secret, le nom d'un citoyen de la cité.",
+    "empty": "Aucun ostracisme n'a été ouvert dans la cité. L'archonte en charge peut en proposer un à l'assemblée.",
+    "voting": "Vote ouvert jusqu'au {{date}}. Il compte si {{percent}} des citoyens au moins y prennent part.",
+    "metic": "Métèque, votre maison ne vote pas l'ostracisme.",
+    "voted": "Votre maison a voté le {{date}}. Le vote est secret : le nom inscrit n'est pas affiché.",
+    "cast": "Inscrire un nom",
+    "counting": "Le vote est clos. Il sera dépouillé à la prochaine clôture quotidienne."
   }
 }

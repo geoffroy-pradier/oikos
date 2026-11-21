@@ -106,12 +106,13 @@ describe('onglet Cité : sous-sections en pastilles (#697)', () => {
       'Vie politique',
       'Assemblée',
       'Liturgies',
+      'Ostracisme',
       'Trésor',
       'Événements',
       'Chronique',
     ]);
     expect(screen.getByRole('tabpanel', { name: 'Vie politique' })).toBeTruthy();
-    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(6);
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(7);
     fireEvent.click(screen.getByRole('tab', { name: 'Trésor' }));
     const panel = screen.getByRole('tabpanel', { name: 'Trésor' });
     expect(panel.querySelector('h2')?.textContent).toBe(fr.treasury.title);
