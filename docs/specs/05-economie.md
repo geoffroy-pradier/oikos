@@ -380,8 +380,9 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   L'intérêt est celui du temple, simple et fixé à l'acceptation (`loanInterest`), et l'échéance la clôture `termDays` jours après ; le prêt est une ligne de `loans` au prêteur `bank` (12), décaissée par une écriture `bank.loan_disburse`.
   Une garantie bloquée ne sort par aucun chemin : un stock gagé est retenu sur le stock de l'emprunteur dans sa cité comme ce que réserve une vente en attente, si bien qu'il ne se vend, ne s'embarque, ne s'offre ni ne se consomme ; un logement gagé ne s'offre ni à la vente ni à la location (`PROPERTY_PLEDGED`, 4.5).
   Au solde du prêt, par un remboursement ou par la clôture, la garantie se libère.
+  Décision (#728) : un bien dont du stock est gagé ne se retire pas de la configuration tant que son gage n'est pas libéré ; son rachat par Olympe est refusé (`GOOD_PLEDGED`, 5.1).
   Échéance : l'étape de #725 prélève aussi les prêts de banque échus, intérêts d'abord, pour le coffre (écriture `bank.loan_collect`), dans l'ordre des prêts de la maison.
-  Décision (#728) : un prêt de banque non soldé à son échéance ne passe pas encore en défaut ; il reste dû et se prélève à chaque clôture, et son défaut viendra avec la saisie de sa garantie (ticket suivant).
+  Décision (#728) : un prêt de banque non soldé à son échéance ne passe pas encore en défaut ; il reste dû et se prélève à chaque clôture, et son défaut viendra avec la saisie de sa garantie (#729).
   La fortune compte le reste dû d'un prêt pour la maison de la banque et le déduit pour l'emprunteur : le prêt compte une fois de chaque côté.
   Acceptation, retrait, remboursement et prélèvement se suivent sous le verrou de l'agora : une offre acceptée et retirée à la fois ne l'est qu'une fois, et deux prêts qui dépassent ensemble la réserve ou le même stock ne passent pas tous deux.
   Événements de domaine : `LoanOffered`, `LoanOfferWithdrawn` et `LoanOfferAccepted` ; `LoanRepaid` et `LoanCollected` comme pour le temple.

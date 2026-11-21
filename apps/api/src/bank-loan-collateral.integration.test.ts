@@ -2,7 +2,17 @@ import { ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { accept, codeOf, heldOf, newBank, offered } from './bank-loan.integration-fixtures';
-import { db, ELAIA, fund, KALLISTE, newOwner, owner, send } from './property.integration-fixtures';
+import {
+  db,
+  ELAIA,
+  fund,
+  give,
+  KALLISTE,
+  newOwner,
+  owner,
+  send,
+  sizeOf,
+} from './property.integration-fixtures';
 import { TEST_CONFIG } from './test-config';
 import { depart, newShipowner } from './voyage.integration-fixtures';
 
@@ -78,6 +88,40 @@ describe('un stock gagé ne sort par aucun chemin', () => {
     });
     const left = 100 - WHEAT_PER_FLOUR;
     expect(await heldOf(player.houseId)).toBe(`${left}/${left}`);
+  });
+});
+
+describe('un stock gagé ne se consomme pas non plus en travaux', () => {
+  it('la rénovation d’un logement ne prend pas l’unité gagée de ses biens', async () => {
+    const bank = await newBank();
+    const player = await newOwner(KALLISTE);
+    const works = sizeOf('townhouse').renovation;
+    const [first] = works.goods;
+    if (!first) throw new Error('the townhouse works need goods');
+    for (const { goodId, quantity } of works.goods) await give(player.houseId, goodId, quantity);
+    await fund(player.houseId, works.oboles);
+    // Logement usé, garde levée : seule une clôture use un bien.
+    await owner.transaction().execute(async (trx) => {
+      await sql`alter table game.properties disable trigger properties_guard`.execute(trx);
+      await sql`update game.properties set condition = 0 where id = ${player.propertyId}`.execute(
+        trx,
+      );
+      await sql`alter table game.properties enable trigger properties_guard`.execute(trx);
+    });
+    const patch = {
+      principal: 100,
+      collateral: { kind: 'stock', cityId: KALLISTE, goodId: first.goodId, quantity: 1 },
+    };
+    expect(
+      (await accept(player.user, await offered(bank.user, player.houseId, patch), patch)).status,
+    ).toBe(200);
+    const input = {
+      propertyId: player.propertyId,
+      expectedCostOboles: works.oboles,
+      expectedGoods: works.goods,
+    };
+    expect(codeOf(await send(player.user, 'property.renovate', input))).toBe('INSUFFICIENT_STOCK');
+    expect(await heldOf(player.houseId, first.goodId)).toBe(`${first.quantity}/1`);
   });
 });
 
