@@ -60,7 +60,7 @@ select is(
 select is(
   (select string_agg(table_name || '.' || column_name, ' ' order by table_name, column_name) from information_schema.columns
    where table_schema = 'public' and table_name in ('house_honor', 'my_honor_entries')),
-  'house_honor.honor house_honor.house_id my_honor_entries.amount my_honor_entries.created_at my_honor_entries.game_day '
+  'house_honor.dishonored house_honor.dishonored_until_day house_honor.honor house_honor.house_id my_honor_entries.amount my_honor_entries.created_at my_honor_entries.game_day '
     || 'my_honor_entries.house_id my_honor_entries.id my_honor_entries.reason my_honor_entries.reference',
   'colonnes des vues : liste figée');
 
