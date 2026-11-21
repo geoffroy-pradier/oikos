@@ -102,7 +102,7 @@ begin
   where world_id = '01900000-0000-7000-8000-0000000724f0' and system_key = faucet and p_principal > 0;
   insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day, ledger_entry_id)
   values ('01900000-0000-7000-8000-0000000724f0', loan, h, p_interest, p_principal,
-    201, entry);
+    game.game_day_at(now()), entry);
   set constraints game.loan_repayments_settled, game.ledger_entries_loan immediate;
   set constraints all deferred;
   perform set_config('role', 'none', true);
@@ -230,7 +230,7 @@ select is(array[pg_temp.balance('faucet_temple_loans'), pg_temp.balance('sink_te
 select is(
   (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
    where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'loan_repayments' and privilege_type = 'INSERT'),
-  'game_day house_id interest ledger_entry_id loan_id principal world_id', 'le service ne choisit ni l''identifiant ni la date d''un remboursement');
+  'game_day house_id interest kind ledger_entry_id loan_id principal world_id', 'le service ne choisit ni l''identifiant ni la date d''un remboursement');
 select throws_ok($$update game.loan_repayments set principal = 0$$, '23001', null, 'un remboursement ne change pas');
 select throws_ok($$delete from game.loan_repayments$$, '23001', null, 'ni ne se supprime');
 select throws_ok($$select pg_temp.as_service('update game.loan_repayments set principal = 0')$$, '42501', null,

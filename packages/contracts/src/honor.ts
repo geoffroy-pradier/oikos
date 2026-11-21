@@ -12,6 +12,8 @@ export const HONOR_REASONS = [
   'liturgy_performed',
   /** Dérobade à une liturgie, prélevée d'office à son échéance (6.4, #720), une perte ; référence : la liturgie. */
   'liturgy_evaded',
+  /** Prêt passé en défaut à son échéance (5.4, #725), une perte ; référence : le prêt. */
+  'loan_defaulted',
 ] as const;
 export type HonorReason = (typeof HONOR_REASONS)[number];
 
