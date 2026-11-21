@@ -56,6 +56,7 @@ Le jeu tourne en temps réel persistant : une saison de jeu dure 7 jours réels,
 - **Bascule de saison** le lundi : météo, récoltes, fête du calendrier, ouverture des votes.
   Désignation des liturgies (6.4, #719) : la première clôture jouée d'une saison, celle du lundi ou, si elle a manqué, la suivante, désigne les maisons les plus riches de chaque cité.
   Cette étape lit la fortune après la planification des événements du monde et avant le déclin de la Charis et tout ce qui touche la monnaie ; l'entretien reste la dernière étape.
+  Dérobade et prélèvement d'office des liturgies échues (6.4, #720) : la Timè perdue juste après la désignation, avant le déclin de la Charis ; le prélèvement juste après les loyers, avant la vétusté et l'entretien.
   La saison d'un jour de jeu est `seasonOfGameDay` : `seasonDays` jours de jeu comptés depuis le lundi 5 janvier 1970, sous la durée de la version en vigueur à la clôture.
 - La production est calculée à la demande à partir des horodatages : un joueur absent ne perd rien, il retrouve ses stocks pleins jusqu'à la capacité de ses entrepôts.
 

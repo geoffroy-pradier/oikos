@@ -413,7 +413,7 @@ Il ne transfère rien d'une bourse à l'autre : c'est le même robinet, plus ou 
 
 Décrets de dépense (#263, 6.3) : les grands travaux et les fêtes votés par une cité sont payés par son trésor, à la clôture qui les applique, au puits `sink_public_works` (écriture `city.public_works`) ou `sink_festivals` (écriture `city.festival`).
 Le trésor ne paie rien d'autre, et ces puits ne détruisent que de la monnaie déjà prélevée par la taxe de marché et le droit de port : ils ramènent dans les puits la part de ces taxes que la cité gardait.
-Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des offrandes et des liturgies.
+Le puits des offrandes (`sink_offerings`) ne compte plus les fêtes : il reste celui des seules offrandes, les liturgies ayant le leur depuis #720.
 
 Offrandes (#265, 7.1) : les oboles qu'une maison offre à un dieu sont détruites par le puits `sink_offerings` (écriture `temple.offering`).
 Les biens offerts sortent de la circulation vers l'extrémité système `offering` du journal des stocks, d'où rien ne revient : c'est aussi un puits de biens.
@@ -421,7 +421,11 @@ Rien n'est créé en face : une offrande ne rapporte que de la Charis, qui n'est
 Offrir n'est jamais obligatoire : ce puits ne pèse sur la masse monétaire qu'autant que les joueurs le choisissent.
 
 Liturgies (#719, 6.4) : la première clôture de chaque saison désigne les maisons les plus riches de chaque cité et fixe leur dû, une part bornée de leur fortune (4.1).
-Cette désignation ne fait bouger aucune monnaie : c'est l'accomplissement ou le prélèvement d'office (#720) qui versera le dû à un puits, proportionnel à la richesse comme l'attend la borne de masse (#721).
+Cette désignation ne fait bouger aucune monnaie : c'est l'accomplissement ou le prélèvement d'office (#720) qui verse le dû à un puits, proportionnel à la richesse comme l'attend la borne de masse (#721).
+Puits des liturgies (`sink_liturgies`, #720) : il détruit le dû et le faste d'une liturgie accomplie (écriture `liturgy.perform`) et ce que le prélèvement d'office prend à l'échéance (écriture `liturgy.levy`).
+Décision (#720) : un puits à part de celui des offrandes, pour que le tableau de bord distingue ce que les joueurs donnent de ce que la cité leur impose.
+La base vérifie que chaque règlement est payé par sa propre écriture, de la trésorerie de sa maison à ce puits, et qu'un prélèvement partiel vide la trésorerie ; elle ne lie pas, en sens inverse, une écriture vers ce puits à une liturgie, comme pour les autres puits (12).
+Le prélèvement d'office vient après les loyers et avant l'entretien : un dû qui vide la trésorerie peut laisser l'entretien impayé (sites à l'arrêt).
 Dans l'ordre de la clôture, elle vient après la planification des événements du monde et avant le déclin de la Charis, donc avant tout ce qui touche la monnaie et avant l'entretien.
 
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.

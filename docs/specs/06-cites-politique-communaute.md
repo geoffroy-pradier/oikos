@@ -129,7 +129,7 @@ Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décr
 - **Tribunal** (après le lancement) : les litiges de contrat sont jugés par un jury de joueurs tirés au sort, sur dossier résumé par l'IA.
 - **Grands travaux** : merveilles construites collectivement (port monumental, théâtre, sanctuaire), qui donnent un bonus permanent à la cité.
 
-Liturgies (ticket 719, désignation ; l'accomplissement et la dérobade viennent avec le ticket 720).
+Liturgies (ticket 719, désignation ; ticket 720, accomplissement et dérobade).
 Décision : la clôture de bascule de saison désigne, dans chaque cité, parmi les maisons qui y ont leur foyer (`citizenships`, métèques comprises), les `liturgies.housesPerCity` plus riches dont la fortune (4.1) atteint le plancher `wealthFloor`.
 Le classement suit la fortune, à égalité la maison la plus ancienne (fondation), puis le plus petit identifiant (`designateLiturgies`).
 Une maison PNJ de secours (8.3) n'est jamais désignée, ni une maison dont le compte est exclu (exclusion validée en vigueur, 15.4) ; une maison suspendue ou ostracisée l'est, car une suspension finit et l'ostracisme ne touche pas les biens.
@@ -144,7 +144,24 @@ Les liturgies d'une clôture s'écrivent dans l'ordre des identifiants de maison
 Une exclusion validée pendant la clôture, entre la lecture des fortunes et l'écriture d'une liturgie, même pendant l'instruction qui l'écrit, est relue par la garde de la base, seule juge : chaque liturgie s'écrit dans un point de sauvegarde, la maison refusée (`liturgies_house_eligible`) est écartée et la clôture n'échoue pas (#945).
 Chaque désignation émet `LiturgyAssigned` (liturgie, maison, cité, saison, genre, dû, échéance).
 La configuration initiale ne désigne aucune maison (`housesPerCity` nul, gains et perte nuls) ; une version publiée avant la section n'en désigne aucune non plus (#721 les active).
-Les gains de Timè et de Charis (`honorGain`, `charisGain`, envers le dieu protecteur de la cité) et la perte de Timè d'une dérobade (`evasionHonorLoss`) sont réglés dès maintenant, mais servent au ticket 720.
+Les gains de Timè et de Charis (`honorGain`, `charisGain`, envers le dieu protecteur de la cité) et la perte de Timè d'une dérobade (`evasionHonorLoss`) servent à l'accomplissement et à la dérobade (#720).
+Accomplissement (#720) : avant l'échéance, la maison désignée accomplit sa liturgie (`liturgy.perform`, liturgie, dû vu, faste).
+Elle paie son dû et son faste, les oboles qu'elle ajoute au-delà du dû, en une écriture `liturgy.perform` de sa trésorerie au puits `sink_liturgies` (5.5).
+Le faste va de zéro à la borne `maxSplendorBps` en points de base du dû, arrondie à l'obole inférieure (`maxSplendor`) ; une version publiée avant #720 ne donne pas la borne et n'admet aucun faste.
+Décision (ambiguïté de « avec faste », la règle la plus simple) : la Timè et la Charis gagnées sont les gains de la configuration fois ce qui est payé rapporté au dû, ⌊gain × (dû + faste) ÷ dû⌋, arrondis vers le bas (`liturgyGain`) : sans faste, le gain ; avec un faste égal au dû, le double.
+La Timè est rognée aux bornes de la Timè (4.1) ; la Charis va au dieu protecteur de la cité de la liturgie, s'il est au catalogue de la configuration en vigueur, sinon nulle part.
+La commande est refusée sans rien payer pour une liturgie d'une autre maison (`LITURGY_NOT_FOUND`, comme une liturgie inconnue), déjà réglée (`LITURGY_SETTLED`), échue (`LITURGY_OVERDUE`), un dû autre que celui vu (`PRICE_CHANGED`), un faste hors borne (`SPLENDOR_OUT_OF_BOUNDS`) ou une trésorerie qui ne couvre pas dû et faste (`INSUFFICIENT_FUNDS`).
+Une liturgie est échue dès l'instant de sa clôture d'échéance, que cette clôture soit jouée ou non.
+Oboles, Timè et Charis passent dans une seule transaction, une fois, et la commande émet `LiturgyPerformed`, puis `HonorChanged` pour sa Timè.
+Elle verrouille la maison, sa Timè, la liturgie, sa Charis envers le dieu, l'agora, puis sa trésorerie : l'ordre de la clôture, qui prend les Timè et les liturgies échues avant les Charis et l'agora.
+Décision (#720, ambiguïté de « s'y dérober », et pour que le puits tienne la masse) : une liturgie non accomplie à son échéance est prélevée d'office, sans gain et avec la perte de Timè d'une dérobade.
+La clôture dont l'instant atteint l'échéance, ou la suivante si elle a manqué, prend sur la trésorerie de la maison, hors séquestre, le dû entier, ou tout ce qu'elle a s'il ne le couvre pas (`levyLiturgies`) ; le reste est abandonné, sans dette, avec la même perte.
+Plusieurs liturgies échues d'une maison se prélèvent dans l'ordre de leurs échéances.
+Deux étapes de la clôture le font : `liturgyEvasion`, avant le déclin de la Charis, écrit la perte de Timè (motif `liturgy_evaded`, rognée aux bornes) et verrouille les liturgies échues ;
+`liturgyLevy`, après les loyers et avant l'entretien, prélève par une écriture `liturgy.levy` vers `sink_liturgies`, aucune si la trésorerie est vide, et émet `LiturgyLevied` (dû, prélevé, Timè perdue).
+Rejouée, ou jouée par deux moteurs, la clôture ne prélève rien et ne retire aucune Timè deux fois : la base n'admet qu'un règlement par liturgie, dans la transaction qui enregistre la clôture de son jour.
+Une maison dont le compte a été exclu depuis la désignation est prélevée comme les autres : la liturgie lui a été confiée.
+Les joueurs lisent l'état réglé de chaque liturgie (`city_liturgies`), jamais ce qu'une autre maison a payé, ni son faste, qui diraient une part de sa fortune (4.1).
 Tout joueur connecté lit les liturgies des cités de son monde, sans le dû ni la fortune (`city_liturgies`) ; une maison lit les siennes avec leur dû (`my_liturgies`, 12).
 
 Ostracisme (ticket 722).

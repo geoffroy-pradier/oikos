@@ -17,6 +17,8 @@ La Charis de cité est la somme pondérée des offrandes de ses citoyens envers 
 
 Dans la phase 2 (ticket 265), la Charis ne se gagne que par offrandes de biens ou de monnaie.
 Temples, fêtes privées, actes, paliers passifs, présages et rang sacerdotal attendent la phase 3.
+Depuis #720, une liturgie accomplie (6.4) rapporte aussi de la Charis envers le dieu protecteur de la cité de la liturgie, `liturgies.charisGain` grandi par le faste : une ligne `liturgy` du journal de la Charis (12), rattachée à sa liturgie, une fois.
+Seule la maison qui accomplit la gagne, et la base vérifie qu'elle est celle que la liturgie a fixée, envers son dieu.
 Le catalogue des dieux est la liste `gods` de la configuration (6.1) : les dieux protecteurs des douze cités, dont Apollon, qui protège Delphis et tient la Pythie (7.3).
 Chaque dieu y porte sa Charis : par obole offerte (nulle, il refuse la monnaie), par unité de chaque bien qu'il accepte (un bien absent est refusé), son déclin quotidien en points de base et le poids de sa Charis de cité.
 Ajouter un dieu ne demande aucun code.
