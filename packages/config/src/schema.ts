@@ -3,6 +3,7 @@ import { decreesIssues, decreesSchema } from './decrees';
 import { graceSchema, gracesIssues } from './graces';
 import { honorSchema } from './honor';
 import { filterForm } from './moderation';
+import { npcHousesIssues, npcHousesSchema } from './npc-houses';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
 // Lu aussi par le client (`site_rules`, clé `stewards`), qui n'importe que ce module.
@@ -998,6 +999,8 @@ export const gameConfigSchema = z
     decrees: decreesSchema.optional(),
     /** Absent des versions publiées avant les événements du monde (#267) : aucun événement planifié. */
     worldEvents: worldEventsSchema.optional(),
+    /** Absent des versions publiées avant les maisons PNJ de secours (#715) : aucune maison PNJ n'est fondée. */
+    npcHouses: npcHousesSchema.default({}),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
     /** Absent des versions publiées avant les grâces (#266) : aucune grâce ne s'invoque. */
@@ -1160,6 +1163,16 @@ export const gameConfigSchema = z
       for (const { path, message } of oracleIssues(config.oracle, config.gods))
         issue(['oracle', ...path], message);
     const recipes = new Map(config.recipes.map((recipe) => [recipe.id, recipe]));
+    const cityById = new Map(config.cities.map((city) => [city.id, city]));
+    for (const { path, message } of npcHousesIssues(config.npcHouses, {
+      cities: new Set(cityById.keys()),
+      recipes: new Set(recipes.keys()),
+      admits: (cityId, recipeId) => {
+        const recipe = recipes.get(recipeId);
+        return recipe !== undefined && cityTerroirAdmits(cityById.get(cityId), recipe);
+      },
+    }))
+      issue(['npcHouses', ...path], message);
     // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
     // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».
     const wages = config.staff.dailyWageOboles;

@@ -71,6 +71,7 @@
     }
   },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
+  "npcHouses": {},
   "sites": {
     "limitByHeadquartersLevel": [4],
     "acquisitionCostOboles": {
