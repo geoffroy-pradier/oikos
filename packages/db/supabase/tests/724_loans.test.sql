@@ -1,5 +1,5 @@
 begin;
-select plan(52);
+select plan(75);
 
 -- Jeu d'essai : un monde à lui. Alice (a) et Bob (b) y ont leur maison de joueur, les Greniers (e) une maison PNJ sans
 -- compte ; Dion (d) a sa maison dans un autre monde. Trésoreries : Alice 2 000, Bob 1 000. Configuration en vigueur : taux
@@ -100,7 +100,7 @@ begin
   perform set_config('role', 'none', true);
 end $$;
 create function pg_temp.loan(n text) returns uuid language sql as $$
-  select id from game.loans where borrower_house_id = pg_temp.house(n) order by created_at desc, id desc limit 1
+  select id from game.loans where borrower_house_id = pg_temp.house(n) order by status = 'repaid', created_at desc limit 1
 $$;
 create function pg_temp.state(loan uuid) returns text language sql as $$
   select concat_ws(':', status, principal, interest, principal_repaid, interest_repaid, outstanding) from game.loans where id = loan
@@ -226,6 +226,62 @@ select throws_ok($$update game.loan_repayments set principal = 0$$, '23001', nul
 select throws_ok($$delete from game.loan_repayments$$, '23001', null, 'ni ne se supprime');
 select throws_ok($$select pg_temp.as_service('update game.loan_repayments set principal = 0')$$, '42501', null,
   'le service ne le modifie pas');
+
+-- Lectures, natures et fortune (#724, migration 9912). Alice emprunte 5 000 oboles pour 7 jours : 10 d'intérêts
+-- (9,59 arrondi), dont elle paie 4.
+select is((select wealth from game.house_wealth('01900000-0000-7000-8000-0000000724f0') where house_id = pg_temp.house('a')),
+  1000::bigint, 'sans dette, la fortune d''Alice est sa trésorerie');
+select lives_ok($$select pg_temp.borrow('a', 5000, p_term => 7)$$, 'Alice emprunte de nouveau');
+select is((select wealth from game.house_wealth('01900000-0000-7000-8000-0000000724f0') where house_id = pg_temp.house('a')),
+  990::bigint, 'emprunter ne coûte à sa fortune que les intérêts : le reste dû se déduit');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('a'), 4, 0)$$, 'elle paie 4 oboles d''intérêts');
+select is(
+  (select string_agg(right(house_id::text, 2) || ':' || treasury || ':' || wealth, ' ' order by house_id)
+   from game.house_wealth('01900000-0000-7000-8000-0000000724f0') where not npc),
+  'a1:5996:990 b1:999:999', 'la fortune déduit le reste dû, et rien d''un prêt remboursé');
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000724aa", "role": "authenticated"}', true);
+select is((select string_agg(status || ':' || outstanding, ' ' order by principal) from public.my_loans),
+  'active:5006 repaid:0', 'Alice lit ses prêts et leur reste dû');
+select is((select string_agg(interest || '+' || principal, ' ' order by interest, principal) from game.loan_repayments),
+  '0+9000 4+0 400+1000 600+0', 'et ses remboursements, intérêts d''abord');
+select is((select string_agg(nature || ':' || amount, ' ' order by nature) from public.my_cash_flows),
+  'grant:2000 interest:-1004 loans:5000', 'flux : principal emprunté et remboursé en `loans`, intérêts en `interest`');
+select is((select upkeep || ':' || operating_result || ':' || other || ':' || non_operating || ':' || cash_change
+   from public.my_income_statement),
+  '-1004:-1004:5000:7000:5996', 'résultat : intérêts en charges courantes, principal hors exploitation');
+select is((select upkeep || ':' || non_operating || ':' || cash_change from public.my_income_statement_by_season),
+  '-1004:7000:5996', 'de même par saison');
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000724ab", "role": "authenticated"}', true);
+select is((select string_agg(status, ' ') from public.my_loans), 'repaid', 'Bob lit son seul prêt');
+select is((select count(*)::integer from game.loans where borrower_house_id = '00000000-0000-7000-8000-0000000724a1'), 0,
+  'aucun prêt d''Alice');
+select is((select count(*)::integer from game.loan_repayments where house_id = '00000000-0000-7000-8000-0000000724a1'), 0,
+  'ni ses remboursements');
+select is((select string_agg(nature || ':' || amount, ' ' order by nature) from public.my_cash_flows),
+  'grant:1000 interest:-1', 'ses flux, sans ceux d''Alice ; son principal remboursé s''annule');
+select throws_ok($$insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day, ledger_entry_id)
+  select world_id, id, borrower_house_id, 0, 1, 201, disbursement_entry_id from game.loans$$, '42501', null,
+  'un joueur ne rembourse pas par la table');
+select throws_ok($$update game.loans set outstanding = 0$$, '42501', null, 'ni ne change un prêt');
+select throws_ok($$select * from game.house_wealth()$$, '42501', null, 'ni ne lit la fortune');
+select is((select policy_rate_bps || ':' || term_days::text from public.temple_treasury_rules), '1000:[7, 365]',
+  'il lit le taux directeur et les durées admises');
+select is((select principal_caps -> 1 ->> 'maxPrincipal' from public.temple_treasury_rules), '90000', 'et les paliers de Timè');
+reset role;
+set local role anon;
+select throws_ok('select * from public.my_loans', '42501', null, 'un visiteur anonyme ne lit aucun prêt');
+select throws_ok('select * from public.temple_treasury_rules', '42501', null, 'ni les règles du temple');
+select throws_ok('select * from game.temple_treasury_rules()', '42501', null, 'ni par la fonction');
+reset role;
+
+-- Une version en vigueur sans section `templeTreasury` : le temple ne prête pas, ses règles n'ont aucune ligne.
+insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c725', '{}');
+insert into config.activations (version_id, activate_at) values ('00000000-0000-7000-8000-00000000c725', now());
+set local role authenticated;
+select is((select count(*)::integer from public.temple_treasury_rules), 0, 'sans section, aucune règle du temple');
+reset role;
 
 select * from finish();
 rollback;
