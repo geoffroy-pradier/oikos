@@ -386,6 +386,8 @@ Une maison PNJ ne thésaurise donc pas et ne gonfle pas la masse ; elle paie ens
 Seule sa trésorerie compte : le séquestre de ses achats en attente reste à l'agora jusqu'à leur service ou leur annulation.
 Une cité que la configuration ne nomme plus n'a pas de plafond, et ses maisons PNJ ne versent rien.
 Aucun robinet ne paie une maison PNJ après sa dotation : faute d'entretien, ses sites s'arrêtent comme ceux d'une autre maison.
+Dissolution (#717) : une maison PNJ qui s'est retirée de tous ses sites (8.3) vend son stock au prix de référence ; une fois rien en stock ni en attente, sa trésorerie va au même puits, par une écriture `npc_house.dissolution`, et elle se dissout.
+La masse ne garde rien d'une maison PNJ dissoute, ni sa dotation, ni ce que ses ventes lui ont rapporté.
 
 Robinet du rachat (`faucet_good_buyback`, #229) : il ne paie que le rachat du stock d'un bien à retirer (5.1), au prix de référence en vigueur, et chaque obole qu'il crée a pour contrepartie une unité retirée de la circulation (extrémité `good_buyback` du journal des stocks).
 Comme pour les autres robinets, la base ne lie pas ce compte à sa mécanique (12) : seule la commande d'Olympe l'écrit, et le tableau de bord le suit comme les autres.
@@ -622,6 +624,19 @@ Les trois bancs gardent leurs mesures et leurs bornes, avant comme après.
 À quatre cités : coût du panier inchangé, besoins vitaux couverts à 100 %, masse +177,6 %.
 À douze cités : coût du panier inchangé, besoins vitaux couverts à 98,4 % au moins, masse +169,6 %, création nette des dix derniers jours à 99,5 % de celle des dix premiers.
 Seul l'arrondi de la part publique au point inférieur bouge la masse : 208 oboles de moins dans les douze cités au dernier jour (rapport du simulateur).
+
+Maisons PNJ de secours dans la configuration initiale (#717, 8.3) : une filière par bien vital brut que le terroir d'une cité admet, quinze dans onze cités, réglées pour la cité entière.
+Un champ récolte 240 blés par jour, une pêcherie 108 poissons, une saline 115 sels, pour une demande d'environ 4 385 blés, 687 poissons et 219 sels par jour dans une cité de 10 000 habitants : dix-huit champs, six pêcheries et deux salines, de quoi couvrir les besoins vitaux bruts de la cité sans joueur.
+Leur dotation paie une semaine d'entretien et de salaires (7 500 oboles pour le blé, 3 000 pour le poisson, 1 000 pour le sel), sous un plafond de 15 000 oboles par maison ; elles vendent à leur prix de référence, comme le veut 8.3.
+Retrait : au-dessus de 75 % des ventes du bien pour les joueurs, sur trois clôtures, deux clôtures de suite ; retour sous 25 %.
+Décision : le pain, fait d'intrants, n'a pas de filière de secours ; une maison qui achète farine et charbon au plus à leur référence ne tiendrait pas une cité sans meunier ni charbonnier, et le blé, vital lui aussi, la nourrit en attendant.
+Les bancs jouent ces maisons à deux paramètres de scénario près : leurs sites divisés par huit comme la population (arrondis au-dessus), et sans règle de récolte, le banc récoltant leurs sites à l'heure de jeu.
+Dans le scénario à douze cités, la maison d'Emporion qui raffinait le sel ne fait plus que pêcher : la saline PNJ tient le sel d'Emporion et celui que son armateur porte à Gamelia.
+Le banc à une cité garde son scénario sans maison PNJ, et ses mesures : hausse du coût du panier de 0,08 %, masse de 4 149 089 oboles, comme avant.
+À quatre cités, les sept maisons PNJ se retirent pendant la mise en route (pêcheries au troisième jour, salines au sixième, greniers au septième et au huitième) ; coût du panier inchangé, besoins vitaux couverts à 100 %, masse de +167,1 % (+171,5 % avant), création nette des dix derniers jours à 99,4 % de celle des dix premiers, population de 1 259 à 1 264 habitants au dernier jour (1 252 à 1 259 avant).
+À douze cités, les quatorze maisons des filières que les maisons scriptées tiennent se retirent du troisième au huitième jour ; la saline d'Emporion tient sa filière jusqu'au bout, et Emporion et Gamelia restent couvertes à 100 %.
+Coût du panier inchangé partout, besoins vitaux couverts à 98,1 % au moins (98,4 % avant, les hippeis d'Agrotera), masse de +163,9 % (+167,7 % avant), création nette des dix derniers jours à 99,1 % de celle des dix premiers, population de 1 254 à 1 272 habitants (1 247 à 1 268 avant).
+Aucune ne s'est encore dissoute à la fin des bancs : leur stock, au prix de référence, se vend après celui des joueurs, à 90 % de la référence.
 
 Inégalité des fortunes (#718) : le banc mesure chaque jour le Gini des fortunes de ses maisons, par cité et pour le monde, par `game.house_wealth`, et le rapporte au premier et au dernier jour mesurés, sans borne (journal du test et champ `gini` du fichier `BALANCE_REPORT`).
 Le simulateur le compare de même (groupe `gini`, `gini/<cité>/first` et `gini/<cité>/last`).

@@ -209,7 +209,9 @@ describe('retrait des maisons PNJ de secours (#717)', () => {
       false,
     ]);
     await trade(world, [[world.seller, 100]]);
-    expect(await close(world.worldId, D + 2, secours(), steps)).toEqual([D + 2]);
+    expect(await close(world.worldId, D + 2, secours(), steps, { npcRetreat: undefined })).toEqual([
+      D + 2,
+    ]);
     const state = await stateOf(world.npc.houseId);
     expect(state.sites.map((site) => site.closed)).toEqual([false, false]);
     // La mémoire n'a pas bougé : la version sans retrait ne compte rien.

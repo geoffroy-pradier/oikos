@@ -35,10 +35,53 @@ const houses = (elaia: Partial<NpcChain> = {}, cap = 0): NpcHouses => ({
 });
 
 describe('maisons PNJ de secours (8.3, #715)', () => {
-  it('vide dans la configuration initiale, et absente d’une version publiée avant elles', () => {
+  it('la configuration initiale tient les biens vitaux bruts de chaque cité que son terroir admet (#717)', () => {
     const initial = validateConfig(INITIAL_CONFIG);
     if (!initial.ok) throw new Error(initial.errors.join('\n'));
-    expect(initial.config.npcHouses).toEqual({});
+    const config = initial.config;
+    // Les biens vitaux d'une classe, et la recette sans intrant qui fait chacun : le blé, le poisson, le sel.
+    const vital = new Set(
+      config.npcClasses.flatMap((c) =>
+        c.basket.filter((e) => e.need === 'vital').map((e) => e.goodId),
+      ),
+    );
+    const raw = config.recipes.filter(
+      (recipe) => recipe.inputs.length === 0 && recipe.outputs.some((o) => vital.has(o.goodId)),
+    );
+    expect(raw.map((recipe) => recipe.id).sort()).toEqual([
+      'catch_fish',
+      'grow_wheat',
+      'rake_salt',
+    ]);
+    for (const city of config.cities) {
+      const chains = config.npcHouses[city.id]?.chains ?? [];
+      const expected = raw.filter((recipe) => city.terroir?.includes(recipe.id) ?? true);
+      expect(
+        chains.map((chain) => [chain.goodId, Object.keys(chain.sites)]),
+        `${city.id} : une filière par bien vital de son terroir`,
+      ).toEqual(expected.map((recipe) => [recipe.outputs[0]?.goodId, [recipe.id]]));
+      for (const chain of chains) {
+        // Elle récolte et vend au prix de référence de son bien, et rien d'autre.
+        const reference = config.goods.find(
+          (good) => good.id === chain.goodId,
+        )?.referencePriceOboles;
+        expect(Object.values(chain.rules ?? {})).toEqual([
+          [
+            { kind: 'collect' },
+            { kind: 'sell', goodId: chain.goodId, minPriceOboles: reference, keepUnits: 0 },
+          ],
+        ]);
+      }
+    }
+    expect(config.npcRetreat).toEqual({
+      highShareBps: 7_500,
+      lowShareBps: 2_500,
+      windowDays: 3,
+      days: 2,
+    });
+  });
+
+  it('absentes d’une version publiée avant elles : aucune maison PNJ', () => {
     const older = structuredClone(INITIAL_CONFIG) as Record<string, unknown>;
     delete older['npcHouses'];
     const result = validateConfig(older);
@@ -243,11 +286,11 @@ describe('maisons PNJ de secours (8.3, #715)', () => {
     };
 
     it('absent d’une version publiée avant lui, et admis avec des seuils ordonnés', () => {
-      const result = validateConfig({
-        ...(structuredClone(INITIAL_CONFIG) as object),
-        npcHouses: houses(),
-      });
-      expect(result.ok && result.config.npcRetreat).toBeUndefined();
+      const older = structuredClone(INITIAL_CONFIG) as Record<string, unknown>;
+      delete older['npcRetreat'];
+      const result = validateConfig({ ...older, npcHouses: houses() });
+      if (!result.ok) throw new Error(result.errors.join('\n'));
+      expect(result.config.npcRetreat).toBeUndefined();
       expect(retreatErrors(RETREAT)).toEqual([]);
       expect(retreatErrors({ ...RETREAT, lowShareBps: 0, highShareBps: 10_000 })).toEqual([]);
     });

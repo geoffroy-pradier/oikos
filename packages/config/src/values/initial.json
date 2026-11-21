@@ -71,7 +71,259 @@
     }
   },
   "starting": { "grantOboles": 3000, "siteRecipeId": "grow_wheat" },
-  "npcHouses": {},
+  "npcHouses": {
+    "kalliste": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers de Kallistè",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        },
+        {
+          "id": "fish",
+          "name": "Pêcheries de Kallistè",
+          "goodId": "fish",
+          "sites": { "catch_fish": 6 },
+          "grantOboles": 3000,
+          "rules": {
+            "catch_fish": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "fish", "minPriceOboles": 12, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "elaia": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers d'Elaia",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        },
+        {
+          "id": "salt",
+          "name": "Salines d'Elaia",
+          "goodId": "salt",
+          "sites": { "rake_salt": 2 },
+          "grantOboles": 1000,
+          "rules": {
+            "rake_salt": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "salt", "minPriceOboles": 7, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "ampelos": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "fish",
+          "name": "Pêcheries d'Ampelos",
+          "goodId": "fish",
+          "sites": { "catch_fish": 6 },
+          "grantOboles": 3000,
+          "rules": {
+            "catch_fish": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "fish", "minPriceOboles": 12, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "halos": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "fish",
+          "name": "Pêcheries de Halos",
+          "goodId": "fish",
+          "sites": { "catch_fish": 6 },
+          "grantOboles": 3000,
+          "rules": {
+            "catch_fish": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "fish", "minPriceOboles": 12, "keepUnits": 0 }
+            ]
+          }
+        },
+        {
+          "id": "salt",
+          "name": "Salines de Halos",
+          "goodId": "salt",
+          "sites": { "rake_salt": 2 },
+          "grantOboles": 1000,
+          "rules": {
+            "rake_salt": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "salt", "minPriceOboles": 7, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "dikaia": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers de Dikaia",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "gamelia": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers de Gamelia",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "agrotera": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers d'Agrotera",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "phrourion": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "wheat",
+          "name": "Greniers de Phrourion",
+          "goodId": "wheat",
+          "sites": { "grow_wheat": 18 },
+          "grantOboles": 7500,
+          "rules": {
+            "grow_wheat": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "wheat", "minPriceOboles": 6, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "myrrhine": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "fish",
+          "name": "Pêcheries de Myrrhinè",
+          "goodId": "fish",
+          "sites": { "catch_fish": 6 },
+          "grantOboles": 3000,
+          "rules": {
+            "catch_fish": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "fish", "minPriceOboles": 12, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "chalkeia": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "salt",
+          "name": "Salines de Chalkeia",
+          "goodId": "salt",
+          "sites": { "rake_salt": 2 },
+          "grantOboles": 1000,
+          "rules": {
+            "rake_salt": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "salt", "minPriceOboles": 7, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    },
+    "emporion": {
+      "treasuryCapOboles": 15000,
+      "chains": [
+        {
+          "id": "fish",
+          "name": "Pêcheries d'Emporion",
+          "goodId": "fish",
+          "sites": { "catch_fish": 6 },
+          "grantOboles": 3000,
+          "rules": {
+            "catch_fish": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "fish", "minPriceOboles": 12, "keepUnits": 0 }
+            ]
+          }
+        },
+        {
+          "id": "salt",
+          "name": "Salines d'Emporion",
+          "goodId": "salt",
+          "sites": { "rake_salt": 2 },
+          "grantOboles": 1000,
+          "rules": {
+            "rake_salt": [
+              { "kind": "collect" },
+              { "kind": "sell", "goodId": "salt", "minPriceOboles": 7, "keepUnits": 0 }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "npcRetreat": { "highShareBps": 7500, "lowShareBps": 2500, "windowDays": 3, "days": 2 },
   "sites": {
     "limitByHeadquartersLevel": [4],
     "acquisitionCostOboles": {

@@ -218,7 +218,8 @@ export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
  * fours), 131 % de la demande de blé.
  * Le boulanger cuit son charbon et le garde : vendu, le surplus d'une charbonnière ferait tomber le prix du charbon du
  * monde, et la marge de la filière sous sa borne (#285). Delphis, Emporion, Myrrhinè et Chalkeia pressent l'huile, pêchent
- * ou raffinent le sel de leurs voisines ; Agrotera fait son pain. Une maison de plus pêche à Ampélos, une autre coupe le
+ * ou raffinent le sel de leurs voisines ; Agrotera fait son pain. Depuis #717, la saline PNJ de secours raffine le sel
+ * d'Emporion, qu'aucune de ses maisons ne raffine plus. Une maison de plus pêche à Ampélos, une autre coupe le
  * bois et tire l'argile de Gamelia à Halos.
  */
 const TWELVE_SETTLEMENTS: Record<string, Role[]> = {
@@ -248,7 +249,9 @@ const TWELVE_SETTLEMENTS: Record<string, Role[]> = {
     role('oléiculteur', 1, 'grow_wheat', 'grow_olives', 'press_oil'),
     role('fermier', 2, 'grow_wheat'),
   ],
-  emporion: [role('pêcheur-saunier', 1, 'catch_fish', 'catch_fish', 'rake_salt')],
+  // Aucune maison scriptée ne raffine le sel d'Emporion (#717) : la maison PNJ de secours le tient, pour Emporion et
+  // pour Gamelia, où un armateur le porte.
+  emporion: [role('pêcheur', 1, 'catch_fish', 'catch_fish')],
   phrourion: [
     role('meunier', 4, 'grow_wheat', 'mill_flour'),
     role('boulanger', 2, 'grow_wheat', 'burn_charcoal', 'bake_bread', 'bake_bread'),
@@ -362,7 +365,7 @@ export const SCENARIOS = {
     settlements: TWELVE_SETTLEMENTS,
     carriers: TWELVE_CARRIERS,
     config: twelveConfig,
-    npcHeld: [] as readonly NpcHeld[],
+    npcHeld: [{ slug: 'emporion', chainId: 'salt' }] as readonly NpcHeld[],
     maxMinutes: 45,
     simulatorMinutes: 30,
   },
