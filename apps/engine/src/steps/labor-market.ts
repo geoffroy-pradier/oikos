@@ -67,6 +67,8 @@ export const laborMarket: CloseStep = {
       .select(['id', 'house_id', 'city_id', 'recipe_id'])
       .where('world_id', '=', worldId)
       .where('created_at', '<', closeAt)
+      // Un site fermé d'une maison PNJ (#717) n'emploie personne.
+      .where('closed_at', 'is', null)
       .orderBy('created_at')
       .orderBy('id')
       .execute();

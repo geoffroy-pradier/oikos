@@ -68,6 +68,21 @@ export interface GameDatabase {
     founded_at: ColumnType<Date, never, never>;
   };
   /**
+   * Mémoire du retrait d'une maison PNJ (#717) : dernière clôture jouée (jour de jeu, strictement croissant), rang du
+   * dernier échange compté, ventes des dernières clôtures, série au-dessus du seuil haut, dissolution, définitive.
+   */
+  'game.npc_house_retreats': {
+    house_id: ColumnType<string, string, never>;
+    world_id: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, number>;
+    trade_seq: ColumnType<string, number | string, number | string>;
+    /** `[ventes des joueurs, ventes en tout]` par clôture, la plus récente en dernier. */
+    sales: ColumnType<[number, number][], string, string>;
+    above_days: ColumnType<number, number, number>;
+    dissolved_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+    updated_at: ColumnType<Date, never, never>;
+  };
+  /**
    * File des règles d'un site d'une maison PNJ (#716) : sa dernière opération, clé d'idempotence (tick, rang) et
    * position de la file ; tick et rang ne font que croître (garde de la base). Rien n'en est lu par les joueurs.
    */
@@ -336,6 +351,11 @@ export interface GameDatabase {
     cycle_started_at: ColumnType<Date, Date | undefined, Date>;
     /** Instant de l'arrêt d'un site impayé ; nul s'il tourne. Un site naît en marche. */
     halted_at: ColumnType<Date | null, never, Date | null>;
+    /**
+     * Instant de la fermeture d'un site d'une maison PNJ par le retrait (#717) ; nul s'il est ouvert. Un site naît
+     * ouvert ; fermé, il ne change plus jusqu'à sa réouverture (garde de la base).
+     */
+    closed_at: ColumnType<Date | null, never, Date | null>;
     created_at: Generated<Date>;
   };
   /** Navires des maisons (4.6). Le service crée un navire, il ne choisit ni sa date ni son désarmement. */

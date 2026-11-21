@@ -155,6 +155,7 @@ export const siteUpkeep: CloseStep = {
       .select('house_id')
       .where('world_id', '=', worldId)
       .where('created_at', '<', closeAt)
+      .where('closed_at', 'is', null)
       .union((ships) =>
         ships
           .selectFrom('game.ships')
@@ -210,6 +211,8 @@ export const siteUpkeep: CloseStep = {
         .select(['id', 'house_id', 'recipe_id', 'city_id', 'halted_at'])
         .where('house_id', '=', houseId)
         .where('created_at', '<', closeAt)
+        // Un site fermé d'une maison PNJ (#717) ne doit rien, ni ne repart.
+        .where('closed_at', 'is', null)
         .orderBy('created_at')
         .orderBy('id')
         .forUpdate()
