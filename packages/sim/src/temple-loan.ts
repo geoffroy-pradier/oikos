@@ -28,6 +28,12 @@ export function templeLoanInterest(principal: bigint, rateBps: number, termDays:
   return (numerator + denominator - 1n) / denominator;
 }
 
+/**
+ * Intérêt simple d'un prêt de banque (#728) : la même règle que le temple, au taux de l'offre, que la base vérifie
+ * aussi (`loans_interest_rule`).
+ */
+export const loanInterest = templeLoanInterest;
+
 /** Un palier de Timè : à partir de `minHonor`, un principal d'au plus `maxPrincipal` oboles. */
 export interface HonorCreditTier {
   minHonor: number;

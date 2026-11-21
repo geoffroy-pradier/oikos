@@ -62,3 +62,12 @@ export function bankDepositInterest(balance: bigint, rateBps: number): bigint {
   const interest = (balance * BigInt(rateBps)) / (BPS * DAYS_PER_YEAR);
   return interest < MAX_BALANCE - balance ? interest : MAX_BALANCE - balance;
 }
+
+/**
+ * Principal qu'une banque peut encore prêter (#728) : ce que son coffre de `vault` oboles excède la réserve exigée de
+ * `reserve` oboles, comme pour un retrait de capital. Un prêt qui passerait le coffre sous la réserve est refusé ; un
+ * coffre à la réserve, ou sous elle après une réserve relevée, ne prête rien.
+ */
+export function bankLendable(vault: bigint, reserve: bigint): bigint {
+  return bankWithdrawableCapital(vault, reserve);
+}
