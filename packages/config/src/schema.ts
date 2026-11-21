@@ -335,15 +335,16 @@ export const shipRouteSchema = z.strictObject({
   provisionsOboles: z.record(id, shipFeeObolesSchema),
   /**
    * Risque de perte de la cargaison d'un voyage sur la route (4.6, #730), en points de base : 10 000, toujours
-   * perdue. Fixé au départ et gardé avec le voyage, tiré à l'arrivée. Absent d'une version publiée avant les
-   * pertes : nul, aucun voyage ne perd rien.
+   * perdue. Fixé au départ et gardé avec le voyage, tiré à l'arrivée. Absent (version publiée avant les pertes,
+   * ou configuration initiale) : nul, aucun voyage ne perd rien. Facultatif sans valeur par défaut : une version
+   * relue reste égale à celle écrite ; `routeLossRiskBps` lit la valeur nulle.
    */
-  lossRiskBps: shipLossRiskBpsSchema.default(0),
+  lossRiskBps: shipLossRiskBpsSchema.optional(),
   /**
    * Majoration du risque d'un voyage qui part pendant une tempête de la route (7.4, #730), en points de base,
-   * ajoutée au risque de la route ; la somme est bornée à 10 000. Absente : nulle.
+   * ajoutée au risque de la route ; la somme est bornée à 10 000. Absente : nulle (`routeStormLossRiskBps`).
    */
-  stormLossRiskBps: shipLossRiskBpsSchema.default(0),
+  stormLossRiskBps: shipLossRiskBpsSchema.optional(),
 });
 
 /**
@@ -938,6 +939,14 @@ export function shipRoute(
 /** Une table de tarifs par identifiant : vide, rien à payer ; un identifiant absent ne paie rien non plus. */
 const feeOf = (fees: Record<string, number>, key: string) =>
   Object.hasOwn(fees, key) ? (fees[key] ?? 0) : 0;
+
+/** Risque de perte de la cargaison sur la route, en points de base (#730) : nul s'il est absent. */
+export const routeLossRiskBps = (route: Pick<ShipRoute, 'lossRiskBps'>): number =>
+  route.lossRiskBps ?? 0;
+
+/** Majoration de ce risque pendant une tempête de la route, en points de base (#730) : nulle si absente. */
+export const routeStormLossRiskBps = (route: Pick<ShipRoute, 'stormLossRiskBps'>): number =>
+  route.stormLossRiskBps ?? 0;
 
 /** Provisions d'un voyage sur la route pour la classe de navire, en oboles (nulles sans tarif). */
 export function routeProvisionsOboles(route: ShipRoute, classId: string): number {

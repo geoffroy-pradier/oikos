@@ -4,7 +4,9 @@ import {
   npcBudgetCarryUnits,
   cityPortDuesCoefficientBps,
   portDuesBaseOboles,
+  routeLossRiskBps,
   routeProvisionsOboles,
+  routeStormLossRiskBps,
   shipRoute,
   DEFAULT_AI,
   DEFAULT_CHAT,
@@ -1547,19 +1549,22 @@ describe('routes et droit de port (4.6, 5.6)', () => {
   it('pertes en mer (#730) : risque de la route et majoration de tempête, nuls si absents, de 0 à 10 000 points de base', () => {
     const withRisk = (risk: Record<string, unknown>) =>
       archipelago({ routes: [{ ...route(['kalliste', 'elaia']), ...risk }] });
-    // Une version publiée avant les pertes n'a ni l'un ni l'autre : aucun voyage ne perd rien.
-    const before = validateConfig(withRisk({}));
+    // Une version publiée avant les pertes n'a ni l'un ni l'autre : aucun voyage ne perd rien, et la version
+    // validée reste égale à celle écrite (aucun champ ajouté : une version relue du stockage ne change pas).
+    const written = withRisk({});
+    const before = validateConfig(written);
     if (!before.ok) throw new Error(before.errors.join('\n'));
-    expect(shipRoute(before.config, 'elaia', 'kalliste')).toMatchObject({
-      lossRiskBps: 0,
-      stormLossRiskBps: 0,
-    });
+    const calm = shipRoute(before.config, 'elaia', 'kalliste');
+    if (!calm) throw new Error('route missing');
+    expect(calm).not.toHaveProperty('lossRiskBps');
+    expect(calm).not.toHaveProperty('stormLossRiskBps');
+    expect([routeLossRiskBps(calm), routeStormLossRiskBps(calm)]).toEqual([0, 0]);
+    expect(before.config.ships.routes).toEqual((written as GameConfig).ships.routes);
     const risky = validateConfig(withRisk({ lossRiskBps: 300, stormLossRiskBps: 10_000 }));
     if (!risky.ok) throw new Error(risky.errors.join('\n'));
-    expect(shipRoute(risky.config, 'kalliste', 'elaia')).toMatchObject({
-      lossRiskBps: 300,
-      stormLossRiskBps: 10_000,
-    });
+    const stormy = shipRoute(risky.config, 'kalliste', 'elaia');
+    if (!stormy) throw new Error('route missing');
+    expect([routeLossRiskBps(stormy), routeStormLossRiskBps(stormy)]).toEqual([300, 10_000]);
     for (const key of ['lossRiskBps', 'stormLossRiskBps'])
       for (const bad of [-1, 10_001, 2.5, '300'])
         expect(errorsOf(withRisk({ [key]: bad })).map((e) => e.split(':')[0])).toEqual([
