@@ -30,6 +30,7 @@ import {
   shipUpkeepDue,
   type Carrier,
 } from './carrier';
+import { countLevy, EVADE_EVERY, liturgyMorning, newLiturgies } from './liturgy';
 import { planEvents } from './events';
 import { newNpcBench, npcAfterClose, npcAfterTick } from './npc';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
@@ -141,6 +142,9 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   ];
   const housing = newHousing();
   const politics = newPolitics();
+  // Liturgies (#721) : ce que les maisons ont payé, accomplies ou prélevées d'office, et celles que la stratégie a déjà vues.
+  const liturgies = newLiturgies();
+  const seenLiturgies = new Set<string>();
   // Maisons PNJ de secours (#717), que fonde la clôture : récoltées par le banc, leurs flux comptés après chaque clôture.
   const npc = newNpcBench();
   // Métèques arrivés au jour 0 de jeu : la clôture les promeut citoyens après `politics.meticDays` jours.
@@ -165,6 +169,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     for (const { city, house } of residents) wages += wagesDue(world, [house], day, wageOf(city));
     wages += stewards.filter((steward) => steward.hiredDay < day).length * stewardWageOf(world);
     const closed = await closeDay(world, day);
+    countLevy(liturgies, closed.summary);
     // Les maisons PNJ après la clôture, qui les fonde et les retire avant le marché du travail et l'entretien : ce
     // qu'elle leur a fait payer est ce que leurs sites ouverts doivent. L'hébergement, dont le prix compte leurs
     // travailleurs, se compte donc après elle, sur les logements tels qu'elle les a laissés (usure du jour faite).
@@ -181,6 +186,9 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     await dateCitizens(world, closeOf(world, day));
     const now = new Date(closeOf(world, day).getTime() + MINUTE);
     for (const house of npc.houses.values()) await harvest(house.city, house, now);
+    // Liturgies que cette clôture a désignées : accomplies ou éludées selon la stratégie.
+    for (const [rank, { city, house }] of residents.entries())
+      await liturgyMorning(city, house, now, liturgies, seenLiturgies, rank % EVADE_EVERY === 0);
     for (const { city, houses: own } of settlements)
       for (const house of own) acquisitions += await morning(city, house, now);
     for (const { city, houses: own } of settlements)
@@ -261,6 +269,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
       sink_public_works: paidFor('public_works'),
       sink_festivals: paidFor('festival'),
       sink_npc_house_surplus: npc.sunk,
+      // Le prélèvement d'office est compté par `reconcile`, d'après les clôtures de `closeDay`.
+      sink_liturgies: liturgies.performedOboles,
     },
     drawn,
     // Salaires (intendants compris) et hébergement vont aux bourses des PNJ (#632), sans rien détruire.
@@ -280,6 +290,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     npc,
     housing,
     politics,
+    liturgies,
     days,
     /** Net de chaque robinet et de chaque puits du monde, mise en route comprise. */
     measured,
