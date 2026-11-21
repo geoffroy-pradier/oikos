@@ -361,6 +361,7 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Elle lit le prêt sous le verrou de l'agora, que la clôture tient pendant son prélèvement, et le verrouille : un remboursement qui croise un prélèvement en attente relit ce qui reste dû et répond par un code (`LOAN_REPAID`, `ABOVE_OUTSTANDING`, `INSUFFICIENT_FUNDS`) (#725).
   Un remboursement complet éteint le prêt, et la maison peut emprunter de nouveau.
   Événements de domaine : `LoanDisbursed` à l'emprunt, `LoanRepaid` à chaque remboursement (parts des intérêts et du principal, reste dû, état), `LoanCollected` à chaque prélèvement de la clôture et `LoanDefaulted` au défaut (reste dû, Timè perdue).
+  Écran (#732) : l'emprunt et le remboursement se font dans l'écran Finances du client, qui lit le plafond, le taux et les durées dans `temple_treasury_rules`, jamais dans le code (spécification 10, écran 9).
 - **Sociétés** (après le lancement) : une activité peut être apportée à une société dont les parts s'échangent, avec dividendes et prises de contrôle.
 - **Défaut** : saisie de la garantie, vente aux enchères, marque de déshonneur temporaire. Pas de faillite définitive : une maison ruinée repart avec un bien insaisissable.
 

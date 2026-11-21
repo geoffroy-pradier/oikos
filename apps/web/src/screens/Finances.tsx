@@ -24,6 +24,7 @@ import { useGameTime } from '../game-time';
 import { useHouse } from '../house';
 import { HouseNav } from '../HouseNav';
 import {
+  DAY_MS,
   LOAN_COLUMNS,
   loanCap,
   parseHouseHonor,
@@ -38,9 +39,6 @@ import { LoadProblem, Loading } from './LoadProblem';
 import { LoanRepaySheet } from './LoanRepaySheet';
 import { TempleLoanSheet } from './TempleLoanSheet';
 import { SectionTitle } from './SectionTitle';
-
-/** Jours de jeu : un jour de jeu dure vingt-quatre heures, de clôture à clôture (conversion d'unité, pas d'équilibrage). */
-const DAY_MS = 86_400_000;
 
 type LoanState = 'active' | 'due' | 'defaulted';
 /** Teinte et icône d'état : jamais la couleur seule, le texte dit l'état. */

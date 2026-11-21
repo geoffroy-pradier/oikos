@@ -2,10 +2,12 @@ import {
   Card,
   ChevronRight,
   cn,
+  CalendarClock,
   Coins,
   Hammer,
   type Icon,
   KeyRound,
+  Landmark,
   ListTodo,
   Users,
 } from '@oikos/ui';
@@ -16,6 +18,7 @@ import { useRows } from '../data';
 import { useGameTime } from '../game-time';
 import { useHouse } from '../house';
 import { openLiturgy, parseMyLiturgies } from '../liturgies';
+import { LOAN_COLUMNS, loanAlerts, parseMyLoans } from '../loans';
 import { useMoney } from '../money';
 import { parseCityLabor } from '../labor';
 import { houseAlerts, parseUnhoused, type HouseAlert } from '../property-alerts';
@@ -64,6 +67,8 @@ export function HouseAlerts({ className }: { className?: string }) {
     'id, city_id, season, genre, due, due_at, status',
     'season',
   );
+  // Prêts de la maison : une échéance proche ou un défaut alerte (10).
+  const loanRows = useRows<unknown>('my_loans', LOAN_COLUMNS, 'due_at', { house_id: house.id });
   const now = useGameTime();
   const money = useMoney();
   const liturgy =
@@ -87,7 +92,9 @@ export function HouseAlerts({ className }: { className?: string }) {
           lastCloseDay: Math.max(...[...labor.values()].map((city) => city.gameDay), -1),
         })
       : [];
-  const total = alerts.length + (liturgy ? 1 : 0);
+  const loans =
+    loanRows.rows === null ? [] : loanAlerts(parseMyLoans(loanRows.rows) ?? [], now.getTime());
+  const total = alerts.length + loans.length + (liturgy ? 1 : 0);
   if (total === 0) return null;
   const number = new Intl.NumberFormat(i18n.language);
   const describe = (property: { sizeId: string; lot: number; cityId: string }) =>
@@ -138,6 +145,44 @@ export function HouseAlerts({ className }: { className?: string }) {
             </Link>
           </li>
         )}
+        {loans.map(({ kind, loan }) => (
+          <li key={`loan:${kind}:${loan.id}`}>
+            <Link
+              to="/finances"
+              className="flex items-center gap-3 rounded-xl bg-surface-raised p-3 transition-colors duration-(--motion-fast) hover:bg-muted"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'grid size-9 shrink-0 place-items-center rounded-lg',
+                  kind === 'defaulted'
+                    ? 'bg-danger-subtle text-danger'
+                    : 'bg-warning-subtle text-warning',
+                )}
+              >
+                {kind === 'defaulted' ? (
+                  <Landmark className="size-5" />
+                ) : (
+                  <CalendarClock className="size-5" />
+                )}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium">
+                  {t(`alerts.loan.${kind}`, {
+                    lender: t(`finances.debts.lender.${loan.lender}`),
+                    owed: money(loan.outstanding),
+                    date: new Intl.DateTimeFormat(i18n.language, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(loan.dueAt),
+                  })}
+                </span>{' '}
+                <span className="text-sm text-muted-foreground">{t('alerts.toFinances')}</span>
+              </span>
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
         {alerts.map((alert) => {
           const key =
             alert.kind === 'unhoused'

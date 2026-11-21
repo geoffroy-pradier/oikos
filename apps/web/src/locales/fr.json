@@ -1049,7 +1049,13 @@
     "toStaff": "Voir le personnel",
     "toProperty": "Voir l'immobilier",
     "liturgy": "Liturgie confiée à votre maison : {{genre}}. Dû : {{due}}, à accomplir avant le {{date}}.",
-    "toLiturgy": "Accomplir ma liturgie"
+    "toLiturgy": "Accomplir ma liturgie",
+    "toFinances": "Voir mes finances",
+    "loan": {
+      "dueSoon": "Prêt ({{lender}}) à rembourser avant le {{date}} : {{owed}} restent dus.",
+      "defaulted": "Prêt ({{lender}}) en défaut : {{owed}} restent dus, prélevés à chaque clôture.",
+      "overdue": "Prêt ({{lender}}) échu : {{owed}} restent dus, prélevés à la prochaine clôture."
+    }
   },
   "cityPolitics": {
     "title": "Vie politique",
