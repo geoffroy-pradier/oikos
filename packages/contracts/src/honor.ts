@@ -8,6 +8,10 @@ import { z } from 'zod';
 export const HONOR_REASONS = [
   /** Mandat d'archonte mené à son terme (6.2), référence : la charge (`offices`). */
   'archon_term',
+  /** Liturgie accomplie (6.4, #720), un gain ; référence : la liturgie. */
+  'liturgy_performed',
+  /** Dérobade à une liturgie, prélevée d'office à son échéance (6.4, #720), une perte ; référence : la liturgie. */
+  'liturgy_evaded',
 ] as const;
 export type HonorReason = (typeof HONOR_REASONS)[number];
 
