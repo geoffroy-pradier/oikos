@@ -131,12 +131,29 @@ export const npcHouseReturnedSchema = z.strictObject({
   payload: npcHouseSiteMove,
 });
 
+/**
+ * Événement de la clôture (8.3, #717) : sans site ni stock, la maison PNJ a versé sa trésorerie au puits
+ * `sink_npc_house_surplus` et se dissout, définitivement.
+ */
+export const npcHouseDissolvedSchema = z.strictObject({
+  type: z.literal('NpcHouseDissolved'),
+  payload: z.strictObject({
+    houseId: z.uuid(),
+    worldId: z.uuid(),
+    cityId: z.uuid(),
+    chainId: z.string().min(1),
+    oboles: z.number().int().nonnegative(),
+    gameDay: z.number().int().nonnegative(),
+  }),
+});
+
 export const domainEventSchema = z.discriminatedUnion('type', [
   houseFoundedSchema,
   houseRenamedSchema,
   npcHouseFoundedSchema,
   npcHouseRetreatedSchema,
   npcHouseReturnedSchema,
+  npcHouseDissolvedSchema,
   siteCollectedSchema,
   siteAcquiredSchema,
   siteRecipeChangedSchema,
