@@ -92,13 +92,13 @@ select is((select (doc -> 'queue' -> 3 -> 'channel') - 'id' from q), '{"kind": "
   'dans une conversation privée');
 select is((select doc -> 'queue' -> 1 from q) - 'reports', jsonb_build_object('world', 'archipel', 'reportedHouse',
   jsonb_build_object('id', '00000000-0000-7000-8000-0000000221b1', 'name', 'Philaïdes', 'userId', '00000000-0000-4000-8000-0000000221ab'),
-  'channel', null, 'message', null, 'context', '[]'::jsonb), 'un message purgé : la maison signalée et son compte, ni texte ni contexte');
+  'channel', null, 'message', null, 'triage', null, 'context', '[]'::jsonb), 'un message purgé : la maison signalée et son compte, ni texte ni contexte');
 select is(
   (select array_agg(distinct k order by k) from q, jsonb_path_query(q.doc, 'lax $.**') v, jsonb_object_keys(v) k
    where jsonb_typeof(v) = 'object'),
   array['appealBody', 'appealedAt', 'appeals', 'authorId', 'body', 'channel', 'city', 'context', 'createdAt', 'endsAt',
         'hiddenAt', 'houseId', 'houseName', 'id', 'kind', 'message', 'name', 'pendingExclusions', 'proposedAt', 'queue',
-        'reason', 'reportedHouse', 'reports', 'sanctionId', 'startsAt', 'userId', 'world'],
+        'reason', 'reportedHouse', 'reports', 'sanctionId', 'startsAt', 'triage', 'userId', 'world'],
   'la file ne rend que ces champs : aucune donnée économique');
 select is((select position('00000000-0000-7000-8000-0000000221f1' in doc::text) from q), 0, 'ni la maison qui signale');
 select is((select jsonb_agg(a -> 'reason') from q, jsonb_array_elements(doc -> 'appeals') a), '["Silence-appel"]'::jsonb,
