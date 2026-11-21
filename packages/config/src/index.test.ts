@@ -93,6 +93,7 @@ const FIXTURE: GameConfig = {
     },
   },
   starting: { grantOboles: 3000, siteRecipeId: 'grow_wheat' },
+  npcHouses: {},
   sites: {
     limitByHeadquartersLevel: [2, 5],
     acquisitionCostOboles: {
