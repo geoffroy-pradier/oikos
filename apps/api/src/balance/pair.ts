@@ -7,7 +7,10 @@ export async function playPair<T>(games: {
   reference: () => Promise<T>;
   candidate: () => Promise<T>;
 }): Promise<{ reference: T; candidate: T }> {
-  const [reference, candidate] = await Promise.allSettled([games.reference(), games.candidate()]);
+  const [reference, candidate] = await Promise.allSettled([
+    (async () => games.reference())(),
+    (async () => games.candidate())(),
+  ]);
   if (reference.status === 'rejected') throw reference.reason;
   if (candidate.status === 'rejected') throw candidate.reason;
   return { reference: reference.value, candidate: candidate.value };

@@ -5,7 +5,7 @@ const later = <T>(value: T, ms: number) =>
   new Promise<T>((resolve) => setTimeout(resolve, ms, value));
 
 describe('playPair', () => {
-  it('starts both games before either ends, and rends what each rendered', async () => {
+  it('starts both games before either ends, and returns what each returned', async () => {
     const events: string[] = [];
     const game = (name: string, ms: number) => async () => {
       events.push(`start ${name}`);

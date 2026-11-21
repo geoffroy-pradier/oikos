@@ -114,7 +114,7 @@ Déclenchement manuel, création d'événements et propositions du maître du je
 
 1. **Brouillon** : un concepteur modifie des valeurs ; le schéma refuse les valeurs hors bornes.
 2. **Simulation** : le simulateur compare 30 jours simulés avant et après (inflation, marges par filière, temps de progression).
-   En phase 2, le simulateur est une commande locale (`pnpm --filter @oikos/api simulate`, décision de #284) : le banc d'équilibrage (`apps/api/src/balance/`), rendu réutilisable, joue la configuration de référence et la candidate sur deux mondes neufs de la base locale, avec des agents automates, les vrais ticks, clôtures et commandes.
+   En phase 2, le simulateur est une commande locale (`pnpm --filter @oikos/api simulate`, décision de #284) : le banc d'équilibrage (`apps/api/src/balance/`), rendu réutilisable, joue la configuration de référence et la candidate, en parallèle, sur deux mondes neufs de la base locale (ou, pour la candidate, d'une seconde base : `SIMULATE_CANDIDATE_DATABASE_URL`, ADR 0012), avec des agents automates, les vrais ticks, clôtures et commandes.
    La candidate est un fichier JSON ou une version enregistrée ; le schéma la refuse avant toute simulation, en désignant le champ.
    Le rapport, en JSON et en tableaux Markdown, donne pour la référence et pour la candidate, et l'écart de chacun : inflation du panier, masse monétaire, net de chaque robinet et de chaque puits, couverture par classe et par cité, population, marge nette quotidienne par filière.
    La marge nette quotidienne d'une filière est celle d'un site de sa recette (4.3, #285), par cité et pour le monde (`world` : toutes les recettes, aux prix et au marché du travail de toutes les cités).

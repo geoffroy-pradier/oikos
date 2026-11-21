@@ -54,10 +54,11 @@ const indicators = async (seed: string): Promise<Indicators> => {
 const TIMEOUT = SCENARIO.simulatorMinutes * 60_000;
 
 it('mêmes graine et configuration : même rapport', { timeout: TIMEOUT }, async () => {
-  const [first, second] = [
-    await indicators('graine-simulateur-a'),
-    await indicators('graine-simulateur-a'),
-  ];
+  // En parallèle, comme la commande joue ses deux parties (ADR 0012) : sur une même base, deux mondes neufs, même graine.
+  const [first, second] = await Promise.all([
+    indicators('graine-simulateur-a'),
+    indicators('graine-simulateur-a'),
+  ]);
   expect(Object.keys(first).length).toBeGreaterThan(50);
   // Les ordres et les échanges d'abord, dans leur ordre : la première divergence nomme sa cause mieux qu'un écart de rapport.
   const [a = [], b = []] = traces;
