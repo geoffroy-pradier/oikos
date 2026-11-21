@@ -8,6 +8,7 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Polis | Une cité, communauté de 100 à 400 joueurs actifs |
 | Agora | Le marché de la cité, et par extension l'espace public (forum) |
 | Séquestre | Monnaie qu'un achat en attente à l'agora retient hors de la trésorerie (prix limite × reste), rendue à l'annulation (`escrow`) |
+| Fortune (wealth) | Ce que possède une maison au sens du bilan : trésorerie, séquestre et stocks au prix observé de leur cité, sans sites, navires ni logements (`wealth`) |
 | Drachme | Monnaie courante. 6 oboles = 1 drachme, 6 000 drachmes = 1 talent |
 | Charis | Faveur divine d'une maison envers un dieu, entière, gagnée par les offrandes et les actes ; elle décline à chaque clôture et ne se transfère pas (`favor`) |
 | Timè | Honneur, réputation publique de la maison, entière, tenue par un journal en ajout seul ; elle monte et baisse par des motifs du jeu, dans ses bornes, et ne s'achète ni ne se transfère (`honor`) |

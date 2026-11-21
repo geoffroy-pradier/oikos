@@ -107,10 +107,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # Les ports de Supabase local (54320 à 54329) sont dans la plage éphémère de Linux : une connexion
-      # sortante du runner peut en occuper un et faire échouer le démarrage. On les réserve d'abord.
-      - name: Reserve Supabase ports
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -125,17 +121,17 @@ jobs:
       # Identifie, dans le journal de Postgres, la session qui tient un verrou plus d'une seconde (ticket #489).
       - name: Log lock waits
         run: |
-          psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
+          psql postgresql://supabase_admin:postgres@127.0.0.1:${SUPABASE_DB_PORT}/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
       - name: Replay migrations
         env:
-          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ env.SUPABASE_DB_PORT }}/postgres
         run: pnpm test:db:replay
       - name: Lock waits in the Postgres log
         if: failure()
         run: docker logs supabase_db_oikos 2>&1 | grep -iE 'lock|deadlock' | tail -n 50 || true
       - name: Deploy migrations
         env:
-          MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          MIGRATIONS_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:${{ env.SUPABASE_DB_PORT }}/postgres
         run: pnpm test:db:deploy
 
   # Tests d'intégration, un job par morceau, chacun sur sa propre base. L'API se découpe en deux : le banc
@@ -166,8 +162,6 @@ jobs:
             filter: '!@oikos/api'
             args: ''
     steps:
-      - name: Reserve Supabase ports
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -189,7 +183,7 @@ jobs:
       # celles des tests (rôle postgres) sont fermées.
       - name: Close test connections
         run: |
-          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -q -v ON_ERROR_STOP=1 <<'SQL'
+          psql postgresql://postgres:postgres@127.0.0.1:${SUPABASE_DB_PORT}/postgres -X -q -v ON_ERROR_STOP=1 <<'SQL'
           select pid, usename, backend_type, state, wait_event_type, wait_event, left(query, 120) as query,
                  case when usename = 'postgres' and backend_type = 'client backend'
                       then pg_terminate_backend(pid, 5000) end as closed
@@ -206,11 +200,11 @@ jobs:
       # Identifie, dans le journal de Postgres, la session qui tient un verrou plus d'une seconde (ticket #489).
       - name: Log lock waits
         run: |
-          psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
+          psql postgresql://supabase_admin:postgres@127.0.0.1:${SUPABASE_DB_PORT}/postgres -X -c "alter system set log_lock_waits = on" -c "select pg_reload_conf()" || echo "log_lock_waits non activé"
       # Filet de la règle 9 : la suite des migrations se rejoue aussi sur une base remplie de données.
       - name: Replay migrations on data
         env:
-          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          REPLAY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ env.SUPABASE_DB_PORT }}/postgres
         run: pnpm test:db:replay
       - name: Lock waits in the Postgres log
         if: failure()
@@ -233,8 +227,6 @@ jobs:
         shard: [1, 2]
         shards: [2]
     steps:
-      - name: Reserve Supabase ports
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -283,8 +275,6 @@ jobs:
           - { app: web, shard: 3, shards: 3 }
           - { app: admin, shard: 1, shards: 1 }
     steps:
-      - name: Reserve Supabase ports
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7

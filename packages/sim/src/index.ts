@@ -24,5 +24,6 @@ export * from './steward';
 export * from './tax';
 export * from './upkeep';
 export * from './voyage';
+export * from './wealth';
 export * from './world-event-effects';
 export * from './world-events';

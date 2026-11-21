@@ -82,3 +82,12 @@ Le jour où un second Âge accueillera des comptes déjà joueurs, chaque comman
 Une commande, comme une lecture d'Olympe, exige un jeton de Supabase Auth valide dont le compte existe encore : un jeton signé reste valide jusqu'à son expiration, même si son compte a été effacé depuis (remise à zéro de la base, suppression, effacement en douceur).
 Un compte absent est refusé en `UNAUTHENTICATED`, comme un jeton invalide, avant la limite de débit et le journal des commandes : rien n'est écrit, la clé d'idempotence n'est pas consommée (#565).
 Le rôle de service n'a aucun droit sur le schéma `auth` : il ne lit que la réponse de `game.auth_user_exists`, un booléen, et aucun joueur n'exécute cette fonction.
+
+## 11.5 Supabase local en CI
+
+En local, Supabase écoute sur les ports 54321 à 54329 de `packages/db/supabase/config.toml`.
+Ces ports sont dans la plage éphémère de Linux (32768 à 60999) : sur un runner de GitHub Actions, une connexion sortante de l'agent peut en prendre un avant le job, et `supabase start` échoue alors (« address already in use »).
+En `ci` et en `balance-nightly`, `infra/ci-supabase-start.sh` décale donc ces ports de 40000 (14320 à 14329, hors de cette plage).
+Il le fait en réécrivant `config.toml` dans la copie de travail du job : le fichier reste la seule source des ports, et la configuration des développeurs ne change pas.
+Il écrit `SUPABASE_DB_PORT` et `DATABASE_URL` dans l'environnement du job ; les tests de bout en bout lisent les adresses dans `supabase status`.
+Si un de ces ports est tout de même occupé, le script nomme le processus et le port, et échoue tout de suite.
