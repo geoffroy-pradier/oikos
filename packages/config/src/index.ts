@@ -5,6 +5,7 @@ export * from './banks';
 export * from './decrees';
 export * from './graces';
 export * from './honor';
+export * from './hubris';
 export * from './liturgies';
 export * from './moderation';
 export * from './npc-houses';
