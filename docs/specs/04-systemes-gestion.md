@@ -497,6 +497,19 @@ Voyages, dans la phase 2 (#252) :
   `UpkeepSettled` dit, pour une maison qui a des navires, leur entretien payé et impayé, et les navires désarmés et réarmés.
 - Chaque joueur lit ses voyages et leur cargaison (vue `my_voyages`).
 
+Pertes en mer, dans la phase 3 (#730) :
+
+- Le risque en mer de la phase 2 n'est qu'un retard ; la perte vient avec la phase 3.
+  Décision : un voyage peut perdre sa cargaison, jamais son navire, qui arrive à vide.
+- Chaque route porte un risque de perte (`lossRiskBps`) et sa majoration pendant une tempête de la route (`stormLossRiskBps`, 7.4), en points de base, de 0 à 10 000.
+  Ce sont des règles publiques (vue `ship_rules`) ; une version publiée avant les pertes se lit avec des risques nuls.
+  Configuration initiale : risques nuls (paramètres neutres), aucun voyage ne perd rien.
+- Le risque d'un voyage est celui de sa route, plus la majoration si une tempête de la route est en cours au départ, borné à 10 000 (`voyageLossRiskBps`, `packages/sim`).
+- Le tirage se fait à l'arrivée (`voyageLoss`) : un entier uniforme de 0 à 9 999, tiré par un générateur dont la graine est celle du monde suivie de l'identifiant du voyage, perd la cargaison s'il est inférieur au risque.
+  Il est rejouable, et caché jusqu'à l'arrivée : les joueurs ne lisent pas la graine du monde (7.3).
+  Décision : la graine du monde s'ajoute à l'identifiant du voyage, que le joueur connaît dès le départ et qui seul lui ferait prévoir l'issue.
+  Risque nul, jamais de perte ; risque plein, toujours ; la perte emporte toute la cargaison ou rien.
+
 ## 4.7 Le savoir
 
 La recherche est collective : chaque cité finance une école et choisit par vote les savoirs étudiés (irrigation, voile, comptabilité, alliages). Un savoir acquis profite à tous les citoyens, ce qui différencie les cités et nourrit les migrations.

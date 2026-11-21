@@ -320,6 +320,9 @@ const shipFeeObolesSchema = z.number().int().min(0).max(1_000_000_000);
  * Une route maritime entre deux cités (4.6, #252), parcourue dans les deux sens. Lue par les joueurs
  * (vue `public.ship_rules`).
  */
+/** Un risque de perte en mer, en points de base, de 0 (jamais) à 10 000 (toujours). Partagé avec le client. */
+export const shipLossRiskBpsSchema = z.number().int().min(0).max(10_000);
+
 export const shipRouteSchema = z.strictObject({
   /** Les deux cités reliées (identifiants de `cities`), chacune avec un port. */
   cities: z.tuple([id, id]),
@@ -330,6 +333,18 @@ export const shipRouteSchema = z.strictObject({
    * départ (puits `sink_voyage_provisions`). Vide : aucune provision ; sinon, chaque classe a les siennes.
    */
   provisionsOboles: z.record(id, shipFeeObolesSchema),
+  /**
+   * Risque de perte de la cargaison d'un voyage sur la route (4.6, #730), en points de base : 10 000, toujours
+   * perdue. Fixé au départ et gardé avec le voyage, tiré à l'arrivée. Absent (version publiée avant les pertes,
+   * ou configuration initiale) : nul, aucun voyage ne perd rien. Facultatif sans valeur par défaut : une version
+   * relue reste égale à celle écrite ; `routeLossRiskBps` lit la valeur nulle.
+   */
+  lossRiskBps: shipLossRiskBpsSchema.optional(),
+  /**
+   * Majoration du risque d'un voyage qui part pendant une tempête de la route (7.4, #730), en points de base,
+   * ajoutée au risque de la route ; la somme est bornée à 10 000. Absente : nulle (`routeStormLossRiskBps`).
+   */
+  stormLossRiskBps: shipLossRiskBpsSchema.optional(),
 });
 
 /**
@@ -924,6 +939,14 @@ export function shipRoute(
 /** Une table de tarifs par identifiant : vide, rien à payer ; un identifiant absent ne paie rien non plus. */
 const feeOf = (fees: Record<string, number>, key: string) =>
   Object.hasOwn(fees, key) ? (fees[key] ?? 0) : 0;
+
+/** Risque de perte de la cargaison sur la route, en points de base (#730) : nul s'il est absent. */
+export const routeLossRiskBps = (route: Pick<ShipRoute, 'lossRiskBps'>): number =>
+  route.lossRiskBps ?? 0;
+
+/** Majoration de ce risque pendant une tempête de la route, en points de base (#730) : nulle si absente. */
+export const routeStormLossRiskBps = (route: Pick<ShipRoute, 'stormLossRiskBps'>): number =>
+  route.stormLossRiskBps ?? 0;
 
 /** Provisions d'un voyage sur la route pour la classe de navire, en oboles (nulles sans tarif). */
 export function routeProvisionsOboles(route: ShipRoute, classId: string): number {

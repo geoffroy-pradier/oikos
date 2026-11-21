@@ -30,6 +30,7 @@ export * from './temple-loan';
 export * from './temple-loan-due';
 export * from './upkeep';
 export * from './voyage';
+export * from './voyage-loss';
 export * from './wealth';
 export * from './world-event-effects';
 export * from './world-events';
