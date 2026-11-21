@@ -140,14 +140,14 @@ export function DailyFlows({
               header: t(`economy.chart.${part}`),
               numeric: true,
               cell: (day: DayFlow) => number.format(day[part]),
-              sortValue: (day: DayFlow) => Number(day[part]),
+              sortValue: (day: DayFlow) => day[part],
             })),
             {
               id: 'net',
               header: t('economy.chart.net'),
               numeric: true,
               cell: (day) => number.format(day.faucets - day.sinks),
-              sortValue: (day) => Number(day.faucets - day.sinks),
+              sortValue: (day) => day.faucets - day.sinks,
             },
           ]}
         />
@@ -168,7 +168,7 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: b
   });
   const positive = sinks
     .filter((sink) => sink.total > 0n)
-    .sort((a, b) => (a.total < b.total ? 1 : -1));
+    .sort((a, b) => (a.total < b.total ? 1 : a.total > b.total ? -1 : 0));
   const sum = positive.reduce((total, sink) => total + sink.total, 0n);
   // La barre se mesure à la plus grande part : des parts proches, qui ne feraient que des filets égaux de quelques
   // pour cent de la piste, restent distinguables. La part exacte est écrite à côté.

@@ -16,7 +16,7 @@ export interface DataColumn<Row> {
   header: string;
   cell: (row: Row) => ReactNode;
   /** Clé de tri ; sans elle, la colonne ne se trie pas. `null` (sans valeur) va toujours à la fin. */
-  sortValue?: (row: Row) => number | string | null;
+  sortValue?: (row: Row) => number | bigint | string | null;
   /** Montants et quantités : alignés à droite, en chiffres tabulaires. */
   numeric?: boolean;
   /**
@@ -178,7 +178,7 @@ export function DataTable<Row>({
 
 function sortRows<Row>(
   rows: readonly Row[],
-  key: (row: Row) => number | string | null,
+  key: (row: Row) => number | bigint | string | null,
   sort: { direction: SortDirection } | undefined,
   locale: string | undefined,
 ): readonly Row[] {
@@ -187,8 +187,16 @@ function sortRows<Row>(
   return [...rows].sort((a, b) => {
     const [x, y] = [key(a), key(b)];
     if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+    // Deux nombres ou deux `bigint` : comparés tels quels, sans perte au-delà des entiers sûrs.
     const order =
-      typeof x === 'number' && typeof y === 'number' ? x - y : collator.compare(`${x}`, `${y}`);
+      (typeof x === 'number' && typeof y === 'number') ||
+      (typeof x === 'bigint' && typeof y === 'bigint')
+        ? x < y
+          ? -1
+          : x > y
+            ? 1
+            : 0
+        : collator.compare(`${x}`, `${y}`);
     return sign * order;
   });
 }

@@ -107,7 +107,7 @@ test('un super-administrateur passe le second facteur, lit la Vigie et le journa
     const response = await route.fetch();
     const body = (await response.json()) as { data: { worlds: { systemAccounts: unknown[] }[] } };
     const gameDay = Math.floor(Date.now() / 86_400_000);
-    const long = { key: unknownKey, kind: 'sink', total: 1, days: [{ gameDay, amount: 1 }] };
+    const long = { key: unknownKey, kind: 'sink', total: '1', days: [{ gameDay, amount: '1' }] };
     body.data.worlds[0]?.systemAccounts.push(long);
     await route.fulfill({ response, json: body });
   });
