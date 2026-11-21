@@ -1,5 +1,5 @@
 begin;
-select plan(14);
+select plan(16);
 
 -- Jeu d'essai : Alice a trois navires à Kallistè (101) et 100 blés ; Bob a une maison, sans navire. Le voyage 5
 -- (risque plein, 30 blés) perd sa cargaison, le voyage 6 (sans risque, 20 blés) la décharge à Elaia (103), le
@@ -102,9 +102,14 @@ select throws_ok($$select pg_temp.as_player('00000000-0000-4000-8000-000000731aa
   'update game.voyages set arrived_at = now() returning 1')$$, '42501', null, 'et n''écrit aucune issue');
 set local role anon;
 select throws_ok('select cargo_lost from public.my_voyages', '42501', null, 'anon ne lit pas my_voyages');
-select throws_ok($$select game.voyage_cargo_lost('00000000-0000-7000-8000-000000000000')$$, '42501', null,
-  'ni n''appelle la fonction');
 reset role;
+-- Droits de la fonction lus dans le catalogue : sans le `revoke` de la migration, ces deux tests échouent.
+select ok(not has_function_privilege('anon', 'game.voyage_cargo_lost(uuid)', 'execute'),
+  'anon n''a pas le droit d''appeler la fonction');
+select ok(not has_function_privilege('public', 'game.voyage_cargo_lost(uuid)', 'execute'),
+  'public non plus : seul authenticated l''appelle');
+select ok(has_function_privilege('authenticated', 'game.voyage_cargo_lost(uuid)', 'execute'),
+  'authenticated l''appelle');
 
 select * from finish();
 rollback;

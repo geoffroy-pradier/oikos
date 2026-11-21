@@ -9,6 +9,7 @@ import {
   Info,
   RefreshCw,
   Sheet,
+  TriangleAlert,
 } from '@oikos/ui';
 import { Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -124,8 +125,18 @@ export function ShipScreen() {
               <p
                 key={voyage.id}
                 role="status"
-                className="rounded-lg bg-success-subtle p-3 font-semibold text-foreground"
+                className={
+                  'flex items-start gap-2 rounded-lg p-3 font-semibold text-foreground ' +
+                  (voyage.cargo_lost ? 'bg-warning-subtle' : 'bg-success-subtle')
+                }
               >
+                {/* Une perte (#730) prend le ton d'avertissement et son icône : la couleur ne la dit pas seule. */}
+                {voyage.cargo_lost && (
+                  <TriangleAlert
+                    aria-hidden="true"
+                    className="mt-0.5 size-5 shrink-0 text-warning"
+                  />
+                )}
                 {t(arrivalKey('ship', voyage), {
                   city: cityName(voyage.to_city_id),
                   cargo: cargoText(voyage),

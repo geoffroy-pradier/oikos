@@ -5,6 +5,7 @@ import {
   voyageArrivedSchema,
   voyageDepartedSchema,
   voyageDepartInputSchema,
+  voyageDepartOutputSchema,
 } from './voyage';
 
 const SHIP = '01900000-0000-7000-8000-0000000003f1';
@@ -184,5 +185,37 @@ describe('CargoLostAtSea (#730)', () => {
       { houseName: 'Alcméonides' },
     ])
       expect([changed, parses(changed)]).toEqual([changed, false]);
+  });
+});
+
+describe('réponse de voyage.depart : risque fixé (#730)', () => {
+  const output = {
+    voyageId: '01900000-0000-7000-8000-0000000004f1',
+    shipId: SHIP,
+    fromCityId: KALLISTE,
+    toCityId: ELAIA,
+    departedAt: '2026-11-15T10:00:00.000Z',
+    arrivesAt: '2026-11-15T14:00:00.000Z',
+    cargo: [{ goodId: 'wheat', quantity: 120 }],
+    provisionsOboles: 30,
+    portDuesOboles: 41,
+    costOboles: 71,
+  };
+
+  it('présent de 0 à 10 000, ou absent (réponse rejouée d’un départ antérieur aux pertes)', () => {
+    expect(voyageDepartOutputSchema.parse(output)).toEqual(output);
+    for (const lossRiskBps of [0, 1_500, 10_000])
+      expect(voyageDepartOutputSchema.parse({ ...output, lossRiskBps })).toEqual({
+        ...output,
+        lossRiskBps,
+      });
+  });
+
+  it('refusé hors bornes ou non entier', () => {
+    for (const lossRiskBps of [-1, 10_001, 2.5])
+      expect([
+        lossRiskBps,
+        voyageDepartOutputSchema.safeParse({ ...output, lossRiskBps }).success,
+      ]).toEqual([lossRiskBps, false]);
   });
 });
