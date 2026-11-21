@@ -1675,5 +1675,25 @@
       "genre": "Genre",
       "state": "État"
     }
+  },
+  "cityOstracism": {
+    "sheet": {
+      "title": "Inscrire un nom",
+      "secret": "Le vote est secret : le nom inscrit ne s'affiche jamais.",
+      "stepChoose": "Citoyen",
+      "stepRecap": "Confirmation",
+      "search": "Rechercher un citoyen",
+      "searchHint": "Une partie du nom suffit, sans accent ni majuscule.",
+      "legend": "Citoyens de la cité",
+      "yourHouse": "{{house}} (votre maison)",
+      "none": "Aucun citoyen ne correspond.",
+      "more": "{{shown}} citoyens montrés sur {{total}} : précisez la recherche pour voir les autres.",
+      "count_one": "{{count}} citoyen",
+      "count_other": "{{count}} citoyens",
+      "recap": "Vous inscrivez le nom de {{house}}.",
+      "recapNote": "Un bulletin ne se change pas, et le nom inscrit ne s'affiche jamais.",
+      "confirm": "Inscrire ce nom"
+    },
+    "done": "Votre bulletin est déposé. Le vote est secret."
   }
 }

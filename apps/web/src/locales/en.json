@@ -1675,5 +1675,25 @@
       "genre": "Genre",
       "state": "Status"
     }
+  },
+  "cityOstracism": {
+    "sheet": {
+      "title": "Write a name",
+      "secret": "The vote is secret: the name written is never shown.",
+      "stepChoose": "Citizen",
+      "stepRecap": "Confirmation",
+      "search": "Search for a citizen",
+      "searchHint": "Part of the name is enough, ignoring accents and case.",
+      "legend": "Citizens of the city",
+      "yourHouse": "{{house}} (your house)",
+      "none": "No citizen matches.",
+      "more": "{{shown}} citizens shown out of {{total}}: refine the search to see the others.",
+      "count_one": "{{count}} citizen",
+      "count_other": "{{count}} citizens",
+      "recap": "You are writing the name of {{house}}.",
+      "recapNote": "A ballot cannot be changed, and the name written is never shown.",
+      "confirm": "Write this name"
+    },
+    "done": "Your ballot is cast. The vote is secret."
   }
 }
