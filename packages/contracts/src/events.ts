@@ -33,6 +33,7 @@ import {
 } from './decree';
 import { honorChangedSchema } from './honor';
 import { liturgyAssignedSchema, liturgyLeviedSchema, liturgyPerformedSchema } from './liturgy';
+import { nemesisAvertedSchema, nemesisStruckSchema, omenReceivedSchema } from './nemesis';
 import {
   loanCollectedSchema,
   loanDefaultedSchema,
@@ -208,6 +209,9 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   liturgyAssignedSchema,
   liturgyPerformedSchema,
   liturgyLeviedSchema,
+  omenReceivedSchema,
+  nemesisStruckSchema,
+  nemesisAvertedSchema,
   loanDisbursedSchema,
   loanRepaidSchema,
   loanCollectedSchema,
