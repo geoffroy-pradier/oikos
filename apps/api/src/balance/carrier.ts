@@ -9,7 +9,6 @@ import { sql } from 'kysely';
 import {
   cash,
   config,
-  free,
   harvest,
   recipeOf,
   referenceOf,
@@ -26,10 +25,11 @@ import { stewardPrice } from './steward';
  * Armateurs du banc des quatre cités (#283) : une maison qui arme un caboteur et fait la navette entre sa cité
  * d'attache et une cité source. Elle affiche ses prix (`postedPrice`) : à chaque bout, elle remet en vente ce qu'elle y
  * a apporté, et achète au plus à son prix ce qui manque à l'autre bout, sa part de `TARGET_DAYS` jours de la demande de
- * la cité (ses PNJ et les intrants de ses maisons) moins ce qu'elle y a déjà. Elle part quand ces achats sont faits, que
- * la soute est à moitié pleine, ou qu'elle a assez attendu. Elle agit au matin et après chaque tick (d'une heure) où
- * son navire est à quai : un caboteur fait ainsi plusieurs trajets par jour. Ce sont des choix du banc, pas de
- * l'équilibrage du jeu.
+ * la cité (ses PNJ et les intrants de ses maisons) moins ce qu'elle y a déjà. Elle part quand sa soute est à moitié
+ * pleine ou qu'elle a assez attendu, jamais pour quelques unités : chaque départ paie ses provisions et son droit de
+ * port, des forfaits (4.6), qu'une cargaison de quelques unités ne couvre pas (#1026). Elle agit au matin et après
+ * chaque tick (d'une heure) où son navire est à quai : un caboteur fait ainsi plusieurs trajets par jour. Ce sont des
+ * choix du banc, pas de l'équilibrage du jeu.
  */
 /** Classe du navire de chaque armateur. */
 const SHIP_CLASS = 'coaster';
@@ -210,7 +210,7 @@ async function needsOf(carrier: Carrier, target: City, demandOf: Demand) {
 /**
  * Achats dans `market` de ce qui manque à `needs` (moins le stock de l'armateur sur place), la soute partagée au
  * prorata de ces manques, dans la limite de la trésorerie ; ce qui n'a pas trouvé de vendeur est aussitôt retiré, la
- * monnaie sous séquestre ne payant pas l'entretien. Rend vrai s'il ne manque plus rien.
+ * monnaie sous séquestre ne payant pas l'entretien.
  */
 async function buyFor(carrier: Carrier, market: City, needs: ReadonlyMap<string, number>) {
   const shipClass = shipClassOf();
@@ -233,22 +233,15 @@ async function buyFor(carrier: Carrier, market: City, needs: ReadonlyMap<string,
   const room = Math.max(0, shipClass.capacityUnits - loaded);
   const total = missing.reduce((sum, quantity) => sum + quantity, 0);
   const scale = total > room ? room / total : 1;
-  let short = 0;
   for (const [index, [goodId]] of goods.entries()) {
     const price = postedPrice(goodId, 'buy');
     const affordable = Math.floor(((await cash(market, carrier.houseId)) - reserve) / price);
     const wanted = Math.floor((missing[index] ?? 0) * scale);
     const quantity = Math.min(wanted, affordable);
-    if (quantity <= 0) {
-      short += wanted;
-      continue;
-    }
-    const before = await free(market, carrier.houseId, goodId);
+    if (quantity <= 0) continue;
     if (!(await place(market, carrier, goodId, 'buy', price, quantity))) continue;
     await cancelIn(market, carrier, 'buy');
-    short += wanted - ((await free(market, carrier.houseId, goodId)) - before);
   }
-  return short === 0;
 }
 
 /**
@@ -298,7 +291,7 @@ export async function carrierMorning(carrier: Carrier, now: Date, demandOf: Dema
 /**
  * Un pas d'armateur, à l'instant de jeu `now` : en mer, rien ; à l'escale, il repart aussitôt vers le bout où il va,
  * avec ce qu'il y porte ; à quai à un bout, il y remet en vente ce qu'il a apporté, achète ce qui manque à l'autre bout,
- * et part quand ses achats sont faits, que sa soute est à moitié pleine ou qu'il a assez attendu.
+ * et part quand sa soute est à moitié pleine ou qu'il a assez attendu.
  */
 export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand) {
   if (!carrier.shipId) return;
@@ -322,7 +315,7 @@ export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand)
   const there = here === carrier.home ? carrier.source : carrier.home;
   await relist(carrier, here);
   const needs = await needsOf(carrier, there, demandOf);
-  const done = await buyFor(carrier, here, needs);
+  await buyFor(carrier, here, needs);
   const shipClass = shipClassOf();
   const stocks = await stocksIn(here, carrier);
   // Cargaison : ce qui manque à l'autre bout, pas davantage ; le reste de la récolte attend à quai.
@@ -337,7 +330,7 @@ export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand)
   }
   carrier.waitedHours += 1;
   const full = cargoUnits(cargo) * LOAD_SHARE >= shipClass.capacityUnits;
-  if (done || full || carrier.waitedHours > MAX_WAIT_HOURS) {
+  if (full || carrier.waitedHours > MAX_WAIT_HOURS) {
     await depart(carrier, here, nextPort(carrier, here), cargo, now);
     carrier.heading = there;
   }

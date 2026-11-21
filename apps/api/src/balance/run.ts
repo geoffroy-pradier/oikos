@@ -2,6 +2,7 @@ import { tickStart } from '@oikos/sim';
 import { sql } from 'kysely';
 import {
   closeDay,
+  cash,
   closeOf,
   config,
   createWorld,
@@ -11,7 +12,6 @@ import {
   MINUTE,
   reconcile,
   tickDay,
-  topUp,
   upkeepDue,
   wagesDue,
   stewardWageOf,
@@ -37,7 +37,6 @@ import { newNpcBench, npcAfterClose, npcAfterTick } from './npc';
 import { measureDay, netInputs, npcDailyDemand, type DayMeasure } from './measures';
 import {
   CARRIER,
-  CARRIER_TOP_UP,
   CARRIERS,
   MEASURED,
   SETTLEMENTS,
@@ -97,7 +96,6 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     const shares = (city: City, goods: readonly string[]) =>
       new Map(goods.map((goodId) => [goodId, 1 / (carriedBy.get(`${city.slug}/${goodId}`) ?? 1)]));
     for (const house of await foundHouses(home, [{ ...CARRIER, count: spec.count }])) {
-      await topUp(home, house.houseId, CARRIER_TOP_UP);
       carriers.push({
         ...seller(house),
         home,
@@ -165,6 +163,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   /** Événements du monde planifiés par le banc (7.4), par modèle. */
   const events: Record<string, number> = {};
   let measuredFrom = new Date(0);
+  /** Trésorerie de chaque armateur à la fin de chaque jour de jeu, dans l'ordre de `carriers` (mise en route comprise). */
+  const carrierCash: number[][] = [];
   /** Monnaie en circulation à la fin de la mise en route, par cité et pour le monde : la base des jours mesurés. */
   let supplyBefore: Record<string, number> = {};
   for (let day = 0; day < warmup + measuredDays; day++) {
@@ -193,7 +193,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     const now = new Date(closeOf(world, day).getTime() + MINUTE);
     for (const house of npc.houses.values()) await harvest(house.city, house, now);
     // Liturgies que cette clôture a désignées : accomplies ou éludées selon la stratégie.
-    // Une maison scriptée sur `EVADE_EVERY` se dérobe toujours ; un armateur, dont la trésorerie est son fonds de roulement, non.
+    // Une maison scriptée sur `EVADE_EVERY` se dérobe toujours ; un armateur, dont la trésorerie est son fonds de roulement (sa dotation de départ), non.
     for (const [rank, { city, house }] of residents.entries())
       await liturgyMorning(
         city,
@@ -243,6 +243,9 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     ];
     for (const [key, net] of Object.entries(measure.flows['world'] ?? {}))
       measured[key] = (measured[key] ?? 0) + net;
+    carrierCash.push(
+      await Promise.all(carriers.map((carrier) => cash(carrier.home, carrier.houseId))),
+    );
     if (day >= warmup) days.push(measure);
     if (day === warmup - 1) [measuredFrom, supplyBefore] = [at, measure.supply];
   }
@@ -291,7 +294,6 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     wages + lodging,
     voyages.treasuries,
     npc.grant,
-    carriers.length * CARRIER_TOP_UP,
   );
   return {
     world,
@@ -300,6 +302,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     /** Maisons du banc, puis ses maisons PNJ (#717), dans l'ordre de leur cité et de leur filière : un rang stable. */
     houses: [...houses, ...npc.houses.values()],
     carriers,
+    carrierCash,
     stewards,
     operations,
     npc,
