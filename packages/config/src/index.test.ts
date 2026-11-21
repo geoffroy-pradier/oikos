@@ -1447,7 +1447,7 @@ describe('citoyenneté et archonte (3, 6.2)', () => {
 
 describe('routes et droit de port (4.6, 5.6)', () => {
   /** Deux classes, trois cités à port et une sans port. */
-  const archipelago = (ships: Partial<GameConfig['ships']>): unknown => {
+  const archipelago = (ships: Record<string, unknown>): unknown => {
     const config = clone();
     const city = (id: string, hasPort = true) => ({ ...at(config.cities, 0), id, hasPort });
     const round = { ...at(config.ships.classes, 0), id: 'round_ship' };
@@ -1542,6 +1542,29 @@ describe('routes et droit de port (4.6, 5.6)', () => {
     if (!kallisteElaia) throw new Error('route missing');
     expect(routeProvisionsOboles(kallisteElaia, 'round_ship')).toBe(9);
     expect(routeProvisionsOboles(kallisteElaia, 'trireme')).toBe(0);
+  });
+
+  it('pertes en mer (#730) : risque de la route et majoration de tempête, nuls si absents, de 0 à 10 000 points de base', () => {
+    const withRisk = (risk: Record<string, unknown>) =>
+      archipelago({ routes: [{ ...route(['kalliste', 'elaia']), ...risk }] });
+    // Une version publiée avant les pertes n'a ni l'un ni l'autre : aucun voyage ne perd rien.
+    const before = validateConfig(withRisk({}));
+    if (!before.ok) throw new Error(before.errors.join('\n'));
+    expect(shipRoute(before.config, 'elaia', 'kalliste')).toMatchObject({
+      lossRiskBps: 0,
+      stormLossRiskBps: 0,
+    });
+    const risky = validateConfig(withRisk({ lossRiskBps: 300, stormLossRiskBps: 10_000 }));
+    if (!risky.ok) throw new Error(risky.errors.join('\n'));
+    expect(shipRoute(risky.config, 'kalliste', 'elaia')).toMatchObject({
+      lossRiskBps: 300,
+      stormLossRiskBps: 10_000,
+    });
+    for (const key of ['lossRiskBps', 'stormLossRiskBps'])
+      for (const bad of [-1, 10_001, 2.5, '300'])
+        expect(errorsOf(withRisk({ [key]: bad })).map((e) => e.split(':')[0])).toEqual([
+          `ships.routes[0].${key}`,
+        ]);
   });
 
   it('droit de port : forfait de chaque classe connue, part détruite et coefficient bornés', () => {

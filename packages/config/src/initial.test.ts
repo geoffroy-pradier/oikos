@@ -752,6 +752,9 @@ describe('jeu de valeurs initial', () => {
       );
     for (const city of config.cities)
       expect(config.ships.portDues.cityCoefficientBps[city.id]).toBe(10_000);
+    // Pertes en mer (#730), paramètres neutres : aucune route ne fait rien perdre, même pendant une tempête.
+    for (const route of config.ships.routes)
+      expect([route.lossRiskBps, route.stormLossRiskBps]).toEqual([0, 0]);
   });
 
   it('le blé a une demande finale : la première tranche jouable vend du blé aux PNJ (ticket 9)', () => {

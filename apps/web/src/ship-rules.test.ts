@@ -27,6 +27,22 @@ describe('règles du transport lues par le client', () => {
     expect(rules && quoteDeparture(rules, 'coaster', 'kalliste', 'elaia')).toBeNull();
   });
 
+  it('risques de perte (#730) : nuls pour une version publiée avant eux, lus sinon, refusés hors bornes', () => {
+    const [route] = SHIPS.routes.map(({ cities, hours, provisionsOboles }) => ({
+      cities,
+      hours,
+      provisionsOboles,
+    }));
+    const read = (patch: Record<string, unknown>) =>
+      parseShipRules({ ships: { ...SHIPS, routes: [{ ...route, ...patch }] } })?.routes[0];
+    expect(read({})).toMatchObject({ lossRiskBps: 0, stormLossRiskBps: 0 });
+    expect(read({ lossRiskBps: 250, stormLossRiskBps: 1_000 })).toMatchObject({
+      lossRiskBps: 250,
+      stormLossRiskBps: 1_000,
+    });
+    for (const bad of [-1, 10_001, 2.5]) expect(read({ lossRiskBps: bad })).toBeUndefined();
+  });
+
   it('une valeur fausse fait échouer la lecture, jamais un prix inventé', () => {
     const [coaster] = SHIPS.classes;
     for (const purchaseCostOboles of [0, -1, 2.5, '2400'])

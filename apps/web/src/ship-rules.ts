@@ -3,6 +3,7 @@ import {
   DEFAULT_PORT_DUES,
   portDuesBaseOboles,
   routeProvisionsOboles,
+  shipLossRiskBpsSchema,
   shipRoute,
   upkeepDailyObolesSchema,
 } from '@oikos/config/schema';
@@ -35,6 +36,9 @@ const shipsSchema = z.object({
         cities: z.tuple([name, name]),
         hours: positiveInt,
         provisionsOboles: z.record(name, fee),
+        // Version publiée avant les pertes en mer (#730) : aucun risque, comme pour l'API.
+        lossRiskBps: shipLossRiskBpsSchema.default(0),
+        stormLossRiskBps: shipLossRiskBpsSchema.default(0),
       }),
     )
     .default([]),

@@ -320,6 +320,9 @@ const shipFeeObolesSchema = z.number().int().min(0).max(1_000_000_000);
  * Une route maritime entre deux cités (4.6, #252), parcourue dans les deux sens. Lue par les joueurs
  * (vue `public.ship_rules`).
  */
+/** Un risque de perte en mer, en points de base, de 0 (jamais) à 10 000 (toujours). Partagé avec le client. */
+export const shipLossRiskBpsSchema = z.number().int().min(0).max(10_000);
+
 export const shipRouteSchema = z.strictObject({
   /** Les deux cités reliées (identifiants de `cities`), chacune avec un port. */
   cities: z.tuple([id, id]),
@@ -330,6 +333,17 @@ export const shipRouteSchema = z.strictObject({
    * départ (puits `sink_voyage_provisions`). Vide : aucune provision ; sinon, chaque classe a les siennes.
    */
   provisionsOboles: z.record(id, shipFeeObolesSchema),
+  /**
+   * Risque de perte de la cargaison d'un voyage sur la route (4.6, #730), en points de base : 10 000, toujours
+   * perdue. Fixé au départ et gardé avec le voyage, tiré à l'arrivée. Absent d'une version publiée avant les
+   * pertes : nul, aucun voyage ne perd rien.
+   */
+  lossRiskBps: shipLossRiskBpsSchema.default(0),
+  /**
+   * Majoration du risque d'un voyage qui part pendant une tempête de la route (7.4, #730), en points de base,
+   * ajoutée au risque de la route ; la somme est bornée à 10 000. Absente : nulle.
+   */
+  stormLossRiskBps: shipLossRiskBpsSchema.default(0),
 });
 
 /**
