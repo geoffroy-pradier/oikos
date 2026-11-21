@@ -369,6 +369,22 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Des bornes resserrées par une version nouvelle refusent un taux hors d'elles, sans changer celui qui est déjà affiché, que les dépôts et l'intérêt gardent.
   Dépôts, retraits, changements de taux et intérêt de la clôture se suivent sous le verrou de l'agora du monde : un dépôt qui croise un changement de taux relit le taux et répond `RATE_CHANGED`.
   Événements de domaine : `BankDeposited`, `BankWithdrawn`, `BankRatesSet` et, à la clôture, `BankInterestCredited`.
+  Prêts gagés (#728) : le banquier offre à une maison de joueur de son monde, qui n'est pas la sienne, un prêt (principal, taux, durée, garantie), qu'elle accepte ; le principal passe du coffre à sa trésorerie.
+  Décision (ambiguïté de 5.4) : la garantie de cette phase est un stock de l'emprunteur (cité, bien, quantité) ou l'un de ses logements ; les parcelles n'existent pas, et les navires, que la base ne laisse pas changer de propriétaire (12), attendent.
+  Décision (#728) : le taux est libre dans les bornes `loanRateBps` du monde (`RATE_OUT_OF_BOUNDS`) ; le taux de prêt affiché par la banque n'est qu'une annonce.
+  La commande `bank.offerLoan` (emprunteur, principal, taux, durée de 1 à 366 jours, garantie) ne bouge ni monnaie ni garantie ; elle est refusée sans section `banks`, sans banque, pour la maison du banquier (`OWN_HOUSE`), une maison inconnue ou PNJ (`BORROWER_NOT_FOUND`), et pour une garantie qui n'existe pas dans le monde (`COLLATERAL_NOT_FOUND`).
+  Décision (#728) : l'offre ne juge pas la garantie, que seule l'acceptation vérifie, si bien qu'une offre n'apprend rien au banquier du stock ni des biens de l'emprunteur.
+  La commande `bank.withdrawOffer` (offre) retire une offre encore ouverte de la banque de la maison (`OFFER_CLOSED` sinon), même sans section `banks`.
+  La commande `loan.acceptOffer` porte l'offre et les conditions que l'emprunteur a vues (`my_loan_offers`) : d'autres conditions sont refusées (`TERMS_CHANGED`), comme une offre fermée ou d'une autre maison, une maison sous une marque de déshonneur (`DISHONORED`) ou l'absence de section `banks`.
+  Elle est refusée aussi si le coffre moins le principal passerait sous la réserve exigée de la configuration en vigueur (`RESERVE_SHORT`, `bankLendable`), ou si la garantie n'est plus libre (`COLLATERAL_NOT_FREE`) : stock libre de la maison dans sa cité qui ne la couvre pas, logement d'une autre maison, offert à la vente ou à la location, ou déjà gagé.
+  L'intérêt est celui du temple, simple et fixé à l'acceptation (`loanInterest`), et l'échéance la clôture `termDays` jours après ; le prêt est une ligne de `loans` au prêteur `bank` (12), décaissée par une écriture `bank.loan_disburse`.
+  Une garantie bloquée ne sort par aucun chemin : un stock gagé est retenu sur le stock de l'emprunteur dans sa cité comme ce que réserve une vente en attente, si bien qu'il ne se vend, ne s'embarque, ne s'offre ni ne se consomme ; un logement gagé ne s'offre ni à la vente ni à la location (`PROPERTY_PLEDGED`, 4.5).
+  Au solde du prêt, par un remboursement ou par la clôture, la garantie se libère.
+  Échéance : l'étape de #725 prélève aussi les prêts de banque échus, intérêts d'abord, pour le coffre (écriture `bank.loan_collect`), dans l'ordre des prêts de la maison.
+  Décision (#728) : un prêt de banque non soldé à son échéance ne passe pas encore en défaut ; il reste dû et se prélève à chaque clôture, et son défaut viendra avec la saisie de sa garantie (ticket suivant).
+  La fortune compte le reste dû d'un prêt pour la maison de la banque et le déduit pour l'emprunteur : le prêt compte une fois de chaque côté.
+  Acceptation, retrait, remboursement et prélèvement se suivent sous le verrou de l'agora : une offre acceptée et retirée à la fois ne l'est qu'une fois, et deux prêts qui dépassent ensemble la réserve ou le même stock ne passent pas tous deux.
+  Événements de domaine : `LoanOffered`, `LoanOfferWithdrawn` et `LoanOfferAccepted` ; `LoanRepaid` et `LoanCollected` comme pour le temple.
 - **Prêt maritime** : prêt à taux élevé remboursé seulement si le navire arrive. C'est l'assurance du jeu, et elle est historique.
 - **Trésor du temple** : prêteur PNJ au taux directeur, plafonné par la Timè. Levier de politique monétaire des administrateurs.
   Dans la première version (#724), un prêt du temple porte un intérêt simple, fixé à l'emprunt pour toute sa durée : principal × taux directeur annuel (points de base) × jours ÷ (10 000 × 365), arrondi à l'obole supérieure (`templeLoanInterest`, `packages/sim`, que la base vérifie).
@@ -385,7 +401,8 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Elle refuse tout nouvel emprunt (`DISHONORED`) et se lit avec la Timè, publique (`house_honor` : `dishonored`, et le premier jour sans marque quand elle a une fin).
   Une version publiée avant ces paramètres ne fait rien perdre et lève la marque au solde ; la configuration initiale ne fait rien perdre et marque 28 jours.
   Décision (#725) : la durée de la marque se lit dans la version en vigueur, si bien qu'un changement de `dishonorDays` s'applique aussi aux marques en cours.
-  La commande `loan.repay` (prêt, montant) paie les intérêts d'abord, puis le principal, en une écriture `loan.repay` ; elle est refusée au-delà du reste dû ou de la trésorerie, et pour le prêt d'une autre maison, qui lui est inconnu, comme un prêt d'un autre prêteur jusqu'à #728.
+  La commande `loan.repay` (prêt, montant) paie les intérêts d'abord, puis le principal, en une écriture `loan.repay` ; elle est refusée au-delà du reste dû ou de la trésorerie, et pour le prêt d'une autre maison, qui lui est inconnu.
+  Elle rembourse aussi un prêt de banque (#728), tout entier au coffre de sa banque (écriture `bank.loan_repay`), même sans section `banks`.
   Elle lit le prêt sous le verrou de l'agora, que la clôture tient pendant son prélèvement, et le verrouille : un remboursement qui croise un prélèvement en attente relit ce qui reste dû et répond par un code (`LOAN_REPAID`, `ABOVE_OUTSTANDING`, `INSUFFICIENT_FUNDS`) (#725).
   Un remboursement complet éteint le prêt, et la maison peut emprunter de nouveau.
   Événements de domaine : `LoanDisbursed` à l'emprunt, `LoanRepaid` à chaque remboursement (parts des intérêts et du principal, reste dû, état), `LoanCollected` à chaque prélèvement de la clôture et `LoanDefaulted` au défaut (reste dû, Timè perdue).

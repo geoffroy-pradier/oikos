@@ -68,8 +68,8 @@ const PLEDGED = { code: 'PROPERTY_PLEDGED', message: 'This property secures a ba
 
 /**
  * Offre d'un bien par la maison qui le possède (docs/specs/04-systemes-gestion.md, 4.5) : à la vente, à
- * prix affiché, ou à la location, au loyer quotidien demandé. Un bien loué ne s'offre pas, et une seule
- * offre est ouverte par bien : la base le garantit aussi (garde et index unique).
+ * prix affiché, ou à la location, au loyer quotidien demandé. Un bien loué ou gagé (#728) ne s'offre pas, et une
+ * seule offre est ouverte par bien : la base le garantit aussi (gardes et index unique).
  */
 const defineOffer = <I extends { propertyId: string }>(
   name: string,
@@ -99,6 +99,15 @@ const defineOffer = <I extends { propertyId: string }>(
       if (leased) return refuse('PROPERTY_LEASED', 'This property is leased.');
       if (await openListingOf(trx, property.id))
         return refuse(ALREADY_LISTED.code, ALREADY_LISTED.message);
+      // Un bien gagé par un prêt de banque non remboursé ne s'offre pas (#728) ; la base le refuse aussi.
+      const pledged = await trx
+        .selectFrom('game.loans')
+        .innerJoin('game.bank_loan_offers', 'game.bank_loan_offers.id', 'game.loans.offer_id')
+        .select('game.loans.id')
+        .where('game.bank_loan_offers.collateral_property_id', '=', property.id)
+        .where('game.loans.status', '<>', 'repaid')
+        .executeTakeFirst();
+      if (pledged) return refuse(PLEDGED.code, PLEDGED.message);
       const priceOboles = priceOf(input);
       const listing = await trx
         .insertInto('game.property_listings')

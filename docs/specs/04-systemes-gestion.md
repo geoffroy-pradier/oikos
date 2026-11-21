@@ -401,6 +401,7 @@ Phase 2, seconde version (#257) : les biens se louent et se revendent entre mais
 Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en créer ; seule la taxe de la revente en détruit une part.
 
 - **Offres** : la maison propriétaire offre un bien à la location, au loyer quotidien qu'elle fixe (`property.offerLease`), ou à la vente, à prix affiché (`property.listForSale`), et retire son offre (`property.withdrawOffer`).
+  Un bien qui garantit un prêt de banque non remboursé (5.4, #728) ne s'offre ni à la vente ni à la location (`PROPERTY_PLEDGED`) et ne change pas de propriétaire ; un bail en cours le reste jusqu'à sa fin.
   Une seule offre est ouverte par bien, de vente ou de location (`PROPERTY_ALREADY_LISTED`) : pour en changer, on retire la première.
   Un bien loué ne s'offre ni à la vente ni à la location avant la fin du bail (`PROPERTY_LEASED`).
   Il n'y a ni enchère ni négociation : l'offre se prend à son prix, ou se retire.
