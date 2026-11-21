@@ -2,6 +2,7 @@ import { createDb } from '@oikos/db';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { sql } from 'kysely';
 import {
+  citySection,
   expectNoHorizontalScroll,
   fillOrder,
   foundHouseForm,
@@ -101,6 +102,95 @@ async function freezeCity(page: Page, cityId: string) {
   await reply('city_properties', park);
   await reply('property_offers_upkeep', []);
   await reply('city_population', people);
+}
+
+/**
+ * Liturgies et ostracisme de la cité (#723), lus figés : quatre maisons désignées (la maison de l'essai, à accomplir, et
+ * trois autres, qui n'existent pas en base), un vote d'ostracisme au vote ou dépouillé. Les lectures des maisons
+ * (`houses`) rendent, en plus des vraies, ces maisons fictives, filtrées comme le fait la base.
+ */
+const FICTIVE = [
+  ['01900000-0000-7000-8000-0000000f0001', 'Alcméonides', 'performed', 'festival'],
+  ['01900000-0000-7000-8000-0000000f0002', 'Étéoboutades', 'levied', 'trierarchy'],
+  ['01900000-0000-7000-8000-0000000f0003', 'Philaïdes', 'assigned', 'choregia'],
+] as const;
+async function freezeCivics(
+  page: Page,
+  {
+    cityId,
+    houseId,
+    ostracism,
+  }: { cityId: string; houseId: string; ostracism: 'voting' | 'tallied' },
+) {
+  const reply = (view: string, json: unknown) =>
+    page.route(new RegExp(`/rest/v1/${view}\\?`), (route) => route.fulfill({ json }));
+  const dueAt = '2999-01-01T04:00:00+00:00';
+  await reply('my_liturgies', [
+    {
+      id: '01900000-0000-7000-8000-0000000f0010',
+      city_id: cityId,
+      season: 9001,
+      genre: 'festival',
+      due: 1260,
+      due_at: dueAt,
+      status: 'assigned',
+    },
+  ]);
+  await reply('liturgy_rules', [
+    { rules: { honorGain: 40, charisGain: 25, evasionHonorLoss: 90, maxSplendorBps: 10_000 } },
+  ]);
+  await reply('city_liturgies', [
+    { house_id: houseId, season: 9001, genre: 'festival', status: 'assigned', due_at: dueAt },
+    ...FICTIVE.map(([house_id, , status, genre]) => ({
+      house_id,
+      season: 9001,
+      genre,
+      status,
+      due_at: dueAt,
+    })),
+  ]);
+  const vote = {
+    id: '01900000-0000-7000-8000-0000000f0020',
+    city_id: cityId,
+    opened_at: '2999-01-01T04:00:00+00:00',
+    voting_closes_at:
+      ostracism === 'voting' ? '2999-01-04T04:00:00+00:00' : '2020-01-04T04:00:00+00:00',
+    quorum_bps: 2000,
+    tallied_at: ostracism === 'voting' ? null : '2020-01-04T05:00:00+00:00',
+    electorate: ostracism === 'voting' ? null : 4,
+    ballots: ostracism === 'voting' ? null : 3,
+    outcome: ostracism === 'voting' ? null : 'ostracized',
+    ostracized_house_id: ostracism === 'voting' ? null : FICTIVE[1][0],
+    ends_at: ostracism === 'voting' ? null : '2999-02-01T04:00:00+00:00',
+    in_force: ostracism === 'tallied',
+  };
+  await reply('ostracisms', [vote]);
+  await reply('my_ostraca', []);
+  await reply('ostracism_results', [
+    { ostracism_id: vote.id, house_id: FICTIVE[1][0], ostraca: 2 },
+    { ostracism_id: vote.id, house_id: FICTIVE[0][0], ostraca: 1 },
+  ]);
+  await page.route(/\/rest\/v1\/houses\?/, async (route) => {
+    const url = route.request().url();
+    const real = (await (await route.fetch()).json()) as { id: string }[];
+    // La lecture de la maison du joueur par la coquille (`is_mine`) reste celle de la base.
+    if (url.includes('is_mine')) return route.fulfill({ json: real });
+    const ids = /[?&]id=in\.\(([^)]*)\)/.exec(url)?.[1]?.split(',').map(decodeURIComponent);
+    const fictive = FICTIVE.map(([id, name]) => ({
+      id,
+      name,
+      blazon: null,
+      created_at: '2026-11-01T00:00:00+00:00',
+      city_id: cityId,
+      citizenship_status: 'citizen',
+      is_mine: false,
+    })).filter((row) => !ids || ids.includes(row.id));
+    // Maison de l'essai citoyenne : elle peut voter.
+    const own = real.map((row) =>
+      row.id === houseId ? { ...row, citizenship_status: 'citizen' } : row,
+    );
+    await route.fulfill({ json: [...own, ...fictive] });
+  });
 }
 
 /**
@@ -236,4 +326,38 @@ test('écrans clés du jeu : références visuelles et axe, thèmes clair et som
   await fillOrder(page, 'Acheter', 12, 5);
   // La feuille seule : l'en-tête de la page, sous le voile, porte l'heure.
   await capture(page, 'agora-feuille', { target: page.getByRole('dialog') });
+
+  // Liturgies et ostracisme (#723), lectures figées : l'onglet Cité, l'écran de la liturgie et ses feuilles.
+  const db = createDb(process.env['DATABASE_URL'] ?? '');
+  const { rows } = await sql<{ id: string }>`select id from game.houses where name = ${format.name}`
+    .execute(db)
+    .finally(() => void db.destroy());
+  const houseId = rows[0]?.id ?? '';
+  await freezeCivics(page, { cityId: format.city, houseId, ostracism: 'voting' });
+  await open(page, '/cite', /^Cité de /);
+  await citySection(page, 'Liturgies');
+  await capture(page, 'cite-liturgies');
+  await citySection(page, 'Ostracisme');
+  await capture(page, 'cite-ostracisme');
+  await page.getByRole('button', { name: 'Inscrire un nom' }).click();
+  await page.getByRole('dialog').getByLabel('Rechercher un citoyen').fill('é');
+  await capture(page, 'cite-ostracisme-feuille', { target: page.getByRole('dialog') });
+  await page.keyboard.press('Escape');
+  await open(page, '/', `Bonjour, Maison ${format.name}`);
+  await capture(page, 'maison-liturgie');
+  await open(page, '/cite/liturgie', 'Liturgie');
+  await capture(page, 'liturgie');
+  await page.getByRole('button', { name: 'Accomplir ma liturgie' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Accomplir ma liturgie' });
+  await sheet.getByRole('button', { name: 'Continuer' }).click();
+  await sheet.getByLabel(/^Faste/).fill('420');
+  await capture(page, 'liturgie-feuille', { target: sheet });
+  await page.keyboard.press('Escape');
+  // Même onglet, vote dépouillé : l'ostracisé, les bulletins et le décompte.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await freezeCity(page, format.city);
+  await freezeCivics(page, { cityId: format.city, houseId, ostracism: 'tallied' });
+  await open(page, '/cite', /^Cité de /);
+  await citySection(page, 'Ostracisme');
+  await capture(page, 'cite-ostracisme-resultat');
 });
