@@ -588,6 +588,7 @@ Seul l'arrondi de la part publique au point inférieur bouge la masse : 208 obol
 Inégalité des fortunes (#718) : le banc mesure chaque jour le Gini des fortunes de ses maisons, par cité et pour le monde, par `game.house_wealth`, et le rapporte au premier et au dernier jour mesurés, sans borne (journal du test et champ `gini` du fichier `BALANCE_REPORT`).
 Le simulateur le compare de même (groupe `gini`, `gini/<cité>/first` et `gini/<cité>/last`).
 Les mesures et les bornes des bancs ne changent pas : la mesure ne fait que lire.
+Les chiffres ci-dessous ont été mesurés avant les terroirs resserrés de #714, qui changent le banc à quatre cités : ils donnent un ordre de grandeur, pas une référence.
 À quatre cités, le Gini du monde passe de 2 305 à 3 966 points de base sur les 30 jours mesurés, de 870 à 1 215 à Kallistè et de 1 826 à 4 644 à Ampélos (10,5 minutes en local).
 À douze cités, il passe de 2 476 à 3 886 points dans le monde ; Phrourion reste la plus égale (de 531 à 862), Delphis et Chalkeia finissent au-delà de 6 000 points (de 2 840 à 6 221 et de 2 895 à 6 073) (38 minutes en local, dont une partie en parallèle d'un autre banc).
 
