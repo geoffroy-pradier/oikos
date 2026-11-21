@@ -3,6 +3,7 @@ import {
   loanRepayInputSchema,
   loanRepayOutputSchema,
 } from '@oikos/contracts';
+import { lockBankVault, type Db } from '@oikos/db';
 import { gameDayAt, splitLoanRepayment } from '@oikos/sim';
 import { defineCommand } from '../registry';
 import { lock, lockHouse, refuse, systemAccount } from './loan-borrow';
@@ -10,11 +11,30 @@ import { lock, lockHouse, refuse, systemAccount } from './loan-borrow';
 const NO_FUNDS = { code: 'INSUFFICIENT_FUNDS', message: 'Not enough money.' };
 const ABOVE = { code: 'ABOVE_OUTSTANDING', message: 'This is more than the loan still owes.' };
 
+/** Lignes créditrices d'un remboursement au temple : les intérêts au puits, le principal au robinet. */
+async function toTemple(trx: Db, worldId: string, split: { interest: bigint; principal: bigint }) {
+  const [sink, faucet] = await Promise.all([
+    systemAccount(trx, worldId, 'sink_temple_interest'),
+    systemAccount(trx, worldId, 'faucet_temple_loans'),
+  ]);
+  return [
+    { account_id: sink.id, amount: Number(split.interest) },
+    { account_id: faucet.id, amount: Number(split.principal) },
+  ];
+}
+/** Ligne créditrice d'un remboursement à une banque (#728) : tout au coffre, verrouillé après la trésorerie. */
+async function toVault(trx: Db, bankId: string, amount: number) {
+  const vault = await lockBankVault(trx, bankId);
+  if (!vault) throw new Error(`Bank ${bankId} has no vault`);
+  return [{ account_id: vault.accountId, amount }];
+}
+
 /**
  * La maison rembourse une part de son prêt du temple (#724) : les intérêts d'abord (`splitLoanRepayment`), au puits
  * `sink_temple_interest`, puis le principal, qui recrédite le robinet `faucet_temple_loans`, en une écriture
- * `loan.repay` (natures 4.1 `interest` et `loans`) ; la base l'applique au prêt. Refusée pour le prêt d'une autre
- * maison, un prêt remboursé, au-delà du reste dû ou de la trésorerie.
+ * `loan.repay` (natures 4.1 `interest` et `loans`) ; la base l'applique au prêt. Un prêt de banque (#728) se rembourse
+ * tout entier au coffre de sa banque, par une écriture `bank.loan_repay`, même sans section `banks` ; soldé, il libère
+ * sa garantie. Refusée pour le prêt d'une autre maison, un prêt remboursé, au-delà du reste dû ou de la trésorerie.
  */
 export const loanRepay = defineCommand({
   name: 'loan.repay',
@@ -34,11 +54,9 @@ export const loanRepay = defineCommand({
     await lock(trx, `market:${house.world_id}`);
     const loan = await trx
       .selectFrom('game.loans')
-      .select(['id', 'interest', 'interest_repaid', 'outstanding', 'status'])
+      .select(['id', 'interest', 'interest_repaid', 'outstanding', 'status', 'bank_id'])
       .where('id', '=', input.loanId)
       .where('borrower_house_id', '=', house.id)
-      // Les prêts de banque (#728) se rembourseront à leur coffre : d'ici là, seul le temple est remboursé.
-      .where('lender', '=', 'temple')
       .forNoKeyUpdate()
       .executeTakeFirst();
     if (!loan) return refuse('LOAN_NOT_FOUND', 'This house has no such loan.');
@@ -55,27 +73,29 @@ export const loanRepay = defineCommand({
       .executeTakeFirstOrThrow();
     if (BigInt(treasury.balance) < amount) return refuse(NO_FUNDS.code, NO_FUNDS.message);
     const split = splitLoanRepayment(amount, BigInt(loan.interest) - BigInt(loan.interest_repaid));
-    const [sink, faucet] = await Promise.all([
-      systemAccount(trx, house.world_id, 'sink_temple_interest'),
-      systemAccount(trx, house.world_id, 'faucet_temple_loans'),
-    ]);
+    const lines = loan.bank_id
+      ? await toVault(trx, loan.bank_id, input.amount)
+      : await toTemple(trx, house.world_id, split);
     const entry = await trx
       .insertInto('game.ledger_entries')
       .values({
         world_id: house.world_id,
-        kind: 'loan.repay',
-        meta: JSON.stringify({ loanId: loan.id, houseId: house.id }),
+        kind: loan.bank_id ? 'bank.loan_repay' : 'loan.repay',
+        meta: JSON.stringify({
+          loanId: loan.id,
+          houseId: house.id,
+          ...(loan.bank_id && { bankId: loan.bank_id }),
+        }),
       })
       .returning('id')
       .executeTakeFirstOrThrow();
+    // Le crédit d'abord : la base juge le découvert à chaque ligne insérée.
     await trx
       .insertInto('game.ledger_lines')
       .values(
-        [
-          { entry_id: entry.id, account_id: treasury.id, amount: -input.amount },
-          { entry_id: entry.id, account_id: sink.id, amount: Number(split.interest) },
-          { entry_id: entry.id, account_id: faucet.id, amount: Number(split.principal) },
-        ].filter((line) => line.amount !== 0),
+        [...lines, { account_id: treasury.id, amount: -input.amount }]
+          .filter((line) => line.amount !== 0)
+          .map((line) => ({ ...line, entry_id: entry.id })),
       )
       .execute();
     await trx

@@ -166,7 +166,7 @@ describe('loan.borrowFromTemple', () => {
     expect(await balanceOf(player.houseId)).toBe(GRANT + principal);
   });
 
-  it('un prêt de banque ne compte pas pour le prêt unique, mais en défaut il déshonore (#728)', async () => {
+  it('un prêt de banque ne compte pas pour le prêt unique, mais en défaut il déshonore, et se rembourse (#728)', async () => {
     const bank = await newBank();
     const player = await newPlayer(KALLISTE);
     await give(player.houseId, 'wheat', 20);
@@ -177,13 +177,15 @@ describe('loan.borrowFromTemple', () => {
     // Défaut posé gardes levées : un prêt de banque ne passe en défaut qu'avec sa saisie (ticket suivant).
     await force(first, `status = 'defaulted', defaulted_day = due_day`);
     expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
-    // `loan.repay` ne rembourse encore que le temple : un prêt de banque lui est inconnu.
-    expect(codeOf(await repay(player.user, first, 1))).toBe('LOAN_NOT_FOUND');
-    // Le prêt du temple remboursé, le prêt de banque en défaut déshonore encore.
+    // Le prêt du temple remboursé, le prêt de banque en défaut déshonore encore ; il se rembourse, à son coffre.
     expect((await repay(player.user, temple.body.data.loanId, 301)).body.data).toMatchObject({
       status: 'repaid',
     });
     expect(codeOf(await borrow(player.user, 100, 7))).toBe('DISHONORED');
+    expect((await repay(player.user, first, 2_020)).body.data).toMatchObject({
+      outstanding: 0,
+      status: 'repaid',
+    });
   });
 
   it('la marque de déshonneur dure `dishonorDays` jours après le solde d’un prêt en défaut (#725)', async () => {
