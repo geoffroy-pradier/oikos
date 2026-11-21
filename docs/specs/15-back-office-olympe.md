@@ -226,6 +226,7 @@ chaque lecture du back-office par un compte admis est tracée (compte, rôle, ro
 La Vigie affiche ces compteurs sur 24 heures, ainsi que les clôtures quotidiennes en échec (nombre, et dernière erreur, qui nomme l'étape et la maison en cause : 3), et le fuseau de la configuration en vigueur, qui vaut pour tous les mondes : s'il est inconnu de la base, elle le nomme et alerte, avec le nombre de mondes concernés et ce qu'il faut faire ;
 elle alerte aussi quand la version en vigueur ne respecte plus le schéma (3).
 Décision (#563) : la Vigie compte à part les opérations des intendants (`stewardOperations24h` : réussies, refusées, en panne), inscrites au journal des commandes au nom du compte avec l'intendant pour acteur.
+Elle alerte sur les maisons PNJ de secours que la dernière clôture d'un monde n'a pas fondées (`npcHousesSkipped`, 8.3, #949) : monde, cité, filière, nom, et s'il est déjà porté ou refusé par la base ; l'alerte tombe à la clôture qui la fonde, son nom changé.
 Les commandes et les comptes actifs sur 24 heures ne comptent que ce que le joueur a envoyé lui-même.
 Olympe ne liste pas encore une à une les commandes de jeu : le journal d'audit ne rend que les commandes d'administration, qu'un intendant ne mène jamais ; la liste des commandes de la fiche joueur nommera de même l'intendant qui en est l'acteur.
 Elle compte aussi les voyages en retard de déchargement de plus d'un tick (4.6, #253), tous mondes confondus : ceux encore en mer alors que le tick qui devait les décharger, le premier qui commence à leur échéance ou après, est terminé.

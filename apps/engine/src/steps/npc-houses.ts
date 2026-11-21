@@ -1,5 +1,7 @@
 import type { NpcChain, NpcHouses } from '@oikos/config';
 import { npcHouseFoundedSchema, type Blazon } from '@oikos/contracts';
+import { violatedConstraint, type Db } from '@oikos/db';
+import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 
 /** Blason commun des maisons PNJ de secours : du contenu, pas de l'équilibrage ; il les fait reconnaître (8.3). */
@@ -25,6 +27,45 @@ export function dueNpcHouses(
   );
 }
 
+/** Filière passée par la clôture, faute d'un nom que la base admet : la Vigie l'annonce (#949). */
+export interface NpcChainSkipped {
+  cityId: string;
+  chainId: string;
+  name: string;
+  /** `taken` : nom déjà porté dans le monde ; `refused` : nom que la règle de la base (`houses_name_check`) refuse. */
+  reason: 'taken' | 'refused';
+}
+
+/**
+ * Fonde la maison sans compte, dans un point de sauvegarde : un nom déjà porté (`houses_name_unique`) ou refusé par la
+ * règle de la base (`houses_name_check`, qui fait foi sur celle de la configuration) ne fait jamais échouer la clôture.
+ * Rend la maison fondée, ou la raison du refus.
+ */
+async function foundHouse(trx: Db, worldId: string, name: string) {
+  await sql`savepoint npc_house_name`.execute(trx);
+  try {
+    const house = await trx
+      .insertInto('game.houses')
+      .values({
+        world_id: worldId,
+        user_id: null,
+        name,
+        blazon: JSON.stringify(NPC_HOUSE_BLAZON),
+        kind: 'npc',
+      })
+      .onConflict((conflict) => conflict.constraint('houses_name_unique').doNothing())
+      .returning(['id', 'name'])
+      .executeTakeFirst();
+    await sql`release savepoint npc_house_name`.execute(trx);
+    return house ?? ('taken' as const);
+  } catch (error) {
+    if (violatedConstraint(error) !== 'houses_name_check') throw error;
+    await sql`rollback to savepoint npc_house_name`.execute(trx);
+    await sql`release savepoint npc_house_name`.execute(trx);
+    return 'refused' as const;
+  }
+}
+
 /**
  * Maisons PNJ de secours (docs/specs/08-ia.md, 8.3 ; #715). Chaque filière de la configuration (`npcHouses`) qu'aucune
  * maison PNJ ne tient encore dans sa cité reçoit la sienne : une maison sans compte, de nature `npc`, au blason
@@ -32,14 +73,17 @@ export function dueNpcHouses(
  * `faucet_npc_house_grant` (aucune écriture pour une dotation nulle) et ses sites, qui démarrent maintenant : créés
  * après l'instant de la clôture, ils n'emploient ni ne paient rien avant la suivante. Un événement `NpcHouseFounded`.
  * La base garde la filière unique par cité : rejouée, l'étape ne fonde rien de plus, et la clôture d'un jour ne se
- * joue qu'une fois. Un nom déjà porté dans le monde la fait passer, comptée dans `nameTaken`, jusqu'à une version de
- * configuration qui le change. L'offre de travail n'est pas contrôlée : une population sous l'emploi n'arrête aucun
+ * joue qu'une fois. Un nom déjà porté dans le monde, ou que la base refuse, la fait passer, comptée dans `nameTaken` et
+ * nommée dans `skipped` (pour la Vigie, #949), jusqu'à une version de configuration qui le change. L'offre de travail n'est pas contrôlée : une population sous l'emploi n'arrête aucun
  * site (4.4). L'étape ne touche que son robinet et la maison qu'elle fonde, et ne prend aucun verrou d'agora.
  */
 export const npcHouses: CloseStep = {
   name: 'npcHouses',
   async run({ trx, worldId, gameDay, config, at }) {
     const summary = { founded: 0, nameTaken: 0, oboles: 0 };
+    const skipped: NpcChainSkipped[] = [];
+    // `skipped` n'apparaît qu'avec une filière passée : le résumé d'une clôture sans incident ne change pas.
+    const done = () => (skipped.length > 0 ? { ...summary, skipped } : summary);
     if (Object.keys(config.npcHouses).length === 0) return summary;
     const cities = await trx
       .selectFrom('game.cities')
@@ -58,7 +102,7 @@ export const npcHouses: CloseStep = {
       cities,
       new Set(held.map((row) => npcChainKey(row.city_id, row.chain_id))),
     );
-    if (due.length === 0) return summary;
+    if (due.length === 0) return done();
     const faucet = await trx
       .selectFrom('game.accounts')
       .select('id')
@@ -67,20 +111,10 @@ export const npcHouses: CloseStep = {
       .executeTakeFirstOrThrow();
     for (const { cityId, chain } of due) {
       at?.(`${cityId}/${chain.id}`);
-      const house = await trx
-        .insertInto('game.houses')
-        .values({
-          world_id: worldId,
-          user_id: null,
-          name: chain.name,
-          blazon: JSON.stringify(NPC_HOUSE_BLAZON),
-          kind: 'npc',
-        })
-        .onConflict((conflict) => conflict.constraint('houses_name_unique').doNothing())
-        .returning(['id', 'name'])
-        .executeTakeFirst();
-      if (!house) {
+      const house = await foundHouse(trx, worldId, chain.name);
+      if (typeof house === 'string') {
         summary.nameTaken += 1;
+        skipped.push({ cityId, chainId: chain.id, name: chain.name, reason: house });
         continue;
       }
       await trx
@@ -143,6 +177,6 @@ export const npcHouses: CloseStep = {
       summary.founded += 1;
       summary.oboles += chain.grantOboles;
     }
-    return summary;
+    return done();
   },
 };

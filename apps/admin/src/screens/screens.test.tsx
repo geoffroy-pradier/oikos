@@ -360,6 +360,49 @@ describe('Vigie', () => {
   });
 });
 
+describe('Vigie : maisons PNJ de secours non fondées (8.3, #949)', () => {
+  const answer = (npcHousesSkipped: unknown) =>
+    adminGet.mockResolvedValue({ ok: true, data: { ...VIGIE, npcHousesSkipped } });
+
+  it('alerte et nomme chaque filière passée, nom pris ou refusé par la base', async () => {
+    answer([
+      {
+        worldSlug: 'archipel',
+        citySlug: 'kalliste',
+        chainId: 'bread',
+        name: 'Greniers',
+        reason: 'taken',
+      },
+      {
+        worldSlug: 'archipel',
+        citySlug: null,
+        chainId: 'wine',
+        name: 'Pressoirs 2',
+        reason: 'refused',
+      },
+    ]);
+    render(<Vigie accessToken="token" />);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Maisons PNJ de secours non fondées à la dernière clôture');
+    expect([...alert.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+      'archipel · kalliste · filière bread : le nom « Greniers » est déjà porté dans le monde.',
+      'archipel · — · filière wine : la base refuse le nom « Pressoirs 2 ».',
+    ]);
+  });
+
+  it('aucune filière passée, ou API antérieure : pas d’alerte', async () => {
+    answer([]);
+    const first = render(<Vigie accessToken="token" />);
+    await screen.findByText('Maisons fondées');
+    expect(screen.queryByRole('alert')).toBeNull();
+    first.unmount();
+    answer(undefined);
+    render(<Vigie accessToken="token" />);
+    await screen.findByText('Maisons fondées');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
 describe('Vigie : signalements en attente (15.5)', () => {
   const figure = async (label: string) =>
     (await screen.findByText(label)).parentElement?.querySelector('dd')?.textContent;

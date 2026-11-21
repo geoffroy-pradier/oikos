@@ -118,6 +118,11 @@
     "timezoneMissing": "Missing from the configuration in force",
     "timezoneUnknownWarningNoWorld": "Time zone in force unknown to the database: {{timezone}}. No world exists yet, but house accounts in any world created would have no game day or season. This time zone must be given back to PostgreSQL, on the server (specification 03).",
     "configInvalidWarning": "The configuration in force no longer matches the schema: the API and the engine cannot load it. Its time zone is read as stored.",
+    "npcHousesSkipped": {
+      "title": "Rescue NPC houses not founded at the last close: change their chain's name with a configuration version.",
+      "taken": "{{world}} · {{city}} · chain {{chain}}: the name “{{name}}” is already taken in the world.",
+      "refused": "{{world}} · {{city}} · chain {{chain}}: the database refuses the name “{{name}}”."
+    },
     "ai": {
       "title": "AI gateway (estimate)",
       "usage": "Usage",

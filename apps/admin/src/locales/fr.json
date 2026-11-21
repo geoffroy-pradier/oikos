@@ -118,6 +118,11 @@
     "timezoneMissing": "Absent de la configuration en vigueur",
     "timezoneUnknownWarningNoWorld": "Fuseau en vigueur inconnu de la base : {{timezone}}. Aucun monde n'existe encore, mais les comptes des maisons de tout monde créé n'auraient ni jour de jeu ni saison. Il faut rendre ce fuseau à PostgreSQL, sur le serveur (spécification 03).",
     "configInvalidWarning": "La configuration en vigueur ne respecte plus le schéma : l'API et le moteur ne peuvent pas la charger. Son fuseau est lu tel qu'enregistré.",
+    "npcHousesSkipped": {
+      "title": "Maisons PNJ de secours non fondées à la dernière clôture : changez le nom de leur filière par une version de configuration.",
+      "taken": "{{world}} · {{city}} · filière {{chain}} : le nom « {{name}} » est déjà porté dans le monde.",
+      "refused": "{{world}} · {{city}} · filière {{chain}} : la base refuse le nom « {{name}} »."
+    },
     "ai": {
       "title": "Passerelle IA (estimation)",
       "usage": "Usage",

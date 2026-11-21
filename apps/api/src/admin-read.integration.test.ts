@@ -564,6 +564,62 @@ describe('Vigie', () => {
     expect(steward(await read())?.cut).toBe('capped');
   });
 
+  it('alerte sur les filières de secours passées par la dernière clôture d’un monde, faute de nom (#949)', async () => {
+    const [worldId, cityId] = [randomUUID(), randomUUID()];
+    const slug = `vigie-${worldId.slice(0, 8)}`;
+    await sql`insert into game.worlds (id, slug, name) values (${worldId}, ${slug}, 'Vigie')`.execute(
+      owner,
+    );
+    await sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'K')`.execute(
+      owner,
+    );
+    const close = (day: number, npcHouses: object) =>
+      sql`insert into game.daily_closes (world_id, game_day, close_at, config_version_id, summary)
+        values (${worldId}, ${day}, now() - interval '2 days' + ${day - 100} * interval '1 hour',
+          (select id from config.versions order by created_at limit 1), ${JSON.stringify({ npcHouses })})`.execute(
+        owner,
+      );
+    const mine = async () =>
+      (
+        (await get(users.observer, 'vigie')).body.data.npcHousesSkipped as { worldSlug: string }[]
+      ).filter((row) => row.worldSlug === slug);
+    // Une clôture plus ancienne a passé une filière : seule compte la dernière.
+    await close(100, {
+      founded: 0,
+      nameTaken: 1,
+      oboles: 0,
+      skipped: [{ cityId, chainId: 'fish', name: 'Pêcheries', reason: 'taken' }],
+    });
+    await close(101, {
+      founded: 0,
+      nameTaken: 2,
+      oboles: 0,
+      skipped: [
+        { cityId, chainId: 'bread', name: 'Greniers', reason: 'taken' },
+        { cityId, chainId: 'wine', name: 'Pressoirs 2', reason: 'refused' },
+      ],
+    });
+    expect(await mine()).toEqual([
+      {
+        worldSlug: slug,
+        citySlug: 'kalliste',
+        chainId: 'bread',
+        name: 'Greniers',
+        reason: 'taken',
+      },
+      {
+        worldSlug: slug,
+        citySlug: 'kalliste',
+        chainId: 'wine',
+        name: 'Pressoirs 2',
+        reason: 'refused',
+      },
+    ]);
+    // La clôture suivante les fonde, son nom changé : plus d'alerte.
+    await close(102, { founded: 2, nameTaken: 0, oboles: 0 });
+    expect(await mine()).toEqual([]);
+  });
+
   it('compte les commandes et montre les ticks récents, échecs compris', async () => {
     const before = (await get(users.observer, 'vigie')).body.data;
     const worldId = randomUUID();

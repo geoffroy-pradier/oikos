@@ -237,8 +237,21 @@ describe('maisons PNJ de secours à la clôture (#715)', () => {
     expect(await close(world.worldId)).toEqual([DAY]);
     expect((await npcOf(world.worldId)).map((house) => house.slug)).toEqual(['elaia']);
     expect(await ledgerOf(world.worldId)).toEqual({ faucet: 0, total: 0, entries: 0, events: 1 });
+    // La filière passée est nommée dans le résumé, que la Vigie lit (#949).
     expect(await summaryOf(world.worldId)).toEqual({
-      npcHouses: { founded: 1, nameTaken: 1, oboles: 0 },
+      npcHouses: {
+        founded: 1,
+        nameTaken: 1,
+        oboles: 0,
+        skipped: [
+          {
+            cityId: world.cityIds['kalliste'],
+            chainId: 'bread',
+            name: 'Greniers de Kallistè',
+            reason: 'taken',
+          },
+        ],
+      },
     });
     const renamed: NpcHouses = {
       kalliste: {
@@ -263,6 +276,37 @@ describe('maisons PNJ de secours à la clôture (#715)', () => {
       total: 0,
       entries: 1,
       events: 2,
+    });
+  });
+
+  it('un nom que la base refuse fait passer la filière, sans faire échouer la clôture (#949)', async () => {
+    // La règle de la base fait foi : un nom que la configuration aurait dû refuser (chiffre, trop court) n'arrête ni la
+    // clôture, ni la fondation des autres filières, ni ce qu'elle a déjà écrit.
+    const world = await newWorld(['kalliste', 'elaia']);
+    const refused: NpcHouses = {
+      kalliste: {
+        treasuryCapOboles: 20_000,
+        chains: [
+          { id: 'bread', name: 'Greniers 2', sites: { grow_wheat: 1 }, grantOboles: 8_000 },
+          { id: 'fish', name: 'X', sites: { grow_wheat: 1 }, grantOboles: 8_000 },
+        ],
+      },
+      elaia: SECOURS['elaia'] ?? { treasuryCapOboles: 0, chains: [] },
+    };
+    expect(await close(world.worldId, DAY, refused)).toEqual([DAY]);
+    expect((await npcOf(world.worldId)).map((house) => house.name)).toEqual(["Greniers d'Elaia"]);
+    expect(await ledgerOf(world.worldId)).toEqual({ faucet: 0, total: 0, entries: 0, events: 1 });
+    const kalliste = world.cityIds['kalliste'];
+    expect(await summaryOf(world.worldId)).toEqual({
+      npcHouses: {
+        founded: 1,
+        nameTaken: 2,
+        oboles: 0,
+        skipped: [
+          { cityId: kalliste, chainId: 'bread', name: 'Greniers 2', reason: 'refused' },
+          { cityId: kalliste, chainId: 'fish', name: 'X', reason: 'refused' },
+        ],
+      },
     });
   });
 

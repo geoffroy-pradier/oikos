@@ -10,7 +10,7 @@ import { accountHouseId } from '@oikos/operations';
 
 /**
  * Conversation privée (docs/specs/06-cites-politique-communaute.md, 6.6) : une maison l'ouvre avec une autre
- * maison de son monde, de sa cité ou d'une autre, ou retrouve celle qui existe. La base inscrit les deux
+ * maison de joueur de son monde, de sa cité ou d'une autre, ou retrouve celle qui existe. La base inscrit les deux
  * membres, et n'admet qu'une conversation par paire (contrainte unique) : sous concurrence, la seconde
  * ouverture relit la première.
  */
@@ -31,10 +31,12 @@ export const chatOpenDirect = defineCommand({
   errors: CHAT_OPEN_DIRECT_ERROR_CODES,
   async handler({ trx, userId, emit }, input) {
     // La maison du compte (la plus ancienne d'un compte hérité, #604), si elle est du monde de la maison désignée.
+    // Une maison PNJ (8.3, #949) n'a pas de compte pour lire une conversation : refusée comme une maison inconnue.
     const other = await trx
       .selectFrom('game.houses')
       .select(['id', 'world_id'])
       .where('id', '=', input.houseId)
+      .where('kind', '=', 'player')
       .executeTakeFirst();
     const house =
       other &&

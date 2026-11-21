@@ -286,6 +286,24 @@ export function registerAdminReads(
         throw error;
       },
     );
+    // Maisons PNJ de secours (8.3, #949) : les filières que la dernière clôture de chaque monde a passées, faute d'un nom
+    // libre ou admis par la base. Elles le restent jusqu'à une version de configuration qui change ce nom.
+    const skipped = await sql<{
+      world_slug: string;
+      city_slug: string | null;
+      chain_id: string;
+      name: string;
+      reason: string;
+    }>`
+      select w.slug as world_slug, c.slug as city_slug, item->>'chainId' as chain_id, item->>'name' as name,
+             item->>'reason' as reason
+      from game.worlds w
+      cross join lateral (select d.summary #> '{npcHouses,skipped}' as list from game.daily_closes d
+        where d.world_id = w.id order by d.game_day desc limit 1) last
+      cross join lateral jsonb_array_elements(
+        case when jsonb_typeof(last.list) = 'array' then last.list else '[]'::jsonb end) item
+      left join game.cities c on c.world_id = w.id and c.id::text = item->>'cityId'
+      order by w.slug, c.slug, item->>'chainId'`.execute(db);
     const total = totals.rows[0];
     return c.json({
       ok: true,
@@ -309,6 +327,14 @@ export function registerAdminReads(
         },
         voyagesOverdue,
         staleReports,
+        // Champ ajouté : l'Olympe précédent l'ignore.
+        npcHousesSkipped: skipped.rows.map((row) => ({
+          worldSlug: row.world_slug,
+          citySlug: row.city_slug,
+          chainId: row.chain_id,
+          name: row.name,
+          reason: row.reason,
+        })),
         // Une clôture en échec (une maison en erreur annule celle de tout son monde) : comptée, et la
         // dernière erreur, qui nomme l'étape et la maison, affichée.
         closes24h: {
