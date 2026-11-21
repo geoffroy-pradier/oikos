@@ -67,12 +67,15 @@ export async function measureDay(
   const balances = await sql<{ city_id: string; balance: string }>`
     select coalesce(c.city_id, a.city_id) as city_id, sum(a.balance) as balance
     from game.accounts a left join game.citizenships c on c.house_id = a.house_id
-    where a.world_id = ${worldId} and a.kind <> 'system' and not a.npc_purse group by 1`.execute(
-    db,
-  );
-  // Bourses des PNJ de chaque cité (#632), que le service lit par la fonction de la base.
+    where a.world_id = ${worldId} and a.kind <> 'system' and not a.npc_purse and a.bank_id is null
+    group by 1`.execute(db);
+  // Bourses des PNJ de chaque cité (#632) et coffres des banques (#726), que le service lit par les fonctions de la
+  // base ; un coffre compte dans la cité de sa banque.
   const purses = await sql<{ city_id: string; balance: string }>`select city_id, balance
-    from game.npc_purses() where world_id = ${worldId}`.execute(db);
+    from game.npc_purses() where world_id = ${worldId}
+    union all
+    select b.city_id, v.balance from game.bank_vaults() v join game.banks b on b.id = v.bank_id
+    where v.world_id = ${worldId}`.execute(db);
   measure.supply['world'] = 0;
   for (const row of [...balances.rows, ...purses.rows]) {
     const slug = bySlug.get(row.city_id) ?? row.city_id;
@@ -176,6 +179,7 @@ export async function measureDay(
         select coalesce(c.city_id, b.city_id, p.city_id) as city_id
         from game.ledger_lines k
           left join game.accounts b on b.id = k.account_id and b.kind <> 'system' and not b.npc_purse
+            and b.bank_id is null
           left join purses p on p.account_id = k.account_id
           left join game.citizenships c on c.house_id = b.house_id
         where k.entry_id = e.id and (b.id is not null or p.account_id is not null)

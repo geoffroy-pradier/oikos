@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(26);
 
 -- Jeu d'essai : un monde à lui. Alice (a) et Bob (b) y ont leur maison de Kallistè ; Dion (d) la sienne dans un autre
 -- monde. Alice fonde sa banque (droit de 5 000, capital de 20 000), Dion la sienne. Configuration en vigueur : capital
@@ -61,6 +61,17 @@ end $$;
 set constraints all immediate;
 set constraints all deferred;
 
+-- Fortune : le coffre compte pour la maison de la banque ; fonder ne lui coûte que le droit.
+select is(
+  (select string_agg(right(house_id::text, 2) || ':' || treasury || ':' || wealth, ' ' order by house_id)
+   from game.house_wealth('01900000-0000-7000-8000-0000000726e0')),
+  'a2:25000:45000 b2:50000:50000', 'la fortune d''Alice compte son coffre, moins le droit détruit');
+select is((select sum(balance)::bigint from game.bank_vaults() where world_id = '01900000-0000-7000-8000-0000000726e0'),
+  20000::bigint, 'le tableau de bord lit les coffres d''un monde');
+select ok(has_function_privilege('oikos_service', 'game.bank_vaults()', 'execute')
+          and not has_function_privilege('authenticated', 'game.bank_vaults()', 'execute')
+          and not has_function_privilege('anon', 'game.bank_vaults()', 'execute'), 'seul le service lit tous les coffres');
+
 -- Alice : les banques de son monde, son coffre et sa réserve, ses flux.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000726ba", "role": "authenticated"}', true);
@@ -80,6 +91,7 @@ select is((select upkeep || ':' || operating_result || ':' || other || ':' || no
 select is((select charter_fee_oboles || ':' || min_capital_oboles || ':' || reserve_ratio_bps || ':' || deposit_rate_min_bps
    || ':' || deposit_rate_max_bps || ':' || loan_rate_min_bps || ':' || loan_rate_max_bps from public.bank_rules),
   '5000:15000:2000:0:1500:300:5000', 'elle lit les règles des banques : droit, capital, réserve et bornes des taux');
+select throws_ok('select * from game.house_wealth()', '42501', null, 'ni ne lit la fortune');
 select throws_ok($$insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loan_rate_bps, charter_fee)
   values ('01900000-0000-7000-8000-0000000726e0', '01900000-0000-7000-8000-0000000726d1', '00000000-0000-7000-8000-0000000726b2',
           'Trapeza Bob', 0, 0, 0)$$, '42501', null, 'un joueur ne fonde pas de banque par la table');

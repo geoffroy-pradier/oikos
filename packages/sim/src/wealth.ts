@@ -26,6 +26,11 @@ export interface HouseWealthInput {
    * fortune, qui peut alors être négative.
    */
   debt?: bigint;
+  /**
+   * Coffre de la banque de la maison (#726), net de ses dépôts (#727, nuls avant), en oboles ; nul sans banque. La
+   * monnaie du coffre reste à la maison qui l'a versée : elle compte dans sa fortune.
+   */
+  vault?: bigint;
 }
 
 export interface HouseWealth {
@@ -37,13 +42,16 @@ export interface HouseWealth {
   unpricedStocks: number;
   /** Reste dû des prêts de la maison. */
   debt: bigint;
-  /** Trésorerie, séquestre et valeur des stocks, moins le reste dû. */
+  /** Coffre de sa banque, net de ses dépôts. */
+  vault: bigint;
+  /** Trésorerie, séquestre, valeur des stocks et coffre, moins le reste dû. */
   wealth: bigint;
 }
 
 /**
  * Fortune d'une maison, comme son bilan (4.1) : trésorerie, séquestre et stocks valorisés au prix observé de
- * leur cité, cargaisons en mer comprises (#719), que le bilan ignore, moins le reste dû de ses prêts (#724). Un stock
+ * leur cité, cargaisons en mer comprises (#719), que le bilan ignore, et coffre de sa banque (#726), moins le reste dû
+ * de ses prêts (#724). Un stock
  * vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et il est compté à part. Sites,
  * navires et biens immobiliers n'y entrent pas.
  */
@@ -52,6 +60,7 @@ export function houseWealth({
   escrow,
   stocks,
   debt = 0n,
+  vault = 0n,
 }: HouseWealthInput): HouseWealth {
   if (debt < 0n) throw new RangeError('debt must not be negative');
   let [stockValue, unpricedStocks] = [0n, 0];
@@ -66,7 +75,8 @@ export function houseWealth({
     stockValue,
     unpricedStocks,
     debt,
-    wealth: treasury + escrow + stockValue - debt,
+    vault,
+    wealth: treasury + escrow + stockValue + vault - debt,
   };
 }
 

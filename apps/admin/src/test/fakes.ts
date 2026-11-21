@@ -186,6 +186,7 @@ export const ECONOMY: AdminEconomy = {
         escrow: 70,
         cityTreasuries: 2,
         npcPurses: 0,
+        bankVaults: 0,
         other: 0,
       },
       systemAccounts: [
