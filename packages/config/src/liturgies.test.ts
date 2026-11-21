@@ -15,13 +15,13 @@ const fieldsOf = (liturgies: unknown) => {
 };
 
 describe('les liturgies (6.4, #719)', () => {
-  it('la configuration initiale ne désigne aucune maison et ne donne ni gain ni perte', () => {
+  it('la configuration initiale désigne dix maisons par cité et donne ses gains et sa perte (#721)', () => {
     const result = validateConfig(INITIAL_CONFIG);
     if (!result.ok) throw new Error(result.errors.join('\n'));
     const liturgies = result.config.liturgies;
-    expect(liturgies?.housesPerCity).toBe(0);
+    expect(liturgies?.housesPerCity).toBe(10);
     expect([liturgies?.honorGain, liturgies?.charisGain, liturgies?.evasionHonorLoss]).toEqual([
-      0, 0, 0,
+      100, 300, 300,
     ]);
     expect(liturgies?.genres).toEqual([...LITURGY_GENRES]);
   });
