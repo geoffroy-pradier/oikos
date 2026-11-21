@@ -35,6 +35,9 @@
   "arrivals": "In the harbour, {{ships}} from {{city}}.",
   "ships_one": "{{count}} ship arrived",
   "ships_other": "{{count}} ships arrived",
+  "losses": "On the route from {{city}}, {{cargoes}}.",
+  "cargoes_one": "{{count}} cargo lost at sea",
+  "cargoes_other": "{{count}} cargoes lost at sea",
   "population": {
     "up": "The city counts {{population}}, {{change}} more than at the previous close.",
     "down": "The city counts {{population}}, {{change}} fewer than at the previous close.",

@@ -878,6 +878,8 @@
     "noStock": "Aucun bien libre dans cette cité : le navire peut partir sur lest.",
     "good": "{{good}} ({{free}} libres)",
     "cost": "Coût du départ : {{total}} (provisions {{provisions}}, droit de port {{dues}}), payé à l'envoi.",
+    "lossRisk": "Risque de perdre la cargaison en mer : {{risk}}. Le navire, lui, arrive toujours.",
+    "lossRiskStorm": "Risque de perdre la cargaison en mer : {{risk}} par tempête ({{calm}} par temps calme). Le navire, lui, arrive toujours.",
     "choose": "Choisissez une destination",
     "submit": "Partir vers {{city}} — {{cost}}",
     "sailed": "{{ship}} est parti vers {{city}} pour {{cost}} : arrivée prévue le {{time}}.",

@@ -35,6 +35,9 @@
   "arrivals": "Au port, {{ships}} depuis {{city}}.",
   "ships_one": "{{count}} navire arrivé",
   "ships_other": "{{count}} navires arrivés",
+  "losses": "Sur la route depuis {{city}}, {{cargoes}}.",
+  "cargoes_one": "{{count}} cargaison perdue en mer",
+  "cargoes_other": "{{count}} cargaisons perdues en mer",
   "population": {
     "up": "La cité compte {{population}}, {{change}} de plus qu'à la clôture précédente.",
     "down": "La cité compte {{population}}, {{change}} de moins qu'à la clôture précédente.",
