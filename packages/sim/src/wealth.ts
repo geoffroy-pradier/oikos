@@ -5,7 +5,10 @@
  */
 import type { Fraction } from './price-index';
 
-/** Un stock de la maison : quantité, part réservée par les ventes en attente comprise, et prix observé de sa cité. */
+/**
+ * Un stock de la maison : quantité, part réservée par les ventes en attente comprise, et prix observé de sa cité ; ou
+ * la cargaison d'un voyage en mer, au prix observé de sa cité d'arrivée (#719).
+ */
 export interface WealthStock {
   quantity: bigint;
   /** Prix de référence observé du bien dans la cité du stock (5.3), `null` s'il n'en a jamais eu. */
@@ -33,7 +36,7 @@ export interface HouseWealth {
 
 /**
  * Fortune d'une maison, comme son bilan (4.1) : trésorerie, séquestre et stocks valorisés au prix observé de
- * leur cité. Un stock vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et
+ * leur cité, cargaisons en mer comprises (#719), que le bilan ignore. Un stock vide ne compte pas ; un stock sans prix n'a pas de valeur, aucun prix n'est inventé, et
  * il est compté à part. Sites, navires et biens immobiliers n'y entrent pas.
  */
 export function houseWealth({ treasury, escrow, stocks }: HouseWealthInput): HouseWealth {

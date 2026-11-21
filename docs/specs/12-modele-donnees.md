@@ -78,6 +78,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 - Nature d'une maison (#718) : `houses.kind` vaut `player`, ou `npc` pour une maison PNJ de secours (8.3, #715), que les classements de fortune écartent.
   Une maison fondée sans la nommer est une maison de joueur ; le service la choisit à l'insertion et ne la change jamais, et un joueur connecté ne la lit pas.
 - Fortune d'une maison (4.1, #718) : `game.house_wealth(p_world)`, au nom du propriétaire, est exécutable par le seul service ; aucune vue, vue matérialisée ni fonction exposée à un joueur ou à un visiteur ne l'appelle ni n'a de colonne de fortune (pgTAP 718).
+  Décision (#719, migration 9719) : la fonction compte la cargaison des voyages en mer (`arrived_at` nul) dans la valeur des stocks, au prix observé de la cité d'arrivée, sans changer ses colonnes (pgTAP 719).
 - Comptes de la maison (4.1) : un joueur lit les lignes du grand livre de ses propres comptes, trésorerie et séquestre (compte, montant, nature de la ligne), la nature et la date des écritures où il a une ligne, et le prix et la quantité des échanges dont il est le vendeur, pour séparer le brut de la taxe.
   Il ne lit ni les autres lignes de ces écritures (contrepartie, taxe), ni leur détail (`meta`), ni les échanges où il achète.
   Les vues `my_cash_flows`, `my_valued_stocks` et `my_balance_sheet` en sont des agrégats calculés à la lecture, et le compte de résultat (`my_income_statement`, `my_income_statement_by_season`) un agrégat de `my_cash_flows`, sans droit supplémentaire ;

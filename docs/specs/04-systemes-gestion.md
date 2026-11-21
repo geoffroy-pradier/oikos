@@ -50,11 +50,13 @@ La maison se gère sur sept systèmes qui partagent les mêmes stocks, la même 
   aucun prix n'est inventé à sa place.
   Bilan (`my_balance_sheet`) : trésorerie, séquestre (nul tant que la maison n'a pas eu d'achat en attente), valeur des stocks qui ont un prix, et nombre de stocks sans prix, que cette valeur ignore.
   Les sites, les navires et les biens immobiliers n'y figurent pas : leur prix d'acquisition est détruit, ou versé au vendeur d'un bien revendu.
-  Fortune d'une maison (#718) : le total de son bilan, trésorerie, séquestre et valeur des stocks qui ont un prix, en oboles, avec à côté le nombre de stocks sans prix qu'elle ignore.
+  Fortune d'une maison (#718) : le total de son bilan, trésorerie, séquestre et valeur des stocks qui ont un prix, en oboles, avec à côté le nombre de stocks sans prix qu'elle ignore, plus les marchandises en mer (#719, ci-dessous).
   Une seule définition sert au Gini du tableau de bord (5.5), puis aux liturgies et à l'Hybris, calculée à l'identique par `houseWealth` (`packages/sim`) et par `game.house_wealth` (base, accordée au seul service), ce qu'un test d'intégration vérifie sur des scénarios tirés au sort.
   Comme au bilan, sites, navires et biens immobiliers n'y entrent pas ; chaque ticket qui ajoute une créance ou une dette (prêts, dépôts) l'ajoute à la fortune.
-  Les marchandises en mer (cargaison d'un voyage, à l'extrémité `in_transit` du journal des stocks, 4.6) n'y comptent pas, comme au bilan : elles quittent la fortune au départ et y reviennent à l'arrivée.
-  Les liturgies (#719), dont le dû est proportionnel à la fortune, devront trancher ce point, qu'un départ juste avant la désignation exploiterait.
+  Décision (#719) : les marchandises en mer (cargaison d'un voyage, à l'extrémité `in_transit` du journal des stocks, 4.6) y comptent, au prix observé du bien dans la cité d'arrivée, où elles entreront au stock de la maison.
+  Elles s'ajoutent à la valeur des stocks, une cargaison sans prix au nombre des stocks sans prix, et la fortune n'est plus le total du bilan, qui les ignore, tant qu'une cargaison est en mer.
+  Sans elles, une maison mettrait son stock en mer juste avant la désignation des liturgies (6.4), dont le dû est une part de la fortune, et le Gini perdrait la richesse des négociants au moment où ils naviguent.
+  Une cargaison arrivée compte une fois, au stock de la cité d'arrivée (pgTAP 719).
   Aucune vue ni fonction exposée au client ne rend la fortune d'une autre maison, ni un total ou un classement de fortunes (pgTAP 718).
 - **Famille** : conjoint, héritiers, parents, chacun avec 2 ou 3 traits. Un membre peut être placé à la tête d'un site ou envoyé en ambassade. Les mariages entre maisons de joueurs créent une alliance formelle (accès croisé aux entrepôts, clause d'entraide).
 - **Timè** : monte avec les contrats honorés, les liturgies et les mandats bien tenus ; baisse avec les défauts de paiement et les sanctions. Elle conditionne le crédit, l'éligibilité et les prix obtenus des PNJ.
