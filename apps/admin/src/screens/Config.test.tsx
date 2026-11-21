@@ -763,6 +763,13 @@ it('bien retiré encore détenu : le super-administrateur seul le rachète, apr�
     { goodId: 'wheat', expected: totals },
     'token',
   ]);
+  // Refus : du stock est gagé par un prêt de banque (#728), rien n'est racheté avant le solde.
+  api.adminCommand.mockResolvedValueOnce({ ok: false, code: 'GOOD_PLEDGED' });
+  fireEvent.click(button(name));
+  fireEvent.click(button('Confirmer le rachat'));
+  await waitFor(() =>
+    expect(screen.getByRole('alert').textContent).toMatch(/^Du stock de ce bien garantit/),
+  );
 
   // Rachat fait : la lecture ne nomme plus le bien, le foyer va au titre.
   api.adminCommand.mockResolvedValueOnce({

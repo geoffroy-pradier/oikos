@@ -87,6 +87,11 @@ describe('loan.acceptOffer', () => {
     const first = await offered(bank.user, borrower.houseId, { collateral });
     const second = await offered(bank.user, borrower.houseId, { collateral, principal: 100 });
     expect((await accept(borrower.user, first, { collateral })).status).toBe(200);
+    // La base refuse toute offre du logement gagé, que la commande traduit.
+    const sale = { propertyId: borrower.propertyId, priceOboles: 500 };
+    expect(codeOf(await send(borrower.user, 'property.listForSale', sale))).toBe(
+      'PROPERTY_PLEDGED',
+    );
     expect(codeOf(await accept(borrower.user, second, { collateral, principal: 100 }))).toBe(
       'COLLATERAL_NOT_FREE',
     );

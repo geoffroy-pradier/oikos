@@ -19,6 +19,7 @@ En une transaction, tous mondes confondus, elle annule chaque ordre ouvert du bi
 Chaque maison est payée par une écriture du grand livre (`admin.good_buyback`), depuis le robinet du rachat de son monde (5.5) ; son stock part, par le journal des stocks, vers l'extrémité système `good_buyback`, dont rien ne ressort.
 Chaque maison concernée reçoit un événement de domaine `GoodBoughtBack` (bien, unités, oboles, prix, ordres annulés), même sans unité quand seul un ordre d'achat la concernait ; chaque ordre annulé produit aussi son `OrderCancelled`.
 La commande porte les totaux qu'Olympe a montrés (maisons, unités, ordres annulés, oboles) : si l'état du monde n'est plus celui-là (ordre placé, récolte, rachat déjà fait), elle est refusée sans rien faire (`BUYBACK_CHANGED`), comme un prix changé.
+Décision (#728) : un bien dont du stock garantit un prêt de banque non remboursé ne se rachète pas, et donc ne se retire pas, tant que son gage n'est pas libéré ; la commande est refusée sans rien faire (`GOOD_PLEDGED`).
 Dans les comptes de la maison (4.1), son paiement tombe parmi les autres flux, hors exploitation : ce n'est ni une vente à l'agora ni une dotation.
 Le rachat ne convertit le bien en aucun autre, et n'est pas annoncé dans la chronique.
 Le contrôle porte sur l'état du monde au moment de la programmation : ce qui est acquis entre elle et la clôture (production, achat) n'est pas rattrapé.
