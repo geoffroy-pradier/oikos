@@ -4,7 +4,7 @@ import { graceSchema, gracesIssues } from './graces';
 import { honorSchema } from './honor';
 import { liturgiesSchema } from './liturgies';
 import { filterForm } from './moderation';
-import { npcHousesIssues, npcHousesSchema } from './npc-houses';
+import { npcHousesIssues, npcHousesSchema, npcRetreatSchema } from './npc-houses';
 import { oracleIssues, oracleSchema } from './oracle';
 import { stewardsSchema } from './stewards';
 import { templeTreasurySchema } from './temple-treasury';
@@ -1007,6 +1007,8 @@ export const gameConfigSchema = z
     worldEvents: worldEventsSchema.optional(),
     /** Absent des versions publiées avant les maisons PNJ de secours (#715) : aucune maison PNJ n'est fondée. */
     npcHouses: npcHousesSchema.default({}),
+    /** Absent des versions publiées avant le retrait (#717) : aucune maison PNJ ne se retire devant les joueurs. */
+    npcRetreat: npcRetreatSchema.optional(),
     /** Absent des versions publiées avant les quatre cités : aucun dieu, donc aucun dieu protecteur. */
     gods: z.array(godSchema).max(100).default([]),
     /** Absent des versions publiées avant les grâces (#266) : aucune grâce ne s'invoque. */
@@ -1180,8 +1182,12 @@ export const gameConfigSchema = z
       referencePrice: (goodId) =>
         config.goods.find((good) => good.id === goodId)?.referencePriceOboles,
       inputs: (recipeId) => recipes.get(recipeId)?.inputs.map((input) => input.goodId) ?? [],
+      outputs: (recipeId) => recipes.get(recipeId)?.outputs.map((output) => output.goodId) ?? [],
     }))
       issue(['npcHouses', ...path], message);
+    // L'écart entre les deux seuils du retrait (#717) évite les allers-retours : le seuil bas est sous le seuil haut.
+    if (config.npcRetreat && config.npcRetreat.lowShareBps >= config.npcRetreat.highShareBps)
+      issue(['npcRetreat', 'lowShareBps'], 'not below highShareBps');
     // Les règles des maisons PNJ se mènent au pas des intendants (#716) : sans eux, aucune ne serait menée.
     const npcRules = Object.values(config.npcHouses).some((city) =>
       city.chains.some((chain) =>

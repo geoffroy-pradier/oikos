@@ -127,7 +127,7 @@ describe('maisons PNJ de secours (8.3, #715)', () => {
         { kind: 'sell', goodId: 'wheat', minPriceOboles: 6, keepUnits: 0 },
       ],
       mill_flour: [
-        { kind: 'buy', goodId: 'wheat', maxPriceOboles: 7, targetUnits: 40 },
+        { kind: 'buy', goodId: 'wheat', maxPriceOboles: 6, targetUnits: 40 },
         { kind: 'collect' },
         { kind: 'sell', goodId: 'flour', minPriceOboles: 9, keepUnits: 8 },
       ],
@@ -157,6 +157,18 @@ describe('maisons PNJ de secours (8.3, #715)', () => {
         ),
       ).toEqual([
         'npcHouses.kalliste.chains[0].rules.grow_wheat[0].minPriceOboles: above the reference price (6)',
+      ]);
+    });
+
+    it('le schéma refuse un achat d’intrant au-dessus du prix de référence, d’une obole (#717)', () => {
+      expect(
+        errorsOf(
+          ruled({
+            mill_flour: [{ kind: 'buy', goodId: 'wheat', maxPriceOboles: 7, targetUnits: 40 }],
+          }),
+        ),
+      ).toEqual([
+        'npcHouses.kalliste.chains[0].rules.mill_flour[0].maxPriceOboles: above the reference price (6)',
       ]);
     });
 
@@ -216,6 +228,57 @@ describe('maisons PNJ de secours (8.3, #715)', () => {
         'npcHouses: rules need the stewards section, whose pace they follow',
       ]);
       expect(validateConfig({ ...config, npcHouses: ruled({}) }).ok).toBe(true);
+    });
+  });
+
+  describe('retrait devant les joueurs (#717)', () => {
+    const RETREAT = { highShareBps: 8_000, lowShareBps: 4_000, windowDays: 3, days: 2 };
+    const retreatErrors = (npcRetreat: unknown, npcHouses: unknown = houses()) => {
+      const result = validateConfig({
+        ...(structuredClone(INITIAL_CONFIG) as object),
+        npcHouses,
+        npcRetreat,
+      });
+      return result.ok ? [] : result.errors;
+    };
+
+    it('absent d’une version publiée avant lui, et admis avec des seuils ordonnés', () => {
+      const result = validateConfig({
+        ...(structuredClone(INITIAL_CONFIG) as object),
+        npcHouses: houses(),
+      });
+      expect(result.ok && result.config.npcRetreat).toBeUndefined();
+      expect(retreatErrors(RETREAT)).toEqual([]);
+      expect(retreatErrors({ ...RETREAT, lowShareBps: 0, highShareBps: 10_000 })).toEqual([]);
+    });
+
+    it('un seuil bas sous le seuil haut, des points de base, des durées d’au moins une clôture', () => {
+      expect(retreatErrors({ ...RETREAT, lowShareBps: 8_000 })).toEqual([
+        'npcRetreat.lowShareBps: not below highShareBps',
+      ]);
+      for (const change of [
+        { highShareBps: 10_001 },
+        { lowShareBps: -1 },
+        { windowDays: 0 },
+        { days: 0 },
+        { days: 31 },
+        { days: 1.5 },
+        { extra: 1 },
+      ])
+        expect([change, retreatErrors({ ...RETREAT, ...change })[0]?.split(':')[0]]).toEqual([
+          change,
+          expect.stringMatching(/^npcRetreat/),
+        ]);
+    });
+
+    it('le bien d’une filière sort d’une de ses recettes', () => {
+      expect(errorsOf(houses({ goodId: 'wheat' }))).toEqual([]);
+      expect(errorsOf(houses({ goodId: 'bread' }))).toEqual([
+        'npcHouses.elaia.chains[0].goodId: "bread" is made by no recipe of the chain',
+      ]);
+      expect(new Set(fieldsOf(houses({ goodId: 'Wheat' })))).toEqual(
+        new Set(['npcHouses.elaia.chains[0].goodId']),
+      );
     });
   });
 });

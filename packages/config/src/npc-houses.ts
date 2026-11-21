@@ -54,6 +54,11 @@ export const npcChainSchema = z.strictObject({
    * intendant ni salaire. Une recette sans règles : ses sites ne font rien. Absent d'une version publiée avant elles.
    */
   rules: z.record(id, z.array(npcRuleSchema).max(20)).optional(),
+  /**
+   * Bien de la filière (#717), sorti d'une de ses recettes : la part des maisons de joueurs dans ses ventes à l'agora
+   * de la cité décide du retrait (`npcRetreat`). Absent : la filière ne se retire jamais.
+   */
+  goodId: id.optional(),
 });
 
 /** Maisons PNJ de secours d'une cité : ses filières et le plafond de trésorerie de chacune de leurs maisons. */
@@ -74,13 +79,31 @@ export const npcHousesSchema = z.record(id, npcCitySchema);
 export type NpcHouses = z.infer<typeof npcHousesSchema>;
 export type NpcChain = z.infer<typeof npcChainSchema>;
 
+const bps = z.number().int().min(0).max(10_000);
+const days = z.number().int().min(1).max(30);
+/**
+ * Retrait des maisons PNJ devant les joueurs (8.3, #717). À chaque clôture, la part des maisons de joueurs dans les
+ * ventes du bien d'une filière (`goodId`), sur les `windowDays` dernières clôtures, se compare à deux seuils, en points
+ * de base : au-dessus de `highShareBps` depuis `days` clôtures de suite, la maison PNJ ferme un site ; sous
+ * `lowShareBps`, elle en rouvre un, dans la limite de sa filière. L'écart entre les seuils évite les allers-retours.
+ */
+export const npcRetreatSchema = z.strictObject({
+  highShareBps: bps,
+  lowShareBps: bps,
+  windowDays: days,
+  days,
+});
+export type NpcRetreat = z.infer<typeof npcRetreatSchema>;
+
 /**
  * Contrôles qui demandent le reste de la configuration : des cités et des recettes connues, chaque recette admise par le
  * terroir de sa cité (`admits`), des filières uniques dans leur cité, au moins un site et au plus
  * `MAX_NPC_HOUSE_SITES` par filière, des noms uniques dans tout le monde (sans égard à la casse, comme la base), une
  * dotation au plus égale au plafond de trésorerie. Les règles (#716) visent une recette de la filière, une par sorte et
  * par bien ; une vente, un bien connu, à un prix plancher au plus égal à son prix de référence (`referencePrice`) ; un
- * achat, un intrant de la recette (`inputs`). Rend des chemins sous `npcHouses`.
+ * achat, un intrant de la recette (`inputs`), à un prix au plus égal à sa référence (#717), pour qu'une configuration ne
+ * vide pas la dotation vers les joueurs. Le bien de la filière (#717) sort d'une de ses recettes (`outputs`). Rend des
+ * chemins sous `npcHouses`.
  */
 export function npcHousesIssues(
   npcHouses: NpcHouses,
@@ -90,6 +113,7 @@ export function npcHousesIssues(
     admits: (cityId: string, recipeId: string) => boolean;
     referencePrice: (goodId: string) => number | undefined;
     inputs: (recipeId: string) => readonly string[];
+    outputs: (recipeId: string) => readonly string[];
   },
 ): { path: (string | number)[]; message: string }[] {
   const issues: { path: (string | number)[]; message: string }[] = [];
@@ -146,6 +170,11 @@ export function npcHousesIssues(
               path: [...at, position, 'minPriceOboles'],
               message: `above the reference price (${reference})`,
             });
+          else if (rule.kind === 'buy' && rule.maxPriceOboles > reference)
+            issues.push({
+              path: [...at, position, 'maxPriceOboles'],
+              message: `above the reference price (${reference})`,
+            });
           if (rule.kind === 'buy' && !known.inputs(recipeId).includes(rule.goodId))
             issues.push({
               path: [...at, position, 'goodId'],
@@ -153,6 +182,14 @@ export function npcHousesIssues(
             });
         });
       }
+      if (
+        chain.goodId !== undefined &&
+        !counts.some(([recipeId]) => known.outputs(recipeId).includes(chain.goodId ?? ''))
+      )
+        issues.push({
+          path: [...path, 'goodId'],
+          message: `"${chain.goodId}" is made by no recipe of the chain`,
+        });
       if (chain.grantOboles > city.treasuryCapOboles)
         issues.push({ path: [...path, 'grantOboles'], message: 'above the treasury cap' });
     });
