@@ -1818,6 +1818,19 @@
       "daysShort_one": "{{count}} day",
       "daysShort_other": "{{count}} days",
       "termHint": "Term in game days: the due date is the close of that day."
+    },
+    "temple": {
+      "title": "Temple Treasury",
+      "intro": "The temple lends at the policy rate, within your Timè ceiling, one loan at a time.",
+      "rate": "Policy rate",
+      "honor": "Your Timè",
+      "cap": "Your Timè ceiling",
+      "blocked": {
+        "closed": "The Temple Treasury is not lending for now.",
+        "dishonored": "Borrowing is suspended while the mark of dishonor lasts.",
+        "outstanding": "Your house already has a temple loan: repay it to borrow again.",
+        "noCap": "Your Timè does not reach the first tier: the temple lends you nothing for now."
+      }
     }
   }
 }

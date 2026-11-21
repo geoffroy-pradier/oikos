@@ -9,6 +9,8 @@ import {
   HandCoins,
   Hourglass,
   Landmark,
+  Crown,
+  Gauge,
   Percent,
   StatCard,
   TriangleAlert,
@@ -21,12 +23,20 @@ import { useRows } from '../data';
 import { useGameTime } from '../game-time';
 import { useHouse } from '../house';
 import { HouseNav } from '../HouseNav';
-import { LOAN_COLUMNS, parseHouseHonor, parseMyLoans, type MyLoan } from '../loans';
+import {
+  LOAN_COLUMNS,
+  loanCap,
+  parseHouseHonor,
+  parseMyLoans,
+  parseTempleRules,
+  type MyLoan,
+} from '../loans';
 import { useMoney } from '../money';
 import { ScreenHeader } from '../ScreenHeader';
 import { noticeClass } from './CommandNotice';
 import { LoadProblem, Loading } from './LoadProblem';
 import { LoanRepaySheet } from './LoanRepaySheet';
+import { TempleLoanSheet } from './TempleLoanSheet';
 import { SectionTitle } from './SectionTitle';
 
 /** Jours de jeu : un jour de jeu dure vingt-quatre heures, de clôture à clôture (conversion d'unité, pas d'équilibrage). */
@@ -55,6 +65,7 @@ export function FinancesScreen() {
   const money = useMoney();
   const now = useGameTime().getTime();
   const title = useRef<HTMLHeadingElement>(null);
+  const templeTitle = useRef<HTMLHeadingElement>(null);
   const mine = { house_id: house.id };
   const loanRows = useRows<unknown>('my_loans', LOAN_COLUMNS, 'due_at', mine);
   const honorRows = useRows<unknown>(
@@ -70,27 +81,50 @@ export function FinancesScreen() {
     'house_id',
     mine,
   );
+  const rulesRows = useRows<unknown>(
+    'temple_treasury_rules',
+    'policy_rate_bps, term_days, principal_caps',
+    'policy_rate_bps',
+  );
   const reads = [loanRows, honorRows];
   const loans = loanRows.rows === null ? null : parseMyLoans(loanRows.rows);
   const honor = honorRows.rows === null ? null : parseHouseHonor(honorRows.rows);
   const loading = reads.some((read) => read.rows === null && !read.failed);
   const failed =
     reads.some((read) => read.failed) || (!loading && (loans === null || honor === null));
+  const rules = rulesRows.rows === null ? null : parseTempleRules(rulesRows.rows);
+  const rulesFailed = rulesRows.failed || (rulesRows.rows !== null && rules === null);
+  const dishonor = honor?.dishonor;
   const treasury =
     sheetRows.rows === null
       ? null
       : (parseBalanceSheet(sheetRows.rows[0] ?? null)?.treasury ?? null);
-  const reload = () => Promise.all([...reads, sheetRows].map((read) => read.reload()));
+  const reload = () => Promise.all([...reads, rulesRows, sheetRows].map((read) => read.reload()));
   const done = useRef<HTMLParagraphElement>(null);
   const [repaying, setRepaying] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [borrowing, setBorrowing] = useState(false);
+  const cap = rules && rules !== 'closed' && honor ? loanCap(honor.honor, rules) : 0;
+  // Pourquoi on ne peut pas emprunter, dans l'ordre où l'API refuserait ; `null` : on le peut.
+  // Règles pas encore lues ou illisibles : on ne dit rien, ni plafond ni blocage.
+  const blocked =
+    rules === null
+      ? null
+      : rules === 'closed' || rules.termDays.length === 0
+        ? 'closed'
+        : dishonor?.dishonored
+          ? 'dishonored'
+          : loans?.some((loan) => loan.lender === 'temple')
+            ? 'outstanding'
+            : cap === 0
+              ? 'noCap'
+              : null;
   const repaid = loans?.find((loan) => loan.id === repaying) ?? null;
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
     maximumFractionDigits: 2,
   });
-  const dishonor = honor?.dishonor;
 
   return (
     <div className="flex flex-col gap-4 [overflow-wrap:anywhere]">
@@ -192,6 +226,68 @@ export function FinancesScreen() {
           </ul>
         )}
       </Card>
+      {!failed && !loading && honor && loans && (
+        <Card className="flex flex-col gap-4">
+          <SectionTitle ref={templeTitle} tabIndex={-1} icon={<Landmark />}>
+            {t('finances.temple.title')}
+          </SectionTitle>
+          <p className="text-sm text-muted-foreground">{t('finances.temple.intro')}</p>
+          {rulesFailed && <LoadProblem heading={templeTitle} onRetry={rulesRows.reload} />}
+          {rules && rules !== 'closed' && (
+            <dl className="grid gap-3 sm:grid-cols-3">
+              <StatCard
+                definition
+                label={t('finances.temple.rate')}
+                value={t('finances.borrow.perYear', {
+                  rate: percent.format(rules.policyRateBps / 10_000),
+                })}
+                icon={<Percent />}
+              />
+              <StatCard
+                definition
+                label={t('finances.temple.honor')}
+                value={new Intl.NumberFormat(i18n.language).format(honor.honor)}
+                icon={<Crown />}
+              />
+              <StatCard
+                definition
+                label={t('finances.temple.cap')}
+                value={money(cap)}
+                icon={<Gauge />}
+              />
+            </dl>
+          )}
+          {rules !== null && blocked && (
+            <p className="rounded-lg bg-muted p-3 text-sm">
+              {t(`finances.temple.blocked.${blocked}`)}
+            </p>
+          )}
+          {rules !== null && !blocked && (
+            <Button
+              className="self-start"
+              icon={<Landmark aria-hidden="true" />}
+              aria-haspopup="dialog"
+              onClick={() => setBorrowing(true)}
+            >
+              {t('finances.borrow.open')}
+            </Button>
+          )}
+        </Card>
+      )}
+      {rules && rules !== 'closed' && cap > 0 && borrowing && (
+        <TempleLoanSheet
+          rules={rules}
+          cap={cap}
+          open
+          onClose={() => setBorrowing(false)}
+          onBorrowed={async (message) => {
+            setAnnouncement(message);
+            await reload();
+            done.current?.focus();
+          }}
+          onRefused={reload}
+        />
+      )}
       {repaid && (
         <LoanRepaySheet
           key={repaid.id}
