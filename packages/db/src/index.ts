@@ -16,9 +16,15 @@ import {
 } from 'kysely';
 import pg from 'pg';
 
-/** Cause d'une ligne du journal de l'Hybris (#734), comme `HUBRIS_CAUSES` de `@oikos/sim`. */
+/** Cause d'une ligne du journal de l'Hybris (#734, #735), comme `HUBRIS_LEDGER_CAUSES` de `@oikos/sim`. */
 export type HubrisCauseCode =
-  'market_share' | 'wealth' | 'liturgy_levied' | 'offering' | 'liturgy_performed' | 'decay';
+  | 'market_share'
+  | 'wealth'
+  | 'liturgy_levied'
+  | 'offering'
+  | 'liturgy_performed'
+  | 'decay'
+  | 'nemesis';
 
 /** Modèles de sanction de Némésis (7.2, #735), ceux de la contrainte `nemesis_omens.model`. */
 export type NemesisModelCode = 'warehouse_fire' | 'lawsuit' | 'artisan_desertion' | 'ship_lost';
@@ -294,6 +300,34 @@ export interface GameDatabase {
     cause: ColumnType<HubrisCauseCode, HubrisCauseCode, never>;
     game_day: ColumnType<number, number, never>;
     created_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Présages de Némésis (7.2, #735) : adressés par la clôture, puis réglés une fois par la clôture d'un jour d'échéance
+   * ou d'après, évités ou frappés avec ce que la sanction a pris (garde de la base). Jamais lus par un client hors de
+   * `public.my_omens`.
+   */
+  'game.nemesis_omens': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    model: ColumnType<NemesisModelCode, NemesisModelCode, never>;
+    text_fr: ColumnType<string, string, never>;
+    text_en: ColumnType<string, string, never>;
+    omen_day: ColumnType<number, number, never>;
+    due_day: ColumnType<number, number, never>;
+    created_at: ColumnType<Date, never, never>;
+    outcome: ColumnType<'struck' | 'averted' | null, never, 'struck' | 'averted'>;
+    settled_day: ColumnType<number | null, never, number>;
+    settled_at: ColumnType<Date | null, never, never>;
+    magnitude_bps: ColumnType<number | null, never, number | null>;
+    relief: ColumnType<string | null, never, number | null>;
+    oboles: ColumnType<string | null, never, string | number | null>;
+    ledger_entry_id: ColumnType<string | null, never, string | null>;
+    inventory_id: ColumnType<string | null, never, string | null>;
+    quantity: ColumnType<string | null, never, string | number | null>;
+    site_id: ColumnType<string | null, never, string | null>;
+    resumes_at: ColumnType<Date | null, never, Date | null>;
+    voyage_id: ColumnType<string | null, never, string | null>;
   };
   /**
    * Grâces invoquées (7.1, #266) : écrites par `temple.invokeGrace`, puis consommées une fois par une récolte
