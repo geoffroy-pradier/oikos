@@ -9,6 +9,7 @@ import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
+import { liturgyAssignment } from './steps/liturgy-assignment';
 import { npcPopulation } from './steps/npc-population';
 import { npcPublicIncome } from './steps/npc-public-income';
 import { ostracismOpening } from './steps/ostracism-opening';
@@ -24,7 +25,9 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * verrous de la Timè, l'ouverture des élections suivantes, le dépouillement des décrets (6.3), l'ouverture du vote
  * des ostracismes adoptés, la population des PNJ,
  * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
- * les siens, sans autre verrou que celui de la clôture du monde, le déclin de la Charis (7.1, #265),
+ * les siens, sans autre verrou que celui de la clôture du monde, la désignation des liturgies (6.4, #719), qui lit
+ * la fortune des maisons avant que la clôture ne touche la monnaie, sans autre verrou non plus, le déclin de la
+ * Charis (7.1, #265),
  * l'application des décrets de taux (5.6, #262), le règlement des
  * décrets de dépense (5.5, #263), les loyers des baux (4.5, #257), la vétusté des biens immobiliers (4.5),
  * le marché du travail du jour (4.4, #258), le revenu public des PNJ (5.5, #632), puis l'entretien.
@@ -57,6 +60,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   ostracismOpening,
   npcPopulation,
   worldEventPlanning,
+  liturgyAssignment,
   favorDecay,
   decreeApplication,
   decreeSpending,
