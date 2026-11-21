@@ -168,7 +168,7 @@ Dans la phase 2 (ticket 267), un petit catalogue fermé de modèles naturels et 
 | --- | --- | --- |
 | Sécheresse (`drought`) | Une cité | Rendement des champs réduit |
 | Bonne année (`good_year`) | Une cité | Rendement des vergers accru |
-| Tempête (`storm`) | Une route | Trajets qui partent pendant la tempête allongés |
+| Tempête (`storm`) | Une route | Trajets qui partent pendant la tempête allongés, et risque de perte majoré (#730) |
 | Caravane étrangère (`caravan`) | Une cité et un bien | Demande des PNJ de la cité pour ce bien accrue |
 
 La configuration (`worldEvents.models`) donne à chaque modèle une probabilité par jour, une durée en jours de jeu et une ampleur en points de base, bornées (au plus 10 000 : rendement nul ou doublé, trajet deux fois plus long, demande doublée).
@@ -177,7 +177,8 @@ Changer les règles d'un modèle ne change donc pas les tirages des autres ; au 
 La cité est tirée parmi celles du monde connues de la configuration, la route parmi les routes entre elles, le bien d'une caravane parmi `goodIds`, des biens achetés par au moins une classe de PNJ.
 Configuration initiale (#668) : chaque modèle a une chance sur trente par jour (333 points de base), soit environ un événement de chaque modèle par mois dans le monde ; durées et ampleurs restent celles du catalogue.
 Les bancs closent des jours passés, et une clôture ne planifie pas un jour dont le début est déjà atteint (7.3) : le banc à quatre cités planifie donc lui-même, après chaque clôture, ce qu'elle aurait planifié, avec le même tirage et sa graine fixe, et en joue les effets (`apps/api/src/balance/events.ts`) ; le banc à une cité de #78 n'en joue aucun.
-Décision : une tempête retarde, elle ne fait rien perdre.
+Décision (phase 2) : une tempête retarde, elle ne fait rien perdre.
+Décision (#730) : une tempête majore en outre le risque de perte des voyages qui partent pendant elle, de la majoration de sa route (`stormLossRiskBps`, 4.6), quelle que soit son ampleur ; le tirage se fait à l'arrivée.
 Des événements d'un même modèle qui se chevauchent sur une même portée ne s'ajoutent pas : seul le plus fort agit, et à égalité celui du plus petit identifiant, soit la planification la plus ancienne.
 Les identifiants sont des UUID v7, croissants dans le temps, et une clôture ne planifie qu'un jour : deux événements d'un même modèle viennent de deux clôtures, dans l'ordre de leurs identifiants.
 Ce départage ne se voit que pour une tempête (le retard est attribué à l'une d'elles dans `event_effects`) ou un événement de rendement (l'écart est attribué de même) ; deux caravanes égales relèvent la demande d'autant.
