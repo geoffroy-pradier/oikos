@@ -106,6 +106,31 @@ Chaque maison a une jauge d'Hybris cachée, dont seul le niveau approximatif est
 
 Au-delà d'un seuil, Némésis frappe : incendie d'entrepôt, procès, artisan qui déserte, navire perdu. La sanction est toujours annoncée par des présages, proportionnée et évitable. Le joueur dominant doit choisir entre redistribuer et risquer.
 
+Dans la phase 3 (#734), la jauge est un entier, de zéro au plus grand entier sûr, que chaque clôture fait varier par `hubrisDelta` (`packages/sim`), une ligne du journal `hubris_ledger` par cause (12).
+Seules les maisons de joueur en ont une : une maison PNJ de secours n'a pas de jauge, et sa fortune n'entre pas dans la médiane ; ses ventes comptent dans les échanges d'un marché.
+Part de marché : pour chaque bien dans chaque cité, la part des ventes de la maison dans tout ce qui s'y est échangé sur les `hubris.marketShareWindowDays` jours qui précèdent l'instant de la clôture, au-delà de `marketShareThresholdBps` (3 500 points, les 35 % ci-dessus), fait monter la jauge de `marketShareWeight` par part entière au-delà du seuil, au prorata, arrondi vers le bas.
+Fortune : la fortune de la maison (4.1), au-delà de `wealthMultipleBps` fois la fortune médiane des maisons de joueur du monde, la fait monter de `wealthWeight` par médiane au-delà, au prorata, arrondi vers le bas.
+Une médiane nulle ou négative ne fait rien monter ; la médiane d'un nombre pair de maisons est la moyenne des deux du milieu, arrondie vers le bas.
+Refus des liturgies : chaque liturgie prélevée d'office (6.4) la fait monter de `leviedLiturgyWeight`.
+Décision (ambiguïté de cette section) : le mécénat est la liturgie accomplie et son faste ; chaque liturgie accomplie la fait baisser de `performedLiturgyRelief`, et son faste compte comme des oboles offertes.
+Offrandes : chaque obole offerte la fait baisser de `offeringReliefBps` dix-millièmes, arrondi vers le bas ; une offrande de biens ne la fait pas baisser.
+Enfin elle décline de `dailyDecay` à chaque clôture, jusqu'à zéro.
+Les gains s'appliquent d'abord, puis les baisses, puis le déclin, chacun rogné pour que la jauge reste dans ses bornes : une baisse ne s'éponge pas d'avance sur un gain du même jour.
+Décision : ce que la maison fait compte avec une clôture de retard.
+Une clôture compte les liturgies prélevées à la dernière clôture enregistrée, et les offrandes et les liturgies accomplies datées de l'avant-dernière clôture enregistrée à la dernière.
+Une commande commencée avant l'instant d'une clôture peut être validée après que la clôture l'a lue ; une clôture plus tard, aucune ne l'est plus, et chaque acte compte une fois, même après une clôture manquée.
+Ce qu'est la maison, sa part de marché et sa fortune, compte à la clôture du jour.
+Décision : les ententes sur les prix attendent une détection ; aucune ne fait encore monter la jauge.
+La clôture joue l'Hybris dans son étape `hubrisGauge`, après la planification des événements du monde et avant tout ce qui touche la monnaie ; rejouée, elle n'écrit rien deux fois (12).
+Le joueur ne lit que le palier de sa jauge (`public.my_hubris_tier`) : le nombre de bornes de `hubris.tiers`, dans la configuration en vigueur, que sa jauge atteint ; il ne lit jamais sa valeur, ni rien de la jauge d'une autre maison.
+Configuration initiale : seuil de 35 %, fenêtre de 7 jours, trois fois la médiane, paliers à 1 000, 3 000, 6 000 et 10 000 ; poids, baisses et déclin nuls : la jauge ne bouge pas avant le calibrage.
+Une version publiée avant l'Hybris ne change aucune jauge, et tout palier y est nul.
+Décision : une clôture jouée sous une telle version ne compte pas non plus les actes de sa période (les liturgies prélevées à la clôture précédente, les offrandes et liturgies accomplies de la période d'avant) : ils restent ignorés, la période suivante commençant à la dernière clôture enregistrée.
+La médiane compte chaque maison de joueur du monde ; une maison absente de `game.house_wealth`, qui les rend pourtant toutes, y compterait pour une fortune nulle.
+Limites connues : la fortune est lue quand la clôture se joue, et non à son instant de jeu, comme pour la désignation des liturgies ; un échange en cours à l'instant de la clôture n'entre dans la fenêtre qu'aux clôtures suivantes.
+Une maison seule à vendre un bien peu échangé dans une cité y détient toute la part, quelle que soit la quantité : le calibrage en tiendra compte.
+Présages et Némésis viennent avec le ticket suivant (Hybris 2/2) ; l'écran aussi.
+
 ## 7.3 La Pythie
 
 Les événements du monde sont planifiés par le moteur plusieurs jours à l'avance. La Pythie en tire des oracles volontairement ambigus, rédigés par l'IA à partir de l'événement réel. Consulter l'oracle coûte des offrandes ; bien l'interpréter permet de se positionner avant les autres. Les oracles s'échangent et se discutent : c'est un marché de l'information.
