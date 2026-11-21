@@ -77,6 +77,7 @@ export {
   Moon,
   Package,
   PartyPopper,
+  Percent,
   Plus,
   RefreshCw,
   Scale,

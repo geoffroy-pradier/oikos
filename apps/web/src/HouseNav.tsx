@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: 'staff', to: '/personnel' },
   { id: 'property', to: '/immobilier' },
   { id: 'accounts', to: '/comptes' },
+  { id: 'finances', to: '/finances' },
 ] as const;
 
 /**
