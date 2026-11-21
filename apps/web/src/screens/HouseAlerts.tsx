@@ -13,9 +13,13 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { SectionTitle } from './SectionTitle';
 import { useRows } from '../data';
+import { useGameTime } from '../game-time';
 import { useHouse } from '../house';
+import { openLiturgy, parseMyLiturgies } from '../liturgies';
+import { useMoney } from '../money';
 import { parseCityLabor } from '../labor';
 import { houseAlerts, parseUnhoused, type HouseAlert } from '../property-alerts';
+import { GENRE_ICONS } from './liturgy-genre';
 import { parseLeases, parseMyProperties, parsePropertyRules } from '../property';
 
 /** Icône et teinte de chaque alerte : un défaut de paiement en danger, un bien à rénover en alerte. */
@@ -54,6 +58,19 @@ export function HouseAlerts({ className }: { className?: string }) {
     'id, property_id, city_id, size_id, lot, tenant_house_id, rent_oboles, end_requested_at, ended_at, ended_day, end_reason',
     'started_at',
   );
+  // Liturgie désignée, pas encore échue : toujours la première de la liste, c'est la plus urgente.
+  const liturgyRows = useRows<unknown>(
+    'my_liturgies',
+    'id, city_id, season, genre, due, due_at, status',
+    'season',
+  );
+  const now = useGameTime();
+  const money = useMoney();
+  const liturgy =
+    liturgyRows.rows === null
+      ? null
+      : openLiturgy(parseMyLiturgies(liturgyRows.rows) ?? [], now.getTime());
+  const LiturgyIcon = liturgy ? GENRE_ICONS[liturgy.genre] : null;
   const sizes = rulesRows.rows ? parsePropertyRules(rulesRows.rows[0] ?? null) : null;
   const properties = mineRows.rows ? parseMyProperties(mineRows.rows) : null;
   const leases = leaseRows.rows ? parseLeases(leaseRows.rows, house.id) : null;
@@ -70,7 +87,8 @@ export function HouseAlerts({ className }: { className?: string }) {
           lastCloseDay: Math.max(...[...labor.values()].map((city) => city.gameDay), -1),
         })
       : [];
-  if (alerts.length === 0) return null;
+  const total = alerts.length + (liturgy ? 1 : 0);
+  if (total === 0) return null;
   const number = new Intl.NumberFormat(i18n.language);
   const describe = (property: { sizeId: string; lot: number; cityId: string }) =>
     t('property.describe', {
@@ -87,10 +105,39 @@ export function HouseAlerts({ className }: { className?: string }) {
           aria-hidden="true"
           className="min-w-6 rounded-full bg-primary-subtle px-2 text-center text-xs leading-6 font-semibold text-primary tabular-nums"
         >
-          {number.format(alerts.length)}
+          {number.format(total)}
         </span>
       </div>
       <ul className="flex flex-col gap-2">
+        {liturgy && (
+          <li key="liturgy">
+            <Link
+              to="/cite/liturgie"
+              className="flex items-center gap-3 rounded-xl bg-surface-raised p-3 transition-colors duration-(--motion-fast) hover:bg-muted"
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-9 shrink-0 place-items-center rounded-lg bg-warning-subtle text-warning"
+              >
+                {LiturgyIcon && <LiturgyIcon className="size-5" />}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium">
+                  {t('alerts.liturgy', {
+                    genre: t(`liturgy.genres.${liturgy.genre}`),
+                    due: money(liturgy.due),
+                    date: new Intl.DateTimeFormat(i18n.language, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(liturgy.dueAt),
+                  })}
+                </span>{' '}
+                <span className="text-sm text-muted-foreground">{t('alerts.toLiturgy')}</span>
+              </span>
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
+          </li>
+        )}
         {alerts.map((alert) => {
           const key =
             alert.kind === 'unhoused'

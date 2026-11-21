@@ -1035,7 +1035,9 @@
     "unpaid": "{{property}}: upkeep unpaid, this property houses no one.",
     "leaseTerminated": "Lease terminated for unpaid rent: {{property}}.",
     "toStaff": "See the staff",
-    "toProperty": "See the property"
+    "toProperty": "See the property",
+    "liturgy": "Liturgy entrusted to your house: {{genre}}. Due: {{due}}, to be performed before {{date}}.",
+    "toLiturgy": "Perform my liturgy"
   },
   "cityPolitics": {
     "title": "Civic life",

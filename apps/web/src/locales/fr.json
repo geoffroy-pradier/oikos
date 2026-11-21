@@ -1035,7 +1035,9 @@
     "unpaid": "{{property}} : entretien impayé, ce bien ne loge personne.",
     "leaseTerminated": "Bail résilié pour loyer impayé : {{property}}.",
     "toStaff": "Voir le personnel",
-    "toProperty": "Voir l'immobilier"
+    "toProperty": "Voir l'immobilier",
+    "liturgy": "Liturgie confiée à votre maison : {{genre}}. Dû : {{due}}, à accomplir avant le {{date}}.",
+    "toLiturgy": "Accomplir ma liturgie"
   },
   "cityPolitics": {
     "title": "Vie politique",

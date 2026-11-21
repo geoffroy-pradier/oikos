@@ -23,7 +23,9 @@ vi.mock('../data', () => ({
   }),
 }));
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
 }));
 const { HouseAlerts } = await import('./HouseAlerts');
 
@@ -130,5 +132,55 @@ describe('alertes du tableau de bord (#259)', () => {
     expect(
       houseAlerts({ unhoused: 0, properties: [atThreshold], sizes, leases: [], lastCloseDay: 0 }),
     ).toEqual([]);
+  });
+
+  describe('liturgie désignée', () => {
+    const liturgy = (extra = {}) => ({
+      id: 'l1',
+      city_id: 'k',
+      season: 4,
+      genre: 'trierarchy',
+      due: 7500,
+      due_at: '2999-01-01T04:00:00+00:00',
+      status: 'assigned',
+      ...extra,
+    });
+
+    it('seule, elle porte le genre, le dû en drachmes et oboles, l’échéance et le lien vers l’accomplissement', async () => {
+      views.rows = { my_liturgies: [liturgy()] };
+      const html = (await render()).replace(/[\u00a0\u202f]/g, ' ');
+      expect(html).toContain('href="/cite/liturgie"');
+      expect(html).toContain('Liturgie confiée à votre maison : Triérarchie. Dû : 1 250 drachmes');
+      expect(html).toContain('à accomplir avant le ');
+      expect(html).toContain('Accomplir ma liturgie');
+    });
+
+    it('passe avant les autres alertes et compte dans le total', async () => {
+      views.rows = {
+        my_liturgies: [liturgy()],
+        my_workforce: [{ site_id: 's1', city_id: 'k', unhoused: 3 }],
+        labor_market: [day('k', 20001, 2)],
+        property_rules: [{ properties: config.properties }],
+        my_properties: [],
+        my_leases: [],
+      };
+      const html = await render();
+      expect(html.indexOf('Liturgie confiée')).toBeGreaterThan(-1);
+      expect(html.indexOf('Liturgie confiée')).toBeLessThan(
+        html.indexOf('travailleurs sans logement'),
+      );
+      expect(html).toContain('>2<');
+    });
+
+    it('échue, accomplie ou prélevée : plus d’alerte, la carte se tait', async () => {
+      for (const extra of [
+        { due_at: '2020-01-01T04:00:00+00:00' },
+        { status: 'performed' },
+        { status: 'levied' },
+      ]) {
+        views.rows = { my_liturgies: [liturgy(extra)] };
+        expect(await render()).toBe('');
+      }
+    });
   });
 });
