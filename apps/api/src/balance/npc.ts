@@ -53,8 +53,11 @@ export async function npcAfterClose(
     chain_id: string;
     dissolved: boolean;
   }>`select n.house_id, n.city_id, n.chain_id, r.dissolved_at is not null as dissolved
-    from game.npc_houses n left join game.npc_house_retreats r on r.house_id = n.house_id
-    where n.world_id = ${world.worldId} order by n.founded_at, n.house_id`.execute(world.db);
+    from game.npc_houses n join game.cities c on c.id = n.city_id
+    left join game.npc_house_retreats r on r.house_id = n.house_id
+    where n.world_id = ${world.worldId} order by n.founded_at, c.slug, n.chain_id`.execute(
+    world.db,
+  );
   for (const row of rows) {
     let house = npc.houses.get(row.house_id);
     if (!house) {
@@ -86,6 +89,7 @@ export async function npcAfterClose(
       .where('house_id', '=', row.house_id)
       .where('closed_at', 'is', null)
       .orderBy('created_at')
+      .orderBy('recipe_id')
       .orderBy('id')
       .execute();
     const known = new Map(house.sites.map((site) => [site.id, site]));

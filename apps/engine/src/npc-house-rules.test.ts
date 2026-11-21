@@ -2,7 +2,7 @@ import { INITIAL_CONFIG, npcRuleSchema, type GameConfig, type NpcHouses } from '
 import { stewardRuleSchema } from '@oikos/contracts';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { npcOrderJustified, npcSiteRules } from './npc-house-rules';
+import { npcFoundingOrder, npcOrderJustified, npcSiteRules } from './npc-house-rules';
 
 const FIELD = [
   { kind: 'collect' },
@@ -121,6 +121,51 @@ describe('ordres d’une maison PNJ que la configuration justifie (#717)', () =>
           else expect(justified).toBe(side === 'sell' || !liquidating);
         },
       ),
+    );
+  });
+});
+
+describe('ordre des sites des maisons PNJ (#717)', () => {
+  it('celui de la fondation, quels que soient les identifiants tirés au hasard', () => {
+    const at = new Date('2026-11-21T03:00:00Z');
+    const later = new Date('2026-11-22T03:00:00Z');
+    const two: NpcHouses = {
+      kalliste: {
+        treasuryCapOboles: 1,
+        chains: [
+          {
+            id: 'wheat',
+            name: 'Moissons',
+            sites: { grow_wheat: 1, mill_flour: 1 },
+            grantOboles: 0,
+          },
+          { id: 'fish', name: 'Pêcheries', sites: { catch_fish: 1 }, grantOboles: 0 },
+        ],
+      },
+      elaia: {
+        treasuryCapOboles: 1,
+        chains: [{ id: 'salt', name: 'Salines', sites: { rake_salt: 1 }, grantOboles: 0 }],
+      },
+    };
+    const site = (slug: string, chain_id: string, recipe_id: string, founded_at = at) => ({
+      slug,
+      chain_id,
+      recipe_id,
+      founded_at,
+      created_at: founded_at,
+      site_id: `${slug}-${recipe_id}`,
+    });
+    const expected = [
+      site('elaia', 'salt', 'rake_salt'),
+      site('kalliste', 'wheat', 'grow_wheat'),
+      site('kalliste', 'wheat', 'mill_flour'),
+      site('kalliste', 'fish', 'catch_fish'),
+      site('dikaia', 'wheat', 'grow_wheat', later),
+    ];
+    fc.assert(
+      fc.property(fc.shuffledSubarray(expected, { minLength: expected.length }), (shuffled) => {
+        expect(npcFoundingOrder(configWith(two), shuffled)).toEqual(expected);
+      }),
     );
   });
 });

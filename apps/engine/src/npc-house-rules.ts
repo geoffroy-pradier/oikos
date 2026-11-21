@@ -35,6 +35,47 @@ export function npcSiteRules(config: GameConfig, site: Omit<NpcSite, 'site_id' |
   return parsed.success ? (parsed.data as StewardPlanRule[]) : [];
 }
 
+/**
+ * Sites des maisons PNJ dans l'ordre de leur fondation, sans dépendre d'aucun identifiant tiré au hasard (#717) : les
+ * maisons d'une même clôture et les sites d'une même fondation partagent leur instant, et leurs identifiants (uuid v7)
+ * ne départagent pas deux écritures d'une même milliseconde. Après l'instant de fondation, la cité, puis la filière
+ * et la recette à leur rang dans la configuration (celui de la fondation : `dueNpcHouses`), puis l'instant de création
+ * du site ; l'identifiant ne départage que deux sites d'une même recette, interchangeables. Mêmes graine et
+ * configuration, mêmes opérations dans le même ordre. Sans entrée-sortie.
+ */
+export function npcFoundingOrder<
+  T extends {
+    slug: string;
+    chain_id: string;
+    recipe_id: string;
+    founded_at: Date;
+    created_at: Date;
+    site_id: string;
+  },
+>(config: GameConfig, sites: readonly T[]): T[] {
+  const rank = (site: T) => {
+    const chains = Object.hasOwn(config.npcHouses, site.slug)
+      ? (config.npcHouses[site.slug]?.chains ?? [])
+      : [];
+    const chain = chains.findIndex((candidate) => candidate.id === site.chain_id);
+    const recipes = Object.keys(chains[chain]?.sites ?? {});
+    return [chain < 0 ? chains.length : chain, recipes.indexOf(site.recipe_id)];
+  };
+  const by = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  return [...sites].sort((a, b) => {
+    const [ca = 0, ra = 0] = rank(a);
+    const [cb = 0, rb = 0] = rank(b);
+    return (
+      a.founded_at.getTime() - b.founded_at.getTime() ||
+      by(a.slug, b.slug) ||
+      ca - cb ||
+      ra - rb ||
+      a.created_at.getTime() - b.created_at.getTime() ||
+      by(a.site_id, b.site_id)
+    );
+  });
+}
+
 /** Un ordre ouvert d'une maison PNJ, tel que la justification le lit. */
 export interface NpcOpenOrder {
   side: 'buy' | 'sell';
@@ -301,6 +342,7 @@ export async function runNpcHouseRules(db: Db, tick: StewardTick): Promise<Stewa
     .innerJoin('game.cities as c', 'c.id', 'n.city_id')
     .leftJoin('game.npc_site_queues as q', 'q.site_id', 's.id')
     .select(['s.id as site_id', 's.house_id', 's.recipe_id', 'c.slug', 'n.chain_id'])
+    .select(['n.founded_at', 's.created_at'])
     .where('n.world_id', '=', tick.worldId)
     // Un site fermé par le retrait (#717) ne mène pas ses règles.
     .where('s.closed_at', 'is', null)
@@ -315,7 +357,7 @@ export async function runNpcHouseRules(db: Db, tick: StewardTick): Promise<Stewa
     .orderBy('s.created_at')
     .orderBy('s.id')
     .execute();
-  for (const site of sites) {
+  for (const site of npcFoundingOrder(tick.config, sites)) {
     const rules = npcSiteRules(tick.config, site);
     if (rules.length === 0) continue;
     for (let rank = 0; rank < perTick; rank += 1) {

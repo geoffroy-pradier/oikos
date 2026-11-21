@@ -272,7 +272,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     world,
     cities,
     settlements,
-    houses,
+    /** Maisons du banc, puis ses maisons PNJ (#717), dans l'ordre de leur cité et de leur filière : un rang stable. */
+    houses: [...houses, ...npc.houses.values()],
     carriers,
     stewards,
     operations,
