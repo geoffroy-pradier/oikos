@@ -36,7 +36,8 @@ select is(
   (select string_agg(r.rolname || ':' || t, ' ' order by r.rolname, t) from pg_roles r
    cross join unnest(array['game.hubris', 'game.hubris_ledger']) t
    where r.rolname in ('anon', 'authenticated', 'authenticator')
-     and has_table_privilege(r.oid, t, 'select, insert, update, delete, truncate, references, trigger')),
+     and (has_table_privilege(r.oid, t, 'select, insert, update, delete, truncate, references, trigger')
+          or has_any_column_privilege(r.oid, t, 'select, insert, update, references'))),
   null, 'ni un visiteur, ni un joueur connecté, ni le rôle de PostgREST n''a un droit sur la jauge ou son journal');
 select is(
   (select string_agg(table_name || '.' || column_name || ':' || privilege_type, ' ' order by table_name, column_name, privilege_type)
@@ -64,9 +65,10 @@ select is(
    join pg_rewrite w on w.oid = d.objid join pg_class v on v.oid = w.ev_class
    where d.refobjid in ('game.hubris'::regclass, 'game.hubris_ledger'::regclass)),
   null, 'aucune vue ne lit la jauge ou son journal');
+-- Limite connue : une fonction qui nommerait ces tables par du SQL dynamique, ou une procédure, échappe à cette analyse.
 select is(
   (select string_agg(p.oid::regprocedure::text, ' ' order by p.oid::regprocedure::text) from pg_proc p
-   where p.prosrc ~ 'game\.hubris\M' and p.prokind = 'f'
+   where p.prosrc ~ 'game\.hubris(_ledger)?\M' and p.prokind = 'f'
      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'))),
   'game.my_hubris_tier()', 'la seule fonction exécutable par un client qui lit la jauge est celle du palier');
 
