@@ -22,8 +22,17 @@ afterEach(async () => {
 
 /** Texte lu à l'écran : les espaces insécables et fines des nombres deviennent des espaces simples. */
 const text = (node: Element | null | undefined) => node?.textContent?.replace(/\s/g, ' ');
-/** Les quatre chiffres de l'indice, avec ou sans leur intitulé. */
-const figures = (part = 'div') => Array.from(document.querySelectorAll(`dl.grid ${part}`), text);
+/** Les quatre chiffres de l'indice (la première grille), avec ou sans leur intitulé. */
+const figures = (part = 'div') =>
+  Array.from(document.querySelector('dl.grid')?.querySelectorAll(part) ?? [], text);
+/** Les trois chiffres de l'inégalité des fortunes (la grille de son bloc). */
+const wealthFigures = () =>
+  Array.from(
+    screen
+      .getByRole('heading', { name: /^(Inégalité des fortunes|Wealth inequality)$/ })
+      .parentElement?.querySelectorAll('dl.grid div') ?? [],
+    text,
+  );
 const rows = (name: string | RegExp) =>
   within(screen.getByRole('table', { name }))
     .getAllByRole('row')
@@ -131,7 +140,13 @@ it('les jours de jeu se lisent en temps universel, même sous un fuseau à l’o
 });
 
 it('une fenêtre d’un jour s’accorde au singulier ; sans mouvement, aucune liste vide', async () => {
-  const quiet = { ...world({ inflationBps: 420, status: 'above' }), systemAccounts: [] };
+  // Aucune cité non plus : le tableau des fortunes par cité, une liste à 360 px, est absent.
+  const inequality = { ...WORLD.inequality, cities: [] };
+  const quiet = {
+    ...world({ inflationBps: 420, status: 'above' }),
+    systemAccounts: [],
+    inequality,
+  };
   await showAll([quiet], { priceWindowDays: 1, windowDays: 1 });
   expect(figures('dt').slice(0, 3)).toEqual([
     'Indice des prix, dernier jour (référence : 100)',
@@ -367,4 +382,48 @@ it('part de chaque puits : la barre se mesure à la plus grande part, des parts 
     (bar) => Math.round(Number.parseFloat(bar.style.width)),
   );
   expect(widths).toEqual([100, 50, 17]);
+});
+
+it('inégalité des fortunes : Gini du monde et tableau des cités, inconnu sans maison, en français et en anglais', async () => {
+  await show();
+  expect(wealthFigures()).toEqual([
+    'Coefficient de Gini du monde0,1234',
+    'Maisons comptées3',
+    'Stocks sans prix observé2',
+  ]);
+  expect(rows('Inégalité des fortunes par cité, monde « archipel »')).toEqual([
+    ['Cité▲', 'Gini', 'Maisons comptées', 'Stocks sans prix observé'],
+    ['halos', 'Sans mesure (aucune maison)', '0', '0'],
+    ['kalliste', '0,1234', '3', '2'],
+  ]);
+  // Tri par Gini : du plus grand au plus petit, la cité sans mesure en dernier.
+  const table = screen.getByRole('table', { name: /^Inégalité des fortunes par cité/ });
+  fireEvent.click(within(table).getByRole('button', { name: 'Gini' }));
+  expect(rows(/^Inégalité des fortunes par cité/).map((row) => row.slice(0, 2))).toEqual([
+    ['Cité', 'Gini▼'],
+    ['kalliste', '0,1234'],
+    ['halos', 'Sans mesure (aucune maison)'],
+  ]);
+  // Un monde sans maison ni cité : mesure inconnue, jamais nulle, et aucun tableau vide.
+  const empty = { giniBps: null, houses: 0, unpricedStocks: 0, cities: [] };
+  await showAll([{ ...world(), inequality: empty }]);
+  expect(wealthFigures()).toEqual([
+    'Coefficient de Gini du mondeSans mesure (aucune maison)',
+    'Maisons comptées0',
+    'Stocks sans prix observé0',
+  ]);
+  expect(screen.queryByRole('table', { name: /^Inégalité des fortunes par cité/ })).toBeNull();
+  await show();
+  await i18n.changeLanguage('en');
+  expect(wealthFigures()).toEqual([
+    'World Gini coefficient0.1234',
+    'Houses counted3',
+    'Stocks without an observed price2',
+  ]);
+  expect(rows('Wealth inequality by city, world “archipel”')[1]).toEqual([
+    'halos',
+    'Not measured (no house)',
+    '0',
+    '0',
+  ]);
 });

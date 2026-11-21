@@ -28,6 +28,11 @@ Les listes se filtrent : la file de modération par maison, les comptes de l'Acc
 | Conformité | Export et suppression des données d'un joueur, registre des demandes |
 | Accès et audit | Rôles, double authentification, journal d'audit consultable et non modifiable |
 
+Inégalité de fortune dans le module Économie (#718) : pour chaque monde, le coefficient de Gini des fortunes de ses maisons (4.1), en points de base et affiché de 0 à 1, le nombre de maisons comptées et celui des stocks sans prix observé, que ces fortunes ignorent.
+Les mêmes mesures sont données pour chaque cité du monde, dans un tableau triable, une maison comptant dans sa cité de citoyenneté.
+Les maisons PNJ de secours (8.3) n'entrent dans aucun Gini ; sans maison, le Gini est dit inconnu, jamais nul, et aucune borne ne s'y applique encore.
+`GET /api/admin/economy` le rend dans `inequality`, lu dans le même instantané que la masse monétaire, par `game.house_wealth`.
+
 Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son état (ouvert, coupé par la configuration, coupé au plafond du mois), son coût estimé du jour et du mois (UTC), son plafond et ses sorties rejetées sur les réponses du mois.
 Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.
 Le module IA (prompts, jeux d'essai) attend une phase suivante.

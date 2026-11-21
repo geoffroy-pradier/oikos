@@ -238,7 +238,18 @@
     },
     "shares": "Share of each sink, since the origin",
     "noShares": "No sink has destroyed money yet.",
-    "dayDetail": "Detail by account, day by day"
+    "dayDetail": "Detail by account, day by day",
+    "wealth": {
+      "title": "Wealth inequality",
+      "gini": "World Gini coefficient",
+      "giniShort": "Gini",
+      "houses": "Houses counted",
+      "unpriced": "Stocks without an observed price",
+      "city": "City",
+      "byCity": "Wealth inequality by city, world “{{slug}}”",
+      "unknown": "Not measured (no house)",
+      "definition": "A house's wealth: treasury, escrow and stocks at their city's latest observed price, without sites, ships or housing; a stock without an observed price does not count. The coefficient ranges from 0 (equal wealth) to 1 (one house owns everything). Fallback NPC houses are left out, and each house counts in its city of citizenship."
+    }
   },
   "access": {
     "title": "Access",

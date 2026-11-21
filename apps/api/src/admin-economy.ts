@@ -8,18 +8,41 @@ import {
   gameDayAt,
   inflationStatus,
   type Traded,
+  wealthInequality,
 } from '@oikos/sim';
 import { type QueryExecutorProvider, sql } from 'kysely';
 
 const DAY_MS = 86_400_000;
 type Balance = { world_id: string; slug: string; kind: string; key: string | null; n: string };
 type Candle = { world_id: string; good_id: string; current: boolean; paid: string; units: string };
+type Wealth = {
+  world_id: string;
+  city_id: string | null;
+  npc: boolean;
+  wealth: string;
+  unpriced_stocks: number;
+};
+type Inequality = AdminEconomy['worlds'][number]['inequality'];
+
+/**
+ * Inégalité des fortunes d'un ensemble de maisons (4.1, 5.5 ; #718) : Gini en points de base, maisons comptées
+ * et stocks sans prix qu'ignorent leurs fortunes. Les maisons PNJ de secours n'y entrent pas.
+ */
+function inequalityOf(rows: readonly Wealth[]): Omit<Inequality, 'cities'> {
+  const { houses, giniBps } = wealthInequality(
+    rows.map((row) => ({ npc: row.npc, wealth: BigInt(row.wealth) })),
+  );
+  const counted = rows.filter((row) => !row.npc);
+  const unpricedStocks = counted.reduce((sum, row) => sum + row.unpriced_stocks, 0);
+  return { giniBps, houses, unpricedStocks };
+}
 
 /**
  * Tableau de bord économique (docs/specs/05-economie.md, 5.5) : masse monétaire, robinets et puits.
  * Lecture seule, dans un seul instantané de la base : la masse, les cumuls et les mouvements par jour
  * se recoupent donc toujours. `windowDays` : nombre de jours de jeu détaillés, jour en cours compris.
- * L'indice des prix suit le panier, la fenêtre et la cible de la configuration (`priceIndex`).
+ * L'indice des prix suit le panier, la fenêtre et la cible de la configuration (`priceIndex`). L'inégalité des
+ * fortunes (#718) est lue dans le même instantané, par monde et par cité de citoyenneté.
  */
 export async function readEconomy(
   db: Db,
@@ -28,7 +51,7 @@ export async function readEconomy(
 ): Promise<AdminEconomy> {
   const { clock, priceIndex } = config;
   const goodIds = priceIndex.basket.map((entry) => entry.goodId);
-  const [today, accounts, purses, flows, candles, since, windows] = await db
+  const [today, accounts, purses, flows, candles, since, windows, wealths, cities] = await db
     .transaction()
     .setIsolationLevel('repeatable read')
     .setAccessMode('read only')
@@ -77,7 +100,13 @@ export async function readEconomy(
         group by world_id, good_id, current`.execute(trx);
       const since = await historyStarts(trx, config.priceHistory.candleMinutes * 60, now);
       const windows = { previousFrom, currentFrom, now };
-      return [today, accounts, purses, flows, candles, since, windows] as const;
+      // Fortune de chaque maison (4.1), par sa cité de citoyenneté ; toutes les cités, même sans maison.
+      const wealths = await sql<Wealth>`
+        select world_id, city_id, npc, wealth::text, unpriced_stocks
+        from game.house_wealth(null)`.execute(trx);
+      const cities = await sql<{ id: string; world_id: string; slug: string }>`
+        select id, world_id, slug from game.cities order by world_id, created_at, id`.execute(trx);
+      return [today, accounts, purses, flows, candles, since, windows, wealths, cities] as const;
     });
   const listed = config.goods.map((good) => [good.id, BigInt(good.referencePriceOboles)] as const);
   const reference = basketCost(
@@ -130,6 +159,16 @@ export async function readEconomy(
       moneySupply: { total: 0, houses: 0, escrow: 0, cityTreasuries: 0, npcPurses: 0, other: 0 },
       systemAccounts: [],
       priceIndex: indexOf(worldId),
+      inequality: {
+        ...inequalityOf(wealths.rows.filter((row) => row.world_id === worldId)),
+        cities: cities.rows
+          .filter((city) => city.world_id === worldId)
+          .map(({ id, slug }) => ({
+            cityId: id,
+            slug,
+            ...inequalityOf(wealths.rows.filter((row) => row.city_id === id)),
+          })),
+      },
     };
     worlds.set(worldId, world);
     if (kind === 'system' && key) {
