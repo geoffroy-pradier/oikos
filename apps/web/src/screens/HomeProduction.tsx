@@ -1,4 +1,5 @@
-import { Button, Card, ChevronRight, cn, EmptyState, Factory, GoodIcon, Wheat } from '@oikos/ui';
+import { Button, Card, ChevronRight, cn, EmptyState, Factory, Wheat } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import { Link } from '@tanstack/react-router';
 import { useId, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -126,7 +127,7 @@ export function ProductionList(props: {
                       aria-hidden="true"
                       className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-subtle text-primary"
                     >
-                      {item.goodId && <GoodIcon goodId={item.goodId} />}
+                      {item.goodId && <GoodPicture goodId={item.goodId} />}
                     </span>
                     <div className="min-w-0">
                       <h3 className="font-semibold">{item.name}</h3>

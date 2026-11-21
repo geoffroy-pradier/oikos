@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   EmptyState,
-  GoodIcon,
   HandCoins,
   Select,
   ShoppingCart,
@@ -12,6 +11,7 @@ import {
   TableScroll,
   X,
 } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelOrder, placeOrder } from '../api';
@@ -312,7 +312,7 @@ export function AgoraScreen() {
       <div className="grid grid-cols-1 gap-4 [overflow-wrap:anywhere] lg:grid-cols-2">
         <Card elevation="raised" className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <GoodIcon goodId={goodId} size={48} className="size-14 rounded-2xl bg-muted p-1" />
+            <GoodPicture goodId={goodId} size={48} className="size-14 rounded-2xl bg-muted p-1" />
             <div className="flex min-w-0 flex-col gap-0.5">
               <h2 className="text-xl font-bold">{good}</h2>
               <p className="text-sm text-muted-foreground">
@@ -469,7 +469,7 @@ export function AgoraScreen() {
               const buying = order.side === 'buy';
               return (
                 <li key={order.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-                  <GoodIcon goodId={order.good_id} className="text-muted-foreground" />
+                  <GoodPicture goodId={order.good_id} className="text-muted-foreground" />
                   <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
                     <Badge tone={buying ? 'success' : 'primary'}>
                       {t(buying ? 'agora.sideBuy' : 'agora.sideSell')}

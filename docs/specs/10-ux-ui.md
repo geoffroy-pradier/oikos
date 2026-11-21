@@ -320,6 +320,7 @@ L'explication d'un écran ou d'une section tient en une ligne, « Comment ça ma
 Les illustrations (accueil, écrans vides, biens, dieux, cités) sont des SVG dessinés dans le dépôt, sans image sous licence ni image matricielle, colorés par les jetons pour suivre le thème.
 Elles ne se composent que de tracés (`packages/ui/src/illustrations`), décoratives sauf quand l'appelant leur donne un nom, avec un dessin neutre pour un bien, un dieu ou une cité inconnus ; la page `illustrations.html` les montre dans les deux thèmes.
 Un bien sans dessin propre prend celui de son niveau, corbeille, ballot ficelé ou coffre, quand l'appelant donne ce niveau (#708).
+Les écrans du jeu rendent un bien par `GoodPicture`, qui donne à `GoodIcon` le niveau publié par la vue `good_tiers` (#873).
 La connexion d'Olympe a sa scène (`OlympusScene`) : le temple au sommet de l'Olympe, devant le soleil, au-dessus des nuages (#868).
 L'icône de l'application est le soleil levant de la scène d'accueil, orange sur graphite ; ses PNG se régénèrent par `apps/web/scripts/render-icons.mjs`.
 La carte est un dessin vectoriel fait main de l'archipel, déplaçable et zoomable.

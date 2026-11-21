@@ -6,13 +6,13 @@ import {
   Check,
   Coins,
   EmptyState,
-  GoodIcon,
   Package,
   StatCard,
   StatGrid,
   TriangleAlert,
   Wheat,
 } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import {
   useEffect,
   useLayoutEffect,
@@ -959,7 +959,7 @@ export function SitesCard({
                   aria-hidden="true"
                   className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-subtle text-primary"
                 >
-                  {recipe?.outputs[0] && <GoodIcon goodId={recipe.outputs[0].goodId} />}
+                  {recipe?.outputs[0] && <GoodPicture goodId={recipe.outputs[0].goodId} />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 tabIndex={-1} className="text-lg font-semibold">

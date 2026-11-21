@@ -1,4 +1,5 @@
-import { Button, cn, GoodIcon, Plus, Sheet, Stepper } from '@oikos/ui';
+import { Button, cn, Plus, Sheet, Stepper } from '@oikos/ui';
+import { GoodPicture } from '../good-tiers';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatList } from '../lists';
@@ -120,7 +121,7 @@ export function SiteAcquire(props: {
                           aria-hidden="true"
                           className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-raised text-primary"
                         >
-                          {recipe.outputs[0] && <GoodIcon goodId={recipe.outputs[0].goodId} />}
+                          {recipe.outputs[0] && <GoodPicture goodId={recipe.outputs[0].goodId} />}
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="font-semibold">{name(recipe.id)}</span>
