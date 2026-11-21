@@ -11,7 +11,7 @@ insert into game.houses (id, world_id, user_id, name, blazon) values
 insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
   ('00000000-0000-7000-8000-0000000002a1', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat');
 alter table game.sites disable trigger sites_guard;
-update game.sites set created_at = now() - interval '1 day', cycle_started_at = now() - interval '1 day';
+update game.sites set created_at = now() - interval '1 day', cycle_started_at = now() - interval '1 day' where world_id = '01900000-0000-7000-8000-000000000001';
 alter table game.sites enable trigger sites_guard;
 create function pg_temp.close(day integer, world uuid default '01900000-0000-7000-8000-000000000001',
   close_at timestamptz default '2026-11-14 03:00+00', version uuid default '00000000-0000-7000-8000-0000000000c1', summary jsonb default '{}'
@@ -100,21 +100,21 @@ select throws_like($$select pg_temp.upkeep('{"houseId": "00000000-0000-7000-8000
 set local timezone = 'Europe/Paris';
 select throws_ok($$insert into game.sites (world_id, house_id, city_id, recipe_id, halted_at) values ('01900000-0000-7000-8000-000000000001',
   '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat', now())$$, '23001', 'a site starts now', 'un site naît en marche');
-select throws_ok($$select pg_temp.as_service($s$update game.sites set halted_at = now() - interval '1 second'$s$)$$, '23001', 'a site halts now', 'un arrêt n''est pas antidaté');
-select lives_ok($$select pg_temp.as_service('update game.sites set halted_at = now()')$$, 'le service arrête un site maintenant');
-select throws_ok($$select pg_temp.as_service($s$update game.sites set halted_at = now() - interval '1 hour'$s$)$$, '23001', 'a halt keeps its instant', 'l''instant d''un arrêt ne change pas');
+select throws_ok($$select pg_temp.as_service($s$update game.sites set halted_at = now() - interval '1 second' where world_id = '01900000-0000-7000-8000-000000000001'$s$)$$, '23001', 'a site halts now', 'un arrêt n''est pas antidaté');
+select lives_ok($$select pg_temp.as_service('update game.sites set halted_at = now() where world_id = ''01900000-0000-7000-8000-000000000001''')$$, 'le service arrête un site maintenant');
+select throws_ok($$select pg_temp.as_service($s$update game.sites set halted_at = now() - interval '1 hour' where world_id = '01900000-0000-7000-8000-000000000001'$s$)$$, '23001', 'a halt keeps its instant', 'l''instant d''un arrêt ne change pas');
 -- 200 jours passent à l'arrêt, changement d'heure compris (garde levée pour antidater l'arrêt et le cycle).
 alter table game.sites disable trigger sites_guard;
-update game.sites set halted_at = now() - interval '4800 hours', created_at = now() - interval '9000 hours', cycle_started_at = now() - interval '9000 hours';
+update game.sites set halted_at = now() - interval '4800 hours', created_at = now() - interval '9000 hours', cycle_started_at = now() - interval '9000 hours' where world_id = '01900000-0000-7000-8000-000000000001';
 alter table game.sites enable trigger sites_guard;
-select throws_like($$select pg_temp.as_service($s$update game.sites set cycle_started_at = now() - interval '1 hour'$s$)$$, '%"sites_cycle_not_after_halt"%', 'à l''arrêt, le cycle ne dépasse pas l''instant de l''arrêt');
-select throws_like($$select pg_temp.as_service($s$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now()$s$)$$, '%"sites_cycle_not_after_halt"%', 'un site à l''arrêt ne change pas de recette');
-select lives_ok($$update game.sites set cycle_started_at = now() - interval '4801 hours'$$, 'une récolte avance le cycle jusqu''avant l''arrêt');
+select throws_like($$select pg_temp.as_service($s$update game.sites set cycle_started_at = now() - interval '1 hour' where world_id = '01900000-0000-7000-8000-000000000001'$s$)$$, '%"sites_cycle_not_after_halt"%', 'à l''arrêt, le cycle ne dépasse pas l''instant de l''arrêt');
+select throws_like($$select pg_temp.as_service($s$update game.sites set recipe_id = 'grow_olives', cycle_started_at = now() where world_id = '01900000-0000-7000-8000-000000000001'$s$)$$, '%"sites_cycle_not_after_halt"%', 'un site à l''arrêt ne change pas de recette');
+select lives_ok($$update game.sites set cycle_started_at = now() - interval '4801 hours' where world_id = '01900000-0000-7000-8000-000000000001'$$, 'une récolte avance le cycle jusqu''avant l''arrêt');
 -- Reprise : le cycle avance exactement de la durée de l'arrêt, ni plus ni moins.
-select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = null')$$, '23001', 'a site resumes with its cycle shifted by the halt', 'pas de reprise qui récolterait le temps de l''arrêt');
-select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = null, cycle_started_at = now()')$$, '23001', 'a site resumes with its cycle shifted by the halt', 'ni de reprise qui efface le cycle entamé');
+select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = null where world_id = ''01900000-0000-7000-8000-000000000001''')$$, '23001', 'a site resumes with its cycle shifted by the halt', 'pas de reprise qui récolterait le temps de l''arrêt');
+select throws_ok($$select pg_temp.as_service('update game.sites set halted_at = null, cycle_started_at = now() where world_id = ''01900000-0000-7000-8000-000000000001''')$$, '23001', 'a site resumes with its cycle shifted by the halt', 'ni de reprise qui efface le cycle entamé');
 select lives_ok($$select pg_temp.as_service($s$update game.sites set halted_at = null,
-  cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second'$s$)$$,
+  cycle_started_at = cycle_started_at + extract(epoch from now() - halted_at) * interval '1 second' where world_id = '01900000-0000-7000-8000-000000000001'$s$)$$,
   'le service relance un site en décalant son cycle de la durée de l''arrêt');
 select is((select extract(epoch from now() - cycle_started_at) from game.sites where id = '00000000-0000-7000-8000-0000000002a1'), 3600::numeric,
   '4 801 heures de cycle avant la reprise, dont 4 800 à l''arrêt : une heure comptée, à la seconde, quel que soit le fuseau');
