@@ -4,6 +4,7 @@ import {
   type ChatReportOutput,
   commandErrorSchema,
   IDEMPOTENCY_HEADER,
+  type CityCastOstraconInput,
   type CityCastVoteInput,
   type CityProposeDecreeInput,
   type CityStandForElectionInput,
@@ -12,6 +13,8 @@ import {
   type CommandError,
   type HouseCreateInput,
   type HouseCreateOutput,
+  type LiturgyPerformInput,
+  type LiturgyPerformOutput,
   type MarketCancelOrderOutput,
   type MarketPlaceOrderInput,
   type MarketPlaceOrderOutput,
@@ -233,6 +236,7 @@ export interface CityCommandInputs {
   'city.castVote': CityCastVoteInput;
   'city.proposeDecree': CityProposeDecreeInput;
   'city.voteDecree': CityVoteDecreeInput;
+  'city.castOstracon': CityCastOstraconInput;
 }
 
 /**
@@ -245,6 +249,16 @@ export const cityCommand = <N extends keyof CityCommandInputs>(
   accessToken: string,
   idempotencyKey: string,
 ) => sendCommand<Record<string, unknown>>(name, input, accessToken, idempotencyKey);
+
+/**
+ * Accomplit la liturgie de la maison (6.4, #720). `input.expectedDue` : le dû vu, que l'API refuse (`PRICE_CHANGED`)
+ * plutôt que de prélever un autre. `idempotencyKey` : la même clé tant que cette intention n'a pas reçu de réponse.
+ */
+export const performLiturgy = (
+  input: LiturgyPerformInput,
+  accessToken: string,
+  idempotencyKey: string,
+) => sendCommand<LiturgyPerformOutput>('liturgy.perform', input, accessToken, idempotencyKey);
 
 /** `idempotencyKey` : la même clé tant que ce message (canal et texte) n'a pas reçu de réponse. */
 export const postMessage = (
