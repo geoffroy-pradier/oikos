@@ -16,7 +16,7 @@ const GOODS = ['wheat', 'olives', 'fish', 'salt'] as const;
 const CITIES = 2;
 type Stock = { city: number; good: string; quantity: number; consumed: boolean };
 type Scenario = {
-  houses: { grant: number; pending: [number, number] | null; stocks: Stock[] }[];
+  houses: { grant: number; pending: [number, number] | null; stocks: Stock[]; sails: boolean }[];
   observed: { city: number; good: string; price: number }[];
 };
 /** Couples (cité, bien) distincts, tirés dans l'ordre. */
@@ -28,7 +28,9 @@ function pairs(rng: Rng, max: number) {
 }
 /**
  * Scénario tiré d'une graine : une à cinq maisons, chacune une dotation (parfois nulle), parfois un achat en attente
- * (prix × quantité au séquestre), des stocks dans les deux cités, parfois vidés ; quelques prix observés.
+ * (prix × quantité au séquestre), des stocks dans les deux cités, parfois vidés ; quelques prix observés. Une
+ * maison sur deux a un navire en mer de la cité 0 vers la cité 1, chargé de la moitié de chaque stock non vidé de la
+ * cité 0 (sur lest sans stock) : sa cargaison compte au prix de la cité 1 (#719).
  */
 function scenario(seed: string): Scenario {
   const rng = createRng(seed);
@@ -41,12 +43,14 @@ function scenario(seed: string): Scenario {
       quantity: rng.int(1, 1_000_000),
       consumed: rng.next() < 0.2,
     })),
+    sails: rng.next() < 0.5,
   }));
   const observed = pairs(rng, 4).map((pair) => ({ ...pair, price: rng.int(1, 100_000) }));
   return { houses, observed };
 }
 
-it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part', async () => {
+it('la base et la simulation rendent la même fortune, stocks sans prix comptés à part, cargaisons en mer comprises', async () => {
+  let atSea = 0;
   for (let run = 0; run < 15; run += 1) {
     const { houses, observed } = scenario(`house-wealth-${run}`);
     const world = randomUUID();
@@ -101,6 +105,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             [account('escrow'), held],
           ]);
         }
+        const loads: [inventory: string, good: string, quantity: number][] = [];
         for (const s of h.stocks) {
           const { rows } = await sql<{
             id: string;
@@ -115,6 +120,31 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
             await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind)
               select ${world}, good_id, quantity, id, 'consumption', 'npc.consume'
               from game.inventories where id = ${rows[0]?.id}`.execute(trx);
+          else if (h.sails && s.city === 0)
+            loads.push([rows[0]?.id ?? '', s.good, Math.ceil(s.quantity / 2)]);
+        }
+        if (h.sails) {
+          // Départ comme `voyage.depart` l'écrit : voyage en mer, cargaison chargée, navire qui quitte le quai.
+          const { rows: ship } = await sql<{
+            id: string;
+          }>`insert into game.ships (world_id, house_id, class_id, docked_city_id)
+            values (${world}, ${id}, 'coaster', ${cities[0]}) returning id`.execute(trx);
+          const { rows: voyage } = await sql<{ id: string }>`insert into game.voyages
+            (world_id, house_id, ship_id, from_city_id, to_city_id, arrives_at)
+            values (${world}, ${id}, ${ship[0]?.id}, ${cities[0]}, ${cities[1]}, now() + interval '1 hour') returning id`.execute(
+            trx,
+          );
+          for (const [inventory, good, quantity] of loads) {
+            await sql`insert into game.voyage_cargo (voyage_id, world_id, good_id, quantity)
+              values (${voyage[0]?.id}, ${world}, ${good}, ${quantity})`.execute(trx);
+            await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind, voyage_id)
+              values (${world}, ${good}, ${quantity}, ${inventory}, 'in_transit', 'voyage.departure', ${voyage[0]?.id})`.execute(
+              trx,
+            );
+          }
+          await sql`update game.ships set docked_city_id = null where id = ${ship[0]?.id}`.execute(
+            trx,
+          );
         }
       }
       for (const p of observed)
@@ -136,6 +166,13 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
       select i.house_id, i.quantity::text, p.price::text from game.inventories i
       left join game.observed_prices p on p.city_id = i.city_id and p.good_id = i.good_id
       where i.world_id = ${world}`.execute(owner);
+    // Cargaisons en mer, au prix observé de la cité d'arrivée.
+    const { rows: cargo } = await sql<{ house_id: string; quantity: string; price: string | null }>`
+      select v.house_id, k.quantity::text, p.price::text from game.voyages v
+      join game.voyage_cargo k on k.voyage_id = v.id
+      left join game.observed_prices p on p.city_id = v.to_city_id and p.good_id = k.good_id
+      where v.world_id = ${world} and v.arrived_at is null`.execute(owner);
+    atSea += cargo.length;
     const { rows: actual } = await sql<{
       house_id: string;
       treasury: string;
@@ -156,7 +193,7 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
       const expected = houseWealth({
         treasury: balance(id, 'house'),
         escrow: balance(id, 'escrow'),
-        stocks: stocks
+        stocks: [...stocks, ...cargo]
           .filter((s) => s.house_id === id)
           .map((s) => ({
             quantity: BigInt(s.quantity),
@@ -173,4 +210,6 @@ it('la base et la simulation rendent la même fortune, stocks sans prix comptés
       }).toEqual(expected);
     }
   }
+  // Des cargaisons sont bien en mer dans ces scénarios : la branche « en mer » est comparée.
+  expect(atSea).toBeGreaterThan(5);
 });
