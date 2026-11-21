@@ -1,4 +1,5 @@
 /** Cœur de simulation pur, sans entrée-sortie. */
+export * from './bank';
 export * from './buyback';
 export * from './candles';
 export * from './charis';
