@@ -7,6 +7,7 @@ import {
   configVersionPublishedSchema,
   goodBoughtBackSchema,
 } from './admin';
+import { bankFoundedSchema } from './bank';
 import { directChannelOpenedSchema, messagePostedSchema } from './chat';
 import {
   archonElectedSchema,
@@ -204,6 +205,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   loanRepaidSchema,
   loanCollectedSchema,
   loanDefaultedSchema,
+  bankFoundedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   directChannelOpenedSchema,
