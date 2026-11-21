@@ -54,6 +54,9 @@ Le jeu tourne en temps réel persistant : une saison de jeu dure 7 jours réels,
   Les passages de tick et de clôture plus anciens que la rétention de la configuration (`telemetry.retentionDays`, 90 jours au départ, au moins 2) sont supprimés par le moteur à chaque passage, par une fonction du propriétaire qui garde toujours le dernier jour : `close_runs` reste en ajout seul pour le service.
 - **Heure de référence** : le moteur lit l'instant présent à l'horloge de la base de données, jamais à celle de son processus. Plusieurs moteurs voient donc la même heure, celle qui date aussi les écritures du jeu.
 - **Bascule de saison** le lundi : météo, récoltes, fête du calendrier, ouverture des votes.
+  Désignation des liturgies (6.4, #719) : la première clôture jouée d'une saison, celle du lundi ou, si elle a manqué, la suivante, désigne les maisons les plus riches de chaque cité.
+  Cette étape lit la fortune après la planification des événements du monde et avant le déclin de la Charis et tout ce qui touche la monnaie ; l'entretien reste la dernière étape.
+  La saison d'un jour de jeu est `seasonOfGameDay` : `seasonDays` jours de jeu comptés depuis le lundi 5 janvier 1970, sous la durée de la version en vigueur à la clôture.
 - La production est calculée à la demande à partir des horodatages : un joueur absent ne perd rien, il retrouve ses stocks pleins jusqu'à la capacité de ses entrepôts.
 
 ## Six voies de réussite

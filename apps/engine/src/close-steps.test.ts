@@ -10,6 +10,7 @@ import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
 import { laborMarket } from './steps/labor-market';
 import { leaseRent } from './steps/lease-rent';
+import { liturgyAssignment } from './steps/liturgy-assignment';
 import { npcPopulation } from './steps/npc-population';
 import { npcPublicIncome } from './steps/npc-public-income';
 import { ostracismOpening } from './steps/ostracism-opening';
@@ -35,7 +36,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // La planification des événements (#267) puis le déclin de la Charis
     // (#265), sans monnaie ni stock ni agora, passent avant tout ce qui peut prendre l'agora.
     // L'ostracisme (#722) : son dépouillement avant celui des élections, qui écarte l'ostracisé ; l'ouverture de
-    // son vote juste après le dépouillement des décrets, qui l'adopte.
+    // son vote juste après le dépouillement des décrets, qui l'adopte. Les liturgies (#719), sans monnaie ni stock ni
+    // agora, lisent la fortune après les événements du monde et avant tout ce qui touche la monnaie.
     const order = [
       citizenship,
       ostracismTally,
@@ -46,6 +48,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       ostracismOpening,
       npcPopulation,
       worldEventPlanning,
+      liturgyAssignment,
       favorDecay,
       decreeApplication,
       decreeSpending,
@@ -66,6 +69,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismTally)).toBe(CLOSE_STEPS.indexOf(archonTally) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismOpening)).toBe(CLOSE_STEPS.indexOf(decreeTally) + 1);
+    expect(CLOSE_STEPS.indexOf(liturgyAssignment)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 1);
     const names = CLOSE_STEPS.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
   });

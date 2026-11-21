@@ -408,6 +408,10 @@ Les biens offerts sortent de la circulation vers l'extrémité système `offerin
 Rien n'est créé en face : une offrande ne rapporte que de la Charis, qui n'est pas de la monnaie et ne s'échange pas.
 Offrir n'est jamais obligatoire : ce puits ne pèse sur la masse monétaire qu'autant que les joueurs le choisissent.
 
+Liturgies (#719, 6.4) : la première clôture de chaque saison désigne les maisons les plus riches de chaque cité et fixe leur dû, une part bornée de leur fortune (4.1).
+Cette désignation ne fait bouger aucune monnaie : c'est l'accomplissement ou le prélèvement d'office (#720) qui versera le dû à un puits, proportionnel à la richesse comme l'attend la borne de masse (#721).
+Dans l'ordre de la clôture, elle vient après la planification des événements du monde et avant le déclin de la Charis, donc avant tout ce qui touche la monnaie et avant l'entretien.
+
 Masse monétaire, dans la première version : la somme des soldes de tous les comptes du grand livre qui ne sont pas des comptes système, soit les trésoreries des maisons, leurs séquestres à l'agora et les trésors des cités.
 Depuis #632, elle compte aussi les bourses des PNJ des cités (12), une nature à part du tableau de bord (`npcPurses`) : ce que les maisons versent aux PNJ circule encore.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
