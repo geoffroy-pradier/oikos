@@ -65,17 +65,19 @@ beforeAll(async () => {
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
 
 const GRANT = TEST_CONFIG.config.starting.grantOboles;
-/** Monnaie créée par le robinet de dotation dans le monde de test, en oboles (solde négatif du robinet). */
+/**
+ * Monnaie créée par le robinet de dotation dans le monde de test, en oboles (solde négatif du robinet). Le solde
+ * du monde partagé ne fait que grandir d'un fichier de test à l'autre : lu en texte, compté en `bigint`, il ne
+ * perd rien au-delà des entiers sûrs.
+ */
 const granted = async () =>
-  -Number(
+  -BigInt(
     (
-      await db
-        .selectFrom('game.accounts')
-        .select('balance')
-        .where('system_key', '=', 'faucet_starting_grant')
-        .where('world_id', '=', '01900000-0000-7000-8000-000000000001')
-        .executeTakeFirstOrThrow()
-    ).balance,
+      await sql<{ balance: string }>`select balance::text from game.accounts
+        where system_key = 'faucet_starting_grant' and world_id = '01900000-0000-7000-8000-000000000001'`.execute(
+        db,
+      )
+    ).rows[0]?.balance ?? '0',
   );
 const endowmentOf = async (houseId: string) => ({
   balance: (
@@ -164,7 +166,7 @@ describe('house.create', () => {
       });
     const before = await granted();
     const [first, replay] = [await request(), await request()];
-    expect(await granted()).toBe(before + GRANT);
+    expect(await granted()).toBe(before + BigInt(GRANT));
     expect([first.status, replay.status, replay.headers.get('Idempotent-Replay')]).toEqual([
       200,
       200,
@@ -210,7 +212,7 @@ describe('house.create', () => {
       balance: [GRANT],
       sites: [TEST_CONFIG.config.starting.siteRecipeId],
     });
-    expect(await granted()).toBe(before + GRANT);
+    expect(await granted()).toBe(before + BigInt(GRANT));
     // Une seule écriture, équilibrée, entre le robinet et la maison.
     const lines = await db
       .selectFrom('game.ledger_lines as l')
@@ -226,7 +228,7 @@ describe('house.create', () => {
     ]);
     // Une seconde tentative du même compte ne crée ni monnaie ni site.
     expect((await post(user, input(`Encore ${suffix}`))).status).toBe(409);
-    expect(await granted()).toBe(before + GRANT);
+    expect(await granted()).toBe(before + BigInt(GRANT));
     expect((await endowmentOf(body.data.houseId)).sites).toHaveLength(1);
   });
 
@@ -260,7 +262,7 @@ describe('house.create', () => {
       balance: [starting.grantOboles],
       sites: [other.id],
     });
-    expect(await granted()).toBe(before + starting.grantOboles);
+    expect(await granted()).toBe(before + BigInt(starting.grantOboles));
   });
 
   it('refuse une seconde maison pour le même compte', async () => {
@@ -335,14 +337,14 @@ describe('house.create : une maison par compte dans tout le jeu (#604)', () => {
   };
   /** Dotations versées dans un monde, en oboles. */
   const grantedIn = async (worldId: string) =>
-    Number(
+    BigInt(
       (
         await sql<{ total: string }>`select coalesce(sum(l.amount), 0) as total
           from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id
           where e.world_id = ${worldId} and e.kind = 'house.starting_grant' and l.amount > 0`.execute(
           owner,
         )
-      ).rows[0]?.total,
+      ).rows[0]?.total ?? '0',
     );
 
   it('refuse une seconde maison dans un autre monde, sans rien y écrire', async () => {
@@ -353,7 +355,7 @@ describe('house.create : une maison par compte dans tout le jeu (#604)', () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: { code: 'HOUSE_ALREADY_EXISTS' } });
     expect(await housesOf(user)).toHaveLength(1);
-    expect(await grantedIn(elsewhere.worldId)).toBe(0);
+    expect(await grantedIn(elsewhere.worldId)).toBe(0n);
   });
 
   it('deux créations simultanées du même compte dans deux mondes : une seule maison, l’autre refusée par la base', async () => {
@@ -368,6 +370,8 @@ describe('house.create : une maison par compte dans tout le jeu (#604)', () => {
     expect(await refused?.json()).toMatchObject({ error: { code: 'HOUSE_ALREADY_EXISTS' } });
     expect(await housesOf(user)).toHaveLength(1);
     // La dotation n'a été versée qu'une fois, dans le monde de la maison fondée.
-    expect((await grantedIn(first.worldId)) + (await grantedIn(second.worldId))).toBe(GRANT);
+    expect((await grantedIn(first.worldId)) + (await grantedIn(second.worldId))).toBe(
+      BigInt(GRANT),
+    );
   });
 });

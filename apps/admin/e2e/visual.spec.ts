@@ -55,13 +55,13 @@ const economy = (real: Economy) => ({
   worlds: game(real.worlds).map((world) => ({
     ...world,
     moneySupply: {
-      total: 18_604_200,
-      houses: 12_310_400,
-      escrow: 402_300,
-      cityTreasuries: 3_920_500,
-      npcPurses: 1_964_000,
-      bankVaults: 0,
-      other: 7_000,
+      total: '18604200',
+      houses: '12310400',
+      escrow: '402300',
+      cityTreasuries: '3920500',
+      npcPurses: '1964000',
+      bankVaults: '0',
+      other: '7000',
     },
     // Montants positifs, créés (robinet) ou détruits (puits) : chaque robinet et un puits sur trois bougent.
     systemAccounts: world.systemAccounts.map((account, i) => {
@@ -70,12 +70,12 @@ const economy = (real: Economy) => ({
         i % (4 - scale) === 0
           ? DAYS.map((gameDay, d) => ({
               gameDay,
-              amount: scale * (300 + ((i * 7 + d * 13) % 40) * 10),
+              amount: String(scale * (300 + ((i * 7 + d * 13) % 40) * 10)),
             }))
           : [];
       return {
         ...account,
-        total: days.reduce((sum, day) => sum + day.amount, scale * 20_000),
+        total: String(days.reduce((sum, day) => sum + Number(day.amount), scale * 20_000)),
         days,
       };
     }),

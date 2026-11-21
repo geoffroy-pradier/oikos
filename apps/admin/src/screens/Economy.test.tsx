@@ -42,7 +42,7 @@ type Index = World['priceIndex'];
 const WORLD = ECONOMY.worlds[0] as World;
 const SUPPLY = 'Masse monétaire, monde « archipel »';
 /** Monde de démonstration, avec l'indice ou la masse donnés. */
-const world = (priceIndex: Partial<Index> = {}, other = 0): World => ({
+const world = (priceIndex: Partial<Index> = {}, other = '0'): World => ({
   ...WORLD,
   moneySupply: { ...WORLD.moneySupply, other },
   priceIndex: { ...WORLD.priceIndex, ...priceIndex },
@@ -55,7 +55,7 @@ async function showAll(worlds: World[], patch: Partial<typeof ECONOMY> = {}) {
   await screen.findByRole('heading', { name: `Monde « ${worlds[0]?.slug ?? ''} »` });
 }
 /** Affiche le monde de démonstration, avec l'indice ou la masse donnés. */
-const show = (priceIndex: Partial<Index> = {}, other = 0) => showAll([world(priceIndex, other)]);
+const show = (priceIndex: Partial<Index> = {}, other = '0') => showAll([world(priceIndex, other)]);
 
 it('une lecture sans réponse le dit, et « Réessayer » la relance', async () => {
   adminGet.mockResolvedValueOnce({ ok: false, code: 'NETWORK' });
@@ -117,11 +117,11 @@ it('dans la cible : indice, masse par nature, nets négatifs et jours du plus r�
     '15 nov. 2026Dotation de départ (robinet)6 000Entretien des sites (puits)155',
     '14 nov. 2026Prêts du Trésor du temple (robinet)-200Entretien des sites (puits)30',
   ]);
-  await show({}, -4);
+  await show({}, '-4');
   expect(rows(SUPPLY)[4]).toEqual(['Autres comptes', '-4']);
   // Les coffres des banques (#726) ne paraissent que s'ils portent de la monnaie, avant les autres comptes.
   await showAll([
-    { ...WORLD, moneySupply: { ...WORLD.moneySupply, bankVaults: 1_500, total: 7_115 } },
+    { ...WORLD, moneySupply: { ...WORLD.moneySupply, bankVaults: '1500', total: '7115' } },
   ]);
   expect(rows(SUPPLY).slice(4)).toEqual([
     ['Coffres des banques', '1 500'],
@@ -330,8 +330,8 @@ it('une clé de compte inconnue et longue peut passer à la ligne n’importe o�
   const long: World['systemAccounts'][number] = {
     key,
     kind: 'sink',
-    total: 3,
-    days: [{ gameDay: 20_772, amount: 3 }],
+    total: '3',
+    days: [{ gameDay: 20_772, amount: '3' }],
   };
   await showAll([{ ...world(), systemAccounts: [...WORLD.systemAccounts, long] }]);
   // Rangée du cumul (th) et fiche du jour (dt) ; la mise en page elle-même est vérifiée à 360 px (e2e).
@@ -344,7 +344,7 @@ it('le tableau des cumuls montre chaque robinet et chaque puits du catalogue, m�
   const everything = SYSTEM_ACCOUNT_KEYS.map((key) => ({
     key,
     kind: key.startsWith('faucet_') ? ('faucet' as const) : ('sink' as const),
-    total: 0,
+    total: '0',
     days: [],
   }));
   await showAll([{ ...WORLD, systemAccounts: everything }]);
@@ -379,9 +379,9 @@ it('part de chaque puits : la barre se mesure à la plus grande part, des parts 
   render(
     <SinkShares
       sinks={[
-        { name: 'A', total: 600 },
-        { name: 'B', total: 300 },
-        { name: 'C', total: 100 },
+        { name: 'A', total: 600n },
+        { name: 'B', total: 300n },
+        { name: 'C', total: 100n },
       ]}
     />,
   );
@@ -434,4 +434,10 @@ it('inégalité des fortunes : Gini du monde et tableau des cités, inconnu sans
     '0',
     '0',
   ]);
+});
+
+it('un total au-delà des entiers sûrs s’affiche sans perte (#1056)', async () => {
+  const big = '9007199254740993';
+  await showAll([{ ...WORLD, moneySupply: { ...WORLD.moneySupply, total: big, houses: big } }]);
+  expect(rows(SUPPLY).at(-1)?.[1]?.replace(/\D/g, '')).toBe(big);
 });

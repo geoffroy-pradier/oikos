@@ -61,7 +61,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
     caption: string,
     Glyph: Icon,
     slug: string,
-    rows: [string, number][],
+    rows: [string, string][],
     total = false,
   ) => (
     <Card className="px-3 pt-3 pb-1 lg:px-4 lg:pt-4">
@@ -86,7 +86,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
               <th scope="row" className="wrap-anywhere">
                 {label}
               </th>
-              <td className="text-right tabular-nums">{number.format(amount)}</td>
+              <td className="text-right tabular-nums">{number.format(BigInt(amount))}</td>
             </tr>
           ))}
         </tbody>
@@ -172,27 +172,29 @@ export function Economy({ accessToken }: { accessToken: string }) {
         const { other, bankVaults, total, ...parts } = moneySupply;
         const supply = Object.entries({
           ...parts,
-          ...(bankVaults !== 0 && { bankVaults }),
-          ...(other !== 0 && { other }),
+          ...(bankVaults !== '0' && { bankVaults }),
+          ...(other !== '0' && { other }),
           total,
         });
         const moving = systemAccounts.filter((account) => account.days.length > 0);
         const days = [...new Set(moving.flatMap((account) => account.days.map((d) => d.gameDay)))];
         days.sort((a, b) => b - a);
-        const on = (account: Account, day: number) =>
-          account.days.find((candidate) => candidate.gameDay === day)?.amount;
+        const on = (account: Account, day: number) => {
+          const amount = account.days.find((candidate) => candidate.gameDay === day)?.amount;
+          return amount === undefined ? undefined : BigInt(amount);
+        };
         const flows = days.map((gameDay) => {
           const sum = (kind: Account['kind']) =>
             moving
               .filter((account) => account.kind === kind)
-              .reduce((total, account) => total + (on(account, gameDay) ?? 0), 0);
+              .reduce((total, account) => total + (on(account, gameDay) ?? 0n), 0n);
           return { gameDay, faucets: sum('faucet'), sinks: sum('sink') };
         });
         const sinks = systemAccounts
           .filter((account) => account.kind === 'sink')
           .map(({ key, total }) => ({
             name: t(`economy.accounts.${key}`, { defaultValue: key }),
-            total,
+            total: BigInt(total),
           }));
         return (
           <section key={worldId} id={`world-${worldId}`} className="flex flex-col gap-4">
@@ -288,7 +290,7 @@ export function Economy({ accessToken }: { accessToken: string }) {
                                 <dt className="min-w-0 text-foreground-secondary wrap-anywhere">
                                   {name(account)}
                                 </dt>
-                                <dd>{number.format(on(account, day) ?? 0)}</dd>
+                                <dd>{number.format(on(account, day) ?? 0n)}</dd>
                               </div>
                             ))}
                         </dl>

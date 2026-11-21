@@ -166,8 +166,8 @@ const index = { currentBps: 11_212, previousBps: 10_909, inflationBps: 278 };
 const account = (key: string, total: number, ...days: [gameDay: number, amount: number][]) => ({
   key,
   kind: key.startsWith('faucet_') ? ('faucet' as const) : ('sink' as const),
-  total,
-  days: days.map(([gameDay, amount]) => ({ gameDay, amount })),
+  total: String(total),
+  days: days.map(([gameDay, amount]) => ({ gameDay, amount: String(amount) })),
 });
 /** Un monde dans la cible : un prêt remboursé (net négatif) et un compte système que l'écran ne connaît pas. */
 export const ECONOMY: AdminEconomy = {
@@ -181,13 +181,13 @@ export const ECONOMY: AdminEconomy = {
       worldId: '01900000-0000-7000-8000-000000000001',
       slug: 'archipel',
       moneySupply: {
-        total: 5615,
-        houses: 5543,
-        escrow: 70,
-        cityTreasuries: 2,
-        npcPurses: 0,
-        bankVaults: 0,
-        other: 0,
+        total: '5615',
+        houses: '5543',
+        escrow: '70',
+        cityTreasuries: '2',
+        npcPurses: '0',
+        bankVaults: '0',
+        other: '0',
       },
       systemAccounts: [
         account('faucet_starting_grant', 6000, [20772, 6000]),

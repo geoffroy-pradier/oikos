@@ -32,6 +32,9 @@ Inégalité de fortune dans le module Économie (#718) : pour chaque monde, le c
 Les mêmes mesures sont données pour chaque cité du monde, dans un tableau triable, une maison comptant dans sa cité de citoyenneté.
 Les maisons PNJ de secours (8.3) n'entrent dans aucun Gini ; sans maison, le Gini est dit inconnu, jamais nul, et aucune borne ne s'y applique encore.
 `GET /api/admin/economy` le rend dans `inequality`, lu dans le même instantané que la masse monétaire, par `game.house_wealth`.
+Décision (#1056) : les montants qui additionnent des cumuls (`moneySupply`, `total` et `amount` des `systemAccounts`) sont rendus en texte décimal entier, signe compris, et non en nombre.
+Une masse au-delà des entiers sûrs de JavaScript (2^53 − 1) est ainsi rendue sans perte, et un monde aberrant ne fait plus refuser la réponse de tous les autres.
+L'API les additionne en `BigInt`, l'écran les affiche en `BigInt` ; seul le dessin des barres passe par un `number`, pour son échelle.
 
 Passerelle IA dans la Vigie (ticket #268, ADR 0005) : pour chaque usage, son état (ouvert, coupé par la configuration, coupé au plafond du mois), son coût estimé du jour et du mois (UTC), son plafond et ses sorties rejetées sur les réponses du mois.
 Ces chiffres sont des estimations tirées des jetons et des prix de la configuration, pas la facture du fournisseur.

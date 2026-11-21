@@ -14,8 +14,8 @@ import { SectionTitle } from './SectionTitle';
 /** Créé (robinets) et détruit (puits) un jour de jeu, en oboles nettes. */
 export interface DayFlow {
   gameDay: number;
-  faucets: number;
-  sinks: number;
+  faucets: bigint;
+  sinks: bigint;
 }
 
 const [WIDTH, HEIGHT] = [720, 180];
@@ -37,14 +37,19 @@ export function DailyFlows({
   const { t, i18n } = useTranslation();
   const number = new Intl.NumberFormat(i18n.language);
   const ordered = [...days].sort((a, b) => a.gameDay - b.gameDay);
-  const values = ordered.flatMap((day) => [day.faucets, day.sinks]);
+  // Montants exacts en `bigint` ; le dessin n'en a besoin que d'une échelle, en `number`.
+  const values = ordered.flatMap((day) => [Number(day.faucets), Number(day.sinks)]);
   const [top, bottom] = [Math.max(0, ...values), Math.min(0, ...values)];
   const y = (value: number) => ((top - value) / (top - bottom || 1)) * HEIGHT;
   const slot = WIDTH / Math.max(ordered.length, 1);
   const bar = Math.min(28, slot * 0.36);
-  const range = (pick: (day: DayFlow) => number) => {
+  const range = (pick: (day: DayFlow) => bigint) => {
     const all = ordered.map(pick);
-    return { min: number.format(Math.min(...all)), max: number.format(Math.max(...all)) };
+    const [min, max] = all.reduce(
+      ([low, high], value) => [value < low ? value : low, value > high ? value : high],
+      [all[0] ?? 0n, all[0] ?? 0n],
+    );
+    return { min: number.format(min), max: number.format(max) };
   };
   const sorted = (header: string, direction: SortDirection) =>
     t('app.sorted', { column: header, direction: t(`app.${direction}`) });
@@ -79,12 +84,12 @@ export function DailyFlows({
         <line x1={0} x2={WIDTH} y1={y(0)} y2={y(0)} className="stroke-border-subtle" />
         {ordered.map((day, index) => {
           const x = index * slot + slot / 2;
-          const rect = (value: number, left: number, fill: string) => (
+          const rect = (amount: bigint, left: number, fill: string) => (
             <rect
               x={left}
-              y={y(Math.max(value, 0))}
+              y={y(Math.max(Number(amount), 0))}
               width={bar}
-              height={Math.max(Math.abs(y(value) - y(0)), value === 0 ? 0 : 2)}
+              height={Math.max(Math.abs(y(Number(amount)) - y(0)), amount === 0n ? 0 : 2)}
               rx={Math.min(4, bar / 4)}
               className={fill}
             />
@@ -155,17 +160,19 @@ export function DailyFlows({
  * Part de chaque puits dans ce qu'ont détruit les puits depuis l'origine : la part est écrite, la barre ne fait
  * que la montrer. Un puits à net nul ou négatif n'a pas de part.
  */
-export function SinkShares({ sinks }: { sinks: readonly { name: string; total: number }[] }) {
+export function SinkShares({ sinks }: { sinks: readonly { name: string; total: bigint }[] }) {
   const { t, i18n } = useTranslation();
   const percent = new Intl.NumberFormat(i18n.language, {
     style: 'percent',
     maximumFractionDigits: 1,
   });
-  const positive = sinks.filter((sink) => sink.total > 0).sort((a, b) => b.total - a.total);
-  const sum = positive.reduce((total, sink) => total + sink.total, 0);
+  const positive = sinks
+    .filter((sink) => sink.total > 0n)
+    .sort((a, b) => (a.total < b.total ? 1 : a.total > b.total ? -1 : 0));
+  const sum = positive.reduce((total, sink) => total + sink.total, 0n);
   // La barre se mesure à la plus grande part : des parts proches, qui ne feraient que des filets égaux de quelques
   // pour cent de la piste, restent distinguables. La part exacte est écrite à côté.
-  const largest = (positive[0]?.total ?? 0) / (sum || 1);
+  const largest = Number(positive[0]?.total ?? 0n) / (Number(sum) || 1);
   return (
     <Card className="flex flex-col gap-3 lg:p-5">
       <SectionTitle as="h3" icon={<ChartPie />}>
@@ -176,7 +183,7 @@ export function SinkShares({ sinks }: { sinks: readonly { name: string; total: n
       ) : (
         <dl className="flex flex-col gap-2.5 text-sm tabular-nums">
           {positive.map((sink) => {
-            const share = sink.total / sum;
+            const share = Number(sink.total) / Number(sum);
             return (
               <div key={sink.name} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 <dt className="min-w-0 wrap-anywhere">{sink.name}</dt>
