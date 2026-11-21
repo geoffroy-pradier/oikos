@@ -23,13 +23,22 @@ describe('annonce d’une arrivée', () => {
         cargo: lng === 'fr' ? '30 × Blé' : '30 × Wheat',
       });
     expect(say('fr', 'map', true)).toBe(
-      'Un navire est arrivé à vide à Elaia : sa cargaison a été perdue en mer.',
+      'Un navire est arrivé à vide à Elaia, cargaison perdue en mer.',
     );
-    expect(say('en', 'map', true)).toBe(
-      'A ship arrived empty at Elaia: its cargo was lost at sea.',
+    expect(say('en', 'map', true)).toBe('A ship arrived empty at Elaia, cargo lost at sea.');
+    expect(say('fr', 'ship', true)).toBe(
+      'Navire arrivé à vide à Elaia, cargaison perdue en mer : 30 × Blé.',
     );
-    expect(say('fr', 'ship', true)).toBe('Navire arrivé à vide à Elaia : 30 × Blé, perdue en mer.');
-    expect(say('en', 'ship', true)).toBe('Ship arrived empty at Elaia: 30 × Wheat, lost at sea.');
+    expect(say('en', 'ship', true)).toBe(
+      'Ship arrived empty at Elaia, cargo lost at sea: 30 × Wheat.',
+    );
+    // La liste des voyages : la cargaison chargée, dite perdue.
+    expect(instance.t('ship.cargoLost', { lng: 'fr', cargo: '30 × Blé' })).toBe(
+      'cargaison perdue en mer : 30 × Blé',
+    );
+    expect(instance.t('ship.cargoLost', { lng: 'en', cargo: '30 × Wheat' })).toBe(
+      'cargo lost at sea: 30 × Wheat',
+    );
     for (const lng of ['fr', 'en'] as const)
       for (const scope of ['map', 'ship'] as const)
         for (const cargoLost of [false, null]) {

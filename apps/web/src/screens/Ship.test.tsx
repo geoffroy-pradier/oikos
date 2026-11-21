@@ -140,6 +140,11 @@ describe('fiche d’un navire', () => {
     state(true);
     rerender(tree());
     expect(announced()).toEqual(['Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.']);
+    const notice = screen.getByText(/déchargé dans votre stock/);
+    expect([notice.className.includes('bg-success-subtle'), notice.querySelector('svg')]).toEqual([
+      true,
+      null,
+    ]);
     expect(screen.getByText('à quai à Elaia')).toBeTruthy();
     shown(fr.ship.arrivedAt);
   });
@@ -149,9 +154,16 @@ describe('fiche d’un navire', () => {
     const { rerender, tree } = await screenOf();
     state(true, true);
     rerender(tree());
-    expect(announced()).toEqual(['Navire arrivé à vide à Elaia : 30 × Blé, perdue en mer.']);
+    expect(announced()).toEqual([
+      'Navire arrivé à vide à Elaia, cargaison perdue en mer : 30 × Blé.',
+    ]);
+    // Ton d'avertissement, et une icône : la couleur ne porte pas seule la perte.
+    const notice = screen.getByText(/cargaison perdue en mer : 30 × Blé\./);
+    expect(notice.className).toContain('bg-warning-subtle');
+    expect(notice.className).not.toContain('bg-success-subtle');
+    expect(notice.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(screen.queryByText(/déchargé dans votre stock/)).toBeNull();
-    shown('30 × Blé, perdue en mer');
+    shown('cargaison perdue en mer : 30 × Blé');
     expect(screen.getByText('à quai à Elaia')).toBeTruthy();
   });
 

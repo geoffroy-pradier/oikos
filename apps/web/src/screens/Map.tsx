@@ -1,5 +1,15 @@
 import { CITY_MAP_POSITIONS } from '@oikos/config/client';
-import { Anchor, Button, Card, EmptyState, Hammer, PillTabs, Ship, Waves } from '@oikos/ui';
+import {
+  Anchor,
+  Button,
+  Card,
+  EmptyState,
+  Hammer,
+  PillTabs,
+  Ship,
+  TriangleAlert,
+  Waves,
+} from '@oikos/ui';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -239,8 +249,15 @@ export function MapScreen() {
           <p
             key={voyage.id}
             role="status"
-            className="rounded-lg bg-success-subtle p-3 font-semibold text-foreground"
+            className={
+              'flex items-start gap-2 rounded-lg p-3 font-semibold text-foreground ' +
+              (voyage.cargo_lost ? 'bg-warning-subtle' : 'bg-success-subtle')
+            }
           >
+            {/* Une perte (#730) prend le ton d'avertissement et son icône : la couleur ne la dit pas seule. */}
+            {voyage.cargo_lost && (
+              <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-warning" />
+            )}
             {t(arrivalKey('map', voyage), { city: cityName(voyage.to_city_id) })}
           </p>
         ))}
