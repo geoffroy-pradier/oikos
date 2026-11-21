@@ -1,4 +1,4 @@
-import { Button, CircleAlert, ShieldAlert } from '@oikos/ui';
+import { Button, CircleAlert, RefreshCw, ShieldAlert } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 
 /** Message propre à chaque cause d'échec d'une lecture ; les autres codes sont une panne. */
@@ -19,7 +19,7 @@ export function LoadError({ code, onRetry }: { code: string; onRetry: () => void
         {t(MESSAGES[code] ?? 'app.loadFailed')}
       </p>
       {code !== 'FORBIDDEN' && (
-        <Button variant="secondary" onClick={onRetry}>
+        <Button icon={<RefreshCw aria-hidden="true" />} variant="secondary" onClick={onRetry}>
           {t('app.retry')}
         </Button>
       )}

@@ -1,4 +1,4 @@
-import { Button, KeyRound } from '@oikos/ui';
+import { Button, KeyRound, RefreshCw, ShieldCheck } from '@oikos/ui';
 import { CONTROL } from '../ui';
 import { CardHeading } from './SignIn';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -119,11 +119,20 @@ export function SecondFactor({ onVerified }: { onVerified: () => void }) {
         {error && t(`mfa.${error}`)}
       </p>
       {!factor && error === 'failed' && (
-        <Button variant="secondary" onClick={() => void start()}>
+        <Button
+          icon={<RefreshCw aria-hidden="true" />}
+          variant="secondary"
+          onClick={() => void start()}
+        >
           {t('app.retry')}
         </Button>
       )}
-      <Button type="submit" size="lg" disabled={busy || !factor || code.trim() === ''}>
+      <Button
+        icon={<ShieldCheck aria-hidden="true" />}
+        type="submit"
+        size="lg"
+        disabled={busy || !factor || code.trim() === ''}
+      >
         {t('mfa.submit')}
       </Button>
     </form>

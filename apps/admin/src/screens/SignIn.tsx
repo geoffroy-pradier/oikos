@@ -1,4 +1,4 @@
-import { Button, Field, OlympusScene } from '@oikos/ui';
+import { Button, Field, OlympusScene, Send } from '@oikos/ui';
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../supabase';
@@ -49,7 +49,12 @@ export function SignIn({ sessionEnded = false }: { sessionEnded?: boolean }) {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
       />
-      <Button type="submit" size="lg" loading={state === 'sending'}>
+      <Button
+        icon={<Send aria-hidden="true" />}
+        type="submit"
+        size="lg"
+        loading={state === 'sending'}
+      >
         {t('signIn.submit')}
       </Button>
       {state === 'sent' && (

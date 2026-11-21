@@ -1,4 +1,4 @@
-import { Button } from '@oikos/ui';
+import { Button, Plus, Trash2 } from '@oikos/ui';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -78,6 +78,7 @@ export function GoodsForm(props: {
             ))}
             {!props.readOnly && (
               <Button
+                icon={<Trash2 aria-hidden="true" />}
                 variant="secondary"
                 className="col-span-full justify-self-start"
                 {...guard}
@@ -98,6 +99,7 @@ export function GoodsForm(props: {
       })}
       {goods && !props.readOnly && (
         <Button
+          icon={<Plus aria-hidden="true" />}
           id="goods-add"
           variant="secondary"
           {...guard}

@@ -8,12 +8,13 @@ import {
   Coins,
   EmptyState,
   Globe,
-  type Icon,
   PageHeader,
   RefreshCw,
   Scale,
   StatCard,
   StatGrid,
+  TriangleAlert,
+  type Icon,
 } from '@oikos/ui';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '../LoadError';
@@ -134,9 +135,13 @@ export function Economy({ accessToken }: { accessToken: string }) {
       {header}
       {data.worlds.length > 1 && alerts.length > 0 && (
         <section aria-labelledby="economy-alerts" className={cn(ALERT, 'font-normal')}>
-          <h2 id="economy-alerts" className="text-sm font-semibold">
+          <SectionTitle
+            id="economy-alerts"
+            icon={<TriangleAlert />}
+            className="text-sm [&_svg]:size-4 [&_svg]:text-current"
+          >
             {t('economy.alerts', { count: alerts.length })}
-          </h2>
+          </SectionTitle>
           <ul className="list-disc pl-5">
             {alerts.map((world) => (
               <li key={world.worldId} className="wrap-anywhere">
