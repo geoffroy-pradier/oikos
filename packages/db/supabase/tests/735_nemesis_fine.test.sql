@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(24);
 
 -- Jeu d'essai : un monde à lui, une cité ; Alice (a), Bob (b) et Chloé (c), maisons de joueur, 50 000 oboles chacune ; les
 -- Greniers (e), maison PNJ ; Dion (d) a une maison dans un second monde. Aucune clôture n'est enregistrée.
@@ -147,6 +147,29 @@ select pg_temp.close(204);
 select throws_ok($$select pg_temp.check_now('select pg_temp.fine(''a'', 10, named => ''b'')')$$, '23001',
   'a fine moves its amount from the house treasury to sink_nemesis, by its own entry',
   'une amende ne nomme qu''un procès frappé, de la trésorerie de sa maison');
+-- Procès de Bob frappé, son écriture tirée de la trésorerie de `payer` pour `debit` oboles, versant `credit` au puits,
+-- pour une amende de 100 ; le contrôle de l'écriture joué aussitôt (celui de l'équilibre reste différé).
+create function pg_temp.bad_fine(payer text, debit bigint, credit bigint) returns text language sql as $$
+  select format('select pg_temp.as_service(%L); ', format(
+    'with e as (insert into game.ledger_entries (world_id, kind, meta) values (%L, ''nemesis.fine'', %L) returning id)
+     insert into game.ledger_lines (entry_id, account_id, amount) select e.id, x.account, x.amount from e,
+       (values (%L::uuid, %s::bigint), (%L::uuid, %s::bigint)) x (account, amount)',
+    '01900000-0000-7000-8000-0000000735f0', jsonb_build_object('nemesisId', pg_temp.omen_id('b')),
+    pg_temp.account(payer), -debit, pg_temp.account('sink_nemesis'), credit))
+  || pg_temp.settle('b', 'outcome = ''struck'', settled_day = 207, magnitude_bps = 500, relief = 1, oboles = 100, '
+    || 'ledger_entry_id = (select id from game.ledger_entries where kind = ''nemesis.fine'' and meta ->> ''nemesisId'' = '
+    || quote_literal(pg_temp.omen_id('b')::text) || ')')
+  || '; set constraints game.ledger_lines_nemesis_fine, game.ledger_entries_nemesis_fine immediate'
+$$;
+select throws_ok(pg_temp.bad_fine('c', 100, 100), '23001',
+  'a fine moves its amount from the house treasury to sink_nemesis, by its own entry',
+  'une amende frappée ne se tire pas de la trésorerie d''une autre maison');
+select throws_ok(pg_temp.bad_fine('b', 99, 100), '23001',
+  'a fine moves its amount from the house treasury to sink_nemesis, by its own entry',
+  'ni pour un autre montant que l''amende, côté trésorerie');
+select throws_ok(pg_temp.bad_fine('b', 100, 99), '23001',
+  'a fine moves its amount from the house treasury to sink_nemesis, by its own entry',
+  'ni côté puits');
 select lives_ok(pg_temp.hubris('b', 5, 'wealth', 207) || '; ' || pg_temp.hubris('b', -1, 'nemesis', 207) || '; ' || pg_temp.settle('b', 'outcome = ''struck'', '
     || 'settled_day = 207, magnitude_bps = 500, relief = 1, oboles = 100, ledger_entry_id = '
     || quote_literal(pg_temp.fine('b', 100, 'sink_offerings'))), 'Bob est frappé…');
