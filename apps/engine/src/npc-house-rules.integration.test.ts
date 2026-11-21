@@ -1,7 +1,7 @@
 import type { NpcHouses } from '@oikos/config';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runNpcHouseRules } from './npc-house-rules';
+import { cancelUnjustifiedNpcOrders, runNpcHouseRules } from './npc-house-rules';
 import {
   close,
   configWith,
@@ -263,5 +263,83 @@ describe('règles des maisons PNJ de secours (#716)', () => {
       run: { acted: 0, refused: 0, failed: 0 },
       npc: { acted: 2, refused: 0, failed: 0 },
     });
+  });
+
+  it('une version nouvelle annule les ordres que les règles ne justifient plus et rend leur séquestre (#717)', async () => {
+    const { worldId } = await founded(secours());
+    // Tick 1 : le champ récolte 40 blés ; le moulin achète 20 blés à 6, sous séquestre (120 oboles).
+    expect((await runNpcHouseRules(db, tickOf(worldId, secours()))).acted).toBe(2);
+    const ordersOf = async () =>
+      (
+        await sql<{
+          name: string;
+          side: string;
+          price: number;
+          status: string;
+        }>`select h.name, o.side,
+          o.price::int as price, o.status from game.orders o join game.houses h on h.id = o.house_id
+          where o.world_id = ${worldId} order by o.created_at`.execute(owner)
+      ).rows;
+    const money = async () =>
+      (
+        await sql<{
+          name: string;
+          kind: string;
+          balance: number;
+        }>`select h.name, a.kind, a.balance::int as balance
+          from game.accounts a join game.houses h on h.id = a.house_id
+          where a.world_id = ${worldId} order by h.name, a.kind`.execute(owner)
+      ).rows;
+    const cancelled = async () =>
+      (
+        await sql<{ n: number }>`select count(*)::int as n from game.domain_events
+          where type = 'OrderCancelled' and payload->>'houseId' in
+            (select house_id::text from game.npc_houses where world_id = ${worldId})`.execute(owner)
+      ).rows[0]?.n;
+    // Le plafond de l'achat baisse à 5 : l'achat à 6 n'est plus justifié ; il est annulé avant les opérations, et
+    // le séquestre revient à la trésorerie. Le champ vend ensuite ses 40 blés à 6, que la règle justifie.
+    const cheaper = secours();
+    const mill = cheaper['kalliste']?.chains[1]?.rules?.['mill_flour']?.[0];
+    if (mill?.kind === 'buy') mill.maxPriceOboles = 5;
+    await runNpcHouseRules(db, tickOf(worldId, cheaper));
+    expect((await ordersOf()).slice(0, 2)).toEqual([
+      { name: 'Moulins', side: 'buy', price: 6, status: 'cancelled' },
+      { name: 'Moissons', side: 'sell', price: 6, status: 'open' },
+    ]);
+    expect(await money()).toContainEqual({ name: 'Moulins', kind: 'escrow', balance: 0 });
+    expect(await cancelled()).toBe(1);
+    // Rien de plus sous la même version : les ordres restants sont justifiés.
+    await runNpcHouseRules(db, tickOf(worldId, cheaper));
+    expect(await cancelled()).toBe(1);
+    // Le prix de référence du blé baisse à 5 : la vente à 6 n'est plus justifiée, même par sa règle d'avant.
+    const lower = {
+      ...configWith(cheaper),
+      goods: configWith(cheaper).goods.map((good) =>
+        good.id === 'wheat' ? { ...good, referencePriceOboles: 5 } : good,
+      ),
+    };
+    const dear = (await ordersOf()).filter((order) => order.status === 'open' && order.price > 5);
+    expect(dear.length).toBeGreaterThan(0);
+    expect(
+      await cancelUnjustifiedNpcOrders(db, { ...tickOf(worldId, cheaper), config: lower }),
+    ).toBe(dear.length);
+    expect(
+      (await ordersOf()).filter((order) => order.status === 'open' && order.price > 5),
+    ).toEqual([]);
+    // La filière retirée de la configuration : plus aucun ordre ouvert, plus aucun séquestre ni réservation.
+    await runNpcHouseRules(db, tickOf(worldId, {}));
+    expect((await ordersOf()).filter((order) => order.status === 'open')).toEqual([]);
+    expect(
+      (await money()).filter((account) => account.kind === 'escrow' && account.balance !== 0),
+    ).toEqual([]);
+    const { rows } = await sql<{
+      reserved: number;
+    }>`select coalesce(sum(reserved), 0)::int as reserved
+      from game.inventories where world_id = ${worldId}`.execute(owner);
+    expect(rows).toEqual([{ reserved: 0 }]);
+    // Partie double : rien n'est créé ni détruit par les annulations.
+    const total = await sql<{ total: string }>`select sum(balance) as total from game.accounts
+      where world_id = ${worldId}`.execute(owner);
+    expect(total.rows[0]?.total).toBe('0');
   });
 });
