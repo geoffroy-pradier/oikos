@@ -118,4 +118,104 @@ describe('maisons PNJ de secours (8.3, #715)', () => {
       ]);
     }
   });
+
+  describe('règles des sites (#716)', () => {
+    /** Le champ récolte et vend son blé au prix de référence (6) ; le moulin rachète du blé et vend sa farine (10). */
+    const RULES: NpcChain['rules'] = {
+      grow_wheat: [
+        { kind: 'collect' },
+        { kind: 'sell', goodId: 'wheat', minPriceOboles: 6, keepUnits: 0 },
+      ],
+      mill_flour: [
+        { kind: 'buy', goodId: 'wheat', maxPriceOboles: 7, targetUnits: 40 },
+        { kind: 'collect' },
+        { kind: 'sell', goodId: 'flour', minPriceOboles: 9, keepUnits: 8 },
+      ],
+    };
+    const ruled = (rules: unknown) => ({
+      kalliste: { treasuryCapOboles: 20_000, chains: [bread({ rules } as Partial<NpcChain>)] },
+    });
+
+    it('récolte, vente au prix de référence ou moins, achat d’un intrant : admis', () => {
+      expect(errorsOf(ruled(RULES))).toEqual([]);
+      const result = validateConfig({
+        ...(structuredClone(INITIAL_CONFIG) as object),
+        npcHouses: ruled(RULES),
+      });
+      expect(result.ok && result.config.npcHouses['kalliste']?.chains[0]?.rules).toEqual(RULES);
+      // Absentes (filière de #715) ou vides : admises, ses sites ne font rien.
+      expect(errorsOf(ruled({}))).toEqual([]);
+      expect(errorsOf(ruled({ grow_wheat: [] }))).toEqual([]);
+    });
+
+    it('le schéma refuse une vente au-dessus du prix de référence, d’une obole', () => {
+      expect(
+        errorsOf(
+          ruled({
+            grow_wheat: [{ kind: 'sell', goodId: 'wheat', minPriceOboles: 7, keepUnits: 0 }],
+          }),
+        ),
+      ).toEqual([
+        'npcHouses.kalliste.chains[0].rules.grow_wheat[0].minPriceOboles: above the reference price (6)',
+      ]);
+    });
+
+    it('un achat d’un intrant de la recette, des biens connus, une recette de la filière, une règle par sorte et par bien', () => {
+      expect(
+        errorsOf(
+          ruled({
+            grow_wheat: [
+              { kind: 'buy', goodId: 'wheat', maxPriceOboles: 6, targetUnits: 1 },
+              { kind: 'sell', goodId: 'gold', minPriceOboles: 1, keepUnits: 0 },
+              { kind: 'collect' },
+              { kind: 'collect' },
+            ],
+            bake_bread: [{ kind: 'collect' }],
+          }),
+        ),
+      ).toEqual([
+        'npcHouses.kalliste.chains[0].rules.grow_wheat[0].goodId: "wheat" is not an input of the recipe',
+        'npcHouses.kalliste.chains[0].rules.grow_wheat[1].goodId: unknown good "gold"',
+        'npcHouses.kalliste.chains[0].rules.grow_wheat[3]: duplicate rule "collect"',
+        'npcHouses.kalliste.chains[0].rules.bake_bread: no site of the recipe "bake_bread"',
+      ]);
+    });
+
+    it('la grammaire fermée : des nombres entiers bornés, au plus vingt règles, aucune autre sorte', () => {
+      const sell = (change: object) => ({
+        grow_wheat: [{ kind: 'sell', goodId: 'wheat', minPriceOboles: 6, keepUnits: 0, ...change }],
+      });
+      for (const change of [
+        { minPriceOboles: 0 },
+        { minPriceOboles: 1.5 },
+        { keepUnits: -1 },
+        { keepUnits: 1_000_001 },
+        { extra: 1 },
+      ])
+        expect([change, fieldsOf(ruled(sell(change)))[0]]).toEqual([
+          change,
+          expect.stringMatching(/^npcHouses\.kalliste\.chains\[0\]\.rules\.grow_wheat\[0\]/),
+        ]);
+      const buy = { kind: 'buy', goodId: 'wheat', maxPriceOboles: 6, targetUnits: 0 };
+      expect(fieldsOf(ruled({ mill_flour: [buy] }))).toEqual([
+        'npcHouses.kalliste.chains[0].rules.mill_flour[0].targetUnits',
+      ]);
+      expect(fieldsOf(ruled({ grow_wheat: [{ kind: 'hoard' }] }))).toEqual([
+        'npcHouses.kalliste.chains[0].rules.grow_wheat[0].kind',
+      ]);
+      expect(
+        fieldsOf(ruled({ grow_wheat: Array.from({ length: 21 }, () => ({ kind: 'collect' })) })),
+      ).toEqual(['npcHouses.kalliste.chains[0].rules.grow_wheat']);
+    });
+
+    it('des règles demandent la section des intendants, dont elles suivent le pas', () => {
+      const config = structuredClone(INITIAL_CONFIG) as Record<string, unknown>;
+      delete config['stewards'];
+      const result = validateConfig({ ...config, npcHouses: ruled(RULES) });
+      expect(result.ok ? [] : result.errors).toEqual([
+        'npcHouses: rules need the stewards section, whose pace they follow',
+      ]);
+      expect(validateConfig({ ...config, npcHouses: ruled({}) }).ok).toBe(true);
+    });
+  });
 });

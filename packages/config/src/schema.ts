@@ -1174,8 +1174,19 @@ export const gameConfigSchema = z
         const recipe = recipes.get(recipeId);
         return recipe !== undefined && cityTerroirAdmits(cityById.get(cityId), recipe);
       },
+      referencePrice: (goodId) =>
+        config.goods.find((good) => good.id === goodId)?.referencePriceOboles,
+      inputs: (recipeId) => recipes.get(recipeId)?.inputs.map((input) => input.goodId) ?? [],
     }))
       issue(['npcHouses', ...path], message);
+    // Les règles des maisons PNJ se mènent au pas des intendants (#716) : sans eux, aucune ne serait menée.
+    const npcRules = Object.values(config.npcHouses).some((city) =>
+      city.chains.some((chain) =>
+        Object.values(chain.rules ?? {}).some((rules) => rules.length > 0),
+      ),
+    );
+    if (npcRules && !config.stewards)
+      issue(['npcHouses'], 'rules need the stewards section, whose pace they follow');
     // Salaires : des cités connues, et toutes dès qu'une l'est (une cité oubliée aurait des travailleurs
     // gratuits). `Object.hasOwn` : une cité nommée comme une propriété d'objet n'est pas « déjà là ».
     const wages = config.staff.dailyWageOboles;
