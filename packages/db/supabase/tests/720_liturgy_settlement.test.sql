@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(49);
 
 -- Jeu d'essai : un monde à lui, une cité, Kallistè. Alice (a), Bob (b), Chloé (c) et Phédon (f) y ont leur foyer et
 -- une liturgie désignée au jour 100 ; Dion (d) a sa maison dans un autre monde. Trésoreries : Alice 2 000, Bob 300,
@@ -79,6 +79,18 @@ end $$;
 create function pg_temp.lit(house text) returns uuid language sql as $$
   select id from game.liturgies where house_id = ('00000000-0000-7000-8000-0000000720' || house || '1')::uuid
 $$;
+create function pg_temp.honor(house text, reason text, amount int, of_house text = null, day int = 103) returns text language sql as $$
+  select format('select pg_temp.as_service(%L)', format(
+    'insert into game.honor_ledger (world_id, house_id, amount, reason, reference, game_day) values (%L, %L, %s, %L, %L, %s)',
+    '01900000-0000-7000-8000-0000000720f0', '00000000-0000-7000-8000-0000000720' || house || '1', amount, reason,
+    pg_temp.lit(coalesce(of_house, house)), day))
+$$;
+create function pg_temp.charis(house text, god text, amount int, kind text = 'liturgy', of_house text = null) returns text language sql as $$
+  select format('select pg_temp.as_service(%L)', format(
+    'insert into game.favor_ledger (world_id, house_id, god_id, amount, kind, liturgy_id, game_day) values (%L, %L, %L, %s, %L, %L, %s)',
+    '01900000-0000-7000-8000-0000000720f0', '00000000-0000-7000-8000-0000000720' || house || '1', god, amount, kind,
+    pg_temp.lit(coalesce(of_house, house)), case when kind = 'decay' then '103' else 'null' end))
+$$;
 create function pg_temp.treasury(house text) returns bigint language sql as $$
   select balance from game.accounts where house_id = ('00000000-0000-7000-8000-0000000720' || house || '1')::uuid and kind = 'house'
 $$;
@@ -106,6 +118,10 @@ select throws_ok($$select pg_temp.settle('a', 'levied', 500)$$, '23001', 'a litu
   'une liturgie qui n''est pas échue n''est pas prélevée');
 select throws_ok($$select pg_temp.settle('f', 'performed', 600)$$, '23001', 'a liturgy is performed before it falls due',
   'une liturgie échue ne s''accomplit plus');
+select throws_ok(pg_temp.honor('a', 'liturgy_performed', 10), '23001', 'a liturgy is credited to its house when performed',
+  'pas de Timè pour une liturgie encore désignée');
+select throws_ok(pg_temp.charis('a', 'athena', 30), '23001', 'a performed liturgy adds its own Charis, when performed',
+  'ni de Charis');
 select lives_ok($$select pg_temp.settle('a', 'performed', 700, 200, 'athena', 30)$$, 'Alice accomplit sa liturgie avec faste');
 select is(pg_temp.treasury('a'), 1300::bigint, 'sa trésorerie paie le dû et le faste');
 select is((select balance from game.accounts where world_id = '01900000-0000-7000-8000-0000000720f0' and system_key = 'sink_liturgies'),
@@ -116,7 +132,28 @@ select throws_ok($$update game.liturgies set due = 1 where id = pg_temp.lit('a')
   'son dû ne change pas, même pour le propriétaire');
 select throws_ok($$delete from game.liturgies where id = pg_temp.lit('a')$$, '23001', null, 'elle ne se supprime pas');
 
+-- Timè et Charis de l'accomplissement : une fois, pour sa maison, au montant fixé.
+select throws_ok(pg_temp.honor('a', 'liturgy_performed', -10), '23001', 'a performed liturgy raises Timè', 'un gain, jamais une perte');
+select throws_ok(pg_temp.honor('b', 'liturgy_performed', 10, 'a'), '23001', 'a liturgy is credited to its house when performed',
+  'à sa seule maison');
+select lives_ok(pg_temp.honor('a', 'liturgy_performed', 10), 'Alice gagne sa Timè');
+select throws_ok(pg_temp.honor('a', 'liturgy_performed', 10), '23505', null, 'une seule fois');
+select throws_ok(pg_temp.charis('a', 'athena', 31), '23001', 'a performed liturgy adds its own Charis, when performed',
+  'la Charis est celle que la liturgie a fixée');
+select throws_ok(pg_temp.charis('a', 'demeter', 30), '23001', 'a performed liturgy adds its own Charis, when performed',
+  'envers son dieu');
+select throws_ok(pg_temp.charis('b', 'athena', 30, 'liturgy', 'a'), '23001', 'a performed liturgy adds its own Charis, when performed',
+  'à sa seule maison');
+select throws_ok(pg_temp.charis('a', 'athena', -1, 'decay'), '23001', 'only a liturgy movement names a liturgy',
+  'une autre nature ne nomme pas de liturgie');
+select lives_ok(pg_temp.charis('a', 'athena', 30), 'Alice gagne sa Charis');
+select throws_ok(pg_temp.charis('a', 'athena', 30), '23505', null, 'une seule fois');
+
 -- Prélèvement d'office : Bob (300 pour 500 dus), Chloé (rien), Phédon (600 en entier), par la clôture du jour 103.
+select throws_ok(pg_temp.honor('b', 'liturgy_evaded', 40), '23001', 'an evaded liturgy lowers Timè', 'une dérobade fait perdre de la Timè');
+select throws_ok(pg_temp.honor('a', 'liturgy_evaded', -40), '23001', 'an evaded liturgy is charged to its house once due',
+  'pas pour une liturgie accomplie');
+select lives_ok(pg_temp.honor('b', 'liturgy_evaded', -40), 'Bob perd sa Timè à l''échéance, avant le prélèvement');
 select throws_ok($$select pg_temp.settle('b', 'levied', 200)$$, '23001', 'a levy takes the whole due, or all the treasury holds',
   'un prélèvement partiel laisse la trésorerie vide');
 select throws_ok($$select pg_temp.settle('b', 'levied', 0)$$, '23001', 'a levy takes the whole due, or all the treasury holds',
@@ -130,9 +167,12 @@ select lives_ok($$select pg_temp.settle('f', 'levied', 600)$$, 'Phédon est pré
 select is(pg_temp.treasury('f'), 400::bigint, 'il garde le reste');
 select throws_ok('set constraints game.liturgies_levy_on_close immediate', '23001', 'a liturgy is levied by the close of its day',
   'sans la clôture de son jour, un prélèvement est refusé');
+select throws_ok('set constraints game.honor_ledger_on_close immediate', '23001', 'an evaded liturgy is charged by the close of its day',
+  'ni la perte de Timè d''une dérobade');
 insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
 values ('01900000-0000-7000-8000-0000000720f0', 103, now() - interval '1 hour', '00000000-0000-7000-8000-00000000c720');
-select lives_ok('set constraints game.liturgies_levy_on_close immediate', 'avec elle, les prélèvements sont admis');
+select lives_ok('set constraints game.liturgies_levy_on_close, game.honor_ledger_on_close immediate',
+  'avec elle, prélèvements et pertes sont admis');
 set constraints all deferred;
 
 -- Lectures : Bob lit l'état des liturgies de son monde, et ses seuls flux ; ni le faste, ni ce qui est payé d'une autre.

@@ -214,11 +214,17 @@ export interface GameDatabase {
     house_id: ColumnType<string, string, never>;
     god_id: ColumnType<string, string, never>;
     amount: ColumnType<string, number, never>;
-    kind: ColumnType<'offering' | 'decay' | 'grace', 'offering' | 'decay' | 'grace', never>;
+    kind: ColumnType<
+      'offering' | 'decay' | 'grace' | 'liturgy',
+      'offering' | 'decay' | 'grace' | 'liturgy',
+      never
+    >;
     /** Offrande d'une ligne `offering` ; nulle pour toute autre. */
     offering_id: ColumnType<string | null, string | null | undefined, never>;
     /** Invocation d'une ligne `grace` ; nulle pour toute autre. */
     grace_use_id: ColumnType<string | null, string | null | undefined, never>;
+    /** Liturgie accomplie d'une ligne `liturgy` (#720) ; nulle pour toute autre. */
+    liturgy_id: ColumnType<string | null, string | null | undefined, never>;
     game_day: ColumnType<number | null, number | null | undefined, never>;
     created_at: ColumnType<Date, never, never>;
   };

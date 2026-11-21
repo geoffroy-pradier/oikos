@@ -46,7 +46,7 @@ select is(
    from information_schema.column_privileges
    where table_schema = 'game' and table_name in ('favor', 'favor_ledger') and grantee = 'oikos_service' and privilege_type <> 'SELECT'),
   'favor.charis:UPDATE favor_ledger.amount:INSERT favor_ledger.game_day:INSERT favor_ledger.god_id:INSERT '
-    || 'favor_ledger.grace_use_id:INSERT favor_ledger.house_id:INSERT favor_ledger.kind:INSERT favor_ledger.offering_id:INSERT favor_ledger.world_id:INSERT',
+    || 'favor_ledger.grace_use_id:INSERT favor_ledger.house_id:INSERT favor_ledger.kind:INSERT favor_ledger.liturgy_id:INSERT favor_ledger.offering_id:INSERT favor_ledger.world_id:INSERT',
   'le service écrit au journal sans en choisir ni l''identifiant ni la date : liste figée');
 select ok(not exists (select 1 from unnest(array['game.favor', 'game.favor_ledger']) t, unnest(array['anon', 'authenticated']) r
   where has_any_column_privilege(r, t, 'insert, update')

@@ -27,7 +27,7 @@ describe('Timè (#704)', () => {
   });
 
   it('les motifs sont une liste fermée de codes de la base', () => {
-    expect(HONOR_REASONS).toEqual(['archon_term']);
+    expect(HONOR_REASONS).toEqual(['archon_term', 'liturgy_performed', 'liturgy_evaded']);
     for (const reason of HONOR_REASONS) expect(reason).toMatch(/^[a-z][a-z0-9_]{1,31}$/);
   });
 });
