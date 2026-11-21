@@ -452,6 +452,40 @@ describe('GET /api/admin/reports', () => {
     expect(after.queue.some((item) => item.message?.id === messageId)).toBe(false);
   });
 
+  it('montre d’abord les violations probables du pré-tri avec catégorie et résumé, sans pré-tri l’ordre de la phase 2 (#763)', async () => {
+    const world = await newWorld();
+    const [alice, bob] = [await world.player(), await world.player()];
+    // Trois messages de Bob, signalés dans cet ordre par Alice : le plus ancien d'abord à la phase 2.
+    const ids: string[] = [];
+    for (const body of ['Un', 'Deux', 'Trois']) {
+      const messageId = (await post(bob.user, world.kallisteChannel, body)).body.data
+        .messageId as string;
+      ids.push(messageId);
+      await send(alice.user, 'chat.report', { messageId, reason: 'spam' });
+    }
+    const moderator = await member('moderator');
+    const order = async () => {
+      const data = adminReportsSchema.parse((await read(moderator)).body.data);
+      return data.queue
+        .filter((item) => ids.includes(item.message?.id ?? ''))
+        .map((item) => [item.message?.id, item.triage ?? null] as const);
+    };
+    expect((await order()).map(([id]) => id)).toEqual(ids);
+    expect((await order()).map(([, triage]) => triage)).toEqual([null, null, null]);
+    await sql`insert into game.report_triage (message_id, category, summary, outcome) values
+      (${ids[0]}, 'likely_unfounded', 'Rien de répréhensible.', 'ok'),
+      (${ids[2]}, 'likely_violation', 'Pourriel commercial.', 'ok')`.execute(owner);
+    await sql`insert into game.report_triage (message_id, outcome) values (${ids[1]}, 'timeout')`.execute(
+      owner,
+    );
+    // Violation probable, puis sans catégorie, puis probablement infondé.
+    expect(await order()).toEqual([
+      [ids[2], { category: 'likely_violation', summary: 'Pourriel commercial.' }],
+      [ids[1], null],
+      [ids[0], { category: 'likely_unfounded', summary: 'Rien de répréhensible.' }],
+    ]);
+  });
+
   it('ouverte aux seuls rôles de la modération ; le modérateur ne lit aucun autre module', async () => {
     const moderator = await member('moderator');
     for (const path of ['vigie', 'economy', 'config/versions', 'audit', 'roles', 'events'])
@@ -585,5 +619,51 @@ describe('signalements en attente depuis plus que le seuil (15.5, #530)', () => 
       ).data,
     );
     expect(queue.staleAfterHours).toBe(TEST_CONFIG.config.moderation.staleReportHours);
+  });
+});
+
+describe('le pré-tri de l’IA ne décide d’aucune sanction (#763)', () => {
+  it('une catégorie, quelle qu’elle soit, ne change le résultat d’aucune commande de modération', async () => {
+    const world = await newWorld();
+    const [alice, bob, chloe] = [await world.player(), await world.player(), await world.player()];
+    const moderator = await member('moderator');
+    const other = await member('community_manager');
+    const cases: [typeof bob, string, string][] = [];
+    for (const [author, category, summary] of [
+      [bob, 'likely_unfounded', 'Rien de répréhensible.'],
+      [chloe, 'likely_violation', 'Insulte.'],
+    ] as const) {
+      const messageId = (await post(author.user, world.kallisteChannel, 'Propos')).body.data
+        .messageId as string;
+      const reportId = (await send(alice.user, 'chat.report', { messageId, reason: 'harassment' }))
+        .body.data.reportId as string;
+      await sql`insert into game.report_triage (message_id, category, summary, outcome)
+        values (${messageId}, ${category}, ${summary}, 'ok')`.execute(owner);
+      cases.push([author, messageId, reportId]);
+    }
+    const [unfounded, violation] = cases as [(typeof cases)[number], (typeof cases)[number]];
+    // Masquer, sanctionner et traiter passent pareil, d'un message « probablement infondé » comme d'une « violation
+    // probable » : la décision reste celle du modérateur, dans les deux sens.
+    for (const [author, messageId, reportId] of [unfounded, violation]) {
+      expect((await send(moderator, 'admin.hideMessage', { messageId })).status).toBe(200);
+      const sanction = await send(moderator, 'admin.sanction', {
+        userId: author.user,
+        kind: 'warning',
+        hours: 168,
+        reason: 'Propos',
+      });
+      expect(sanction.status).toBe(200);
+      expect(sanction.body.data).toMatchObject({ kind: 'warning', pending: false });
+      expect(
+        (await send(other, 'admin.resolveReport', { reportId, decision: 'upheld' })).status,
+      ).toBe(200);
+    }
+    const after = await rows(sql<{ category: string; summary: string }>`
+      select category, summary from game.report_triage
+      where message_id = any(${[unfounded[1], violation[1]]}::uuid[]) order by category`);
+    expect(after.map((row) => row.category)).toEqual(['likely_unfounded', 'likely_violation']);
+    const states = await rows(sql<{ state: string }>`
+      select state from game.reports where id = any(${[unfounded[2], violation[2]]}::uuid[])`);
+    expect(states.map((row) => row.state)).toEqual(['upheld', 'upheld']);
   });
 });

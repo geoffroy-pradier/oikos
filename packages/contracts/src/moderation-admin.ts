@@ -307,6 +307,18 @@ export const adminReportsSchema = z.strictObject({
         .min(1),
       /** Messages qui précèdent et qui suivent dans le canal, au plus `contextSize` de chaque côté. */
       context: z.array(queueMessageSchema),
+      /**
+       * Pré-tri du message par l'IA (usage `moderation_triage`, #763) : sa catégorie et son résumé, d'une IA qui a pu
+       * se tromper. Nul sans pré-tri (IA coupée, sortie rejetée, message pas encore essayé), absent d'une API antérieure
+       * à ce champ. Une indication qui ordonne la file : aucune commande de sanction ne la lit.
+       */
+      triage: z
+        .strictObject({
+          category: z.enum(TRIAGE_CATEGORIES),
+          summary: z.string().min(1).max(500),
+        })
+        .nullable()
+        .optional(),
     }),
   ),
   /** Appels à trancher, les plus anciens d'abord. */

@@ -99,6 +99,19 @@ describe('GET /api/admin/reports', () => {
     ],
   };
 
+  it('porte le pré-tri de l’IA, nul ou absent d’une API antérieure (#763)', () => {
+    for (const triage of [
+      null,
+      undefined,
+      { category: 'likely_violation', summary: 'Insulte un joueur.' },
+      { category: 'doubtful', summary: 'Ambigu.' },
+      { category: 'likely_unfounded', summary: 'Rien de répréhensible.' },
+    ]) {
+      const withTriage = { ...reports, queue: [{ ...entry, triage }] };
+      expect(adminReportsSchema.parse(withTriage).queue[0]?.triage).toEqual(triage);
+    }
+  });
+
   it('se lit sans aucun champ de plus : ni donnée économique, ni maison qui signale', () => {
     expect(adminReportsSchema.parse(reports)).toEqual(reports);
     const unread = { ...reports, sanctionHours: null };
@@ -115,6 +128,14 @@ describe('GET /api/admin/reports', () => {
       { ...reports, queue: [{ ...entry, reportedHouse: { ...entry.reportedHouse, balance: 10 } }] },
       { ...reports, queue: [{ ...entry, reports: [{ ...entry.reports[0], houseId: ID }] }] },
       { ...reports, queue: [{ ...entry, reports: [] }] },
+      // Pré-tri de l'IA (#763) : une catégorie de la liste fermée et un résumé, sans autre clé, pas de sanction proposée.
+      { ...reports, queue: [{ ...entry, triage: { category: 'ban', summary: 'x' } }] },
+      { ...reports, queue: [{ ...entry, triage: { category: 'doubtful', summary: '' } }] },
+      {
+        ...reports,
+        queue: [{ ...entry, triage: { category: 'doubtful', summary: 'x', sanction: 'ban' } }],
+      },
+      { ...reports, queue: [{ ...entry, triage: { category: 'doubtful' } }] },
       { ...reports, economy: {} },
       // Une levée proposée ne dit rien de plus que les comptes, le motif et les instants (#616).
       { ...reports, pendingLifts: [{ ...reports.pendingLifts[0], balance: 10 }] },
