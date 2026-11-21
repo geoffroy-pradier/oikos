@@ -43,6 +43,8 @@ export async function workersAvailable(
     .selectFrom('game.sites')
     .select(['recipe_id', (expression) => expression.fn.countAll<string>().as('n')])
     .where('city_id', '=', city.id)
+    // Un site fermé d'une maison PNJ (#717) n'emploie personne : il rend ses travailleurs aux joueurs.
+    .where('closed_at', 'is', null)
     .groupBy('recipe_id')
     .execute();
   const employed = sites.reduce(

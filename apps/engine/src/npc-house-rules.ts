@@ -196,6 +196,8 @@ export async function runNpcHouseRules(db: Db, tick: StewardTick): Promise<Stewa
     .leftJoin('game.npc_site_queues as q', 'q.site_id', 's.id')
     .select(['s.id as site_id', 's.house_id', 's.recipe_id', 'c.slug', 'n.chain_id'])
     .where('n.world_id', '=', tick.worldId)
+    // Un site fermé par le retrait (#717) ne mène pas ses règles.
+    .where('s.closed_at', 'is', null)
     .where((eb) =>
       eb.or([
         eb('q.tick_index', 'is', null),

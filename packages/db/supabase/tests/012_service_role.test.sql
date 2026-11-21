@@ -46,7 +46,8 @@ select is(
     || 'houses.name inventories.quantity leases.end_reason leases.end_requested_by leases.ended_day '
     || 'liturgies.charis_gained liturgies.god_id liturgies.ledger_entry_id liturgies.paid liturgies.settled_day liturgies.splendor '
     || 'liturgies.status messages.hidden_at npc_demand_carry.budget_carry npc_demand_carry.carry '
-    || 'npc_demand_carry.updated_at npc_population.closed_day npc_population.coverage_bps npc_population.population '
+    || 'npc_demand_carry.updated_at npc_house_retreats.above_days npc_house_retreats.dissolved_at npc_house_retreats.game_day '
+    || 'npc_house_retreats.sales npc_house_retreats.trade_seq npc_population.closed_day npc_population.coverage_bps npc_population.population '
     || 'npc_site_queues.config_version_id npc_site_queues.error_code npc_site_queues.rank npc_site_queues.refused '
     || 'npc_site_queues.rule_position npc_site_queues.tick_index npc_vital_coverage.demanded npc_vital_coverage.served observed_prices.observed_at observed_prices.price observed_prices.volume observed_prices.window_seconds '
     || 'offices.vacated_at oracles.rewrite_outcome oracles.rewritten_at oracles.source oracles.text_en oracles.text_fr '
@@ -55,7 +56,7 @@ select is(
     || 'price_candles.turnover price_candles.volume properties.condition properties.owner_house_id '
     || 'properties.upkeep_unpaid_since properties.worn_day property_listings.ledger_entry_id property_listings.outcome rate_windows.count reports.resolved_by reports.state '
     || 'sanctions.appeal_body sanctions.appeal_decided_by sanctions.appeal_decision sanctions.lift_proposed_by sanctions.lifted_by sanctions.validated_by ships.docked_city_id ships.laid_up_at '
-    || 'sites.cycle_started_at sites.halted_at sites.recipe_id steward_instructions.status stewards.dismissed_at stewards.rules_revision stewards.unpaid_since voyages.arrived_at',
+    || 'sites.closed_at sites.cycle_started_at sites.halted_at sites.recipe_id steward_instructions.status stewards.dismissed_at stewards.rules_revision stewards.unpaid_since voyages.arrived_at',
   'colonnes modifiables par le service, tous schémas du jeu : liste figée');
 select is(
   (select count(*) from pg_class c
