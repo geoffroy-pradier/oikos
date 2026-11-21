@@ -68,6 +68,7 @@ describe('journée d’une chronique (#271)', () => {
       { type: 'trade', cityId: 'kalliste', goodId: 'wheat', price: 7, quantity: 5 },
       { type: 'election', cityId: 'kalliste', houseName: '', votes: 3 },
       { type: 'arrival', cityId: 'kalliste', fromCityId: 'elaia' },
+      { type: 'loss', cityId: 'kalliste', fromCityId: 'elaia' },
       { type: 'election', cityId: 'kalliste', houseName: 'Alcméonides', votes: 3 },
       {
         type: 'decree',

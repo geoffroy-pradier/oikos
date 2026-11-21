@@ -23,7 +23,14 @@ export interface ChronicleContext {
 
 /** Vrai si la journée n'a rien à raconter hors population : la chronique le dit en une phrase. */
 export function isQuietDay(facts: ChronicleFacts): boolean {
-  const lists = [facts.goods, facts.arrivals, facts.elections, facts.decrees, facts.worldEvents];
+  const lists = [
+    facts.goods,
+    facts.arrivals,
+    facts.losses,
+    facts.elections,
+    facts.decrees,
+    facts.worldEvents,
+  ];
   return lists.every((list) => list.length === 0) && facts.otherGoods === 0 && !facts.configChange;
 }
 
@@ -106,6 +113,15 @@ function compose(locale: ChronicleLocale, facts: ChronicleFacts, context: Chroni
       ships: render(locale, 'ships', {}, ships),
       city: city(fromCityId),
     }),
+  );
+  // Pertes en mer (#730) : comptées par route, sans nommer de maison.
+  port.push(
+    ...facts.losses.map(({ fromCityId, cargoes }) =>
+      render(locale, 'losses', {
+        cargoes: render(locale, 'cargoes', {}, cargoes),
+        city: city(fromCityId),
+      }),
+    ),
   );
   paragraphs.push(news, politics, market, port);
   if (facts.population) {

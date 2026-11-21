@@ -1,4 +1,9 @@
-import { fairWindSeconds, graceToConsume, stormDurationSeconds } from '@oikos/sim';
+import {
+  fairWindSeconds,
+  graceToConsume,
+  stormDurationSeconds,
+  voyageLossRiskBps,
+} from '@oikos/sim';
 import { Anchor, cn, Stepper } from '@oikos/ui';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +58,10 @@ export function Departure(props: {
   const money = useMoney();
   const number = new Intl.NumberFormat(i18n.language);
   const time = dateTimeFormat(i18n.language);
+  const percent = (bps: number) =>
+    new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 2 }).format(
+      bps / 10_000,
+    );
   const hours = (seconds: number) => number.format(Math.round((seconds / 3600) * 10) / 10);
   // Secondes retirées par un vent favorable ; arrondies à « 0 h », elles sont dites « quelques minutes au plus ».
   const saved = (seconds: number, key: 'fairWind' | 'sailedWind', god?: string) =>
@@ -102,7 +111,13 @@ export function Departure(props: {
     // Allongée (ou raccourcie), mais égale une fois arrondie : la durée n'est pas annoncée comme changée.
     const longer = hours(stormy) !== hours(quote.durationSeconds);
     const shorter = hours(seconds) !== hours(stormy);
-    return [{ cityId, quote, storm, stormy, wind, seconds, longer, shorter }];
+    // Risque de perte fixé au départ (#730), comme l'API : celui de la route, majoré par la tempête en cours.
+    const lossRiskBps = voyageLossRiskBps({
+      routeRiskBps: quote.lossRiskBps,
+      stormRiskBps: quote.stormLossRiskBps,
+      storm: !!storm,
+    });
+    return [{ cityId, quote, storm, stormy, wind, seconds, longer, shorter, lossRiskBps }];
   });
   const capacity = rules.classes.find((row) => row.id === ship.class_id)?.capacityUnits ?? 0;
   const [to, setTo] = useState('');
@@ -321,6 +336,17 @@ export function Departure(props: {
       )}
       {chosen?.wind && (
         <p>{saved(chosen.stormy - chosen.seconds, 'fairWind', chosen.wind.godId)}</p>
+      )}
+      {/* Risque nul (configuration initiale) : rien n'est annoncé, l'écran reste celui d'avant #730. */}
+      {chosen && chosen.lossRiskBps > 0 && (
+        <p>
+          {t(
+            chosen.lossRiskBps > chosen.quote.lossRiskBps
+              ? 'departure.lossRiskStorm'
+              : 'departure.lossRisk',
+            { risk: percent(chosen.lossRiskBps), calm: percent(chosen.quote.lossRiskBps) },
+          )}
+        </p>
       )}
       {chosen && (
         <p className="rounded-lg bg-aegean-subtle p-3">

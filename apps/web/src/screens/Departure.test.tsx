@@ -46,7 +46,7 @@ const done = vi.fn((_notice: unknown) => Promise.resolve());
 
 // Une clé d'intention survit au test (mémoire du module) : un navire neuf par test.
 let shipNumber = 0;
-async function mount() {
+async function mount(rules: ShipRules = RULES) {
   shipNumber += 1;
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
@@ -62,7 +62,7 @@ async function mount() {
         <Departure
           ship={{ ...SHIP, id: `s${shipNumber}` }}
           shipName="Caboteur"
-          rules={RULES}
+          rules={rules}
           slugs={SLUGS}
           voyageCounts={new Map()}
           onDone={done}
@@ -107,6 +107,19 @@ describe('départ d’un navire', () => {
       expectedCostOboles: 18,
     });
     expect(done.mock.calls[0]?.[0]).toMatchObject({ kind: 'status' });
+  });
+
+  it('pertes en mer (#730) : le récapitulatif annonce le risque de la route ; nul, il ne dit rien', async () => {
+    const risky = (route: ShipRules['routes'][number]) =>
+      route.cities.includes('elaia') && route.cities.includes('kalliste')
+        ? { ...route, lossRiskBps: 250, stormLossRiskBps: 1_000 }
+        : route;
+    await mount({ ...RULES, routes: RULES.routes.map(risky) });
+    fireEvent.click(screen.getByLabelText(/Elaia/));
+    expect(screen.getByText(/^Risque de perdre la cargaison en mer\s: 2,5\s?%\./)).toBeTruthy();
+    // Sans tempête lue ici, la majoration ne joue pas ; vers Halos, route sans risque, rien n'est dit.
+    fireEvent.click(screen.getByLabelText(/Halos/));
+    expect(screen.queryByText(/Risque de perdre la cargaison/)).toBeNull();
   });
 
   it('cargaison prise dans le stock libre ; au-delà, rien ne part et l’écran dit pourquoi', async () => {

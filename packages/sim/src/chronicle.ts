@@ -12,6 +12,8 @@ export type ChronicleWorldEventModel = 'drought' | 'good_year' | 'storm' | 'cara
 export type ChronicleInputEvent =
   | { type: 'trade'; cityId: string; goodId: string; price: number; quantity: number }
   | { type: 'arrival'; cityId: string; fromCityId: string }
+  /** Cargaison perdue en mer (#730) sur la route de `fromCityId` à `cityId`, la cité d'arrivée : aucune maison. */
+  | { type: 'loss'; cityId: string; fromCityId: string }
   | { type: 'election'; cityId: string; houseName: string; votes: number }
   | {
       type: 'decree';
@@ -67,6 +69,8 @@ export interface ChronicleFacts {
   population: { before: number; after: number; change: number } | null;
   /** Navires arrivés dans la cité, par cité de départ. */
   arrivals: { fromCityId: string; ships: number }[];
+  /** Cargaisons perdues en mer en venant vers la cité, par cité de départ, donc par route (#730). */
+  losses: { fromCityId: string; cargoes: number }[];
   elections: { houseName: string; votes: number }[];
   decrees: {
     model: string;
@@ -95,7 +99,7 @@ export function roundedQuotient(numerator: number, denominator: number): number 
 
 /**
  * Faits du jour d'une cité. Déterministe : biens par volume puis montant décroissants, puis par identifiant ;
- * arrivées par nombre décroissant, puis par cité ; élections par nom ; décrets par issue puis par modèle ;
+ * arrivées et pertes en mer par nombre décroissant, puis par cité ; élections par nom ; décrets par issue puis par modèle ;
  * événements du monde par modèle. Les échanges ne dépendent pas de leur ordre. Une somme hors des entiers sûrs
  * est refusée plutôt qu'arrondie.
  */
@@ -104,6 +108,7 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
   if (!nonNegative(maxGoods)) throw new RangeError('maxGoods must be a non-negative integer');
   const goods = new Map<string, ChronicleGoodFacts>();
   const arrivals = new Map<string, number>();
+  const losses = new Map<string, number>();
   const elections: ChronicleFacts['elections'] = [];
   const decrees: ChronicleFacts['decrees'] = [];
   // État final de chaque clôture visée : la dernière programmation l'emporte, une annulation les annule toutes.
@@ -130,6 +135,8 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
       goods.set(goodId, { goodId, volume, turnover, averagePrice: 0, lowPrice, highPrice });
     } else if (event.type === 'arrival') {
       arrivals.set(event.fromCityId, (arrivals.get(event.fromCityId) ?? 0) + 1);
+    } else if (event.type === 'loss') {
+      losses.set(event.fromCityId, (losses.get(event.fromCityId) ?? 0) + 1);
     } else if (event.type === 'election') {
       if (!nonNegative(event.votes)) throw new RangeError('votes must be a non-negative integer');
       elections.push({ houseName: event.houseName, votes: event.votes });
@@ -163,6 +170,9 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
     arrivals: [...arrivals]
       .map(([fromCityId, ships]) => ({ fromCityId, ships }))
       .sort((a, b) => b.ships - a.ships || byText(a.fromCityId, b.fromCityId)),
+    losses: [...losses]
+      .map(([fromCityId, cargoes]) => ({ fromCityId, cargoes }))
+      .sort((a, b) => b.cargoes - a.cargoes || byText(a.fromCityId, b.fromCityId)),
     elections: elections.sort((a, b) => byText(a.houseName, b.houseName) || b.votes - a.votes),
     decrees: decrees.sort(
       (a, b) =>

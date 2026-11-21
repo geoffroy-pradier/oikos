@@ -105,6 +105,9 @@ export interface DepartureQuote {
   totalOboles: number;
   /** Durée du trajet pour cette classe, en secondes (arrondie à la seconde supérieure, comme l'API). */
   durationSeconds: number;
+  /** Risque de perte de la cargaison par temps calme, et sa majoration pendant une tempête (#730), en points de base. */
+  lossRiskBps: number;
+  stormLossRiskBps: number;
 }
 
 /**
@@ -132,5 +135,7 @@ export function quoteDeparture(
     portDuesOboles: cost.portDues.oboles,
     totalOboles: cost.totalOboles,
     durationSeconds: voyageDurationSeconds(route.hours, shipClass.speedBps),
+    lossRiskBps: route.lossRiskBps,
+    stormLossRiskBps: route.stormLossRiskBps,
   };
 }

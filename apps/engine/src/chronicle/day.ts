@@ -12,6 +12,7 @@ import { z } from 'zod';
 const TYPES: DomainEventType[] = [
   'TradeExecuted',
   'VoyageArrived',
+  'CargoLostAtSea',
   'ArchonElected',
   'DecreeAdopted',
   'DecreeRejected',
@@ -110,6 +111,11 @@ export async function readChronicleDay(
       case 'VoyageArrived': {
         const { toCityId, fromCityId } = event.payload;
         return [{ type: 'arrival', cityId: slug(toCityId), fromCityId: slug(fromCityId) }];
+      }
+      case 'CargoLostAtSea': {
+        // Compté par route, vers la cité d'arrivée : la maison n'est pas lue, la chronique ne la nomme pas.
+        const { toCityId, fromCityId } = event.payload;
+        return [{ type: 'loss', cityId: slug(toCityId), fromCityId: slug(fromCityId) }];
       }
       case 'ArchonElected': {
         const { cityId, houseId, votes } = event.payload;

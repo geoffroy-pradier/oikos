@@ -26,6 +26,7 @@ const FULL: ChronicleFacts = facts(
     { type: 'arrival', cityId: 'kalliste', fromCityId: 'elaia' },
     { type: 'arrival', cityId: 'kalliste', fromCityId: 'nesos' },
     { type: 'arrival', cityId: 'kalliste', fromCityId: 'nesos' },
+    { type: 'loss', cityId: 'kalliste', fromCityId: 'nesos' },
     { type: 'election', cityId: 'kalliste', houseName: 'Alcméonides', votes: 1 },
     {
       type: 'decree',
@@ -60,7 +61,8 @@ describe('chronique de repli', () => {
       "Sur l'agora : Blé, 1 500 unités échangées à 6 oboles en moyenne (de 6 à 7 oboles). " +
         'Vin, 1 unité échangée à 20 oboles. Échanges aussi sur 1 autre bien.',
       // Une cité sans traduction garde son nom en base.
-      'Au port, 2 navires arrivés depuis Nèsos. Au port, 1 navire arrivé depuis Elaia.',
+      'Au port, 2 navires arrivés depuis Nèsos. Au port, 1 navire arrivé depuis Elaia. ' +
+        'Sur la route depuis Nèsos, 1 cargaison perdue en mer.',
       "La cité compte 1 191 habitants, 12 de moins qu'à la clôture précédente.",
     ]);
   });
@@ -71,6 +73,7 @@ describe('chronique de repli', () => {
     expect(text).toContain('House Alcméonides is elected archon with 1 vote.');
     expect(text).toContain('Wheat, 1,500 units traded at 6 obols on average (from 6 to 7 obols).');
     expect(text).toContain('In the harbour, 2 ships arrived from Nèsos.');
+    expect(text).toContain('On the route from Nèsos, 1 cargo lost at sea.');
     expect(text).toContain(
       'The city counts 1,191 inhabitants, 12 fewer than at the previous close.',
     );
@@ -92,6 +95,16 @@ describe('chronique de repli', () => {
     ).toContain('The population of the city holds at 0 inhabitants.');
     expect(composeChronicle(facts([]), context).fr.split('\n\n')).toHaveLength(1);
     expect(isQuietDay(facts([{ type: 'configScheduled', activateAt: 0 }]))).toBe(false);
+    // Une perte en mer suffit à faire une journée qui n'est pas calme (#730), au pluriel s'il le faut.
+    const lost = facts([
+      { type: 'loss', cityId: 'kalliste', fromCityId: 'elaia' },
+      { type: 'loss', cityId: 'kalliste', fromCityId: 'elaia' },
+    ]);
+    expect(isQuietDay(lost)).toBe(false);
+    expect(composeChronicle(lost, context)).toEqual({
+      fr: 'Sur la route depuis Elaia, 2 cargaisons perdues en mer.',
+      en: 'On the route from Elaia, 2 cargoes lost at sea.',
+    });
   });
 
   it('une maison élue introuvable n’est pas nommée', () => {
