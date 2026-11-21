@@ -508,6 +508,7 @@ Pertes en mer, dans la phase 3 (#730) :
 - Le risque d'un voyage est celui de sa route, plus la majoration si une tempête de la route est en cours au départ, borné à 10 000 (`voyageLossRiskBps`, `packages/sim`).
   `voyage.depart` le fixe avec la tempête qui allonge le trajet, l'écrit avec le voyage (`loss_risk_bps`), où il ne change plus, et `VoyageDeparted` le porte (`lossRiskBps`, absent des départs antérieurs).
   Il n'est pas un coût : un risque changé entre la feuille de départ et l'envoi n'est pas refusé.
+  La feuille de départ annonce dans son récapitulatif le risque de la route choisie, en pourcentage, majoré par la tempête en cours qu'elle lit déjà pour la durée (avec alors le risque par temps calme) ; un risque nul n'est pas annoncé, si bien que l'écran de la configuration initiale ne change pas.
 - Le tirage se fait à l'arrivée (`voyageLoss`) : un entier uniforme de 0 à 9 999, tiré par un générateur dont la graine est celle du monde suivie de l'identifiant du voyage, perd la cargaison s'il est inférieur au risque.
   Il est rejouable, et caché jusqu'à l'arrivée : les joueurs ne lisent pas la graine du monde (7.3).
   Décision : la graine du monde s'ajoute à l'identifiant du voyage, que le joueur connaît dès le départ et qui seul lui ferait prévoir l'issue.
@@ -518,6 +519,8 @@ Pertes en mer, dans la phase 3 (#730) :
   Rejouer l'arrivée ne perd rien deux fois : le tick n'est joué qu'une fois, et la base refuse qu'un bien sorte deux fois de `in_transit` (12).
   Le tirage ne dépend pas du tick : un voyage déchargé après une panne a la même issue qu'à son échéance.
   Le résumé de l'étape compte les voyages perdus et leurs unités (`lostVoyages`, `lostUnits`), seulement s'il y en a.
+- La chronique de la cité d'arrivée (6.6) compte les cargaisons perdues de la journée par route, c'est-à-dire par cité de départ, sans nommer de maison : elle ne lit pas la maison de `CargoLostAtSea`.
+  Décision : la perte est dite là où le navire accoste à vide, comme son arrivée, qu'elle compte aussi.
 
 ## 4.7 Le savoir
 

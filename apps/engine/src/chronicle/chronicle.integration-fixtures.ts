@@ -91,6 +91,20 @@ export async function chronicleWorld(
     [at(3000), ...trade(uuid(), 50, 50)], // une cité d'un autre monde
     [at(3500), 'ArchonElected', { ...elected, houseId: uuid() }], // une maison introuvable
     [at(4000), 'VoyageArrived', arrival],
+    // Sa cargaison perdue en mer (#730) : la chronique compte la perte, sans lire la maison.
+    [
+      at(4000),
+      'CargoLostAtSea',
+      {
+        ...route,
+        voyageId: voyage.voyageId,
+        shipId: voyage.shipId,
+        arrivedAt: arrival.arrivedAt,
+        lossRiskBps: 1_500,
+        cargo: [{ goodId: 'wheat', quantity: 30 }],
+      },
+    ],
+    [at(4500), 'CargoLostAtSea', { ...route, cargo: [] }], // illisible : ignoré
     [at(5000), 'VoyageArrived', { cargo: [] }], // illisible : ignoré
     // Écrits par la clôture du jour, avant sa fin : ses résultats sont de cette journée.
     [at(1000, CLOSE), 'ArchonElected', elected],

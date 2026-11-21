@@ -47,7 +47,7 @@ const storm = (id: string, from: string, to: string, magnitude: number, ends = '
   ends_at: `2026-11-${ends}T08:00:00Z`,
   magnitude_bps: magnitude,
 });
-async function mount() {
+async function mount(rules: ShipRules = RULES) {
   const instance = i18next.createInstance();
   await instance.use(initReactI18next).init({
     resources: { fr: { translation: fr } },
@@ -62,7 +62,7 @@ async function mount() {
         <Departure
           ship={{ id: 's1', class_id: 'coaster', docked_city_id: 'k', laid_up_at: null }}
           shipName="Caboteur"
-          rules={RULES}
+          rules={rules}
           slugs={SLUGS}
           voyageCounts={new Map()}
           onDone={(notice) => Promise.resolve(api.done(notice))}
@@ -81,6 +81,30 @@ afterEach(() => {
 });
 
 describe('départ d’un navire : durée allongée par une tempête en cours sur sa route (#417)', () => {
+  it('pertes en mer (#730) : la tempête de la route majore le risque annoncé, borné à 100 %', async () => {
+    state.events = [storm('e1', 'e', 'k', 2_500), storm('e2', 'h', 'k', 1_000)];
+    const risks: Record<string, [number, number]> = { elaia: [300, 1_200], halos: [9_500, 2_000] };
+    await mount({
+      ...RULES,
+      routes: RULES.routes.map((route) => {
+        const [lossRiskBps, stormLossRiskBps] = risks[
+          route.cities.find((slug) => slug !== 'kalliste') ?? ''
+        ] ?? [0, 0];
+        return route.cities.includes('kalliste')
+          ? { ...route, lossRiskBps, stormLossRiskBps }
+          : route;
+      }),
+    });
+    fireEvent.click(screen.getByLabelText(/^Elaia/));
+    expect(
+      screen.getByText(
+        /^Risque de perdre la cargaison en mer\s: 15\s?% par tempête \(3\s?% par temps calme\)\./,
+      ),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/^Halos/));
+    expect(screen.getByText(/: 100\s?% par tempête \(95\s?% par temps calme\)/)).toBeTruthy();
+  });
+
   it('lit les tempêtes des cités du monde qui finissent après l’heure du serveur', async () => {
     await mount();
     expect(state.reads.get('world_events')).toEqual({

@@ -47,12 +47,37 @@ describe('faits du jour d’une cité', () => {
       otherGoods: 0,
       population: { before: 120, after: 120, change: 0 },
       arrivals: [],
+      losses: [],
       elections: [],
       decrees: [],
       worldEvents: [],
       configChange: false,
     });
     expect(chronicleFacts(input([])).population).toBeNull();
+  });
+
+  it('pertes en mer (#730) : comptées par route vers la cité, sans maison, à côté des arrivées', () => {
+    const event = (type: 'arrival' | 'loss', fromCityId: string, cityId = 'kalliste') =>
+      ({ type, cityId, fromCityId }) as const;
+    const facts = chronicleFacts(
+      input([
+        ...[event('arrival', 'halos'), event('loss', 'halos'), event('arrival', 'halos')],
+        ...[event('loss', 'halos'), event('arrival', 'elaia'), event('loss', 'elaia')],
+        // Perdue en allant de Kallistè vers Elaia : la chronique d'Elaia la dit, pas celle de Kallistè.
+        event('loss', 'kalliste', 'elaia'),
+      ]),
+    );
+    expect(facts.losses).toEqual([
+      { fromCityId: 'halos', cargoes: 2 },
+      { fromCityId: 'elaia', cargoes: 1 },
+    ]);
+    // Un navire qui a perdu sa cargaison est arrivé : il compte aussi parmi les arrivées.
+    expect(facts.arrivals).toEqual([
+      { fromCityId: 'halos', ships: 2 },
+      { fromCityId: 'elaia', ships: 1 },
+    ]);
+    expect(JSON.stringify(facts.losses)).not.toMatch(/house/i);
+    expect(chronicleNumbers(facts)).toEqual(new Set([0, 2, 1]));
   });
 
   it('arrivées, élections, décrets et événements du monde de la cité, dans un ordre fixe', () => {

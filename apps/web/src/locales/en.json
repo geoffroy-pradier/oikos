@@ -878,6 +878,8 @@
     "noStock": "No free goods in this city: the ship can sail in ballast.",
     "good": "{{good}} ({{free}} free)",
     "cost": "Departure cost: {{total}} (provisions {{provisions}}, port dues {{dues}}), paid on sending.",
+    "lossRisk": "Risk of losing the cargo at sea: {{risk}}. The ship itself always arrives.",
+    "lossRiskStorm": "Risk of losing the cargo at sea: {{risk}} in the storm ({{calm}} in calm weather). The ship itself always arrives.",
     "choose": "Choose a destination",
     "submit": "Sail to {{city}} — {{cost}}",
     "sailed": "{{ship}} sailed for {{city}} for {{cost}}: due {{time}}.",

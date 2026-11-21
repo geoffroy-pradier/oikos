@@ -63,6 +63,10 @@ describe('chronique des cités après la clôture (#271)', () => {
       configChange: false,
     });
     expect(kalliste?.text_fr).toContain('La maison Alcméonides est élue archonte avec 3 voix.');
+    // La cargaison perdue (#730) est comptée par route, sans nommer la maison qui l'a perdue.
+    expect(kalliste?.facts).toMatchObject({ losses: [{ fromCityId: 'elaia', cargoes: 1 }] });
+    expect(kalliste?.text_fr).toContain('Sur la route depuis Elaia, 1 cargaison perdue en mer.');
+    expect(kalliste?.text_en).toContain('On the route from Elaia, 1 cargo lost at sea.');
     // La maison introuvable n'est pas nommée.
     expect(kalliste?.text_fr).toContain('Une maison est élue archonte avec 3 voix.');
     expect(kalliste?.text_en).toContain(

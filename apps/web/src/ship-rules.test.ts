@@ -86,6 +86,9 @@ describe('règles du transport lues par le client', () => {
       portDuesOboles: 18,
       totalOboles: 22,
       durationSeconds: 4 * 3600,
+      // Pertes en mer (#730) : risques nuls dans la configuration initiale.
+      lossRiskBps: 0,
+      stormLossRiskBps: 0,
     });
     expect(quoteDeparture(rules, 'round_ship', 'elaia', 'kalliste')?.durationSeconds).toBe(19_200);
     const priced = {

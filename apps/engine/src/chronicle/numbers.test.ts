@@ -163,6 +163,11 @@ describe('nombres d’un texte', () => {
         fromCityId: city,
       }),
       fc.record({
+        type: fc.constant('loss' as const),
+        cityId: fc.constant('kalliste'),
+        fromCityId: city,
+      }),
+      fc.record({
         type: fc.constant('election' as const),
         cityId: fc.constant('kalliste'),
         houseName: fc.constantFrom('Philaïdes', 'Alcméonides', ''),
