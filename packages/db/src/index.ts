@@ -715,7 +715,7 @@ export interface GameDatabase {
   /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
    * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
-   * changent que par les remboursements ; les montants (oboles) se lisent en texte, comme tout `bigint`.
+   * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`.
    */
   'game.loans': {
     id: ColumnType<string, never, never>;
@@ -734,6 +734,21 @@ export interface GameDatabase {
     outstanding: ColumnType<string, never, never>;
     status: ColumnType<'active' | 'repaid' | 'defaulted', never, never>;
     disbursement_entry_id: ColumnType<string, string, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Remboursements d'un prêt (#724), en ajout seul : intérêts d'abord, puis principal, payés par l'écriture
+   * `ledger_entry_id` (`loan.repay`) ; la base les applique au prêt.
+   */
+  'game.loan_repayments': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    loan_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    interest: ColumnType<string, number, never>;
+    principal: ColumnType<string, number, never>;
+    game_day: ColumnType<number, number, never>;
+    ledger_entry_id: ColumnType<string, string, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /** Bulletins d'ostracisme : un par maison et par vote, datés par la base, définitifs. */

@@ -1,5 +1,5 @@
 begin;
-select plan(24);
+select plan(52);
 
 -- Jeu d'essai : un monde à lui. Alice (a) et Bob (b) y ont leur maison de joueur, les Greniers (e) une maison PNJ sans
 -- compte ; Dion (d) a sa maison dans un autre monde. Trésoreries : Alice 2 000, Bob 1 000. Configuration en vigueur : taux
@@ -72,6 +72,33 @@ begin
   perform set_config('role', 'none', true);
   return loan;
 end $$;
+-- Remboursement écrit comme l'écrit la commande, au nom du service : l'écriture (intérêts au puits, principal au robinet,
+-- ou aux comptes `sink` et `faucet` donnés), puis le remboursement, au nom de la maison `payer`.
+create function pg_temp.repay(loan uuid, p_interest bigint, p_principal bigint, payer text = null,
+  sink text = 'sink_temple_interest', faucet text = 'faucet_temple_loans', named uuid = null)
+returns void language plpgsql as $$
+declare entry uuid; h uuid := coalesce(pg_temp.house(payer), (select borrower_house_id from game.loans where id = loan));
+begin
+  perform set_config('role', 'oikos_service', true);
+  insert into game.ledger_entries (world_id, kind, meta)
+  values ('01900000-0000-7000-8000-0000000724f0', 'loan.repay', jsonb_build_object('loanId', coalesce(named, loan)))
+  returning id into entry;
+  insert into game.ledger_lines (entry_id, account_id, amount)
+  select entry, id, -(p_interest + p_principal) from game.accounts
+  where house_id = h and kind = 'house'
+  union all
+  select entry, id, p_interest from game.accounts
+  where world_id = '01900000-0000-7000-8000-0000000724f0' and system_key = sink and p_interest > 0
+  union all
+  select entry, id, p_principal from game.accounts
+  where world_id = '01900000-0000-7000-8000-0000000724f0' and system_key = faucet and p_principal > 0;
+  insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day, ledger_entry_id)
+  values ('01900000-0000-7000-8000-0000000724f0', loan, h, p_interest, p_principal,
+    201, entry);
+  set constraints game.loan_repayments_settled, game.ledger_entries_loan immediate;
+  set constraints all deferred;
+  perform set_config('role', 'none', true);
+end $$;
 create function pg_temp.loan(n text) returns uuid language sql as $$
   select id from game.loans where borrower_house_id = pg_temp.house(n) order by created_at desc, id desc limit 1
 $$;
@@ -139,6 +166,66 @@ select throws_ok($$delete from game.loans where id = pg_temp.loan('b')$$, '23001
 select throws_ok($$select pg_temp.as_service('update game.loans set outstanding = 0')$$, '42501', null,
   'le service ne modifie pas un prêt');
 select throws_ok($$select pg_temp.as_service('delete from game.loans')$$, '42501', null, 'ni ne le supprime');
+
+-- Remboursements : les intérêts d'abord, par une écriture qui les verse au puits, le principal au robinet.
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 0, 100)$$, '23001',
+  'a repayment pays its borrower''s outstanding loan, interest first', 'pas de principal avant les intérêts');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 500, 1)$$, '23001',
+  'a repayment pays its borrower''s outstanding loan, interest first', 'les intérêts dus passent avant le principal');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 600, 0, payer => 'b')$$, '23001',
+  'a repayment pays its borrower''s outstanding loan, interest first', 'une autre maison ne rembourse pas le prêt d''Alice');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 600, 0, sink => 'sink_offerings')$$, '23001',
+  'a loan repayment is paid by its own entry, interest to sink_temple_interest, principal to faucet_temple_loans',
+  'les intérêts vont au puits des intérêts du temple');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 1000, 400, faucet => 'faucet_starting_grant')$$, '23001',
+  'a loan repayment is paid by its own entry, interest to sink_temple_interest, principal to faucet_temple_loans',
+  'le principal revient au robinet des prêts du temple');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 600, 0, named => '00000000-0000-7000-8000-000000000000')$$, '23001',
+  'a loan repayment is paid by its own entry, interest to sink_temple_interest, principal to faucet_temple_loans',
+  'l''écriture nomme son prêt');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('a'), 600, 0)$$, 'Alice paie 600 oboles d''intérêts');
+select is(pg_temp.state(pg_temp.loan('a')), 'active:10000:1000:0:600:10400', 'il reste 400 d''intérêts et le principal');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('a'), 400, 1000)$$, 'puis 1 400 : le reste des intérêts et 1 000 de principal');
+select is(pg_temp.state(pg_temp.loan('a')), 'active:10000:1000:1000:1000:9000', 'les intérêts sont payés');
+select is(array[pg_temp.balance('a'), pg_temp.balance('sink_temple_interest'), pg_temp.balance('faucet_temple_loans')],
+  array[10000, 1000, -12650]::bigint[], 'le puits détruit les intérêts ; le robinet ne compte en net que le principal dû (9 000 et 3 650)');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 0, 9001)$$, '23514', null, 'jamais plus que le reste dû');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('a'), 0, 9000)$$, 'Alice rembourse le reste');
+select is(pg_temp.state(pg_temp.loan('a')), 'repaid:10000:1000:10000:1000:0', 'le prêt est remboursé, son reste dû est nul');
+select is(array[pg_temp.balance('a'), pg_temp.balance('faucet_temple_loans')], array[1000, -3650]::bigint[],
+  'le robinet ne compte plus que le prêt de Bob ; Alice a payé les intérêts de sa dotation');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('a'), 0, 1)$$, '23001',
+  'a repayment pays its borrower''s outstanding loan, interest first', 'un prêt remboursé ne se rembourse plus');
+select throws_ok($$select pg_temp.repay(pg_temp.loan('b'), 1, 1, payer => 'a')$$, '23001',
+  'a repayment pays its borrower''s outstanding loan, interest first', 'ni Alice celui de Bob');
+
+-- Un prêt en défaut (#725, posé ici gardes levées) reste dû : il compte pour le prêt unique, et se rembourse.
+set local session_replication_role = replica;
+update game.loans set status = 'defaulted' where id = pg_temp.loan('b');
+set local session_replication_role = origin;
+select throws_ok($$select pg_temp.borrow('b', 100, p_term => 7)$$, '23505', null, 'un prêt en défaut empêche d''en prendre un autre');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('b'), 1, 3000)$$, 'Bob en rembourse l''intérêt et une part du principal');
+select is(pg_temp.state(pg_temp.loan('b')), 'defaulted:3650:1:3000:1:650', 'il reste en défaut tant qu''il reste dû');
+select lives_ok($$select pg_temp.repay(pg_temp.loan('b'), 0, 650)$$, 'puis le solde');
+select is(pg_temp.state(pg_temp.loan('b')), 'repaid:3650:1:3650:1:0', 'il est remboursé');
+
+-- La base tient le reste dû : décaissement et intérêts moins les remboursements, pour chaque prêt du monde.
+select is(
+  (select count(*)::integer from game.loans o
+   where o.world_id = '01900000-0000-7000-8000-0000000724f0'
+     and o.outstanding <> o.principal + o.interest
+       - coalesce((select sum(r.interest + r.principal) from game.loan_repayments r where r.loan_id = o.id), 0)),
+  0, 'reste dû = principal + intérêts − remboursements');
+select is(array[pg_temp.balance('faucet_temple_loans'), pg_temp.balance('sink_temple_interest')], array[0, 1001]::bigint[],
+  'tout remboursé : le robinet n''a rien créé en net, le puits a détruit les intérêts');
+select is(
+  (select string_agg(column_name, ' ' order by column_name) from information_schema.column_privileges
+   where grantee = 'oikos_service' and table_schema = 'game' and table_name = 'loan_repayments' and privilege_type = 'INSERT'),
+  'game_day house_id interest ledger_entry_id loan_id principal world_id', 'le service ne choisit ni l''identifiant ni la date d''un remboursement');
+select throws_ok($$update game.loan_repayments set principal = 0$$, '23001', null, 'un remboursement ne change pas');
+select throws_ok($$delete from game.loan_repayments$$, '23001', null, 'ni ne se supprime');
+select throws_ok($$select pg_temp.as_service('update game.loan_repayments set principal = 0')$$, '42501', null,
+  'le service ne le modifie pas');
 
 select * from finish();
 rollback;
