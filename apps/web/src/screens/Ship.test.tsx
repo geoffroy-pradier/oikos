@@ -67,7 +67,7 @@ const voyage = {
   arrived_at: null as string | null,
   cargo: [{ goodId: 'wheat', quantity: 30 }],
 };
-function state(arrived: boolean) {
+function state(arrived: boolean, cargoLost = false) {
   views.rows = {
     my_ships: [
       {
@@ -77,7 +77,14 @@ function state(arrived: boolean) {
         laid_up_at: null,
       },
     ],
-    my_voyages: [{ ...voyage, arrived_at: arrived ? '2026-11-16T14:00:00Z' : null }],
+    // Issue nulle en mer (#730) : la vue ne dit rien du tirage avant l'arrivée.
+    my_voyages: [
+      {
+        ...voyage,
+        arrived_at: arrived ? '2026-11-16T14:00:00Z' : null,
+        cargo_lost: arrived ? cargoLost : null,
+      },
+    ],
   };
 }
 async function screenOf() {
@@ -133,8 +140,31 @@ describe('fiche d’un navire', () => {
     state(true);
     rerender(tree());
     expect(announced()).toEqual(['Navire arrivé à Elaia : 30 × Blé, déchargé dans votre stock.']);
+    const notice = screen.getByText(/déchargé dans votre stock/);
+    expect([notice.className.includes('bg-success-subtle'), notice.querySelector('svg')]).toEqual([
+      true,
+      null,
+    ]);
     expect(screen.getByText('à quai à Elaia')).toBeTruthy();
     shown(fr.ship.arrivedAt);
+  });
+
+  it('pertes en mer (#730) : une cargaison perdue est annoncée perdue, jamais déchargée, et la liste le dit', async () => {
+    state(false);
+    const { rerender, tree } = await screenOf();
+    state(true, true);
+    rerender(tree());
+    expect(announced()).toEqual([
+      'Navire arrivé à vide à Elaia, cargaison perdue en mer : 30 × Blé.',
+    ]);
+    // Ton d'avertissement, et une icône : la couleur ne porte pas seule la perte.
+    const notice = screen.getByText(/cargaison perdue en mer : 30 × Blé\./);
+    expect(notice.className).toContain('bg-warning-subtle');
+    expect(notice.className).not.toContain('bg-success-subtle');
+    expect(notice.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.queryByText(/déchargé dans votre stock/)).toBeNull();
+    shown('cargaison perdue en mer : 30 × Blé');
+    expect(screen.getByText('à quai à Elaia')).toBeTruthy();
   });
 
   it('un voyage déjà arrivé à l’ouverture se lit dans la liste, sans annonce', async () => {

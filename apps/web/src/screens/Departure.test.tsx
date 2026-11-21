@@ -107,6 +107,21 @@ describe('départ d’un navire', () => {
       expectedCostOboles: 18,
     });
     expect(done.mock.calls[0]?.[0]).toMatchObject({ kind: 'status' });
+    // Risque nul (configuration initiale) : le message de réussite n'en dit rien.
+    expect((done.mock.calls[0]?.[0] as { text: string }).text).not.toMatch(/Risque/);
+  });
+
+  it('pertes en mer (#730) : le message de réussite dit le risque réellement fixé, celui de la réponse', async () => {
+    sent.answers.push({ ...ok, data: { ...ok.data, lossRiskBps: 1_500 } });
+    await mount();
+    fireEvent.click(screen.getByLabelText(/Elaia/));
+    next();
+    next();
+    fireEvent.click(screen.getByRole('button', { name: /Partir vers Elaia/ }));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    expect((done.mock.calls[0]?.[0] as { text: string }).text).toMatch(
+      /Risque de perte de la cargaison fixé au départ : 15\s?%\.$/,
+    );
   });
 
   it('pertes en mer (#730) : le récapitulatif annonce le risque de la route ; nul, il ne dit rien', async () => {
