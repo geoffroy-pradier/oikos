@@ -60,7 +60,7 @@ export function HouseProfileScreen() {
       {read.loading && <Loading />}
       {read.failed && <LoadProblem onRetry={read.reload} />}
       {/* Région présente avant son texte : la marque s'y inscrit une fois la fiche lue. */}
-      <div role="status">
+      <div role="status" className="empty:sr-only">
         {shown && ready && read.dishonor?.dishonored && (
           <Card className="flex items-start gap-3 border-danger/50">
             <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-danger" />

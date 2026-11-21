@@ -3,7 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./data', () => ({ useRows: () => ({ rows: null, failed: false, reload: () => null }) }));
-import { isHouseId, parseHonor, parseMandates, parseProfile, PROFILE_VIEWS } from './house-profile';
+import {
+  isHouseId,
+  parseDishonor,
+  parseHonor,
+  parseMandates,
+  parseProfile,
+  PROFILE_VIEWS,
+} from './house-profile';
 
 const A = '01900000-0000-7000-8000-00000000000a';
 const B = '01900000-0000-7000-8000-00000000000b';
@@ -82,5 +89,29 @@ describe('parseHonor, parseMandates, isHouseId', () => {
     expect(isHouseId(A)).toBe(true);
     for (const bad of [undefined, '', 'x', `${A}'; drop`, '../cite'])
       expect(isHouseId(bad)).toBe(false);
+  });
+});
+
+describe('parseDishonor (marque de déshonneur, #1005)', () => {
+  it('aucune ligne : pas de marque', () => {
+    expect(parseDishonor([])).toEqual({ dishonored: false, untilDay: null });
+  });
+  it('marque avec fin, et marque sans fin', () => {
+    expect(parseDishonor([{ dishonored: true, dishonored_until_day: 20_000 }])).toEqual({
+      dishonored: true,
+      untilDay: 20_000,
+    });
+    expect(parseDishonor([{ dishonored: true, dishonored_until_day: null }])).toEqual({
+      dishonored: true,
+      untilDay: null,
+    });
+  });
+  it('colonnes absentes : pas de marque', () => {
+    expect(parseDishonor([{ honor: 3 }])).toEqual({ dishonored: false, untilDay: null });
+  });
+  it('ligne illisible : null', () => {
+    expect(parseDishonor([{ dishonored: 'oui' }])).toBeNull();
+    expect(parseDishonor([{ dishonored: true, dishonored_until_day: 1.5 }])).toBeNull();
+    expect(parseDishonor('x')).toBeNull();
   });
 });

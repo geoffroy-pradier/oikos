@@ -150,8 +150,11 @@ describe('fiche publique d’une maison (#705)', () => {
     expect(screen.getByRole('status').textContent).toMatch(/tant que le prêt reste en défaut/);
   });
 
-  it('sans marque, la région reste vide', async () => {
-    state.views['house_honor'] = [{ honor: 5, dishonored: false, dishonored_until_day: null }];
+  it.each([
+    ['dishonored: false', [{ honor: 5, dishonored: false, dishonored_until_day: null }]],
+    ['aucune ligne', []],
+  ])('sans marque (%s), la région reste vide', async (_name, rows) => {
+    state.views['house_honor'] = rows;
     await show();
     expect(screen.getByRole('status').textContent).toBe('');
     expect(screen.queryByText('Marque de déshonneur')).toBeNull();

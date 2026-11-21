@@ -86,7 +86,9 @@ export function parseHonor(rows: unknown): number | null {
 
 /**
  * Marque de déshonneur de la maison (`house_honor`, 5.4) : `untilDay` est le premier jour de jeu sans marque, nul
- * tant que le prêt reste en défaut. Seule la marque est publique, jamais le prêt ni son montant. `null` si illisible.
+ * tant que le prêt reste en défaut. Plus tolérante que `parseHouseHonor` (`loans.ts`), qui exige les colonnes de la
+ * marque : ici une ligne sans ces colonnes (vue plus ancienne, lecture partielle) vaut « pas de marque », et la Timè
+ * de la fiche reste lisible. Seule la marque est publique, jamais le prêt ni son montant. `null` si illisible.
  */
 export function parseDishonor(
   rows: unknown,
