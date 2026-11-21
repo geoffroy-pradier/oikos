@@ -6,7 +6,7 @@ select is(
   (select string_agg(system_key, ' ' order by system_key collate "C") from game.accounts
    where world_id = '01900000-0000-7000-8000-000000000001' and kind = 'system'),
   'faucet_good_buyback faucet_npc_house_grant faucet_npc_public_income faucet_npc_purchases faucet_rewards faucet_starting_grant faucet_temple_loans '
-    || 'sink_festivals sink_liturgies sink_market_tax sink_npc_house_surplus sink_npc_lodging sink_npc_wages sink_offerings '
+    || 'sink_bank_charter sink_festivals sink_liturgies sink_market_tax sink_npc_house_surplus sink_npc_lodging sink_npc_wages sink_offerings '
     || 'sink_port_dues sink_property_purchase sink_property_upkeep sink_property_works sink_public_works sink_ship_purchase sink_ship_upkeep '
     || 'sink_site_acquisition sink_temple_interest sink_upkeep sink_voyage_provisions',
   'comptes système du monde de test : liste figée');
@@ -16,7 +16,7 @@ insert into game.worlds (id, slug, name) values ('00000000-0000-7000-8000-000000
 select is(
   (select count(*) from game.accounts where world_id = '00000000-0000-7000-8000-00000000e001' and kind = 'system'),
   (select count(*) from game.system_account_kinds), 'un monde naît avec un compte par robinet et par puits');
-select is((select count(*) from game.system_account_kinds), 25::bigint, 'vingt-cinq robinets et puits au catalogue');
+select is((select count(*) from game.system_account_kinds), 26::bigint, 'vingt-six robinets et puits au catalogue');
 select is(
   (select count(*) from game.accounts where world_id = '00000000-0000-7000-8000-00000000e001'
      and (balance <> 0 or allow_negative <> (system_key like 'faucet\_%'))),

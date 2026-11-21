@@ -16,6 +16,7 @@ import {
 } from 'kysely';
 import pg from 'pg';
 
+export * from './bank-vaults';
 export * from './city-rates';
 export * from './honor';
 export * from './npc-purses';
@@ -148,6 +149,11 @@ export interface GameDatabase {
      * `game.npc_purses()`.
      */
     npc_purse: Generated<boolean>;
+    /**
+     * Coffre d'une banque de joueur (#726) : sa banque, et sa cité dans `city_id` ; invisible au service, qui le
+     * verrouille par `lockBankVault`. Nul pour tout autre compte.
+     */
+    bank_id: ColumnType<string | null, never, never>;
     allow_negative: Generated<boolean>;
     /** `bigint` : lu en texte. */
     balance: ColumnType<string, never, never>;
@@ -731,6 +737,22 @@ export interface GameDatabase {
     settled_at: ColumnType<Date | null, never, never>;
     /** Écriture `liturgy.perform` ou `liturgy.levy` ; nulle pour un prélèvement qui n'a rien trouvé. */
     ledger_entry_id: ColumnType<string | null, never, string | null>;
+  };
+  /**
+   * Banques de joueurs (5.4, #726) : une au plus par maison de joueur, dans la cité de sa citoyenneté, datée par la base.
+   * Son coffre est un compte ouvert par la base à la fondation (`game.accounts.bank_id`) ; le droit payé
+   * (`charter_fee`, oboles, lu en texte) l'est par une écriture `bank.charter` s'il n'est pas nul.
+   */
+  'game.banks': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    name: ColumnType<string, string, never>;
+    deposit_rate_bps: ColumnType<number, number, never>;
+    loan_rate_bps: ColumnType<number, number, never>;
+    charter_fee: ColumnType<string, number, never>;
+    founded_at: ColumnType<Date, never, never>;
   };
   /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture

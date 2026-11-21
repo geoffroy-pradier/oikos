@@ -73,6 +73,7 @@ export const cityProposeDecree = defineCommand({
         .select('balance')
         .where('kind', '=', 'treasury')
         .where('npc_purse', '=', false)
+        .where('bank_id', 'is', null)
         .where('city_id', '=', house.city_id)
         .executeTakeFirst();
       const cap = decreeSpendingCapOboles(

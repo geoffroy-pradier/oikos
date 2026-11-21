@@ -76,7 +76,7 @@ export async function newWorld() {
       await sql`insert into game.ledger_lines (entry_id, account_id, amount)
         select ${entry?.id}, id, case when kind = 'treasury' then ${oboles}::bigint else -${oboles}::bigint end
         from game.accounts where world_id = ${worldId}
-          and (system_key = 'faucet_npc_purchases' or (kind = 'treasury' and not npc_purse and city_id = ${kalliste}))`.execute(
+          and (system_key = 'faucet_npc_purchases' or (kind = 'treasury' and not npc_purse and bank_id is null and city_id = ${kalliste}))`.execute(
         trx,
       );
     });

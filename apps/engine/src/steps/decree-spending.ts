@@ -55,6 +55,7 @@ export const decreeSpending: CloseStep = {
       .select(['id', 'city_id', 'balance'])
       .where('kind', '=', 'treasury')
       .where('npc_purse', '=', false)
+      .where('bank_id', 'is', null)
       .where('city_id', 'in', [...new Set(due.map((row) => row.city_id))])
       .orderBy('id')
       .forUpdate()
