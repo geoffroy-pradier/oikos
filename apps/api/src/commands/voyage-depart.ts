@@ -255,8 +255,9 @@ export const voyageDepart = defineCommand({
           .select('id')
           .where('world_id', '=', owned.world_id)
           .where(column, '=', value)
-          // Le trésor de la cité, jamais sa bourse des PNJ (#632), quel que soit le rôle de la connexion.
+          // Le trésor de la cité, ni sa bourse des PNJ (#632) ni un coffre (#726), quel que soit le rôle de la connexion.
           .where('npc_purse', '=', false)
+          .where('bank_id', 'is', null)
           .executeTakeFirstOrThrow(
             () => new Error(`World ${owned.world_id} has no account with ${column} ${value}`),
           );

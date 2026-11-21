@@ -215,8 +215,9 @@ export const placeOrder = defineOperation({
           '=',
           key === 'sink' ? 'sink_market_tax' : city.id,
         )
-        // Le trésor de la cité, jamais sa bourse des PNJ (#632), quel que soit le rôle de la connexion.
+        // Le trésor de la cité, ni sa bourse des PNJ (#632) ni un coffre (#726), quel que soit le rôle de la connexion.
         .where('npc_purse', '=', false)
+        .where('bank_id', 'is', null)
         .executeTakeFirstOrThrow();
     const [sink, cityTreasury] = taxed
       ? [await taxAccount('sink'), await taxAccount('treasury')]
