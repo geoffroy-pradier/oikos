@@ -12,7 +12,7 @@ insert into game.sites (id, world_id, house_id, city_id, recipe_id) values
   ('00000000-0000-7000-8000-0000000002a1', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000a1', '01900000-0000-7000-8000-000000000101', 'grow_wheat'),
   ('00000000-0000-7000-8000-0000000002b1', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000b1', '01900000-0000-7000-8000-000000000101', 'grow_wheat');
 alter table game.sites disable trigger sites_guard;
-update game.sites set created_at = now() - interval '1 day', cycle_started_at = now() - interval '1 day';
+update game.sites set created_at = now() - interval '1 day', cycle_started_at = now() - interval '1 day' where world_id = '01900000-0000-7000-8000-000000000001';
 update game.sites set halted_at = now() - interval '2 hours' where id = '00000000-0000-7000-8000-0000000002a1';
 alter table game.sites enable trigger sites_guard;
 
