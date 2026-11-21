@@ -1,9 +1,9 @@
 begin;
-select plan(43);
+select plan(59);
 
 -- Jeu d'essai : un monde à lui, une cité. Alice (a) fonde la banque, taux de dépôt de 10 % l'an, 1 000 oboles de capital ;
 -- Bob (b) et Chloé (c) déposent ; les Greniers (e) sont une maison PNJ. Trésoreries : 50 000 chacune. Configuration en
--- vigueur : l'horloge et des banques ouvertes, taux de dépôt de 0 à 15 %, de prêt de 3 à 50 %.
+-- vigueur : l'horloge, qui date les jours de jeu et les clôtures.
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000727f0', 'depots-727', 'Dépôts');
 insert into game.cities (id, world_id, slug, name) values
   ('01900000-0000-7000-8000-0000000727c1', '01900000-0000-7000-8000-0000000727f0', 'k727', 'Kallistè');
@@ -29,9 +29,7 @@ begin
      or (world_id = '01900000-0000-7000-8000-0000000727f0' and system_key = 'faucet_starting_grant');
 end $$;
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c727',
-  '{"clock": {"tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7},
-    "banks": {"charterFeeOboles": 0, "minCapitalOboles": 1000, "reserveRatioBps": 2000,
-              "depositRateBps": {"min": 0, "max": 1500}, "loanRateBps": {"min": 300, "max": 5000}}}');
+  '{"clock": {"tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7}}');
 insert into config.activations (version_id, activate_at) values ('00000000-0000-7000-8000-00000000c727', now());
 insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loan_rate_bps, charter_fee)
 values ('01900000-0000-7000-8000-0000000727f0', '01900000-0000-7000-8000-0000000727c1', '00000000-0000-7000-8000-0000000727a1',
@@ -99,6 +97,13 @@ $$;
 create function pg_temp.held(n text) returns bigint language sql as $$
   select balance from game.bank_deposits where house_id = pg_temp.house(n)
 $$;
+create function pg_temp.today() returns int language sql as $$ select game.game_day_at(now()) $$;
+-- Instant de la clôture qui ouvre le jour de jeu `d` (`dailyCloseAt`) : le premier quart d'heure de ce jour.
+create function pg_temp.close_at(d int) returns timestamptz language sql as $$
+  select min(t) from generate_series((date '1970-01-01' + d - 1)::timestamp at time zone 'UTC',
+    (date '1970-01-01' + d + 2)::timestamp at time zone 'UTC', interval '15 minutes') t
+  where game.game_day_at(t) >= d
+$$;
 create function pg_temp.as_service(statement text) returns void language plpgsql as $$
 begin
   perform set_config('role', 'oikos_service', true);
@@ -110,6 +115,13 @@ create function pg_temp.open(n text) returns void language plpgsql as $$
 begin
   perform pg_temp.as_service(format('insert into game.bank_deposits (world_id, bank_id, house_id) values (%L, %L, %L)',
     '01900000-0000-7000-8000-0000000727f0', pg_temp.bank(), pg_temp.house(n)));
+end $$;
+-- Intérêt du jour `day` (aujourd'hui sinon) du dépôt de `n`, au nom du service, sans jouer les contrôles différés.
+create function pg_temp.interest(n text, amount bigint, day int = null) returns void language plpgsql as $$
+begin
+  perform pg_temp.as_service(format('insert into game.bank_deposit_movements (world_id, deposit_id, bank_id, house_id,
+      kind, amount, game_day) select world_id, id, bank_id, house_id, ''interest'', %s, %s from game.bank_deposits
+    where house_id = %L', amount, coalesce(day, pg_temp.today()), pg_temp.house(n)));
 end $$;
 
 -- Droits : le service n'écrit ni identifiant, ni date, ni solde ; les joueurs n'écrivent rien.
@@ -216,9 +228,44 @@ select is(
 select is(pg_temp.cash('a') + pg_temp.cash('b') + pg_temp.cash('c') + pg_temp.vault(), 150000::bigint,
   'conservation : trésoreries et coffre gardent toute la monnaie, aucun refus n''en a créé');
 
-select throws_ok($$select pg_temp.as_service(format('insert into game.bank_deposit_movements (world_id, deposit_id, bank_id,
-    house_id, kind, amount, game_day) select world_id, id, bank_id, house_id, ''interest'', 1, 0 from game.bank_deposits
-  where house_id = %L', pg_temp.house('b')))$$, '23001', 'deposits earn no interest yet', 'pas encore d''intérêt (migration 9992)');
+-- Intérêt du jour : 10 % l'an de 7 000 oboles, 1,91…, une obole ; 36 500 de Chloé, 10 oboles juste.
+select lives_ok($$select pg_temp.deposit('c', 36500)$$, 'Chloé dépose 36 500');
+select throws_ok($$select pg_temp.interest('b', 2)$$, '23001',
+  'a deposit earns the interest of its day at its bank''s displayed rate, rounded down', 'pas d''arrondi au-dessus');
+select throws_ok($$select pg_temp.interest('c', 11)$$, '23001',
+  'a deposit earns the interest of its day at its bank''s displayed rate, rounded down', 'ni d''obole de plus');
+select throws_ok($$select pg_temp.interest('c', 9)$$, '23001',
+  'a deposit earns the interest of its day at its bank''s displayed rate, rounded down', 'ni d''obole de moins');
+select lives_ok($$select pg_temp.interest('b', 1)$$, 'Bob gagne une obole');
+select lives_ok($$select pg_temp.interest('c', 10)$$, 'Chloé dix');
+select is(array[pg_temp.held('b'), pg_temp.held('c'), pg_temp.vault()], array[7001, 36510, 44500]::bigint[],
+  'l''intérêt grossit la créance, pas le coffre : aucune monnaie créée');
+select is((select count(*) from game.bank_deposit_movements where kind = 'interest' and ledger_entry_id is null
+           and world_id = '01900000-0000-7000-8000-0000000727f0'), 2::bigint,
+  'sans écriture au grand livre');
+select throws_ok($$select pg_temp.interest('b', 1)$$, '23505', null, 'un intérêt par dépôt et par jour');
+select throws_ok('set constraints game.bank_deposit_movements_on_close immediate', '23001',
+  'a deposit earns interest by the close of its day', 'à la validation, la clôture de son jour est enregistrée');
+set constraints all deferred;
+select pg_temp.as_service(format('insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
+  values (%L, %s, %L, %L)', '01900000-0000-7000-8000-0000000727f0', pg_temp.today(), pg_temp.close_at(pg_temp.today()),
+  '00000000-0000-7000-8000-00000000c727'));
+select lives_ok('set constraints all immediate', 'les intérêts valident avec la clôture de leur jour');
+set constraints all deferred;
+select throws_ok($$select pg_temp.interest('c', 10)$$, '23001',
+  'a deposit earns interest before its close is recorded', 'une clôture enregistrée ne crédite plus d''intérêt');
+select throws_ok($$select pg_temp.interest('c', 10, pg_temp.today() - 1)$$, '23001',
+  'a deposit earns interest before its close is recorded', 'ni pour un jour passé');
+
+-- Taux affichés : le service les change ; le dépôt suivant les porte.
+select lives_ok($$select pg_temp.as_service(format('update game.banks set deposit_rate_bps = 1500, loan_rate_bps = 5000
+  where id = %L', pg_temp.bank()))$$, 'Alice affiche 15 % et 50 %');
+select throws_ok($$select pg_temp.as_service(format('update game.banks set name = ''Trapeza Nea'' where id = %L',
+  pg_temp.bank()))$$, '42501', null, 'le service ne change rien d''autre d''une banque');
+select lives_ok($$select pg_temp.deposit('b', 10)$$, 'Bob dépose de nouveau');
+select is((select string_agg(amount || ':' || rate_bps, ' ' order by amount) from game.bank_deposit_movements
+           where house_id = pg_temp.house('b') and kind = 'deposit'),
+  '10:1500 7000:1000 10000:1000', 'chaque dépôt au taux affiché à son instant');
 
 select * from finish();
 rollback;
