@@ -17,10 +17,13 @@ import { createTelemetry } from './telemetry';
 import { TEST_CONFIG, testVerifier } from './test-config';
 import { db, owner, send } from './voyage.integration-fixtures';
 
-// Croisement de `liturgy.perform` et de la clôture (#720, relevé par la relecture ; #721), contre Supabase local. Une
-// étape de la clôture est mise en pause par un greffon Kysely de sa connexion, la commande est jouée pendant ce temps,
-// puis l'étape reprend : dans les deux ordres, la liturgie n'est réglée qu'une fois et aucun des deux n'attend
-// l'autre en tenant ce que l'autre attend (le fichier `conflicts.integration-fixtures` fait échouer tout interblocage).
+// Croisement de `liturgy.perform` et de la clôture (#720, relevé par la relecture ; #721), contre Supabase local. L'une
+// des deux parties est mise en pause par un greffon Kysely de sa connexion juste après son premier verrou disputé
+// (celui de la Timè), l'autre est jouée pendant ce temps, puis la première reprend. La partie en pause tient alors ce
+// premier verrou et pas encore les suivants : si l'une prenait les verrous de la liturgie dans un autre ordre (la ligne
+// de la liturgie avant la Timè), l'autre en tiendrait un qu'elle attend et la base constaterait un interblocage, que le
+// fichier `conflicts.integration-fixtures` ou l'échec de la clôture font échouer. Dans les deux ordres, la liturgie
+// n'est réglée qu'une fois.
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 /** Une connexion de service nommée : la base dit si elle attend un verrou (`pg_stat_activity`). */
@@ -65,16 +68,15 @@ function gate() {
 }
 type Gate = ReturnType<typeof gate>;
 /**
- * Greffon de la connexion qui le porte : il suspend l'exécution à la fin d'une instruction, jusqu'à ce que `held` s'ouvre,
- * et la transaction attend là avec ses verrous. Sans `trigger`, il attend d'être armé (`arm`) et suspend la prochaine
- * instruction ; avec `trigger`, il suspend la première instruction dont le nœud lui convient.
+ * Greffon de la connexion qui le porte : il suspend l'exécution à la fin de la première instruction dont le nœud
+ * convient à `trigger`, jusqu'à ce que `held` s'ouvre ; la transaction attend là avec les verrous déjà pris.
  */
-function pausing(held: Gate, trigger?: (node: unknown) => boolean) {
-  let armed = trigger !== undefined;
+function pausing(held: Gate, trigger: (node: unknown) => boolean): KyselyPlugin {
+  let armed = true;
   const marked = new Set<unknown>();
-  const plugin: KyselyPlugin = {
+  return {
     transformQuery: ({ node, queryId }) => {
-      if (armed && (trigger?.(node) ?? true)) {
+      if (armed && trigger(node)) {
         armed = false;
         marked.add(queryId);
       }
@@ -88,24 +90,39 @@ function pausing(held: Gate, trigger?: (node: unknown) => boolean) {
       return result;
     },
   };
-  return {
-    plugin,
-    arm: () => {
-      armed = true;
-    },
-  };
 }
 
-/** Table visée par une instruction (`select … from`, `insert into`), « schéma.table ». */
+interface TableRef {
+  table?: { schema?: { name: string }; identifier: { name: string } };
+  node?: TableRef;
+}
+/** Table lue par une instruction `select … from` (alias compris), « schéma.table ». */
 const tableOf = (node: unknown): string | undefined => {
-  const n = node as {
-    kind?: string;
-    into?: { table?: { schema?: { name: string }; identifier: { name: string } } };
-    from?: { froms?: { table?: { schema?: { name: string }; identifier: { name: string } } }[] };
-  };
-  const table = n.kind === 'InsertQueryNode' ? n.into?.table : n.from?.froms?.[0]?.table;
+  const from = (node as { from?: { froms?: TableRef[] } }).from?.froms?.[0];
+  const table = from?.table ?? from?.node?.table;
   return table ? `${table.schema?.name ?? ''}.${table.identifier.name}` : undefined;
 };
+/**
+ * Les verrous que la commande et la clôture se disputent sur une liturgie : la Timè de sa maison (verrou consultatif
+ * `honor:<maison>`) et la ligne de la liturgie (`for update`). Une instruction qui prend l'un ou l'autre convient ; la
+ * première que joue une partie est son premier verrou disputé, la Timè dans l'ordre attendu.
+ */
+const contested =
+  (world: World) =>
+  (node: unknown): boolean => {
+    const n = node as {
+      kind?: string;
+      parameters?: { value?: unknown }[];
+      endModifiers?: { modifier?: string }[];
+    };
+    if (n.kind === 'RawNode')
+      return n.parameters?.some((p) => p.value === `honor:${world.houseId}`) ?? false;
+    return (
+      n.kind === 'SelectQueryNode' &&
+      tableOf(node) === 'game.liturgies' &&
+      (n.endModifiers?.some((m) => m.modifier === 'ForUpdate') ?? false)
+    );
+  };
 
 /** Un monde à part, sa cité, sa maison dotée et sa liturgie désignée, échue à `dueAt`. */
 async function newLiturgy(dueAt: Date) {
@@ -164,16 +181,33 @@ const closeOf = (
     now: new Date(),
   });
 
-/** Attend que l'horloge de la base ait passé `at` : le verrou, pas un délai fixé, ordonne ce qui suit. */
+/**
+ * Ramène l'échéance de la liturgie à l'instant de la base (la milliseconde qui suit) et la rend. Jouée quand la commande
+ * est en pause : sa transaction a commencé avant, son `now()` est antérieur et l'admet encore ; la clôture qui suit la
+ * trouve échue. Gardes levées pour cette seule écriture, comme la désignation.
+ */
+async function dueNow(world: World) {
+  return owner.transaction().execute(async (trx) => {
+    await sql`set local session_replication_role = replica`.execute(trx);
+    const { rows } = await sql<{ due_at: Date }>`update game.liturgies
+      set due_at = date_trunc('milliseconds', clock_timestamp()) + interval '1 millisecond'
+      where id = ${world.liturgyId} returning due_at`.execute(trx);
+    const [row] = rows;
+    if (!row) throw new Error(`No liturgy ${world.liturgyId}`);
+    return row.due_at;
+  });
+}
+
+/** Attend que l'horloge de la base et celle du test aient passé `at` (une milliseconde, ici). */
 async function untilPassed(at: Date) {
   for (let i = 0; i < 1_000; i++) {
     const { rows } = await sql<{
       passed: boolean;
     }>`select clock_timestamp() >= ${at} as passed`.execute(owner);
-    if (rows[0]?.passed) return;
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    if (rows[0]?.passed && Date.now() >= at.getTime()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
   }
-  throw new Error(`The database clock never passed ${at.toISOString()}`);
+  throw new Error(`The clocks never passed ${at.toISOString()}`);
 }
 
 /** Attend (sans durée fixée) qu'une connexion nommée attende un verrou : la base, pas l'horloge, le dit. */
@@ -218,17 +252,22 @@ async function settled(world: World) {
 const codeOf = (reply: { body: { error?: { code: string } } }) => reply.body.error?.code;
 
 describe('liturgy.perform croisée avec la clôture (#720)', () => {
-  it('la commande tient ses verrous quand la clôture arrive : la clôture attend, puis relit sous verrou la liturgie accomplie et ne la prélève pas', async () => {
-    // Échéance dans dix secondes (marge d’une `ci` chargée : la commande doit commencer avant) : la commande l'admet, puis une pause la tient avant sa validation, ses verrous pris
-    // (Timè, liturgie, agora, trésorerie) et son écriture faite. La clôture, jouée à l'échéance, ne la voit que quand elle a passé.
-    const dueAt = new Date(Date.now() + 10_000);
-    const world = await newLiturgy(dueAt);
+  it('la commande tient la Timè quand la clôture arrive : la clôture attend, puis relit sous verrou la liturgie accomplie et ne la prélève pas', async () => {
+    // Échéance lointaine : la commande l'admet. Une pause la tient juste après la Timè de la maison, son premier verrou
+    // disputé, avant la ligne de la liturgie. L'échéance est alors ramenée à l'instant (la transaction de la commande a
+    // commencé avant : elle l'admet encore) et la clôture, jouée à l'échéance, la trouve échue.
+    const world = await newLiturgy(new Date(Date.now() + 3_600_000));
     const held = gate();
-    const paused = pausing(held, (node) => tableOf(node) === 'game.ledger_lines');
-    const performing = perform(createApp(appOptions(named(performName, paused.plugin))), world);
+    const performing = perform(
+      createApp(appOptions(named(performName, pausing(held, contested(world))))),
+      world,
+    );
     await held.arrived;
+    const dueAt = await dueNow(world);
     await untilPassed(dueAt);
     const closed = closeOf(world, named(closeName), [liturgyEvasion, liturgyLevy], dueAt);
+    // La clôture attend la Timè que tient la commande ; prendre d'abord la ligne de la liturgie la ferait attendre là,
+    // et la commande, à sa reprise, l'attendrait derrière : interblocage.
     await untilBlocked(closeName);
     // Rien n'est validé : la commande attend de pouvoir finir, la clôture de pouvoir lire.
     expect(await settled(world)).toMatchObject({
@@ -254,34 +293,25 @@ describe('liturgy.perform croisée avec la clôture (#720)', () => {
       treasury: TREASURY - DUE,
       honor: 10,
     });
-  }, 30_000);
+  });
 
-  it('la clôture tient ses verrous quand la commande arrive : la commande attend, puis trouve la liturgie prélevée, sans rien payer de plus', async () => {
+  it('la clôture tient la Timè quand la commande arrive : la commande attend, puis trouve la liturgie prélevée, sans rien payer de plus', async () => {
     // Échue : le prélèvement d'office est celui de la clôture ; la commande qui l'atteint derrière elle attend.
     const dueAt = new Date(Date.now() - 60_000);
     const world = await newLiturgy(dueAt);
-    // La clôture se met en pause dès qu'elle a verrouillé la Timè de la maison et la liturgie (l'étape le dit par `at`).
+    // La clôture se met en pause juste après la Timè de la maison, son premier verrou disputé, avant la ligne de la
+    // liturgie.
     const held = gate();
-    const closing = pausing(held);
-    const pausedEvasion: CloseStep = {
-      name: liturgyEvasion.name,
-      run: (context) =>
-        liturgyEvasion.run({
-          ...context,
-          at: (subject) => {
-            context.at?.(subject);
-            if (subject === `liturgy ${world.liturgyId}`) closing.arm();
-          },
-        }),
-    };
     const closed = closeOf(
       world,
-      named(closeName, closing.plugin),
-      [pausedEvasion, liturgyLevy],
+      named(closeName, pausing(held, contested(world))),
+      [liturgyEvasion, liturgyLevy],
       dueAt,
     );
     await held.arrived;
     const performing = perform(createApp(appOptions(named(performName))), world);
+    // La commande attend la Timè que tient la clôture ; si la clôture tenait déjà la ligne de la liturgie et attendait
+    // encore la Timè, la commande tiendrait la Timè en attendant la ligne : interblocage à la reprise de la clôture.
     await untilBlocked(performName);
     expect(await settled(world)).toMatchObject({
       status: 'assigned',
