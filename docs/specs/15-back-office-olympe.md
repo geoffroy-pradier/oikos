@@ -292,7 +292,13 @@ La file (`GET /api/admin/reports`) porte pour chaque entrée `triage` (catégori
 L'écran dit que la catégorie et le résumé viennent de l'IA, qu'elle peut se tromper et que la décision reste humaine.
 Décision (ambiguïté du ticket) : un message sans catégorie passe après les douteux et avant les probablement infondés, car une catégorie absente ne vaut ni un jugement d'infondé, ni une gravité ; le seuil d'alerte de 24 heures (15.5) reste le même pour toutes les entrées.
 Décision (ambiguïté du ticket) : le résumé est écrit en français, sans traduction, comme le texte du message qu'il résume ; l'étiquette de la catégorie et la mention de sa source sont traduites (fr, en).
-Repli : IA coupée, plafond atteint, délai dépassé, erreur ou sortie rejetée, le message n'a pas de catégorie ; la ligne du pré-tri garde l'issue de l'essai, si bien qu'un message n'est pas payé deux fois au fournisseur.
+Repli : sortie rejetée, délai dépassé ou erreur du fournisseur, le message n'a pas de catégorie ; la ligne du pré-tri garde l'issue de l'essai, si bien qu'un message n'est pas payé deux fois au fournisseur.
+Décision (relecture de #763) : quand le plafond mensuel de l'usage est atteint, aucun appel n'est parti ni payé, donc ce n'est pas un essai.
+La tâche n'écrit alors aucune ligne et s'arrête pour ce passage.
+Le message est repris au passage suivant, après la remise à zéro du mois ou une hausse du plafond.
+Il en va de même d'un usage coupé entre-temps : les réglages sont relus avant chaque message, et rien n'est écrit.
+Un délai dépassé, lui, est un essai : il garde sa ligne, car le fournisseur a pu facturer les jetons produits.
+Dans les deux cas, la file garde l'ordre de la phase 2 pour les messages sans ligne.
 Sans aucune catégorie, la file garde exactement l'ordre de la phase 2.
 La catégorie n'ordonne que la file : aucune commande de sanction ne la lit.
 Un test de la base (seule la lecture de la file lit le pré-tri), un test du code de l'API et un test d'intégration (masquer, sanctionner et traiter passent de la même façon quelle que soit la catégorie) le tiennent.
