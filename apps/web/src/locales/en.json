@@ -719,7 +719,8 @@
       "treasury": "Treasury",
       "events": "Events",
       "chronicle": "Chronicle",
-      "liturgies": "Liturgies"
+      "liturgies": "Liturgies",
+      "ostracism": "Ostracism"
     }
   },
   "npcClasses": {
@@ -1708,6 +1709,14 @@
     "columns": {
       "house": "House",
       "votes": "Votes"
-    }
+    },
+    "title": "Ostracism",
+    "intro": "Once per game year, the assembly may bar a citizen from public office for a season. Their property is not touched. Each citizen secretly writes the name of a citizen of the city.",
+    "empty": "No ostracism has been opened in the city. The archon in office may propose one to the assembly.",
+    "voting": "Voting is open until {{date}}. It counts if at least {{percent}} of the citizens take part.",
+    "metic": "As a metic, your house does not vote on ostracism.",
+    "voted": "Your house voted on {{date}}. The vote is secret: the name written is not shown.",
+    "cast": "Write a name",
+    "counting": "Voting is closed. It will be counted at the next daily close."
   }
 }

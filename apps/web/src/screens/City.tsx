@@ -17,6 +17,7 @@ import {
   ScrollText,
   Sparkles,
   TriangleAlert,
+  UserMinus,
   Users,
   Vote,
   Waves,
@@ -35,6 +36,7 @@ import { coverageShare, parseCityPopulation } from '../population';
 import { ScreenHeader } from '../ScreenHeader';
 import { CityAssembly } from './CityAssembly';
 import { CityLiturgies } from './CityLiturgies';
+import { CityOstracism } from './CityOstracism';
 import { CityChronicle } from './CityChronicle';
 import { CityEvents } from './CityEvents';
 import { CityPolitics } from './CityPolitics';
@@ -75,7 +77,7 @@ export function Meter({ share }: { share: number }) {
 }
 
 /**
- * Onglet Cité : sous l'en-tête, les pastilles (vie politique, assemblée, liturgies (6.4), trésor, événements (7.4) et chronique
+ * Onglet Cité : sous l'en-tête, les pastilles (vie politique, assemblée, liturgies et ostracisme (6.4), trésor, événements (7.4) et chronique
  * (6.6)) et leur panneau, comme sur Maison (#862) ; puis l'identité de la cité de la maison (6.1, vue
  * `city_identity`), sa population classe par classe et la couverture de ses besoins vitaux (5.2, vue
  * `city_population`), son marché du travail (4.4) et son parc de logements (4.5). Les panneaux restent montés :
@@ -138,6 +140,7 @@ export function CityScreen() {
     ['politics', <Vote key="politics" />, <CityPolitics key="politics" />],
     ['assembly', <Gavel key="assembly" />, <CityAssembly key="assembly" />],
     ['liturgies', <PartyPopper key="liturgies" />, <CityLiturgies key="liturgies" />],
+    ['ostracism', <UserMinus key="ostracism" />, <CityOstracism key="ostracism" />],
     ['treasury', <Coins key="treasury" />, <CityTreasury key="treasury" />],
     ['events', <Sparkles key="events" />, <CityEvents key="events" />],
     ['chronicle', <ScrollText key="chronicle" />, <CityChronicle key="chronicle" />],
