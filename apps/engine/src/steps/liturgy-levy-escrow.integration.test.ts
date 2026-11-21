@@ -101,7 +101,9 @@ const sinkOf = async (worldId: string) => {
     levies: number;
   }>`select a.balance,
       (select count(*)::int from game.ledger_entries e where e.world_id = a.world_id and e.kind = 'liturgy.levy') as levies
-    from game.accounts a where a.world_id = ${worldId} and a.system_key = 'sink_liturgies'`.execute(db);
+    from game.accounts a where a.world_id = ${worldId} and a.system_key = 'sink_liturgies'`.execute(
+    db,
+  );
   return rows.map((row) => ({ balance: Number(row.balance), levies: row.levies }));
 };
 
