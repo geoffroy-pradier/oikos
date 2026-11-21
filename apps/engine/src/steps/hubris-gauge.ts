@@ -15,6 +15,9 @@ import type { CloseStep } from '../close';
  * d'une clôture peut être validée après que l'étape l'a lue ; comptée jusqu'à l'instant de la clôture du jour, elle
  * serait perdue. Une clôture plus tard, plus aucune commande de la période n'est en cours : chaque acte compte une
  * fois, même après une clôture manquée, puisque les périodes suivent les clôtures enregistrées.
+ * Exception : une clôture jouée sous une version sans section `hubris` n'écrit rien et ne compte pas les actes de sa
+ * période, qui restent ignorés. Une maison de joueur absente de `game.house_wealth`, qui rend pourtant chaque maison,
+ * compterait comme une fortune nulle dans la médiane.
  * Une maison PNJ de secours n'a pas de jauge, et sa fortune n'entre pas dans la médiane ; ses ventes comptent dans
  * les échanges d'un marché.
  * Rejouée dans la même transaction, l'étape n'écrit rien pour une maison qui a déjà une ligne du jour ; la base
