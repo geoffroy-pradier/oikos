@@ -24,7 +24,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
 | Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `liturgies`, `city_budget`, `public_works`, `leagues` |
-| Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `oracles`, `festivals` |
+| Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `hubris_ledger`, `oracles`, `festivals` |
 | Événements | `world_events`, `event_effects`, `quests`, `domain_events` |
 | IA | `npcs`, `npc_memories`, `ai_calls`, `prompts` |
 | Social | `channels`, `messages`, `reports`, `friendships`, `chronicle_articles` |
@@ -150,6 +150,15 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   La base ne lit pas les bornes de la configuration : qui écrit prend le verrou consultatif `honor:<maison>` de sa transaction, lit la Timè et la tient dans ses bornes (`honorChange`).
   Le service écrit au journal sans en choisir ni l'identifiant ni la date, et ne modifie jamais la Timè ; aucun joueur n'écrit ni l'une ni l'autre.
   Tout joueur connecté lit la Timè de chaque maison de son monde par `public.house_honor` (une ligne par maison, #857), et les seules lignes du journal de sa maison par `public.my_honor_entries` ; un visiteur anonyme ne lit rien (pgTAP 704).
+- Hybris (7.2, #734) : `hubris` porte la jauge entière d'une maison de joueur, de zéro au plus grand entier sûr des clients (`hubris_gauge_range`) ; elle n'est que le cumul d'un journal en ajout seul, `hubris_ledger`, appliqué par un déclencheur du propriétaire, et une maison sans ligne a une jauge nulle.
+  Une ligne porte la maison, une variation non nulle, une cause et un jour de jeu ; un index unique (`hubris_ledger_once`) n'en admet qu'une par maison, cause et jour.
+  Les causes sont une liste fermée tenue par la garde, avec leur signe : gains `market_share`, `wealth` et `liturgy_levied`, baisses `offering`, `liturgy_performed` et `decay` ; toute autre cause est refusée, et un ticket qui en ajoute une (les ententes sur les prix) remplace la garde.
+  Une ligne n'est admise que pour une maison de nature `player` de son monde : une maison PNJ de secours n'a pas de jauge (`hubris_player_house`).
+  À son insertion, aucune clôture de son jour ou d'un jour postérieur n'est enregistrée pour le monde (verrou de la clôture du monde) ; à la validation, la clôture de son jour l'est (déclencheur différé `hubris_ledger_on_close`) : seule la clôture écrit l'Hybris, comme la Timè d'un mandat.
+  La base ne lit pas la configuration et ne recalcule pas une variation : le moteur la calcule (`hubrisDelta`) et la rogne pour que la jauge reste dans ses bornes, que la base tient de toute façon.
+  Le service lit la jauge et le journal, écrit au journal sans en choisir ni l'identifiant ni la date, et ne modifie jamais la jauge.
+  Aucun joueur ni visiteur n'a de droit sur l'une ou l'autre table, ni de vue qui les lise (pgTAP 734).
+  Un joueur connecté lit le palier de chacune de ses maisons par `public.my_hubris_tier` (maison, palier), rendue par `game.my_hubris_tier()`, exécutée au nom du propriétaire : le nombre de bornes de `hubris.tiers` de la configuration en vigueur que la jauge atteint, zéro sans jauge ou sans section `hubris` ; un visiteur anonyme ne lit rien.
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.

@@ -16,6 +16,10 @@ import {
 } from 'kysely';
 import pg from 'pg';
 
+/** Cause d'une ligne du journal de l'Hybris (#734), comme `HUBRIS_CAUSES` de `@oikos/sim`. */
+export type HubrisCauseCode =
+  'market_share' | 'wealth' | 'liturgy_levied' | 'offering' | 'liturgy_performed' | 'decay';
+
 export * from './bank-vaults';
 export * from './city-rates';
 export * from './honor';
@@ -266,6 +270,25 @@ export interface GameDatabase {
     amount: ColumnType<string, number, never>;
     reason: ColumnType<HonorReason, HonorReason, never>;
     reference: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /** Jauge d'Hybris d'une maison de joueur (7.2, #734) : le cumul de `game.hubris_ledger`, jamais lue par un client. */
+  'game.hubris': {
+    house_id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, never, never>;
+    gauge: ColumnType<string, never, never>;
+  };
+  /**
+   * Journal de l'Hybris, en ajout seul, écrit par la seule clôture : une ligne au plus par maison, cause et jour de jeu
+   * (`hubris_ledger_once`) ; un gain est positif, une baisse négative (garde de la base).
+   */
+  'game.hubris_ledger': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    house_id: ColumnType<string, string, never>;
+    amount: ColumnType<string, number, never>;
+    cause: ColumnType<HubrisCauseCode, HubrisCauseCode, never>;
     game_day: ColumnType<number, number, never>;
     created_at: ColumnType<Date, never, never>;
   };
