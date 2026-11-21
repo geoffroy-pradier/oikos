@@ -1,12 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import {
-  bankLendable,
-  bankRequiredReserve,
-  collectDueLoans,
-  loanInterest,
-  splitLoanRepayment,
-} from './index';
+import { bankLendable, bankRequiredReserve, collectDueLoans, loanInterest } from './index';
 
 const rules = fc.record({
   minCapitalOboles: fc.integer({ min: 0, max: 1e9 }),
@@ -38,58 +32,57 @@ describe('prêts de banque (#728)', () => {
     expect(bankLendable(1_001n, 1_000n)).toBe(1n);
   });
 
-  it('du décaissement au solde, la monnaie passe du coffre à l’emprunteur et revient, sans se créer ni se perdre', () => {
+  it('les clôtures successives prélèvent, tous prêteurs confondus, dans l’ordre des prêts, jusqu’au reste dû exact', () => {
     fc.assert(
       fc.property(
-        fc.bigInt({ min: 1n, max: 10n ** 12n }),
-        fc.integer({ min: 0, max: 1_000_000 }),
-        fc.integer({ min: 1, max: 366 }),
-        fc.bigInt({ min: 0n, max: 10n ** 12n }),
         fc.array(
-          fc.record({ income: fc.bigInt({ min: 0n, max: 10n ** 11n }), repay: fc.boolean() }),
-          {
-            maxLength: 40,
-          },
+          fc.record({
+            principal: fc.bigInt({ min: 1n, max: 10n ** 12n }),
+            rateBps: fc.integer({ min: 0, max: 1_000_000 }),
+            termDays: fc.integer({ min: 1, max: 366 }),
+          }),
+          { minLength: 1, maxLength: 4 },
         ),
-        (principal, rateBps, termDays, cash, days) => {
-          const interest = loanInterest(principal, rateBps, termDays);
-          let vault = principal;
-          let treasury = cash;
-          let outstanding = principal + interest;
-          let interestDue = interest;
-          // Décaissement : le principal passe du coffre à la trésorerie.
-          vault -= principal;
-          treasury += principal;
-          // Hors des revenus que la trésorerie reçoit d'ailleurs, coffre et trésorerie gardent leur somme.
-          const base = vault + treasury;
-          let income = 0n;
-          for (const day of days) {
-            treasury += day.income;
-            income += day.income;
-            if (outstanding === 0n) break;
-            // Un remboursement de la maison, ou le prélèvement de la clôture sur ce que la trésorerie couvre.
-            const [taken] = day.repay
-              ? (() => {
-                  const amount = treasury < outstanding ? treasury : outstanding;
-                  if (amount === 0n) return [{ interest: 0n, principal: 0n, outstanding }];
-                  const split = splitLoanRepayment(amount, interestDue);
-                  return [{ ...split, outstanding: outstanding - amount }];
-                })()
-              : collectDueLoans(treasury, [{ id: 'l', outstanding, interestDue }]);
-            if (!taken) throw new Error('one loan, one share');
-            expect(taken.interest <= interestDue).toBe(true);
-            // Intérêts d'abord : aucun principal tant qu'il reste des intérêts.
-            if (taken.principal > 0n) expect(taken.interest).toBe(interestDue);
-            const paid = taken.interest + taken.principal;
-            treasury -= paid;
-            vault += paid;
-            interestDue -= taken.interest;
-            outstanding -= paid;
-            expect(taken.outstanding).toBe(outstanding);
-            expect(treasury >= 0n && outstanding >= 0n).toBe(true);
-            expect(vault + treasury).toBe(base + income);
+        fc.array(fc.bigInt({ min: 0n, max: 10n ** 12n }), { minLength: 1, maxLength: 30 }),
+        (terms, treasuries) => {
+          // Prêts d'une maison, du plus ancien au plus récent, qu'ils viennent du temple ou d'une banque.
+          let loans = terms.map((loan, index) => {
+            const interest = loanInterest(loan.principal, loan.rateBps, loan.termDays);
+            return {
+              id: String(index),
+              outstanding: loan.principal + interest,
+              interestDue: interest,
+            };
+          });
+          const owed = loans.reduce((sum, loan) => sum + loan.outstanding, 0n);
+          let [taken, offered] = [0n, 0n];
+          for (const treasury of treasuries) {
+            const shares = collectDueLoans(treasury, loans);
+            const day = shares.reduce((sum, share) => sum + share.interest + share.principal, 0n);
+            // Jamais plus que la trésorerie ; un prêt ne reste dû que si elle est vide.
+            expect(day <= treasury).toBe(true);
+            if (shares.some((share) => share.outstanding > 0n)) expect(day).toBe(treasury);
+            for (const [index, share] of shares.entries()) {
+              const loan = loans[index];
+              if (!loan) throw new Error('one share per loan');
+              // Un prêt plus récent ne prend rien tant qu'un plus ancien reste dû.
+              if (shares.slice(0, index).some((before) => before.outstanding > 0n))
+                expect(share.interest + share.principal).toBe(0n);
+              // Intérêts d'abord, jamais plus que ce qui reste dû.
+              if (share.principal > 0n) expect(share.interest).toBe(loan.interestDue);
+              expect(share.outstanding).toBe(loan.outstanding - share.interest - share.principal);
+              expect(share.outstanding >= 0n).toBe(true);
+            }
+            loans = loans.map((loan, index) => ({
+              ...loan,
+              outstanding: shares[index]?.outstanding ?? loan.outstanding,
+              interestDue: loan.interestDue - (shares[index]?.interest ?? 0n),
+            }));
+            taken += day;
+            offered += treasury;
           }
-          if (outstanding === 0n) expect(vault).toBe(principal + interest);
+          // Ce qui est pris, sur toutes les clôtures, est ce que les trésoreries couvrent, au plus le reste dû.
+          expect(taken).toBe(owed < offered ? owed : offered);
         },
       ),
     );
