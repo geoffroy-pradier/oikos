@@ -877,15 +877,15 @@ export interface GameDatabase {
     closed_at: ColumnType<Date | null, never, never>;
   };
   /**
-   * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
-   * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
+   * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ou d'une banque (`bank`, #728) ;
+   * décaissé par l'écriture `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
    * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`. Seule la
    * clôture le fait passer en défaut (#725), état et jour du défaut.
    */
   'game.loans': {
     id: ColumnType<string, never, never>;
     world_id: ColumnType<string, string, never>;
-    lender: ColumnType<'temple' | 'bank', 'temple', never>;
+    lender: ColumnType<'temple' | 'bank', 'temple' | 'bank', never>;
     borrower_house_id: ColumnType<string, string, never>;
     principal: ColumnType<string, number, never>;
     rate_bps: ColumnType<number, number, never>;
@@ -900,6 +900,9 @@ export interface GameDatabase {
     status: ColumnType<'active' | 'repaid' | 'defaulted', never, 'defaulted'>;
     defaulted_day: ColumnType<number | null, never, number>;
     disbursement_entry_id: ColumnType<string, string, never>;
+    /** Prêt de banque (#728) : sa banque et l'offre acceptée, que la base ferme ; nuls pour le temple. */
+    bank_id: ColumnType<string | null, string | undefined, never>;
+    offer_id: ColumnType<string | null, string | undefined, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /**

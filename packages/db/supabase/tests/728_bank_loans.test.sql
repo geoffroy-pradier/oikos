@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(42);
 
 -- Jeu d'essai : un monde à lui, une cité. Alice (a) tient la banque, 20 000 oboles de capital au coffre ; Bob (b) et
 -- Chloé (c) empruntent. Trésoreries : 50 000 chacune. Configuration en vigueur : l'horloge, qui date les prêts.
@@ -32,6 +32,8 @@ insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loa
 values ('01900000-0000-7000-8000-0000000728f1', '01900000-0000-7000-8000-0000000728c2', '00000000-0000-7000-8000-0000000728a2',
         'Trapeza Alkmaion', 100, 800, 0);
 
+-- Les logements naissent à leur maison, garde levée (les achats ont leurs propres tests).
+alter table game.properties disable trigger properties_guard;
 create function pg_temp.house(n text) returns uuid language sql as $$
   select ('00000000-0000-7000-8000-0000000728' || n || '2')::uuid
 $$;
@@ -65,12 +67,13 @@ begin
   perform set_config('role', 'none', true);
   return entry;
 end $$;
--- Offre de la banque à `n` : principal, 12 % l'an, 30 jours, gagée sur le logement (la garantie vient en migration 0303).
+-- Offre de la banque à `n` : principal, 12 % l'an, 30 jours, gagée sur un logement neuf de `n`.
 create function pg_temp.offer(n text, principal bigint) returns uuid language plpgsql as $$
 declare offer uuid;
 begin
-  insert into game.properties (world_id, city_id, size_id, lot) select '01900000-0000-7000-8000-0000000728f1',
-    '01900000-0000-7000-8000-0000000728c2', 'townhouse', count(*) + 1 from game.properties;
+  insert into game.properties (world_id, city_id, size_id, lot, owner_house_id, acquired_at)
+  select '01900000-0000-7000-8000-0000000728f1', '01900000-0000-7000-8000-0000000728c2', 'townhouse', count(*) + 1,
+    pg_temp.house(n), now() from game.properties;
   insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
     collateral_property_id)
   values ('01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), principal, 1200, 30, 'property',
@@ -92,12 +95,57 @@ begin
     coalesce(p, o.principal), o.rate_bps, o.term_days, ceil(coalesce(p, o.principal)::numeric * o.rate_bps * o.term_days / 3650000),
     pg_temp.today(), pg_temp.today() + o.term_days, pg_temp.close_at(pg_temp.today() + o.term_days), entry, o.bank_id, o.id));
 end $$;
+-- Offre de la banque à `n` gagée sur `quantity` unités du bien `good` de son stock à Pella.
+create function pg_temp.stock_offer(n text, principal bigint, quantity bigint, good text = 'olives') returns uuid
+language sql as $$
+  insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
+    collateral_city_id, collateral_good_id, collateral_quantity)
+  values ('01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), principal, 1200, 30, 'stock',
+    '01900000-0000-7000-8000-0000000728c2', good, quantity) returning id
+$$;
+create function pg_temp.olives(n text) returns text language sql as $$
+  select quantity || '/' || reserved from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'
+$$;
+-- Sortie de `quantity` olives du stock de `n` vers la consommation, au nom du service.
+create function pg_temp.consume(n text, quantity bigint) returns void language plpgsql as $$
+begin
+  perform pg_temp.as_service(format('insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system,
+    kind) values (%L, %L, %s, %L, %L, %L)', '01900000-0000-7000-8000-0000000728f1', 'olives', quantity,
+    (select id from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'), 'consumption', 'test'));
+end $$;
 create function pg_temp.loan(n text) returns game.loans language sql as $$
   select * from game.loans where borrower_house_id = pg_temp.house(n) order by created_at desc, id desc limit 1
 $$;
+-- Toute la monnaie du monde hors robinets et puits : trésoreries et coffre.
+create function pg_temp.money() returns bigint language sql as $$
+  select sum(balance)::bigint from game.accounts where world_id = '01900000-0000-7000-8000-0000000728f1' and system_key is null
+$$;
+-- Remboursement de `n`, comme l'écrit la commande : écriture `kind` de sa trésorerie à `dst` (le coffre), puis la ligne.
+create function pg_temp.repay(n text, interest bigint, principal bigint, kind text = 'bank.loan_repay', dst uuid = null)
+returns void language plpgsql as $$
+declare entry uuid := pg_temp.entry(kind, pg_temp.treasury(n), coalesce(dst, pg_temp.vault_id()), interest + principal,
+  (pg_temp.loan(n)).id);
+begin
+  perform pg_temp.as_service(format(
+    'insert into game.loan_repayments (world_id, loan_id, house_id, interest, principal, game_day, ledger_entry_id)
+     values (%L, %L, %L, %s, %s, %s, %L)', '01900000-0000-7000-8000-0000000728f1', (pg_temp.loan(n)).id, pg_temp.house(n),
+    interest, principal, pg_temp.today(), entry));
+end $$;
+-- Ligne ajoutée après coup, au nom du service, à l'écriture validée `entry` : `amount` oboles de `src` au coffre.
+create function pg_temp.append(entry uuid, src uuid, amount bigint) returns void language plpgsql as $$
+begin
+  perform pg_temp.as_service(format('insert into game.ledger_lines (entry_id, account_id, amount) values (%L, %L, %s), (%L, %L, %s)',
+    entry, pg_temp.vault_id(), amount, entry, src, -amount));
+end $$;
 do $$ begin perform pg_temp.entry('bank.capital_in', pg_temp.treasury('a'), pg_temp.vault_id(), 20000); end $$;
 set constraints all immediate;
 set constraints all deferred;
+insert into game.inventories (world_id, house_id, city_id, good_id) values
+  ('01900000-0000-7000-8000-0000000728f1', pg_temp.house('b'), '01900000-0000-7000-8000-0000000728c2', 'olives');
+insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
+select '01900000-0000-7000-8000-0000000728f1', 'olives', 100, 'production', id, 'test' from game.inventories
+where house_id = pg_temp.house('b');
+create temporary table money_before as select pg_temp.money() as total;
 create temporary table offers (n text primary key, id uuid);
 insert into offers values ('b', pg_temp.offer('b', 5000)), ('c', pg_temp.offer('c', 3000)), ('w', pg_temp.offer('c', 1000));
 update game.bank_loan_offers set status = 'withdrawn' where id = (select id from offers where n = 'w');
@@ -109,14 +157,127 @@ select results_eq($$select lender, outstanding::bigint, interest::bigint, bank_i
   'le prêt nomme sa banque ; son reste dû est le principal et l''intérêt simple');
 select results_eq($$select balance from game.accounts where id in (pg_temp.vault_id(), pg_temp.treasury('b')) order by kind$$, $$values (55000::bigint), (15000::bigint)$$,
   'le principal passe du coffre à la trésorerie de l''emprunteur');
+select results_eq($$select status, closed_at = now() from game.bank_loan_offers where id = (select id from offers where n = 'b')$$,
+  $$values ('accepted', true)$$, 'le prêt ferme son offre, acceptée, à l''instant de la transaction');
 select throws_ok($$select pg_temp.lend((select id from offers where n = 'b'))$$, '23505', null,
   'une offre ne fait naître qu''un prêt');
 select throws_ok($$select pg_temp.lend((select id from offers where n = 'w'))$$, '23514', null,
   'une offre retirée ne fait naître aucun prêt');
 select throws_ok($$select pg_temp.lend((select id from offers where n = 'c'), p => 2999)$$, '23514', null,
   'un prêt qui n''a pas les conditions de son offre est refusé');
+select throws_ok($$select pg_temp.lend((select id from offers where n = 'c'),
+  src => (select id from game.accounts where world_id = '01900000-0000-7000-8000-0000000728f1' and system_key = 'faucet_temple_loans'))$$,
+  '23001', null, 'un prêt de banque ne vient pas du robinet du temple');
+select throws_ok($$select pg_temp.lend((select id from offers where n = 'c'), dst => pg_temp.treasury('a'))$$, '23001', null,
+  'un prêt de banque va à son emprunteur');
+select throws_ok($$select pg_temp.entry('bank.loan_disburse', pg_temp.vault_id(), pg_temp.treasury('c'), 100);
+  set constraints all immediate$$, '23001', null, 'une écriture de décaissement de banque décaisse un prêt');
+select throws_ok($$select pg_temp.as_service(format(
+  'insert into game.loans (world_id, lender, borrower_house_id, principal, rate_bps, term_days, interest, borrowed_day, due_day,
+     due_at, disbursement_entry_id, bank_id) values (%L, %L, %L, 100, 0, 1, 0, %s, %s, %L, %L, %L)',
+  '01900000-0000-7000-8000-0000000728f1', 'bank', pg_temp.house('c'), pg_temp.today(), pg_temp.today() + 1,
+  pg_temp.close_at(pg_temp.today() + 1), pg_temp.entry('bank.loan_disburse', pg_temp.vault_id(), pg_temp.treasury('c'), 100),
+  pg_temp.bank()))$$, '23514', null, 'un prêt de banque nomme son offre');
 select lives_ok($$select pg_temp.lend((select id from offers where n = 'c'))$$, 'un second emprunteur, de la même banque');
+
+-- 2. Remboursements : de l'emprunteur au coffre, intérêts d'abord ; rien au temple.
+select lives_ok($$select pg_temp.repay('b', 50, 950)$$, 'un remboursement de banque va au coffre');
+select results_eq($$select (pg_temp.loan('b')).outstanding::bigint, (pg_temp.loan('b')).interest_repaid::bigint,
+  (select balance from game.accounts where id = pg_temp.vault_id())$$,
+  $$values (4050::bigint, 50::bigint, 13000::bigint)$$, 'le reste dû baisse, le coffre reçoit intérêts et principal');
+select throws_ok($$select pg_temp.repay('b', 0, 100, 'loan.repay',
+  (select id from game.accounts where world_id = '01900000-0000-7000-8000-0000000728f1' and system_key = 'faucet_temple_loans'))$$,
+  '23001', null, 'un prêt de banque ne se rembourse pas au temple');
+select throws_ok($$select pg_temp.repay('b', 0, 100, dst => pg_temp.treasury('a'))$$, '23001', null,
+  'un remboursement de banque va au coffre, pas au banquier');
+select throws_ok($$select pg_temp.repay('b', 0, 100, 'bank.loan_collect')$$, '23001', null,
+  'un remboursement de la maison n''est pas un prélèvement');
+select throws_ok($$select pg_temp.entry('loan.repay', pg_temp.treasury('b'), pg_temp.vault_id(), 10, (pg_temp.loan('b')).id)$$,
+  '23514', null, 'un coffre ne reçoit pas d''une écriture du temple');
+
+-- 3. Lignes ajoutées après coup à une écriture de prêt validée, même équilibrées : refusées.
+select throws_ok($$select pg_temp.append((select ledger_entry_id from game.loan_repayments where loan_id = (pg_temp.loan('b')).id),
+  pg_temp.treasury('b'), 1)$$, '23001', null, 'une ligne ajoutée à un remboursement validé est refusée');
+select throws_ok($$select pg_temp.append((pg_temp.loan('b')).disbursement_entry_id, pg_temp.treasury('b'), 1)$$, '23001', null,
+  'une ligne ajoutée à un décaissement validé est refusée');
+
+-- 4. Solde, conditions, défaut et conservation.
+select lives_ok($$select pg_temp.repay('b', 0, 4050)$$, 'le reste dû se rembourse au coffre');
+select is((pg_temp.loan('b')).status, 'repaid', 'à zéro, le prêt de banque est remboursé');
 select throws_ok($$update game.loans set offer_id = null where borrower_house_id = '00000000-0000-7000-8000-0000000728c2'$$,
   '23001', null, 'un prêt de banque garde son offre');
+-- Le prêt de Chloé, reculé gardes levées pour être échu depuis trois jours : seule la garde du prêteur refuse son défaut.
+set local session_replication_role = replica;
+update game.loans set borrowed_day = pg_temp.today() - 33, due_day = pg_temp.today() - 3,
+  due_at = pg_temp.close_at(pg_temp.today() - 3), created_at = now() - interval '34 days'
+where id = (pg_temp.loan('c')).id;
+set local session_replication_role = origin;
+select throws_ok($$select pg_temp.as_service(format('update game.loans set status = %L, defaulted_day = due_day where id = %L',
+  'defaulted', (pg_temp.loan('c')).id))$$, '23001', 'a bank loan defaults only with its seizure',
+  'un prêt de banque échu ne passe pas en défaut avant sa saisie');
+-- Un prêt du temple ne nomme ni banque ni offre : la contrainte le refuse, et chacune de ses deux clauses a son cas.
+create function pg_temp.temple_loan(bank uuid, offer uuid) returns void language plpgsql as $$
+declare entry uuid := pg_temp.entry('loan.temple_disburse', (select id from game.accounts
+  where world_id = '01900000-0000-7000-8000-0000000728f1' and system_key = 'faucet_temple_loans'), pg_temp.treasury('c'), 100);
+begin
+  perform pg_temp.as_service(format(
+    'insert into game.loans (world_id, lender, borrower_house_id, principal, rate_bps, term_days, interest, borrowed_day,
+       due_day, due_at, disbursement_entry_id, bank_id, offer_id) values (%L, %L, %L, 100, 0, 1, 0, %s, %s, %L, %L, %L, %L)',
+    '01900000-0000-7000-8000-0000000728f1', 'temple', pg_temp.house('c'), pg_temp.today(), pg_temp.today() + 1,
+    pg_temp.close_at(pg_temp.today() + 1), entry, bank, offer));
+end $$;
+select throws_ok($$select pg_temp.temple_loan(pg_temp.bank(), (select id from offers where n = 'w'))$$, '23514',
+  'new row for relation "loans" violates check constraint "loans_bank_lender"', 'un prêt du temple ne nomme pas de banque, même avec une offre');
+select throws_ok($$select pg_temp.temple_loan(null, (select id from offers where n = 'w'))$$, '23514',
+  'new row for relation "loans" violates check constraint "loans_bank_lender"', 'un prêt du temple ne nomme pas d''offre');
+select is(pg_temp.money(), (select total from money_before), 'un prêt de banque ne crée ni ne détruit de monnaie');
+-- 5. Garantie d'un stock : retenue sur le stock libre, aucune sortie ne l'entame, libérée au solde.
+select lives_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 1000, 40))$$, 'un prêt gagé sur 40 olives');
+select is(pg_temp.olives('b'), '100/40', 'le stock gagé est retenu sur le stock de l''emprunteur');
+select throws_ok($$select pg_temp.consume('b', 61)$$, '23514', 'new row for relation "inventories" violates check constraint "inventories_reserved_within_quantity"', 'un stock gagé ne sort par aucun chemin');
+select lives_ok($$select pg_temp.consume('b', 60)$$, 'le stock libre sort');
+select throws_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 100, 1))$$, '23514', 'new row for relation "inventories" violates check constraint "inventories_reserved_within_quantity"',
+  'un prêt ne gage que du stock libre');
+select throws_ok($$select pg_temp.lend(pg_temp.stock_offer('b', 100, 1, 'wine'))$$, '23514', 'a bank loan pledges collateral its borrower holds free',
+  'un prêt ne gage pas un stock que l''emprunteur n''a pas');
+select lives_ok($$select pg_temp.repay('b', 10, 1000)$$, 'le prêt gagé se rembourse');
+select is(pg_temp.olives('b'), '40/0', 'au solde, le stock gagé se libère');
+
+-- 6. Garantie d'un logement : ni offert, ni vendu, ni gagé deux fois tant que le prêt n'est pas remboursé.
+create temporary table pledged as select collateral_property_id as id from game.bank_loan_offers
+  where id = (select id from offers where n = 'c');
+-- Nouvelle offre à `n` gagée sur ce logement.
+create function pg_temp.property_offer(n text) returns uuid language sql as $$
+  insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
+    collateral_property_id)
+  select '01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house(n), 100, 1200, 30, 'property', id from pledged
+  returning id
+$$;
+select throws_ok($$insert into game.property_listings (world_id, property_id, house_id, kind, price_oboles)
+  select '01900000-0000-7000-8000-0000000728f1', id, pg_temp.house('c'), 'lease', 10 from pledged$$, '23514', 'a pledged property is neither listed nor sold',
+  'un logement gagé ne s''offre pas à la location');
+select throws_ok($$update game.properties set owner_house_id = pg_temp.house('b') where id = (select id from pledged)$$,
+  '23514', 'a pledged property is neither listed nor sold', 'un logement gagé ne change pas de propriétaire');
+select throws_ok($$select pg_temp.lend(pg_temp.property_offer('c'))$$, '23514', 'a bank loan pledges collateral its borrower holds free', 'un logement gagé ne se gage pas deux fois');
+-- Offre à Bob gagée sur un logement libre de Chloé : ni offert, ni gagé.
+create function pg_temp.foreign_offer() returns uuid language plpgsql as $$
+declare property uuid; offer uuid;
+begin
+  insert into game.properties (world_id, city_id, size_id, lot, owner_house_id, acquired_at)
+  select '01900000-0000-7000-8000-0000000728f1', '01900000-0000-7000-8000-0000000728c2', 'townhouse', count(*) + 1,
+    pg_temp.house('c'), now() from game.properties returning id into property;
+  insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal, rate_bps, term_days, collateral_kind,
+    collateral_property_id) values ('01900000-0000-7000-8000-0000000728f1', pg_temp.bank(), pg_temp.house('b'), 100, 1200,
+    30, 'property', property) returning id into offer;
+  return offer;
+end $$;
+select throws_ok($$select pg_temp.lend(pg_temp.foreign_offer())$$, '23514', 'a bank loan pledges collateral its borrower holds free',
+  'un logement ne se gage que par sa maison');
+select lives_ok($$select pg_temp.repay('c', 30, 3000)$$, 'le prêt gagé sur le logement se rembourse');
+select lives_ok($$insert into game.property_listings (world_id, property_id, house_id, kind, price_oboles)
+  select '01900000-0000-7000-8000-0000000728f1', id, pg_temp.house('c'), 'sale', 10 from pledged$$,
+  'au solde, le logement s''offre de nouveau');
+select throws_ok($$select pg_temp.lend(pg_temp.property_offer('c'))$$, '23514', 'a bank loan pledges collateral its borrower holds free', 'un logement offert à la vente ne se gage pas');
+
 select * from finish();
 rollback;
