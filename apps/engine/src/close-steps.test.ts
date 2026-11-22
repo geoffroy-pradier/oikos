@@ -11,6 +11,7 @@ import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
 import { hubrisGauge } from './steps/hubris-gauge';
 import { laborMarket } from './steps/labor-market';
+import { leagueDecrees } from './steps/league-decrees';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
@@ -63,6 +64,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       archonOpening,
       decreeTally,
       ostracismOpening,
+      leagueDecrees,
       npcPopulation,
       worldEventPlanning,
       hubrisGauge,
@@ -103,6 +105,8 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismTally)).toBe(CLOSE_STEPS.indexOf(archonTally) - 1);
     expect(CLOSE_STEPS.indexOf(ostracismOpening)).toBe(CLOSE_STEPS.indexOf(decreeTally) + 1);
+    // Les décrets de ligue (#737), sans monnaie ni stock ni agora, juste après les ostracismes adoptés.
+    expect(CLOSE_STEPS.indexOf(leagueDecrees)).toBe(CLOSE_STEPS.indexOf(ostracismOpening) + 1);
     expect(CLOSE_STEPS.indexOf(liturgyAssignment)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 3);
     expect(CLOSE_STEPS.indexOf(liturgyEvasion)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 2);
     expect(CLOSE_STEPS.indexOf(loanDefaultLocks)).toBe(CLOSE_STEPS.indexOf(favorDecay) - 1);
