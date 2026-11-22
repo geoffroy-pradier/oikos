@@ -24,7 +24,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
 | Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `liturgies`, `city_budget`, `public_works`, `leagues` |
-| Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `hubris_ledger`, `oracles`, `festivals` |
+| Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `hubris_ledger`, `nemesis_omens`, `oracles`, `festivals` |
 | Événements | `world_events`, `event_effects`, `quests`, `domain_events` |
 | IA | `npcs`, `npc_memories`, `ai_calls`, `prompts` |
 | Social | `channels`, `messages`, `reports`, `friendships`, `chronicle_articles` |
@@ -159,6 +159,18 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le service lit la jauge et le journal, écrit au journal sans en choisir ni l'identifiant ni la date, et ne modifie jamais la jauge.
   Aucun joueur ni visiteur n'a de droit sur l'une ou l'autre table, ni de vue qui les lise (pgTAP 734).
   Un joueur connecté lit le palier de chacune de ses maisons par `public.my_hubris_tier` (maison, palier), rendue par `game.my_hubris_tier()`, exécutée au nom du propriétaire : le nombre de bornes de `hubris.tiers` de la configuration en vigueur que la jauge atteint, zéro sans jauge ou sans section `hubris` ; un visiteur anonyme ne lit rien.
+  Depuis #735, la cause `nemesis` (une baisse) est la baisse de la jauge qui suit une sanction de Némésis (migration 200).
+- Présages de Némésis (7.2, #735, migrations 200 à 203) : `nemesis_omens` porte la maison de joueur, le modèle de la sanction, ses textes de repli, le jour du présage et celui de l'échéance, puis l'issue (`struck` ou `averted`), son jour et ce que la sanction a pris : ampleur, baisse de la jauge, amende et son écriture, stock et quantité brûlés, atelier et instant de sa reprise, voyage condamné.
+  Une contrainte fixe ce que porte l'issue de chaque modèle ; un index unique n'admet qu'un présage en attente par maison (`nemesis_omens_pending`), un autre un présage par maison et par jour.
+  Un présage naît maintenant, sans issue, avant que la clôture de son jour ou d'un jour postérieur soit enregistrée ; son issue s'écrit une fois, sans rien changer de ce qu'il annonce, le jour de l'échéance ou après, avant que la clôture de ce jour soit enregistrée ; à la validation, la clôture du jour l'est (`nemesis_omens_on_close`), et une sanction qui frappe a sa ligne `nemesis` au journal de l'Hybris, de sa baisse.
+  Un incendie brûle un stock de sa maison, une désertion arrête un atelier ouvert de sa maison, un navire perdu condamne un voyage en mer de sa maison (garde) ; à la validation, l'incendie a son mouvement vers `nemesis` et l'atelier s'est arrêté dans la transaction (`nemesis_omens_effects`).
+  L'amende d'un procès est payée par sa propre écriture `nemesis.fine`, qui nomme son présage, une fois : à la validation de toute transaction qui insère l'écriture ou lui ajoute une ligne, la base rejoue le contrôle de l'écriture entière (deux lignes, de la trésorerie de la maison au puits `sink_nemesis` de son monde, pour l'amende du présage), et le présage ne nomme qu'une écriture qui le nomme (pgTAP 735).
+  Journal des stocks : l'extrémité système `nemesis` est un puits à sens unique rattaché à son présage frappé (`stock_ledger.nemesis_id`, `stock_ledger_nemesis_one_way`), un bien au plus par présage ; avec la perte en mer, c'est le seul mouvement admis sans stock, de `in_transit` à `nemesis`.
+  Un voyage condamné, une fois arrivé, ne décharge rien ni ne se perd en mer : toute sa cargaison va à `nemesis`, et aucun autre voyage n'y va.
+  Un atelier déserté ne repart pas avant l'instant de reprise de son présage, quel que soit le rôle (`sites_nemesis_deserted`).
+  La base ne lit pas la configuration : elle ne vérifie ni le seuil, ni l'ampleur, ni le choix du stock, de l'atelier ou du voyage, que le moteur calcule.
+  Le service adresse un présage sans en choisir l'identifiant ni les dates, et n'écrit ensuite que son issue ; aucun client n'a de droit sur la table.
+  Un joueur connecté lit les présages de ses maisons par `public.my_omens`, rendue par `game.my_omens()`, exécutée au nom du propriétaire : textes, jours, issue, ce que la sanction a pris, et le modèle une fois réglée ; jamais l'ampleur ni la baisse de la jauge, rien d'une autre maison ; un visiteur anonyme ne lit rien (pgTAP 735_nemesis_effects).
 - Charis (7.1, #265) : `favor` porte la Charis entière d'une maison envers un dieu, de 0 au plus grand entier sûr des clients ; elle n'est que le cumul d'un journal en ajout seul, `favor_ledger`, appliqué par un déclencheur du propriétaire.
   Une ligne d'offrande (`offering`) porte la Charis d'une offrande de la même transaction, de la même maison et du même dieu, une fois par offrande.
   Une ligne de déclin (`decay`) est négative, datée d'un jour de jeu, écrite dans la transaction qui enregistre la clôture de ce jour (même garde que la population), une fois par maison, dieu et jour.
@@ -336,7 +348,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Ces gardes s'exécutent au nom du propriétaire de la base.
   Le service fait partir un voyage sans en choisir l'identifiant ni la date de départ, et n'en écrit ensuite que l'arrivée ; un joueur lit ses voyages et leur cargaison par `my_voyages`, sous règle par ligne.
   Il lit aussi le risque de ses voyages (`voyages.loss_risk_bps`, même règle) ; un autre joueur ne le lit pas, et aucun joueur ne lit le journal des stocks.
-  `my_voyages` porte en dernière colonne l'issue d'un voyage (`cargo_lost`, migration 9961, ajoutée sous condition, ADR 0006), lue par `game.voyage_cargo_lost`, exécutée au nom du propriétaire : nulle pour un voyage en mer ou d'une autre maison, puis vraie ou fausse selon qu'une ligne `lost_at_sea` existe (pgTAP 730).
+  `my_voyages` porte en dernière colonne l'issue d'un voyage (`cargo_lost`, migration 9961, ajoutée sous condition, ADR 0006), lue par `game.voyage_cargo_lost`, exécutée au nom du propriétaire : nulle pour un voyage en mer ou d'une autre maison, puis vraie ou fausse selon qu'une ligne `lost_at_sea` existe (pgTAP 730), ou, depuis #735, une ligne `nemesis` (migration 203).
   L'issue ne change plus après l'arrivée : le contrôle différé `check_voyage_settled` fait sortir toute la cargaison de `in_transit` dans la transaction de l'arrivée, et l'index unique du déchargement refuse ensuite toute seconde sortie d'un bien.
 - Discussion (6.6, #273) : `channels` (le canal d'une cité, ou la conversation privée de deux maisons d'un même monde), `channel_members` (les deux maisons d'une conversation privée) et `messages` (canal, maison, texte, date, masquage).
   Le canal d'une cité naît avec elle (déclencheur exécuté au nom du propriétaire, comme son trésor) ; le service ne crée que des conversations privées, dont la base inscrit elle-même les deux membres.

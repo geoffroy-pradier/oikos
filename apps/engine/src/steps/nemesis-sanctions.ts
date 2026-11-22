@@ -164,6 +164,21 @@ async function artisanDesertion({ trx, omen, closeAt, nextCloseAt }: SanctionTar
   return { ...NOTHING, siteId: site.id, resumesAt: nextCloseAt, apply };
 }
 
+/**
+ * Navire perdu (7.2, #735) : le voyage en mer de la maison qui porte le plus de marchandises (le plus ancien à égalité),
+ * et qu'aucune sanction n'a déjà condamné (la base n'en condamne qu'une fois, `nemesis_omens_voyage_once`), est condamné ; à son arrivée, toute sa cargaison part à l'extrémité `nemesis`, comme une perte en mer (4.6, #730), et
+ * le navire accoste à vide (`voyageArrivals`). Rien sans voyage chargé en mer.
+ */
+async function shipLost({ trx, omen }: SanctionTarget) {
+  const { rows } = await sql<{ id: string }>`select v.id from game.voyages v
+    where v.house_id = ${omen.house_id} and v.arrived_at is null
+      and exists (select 1 from game.voyage_cargo c where c.voyage_id = v.id)
+      and not exists (select 1 from game.nemesis_omens o where o.voyage_id = v.id and o.outcome = 'struck')
+    order by (select sum(c.quantity) from game.voyage_cargo c where c.voyage_id = v.id) desc, v.departed_at, v.id
+    limit 1 for update of v`.execute(trx);
+  return { ...NOTHING, voyageId: rows[0]?.id ?? null };
+}
+
 /** Ce que prend la sanction d'un présage qui frappe, selon son modèle. */
 export function takeSanction(target: SanctionTarget): Promise<Sanction> {
   switch (target.omen.model) {
@@ -173,7 +188,7 @@ export function takeSanction(target: SanctionTarget): Promise<Sanction> {
       return warehouseFire(target);
     case 'artisan_desertion':
       return artisanDesertion(target);
-    default:
-      throw new Error(`Nemesis model ${target.omen.model} is not drawn yet`);
+    case 'ship_lost':
+      return shipLost(target);
   }
 }

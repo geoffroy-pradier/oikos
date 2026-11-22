@@ -13,9 +13,6 @@ import { fallbackOmen, omenSeed } from '../nemesis/compose';
 import { takeSanction } from './nemesis-sanctions';
 import { lockUpkeepSinks } from './site-upkeep';
 
-/** Modèles que la clôture tire aujourd'hui : les autres viennent avec les parties suivantes de #735. */
-const DRAWN: readonly NemesisModel[] = ['lawsuit', 'warehouse_fire', 'artisan_desertion'];
-
 /**
  * Présages et Némésis (docs/specs/07-dieux-faveur-evenements.md, 7.2 ; #735). D'abord l'échéance : chaque présage en
  * attente dont le jour d'échéance est atteint (ou passé, après une clôture manquée) se règle, une fois. Si la jauge
@@ -30,7 +27,8 @@ const DRAWN: readonly NemesisModel[] = ['lawsuit', 'warehouse_fire', 'artisan_de
  * Placée après le retrait des maisons PNJ, avant le marché du travail et l'entretien, qui paie avec ce qui reste ; elle
  * lit la jauge que vient d'écrire `hubrisGauge`. Verrous, dans l'ordre de l'entretien : l'agora, les puits de
  * l'entretien, les bourses des PNJ, le puits `sink_nemesis`, puis chaque maison frappée par identifiant : sa trésorerie
- * (procès), ses sites puis son stock (incendie), ou son atelier (désertion). Sans présage échu, aucun verrou.
+ * (procès), ses sites puis son stock (incendie), son atelier (désertion) ou son voyage (navire perdu). Sans présage
+ * échu, aucun verrou.
  */
 export const nemesis: CloseStep = {
   name: 'nemesis',
@@ -141,7 +139,7 @@ export const nemesis: CloseStep = {
       }
     }
 
-    const models = rules ? NEMESIS_MODELS.filter((m) => rules.models[m] && DRAWN.includes(m)) : [];
+    const models = rules ? NEMESIS_MODELS.filter((model) => rules.models[model]) : [];
     if (rules && models.length > 0) {
       const { rows: houses } = await sql<{ id: string }>`select h.id from game.houses h
         join game.hubris x on x.house_id = h.id

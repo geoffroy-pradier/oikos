@@ -1,4 +1,11 @@
-import type { HubrisRules, NemesisRules } from '@oikos/config';
+import {
+  INITIAL_CONFIG,
+  type GameConfig,
+  type HubrisRules,
+  type NemesisRules,
+} from '@oikos/config';
+import { createRng, tickIndexAt } from '@oikos/sim';
+import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import { describe, expect, it } from 'vitest';
 import { hubrisGauge } from './hubris-gauge';
@@ -15,6 +22,7 @@ import {
 } from './hubris.integration-fixtures';
 import { nemesis } from './nemesis';
 import { siteUpkeep } from './site-upkeep';
+import { voyageArrivals } from './voyage-arrivals';
 
 // Présages et Némésis (#735), contre Supabase local. Dans chaque monde, la maison a (90 000 oboles, médiane 1 000) gagne
 // 870 000 d'Hybris par clôture au poids de WEIGHTED, moins 10 de déclin : 869 990 au jour DAY.
@@ -33,6 +41,7 @@ const hubris = (rules: NemesisRules | null, wealthWeight = WEIGHTED.wealthWeight
 };
 const FIRE: NemesisRules = { ...RULES, models: { warehouse_fire: { minBps: 500, maxBps: 3_000 } } };
 const DESERTION: NemesisRules = { ...RULES, models: { artisan_desertion: {} } };
+const SHIP: NemesisRules = { ...RULES, models: { ship_lost: {} } };
 const quiet = (rules: NemesisRules | null = RULES) => hubris(rules, 0);
 
 const NONE = { averted: 0, struck: 0, omens: 0 };
@@ -241,5 +250,92 @@ describe('présages et Némésis à la clôture (#735)', () => {
     }>`select site_id as site from game.nemesis_omens
       where world_id = ${bare.worldId} and outcome = 'struck'`.execute(db);
     expect(rows).toEqual([{ site: null }]);
+  });
+
+  it('navire perdu : le voyage le plus chargé, puis l’autre ; à l’arrivée, leur cargaison part à nemesis', async () => {
+    const world = await newWorld([90_000, 1_000, 1_000]);
+    const bare = await newWorld([90_000, 1_000, 1_000]);
+    const [a = ''] = world.ids;
+    const port = randomUUID();
+    // Deux navires de a prennent la mer vers un port, avec 30 et 10 blés, pour une arrivée imminente.
+    await owner.transaction().execute(async (trx) => {
+      await sql`insert into game.cities (id, world_id, slug, name) values (${port}, ${world.worldId}, 'c1', 'Port')`.execute(
+        trx,
+      );
+      await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
+        select ${world.worldId}, 'wheat', 40, 'production', id, 'test.seed' from game.inventories where house_id = ${a}`.execute(
+        trx,
+      );
+      for (const quantity of [30, 10]) {
+        const { rows } = await sql<{ id: string; ship: string }>`with s as (
+            insert into game.ships (world_id, house_id, class_id, docked_city_id)
+            values (${world.worldId}, ${a}, 'coaster', ${world.city}) returning id)
+          insert into game.voyages (world_id, house_id, ship_id, from_city_id, to_city_id, arrives_at)
+          select ${world.worldId}, ${a}, s.id, ${world.city}, ${port}, now() + interval '50 milliseconds' from s
+          returning id, ship_id as ship`.execute(trx);
+        const voyage = rows[0];
+        await sql`insert into game.voyage_cargo (voyage_id, world_id, good_id, quantity)
+          values (${voyage?.id}, ${world.worldId}, 'wheat', ${quantity})`.execute(trx);
+        await sql`insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind, voyage_id)
+          select ${world.worldId}, 'wheat', ${quantity}, id, 'in_transit', 'voyage.departure', ${voyage?.id}
+          from game.inventories where house_id = ${a}`.execute(trx);
+        await sql`update game.ships set docked_city_id = null where id = ${voyage?.ship}`.execute(
+          trx,
+        );
+      }
+    });
+    // a gagne de l'Hybris chaque jour : frappée à l'excès plein, sa jauge reste au-delà et appelle un présage nouveau.
+    for (let day = DAY; day <= DAY + 6; day++) await close(world.worldId, day, hubris(SHIP), steps);
+    await close(bare.worldId, DAY, hubris(SHIP), steps);
+    for (const day of [DAY + 1, DAY + 2, DAY + 3])
+      await close(bare.worldId, day, quiet(SHIP), steps);
+    // Le voyage de 30 blés est condamné au jour 3 ; au jour 6, l'autre, et non le même une seconde fois.
+    expect(await omensOf(world)).toEqual([
+      '0:ship_lost:0→3:struck@3:-:100000:-:-',
+      '0:ship_lost:3→6:struck@6:-:100000:-:-',
+      '0:ship_lost:6→9',
+    ]);
+    const voyages = await sql<{
+      id: string;
+      doomed: boolean;
+    }>`select v.id, exists (select 1 from game.nemesis_omens o
+        where o.voyage_id = v.id) as doomed from game.voyages v where v.house_id = ${a}
+      order by (select quantity from game.voyage_cargo c where c.voyage_id = v.id) desc`.execute(
+      db,
+    );
+    expect(voyages.rows.map((voyage) => voyage.doomed)).toEqual([true, true]);
+    // Aucun des deux ne décharge.
+    const scheduledAt = new Date(Date.now() + 100);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const tickMinutes = (INITIAL_CONFIG as GameConfig).clock.tickMinutes;
+    const summary = await db.transaction().execute((trx) =>
+      voyageArrivals.run({
+        trx,
+        worldId: world.worldId,
+        index: tickIndexAt(scheduledAt, tickMinutes),
+        scheduledAt,
+        config: INITIAL_CONFIG as GameConfig,
+        rng: createRng('0'),
+        dailyClose: false,
+        seasonSwitch: false,
+        catchUp: false,
+      }),
+    );
+    expect(summary).toEqual({ voyages: 2, units: 0, nemesisVoyages: 2, nemesisUnits: 40 });
+    const { rows } = await sql<{
+      line: string;
+    }>`select coalesce(to_system, 'stock') || ':' || quantity as line
+      from game.stock_ledger where world_id = ${world.worldId} and from_system = 'in_transit' order by quantity desc`.execute(
+      db,
+    );
+    expect(rows.map((row) => row.line)).toEqual(['nemesis:30', 'nemesis:10']);
+    expect(
+      (
+        await sql<{ n: number }>`select count(*)::integer as n from game.domain_events
+          where type = 'CargoLostAtSea' and payload ->> 'houseId' = ${a}`.execute(db)
+      ).rows[0]?.n,
+    ).toBe(0);
+    // Sans voyage en mer : la sanction frappe sans rien condamner.
+    expect(await omensOf(bare)).toEqual(['0:ship_lost:0→3:struck@3:-:69960:-:-']);
   });
 });

@@ -406,6 +406,7 @@ La masse monétaire est pilotée. Le tableau de bord économique (section 15) su
 |  | Droit de fondation des banques (5.4, #726) |
 | Dotation des maisons PNJ de secours (8.3, #715) | Acquisition de sites et achat de navires |
 |  | Surplus des maisons PNJ de secours (8.3, #716) |
+|  | Sanctions de Némésis : amende d'un procès (7.2, #735) |
 
 Salaires et hébergement versés aux PNJ (#632) : ni création ni destruction, mais un transfert des maisons à la bourse des PNJ de la cité, que la masse monétaire compte.
 Les achats des PNJ aux joueurs, payés par cette bourse, sont le transfert inverse : depuis #632, ils ne créent plus de monnaie, et le robinet `faucet_npc_purchases` reste au catalogue pour l'historique, sans mouvement nouveau.
@@ -489,6 +490,10 @@ Depuis #632, elle compte aussi les bourses des PNJ des cités (12), une nature �
 Depuis #726, elle compte aussi les coffres des banques (`bankVaults`), que l'écran d'Olympe ne montre que s'ils portent de la monnaie : le capital versé au coffre ne quitte pas la circulation.
 Les dépôts (#727) n'y entrent pas : la monnaie déposée est au coffre, et la créance du déposant, intérêts compris, n'est pas de la monnaie.
 Le droit de fondation d'une banque, lui, est détruit par le puits `sink_bank_charter`, qui ne rend rien ; comme pour les autres puits, la base ne lie pas ce compte à sa mécanique (12).
+Puits de Némésis (`sink_nemesis`, #735, 7.2) : il détruit l'amende d'un procès, part bornée de la trésorerie d'une maison dont la jauge d'Hybris dépasse le seuil à l'échéance de son présage, payée par sa propre écriture `nemesis.fine`.
+Comme les liturgies, c'est un puits proportionnel à la richesse, mais il ne frappe que les maisons en démesure ; la configuration initiale le tient fermé (seuil inaccessible).
+Une amende entre dans la nature `other` des flux de trésorerie de la maison (4.1).
+Les biens qu'un incendie détruit, et la cargaison d'un navire perdu, vont à l'extrémité système `nemesis` du journal des stocks, d'où rien ne revient : c'est aussi un puits de biens.
 Le trésor d'une cité est compris : sa monnaie n'est pas détruite, la cité la dépensera ;
 seule la monnaie passée à un puits ne circule plus. La masse égale à tout instant ce que les robinets ont créé moins ce que les puits ont détruit (l'opposé du cumul des comptes système).
 
@@ -560,6 +565,7 @@ Un site à l'arrêt, quel qu'il soit, compte toujours dans la limite de sites de
 Relance : la maison peut relancer un site à l'arrêt sans attendre la clôture, par une commande qui paie l'entretien et les salaires d'un jour (aux puits, au tarif de la configuration en vigueur), en entier ou pas du tout ;
 le site repart à cet instant, et la clôture suivante lui demande son dû (entretien et salaires) normalement.
 La commande (`site.restart`) est refusée si le site tourne déjà ou si la trésorerie ne couvre pas le dû du site (entretien et salaires) ;
+elle l'est aussi pour un atelier que Némésis a fait déserter (7.2, #735), jusqu'à l'instant de la clôture suivante (`SITE_DESERTED`), sans rien payer ;
 elle porte le prix que le joueur a vu (`expectedUpkeepOboles` : entretien et salaires d'un jour ; un client qui n'annonce que l'entretien voit son prix refusé dès qu'il y a des salaires), et l'API refuse (« le prix a changé », rien n'est payé) plutôt que de prélever un autre tarif, plus haut comme plus bas, par exemple après l'activation d'une version entre l'affichage et le clic.
 Ce prix attendu est facultatif : un client antérieur, qui ne l'envoie pas, est servi au tarif en vigueur comme avant ;
 le refuser casserait les clients restés en cache (application installée) jusqu'à leur mise à jour, et le champ deviendra obligatoire quand plus aucun client ne l'omettra.
