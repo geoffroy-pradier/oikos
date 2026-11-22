@@ -41,6 +41,46 @@ export const systemAccount = (trx: Db, worldId: string, key: string) =>
     .executeTakeFirstOrThrow(() => new Error(`World ${worldId} has no ${key}`));
 
 /**
+ * Prêts d'une maison encore dus, ou soldés après un défaut, et sa marque de déshonneur au jour `gameDay` (#725) : ceux-ci
+ * marquent encore `dishonorDays` jours après leur solde, le jour de leur dernier remboursement. Partagé par
+ * `loan.acceptOffer` (#728), puisque la marque refuse tout nouvel emprunt.
+ */
+export async function houseDishonor(
+  trx: Db,
+  houseId: string,
+  gameDay: number,
+  dishonorDays: number,
+) {
+  const loans = await trx
+    .selectFrom('game.loans')
+    .select(['lender', 'status', 'defaulted_day'])
+    .select(
+      sql<
+        number | null
+      >`(select max(r.game_day) from game.loan_repayments r where r.loan_id = game.loans.id)`.as(
+        'repaid_day',
+      ),
+    )
+    .where('borrower_house_id', '=', houseId)
+    .where((eb) => eb.or([eb('status', '<>', 'repaid'), eb('defaulted_day', 'is not', null)]))
+    .execute();
+  const mark = dishonorMark(
+    loans.map((loan) => ({
+      status: loan.status,
+      defaultedDay: loan.defaulted_day,
+      repaidDay: loan.status === 'repaid' ? loan.repaid_day : null,
+    })),
+    gameDay,
+    dishonorDays,
+  );
+  return { loans, mark };
+}
+export const dishonorMessage = (untilDay: number | null) =>
+  untilDay === null
+    ? 'This house is dishonored by a defaulted loan.'
+    : `This house is dishonored until game day ${untilDay}.`;
+
+/**
  * La maison emprunte au Trésor du temple (docs/specs/05-economie.md, 5.4 ; #724) : un principal, pour une durée admise,
  * au taux directeur en vigueur, que le joueur a vu ; l'intérêt simple est fixé pour toute la durée
  * (`templeLoanInterest`). Le principal est créé par le robinet `faucet_temple_loans` dans sa trésorerie, en une écriture
@@ -69,38 +109,14 @@ export const loanBorrowFromTemple = defineCommand({
     if (!rules.termDays.includes(input.termDays))
       return refuse('TERM_NOT_OFFERED', 'The temple does not lend for this term.');
     await lock(trx, `honor:${house.id}`);
-    // Prêts encore dus, ou soldés après un défaut : ceux-ci marquent encore `dishonorDays` jours après leur solde,
-    // le jour de leur dernier remboursement (#725).
-    const loans = await trx
-      .selectFrom('game.loans')
-      .select(['lender', 'status', 'defaulted_day'])
-      .select(
-        sql<
-          number | null
-        >`(select max(r.game_day) from game.loan_repayments r where r.loan_id = game.loans.id)`.as(
-          'repaid_day',
-        ),
-      )
-      .where('borrower_house_id', '=', house.id)
-      .where((eb) => eb.or([eb('status', '<>', 'repaid'), eb('defaulted_day', 'is not', null)]))
-      .execute();
     const borrowedDay = gameDayAt(now, config.clock);
-    const mark = dishonorMark(
-      loans.map((loan) => ({
-        status: loan.status,
-        defaultedDay: loan.defaulted_day,
-        repaidDay: loan.status === 'repaid' ? loan.repaid_day : null,
-      })),
+    const { loans, mark } = await houseDishonor(
+      trx,
+      house.id,
       borrowedDay,
       rules.dishonorDays ?? DEFAULT_DISHONOR_DAYS,
     );
-    if (mark.dishonored)
-      return refuse(
-        'DISHONORED',
-        mark.untilDay === null
-          ? 'This house is dishonored by a defaulted loan.'
-          : `This house is dishonored until game day ${mark.untilDay}.`,
-      );
+    if (mark.dishonored) return refuse('DISHONORED', dishonorMessage(mark.untilDay));
     if (loans.some((loan) => loan.lender === 'temple' && loan.status !== 'repaid'))
       return refuse(OUTSTANDING.code, OUTSTANDING.message);
     const honor = await trx

@@ -534,6 +534,7 @@
     "PROPERTY_NOT_FOUND": "This property no longer exists.",
     "PROPERTY_NOT_LISTED": "This property no longer has an open offer.",
     "PROPERTY_NOT_OWNED": "This property is not yours.",
+    "PROPERTY_PLEDGED": "This property secures a bank loan: it cannot be offered for sale or lease until the loan is repaid.",
     "PROPERTY_SIZE_RETIRED": "This property size has been retired.",
     "GOD_NOT_FOUND": "This god is no longer honoured in the configuration in force. Reload the page.",
     "OFFERING_REFUSED": "This god refuses one of these gifts: nothing was offered.",

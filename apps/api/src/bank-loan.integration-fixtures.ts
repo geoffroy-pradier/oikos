@@ -63,6 +63,29 @@ export const offer = (
 /** Offre faite et rendue par son identifiant. */
 export const offered = async (bankUser: string, borrowerHouseId: string, patch = {}) =>
   (await offer(bankUser, borrowerHouseId, patch)).body.data.offerId as string;
+export const accept = (
+  user: string,
+  offerId: string,
+  patch: Record<string, unknown> = {},
+  key?: string,
+  via = app,
+) => send(user, 'loan.acceptOffer', { offerId, ...terms(patch) }, key, via);
+/** Quantité et réservation (ventes et gages) d'un stock de la maison. */
+export const heldOf = async (houseId: string, goodId = 'wheat', cityId: string = KALLISTE) => {
+  const { rows } = await sql<{ held: string }>`select quantity || '/' || reserved as held
+    from game.inventories where house_id = ${houseId} and city_id = ${cityId} and good_id = ${goodId}`.execute(
+    owner,
+  );
+  return rows[0]?.held ?? null;
+};
+/** Prêteur, état, principal, intérêt et reste dû du prêt de l'offre. */
+export const loanOf = async (offerId: string) =>
+  (
+    await sql<{
+      s: string;
+    }>`select concat_ws(':', lender, status, principal, interest, outstanding) as s
+      from game.loans where offer_id = ${offerId}`.execute(owner)
+  ).rows[0]?.s ?? null;
 /** Coffre d'une banque, lu par le propriétaire : le service ne voit pas les coffres. */
 export const vaultOf = async (bankId: string) =>
   Number(

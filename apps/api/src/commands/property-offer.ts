@@ -64,6 +64,8 @@ const ALREADY_LISTED = {
   message: 'This property is already offered.',
 };
 
+const PLEDGED = { code: 'PROPERTY_PLEDGED', message: 'This property secures a bank loan.' };
+
 /**
  * Offre d'un bien par la maison qui le possède (docs/specs/04-systemes-gestion.md, 4.5) : à la vente, à
  * prix affiché, ou à la location, au loyer quotidien demandé. Un bien loué ne s'offre pas, et une seule
@@ -80,7 +82,8 @@ const defineOffer = <I extends { propertyId: string }>(
     input,
     output: propertyOfferOutputSchema,
     errors: PROPERTY_OFFER_ERROR_CODES,
-    errorByConstraint: { property_listings_open_once: ALREADY_LISTED },
+    // Un bien gagé par un prêt de banque (#728) : la base refuse son offre.
+    errorByConstraint: { property_listings_open_once: ALREADY_LISTED, properties_pledged: PLEDGED },
     async handler({ trx, userId, emit }, input) {
       const locked = await lockHouseProperty(trx, userId, input.propertyId);
       if (!locked.ok) return locked;
