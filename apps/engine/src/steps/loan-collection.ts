@@ -1,6 +1,6 @@
 import { DEFAULT_LOAN_DEFAULT_HONOR_LOSS } from '@oikos/config';
 import { loanCollectedSchema, loanDefaultedSchema, type DomainEvent } from '@oikos/contracts';
-import { recordHonorChange, type Db } from '@oikos/db';
+import { lockBankVault, recordHonorChange, type Db } from '@oikos/db';
 import { collectDueLoans, honorChange } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { CloseContext, CloseStep } from '../close';
@@ -18,13 +18,24 @@ const lossOf = ({ config }: CloseContext) =>
   config.honor === undefined
     ? 0
     : (config.templeTreasury?.defaultHonorLoss ?? DEFAULT_LOAN_DEFAULT_HONOR_LOSS);
-/** Prêts du temple d'un monde échus à l'instant de la clôture et encore dus, en cours (`active`) ou en défaut. */
+/**
+ * Prêts d'un monde, du temple et des banques (#728), échus à l'instant de la clôture et encore dus, en cours (`active`)
+ * ou en défaut.
+ */
 const dueLoans = ({ trx, worldId, closeAt }: CloseContext) =>
   trx
     .selectFrom('game.loans')
-    .select(['id', 'borrower_house_id', 'interest', 'interest_repaid', 'outstanding', 'status'])
+    .select([
+      'id',
+      'borrower_house_id',
+      'interest',
+      'interest_repaid',
+      'outstanding',
+      'status',
+      'lender',
+      'bank_id',
+    ])
     .where('world_id', '=', worldId)
-    .where('lender', '=', 'temple')
     .where('status', 'in', ['active', 'defaulted'])
     .where('due_at', '<=', closeAt);
 
@@ -41,9 +52,12 @@ export const loanDefaultLocks: CloseStep = {
     if (lossOf(context) === 0) return { houses: 0 };
     const houses = [
       ...new Set(
-        (await dueLoans(context).where('status', '=', 'active').execute()).map(
-          (l) => l.borrower_house_id,
-        ),
+        (
+          await dueLoans(context)
+            .where('status', '=', 'active')
+            .where('lender', '=', 'temple')
+            .execute()
+        ).map((l) => l.borrower_house_id),
       ),
     ].sort();
     for (const houseId of houses) await lockKey(context.trx, `honor:${houseId}`);
@@ -60,7 +74,9 @@ export const loanDefaultLocks: CloseStep = {
  * rognée aux bornes de la Timè), marque de déshonneur. Verrous : l'agora, les puits de l'entretien, les trésoreries par
  * identifiant, puis les prêts ; la base n'admet qu'un prélèvement par prêt et par jour, dans la transaction qui
  * enregistre la clôture de son jour : rejouée, la clôture ne prélève rien deux fois. La Timè perdue s'écrit sous les
- * verrous que `loanDefaultLocks` a pris avant l'agora.
+ * verrous que `loanDefaultLocks` a pris avant l'agora. Un prêt de banque (#728) se prélève de même, dans l'ordre des
+ * prêts de la maison, tout entier au coffre de sa banque (écriture `bank.loan_collect`, coffres verrouillés après les
+ * prêts) ; il ne passe pas en défaut avant sa saisie (ticket suivant), et son solde libère sa garantie.
  */
 export const loanCollection: CloseStep = {
   name: 'loanCollection',
@@ -85,6 +101,13 @@ export const loanCollection: CloseStep = {
       .orderBy('id')
       .forUpdate()
       .execute();
+    // Coffres des banques prêteuses, après les prêts, par identifiant de banque : un prélèvement leur revient tout entier.
+    const vaults = new Map<string, string>();
+    for (const bankId of [...new Set(loans.flatMap((loan) => loan.bank_id ?? []))].sort()) {
+      const vault = await lockBankVault(trx, bankId);
+      if (!vault) throw new Error(`Bank ${bankId} has no vault`);
+      vaults.set(bankId, vault.accountId);
+    }
     const system = new Map(
       (
         await trx
@@ -116,12 +139,18 @@ export const loanCollection: CloseStep = {
         at?.(`loan ${loan.id}`);
         const [interest, principal] = [Number(collection.interest), Number(collection.principal)];
         if (interest + principal > 0) {
+          const vault = loan.bank_id ? vaults.get(loan.bank_id) : undefined;
           const entry = await trx
             .insertInto('game.ledger_entries')
             .values({
               world_id: worldId,
-              kind: 'loan.collect',
-              meta: JSON.stringify({ loanId: loan.id, houseId, gameDay }),
+              kind: vault ? 'bank.loan_collect' : 'loan.collect',
+              meta: JSON.stringify({
+                loanId: loan.id,
+                houseId,
+                gameDay,
+                ...(loan.bank_id && { bankId: loan.bank_id }),
+              }),
             })
             .returning('id')
             .executeTakeFirstOrThrow();
@@ -132,8 +161,12 @@ export const loanCollection: CloseStep = {
           });
           const lines = [
             line(treasury.id, -(interest + principal)),
-            line(system.get('sink_temple_interest') ?? '', interest),
-            line(system.get('faucet_temple_loans') ?? '', principal),
+            ...(vault
+              ? [line(vault, interest + principal)]
+              : [
+                  line(system.get('sink_temple_interest') ?? '', interest),
+                  line(system.get('faucet_temple_loans') ?? '', principal),
+                ]),
           ];
           await trx
             .insertInto('game.ledger_lines')
@@ -163,8 +196,14 @@ export const loanCollection: CloseStep = {
                 interest,
                 principal,
                 outstanding,
-                // Ce qui reste dû après l'échéance : en défaut, celui d'un prêt en cours aussi, juste après.
-                status: outstanding === 0 ? 'repaid' : 'defaulted',
+                // Ce qui reste dû après l'échéance : en défaut, celui d'un prêt du temple en cours aussi, juste après ;
+                // un prêt de banque reste en l'état jusqu'à sa saisie (ticket suivant).
+                status:
+                  outstanding === 0
+                    ? 'repaid'
+                    : loan.lender === 'temple'
+                      ? 'defaulted'
+                      : loan.status,
                 gameDay,
               },
             }),
@@ -172,7 +211,8 @@ export const loanCollection: CloseStep = {
           summary.collected += 1;
           summary.collectedOboles += interest + principal;
         }
-        if (loan.status !== 'active' || collection.outstanding === 0n) continue;
+        if (loan.status !== 'active' || collection.outstanding === 0n || loan.lender !== 'temple')
+          continue;
         await trx
           .updateTable('game.loans')
           .set({ status: 'defaulted', defaulted_day: gameDay })

@@ -36,7 +36,8 @@ export async function newPlayer(cityId: string) {
   const name = `Bâtisseurs ${[...randomUUID().replace(/[^a-f]/g, '')].slice(0, 10).join('')}`;
   const blazon = { shape: 'hoplon', tincture: 'aegean', emblem: 'owl' };
   const founded = await send(user, 'house.create', { cityId, name, blazon });
-  expect(founded.status).toBe(200);
+  // Le refus est rendu dans le message : un échec de la fondation dit son code, pas seulement son statut.
+  expect(founded.status, `house.create: ${JSON.stringify(founded.body.error)}`).toBe(200);
   return { user, houseId: founded.body.data.houseId as string };
 }
 
