@@ -13,22 +13,25 @@ insert into game.inventories (id, world_id, house_id, city_id, good_id) values
   ('00000000-0000-7000-8000-0000000001b1', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000b1', '01900000-0000-7000-8000-000000000101', 'wheat'),
   ('00000000-0000-7000-8000-0000000001b2', '01900000-0000-7000-8000-000000000001', '00000000-0000-7000-8000-0000000000b1', '01900000-0000-7000-8000-000000000101', 'bread');
 
--- Stocks : production (source système), transfert, consommation (puits système).
+-- Stocks : production (source système), consommation (puits système).
 insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind) values
   ('01900000-0000-7000-8000-000000000001', 'wheat', 40, 'production', '00000000-0000-7000-8000-0000000001a1', 'test');
-insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_inventory_id, kind) values
-  ('01900000-0000-7000-8000-000000000001', 'wheat', 15, '00000000-0000-7000-8000-0000000001a1', '00000000-0000-7000-8000-0000000001b1', 'test');
+-- D'une maison à une autre, un stock ne passe que par un échange ou une saisie (#729) : la production en tient lieu ici.
+insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind) values
+  ('01900000-0000-7000-8000-000000000001', 'wheat', 15, 'production', '00000000-0000-7000-8000-0000000001b1', 'test');
+insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind) values
+  ('01900000-0000-7000-8000-000000000001', 'wheat', 15, '00000000-0000-7000-8000-0000000001a1', 'npc_consumption', 'test');
 insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind) values
   ('01900000-0000-7000-8000-000000000001', 'wheat', 5, '00000000-0000-7000-8000-0000000001b1', 'npc_consumption', 'test');
 select results_eq(
   $$select quantity from game.inventories where good_id = 'wheat' and id in ('00000000-0000-7000-8000-0000000001a1', '00000000-0000-7000-8000-0000000001b1') order by id$$,
-  $$values (25::bigint), (10::bigint)$$, 'quantités après production, transfert et consommation');
+  $$values (25::bigint), (10::bigint)$$, 'quantités après production et consommation');
 select is((select count(*) from game.inventory_quantity_check where not ok), 0::bigint, 'vue de contrôle : quantité = entrées - sorties');
 
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind)
   values ('01900000-0000-7000-8000-000000000001', 'wheat', 26, '00000000-0000-7000-8000-0000000001a1', 'npc_consumption', 'test')$$, '23514', null, 'stock négatif refusé');
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_inventory_id, kind)
-  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001a1', '00000000-0000-7000-8000-0000000001b2', 'test')$$, '23514', null, 'pas de blé dans un stock de pain');
+  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001b1', '00000000-0000-7000-8000-0000000001b2', 'test')$$, '23514', null, 'pas de blé dans un stock de pain');
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_system, kind)
   values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, 'production', 'npc_consumption', 'test')$$, '23514', null, 'mouvement sans stock réel refusé');
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
@@ -60,7 +63,7 @@ select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, f
   values ('01900000-0000-7000-8000-000000000002', 'wheat', 1, 'production', '00000000-0000-7000-8000-0000000001a1', 'test')$$, '23503', null, 'mouvement d''un autre monde que le stock refusé');
 -- Suite de la relecture : chaque contrôle restant a son test.
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_inventory_id, kind)
-  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001a1', 'test')$$, '23514', null, 'le bien doit aussi être celui du stock d''origine');
+  values ('01900000-0000-7000-8000-000000000001', 'wheat', 1, '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001b1', 'test')$$, '23514', null, 'le bien doit aussi être celui du stock d''origine');
 select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id, to_system, kind)
   values ('01900000-0000-7000-8000-000000000002', 'wheat', 1, '00000000-0000-7000-8000-0000000001a1', 'npc_consumption', 'test')$$, '23503', null, 'sortie dans un autre monde que le stock refusée');
 insert into game.cities (id, world_id, slug, name) values ('01900000-0000-7000-8000-000000000201', '01900000-0000-7000-8000-000000000002', 'ailleurs', 'Ailleurs');

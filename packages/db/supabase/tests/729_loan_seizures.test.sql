@@ -1,11 +1,13 @@
 begin;
-select plan(22);
+select plan(35);
 
--- Jeu d'essai : un monde à lui, une cité, Pella. Alice (a) tient la banque, 20 000 oboles au coffre et 100 en trésorerie ;
--- Bob (b), 100 olives dont 10 en vente, et Chloé (c), 20 olives, empruntent sur leurs olives. Configuration : l'horloge.
+-- Jeu d'essai : un monde à lui, deux cités, Pella et Dion. Alice (a) tient la banque, 20 000 oboles au coffre et 100 en
+-- trésorerie ; Bob (b), 100 olives à Pella dont 10 offertes à la vente, et Chloé (c), 20 olives à Pella, empruntent sur
+-- leurs olives. Configuration : l'horloge.
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000729f1', 'saisies-729', 'Saisies');
 insert into game.cities (id, world_id, slug, name) values
-  ('01900000-0000-7000-8000-0000000729c2', '01900000-0000-7000-8000-0000000729f1', 'p729', 'Pella');
+  ('01900000-0000-7000-8000-0000000729c2', '01900000-0000-7000-8000-0000000729f1', 'p729', 'Pella'),
+  ('01900000-0000-7000-8000-0000000729c3', '01900000-0000-7000-8000-0000000729f1', 'd729', 'Dion');
 insert into auth.users (id, email)
 select ('00000000-0000-4000-8000-0000000729b' || n)::uuid, 'seize-729-' || n || '@example.test' from unnest(array['a', 'b', 'c']) n;
 insert into game.houses (id, world_id, user_id, name, blazon, kind)
@@ -60,11 +62,13 @@ begin
   insert into game.ledger_lines (entry_id, account_id, amount) values (entry, dst, amount), (entry, src, -amount);
   return entry;
 end $$;
-create function pg_temp.olives(n text) returns text language sql as $$
-  select quantity || '/' || reserved from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'
+create function pg_temp.olives(n text, city text = 'c2') returns text language sql as $$
+  select quantity || '/' || reserved from game.inventories
+  where house_id = pg_temp.house(n) and good_id = 'olives' and city_id = ('01900000-0000-7000-8000-0000000729' || city)::uuid
 $$;
-create function pg_temp.inventory(n text) returns uuid language sql as $$
-  select id from game.inventories where house_id = pg_temp.house(n) and good_id = 'olives'
+create function pg_temp.inventory(n text, city text = 'c2') returns uuid language sql as $$
+  select id from game.inventories
+  where house_id = pg_temp.house(n) and good_id = 'olives' and city_id = ('01900000-0000-7000-8000-0000000729' || city)::uuid
 $$;
 -- Prêt de la banque à `n`, gagé sur `quantity` olives à Pella, écrit comme l'écrit `loan.acceptOffer`.
 create function pg_temp.lend(n text, principal bigint, quantity bigint) returns uuid language plpgsql as $$
@@ -108,6 +112,16 @@ create function pg_temp.seize(n text, p_day int = null) returns void language sq
   select pg_temp.as_service(format('insert into game.loan_seizures (world_id, loan_id, game_day) values (%L, %L, %s)',
     '01900000-0000-7000-8000-0000000729f1', (pg_temp.loan(n)).id, coalesce(p_day, pg_temp.today())))
 $$;
+-- Mouvement de `quantity` olives d'un stock à un autre, au nom du service (`kind`, écriture et saisie liées).
+create function pg_temp.move(src uuid, dst uuid, quantity bigint, kind text = 'test', entry uuid = null, seizure uuid = null)
+returns void language sql as $$
+  select pg_temp.as_service(format('insert into game.stock_ledger (world_id, good_id, quantity, from_inventory_id,
+    to_inventory_id, kind, ledger_entry_id, loan_seizure_id) values (%L, %L, %s, %L, %L, %L, %L, %L)',
+    '01900000-0000-7000-8000-0000000729f1', 'olives', quantity, src, dst, kind, entry, seizure))
+$$;
+create function pg_temp.world_olives() returns bigint language sql as $$
+  select sum(quantity)::bigint from game.inventories where world_id = '01900000-0000-7000-8000-0000000729f1'
+$$;
 create function pg_temp.money() returns bigint language sql as $$
   select sum(balance)::bigint from game.accounts where world_id = '01900000-0000-7000-8000-0000000729f1' and system_key is null
 $$;
@@ -123,8 +137,8 @@ begin
   perform pg_temp.entry('bank.capital_in', pg_temp.treasury('a'), pg_temp.vault_id(), 20000);
 end $$;
 insert into game.inventories (world_id, house_id, city_id, good_id)
-select '01900000-0000-7000-8000-0000000729f1', pg_temp.house(n), '01900000-0000-7000-8000-0000000729c2', 'olives'
-from unnest(array['b', 'c']) n;
+select '01900000-0000-7000-8000-0000000729f1', pg_temp.house(n), c, 'olives'
+from unnest(array['b', 'c']) n, unnest(array['01900000-0000-7000-8000-0000000729c2', '01900000-0000-7000-8000-0000000729c3']::uuid[]) c;
 insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
 values ('01900000-0000-7000-8000-0000000729f1', 'olives', 100, 'production', pg_temp.inventory('b'), 'test'),
        ('01900000-0000-7000-8000-0000000729f1', 'olives', 20, 'production', pg_temp.inventory('c'), 'test');
@@ -145,7 +159,7 @@ select throws_ok($$select pg_temp.seize('b', pg_temp.today() - 4)$$, '23001', 'a
 select throws_ok($$select pg_temp.seize('b')$$, '23001', 'a bank loan is seized once the collection has emptied the treasury',
   'pas tant que la trésorerie couvre une part du reste dû');
 select pg_temp.drain(n) from unnest(array['b', 'c']) n;
-create temporary table before_seizure as select pg_temp.money() as money;
+create temporary table before_seizure as select pg_temp.money() as money, pg_temp.world_olives() as olives;
 select throws_ok($$select pg_temp.as_service(format('insert into game.loan_seizures (world_id, loan_id, game_day,
   bank_house_id) values (%L, %L, %s, %L)', '01900000-0000-7000-8000-0000000729f1', (pg_temp.loan('b')).id, pg_temp.today(),
   pg_temp.house('c')))$$, '42501', null, 'le service ne choisit pas la maison qui reçoit la garantie');
@@ -155,8 +169,15 @@ select is((select status || ':' || outstanding || ':' || written_off || ':' || (
   'la saisie fait passer le prêt en défaut ce jour-là et le solde, son reste dû remis');
 select is((select borrower_house_id = pg_temp.house('b') and bank_house_id = pg_temp.house('a') and created_at = now()
   from game.loan_seizures), true, 'la base y pose l''emprunteur et la maison de la banque');
-select is(pg_temp.olives('b'), '100/10', 'les 40 olives gagées se libèrent ; la vente en attente garde sa réservation');
-select is((select pg_temp.money() = money from before_seizure), true, 'la saisie ne crée ni ne détruit d''obole');
+select is(pg_temp.olives('b') || ' ' || pg_temp.olives('a'), '60/10 40/0',
+  'les 40 olives gagées passent au stock de la maison de la banque ; la vente en attente garde sa réservation');
+select results_eq($$select kind, from_inventory_id = pg_temp.inventory('b'), loan_seizure_id is not null
+  from game.stock_ledger where to_inventory_id = pg_temp.inventory('a')$$, $$values ('bank.loan_seize', true, true)$$,
+  'par un mouvement du journal des stocks rattaché à la saisie');
+select is((select count(*) from game.inventory_quantity_check
+  where world_id = '01900000-0000-7000-8000-0000000729f1' and not ok), 0::bigint, 'chaque stock reste le cumul de son journal');
+select is((select pg_temp.world_olives() = olives and pg_temp.money() = money from before_seizure), true,
+  'la saisie ne crée ni ne détruit ni olive ni obole');
 select throws_ok($$select pg_temp.seize('b')$$, '23001', 'a seizure settles an outstanding bank loan',
   'un prêt soldé ne se saisit pas deux fois');
 -- Prêt du temple d'Alice, de 100 oboles pour 30 jours, échu : il passe en défaut, il ne se saisit pas.
@@ -178,7 +199,23 @@ select throws_ok('set constraints game.loan_seizures_on_close immediate', '23503
   'à la validation, la clôture de son jour est enregistrée');
 set constraints all deferred;
 
--- 2. Seule une saisie remet un reste dû.
+-- 2. Un stock ne change de maison que par un échange ou une saisie, qui ne remet que son stock gagé, une fois ; seule une
+-- saisie remet un reste dû.
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('c'), 5)$$, '23514',
+  'a stock changes hands only by a trade or a loan seizure', 'un stock ne passe pas d''une maison à une autre sans échange');
+select lives_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('b', 'c3'), 5)$$,
+  'd''un stock à un autre de la même maison, rien ne change de main');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 40, 'bank.loan_seize', null,
+  (select id from game.loan_seizures))$$, '23505', null, 'une saisie ne livre qu''une fois');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 41, 'bank.loan_seize', null,
+  (select id from game.loan_seizures))$$, '23514', 'a stock changes hands only by a trade or a loan seizure',
+  'ni autre chose que son stock gagé');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('c'), 5, 'market.trade',
+  (select disbursement_entry_id from game.loans where id = (pg_temp.loan('b')).id))$$, '23514',
+  'a stock changes hands only by a trade or a loan seizure', 'un mouvement d''échange suit l''écriture d''un échange');
+select throws_ok($$insert into game.stock_ledger (world_id, good_id, quantity, from_system, to_inventory_id, kind)
+  values ('01900000-0000-7000-8000-0000000729f1', 'olives', 5, 'production', pg_temp.inventory('a'), 'bank.loan_seize')$$,
+  '23514', null, 'un mouvement de saisie est rattaché à sa saisie');
 -- Même le propriétaire, par un déclencheur, ne remet pas le reste dû d'un prêt sans sa saisie.
 create temporary table forged (loan uuid);
 create function pg_temp.write_off() returns trigger language plpgsql as $$
@@ -209,6 +246,29 @@ set constraints all deferred;
 select throws_ok($$select pg_temp.seize('c')$$, '23001', 'a bank loan is seized before its close is recorded',
   'une clôture enregistrée ne saisit plus');
 select is(pg_temp.olives('c'), '20/20', 'le stock de Chloé reste gagé');
+
+-- 5. Un échange de l'agora livre une fois, du vendeur à l'acheteur de son écriture.
+create temporary table trade_entry as select pg_temp.entry('market.trade', pg_temp.treasury('a'), pg_temp.treasury('b'), 35) as id;
+insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
+values ('01900000-0000-7000-8000-0000000729f1', '01900000-0000-7000-8000-0000000729c2', pg_temp.house('a'), 'olives', 'buy',
+        7, 5, 5);
+insert into game.trades (world_id, sell_order_id, buy_order_id, price, quantity, ledger_entry_id)
+select '01900000-0000-7000-8000-0000000729f1', s.id, b.id, 7, 5, (select id from trade_entry)
+from game.orders s, game.orders b
+where s.house_id = pg_temp.house('b') and s.side = 'sell' and b.house_id = pg_temp.house('a') and b.side = 'buy';
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('c'), 5, 'market.trade',
+  (select id from trade_entry))$$, '23514', 'a stock changes hands only by a trade or a loan seizure',
+  'un échange ne livre pas à une autre maison que son acheteur');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 5, 'market.trade',
+  (select disbursement_entry_id from game.loans where id = (pg_temp.loan('b')).id))$$, '23514',
+  'a stock changes hands only by a trade or a loan seizure', 'ni par l''écriture d''un autre que lui');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 4, 'market.trade',
+  (select id from trade_entry))$$, '23514', 'a stock changes hands only by a trade or a loan seizure',
+  'ni une autre quantité');
+select lives_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 5, 'market.trade',
+  (select id from trade_entry))$$, 'l''échange livre le vendeur à l''acheteur');
+select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 5, 'market.trade',
+  (select id from trade_entry))$$, '23505', null, 'une fois');
 
 select * from finish();
 rollback;
