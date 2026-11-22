@@ -856,6 +856,27 @@ export interface GameDatabase {
     created_at: ColumnType<Date, never, never>;
   };
   /**
+   * Offres de prêt gagé d'une banque à une maison (#728) : conditions et garantie immuables, un stock (cité, bien,
+   * quantité) ou un logement. Le service les retire ; seul le prêt qu'elles font naître les accepte.
+   */
+  'game.bank_loan_offers': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    bank_id: ColumnType<string, string, never>;
+    borrower_house_id: ColumnType<string, string, never>;
+    principal: ColumnType<string, number, never>;
+    rate_bps: ColumnType<number, number, never>;
+    term_days: ColumnType<number, number, never>;
+    collateral_kind: ColumnType<'stock' | 'property', 'stock' | 'property', never>;
+    collateral_city_id: ColumnType<string | null, string | null | undefined, never>;
+    collateral_good_id: ColumnType<string | null, string | null | undefined, never>;
+    collateral_quantity: ColumnType<string | null, number | null | undefined, never>;
+    collateral_property_id: ColumnType<string | null, string | null | undefined, never>;
+    status: ColumnType<'open' | 'withdrawn' | 'accepted', never, 'withdrawn'>;
+    created_at: ColumnType<Date, never, never>;
+    closed_at: ColumnType<Date | null, never, never>;
+  };
+  /**
    * Prêts (5.4, #724) : un par emprunt, du Trésor du temple (`temple`) ; décaissé par l'écriture
    * `disbursement_entry_id`, daté par la base. Le reste dû (`outstanding`), les remboursements cumulés et l'état ne
    * changent que par `game.loan_repayments` ; les montants (oboles) se lisent en texte, comme tout `bigint`. Seule la
