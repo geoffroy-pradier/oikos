@@ -71,6 +71,14 @@ export const decreesSchema = z.strictObject({
         intervalDays: days,
       })
       .optional(),
+    /**
+     * Ligues (6.5, #737) : une cité fonde une ligue, une autre demande à y entrer, la cité hégémon l'admet, une cité
+     * la quitte. Une admission qui porterait la ligue au-delà de `maxCities` cités (cinq au plus) est caduque.
+     */
+    league_found: z.strictObject({}).optional(),
+    league_join: z.strictObject({}).optional(),
+    league_admit: z.strictObject({ maxCities: z.number().int().min(2).max(5) }).optional(),
+    league_leave: z.strictObject({}).optional(),
   }),
 });
 export type Decrees = z.infer<typeof decreesSchema>;
