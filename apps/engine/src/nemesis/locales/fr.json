@@ -1,0 +1,22 @@
+{
+  "warehouse_fire": [
+    "Une fumée âcre monte en songe au-dessus de vos réserves ; Héphaïstos regarde ailleurs, et la flamme guette.",
+    "Les rats quittent vos entrepôts en plein jour. Ce que l'on entasse sans mesure, le feu le réclame.",
+    "Un tison roule hors du foyer sacré sans que personne ne le ramasse : vos greniers n'ont jamais été si secs."
+  ],
+  "lawsuit": [
+    "Un héraut prononce votre nom à l'agora, et des citoyens l'écoutent sans sourire. Les juges aiguisent leurs tessons.",
+    "Dikè détourne les yeux de votre maison ; on murmure qu'une plainte se prépare, et que la balance penchera.",
+    "Vos voisins comptent vos richesses à voix haute. Qui s'élève trop haut appelle devant lui le tribunal."
+  ],
+  "artisan_desertion": [
+    "Vos artisans chantent moins fort à l'ouvrage, et l'un d'eux regarde la route plus souvent que l'établi.",
+    "Les outils tombent des mains sans raison dans vos ateliers ; un ouvrier rêve d'un autre maître.",
+    "Athéna Erganè ne bénit plus vos métiers. Le premier qui partira ne dira pas adieu."
+  ],
+  "ship_lost": [
+    "L'écume dessine votre sceau sur les flots puis l'efface ; Poséidon n'aime pas qui se croit maître des mers.",
+    "Une mouette se pose sur votre proue et refuse de la quitter. Les marins font des offrandes en silence.",
+    "Les vents d'Éole se disputent vos voiles en songe. Ce que porte la mer, la mer peut le reprendre."
+  ]
+}
