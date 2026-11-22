@@ -54,6 +54,8 @@ select is(
     || 'houses(blazon,created_at,id,name,world_id) '
     || 'inventories(city_id,good_id,house_id,id,quantity,reserved) '
     || 'labor_market(city_id,employed,game_day,lodging_oboles,supply,unhoused,wage_oboles) '
+    || 'league_members(city_id,entry_decree_id,exit_decree_id,exit_reason,id,joined_at,league_id,left_at,world_id) '
+    || 'leagues(dissolved_at,founded_at,founding_decree_id,hegemon_city_id,id,name,world_id) '
     || 'leases(end_reason,end_requested_at,end_requested_by,ended_at,ended_day,id,landlord_house_id,property_id,rent_oboles,started_at,tenant_house_id) '
     || 'ledger_entries(created_at,id,kind) ledger_lines(account_id,amount,entry_id,nature) '
     || 'liturgies(city_id,designated_day,due_at,due_day,genre,house_id,season,status,world_id) '
