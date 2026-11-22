@@ -1,5 +1,5 @@
 begin;
-select plan(50);
+select plan(56);
 
 -- Jeu d'essai : un monde à lui, deux cités, Pella et Dion. Alice (a) tient la banque, 20 000 oboles au coffre et 100 en
 -- trésorerie ; Bob (b), 100 olives à Pella dont 10 offertes à la vente, et Chloé (c), 20 olives à Pella, empruntent sur
@@ -257,6 +257,7 @@ select pg_temp.lease_to(1, 'c'), pg_temp.lease_to(2, 'a');
 select throws_ok($$select pg_temp.lend('d', 300, null, pg_temp.property(2))$$, '23514',
   'a bank loan pledges collateral its borrower holds free', 'un logement loué à la maison de la banque ne la garantit pas');
 select pg_temp.lend('d', 300, null, pg_temp.property(1));
+select lives_ok('select game.check_no_pledge_leased_to_lender()', 'un gage loué à une autre maison que la banque laisse passer 0602');
 select pg_temp.age('d');
 select pg_temp.drain('d');
 select throws_ok($$select pg_temp.as_service(format('update game.leases set landlord_house_id = %L where property_id = %L',
@@ -338,13 +339,34 @@ select lives_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory(
 select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 5, 'market.trade',
   (select id from trade_entry))$$, '23505', null, 'une fois');
 
--- 6. Une saisie d'une autre transaction ne remet plus rien : les saisies, reculées d'un jour, gardes levées.
+-- 7. Une saisie ne remet que de l'emprunteur à la maison de la banque, et dans sa transaction. Le logement de Démétrios
+-- lui revient et le gage de Chloé passe sur son logement 2, loué à Alice, gardes levées.
+set local session_replication_role = replica;
+update game.properties set owner_house_id = pg_temp.house('d') where id = pg_temp.property(1);
+update game.bank_loan_offers set collateral_kind = 'property', collateral_city_id = null, collateral_good_id = null,
+  collateral_quantity = null, collateral_property_id = pg_temp.property(2) where id = (pg_temp.loan('c')).offer_id;
+set local session_replication_role = origin;
+select throws_ok('select game.check_no_pledge_leased_to_lender()', '23514', format('bank loan %s is pledged on a property '
+  || 'leased to its bank: review it before migration 0602', (pg_temp.loan('c')).id), 'elle s''arrête sinon, en le disant');
+select throws_ok($$update game.properties set owner_house_id = pg_temp.house('c') where id = pg_temp.property(1)$$, '23001',
+  'a leased property does not change hands', 'la saisie ne remet pas le logement à une autre maison que la banque');
+set local session_replication_role = replica;
+update game.properties set owner_house_id = pg_temp.house('c') where id = pg_temp.property(1);
+set local session_replication_role = origin;
+select throws_ok($$update game.properties set owner_house_id = pg_temp.house('a') where id = pg_temp.property(1)$$, '23001',
+  'a leased property does not change hands', 'ni d''une autre maison que l''emprunteur');
+-- Les saisies, reculées d'un jour, gardes levées ; le logement revient à Démétrios.
 set local session_replication_role = replica;
 update game.loan_seizures set created_at = now() - interval '1 day';
+update game.properties set owner_house_id = pg_temp.house('d') where id = pg_temp.property(1);
 set local session_replication_role = origin;
 select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 40, 'bank.loan_seize', null,
   (select id from game.loan_seizures where loan_id = (pg_temp.loan('b')).id))$$, '23514',
   'a stock changes hands only by a trade or a loan seizure', 'une saisie ancienne ne remet plus de stock');
+select throws_ok($$select pg_temp.as_service(format('update game.properties set owner_house_id = %L where id = %L',
+  pg_temp.house('a'), pg_temp.property(1)))$$, '23001', 'a leased property does not change hands', 'ni le logement');
+select throws_ok($$update game.leases set landlord_house_id = pg_temp.house('d') where property_id = pg_temp.property(1)$$,
+  '23001', 'a lease changes landlord only with the seizure of its property', 'ni son bail');
 
 select * from finish();
 rollback;

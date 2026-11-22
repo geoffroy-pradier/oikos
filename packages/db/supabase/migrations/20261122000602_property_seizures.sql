@@ -4,8 +4,32 @@
 -- cours, dont elle devient le bailleur : un bien ne passe plus d'une maison à une autre que par une revente ou une
 -- saisie, et un bail ne change de bailleur que par la saisie de son bien. Un logement loué à la maison de la banque ne
 -- garantit pas un prêt de cette banque : saisi, elle se louerait son propre bien.
--- Rejouable (`create or replace`) ; compatible avec le code précédent, qui ne saisit rien et ne gage pas de logement loué
--- à la banque prêteuse.
+-- Rejouable (`create or replace`) ; compatible avec le code précédent, qui ne saisit rien. Il a pu gager un logement loué à
+-- la banque prêteuse : le contrôle préalable ci-dessous arrête alors la migration.
+
+-- Contrôle préalable, comme dans la migration 0042 : saisi, un prêt de banque en cours gagé sur un logement loué à la maison
+-- de sa banque ferait échouer `leases_not_own_property`, et avec lui chaque clôture de son monde. Le gage le refuse
+-- désormais ; si une base en contient déjà un, la migration s'arrête en le disant, sans rien réécrire : un humain décide.
+create or replace function game.check_no_pledge_leased_to_lender() returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  pledged uuid;
+begin
+  select o.id into pledged from game.loans o
+    join game.bank_loan_offers f on f.id = o.offer_id
+    join game.banks b on b.id = o.bank_id
+    join game.leases l on l.property_id = f.collateral_property_id and l.ended_at is null and l.tenant_house_id = b.house_id
+    where o.status = 'active' limit 1;
+  if pledged is not null then
+    raise exception 'bank loan % is pledged on a property leased to its bank: review it before migration 0602', pledged
+      using errcode = 'check_violation';
+  end if;
+end;
+$$;
+revoke execute on function game.check_no_pledge_leased_to_lender() from public, anon, authenticated, oikos_service;
+select game.check_no_pledge_leased_to_lender();
 
 -- Garde des biens : celle de la migration 121, plus la saisie, qui remet le bien de l'emprunteur à la maison de la banque,
 -- même loué, dans la transaction de la saisie.
