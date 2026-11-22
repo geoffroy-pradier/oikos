@@ -6,7 +6,7 @@ import {
   type DomainEvent,
 } from '@oikos/contracts';
 import { lockNpcPurses } from '@oikos/db';
-import { drawNemesisModel, nemesisExcess, nemesisRelief } from '@oikos/sim';
+import { dailyCloseAt, drawNemesisModel, nemesisExcess, nemesisRelief } from '@oikos/sim';
 import { sql } from 'kysely';
 import type { CloseStep } from '../close';
 import { fallbackOmen, omenSeed } from '../nemesis/compose';
@@ -14,7 +14,7 @@ import { takeSanction } from './nemesis-sanctions';
 import { lockUpkeepSinks } from './site-upkeep';
 
 /** Modèles que la clôture tire aujourd'hui : les autres viennent avec les parties suivantes de #735. */
-const DRAWN: readonly NemesisModel[] = ['lawsuit'];
+const DRAWN: readonly NemesisModel[] = ['lawsuit', 'warehouse_fire', 'artisan_desertion'];
 
 /**
  * Présages et Némésis (docs/specs/07-dieux-faveur-evenements.md, 7.2 ; #735). D'abord l'échéance : chaque présage en
@@ -30,11 +30,11 @@ const DRAWN: readonly NemesisModel[] = ['lawsuit'];
  * Placée après le retrait des maisons PNJ, avant le marché du travail et l'entretien, qui paie avec ce qui reste ; elle
  * lit la jauge que vient d'écrire `hubrisGauge`. Verrous, dans l'ordre de l'entretien : l'agora, les puits de
  * l'entretien, les bourses des PNJ, le puits `sink_nemesis`, puis chaque maison frappée par identifiant : sa trésorerie
- * (procès). Sans présage échu, aucun verrou.
+ * (procès), ses sites puis son stock (incendie), ou son atelier (désertion). Sans présage échu, aucun verrou.
  */
 export const nemesis: CloseStep = {
   name: 'nemesis',
-  async run({ trx, worldId, gameDay, config, at }) {
+  async run({ trx, worldId, gameDay, closeAt, config, at }) {
     const rules = config.hubris?.nemesis;
     const summary = { averted: 0, struck: 0, omens: 0 };
     const events: DomainEvent[] = [];
@@ -90,7 +90,16 @@ export const nemesis: CloseStep = {
             game_day: gameDay,
           })
           .execute();
-        const took = await takeSanction({ trx, worldId, omen, excess, rules, sinkId: sink.id });
+        const took = await takeSanction({
+          trx,
+          worldId,
+          omen,
+          excess,
+          rules,
+          sinkId: sink.id,
+          closeAt,
+          nextCloseAt: dailyCloseAt(gameDay + 1, config.clock),
+        });
         await trx
           .updateTable('game.nemesis_omens')
           .set({

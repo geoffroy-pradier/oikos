@@ -531,3 +531,31 @@ describe('site.restart', () => {
     });
   });
 });
+
+describe('atelier déserté (#735)', () => {
+  /** Présage frappé de désertion sur le site du joueur, repris à `resumesIn` heures, posé gardes levées. */
+  const desert = (player: Player, resumesIn: number) =>
+    owner.transaction().execute(async (trx) => {
+      await sql`set local session_replication_role = replica`.execute(trx);
+      await sql`insert into game.nemesis_omens (world_id, house_id, model, text_fr, text_en, omen_day, due_day,
+          outcome, settled_day, settled_at, relief, site_id, resumes_at)
+        select world_id, id, 'artisan_desertion', 'Outils', 'Tools', 1, 4, 'struck', 4, now(), 1, ${player.siteId},
+          now() + ${`${resumesIn * HOUR} milliseconds`}::interval
+        from game.houses where id = ${player.houseId}`.execute(trx);
+    });
+
+  it('ne se relance pas avant la clôture suivante, sans rien payer ; après, se relance comme un autre', async () => {
+    const deserted = await newPlayer(5, 1);
+    await desert(deserted, 1);
+    expect(await restart(deserted.user, deserted.siteId)).toMatchObject({
+      status: 409,
+      body: { error: { code: 'SITE_DESERTED' } },
+    });
+    expect(await stateOf(deserted)).toMatchObject({ balance: GRANT, halted: true, paid: [] });
+
+    const back = await newPlayer(5, 1);
+    await desert(back, -0.5);
+    expect((await restart(back.user, back.siteId)).status).toBe(200);
+    expect(await stateOf(back)).toMatchObject({ balance: GRANT - UPKEEP, halted: false });
+  });
+});

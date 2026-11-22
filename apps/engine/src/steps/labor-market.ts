@@ -8,6 +8,7 @@ import {
   lodgingPrice,
 } from '@oikos/sim';
 import type { CloseStep } from '../close';
+import { notDeserted } from './nemesis-sanctions';
 
 /**
  * Logement des travailleurs des sites d'un monde, ou d'une maison (4.4, 4.5 ; #258) : chaque site emploie
@@ -67,8 +68,9 @@ export const laborMarket: CloseStep = {
       .select(['id', 'house_id', 'city_id', 'recipe_id'])
       .where('world_id', '=', worldId)
       .where('created_at', '<', closeAt)
-      // Un site fermé d'une maison PNJ (#717) n'emploie personne.
+      // Un site fermé d'une maison PNJ (#717) n'emploie personne, ni un atelier déserté ce jour (#735).
       .where('closed_at', 'is', null)
+      .where(notDeserted(gameDay))
       .orderBy('created_at')
       .orderBy('id')
       .execute();

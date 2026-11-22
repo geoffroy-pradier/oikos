@@ -15,6 +15,7 @@ import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
 import { loanCollection, loanDefaultLocks } from './steps/loan-collection';
+import { nemesis } from './steps/nemesis';
 import { npcHouseRetreatStep } from './steps/npc-house-retreat';
 import { npcHouseSurplusStep } from './steps/npc-house-surplus';
 import { npcHouses } from './steps/npc-houses';
@@ -53,6 +54,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     // le prélèvement après celui des liturgies, avant l'entretien, qui paie avec ce qui reste. L'intérêt des dépôts (#727)
     // juste après, sous l'agora que l'échéance tient déjà.
     // La jauge d'Hybris (#734), sans monnaie ni stock ni agora, après les événements du monde et avant les liturgies.
+    // Némésis (#735) après le retrait des maisons PNJ, sous les verrous de l'entretien, avant le marché du travail.
     const order = [
       citizenship,
       ostracismTally,
@@ -76,6 +78,7 @@ describe('étapes de la clôture quotidienne du moteur', () => {
       bankInterest,
       propertyWear,
       npcHouseRetreatStep,
+      nemesis,
       laborMarket,
       npcHouses,
       npcPublicIncome,
@@ -88,12 +91,13 @@ describe('étapes de la clôture quotidienne du moteur', () => {
     expect(CLOSE_STEPS.indexOf(npcPublicIncome)).toBe(CLOSE_STEPS.length - 3);
     expect(CLOSE_STEPS.indexOf(npcHouses)).toBe(CLOSE_STEPS.length - 4);
     expect(CLOSE_STEPS.indexOf(laborMarket)).toBe(CLOSE_STEPS.length - 5);
-    expect(CLOSE_STEPS.indexOf(npcHouseRetreatStep)).toBe(CLOSE_STEPS.length - 6);
-    expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 7);
-    expect(CLOSE_STEPS.indexOf(bankInterest)).toBe(CLOSE_STEPS.length - 8);
-    expect(CLOSE_STEPS.indexOf(loanCollection)).toBe(CLOSE_STEPS.length - 9);
-    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 10);
-    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 11);
+    expect(CLOSE_STEPS.indexOf(nemesis)).toBe(CLOSE_STEPS.length - 6);
+    expect(CLOSE_STEPS.indexOf(npcHouseRetreatStep)).toBe(CLOSE_STEPS.length - 7);
+    expect(CLOSE_STEPS.indexOf(propertyWear)).toBe(CLOSE_STEPS.length - 8);
+    expect(CLOSE_STEPS.indexOf(bankInterest)).toBe(CLOSE_STEPS.length - 9);
+    expect(CLOSE_STEPS.indexOf(loanCollection)).toBe(CLOSE_STEPS.length - 10);
+    expect(CLOSE_STEPS.indexOf(liturgyLevy)).toBe(CLOSE_STEPS.length - 11);
+    expect(CLOSE_STEPS.indexOf(leaseRent)).toBe(CLOSE_STEPS.length - 12);
     expect(CLOSE_STEPS.indexOf(decreeApplication)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 2);
     expect(CLOSE_STEPS.indexOf(decreeSpending)).toBe(CLOSE_STEPS.indexOf(leaseRent) - 1);
     expect(CLOSE_STEPS.indexOf(favorDecay)).toBe(CLOSE_STEPS.indexOf(decreeApplication) - 1);
