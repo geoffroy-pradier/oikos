@@ -17,6 +17,13 @@
     "applied": "Entrée en vigueur : {{decree}}.",
     "lapsed": "Sans effet : {{decree}}."
   },
+  "league": {
+    "founded": "La cité fonde la ligue « {{league}} » et en prend l'hégémonie.",
+    "joined": "La cité entre dans la ligue « {{league}} ».",
+    "left": "La cité quitte la ligue « {{league}} ».",
+    "leftDissolved": "La cité quitte la ligue « {{league}} », qui se dissout.",
+    "dissolved": "La ligue « {{league}} » se dissout : la cité en restait le seul membre."
+  },
   "decrees": {
     "market_tax_rate": "le décret sur la taxe de marché",
     "port_dues": "le décret sur les droits de port",

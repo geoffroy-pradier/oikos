@@ -32,8 +32,13 @@ const opened: GameConfig = {
 };
 const closed: GameConfig = { ...initial, decrees: { ...decrees, models: {} } };
 
-/** Résumé de l'étape : décrets appliqués et caducs ; aucun illisible. */
-const done = (applied: number, lapsed: number) => ({ applied, lapsed, unreadable: 0 });
+/** Résumé de l'étape : décrets appliqués, caducs et ligues dissoutes ; aucun illisible. */
+const done = (applied: number, lapsed: number, dissolved = 0) => ({
+  applied,
+  dissolved,
+  lapsed,
+  unreadable: 0,
+});
 
 beforeAll(() => ensureInitialConfig(db, INITIAL_CONFIG));
 afterAll(() => Promise.all([db.destroy(), owner.destroy()]));
@@ -143,7 +148,15 @@ async function newWorld() {
       ),
     };
   };
-  return { adopt, step, read, cities };
+  const league = async () =>
+    (
+      await db
+        .selectFrom('game.leagues')
+        .select('id')
+        .where('hegemon_city_id', '=', cities[0] ?? '')
+        .executeTakeFirstOrThrow()
+    ).id;
+  return { adopt, step, read, cities, league };
 }
 
 describe('décrets de ligue à la clôture', () => {
@@ -169,6 +182,13 @@ describe('décrets de ligue à la clôture', () => {
       ],
       members: ['Ligue de Délos:c0*'],
     });
+    // La fondatrice, seule, s'en va : la ligue se dissout, et son nom se reprend.
+    await world.adopt(0, 'league_leave');
+    await world.adopt(1, 'league_found', { name: 'Ligue de Délos' });
+    expect(await world.step()).toEqual(done(2, 0, 1));
+    const { events, members } = await world.read();
+    expect(events.slice(5)).toEqual(['LeagueLeft:c0:left', 'LeagueFounded:c1:']);
+    expect(members).toEqual(['Ligue de Délos:c1*']);
   });
 
   it('demande d’entrée : enregistrée d’une cité hors ligue vers une ligue en activité, même en majuscules', async () => {
@@ -200,5 +220,83 @@ describe('décrets de ligue à la clôture', () => {
     const runs = await Promise.all([world.step(), world.step()]);
     expect(runs.map((run) => run.applied).sort()).toEqual([0, 1]);
     expect((await world.read()).members).toEqual(['Ligue de Délos:c0*']);
+  });
+
+  it('admission par l’hégémon, même en majuscules, une fois par demande ; au-delà de maxCities, caduque', async () => {
+    const world = await newWorld();
+    await world.adopt(0, 'league_found', { name: 'Ligue de Délos' });
+    await world.step();
+    const leagueId = await world.league();
+    const asks = [];
+    for (const city of [1, 2, 3]) asks.push(await world.adopt(city, 'league_join', { leagueId }));
+    await world.adopt(4, 'league_join', { leagueId: randomUUID() });
+    await world.step();
+    await world.adopt(1, 'league_admit', { joinDecreeId: asks[0] });
+    await world.adopt(0, 'league_admit', { joinDecreeId: randomUUID() });
+    await world.adopt(0, 'league_admit', { joinDecreeId: asks[0] });
+    await world.adopt(0, 'league_admit', { joinDecreeId: asks[0] });
+    await world.adopt(0, 'league_admit', { joinDecreeId: asks[1]?.toUpperCase() });
+    await world.adopt(0, 'league_admit', { joinDecreeId: asks[2] });
+    expect(await world.step()).toEqual(done(2, 4));
+    const { statuses, events, members } = await world.read();
+    expect(statuses).toBe(
+      'applied applied applied applied lapsed lapsed lapsed applied lapsed applied lapsed',
+    );
+    expect(events.slice(1)).toEqual([
+      'DecreeLapsed:c4:league_inactive',
+      'DecreeLapsed:c1:not_hegemon',
+      'DecreeLapsed:c0:no_request',
+      'LeagueJoined:c1:c0',
+      'DecreeLapsed:c0:request_stale',
+      'LeagueJoined:c2:c0',
+      'DecreeLapsed:c0:league_full',
+    ]);
+    expect([...members].sort()).toEqual([
+      'Ligue de Délos:c0*',
+      'Ligue de Délos:c1',
+      'Ligue de Délos:c2',
+    ]);
+  });
+
+  it('départs : l’hégémonie au plus ancien membre, entré à une clôture d’avant ; réduite à une cité, la ligue se dissout', async () => {
+    const world = await newWorld();
+    await world.adopt(0, 'league_found', { name: 'Ligue de Délos' });
+    await world.step();
+    const leagueId = await world.league();
+    const asks = [
+      await world.adopt(1, 'league_join', { leagueId }),
+      await world.adopt(2, 'league_join', { leagueId }),
+    ];
+    await world.step();
+    for (const ask of asks) {
+      await world.adopt(0, 'league_admit', { joinDecreeId: ask });
+      await world.step();
+    }
+    await world.adopt(0, 'league_leave');
+    await world.adopt(3, 'league_leave');
+    expect(await world.step()).toEqual(done(1, 1));
+    expect((await world.read()).members).toEqual(['Ligue de Délos:c1*', 'Ligue de Délos:c2']);
+    await world.adopt(2, 'league_leave');
+    await world.adopt(4, 'league_join', { leagueId });
+    expect(await world.step()).toEqual(done(1, 1, 1));
+    expect(await world.step()).toEqual(done(0, 0));
+    const { events, members } = await world.read();
+    expect(events.slice(3)).toEqual([
+      'LeagueLeft:c0:left',
+      'DecreeLapsed:c3:not_in_league',
+      'LeagueLeft:c2:left',
+      'LeagueLeft:c1:dissolved',
+      'DecreeLapsed:c4:league_inactive',
+    ]);
+    expect(members).toEqual([]);
+    const league = await db
+      .selectFrom('game.leagues')
+      .select(['dissolved_at', 'hegemon_city_id'])
+      .where('id', '=', leagueId)
+      .executeTakeFirstOrThrow();
+    expect([league.dissolved_at !== null, world.cities.indexOf(league.hegemon_city_id)]).toEqual([
+      true,
+      1,
+    ]);
   });
 });

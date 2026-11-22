@@ -7,6 +7,11 @@
 /** Issue d'un décret dans la journée : dépouillé (adopté, rejeté), appliqué ou tombé. */
 export type ChronicleDecreeOutcome = 'adopted' | 'rejected' | 'applied' | 'lapsed';
 export type ChronicleWorldEventModel = 'drought' | 'good_year' | 'storm' | 'caravan';
+/**
+ * Fait de ligue d'une cité (#737) : elle fonde une ligue, y entre, la quitte, la quitte et la ligue se dissout, ou la
+ * ligue se dissout autour d'elle, restée seule.
+ */
+export type ChronicleLeagueChange = 'founded' | 'joined' | 'left' | 'leftDissolved' | 'dissolved';
 
 /** Un événement du journal, réduit à ce que la chronique en dit. */
 export type ChronicleInputEvent =
@@ -24,6 +29,7 @@ export type ChronicleInputEvent =
       votesFor?: number;
       votesAgainst?: number;
     }
+  | { type: 'league'; cityId: string; leagueName: string; change: ChronicleLeagueChange }
   /** Programmation ou annulation d'une version de configuration, pour la clôture de l'instant `activateAt`. */
   | { type: 'configScheduled'; activateAt: number }
   | { type: 'configCancelled'; activateAt: number };
@@ -79,12 +85,21 @@ export interface ChronicleFacts {
     votesAgainst?: number;
   }[];
   worldEvents: ChronicleWorldEvent[];
+  /** Ligues que la cité fonde, rejoint ou quitte (#737). */
+  leagues: { leagueName: string; change: ChronicleLeagueChange }[];
   /** Une version de configuration programmée pendant la période, et pas annulée, entre en vigueur. */
   configChange: boolean;
 }
 
 const OUTCOMES: readonly ChronicleDecreeOutcome[] = ['adopted', 'rejected', 'applied', 'lapsed'];
 const MODELS: readonly ChronicleWorldEventModel[] = ['drought', 'good_year', 'storm', 'caravan'];
+const CHANGES: readonly ChronicleLeagueChange[] = [
+  'founded',
+  'joined',
+  'left',
+  'leftDissolved',
+  'dissolved',
+];
 const nonNegative = (value: number) => Number.isSafeInteger(value) && value >= 0;
 const positive = (value: number) => Number.isSafeInteger(value) && value > 0;
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -100,7 +115,7 @@ export function roundedQuotient(numerator: number, denominator: number): number 
 /**
  * Faits du jour d'une cité. Déterministe : biens par volume puis montant décroissants, puis par identifiant ;
  * arrivées et pertes en mer par nombre décroissant, puis par cité ; élections par nom ; décrets par issue puis par modèle ;
- * événements du monde par modèle. Les échanges ne dépendent pas de leur ordre. Une somme hors des entiers sûrs
+ * événements du monde par modèle ; faits de ligue par nature puis par nom de ligue. Les échanges ne dépendent pas de leur ordre. Une somme hors des entiers sûrs
  * est refusée plutôt qu'arrondie.
  */
 export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
@@ -111,6 +126,7 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
   const losses = new Map<string, number>();
   const elections: ChronicleFacts['elections'] = [];
   const decrees: ChronicleFacts['decrees'] = [];
+  const leagues: ChronicleFacts['leagues'] = [];
   // État final de chaque clôture visée : la dernière programmation l'emporte, une annulation les annule toutes.
   const scheduled = new Map<number, boolean>();
 
@@ -140,6 +156,8 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
     } else if (event.type === 'election') {
       if (!nonNegative(event.votes)) throw new RangeError('votes must be a non-negative integer');
       elections.push({ houseName: event.houseName, votes: event.votes });
+    } else if (event.type === 'league') {
+      leagues.push({ leagueName: event.leagueName, change: event.change });
     } else {
       const { model, outcome, votesFor, votesAgainst } = event;
       const tallied = outcome === 'adopted' || outcome === 'rejected';
@@ -184,6 +202,10 @@ export function chronicleFacts(input: ChronicleInput): ChronicleFacts {
       .sort(
         (a, b) => MODELS.indexOf(a.model) - MODELS.indexOf(b.model) || byText(scope(a), scope(b)),
       ),
+    leagues: leagues.sort(
+      (a, b) =>
+        CHANGES.indexOf(a.change) - CHANGES.indexOf(b.change) || byText(a.leagueName, b.leagueName),
+    ),
     configChange: [...scheduled.values()].some(Boolean),
   };
 }

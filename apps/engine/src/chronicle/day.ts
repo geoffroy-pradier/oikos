@@ -18,6 +18,9 @@ const TYPES: DomainEventType[] = [
   'DecreeRejected',
   'DecreeApplied',
   'DecreeLapsed',
+  'LeagueFounded',
+  'LeagueJoined',
+  'LeagueLeft',
 ];
 // Ce que l'étape de population écrit au journal de la clôture : avant et après, par classe et par cité. Un journal
 // illisible (un nombre négatif ou non entier compris) ne dit rien de la population : il ne bloque pas le monde.
@@ -134,6 +137,23 @@ export async function readChronicleDay(
         const outcome = event.type === 'DecreeApplied' ? 'applied' : 'lapsed';
         const { cityId, decree } = event.payload;
         return [{ type: 'decree', cityId: slug(cityId), model: decree.model, outcome }];
+      }
+      case 'LeagueFounded':
+      case 'LeagueJoined': {
+        const change = event.type === 'LeagueFounded' ? 'founded' : 'joined';
+        return [
+          {
+            type: 'league',
+            cityId: slug(event.payload.cityId),
+            leagueName: event.payload.name,
+            change,
+          },
+        ];
+      }
+      case 'LeagueLeft': {
+        const { cityId, name, reason, dissolved } = event.payload;
+        const change = reason === 'dissolved' ? 'dissolved' : dissolved ? 'leftDissolved' : 'left';
+        return [{ type: 'league', cityId: slug(cityId), leagueName: name, change }];
       }
       default:
         return [];
