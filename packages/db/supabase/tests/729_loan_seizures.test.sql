@@ -1,9 +1,8 @@
 begin;
-select plan(21);
+select plan(22);
 
 -- Jeu d'essai : un monde à lui, une cité, Pella. Alice (a) tient la banque, 20 000 oboles au coffre et 100 en trésorerie ;
--- Bob (b), 100 olives dont 10 offertes à la vente, et Chloé (c), 20 olives, empruntent sur leurs olives. Configuration :
--- l'horloge.
+-- Bob (b), 100 olives dont 10 en vente, et Chloé (c), 20 olives, empruntent sur leurs olives. Configuration : l'horloge.
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000729f1', 'saisies-729', 'Saisies');
 insert into game.cities (id, world_id, slug, name) values
   ('01900000-0000-7000-8000-0000000729c2', '01900000-0000-7000-8000-0000000729f1', 'p729', 'Pella');
@@ -139,6 +138,7 @@ set constraints all deferred;
 
 -- 1. La saisie : un prêt de banque échu, encore dû, dont le prélèvement a vidé la trésorerie.
 select throws_ok($$select pg_temp.seize('b')$$, '23001', 'a bank loan is seized once due', 'pas avant l''échéance');
+select throws_ok($$select pg_temp.seize('b', pg_temp.today() + 30)$$, '23001', 'a bank loan is seized once due', 'ni avant son heure');
 select pg_temp.age(n) from unnest(array['b', 'c']) n;
 select throws_ok($$select pg_temp.seize('b', pg_temp.today() - 4)$$, '23001', 'a bank loan is seized once due',
   'ni pour un jour d''avant l''échéance');
