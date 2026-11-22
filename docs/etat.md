@@ -207,6 +207,8 @@ Ajouts de la phase 2 :
   Le texte de la consigne est effacé à la conservation.
 - **Banc à quatre cités** (#281 à #283, 5.5) : le job `balance` de `ci` joue 10 jours de mise en route et 30 jours mesurés dans les quatre cités, avec des armateurs qui transportent les biens par mer.
   Il tient pour chaque cité le coût du panier de 0 à 2 %, les besoins vitaux couverts à 98 % au moins et une population qui ne baisse pas, et borne la masse monétaire et les puits immobiliers et publics.
+  Il borne la fortune de négoce des armateurs (trésorerie et marchandise au prix de référence, hors récolte invendable de leur site), de zéro au moins par jour sur les dix derniers jours mesurés (#1058).
+  Les navires du banc partent à moitié pleins ou après sept heures, et jamais à vide quand l'autre bout attend une cargaison.
   Il joue la configuration initiale, à trois paramètres de scénario près (population, dotation et prix des logements).
 - **Simulateur d'équilibrage** (#284, 15.2) : `pnpm --filter @oikos/api simulate --candidate config.json` rejoue ce banc avec une configuration candidate (ou `--version <numéro>` pour une version enregistrée), à graine égale, la référence et la candidate en parallèle (sur deux bases avec `SIMULATE_CANDIDATE_DATABASE_URL`, ADR 0012), et écrit un rapport d'écarts en Markdown et en JSON.
   Une candidate que le schéma refuse l'est avant toute simulation, et le rapport dit les champs que le scénario écrase.

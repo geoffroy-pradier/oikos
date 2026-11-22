@@ -52,7 +52,7 @@ const postedPrice = (goodId: string, side: 'buy' | 'sell') =>
   Math.round(referenceOf(goodId) * (side === 'sell' ? (ASK_MULTIPLE[goodId] ?? 1) : 1));
 /** Le navire part quand sa cargaison remplit cette part de la soute (en dénominateur), ou après cette attente, en heures. */
 const LOAD_SHARE = 2;
-const MAX_WAIT_HOURS = 6;
+const MAX_WAIT_HOURS = 7;
 /** Jours de dépenses de son site (entretien, salaires) que l'armateur garde hors de ses achats. */
 const RESERVE_DAYS = 2;
 
@@ -97,6 +97,60 @@ const shipClassOf = () => {
 /** Entretien de navire dû à la clôture `close` (4.6) : celui de sa classe, s'il a été acheté avant elle. */
 export const shipUpkeepDue = (carrier: Carrier, close: Date) =>
   carrier.shipBoughtAt && carrier.shipBoughtAt < close ? shipClassOf().dailyUpkeepOboles : 0;
+/**
+ * Valeur de la marchandise de négoce de l'armateur, en oboles, au prix de référence : son stock, dans les deux ports, des
+ * biens qu'il porte et que son site ne récolte pas, et sa cargaison en mer. La récolte de son site d'attache n'en est
+ * pas : elle s'entasse sans se vendre, et n'est pas un gain du négoce (#1058). Le banc la compte avec la trésorerie : un armateur dont le
+ * stock de fin de jour varie de quelques milliers d'oboles, selon qu'il a acheté ou vendu avant la clôture, n'a pas
+ * gagné ni perdu pour autant.
+ */
+export async function tradeStockValue(carrier: Carrier) {
+  const harvested = new Set(
+    carrier.sites.flatMap((site) => recipeOf(site.recipeId).outputs.map((stack) => stack.goodId)),
+  );
+  const goods = new Set(
+    [...carrier.deliver.values()]
+      .flatMap((byGood) => [...byGood.keys()])
+      .filter((goodId) => !harvested.has(goodId)),
+  );
+  const db = carrier.home.db;
+  const held = await db
+    .selectFrom('game.inventories')
+    .select(['good_id', 'quantity'])
+    .where('house_id', '=', carrier.houseId)
+    .execute();
+  const sea = await db
+    .selectFrom('game.voyage_cargo as c')
+    .innerJoin('game.voyages as v', 'v.id', 'c.voyage_id')
+    .select(['c.good_id', 'c.quantity'])
+    .where('v.house_id', '=', carrier.houseId)
+    .where('v.arrived_at', 'is', null)
+    .execute();
+  return tradeValueOf([...held, ...sea], goods);
+}
+/** Valeur au prix de référence des lignes de stock dont le bien est dans `goods` (pure : `tradeStockValue` y lit la base). */
+export const tradeValueOf = (
+  rows: { good_id: string; quantity: number | string }[],
+  goods: ReadonlySet<string>,
+) =>
+  rows
+    .filter((row) => goods.has(row.good_id))
+    .reduce((sum, row) => sum + Number(row.quantity) * referenceOf(row.good_id), 0);
+
+/**
+ * Le navire part quand sa cargaison remplit la moitié de la soute, ou après `MAX_WAIT_HOURS` d'attente ; passé ce
+ * délai, il ne part sur lest que si l'autre bout n'attend rien de lui (#1058) : un départ à vide coûte autant qu'un
+ * départ plein, et ne rapporte rien quand une cargaison est attendue là-bas.
+ */
+export const shouldDepart = (input: {
+  cargoUnits: number;
+  capacityUnits: number;
+  waitedHours: number;
+  waitedAtOtherEnd: boolean;
+}) =>
+  input.cargoUnits * LOAD_SHARE >= input.capacityUnits ||
+  (input.waitedHours > MAX_WAIT_HOURS && (input.cargoUnits > 0 || !input.waitedAtOtherEnd));
+
 /** Ordres ouverts de l'armateur dans une cité, annulés (d'un côté seulement si `side` est donné). */
 async function cancelIn(city: City, carrier: Carrier, side?: 'buy' | 'sell') {
   const open = await city.db
@@ -329,8 +383,14 @@ export async function carrierStep(carrier: Carrier, now: Date, demandOf: Demand)
     if (quantity > 0) cargo.push({ goodId, quantity });
   }
   carrier.waitedHours += 1;
-  const full = cargoUnits(cargo) * LOAD_SHARE >= shipClass.capacityUnits;
-  if (full || carrier.waitedHours > MAX_WAIT_HOURS) {
+  if (
+    shouldDepart({
+      cargoUnits: cargoUnits(cargo),
+      capacityUnits: shipClass.capacityUnits,
+      waitedHours: carrier.waitedHours,
+      waitedAtOtherEnd: (carrier.deliver.get(there.cityId)?.size ?? 0) > 0,
+    })
+  ) {
     await depart(carrier, here, nextPort(carrier, here), cargo, now);
     carrier.heading = there;
   }

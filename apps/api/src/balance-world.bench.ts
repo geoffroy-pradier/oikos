@@ -68,6 +68,7 @@ it(
       npc,
       carriers,
       carrierCash,
+      carrierWorth,
     } = run;
     expect(ledger.actual).toEqual(ledger.expected);
     expect(ledger.supply).toBe(ledger.mass);
@@ -245,14 +246,21 @@ it(
     // Armateurs (#1026, 4.6), sans dotation de banc : trésorerie de chacun à la fin de chaque jour, variation sur les
     // dix derniers jours mesurés.
     const [cashBefore, cashAfter] = [carrierCash.at(-1 - WINDOW) ?? [], carrierCash.at(-1) ?? []];
+    const [worthBefore, worthAfter] = [
+      carrierWorth.at(-1 - WINDOW) ?? [],
+      carrierWorth.at(-1) ?? [],
+    ];
     const carrierResults = carriers.map((carrier, index) => ({
       carrier: `${carrier.home.slug}<-${carrier.source.slug}${carrier.via ? `/${carrier.via.slug}` : ''}`,
       cash: cashAfter[index] ?? 0,
       perDay: ((cashAfter[index] ?? 0) - (cashBefore[index] ?? 0)) / WINDOW,
+      worthPerDay: ((worthAfter[index] ?? 0) - (worthBefore[index] ?? 0)) / WINDOW,
     }));
     console.table(carrierResults);
     const carrierPerDay =
       carrierResults.reduce((sum, result) => sum + result.perDay, 0) / carrierResults.length;
+    const carrierWorthPerDay =
+      carrierResults.reduce((sum, result) => sum + result.worthPerDay, 0) / carrierResults.length;
 
     // Mesures publiées.
     const margins = recipeMargins(days.slice(-WINDOW));
@@ -281,7 +289,12 @@ it(
       events,
       carriers: {
         perDay: Math.round(carrierPerDay),
-        results: carrierResults.map((result) => ({ ...result, perDay: Math.round(result.perDay) })),
+        worthPerDay: Math.round(carrierWorthPerDay),
+        results: carrierResults.map((result) => ({
+          ...result,
+          perDay: Math.round(result.perDay),
+          worthPerDay: Math.round(result.worthPerDay),
+        })),
       },
       voyages: Number(sailed?.voyages),
       units: Number(sailed?.units),
@@ -298,11 +311,13 @@ it(
       npcOperations: npc.operations,
     });
 
-    // Le rôle d'armateur ne perd pas d'argent en moyenne (#1026) : sur les dix derniers jours mesurés, la trésorerie d'un
-    // armateur ne baisse pas, en moyenne, de plus qu'elle n'a gagné.
+    // Le rôle d'armateur ne perd pas d'argent en moyenne (#1026) : sur les dix derniers jours mesurés, la fortune de négoce
+    // d'un armateur (trésorerie et marchandise au prix de référence, hors récolte invendable de son site, #1058) ne
+    // baisse pas, en moyenne. La trésorerie seule varie de centaines d'oboles par jour selon le stock du soir : la
+    // fortune est la mesure juste du gain, pas une borne plus lâche. La trésorerie reste publiée dans le rapport.
     expect(
-      carrierPerDay,
-      'armateurs : variation moyenne de la trésorerie par jour',
+      carrierWorthPerDay,
+      'armateurs : variation moyenne de la fortune de négoce par jour',
     ).toBeGreaterThanOrEqual(0);
 
     // Marges des ateliers (#285, 4.3), borne écrite à la main : aux prix du monde des dix derniers jours, la marge nette
