@@ -771,6 +771,34 @@ export interface GameDatabase {
     ends_at: ColumnType<Date | null, never, Date>;
   };
   /**
+   * Ligues (6.5, #737) : fondées par un décret `league_found` adopté de leur cité hégémon, datées par la base ; seuls
+   * changent ensuite l'hégémon, au plus ancien membre restant quand il s'en va, et la dissolution, une fois.
+   */
+  'game.leagues': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    name: ColumnType<string, string, never>;
+    hegemon_city_id: ColumnType<string, string, string>;
+    founding_decree_id: ColumnType<string, string, never>;
+    founded_at: ColumnType<Date, never, never>;
+    dissolved_at: ColumnType<Date | null, never, Date>;
+  };
+  /**
+   * Membres d'une ligue (#737) : une cité dans une ligue au plus, entrée par la fondation ou par une admission ;
+   * sortie une fois, par son décret de départ (`left`) ou par la dissolution de sa ligue (`dissolved`).
+   */
+  'game.league_members': {
+    id: ColumnType<string, never, never>;
+    league_id: ColumnType<string, string, never>;
+    world_id: ColumnType<string, string, never>;
+    city_id: ColumnType<string, string, never>;
+    entry_decree_id: ColumnType<string, string, never>;
+    joined_at: ColumnType<Date, never, never>;
+    left_at: ColumnType<Date | null, never, Date>;
+    exit_reason: ColumnType<'left' | 'dissolved' | null, never, 'left' | 'dissolved'>;
+    exit_decree_id: ColumnType<string | null, never, string | null>;
+  };
+  /**
    * Liturgies (6.4, #719) : une par maison désignée et par saison, écrite par la clôture de bascule de saison, datée
    * par la base, désignée (`assigned`) à sa naissance. Le dû (oboles) se lit en texte, comme tout `bigint`. Réglée une
    * fois (#720) : accomplie (`performed`) ou prélevée d'office (`levied`), datée par la base (`settled_at`).

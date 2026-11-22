@@ -1144,7 +1144,11 @@
       "public_works": "Grands travaux : {{amount}}",
       "festival_one": "Fête d'{{count}} jour : {{amount}}, pour {{goods}}",
       "festival_other": "Fête de {{count}} jours : {{amount}}, pour {{goods}}",
-      "ostracism": "Ostracisme : un vote pour écarter un citoyen des charges publiques"
+      "ostracism": "Ostracisme : un vote pour écarter un citoyen des charges publiques",
+      "league_found": "Fonder la ligue « {{name}} »",
+      "league_join": "Demander à entrer dans une ligue",
+      "league_admit": "Admettre dans la ligue une cité qui l'a demandé",
+      "league_leave": "Quitter la ligue"
     },
     "unreadable": "Décret illisible ({{model}})"
   },

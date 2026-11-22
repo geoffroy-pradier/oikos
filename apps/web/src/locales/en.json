@@ -1144,7 +1144,11 @@
       "public_works": "Public works: {{amount}}",
       "festival_one": "Festival of {{count}} day: {{amount}}, for {{goods}}",
       "festival_other": "Festival of {{count}} days: {{amount}}, for {{goods}}",
-      "ostracism": "Ostracism: a vote to bar a citizen from public office"
+      "ostracism": "Ostracism: a vote to bar a citizen from public office",
+      "league_found": "Found the league “{{name}}”",
+      "league_join": "Ask to join a league",
+      "league_admit": "Admit into the league a city that asked to join",
+      "league_leave": "Leave the league"
     },
     "unreadable": "Unreadable decree ({{model}})"
   },

@@ -33,6 +33,7 @@ import {
   decreeVoteCastSchema,
 } from './decree';
 import { honorChangedSchema } from './honor';
+import { leagueFoundedSchema, leagueJoinedSchema, leagueLeftSchema } from './league';
 import { liturgyAssignedSchema, liturgyLeviedSchema, liturgyPerformedSchema } from './liturgy';
 import { nemesisAvertedSchema, nemesisStruckSchema, omenReceivedSchema } from './nemesis';
 import {
@@ -207,6 +208,9 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   ostraconCastSchema,
   ostracismTalliedSchema,
   houseOstracizedSchema,
+  leagueFoundedSchema,
+  leagueJoinedSchema,
+  leagueLeftSchema,
   liturgyAssignedSchema,
   liturgyPerformedSchema,
   liturgyLeviedSchema,

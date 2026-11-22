@@ -50,6 +50,11 @@ export interface DecreeModelBounds {
   ostracism?:
     | { votingDays: number; quorumBps: number; ostracismDays: number; intervalDays: number }
     | undefined;
+  /** Ligues (6.5, #737) : sans borne, sauf les cités qu'une ligue admet au plus (`maxCities`). */
+  league_found?: Record<string, never> | undefined;
+  league_join?: Record<string, never> | undefined;
+  league_admit?: { maxCities: number } | undefined;
+  league_leave?: Record<string, never> | undefined;
 }
 
 const distinct = (values: readonly string[]) => new Set(values).size === values.length;
@@ -118,6 +123,10 @@ export function boundedDecreeParamsSchemas(bounds: DecreeModelBounds): BoundedDe
         .refine(distinct, 'each good once'),
     });
   if (bounds.ostracism) schemas.ostracism = z.strictObject({});
+  if (bounds.league_found) schemas.league_found = z.strictObject({ name: houseNameSchema });
+  if (bounds.league_join) schemas.league_join = z.strictObject({ leagueId: target });
+  if (bounds.league_admit) schemas.league_admit = z.strictObject({ joinDecreeId: target });
+  if (bounds.league_leave) schemas.league_leave = z.strictObject({});
   return schemas;
 }
 
@@ -255,12 +264,25 @@ export const decreeAppliedSchema = z.strictObject({
 /**
  * Raison de la caducité d'un décret de dépense à la clôture : le trésor ne le couvre plus (la dépense passe
  * la part `spendingCapShareBps` du trésor, lue sous son verrou), ou la configuration en vigueur ne l'ouvre plus.
+ * Un décret de ligue (#737) devient caduc aussi quand son modèle n'est plus ouvert, ou quand la ligue ne permet plus
+ * son effet : cité déjà dans une ligue, nom pris par une ligue en activité, ligue qui n'est pas en activité dans le
+ * monde, inconnue ou dissoute (`league_inactive`), cité qui n'est pas l'hégémon, demande d'entrée introuvable ou déjà
+ * dépassée (la cité est entrée dans une ligue depuis), ligue pleine, cité hors de toute ligue.
  */
-export const DECREE_LAPSE_REASONS = ['uncovered', 'model_closed'] as const;
-/**
- * Un décret de dépense adopté n'est pas appliqué, et ne le sera jamais (#263) : rien n'est payé. Non couvert,
- * l'événement dit ce que le trésor permettait alors (`capOboles`), et lui seul le dit.
- */
+export const LEAGUE_LAPSE_REASONS = [
+  'in_league',
+  'name_taken',
+  'league_inactive',
+  'not_hegemon',
+  'no_request',
+  'request_stale',
+  'league_full',
+  'not_in_league',
+] as const;
+export const DECREE_LAPSE_REASONS = ['uncovered', 'model_closed', ...LEAGUE_LAPSE_REASONS] as const;
+const isLeagueModel = (model: DecreeModel) => model.startsWith('league_');
+const isLeagueReason = (reason: string) =>
+  (LEAGUE_LAPSE_REASONS as readonly string[]).includes(reason);
 export const decreeLapsedSchema = z.strictObject({
   type: z.literal('DecreeLapsed'),
   payload: z
@@ -271,9 +293,20 @@ export const decreeLapsedSchema = z.strictObject({
       reason: z.enum(DECREE_LAPSE_REASONS),
       capOboles: z.number().int().nonnegative().optional(),
     })
-    .refine((payload) => !isRateModel(payload.decree.model), {
-      message: 'only a spending decree lapses',
-      path: ['decree'],
+    .refine(
+      (payload) => !isRateModel(payload.decree.model) && payload.decree.model !== 'ostracism',
+      {
+        message: 'only a spending or league decree lapses',
+        path: ['decree'],
+      },
+    )
+    .refine((payload) => !isLeagueReason(payload.reason) || isLeagueModel(payload.decree.model), {
+      message: 'a league reason is for a league decree',
+      path: ['reason'],
+    })
+    .refine((payload) => payload.reason !== 'uncovered' || !isLeagueModel(payload.decree.model), {
+      message: 'a league decree spends nothing',
+      path: ['reason'],
     })
     .refine((payload) => (payload.reason === 'uncovered') === (payload.capOboles !== undefined), {
       message: 'an uncovered decree, and only it, says what the treasury allowed',
