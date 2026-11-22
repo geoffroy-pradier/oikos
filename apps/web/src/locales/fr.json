@@ -534,6 +534,7 @@
     "PROPERTY_NOT_FOUND": "Ce bien n'existe plus.",
     "PROPERTY_NOT_LISTED": "Ce bien n'a plus d'offre ouverte.",
     "PROPERTY_NOT_OWNED": "Ce bien n'est pas à vous.",
+    "PROPERTY_PLEDGED": "Ce bien garantit un prêt de banque : il ne s'offre ni à la vente ni à la location avant son remboursement.",
     "PROPERTY_SIZE_RETIRED": "Cette taille de bien a été retirée.",
     "GOD_NOT_FOUND": "Ce dieu n'est plus honoré dans la configuration en vigueur. Rechargez la page.",
     "OFFERING_REFUSED": "Ce dieu refuse l'un de ces dons : rien n'a été offert.",
