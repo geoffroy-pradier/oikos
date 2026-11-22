@@ -10,6 +10,7 @@ import { decreeTally } from './steps/decree-tally';
 import { favorDecay } from './steps/favor-decay';
 import { hubrisGauge } from './steps/hubris-gauge';
 import { laborMarket } from './steps/labor-market';
+import { leagueDecrees } from './steps/league-decrees';
 import { leaseRent } from './steps/lease-rent';
 import { liturgyAssignment } from './steps/liturgy-assignment';
 import { liturgyEvasion, liturgyLevy } from './steps/liturgy-settlement';
@@ -31,7 +32,8 @@ import { worldEventPlanning } from './steps/world-event-planning';
  * (6.4, #722), qui écarte l'ostracisé de l'élection dépouillée ensuite et lui fait quitter sa charge, le
  * dépouillement des élections de l'archonte (6.2), la Timè des mandats finis (4.1, #704), qui ne prend que les
  * verrous de la Timè, l'ouverture des élections suivantes, le dépouillement des décrets (6.3), l'ouverture du vote
- * des ostracismes adoptés, la population des PNJ,
+ * des ostracismes adoptés, les décrets de ligue adoptés (6.5, #737), sans monnaie ni stock, qui ne verrouillent que
+ * leurs décrets et leurs ligues, la population des PNJ,
  * qui ne retient que ses propres lignes, la planification des événements du monde (7.3, #267), qui n'écrit que
  * les siens, sans autre verrou que celui de la clôture du monde, la jauge d'Hybris (7.2, #734), qui n'écrit que ses
  * jauges, sous ce même verrou, la désignation des liturgies (6.4, #719), qui lit
@@ -80,6 +82,7 @@ export const CLOSE_STEPS: readonly CloseStep[] = [
   archonOpening,
   decreeTally,
   ostracismOpening,
+  leagueDecrees,
   npcPopulation,
   worldEventPlanning,
   hubrisGauge,
