@@ -70,6 +70,7 @@ describe('prêts de banque (#728)', () => {
                 expect(share.interest + share.principal).toBe(0n);
               // Intérêts d'abord, jamais plus que ce qui reste dû.
               if (share.principal > 0n) expect(share.interest).toBe(loan.interestDue);
+              expect(share.interest <= loan.interestDue).toBe(true);
               expect(share.outstanding).toBe(loan.outstanding - share.interest - share.principal);
               expect(share.outstanding >= 0n).toBe(true);
             }
