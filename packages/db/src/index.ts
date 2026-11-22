@@ -210,6 +210,8 @@ export interface GameDatabase {
     offering_id?: string | null;
     /** Grâce dont un mouvement `grace.surplus` est le surplus, venu de `production` (7.1, #266). */
     grace_use_id?: string | null;
+    /** Présage de Némésis d'un mouvement vers l'extrémité `nemesis` (7.2, #735) ; nul pour tout autre. */
+    nemesis_id?: string | null;
     created_at: Generated<Date>;
   };
   /** Offrandes (7.1, #265) : écrites une fois par `temple.makeOffering`, immuables (garde de la base). */
