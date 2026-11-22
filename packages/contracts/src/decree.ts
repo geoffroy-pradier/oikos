@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { houseNameSchema } from './house';
 
 /**
  * Décrets de la cité (docs/specs/06-cites-politique-communaute.md, 6.3 ; #261). Catalogue fermé de modèles
@@ -11,6 +12,10 @@ export const DECREE_MODELS = [
   'public_works',
   'festival',
   'ostracism',
+  'league_found',
+  'league_join',
+  'league_admit',
+  'league_leave',
 ] as const;
 export type DecreeModel = (typeof DECREE_MODELS)[number];
 
@@ -20,6 +25,11 @@ const oboles = z.number().int().min(1).max(1_000_000_000_000);
 const days = z.number().int().min(1).max(366);
 const rateBps = z.number().int().min(0).max(5000);
 const coefficientBps = z.number().int().min(0).max(100_000);
+/**
+ * Identifiant visé par un décret de ligue, rendu en minuscules : la base compare les paramètres en texte, et une
+ * majuscule y ferait d'une même ligue une autre (#737).
+ */
+const target = z.uuid().toLowerCase();
 
 /** Bornes des paramètres de chaque modèle ouvert (`decrees.models` de la configuration). */
 export interface DecreeModelBounds {
@@ -62,6 +72,11 @@ export const decreeProposalSchema = z.discriminatedUnion('model', [
   ),
   /** Ostracisme : adopté, il ouvre un vote où chaque citoyen inscrit un nom (#722). */
   proposal('ostracism', z.strictObject({})),
+  /** Ligues (#737) : fonder une ligue sous un nom, demander à entrer dans une ligue, admettre une demande, partir. */
+  proposal('league_found', z.strictObject({ name: houseNameSchema })),
+  proposal('league_join', z.strictObject({ leagueId: target })),
+  proposal('league_admit', z.strictObject({ joinDecreeId: target })),
+  proposal('league_leave', z.strictObject({})),
 ]);
 export type DecreeProposal = z.infer<typeof decreeProposalSchema>;
 
