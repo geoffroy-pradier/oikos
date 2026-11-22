@@ -232,7 +232,8 @@
       "sink_property_works": "Rénovation des logements",
       "sink_festivals": "Fêtes de la cité",
       "sink_liturgies": "Liturgies",
-      "sink_bank_charter": "Droit de fondation des banques"
+      "sink_bank_charter": "Droit de fondation des banques",
+      "sink_nemesis": "Sanctions de Némésis"
     },
     "byDay_one": "Robinets et puits : net par jour de jeu (jour lu : 1)",
     "byDay_other": "Robinets et puits : net par jour de jeu (jours lus : {{count}})",

@@ -257,6 +257,7 @@ it('le tableau de bord porte chaque robinet et chaque puits du catalogue des com
     ['faucet_temple_loans', 'faucet'],
     ['sink_temple_interest', 'sink'],
     ['sink_bank_charter', 'sink'],
+    ['sink_nemesis', 'sink'],
   ] as const);
   const kinds = new Map(world.systemAccounts.map((row) => [row.key, row.kind]));
   for (const [key, kind] of phase2) expect(kinds.get(key)).toBe(kind);
