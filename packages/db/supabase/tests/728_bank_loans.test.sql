@@ -215,7 +215,7 @@ set local session_replication_role = origin;
 select throws_ok($$select pg_temp.as_service(format('update game.loans set status = %L, defaulted_day = due_day where id = %L',
   'defaulted', (pg_temp.loan('c')).id))$$, '23001', 'a bank loan defaults only with its seizure',
   'un prêt de banque échu ne passe pas en défaut avant sa saisie');
--- Un prêt du temple ne nomme ni banque ni offre : la contrainte le refuse avant tout déclencheur.
+-- Un prêt du temple ne nomme ni banque ni offre : la contrainte le refuse, et chacune de ses deux clauses a son cas.
 create function pg_temp.temple_loan(bank uuid, offer uuid) returns void language plpgsql as $$
 declare entry uuid := pg_temp.entry('loan.temple_disburse', (select id from game.accounts
   where world_id = '01900000-0000-7000-8000-0000000728f1' and system_key = 'faucet_temple_loans'), pg_temp.treasury('c'), 100);
@@ -226,8 +226,8 @@ begin
     '01900000-0000-7000-8000-0000000728f1', 'temple', pg_temp.house('c'), pg_temp.today(), pg_temp.today() + 1,
     pg_temp.close_at(pg_temp.today() + 1), entry, bank, offer));
 end $$;
-select throws_ok($$select pg_temp.temple_loan(pg_temp.bank(), null)$$, '23514',
-  'new row for relation "loans" violates check constraint "loans_bank_lender"', 'un prêt du temple ne nomme pas de banque');
+select throws_ok($$select pg_temp.temple_loan(pg_temp.bank(), (select id from offers where n = 'w'))$$, '23514',
+  'new row for relation "loans" violates check constraint "loans_bank_lender"', 'un prêt du temple ne nomme pas de banque, même avec une offre');
 select throws_ok($$select pg_temp.temple_loan(null, (select id from offers where n = 'w'))$$, '23514',
   'new row for relation "loans" violates check constraint "loans_bank_lender"', 'un prêt du temple ne nomme pas d''offre');
 select is(pg_temp.money(), (select total from money_before), 'un prêt de banque ne crée ni ne détruit de monnaie');
