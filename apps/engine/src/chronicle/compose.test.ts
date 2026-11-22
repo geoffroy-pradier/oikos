@@ -1,5 +1,10 @@
 import { INITIAL_CONFIG, validateConfig } from '@oikos/config';
-import { chronicleFacts, type ChronicleFacts, type ChronicleInputEvent } from '@oikos/sim';
+import {
+  chronicleFacts,
+  type ChronicleFacts,
+  type ChronicleInputEvent,
+  type ChronicleLeagueChange,
+} from '@oikos/sim';
 import { describe, expect, it } from 'vitest';
 import { composeChronicle, isQuietDay } from './compose';
 import en from './locales/en.json' with { type: 'json' };
@@ -104,6 +109,20 @@ describe('chronique de repli', () => {
     expect(composeChronicle(lost, context)).toEqual({
       fr: 'Sur la route depuis Elaia, 2 cargaisons perdues en mer.',
       en: 'On the route from Elaia, 2 cargoes lost at sea.',
+    });
+  });
+
+  it('ligues (#737) : la cité fonde, rejoint, quitte une ligue, nommée ; ce n’est plus un jour calme', () => {
+    const league = (leagueName: string, change: ChronicleLeagueChange) =>
+      ({ type: 'league', cityId: 'kalliste', leagueName, change }) as const;
+    const day = facts([
+      league('Ligue de Délos', 'founded'),
+      league('Ligue de Naxos', 'leftDissolved'),
+    ]);
+    expect(isQuietDay(day)).toBe(false);
+    expect(composeChronicle(day, context)).toEqual({
+      fr: "La cité fonde la ligue « Ligue de Délos » et en prend l'hégémonie. La cité quitte la ligue « Ligue de Naxos », qui se dissout.",
+      en: 'The city founds the league “Ligue de Délos” and takes its hegemony. The city leaves the league “Ligue de Naxos”, which dissolves.',
     });
   });
 

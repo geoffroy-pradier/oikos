@@ -6,6 +6,7 @@ import {
   roundedQuotient,
   type ChronicleInput,
   type ChronicleInputEvent,
+  type ChronicleLeagueChange,
 } from './chronicle';
 
 const input = (events: ChronicleInputEvent[], extra: Partial<ChronicleInput> = {}) => ({
@@ -51,9 +52,30 @@ describe('faits du jour d’une cité', () => {
       elections: [],
       decrees: [],
       worldEvents: [],
+      leagues: [],
       configChange: false,
     });
     expect(chronicleFacts(input([])).population).toBeNull();
+  });
+
+  it('ligues (#737) : les faits de la cité seule, par nature puis par nom de ligue', () => {
+    const league = (cityId: string, leagueName: string, change: ChronicleLeagueChange) =>
+      ({ type: 'league', cityId, leagueName, change }) as const;
+    const facts = chronicleFacts(
+      input([
+        league('kalliste', 'Ligue de Paros', 'dissolved'),
+        league('kalliste', 'Ligue de Naxos', 'joined'),
+        league('elaia', 'Ligue de Délos', 'founded'),
+        league('kalliste', 'Ligue de Délos', 'joined'),
+      ]),
+    );
+    expect(facts.leagues).toEqual([
+      { leagueName: 'Ligue de Délos', change: 'joined' },
+      { leagueName: 'Ligue de Naxos', change: 'joined' },
+      { leagueName: 'Ligue de Paros', change: 'dissolved' },
+    ]);
+    // Aucun nombre ne vient des noms : seul reste le zéro des autres biens.
+    expect(chronicleNumbers(facts)).toEqual(new Set([0]));
   });
 
   it('pertes en mer (#730) : comptées par route vers la cité, sans maison, à côté des arrivées', () => {

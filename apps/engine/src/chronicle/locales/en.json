@@ -17,6 +17,13 @@
     "applied": "In force: {{decree}}.",
     "lapsed": "Without effect: {{decree}}."
   },
+  "league": {
+    "founded": "The city founds the league “{{league}}” and takes its hegemony.",
+    "joined": "The city joins the league “{{league}}”.",
+    "left": "The city leaves the league “{{league}}”.",
+    "leftDissolved": "The city leaves the league “{{league}}”, which dissolves.",
+    "dissolved": "The league “{{league}}” dissolves: the city was its last member."
+  },
   "decrees": {
     "market_tax_rate": "the market tax decree",
     "port_dues": "the port dues decree",
