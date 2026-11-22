@@ -97,6 +97,7 @@ Un décret est un type de loi pris dans un catalogue de 40 modèles paramétrés
 Dans la phase 2 (tickets 261 à 263), l'archonte en charge propose seul, sans conseil, et le catalogue n'a que quatre modèles, saisis par formulaire, sans IA : taux de la taxe de marché de la cité, coefficient de son droit de port, grands travaux et fête.
 La conversion d'une intention en langage naturel attend une phase suivante.
 Le ticket 722 ajoute l'ostracisme, un modèle sans paramètre, fermé au départ (6.4).
+Le ticket 737 ajoute les quatre modèles des ligues, fondation, demande d'entrée, admission et départ, fermés au départ (6.5).
 Les bornes de chaque paramètre et les règles du vote viennent de la configuration (`decrees`) ; un modèle qu'elle ne borne pas ne se propose pas (`DECREE_MODEL_CLOSED`).
 Taux de la taxe et coefficient du droit de port sont bornés par le monde.
 Une dépense (grands travaux, fête) a un montant borné, et ne dépasse pas à la proposition la part `spendingCapShareBps` du trésor de la cité, arrondie à l'obole inférieure ; elle sera contrôlée de nouveau à son application (ticket 263).
@@ -120,6 +121,8 @@ Le taux de la cité est désormais celui de son dernier décret appliqué de ce 
 Règlement d'un décret de dépense (ticket 263) : la clôture qui le trouve adopté le règle juste après les décrets de taux, une seule fois même rejouée.
 Couvert par le trésor de sa cité à cet instant (au plus la part `spendingCapShareBps`, contrôlée de nouveau sous le verrou du trésor), il est payé, passe à `applied` et `DecreeApplied` dit le montant payé ; sinon, ou si son modèle n'est plus ouvert, il devient caduc (`lapsed`) et `DecreeLapsed` dit pourquoi (5.6).
 Une fête relève ensuite la demande des PNJ de sa cité pour ses biens, pendant ses jours (5.2, 7.5).
+Règlement d'un décret de ligue (ticket 737) : la clôture qui le trouve adopté le règle juste après l'ouverture des ostracismes, une seule fois même rejouée.
+Il est appliqué avec son effet, ou devient caduc (`lapsed`) si son modèle n'est plus ouvert ou si les ligues ne le permettent plus, et `DecreeLapsed` dit pourquoi (6.5).
 Les joueurs connectés lisent les règles en vigueur (`decree_rules`), les décrets de chaque cité et leur décompte après le dépouillement (12).
 
 ## 6.4 Mécaniques civiques
@@ -190,6 +193,31 @@ Les joueurs connectés lisent les ostracismes des cités de leur monde, leur iss
 - **Conflits** : embargo, blocus, guerre de course. Un conflit se résout sur plusieurs jours par les contributions des citoyens (navires, mercenaires, vivres). Les effets sont temporaires : droits de port majorés, routes fermées, tribut. Aucun bien de joueur n'est détruit.
 - **Confréries de métier** : associations de joueurs d'une même filière, toutes cités confondues. Elles peuvent fixer des normes, mutualiser des achats et tenter des ententes, que l'agoranome et l'Hybris sanctionnent.
 - **Sanctuaires communs** : un sanctuaire panhellénique par dieu, géré par les cités qui le financent.
+
+Ligues (ticket 737).
+Décision : tout passe par des décrets de l'assemblée, que l'archonte en charge propose (6.3) ; le stratège, qui mènera la diplomatie de ligue (6.2), attend.
+Une cité fonde une ligue par un décret `league_found`, sous un nom de la forme d'un nom de maison ; elle en est le premier membre et l'hégémon.
+Décision : deux ligues en activité d'un même monde n'ont pas le même nom, à la casse près ; le nom d'une ligue dissoute se reprend.
+Décision : l'hégémon est une cité membre, comme dans l'histoire grecque ; la cité fondatrice l'est jusqu'à la première élection (« P37 »).
+Décision (la règle la plus simple) : si l'hégémon quitte la ligue, l'hégémonie passe au plus ancien membre restant, par date d'entrée.
+Deux cités admises par la même clôture ont la même date d'entrée : la plus ancienne est alors celle de plus petit identifiant de membre.
+Une autre cité demande à y entrer par un décret `league_join` qui désigne la ligue ; appliquée, la demande s'enregistre, sans autre effet.
+La ligue l'admet par un décret `league_admit` de sa cité hégémon, qui désigne la demande.
+Une demande ne sert qu'une fois, et ne vaut plus si la cité est entrée dans une ligue depuis qu'elle l'a faite.
+Une cité est dans une ligue au plus : membre d'une ligue, elle ne fonde ni ne demande rien.
+Les identifiants des paramètres d'un décret de ligue sont rendus en minuscules à la proposition, et la base les compare sans casse.
+Une ligue a au plus `maxCities` cités (`decrees.models.league_admit`, de deux à cinq, la base n'en admettant jamais plus de cinq) : une admission au-delà est caduque.
+Une cité quitte sa ligue par un décret `league_leave` ; une ligue réduite à une seule cité se dissout, et cette dernière en sort avec elle.
+Décision : une ligue qui n'a encore que sa fondatrice ne se dissout pas d'elle-même ; elle se dissout quand sa fondatrice la quitte.
+Décision (paramètres neutres) : les quatre modèles sont fermés au départ ; un décret adopté dont le modèle a été fermé depuis devient caduc, comme une dépense (6.3).
+La clôture règle ces décrets avant l'entretien, sans monnaie ni stock, dans l'ordre de la fin de leur vote, contre la configuration et les ligues du moment.
+Un décret de ligue devient caduc quand son modèle est fermé (`model_closed`), sa cité déjà dans une ligue (`in_league`) ou hors de toute ligue (`not_in_league`), le nom pris (`name_taken`), la ligue inconnue de son monde ou dissoute (`league_inactive`), la demande introuvable (`no_request`) ou dépassée (`request_stale`), la cité qui admet n'est pas l'hégémon (`not_hegemon`) ou la ligue pleine (`league_full`).
+À la proposition, l'API refuse déjà ce que les ligues ne permettent plus : `IN_LEAGUE`, `NOT_IN_LEAGUE`, `LEAGUE_NOT_FOUND`, `LEAGUE_REQUEST_NOT_FOUND`, `NOT_HEGEMON` et `LEAGUE_NAME_TAKEN`.
+Le nom d'une ligue est un texte public, filtré comme un nom de maison : un terme interdit est refusé (`MESSAGE_REJECTED`), comme un compte réduit au silence (`SILENCED`).
+Événements : `LeagueFounded`, `LeagueJoined` et `LeagueLeft` (sortie par décret ou par dissolution, hégémon après la sortie), que la chronique de la cité concernée annonce.
+Une demande d'entrée appliquée n'a pas d'événement propre : elle se lit dans `decrees`, et son dépouillement est annoncé comme celui de tout décret.
+Les joueurs connectés lisent les ligues de leur monde et leurs membres, présents et passés (12).
+Le trésor commun et les tarifs préférentiels viennent avec le ticket suivant ; la défense mutuelle, l'élection de l'hégémon (« P37 ») et l'écran ensuite.
 
 ## 6.6 Outils communautaires
 

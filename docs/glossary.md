@@ -32,6 +32,8 @@ Tous les agents utilisent ces termes, dans le code (en anglais : `house`, `city`
 | Métèque (metic) | Maison accueillie dans une cité sans en être citoyenne : elle y travaille et commerce, mais n'y vote pas (`metic`) |
 | Citoyen (citizen) | Maison citoyenne de sa cité, après quelques jours de jeu comme métèque : elle vote et peut être élue (`citizen`) |
 | Archonte (archon) | Magistrat élu par les citoyens d'une cité pour une année de jeu (4 semaines) ; seul magistrat de la phase 2 (`archon`) |
+| Ligue (league) | Alliance d'une à cinq cités d'un monde (sa fondatrice seule, jusqu'à la première admission), fondée, rejointe et quittée par décret ; une cité est dans une ligue au plus (`league`) |
+| Hégémon (hegemon) | Cité membre qui conduit une ligue et y admet les cités qui le demandent : sa fondatrice, puis son plus ancien membre si elle s'en va (`hegemon`) |
 | Droit de port (port dues) | Forfait par classe de navire que la cité d'arrivée perçoit d'un voyage, payé au départ ; une part est détruite, le reste va au trésor de la cité (`port dues`) |
 | Désarmé (laid up) | Se dit d'un navire dont l'entretien n'a pas été payé à la clôture : il ne part plus jusqu'à une clôture qui le paie (`laid_up_at`) |
 | Canal de la cité (city channel) | Discussion commune d'une cité, où écrit toute maison de la cité, citoyenne ou métèque (`channel`, de type `city`) |

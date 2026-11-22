@@ -23,7 +23,7 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
 | Logistique | `ships`, `voyages`, `voyage_cargo`, `freight_offers` |
 | Immobilier | `properties`, `leases`, `renovations` |
 | Finance | `banks`, `deposits`, `loans`, `collaterals`, `companies`, `shares` |
-| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `liturgies`, `city_budget`, `public_works`, `leagues` |
+| Cité | `citizenships`, `offices`, `elections`, `ballots`, `decrees`, `ostracisms`, `ostraca`, `liturgies`, `city_budget`, `public_works`, `leagues`, `league_members` |
 | Sacré | `favor`, `offerings`, `graces_used`, `hubris`, `hubris_ledger`, `nemesis_omens`, `oracles`, `festivals` |
 | Événements | `world_events`, `event_effects`, `quests`, `domain_events` |
 | IA | `npcs`, `npc_memories`, `ai_calls`, `prompts` |
@@ -281,6 +281,14 @@ La base est découpée en cinq schémas Postgres, et seuls des vues et des canau
   Le service n'écrit ni identifiant ni date d'ouverture ou de bulletin, et ne supprime rien ; l'écart entre deux ostracismes d'une cité (`intervalDays`), qui dépend de la configuration, est contrôlé par l'API sous le verrou des décrets de la cité.
   Les joueurs connectés lisent les votes des cités de leur monde (`public.ostracisms`, avec `in_force` : l'ostracisme court encore), leur décompte nul avant le dépouillement, et les voix de chaque maison nommée après lui seulement (`ostracism_results`, par `game.ostracism_results()`, exécutée au nom du propriétaire).
   D'un bulletin, un joueur ne lit que celui de sa maison, et seulement son vote et sa date (`my_ostraca`) : jamais le nom inscrit, ni le bulletin d'une autre maison.
+- Ligues (6.5, #737) : `leagues` (monde, nom, cité hégémon, décret de fondation, fondée le, dissoute le) et `league_members` (ligue, cité, décret d'entrée, entrée, sortie, raison `left` ou `dissolved`, décret de départ).
+  Une cité est dans une ligue au plus (index unique `league_members_one_league_idx`) ; deux ligues en activité d'un monde n'ont pas le même nom, à la casse près.
+  La base garantit qu'une ligue naît maintenant d'un décret de fondation adopté de sa cité hégémon, sous le nom voté, et qu'une cité y entre maintenant, par cette fondation ou par un décret d'admission adopté de la cité hégémon qui admet une demande d'entrée appliquée de la cité vers cette ligue, sans que la cité soit entrée dans une ligue depuis la demande.
+  Une ligue en activité a cinq cités au plus, comptées sous le verrou de la ligue ; une ligue dissoute n'admet personne et ne change plus.
+  Une cité sort une fois, maintenant, par son décret de départ adopté, ou par la dissolution quand une autre cité vient de partir et qu'aucune autre ne reste ; l'hégémonie ne passe, quand l'hégémon s'en va, qu'au plus ancien membre restant.
+  Un décret de ligue adopté passe une fois à `applied`, maintenant, avec son effet écrit dans la transaction, ou à `lapsed` sans effet ; il n'a pas de jour de règlement, et une demande d'entrée n'est admise qu'une fois (index unique).
+  Le nombre de cités d'une ligue (`maxCities`), qui dépend de la configuration, est contrôlé par le moteur ; le service ne choisit ni identifiant ni date, et ne supprime rien.
+  Les joueurs connectés lisent les ligues de leur monde (`public.leagues`) et leurs membres, présents et passés (`public.league_members`) : une ligue d'un autre monde est invisible ; aucun joueur n'y écrit.
 - Liturgies (6.4, #719) : `liturgies` porte la maison désignée, la cité de son foyer, la saison (indice `seasonOfGameDay`), le genre (`festival`, `trierarchy`, `choregia`), le dû en oboles, le jour de jeu de la clôture qui désigne, l'échéance (jour de jeu et instant de sa clôture) et l'état : `assigned` (désignée), puis `performed` (accomplie) ou `levied` (prélevée d'office).
   Une liturgie au plus par maison et par saison (index unique `liturgies_one_per_season`) : rejouée, la désignation n'en écrit pas une seconde.
   La base garantit qu'une liturgie naît maintenant, désignée, avec un dû d'au moins une obole et une échéance après la désignation, pour une maison de joueur (jamais `npc`) qui a son foyer dans la cité et dont le compte n'est pas exclu (exclusion validée en vigueur) ;

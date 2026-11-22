@@ -9,6 +9,7 @@ import { dailyCloseAt, decreeSpendingCapOboles, decreeVotingClosesAt, gameDayAt 
 import { sql } from 'kysely';
 import { defineCommand } from '../registry';
 import { houseOf, isOstracized, OSTRACIZED, refuse } from './city-election';
+import { leagueRefusal } from './city-league';
 
 /**
  * Décrets de la cité (docs/specs/06-cites-politique-communaute.md, 6.3). L'archonte en charge propose un
@@ -64,6 +65,10 @@ export const cityProposeDecree = defineCommand({
           ],
         },
       };
+    const decree = { model: input.model, params: params.data } as typeof input;
+    // Décret de ligue (#737) : la cité, sa ligue et le nom proposé le permettent encore.
+    const league = await leagueRefusal(trx, userId, house, decree, config);
+    if (league) return league;
     // Plafond d'une dépense : part du trésor de la cité à la proposition ; la dépense elle-même se
     // contrôle de nouveau à son application (#263). Le trésor est lu sans verrou : rien n'en sort ici.
     const spending = decreeSpendingOboles(input);
@@ -123,7 +128,6 @@ export const cityProposeDecree = defineCommand({
         .executeTakeFirst();
       if (blocking) return { ok: false, error: OSTRACISM_TOO_SOON };
     }
-    const decree = { model: input.model, params: params.data } as typeof input;
     const created = await trx
       .insertInto('game.decrees')
       .values({

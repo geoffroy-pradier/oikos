@@ -182,6 +182,22 @@ export const CITY_PROPOSE_DECREE_ERROR_CODES = [
    * `intervalDays` jours de jeu.
    */
   'OSTRACISM_TOO_SOON',
+  /** Fondation ou demande d'entrée (#737) : la cité est déjà dans une ligue. */
+  'IN_LEAGUE',
+  /** Départ : la cité n'est dans aucune ligue. */
+  'NOT_IN_LEAGUE',
+  /** Demande d'entrée : aucune ligue en activité de ce monde sous cet identifiant. */
+  'LEAGUE_NOT_FOUND',
+  /** Admission : aucune demande d'entrée appliquée vers une ligue en activité sous cet identifiant. */
+  'LEAGUE_REQUEST_NOT_FOUND',
+  /** Admission : la cité n'est pas l'hégémon de la ligue demandée. */
+  'NOT_HEGEMON',
+  /** Fondation : une ligue en activité porte déjà ce nom, à la casse près. */
+  'LEAGUE_NAME_TAKEN',
+  /** Fondation : le nom contient un terme interdit (`moderation.bannedTerms`), comme un nom de maison. */
+  'MESSAGE_REJECTED',
+  /** Fondation : le compte est réduit au silence ; un nom de ligue est un texte public. */
+  'SILENCED',
 ] as const;
 export const CITY_VOTE_DECREE_ERROR_CODES = [
   'HOUSE_NOT_FOUND',
