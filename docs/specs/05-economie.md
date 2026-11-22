@@ -377,15 +377,22 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   La commande `bank.withdrawOffer` (offre) retire une offre encore ouverte de la banque de la maison (`OFFER_CLOSED` sinon), même sans section `banks`.
   La commande `loan.acceptOffer` porte l'offre et les conditions que l'emprunteur a vues (`my_loan_offers`) : d'autres conditions sont refusées (`TERMS_CHANGED`), comme une offre fermée ou d'une autre maison, une maison sous une marque de déshonneur (`DISHONORED`) ou l'absence de section `banks`.
   Elle est refusée aussi si le coffre moins le principal passerait sous la réserve exigée de la configuration en vigueur (`RESERVE_SHORT`, `bankLendable`), ou si la garantie n'est plus libre (`COLLATERAL_NOT_FREE`) : stock libre de la maison dans sa cité qui ne la couvre pas, logement d'une autre maison, offert à la vente ou à la location, ou déjà gagé.
+  Décision (#729) : un logement loué à la maison de la banque ne garantit pas ses prêts, puisque saisi, elle se louerait son propre bien (`COLLATERAL_NOT_FREE`).
   L'intérêt est celui du temple, simple et fixé à l'acceptation (`loanInterest`), et l'échéance la clôture `termDays` jours après ; le prêt est une ligne de `loans` au prêteur `bank` (12), décaissée par une écriture `bank.loan_disburse`.
   Une garantie bloquée ne sort par aucun chemin : un stock gagé est retenu sur le stock de l'emprunteur dans sa cité comme ce que réserve une vente en attente, si bien qu'il ne se vend, ne s'embarque, ne s'offre ni ne se consomme ; un logement gagé ne s'offre ni à la vente ni à la location (`PROPERTY_PLEDGED`, 4.5).
   Au solde du prêt, par un remboursement ou par la clôture, la garantie se libère.
   Décision (#728) : un bien dont du stock est gagé ne se retire pas de la configuration tant que son gage n'est pas libéré ; son rachat par Olympe est refusé (`GOOD_PLEDGED`, 5.1).
   Échéance : l'étape de #725 prélève aussi les prêts de banque échus, intérêts d'abord, pour le coffre (écriture `bank.loan_collect`), dans l'ordre des prêts de la maison.
-  Décision (#728) : un prêt de banque non soldé à son échéance ne passe pas encore en défaut ; il reste dû et se prélève à chaque clôture, et son défaut viendra avec la saisie de sa garantie (#729).
+  Défaut et saisie (#729) : un prêt de banque que le prélèvement de son échéance ne solde pas passe en défaut par la saisie de sa garantie, dans la même clôture.
+  Décision (#729) : sans enchères dans cette phase, la garantie saisie passe à la maison de la banque et solde le prêt, quelle que soit sa valeur ; son reste dû est remis (`written_off`), puisque la banque a pris le risque de sa garantie.
+  Un stock gagé passe, par le journal des stocks, au stock de la maison de la banque dans la même cité ; les réservations des ventes en attente et des autres gages de l'emprunteur restent.
+  Un logement gagé passe à la maison de la banque avec son bail en cours, dont elle devient le bailleur et touche les loyers dès la clôture suivante (4.5).
+  La maison perd la Timè `defaultHonorLoss` (motif `loan_defaulted`) et porte la marque de déshonneur, qui court `dishonorDays` jours après la saisie, jour du solde du prêt.
+  Décision (#729) : une saisie ne prend jamais la trésorerie au-delà du prélèvement de l'échéance, qui l'a vidée ; un prêt de banque ne passe en défaut qu'avec sa saisie.
+  Une clôture rejouée ne saisit rien deux fois : une saisie par prêt, validée avec la clôture de son jour.
   La fortune compte le reste dû d'un prêt pour la maison de la banque et le déduit pour l'emprunteur : le prêt compte une fois de chaque côté.
   Acceptation, retrait, remboursement et prélèvement se suivent sous le verrou de l'agora : une offre acceptée et retirée à la fois ne l'est qu'une fois, et deux prêts qui dépassent ensemble la réserve ou le même stock ne passent pas tous deux.
-  Événements de domaine : `LoanOffered`, `LoanOfferWithdrawn` et `LoanOfferAccepted` ; `LoanRepaid` et `LoanCollected` comme pour le temple.
+  Événements de domaine : `LoanOffered`, `LoanOfferWithdrawn` et `LoanOfferAccepted` ; `LoanRepaid` et `LoanCollected` comme pour le temple ; au défaut, `LoanDefaulted` (prêteur `bank`) puis `CollateralSeized` (#729 : le prêt, la banque, les deux maisons, la garantie et le reste dû remis).
 - **Prêt maritime** : prêt à taux élevé remboursé seulement si le navire arrive. C'est l'assurance du jeu, et elle est historique.
 - **Trésor du temple** : prêteur PNJ au taux directeur, plafonné par la Timè. Levier de politique monétaire des administrateurs.
   Dans la première version (#724), un prêt du temple porte un intérêt simple, fixé à l'emprunt pour toute sa durée : principal × taux directeur annuel (points de base) × jours ÷ (10 000 × 365), arrondi à l'obole supérieure (`templeLoanInterest`, `packages/sim`, que la base vérifie).
@@ -410,6 +417,8 @@ Limite connue : une bourse que ces achats vident réduit le budget de chaque bie
   Écran (#732) : l'emprunt et le remboursement se font dans l'écran Finances du client, qui lit le plafond, le taux et les durées dans `temple_treasury_rules`, jamais dans le code (spécification 10, écran 9).
 - **Sociétés** (après le lancement) : une activité peut être apportée à une société dont les parts s'échangent, avec dividendes et prises de contrôle.
 - **Défaut** : saisie de la garantie, vente aux enchères, marque de déshonneur temporaire. Pas de faillite définitive : une maison ruinée repart avec un bien insaisissable.
+  Première version (#729) : la saisie d'un prêt de banque est décrite plus haut ; les enchères, les navires en garantie et la garantie des dépôts attendent.
+  Décision (#729) : le bien insaisissable est le site de départ de la maison, qui n'est jamais une garantie (un stock ou un logement seulement) ; la saisie ne touche ni ses sites ni sa trésorerie.
 
 ## 5.5 Robinets et puits
 

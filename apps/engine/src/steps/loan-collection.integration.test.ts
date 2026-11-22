@@ -160,28 +160,32 @@ const systemOf = async (worldId: string) =>
   )[0];
 
 /**
- * Un monde à une cité, sa banque et son emprunteur (#728) : le banquier verse 5 000 oboles au coffre ; l'emprunteur,
- * qui a 20 blés, emprunte 1 000 oboles pour 30 jours à 12 % (10 d'intérêts, 1 010 dus) gagés sur ses 20 blés, comme
- * l'écrit `loan.acceptOffer`, puis sa trésorerie passe à `treasury`. Le prêt est ensuite reculé pour échoir il y a
- * 3 jours, gardes levées.
+ * Un monde à une cité, sa banque, son emprunteur et un locataire (#728) : le banquier verse 5 000 oboles au coffre ;
+ * l'emprunteur, qui a 20 blés, un champ de départ et une maison de ville louée 5 oboles par jour au locataire, emprunte
+ * 1 000 oboles pour 30 jours à 12 % (10 d'intérêts, 1 010 dus) gagés sur ses 20 blés ou sur sa maison (`collateral`),
+ * comme l'écrit `loan.acceptOffer`, puis sa trésorerie passe à `treasury`. Le prêt est ensuite reculé pour échoir il y a
+ * 3 jours, gardes levées ; le champ et la maison naissent de même.
  */
-async function newBankWorld(treasury: number) {
-  const [worldId, cityId, banker, borrower] = [
+async function newBankWorld(treasury: number, collateral: 'stock' | 'property' = 'stock') {
+  const [worldId, cityId, banker, borrower, tenant, propertyId] = [
+    randomUUID(),
+    randomUUID(),
     randomUUID(),
     randomUUID(),
     randomUUID(),
     randomUUID(),
   ];
+  const houses = [banker, borrower, tenant];
   await owner.transaction().execute(async (trx) => {
     for (const statement of [
       sql`insert into game.worlds (id, slug, name) values (${worldId}, ${`b-${worldId.slice(0, 12)}`}, 'Banque')`,
       sql`insert into game.cities (id, world_id, slug, name) values (${cityId}, ${worldId}, 'kalliste', 'Agora')`,
-      sql`insert into auth.users (id, email) select u, u || '@example.test' from unnest(${[banker, borrower]}::uuid[]) u`,
+      sql`insert into auth.users (id, email) select u, u || '@example.test' from unnest(${houses}::uuid[]) u`,
       sql`insert into game.houses (id, world_id, user_id, name, blazon) select h, ${worldId}, h, 'Maison ' || chr(96 + n::int),
-        '{}' from unnest(${[banker, borrower]}::uuid[]) with ordinality v (h, n)`,
-      sql`insert into game.citizenships (house_id, city_id) select h, ${cityId} from unnest(${[banker, borrower]}::uuid[]) h`,
+        '{}' from unnest(${houses}::uuid[]) with ordinality v (h, n)`,
+      sql`insert into game.citizenships (house_id, city_id) select h, ${cityId} from unnest(${houses}::uuid[]) h`,
       sql`insert into game.accounts (world_id, kind, house_id) select ${worldId}, 'house', h
-        from unnest(${[banker, borrower]}::uuid[]) h`,
+        from unnest(${houses}::uuid[]) h`,
       sql`insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loan_rate_bps, charter_fee)
         values (${worldId}, ${cityId}, ${banker}, 'Trapeza Agora', 0, 0, 0)`,
       sql`insert into game.inventories (world_id, house_id, city_id, good_id) values (${worldId}, ${borrower}, ${cityId}, 'wheat')`,
@@ -189,6 +193,38 @@ async function newBankWorld(treasury: number) {
         select ${worldId}, 'wheat', 20, 'production', id, 'test' from game.inventories where house_id = ${borrower}`,
     ])
       await statement.execute(trx);
+  });
+  await owner.transaction().execute(async (trx) => {
+    await sql`set local session_replication_role = replica`.execute(trx);
+    await sql`insert into game.properties (id, world_id, city_id, size_id, lot, owner_house_id, acquired_at)
+      values (${propertyId}, ${worldId}, ${cityId}, 'townhouse', 1, ${borrower}, now() - interval '20 days')`.execute(
+      trx,
+    );
+    await sql`insert into game.sites (world_id, house_id, city_id, recipe_id, created_at, cycle_started_at)
+      values (${worldId}, ${borrower}, ${cityId}, 'grow_wheat', now() - interval '20 days', now() - interval '19 days')`.execute(
+      trx,
+    );
+  });
+  await owner.transaction().execute(async (trx) => {
+    const listing =
+      await sql<Row>`insert into game.property_listings (world_id, property_id, house_id, kind, price_oboles)
+      values (${worldId}, ${propertyId}, ${borrower}, 'lease', 5) returning id::text as s`.execute(
+        trx,
+      );
+    await sql`insert into game.leases (world_id, property_id, listing_id, landlord_house_id, tenant_house_id, rent_oboles)
+      values (${worldId}, ${propertyId}, ${listing.rows[0]?.s}, ${borrower}, ${tenant}, 5)`.execute(
+      trx,
+    );
+    await sql`update game.property_listings set outcome = 'leased' where id = ${listing.rows[0]?.s}`.execute(
+      trx,
+    );
+  });
+  // Bail signé il y a vingt jours, gardes levées : chaque clôture passée en demande le loyer.
+  await owner.transaction().execute(async (trx) => {
+    await sql`set local session_replication_role = replica`.execute(trx);
+    await sql`update game.leases set started_at = now() - interval '20 days' where property_id = ${propertyId}`.execute(
+      trx,
+    );
   });
   await credit(worldId, banker, 5_000);
   const bankId =
@@ -215,8 +251,13 @@ async function newBankWorld(treasury: number) {
     await post('bank.capital_in', bankerCash, vault, 5_000).execute(trx);
     const offer =
       await sql<Row>`insert into game.bank_loan_offers (world_id, bank_id, borrower_house_id, principal,
-        rate_bps, term_days, collateral_kind, collateral_city_id, collateral_good_id, collateral_quantity)
-      values (${worldId}, ${bankId}, ${borrower}, 1000, 1200, 30, 'stock', ${cityId}, 'wheat', 20) returning id::text as s`.execute(
+        rate_bps, term_days, collateral_kind, collateral_city_id, collateral_good_id, collateral_quantity,
+        collateral_property_id)
+      select ${worldId}, ${bankId}, ${borrower}, 1000, 1200, 30, ${collateral}, s.city, s.good, s.quantity,
+        ${collateral === 'property' ? propertyId : null}::uuid
+      from (select case when ${collateral} = 'stock' then ${cityId}::uuid end as city,
+        case when ${collateral} = 'stock' then 'wheat' end as good,
+        case when ${collateral} = 'stock' then 20 end as quantity) s returning id::text as s`.execute(
         trx,
       );
     const entry = await post('bank.loan_disburse', vault, borrowerCash, 1_000).execute(trx);
@@ -233,7 +274,7 @@ async function newBankWorld(treasury: number) {
         due_at = ${dailyCloseAt(TODAY - 3, clock)}, created_at = created_at - interval '34 days'
       where world_id = ${worldId}`.execute(trx);
   });
-  return { worldId, bankId, borrower };
+  return { worldId, bankId, banker, borrower, tenant, propertyId };
 }
 /** Lu par le propriétaire : le service ne voit pas les coffres. */
 const ownerTexts = async (query: RawBuilder<Row>) =>
@@ -258,7 +299,7 @@ describe('échéance des prêts du temple (#725)', () => {
     const [a, b, c] = ids as [string, string, string];
     expect((await close(worldId, DUE - 1)).summary).toEqual({
       loanDefaultLocks: { houses: 0 },
-      loanCollection: { collected: 0, collectedOboles: 0, defaulted: 0, honorLost: 0 },
+      loanCollection: { collected: 0, collectedOboles: 0, defaulted: 0, honorLost: 0, seized: 0 },
     });
     expect((await close(worldId, DUE)).summary).toEqual({
       loanDefaultLocks: { houses: 3 },
@@ -267,6 +308,7 @@ describe('échéance des prêts du temple (#725)', () => {
         collectedOboles: OWED + 100,
         defaulted: 2,
         honorLost: 2 * LOSS,
+        seized: 0,
       },
     });
     expect(await stateOf(worldId)).toEqual([
@@ -295,6 +337,7 @@ describe('échéance des prêts du temple (#725)', () => {
       collectedOboles: 250,
       defaulted: 0,
       honorLost: 0,
+      seized: 0,
     });
     await credit(worldId, b, 1_000);
     await close(worldId, DUE + 2);
@@ -372,46 +415,159 @@ describe('échéance des prêts du temple (#725)', () => {
       collectedOboles: 200,
       defaulted: 1,
       honorLost: LOSS,
+      seized: 0,
     });
     expect(await collectionsOf(houseId)).toEqual(['0:0+200']);
     expect(await stateOf(worldId)).toEqual([`defaulted:1:0:0:-${LOSS}`]);
   });
 });
 
-describe('échéance des prêts de banque (#728)', () => {
-  it('prélevée pour le coffre, sans défaut ni Timè perdue ; soldée, la garantie se libère ; rejouée, rien deux fois', async () => {
-    const { worldId, bankId, borrower } = await newBankWorld(300);
-    const stockOf = async () =>
-      (
-        await texts(sql<Row>`select quantity || '/' || reserved as s from game.inventories
-          where house_id = ${borrower} and good_id = 'wheat'`)
-      )[0];
-    expect([await vaultOf(bankId), await stockOf()]).toEqual([4_000, '20/20']);
+describe('échéance des prêts de banque (#728, #729)', () => {
+  const stockOf = async (houseId: string) =>
+    (
+      await texts(sql<Row>`select quantity || '/' || reserved as s from game.inventories
+        where house_id = ${houseId} and good_id = 'wheat'`)
+    )[0];
+  const seizuresOf = async (houseId: string) => eventsOf(houseId, 'CollateralSeized');
+  /** Ce que la base tient du prêt : état, reste dû, reste remis, jour du défaut relatif à l'échéance. */
+  const loanOf = async (worldId: string) =>
+    (
+      await texts(sql<Row>`select status || ':' || outstanding || ':' || written_off || ':'
+        || coalesce((defaulted_day - due_day)::text, '-') as s from game.loans where world_id = ${worldId}`)
+    )[0];
+  /** Monnaie hors robinets et puits, coffre compris, et blé du monde. */
+  const totalsOf = async (worldId: string) =>
+    ownerTexts(sql<Row>`select (select sum(balance) from game.accounts where world_id = ${worldId} and system_key is null)
+      || ':' || (select coalesce(sum(quantity), 0) from game.inventories where world_id = ${worldId}) as s`);
+
+  it('soldé par le prélèvement, il libère son stock gagé, sans défaut ni saisie', async () => {
+    const { worldId, bankId, borrower } = await newBankWorld(1_100);
+    expect([await vaultOf(bankId), await stockOf(borrower)]).toEqual([4_000, '20/20']);
     expect((await close(worldId, DUE)).summary).toEqual({
-      loanDefaultLocks: { houses: 0 },
-      loanCollection: { collected: 1, collectedOboles: 300, defaulted: 0, honorLost: 0 },
+      loanDefaultLocks: { houses: 1 },
+      loanCollection: {
+        collected: 1,
+        collectedOboles: 1_010,
+        defaulted: 0,
+        honorLost: 0,
+        seized: 0,
+      },
     });
-    // Intérêts d'abord ; le reste dû reste dû, en cours, et le stock reste gagé.
-    expect(await stateOf(worldId)).toEqual(['active:710:-:0:0']);
-    expect(await collectionsOf(borrower)).toEqual(['0:10+290']);
-    expect([await vaultOf(bankId), await stockOf()]).toEqual([4_300, '20/20']);
-    expect(await eventsOf(borrower, 'LoanDefaulted')).toEqual([]);
-    expect((await eventsOf(borrower, 'LoanCollected'))[0]).toMatchObject({
-      status: 'active',
-      outstanding: 710,
-    });
-    expect((await close(worldId, DUE)).status).toBe('skipped');
-    await credit(worldId, borrower, 800);
-    await close(worldId, DUE + 1);
-    expect(await stateOf(worldId)).toEqual(['repaid:0:-:90:0']);
-    expect([await vaultOf(bankId), await stockOf()]).toEqual([5_010, '20/0']);
+    expect([await loanOf(worldId), await vaultOf(bankId), await stockOf(borrower)]).toEqual([
+      'repaid:0:0:-',
+      5_010,
+      '20/0',
+    ]);
+    expect(await seizuresOf(borrower)).toEqual([]);
     // Le temple n'a rien pris : ni intérêts au puits, ni principal au robinet.
     expect(await systemOf(worldId)).toBe('faucet_temple_loans:0 sink_temple_interest:0');
-    const lines =
-      await ownerTexts(sql<Row>`select string_agg(case when a.bank_id is not null then 'vault' else a.kind end
-        || ':' || l.amount, ' ' order by e.created_at, l.amount) as s from game.ledger_entries e
-      join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
-      where e.world_id = ${worldId} and e.kind = 'bank.loan_collect'`);
-    expect(lines).toEqual(['house:-300 vault:300 house:-710 vault:710']);
+  });
+
+  it('non soldé, sa garantie de stock est saisie pour la banque et le solde ; rejouée, la clôture ne saisit rien', async () => {
+    const { worldId, bankId, banker, borrower } = await newBankWorld(300);
+    const before = await totalsOf(worldId);
+    expect((await close(worldId, DUE)).summary).toEqual({
+      loanDefaultLocks: { houses: 1 },
+      loanCollection: {
+        collected: 1,
+        collectedOboles: 300,
+        defaulted: 1,
+        honorLost: LOSS,
+        seized: 1,
+      },
+    });
+    // Intérêts d'abord ; les 710 qui restent dus sont remis par la saisie, quelle que soit la valeur des 20 blés.
+    expect(await collectionsOf(borrower)).toEqual(['0:10+290']);
+    expect(await loanOf(worldId)).toBe('repaid:0:710:0');
+    expect(await stateOf(worldId)).toEqual([`repaid:0:0:0:-${LOSS}`]);
+    expect([await vaultOf(bankId), await stockOf(borrower), await stockOf(banker)]).toEqual([
+      4_300,
+      '0/0',
+      '20/0',
+    ]);
+    // Par le journal des stocks ; ni monnaie ni blé créés ou détruits, et le champ de départ reste à sa maison.
+    expect(
+      await ownerTexts(sql<Row>`select kind || ':' || quantity as s from game.stock_ledger
+        where loan_seizure_id is not null and world_id = ${worldId}`),
+    ).toEqual(['bank.loan_seize:20']);
+    expect(await totalsOf(worldId)).toEqual(before);
+    expect(
+      await texts(sql<Row>`select recipe_id as s from game.sites where house_id = ${borrower}`),
+    ).toEqual(['grow_wheat']);
+    expect((await eventsOf(borrower, 'LoanCollected'))[0]).toMatchObject({
+      status: 'defaulted',
+      outstanding: 710,
+    });
+    expect(await eventsOf(borrower, 'LoanDefaulted')).toMatchObject([
+      { lender: 'bank', outstanding: 710, honorLost: LOSS, gameDay: DUE },
+    ]);
+    expect(await seizuresOf(borrower)).toEqual([
+      {
+        loanId: expect.any(String) as string,
+        bankId,
+        houseId: borrower,
+        bankHouseId: banker,
+        collateral: {
+          kind: 'stock',
+          cityId: expect.any(String) as string,
+          goodId: 'wheat',
+          quantity: 20,
+        },
+        writtenOff: 710,
+        gameDay: DUE,
+      },
+    ]);
+    // Une seule perte de Timè, celle du défaut (la marque se lit en pgTAP 729 et par `loan.acceptOffer`).
+    expect(
+      await ownerTexts(sql<Row>`select string_agg(reason || ':' || amount, ' ') as s from game.honor_ledger
+        where house_id = ${borrower}`),
+    ).toEqual([`loan_defaulted:-${LOSS}`]);
+    // Rejouée, la clôture du jour ne fait rien ; la suivante ne trouve plus rien à prélever ni à saisir.
+    expect((await close(worldId, DUE)).status).toBe('skipped');
+    await credit(worldId, borrower, 500);
+    expect((await close(worldId, DUE + 1)).summary['loanCollection']).toEqual({
+      collected: 0,
+      collectedOboles: 0,
+      defaulted: 0,
+      honorLost: 0,
+      seized: 0,
+    });
+    expect([await vaultOf(bankId), await seizuresOf(borrower)]).toMatchObject([4_300, [{}]]);
+  });
+
+  it('un logement loué saisi passe à la banque avec son bail, qui la paie dès la clôture suivante', async () => {
+    const { worldId, bankId, banker, borrower, tenant, propertyId } = await newBankWorld(
+      0,
+      'property',
+    );
+    await credit(worldId, tenant, 100);
+    const outcome = await close(worldId, DUE, CLOSE_STEPS);
+    expect(outcome.summary['loanCollection']).toEqual({
+      collected: 1,
+      collectedOboles: 5,
+      defaulted: 1,
+      honorLost: LOSS,
+      seized: 1,
+    });
+    expect(await loanOf(worldId)).toBe('repaid:0:1005:0');
+    expect(
+      await ownerTexts(sql<Row>`select (p.owner_house_id = ${banker}) || ':' || (l.landlord_house_id = ${banker})
+        || ':' || (l.tenant_house_id = ${tenant}) || ':' || (l.ended_at is null) as s
+        from game.properties p join game.leases l on l.property_id = p.id where p.id = ${propertyId}`),
+    ).toEqual(['true:true:true:true']);
+    expect((await seizuresOf(borrower))[0]).toMatchObject({
+      bankHouseId: banker,
+      collateral: { kind: 'property', propertyId },
+      writtenOff: 1_005,
+    });
+    // Le loyer du jour, payé avant l'échéance, allait encore à l'emprunteur, dont le prélèvement a pris ces 5 oboles ; le
+    // suivant va à la maison de la banque.
+    await close(worldId, DUE + 1, CLOSE_STEPS);
+    expect(
+      await ownerTexts(sql<Row>`select string_agg(a.house_id::text || ':' || l.amount, ' ' order by e.created_at)
+        as s from game.ledger_entries e join game.ledger_lines l on l.entry_id = e.id join game.accounts a on a.id = l.account_id
+        where e.world_id = ${worldId} and e.kind = 'lease.rent' and l.amount > 0`),
+    ).toEqual([`${borrower}:5 ${banker}:5`]);
+    expect(await vaultOf(bankId)).toBe(4_005);
   });
 });

@@ -1,5 +1,11 @@
 import { DEFAULT_LOAN_DEFAULT_HONOR_LOSS } from '@oikos/config';
-import { loanCollectedSchema, loanDefaultedSchema, type DomainEvent } from '@oikos/contracts';
+import {
+  collateralSeizedSchema,
+  loanCollectedSchema,
+  loanDefaultedSchema,
+  type DomainEvent,
+  type LoanCollateral,
+} from '@oikos/contracts';
 import { lockBankVault, recordHonorChange, type Db } from '@oikos/db';
 import { collectDueLoans, honorChange } from '@oikos/sim';
 import { sql } from 'kysely';
@@ -34,14 +40,39 @@ const dueLoans = ({ trx, worldId, closeAt }: CloseContext) =>
       'status',
       'lender',
       'bank_id',
+      'offer_id',
     ])
     .where('world_id', '=', worldId)
     .where('status', 'in', ['active', 'defaulted'])
     .where('due_at', '<=', closeAt);
 
+/** Garantie de l'offre d'un prêt de banque, telle que l'événement la nomme. */
+async function collateralOf({ trx }: CloseContext, offerId: string): Promise<LoanCollateral> {
+  const offer = await trx
+    .selectFrom('game.bank_loan_offers')
+    .select([
+      'collateral_kind',
+      'collateral_city_id',
+      'collateral_good_id',
+      'collateral_quantity',
+      'collateral_property_id',
+    ])
+    .where('id', '=', offerId)
+    .executeTakeFirstOrThrow();
+  return offer.collateral_kind === 'stock'
+    ? {
+        kind: 'stock',
+        cityId: offer.collateral_city_id ?? '',
+        goodId: offer.collateral_good_id ?? '',
+        quantity: Number(offer.collateral_quantity),
+      }
+    : { kind: 'property', propertyId: offer.collateral_property_id ?? '' };
+}
+
 /**
  * Verrous du défaut des prêts (5.4, #725), première des deux étapes de l'échéance : la Timè (`honor:<maison>`) de chaque
- * maison dont un prêt du temple, encore en cours, est échu à l'instant de la clôture, dans l'ordre des identifiants. Elle
+ * maison dont un prêt, du temple ou d'une banque (#729), encore en cours, est échu à l'instant de la clôture, dans l'ordre
+ * des identifiants. Elle
  * vient avec la dérobade aux liturgies, avant le déclin de la Charis et l'agora : `loan.borrowFromTemple` et
  * `liturgy.perform` prennent la Timè avant l'agora, et `loanCollection`, qui écrit la Timè perdue, vient bien après.
  * Sans perte de Timè, elle ne verrouille rien.
@@ -52,12 +83,9 @@ export const loanDefaultLocks: CloseStep = {
     if (lossOf(context) === 0) return { houses: 0 };
     const houses = [
       ...new Set(
-        (
-          await dueLoans(context)
-            .where('status', '=', 'active')
-            .where('lender', '=', 'temple')
-            .execute()
-        ).map((l) => l.borrower_house_id),
+        (await dueLoans(context).where('status', '=', 'active').execute()).map(
+          (l) => l.borrower_house_id,
+        ),
       ),
     ].sort();
     for (const houseId of houses) await lockKey(context.trx, `honor:${houseId}`);
@@ -76,13 +104,16 @@ export const loanDefaultLocks: CloseStep = {
  * enregistre la clôture de son jour : rejouée, la clôture ne prélève rien deux fois. La Timè perdue s'écrit sous les
  * verrous que `loanDefaultLocks` a pris avant l'agora. Un prêt de banque (#728) se prélève de même, dans l'ordre des
  * prêts de la maison, tout entier au coffre de sa banque (écriture `bank.loan_collect`, coffres verrouillés après les
- * prêts) ; il ne passe pas en défaut avant sa saisie (ticket suivant), et son solde libère sa garantie.
+ * prêts), et son solde libère sa garantie. S'il reste dû, la clôture saisit sa garantie (#729, `game.loan_seizures`) :
+ * la base le fait passer en défaut et le solde, son reste dû remis, et remet le stock gagé, par le journal des stocks, ou
+ * le logement, avec son bail en cours, à la maison de la banque ; la Timè se perd comme pour le temple, et les événements
+ * `LoanDefaulted` puis `CollateralSeized` le disent. La saisie ne prend jamais rien de la trésorerie ni des sites.
  */
 export const loanCollection: CloseStep = {
   name: 'loanCollection',
   async run(context) {
     const { trx, worldId, gameDay, config, at } = context;
-    const summary = { collected: 0, collectedOboles: 0, defaulted: 0, honorLost: 0 };
+    const summary = { collected: 0, collectedOboles: 0, defaulted: 0, honorLost: 0, seized: 0 };
     await lockKey(trx, `market:${worldId}`);
     const seen = await dueLoans(context).execute();
     if (seen.length === 0) return summary;
@@ -196,14 +227,8 @@ export const loanCollection: CloseStep = {
                 interest,
                 principal,
                 outstanding,
-                // Ce qui reste dû après l'échéance : en défaut, celui d'un prêt du temple en cours aussi, juste après ;
-                // un prêt de banque reste en l'état jusqu'à sa saisie (ticket suivant).
-                status:
-                  outstanding === 0
-                    ? 'repaid'
-                    : loan.lender === 'temple'
-                      ? 'defaulted'
-                      : loan.status,
+                // Ce qui reste dû après l'échéance passe en défaut juste après, celui d'un prêt de banque par sa saisie.
+                status: outstanding === 0 ? 'repaid' : 'defaulted',
                 gameDay,
               },
             }),
@@ -211,13 +236,21 @@ export const loanCollection: CloseStep = {
           summary.collected += 1;
           summary.collectedOboles += interest + principal;
         }
-        if (loan.status !== 'active' || collection.outstanding === 0n || loan.lender !== 'temple')
-          continue;
-        await trx
-          .updateTable('game.loans')
-          .set({ status: 'defaulted', defaulted_day: gameDay })
-          .where('id', '=', loan.id)
-          .execute();
+        if (loan.status !== 'active' || collection.outstanding === 0n) continue;
+        // Un prêt du temple passe en défaut ; un prêt de banque, par la saisie de sa garantie, qui le solde aussitôt.
+        let bankHouseId: string | null = null;
+        if (loan.lender === 'bank')
+          ({ bank_house_id: bankHouseId } = await trx
+            .insertInto('game.loan_seizures')
+            .values({ world_id: worldId, loan_id: loan.id, game_day: gameDay })
+            .returning('bank_house_id')
+            .executeTakeFirstOrThrow());
+        else
+          await trx
+            .updateTable('game.loans')
+            .set({ status: 'defaulted', defaulted_day: gameDay })
+            .where('id', '=', loan.id)
+            .execute();
         const written =
           honor !== undefined && loss > 0
             ? await recordHonorChange(
@@ -239,7 +272,7 @@ export const loanCollection: CloseStep = {
             payload: {
               loanId: loan.id,
               houseId,
-              lender: 'temple',
+              lender: loan.lender,
               outstanding: Number(collection.outstanding),
               honorLost,
               gameDay,
@@ -248,6 +281,23 @@ export const loanCollection: CloseStep = {
         );
         summary.defaulted += 1;
         summary.honorLost += honorLost;
+        if (bankHouseId === null) continue;
+        await record(
+          trx,
+          collateralSeizedSchema.parse({
+            type: 'CollateralSeized',
+            payload: {
+              loanId: loan.id,
+              bankId: loan.bank_id,
+              houseId,
+              bankHouseId,
+              collateral: await collateralOf(context, loan.offer_id ?? ''),
+              writtenOff: Number(collection.outstanding),
+              gameDay,
+            },
+          }),
+        );
+        summary.seized += 1;
       }
     }
     return summary;

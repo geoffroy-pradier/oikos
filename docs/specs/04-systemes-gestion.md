@@ -402,6 +402,8 @@ Ces mouvements transfèrent de la monnaie d'une maison à une autre sans en cré
 
 - **Offres** : la maison propriétaire offre un bien à la location, au loyer quotidien qu'elle fixe (`property.offerLease`), ou à la vente, à prix affiché (`property.listForSale`), et retire son offre (`property.withdrawOffer`).
   Un bien qui garantit un prêt de banque non remboursé (5.4, #728) ne s'offre ni à la vente ni à la location (`PROPERTY_PLEDGED`) et ne change pas de propriétaire ; un bail en cours le reste jusqu'à sa fin.
+  Saisi (#729), il passe à la maison de la banque avec son bail en cours, au même loyer, dont elle devient le bailleur ; son instant d'achat devient celui de la saisie, comme pour une revente.
+  Un logement loué à la maison de la banque ne garantit pas ses prêts.
   Une seule offre est ouverte par bien, de vente ou de location (`PROPERTY_ALREADY_LISTED`) : pour en changer, on retire la première.
   Un bien loué ne s'offre ni à la vente ni à la location avant la fin du bail (`PROPERTY_LEASED`).
   Il n'y a ni enchère ni négociation : l'offre se prend à son prix, ou se retire.
