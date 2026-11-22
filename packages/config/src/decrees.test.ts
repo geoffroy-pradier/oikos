@@ -107,6 +107,28 @@ describe('décrets (6.3)', () => {
     ]);
   });
 
+  it('ligues : fermées au départ ; cinq cités au plus par ligue, deux au moins (6.5 ; #737)', () => {
+    const models = decrees().models;
+    for (const model of ['league_found', 'league_join', 'league_admit', 'league_leave'] as const)
+      expect(models[model]).toBeUndefined();
+    const leagues = {
+      league_found: {},
+      league_join: {},
+      league_admit: { maxCities: 5 },
+      league_leave: {},
+    };
+    const with_ = (patch: Record<string, unknown>) =>
+      fieldsOf({ ...decrees(), models: { ...models, ...leagues, ...patch } });
+    expect(with_({})).toEqual([]);
+    expect(with_({ league_admit: { maxCities: 2 } })).toEqual([]);
+    for (const maxCities of [1, 6, 4.5])
+      expect(with_({ league_admit: { maxCities } })).toEqual([
+        'decrees.models.league_admit.maxCities',
+      ]);
+    expect(with_({ league_admit: {} })).toEqual(['decrees.models.league_admit.maxCities']);
+    expect(with_({ league_found: { name: 'Délos' } })).toEqual(['decrees.models.league_found']);
+  });
+
   it('biens d’une fête : connus de la configuration, chacun une fois, au moins un', () => {
     const models = decrees().models;
     const festival = models.festival;

@@ -153,6 +153,23 @@ describe('assemblée de la cité (#264)', () => {
     expect(screen.getByText(fr.assembly.noOpen)).toBeTruthy();
   });
 
+  it('décrets de ligue (#737) : la fondation nomme sa ligue, les autres disent leur objet', async () => {
+    state.views = {
+      houses,
+      decrees: [
+        decree('d1', 'adopted', 'league_found', { name: 'Ligue de Délos' }),
+        decree('d2', 'lapsed', 'league_admit', {
+          joinDecreeId: '01900000-0000-7000-8000-0000000000d9',
+        }),
+        decree('d3', 'proposed', 'league_leave', {}),
+      ],
+    };
+    await show();
+    expect(screen.getByText('Fonder la ligue « Ligue de Délos »')).toBeTruthy();
+    expect(screen.getByText(fr.assembly.models.league_admit)).toBeTruthy();
+    expect(screen.getByText(fr.assembly.models.league_leave)).toBeTruthy();
+  });
+
   it('un métèque voit les décrets au vote sans bouton, et l’écran dit pourquoi ; un refus est dit', async () => {
     state.views = {
       houses: [{ ...houses[0], citizenship_status: 'metic' }, houses[1]],

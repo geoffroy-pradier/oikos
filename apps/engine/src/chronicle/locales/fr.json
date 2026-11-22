@@ -21,7 +21,11 @@
     "market_tax_rate": "le décret sur la taxe de marché",
     "port_dues": "le décret sur les droits de port",
     "public_works": "le décret de grands travaux",
-    "festival": "le décret de fête"
+    "festival": "le décret de fête",
+    "league_found": "le décret de fondation d'une ligue",
+    "league_join": "la demande d'entrée dans une ligue",
+    "league_admit": "le décret d'admission dans la ligue",
+    "league_leave": "le décret de départ de la ligue"
   },
   "market": "Sur l'agora :",
   "good": "{{good}}, {{traded}} à {{average}} en moyenne (de {{low}} à {{high}}).",
