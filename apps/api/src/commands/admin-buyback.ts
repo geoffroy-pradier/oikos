@@ -19,7 +19,8 @@ const KIND = 'admin.good_buyback';
  * confondus : les ordres ouverts du bien sont annulés comme par `market.cancelOrder` (séquestre rendu,
  * réservation levée), puis chaque maison est payée de son stock au prix de référence, depuis le robinet
  * de son monde, et ce stock passe à l'extrémité système `good_buyback`. Rien n'est fait si l'état n'est
- * plus celui qu'Olympe a montré (`BUYBACK_CHANGED`).
+ * plus celui qu'Olympe a montré (`BUYBACK_CHANGED`), ni tant que du stock du bien est gagé par un prêt de banque non
+ * remboursé (`GOOD_PLEDGED`, #728).
  */
 export const adminBuyBackGood = defineCommand({
   name: 'admin.buyBackGood',
@@ -78,6 +79,20 @@ export const adminBuyBackGood = defineCommand({
     // Si c'est le rachat, il échoue sans rien écrire (`failed`, clé encore utilisable) et se relance. Les
     // lignes lues étant déjà verrouillées, ce qui est racheté reste cohérent dans tous les cas.
     await lockWorlds([...orders, ...stocks].map((row) => row.world_id));
+    // Un stock gagé par un prêt de banque non remboursé (#728) ne sort par aucun chemin, rachat compris : refus
+    // avant toute écriture. Lu sous les verrous des stocks, qu'un gage concurrent attend pour réserver le sien.
+    const pledged = await trx
+      .selectFrom('game.loans')
+      .innerJoin('game.bank_loan_offers', 'game.bank_loan_offers.id', 'game.loans.offer_id')
+      .select('game.loans.id')
+      .where('game.bank_loan_offers.collateral_good_id', '=', goodId)
+      .where('game.loans.status', '<>', 'repaid')
+      .executeTakeFirst();
+    if (pledged) {
+      const message =
+        'Some of this good secures bank loans: it is bought back once they are repaid.';
+      return { ok: false, error: { code: 'GOOD_PLEDGED', message } };
+    }
 
     const plan = planBuyback(
       unitPrice,

@@ -187,6 +187,8 @@ export const ADMIN_BUY_BACK_GOOD_ERROR_CODES = [
   'GOOD_NOT_FOUND',
   /** Les totaux ne sont plus ceux qu'Olympe a montrés (ordre, récolte, rachat déjà fait) : rien n'est fait. */
   'BUYBACK_CHANGED',
+  /** Du stock du bien garantit un prêt de banque non remboursé (#728) : rien n'est racheté avant le solde. */
+  'GOOD_PLEDGED',
 ] as const;
 
 /** Rachat d'une maison : un événement par maison concernée, même sans unité (ordre d'achat seul). */

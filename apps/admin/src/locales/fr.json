@@ -619,6 +619,7 @@
       "CONFIG_GOOD_IN_USE": "Cette version retire des biens encore détenus en stock ou portés par des ordres ouverts (détail sous la version). Gardez-les dans la configuration tant que des maisons les détiennent, ou rachetez leur stock sous la version (super-administrateur).",
       "CONFIG_RETIRED_UNCONFIRMED": "Cette version retire des recettes ou des classes de PNJ encore en usage (détail sous la version) : cochez la confirmation sous la version, puis programmez de nouveau.",
       "BUYBACK_CHANGED": "Les avoirs ont changé depuis l'affichage (ordre, récolte ou rachat déjà fait) : rien n'a été racheté. Relisez les totaux sous la version, puis confirmez de nouveau.",
+      "GOOD_PLEDGED": "Du stock de ce bien garantit des prêts de banque non remboursés : rien n'a été racheté. Le bien se rachète, et se retire, une fois ces prêts soldés.",
       "GOOD_NOT_FOUND": "La configuration en vigueur ne connaît plus ce bien : sans prix de référence, il ne se rachète pas."
     },
     "diffPending": "Différences avec la version en vigueur : lecture en cours…",

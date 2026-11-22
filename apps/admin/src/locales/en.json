@@ -619,6 +619,7 @@
       "CONFIG_GOOD_IN_USE": "This version retires goods still held in stock or carried by open orders (details under the version). Keep them in the configuration while houses hold them, or buy back their stock under the version (super administrator).",
       "CONFIG_RETIRED_UNCONFIRMED": "This version retires recipes or NPC classes still in use (details under the version): tick the confirmation under the version, then schedule again.",
       "BUYBACK_CHANGED": "Holdings changed since they were shown (order, harvest or buyback already done): nothing was bought back. Read the totals under the version again, then confirm again.",
+      "GOOD_PLEDGED": "Some stock of this good secures bank loans not yet repaid: nothing was bought back. The good can be bought back, and retired, once those loans are repaid.",
       "GOOD_NOT_FOUND": "The configuration in force no longer knows this good: without a reference price, it cannot be bought back."
     },
     "diffPending": "Differences from the version in force: loading…",
