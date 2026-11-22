@@ -726,6 +726,18 @@ Le banc à une cité joue les liturgies sans stratégie d'accomplissement : tout
   Décision : un armateur part quand sa soute est à moitié pleine ou après six heures d'attente, jamais pour avoir seulement fait ses achats.
   Après : 912 départs pour 71 466 unités (78 par départ), variation moyenne de +55 oboles par jour (de −137 à +435), le moins riche des dix armateurs finissant à 6 079 oboles ; coût du panier inchangé dans chaque cité, besoins vitaux couverts à 98,9 % au moins (le premier jour mesuré, 100 % ensuite), masse du monde à +16,4 % au lieu de +18,4 %, aucun site ni navire arrêté.
   Le banc borne désormais la variation moyenne de la trésorerie des armateurs : de zéro au moins sur les dix derniers jours mesurés.
+  Décision (#1058) : la borne porte sur la fortune de négoce de l'armateur, non sur sa seule trésorerie.
+  La fortune de négoce est sa trésorerie, plus sa marchandise de négoce au prix de référence (son stock dans les deux ports et sa cargaison en mer), hors la récolte de son site d'attache, qui ne se vend pas.
+  C'est une mesure plus juste du gain, non un relâchement : le seuil reste zéro, et la trésorerie reste publiée dans le rapport, à côté de la fortune.
+  La trésorerie seule mélange le gain et le moment des achats : à douze cités, elle variait de +21 à −13 oboles par jour selon la durée jouée, et de ±700 par jour pour un armateur selon le stock qu'il tenait le soir.
+  Un armateur qui a acheté avant la clôture a moins de monnaie et plus de marchandise, sans avoir rien perdu.
+  Le nouveau test ne laisse pas passer une perte réelle : un armateur qui ne gagne pas ses frais (environ 85 oboles par jour pour son navire et son site, et 60 de départs) voit sa fortune baisser.
+  Les autres bornes du banc, la couverture des besoins vitaux comprise, sont inchangées.
+  Mesure à douze cités avant : trésorerie de −13,1 oboles par jour en moyenne (run 44958652403, f9e02e7).
+  Cause mesurée : chaque armateur paie environ 85 oboles par jour de frais fixes et environ 60 de départs, la récolte de son site d'attache ne se vend pas, et sa marge de négoce est d'environ −42 par jour avec des départs à vide.
+  Correction du scénario du banc : l'armateur de sel d'Elaia vers Kallistè rejoint celui de vin de Kallistè vers Elaia, qui porte le sel au retour (un navire de moins, chargé dans les deux sens).
+  Le banc à quatre cités, sur 30 jours mesurés : fortune de négoce de +68 oboles par jour en moyenne (de −134 à +298), contre −27 à −38 sans attente de sept heures, le départ à vide interdit ou le scénario retouché ; couverture des besoins vitaux inchangée.
+  Essai écarté : vendre la récolte du site d'attache, sans effet sur la marge, et qui désarme un navire (`SHIP_LAID_UP`).
   Essais écartés, à quatre cités : un fret de 5 % sur les prix de vente (arrondis à l'obole, le blé et le sel n'y gagnent rien) enrichit les armateurs de pains, d'huile et de poisson, mais la couverture d'Ampélos tombe à 91,9 % au trente-cinquième jour ; 10 % de fret la font passer à 95,1 % en 20 jours ; une attente de 12 heures avec 5 % de fret, à 85,4 %.
   La demande des PNJ baisse avec le prix (5.2) : sans marge de couverture au-dessus de 98 %, l'armateur ne peut pas se payer par un fret plus cher.
   Limite connue : les armateurs de sel (Elaia vers Kallistè, Halos vers Ampélos) restent déficitaires, de 123 et 137 oboles par jour ; 175 oboles de marchandise par jour ne paient pas 80 oboles de frais fixes.

@@ -502,7 +502,9 @@ Voyages, dans la phase 2 (#252) :
 - Chaque joueur lit ses voyages et leur cargaison (vue `my_voyages`).
 - Décision (#1026) : les provisions et le droit de port sont des forfaits de départ, qui ne dépendent pas de la cargaison.
   Un départ presque à vide les paie autant qu'un départ plein : l'armateur y perd, et une cargaison de quelques unités ne les couvre pas.
-  Le banc des armateurs (5.5) ne fait donc partir un navire qu'à moitié plein ou après six heures d'attente.
+  Le banc des armateurs (5.5) ne fait donc partir un navire qu'à moitié plein ou après sept heures d'attente (six avant #1058 ; neuf et douze ont fait tomber la couverture de Halos sous 98 % le premier jour mesuré).
+  Décision (#1058) : passé ce délai, le navire du banc ne part pas à vide si l'autre bout attend une cargaison de lui, car ce départ paie les forfaits sans rien livrer.
+  Il ne part sur lest que si l'autre bout n'attend rien de lui, pour aller y chercher la sienne.
   Aucune règle du jeu ne change : le fret se fixe par les prix de l'armateur, et la demande des PNJ, qui baisse avec le prix (5.2), le borne à quelques points de pourcentage.
 
 Pertes en mer, dans la phase 3 (#730) :

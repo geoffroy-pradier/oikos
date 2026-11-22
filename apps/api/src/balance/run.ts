@@ -29,6 +29,7 @@ import {
   carrierStep,
   newVoyageCosts,
   shipUpkeepDue,
+  tradeStockValue,
   type Carrier,
 } from './carrier';
 import { countLevy, EVADE_EVERY, liturgyMorning, newLiturgies } from './liturgy';
@@ -165,6 +166,8 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
   let measuredFrom = new Date(0);
   /** Trésorerie de chaque armateur à la fin de chaque jour de jeu, dans l'ordre de `carriers` (mise en route comprise). */
   const carrierCash: number[][] = [];
+  /** Trésorerie et marchandise de négoce de chaque armateur à la fin de chaque jour de jeu (`tradeStockValue`, #1058). */
+  const carrierWorth: number[][] = [];
   /** Monnaie en circulation à la fin de la mise en route, par cité et pour le monde : la base des jours mesurés. */
   let supplyBefore: Record<string, number> = {};
   for (let day = 0; day < warmup + measuredDays; day++) {
@@ -246,6 +249,14 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     carrierCash.push(
       await Promise.all(carriers.map((carrier) => cash(carrier.home, carrier.houseId))),
     );
+    carrierWorth.push(
+      await Promise.all(
+        carriers.map(
+          async (carrier, index) =>
+            (carrierCash.at(-1)?.[index] ?? 0) + (await tradeStockValue(carrier)),
+        ),
+      ),
+    );
     if (day >= warmup) days.push(measure);
     if (day === warmup - 1) [measuredFrom, supplyBefore] = [at, measure.supply];
   }
@@ -303,6 +314,7 @@ export async function playWorld(bench: Bench, options: PlayOptions = {}) {
     houses: [...houses, ...npc.houses.values()],
     carriers,
     carrierCash,
+    carrierWorth,
     stewards,
     operations,
     npc,

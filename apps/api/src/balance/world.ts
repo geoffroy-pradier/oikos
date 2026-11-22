@@ -177,7 +177,7 @@ const FOUR_SETTLEMENTS: Record<string, Role[]> = {
  * chacune un caboteur et font la navette avec leur cité source. Vers leur cité, elles portent ce qu'elle ne produit pas ;
  * vers la source, ce que leur cité produit pour elle (le poisson d'Halos pour Elaia). Trois caboteurs pour chaque cité
  * importatrice, qui en demande près de 900 unités par jour, à quatre ou huit heures de mer ; un pour le vin d'Elaia
- * et d'Halos ; un pour le sel, d'Elaia vers Kallistè et d'Halos vers Ampélos (#714).
+ * et d'Halos ; un pour le sel d'Halos vers Ampélos (#714), celui d'Elaia vers Kallistè portant le sel au retour du vin (#1058).
  */
 export interface CarrierSpec {
   home: Slug;
@@ -203,9 +203,8 @@ const FOUR_CARRIERS: CarrierSpec[] = [
     toHome: ['wheat', 'bread', 'olive_oil'],
     toSource: ['fish'],
   },
-  { home: 'elaia', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
+  { home: 'elaia', source: 'kalliste', count: 1, toHome: ['wine'], toSource: ['salt'] },
   { home: 'halos', source: 'kalliste', count: 1, toHome: ['wine'], toSource: [] },
-  { home: 'kalliste', source: 'elaia', count: 1, toHome: ['salt'], toSource: [] },
   { home: 'ampelos', source: 'halos', count: 1, toHome: ['salt'], toSource: [] },
 ];
 export const CARRIER: Role = { name: 'armateur', count: 1, sites: [] };
