@@ -30,6 +30,7 @@ export function isQuietDay(facts: ChronicleFacts): boolean {
     facts.elections,
     facts.decrees,
     facts.worldEvents,
+    facts.leagues,
   ];
   return lists.every((list) => list.length === 0) && facts.otherGoods === 0 && !facts.configChange;
 }
@@ -95,6 +96,9 @@ function compose(locale: ChronicleLocale, facts: ChronicleFacts, context: Chroni
         for: number(votesFor ?? 0),
         against: number(votesAgainst ?? 0),
       }),
+    ),
+    ...facts.leagues.map(({ leagueName, change }) =>
+      render(locale, `league.${change}`, { league: leagueName }),
     ),
   ];
   const market = facts.goods.map((row) =>

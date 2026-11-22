@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createConfigLoader, ensureInitialConfig, INITIAL_CONFIG } from '@oikos/config';
 import { createDb, serviceRoleUrl } from '@oikos/db';
 import { dailyCloseAt } from '@oikos/sim';
@@ -84,6 +85,51 @@ describe('journée d’une chronique (#271)', () => {
       { model: 'storm', cityId: 'kalliste', otherCityId: 'elaia', goodId: null },
     ]);
     expect(day.population('kalliste')).toBeNull();
+  });
+
+  it('ligues (#737) : fondation, entrée, départ et dissolution, chacun dans la chronique de sa cité', async () => {
+    const { worldId, cities, ids } = await chronicleWorld(owner, versionId);
+    const [leagueId, decreeId] = [randomUUID(), randomUUID()];
+    const league = { leagueId, name: 'Ligue de Délos', decreeId };
+    const left = { ...league, hegemonCityId: null, dissolved: true };
+    const at = new Date(CLOSE.getTime() + 3000);
+    await owner
+      .insertInto('game.domain_events')
+      .values(
+        [
+          ['LeagueFounded', { ...league, cityId: ids.kalliste }],
+          [
+            'LeagueJoined',
+            {
+              ...league,
+              cityId: ids.elaia,
+              requestDecreeId: decreeId,
+              hegemonCityId: ids.kalliste,
+            },
+          ],
+          ['LeagueLeft', { ...left, cityId: ids.kalliste, reason: 'left' }],
+          ['LeagueLeft', { ...left, cityId: ids.elaia, reason: 'dissolved' }],
+        ].map(([type, payload]) => ({
+          type: type as string,
+          payload: JSON.stringify(payload),
+          created_at: at,
+        })),
+      )
+      .execute();
+    const day = await readChronicleDay(db, worldId, closeOf(versionId), cities, initial.clock);
+    expect(day.events.filter((event) => event.type === 'league')).toEqual(
+      [
+        ['kalliste', 'founded'],
+        ['elaia', 'joined'],
+        ['kalliste', 'leftDissolved'],
+        ['elaia', 'dissolved'],
+      ].map(([cityId, change]) => ({
+        type: 'league',
+        cityId,
+        leagueName: 'Ligue de Délos',
+        change,
+      })),
+    );
   });
 
   it('la population vient du journal de la clôture, sommée par cité ; un journal illisible n’en dit rien', async () => {
