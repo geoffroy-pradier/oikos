@@ -21,7 +21,11 @@
     "market_tax_rate": "the market tax decree",
     "port_dues": "the port dues decree",
     "public_works": "the public works decree",
-    "festival": "the festival decree"
+    "festival": "the festival decree",
+    "league_found": "the decree founding a league",
+    "league_join": "the request to join a league",
+    "league_admit": "the decree admitting a city into the league",
+    "league_leave": "the decree leaving the league"
   },
   "market": "In the agora:",
   "good": "{{good}}, {{traded}} at {{average}} on average (from {{low}} to {{high}}).",

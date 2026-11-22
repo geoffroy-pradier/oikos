@@ -68,6 +68,12 @@ export function useDescribeDecree() {
         });
       case 'ostracism':
         return t('assembly.models.ostracism');
+      case 'league_found':
+        return t('assembly.models.league_found', { name: proposal.params.name });
+      case 'league_join':
+      case 'league_admit':
+      case 'league_leave':
+        return t(`assembly.models.${proposal.model}`);
     }
   };
 }
