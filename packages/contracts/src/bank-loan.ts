@@ -116,7 +116,7 @@ export const LOAN_ACCEPT_OFFER_ERROR_CODES = [
   'DISHONORED',
   /** Le coffre, moins le principal, passerait sous la réserve exigée ; le message donne ce que la banque peut prêter. */
   'RESERVE_SHORT',
-  /** La garantie n'est pas libre : stock libre insuffisant, logement d'une autre maison, offert ou déjà gagé. */
+  /** La garantie n'est pas libre : stock libre insuffisant, logement d'une autre maison, offert, déjà gagé ou loué à la banque. */
   'COLLATERAL_NOT_FREE',
 ] as const;
 export type LoanAcceptOfferErrorCode = (typeof LOAN_ACCEPT_OFFER_ERROR_CODES)[number];

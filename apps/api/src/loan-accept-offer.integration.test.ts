@@ -23,6 +23,7 @@ import {
   give,
   GRANT,
   KALLISTE,
+  lease,
   newOwner,
   newPlayer,
   owner,
@@ -100,6 +101,21 @@ describe('loan.acceptOffer', () => {
     expect(codeOf(await accept(stranger.user, theirs, { collateral, principal: 100 }))).toBe(
       'COLLATERAL_NOT_FREE',
     );
+  });
+
+  it('un logement loué à la maison de la banque ne la garantit pas (#729) : saisi, elle se le louerait', async () => {
+    const bank = await newBank();
+    const borrower = await newOwner(KALLISTE);
+    const { propertyId } = borrower;
+    const offerLease = { propertyId, rentOboles: 5 };
+    expect((await send(borrower.user, 'property.offerLease', offerLease)).status).toBe(200);
+    expect((await lease(bank.user, propertyId, 5)).status).toBe(200);
+    const collateral = { kind: 'property', propertyId };
+    const offerId = await offered(bank.user, borrower.houseId, { collateral });
+    expect(codeOf(await accept(borrower.user, offerId, { collateral }))).toBe(
+      'COLLATERAL_NOT_FREE',
+    );
+    expect([await statusOf(offerId), await vaultOf(bank.bankId)]).toEqual(['open', 5_000]);
   });
 
   it('refusée sans rien bouger : offre d’une autre, conditions changées, banques fermées, garantie, déshonneur', async () => {
