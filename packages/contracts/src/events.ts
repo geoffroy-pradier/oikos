@@ -15,7 +15,12 @@ import {
   bankRatesSetSchema,
   bankWithdrawnSchema,
 } from './bank';
-import { loanOfferAcceptedSchema, loanOfferedSchema, loanOfferWithdrawnSchema } from './bank-loan';
+import {
+  collateralSeizedSchema,
+  loanOfferAcceptedSchema,
+  loanOfferedSchema,
+  loanOfferWithdrawnSchema,
+} from './bank-loan';
 import { directChannelOpenedSchema, messagePostedSchema } from './chat';
 import {
   archonElectedSchema,
@@ -226,6 +231,7 @@ export const domainEventSchema = z.discriminatedUnion('type', [
   loanOfferedSchema,
   loanOfferWithdrawnSchema,
   loanOfferAcceptedSchema,
+  collateralSeizedSchema,
   voyageDepartedSchema,
   voyageArrivedSchema,
   cargoLostAtSeaSchema,

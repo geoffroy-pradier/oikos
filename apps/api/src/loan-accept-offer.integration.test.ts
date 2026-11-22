@@ -11,6 +11,7 @@ import {
   loanOf,
   newBank,
   offered,
+  RULES,
   statusOf,
   vaultOf,
   withBanks,
@@ -23,11 +24,13 @@ import {
   give,
   GRANT,
   KALLISTE,
+  lease,
   newOwner,
   newPlayer,
   owner,
   send,
 } from './property.integration-fixtures';
+import { appWithConfig } from './voyage.integration-fixtures';
 
 // Acceptation d'une offre de prêt gagé (#728), contre Supabase local ; règles des banques dans les fixtures. La base
 // date le prêt à l'horloge de sa configuration en vigueur : celle de la configuration initiale.
@@ -102,6 +105,21 @@ describe('loan.acceptOffer', () => {
     );
   });
 
+  it('un logement loué à la maison de la banque ne la garantit pas (#729) : saisi, elle se le louerait', async () => {
+    const bank = await newBank();
+    const borrower = await newOwner(KALLISTE);
+    const { propertyId } = borrower;
+    const offerLease = { propertyId, rentOboles: 5 };
+    expect((await send(borrower.user, 'property.offerLease', offerLease)).status).toBe(200);
+    expect((await lease(bank.user, propertyId, 5)).status).toBe(200);
+    const collateral = { kind: 'property', propertyId };
+    const offerId = await offered(bank.user, borrower.houseId, { collateral });
+    expect(codeOf(await accept(borrower.user, offerId, { collateral }))).toBe(
+      'COLLATERAL_NOT_FREE',
+    );
+    expect([await statusOf(offerId), await vaultOf(bank.bankId)]).toEqual(['open', 5_000]);
+  });
+
   it('refusée sans rien bouger : offre d’une autre, conditions changées, banques fermées, garantie, déshonneur', async () => {
     const bank = await newBank();
     const borrower = await newBorrower();
@@ -148,6 +166,37 @@ describe('loan.acceptOffer', () => {
       await heldOf(borrower.houseId),
       await statusOf(offerId),
     ]).toEqual([5_000, GRANT + 100, '50/0', 'open']);
+  });
+
+  it('un prêt de banque saisi (#729) marque son emprunteur, qui n’emprunte plus', async () => {
+    const bank = await newBank();
+    const borrower = await newBorrower();
+    const first = await offered(bank.user, borrower.houseId, { principal: 100 });
+    const loanId = (await accept(borrower.user, first, { principal: 100 })).body.data
+      .loanId as string;
+    // État que laisse la saisie (migration 0600), posé gardes levées : échu il y a 3 jours, en défaut et soldé aujourd'hui,
+    // sans aucun remboursement ; seule la saisie dit le jour du solde.
+    const today = gameDayAt(new Date(), clock);
+    await owner.transaction().execute(async (trx) => {
+      await sql`set local session_replication_role = replica`.execute(trx);
+      await sql`update game.loans set borrowed_day = borrowed_day - 33, due_day = due_day - 33,
+          due_at = ${dailyCloseAt(today - 3, clock)}, created_at = created_at - interval '34 days', status = 'repaid',
+          defaulted_day = ${today}, written_off = outstanding, outstanding = 0
+        where id = ${loanId}`.execute(trx);
+    });
+    const second = await offered(bank.user, borrower.houseId);
+    // Marque de 28 jours après le solde : la règle de la configuration initiale.
+    const marked = appWithConfig((config) => ({
+      ...config,
+      banks: RULES,
+      templeTreasury: { policyRateBps: 0, termDays: [7], principalCaps: [], dishonorDays: 28 },
+    }));
+    const refused = await accept(borrower.user, second, {}, undefined, marked);
+    expect(codeOf(refused)).toBe('DISHONORED');
+    expect(refused.body.error?.message).toBe(
+      `This house is dishonored until game day ${today + 28}.`,
+    );
+    expect(await statusOf(second)).toBe('open');
   });
 
   it('la réserve exigée borne le prêt, à l’obole près, dépôts compris', async () => {

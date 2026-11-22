@@ -218,6 +218,8 @@ export interface GameDatabase {
     grace_use_id?: string | null;
     /** Présage de Némésis d'un mouvement vers l'extrémité `nemesis` (7.2, #735) ; nul pour tout autre. */
     nemesis_id?: string | null;
+    /** Saisie d'un mouvement `bank.loan_seize` (5.4, #729), écrit par la base seule ; nul pour tout autre. */
+    loan_seizure_id?: string | null;
     created_at: Generated<Date>;
   };
   /** Offrandes (7.1, #265) : écrites une fois par `temple.makeOffering`, immuables (garde de la base). */
@@ -903,6 +905,21 @@ export interface GameDatabase {
     /** Prêt de banque (#728) : sa banque et l'offre acceptée, que la base ferme ; nuls pour le temple. */
     bank_id: ColumnType<string | null, string | undefined, never>;
     offer_id: ColumnType<string | null, string | undefined, never>;
+    /** Reste dû remis par la saisie de sa garantie (#729), que la base écrit ; nul pour tout autre prêt. */
+    written_off: ColumnType<string, never, never>;
+    created_at: ColumnType<Date, never, never>;
+  };
+  /**
+   * Saisies de la garantie d'un prêt de banque (#729), en ajout seul, une par prêt, par la clôture de leur jour : la base
+   * y pose l'emprunteur et la maison de la banque, fait passer le prêt en défaut, le solde et remet la garantie.
+   */
+  'game.loan_seizures': {
+    id: ColumnType<string, never, never>;
+    world_id: ColumnType<string, string, never>;
+    loan_id: ColumnType<string, string, never>;
+    game_day: ColumnType<number, number, never>;
+    borrower_house_id: ColumnType<string, never, never>;
+    bank_house_id: ColumnType<string, never, never>;
     created_at: ColumnType<Date, never, never>;
   };
   /**

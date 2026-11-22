@@ -42,8 +42,9 @@ export const systemAccount = (trx: Db, worldId: string, key: string) =>
 
 /**
  * Prêts d'une maison encore dus, ou soldés après un défaut, et sa marque de déshonneur au jour `gameDay` (#725) : ceux-ci
- * marquent encore `dishonorDays` jours après leur solde, le jour de leur dernier remboursement. Partagé par
- * `loan.acceptOffer` (#728), puisque la marque refuse tout nouvel emprunt.
+ * marquent encore `dishonorDays` jours après leur solde, le jour de leur dernier remboursement ou, pour un prêt de banque
+ * saisi (#729), celui de sa saisie, jour de son défaut. Partagé par `loan.acceptOffer` (#728), puisque la marque refuse
+ * tout nouvel emprunt.
  */
 export async function houseDishonor(
   trx: Db,
@@ -57,9 +58,8 @@ export async function houseDishonor(
     .select(
       sql<
         number | null
-      >`(select max(r.game_day) from game.loan_repayments r where r.loan_id = game.loans.id)`.as(
-        'repaid_day',
-      ),
+      >`greatest((select max(r.game_day) from game.loan_repayments r where r.loan_id = game.loans.id),
+        case when game.loans.written_off > 0 then game.loans.defaulted_day end)`.as('repaid_day'),
     )
     .where('borrower_house_id', '=', houseId)
     .where((eb) => eb.or([eb('status', '<>', 'repaid'), eb('defaulted_day', 'is not', null)]))

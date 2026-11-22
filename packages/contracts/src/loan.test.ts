@@ -106,11 +106,17 @@ describe('prêts du temple (#724)', () => {
       },
     };
     expect(domainEventSchema.parse(defaulted)).toEqual(defaulted);
+    // Un prêt de banque passe en défaut avec sa saisie (#729).
+    const bankDefault = {
+      ...defaulted,
+      payload: { ...defaulted.payload, lender: 'bank' as const },
+    };
+    expect(domainEventSchema.parse(bankDefault)).toEqual(bankDefault);
     for (const patch of [
       { outstanding: 0 },
       { honorLost: -1 },
       { gameDay: -1 },
-      { lender: 'bank' },
+      { lender: 'guild' },
     ])
       expect(
         domainEventSchema.safeParse({ ...defaulted, payload: { ...defaulted.payload, ...patch } })

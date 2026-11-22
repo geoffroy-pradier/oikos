@@ -23,10 +23,16 @@ const SHORT = { code: 'RESERVE_SHORT', message: 'This bank may not lend so much.
 
 /**
  * La garantie est libre : un stock libre de la maison dans sa cité (hors réservations des ventes en attente et des autres
- * gages) qui la couvre, ou un logement de la maison sans offre ouverte ni autre prêt qui le gage. La base le revérifie
+ * gages) qui la couvre, ou un logement de la maison sans offre ouverte ni autre prêt qui le gage, qui n'est pas loué à la
+ * maison de la banque (#729 : saisi, elle se louerait son propre bien). La base le revérifie
  * (`pledge_bank_loan_collateral`) et fait foi sous concurrence.
  */
-async function collateralFree(trx: Db, houseId: string, collateral: LoanCollateral) {
+async function collateralFree(
+  trx: Db,
+  houseId: string,
+  bankId: string,
+  collateral: LoanCollateral,
+) {
   if (collateral.kind === 'stock') {
     const stock = await trx
       .selectFrom('game.inventories')
@@ -41,7 +47,9 @@ async function collateralFree(trx: Db, houseId: string, collateral: LoanCollater
     select p.owner_house_id = ${houseId}::uuid
        and not exists (select 1 from game.property_listings l where l.property_id = p.id and l.closed_at is null)
        and not exists (select 1 from game.loans o join game.bank_loan_offers f on f.id = o.offer_id
-                       where f.collateral_property_id = p.id and o.status <> 'repaid') as free
+                       where f.collateral_property_id = p.id and o.status <> 'repaid')
+       and not exists (select 1 from game.leases l join game.banks b on b.id = ${bankId}::uuid
+                       where l.property_id = p.id and l.ended_at is null and l.tenant_house_id = b.house_id) as free
     from game.properties p where p.id = ${collateral.propertyId}::uuid`.execute(trx);
   return free.rows[0]?.free === true;
 }
@@ -128,7 +136,7 @@ export const loanAcceptOffer = defineCommand({
     );
     if (BigInt(input.principal) > lendable)
       return refuse(SHORT.code, `This bank may lend at most ${lendable} oboles.`);
-    if (!(await collateralFree(trx, house.id, input.collateral)))
+    if (!(await collateralFree(trx, house.id, offer.bank_id, input.collateral)))
       return refuse(NOT_FREE.code, NOT_FREE.message);
 
     const interest = loanInterest(BigInt(input.principal), input.rateBps, input.termDays);

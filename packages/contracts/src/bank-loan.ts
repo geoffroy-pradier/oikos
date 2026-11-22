@@ -116,7 +116,7 @@ export const LOAN_ACCEPT_OFFER_ERROR_CODES = [
   'DISHONORED',
   /** Le coffre, moins le principal, passerait sous la réserve exigée ; le message donne ce que la banque peut prêter. */
   'RESERVE_SHORT',
-  /** La garantie n'est pas libre : stock libre insuffisant, logement d'une autre maison, offert ou déjà gagé. */
+  /** La garantie n'est pas libre : stock libre insuffisant, logement d'une autre maison, offert, déjà gagé ou loué à la banque. */
   'COLLATERAL_NOT_FREE',
 ] as const;
 export type LoanAcceptOfferErrorCode = (typeof LOAN_ACCEPT_OFFER_ERROR_CODES)[number];
@@ -137,4 +137,23 @@ export const loanOfferWithdrawnSchema = z.strictObject({
 export const loanOfferAcceptedSchema = z.strictObject({
   type: z.literal('LoanOfferAccepted'),
   payload: z.strictObject({ ...accepted, collateral: loanCollateralSchema, houseId: z.uuid() }),
+});
+
+/**
+ * La clôture a saisi la garantie d'un prêt de banque que le prélèvement de l'échéance ne soldait pas (#729) : le stock
+ * gagé ou le logement, avec son bail en cours, passe de l'emprunteur (`houseId`) à la maison de la banque
+ * (`bankHouseId`), et la saisie solde le prêt, son reste dû (`writtenOff`) remis quelle que soit la valeur de la
+ * garantie ; jour de jeu de la clôture. Lu par le seul serveur.
+ */
+export const collateralSeizedSchema = z.strictObject({
+  type: z.literal('CollateralSeized'),
+  payload: z.strictObject({
+    loanId: z.uuid(),
+    bankId: z.uuid(),
+    houseId: z.uuid(),
+    bankHouseId: z.uuid(),
+    collateral: loanCollateralSchema,
+    writtenOff: positive,
+    gameDay: z.number().int().nonnegative(),
+  }),
 });

@@ -88,4 +88,26 @@ describe('prêts gagés des banques (#728)', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('CollateralSeized nomme les deux maisons, la garantie et le reste dû remis (#729)', () => {
+    const seized = {
+      type: 'CollateralSeized' as const,
+      payload: {
+        loanId: '01900000-0000-7000-8000-0000000728f9',
+        bankId: '01900000-0000-7000-8000-0000000728a9',
+        houseId: borrowerHouseId,
+        bankHouseId: '01900000-0000-7000-8000-0000000728a8',
+        collateral: stock,
+        writtenOff: 710,
+        gameDay: 20_100,
+      },
+    };
+    expect(domainEventSchema.parse(seized)).toEqual(seized);
+    for (const patch of [{ writtenOff: 0 }, { collateral: { kind: 'site' } }, { gameDay: -1 }])
+      expect(
+        domainEventSchema.safeParse({ ...seized, payload: { ...seized.payload, ...patch } })
+          .success,
+        JSON.stringify(patch),
+      ).toBe(false);
+  });
 });

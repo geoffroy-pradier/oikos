@@ -110,14 +110,15 @@ export const loanCollectedSchema = z.strictObject({
 
 /**
  * Un prêt non soldé à son échéance est passé en défaut (#725) : ce qui reste dû, la Timè perdue (positive, nulle sans
- * perte) et le jour de jeu de la clôture. La maison porte une marque de déshonneur. Lu par le seul serveur.
+ * perte) et le jour de jeu de la clôture. La maison porte une marque de déshonneur. Un prêt de banque (#729) ne passe en
+ * défaut qu'avec la saisie de sa garantie (`CollateralSeized`), qui le solde aussitôt. Lu par le seul serveur.
  */
 export const loanDefaultedSchema = z.strictObject({
   type: z.literal('LoanDefaulted'),
   payload: z.strictObject({
     loanId: z.uuid(),
     houseId: z.uuid(),
-    lender: z.literal('temple'),
+    lender: z.enum(['temple', 'bank']),
     outstanding: oboles,
     honorLost: owed,
     gameDay: day,

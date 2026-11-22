@@ -1,10 +1,10 @@
 begin;
-select plan(56);
+select plan(60);
 
 -- Jeu d'essai : un monde à lui, deux cités, Pella et Dion. Alice (a) tient la banque, 20 000 oboles au coffre et 100 en
 -- trésorerie ; Bob (b), 100 olives à Pella dont 10 offertes à la vente, et Chloé (c), 20 olives à Pella, empruntent sur
 -- leurs olives ; Démétrios (d) emprunte sur l'un de ses deux logements de Pella, loués à Chloé et à Alice. Configuration :
--- l'horloge.
+-- l'horloge, et une marque de déshonneur de 28 jours.
 insert into game.worlds (id, slug, name) values ('01900000-0000-7000-8000-0000000729f1', 'saisies-729', 'Saisies');
 insert into game.cities (id, world_id, slug, name) values
   ('01900000-0000-7000-8000-0000000729c2', '01900000-0000-7000-8000-0000000729f1', 'p729', 'Pella'),
@@ -20,7 +20,8 @@ select id, '01900000-0000-7000-8000-0000000729c2' from game.houses where world_i
 insert into game.accounts (world_id, kind, house_id)
 select world_id, 'house', id from game.houses where world_id = '01900000-0000-7000-8000-0000000729f1';
 insert into config.versions (id, payload) values ('00000000-0000-7000-8000-00000000c729',
-  '{"clock": {"tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7}}');
+  '{"clock": {"tickMinutes": 10, "dailyCloseHour": 4, "timezone": "Europe/Paris", "seasonDays": 7},
+    "templeTreasury": {"policyRateBps": 0, "termDays": [30], "principalCaps": [], "dishonorDays": 28}}');
 insert into config.activations (version_id, activate_at) values ('00000000-0000-7000-8000-00000000c729', now());
 insert into game.banks (world_id, city_id, house_id, name, deposit_rate_bps, loan_rate_bps, charter_fee)
 values ('01900000-0000-7000-8000-0000000729f1', '01900000-0000-7000-8000-0000000729c2', '00000000-0000-7000-8000-0000000729a2',
@@ -276,7 +277,31 @@ select throws_ok($$update game.properties set owner_house_id = pg_temp.house('c'
 select throws_ok($$update game.leases set landlord_house_id = pg_temp.house('c') where property_id = pg_temp.property(1)$$,
   '23001', 'a lease changes landlord only with the seizure of its property', 'ni son bail');
 
--- 4. Lectures : aucun joueur, ni l'emprunteur ni la banque, ne lit ni n'écrit une saisie.
+-- 4. Timè perdue et marque de déshonneur : un prêt saisi est en défaut et soldé le jour de sa saisie.
+create function pg_temp.honor(n text, p_day int = null) returns void language sql as $$
+  select pg_temp.as_service(format('insert into game.honor_ledger (world_id, house_id, amount, reason, reference, game_day)
+    values (%L, %L, -40, ''loan_defaulted'', %L, %s)', '01900000-0000-7000-8000-0000000729f1', pg_temp.house(n),
+    (pg_temp.loan(n)).id, coalesce(p_day, pg_temp.today())))
+$$;
+select lives_ok($$select pg_temp.honor('b')$$, 'Bob perd la Timè d''un défaut le jour de la saisie');
+select throws_ok($$select pg_temp.honor('d', pg_temp.today() + 1)$$, '23001',
+  'a defaulted loan is charged to its borrower the day it defaults', 'pas un autre jour');
+select throws_ok($$select pg_temp.honor('c')$$, '23001', 'a defaulted loan is charged to its borrower the day it defaults',
+  'ni pour un prêt en cours');
+-- Marques lues par Chloé (`house_honor`) : maison, jours restants à compter de `today`.
+create function pg_temp.marks(today int) returns text language plpgsql as $$
+declare marks text;
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-4000-8000-0000000729bc')::text, true);
+  perform set_config('role', 'authenticated', true);
+  select string_agg(right(house_id::text, 2) || ':' || (dishonored_until_day - today), ' ' order by house_id) into marks
+  from public.house_honor where dishonored;
+  perform set_config('role', 'none', true);
+  return marks;
+end $$;
+select is(pg_temp.marks(pg_temp.today()), 'b2:28 d2:28', 'Bob et Démétrios, saisis, sont marqués 28 jours après la saisie');
+
+-- 5. Lectures : aucun joueur, ni l'emprunteur ni la banque, ne lit ni n'écrit une saisie.
 select throws_ok($$select pg_temp.as_player('b', 'select count(*) from game.loan_seizures')$$, '42501', null,
   'l''emprunteur ne lit pas les saisies');
 select throws_ok($$select pg_temp.as_player('c', 'select count(*) from game.loan_seizures')$$, '42501', null,
@@ -285,7 +310,7 @@ select throws_ok($$select pg_temp.as_player('a', format('insert into game.loan_s
   values (%L, %L, %s)', '01900000-0000-7000-8000-0000000729f1', (pg_temp.loan('c')).id, pg_temp.today()))$$, '42501', null,
   'ni la maison de la banque n''en écrit');
 
--- 5. La clôture du jour enregistrée, la saisie valide avec elle ; ensuite, plus de saisie pour ce jour.
+-- 6. La clôture du jour enregistrée, la saisie valide avec elle ; ensuite, plus de saisie pour ce jour.
 select pg_temp.as_service(format('insert into game.daily_closes (world_id, game_day, close_at, config_version_id)
   values (%L, %s, %L, %L)', '01900000-0000-7000-8000-0000000729f1', pg_temp.today(), pg_temp.close_at(pg_temp.today()),
   '00000000-0000-7000-8000-00000000c729'));
@@ -295,7 +320,7 @@ select throws_ok($$select pg_temp.seize('c')$$, '23001', 'a bank loan is seized 
   'une clôture enregistrée ne saisit plus');
 select is(pg_temp.olives('c'), '20/20', 'le stock de Chloé reste gagé');
 
--- 6. Un échange de l'agora livre une fois, du vendeur à l'acheteur de son écriture.
+-- 7. Un échange de l'agora livre une fois, du vendeur à l'acheteur de son écriture.
 create temporary table trade_entry as select pg_temp.entry('market.trade', pg_temp.treasury('a'), pg_temp.treasury('b'), 35) as id;
 insert into game.orders (world_id, city_id, house_id, good_id, side, price, quantity, remaining)
 values ('01900000-0000-7000-8000-0000000729f1', '01900000-0000-7000-8000-0000000729c2', pg_temp.house('a'), 'olives', 'buy',
@@ -339,7 +364,7 @@ select lives_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory(
 select throws_ok($$select pg_temp.move(pg_temp.inventory('b'), pg_temp.inventory('a'), 5, 'market.trade',
   (select id from trade_entry))$$, '23505', null, 'une fois');
 
--- 7. Une saisie ne remet que de l'emprunteur à la maison de la banque, et dans sa transaction. Le logement de Démétrios
+-- 8. Une saisie ne remet que de l'emprunteur à la maison de la banque, et dans sa transaction. Le logement de Démétrios
 -- lui revient et le gage de Chloé passe sur son logement 2, loué à Alice, gardes levées.
 set local session_replication_role = replica;
 update game.properties set owner_house_id = pg_temp.house('d') where id = pg_temp.property(1);
